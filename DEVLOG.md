@@ -9,6 +9,35 @@
 
 ## 2026-06-04
 
+### 本机真实测试密钥落地
+
+目标:
+
+- 将用户提供的 GRSAI 和 ToAPIs 测试 Key 放入 2.0 本机环境文件，方便后续 POC 直接读取。
+
+变更范围:
+
+- 新建 `.env.local`，写入 GRSAI 与 ToAPIs 的本机测试环境变量。
+- 验证 `.env.local` 被 `.gitignore` 忽略。
+- 文档和 Git 提交中不记录真实 Key 值。
+
+验证证据:
+
+- `git check-ignore -v .env.local` 确认 `.env.local` 命中忽略规则。
+
+影响:
+
+- 后续本机开发和 POC 可以从 `.env.local` 读取 `GRSAI_API_KEY`、`TOAPIS_API_KEY` 等变量。
+- Git 仓库不会追踪 `.env.local`。
+
+风险:
+
+- 若后续手动强制添加被忽略文件，仍可能造成密钥泄露；提交前必须继续做密钥扫描。
+
+下一步:
+
+- 进入候选基底评估和 POC 准备。
+
 ### Git 仓库初始化与密钥忽略规则补充
 
 目标:

@@ -2,6 +2,10 @@
 
 ## 2026-06-04
 
+- 本机真实测试密钥落地：
+  - 新建被忽略的 `.env.local`，用于保存 GRSAI 和 ToAPIs 测试 Key。
+  - 验证 `.env.local` 命中 `.gitignore`，不会被普通 Git 提交追踪。
+  - 文档与 Git 提交不记录真实 Key 值。
 - 初始化 Git 前的密钥治理补充：
   - 更新 `.gitignore` 中文注释，明确 `.env` 和 `.env.*` 为本机密钥文件。
   - 新增 `config/secrets-placement.md`，记录 GRSAI 和 ToAPIs 测试密钥的环境变量名与安全放置方式。
