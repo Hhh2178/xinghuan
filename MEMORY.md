@@ -61,6 +61,7 @@
 - 2.0 尚未决定是否复用上述域名；上线前需要重新规划灰度和正式域名。
 - 不要修改内部代理服务和端口。
 - `2026-06-04` 服务器快照见 `ops/server-state-2026-06-04.md`：根分区 `59G`，已用 `46G`，可用 `11G`，使用率 `81%`；旧灰度项目 `/opt/apps/canvas-enterprise-next` 约 `23G`，当前 release 为 `5148170`，Web/worker/Redis/Nginx/内部代理均为 `active`。
+- `2026-06-04` 域名映射快照见 `ops/domain-map-2026-06-04.md`：`hhh2121.xyz`、`canvas.hhh2121.xyz`、`canvas-next.hhh2121.xyz` 均解析到 `101.33.75.38`；权威 DNS 为 Cloudflare；当前只有 `canvas-next.hhh2121.xyz` 通过 Nginx 映射到旧无限画布灰度服务 `127.0.0.1:18200`。
 
 ## 当前阶段
 
