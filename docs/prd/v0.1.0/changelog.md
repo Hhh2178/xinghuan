@@ -6,6 +6,7 @@
   - 更新 `.gitignore` 中文注释，明确 `.env` 和 `.env.*` 为本机密钥文件。
   - 新增 `config/secrets-placement.md`，记录 GRSAI 和 ToAPIs 测试密钥的环境变量名与安全放置方式。
   - 真实 Key 不写入 Markdown 文档，不进入 Git。
+  - 初始化 Git 仓库，初始提交 `5f1dc08 docs: initialize infinite canvas 2 project`。
 - 补充测试服务商与服务器状态：
   - 新增 `config/.env.local.example`。
   - 新增 `config/provider-test-matrix.md`，记录 GRSAI `gpt-image-2` 和 ToAPIs Grok Video 的文档地址、模型、环境变量名和验收重点。

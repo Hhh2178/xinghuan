@@ -24,7 +24,11 @@
 
 验证证据:
 
-- 待 Git 初始化后补充提交信息。
+- Git 仓库已初始化。
+- 本仓库本地提交身份设置为 `Codex <codex@local>`，不影响全局 Git 配置。
+- 初始提交：`5f1dc08 docs: initialize infinite canvas 2 project`。
+- `.env`、`.env.local`、`config/.env.local` 已验证会被 `.gitignore` 忽略。
+- 提交前密钥扫描无命中。
 
 影响:
 
@@ -37,7 +41,8 @@
 
 下一步:
 
-- 初始化 Git 仓库并提交当前非密钥文件。
+- 建立候选基底评估表。
+- 创建后续 POC 分支或工作区。
 
 ### 测试服务商与服务器状态记录
 
