@@ -66,64 +66,40 @@ HTTP 验证：
 - 旧无限画布 Web/worker/Nginx 入口已从服务器运行态摘除。
 - Hermes、主域名 health、内部代理端口未受影响。
 
-## 仍保留的旧目录
+## 旧目录最终删除
 
-旧项目文件目录仍保留：
+用户随后明确授权对旧项目目录执行递归删除。本次只删除以下精确路径：
 
 - `/opt/apps/canvas-enterprise-next`
 
-当前占用：
+删除前占用：
 
 - 约 `23G`
 
-目录摘要：
+删除前已再次验证：
 
-- `/opt/apps/canvas-enterprise-next/runtime`
-- `/opt/apps/canvas-enterprise-next/releases`
-- `/opt/apps/canvas-enterprise-next/current`
+- `readlink -f /opt/apps/canvas-enterprise-next` 精确等于 `/opt/apps/canvas-enterprise-next`。
+- `canvas-enterprise-next.service` 为 `inactive`。
+- `canvas-enterprise-worker.service` 为 `inactive`。
+- Nginx 中旧 `canvas-enterprise-next.conf` 启用入口和可用配置均不存在。
+- `127.0.0.1:18200` 未占用。
 
-release 目录包括：
+执行结果：
 
-- `a123441`
-- `4b4ed5c`
-- `354c47c`
-- `1eb6f78`
-- `5125748`
-- `cc91512`
-- `bc49c66`
-- `735ac78`
-- `8234750`
-- `43f0ac2`
-- `fbcca4a`
-- `5148170`
-- `45643bd`
-- `ef756b8`
-- `ff1e3a0`
-- `132f1a5`
-- `e578e96`
-- `c3b0757`
-- `51e3c25`
-- `475e47e`
-- `e350602`
+- `/opt/apps/canvas-enterprise-next` 已不存在。
+- 根分区从约 `59G / 46G used / 11G avail / 81%` 变为 `59G / 24G used / 33G avail / 42%`。
 
-## 为什么未删除目录
+删除后复验：
 
-项目根规则禁止批量删除文件或目录，并明确禁止递归删除命令，例如 `rm -rf`、`Remove-Item -Recurse` 等。
+- `nginx`：`active`
+- `redis-server.service`：`active`
+- `internal-proxy-ss.service`：`active`
+- `internal-proxy-subscription.service`：`active`
+- `https://hhh2121.xyz/healthz`：`ok`
+- `https://canvas-next.hhh2121.xyz/`：`404`
+- `https://hermes.hhh2121.xyz/`：`302`
+- `127.0.0.1:18200`：未监听
 
-释放 `/opt/apps/canvas-enterprise-next` 的 `23G` 空间需要递归删除目录，因此本次未执行目录删除。
+## 最终结论
 
-## 后续释放空间建议
-
-如确实要释放空间，需要用户在服务器上手动删除：
-
-```bash
-sudo rm -rf /opt/apps/canvas-enterprise-next
-```
-
-执行前请再次确认：
-
-- 旧项目不再需要回滚。
-- `canvas-next.hhh2121.xyz` 暂时允许返回 `404`。
-- 2.0 后续会重新规划灰度域名或重新接管该域名。
-
-本次自动操作没有执行上述递归删除命令。
+旧无限画布项目已经从服务器运行态、Nginx 入口、systemd 服务和磁盘目录中清理完成。Hermes、内部代理、主域名 health 和 Nginx 未受影响。

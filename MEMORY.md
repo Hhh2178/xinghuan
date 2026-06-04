@@ -62,7 +62,7 @@
 - 不要修改内部代理服务和端口。
 - `2026-06-04` 服务器快照见 `ops/server-state-2026-06-04.md`：根分区 `59G`，已用 `46G`，可用 `11G`，使用率 `81%`；旧灰度项目 `/opt/apps/canvas-enterprise-next` 约 `23G`，当前 release 为 `5148170`，Web/worker/Redis/Nginx/内部代理均为 `active`。
 - `2026-06-04` 域名映射快照见 `ops/domain-map-2026-06-04.md`：`hhh2121.xyz`、`canvas.hhh2121.xyz`、`canvas-next.hhh2121.xyz` 均解析到 `101.33.75.38`；权威 DNS 为 Cloudflare；当前只有 `canvas-next.hhh2121.xyz` 通过 Nginx 映射到旧无限画布灰度服务 `127.0.0.1:18200`。
-- `2026-06-04` 旧无限画布运行态已清理，记录见 `ops/old-canvas-cleanup-2026-06-04.md`：已停用并移除 `canvas-enterprise-next.service`、`canvas-enterprise-worker.service` 和 `canvas-next` Nginx 配置；`127.0.0.1:18200` 已释放；Hermes、主域名 health、内部代理未受影响。旧目录 `/opt/apps/canvas-enterprise-next` 仍保留约 `23G`，因项目规则禁止递归删除，需用户手动释放。
+- `2026-06-04` 旧无限画布已从服务器清理完成，记录见 `ops/old-canvas-cleanup-2026-06-04.md`：已停用并移除 `canvas-enterprise-next.service`、`canvas-enterprise-worker.service` 和 `canvas-next` Nginx 配置；`127.0.0.1:18200` 已释放；随后用户明确授权递归删除 `/opt/apps/canvas-enterprise-next`，根分区可用空间从约 `11G` 恢复到 `33G`，Hermes、主域名 health、内部代理未受影响。
 
 ## 当前阶段
 
