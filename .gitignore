@@ -1,0 +1,21 @@
+# 本机密钥与真实环境变量
+# 真实 API Key、Token、Cookie、数据库密码只能放入这些未提交文件。
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# 运行期输出
+runtime/
+logs/
+tmp/
+
+# 依赖与构建产物
+node_modules/
+.next/
+dist/
+build/
+
+# 系统与编辑器噪音
+.DS_Store
+Thumbs.db
