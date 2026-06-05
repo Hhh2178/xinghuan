@@ -1,7 +1,127 @@
 # v0.1.0 Changelog
 
+## 2026-06-05
+
+- Redis/worker 任务队列灰度部署：
+  - 发布 release `20260605-1505-xinghuan-worker-queue-gray`。
+  - API 创建 queued 任务时写入 Redis 队列 `xinghuan:tasks`。
+  - `/api/admin/system` 新增 Redis 状态、队列名和深度。
+  - 后台系统页展示 Redis 状态。
+  - `apps/worker` 升级为常驻 Redis 队列消费者。
+  - 新增 `npm run verify:worker`。
+  - `build:single-port` 纳入 `@xinghuan/worker`。
+  - 新增并启用 `xinghuan-canvas-next-worker.service`。
+  - 服务器 `npm run verify:worker` 通过，验收任务最终状态为 `succeeded`。
+  - 公网系统接口返回 `redisStatus=connected`、`redisQueue=xinghuan:tasks`、`redisDepth=0`。
+- 后台 PostgreSQL repository 切换：
+  - 发布 release `20260605-1410-xinghuan-pg-repo-gray`。
+  - `apps/api` 新增 auth/admin PostgreSQL repository，并保留 file fallback。
+  - 新增 `scripts/db-import-files.mjs` 和 `npm run db:import-files`。
+  - 后台系统页新增 `storageDriver` 展示。
+  - 配置模板新增 `XINGHUAN_STORAGE_DRIVER=file`。
+  - 服务器导入 users=2、sessions=2、providers=5、models=2、tasks=1、auditLogs=3。
+  - 灰度环境已设置 `XINGHUAN_STORAGE_DRIVER=postgres`。
+  - 服务器 PostgreSQL repository 下 `npm run verify:single-port` 全部 PASS。
+  - 公网管理员登录后 `/api/admin/system` 返回 `storageDriver=postgres`、`databaseStatus=connected`。
+  - PostgreSQL `xh_providers` 明文测试 Key 计数为 0。
+- PostgreSQL 灰度启用和首轮迁移：
+  - 服务器安装并启用 PostgreSQL 16.14。
+  - PostgreSQL 监听 `127.0.0.1:5432`。
+  - 创建灰度数据库 `xinghuan_canvas_next` 和应用账号 `xinghuan_canvas_next`。
+  - 数据库连接串写入服务器环境文件，未写入仓库和文档。
+  - 执行 `npm run db:migrate`，应用 `001_admin_core.sql`。
+  - 后台系统接口返回 `databaseStatus=connected`、`databaseConfigured=true`、`migrations=["001_admin_core.sql"]`。
+  - 服务器 `npm run verify:single-port` 全部 PASS。
+- PostgreSQL readiness 灰度部署：
+  - 发布 release `20260605-1315-xinghuan-db-ready-gray`。
+  - 新增 `apps/api/db/001_admin_core.sql`，覆盖后台核心数据表和迁移表。
+  - 新增 `scripts/db-migrate.mjs` 和 `npm run db:migrate`。
+  - `/api/admin/system` 新增数据库配置、连接、迁移和错误状态。
+  - 后台系统页新增数据库状态、迁移状态和数据库错误展示。
+  - `verify:single-port` 覆盖 `GET /api/admin/system database status`。
+  - 环境模板新增 `XINGHUAN_DATABASE_URL`。
+  - 本机和服务器未配置数据库时 `npm run db:migrate` 均返回 `DATABASE_NOT_CONFIGURED`，退出码 2，符合当前 readiness 预期。
+  - 公网管理员登录后 `/api/admin/system` 返回 `databaseStatus=not_configured`、`databaseConfigured=false`、`migrations=0`。
+- 后台安全增强：
+  - 发布 release `20260605-1245-xinghuan-admin-sec-gray`。
+  - Provider Key 写入时加密为 `enc:v1`，API 只返回脱敏预览。
+  - 后台用户管理增加密码重置入口。
+  - 后台 Provider 管理增加 Key 更新和清除入口。
+  - 新增 `/api/admin/audit` 和审计日志页面。
+  - 环境模板新增 `XINGHUAN_SECRET_KEY`。
+  - 服务器灰度环境已生成 `XINGHUAN_SECRET_KEY`，明文未写入文档。
+  - 本机和服务器验收均确认测试 Key 未明文落盘，审计记录存在。
+- 统一后台灰度部署：
+  - 发布 release `20260605-1215-xinghuan-admin-gray` 到 `/opt/apps/xinghuan-canvas-next/releases/20260605-1215-xinghuan-admin-gray`。
+  - 新增 `/admin` 单端口静态托管。
+  - `build:single-port` 纳入 `@xinghuan/admin`。
+  - 新增 `/api/admin/summary`、`/users`、`/providers`、`/models`、`/tasks`、`/system`。
+  - 后台接口启用管理员守卫：未登录 401，成员 403。
+  - `apps/admin` 实现科技风后台：登录、总览、用户管理、Provider 管理、模型目录、任务监控、系统状态。
+  - 本机和服务器 `npm run verify:single-port` 均通过后台验收。
+  - 公网 `/admin` 登录页和登录后总览截图通过。
+- 灰度认证版部署：
+  - 发布 release `20260605-1135-xinghuan-auth-gray` 到 `/opt/apps/xinghuan-canvas-next/releases/20260605-1135-xinghuan-auth-gray`。
+  - 配置 `/opt/apps/xinghuan-canvas-next/current` 指向认证版 release。
+  - 服务器灰度环境已配置管理员和成员 bootstrap secret，真实密码未写入仓库、文档或聊天。
+  - 服务器 `npm ci` 通过，0 vulnerabilities。
+  - 服务器 `npm run build:single-port` 通过。
+  - 服务器 `npm run verify:single-port` 通过，覆盖未登录拒绝、管理员登录、成员登录、用户隔离、文件上传和 SPA fallback。
+  - `xinghuan-canvas-next.service` 为 `active`。
+  - `sudo nginx -t` 通过，`nginx` 为 `active`。
+  - 公网 `/api/canvas` 未登录返回 401 `AUTH_REQUIRED`。
+  - 公网未登录科技风登录页截图和登录后画板截图通过。
+- 本机认证与用户隔离：
+  - 新增最小登录、退出、当前用户接口。
+  - 工作区 API、文件、输入素材、输出素材和资源库需要登录后访问。
+  - 画布、素材和资源库按用户目录隔离。
+  - Web 新增星幻科技风登录门禁。
+  - 顶栏新增当前用户和退出入口。
+  - 自动验收脚本升级为认证流。
+- 灰度服务器部署：
+  - 发布 release `20260605-0903-xinghuan-gray` 到 `/opt/apps/xinghuan-canvas-next/releases/20260605-0903-xinghuan-gray`。
+  - 配置 `/opt/apps/xinghuan-canvas-next/current` 指向当前 release。
+  - 配置 `xinghuan-canvas-next.service`。
+  - 配置 Nginx `canvas-next.hhh2121.xyz`，HTTP/HTTPS 均代理到 `127.0.0.1:18200`。
+  - 使用已有 Let’s Encrypt 证书启用 HTTPS。
+  - 修复 `build:single-port` 未构建 workspace 运行时依赖的问题。
+  - 服务器 `npm run verify:single-port` 8 项全部 PASS。
+  - 公网 `https://canvas-next.hhh2121.xyz/` 和 `/api/status` 返回 200。
+  - Chrome headless 公网截图和 DOM dump 通过。
+- 灰度部署准备材料：
+  - 根 `package.json` 新增 `build:single-port`、`start:single-port`、`verify:single-port`。
+  - 新增 `scripts/start-single-port.mjs`。
+  - 新增 `scripts/verify-single-port.mjs`。
+  - 更新 `config/.env.example`，补齐单端口生产环境变量。
+  - 新增 `config/canvas-next.env.example`。
+  - 新增 `ops/gray-deploy-runbook.md`。
+  - 新增 `ops/gray-acceptance-checklist.md`。
+  - 新增 `ops/nginx/canvas-next.hhh2121.xyz.conf.example`。
+  - 新增 `ops/systemd/xinghuan-canvas-next.service.example`。
+  - 更新 `ops/README.md`。
+  - 验证 `node --check`、`npm run build:single-port`、`npm run start:single-port`、`npm run verify:single-port`。
+- 本机单端口生产服务：
+  - `apps/api/src/server.ts` 新增 `apps/web/dist` 静态托管。
+  - 新增 SPA fallback，支持前端路由刷新。
+  - 扩展静态资源 MIME，覆盖 HTML、JS、CSS、SVG、JSON、字体和 MIDI。
+  - 保持 `/api/*`、`/files/*`、`/input/*`、`/output/*` 优先匹配。
+  - 使用 `127.0.0.1:18200` 启动生产服务，显式指定 Web dist 和数据目录。
+  - 停止 `18300`、`18310`、`18766` 后，仅 `18200` 监听。
+  - 验证 `/`、`/assets/*.js`、`/api/status`、画布创建/保存/读取、文件上传/访问、SPA fallback。
+  - 使用 Chrome headless 生成 `output/playwright/single-port-18200-chrome.png`，DOM dump 确认星幻品牌、后端连接和 ReactFlow 画布。
+
 ## 2026-06-04
 
+- Milestone B 星幻工程基线：
+  - 新增根 `package.json`、`package-lock.json`、`tsconfig.base.json`。
+  - 新增 `config/.env.example`。
+  - 新增 `apps/web` 星幻工作台占位页。
+  - 新增 `apps/admin` 星幻统一后台占位页。
+  - 新增 `apps/api` health/version 服务。
+  - 新增 `apps/worker` worker 占位服务。
+  - 新增 `packages/shared`、`packages/ui`、`packages/canvas-core`、`packages/model-core`。
+  - 新增 `development/milestone-b-baseline.md`。
+  - 验证 `npm install`、`npm run type-check`、`npm run build`、worker start、API health/version 和浏览器首屏。
 - 本机真实测试密钥落地：
   - 新建被忽略的 `.env.local`，用于保存 GRSAI 和 ToAPIs 测试 Key。
   - 验证 `.env.local` 命中 `.gitignore`，不会被普通 Git 提交追踪。
