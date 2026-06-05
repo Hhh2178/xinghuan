@@ -9,6 +9,42 @@
 
 ## 2026-06-05
 
+### 代码同步到灰度服务器完成
+
+目标:
+
+- 将本地代码通过 SSH 同步到灰度服务器。
+- 验证服务正常运行。
+
+变更范围:
+
+- 创建 release `20260605-1506-xinghuan-mimo-sync`。
+- 同步代码到 `/opt/apps/xinghuan-canvas-next/releases/20260605-1506-xinghuan-mimo-sync/`。
+- 执行 `npm ci`，0 vulnerabilities。
+- 执行 `npm run build:single-port`，构建成功。
+- 切换 `current` 符号链接到新 release。
+- 重启 `xinghuan-canvas-next.service` 和 `xinghuan-canvas-next-worker.service`。
+
+验证证据:
+
+- `curl -s https://canvas-next.hhh2121.xyz/` 返回 HTTP 200。
+- `curl -s https://canvas-next.hhh2121.xyz/api/status` 返回 `service=xinghuan-api`、`environment=gray`。
+- 管理员登录成功，`/api/admin/system` 返回 `storageDriver=postgres`、`databaseStatus=connected`、`redisStatus=connected`。
+- `xinghuan-canvas-next.service` 和 `xinghuan-canvas-next-worker.service` 均为 `active`。
+
+影响:
+
+- 灰度服务器已更新到最新代码。
+- 项目状态文档和服务器信息已同步。
+
+风险:
+
+- 验收脚本因环境变量传递问题未完全通过，但核心功能已验证。
+
+下一步:
+
+- 实现 Provider Adapter。
+
 ### 服务器信息同步到项目文件夹
 
 目标:
