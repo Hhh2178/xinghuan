@@ -55,20 +55,30 @@
 ## 服务器记忆
 
 - 腾讯云 VPS：`101.33.75.38`
-- SSH：`ubuntu@101.33.75.38 -p 728`
+- SSH：`ssh -i Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38`
+- 密钥位置：`D:\codex\服务器\Tencent_Cloud_Server.pem`
 - 当前灰度域名：`canvas-next.hhh2121.xyz`（HTTPS，代理到 `127.0.0.1:18200`）
 - 正式预留域名：`canvas.hhh2121.xyz`（未启用）
-- 不要修改内部代理服务和端口。
+- DNS 权威：Cloudflare（`hasslo.ns.cloudflare.com`、`rosemary.ns.cloudflare.com`）
+- HTTPS 证书：Let's Encrypt，到期 `2026-08-31`，自动续期
+- 不要修改内部代理服务和端口（`internal-proxy-ss.service` 端口 `8443`）。
 - `2026-06-04` 旧无限画布已清理，根分区可用空间恢复到 `33G`。
 - `2026-06-05` 灰度基础设施状态：
   - API 服务：`xinghuan-canvas-next.service`（`127.0.0.1:18200`）
   - Worker 服务：`xinghuan-canvas-next-worker.service`
-  - PostgreSQL 16.14：`127.0.0.1:5432`，数据库 `xinghuan_canvas_next`
+  - PostgreSQL 16.14：`127.0.0.1:5432`，数据库 `xinghuan_canvas_next`，账号 `xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
   - 当前 release：`20260605-1505-xinghuan-worker-queue-gray`
-- 环境变量文件：`/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
-- 密钥管理：`XINGHUAN_SECRET_KEY` 用于 Provider Key AES-256-GCM 加密
+- 部署目录：`/opt/apps/xinghuan-canvas-next/`
+  - `current` 符号链接指向当前 release
+  - `shared/canvas-next.env` 存放环境变量（密钥，不入 Git）
+- 密钥管理：
+  - `XINGHUAN_SECRET_KEY`：Provider Key AES-256-GCM 加密
+  - `XINGHUAN_DATABASE_URL`：PostgreSQL 连接串
+  - `XINGHUAN_REDIS_URL`：Redis 连接串
+  - 真实密钥只存于服务器环境文件和本机 `.env.local`
+- 详细连接信息见 `ops/server-connection.md`
 
 ## 当前阶段
 
