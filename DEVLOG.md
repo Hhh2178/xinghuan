@@ -9,6 +9,61 @@
 
 ## 2026-06-05
 
+### Mimo 代码补全提交与 Web 分包优化
+
+目标:
+
+- 补全未入库的核心代码，消除代码丢失风险。
+- 优化 Web 构建分包策略，解决大 chunk 警告。
+- 分析项目风险并给出处理方案。
+
+变更范围:
+
+- 更新 `.gitignore`，新增 `output/` 和 `releases/` 排除规则。
+- 分 9 个提交将 apps/、packages/、scripts/、ops/、config/、development/ 全部代码入库：
+  - `56cb7bd` feat: add monorepo root config and shared packages
+  - `4aa9c4a` feat: add web workspace with canvas UI
+  - `5f9d6b7` feat: add api workspace with PostgreSQL and Redis
+  - `af8e351` feat: add admin dashboard and worker consumer
+  - `bc613b5` feat: add deployment scripts and config templates
+  - `60505d3` docs: add ops deployment records and runbooks
+  - `81efdfa` docs: add development baseline and migration notes
+  - `df3388a` docs: update progress, changelog and release records
+  - `882480b` perf(web): add manual chunks for vendor splitting
+- `apps/web/vite.config.ts` 新增 `build.rollupOptions.output.manualChunks`：
+  - vendor-react: React/ReactDOM
+  - vendor-flow: @xyflow/react
+  - vendor-mediapipe: @mediapipe/tasks-vision
+  - vendor-icons: lucide-react
+  - chunkSizeWarningLimit: 600KB
+- 更新 `AGENTS.md` 当前状态为 Phase 1 完成。
+- 更新 `MEMORY.md` 当前阶段、已完成能力和服务器基础设施状态。
+- 更新 `DEVLOG.md` 补充本条记录。
+
+验证证据:
+
+- `git status` 显示 clean，所有代码已入库。
+- `git log --oneline -9` 显示 9 个新提交，均包含 `[mimo-init]` 或 `[mimo-perf]` 标记。
+- `npm run type-check -w @xinghuan/web` 通过。
+- `.gitignore` 已排除 `output/` 和 `releases/`。
+
+影响:
+
+- 项目代码安全性大幅提升，不再依赖单机本地存储。
+- Web 首屏加载性能将改善，vendor 分包可独立缓存。
+- 项目状态文档已同步到最新进展。
+
+风险:
+
+- Provider Adapter 尚未实现，worker 仍为 mock 执行器。
+- 画布/素材元数据尚未切 PostgreSQL repository。
+
+下一步:
+
+- 实现 GRSAI Provider Adapter（P0 图像验收）。
+- Worker 接入真实 Provider 调用。
+- 任务输出素材落库。
+
 ### PostgreSQL readiness 灰度部署完成
 
 目标:

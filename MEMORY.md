@@ -56,17 +56,38 @@
 
 - 腾讯云 VPS：`101.33.75.38`
 - SSH：`ubuntu@101.33.75.38 -p 728`
-- 当前线上灰度旧项目域名：`canvas-next.hhh2121.xyz`
-- 当前正式预留域名：`canvas.hhh2121.xyz`
-- 2.0 尚未决定是否复用上述域名；上线前需要重新规划灰度和正式域名。
+- 当前灰度域名：`canvas-next.hhh2121.xyz`（HTTPS，代理到 `127.0.0.1:18200`）
+- 正式预留域名：`canvas.hhh2121.xyz`（未启用）
 - 不要修改内部代理服务和端口。
-- `2026-06-04` 服务器快照见 `ops/server-state-2026-06-04.md`：根分区 `59G`，已用 `46G`，可用 `11G`，使用率 `81%`；旧灰度项目 `/opt/apps/canvas-enterprise-next` 约 `23G`，当前 release 为 `5148170`，Web/worker/Redis/Nginx/内部代理均为 `active`。
-- `2026-06-04` 域名映射快照见 `ops/domain-map-2026-06-04.md`：`hhh2121.xyz`、`canvas.hhh2121.xyz`、`canvas-next.hhh2121.xyz` 均解析到 `101.33.75.38`；权威 DNS 为 Cloudflare；当前只有 `canvas-next.hhh2121.xyz` 通过 Nginx 映射到旧无限画布灰度服务 `127.0.0.1:18200`。
-- `2026-06-04` 旧无限画布已从服务器清理完成，记录见 `ops/old-canvas-cleanup-2026-06-04.md`：已停用并移除 `canvas-enterprise-next.service`、`canvas-enterprise-worker.service` 和 `canvas-next` Nginx 配置；`127.0.0.1:18200` 已释放；随后用户明确授权递归删除 `/opt/apps/canvas-enterprise-next`，根分区可用空间从约 `11G` 恢复到 `33G`，Hermes、主域名 health、内部代理未受影响。
+- `2026-06-04` 旧无限画布已清理，根分区可用空间恢复到 `33G`。
+- `2026-06-05` 灰度基础设施状态：
+  - API 服务：`xinghuan-canvas-next.service`（`127.0.0.1:18200`）
+  - Worker 服务：`xinghuan-canvas-next-worker.service`
+  - PostgreSQL 16.14：`127.0.0.1:5432`，数据库 `xinghuan_canvas_next`
+  - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
+  - 存储驱动：`postgres`
+  - 当前 release：`20260605-1505-xinghuan-worker-queue-gray`
+- 环境变量文件：`/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+- 密钥管理：`XINGHUAN_SECRET_KEY` 用于 Provider Key AES-256-GCM 加密
 
 ## 当前阶段
 
 - 当前版本：`v0.1.0`
-- 状态：规划中
-- 当前重点：需求固化、基底选型、POC 范围、最小可验收闭环和文档治理。
-- 下一步：建立候选项目评估表，然后选 1-2 个候选做 POC。
+- 状态：Phase 1 基础平台已完成，进入 Phase 2 节点与模型治理
+- 已完成能力：
+  - Monorepo 工程基线（apps/web、apps/admin、apps/api、apps/worker、packages/*）
+  - T8 成熟画板 UI 迁入 apps/web
+  - 本机 18200 单端口生产服务
+  - 灰度部署到 `canvas-next.hhh2121.xyz`（HTTPS）
+  - 认证系统：登录、退出、session cookie、用户隔离
+  - 统一后台 `/admin`：用户、Provider、模型、任务、系统状态、审计日志
+  - PostgreSQL 16.14：auth/admin repository，存储驱动 postgres
+  - Redis/Worker 任务队列：queued -> running -> succeeded/failed 状态机
+  - Provider Key AES-256-GCM 加密落盘
+  - Web 分包优化：vendor-react/flow/mediapipe/icons
+- 当前重点：Provider Adapter、真实模型调用、任务输出素材落库
+- 下一步：
+  - 实现 GRSAI Provider Adapter（P0 图像验收）
+  - Worker 接入真实 Provider 调用替换 mock 执行器
+  - 任务成功后写入输出素材和资源库
+  - 画布/素材元数据 PostgreSQL repository
