@@ -9,6 +9,8 @@
 runtime/
 logs/
 tmp/
+output/
+releases/
 
 # 依赖与构建产物
 node_modules/
