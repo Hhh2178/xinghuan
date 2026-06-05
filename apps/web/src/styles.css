@@ -1,0 +1,297 @@
+:root {
+  color: #e7fff7;
+  background: #07100f;
+  font-family:
+    Inter, "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.xh-shell {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(49, 240, 179, 0.12), transparent 28rem),
+    #07100f;
+}
+
+.xh-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 10px;
+  border-right: 1px solid #1c3b3f;
+  background: rgba(13, 26, 28, 0.92);
+}
+
+.xh-rail svg {
+  width: 22px;
+  height: 22px;
+  color: #31f0b3;
+}
+
+.xh-rail button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #1c3b3f;
+  border-radius: 8px;
+  background: #102326;
+  cursor: pointer;
+}
+
+.xh-stage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.xh-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #1c3b3f;
+}
+
+.xh-header p,
+.xh-header h1 {
+  margin: 0;
+}
+
+.xh-header p {
+  color: #88a7a3;
+  font-size: 13px;
+}
+
+.xh-header h1 {
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.xh-header span {
+  color: #31f0b3;
+  font-size: 14px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(480px, 1fr) 300px;
+  min-height: 0;
+}
+
+.node-library,
+.inspector {
+  padding: 18px;
+  border-color: #1c3b3f;
+  background: rgba(13, 26, 28, 0.82);
+}
+
+.node-library {
+  border-right: 1px solid #1c3b3f;
+}
+
+.inspector {
+  border-left: 1px solid #1c3b3f;
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.node-button,
+.inspector button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  color: #e7fff7;
+  border: 1px solid #1c3b3f;
+  border-radius: 8px;
+  background: #102326;
+  cursor: pointer;
+}
+
+.node-button svg,
+.inspector button svg {
+  width: 18px;
+  height: 18px;
+  color: #31f0b3;
+}
+
+.canvas-surface {
+  position: relative;
+  min-height: 620px;
+  overflow: hidden;
+  background: #07100f;
+}
+
+.canvas-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(49, 240, 179, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(49, 240, 179, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.canvas-node {
+  position: absolute;
+  width: 240px;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid rgba(49, 240, 179, 0.62);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #102326, #0d1a1c);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.32);
+}
+
+.canvas-node header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.canvas-node svg {
+  width: 18px;
+  height: 18px;
+  color: #31f0b3;
+}
+
+.canvas-node p {
+  margin: 14px 0 0;
+  color: #b9d7d2;
+  line-height: 1.5;
+}
+
+.prompt-node {
+  left: 14%;
+  top: 28%;
+}
+
+.image-node {
+  left: 48%;
+  top: 42%;
+}
+
+.port {
+  position: absolute;
+  top: 48px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #31f0b3;
+  border-radius: 50%;
+  background: #07100f;
+}
+
+.port.input {
+  left: -7px;
+}
+
+.port.output {
+  right: -7px;
+}
+
+.run-pill {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #1c3b3f;
+  border-radius: 8px;
+  background: #102326;
+  color: #31f0b3;
+}
+
+.inspector dl {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.inspector div {
+  padding: 12px;
+  border: 1px solid #1c3b3f;
+  border-radius: 8px;
+  background: #0d1a1c;
+}
+
+.inspector dt {
+  color: #88a7a3;
+  font-size: 12px;
+}
+
+.inspector dd {
+  margin: 6px 0 0;
+}
+
+@media (max-width: 980px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .node-library,
+  .inspector {
+    border: 0;
+    border-bottom: 1px solid #1c3b3f;
+  }
+
+  .canvas-surface {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 640px) {
+  .xh-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .xh-rail {
+    flex-direction: row;
+    justify-content: center;
+    border-right: 0;
+    border-bottom: 1px solid #1c3b3f;
+  }
+
+  .xh-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .canvas-node {
+    width: min(240px, calc(100% - 32px));
+  }
+
+  .prompt-node {
+    left: 16px;
+    top: 86px;
+  }
+
+  .image-node {
+    left: 48px;
+    top: 260px;
+  }
+}
