@@ -1,0 +1,29 @@
+{
+  "nodes": [
+    {
+      "position": {
+        "y": 120,
+        "x": 120
+      },
+      "type": "text",
+      "id": "xh-text-1",
+      "data": {
+        "prompt": "星幻 API 兼容层测试",
+        "text": "星幻 API 兼容层测试",
+        "nodeSerialId": "1"
+      },
+      "measured": {
+        "width": 260,
+        "height": 185
+      },
+      "selected": false
+    }
+  ],
+  "edges": [],
+  "viewport": {
+    "x": -129.46153846153845,
+    "y": 68.68269230769232,
+    "zoom": 1.2038461538461538
+  },
+  "nextNodeSerialId": 2
+}

@@ -1,0 +1,36 @@
+{
+  "name": "xinghuan-canvas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "星幻无限画布 2.0 monorepo",
+  "type": "module",
+  "scripts": {
+    "type-check": "npm run type-check --workspaces --if-present",
+    "build": "npm run build -w @xinghuan/shared && npm run build -w @xinghuan/canvas-core && npm run build -w @xinghuan/model-core && npm run build -w @xinghuan/ui && npm run build -w @xinghuan/api && npm run build -w @xinghuan/worker && npm run build -w @xinghuan/web && npm run build -w @xinghuan/admin",
+    "build:single-port": "npm run build -w @xinghuan/api && npm run build -w @xinghuan/web",
+    "start:single-port": "node scripts/start-single-port.mjs",
+    "verify:single-port": "node scripts/verify-single-port.mjs",
+    "dev:web": "npm run dev -w @xinghuan/web",
+    "dev:admin": "npm run dev -w @xinghuan/admin",
+    "dev:api": "npm run dev -w @xinghuan/api",
+    "dev:worker": "npm run dev -w @xinghuan/worker"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.2.4",
+    "typescript": "^5.9.3",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "lucide-react": "^0.555.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "tsx": "^4.20.6"
+  }
+}
