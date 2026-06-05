@@ -1,0 +1,196 @@
+import { readFile } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
+const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
+const memberEmail = process.env.XINGHUAN_VERIFY_MEMBER_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_EMAIL ?? "member@xinghuan.local";
+const memberPassword = process.env.XINGHUAN_VERIFY_MEMBER_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ?? "member123456";
+let cookie = "";
+
+async function main() {
+  const results = [];
+
+  const home = await fetchText("/");
+  results.push(["GET /", home.status === 200 && home.text.includes('<div id="root"></div>')]);
+
+  const adminHome = await fetchText("/admin");
+  results.push(["GET /admin", adminHome.status === 200 && adminHome.text.includes('<div id="root"></div>') && adminHome.text.includes("/admin/assets/")]);
+
+  const status = await fetchJson("/api/status");
+  results.push(["GET /api/status", status.data?.service === "xinghuan-api"]);
+
+  const unauthCanvas = await fetchText("/api/canvas");
+  results.push(["Unauthenticated canvas rejected", unauthCanvas.status === 401]);
+
+  const unauthAdmin = await fetchText("/api/admin/summary");
+  results.push(["Unauthenticated admin rejected", unauthAdmin.status === 401]);
+
+  const login = await fetchJson("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+  });
+  results.push(["POST /api/auth/login", login.data?.authenticated === true && Boolean(login.data?.user?.id)]);
+
+  const me = await fetchJson("/api/auth/me");
+  results.push(["GET /api/auth/me", me.data?.authenticated === true && me.data?.user?.email === loginEmail]);
+
+  const adminSummary = await fetchJson("/api/admin/summary");
+  results.push(["GET /api/admin/summary", typeof adminSummary.data?.users === "number" && typeof adminSummary.data?.models === "number"]);
+
+  const adminUsers = await fetchJson("/api/admin/users");
+  results.push(["GET /api/admin/users", Array.isArray(adminUsers.data) && adminUsers.data.some((user) => user.email === loginEmail)]);
+
+  const adminProviders = await fetchJson("/api/admin/providers");
+  results.push(["GET /api/admin/providers", Array.isArray(adminProviders.data)]);
+
+  const adminModels = await fetchJson("/api/admin/models");
+  results.push(["GET /api/admin/models", Array.isArray(adminModels.data)]);
+
+  const adminTasks = await fetchJson("/api/admin/tasks");
+  results.push(["GET /api/admin/tasks", Array.isArray(adminTasks.data)]);
+
+  const adminSystem = await fetchJson("/api/admin/system");
+  results.push(["GET /api/admin/system database status", typeof adminSystem.data?.database?.status === "string"]);
+  results.push(["GET /api/admin/system redis status", typeof adminSystem.data?.redis?.status === "string"]);
+
+  const providerSecret = `verify-secret-${Date.now()}`;
+  const providerId = `verify-provider-${Date.now()}`;
+  const createdProvider = await fetchJson("/api/admin/providers", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      id: providerId,
+      name: "验收 Provider",
+      baseUrl: "https://verify.local",
+      apiKey: providerSecret,
+      enabled: true,
+    }),
+  });
+  results.push([
+    "POST /api/admin/providers masks key",
+    createdProvider.data?.hasApiKey === true &&
+      String(createdProvider.data?.apiKeyPreview || "").endsWith(providerSecret.slice(-4)) &&
+      !JSON.stringify(createdProvider.data).includes(providerSecret),
+  ]);
+
+  const audit = await fetchJson("/api/admin/audit");
+  results.push([
+    "GET /api/admin/audit",
+    Array.isArray(audit.data) && audit.data.some((item) => item.targetId === providerId && item.action === "provider.create"),
+  ]);
+
+  const adminCanvasName = `单端口脚本验收画布-${Date.now()}`;
+  const canvas = await fetchJson("/api/canvas", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: adminCanvasName }),
+  });
+  const canvasId = canvas.data?.id;
+  results.push(["POST /api/canvas", Boolean(canvasId)]);
+
+  const savePayload = {
+    nodes: [
+      {
+        id: "verify-node-script",
+        type: "text",
+        position: { x: 120, y: 140 },
+        data: { title: "单端口脚本验收节点", content: "verify-single-port" },
+      },
+    ],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+    nextNodeSerialId: 2,
+  };
+
+  const saved = await fetchJson(`/api/canvas/${encodeURIComponent(canvasId)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(savePayload),
+  });
+  results.push(["PUT /api/canvas/:id", saved.data?.nodeCount === 1]);
+
+  const readBack = await fetchJson(`/api/canvas/${encodeURIComponent(canvasId)}`);
+  results.push(["GET /api/canvas/:id", Array.isArray(readBack.data?.nodes) && readBack.data.nodes.length === 1]);
+
+  const adminCookie = cookie;
+  cookie = "";
+  const memberLogin = await fetchJson("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: memberEmail, password: memberPassword }),
+  });
+  results.push(["POST /api/auth/login member", memberLogin.data?.authenticated === true && memberLogin.data?.user?.role === "member"]);
+  const memberList = await fetchJson("/api/canvas");
+  const seesAdminCanvas = Array.isArray(memberList.data) && memberList.data.some((item) => item.id === canvasId || item.name === adminCanvasName);
+  results.push(["Member cannot see admin canvas", !seesAdminCanvas]);
+  const memberAdmin = await fetchText("/api/admin/summary");
+  results.push(["Member admin rejected", memberAdmin.status === 403]);
+  cookie = adminCookie;
+
+  const uploadSource = join(rootDir, "package.json");
+  const uploadForm = new FormData();
+  uploadForm.set("file", new Blob([await readFile(uploadSource)]), basename(uploadSource));
+  const upload = await fetchJson("/api/files/upload", { method: "POST", body: uploadForm });
+  results.push(["POST /api/files/upload", Boolean(upload.data?.url)]);
+
+  const uploaded = await fetchText(upload.data.url);
+  results.push(["GET uploaded file", uploaded.status === 200 && uploaded.text.includes("xinghuan-canvas")]);
+
+  const fallback = await fetchText("/workspace/deep/link");
+  results.push(["SPA fallback", fallback.status === 200 && fallback.text.includes('<div id="root"></div>')]);
+
+  const failed = results.filter(([, ok]) => !ok);
+  for (const [name, ok] of results) {
+    console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
+  }
+
+  if (failed.length > 0) {
+    process.exit(1);
+  }
+}
+
+async function fetchText(pathname, options) {
+  const response = await fetch(toUrl(pathname), withCookie(options));
+  captureCookie(response);
+  return { status: response.status, text: await response.text() };
+}
+
+async function fetchJson(pathname, options) {
+  const response = await fetch(toUrl(pathname), withCookie(options));
+  captureCookie(response);
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${pathname} returned ${response.status}: ${text}`);
+  }
+  return JSON.parse(text);
+}
+
+function withCookie(options = {}) {
+  return {
+    ...options,
+    headers: {
+      ...(cookie ? { cookie } : {}),
+      ...(options.headers || {}),
+    },
+  };
+}
+
+function captureCookie(response) {
+  const raw = response.headers.get("set-cookie");
+  if (!raw) return;
+  cookie = raw.split(";")[0];
+}
+
+function toUrl(pathname) {
+  if (String(pathname).startsWith("http://") || String(pathname).startsWith("https://")) return pathname;
+  return `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
