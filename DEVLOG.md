@@ -9,6 +9,45 @@
 
 ## 2026-06-08
 
+### Provider 模型目录解析模块抽离
+
+目标:
+
+- 继续优化后端文件结构，降低 `apps/api/src/server.ts` 中 Provider 模型拉取、协议 URL 和模型分类逻辑的复杂度。
+- 保持后台 Provider 探测、模型拉取、模型目录动态 schema 和密钥不泄露行为不变。
+- 为后续细化 RunningHub、Volcengine、Gemini 等 Provider 的模型列表规则建立独立合约。
+
+变更范围:
+
+- 新增 `apps/api/src/provider-model-catalog.ts`，集中管理 Provider 协议归一化、模型列表 URL、鉴权 header、上游模型列表解析、模型能力分类。
+- `apps/api/src/server.ts` 改为导入 provider model catalog helpers；Provider 探测和代理请求继续由服务端路由负责。
+- 新增 `scripts/verify-provider-model-catalog-contract.ts` 与根脚本 `verify:provider-model-catalog-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npx tsx scripts/verify-provider-model-catalog-contract.ts` 首次按预期因 `provider-model-catalog.js` 模块缺失失败。
+- `npm run verify:provider-model-catalog-contract` 通过，覆盖协议归一化、模型 URL、鉴权 header、模型 ID 去重、Gemini `models/` 前缀移除和图像/视频/聊天分类。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- 受控临时单端口服务 `http://127.0.0.1:18349` 下，`npm run verify:model-catalog` 通过。
+- `npm run type-check` 通过。
+- `npm run build:single-port` 通过。
+
+影响:
+
+- 后台 Provider 模型拉取与分类规则有了独立合约，后续新增或调整 Provider 协议时不必在巨型 `server.ts` 中直接改纯逻辑。
+- API 现有模型目录接口行为保持不变，动态参数 schema 和密钥不泄露验收继续通过。
+
+风险:
+
+- 当前仅完成本机源码与受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进下一处高价值结构优化，或在需要发版时先推灰度并复跑 Provider 拉取和模型目录相关验收。
+
 ### 任务生命周期纯逻辑模块抽离
 
 目标:

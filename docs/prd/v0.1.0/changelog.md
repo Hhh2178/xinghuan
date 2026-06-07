@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- Provider 模型目录解析模块抽离：
+  - 新增 `apps/api/src/provider-model-catalog.ts`，把 Provider 协议归一化、模型列表 URL、鉴权 header、上游模型去重和图像/视频/聊天分类从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 继续负责 Provider 探测、错误响应和代理请求，但模型目录规则统一由模块提供。
+  - 新增 `scripts/verify-provider-model-catalog-contract.ts` 与 `verify:provider-model-catalog-contract`，覆盖 OpenAI/Gemini/Volcengine/RunningHub/GRSAI Draw 的模型 URL、Gemini 与 RunningHub header、模型 ID 去重、Gemini `models/` 前缀移除和图像/视频/聊天分类。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:provider-model-catalog-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api`、全仓 `type-check` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18349` 启动受控单端口服务，`verify:model-catalog` 通过，确认模型目录接口、动态 schema 和密钥不泄露行为未被重构破坏。
 - 任务生命周期纯逻辑模块抽离：
   - 新增 `apps/api/src/task-lifecycle.ts`，把任务取消补丁、取消应用、重试任务构造、可取消/可重试状态守卫从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 的任务取消和重试路由继续负责鉴权、持久化、队列和审计，但不再内联构造重试任务。
