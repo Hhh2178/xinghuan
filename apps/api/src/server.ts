@@ -13,6 +13,14 @@ import { basename, extname, join, resolve } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createGrsaiImageClient } from "./grsai-image-adapter.js";
 import {
+  SESSION_COOKIE_NAME,
+  SESSION_TTL_MS,
+  buildSessionCookie,
+  expireSessionCookie,
+  readCookie,
+  readJsonBody,
+} from "./http-session-utils.js";
+import {
   normalizeCapability,
   normalizeOptionalProtocol,
   normalizeProviderProtocol,
@@ -51,8 +59,6 @@ const adminDir = join(dataDir, "admin");
 const usersDir = join(dataDir, "users");
 const authDbPath = join(authDir, "auth.json");
 const adminDbPath = join(adminDir, "admin.json");
-const sessionCookieName = "xh_session";
-const sessionTtlMs = 7 * 24 * 60 * 60 * 1000;
 const webDistCandidates = [
   process.env.XINGHUAN_WEB_DIST_DIR,
   resolve(process.cwd(), "../../apps/web/dist"),
@@ -1417,16 +1423,6 @@ function normalizeCanvasData(value: unknown): CanvasData {
   };
 }
 
-async function readJsonBody<T = unknown>(request: import("node:http").IncomingMessage): Promise<T> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  const raw = Buffer.concat(chunks).toString("utf-8").trim();
-  if (!raw) return {} as T;
-  return JSON.parse(raw) as T;
-}
-
 async function readAuthDb(): Promise<AuthDb> {
   if (usePostgresRepository()) return readAuthDbPostgres();
   await ensureDataDirs();
@@ -2229,21 +2225,21 @@ async function loginUser(emailValue: unknown, passwordValue: unknown) {
     id: randomToken(32),
     userId: user.id,
     createdAt: now,
-    expiresAt: now + sessionTtlMs,
+    expiresAt: now + SESSION_TTL_MS,
   };
   await writeAuthDb({ ...db, sessions: [session, ...db.sessions.filter((item) => item.userId !== user.id)] });
   return { user, session };
 }
 
 async function logoutUser(request: import("node:http").IncomingMessage) {
-  const sessionId = readCookie(request, sessionCookieName);
+  const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return;
   const db = await readAuthDb();
   await writeAuthDb({ ...db, sessions: db.sessions.filter((session) => session.id !== sessionId) });
 }
 
 async function getCurrentUser(request: import("node:http").IncomingMessage): Promise<CurrentUser | null> {
-  const sessionId = readCookie(request, sessionCookieName);
+  const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return null;
   const db = await readAuthDb();
   const session = db.sessions.find((item) => item.id === sessionId && item.expiresAt > Date.now());
@@ -2273,27 +2269,6 @@ function verifyPassword(password: string, encoded: string) {
   const expected = Buffer.from(key, "hex");
   const actual = scryptSync(password, salt, expected.length);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
-
-function readCookie(request: import("node:http").IncomingMessage, name: string) {
-  const raw = request.headers.cookie || "";
-  for (const part of raw.split(";")) {
-    const [key, ...value] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(value.join("="));
-  }
-  return "";
-}
-
-function buildSessionCookie(request: import("node:http").IncomingMessage, sessionId: string) {
-  return `${sessionCookieName}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(sessionTtlMs / 1000)}${isSecureRequest(request) ? "; Secure" : ""}`;
-}
-
-function expireSessionCookie(request: import("node:http").IncomingMessage) {
-  return `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isSecureRequest(request) ? "; Secure" : ""}`;
-}
-
-function isSecureRequest(request: import("node:http").IncomingMessage) {
-  return request.headers["x-forwarded-proto"] === "https";
 }
 
 function randomToken(byteLength: number) {

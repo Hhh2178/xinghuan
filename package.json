@@ -17,6 +17,7 @@
     "verify:xinghuan-entry-ui": "node scripts/verify-xinghuan-entry-ui.mjs",
     "verify:admin-interaction-guards": "node scripts/verify-admin-interaction-guards.mjs",
     "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
+    "verify:http-session-utils-contract": "npx tsx scripts/verify-http-session-utils-contract.ts",
     "verify:task-lifecycle-contract": "npx tsx scripts/verify-task-lifecycle-contract.ts",
     "verify:provider-model-catalog-contract": "npx tsx scripts/verify-provider-model-catalog-contract.ts",
     "verify:provider-response-parser-contract": "npx tsx scripts/verify-provider-response-parser-contract.ts",

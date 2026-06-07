@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### HTTP 请求与 Session Cookie 工具抽离
+
+目标:
+
+- 继续优化后端文件结构，降低 `apps/api/src/server.ts` 中基础 HTTP/session 工具函数的杂糅程度。
+- 保持登录、退出、当前用户识别、未登录拒绝、管理员权限和成员隔离行为不变。
+- 为请求 JSON 读取、Cookie 解析、Session Cookie 生成和 secure 标记建立独立合约，避免后续认证链路修改时缺少低层回归。
+
+变更范围:
+
+- 新增 `apps/api/src/http-session-utils.ts`，集中管理 `readJsonBody`、`readCookie`、`buildSessionCookie`、`expireSessionCookie`、`SESSION_COOKIE_NAME` 和 `SESSION_TTL_MS`。
+- `apps/api/src/server.ts` 改为导入 HTTP/session helpers；认证路由、用户查找和 session 持久化逻辑仍保留在服务端主流程中。
+- 新增 `scripts/verify-http-session-utils-contract.ts` 与根脚本 `verify:http-session-utils-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:http-session-utils-contract` 首次按预期因 `http-session-utils.js` 模块缺失失败。
+- `npm run verify:http-session-utils-contract` 通过，覆盖 JSON body 读取、空 body、URL encoded cookie、缺失 cookie、secure 请求识别、7 天 session TTL、登录 cookie 和过期 cookie。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- `npm run build:single-port` 通过。
+- 使用临时数据目录和临时端口 `127.0.0.1:18352` 启动受控单端口服务，`npm run verify:single-port` 通过，确认登录、当前用户、管理员接口、成员隔离、文件上传和 SPA fallback 未被抽离破坏。
+
+影响:
+
+- 基础请求/session 工具从巨型 `server.ts` 中剥离，认证底层行为可以独立验证。
+- 主服务文件减少纯工具函数噪音，后续认证与请求解析问题更容易定位。
+
+风险:
+
+- 当前仅完成本机源码、构建和受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进下一处高价值结构优化，或在需要上线时先推灰度并复跑登录、后台和文件上传验收。
+
 ### 入口登录页分栏微缩星系 UI 收口
 
 目标:

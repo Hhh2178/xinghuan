@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- HTTP 请求与 Session Cookie 工具抽离：
+  - 新增 `apps/api/src/http-session-utils.ts`，把 `readJsonBody`、`readCookie`、`buildSessionCookie`、`expireSessionCookie`、Session Cookie 名称和 7 天 TTL 从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 继续负责登录、退出、当前用户识别和 session 持久化，但不再内联基础 HTTP/session 工具函数。
+  - 新增 `scripts/verify-http-session-utils-contract.ts` 与 `verify:http-session-utils-contract`，覆盖 JSON body、空 body、URL encoded cookie、缺失 cookie、secure 标记、登录 cookie 和过期 cookie。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:http-session-utils-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18352` 启动受控单端口服务，`verify:single-port` 通过，确认登录、当前用户、管理员接口、成员隔离、文件上传和 SPA fallback 未被重构破坏。
 - 入口登录页分栏微缩星系 UI 收口：
   - 按用户最终方向，把登录页从居中星云卡片调整为桌面端左侧轻量伪 3D 微缩星系星图、右侧磨玻璃登录卡片。
   - 左侧星图区域不再渲染开发描述、标识、说明文字、调试信息或占位入口；仅保留 CSS 星云、轨道、粒子和深度光场。
