@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台总览面板抽离：
+  - 新增 `apps/admin/src/admin-overview-panel.tsx`，把 `Overview` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `Summary`、`ProviderRecord`、`ModelRecord` 类型供总览面板复用。
+  - 新增 `scripts/verify-admin-overview-panel-contract.mjs` 与 `verify:admin-overview-panel-contract`，覆盖模块导出、主文件不再内联、指标卡、Provider 状态表、最近任务表、模型目录表、`DataTable` 和 `statusText` 使用。
+  - 本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。
+  - 本机 `verify:admin-overview-panel-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台用户面板抽离：
   - 新增 `apps/admin/src/admin-users-panel.tsx`，把 `UsersPanel` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `AdminUser` 类型供用户面板复用。

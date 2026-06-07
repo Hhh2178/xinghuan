@@ -9,6 +9,43 @@
 
 ## 2026-06-08
 
+### 管理后台总览面板抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中只读总览 UI 的体积。
+- 保持总览指标卡、Provider 状态、最近任务和模型目录展示不变。
+- 为总览面板建立静态合同，避免后续拆分 Provider 或模型面板时误改首页核心信息架构。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-overview-panel.tsx`，集中管理 `Overview`。
+- `apps/admin/src/main.tsx` 改为导入总览面板，并导出 `Summary`、`ProviderRecord` 和 `ModelRecord` 类型供总览面板复用。
+- 新增 `scripts/verify-admin-overview-panel-contract.mjs` 与根脚本 `verify:admin-overview-panel-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-overview-panel-contract` 首次按预期因 `admin-overview-panel.tsx` 模块缺失、`main.tsx` 仍内联 `Overview` 和类型未导出失败。
+- `npm run verify:admin-overview-panel-contract` 通过，覆盖模块导出、主文件不再内联、指标卡、Provider 状态表、最近任务表、模型目录表、`DataTable` 和 `statusText` 使用。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+
+影响:
+
+- 管理后台主文件进一步减少总览展示噪音，为后续拆分 Provider 设置、模型目录或 RunningHub 面板铺路。
+- 总览仍只消费已有 `summary/providers/models/tasks` 数据，不新增 API 或状态行为。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分；下一步若拆 Provider 设置面板，需要先把 Provider draft、模型拉取、模型选择器和确认弹窗拆分边界补成更细合同。
+
 ### 管理后台用户面板抽离
 
 目标:

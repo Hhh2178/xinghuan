@@ -26,6 +26,8 @@
 
 `2026-06-08` 同日继续完成管理后台用户面板抽离：`UsersPanel` 迁入 `admin-users-panel.tsx`，`main.tsx` 导出 `AdminUser` 供面板复用，并新增 `verify:admin-users-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin` 首次暴露 `Plus` 仍被 Provider/模型/LoRA 区域复用，恢复 import 后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认新增成员、用户表格列、角色/状态展示、重置密码、启用/禁用和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
 
+`2026-06-08` 同日继续完成管理后台总览面板抽离：`Overview` 迁入 `admin-overview-panel.tsx`，`main.tsx` 导出 `Summary`、`ProviderRecord` 和 `ModelRecord` 供面板复用，并新增 `verify:admin-overview-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认总览指标卡、Provider 状态、最近任务、模型目录、任务状态文案和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成
