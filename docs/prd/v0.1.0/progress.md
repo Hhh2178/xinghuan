@@ -18,6 +18,8 @@
 
 `2026-06-08` 同日继续完成管理后台通用展示组件抽离：`DataTable`、`AdminTable`、`FormPanel` 和 `StatusPill` 迁入 `admin-common-components.tsx`，新增 `verify:admin-common-components-contract`；本机先验证合约脚本红灯为模块缺失，再完成组件抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认后台通用表格、表单面板、状态胶囊 className/结构和站内确认弹窗约束未被破坏。
 
+`2026-06-08` 同日继续完成管理后台只读面板抽离：`AuditPanel` 和 `SystemPanel` 迁入 `admin-readonly-panels.tsx`，新增 `verify:admin-readonly-panels-contract`；本机先验证合约脚本红灯为模块缺失，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认审计日志表格、系统状态表格、共享 DataTable 使用和站内确认弹窗约束未被破坏。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

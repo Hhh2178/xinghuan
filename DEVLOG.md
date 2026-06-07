@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### 管理后台只读面板抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中只读面板的 UI 体积。
+- 保持审计日志表格和系统状态表格的标题、列名、行顺序和 fallback 文案不变。
+- 为只读面板建立静态合同，避免后续拆分任务/用户/Provider 面板时误改审计或系统状态展示。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-readonly-panels.tsx`，集中管理 `AuditPanel` 和 `SystemPanel`。
+- `apps/admin/src/main.tsx` 改为导入只读面板，并导出 `AuditRecord`、`SystemInfo` 类型供面板复用。
+- 新增 `scripts/verify-admin-readonly-panels-contract.mjs` 与根脚本 `verify:admin-readonly-panels-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-readonly-panels-contract` 首次按预期因 `admin-readonly-panels.tsx` 模块缺失失败。
+- `npm run verify:admin-readonly-panels-contract` 通过，覆盖模块导出、主文件不再内联、审计表标题/列名、系统状态标题/列名/行标签和共享 `DataTable` 使用。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+- `codegraph sync` 完成，`codegraph status` 显示索引最新。
+
+影响:
+
+- 管理后台主文件进一步减少只读展示面板噪音，为后续拆分用户、任务和 Provider 面板铺路。
+- 审计和系统状态展示结构保持不变。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分，下一步可优先选择任务面板或用户面板，或在需要上线时先推灰度并复跑后台验收。
+
 ### 管理后台通用展示组件抽离
 
 目标:

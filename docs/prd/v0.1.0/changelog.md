@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台只读面板抽离：
+  - 新增 `apps/admin/src/admin-readonly-panels.tsx`，把 `AuditPanel` 和 `SystemPanel` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `AuditRecord`、`SystemInfo` 类型供只读面板复用。
+  - 新增 `scripts/verify-admin-readonly-panels-contract.mjs` 与 `verify:admin-readonly-panels-contract`，覆盖模块导出、主文件不再内联、审计表标题/列名、系统状态标题/列名/行标签和共享 `DataTable` 使用。
+  - 本机先验证合约脚本红灯为模块缺失，再完成面板抽离并复验绿灯。
+  - 本机 `verify:admin-readonly-panels-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台通用展示组件抽离：
   - 新增 `apps/admin/src/admin-common-components.tsx`，把 `DataTable`、`AdminTable`、`FormPanel` 和 `StatusPill` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，但不再内联通用表格、表单面板和状态胶囊组件。

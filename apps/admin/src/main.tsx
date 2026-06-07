@@ -24,6 +24,7 @@ import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./admin-api-client";
 import { AdminTable, DataTable, FormPanel, StatusPill } from "./admin-common-components";
+import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
 import { adminNavItems, statusText, taskTone, titleFor, type AdminTabId } from "./admin-view-model";
 import "./styles.css";
 
@@ -149,7 +150,7 @@ interface Summary {
   storage: { canvases: number; resources: number; inputFiles: number; outputFiles: number };
 }
 
-interface SystemInfo {
+export interface SystemInfo {
   environment: string;
   dataDir: string;
   storageDriver: string;
@@ -174,7 +175,7 @@ interface SystemInfo {
   storage: Summary["storage"];
 }
 
-interface AuditRecord {
+export interface AuditRecord {
   id: string;
   actorEmail: string;
   action: string;
@@ -1534,44 +1535,6 @@ function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: (path: str
       </AdminTable>
     </section>
   );
-}
-
-function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
-  return (
-    <DataTable
-      title="审计日志"
-      columns={["时间", "操作者", "动作", "对象", "说明"]}
-      rows={auditLogs.map((item) => [
-        new Date(item.createdAt).toLocaleString(),
-        item.actorEmail,
-        item.action,
-        `${item.targetType}:${item.targetId}`,
-        item.summary,
-      ])}
-    />
-  );
-}
-
-function SystemPanel({ system }: { system: SystemInfo | null }) {
-  const rows = useMemo(() => [
-    ["环境", system?.environment || "-"],
-    ["服务", system?.service || "-"],
-    ["版本", system?.version || "-"],
-    ["存储驱动", system?.storageDriver || "-"],
-    ["数据库状态", system?.database?.status || "-"],
-    ["数据库迁移", system?.database?.migrations?.join(", ") || (system?.database?.configured ? "未执行" : "未配置")],
-    ["数据库错误", system?.database?.error || "-"],
-    ["Redis 状态", system?.redis?.status || "-"],
-    ["Redis 队列", system?.redis?.queue || "-"],
-    ["Redis 深度", String(system?.redis?.depth ?? 0)],
-    ["Redis 错误", system?.redis?.error || "-"],
-    ["数据目录", system?.dataDir || "-"],
-    ["认证数据", system?.authDbPath || "-"],
-    ["后台数据", system?.adminDbPath || "-"],
-    ["画布数量", String(system?.storage?.canvases ?? 0)],
-    ["资源数量", String(system?.storage?.resources ?? 0)],
-  ], [system]);
-  return <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />;
 }
 
 createRoot(document.getElementById("root")!).render(
