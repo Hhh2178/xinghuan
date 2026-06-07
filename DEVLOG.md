@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### 管理后台通用展示组件抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中通用表格、表单面板和状态胶囊组件的耦合。
+- 保持后台数据表格、表单面板、状态胶囊 className 和渲染结构不变。
+- 为后台通用展示组件建立静态合同，避免后续拆分用户、任务或系统面板时误改基础 UI 结构。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-common-components.tsx`，集中管理 `DataTable`、`AdminTable`、`FormPanel` 和 `StatusPill`。
+- `apps/admin/src/main.tsx` 改为导入通用展示组件，不再内联这些无状态组件。
+- 新增 `scripts/verify-admin-common-components-contract.mjs` 与根脚本 `verify:admin-common-components-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-common-components-contract` 首次按预期因 `admin-common-components.tsx` 模块缺失失败。
+- `npm run verify:admin-common-components-contract` 通过，覆盖模块导出、主文件不再内联、表格/表单 className、状态胶囊 tone class 和 DataTable 表头/行渲染。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+- `codegraph sync` 完成，`codegraph status` 显示索引最新。
+
+影响:
+
+- 管理后台主文件进一步减少通用 UI 组件噪音，为继续拆分用户、任务、系统或 Provider 面板铺路。
+- 现有后台基础布局 className 与表格/表单结构保持不变。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分，优先考虑用户/任务/系统这种依赖较少的面板，或在需要上线时先推灰度并复跑后台验收。
+
 ### 管理后台导航与任务状态 ViewModel 抽离
 
 目标:

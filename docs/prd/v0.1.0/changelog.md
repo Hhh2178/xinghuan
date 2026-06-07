@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台通用展示组件抽离：
+  - 新增 `apps/admin/src/admin-common-components.tsx`，把 `DataTable`、`AdminTable`、`FormPanel` 和 `StatusPill` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，但不再内联通用表格、表单面板和状态胶囊组件。
+  - 新增 `scripts/verify-admin-common-components-contract.mjs` 与 `verify:admin-common-components-contract`，覆盖模块导出、主文件不再内联、表格/表单 className、状态胶囊 tone class 和 DataTable 表头/行渲染。
+  - 本机先验证合约脚本红灯为模块缺失，再完成组件抽离并复验绿灯。
+  - 本机 `verify:admin-common-components-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台导航与任务状态 ViewModel 抽离：
   - 新增 `apps/admin/src/admin-view-model.ts`，把后台导航项、`titleFor`、`statusText` 和 `taskTone` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 和状态流转，但不再内联导航配置与任务状态展示映射。

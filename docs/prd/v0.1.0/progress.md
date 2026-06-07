@@ -16,6 +16,8 @@
 
 `2026-06-08` 同日继续完成管理后台导航与任务状态 ViewModel 抽离：后台导航项、`titleFor`、`statusText` 和 `taskTone` 迁入 `admin-view-model.ts`，新增 `verify:admin-view-model-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认导航顺序、标题 fallback、任务状态文案、状态色和站内确认弹窗约束未被破坏。
 
+`2026-06-08` 同日继续完成管理后台通用展示组件抽离：`DataTable`、`AdminTable`、`FormPanel` 和 `StatusPill` 迁入 `admin-common-components.tsx`，新增 `verify:admin-common-components-contract`；本机先验证合约脚本红灯为模块缺失，再完成组件抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认后台通用表格、表单面板、状态胶囊 className/结构和站内确认弹窗约束未被破坏。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

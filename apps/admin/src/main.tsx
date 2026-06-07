@@ -23,7 +23,8 @@ import { canCancelTask, canRetryTask, type TaskStatus } from "@xinghuan/shared";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./admin-api-client";
-import { adminNavItems, statusText, taskTone, titleFor, type AdminTabId, type StatusTone } from "./admin-view-model";
+import { AdminTable, DataTable, FormPanel, StatusPill } from "./admin-common-components";
+import { adminNavItems, statusText, taskTone, titleFor, type AdminTabId } from "./admin-view-model";
 import "./styles.css";
 
 type UserRole = "admin" | "member";
@@ -1571,39 +1572,6 @@ function SystemPanel({ system }: { system: SystemInfo | null }) {
     ["资源数量", String(system?.storage?.resources ?? 0)],
   ], [system]);
   return <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />;
-}
-
-function DataTable({ title, columns, rows }: { title: string; columns: string[]; rows: string[][] }) {
-  return (
-    <AdminTable title={title}>
-      <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
-      <tbody>
-        {rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}
-      </tbody>
-    </AdminTable>
-  );
-}
-
-function AdminTable({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="data-panel">
-      <header><h2>{title}</h2></header>
-      <div className="table-wrap"><table>{children}</table></div>
-    </section>
-  );
-}
-
-function FormPanel({ title, icon: Icon, children }: { title: string; icon: typeof Plus; children: React.ReactNode }) {
-  return (
-    <section className="form-panel">
-      <header><Icon aria-hidden="true" /><h2>{title}</h2></header>
-      <div className="form-grid">{children}</div>
-    </section>
-  );
-}
-
-function StatusPill({ tone, children }: { tone: StatusTone; children: React.ReactNode }) {
-  return <span className={`status-pill ${tone}`}>{children}</span>;
 }
 
 createRoot(document.getElementById("root")!).render(
