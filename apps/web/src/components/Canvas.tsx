@@ -21,7 +21,7 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Play, Copy, CopyPlus, Trash2, FolderPlus, PackagePlus, Library, Download, Workflow, Send as SendIcon } from 'lucide-react';
+import { Play, Copy, CopyPlus, Trash2, FolderPlus, PackagePlus, Library, Download, Workflow, Send as SendIcon, Orbit, Sparkles } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useCanvasStore } from '../stores/canvas';
 import { useThemeStore } from '../stores/theme';
@@ -29,6 +29,7 @@ import { useShortcutStore } from '../stores/shortcuts';
 import { getTemplateMode, resolveThemeTemplate } from '../theme/defaultTemplates';
 import { useRunBusStore } from '../stores/runBus';
 import { useGroupBusStore, GROUP_COLORS, DEFAULT_GROUP_NAME } from '../stores/groupBus';
+import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
 // v1.2.10.5: 节点落点防重叠解析器 (单节点/整组双模式 + 兜底+toast+飞镜)
@@ -1130,7 +1131,7 @@ interface CanvasInnerProps {
 }
 
 function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
-  const { activeId, canvases, loadCanvases, setActive } = useCanvasStore();
+  const { activeId, canvases, loadCanvases, setActive, createCanvas } = useCanvasStore();
   const { theme, style, templateId, customTemplates } = useThemeStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
   const shortcutText = useCallback((actionId: string) => formatShortcutList(shortcuts[actionId]), [shortcuts]);
@@ -4645,13 +4646,42 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   if (!activeId) {
     return (
       <div
-        className="t8-canvas-shell flex-1 flex items-center justify-center"
+        className="t8-canvas-shell xh-empty-canvas flex-1 relative flex items-center justify-center overflow-hidden"
         data-theme-visual={visualStyle}
-        style={{ background: bgColor, color: themeTokens.textMuted }}
+        style={{
+          background: `radial-gradient(circle at 50% 18%, rgba(96, 165, 250, 0.18), transparent 32%), radial-gradient(circle at 78% 22%, rgba(45, 212, 191, 0.13), transparent 28%), radial-gradient(circle at 18% 78%, rgba(129, 140, 248, 0.13), transparent 30%), ${bgColor}`,
+          color: themeTokens.textMuted,
+        }}
       >
-        <div className="text-center">
-          <div className="text-2xl mb-2 font-bold tracking-wide">🐧 贞贞的无限画布（企鹅共创版）</div>
-          <p>请先在左侧创建或选择一个画布</p>
+        <StellarCursorAura className="xh-cursor-aura--canvas" />
+        <div className="xh-stellar-grid" aria-hidden="true" />
+        <div className="xh-stellar-lines" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="xh-empty-orbit absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/12" />
+          <div className="xh-empty-orbit absolute left-1/2 top-1/2 h-[660px] w-[660px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-300/10" />
+        </div>
+        <div className="xh-glass-panel relative w-[min(720px,calc(100%-48px))] rounded-[36px] px-8 py-8 text-center shadow-[0_30px_120px_rgba(15,50,95,0.28)]">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-cyan-300/30 bg-cyan-300/10 text-lg font-black text-cyan-100 shadow-[0_0_44px_rgba(96,165,250,0.24)]">
+            <Orbit size={30} />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.36em] text-cyan-200/70">STELLAR GRAPH CANVAS</div>
+          <div className="mt-3 text-3xl font-black tracking-tight text-white">开启第一张星图</div>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-cyan-50/62">
+            从空白画布、图像生成流、视频生成流或 RunningHub 预设开始。这里会成为你的节点星座、素材资产库和任务历史入口。
+          </p>
+          <button
+            type="button"
+            onClick={() => createCanvas(`星图画布 ${canvases.length + 1}`)}
+            className="xh-entry-primary mx-auto mt-7 flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-black text-slate-950 transition"
+          >
+            <Sparkles size={17} />
+            + 创建星图画布
+          </button>
+          <div className="mt-7 grid grid-cols-3 gap-2 text-[11px] text-cyan-100/58">
+            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">节点星座</div>
+            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">素材资产库</div>
+            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">模型目录</div>
+          </div>
         </div>
       </div>
     );

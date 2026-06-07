@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useNodeConnections, useNodesData, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Loader2, Workflow, Wallet, Sparkles, Square, Search, RefreshCw } from 'lucide-react';
 import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset } from '../../services/generation';
+import { buildRunningHubAppInfoFromCatalog, fetchRunningHubCatalog, type RunningHubCatalogWorkflow } from '../../services/runninghubCatalog';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
@@ -133,6 +134,9 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
+  const [workflowCatalog, setWorkflowCatalog] = useState<RunningHubCatalogWorkflow[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
 
   // v1.2.9.16: 取消 rhWalletApiKey 单独字段 —— RH 钱包应用与普通 RunningHub
   // 节点统一使用 settings.rhApiKey。useWallet 变量仅用于 UI 区分（标题/图标/配色），
@@ -147,6 +151,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
 
   const d = data as any;
   const webappId: string = d?.webappId || '';
+  const workflowPresetId: string = d?.rhWorkflowPresetId || '';
   const instanceType: string = d?.instanceType || '';
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
@@ -157,6 +162,43 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const paramValues: Record<string, RhParamValue> = d?.paramValues || {};
   const paramMentions: Record<string, MediaMention[]> =
     d?.paramMentions && typeof d.paramMentions === 'object' ? d.paramMentions : {};
+  const selectedWorkflowPreset = useMemo(
+    () => workflowCatalog.find((item) => item.catalogId === workflowPresetId) || null,
+    [workflowCatalog, workflowPresetId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setCatalogLoading(true);
+    fetchRunningHubCatalog()
+      .then((catalog) => {
+        if (cancelled) return;
+        setWorkflowCatalog(Array.isArray(catalog.workflows) ? catalog.workflows : []);
+        setCatalogError('');
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setCatalogError(err?.message || '读取工作流目录失败');
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedWorkflowPreset) return;
+    if (appInfo?.presetCatalogId === selectedWorkflowPreset.catalogId) return;
+    update({
+      webappId: selectedWorkflowPreset.runTargetId,
+      appInfo: buildRunningHubAppInfoFromCatalog(selectedWorkflowPreset),
+      paramValues: {},
+      paramMentions: {},
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkflowPreset?.catalogId]);
 
   const stopPoll = () => {
     if (pollTimer.current) {
@@ -722,12 +764,49 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           />
         )}
         <div>
+          <label className="text-[10px] text-white/50 block mb-1">工作流预设</label>
+          <select
+            value={workflowPresetId}
+            onChange={(e) => {
+              const nextId = e.target.value;
+              if (!nextId) {
+                update({ rhWorkflowPresetId: '', appInfo: null });
+                return;
+              }
+              const preset = workflowCatalog.find((item) => item.catalogId === nextId);
+              if (!preset) return;
+              update({
+                rhWorkflowPresetId: nextId,
+                webappId: preset.runTargetId,
+                appInfo: buildRunningHubAppInfoFromCatalog(preset),
+                paramValues: {},
+                paramMentions: {},
+              });
+              setError(null);
+            }}
+            className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+          >
+            <option value="">{catalogLoading ? '正在读取后台工作流...' : '手动填写 webappId / 或选择后台工作流'}</option>
+            {workflowCatalog.map((workflow) => (
+              <option key={workflow.catalogId} value={workflow.catalogId}>
+                {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
+              </option>
+            ))}
+          </select>
+          {selectedWorkflowPreset ? (
+            <div className="text-[10px] text-white/40 mt-1">
+              {selectedWorkflowPreset.note || `已注入 ${selectedWorkflowPreset.fields.length} 个字段映射`}
+            </div>
+          ) : null}
+          {!selectedWorkflowPreset && catalogError ? <div className="text-[10px] text-rose-300/80 mt-1">{catalogError}</div> : null}
+        </div>
+        <div>
           <label className="text-[10px] text-white/50 block mb-1">Webapp ID</label>
           <div className="flex gap-1">
             <input
               type="text"
               value={webappId}
-              onChange={(e) => update({ webappId: e.target.value })}
+              onChange={(e) => update({ webappId: e.target.value, rhWorkflowPresetId: '' })}
               placeholder="1234567890"
               className="flex-1 rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
             />

@@ -74,7 +74,7 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 
 ```
 /opt/apps/xinghuan-canvas-next/
-├── current -> releases/20260605-1505-xinghuan-worker-queue-gray/
+├── current -> releases/20260606-1217-output-preview-layout-gray/
 ├── releases/
 │   ├── 20260605-0903-xinghuan-gray/
 │   ├── 20260605-1135-xinghuan-auth-gray/
@@ -82,7 +82,11 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 │   ├── 20260605-1245-xinghuan-admin-sec-gray/
 │   ├── 20260605-1315-xinghuan-db-ready-gray/
 │   ├── 20260605-1410-xinghuan-pg-repo-gray/
-│   └── 20260605-1505-xinghuan-worker-queue-gray/
+│   ├── 20260605-1505-xinghuan-worker-queue-gray/
+│   ├── 20260606-2140-grsai-draw-gray/
+│   ├── 20260606-2335-grsai-worker-gray/
+│   ├── 20260606-1150-admin-schema-gray/
+│   └── 20260606-1217-output-preview-layout-gray/
 └── shared/
     └── canvas-next.env          # 环境变量（密钥，不入 Git）
 ```

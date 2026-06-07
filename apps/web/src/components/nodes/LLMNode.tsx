@@ -39,6 +39,8 @@ import { splitText } from '../../utils/textSplit';
 import { defaultSizeOf, placeBatchNodes, type Rect as PlacementRect } from '../../utils/nodePlacement';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import { useApiKeysStore } from '../../stores/apiKeys';
+import { useModelCatalogStore } from '../../stores/modelCatalog';
+import type { PublicModelRecord } from '../../services/api';
 import {
   advancedProviderModelOptions,
   advancedProvidersForNode,
@@ -50,6 +52,7 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
+import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
 
 /**
  * LLM / Vision 节点 —— 完全对齐 gpt-image-2-web Chat (index.html L1600 / L8128~L8400)
@@ -165,6 +168,19 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const chatRef = useCallback((el: HTMLDivElement | null) => attachWheelBlock(el), []);
 
   const d = data as any;
+  const backendChatModels = useModelCatalogStore((s) => s.catalog.chatModels);
+  const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
+  const backendSelection = useMemo(
+    () => resolvePublishedModelSelection(backendChatModels, {
+      selectedModelId: d?.backendModelId,
+      selectedProviderId: d?.backendProviderId,
+    }),
+    [backendChatModels, d?.backendModelId, d?.backendProviderId],
+  );
+  const backendModel: PublicModelRecord | null = backendSelection.selectedModel;
+  const backendProviderGroups = backendSelection.providerGroups;
+  const backendProviderGroup = backendSelection.selectedProviderGroup;
+  const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
   const model: string = d?.model || DEFAULT_LLM_MODEL;
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const llmAdvancedProviders = useMemo(
@@ -179,8 +195,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     }),
     [advancedProviders, d?.providerSource, d?.providerId, d?.providerModel],
   );
-  const isExternalSelected = providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
-  const savedExternalMissing = !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
+  const isExternalSelected = !isBackendSelected && providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
+  const savedExternalMissing = !isBackendSelected && !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
   const externalModelOptions = providerSelection.provider
     ? advancedProviderModelOptions(providerSelection.provider, 'llm')
     : [];
@@ -209,9 +225,42 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const history: ChatTurn[] = Array.isArray(d?.history) ? d.history : [];
   const generatedImages: string[] = Array.isArray(d?.generatedImages) ? d.generatedImages : [];
 
-  const activeModel = isExternalSelected ? externalProviderModel : model;
+  const activeModel = isBackendSelected && backendModel ? backendModel.modelId : isExternalSelected ? externalProviderModel : model;
   const src = `LLM·${activeModel || model}·#${id.slice(-4)}`;
-  const isImgOut = !isExternalSelected && isImageOutputLlm(model);
+  const isImgOut = !isBackendSelected && !isExternalSelected && isImageOutputLlm(model);
+
+  const switchBackendChatModel = (catalogId: string) => {
+    const next = backendChatModels.find((item) => item.id === catalogId) || backendProviderGroup?.models[0] || backendChatModels[0];
+    if (!next) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    update({
+      modelSource: 'backend',
+      backendProviderId: next.providerId,
+      backendModelId: next.id,
+      providerSource: '',
+      providerId: next.providerId,
+      providerModel: next.modelId,
+    });
+  };
+
+  const switchBackendChatProvider = (providerId: string) => {
+    const nextProvider = backendProviderGroups.find((item) => item.providerId === providerId) || backendProviderGroups[0];
+    const nextModel = nextProvider?.models[0] || null;
+    if (!nextProvider || !nextModel) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    update({
+      modelSource: 'backend',
+      backendProviderId: nextProvider.providerId,
+      backendModelId: nextModel.id,
+      providerSource: '',
+      providerId: nextModel.providerId,
+      providerModel: nextModel.modelId,
+    });
+  };
 
   // 上游素材实时订阅(跟随上游 data 变化重渲染) —— 用于节点内预览。
   // 跟 ImageNode / SeedanceNode 同一套机制(useNodeConnections + useNodesData),
@@ -375,8 +424,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     taskCompletionSound.primeAudio();
     update({ status: 'generating', error: null });
     logBus.info(
-      `发送到 ${isExternalSelected && providerSelection.provider ? providerSelection.provider.label : model} · ${
-        !isExternalSelected && useStream && !isImgOut && userVideos.length === 0 ? 'SSE' : '非流式'
+      `发送到 ${isBackendSelected && backendModel ? backendModel.provider.name : isExternalSelected && providerSelection.provider ? providerSelection.provider.label : model} · ${
+        !isBackendSelected && !isExternalSelected && useStream && !isImgOut && userVideos.length === 0 ? 'SSE' : '非流式'
       } · imgs=${userImages.length} · videos=${userVideos.length}${userVideos.length ? ` · ${llmVideoMode}` : ''}`,
       src,
     );
@@ -392,7 +441,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     const nextHistory: ChatTurn[] = [...history, userTurn];
 
     try {
-      if (!isExternalSelected && useStream && !isImgOut && userVideos.length === 0) {
+      if (!isBackendSelected && !isExternalSelected && useStream && !isImgOut && userVideos.length === 0) {
         // ====== 流式 ======
         const ctrl = new AbortController();
         abortRef.current = ctrl;
@@ -422,8 +471,19 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         taskCompletionSound.notifyComplete(id, 'llm');
       } else {
         // ====== 非流式(出图模型 或 关流式) ======
-        const res = isExternalSelected && providerSelection.provider
+        const res = isBackendSelected && backendModel
           ? await generateExternalLlm({
+              providerId: backendModel.providerId,
+              providerModel: backendModel.modelId,
+              model: backendModel.modelId,
+              messages,
+              temperature,
+              max_tokens: maxTokens,
+              ...llmVideoOptions,
+              providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id },
+            })
+          : isExternalSelected && providerSelection.provider
+            ? await generateExternalLlm({
               providerId: providerSelection.provider.id,
               providerModel: externalProviderModel,
               model: externalProviderModel,
@@ -433,7 +493,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
               ...llmVideoOptions,
               providerParams: d?.providerParams || {},
             })
-          : await generateLlm({ model, messages, temperature, max_tokens: maxTokens, ...llmVideoOptions });
+            : await generateLlm({ model, messages, temperature, max_tokens: maxTokens, ...llmVideoOptions });
         const replyText = res.content || '';
         const imgs = res.imageUrls || [];
         const finalHistory: ChatTurn[] = [
@@ -652,7 +712,9 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-white truncate">LLM / Vision</div>
           <div className="text-[10px] text-white/40 truncate">
-            {isExternalSelected && providerSelection.provider
+            {isBackendSelected && backendModel
+              ? `${backendModel.provider.name} · ${backendModel.displayName || backendModel.modelId}`
+              : isExternalSelected && providerSelection.provider
               ? `${providerSelection.provider.label || providerSelection.provider.id} · ${externalProviderModel || '未选模型'}`
               : '独立 Key · 5 模型 · 多模态 · 流式'}
           </div>
@@ -669,7 +731,71 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
       </div>
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
-        {llmAdvancedProviders.length > 0 && (
+        {backendChatModels.length > 0 && (
+          <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-semibold text-cyan-100">发布模型</label>
+              <span className="text-[10px] text-cyan-200/70">{backendChatModels.length} 个已发布</span>
+            </div>
+            <div className="grid gap-2">
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">供应商</label>
+                <select
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  onChange={(e) => {
+                    if (e.target.value === '__local__') {
+                      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+                      return;
+                    }
+                    switchBackendChatProvider(e.target.value);
+                    update({ stream: false });
+                  }}
+                  style={{ background: '#18181b', color: '#ffffff' }}
+                  className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                >
+                  {backendProviderGroups.map((group) => (
+                    <option key={group.providerId} value={group.providerId} style={{ background: '#18181b', color: '#ffffff' }}>
+                      {group.providerName}
+                    </option>
+                  ))}
+                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>本地 T8 内置模型</option>
+                </select>
+              </div>
+              {isBackendSelected && backendProviderGroup && (
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">模型</label>
+                  <select
+                    value={backendModel?.id || ''}
+                    onChange={(e) => {
+                      switchBackendChatModel(e.target.value);
+                      update({ stream: false });
+                    }}
+                    style={{ background: '#18181b', color: '#ffffff' }}
+                    className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                  >
+                    {backendProviderGroup.models.map((item) => (
+                      <option key={item.id} value={item.id} style={{ background: '#18181b', color: '#ffffff' }}>
+                        {item.displayName || item.modelId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {isBackendSelected && backendModel && (
+              <>
+                <div className="text-[10px] leading-relaxed text-cyan-100/65">
+                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点真正调用的能力边界。
+                </div>
+                <div className="text-[10px] leading-relaxed text-cyan-100/50">
+                  {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isBackendSelected && llmAdvancedProviders.length > 0 && (
           <div className="rounded border border-white/10 bg-white/[0.03] p-2 space-y-2">
             <button
               type="button"
@@ -738,7 +864,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 模型 */}
-        {!isExternalSelected && <div>
+        {!isBackendSelected && !isExternalSelected && <div>
           <label className="text-[10px] text-white/50 block mb-1">模型</label>
           <select
             value={model}
@@ -783,19 +909,19 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
             <label className="text-[9px] text-white/40 block mb-0.5">流式</label>
             <label
               className={`flex items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] cursor-pointer ${
-                useStream && !isImgOut && !isExternalSelected
+                useStream && !isImgOut && !isBackendSelected && !isExternalSelected
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                   : 'bg-white/5 text-white/40 border border-white/10'
-              } ${isImgOut || isExternalSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${isImgOut || isBackendSelected || isExternalSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <input
                 type="checkbox"
-                disabled={isImgOut || isExternalSelected}
-                checked={useStream && !isImgOut && !isExternalSelected}
+                disabled={isImgOut || isBackendSelected || isExternalSelected}
+                checked={useStream && !isImgOut && !isBackendSelected && !isExternalSelected}
                 onChange={(e) => update({ stream: e.target.checked })}
                 className="hidden"
               />
-              {isExternalSelected ? '关(扩展)' : isImgOut ? '关(出图)' : useStream ? 'SSE' : '关'}
+              {isBackendSelected ? '关(后台)' : isExternalSelected ? '关(扩展)' : isImgOut ? '关(出图)' : useStream ? 'SSE' : '关'}
             </label>
           </div>
         </div>
@@ -1026,7 +1152,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
               </>
             )}
           </button>
-          {status === 'generating' && useStream && !isImgOut && !isExternalSelected && (
+          {status === 'generating' && useStream && !isImgOut && !isBackendSelected && !isExternalSelected && (
             <button
               onClick={handleStop}
               className="px-2 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs"

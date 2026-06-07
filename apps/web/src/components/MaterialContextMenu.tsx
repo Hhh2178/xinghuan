@@ -281,7 +281,7 @@ export default function MaterialContextMenu() {
           </div>
           {cloudTargets.length === 0 ? (
             <div className={`px-3 pb-2 text-[11px] ${isPixel ? '' : isDark ? 'text-white/55' : 'text-zinc-500'}`}>
-              未启用云端目标，请先到 API 设置中配置。
+              未启用云端目标，请联系管理员在统一后台配置。
             </div>
           ) : (
             <div className="max-h-36 overflow-y-auto">

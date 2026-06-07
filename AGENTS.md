@@ -48,8 +48,8 @@
 
 ## 当前状态
 
-- 2.0 目前处于 `v0.1.0` Phase 1 基础平台已完成阶段。
+- 2.0 目前处于 `v0.1.0` Phase 2 节点与模型治理已完成灰度验收阶段。
 - 旧项目已被明确放弃作为继续开发主干。
-- 已完成：Monorepo 工程基线、T8 UI 迁移、单端口生产服务、灰度部署、认证与用户隔离、统一后台、PostgreSQL、Redis/Worker 任务队列。
-- 下一步进入 Phase 2 节点与模型治理：Provider Adapter、真实模型调用、任务输出素材落库。
+- 已完成：Monorepo 工程基线、T8 UI 迁移、单端口生产服务、灰度部署、认证与用户隔离、统一后台、PostgreSQL、Redis/Worker 任务队列、Provider/模型框架、图像/视频/LLM 通用节点动态模型参数、后端图像/语言/视频代理、Worker 图像 Adapter。
+- 下一步进入 Phase 3 任务与素材闭环：任务输出素材落库、画布/素材 PostgreSQL repository、RunningHub 工作流字段映射和生产切换准备。
 - 2026-06-05：Mimo 完成 Git 代码补全提交和 Web 分包优化。

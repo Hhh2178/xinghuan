@@ -2,7 +2,9 @@
 
 ## 版本定位
 
-v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、本机单端口生产服务和灰度认证版 POC 版本，不是最终可上线产品版本。
+v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、单端口生产服务、灰度认证版、Phase 2 节点与模型治理闭环，以及 Phase 3 第一轮任务/素材闭环版本。它已切到生产域名 `canvas.hhh2121.xyz`，当前生产 release 为 `20260607-1610-node-acceptance-prod`；后台模型、通用节点、基础任务队列、输出素材落库、任务取消/重试、画布/素材 PostgreSQL repository、生产用户账号、图像/视频/LLM 外部代理、全节点验收链路和 RunningHub 目录链路第一版均已具备可验收基础。RunningHub 真实工作流卡片录入、字段展开和预览运行仍按用户要求暂缓。
+
+`2026-06-07` 已补齐本机全节点验收矩阵和完整验收链路：46 个注册节点均通过组件/端口/默认数据合同检查，并在真实浏览器画布中全部渲染；`npm run verify:local-acceptance-chain` 已通过构建、单端口、节点矩阵、浏览器渲染、模型目录、外部代理、任务生命周期、素材 API、输出预览、RunningHub 合同/API、Worker 合同、输出落库和 14 天清理共 20 项核心验收。去 AI 水印节点 API 已改为结构化未配置兜底，避免暂未接入真实 Adapter 时影响画布渲染。灰度 release `20260607-1545-node-acceptance-gray` 与生产 release `20260607-1610-node-acceptance-prod` 均已上线并通过服务器核心验收和公网 46 节点浏览器烟测。
 
 ## 范围内
 
@@ -37,16 +39,55 @@ v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、本机单端口�
 - 文件型 auth/admin 数据导入 PostgreSQL。
 - Redis/worker 任务队列。
 - Worker systemd 服务。
+- 画布前端 API/服务商设置入口收口。
+- 后台 Provider/模型框架设计文档。
+- 后台 API 设置第一版重做。
+- Provider 验证、模型拉取、选择导入和三类模型目录接口。
+- PostgreSQL Provider/模型框架迁移 `002_provider_model_framework.sql`。
+- RunningHub 应用/工作流配置管理。
+- ModelScope LoRA 配置管理。
+- `/api/models` 登录用户模型目录。
+- `/api/proxy/external/image`、`/api/proxy/external/llm`、`/api/proxy/external/video` 后端代理。
+- 图像、视频、LLM 三类通用节点读取后台模型目录。
+- 图像/视频节点基于模型 schema 动态展示参数，并在 schema 更新后自动归一化旧参数。
+- 后台模型高级设置：显示名、模型 ID、能力分类、协议覆盖、输入 Profile、参数 Schema JSON。
+- Worker 图像 Adapter：读取 Provider/Model/Key/payload 并回写 result。
+- 任务输出素材落库到用户 `/files/output/...`，并写入资源库。
+- 画布 / 素材 PostgreSQL repository 与首次读取文件导入 fallback。
+- RunningHub 工作流 `runTargetId`、工作流 JSON、字段映射持久化与画布节点预设消费。
+- 生产预检文档按最新灰度基线持续更新。
+- 生产域名 `canvas.hhh2121.xyz`、生产端口 `127.0.0.1:18100`、生产 systemd/API/Worker/清理 timer。
+- 生产 release `20260607-1610-node-acceptance-prod`。
+- 灰度 release `20260606-1818-provider-signed-refs-xinghuan-empty-gray`。
+- 图像/视频/LLM 外部代理参考素材短链：本地 `/files/...`、`/input/...`、`/output/...` 转短期 HMAC 签名 `/api/provider-files/...` 后再交给上游。
+- 生产后台启用 `toapis-grok-video`，视频节点可消费后台发布视频模型目录。
+- 工作区权限校验页与无画布空态替换为星幻画布设计。
+- 14 天保守型输出素材自动清理脚本与 systemd timer 模板。
+- 素材空间读取闭环：资源库抽屉自动刷新新增输出素材。
+- 后台任务真实取消 / 重试语义与 Worker 取消保护。
+- 灰度 release `20260606-0945-phase2-complete-gray`。
+- 灰度 release `20260606-2140-grsai-draw-gray`。
+- 灰度 release `20260606-2335-grsai-worker-gray`。
+- 灰度 release `20260606-1515-phase3-output-prune-gray`。
+- 灰度 release `20260606-2358-phase3-lifecycle-gray`。
+- 灰度 release `20260607-0038-phase3-canvas-resource-pg-gray`。
+- 灰度 release `20260607-0115-phase3-canvas-pg-hotfix-gray`。
+- 灰度 release `20260607-0218-phase3-runninghub-workflow-gray`。
+- 灰度 release `20260606-1150-admin-schema-gray`。
+- 灰度 release `20260606-1217-output-preview-layout-gray`。
+- 后台模型编辑器说明收口：明确 Provider / Schema / `inputProfile` 的职责边界。
+- 输出素材节点单图/单视频自适应预览修复。
+- 灰度管理员凭据与服务器 bootstrap 环境重新对齐。
+- 全节点验收矩阵、浏览器真实渲染烟测和本地完整验收链路。
+- 去 AI 水印节点未配置状态和处理接口的结构化兜底。
 
 ## 范围外
 
-- 不包含生产部署。
-- 不包含真实 Provider 调用。
-- 不包含真实 Provider Adapter。
-- 不包含任务输出素材落库。
-- 不包含画布内容和素材资源库的 PostgreSQL repository 切换。
-- 不包含任务队列。
-- 不包含真实异步任务队列。
+- 不包含火山方舟高级配置。
+- 不包含 RunningHub 工作流 JSON 自动拉取和真实预览运行的完整迁入。
+- 不包含 RunningHub 首条真实工作流卡片录入、字段展开和预览运行验收；该事项已按用户要求暂缓。
+- 不包含去 AI 水印真实 Adapter；当前仅提供节点渲染所需的状态和未配置处理兜底。
+- 不包含所有厂商专用 Provider Adapter；当前已覆盖 OpenAI 兼容、APIMart、自定义协议和 GRSAI Draw 图像路径。
 - 不包含生产级审计扩展、密钥轮换流程和数据库迁移。
 
 ## 验收清单
@@ -115,7 +156,48 @@ v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、本机单端口�
 - `xinghuan-canvas-next-worker.service` 为 `active`。
 - 服务器 `npm run verify:worker` 通过。
 - 公网管理员登录后 `/api/admin/system` 返回 `redisStatus=connected`、`redisQueue=xinghuan:tasks`、`redisDepth=0`。
+- 画布前端不再展示 `API 设置` 服务商入口。
+- `docs/prd/v0.1.0/provider-model-framework.md` 已记录后台 Provider/模型三分类、拉取、选择导入和手工维护方案。
+- 后台 `API 设置` 页面已合并 Provider/模型管理，并提供参考式左侧平台列表、右侧编辑器、模型拉取和选择导入弹窗。
+- `npm run build:single-port` 通过。
+- 临时 `127.0.0.1:18221` `npm run verify:single-port` 全部 PASS。
+- RunningHub 应用/工作流和 ModelScope LoRA 配置可保存、回显、编辑和删除。
+- 灰度 release `20260606-0945-phase2-complete-gray` 已部署。
+- 服务器完整自动验收通过：`verify:single-port`、`verify:model-catalog`、`verify:external-image-proxy`、`verify:external-chat-proxy`、`verify:external-video-proxy`、`verify:generic-node-catalog`、`verify:task-payload-api`、`verify:worker-adapter-contract`、`verify:worker-image-adapter`、`verify:worker`。
+- 本机 `npm run verify:grsai-draw` 通过。
+- 灰度 release `20260606-2140-grsai-draw-gray` 已部署。
+- 灰度 release `20260606-2335-grsai-worker-gray` 已部署。
+- 灰度 release `20260607-0038-phase3-canvas-resource-pg-gray` 已部署。
+- 灰度 release `20260607-0115-phase3-canvas-pg-hotfix-gray` 已部署。
+- 灰度 release `20260607-0218-phase3-runninghub-workflow-gray` 已部署。
+- 灰度 `npm run verify:postgres-canvas-resource-contract` 通过。
+- 灰度 `npm run verify:canvas-resource-api` 通过，并返回 `canvasCount=13`、`imageResourceCount=2`。
+- 灰度 `npm run verify:runninghub-workflow-contract` 通过。
+- 灰度 `npm run verify:runninghub-workflow-api` 通过，并返回 `workflowCount=0`、`appCount=0`。
+- 本机与灰度 `npm run verify:single-port` 已于 `2026-06-07` 重新复验通过，历史 `POST /api/admin/providers` `401` 未再复现。
+- 灰度 PostgreSQL `xh_canvases=13`、`xh_assets=2`、`xh_resource_categories=0`。
+- 服务器 `npm run verify:grsai-draw-gray` 通过。
+- 服务器 `npm run verify:worker-grsai-image-adapter` 通过。
+- 本机 `npm run type-check -w @xinghuan/admin` 通过。
+- 本机 `npm run build -w @xinghuan/admin` 通过。
+- 本机 `npx tsx scripts/verify-output-node-preview-layout.mjs` 通过。
+- 灰度 `current` 已切换到 `20260606-1217-output-preview-layout-gray`。
+- `curl -fsS http://127.0.0.1:18200/api/status` 返回 `environment=gray`。
+- 服务器本地使用 bootstrap 管理员邮箱/密码登录 `/api/auth/login` 成功。
+- 公网画布真实联通验收通过：文本连接图像、视频、LLM，图像输出 `/files/output/external_image_...png`，视频输出 `/files/output/external_video_...mp4`，LLM 返回 `Phase 2 LLM 节点连通成功`。
+- 公网后台模型高级设置验收通过：保存新图像 schema 后，画布图像节点显示 `3:4`、`800x1200`、`prompt,image_reference,multi_image`、`图像 (0/5)`，再次生成成功，控制台 0 error。
+- 公网视觉截图已落盘：`phase2-gray-model-advanced-editor.png`、`phase2-gray-dynamic-schema-after-admin-edit.png`、`phase2-gray-public-after.png`、`phase2-gray-admin-api-narrow.png`。
+- 本机 `npm run verify:node-acceptance-matrix` 通过：46 个注册节点、34 个可见节点、12 个隐藏注册节点和 33 个可执行节点全部具备组件映射和端口声明。
+- 本机 `npm run verify:canvas-node-render-smoke` 通过：真实浏览器画布中 46/46 节点渲染成功，旧 T8 空态、登录页残留、错误边界和运行时错误均为 0。
+- 本机 `npm run verify:ai-watermark-api` 通过：去 AI 水印状态接口和未配置处理响应均返回结构化结果。
+- 本机 `npm run verify:local-acceptance-chain` 通过：临时服务 `http://127.0.0.1:18333` 串联 20 项核心验收，最终输出 `ok=true`。
+- 灰度 release `20260607-1545-node-acceptance-gray` 已部署并 active。
+- 灰度服务器核心验收通过：`verify:single-port`、`verify:node-acceptance-matrix`、`verify:ai-watermark-api`、`verify:generic-node-catalog`、`verify:model-catalog`、三类外部代理、任务生命周期、素材 API、输出预览、Worker 合同、输出落库和清理验证。
+- 公网灰度 `https://canvas-next.hhh2121.xyz` 浏览器烟测通过：46/46 节点渲染成功，旧空态、错误边界和 runtime error 均为 0。
+- 生产 release `20260607-1610-node-acceptance-prod` 已部署并 active。
+- 生产服务器核心验收通过：`verify:single-port`、`verify:node-acceptance-matrix`、`verify:ai-watermark-api`、`verify:generic-node-catalog`、`verify:model-catalog`、三类外部代理、任务生命周期、素材 API、输出预览、Worker 合同、真实 Worker 输出落库和清理验证。
+- 公网生产 `https://canvas.hhh2121.xyz` 浏览器烟测通过：46/46 节点渲染成功，旧空态、错误边界和 runtime error 均为 0。
 
 ## 发布结论
 
-当前版本已完成本机单端口生产服务 POC、灰度部署准备材料、`canvas-next.hhh2121.xyz` 灰度部署、最小登录/用户隔离、统一后台、Provider Key 加密、密码重置、审计日志、PostgreSQL 首轮迁移、auth/admin PostgreSQL repository 和 Redis/worker 任务队列灰度验收；仍不建议直接切生产域名，必须先完成 Provider Adapter、任务输出素材落库、密钥轮换、生产级审计和画布/素材数据迁移能力。
+当前版本已完成本机单端口生产服务 POC、`canvas-next.hhh2121.xyz` 灰度部署、最小登录/用户隔离、统一后台、Provider Key 加密、审计日志、PostgreSQL repository、Redis/worker 队列、后台 Provider/模型框架和 Phase 2 通用节点治理闭环。灰度和生产环境均已证明三类通用节点可读取后台模型并真实连通；GRSAI `grsai_draw` 已同时完成同步代理和 Worker 异步任务验收；后台模型编辑器与通用节点的 schema/inputProfile 关系已经收口；输出素材节点的单图/单视频预览已修正为按真实媒体比例自适应收口；Phase 3 的任务输出、素材空间、取消/重试、画布 / 素材 PostgreSQL repository、RunningHub 工作流字段映射目录第一版、全节点验收矩阵、AI watermark API 兜底和 46 节点浏览器渲染烟测均已在灰度和生产完成核心验收。`2026-06-07` 用户已明确要求暂缓 RunningHub 真实工作流卡片录入与预览运行类测试，因此剩余未完成项主要是用户恢复 RH 后的真实工作流验收，以及生产级密钥轮换/性能优化。

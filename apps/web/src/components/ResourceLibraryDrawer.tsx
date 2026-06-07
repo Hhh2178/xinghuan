@@ -170,9 +170,9 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   const [msg, setMsg] = useState('');
   const [hoverPreview, setHoverPreview] = useState<{ src: string; title: string; left: number; top: number } | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!open) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const [catRes, itemRes] = await Promise.all([
       api.getResourceCategories(kind),
       api.getResourceItems({ kind, categoryId, q, favorite: favoriteOnly }),
@@ -181,10 +181,11 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
     const nextItems = resultData<ResourceItem[]>(itemRes);
     if (nextCats) setCategories(nextCats);
     if (nextItems) setItems(nextItems);
+    if (nextCats && nextItems) setMsg('');
     if (!nextCats || !nextItems) {
       setMsg((catRes as any)?.error || (itemRes as any)?.error || '资源库加载失败');
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [open, kind, categoryId, q, favoriteOnly]);
 
   useEffect(() => {
@@ -196,6 +197,15 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
     const onChanged = () => load();
     window.addEventListener('penguin:resources-changed', onChanged);
     return () => window.removeEventListener('penguin:resources-changed', onChanged);
+  }, [open, load]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      void load({ silent: true });
+    }, 4000);
+    return () => window.clearInterval(timer);
   }, [open, load]);
 
   useEffect(() => {

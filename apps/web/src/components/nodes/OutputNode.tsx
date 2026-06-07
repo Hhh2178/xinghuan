@@ -34,6 +34,10 @@ import {
   type ImageCompareCandidate,
 } from '../../utils/imageCompare';
 import { collectMaterialSetBucketsFromData, valueOfMaterialSetItem } from '../../utils/materialSet';
+import {
+  computeOutputNodeAutoHeight,
+  computeOutputPreviewFrameHeight,
+} from './outputPreviewLayout';
 // v1.2.10.5: 节点落点防重叠 —— 双击编辑产出 N 节点 3 列宫格整组避让
 import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
 
@@ -108,6 +112,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
   // 拖角后由 ResizableCorners onResize 同步具体 px — 保证节点始终有具体尺寸 → wrapper measured 准确
   // → keepAspectRatio 生效 (同比例缩放) + handleBounds 准确 (连线稳定)
   const [size, setSize] = useState<{ w: number; h?: number }>({ w: 320 });
+  const [mediaMeta, setMediaMeta] = useState<Record<string, { width: number; height: number }>>({});
 
   // 订阅连入本节点 target handle 的连接变化
   const connections = useNodeConnections({ id, handleType: 'target' });
@@ -407,6 +412,30 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const isEdited = overrideText !== '' && overrideText !== liveText;
+
+  const singleImageUrl = collected.images.length === 1 && collected.videos.length === 0 ? collected.images[0] : '';
+  const singleVideoUrl = collected.videos.length === 1 && collected.images.length === 0 ? collected.videos[0] : '';
+  const singleMediaUrl = singleImageUrl || singleVideoUrl;
+  const singleMediaMeta = singleMediaUrl ? mediaMeta[singleMediaUrl] : undefined;
+  const singleMediaFrameHeight = singleMediaUrl
+    ? computeOutputPreviewFrameHeight({
+        nodeWidth: size.w,
+        nodeHeight: size.h,
+        mediaWidth: singleMediaMeta?.width,
+        mediaHeight: singleMediaMeta?.height,
+        multiItem: false,
+      })
+    : undefined;
+  const shouldAutoFitSingleMedia =
+    Boolean(singleMediaUrl)
+    && collected.texts.length === 0
+    && collected.audios.length === 0
+    && !editing
+    && !isEdited;
+  const rootHeight = shouldAutoFitSingleMedia && singleMediaFrameHeight
+    ? computeOutputNodeAutoHeight(singleMediaFrameHeight)
+    : size.h;
 
   const enterEdit = () => {
     setDraft(displayText);
@@ -425,7 +454,6 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
     setEditing(false);
   };
 
-  const isEdited = overrideText !== '' && overrideText !== liveText;
   const HANDLE = PORT_COLOR.any;
   const accent = '#5eead4'; // teal-300, 与 nodeRegistry color: 'teal' 对齐
   const effectiveAccent = isRhDuckOutput ? '#ff345f' : isYyhPortraitOutput ? '#ff4fd8' : accent;
@@ -580,6 +608,15 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
     startDrag(payload, e.clientX, e.clientY);
   };
 
+  const rememberMediaMeta = (url: string, width: number, height: number) => {
+    if (!url || !width || !height) return;
+    setMediaMeta((current) => {
+      const prev = current[url];
+      if (prev?.width === width && prev?.height === height) return current;
+      return { ...current, [url]: { width, height } };
+    });
+  };
+
   // === 跨节点拖拽: target (接收后以 direct* 独立模式补充, 不依赖上游) ===
   const handleDrop = (payload: MaterialPayload) => {
     if (payload.kind === 'image' && payload.url) {
@@ -702,7 +739,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       data-rh-duck-output={isRhDuckOutput ? 'true' : undefined}
       data-yyh-portrait-hidden-output={isYyhPortraitOutput ? 'true' : undefined}
       className="relative flex flex-col"
-      style={{ width: size.w, height: size.h, minWidth: 260 }}
+      style={{ width: size.w, height: rootHeight, minWidth: 260 }}
       {...dropProps}
     >
       {/* 四角同比例缩放 (仅选中时出现) — 主题色 teal-300 */}
@@ -955,7 +992,14 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
                       style={{
                         background: '#0008',
                         objectFit: 'contain',
-                        maxHeight: collected.images.length >= 2 ? 140 : 480,
+                        maxHeight: collected.images.length >= 2 ? 140 : (singleMediaFrameHeight ?? 420),
+                      }}
+                      onLoad={(event) => {
+                        rememberMediaMeta(
+                          u,
+                          event.currentTarget.naturalWidth,
+                          event.currentTarget.naturalHeight,
+                        );
                       }}
                       data-drag-source
                       data-drag-kind="image"
@@ -1038,7 +1082,18 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
                   src={u}
                   controls
                   className="w-full h-auto rounded block"
-                  style={{ background: '#000', objectFit: 'contain', maxHeight: 480 }}
+                  style={{
+                    background: '#000',
+                    objectFit: 'contain',
+                    maxHeight: collected.videos.length >= 2 ? 140 : (singleMediaFrameHeight ?? 420),
+                  }}
+                  onLoadedMetadata={(event) => {
+                    rememberMediaMeta(
+                      u,
+                      event.currentTarget.videoWidth,
+                      event.currentTarget.videoHeight,
+                    );
+                  }}
                   data-drag-source
                   data-drag-kind="video"
                   data-drag-url={u}

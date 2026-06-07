@@ -1,10 +1,17 @@
-import { createHealthPayload, type AppEnvironment } from "@xinghuan/shared";
+import { canCancelTask, canRetryTask, createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
+import {
+  mergeModelParameterSchema,
+  uiMetadataFromSchema,
+  type ModelCapability as CatalogCapability,
+  type ProviderProtocol as CatalogProtocol,
+} from "@xinghuan/model-core";
 import Busboy from "busboy";
 import { createServer } from "node:http";
 import { createReadStream, createWriteStream } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
-import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createGrsaiImageClient } from "./grsai-image-adapter.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -62,6 +69,8 @@ interface ResourceItem {
   kind: ResourceKind;
   title: string;
   url?: string;
+  sourceUrl?: string;
+  originalName?: string;
   fileUrl?: string;
   fileRel?: string;
   mime?: string;
@@ -76,6 +85,11 @@ interface ResourceItem {
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;
+  sourceNodeId?: string;
+  sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
 }
 
 interface ResourceDb {
@@ -108,19 +122,63 @@ interface AuthDb {
 
 type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role">;
 
-type ModelCapability = "text" | "image" | "video" | "audio";
-type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+type ModelCapability = "chat" | "image" | "video";
+type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
 
 interface AdminProviderRecord {
   id: string;
   name: string;
   baseUrl: string;
+  protocol?: ProviderProtocol;
   enabled: boolean;
   apiKey?: string;
   apiKeyPreview?: string;
+  lastProbeStatus?: string;
+  lastProbeMessage?: string;
+  lastFetchedAt?: number;
+  rhApps?: RunningHubEntry[];
+  rhWorkflows?: RunningHubEntry[];
+  msLoras?: ModelScopeLora[];
   note?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+interface RunningHubEntry {
+  id: string;
+  title: string;
+  note?: string;
+  thumbnail?: string;
+  enabled: boolean;
+  kind?: "app" | "workflow";
+  appId?: string;
+  workflowId?: string;
+  runTargetId?: string;
+  workflowJson?: string;
+  fields?: RunningHubFieldDefinition[];
+}
+
+interface RunningHubFieldDefinition {
+  nodeId: string;
+  fieldName: string;
+  label?: string;
+  description?: string;
+  fieldType?: string;
+  valueType?: string;
+  placeholder?: string;
+  required?: boolean;
+  fieldValue?: string | number | boolean;
+  defaultValue?: string | number | boolean;
+  options?: Array<string | number>;
+}
+
+interface ModelScopeLora {
+  id: string;
+  name?: string;
+  targetModel: string;
+  strength: number;
+  enabled: boolean;
+  note?: string;
 }
 
 interface AdminModelRecord {
@@ -132,6 +190,7 @@ interface AdminModelRecord {
   enabled: boolean;
   inputProfile: string;
   parameterSchema: string;
+  protocolOverride?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -143,6 +202,8 @@ interface AdminTaskRecord {
   ownerId?: string;
   providerId?: string;
   modelId?: string;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown>;
   logs: string[];
   createdAt: number;
   updatedAt: number;
@@ -236,6 +297,11 @@ const server = createServer(async (request, response) => {
     }
 
     const currentUser = await getCurrentUser(request);
+    if (request.method === "GET" && url.pathname.startsWith("/api/provider-files/")) {
+      await sendProviderFile(response, url);
+      return;
+    }
+
     if (isProtectedRequest(url.pathname) && !currentUser) {
       sendJson(response, { ok: false, success: false, error: "AUTH_REQUIRED" }, 401);
       return;
@@ -304,6 +370,21 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/ai-watermark/status" && request.method === "GET") {
+      sendT8(response, aiWatermarkStatus());
+      return;
+    }
+
+    if (url.pathname === "/api/ai-watermark/process" && request.method === "POST") {
+      await readJsonBody(request).catch(() => ({}));
+      sendJson(response, {
+        success: false,
+        error: "AI_WATERMARK_NOT_CONFIGURED",
+        data: aiWatermarkStatus(),
+      }, 501);
+      return;
+    }
+
     if (url.pathname === "/api/settings" || url.pathname === "/api/settings/raw") {
       if (request.method === "GET") {
         sendT8(response, defaultSettings());
@@ -313,6 +394,31 @@ const server = createServer(async (request, response) => {
         sendT8(response, defaultSettings());
         return;
       }
+    }
+
+    if (url.pathname === "/api/models" && request.method === "GET") {
+      sendT8(response, await publicModelCatalog());
+      return;
+    }
+
+    if (url.pathname === "/api/runninghub/catalog" && request.method === "GET") {
+      sendT8(response, await publicRunningHubCatalog());
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/external/image" && request.method === "POST") {
+      sendT8(response, await generateExternalImageProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/external/llm" && request.method === "POST") {
+      sendT8(response, await generateExternalChatProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/external/video" && request.method === "POST") {
+      sendT8(response, await generateExternalVideoProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      return;
     }
 
     if (url.pathname === "/api/settings/rh-tool-categories" || url.pathname === "/api/settings/rh-tool-apps") {
@@ -660,9 +766,13 @@ async function handleAdminRequest(
         id: safeSlug(body.id, `provider-${now}`),
         name: safeText(body.name, "新服务商"),
         baseUrl: safeText(body.baseUrl),
+        protocol: normalizeProviderProtocol(body.protocol),
         enabled: Boolean(body.enabled),
         apiKey: encryptSecret(safeText(body.apiKey)),
         apiKeyPreview: secretPreview(safeText(body.apiKey)),
+        rhApps: normalizeRunningHubEntries(body.rhApps, "app"),
+        rhWorkflows: normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
+        msLoras: normalizeModelScopeLoras(body.msLoras),
         note: safeText(body.note),
         createdAt: now,
         updatedAt: now,
@@ -673,6 +783,101 @@ async function handleAdminRequest(
       sendT8(response, toPublicProvider(provider));
       return true;
     }
+  }
+
+  if (url.pathname === "/api/admin/providers/probe" && request.method === "POST") {
+    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
+    sendT8(response, await probeProviderDraft(body));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/providers/fetch-models" && request.method === "POST") {
+    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
+    sendT8(response, await fetchProviderModelsDraft(body));
+    return true;
+  }
+
+  const providerProbeMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/probe$/);
+  if (providerProbeMatch && request.method === "POST") {
+    const id = decodeURIComponent(providerProbeMatch[1]);
+    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
+    const db = await readAdminDb();
+    const provider = db.providers.find((item) => item.id === id);
+    if (!provider) throw new Error("Provider 不存在");
+    const result = await probeProviderDraft({ ...provider, ...body });
+    const now = Date.now();
+    const providers = db.providers.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            lastProbeStatus: result.ok ? "ok" : "error",
+            lastProbeMessage: safeText(result.message),
+            updatedAt: now,
+          }
+        : item,
+    );
+    await writeAdminDb({ ...db, providers });
+    await appendAudit(adminUser, "provider.probe", "provider", id, `验证 Provider ${provider.name}: ${result.ok ? "ok" : "error"}`);
+    sendT8(response, result);
+    return true;
+  }
+
+  const providerFetchModelsMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/fetch-models$/);
+  if (providerFetchModelsMatch && request.method === "POST") {
+    const id = decodeURIComponent(providerFetchModelsMatch[1]);
+    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
+    const db = await readAdminDb();
+    const provider = db.providers.find((item) => item.id === id);
+    if (!provider) throw new Error("Provider 不存在");
+    const result = await fetchProviderModelsDraft({ ...provider, ...body });
+    const now = Date.now();
+    await writeAdminDb({
+      ...db,
+      providers: db.providers.map((item) => (item.id === id ? { ...item, lastFetchedAt: now, updatedAt: now } : item)),
+    });
+    await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`);
+    sendT8(response, result);
+    return true;
+  }
+
+  const providerImportModelsMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/import-models$/);
+  if (providerImportModelsMatch && request.method === "POST") {
+    const providerId = decodeURIComponent(providerImportModelsMatch[1]);
+    const body = await readJsonBody<{ models?: Array<{ modelId?: string; capability?: string; displayName?: string; protocolOverride?: string }> }>(request);
+    const db = await readAdminDb();
+    const provider = db.providers.find((item) => item.id === providerId);
+    if (!provider) throw new Error("Provider 不存在");
+    const now = Date.now();
+    const incoming = Array.isArray(body.models) ? body.models : [];
+    const nextModels = [...db.models];
+    let imported = 0;
+    for (const item of incoming) {
+      const modelId = safeText(item.modelId);
+      if (!modelId) continue;
+      const capability = normalizeCapability(item.capability);
+      const id = safeSlug(`${providerId}-${capability}-${modelId}`, `model-${now}-${imported}`);
+      const existingIndex = nextModels.findIndex((model) => model.providerId === providerId && model.modelId === modelId);
+      const model: AdminModelRecord = {
+        id: existingIndex >= 0 ? nextModels[existingIndex].id : id,
+        providerId,
+        modelId,
+        displayName: safeText(item.displayName, modelId),
+        capability,
+        enabled: true,
+        inputProfile: capability === "video" ? "prompt,first_frame,last_frame" : capability === "image" ? "prompt,image_reference" : "prompt",
+        parameterSchema: existingIndex >= 0 ? nextModels[existingIndex].parameterSchema : "{}",
+        protocolOverride: normalizeOptionalProtocol(item.protocolOverride),
+        createdAt: existingIndex >= 0 ? nextModels[existingIndex].createdAt : now,
+        updatedAt: now,
+      };
+      if (existingIndex >= 0) nextModels[existingIndex] = { ...nextModels[existingIndex], ...model };
+      else nextModels.unshift(model);
+      imported += 1;
+    }
+    await writeAdminDb({ ...db, models: nextModels });
+    await appendAudit(adminUser, "model.import", "provider", providerId, `导入模型 ${imported} 个`);
+    sendT8(response, { imported, models: nextModels.filter((model) => model.providerId === providerId) });
+    return true;
   }
 
   const providerMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)$/);
@@ -687,7 +892,11 @@ async function handleAdminRequest(
         ...provider,
         name: body.name === undefined ? provider.name : safeText(body.name, provider.name),
         baseUrl: body.baseUrl === undefined ? provider.baseUrl : safeText(body.baseUrl),
+        protocol: body.protocol === undefined ? provider.protocol : normalizeProviderProtocol(body.protocol),
         enabled: body.enabled === undefined ? provider.enabled : Boolean(body.enabled),
+        rhApps: body.rhApps === undefined ? provider.rhApps : normalizeRunningHubEntries(body.rhApps, "app"),
+        rhWorkflows: body.rhWorkflows === undefined ? provider.rhWorkflows : normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
+        msLoras: body.msLoras === undefined ? provider.msLoras : normalizeModelScopeLoras(body.msLoras),
         note: body.note === undefined ? provider.note : safeText(body.note),
         updatedAt: Date.now(),
       };
@@ -710,6 +919,27 @@ async function handleAdminRequest(
     return true;
   }
 
+  if (providerMatch && request.method === "DELETE") {
+    const id = decodeURIComponent(providerMatch[1]);
+    const db = await readAdminDb();
+    const provider = db.providers.find((item) => item.id === id);
+    if (!provider) throw new Error("Provider 不存在");
+    const removedModelIds = new Set(db.models.filter((item) => item.providerId === id).map((item) => item.id));
+    await writeAdminDb({
+      ...db,
+      providers: db.providers.filter((item) => item.id !== id),
+      models: db.models.filter((item) => item.providerId !== id),
+      tasks: db.tasks.map((task) =>
+        task.providerId === id || (task.modelId && removedModelIds.has(task.modelId))
+          ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
+          : task,
+      ),
+    });
+    await appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`);
+    sendT8(response, null);
+    return true;
+  }
+
   if (url.pathname === "/api/admin/models") {
     const db = await readAdminDb();
     if (request.method === "GET") {
@@ -728,6 +958,7 @@ async function handleAdminRequest(
         enabled: Boolean(body.enabled),
         inputProfile: safeText(body.inputProfile, "prompt"),
         parameterSchema: safeJsonText(body.parameterSchema, "{}"),
+        protocolOverride: normalizeOptionalProtocol(body.protocolOverride),
         createdAt: now,
         updatedAt: now,
       };
@@ -756,6 +987,7 @@ async function handleAdminRequest(
         enabled: body.enabled === undefined ? model.enabled : Boolean(body.enabled),
         inputProfile: body.inputProfile === undefined ? model.inputProfile : safeText(body.inputProfile, model.inputProfile),
         parameterSchema: body.parameterSchema === undefined ? model.parameterSchema : safeJsonText(body.parameterSchema, "{}"),
+        protocolOverride: body.protocolOverride === undefined ? model.protocolOverride : normalizeOptionalProtocol(body.protocolOverride),
         updatedAt: Date.now(),
       };
       updated = next;
@@ -765,6 +997,21 @@ async function handleAdminRequest(
     await writeAdminDb({ ...db, models });
     await appendAudit(adminUser, "model.update", "model", id, `更新模型 ${updated.displayName}`);
     sendT8(response, updated);
+    return true;
+  }
+
+  if (modelMatch && request.method === "DELETE") {
+    const id = decodeURIComponent(modelMatch[1]);
+    const db = await readAdminDb();
+    const model = db.models.find((item) => item.id === id);
+    if (!model) throw new Error("模型不存在");
+    await writeAdminDb({
+      ...db,
+      models: db.models.filter((item) => item.id !== id),
+      tasks: db.tasks.map((task) => (task.modelId === id ? { ...task, modelId: "" } : task)),
+    });
+    await appendAudit(adminUser, "model.delete", "model", id, `删除模型 ${model.displayName}`);
+    sendT8(response, null);
     return true;
   }
 
@@ -784,71 +1031,88 @@ async function handleAdminRequest(
         ownerId: safeText(body.ownerId, adminUser.id),
         providerId: safeText(body.providerId),
         modelId: safeText(body.modelId),
+        payload: plainObject(body.payload),
+        result: plainObject(body.result),
         logs: Array.isArray(body.logs) ? body.logs.map((line) => safeText(line)).filter(Boolean) : ["任务由后台创建"],
         createdAt: now,
         updatedAt: now,
       };
-      await writeAdminDb({ ...db, tasks: [task, ...db.tasks] });
+      await insertTaskRecord(task);
       const queueResult = task.status === "queued" ? await enqueueTask(task.id) : { queued: false, reason: "not_queued_status" };
+      const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+      await appendTaskLog(task.id, queueLog);
       const queuedTask: AdminTaskRecord = {
         ...task,
-        logs: [
-          ...task.logs,
-          queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`,
-        ],
+        logs: [...task.logs, queueLog],
         updatedAt: Date.now(),
       };
-      await writeAdminDb({ ...db, tasks: [queuedTask, ...db.tasks] });
       await appendAudit(adminUser, "task.create", "task", task.id, `创建任务 ${task.title}`);
       sendT8(response, queuedTask);
       return true;
     }
   }
 
+  const retryMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)\/retry$/);
+  if (retryMatch && request.method === "POST") {
+    const id = decodeURIComponent(retryMatch[1]);
+    const originalTask = await readTaskRecord(id);
+    if (!originalTask) throw new Error("任务不存在");
+    if (!canRetryTask(originalTask.status)) throw new Error(`任务当前状态为 ${originalTask.status}，不可重试`);
+    const now = Date.now();
+    const retriedTask: AdminTaskRecord = {
+      id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      title: originalTask.title,
+      status: "queued",
+      ownerId: originalTask.ownerId || adminUser.id,
+      providerId: originalTask.providerId,
+      modelId: originalTask.modelId,
+      payload: plainObject(originalTask.payload),
+      result: {
+        retryOfTaskId: originalTask.id,
+        retryCreatedAt: new Date(now).toISOString(),
+      },
+      logs: [`由任务 ${originalTask.id} 重试创建`],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await insertTaskRecord(retriedTask);
+    await appendTaskLog(id, `管理员发起重试，创建新任务 ${retriedTask.id}`);
+    const queueResult = await enqueueTask(retriedTask.id);
+    const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+    await appendTaskLog(retriedTask.id, queueLog);
+    retriedTask.logs = [...retriedTask.logs, queueLog];
+    retriedTask.updatedAt = Date.now();
+    await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`);
+    sendT8(response, retriedTask);
+    return true;
+  }
+
   const taskMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)$/);
   if (taskMatch && request.method === "PATCH") {
     const id = decodeURIComponent(taskMatch[1]);
-    const body = await readJsonBody<Partial<AdminTaskRecord>>(request);
-    const db = await readAdminDb();
-    let updated: AdminTaskRecord | undefined;
-    let shouldEnqueue = false;
-    const tasks = db.tasks.map((task) => {
-      if (task.id !== id) return task;
-      const nextStatus = body.status === undefined ? task.status : normalizeTaskStatus(body.status);
-      const next: AdminTaskRecord = {
-        ...task,
-        title: body.title === undefined ? task.title : safeText(body.title, task.title),
-        status: nextStatus,
-        logs: body.logs === undefined ? task.logs : body.logs.map((line) => safeText(line)).filter(Boolean),
-        updatedAt: Date.now(),
-      };
-      if (task.status !== "queued" && nextStatus === "queued") {
-        next.logs = [...next.logs, "任务已重新排队"];
-        shouldEnqueue = true;
-      }
-      updated = next;
-      return next;
-    });
-    if (!updated) throw new Error("任务不存在");
-    await writeAdminDb({ ...db, tasks });
-    if (shouldEnqueue) {
-      const queueResult = await enqueueTask(id);
-      const afterQueue = await readAdminDb();
-      const queuedTasks = afterQueue.tasks.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              logs: [
-                ...task.logs,
-                queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`,
-              ],
-              updatedAt: Date.now(),
-            }
-          : task,
-      );
-      await writeAdminDb({ ...afterQueue, tasks: queuedTasks });
-      updated = queuedTasks.find((task) => task.id === id);
+    const body = await readJsonBody<Partial<AdminTaskRecord> & { action?: string }>(request);
+    let updated: AdminTaskRecord | null = null;
+    if (body.action === "cancel") {
+      updated = await cancelTaskRecord(id, adminUser.email);
+      if (!updated) throw new Error("任务不存在");
+      await appendAudit(adminUser, "task.cancel", "task", id, `取消任务 ${updated.title}`);
+      sendT8(response, updated);
+      return true;
     }
+    if (body.status !== undefined) {
+      throw new Error("任务状态不能直接修改，请使用取消或重试动作");
+    }
+    const currentTask = await readTaskRecord(id);
+    if (!currentTask) throw new Error("任务不存在");
+    updated = {
+      ...currentTask,
+      title: body.title === undefined ? currentTask.title : safeText(body.title, currentTask.title),
+      payload: body.payload === undefined ? currentTask.payload : plainObject(body.payload),
+      result: body.result === undefined ? currentTask.result : plainObject(body.result),
+      logs: body.logs === undefined ? currentTask.logs : body.logs.map((line) => safeText(line)).filter(Boolean),
+      updatedAt: Date.now(),
+    };
+    await writeTaskRecord(updated);
     if (!updated) throw new Error("任务不存在");
     await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`);
     sendT8(response, updated);
@@ -913,8 +1177,31 @@ function isProtectedRequest(pathname: string) {
   return pathname.startsWith("/api/") || pathname.startsWith("/files/") || pathname.startsWith("/input/") || pathname.startsWith("/output/");
 }
 
+function aiWatermarkStatus() {
+  return {
+    installed: false,
+    resolver: "not-configured",
+    markKeys: ["gemini", "doubao", "jimeng"],
+    optionalFeatures: {
+      invisible: false,
+      lama: false,
+      detect: false,
+      trustmark: false,
+    },
+    setupHints: [
+      "pipx install remove-ai-watermarks",
+      "或在服务器安装 remove-ai-watermarks 后接入 /api/ai-watermark/process adapter",
+      "未配置前该节点只显示状态，不执行实际去水印处理",
+    ],
+  };
+}
+
 function userDataDirs(user: CurrentUser) {
-  const baseDir = join(usersDir, safeUserId(user.id));
+  return userDataDirsForId(user.id);
+}
+
+function userDataDirsForId(userId: string) {
+  const baseDir = join(usersDir, safeUserId(userId));
   const canvasDir = join(baseDir, "canvases");
   const inputDir = join(baseDir, "input");
   const outputDir = join(baseDir, "output");
@@ -928,6 +1215,29 @@ function userDataDirs(user: CurrentUser) {
     canvasListPath: join(canvasDir, "canvas-list.json"),
     resourceDbPath: join(resourceDir, "resource-library.json"),
   };
+}
+
+async function sendProviderFile(response: import("node:http").ServerResponse, url: URL) {
+  const match = url.pathname.match(/^\/api\/provider-files\/([^/]+)\/(input|output)\/([^/]+)$/);
+  if (!match) {
+    sendJson(response, { ok: false, success: false, error: "INVALID_PROVIDER_FILE_URL" }, 404);
+    return;
+  }
+  const userId = decodeURIComponent(match[1]);
+  const bucket = match[2] as "input" | "output";
+  const filename = decodeURIComponent(match[3]);
+  const exp = Number(url.searchParams.get("exp") || 0);
+  const sig = safeText(url.searchParams.get("sig"));
+  if (!Number.isFinite(exp) || exp < Date.now()) {
+    sendJson(response, { ok: false, success: false, error: "PROVIDER_FILE_EXPIRED" }, 403);
+    return;
+  }
+  if (!verifyProviderFileSignature(userId, bucket, filename, exp, sig)) {
+    sendJson(response, { ok: false, success: false, error: "PROVIDER_FILE_SIGNATURE_INVALID" }, 403);
+    return;
+  }
+  const dirs = userDataDirsForId(userId);
+  await sendStaticFile(response, bucket === "input" ? dirs.inputDir : dirs.outputDir, filename);
 }
 
 async function ensureDataDirs(user?: CurrentUser) {
@@ -946,7 +1256,7 @@ function canvasDataPath(id: string, user: CurrentUser) {
   return join(userDataDirs(user).canvasDir, `${id}.json`);
 }
 
-async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
+async function readCanvasListFromFile(user: CurrentUser): Promise<CanvasListItem[]> {
   await ensureDataDirs(user);
   try {
     return JSON.parse(await readFile(userDataDirs(user).canvasListPath, "utf-8")) as CanvasListItem[];
@@ -955,12 +1265,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
   }
 }
 
-async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
-  await ensureDataDirs(user);
-  await writeFile(userDataDirs(user).canvasListPath, JSON.stringify(list, null, 2), "utf-8");
-}
-
-async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData> {
+async function readCanvasDataFromFile(id: string, user: CurrentUser): Promise<CanvasData> {
   await ensureDataDirs(user);
   try {
     return normalizeCanvasData(JSON.parse(await readFile(canvasDataPath(id, user), "utf-8")));
@@ -969,12 +1274,125 @@ async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData
   }
 }
 
+async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      "select id, name, node_count, created_at, updated_at from xh_canvases where owner_id = $1 order by updated_at desc, created_at desc",
+      [user.id],
+    );
+    if (result.rows.length > 0) return result.rows.map((row) => toCanvasListItem(row));
+    const fileList = await readCanvasListFromFile(user);
+    if (fileList.length > 0) {
+      await writeCanvasList(fileList, user);
+      return fileList;
+    }
+    return [];
+  }
+  return readCanvasListFromFile(user);
+}
+
+async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      const existingResult = await client.query("select id, data from xh_canvases where owner_id = $1", [user.id]);
+      const dataById = new Map(existingResult.rows.map((row) => [String(row.id), normalizeCanvasData(row.data)]));
+      const ids = list.map((item) => item.id);
+      if (ids.length > 0) {
+        await client.query("delete from xh_canvases where owner_id = $1 and not (id = any($2::text[]))", [user.id, ids]);
+      } else {
+        await client.query("delete from xh_canvases where owner_id = $1", [user.id]);
+      }
+      for (const item of list) {
+        const canvasData = dataById.get(item.id) || (await readCanvasDataFromFile(item.id, user));
+        await client.query(
+          `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
+           values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)
+           on conflict (id) do update
+             set owner_id = excluded.owner_id,
+                 name = excluded.name,
+                 node_count = excluded.node_count,
+                 data = excluded.data,
+                 updated_at = excluded.updated_at`,
+          [
+            item.id,
+            user.id,
+            item.name,
+            Number.isFinite(item.nodeCount) ? item.nodeCount : 0,
+            JSON.stringify(canvasData),
+            millisToDate(item.createdAt),
+            millisToDate(item.updatedAt),
+          ],
+        );
+      }
+      await client.query("commit");
+      return;
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  await ensureDataDirs(user);
+  await writeFile(userDataDirs(user).canvasListPath, JSON.stringify(list, null, 2), "utf-8");
+}
+
+async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query("select data from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
+    if (result.rows[0]) return normalizeCanvasData(result.rows[0].data);
+    const fileData = await readCanvasDataFromFile(id, user);
+    if (fileData.nodes.length > 0 || fileData.edges.length > 0 || fileData.nextNodeSerialId !== 1) {
+      await writeCanvasData(id, fileData, user);
+      return fileData;
+    }
+    return emptyCanvasData();
+  }
+  return readCanvasDataFromFile(id, user);
+}
+
 async function writeCanvasData(id: string, data: CanvasData, user: CurrentUser) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const existing = await pool.query("select name, created_at from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
+    const fileList = existing.rows[0] ? [] : await readCanvasListFromFile(user);
+    const fileItem = fileList.find((item) => item.id === id);
+    const now = Date.now();
+    await pool.query(
+      `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
+       values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)
+       on conflict (id) do update
+         set owner_id = excluded.owner_id,
+             name = excluded.name,
+             node_count = excluded.node_count,
+             data = excluded.data,
+             updated_at = excluded.updated_at`,
+      [
+        id,
+        user.id,
+        safeText(existing.rows[0]?.name || fileItem?.name, "未命名画布"),
+        data.nodes.length,
+        JSON.stringify(normalizeCanvasData(data)),
+        millisToDate(existing.rows[0] ? dateToMillis(existing.rows[0].created_at) : fileItem?.createdAt || now),
+        millisToDate(now),
+      ],
+    );
+    return;
+  }
   await ensureDataDirs(user);
   await writeFile(canvasDataPath(id, user), JSON.stringify(data, null, 2), "utf-8");
 }
 
 async function writeCanvasAndUpdateList(id: string, data: CanvasData, user: CurrentUser) {
+  if (usePostgresRepository()) {
+    await writeCanvasData(id, data, user);
+    return;
+  }
   await writeCanvasData(id, data, user);
   const now = Date.now();
   const list = await readCanvasList(user);
@@ -1176,11 +1594,11 @@ async function writeAuthDbPostgres(db: AuthDb) {
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
   const [providersResult, modelsResult, tasksResult, auditResult] = await Promise.all([
-    pool.query("select id, name, base_url, enabled, api_key_cipher, api_key_preview, note, created_at, updated_at from xh_providers order by created_at desc"),
+    pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
     pool.query(
-      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, created_at, updated_at from xh_models order by created_at desc",
+      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, protocol_override, created_at, updated_at from xh_models order by created_at desc",
     ),
-    pool.query("select id, owner_id, title, status, provider_id, model_id, logs, created_at, updated_at from xh_tasks order by created_at desc"),
+    pool.query("select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks order by created_at desc"),
     pool.query(
       "select id, actor_id, actor_email, action, target_type, target_id, summary, created_at from xh_audit_logs order by created_at desc limit 500",
     ),
@@ -1191,9 +1609,16 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         id: row.id,
         name: row.name,
         baseUrl: row.base_url || "",
+        protocol: normalizeProviderProtocol(row.protocol),
         enabled: Boolean(row.enabled),
         apiKey: row.api_key_cipher || undefined,
         apiKeyPreview: row.api_key_preview || undefined,
+        lastProbeStatus: row.last_probe_status || undefined,
+        lastProbeMessage: row.last_probe_message || undefined,
+        lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : undefined,
+        rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
+        rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+        msLoras: normalizeModelScopeLoras(row.ms_loras),
         note: row.note || "",
         createdAt: dateToMillis(row.created_at),
         updatedAt: dateToMillis(row.updated_at),
@@ -1208,6 +1633,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
       enabled: Boolean(row.enabled),
       inputProfile: row.input_profile || "prompt",
       parameterSchema: JSON.stringify(row.parameter_schema || {}, null, 2),
+      protocolOverride: normalizeOptionalProtocol(row.protocol_override),
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
     })),
@@ -1218,6 +1644,8 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
       ownerId: row.owner_id || undefined,
       providerId: row.provider_id || undefined,
       modelId: row.model_id || undefined,
+      payload: plainObject(row.payload),
+      result: plainObject(row.result),
       logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
@@ -1252,15 +1680,22 @@ async function writeAdminDbPostgres(db: AdminDb) {
     await client.query("delete from xh_providers");
     for (const provider of db.providers.map(normalizeProviderSecret)) {
       await client.query(
-        `insert into xh_providers (id, name, base_url, enabled, api_key_cipher, api_key_preview, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
         [
           provider.id,
           provider.name,
           provider.baseUrl,
+          normalizeProviderProtocol(provider.protocol),
           provider.enabled,
           provider.apiKey || null,
           provider.apiKeyPreview || null,
+          provider.lastProbeStatus || null,
+          provider.lastProbeMessage || null,
+          provider.lastFetchedAt ? millisToDate(provider.lastFetchedAt) : null,
+          JSON.stringify(normalizeRunningHubEntries(provider.rhApps, "app")),
+          JSON.stringify(normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
+          JSON.stringify(normalizeModelScopeLoras(provider.msLoras)),
           provider.note || null,
           millisToDate(provider.createdAt),
           millisToDate(provider.updatedAt),
@@ -1269,8 +1704,8 @@ async function writeAdminDbPostgres(db: AdminDb) {
     }
     for (const model of db.models) {
       await client.query(
-        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)`,
+        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)`,
         [
           model.id,
           model.providerId,
@@ -1280,6 +1715,7 @@ async function writeAdminDbPostgres(db: AdminDb) {
           model.enabled,
           model.inputProfile,
           JSON.stringify(parseJsonObject(model.parameterSchema)),
+          model.protocolOverride || null,
           millisToDate(model.createdAt),
           millisToDate(model.updatedAt),
         ],
@@ -1287,8 +1723,8 @@ async function writeAdminDbPostgres(db: AdminDb) {
     }
     for (const task of db.tasks) {
       await client.query(
-        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, logs, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
+        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
         [
           task.id,
           task.ownerId || null,
@@ -1296,6 +1732,8 @@ async function writeAdminDbPostgres(db: AdminDb) {
           task.status,
           task.providerId || null,
           task.modelId || null,
+          JSON.stringify(plainObject(task.payload)),
+          JSON.stringify(plainObject(task.result)),
           JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
           millisToDate(task.createdAt),
           millisToDate(task.updatedAt),
@@ -1327,6 +1765,143 @@ async function writeAdminDbPostgres(db: AdminDb) {
   }
 }
 
+function toAdminTaskRecord(row: {
+  id: string;
+  title: string;
+  status: string;
+  owner_id?: string | null;
+  provider_id?: string | null;
+  model_id?: string | null;
+  payload?: unknown;
+  result?: unknown;
+  logs?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+}): AdminTaskRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    status: normalizeTaskStatus(row.status),
+    ownerId: row.owner_id || undefined,
+    providerId: row.provider_id || undefined,
+    modelId: row.model_id || undefined,
+    payload: plainObject(row.payload),
+    result: plainObject(row.result),
+    logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],
+    createdAt: dateToMillis(row.created_at),
+    updatedAt: dateToMillis(row.updated_at),
+  };
+}
+
+function toCanvasListItem(row: {
+  id: string;
+  name?: string | null;
+  node_count?: number | null;
+  created_at?: unknown;
+  updated_at?: unknown;
+}): CanvasListItem {
+  return {
+    id: row.id,
+    name: safeText(row.name, "未命名画布"),
+    nodeCount: Number(row.node_count) || 0,
+    createdAt: dateToMillis(row.created_at),
+    updatedAt: dateToMillis(row.updated_at),
+  };
+}
+
+function optionalObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function resourceItemMetadata(item: ResourceItem) {
+  return {
+    sourceUrl: item.sourceUrl || "",
+    originalName: item.originalName || "",
+    fileUrl: item.fileUrl || "",
+    fileRel: item.fileRel || "",
+    materialSetKind: item.materialSetKind || "",
+    materialSetItems: Array.isArray(item.materialSetItems) ? item.materialSetItems : [],
+    poseBackup: optionalObject(item.poseBackup) || {},
+    workflowFragment: optionalObject(item.workflowFragment) || {},
+    sourceNodeId: item.sourceNodeId || "",
+    sourceCanvasId: item.sourceCanvasId || "",
+    taskId: item.taskId || "",
+    providerId: item.providerId || "",
+    modelId: item.modelId || "",
+  };
+}
+
+function toResourceCategory(row: {
+  id: string;
+  kind?: string | null;
+  name?: string | null;
+  created_at?: unknown;
+  updated_at?: unknown;
+}): ResourceCategory {
+  return {
+    id: row.id,
+    kind: normalizeResourceKind(row.kind) || "image",
+    name: safeText(row.name, "未分类"),
+    createdAt: dateToMillis(row.created_at),
+    updatedAt: dateToMillis(row.updated_at),
+  };
+}
+
+function toResourceItem(row: {
+  id: string;
+  kind?: string | null;
+  title?: string | null;
+  url?: string | null;
+  mime?: string | null;
+  size_bytes?: number | null;
+  category_id?: string | null;
+  tags?: unknown;
+  favorite?: boolean | null;
+  last_used_at?: unknown;
+  metadata?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+}): ResourceItem {
+  const metadata = plainObject(row.metadata);
+  const sourceUrl = String(metadata.sourceUrl ?? row.url ?? "").trim();
+  const originalName = String(metadata.originalName ?? "").trim();
+  const fileUrl = String(metadata.fileUrl ?? "").trim();
+  const fileRel = String(metadata.fileRel ?? "").trim();
+  const materialSetKind = String(metadata.materialSetKind ?? "").trim();
+  const sourceNodeId = String(metadata.sourceNodeId ?? "").trim();
+  const sourceCanvasId = String(metadata.sourceCanvasId ?? "").trim();
+  const taskId = String(metadata.taskId ?? "").trim();
+  const providerId = String(metadata.providerId ?? "").trim();
+  const modelId = String(metadata.modelId ?? "").trim();
+  return {
+    id: row.id,
+    kind: normalizeResourceKind(row.kind) || "image",
+    title: safeText(row.title, "资源"),
+    url: String(row.url ?? "").trim() || undefined,
+    sourceUrl: sourceUrl || undefined,
+    originalName: originalName || undefined,
+    fileUrl: fileUrl || undefined,
+    fileRel: fileRel || undefined,
+    mime: String(row.mime ?? "").trim() || undefined,
+    size: Number(row.size_bytes) || 0,
+    categoryId: safeText(row.category_id, "") || undefined,
+    tags: Array.isArray(row.tags) ? row.tags.map((tag: unknown) => safeText(tag)).filter(Boolean) : [],
+    favorite: Boolean(row.favorite),
+    materialSetKind: materialSetKind || undefined,
+    materialSetItems: Array.isArray(metadata.materialSetItems) ? metadata.materialSetItems : undefined,
+    poseBackup: optionalObject(metadata.poseBackup),
+    workflowFragment: optionalObject(metadata.workflowFragment),
+    createdAt: dateToMillis(row.created_at),
+    updatedAt: dateToMillis(row.updated_at),
+    lastUsedAt: row.last_used_at ? dateToMillis(row.last_used_at) : undefined,
+    sourceNodeId: sourceNodeId || undefined,
+    sourceCanvasId: sourceCanvasId || undefined,
+    taskId: taskId || undefined,
+    providerId: providerId || undefined,
+    modelId: modelId || undefined,
+  };
+}
+
 function parseJsonObject(value: string) {
   try {
     const parsed = JSON.parse(value);
@@ -1334,6 +1909,10 @@ function parseJsonObject(value: string) {
   } catch {
     return {};
   }
+}
+
+function plainObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function millisToDate(value: number | undefined) {
@@ -1370,14 +1949,194 @@ async function enqueueTask(taskId: string): Promise<{ queued: boolean; reason: s
   }
 }
 
+async function appendTaskLog(taskId: string, line: string) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `update xh_tasks
+       set logs = coalesce(logs, '[]'::jsonb) || $2::jsonb,
+           updated_at = now()
+       where id = $1`,
+      [taskId, JSON.stringify([line])],
+    );
+    return;
+  }
+  const db = await readAdminDb();
+  await writeAdminDb({
+    ...db,
+    tasks: db.tasks.map((task) =>
+      task.id === taskId ? { ...task, logs: [...task.logs, line], updatedAt: Date.now() } : task,
+    ),
+  });
+}
+
+async function readTaskRecord(taskId: string): Promise<AdminTaskRecord | null> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      "select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks where id = $1 limit 1",
+      [taskId],
+    );
+    return result.rows[0] ? toAdminTaskRecord(result.rows[0]) : null;
+  }
+  const db = await readAdminDb();
+  return db.tasks.find((task) => task.id === taskId) ?? null;
+}
+
+async function insertTaskRecord(task: AdminTaskRecord) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
+      [
+        task.id,
+        task.ownerId || null,
+        task.title,
+        task.status,
+        task.providerId || null,
+        task.modelId || null,
+        JSON.stringify(plainObject(task.payload)),
+        JSON.stringify(plainObject(task.result)),
+        JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
+        millisToDate(task.createdAt),
+        millisToDate(task.updatedAt),
+      ],
+    );
+    return;
+  }
+  const db = await readAdminDb();
+  await writeAdminDb({ ...db, tasks: [task, ...db.tasks] });
+}
+
+async function writeTaskRecord(task: AdminTaskRecord) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `update xh_tasks
+       set owner_id = $2,
+           title = $3,
+           status = $4,
+           provider_id = $5,
+           model_id = $6,
+           payload = $7::jsonb,
+           result = $8::jsonb,
+           logs = $9::jsonb,
+           updated_at = $10
+       where id = $1`,
+      [
+        task.id,
+        task.ownerId || null,
+        task.title,
+        task.status,
+        task.providerId || null,
+        task.modelId || null,
+        JSON.stringify(plainObject(task.payload)),
+        JSON.stringify(plainObject(task.result)),
+        JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
+        millisToDate(task.updatedAt),
+      ],
+    );
+    return;
+  }
+  const db = await readAdminDb();
+  await writeAdminDb({
+    ...db,
+    tasks: db.tasks.map((item) => (item.id === task.id ? task : item)),
+  });
+}
+
+async function cancelTaskRecord(taskId: string, actorEmail: string) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const resultPatch = {
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: actorEmail,
+    };
+    const cancelledResult = await pool.query(
+      `update xh_tasks
+       set status = 'cancelled',
+           logs = coalesce(logs, '[]'::jsonb) || $2::jsonb,
+           result = coalesce(result, '{}'::jsonb) || $3::jsonb,
+           updated_at = now()
+       where id = $1
+         and status in ('queued', 'running')
+       returning id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at`,
+      [taskId, JSON.stringify([`管理员取消任务 (${actorEmail})`]), JSON.stringify(resultPatch)],
+    );
+    if (cancelledResult.rows[0]) return toAdminTaskRecord(cancelledResult.rows[0]);
+    const currentTask = await readTaskRecord(taskId);
+    if (!currentTask) return null;
+    if (!canCancelTask(currentTask.status)) {
+      throw new Error(`任务当前状态为 ${currentTask.status}，不可取消`);
+    }
+    return currentTask;
+  }
+  const db = await readAdminDb();
+  let updatedTask: AdminTaskRecord | null = null;
+  const tasks = db.tasks.map((task) => {
+    if (task.id !== taskId) return task;
+    if (!canCancelTask(task.status)) {
+      throw new Error(`任务当前状态为 ${task.status}，不可取消`);
+    }
+    updatedTask = {
+      ...task,
+      status: "cancelled",
+      result: {
+        ...plainObject(task.result),
+        cancelledAt: new Date().toISOString(),
+        cancelledBy: actorEmail,
+      },
+      logs: [...task.logs, `管理员取消任务 (${actorEmail})`],
+      updatedAt: Date.now(),
+    };
+    return updatedTask;
+  });
+  if (!updatedTask) return null;
+  await writeAdminDb({ ...db, tasks });
+  return updatedTask;
+}
+
 function defaultAdminDb(): AdminDb {
   const now = Date.now();
   return {
     providers: [
       {
+        id: "modelscope",
+        name: "ModelScope",
+        baseUrl: "https://api-inference.modelscope.cn/v1",
+        protocol: "openai",
+        enabled: true,
+        msLoras: [
+          {
+            id: "Daniel8152/film",
+            name: "Z-Image Film",
+            targetModel: "Tongyi-MAI/Z-Image-Turbo",
+            strength: 0.8,
+            enabled: true,
+          },
+        ],
+        note: "ModelScope 图像和 LoRA 配置",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "runninghub",
+        name: "RunningHub",
+        baseUrl: "https://www.runninghub.cn",
+        protocol: "runninghub",
+        enabled: true,
+        rhApps: [],
+        rhWorkflows: [],
+        note: "RunningHub AI 应用和工作流配置",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
         id: "grsai",
         name: "GRSAI",
         baseUrl: "https://api.grsai.com",
+        protocol: "openai",
         enabled: false,
         note: "图像模型测试服务商",
         createdAt: now,
@@ -1387,6 +2146,7 @@ function defaultAdminDb(): AdminDb {
         id: "toapis",
         name: "ToAPIs",
         baseUrl: "https://api.toapis.com",
+        protocol: "openai",
         enabled: false,
         note: "视频模型测试服务商",
         createdAt: now,
@@ -1579,6 +2339,443 @@ function defaultSettings() {
   };
 }
 
+async function publicModelCatalog() {
+  const db = await readAdminDb();
+  const providerMap = new Map(db.providers.map((provider) => [provider.id, provider]));
+  const all = db.models
+    .filter((model) => model.enabled)
+    .map((model) => {
+      const provider = providerMap.get(model.providerId);
+      if (!provider || !provider.enabled) return null;
+      const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+      const parameterSchema = mergeModelParameterSchema(
+        normalizeCapability(model.capability) as CatalogCapability,
+        model.modelId,
+        protocol as CatalogProtocol,
+        model.parameterSchema,
+      );
+      return {
+        id: model.id,
+        providerId: model.providerId,
+        modelId: model.modelId,
+        displayName: model.displayName,
+        capability: normalizeCapability(model.capability),
+        enabled: true,
+        inputProfile: model.inputProfile,
+        protocol,
+        parameterSchema,
+        ui: uiMetadataFromSchema(parameterSchema, normalizeCapability(model.capability) as CatalogCapability),
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          protocol: normalizeProviderProtocol(provider.protocol),
+          enabled: true,
+        },
+        updatedAt: model.updatedAt,
+      };
+    })
+    .filter(Boolean);
+  return {
+    all,
+    chatModels: all.filter((model) => model?.capability === "chat"),
+    imageModels: all.filter((model) => model?.capability === "image"),
+    videoModels: all.filter((model) => model?.capability === "video"),
+  };
+}
+
+async function publicRunningHubCatalog() {
+  const db = await readAdminDb();
+  const providers = db.providers
+    .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
+    .map((provider) => {
+      const workflows = normalizeRunningHubEntries(provider.rhWorkflows, "workflow")
+        .filter((entry) => entry.enabled)
+        .map((entry) => toPublicRunningHubCatalogEntry(provider, entry));
+      const apps = normalizeRunningHubEntries(provider.rhApps, "app")
+        .filter((entry) => entry.enabled)
+        .map((entry) => toPublicRunningHubCatalogEntry(provider, entry));
+      return {
+        id: provider.id,
+        name: provider.name,
+        baseUrl: provider.baseUrl,
+        workflows,
+        apps,
+      };
+    });
+  return {
+    providers,
+    workflows: providers.flatMap((provider) => provider.workflows),
+    apps: providers.flatMap((provider) => provider.apps),
+  };
+}
+
+async function generateExternalImageProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
+  const body = (rawBody && typeof rawBody === "object" ? rawBody : {}) as Record<string, unknown>;
+  const prompt = safeText(body.prompt, "").slice(0, 8000);
+  if (!prompt) throw new Error("缺少 prompt");
+
+  const providerId = safeSlug(body.providerId, "");
+  const requestedModelId = safeText(body.providerModel || body.model);
+  const params = (body.providerParams && typeof body.providerParams === "object" ? body.providerParams : {}) as Record<string, unknown>;
+  const modelRecordId = safeText(params.modelRecordId);
+  const { provider, model } = await findEnabledImageModel(providerId, requestedModelId, modelRecordId);
+  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+  if (!["openai", "apimart", "custom", "grsai_draw"].includes(protocol)) {
+    throw new Error(`当前 Provider 协议暂未接入图像生成 Adapter: ${protocol}`);
+  }
+
+  const apiKey = providerPlainApiKey(provider);
+  if (!apiKey) throw new Error("Provider 未配置 API Key");
+
+  const parameterSchema = mergeModelParameterSchema(
+    "image",
+    model.modelId,
+    protocol as CatalogProtocol,
+    model.parameterSchema,
+  );
+  const ui = uiMetadataFromSchema(parameterSchema, "image");
+  const requestedSize = safeText(body.size || params.size || params.image_size);
+  const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
+  const count = Math.max(1, Math.min(4, Number(body.n) || 1));
+  const images = normalizeProviderReferenceUrls(
+    Array.isArray(body.images) ? body.images.map((item) => safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4) : [],
+    publicOrigin,
+    user,
+  );
+  const payload: Record<string, unknown> = {
+    model: model.modelId,
+    prompt,
+    n: count,
+    size,
+  };
+  const aspectRatio = safeText(params.aspectRatio || body.aspect_ratio);
+  if (aspectRatio) payload.aspect_ratio = aspectRatio;
+  if (images.length > 0) payload.image = images;
+
+  const extracted = protocol === "grsai_draw"
+    ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, images)
+    : await generateOpenAiLikeImage(provider.baseUrl, apiKey, protocol, payload);
+  if (extracted.urls.length === 0 && extracted.base64.length === 0) throw new Error("上游未返回可用图像");
+
+  const localUrls: string[] = [];
+  const remoteImageUrls: string[] = [];
+  for (const item of extracted.base64) {
+    const saved = await saveBase64File({ dataUrl: toImageDataUrl(item), prefix: "external_image" }, user);
+    localUrls.push(saved.url);
+  }
+  for (const sourceUrl of extracted.urls) {
+    const saved = await saveRemoteImageToOutput(sourceUrl, user);
+    localUrls.push(saved.url);
+    remoteImageUrls.push(sourceUrl);
+  }
+
+  return {
+    imageUrls: localUrls,
+    remoteImageUrls,
+    raw: {
+      providerId: provider.id,
+      modelId: model.modelId,
+      count: localUrls.length,
+    },
+    provider: {
+      id: provider.id,
+      name: provider.name,
+      protocol,
+    },
+  };
+}
+
+async function generateExternalChatProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
+  const body = plainObject(rawBody);
+  const params = plainObject(body.providerParams);
+  const { provider, model } = await findEnabledModel(
+    "chat",
+    safeSlug(body.providerId, ""),
+    safeText(body.providerModel || body.model),
+    safeText(params.modelRecordId),
+  );
+  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+  if (!["openai", "apimart", "custom"].includes(protocol)) {
+    throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
+  }
+  const apiKey = providerPlainApiKey(provider);
+  if (!apiKey) throw new Error("Provider 未配置 API Key");
+  const messages = normalizeChatMessages(body.messages, publicOrigin, user);
+  if (messages.length === 0) throw new Error("缺少 messages");
+  const payload: Record<string, unknown> = { model: model.modelId, messages, stream: false };
+  const temperature = Number(body.temperature);
+  if (Number.isFinite(temperature)) payload.temperature = Math.max(0, Math.min(2, temperature));
+  const maxTokens = Number(body.max_tokens || body.maxTokens);
+  if (Number.isFinite(maxTokens) && maxTokens > 0) payload.max_tokens = Math.min(200000, Math.floor(maxTokens));
+
+  const upstream = await fetch(openAiEndpoint(provider.baseUrl, "chat/completions"), {
+    method: "POST",
+    headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(120000),
+  });
+  const text = await upstream.text();
+  if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+  if (!upstream.ok) throw new Error(`上游语言模型请求失败 ${upstream.status}: ${text.slice(0, 500)}`);
+  const raw = text ? JSON.parse(text) : {};
+  const content = extractChatContent(raw);
+  return {
+    content,
+    text: content,
+    raw: { providerId: provider.id, modelId: model.modelId, finishReason: raw?.choices?.[0]?.finish_reason || "" },
+    provider: { id: provider.id, name: provider.name, protocol },
+  };
+}
+
+async function generateExternalVideoProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
+  const body = plainObject(rawBody);
+  const prompt = String(body.prompt || "").trim().slice(0, 16000);
+  if (!prompt) throw new Error("缺少 prompt");
+  const params = plainObject(body.providerParams);
+  const { provider, model } = await findEnabledModel(
+    "video",
+    safeSlug(body.providerId, ""),
+    safeText(body.providerModel || body.model),
+    safeText(params.modelRecordId),
+  );
+  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+  if (!["openai", "apimart", "custom"].includes(protocol)) {
+    throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
+  }
+  const apiKey = providerPlainApiKey(provider);
+  if (!apiKey) throw new Error("Provider 未配置 API Key");
+  const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
+  const ui = uiMetadataFromSchema(schema, "video");
+  const requestedRatio = safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
+  const requestedDuration = body.duration ?? params.duration;
+  const requestedResolution = safeText(body.resolution || params.resolution);
+  const payload: Record<string, unknown> = { model: model.modelId, prompt };
+  if (ui.aspectRatios.length > 0) payload.aspect_ratio = ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio;
+  if (ui.durationOptions.length > 0) payload.duration = ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration;
+  if (ui.resolutionOptions.length > 0) payload.resolution = ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution;
+  const images = normalizeProviderReferenceUrls(
+    Array.isArray(body.images)
+      ? body.images.map((item) => String(item || "").trim()).filter(Boolean).slice(0, ui.maxReferenceImages || 1)
+      : [],
+    publicOrigin,
+    user,
+  );
+  if (images.length > 0) payload.image = images;
+
+  const upstream = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
+    method: "POST",
+    headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(180000),
+  });
+  const text = await upstream.text();
+  if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+  if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+  const raw = text ? JSON.parse(text) : {};
+  const remoteVideoUrls = extractVideoUrls(raw);
+  if (remoteVideoUrls.length === 0) throw new Error("上游未返回可用视频 URL");
+  const videoUrls: string[] = [];
+  for (const sourceUrl of remoteVideoUrls) {
+    const saved = await saveRemoteVideoToOutput(sourceUrl, user);
+    videoUrls.push(saved.url);
+  }
+  return {
+    videoUrls,
+    remoteVideoUrls,
+    raw: { providerId: provider.id, modelId: model.modelId, count: videoUrls.length },
+    provider: { id: provider.id, name: provider.name, protocol },
+  };
+}
+
+async function findEnabledImageModel(providerId: string, requestedModelId: string, modelRecordId: string) {
+  return findEnabledModel("image", providerId, requestedModelId, modelRecordId);
+}
+
+async function findEnabledModel(capability: ModelCapability, providerId: string, requestedModelId: string, modelRecordId: string) {
+  const db = await readAdminDb();
+  const provider = db.providers.find((item) => item.id === providerId);
+  if (!provider || !provider.enabled) throw new Error("Provider 不存在或未启用");
+  const model = db.models.find((item) => {
+    if (!item.enabled || item.providerId !== provider.id || normalizeCapability(item.capability) !== capability) return false;
+    if (modelRecordId && item.id === modelRecordId) return true;
+    return Boolean(requestedModelId) && item.modelId === requestedModelId;
+  });
+  if (!model) throw new Error(`模型不存在、未启用或不是 ${capability} 模型`);
+  return { provider, model };
+}
+
+function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
+  const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
+  return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+}
+
+function publicRequestOrigin(request: import("node:http").IncomingMessage) {
+  const forwardedProto = safeText(request.headers["x-forwarded-proto"]);
+  const forwardedHost = safeText(request.headers["x-forwarded-host"]);
+  const hostHeader = safeText(request.headers.host);
+  const hostValue = forwardedHost || hostHeader || `${host}:${port}`;
+  const proto = forwardedProto || (hostValue.startsWith("127.0.0.1") || hostValue.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${hostValue}`.replace(/\/+$/, "");
+}
+
+function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUser) {
+  return values.map((value) => normalizeProviderReferenceUrl(value, publicOrigin, user)).filter(Boolean);
+}
+
+function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUser) {
+  const text = safeText(value);
+  if (!text) return "";
+  if (/^data:image\//i.test(text) || /^https?:\/\//i.test(text)) return text;
+  if (text.startsWith("/files/") || text.startsWith("/input/") || text.startsWith("/output/")) {
+    return user ? providerFileAccessUrl(text, user, publicOrigin) : new URL(text, publicOrigin).toString();
+  }
+  if (/^(files|input|output)\//i.test(text)) {
+    return user ? providerFileAccessUrl(`/${text}`, user, publicOrigin) : new URL(`/${text}`, publicOrigin).toString();
+  }
+  return text;
+}
+
+function providerFileAccessUrl(value: string, user: CurrentUser, publicOrigin: string) {
+  const parsed = parseLocalProviderFileReference(value);
+  if (!parsed) return new URL(value, publicOrigin).toString();
+  const exp = Date.now() + 20 * 60 * 1000;
+  const sig = signProviderFile(user.id, parsed.bucket, parsed.filename, exp);
+  const path = `/api/provider-files/${encodeURIComponent(user.id)}/${parsed.bucket}/${encodeURIComponent(parsed.filename)}`;
+  const url = new URL(path, publicOrigin);
+  url.searchParams.set("exp", String(exp));
+  url.searchParams.set("sig", sig);
+  return url.toString();
+}
+
+function parseLocalProviderFileReference(value: string): { bucket: "input" | "output"; filename: string } | null {
+  const text = safeText(value).replace(/^\/+/, "");
+  const match = text.match(/^(?:files\/)?(input|output)\/(.+)$/i);
+  if (!match) return null;
+  const filename = basename(decodeURIComponent(match[2]));
+  if (!filename || filename === "." || filename === "..") return null;
+  return { bucket: match[1].toLowerCase() as "input" | "output", filename };
+}
+
+function signProviderFile(userId: string, bucket: "input" | "output", filename: string, exp: number) {
+  return createHmac("sha256", secretKey())
+    .update(`${safeUserId(userId)}:${bucket}:${filename}:${exp}`)
+    .digest("hex");
+}
+
+function verifyProviderFileSignature(userId: string, bucket: "input" | "output", filename: string, exp: number, sig: string) {
+  const expected = signProviderFile(userId, bucket, filename, exp);
+  const actual = safeText(sig);
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+}
+
+function openAiImageGenerationUrl(baseUrlValue: unknown) {
+  return openAiEndpoint(baseUrlValue, "images/generations");
+}
+
+function normalizeChatMessages(value: unknown, publicOrigin?: string, user?: CurrentUser) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(-100).map((item) => {
+    const row = plainObject(item);
+    const role = ["system", "user", "assistant", "tool"].includes(String(row.role)) ? String(row.role) : "user";
+    const content = Array.isArray(row.content)
+      ? row.content.slice(0, 64).map((part) => normalizeChatContentPart(part, publicOrigin, user)).filter((part) => Object.keys(part).length > 0)
+      : String(row.content || "").slice(0, 100000);
+    return { role, content };
+  }).filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
+}
+
+function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUser) {
+  const part = plainObject(value);
+  const imageUrl = part.image_url;
+  if (publicOrigin && user && imageUrl && typeof imageUrl === "object" && !Array.isArray(imageUrl)) {
+    const image = plainObject(imageUrl);
+    if (typeof image.url === "string") {
+      return { ...part, image_url: { ...image, url: normalizeProviderReferenceUrl(image.url, publicOrigin, user) } };
+    }
+  }
+  return part;
+}
+
+function extractChatContent(raw: any) {
+  const content = raw?.choices?.[0]?.message?.content ?? raw?.choices?.[0]?.text ?? raw?.output_text ?? raw?.text ?? raw?.content ?? "";
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((item) => typeof item === "string" ? item : safeText(item?.text || item?.content)).filter(Boolean).join("\n");
+  }
+  return "";
+}
+
+function extractVideoUrls(raw: unknown) {
+  const urls: string[] = [];
+  collectVideoUrl(raw, urls);
+  return [...new Set(urls)];
+}
+
+function collectVideoUrl(value: unknown, urls: string[]) {
+  if (!value) return;
+  if (typeof value === "string") {
+    if (/^https?:\/\//i.test(value) && /\.(mp4|webm|mov)(?:[?#]|$)/i.test(value)) urls.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectVideoUrl(item, urls);
+    return;
+  }
+  if (typeof value !== "object") return;
+  const row = value as Record<string, unknown>;
+  for (const key of ["url", "video_url", "videoUrl", "output_url", "outputUrl", "data", "videos", "output", "outputs", "result", "results"]) {
+    collectVideoUrl(row[key], urls);
+  }
+}
+
+function extractImageOutputs(raw: unknown) {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const candidates = [
+    root.data,
+    root.images,
+    root.output,
+    root.outputs,
+    root.result,
+    root.results,
+  ];
+  const urls: string[] = [];
+  const base64: string[] = [];
+  for (const candidate of candidates) collectImageOutput(candidate, urls, base64);
+  collectImageOutput(root, urls, base64);
+  return {
+    urls: [...new Set(urls)],
+    base64: [...new Set(base64)],
+  };
+}
+
+function collectImageOutput(value: unknown, urls: string[], base64: string[]) {
+  if (!value) return;
+  if (typeof value === "string") {
+    if (/^https?:\/\//i.test(value)) urls.push(value);
+    else if (/^data:image\//i.test(value) || looksLikeBase64Image(value)) base64.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectImageOutput(item, urls, base64);
+    return;
+  }
+  if (typeof value !== "object") return;
+  const row = value as Record<string, unknown>;
+  for (const key of ["url", "image_url", "imageUrl", "output_url", "outputUrl"]) collectImageOutput(row[key], urls, base64);
+  for (const key of ["b64_json", "base64", "image_base64", "imageBase64"]) collectImageOutput(row[key], urls, base64);
+}
+
+function looksLikeBase64Image(value: string) {
+  return /^[A-Za-z0-9+/=\s]{80,}$/.test(value.trim());
+}
+
+function toImageDataUrl(value: string) {
+  if (/^data:image\//i.test(value)) return value;
+  return `data:image/png;base64,${value.replace(/\s+/g, "")}`;
+}
+
 function safeText(value: unknown, fallback = "") {
   return String(value ?? fallback).trim().slice(0, 240);
 }
@@ -1640,7 +2837,345 @@ function normalizeResourceKind(value: unknown): ResourceKind | "" {
 
 function normalizeCapability(value: unknown): ModelCapability {
   const capability = String(value || "").toLowerCase();
-  return ["text", "image", "video", "audio"].includes(capability) ? (capability as ModelCapability) : "image";
+  if (capability === "text" || capability === "llm") return "chat";
+  return ["chat", "image", "video"].includes(capability) ? (capability as ModelCapability) : "image";
+}
+
+function normalizeProviderProtocol(value: unknown): ProviderProtocol {
+  const protocol = String(value || "").toLowerCase();
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "custom", "grsai_draw"].includes(protocol)
+    ? (protocol as ProviderProtocol)
+    : "openai";
+}
+
+function normalizeOptionalProtocol(value: unknown) {
+  const protocol = String(value || "").toLowerCase();
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "custom", "grsai_draw"].includes(protocol) ? protocol : "";
+}
+
+function providerModelsUrl(baseUrlValue: unknown, protocolValue: unknown) {
+  const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
+  const protocol = normalizeProviderProtocol(protocolValue);
+  if (!baseUrl) return "";
+  if (protocol === "grsai_draw") return "";
+  if (protocol === "gemini") return baseUrl.endsWith("/v1beta") ? `${baseUrl}/models` : `${baseUrl}/v1beta/models`;
+  if (protocol === "volcengine") return baseUrl.endsWith("/api/v3") ? `${baseUrl}/models` : `${baseUrl}/api/v3/models`;
+  if (protocol === "runninghub") return `${baseUrl}/openapi/v2/models`;
+  return baseUrl.endsWith("/v1") ? `${baseUrl}/models` : `${baseUrl}/v1/models`;
+}
+
+function providerModelHeaders(apiKey: string, protocolValue: unknown) {
+  const protocol = normalizeProviderProtocol(protocolValue);
+  if (protocol === "gemini") return { "x-goog-api-key": apiKey, accept: "application/json" };
+  if (protocol === "runninghub") return { authorization: apiKey.replace(/^Bearer\s+/i, ""), accept: "application/json" };
+  return { authorization: apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`, accept: "application/json" };
+}
+
+function classifyUpstreamModel(modelId: unknown): ModelCapability {
+  const value = String(modelId || "").toLowerCase();
+  const videoKeys = ["veo", "sora", "wan2", "wanx", "seedance", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"];
+  if (videoKeys.some((key) => value.includes(key))) return "video";
+  const imageKeys = ["banana", "image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein", "seedream", "text-to-image", "image-to-image"];
+  if (imageKeys.some((key) => value.includes(key))) return "image";
+  return "chat";
+}
+
+function parseUpstreamModels(raw: unknown, protocolValue: unknown) {
+  const protocol = normalizeProviderProtocol(protocolValue);
+  const object = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rawItems = Array.isArray(object.data)
+    ? object.data
+    : Array.isArray(object.models)
+      ? object.models
+      : Array.isArray(object.list)
+        ? object.list
+        : [];
+  const ids = new Set<string>();
+  for (const item of rawItems) {
+    let modelId = "";
+    if (typeof item === "string") modelId = item;
+    else if (item && typeof item === "object") {
+      const row = item as Record<string, unknown>;
+      modelId = safeText(row.id || row.name || row.model);
+    }
+    if (protocol === "gemini" && modelId.startsWith("models/")) modelId = modelId.slice("models/".length);
+    if (modelId) ids.add(modelId);
+  }
+  const all = [...ids].sort();
+  const grouped: Record<ModelCapability, string[]> = { chat: [], image: [], video: [] };
+  for (const modelId of all) grouped[classifyUpstreamModel(modelId)].push(modelId);
+  return { total: all.length, all, chatModels: grouped.chat, imageModels: grouped.image, videoModels: grouped.video };
+}
+
+function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubEntry[] {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item) => {
+      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || "");
+      const id = safeText(parsed?.id || row.id || row.appId || row.workflowId);
+      if (!id) return null;
+      return {
+        id,
+        kind,
+        appId: kind === "app" ? safeText(row.appId || id) : undefined,
+        workflowId: kind === "workflow" ? safeText(row.workflowId || id) : undefined,
+        runTargetId: safeText(row.runTargetId || (kind === "app" ? row.appId : row.workflowId) || id),
+        title: safeText(row.title, kind === "app" ? `AI 应用 ${id.slice(-6)}` : `工作流 ${id.slice(-6)}`),
+        note: safeText(row.note),
+        thumbnail: safeText(row.thumbnail),
+        enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+        workflowJson: normalizeOptionalJsonText(row.workflowJson),
+        fields: normalizeRunningHubFieldDefinitions(row.fields),
+      } satisfies RunningHubEntry;
+    })
+    .filter(Boolean) as RunningHubEntry[];
+}
+
+function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubFieldDefinition[] {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item) => {
+      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const nodeId = normalizeRunningHubFieldText(row.nodeId);
+      const fieldName = normalizeRunningHubFieldText(row.fieldName);
+      if (!nodeId || !fieldName) return null;
+      return {
+        nodeId,
+        fieldName,
+        label: normalizeRunningHubFieldText(row.label),
+        description: normalizeRunningHubFieldText(row.description, 2000),
+        fieldType: normalizeRunningHubFieldText(row.fieldType),
+        valueType: normalizeRunningHubFieldText(row.valueType),
+        placeholder: normalizeRunningHubFieldText(row.placeholder, 1000),
+        required: row.required === undefined ? undefined : Boolean(row.required),
+        fieldValue: normalizeRunningHubFieldPrimitive(row.fieldValue),
+        defaultValue: normalizeRunningHubFieldPrimitive(row.defaultValue),
+        options: normalizeRunningHubFieldOptions(row.options || row.fieldData || row.list || row.values),
+      } satisfies RunningHubFieldDefinition;
+    })
+    .filter(Boolean) as RunningHubFieldDefinition[];
+}
+
+function normalizeRunningHubFieldPrimitive(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const text = normalizeRunningHubFieldText(value, 4000);
+  return text || undefined;
+}
+
+function normalizeRunningHubFieldOptions(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const options = value
+    .map((item) => {
+      if (typeof item === "number" && Number.isFinite(item)) return item;
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        if (typeof row.value === "number" && Number.isFinite(row.value)) return row.value;
+        if (typeof row.value === "string") return row.value.trim();
+        if (typeof row.label === "string") return row.label.trim();
+        if (typeof row.name === "string") return row.name.trim();
+      }
+      return "";
+    })
+    .filter((item) => item !== "" && item !== null && item !== undefined);
+  return options.length > 0 ? options : undefined;
+}
+
+function normalizeRunningHubFieldText(value: unknown, maxLength = 240) {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function normalizeOptionalJsonText(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  try {
+    JSON.parse(text);
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+function parseRunningHubRef(value: unknown) {
+  const text = safeText(value);
+  const match = text.match(/\/run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
+  if (match) return { type: match[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: match[2] };
+  const plain = text.match(/^[0-9A-Za-z_-]{6,}$/);
+  return plain ? { type: "workflow", id: text } : null;
+}
+
+function toPublicRunningHubCatalogEntry(provider: AdminProviderRecord, entry: RunningHubEntry) {
+  return {
+    catalogId: `${provider.id}:${entry.kind || "workflow"}:${entry.id}`,
+    providerId: provider.id,
+    providerName: provider.name,
+    providerBaseUrl: provider.baseUrl,
+    id: entry.id,
+    kind: entry.kind || "workflow",
+    appId: entry.appId || "",
+    workflowId: entry.workflowId || "",
+    runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
+    title: entry.title,
+    note: entry.note || "",
+    thumbnail: entry.thumbnail || "",
+    workflowJson: entry.workflowJson || "",
+    fields: normalizeRunningHubFieldDefinitions(entry.fields),
+  };
+}
+
+function normalizeModelScopeLoras(value: unknown): ModelScopeLora[] {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item) => {
+      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const id = safeText(row.id);
+      if (!id) return null;
+      const strength = Number(row.strength);
+      return {
+        id,
+        name: safeText(row.name),
+        targetModel: safeText(row.targetModel || row.target_model || row.model, "Tongyi-MAI/Z-Image-Turbo"),
+        strength: Number.isFinite(strength) ? Math.max(0, Math.min(2, strength)) : 0.8,
+        enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+        note: safeText(row.note),
+      } satisfies ModelScopeLora;
+    })
+    .filter(Boolean) as ModelScopeLora[];
+}
+
+function looksLikeHtml(value: string) {
+  return /^\s*<!doctype html/i.test(value) || /^\s*<html[\s>]/i.test(value);
+}
+
+function providerPlainApiKey(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
+  const explicit = String(provider.apiKey || "").trim();
+  if (explicit && !explicit.startsWith("enc:v1:")) return explicit;
+  return decryptSecret(provider.apiKey || "");
+}
+
+async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
+  const protocol = normalizeProviderProtocol(provider.protocol);
+  if (protocol === "grsai_draw") {
+    const baseUrl = safeText(provider.baseUrl).replace(/\/+$/, "");
+    if (!baseUrl) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    const apiKey = providerPlainApiKey(provider);
+    if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    return {
+      ok: true,
+      status: 200,
+      message: "GRSAI Draw 使用手动模型目录，不支持自动拉取模型列表",
+      modelCount: 1,
+      all: ["gpt-image-2"],
+      chatModels: [],
+      imageModels: ["gpt-image-2"],
+      videoModels: [],
+    };
+  }
+  const url = providerModelsUrl(provider.baseUrl, protocol);
+  if (!url) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+  if (!/^https?:\/\//i.test(url)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+  const apiKey = providerPlainApiKey(provider);
+  if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+  try {
+    const upstream = await fetch(url, { headers: providerModelHeaders(apiKey, protocol), signal: AbortSignal.timeout(15000) });
+    const text = await upstream.text();
+    if (looksLikeHtml(text)) return { ok: false, status: upstream.status, message: "上游返回网页 HTML，请检查 Base URL 是否为 API 地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    if (!upstream.ok) return { ok: false, status: upstream.status, message: text.slice(0, 300), modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    const raw = text ? JSON.parse(text) : {};
+    const parsed = parseUpstreamModels(raw, protocol);
+    return {
+      ok: true,
+      status: upstream.status,
+      message: parsed.total ? `地址验证通过，找到 ${parsed.total} 个模型` : "地址验证通过，但未返回模型列表",
+      modelCount: parsed.total,
+      ...parsed,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      message: error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300),
+      modelCount: 0,
+      all: [],
+      chatModels: [],
+      imageModels: [],
+      videoModels: [],
+    };
+  }
+}
+
+async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
+  if (normalizeProviderProtocol(provider.protocol) === "grsai_draw") {
+    return {
+      ok: true,
+      status: 200,
+      message: "GRSAI Draw 使用手动模型目录，默认提供 gpt-image-2",
+      modelCount: 1,
+      total: 1,
+      all: ["gpt-image-2"],
+      chatModels: [],
+      imageModels: ["gpt-image-2"],
+      videoModels: [],
+    };
+  }
+  const result = await probeProviderDraft(provider);
+  return {
+    ...result,
+    total: result.modelCount,
+    chatModels: result.chatModels || [],
+    imageModels: result.imageModels || [],
+    videoModels: result.videoModels || [],
+    all: result.all || [],
+  };
+}
+
+async function generateOpenAiLikeImage(baseUrl: string, apiKey: string, protocol: ProviderProtocol, payload: Record<string, unknown>) {
+  const upstream = await fetch(openAiImageGenerationUrl(baseUrl), {
+    method: "POST",
+    headers: {
+      ...providerModelHeaders(apiKey, protocol),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(120000),
+  });
+  const text = await upstream.text();
+  if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+  if (!upstream.ok) throw new Error(`上游图像生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+  const raw = text ? JSON.parse(text) : {};
+  return extractImageOutputs(raw);
+}
+
+async function generateGrsaiImage(
+  baseUrl: string,
+  apiKey: string,
+  modelId: string,
+  prompt: string,
+  aspectRatio: string,
+  size: string,
+  images: string[],
+) {
+  const client = createGrsaiImageClient({
+    apiKey,
+    baseUrl: safeText(baseUrl),
+    pollIntervalMs: 1500,
+    timeoutMs: 120000,
+  });
+  const result = await client.generate({
+    modelId,
+    prompt,
+    ...(aspectRatio ? { aspectRatio } : {}),
+    ...(size && size !== "auto" ? { size } : {}),
+    ...(images.length > 0 ? { images } : {}),
+  });
+  return {
+    urls: result.imageUrls,
+    base64: [],
+    raw: result.raw,
+  };
 }
 
 function normalizeTaskStatus(value: unknown): TaskStatus {
@@ -1665,9 +3200,16 @@ function toPublicProvider(provider: AdminProviderRecord) {
     id: provider.id,
     name: provider.name,
     baseUrl: provider.baseUrl,
+    protocol: normalizeProviderProtocol(provider.protocol),
     enabled: provider.enabled,
     hasApiKey: Boolean(provider.apiKey),
     apiKeyPreview: provider.apiKeyPreview || secretPreview(decryptSecret(provider.apiKey || "")),
+    lastProbeStatus: provider.lastProbeStatus || "",
+    lastProbeMessage: provider.lastProbeMessage || "",
+    lastFetchedAt: provider.lastFetchedAt || 0,
+    rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
+    rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+    msLoras: normalizeModelScopeLoras(provider.msLoras),
     note: provider.note || "",
     createdAt: provider.createdAt,
     updatedAt: provider.updatedAt,
@@ -1728,7 +3270,6 @@ async function appendAudit(
   targetId: string,
   summary: string,
 ) {
-  const db = await readAdminDb();
   const record: AdminAuditRecord = {
     id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     actorId: actor.id,
@@ -1739,6 +3280,25 @@ async function appendAudit(
     summary,
     createdAt: Date.now(),
   };
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        record.id,
+        record.actorId || null,
+        record.actorEmail,
+        record.action,
+        record.targetType,
+        record.targetId,
+        record.summary,
+        millisToDate(record.createdAt),
+      ],
+    );
+    return;
+  }
+  const db = await readAdminDb();
   await writeAdminDb({
     ...db,
     auditLogs: [record, ...(db.auditLogs || [])].slice(0, 1000),
@@ -1991,6 +3551,67 @@ async function saveBase64File(body: { dataUrl?: string; prefix?: string }, user:
   return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
 }
 
+async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
+  await ensureDataDirs(user);
+  if (!/^https?:\/\//i.test(sourceUrl)) throw new Error("远程图片 URL 必须以 http:// 或 https:// 开头");
+  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(120000) });
+  if (!upstream.ok) throw new Error(`下载远程图片失败 ${upstream.status}`);
+  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!mime.startsWith("image/")) throw new Error("远程 URL 不是图片");
+  const ext = imageExtensionFromMime(mime) || imageExtensionFromUrl(sourceUrl) || "png";
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  const filename = `external_image_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
+  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+}
+
+async function saveRemoteVideoToOutput(sourceUrl: string, user: CurrentUser) {
+  await ensureDataDirs(user);
+  if (!/^https?:\/\//i.test(sourceUrl)) throw new Error("远程视频 URL 必须以 http:// 或 https:// 开头");
+  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
+  if (!upstream.ok) throw new Error(`下载远程视频失败 ${upstream.status}`);
+  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!mime.startsWith("video/")) throw new Error("远程 URL 不是视频");
+  const ext = videoExtensionFromMime(mime) || videoExtensionFromUrl(sourceUrl) || "mp4";
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  const filename = `external_video_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
+  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+}
+
+function videoExtensionFromMime(mime: string) {
+  if (mime === "video/mp4") return "mp4";
+  if (mime === "video/webm") return "webm";
+  if (mime === "video/quicktime") return "mov";
+  return "";
+}
+
+function videoExtensionFromUrl(sourceUrl: string) {
+  try {
+    const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
+    return ["mp4", "webm", "mov"].includes(ext) ? ext : "";
+  } catch {
+    return "";
+  }
+}
+
+function imageExtensionFromMime(mime: string) {
+  if (mime === "image/jpeg" || mime === "image/jpg") return "jpg";
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  if (mime === "image/gif") return "gif";
+  return "";
+}
+
+function imageExtensionFromUrl(sourceUrl: string) {
+  try {
+    const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
+    return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "";
+  } catch {
+    return "";
+  }
+}
+
 async function listOutputFiles(user: CurrentUser) {
   await ensureDataDirs(user);
   const dirs = userDataDirs(user);
@@ -2024,6 +3645,42 @@ async function saveToOutput(body: { url?: string; filename?: string }, user: Cur
 }
 
 async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const [categoriesResult, itemsResult] = await Promise.all([
+      pool.query(
+        "select id, kind, name, created_at, updated_at from xh_resource_categories where owner_id = $1 order by created_at asc",
+        [user.id],
+      ),
+      pool.query(
+        `select a.id, a.kind, a.title, a.url, a.mime, a.size_bytes, a.category_id, a.tags, a.favorite, a.last_used_at, a.metadata, a.created_at, a.updated_at
+         from xh_assets a
+         left join xh_resource_categories c on c.id = a.category_id
+         where a.owner_id = $1
+         order by a.created_at desc`,
+        [user.id],
+      ),
+    ]);
+    if (categoriesResult.rows.length > 0 || itemsResult.rows.length > 0) {
+      return {
+        categories: categoriesResult.rows.map((row) => toResourceCategory(row)),
+        items: itemsResult.rows.map((row) => toResourceItem(row)),
+      };
+    }
+    const fileDb = await readResourceDbFromFile(user);
+    if (fileDb.categories.length > 0 || fileDb.items.length > 0) {
+      await writeResourceDb(fileDb, user);
+      return fileDb;
+    }
+    return {
+      categories: [],
+      items: [],
+    };
+  }
+  return readResourceDbFromFile(user);
+}
+
+async function readResourceDbFromFile(user: CurrentUser): Promise<ResourceDb> {
   await ensureDataDirs(user);
   try {
     return JSON.parse(await readFile(userDataDirs(user).resourceDbPath, "utf-8")) as ResourceDb;
@@ -2033,6 +3690,58 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
 }
 
 async function writeResourceDb(db: ResourceDb, user: CurrentUser) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      await client.query("delete from xh_assets where owner_id = $1", [user.id]);
+      await client.query("delete from xh_resource_categories where owner_id = $1", [user.id]);
+      for (const category of Array.isArray(db.categories) ? db.categories : []) {
+        await client.query(
+          `insert into xh_resource_categories (id, owner_id, kind, name, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6)`,
+          [
+            category.id,
+            user.id,
+            normalizeResourceKind(category.kind) || "image",
+            safeText(category.name, "未分类"),
+            millisToDate(category.createdAt),
+            millisToDate(category.updatedAt),
+          ],
+        );
+      }
+      for (const item of Array.isArray(db.items) ? db.items : []) {
+        await client.query(
+          `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
+           values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)`,
+          [
+            item.id,
+            user.id,
+            normalizeResourceKind(item.kind) || "image",
+            safeText(item.title, "资源"),
+            safeText(item.url),
+            safeText(item.mime),
+            Number(item.size) || 0,
+            JSON.stringify(resourceItemMetadata(item)),
+            safeText(item.categoryId) || null,
+            JSON.stringify(Array.isArray(item.tags) ? item.tags.map((tag) => safeText(tag)).filter(Boolean) : []),
+            Boolean(item.favorite),
+            item.lastUsedAt ? millisToDate(item.lastUsedAt) : null,
+            millisToDate(item.createdAt),
+            millisToDate(item.updatedAt),
+          ],
+        );
+      }
+      await client.query("commit");
+      return;
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   await ensureDataDirs(user);
   await writeFile(userDataDirs(user).resourceDbPath, JSON.stringify(db, null, 2), "utf-8");
 }
@@ -2047,6 +3756,8 @@ async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKin
     kind,
     title: safeText(payload.title, url ? basename(url) : kind === "set" ? "素材集" : "资源"),
     url,
+    sourceUrl: safeText(payload.sourceUrl, url),
+    originalName: safeText(payload.originalName),
     fileUrl: url,
     fileRel: url,
     mime: safeText(payload.mime, url ? inferMime(url) : ""),
@@ -2061,6 +3772,11 @@ async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKin
       typeof payload.workflowFragment === "object" ? (payload.workflowFragment as Record<string, unknown>) : undefined,
     createdAt: now,
     updatedAt: now,
+    sourceNodeId: safeText(payload.sourceNodeId),
+    sourceCanvasId: safeText(payload.sourceCanvasId),
+    taskId: safeText(payload.taskId),
+    providerId: safeText(payload.providerId),
+    modelId: safeText(payload.modelId),
   };
   const db = await readResourceDb(user);
   db.items.unshift(item);

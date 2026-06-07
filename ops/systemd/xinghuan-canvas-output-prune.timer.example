@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Xinghuan Canvas output material prune daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=xinghuan-canvas-output-prune.service
+
+[Install]
+WantedBy=timers.target

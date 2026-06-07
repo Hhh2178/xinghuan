@@ -1,0 +1,11 @@
+[Unit]
+Description=Xinghuan Canvas Output Material Prune
+After=network.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/apps/xinghuan-canvas/current
+EnvironmentFile=/opt/apps/xinghuan-canvas/shared/canvas.env
+ExecStart=/usr/bin/npm run cleanup:output-materials

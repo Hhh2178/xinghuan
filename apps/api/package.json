@@ -11,6 +11,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@xinghuan/model-core": "0.1.0",
     "@xinghuan/shared": "0.1.0",
     "busboy": "^1.6.0",
     "pg": "^8.21.0",

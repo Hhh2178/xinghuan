@@ -40,6 +40,8 @@ import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMat
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import { useApiKeysStore } from '../../stores/apiKeys';
+import { useModelCatalogStore } from '../../stores/modelCatalog';
+import type { PublicModelRecord } from '../../services/api';
 import {
   advancedProviderModelOptions,
   advancedProvidersForNode,
@@ -51,6 +53,7 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
+import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
 
 /**
  * VideoNode - 异步视频生成(完全对齐 gpt-image-2-web)
@@ -88,6 +91,19 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const isPixel = themeStyle === 'pixel';
 
   const d = data as any;
+  const backendVideoModels = useModelCatalogStore((s) => s.catalog.videoModels);
+  const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
+  const backendSelection = useMemo(
+    () => resolvePublishedModelSelection(backendVideoModels, {
+      selectedModelId: d?.backendModelId,
+      selectedProviderId: d?.backendProviderId,
+    }),
+    [backendVideoModels, d?.backendModelId, d?.backendProviderId],
+  );
+  const backendModel: PublicModelRecord | null = backendSelection.selectedModel;
+  const backendProviderGroups = backendSelection.providerGroups;
+  const backendProviderGroup = backendSelection.selectedProviderGroup;
+  const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const videoAdvancedProviders = useMemo(
     () => advancedProvidersForNode(advancedProviders, 'video'),
@@ -101,8 +117,8 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     }),
     [advancedProviders, d?.providerSource, d?.providerId, d?.providerModel],
   );
-  const isExternalSelected = providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
-  const savedExternalMissing = !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
+  const isExternalSelected = !isBackendSelected && providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
+  const savedExternalMissing = !isBackendSelected && !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
   const externalModelOptions = providerSelection.provider
     ? advancedProviderModelOptions(providerSelection.provider, 'video')
     : [];
@@ -117,9 +133,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   // 子模型(上游真实 model 名)
   const apiModel: string = d?.model && modelDef.apiModelOptions.some((o) => o.value === d.model) ? d.model : modelDef.apiModelOptions[0].value;
   // 各参数(跳过着调用 update 默认值)
-  const ratio: string = d?.ratio || modelDef.defaultRatio;
-  const duration: number = d?.duration ?? modelDef.defaultDuration ?? (modelDef.durations?.[0] || 0);
-  const resolution: string = d?.resolution || (isJimengSeedanceSelected ? '720p' : modelDef.defaultResolution || '');
+  const ratio: string = d?.ratio || backendModel?.ui.defaultAspectRatio || modelDef.defaultRatio;
+  const duration: number | string = d?.duration ?? backendModel?.ui.defaultDuration ?? modelDef.defaultDuration ?? (modelDef.durations?.[0] || 0);
+  const resolution: string = d?.resolution || backendModel?.ui.defaultResolution || (isJimengSeedanceSelected ? '720p' : modelDef.defaultResolution || '');
   const seed: number = typeof d?.seed === 'number' ? d.seed : 0;
   const enhancePrompt: boolean = d?.enhancePrompt ?? false;
   const enableUpsample: boolean = d?.enableUpsample ?? false;
@@ -128,17 +144,40 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const isFal = isFalVideoModel(apiModel);
   const falReg = isFal ? VIDEO_FAL_REGISTRY[apiModel] : null;
   const isGrokFalV15 = apiModel === 'grok-imagine-video-1.5';
-  const showBuiltinFalControls = !isExternalSelected && isFal && !!falReg;
-  const showGenericVideoControls = isExternalSelected || !isFal;
-  const ratioOptions = isJimengSeedanceSelected
+  const showBuiltinFalControls = !isBackendSelected && !isExternalSelected && isFal && !!falReg;
+  const showGenericVideoControls = isBackendSelected || isExternalSelected || !isFal;
+  const ratioOptions = isBackendSelected && backendModel
+    ? backendModel.ui.aspectRatios
+    : isJimengSeedanceSelected
     ? ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
     : modelDef.ratios;
-  const durationOptions = isJimengSeedanceSelected
+  const durationOptions = isBackendSelected && backendModel
+    ? backendModel.ui.durationOptions
+    : isJimengSeedanceSelected
     ? [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     : modelDef.durations || [];
-  const resolutionOptions = isJimengSeedanceSelected
+  const resolutionOptions = isBackendSelected && backendModel
+    ? backendModel.ui.resolutionOptions
+    : isJimengSeedanceSelected
     ? ['480p', '720p', '1080p']
     : modelDef.resolutions || [];
+
+  useEffect(() => {
+    if (!isBackendSelected || !backendModel) return;
+    const patch: Record<string, unknown> = {};
+    if (!backendModel.ui.aspectRatios.includes(ratio)) patch.ratio = backendModel.ui.defaultAspectRatio;
+    if (!backendModel.ui.durationOptions.includes(duration)) patch.duration = backendModel.ui.defaultDuration;
+    if (!backendModel.ui.resolutionOptions.includes(resolution)) patch.resolution = backendModel.ui.defaultResolution;
+    if (Object.keys(patch).length) update(patch);
+  }, [
+    backendModel,
+    duration,
+    isBackendSelected,
+    ratio,
+    resolution,
+    update,
+  ]);
+
   // veo-fal 专属
   const vfRatio: string = d?.vfRatio || '16:9';
   const vfDuration: string = d?.vfDuration || '8s';
@@ -313,6 +352,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     const def = VIDEO_MODELS.find((m) => m.id === nextId) || VIDEO_MODELS[0];
     const nextModel = def.apiModelOptions[0].value;
     update({
+      modelSource: 'local',
+      backendProviderId: '',
+      backendModelId: '',
       mainId: def.id,
       model: nextModel,
       ratio: def.defaultRatio,
@@ -320,6 +362,47 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       resolution: def.defaultResolution || '',
       ...(nextModel === 'grok-imagine-video-1.5' ? { gkfMode: 'image_to_video' } : {}),
     });
+  };
+
+  const switchBackendVideoModel = (catalogId: string) => {
+    const next = backendVideoModels.find((item) => item.id === catalogId) || backendProviderGroup?.models[0] || backendVideoModels[0];
+    if (!next) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    const patch: any = {
+      modelSource: 'backend',
+      backendProviderId: next.providerId,
+      backendModelId: next.id,
+      providerSource: '',
+      providerId: next.providerId,
+      providerModel: next.modelId,
+    };
+    if (!next.ui.aspectRatios.includes(ratio)) patch.ratio = next.ui.defaultAspectRatio;
+    if (!next.ui.durationOptions.includes(duration)) patch.duration = next.ui.defaultDuration;
+    if (!next.ui.resolutionOptions.includes(resolution)) patch.resolution = next.ui.defaultResolution;
+    update(patch);
+  };
+
+  const switchBackendVideoProvider = (providerId: string) => {
+    const nextProvider = backendProviderGroups.find((item) => item.providerId === providerId) || backendProviderGroups[0];
+    const nextModel = nextProvider?.models[0] || null;
+    if (!nextProvider || !nextModel) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    const patch: any = {
+      modelSource: 'backend',
+      backendProviderId: nextProvider.providerId,
+      backendModelId: nextModel.id,
+      providerSource: '',
+      providerId: nextModel.providerId,
+      providerModel: nextModel.modelId,
+    };
+    if (!nextModel.ui.aspectRatios.includes(ratio)) patch.ratio = nextModel.ui.defaultAspectRatio;
+    if (!nextModel.ui.durationOptions.includes(duration)) patch.duration = nextModel.ui.defaultDuration;
+    if (!nextModel.ui.resolutionOptions.includes(resolution)) patch.resolution = nextModel.ui.defaultResolution;
+    update(patch);
   };
 
   // v1.2.9.11: 返回 Promise，调用方 await 直到任务真正成功/失败/超时才 resolve/reject。
@@ -433,6 +516,40 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     taskCompletionSound.primeAudio();
     update({ status: 'submitting', error: null, videoUrl: null, taskId: null });
     try {
+      if (isBackendSelected && backendModel) {
+        const refs = imageUrls.slice(0, backendModel.ui.maxReferenceImages || 1);
+        logBus.info(
+          `后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length}`,
+          src,
+        );
+        const r = await generateExternalVideo({
+          providerId: backendModel.providerId,
+          providerModel: backendModel.modelId,
+          model: backendModel.modelId,
+          prompt: finalPrompt,
+          aspect_ratio: ratio,
+          ratio,
+          duration,
+          resolution,
+          seed: seed > 0 ? seed : undefined,
+          images: refs,
+          providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id },
+        });
+        const nextVideoUrl = r.videoUrls[0];
+        if (!nextVideoUrl) throw new Error('后台视频模型没有返回视频。');
+        update({
+          status: 'success',
+          videoUrl: nextVideoUrl,
+          videoUrls: r.videoUrls,
+          remoteVideoUrls: r.remoteVideoUrls,
+          taskId: r.taskId || null,
+          lastPrompt: finalPrompt,
+          progress: '100%',
+        });
+        logBus.success(`后台视频模型完成 → ${nextVideoUrl}`, src);
+        taskCompletionSound.notifyComplete(id, 'video');
+        return;
+      }
       if (isExternalSelected && providerSelection.provider) {
         const providerModel = externalProviderModel;
         const refs = imageUrls.slice(0, Math.max(1, maxMentionRefs || modelDef.maxRefImages || 8));
@@ -693,7 +810,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         <div className="flex-1">
           <div className="text-sm font-semibold text-white">视频</div>
           <div className="text-[10px] text-white/40">
-            {isExternalSelected && providerSelection.provider
+            {isBackendSelected && backendModel
+              ? `${backendModel.provider.name} · ${backendModel.displayName || backendModel.modelId}`
+              : isExternalSelected && providerSelection.provider
               ? `${providerSelection.provider.label || providerSelection.provider.id} · ${externalProviderModel || '未选模型'}`
               : `${modelDef.label} · ${modelDef.kind}`}
           </div>
@@ -701,7 +820,67 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       </div>
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
-        {videoAdvancedProviders.length > 0 && (
+        {backendVideoModels.length > 0 && (
+          <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-semibold text-cyan-100">发布模型</label>
+              <span className="text-[10px] text-cyan-200/70">{backendVideoModels.length} 个已发布</span>
+            </div>
+            <div className="grid gap-2">
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">供应商</label>
+                <select
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  onChange={(e) => {
+                    if (e.target.value === '__local__') {
+                      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+                      return;
+                    }
+                    switchBackendVideoProvider(e.target.value);
+                  }}
+                  style={{ background: '#18181b', color: '#ffffff' }}
+                  className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                >
+                  {backendProviderGroups.map((group) => (
+                    <option key={group.providerId} value={group.providerId} style={{ background: '#18181b', color: '#ffffff' }}>
+                      {group.providerName}
+                    </option>
+                  ))}
+                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>本地 T8 内置模型</option>
+                </select>
+              </div>
+              {isBackendSelected && backendProviderGroup && (
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">模型</label>
+                  <select
+                    value={backendModel?.id || ''}
+                    onChange={(e) => switchBackendVideoModel(e.target.value)}
+                    style={{ background: '#18181b', color: '#ffffff' }}
+                    className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                  >
+                    {backendProviderGroup.models.map((item) => (
+                      <option key={item.id} value={item.id} style={{ background: '#18181b', color: '#ffffff' }}>
+                        {item.displayName || item.modelId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {isBackendSelected && backendModel && (
+              <>
+                <div className="text-[10px] leading-relaxed text-cyan-100/65">
+                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点可见参数。
+                </div>
+                <div className="text-[10px] leading-relaxed text-cyan-100/50">
+                  {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isBackendSelected && videoAdvancedProviders.length > 0 && (
           <div className="rounded border border-white/10 bg-white/[0.03] p-2 space-y-2">
             <button
               type="button"
@@ -769,7 +948,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 主模型 */}
-        {!isExternalSelected && (
+        {!isBackendSelected && !isExternalSelected && (
         <div>
           <label className="text-[10px] text-white/50 block mb-1">模型类型</label>
           <select
@@ -785,7 +964,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 子模型(主项目 veo_model / gk_model) */}
-        {!isExternalSelected && modelDef.apiModelOptions.length > 1 && (
+        {!isBackendSelected && !isExternalSelected && modelDef.apiModelOptions.length > 1 && (
           <div>
             <label className="text-[10px] text-white/50 block mb-1">具体模型</label>
             <select
@@ -1014,7 +1193,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* veo 专用选项(非FAL) */}
-        {!isExternalSelected && !isFal && modelDef.kind === 'veo' && (
+        {!isBackendSelected && !isExternalSelected && !isFal && modelDef.kind === 'veo' && (
           <div className="grid grid-cols-2 gap-1.5">
             <label className="flex items-center gap-1 text-[10px] text-white/60 cursor-pointer">
               <input

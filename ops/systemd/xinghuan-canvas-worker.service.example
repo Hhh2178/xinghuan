@@ -1,0 +1,17 @@
+[Unit]
+Description=Xinghuan Canvas Worker
+After=network.target postgresql.service redis-server.service
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/apps/xinghuan-canvas/current
+EnvironmentFile=/opt/apps/xinghuan-canvas/shared/canvas.env
+ExecStart=/usr/bin/npm run start:worker
+Restart=always
+RestartSec=5
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target

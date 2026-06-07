@@ -234,8 +234,8 @@ const ComfyUIStoreNode = ({ id, data, selected }: NodeProps) => {
   const handleRun = async () => {
     const src = `comfyui-store:${id.slice(0, 6)}`;
     if (!provider) {
-      update({ status: 'error', error: '请先在 API 设置里启用本地 ComfyUI。' });
-      throw new Error('请先在 API 设置里启用本地 ComfyUI。');
+      update({ status: 'error', error: '请联系管理员在统一后台启用本地 ComfyUI。' });
+      throw new Error('请联系管理员在统一后台启用本地 ComfyUI。');
     }
     if (!activeApp) {
       update({ status: 'error', error: '请先导入或制作一个 ComfyUI 应用。' });

@@ -69,7 +69,7 @@
   - PostgreSQL 16.14：`127.0.0.1:5432`，数据库 `xinghuan_canvas_next`，账号 `xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
-  - 当前 release：`20260605-1505-xinghuan-worker-queue-gray`
+  - 当前 release：`20260607-0218-phase3-runninghub-workflow-gray`
 - 部署目录：`/opt/apps/xinghuan-canvas-next/`
   - `current` 符号链接指向当前 release
   - `shared/canvas-next.env` 存放环境变量（密钥，不入 Git）
@@ -83,7 +83,7 @@
 ## 当前阶段
 
 - 当前版本：`v0.1.0`
-- 状态：Phase 1 基础平台已完成，进入 Phase 2 节点与模型治理
+- 状态：Phase 2 节点与模型治理已完成灰度验收，进入 Phase 3 任务与素材闭环
 - 已完成能力：
   - Monorepo 工程基线（apps/web、apps/admin、apps/api、apps/worker、packages/*）
   - T8 成熟画板 UI 迁入 apps/web
@@ -95,9 +95,37 @@
   - Redis/Worker 任务队列：queued -> running -> succeeded/failed 状态机
   - Provider Key AES-256-GCM 加密落盘
   - Web 分包优化：vendor-react/flow/mediapipe/icons
-- 当前重点：Provider Adapter、真实模型调用、任务输出素材落库
+  - 后台 Provider/模型框架：验证、拉取模型、选择导入、手动维护三类模型
+  - `/api/models` 登录用户模型目录
+  - `/api/proxy/external/image`、`/llm`、`/video` 后端代理
+  - 图像、视频、LLM 通用节点读取后台模型目录
+  - 图像/视频节点参数由模型 schema 动态驱动，schema 更新后自动归一化旧参数
+  - 后台模型高级设置：显示名、模型 ID、能力分类、协议覆盖、输入 Profile、参数 Schema JSON
+  - Worker 图像 Adapter 与任务 payload/result
+  - 灰度 release `20260606-0945-phase2-complete-gray` 通过服务器自动验收和公网真实画布验收
+  - GRSAI `grsai_draw` 同步代理与 Worker 异步链路均已打通
+  - 灰度 release `20260606-2335-grsai-worker-gray` 通过真实双链路验收与测试清理
+- 任务成功后输出素材落库到用户 `/files/output/...`，并写入资源库，14 天保守清理 timer 已接入灰度
+- 灰度 release `20260606-2358-phase3-lifecycle-gray` 已完成“取消 / 重试”语义、Worker 取消保护和素材空间读取闭环
+- 画布 / 素材 PostgreSQL repository 已在灰度热修复后完成真实导入验收：`verify:canvas-resource-api` 返回 `canvasCount=13`、`imageResourceCount=2`，PostgreSQL `xh_canvases=13`、`xh_assets=2`
+- RunningHub 工作流字段映射第一版已进入灰度：后台可保存 `runTargetId`、工作流 JSON、字段映射；画布 `RunningHubNode` 可读取 `/api/runninghub/catalog` 作为预设目录
+- `2026-06-07` 用户已明确要求暂缓 RunningHub 真实工作流卡片录入、字段展开和预览运行类测试；当前只保留目录/字段映射第一版在灰度
+- `2026-06-07` 本机与灰度 `npm run verify:single-port` 已重新复验通过，历史 `POST /api/admin/providers` `401` 未再复现
+- `2026-06-07` 已补齐生产位 `canvas.hhh2121.xyz` / `127.0.0.1:18100` 的独立运维模板：生产 env、runbook、验收清单、Nginx 和 systemd 示例
+- `2026-06-07` 已在服务器创建 `/opt/apps/xinghuan-canvas/` 目录骨架，并放置 `/opt/apps/xinghuan-canvas/shared/canvas.env.example`
+- `2026-06-07` 生产 Nginx 和 systemd 模板已安装到服务器，但仍保持未启用；`canvas.env` active 文件与 `current` release 链接仍不存在
+- `2026-06-07` 生产 active env 已创建，生产 release `20260606-1604-phase3-prod-prep` 已设为 `/opt/apps/xinghuan-canvas/current`
+- `2026-06-07` 生产 `18100` 本机 smoke 已通过，API/Worker/timer 已 `active` / `enabled`；生产 Nginx 站点仍未启用，公网域名仍未切换
+- `2026-06-06` `canvas.hhh2121.xyz` 已正式切到生产 release `20260606-1604-phase3-prod-prep`，HTTPS 证书已签发，公网 smoke 已通过
+- `2026-06-06` 生产已更新到 release `20260606-1810-provider-signed-refs-xinghuan-empty`：图像/视频/LLM 代理会把本地素材引用转换为带过期时间和 HMAC 签名的 `/api/provider-files/...` 供应商短链；生产后台已启用 `toapis-grok-video`，`/api/models` 返回 `imageCount=1`、`videoCount=1`
+- `2026-06-06` 灰度已更新到 release `20260606-1818-provider-signed-refs-xinghuan-empty-gray`，同步供应商短链和星幻空态修复
+- `2026-06-07` 本机已补齐全节点验收矩阵、浏览器真实渲染烟测、去 AI 水印 API 结构化兜底和 `verify:local-acceptance-chain`；46 个注册节点全部通过真实画布渲染，完整本地验收链路在 `127.0.0.1:18333` 输出 `ok=true`
+- `2026-06-07` 灰度已更新到 release `20260607-1545-node-acceptance-gray`：API/Worker 均为 `active`，服务器核心验收通过，公网灰度 46/46 节点浏览器渲染烟测通过
+- `2026-06-07` 生产已更新到 release `20260607-1610-node-acceptance-prod`：API/Worker 均为 `active`，服务器核心验收通过，公网生产 46/46 节点浏览器渲染烟测通过
+- 灰度与生产当前区分：`canvas-next.hhh2121.xyz -> 127.0.0.1:18200 -> /opt/apps/xinghuan-canvas-next/`，`canvas.hhh2121.xyz -> 127.0.0.1:18100 -> /opt/apps/xinghuan-canvas/`
+- 灰度与生产当前共用同一 PostgreSQL 连接串；两个域名是两套入口/release，但不是两套独立数据底座
+- 当前重点：完整验收目标最终审计；RunningHub 真实工作流测试仍暂缓
 - 下一步：
-  - 实现 GRSAI Provider Adapter（P0 图像验收）
-  - Worker 接入真实 Provider 调用替换 mock 执行器
-  - 任务成功后写入输出素材和资源库
-  - 画布/素材元数据 PostgreSQL repository
+  - 汇总本机、灰度、生产的完整测试链路证据
+  - 明确生产级剩余风险：大 chunk、密钥轮换、RH 真实工作流暂缓
+  - 待用户恢复后，再补 RunningHub 首条真实工作流卡片与预览运行验收

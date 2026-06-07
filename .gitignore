@@ -9,8 +9,12 @@
 runtime/
 logs/
 tmp/
+.tmp/
 output/
 releases/
+.codegraph/
+.playwright-cli/
+apps/api/data/users/
 
 # 依赖与构建产物
 node_modules/

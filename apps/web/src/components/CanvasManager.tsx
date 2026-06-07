@@ -82,13 +82,13 @@ export default function CanvasManager() {
         )}
         {!loading && canvases.length === 0 && (
           <div className={`text-center py-6 text-xs ${isDark ? 'text-white/40' : 'text-zinc-500'}`}>
-            <div className="text-2xl mb-1">📄</div>
-            <p>还没有画布</p>
+            <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">星</div>
+            <p>还没有星幻画布</p>
             <button
               onClick={handleCreate}
               className="mt-2 px-3 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-[11px] hover:bg-emerald-500/30"
             >
-              + 新建第一个画布
+              + 创建星幻画布
             </button>
           </div>
         )}

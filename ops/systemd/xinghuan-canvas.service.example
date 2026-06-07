@@ -1,0 +1,17 @@
+[Unit]
+Description=Xinghuan Canvas
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/apps/xinghuan-canvas/current
+EnvironmentFile=/opt/apps/xinghuan-canvas/shared/canvas.env
+ExecStart=/usr/bin/npm run start:single-port
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

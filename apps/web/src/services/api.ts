@@ -141,6 +141,55 @@ export async function updateSettings(patch: Partial<ApiSettings>): Promise<void>
   });
 }
 
+export type ModelCapability = 'chat' | 'image' | 'video';
+
+export interface PublicProviderRef {
+  id: string;
+  name: string;
+  protocol: string;
+  enabled: boolean;
+}
+
+export interface PublicModelUi {
+  aspectRatios: string[];
+  defaultAspectRatio: string;
+  sizes: string[];
+  defaultSize: string;
+  supportsReference: boolean;
+  maxReferenceImages: number;
+  durationOptions: Array<string | number>;
+  defaultDuration: string | number;
+  resolutionOptions: string[];
+  defaultResolution: string;
+}
+
+export interface PublicModelRecord {
+  id: string;
+  providerId: string;
+  modelId: string;
+  displayName: string;
+  capability: ModelCapability;
+  enabled: boolean;
+  inputProfile: string;
+  protocol: string;
+  parameterSchema: Record<string, any>;
+  ui: PublicModelUi;
+  provider: PublicProviderRef;
+  updatedAt: number;
+}
+
+export interface PublicModelCatalog {
+  all: PublicModelRecord[];
+  chatModels: PublicModelRecord[];
+  imageModels: PublicModelRecord[];
+  videoModels: PublicModelRecord[];
+}
+
+export async function getModelCatalog(): Promise<PublicModelCatalog> {
+  const res = await request<{ success: boolean; data: PublicModelCatalog }>(`${BASE}/models`);
+  return res.data || { all: [], chatModels: [], imageModels: [], videoModels: [] };
+}
+
 export interface AdvancedProviderTestResult {
   ok: boolean;
   code: string;
@@ -447,6 +496,9 @@ export interface ResourceItem {
   sourceUrl?: string;
   sourceNodeId?: string;
   sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
   materialSetKind?: ResourceMaterialSetKind;
   materialSetItems?: Array<{
     id: string;

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Xinghuan Canvas Next Output Material Pruner Daily
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=xinghuan-canvas-next-output-prune.service
+
+[Install]
+WantedBy=timers.target

@@ -21,12 +21,30 @@
 - `postgresql-gray-migration-2026-06-05.md`
 - `postgresql-repository-cutover-2026-06-05.md`
 - `worker-queue-gray-deploy-2026-06-05.md`
+- `phase3-output-prune-gray-2026-06-06.md`
+- `phase3-lifecycle-gray-2026-06-06.md`
 - `nginx/canvas-next.hhh2121.xyz.conf.example`
 - `systemd/xinghuan-canvas-next.service.example`
 - `systemd/xinghuan-canvas-next-worker.service.example`
+- `systemd/xinghuan-canvas-next-output-prune.service.example`
+- `systemd/xinghuan-canvas-next-output-prune.timer.example`
+
+当前生产准备材料：
+
+- `production-preflight-2026-06-06.md`
+- `production-prep-2026-06-07.md`
+- `production-cutover-2026-06-06.md`
+- `production-user-accounts-2026-06-06.md`
+- `production-deploy-runbook.md`
+- `production-acceptance-checklist.md`
+- `nginx/canvas.hhh2121.xyz.conf.example`
+- `systemd/xinghuan-canvas.service.example`
+- `systemd/xinghuan-canvas-worker.service.example`
+- `systemd/xinghuan-canvas-output-prune.service.example`
+- `systemd/xinghuan-canvas-output-prune.timer.example`
 
 后续需要补充：
 
 - PostgreSQL repository 切换和文件数据迁移记录。
 - 灰度回滚演练记录。
-- 生产切换记录。
+- 生产发布后的观察记录。

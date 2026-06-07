@@ -1,7 +1,198 @@
 # v0.1.0 Changelog
 
+## 2026-06-07
+
+- 设计稿最终入口页与过渡动画收口：
+  - 按用户提供的 `stitch_ui_optimization_and_transitions` 设计文件，将登录页从此前分栏方案改为居中磨玻璃星云卡片。
+  - 登录页保留 `星幻画布`、`XingHuan Canvas`、`进入创作星域`、`量子星图系统已就绪`，并移除设计稿演示用的 `SSO 接入`、`组织网络` 和分隔说明。
+  - 权限校验启动页改为 `xh-quantum-transition`，包含量子环、粒子吸入、状态文案切换、进度条和闪白过渡。
+  - 新增/更新 `xh-nebula-bg`、`xh-login-card-stellar`、`xh-input-stellar`、`xh-btn-stellar`、`xh-transition-*` 样式。
+  - `verify:xinghuan-entry-ui` 改为检查最终设计稿结构、占位按钮禁用和量子过渡动画。
+  - 本机 `npm run verify:xinghuan-entry-ui`、`npm run type-check -w @xinghuan/web`、`npm run build -w @xinghuan/web` 通过。
+  - 本机 Vite 预览 `127.0.0.1:18313` 桌面/移动端截图已生成到 `output/xinghuan-entry-ui/login-desktop.png` 和 `output/xinghuan-entry-ui/login-mobile.png`。
+  - 灰度 release `20260607-entrance-ui-gray` 已发布到 `canvas-next.hhh2121.xyz`，服务器 `verify:xinghuan-entry-ui` 与 `verify:single-port` 通过。
+  - 公网截图已生成到 `output/xinghuan-entry-ui/gray-login-desktop.png`，控制台 error 数量为 0。
+  - 生产暂未切换。
+- B 方案量子星图入口 UI 本机落地：
+  - 新增 `StellarCursorAura` 鼠标跟随光场组件。
+  - 登录首页切换为“量子星图 / 进入创作星域”视觉，使用星图背景、磨玻璃卡片和状态信息面板。
+  - 权限校验阶段切换为“星图装载”启动过渡页，包含轨道动画、步骤扫描和资源预热文案。
+  - 无画布主区域切换为“开启第一张星图”创建首页，可直接创建星图画布。
+  - 侧栏无画布状态改为星图语言和小型磨玻璃卡片。
+  - 新增 `verify:xinghuan-entry-ui`，覆盖入口文案、磨玻璃层、鼠标跟随、启动过渡、空画布创建和 reduced-motion 兜底。
+  - 本机 `npm run verify:xinghuan-entry-ui`、`npm run type-check -w @xinghuan/web`、`npm run build -w @xinghuan/web` 通过。
+  - 本机 Vite 预览 `127.0.0.1:18311` 返回 200，登录页截图已生成到 `output/xinghuan-entry-ui/login-stellar-graph-final.png`。
+  - 当前尚未推灰度或生产。
+- 全节点验收矩阵与本地完整验收链路：
+  - 修复 `scripts/verify-node-acceptance-matrix.mjs` 常量初始化顺序问题。
+  - 新增 `verify:node-acceptance-matrix`，覆盖 46 个注册节点、34 个可见节点、12 个隐藏注册节点和 33 个可执行节点的组件映射、端口声明、默认数据与关键代理节点合同。
+  - 新增 `verify:canvas-node-render-smoke`，通过本机 Chrome/CDP 在真实 ReactFlow 画布中渲染 46 个节点，验证无缺失、无类型 class 错配、无旧 T8 空态、无登录残留、无错误边界和无运行时错误。
+  - 新增 `GET /api/ai-watermark/status` 与 `POST /api/ai-watermark/process` 结构化兜底，去 AI 水印节点暂未配置真实 Adapter 时不再因接口 404 破坏画布渲染。
+  - 新增 `verify:ai-watermark-api`，覆盖未配置状态和 `AI_WATERMARK_NOT_CONFIGURED` 响应。
+  - 新增 `verify:local-acceptance-chain`，串联构建、单端口、节点矩阵、浏览器渲染、模型目录、三类外部代理、任务生命周期、素材 API、输出预览、RunningHub 合同/API、Worker 合同、输出落库和 14 天清理验证。
+  - 本机 `npm run verify:local-acceptance-chain` 已通过，临时服务 `http://127.0.0.1:18333` 最终输出 `ok=true`。
+  - 发布灰度 release `20260607-1545-node-acceptance-gray`，API/Worker 均为 `active`，`/api/status` 返回 `environment=gray`。
+  - 灰度服务器核心验收通过：`verify:single-port`、`verify:node-acceptance-matrix`、`verify:ai-watermark-api`、`verify:generic-node-catalog`、`verify:model-catalog`、三类外部代理、任务生命周期、素材 API、输出预览、Worker 合同、输出落库和清理验证。
+  - 公网灰度浏览器烟测通过：46/46 注册节点渲染成功，旧空态、错误边界和运行时错误均为 0。
+  - `verify-worker-output-materializer.ts` 兼容 PostgreSQL 灰度环境，PostgreSQL 模式使用真实未禁用用户并验证 `xh_assets`，文件模式继续验证 `resource-library.json`。
+  - 发布生产 release `20260607-1610-node-acceptance-prod`，API/Worker 均为 `active`，公网 `/api/status` 返回 `environment=production`。
+  - 生产服务器核心验收通过：`verify:single-port`、`verify:node-acceptance-matrix`、`verify:ai-watermark-api`、`verify:generic-node-catalog`、`verify:model-catalog`、三类外部代理、任务生命周期、素材 API、输出预览、Worker 合同、真实 Worker 输出落库和清理验证。
+  - 公网生产浏览器烟测通过：46/46 注册节点渲染成功，旧空态、错误边界和运行时错误均为 0。
+  - `verify-output-material-prune.ts` 改为导入清理模块前强制文件模式，避免生产/灰度 PostgreSQL 环境变量影响临时文件清理沙盒。
+  - RunningHub 仍只覆盖合同和空目录 API，真实工作流卡片录入、字段展开和预览运行继续按用户要求暂缓。
+- 供应商参考素材短链与星幻空态修复：
+  - 生产发布 `20260606-1810-provider-signed-refs-xinghuan-empty`。
+  - 灰度发布 `20260606-1818-provider-signed-refs-xinghuan-empty-gray`。
+  - 新增 `/api/provider-files/...` 短期 HMAC 签名素材访问入口，供外部供应商匿名读取单个参考文件。
+  - 图像、视频和 LLM 外部代理现在会把本地素材引用从普通 `/files/...` 转成供应商短链；普通 `/files` 继续保持登录保护。
+  - `verify:external-image-proxy`、`verify:external-video-proxy`、`verify:external-chat-proxy` 均新增短链回归覆盖。
+  - 替换工作区权限校验页、无画布空态和左侧无画布文案，移除旧 T8/企鹅空态。
+  - 明确当前灰度/生产关系：两套入口、端口和 release，共用同一 PostgreSQL 数据底座。
+- 生产图像参考素材与视频模型修复：
+  - 发布生产 release `20260606-1715-image-ref-video-model-fix`，`/opt/apps/xinghuan-canvas/current` 已切换到该 release。
+  - 图像与视频外部代理新增本地素材引用归一化：`/files/...`、`/input/...`、`/output/...` 会按请求公网 origin 转为绝对 URL 后再发给上游。
+  - 生产后台启用 `toapis-grok-video`，模型目录返回 `imageCount=1`、`videoCount=1`、`firstVideo=ToAPIs Grok Video`。
+  - 增强 `verify:external-image-proxy` 与 `verify:external-video-proxy`，覆盖本地素材引用转公网绝对 URL 的回归断言。
+  - 生产验证通过：`type-check -w @xinghuan/api`、`build:single-port`、`verify:single-port`、公网 `verify:external-image-proxy`、公网 `verify:external-video-proxy`。
+- 生产位 `18100` 运维模板补齐：
+  - 新增 `config/canvas-production.env.example`，固定生产 `XINGHUAN_APP_ENV=production`、`XINGHUAN_API_PORT=18100`、独立数据目录和 `xinghuan:tasks:prod` 队列名。
+  - 新增 `ops/production-deploy-runbook.md` 与 `ops/production-acceptance-checklist.md`。
+  - 新增 `ops/nginx/canvas.hhh2121.xyz.conf.example`。
+  - 新增 `ops/systemd/xinghuan-canvas.service.example`、`xinghuan-canvas-worker.service.example` 和输出素材清理 service/timer 示例。
+  - 更新 `ops/README.md` 与 `ops/production-preflight-2026-06-06.md`，把这些生产模板写入预检入口。
+- 生产 release `18100` 本机 smoke：
+  - 服务器生产 env 已创建为 `/opt/apps/xinghuan-canvas/shared/canvas.env`。
+  - 生产 release `20260606-1604-phase3-prod-prep` 已设为 `/opt/apps/xinghuan-canvas/current`。
+  - `xinghuan-canvas.service`、`xinghuan-canvas-worker.service` 和 `xinghuan-canvas-output-prune.timer` 已 active/enabled。
+  - `http://127.0.0.1:18100` 已通过 `verify:single-port`、`verify:canvas-resource-api`、`verify:task-lifecycle`、`verify:worker-output-materials` 和 `cleanup:output-materials:dry-run`。
+  - production Nginx site 仍未启用，正式域名尚未切换。
+- 生产域名 HTTPS 切换：
+  - `canvas.hhh2121.xyz` 已启用 Nginx production site，代理到 `127.0.0.1:18100`。
+  - certbot 已成功签发并部署 `canvas.hhh2121.xyz` HTTPS 证书，有效期到 `2026-09-04`。
+  - 公网 `https://canvas.hhh2121.xyz` 已通过 `verify:single-port`、`verify:canvas-resource-api`、`verify:task-lifecycle`、`verify:worker-output-materials` 和 `cleanup:output-materials:dry-run`。
+- RunningHub 暂缓测试与生产预检基线更新：
+  - 按用户要求记录“暂时不做 RunningHub 真实工作流卡片录入、字段展开和预览运行类测试”。
+  - 当前只保留 RunningHub 目录/字段映射第一版在灰度，后续待用户恢复后再补真实卡片验收。
+  - 本机与灰度 `npm run verify:single-port` 已重新通过，历史 `POST /api/admin/providers` `401` 未再复现。
+  - 更新 `ops/production-preflight-2026-06-06.md`，将生产预检基线切换为 `20260607-0218-phase3-runninghub-workflow-gray`。
+- Phase 3 RunningHub 工作流字段映射与画布消费第一版：
+  - 后台 RunningHub 工作流新增 `runTargetId`、工作流 JSON 和字段映射持久化。
+  - API 新增 `GET /api/runninghub/catalog`，向登录用户公开已启用 RunningHub 目录。
+  - 画布 `RunningHubNode` 新增“工作流预设”下拉，可直接读取后台工作流配置并注入 `webappId/appInfo/nodeInfoList`。
+  - 新增 `apps/web/src/services/runninghubCatalog.ts`。
+  - 新增 `verify:runninghub-workflow-contract` 与 `verify:runninghub-workflow-api`。
+  - 发布灰度 release `20260607-0218-phase3-runninghub-workflow-gray`。
+- Phase 3 画布 / 素材 PostgreSQL repository 灰度热修复：
+  - 修复 `apps/api/src/server.ts` 中画布 PostgreSQL repository 对 `xh_canvases` 的错误列名引用，全部从 `title` 改为 `name`。
+  - 新增 `scripts/verify-canvas-resource-api.mjs`，覆盖登录后读取画布列表、首个画布详情和图像资源列表。
+  - 补强 `scripts/verify-postgres-canvas-resource-contract.mjs`，显式校验 `001_admin_core.sql` 的 `xh_canvases.name` 与 API 画布 SQL 保持一致。
+  - 发布灰度 release `20260607-0115-phase3-canvas-pg-hotfix-gray`。
+  - 灰度验收通过：`npm run verify:canvas-resource-api` 返回 `canvasCount=13`、`imageResourceCount=2`，PostgreSQL `xh_canvases=13`、`xh_assets=2`。
+
+## 2026-06-06
+
+- Phase 3 素材空间读取闭环与任务生命周期灰度发布：
+  - 新增共享任务状态 helper：`TaskStatus`、`canCancelTask`、`canRetryTask`。
+  - 后台任务 API 收口为真实语义：`PATCH /api/admin/tasks/:id` 支持 `action: "cancel"`，新增 `POST /api/admin/tasks/:id/retry` 创建新任务并记录 `retryOfTaskId`。
+  - PostgreSQL 灰度环境中的任务创建 / 更新切换为任务级定向读写，避免继续依赖整库回写。
+  - Worker 新增取消态保护：任务执行过程中被取消时，不再把状态覆写为 `succeeded/failed`，只追加取消日志。
+  - 后台任务页操作按钮改为按状态显示“取消”或“重试”，不再做 `cancelled <-> queued` 翻转。
+  - 资源库抽屉在打开时新增 4 秒静默轮询，形成素材空间读取闭环。
+  - 发布灰度 release `20260606-2358-phase3-lifecycle-gray`。
+  - 本机隔离实例 `npm run verify:task-lifecycle` 通过；灰度 `npm run verify:task-lifecycle`、`npm run verify:worker-output-materials` 和 `curl -fsS http://127.0.0.1:18200/api/status` 均通过。
+- Phase 3 输出素材落库与自动清理灰度发布：
+  - 建立并同步本项目 CodeGraph 索引，确认项目当前索引状态为 `OK`。
+  - 发布灰度 release `20260606-1515-phase3-output-prune-gray`。
+  - 灰度 `npm run verify:worker-output-materials` 通过：真实队列任务成功后，资源库新增输出素材，返回 `ok=true`。
+  - 灰度 `npm run cleanup:output-materials:dry-run` 通过：当前扫描 `users=2`、`items=1`，无误删候选。
+  - 灰度启用 `xinghuan-canvas-next-output-prune.timer`，当前下一次计划触发时间为 `2026-06-07 04:16 CST`。
+- 输出素材 14 天自动清理：
+  - 新增 `scripts/prune-old-output-materials.mjs`，支持按用户目录扫描资源库，清理超过 14 天的旧任务输出素材。
+  - 清理规则默认保守：仅处理带 `task-output` 标记、非收藏、未归类、最近未使用、且位于用户 `output/` 目录中的素材。
+  - 若同一输出文件仍被保留中的资源项引用，脚本只删过期索引，不误删共享文件。
+  - 新增 `cleanup:output-materials` 与 `cleanup:output-materials:dry-run`。
+  - 新增 `scripts/verify-output-material-prune.ts`，覆盖过期删除、收藏保护、归类保护、非任务输出保护和共享文件保护。
+  - 新增 `ops/systemd/xinghuan-canvas-next-output-prune.service.example` 与 `.timer.example`，便于灰度/生产接入每日自动清理。
+  - `config/canvas-next.env.example` 新增 `XINGHUAN_OUTPUT_MATERIAL_RETENTION_DAYS=14`。
+  - 本机 `npm run verify:output-material-prune`、`npm run cleanup:output-materials:dry-run`、`npm run build:single-port` 通过。
+- Phase 3 输出素材落库第一刀：
+  - 新增 `apps/worker/src/output-materials.ts`，将 Worker 图像结果转存到用户目录 `/files/output/...`，并写入资源库 `resource-library.json`。
+  - `apps/worker/src/worker.ts` 在任务成功后新增输出素材落库步骤，并把 `resourceItemIds`、`resourceCount`、`materializedImageUrls` 回写到任务 `result`。
+  - 资源项结构补齐 `sourceUrl`、`originalName`、`sourceNodeId`、`sourceCanvasId`、`taskId`、`providerId`、`modelId`，便于后续素材空间和任务追踪联动。
+  - 新增 `scripts/verify-worker-output-materializer.ts`，本地覆盖输出转存、资源库写入与按 `taskId` 去重。
+  - 新增 `scripts/verify-worker-output-materials.mjs`，用于 Redis/worker 可用时做“任务成功后资源库新增输出素材”的联调验收。
+  - 本机 `npm run verify:worker-output-materializer`、`npm run type-check -w @xinghuan/api`、`npm run type-check -w @xinghuan/worker`、`npm run build:single-port` 通过。
+  - 本机 `npm run verify:worker` 仍因 Redis 未连接不能作为本轮联调凭据；灰度真实队列验收留到下一轮。
+- 灰度收口补充与计划切换：
+  - 后台模型高级设置编辑区新增说明卡片，明确“Provider 决定协议、参数来自 schema、输入口来自 `inputProfile`”，并补充 image/video/chat schema 示例。
+  - 发布灰度 release `20260606-1150-admin-schema-gray`。
+  - 输出素材节点新增媒体预览布局计算：单张竖图、单条横视频按真实宽高比重新计算预览和节点高度，多图网格维持紧凑固定高度。
+  - 新增 `apps/web/src/components/nodes/outputPreviewLayout.ts` 和 `scripts/verify-output-node-preview-layout.mjs`。
+  - 发布灰度 release `20260606-1217-output-preview-layout-gray`。
+  - 灰度数据库中的管理员密码已重新对齐服务器 `canvas-next.env` 中的 bootstrap 管理员密码，并验证服务器本地登录成功。
+  - `docs/prd/README.md`、`plan.md`、`progress.md`、`release.md`、`ops/production-preflight-2026-06-06.md` 已按实际状态切换到 Phase 3 任务与素材闭环。
+- GRSAI Worker 异步链路与灰度双链路验收：
+  - Worker 图像 Adapter 新增 `grsai_draw` 协议支持，提交 `/v1/draw/completions` 并轮询 `/v1/draw/result`。
+  - Worker 结果新增 `adapter: "grsai-image"`、`taskId`、`remoteImageUrls`，与现有任务 result 结构对齐。
+  - 新增 `verify-worker-grsai-contract.mjs`、`verify-worker-grsai-image-adapter.mjs`、`verify-grsai-draw-gray.mjs`。
+  - 根脚本新增 `verify:grsai-draw`、`verify:grsai-draw-gray`、`verify:worker-grsai-contract`、`verify:worker-grsai-image-adapter`。
+  - 发布灰度 release `20260606-2335-grsai-worker-gray`。
+  - 灰度服务器真实验收通过：同步 `/api/proxy/external/image` 和异步 Worker `grsai-image` 任务均成功。
+  - 清理灰度残留测试对象：`verify-provider-*`、`phase2-e2e-provider` 和两条临时 GRSAI 验收任务。
+- GRSAI Draw 灰度复验：
+  - 新增 `grsai_draw` 协议支持，不再把 GRSAI 图像请求误走 OpenAI 兼容接口。
+  - 新增 `apps/api/src/grsai-image-adapter.ts`，支持 `/v1/draw/completions` 提交和 `/v1/draw/result` 轮询。
+  - 后台 API 设置和模型协议覆盖下拉新增 `GRSAI Draw`。
+  - 新增 `verify-grsai-image-adapter.ts`，覆盖“提交后轮询”和“立即成功”两种 GRSAI 响应形态。
+  - 发布灰度 release `20260606-2140-grsai-draw-gray`。
+  - 灰度公网真实复验通过：`grsai` Provider 使用 `https://grsai.dakka.com.cn`、协议 `grsai_draw`、模型 `gpt-image-2` 成功生成 `/files/output/external_image_1780715075124_joztk5.png`。
+- Phase 2 灰度收口：
+  - 新增 `/api/proxy/external/llm` 和 `/api/proxy/external/video`，语言、图像、视频三类通用节点均可通过后台模型目录调用后端代理。
+  - 图像、视频、LLM 节点均读取 `GET /api/models`，并保存 `modelRecordId`，避免只靠模型名匹配。
+  - 图像节点按模型 schema 动态展示比例、尺寸、参考图上限；视频节点按模型 schema 动态展示比例、时长、分辨率、参考图上限。
+  - schema 更新后，图像/视频节点会自动把旧参数归一到新模型默认值，避免 UI 和真实请求 payload 不一致。
+  - 后台 API 设置新增模型高级设置，可编辑模型显示名、模型 ID、能力分类、协议覆盖、输入 Profile 和参数 Schema JSON。
+  - 修复任务入队后 API 再次全库写回覆盖 Worker `running/succeeded` 状态的竞态，任务日志改为 PostgreSQL 追加写。
+  - 灰度 release `20260606-0945-phase2-complete-gray` 已部署并通过完整自动验收。
+  - 公网画布真实验收通过：文本节点连接图像/视频/LLM，图像和视频均生成 `/files/output/...`，LLM 返回 `Phase 2 LLM 节点连通成功`。
+  - 公网后台模型高级设置保存新 schema 后，画布图像节点动态显示 `3:4`、`800x1200`、`prompt,image_reference,multi_image`、`图像 (0/5)`，再次生成成功且控制台 0 error。
+- Phase 2 图像节点后台模型目录接入：
+  - 新增 `/api/models`，向登录用户返回后台已启用 Provider/Model，并按 `chat/image/video` 分组。
+  - 新增 `/api/proxy/external/image`，通过后端读取 Provider Key 调用 OpenAI 兼容图像接口，并将 URL/base64 结果转存到 `/files/output/`。
+  - 新增 Web 模型目录 store，登录后预加载后台模型。
+  - 通用图像节点新增“后台模型”选择区；比例、尺寸和参考图上限由后台模型 schema 动态决定。
+  - 后台模型模式隐藏本地模型和 Midjourney 专属参数，避免参数混用。
+  - 新增 `verify:model-catalog` 和 `verify:external-image-proxy` 自动验收。
+  - Chrome headless 视觉 smoke 通过，截图：`output/playwright/phase2-canvas-ui-dynamic-model-clean.png`。
+  - 本地 worker 验证因 Redis 未连接未通过；worker 真实 Adapter 仍待后续实现。
+- Phase 2 Worker 图像 Adapter 接入：
+  - `AdminTaskRecord` 新增 `payload` 和 `result`，后台任务 API 创建/更新/读取时保留真实执行参数与结果。
+  - PostgreSQL repository 开始读写 `xh_tasks.payload` 和 `xh_tasks.result`。
+  - Worker 不再调用 `executeMockTask`，改为读取任务、Provider、Model、payload 和加密 Key。
+  - Worker 新增 OpenAI 兼容图像 Adapter，支持 `openai/apimart/custom` 协议的 `/images/generations`，并回写 `imageUrls`、`remoteImageUrls` 和 `imageCount`。
+  - 新增 `verify:worker-adapter-contract` 和 `verify:task-payload-api`。
+  - 本地 `verify:worker-adapter-contract`、`verify:task-payload-api`、API/Worker 类型检查和构建均通过。
+  - 本地 `verify:worker` 仍因 Redis 未连接不可执行端到端队列验收，待灰度服务器复跑。
+
 ## 2026-06-05
 
+- 后台 Provider/模型框架重设：
+  - 画布前端移除 `API 设置` 服务商入口，服务商配置后续只保留在统一后台。
+  - 新增 `provider-model-framework.md`。
+  - Phase 2 计划升级为后台 Provider CRUD、Key/Base URL 验证、上游模型拉取、选择导入、语言/图像/视频三类模型目录和通用节点消费闭环。
+  - 参考 `D:\AI canvas\Infinite-Canvas` 的 `/api/providers/test-connection`、`/api/providers/fetch-models` 和模型选择器模式。
+  - 校正 `progress.md`、`release.md` 和 `docs/prd/README.md` 中 Phase 1 与 Redis/worker 状态矛盾。
+- 后台 API 设置第一版重做：
+  - `Provider` 和 `模型` 两个后台 Tab 合并为 `API 设置`。
+  - 后台 UI 改为参考项目式左侧平台列表、右侧 Provider 编辑器、模型拉取卡片和三类模型分区。
+  - 新增模型选择器弹窗，拉取模型后必须手动勾选再导入。
+  - 修正拉取模型选择器：拉取失败或上游返回空列表时不再展示已有预设模型，避免误判为已从服务商拉取成功。
+  - 拉取模型请求会使用当前表单中的未保存 Base URL、API Key 和协议，便于管理员先验证再保存。
+  - API 设置服务商区域视觉统一为后台科技风深色样式。
+  - 后端新增 Provider `protocol`、探测状态、最近拉取时间和模型 `protocolOverride`。
+  - 新增 `002_provider_model_framework.sql`。
+  - 新增 `/api/admin/providers/probe`、`/fetch-models`、`/:id/probe`、`/:id/fetch-models`、`/:id/import-models`。
+  - 新增 Provider 删除和模型删除接口。
 - Redis/worker 任务队列灰度部署：
   - 发布 release `20260605-1505-xinghuan-worker-queue-gray`。
   - API 创建 queued 任务时写入 Redis 队列 `xinghuan:tasks`。

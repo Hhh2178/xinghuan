@@ -422,20 +422,26 @@ export default function Sidebar({ onAddNode }: SidebarProps) {
             )}
             {!canvasLoading && canvases.length === 0 && (
               <div
-                className={`text-center py-3 text-[11px] ${
-                  isPixel ? '' : isDark ? 'text-white/40' : 'text-zinc-500'
+                className={`xh-sidebar-empty text-center py-3 text-[11px] ${
+                  isPixel ? '' : isDark ? 'text-cyan-100/58' : 'text-zinc-500'
                 }`}
               >
-                <p>还没有画布</p>
+                <div className="mx-auto mb-2 grid h-9 w-9 place-items-center rounded-2xl border border-cyan-200/25 bg-cyan-200/10 text-cyan-100 shadow-[0_0_24px_rgba(96,165,250,0.2)]">
+                  星
+                </div>
+                <p className={isPixel ? '' : 'font-semibold text-cyan-50/80'}>还没有星图画布</p>
+                <p className={isPixel ? 'mt-1' : 'mt-1 text-[10px] leading-4 text-cyan-100/45'}>
+                  创建后会自动进入你的独立资产星域
+                </p>
                 <button
                   onClick={handleCreateCanvas}
                   className={
                     isPixel
                       ? 'mt-1.5 px-btn px-btn--sm px-btn--mint'
-                      : 'mt-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] hover:bg-emerald-500/30'
+                      : 'mt-2 px-2.5 py-1 rounded-full bg-cyan-200 text-slate-950 text-[10px] font-black shadow-[0_0_22px_rgba(96,165,250,0.22)] hover:bg-cyan-100'
                   }
                 >
-                  + 新建第一个画布
+                  + 创建星图画布
                 </button>
               </div>
             )}

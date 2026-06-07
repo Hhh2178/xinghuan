@@ -1,17 +1,54 @@
-import { useState } from 'react';
-import { LockKeyhole, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { ArrowRight, AtSign, Box, KeyRound, Loader2 } from 'lucide-react';
 import * as api from '../services/api';
 import type { AuthUser } from '../services/api';
+import StellarCursorAura from './StellarCursorAura';
 
 interface LoginGateProps {
   onLogin: (user: AuthUser) => void;
 }
 
 export default function LoginGate({ onLogin }: LoginGateProps) {
+  const stageRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState('admin@xinghuan.local');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    let frame = 0;
+    const updatePointer = (clientX: number, clientY: number) => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const rect = stage.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+        stage.style.setProperty('--xh-login-x', x.toFixed(4));
+        stage.style.setProperty('--xh-login-y', y.toFixed(4));
+        stage.style.setProperty('--xh-card-tilt-x', `${((0.5 - y) * 12).toFixed(2)}deg`);
+        stage.style.setProperty('--xh-card-tilt-y', `${((x - 0.5) * 12).toFixed(2)}deg`);
+      });
+    };
+
+    const onPointerMove = (event: PointerEvent) => updatePointer(event.clientX, event.clientY);
+    const onPointerLeave = () => {
+      stage.style.setProperty('--xh-login-x', '0.5');
+      stage.style.setProperty('--xh-login-y', '0.5');
+      stage.style.setProperty('--xh-card-tilt-x', '0deg');
+      stage.style.setProperty('--xh-card-tilt-y', '0deg');
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerleave', onPointerLeave);
+    };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -26,65 +63,118 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
     }
   };
 
+  const stars = Array.from({ length: 58 }, (_, index) => ({
+    id: index,
+    left: `${(index * 37) % 100}%`,
+    top: `${(index * 61 + 11) % 100}%`,
+    size: `${1 + (index % 3) * 0.65}px`,
+    duration: `${4 + (index % 7) * 0.55}s`,
+    delay: `${(index % 13) * -0.38}s`,
+  }));
+
   return (
-    <div className="min-h-screen overflow-hidden bg-[#05070a] text-slate-100">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_80%_12%,rgba(16,185,129,0.12),transparent_30%),linear-gradient(135deg,#05070a_0%,#0d1117_48%,#07130f_100%)]" />
-      <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:32px_32px]" />
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-6 py-10">
-        <section className="w-full max-w-[420px] rounded-[8px] border border-cyan-300/20 bg-slate-950/82 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
-          <div className="mb-7 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-cyan-300/35 bg-cyan-400/10 text-cyan-200">
-              <ShieldCheck size={22} />
+    <div
+      ref={stageRef}
+      className="xh-entry-shell xh-login-stage min-h-screen overflow-hidden text-slate-100"
+      style={
+        {
+          '--xh-login-x': '0.5',
+          '--xh-login-y': '0.5',
+          '--xh-card-tilt-x': '0deg',
+          '--xh-card-tilt-y': '0deg',
+        } as CSSProperties
+      }
+    >
+      <StellarCursorAura />
+      <div className="xh-nebula-bg" aria-hidden="true">
+        <div className="xh-nebula-layer xh-nebula-layer--deep" />
+        <div className="xh-nebula-layer xh-nebula-layer--mint" />
+        <div className="xh-nebula-layer xh-nebula-layer--cyan" />
+        <div className="xh-star-field">
+          {stars.map((star) => (
+            <span
+              key={star.id}
+              className="xh-star-particle"
+              style={
+                {
+                  '--xh-star-left': star.left,
+                  '--xh-star-top': star.top,
+                  '--xh-star-size': star.size,
+                  '--xh-star-duration': star.duration,
+                  '--xh-star-delay': star.delay,
+                } as CSSProperties
+              }
+            />
+          ))}
+        </div>
+      </div>
+      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 py-8">
+        <section className="xh-login-card-stellar w-full max-w-[420px] rounded-[2.5rem] p-8 sm:p-10">
+          <span className="xh-glow-dot xh-glow-dot--tl" aria-hidden="true" />
+          <span className="xh-glow-dot xh-glow-dot--br" aria-hidden="true" />
+
+          <div className="mb-9 flex flex-col items-center text-center">
+            <div className="xh-entry-logo mb-5 flex h-14 w-14 items-center justify-center rounded-2xl">
+              <Box size={31} strokeWidth={2.3} />
             </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-normal">星幻无限画布</h1>
-              <p className="mt-1 text-xs text-cyan-100/62">安全工作区登录</p>
-            </div>
+            <h1 className="text-[28px] font-semibold tracking-[-0.01em] text-cyan-50">星幻画布</h1>
+            <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.3em] text-[#bacbc0]">
+              XingHuan Canvas
+            </p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <label className="block">
-              <span className="mb-2 block text-xs font-medium text-slate-300">账号邮箱</span>
-              <input
-                className="h-11 w-full rounded-[6px] border border-slate-700 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="username"
-              />
+          <div className="mb-7 text-center">
+            <h2 className="text-xl font-medium text-cyan-50/95">进入创作星域</h2>
+            <p className="mt-1 text-sm text-[#94A3B8]">量子星图系统已就绪</p>
+          </div>
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <label className="block space-y-2">
+              <span className="ml-1 block text-xs font-medium tracking-[0.15em] text-[#bacbc0]">账号邮箱</span>
+              <span className="relative block">
+                <AtSign className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-cyan-100/45" size={20} />
+                <input
+                  className="xh-input-stellar h-14 w-full rounded-2xl pl-12 pr-4 text-sm text-cyan-50 placeholder:text-slate-500"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="username"
+                  placeholder="Enter your explorer ID"
+                  type="email"
+                />
+              </span>
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-xs font-medium text-slate-300">密码</span>
-              <input
-                className="h-11 w-full rounded-[6px] border border-slate-700 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                type="password"
-                autoFocus
-              />
+            <label className="block space-y-2">
+              <span className="ml-1 block text-xs font-medium tracking-[0.15em] text-[#bacbc0]">访问密钥</span>
+              <span className="relative block">
+                <KeyRound className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-cyan-100/45" size={20} />
+                <input
+                  className="xh-input-stellar h-14 w-full rounded-2xl pl-12 pr-4 text-sm text-cyan-50 placeholder:text-slate-500"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  type="password"
+                  autoFocus
+                />
+              </span>
             </label>
 
             {error && (
-              <div className="rounded-[6px] border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+              <div className="rounded-2xl border border-rose-300/25 bg-rose-500/10 px-4 py-3 text-xs text-rose-100">
                 {error}
               </div>
             )}
 
             <button
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="xh-btn-stellar flex h-14 w-full items-center justify-center gap-3 rounded-2xl px-4 text-[15px] font-semibold text-[#061526] transition disabled:cursor-not-allowed disabled:opacity-60"
               disabled={submitting || !email || !password}
               type="submit"
             >
-              {submitting ? <Loader2 className="animate-spin" size={17} /> : <LockKeyhole size={17} />}
-              进入工作区
+              <span>进入星幻工作区</span>
+              {submitting ? <Loader2 className="animate-spin" size={18} /> : <ArrowRight className="xh-btn-arrow" size={19} />}
             </button>
           </form>
-
-          <div className="mt-6 flex items-center gap-2 border-t border-slate-800 pt-4 text-xs text-slate-400">
-            <Sparkles size={14} className="text-emerald-300" />
-            画布、素材和资源库将按当前账号隔离保存。
-          </div>
         </section>
       </main>
     </div>

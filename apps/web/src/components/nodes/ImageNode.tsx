@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Image as ImageIcon, Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
@@ -43,6 +43,8 @@ import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMat
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import { useApiKeysStore } from '../../stores/apiKeys';
+import { useModelCatalogStore } from '../../stores/modelCatalog';
+import type { PublicModelRecord } from '../../services/api';
 import {
   advancedProviderModelOptions,
   advancedProvidersForNode,
@@ -57,6 +59,11 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
+import {
+  pickImageSizeOptionForAspectRatio,
+  resolvePublishedModelSelection,
+  shouldShowImageSizeControl,
+} from '../../utils/publishedModelSelection';
 import { COMFY_APP_SOURCE_LABELS } from '../../utils/comfyuiApps';
 import { canonicalizeComfyFieldsByWorkflow } from '../../utils/comfyuiWorkflow';
 
@@ -128,8 +135,25 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
   const [error, setError] = useState<string | null>(null);
   const d = data as any;
+  const backendImageModels = useModelCatalogStore((s) => s.catalog.imageModels);
+  const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
+  const backendSelection = useMemo(
+    () => resolvePublishedModelSelection(backendImageModels, {
+      selectedModelId: d?.backendModelId,
+      selectedProviderId: d?.backendProviderId,
+    }),
+    [backendImageModels, d?.backendModelId, d?.backendProviderId],
+  );
+  const backendModel: PublicModelRecord | null = backendSelection.selectedModel;
+  const backendProviderGroups = backendSelection.providerGroups;
+  const backendProviderGroup = backendSelection.selectedProviderGroup;
+  const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
   const model = d?.model || IMAGE_MODELS[0].id;
   const modelDef = useMemo(() => IMAGE_MODELS.find((m) => m.id === model) || IMAGE_MODELS[0], [model]);
+  const localImageShowsSizeControl = useMemo(
+    () => shouldShowImageSizeControl(modelDef.sizes),
+    [modelDef.sizes],
+  );
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const imageAdvancedProviders = useMemo(
     () => advancedProvidersForNode(advancedProviders, 'image'),
@@ -143,8 +167,8 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     }),
     [advancedProviders, d?.providerSource, d?.providerId, d?.providerModel],
   );
-  const isExternalSelected = providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
-  const savedExternalMissing = !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
+  const isExternalSelected = !isBackendSelected && providerSelection.available && providerSelection.providerSource !== 'zhenzhen';
+  const savedExternalMissing = !isBackendSelected && !!d?.providerSource && d.providerSource !== 'zhenzhen' && !providerSelection.available;
   const externalModelOptions = providerSelection.provider
     ? advancedProviderModelOptions(providerSelection.provider, 'image')
     : [];
@@ -220,10 +244,27 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     },
   });
 
-  const aspectRatio = d?.aspectRatio || modelDef.defaultAspectRatio;
-  const sizeLevel = d?.sizeLevel || modelDef.defaultSize;
+  const backendUi = backendModel?.ui;
+  const backendImageShowsSizeControl = useMemo(
+    () => shouldShowImageSizeControl(backendUi?.sizes || []),
+    [backendUi?.sizes],
+  );
+  const aspectRatio = d?.aspectRatio || backendUi?.defaultAspectRatio || modelDef.defaultAspectRatio;
+  const sizeLevel = d?.sizeLevel || backendUi?.defaultSize || modelDef.defaultSize;
+  const localAutoSize = useMemo(
+    () => pickImageSizeOptionForAspectRatio(modelDef.sizes, aspectRatio, modelDef.defaultSize || sizeLevel || ''),
+    [aspectRatio, modelDef.defaultSize, modelDef.sizes, sizeLevel],
+  );
+  const backendAutoSize = useMemo(
+    () => (
+      isBackendSelected && backendUi
+        ? pickImageSizeOptionForAspectRatio(backendUi.sizes || [], aspectRatio, backendUi.defaultSize || sizeLevel || '')
+        : ''
+    ),
+    [aspectRatio, backendUi, isBackendSelected, sizeLevel],
+  );
   // 子模型变体(对齐 gpt-image-2-web 的 g_model/n_model)
-  const apiModel = d?.apiModel || modelDef.apiModel;
+  const apiModel = isBackendSelected && backendModel ? backendModel.modelId : (d?.apiModel || modelDef.apiModel);
 
   // ========== FAL 渠道识别及参数(不影响其他模型) ==========
   const isFal = isFalModel(apiModel);
@@ -268,7 +309,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const MJ_REF_MAX = 2; // sref 与 oref 各最多 2 张
 
   // 参考图上限(FAL 使用 FAL_REGISTRY.maxRefs,其他走原设计)
-  const maxRefs = isExternalSelected ? Math.max(8, modelDef.maxReferenceImages || 0) : (falDef?.maxRefs ?? modelDef.maxReferenceImages);
+  const maxRefs = isBackendSelected && backendUi
+    ? backendUi.maxReferenceImages
+    : isExternalSelected ? Math.max(8, modelDef.maxReferenceImages || 0) : (falDef?.maxRefs ?? modelDef.maxReferenceImages);
   const status: 'idle' | 'generating' | 'success' | 'error' = d?.status || 'idle';
   const imageUrl = d?.imageUrl as string | undefined;
   const localPrompt = d?.prompt || '';
@@ -334,7 +377,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   // 切换模型时,如果当前比例/尺寸不在新模型选项里则重置
   const switchModel = (mId: string) => {
     const newDef = IMAGE_MODELS.find((m) => m.id === mId) || IMAGE_MODELS[0];
-    const patch: any = { model: mId, apiModel: newDef.apiModel };
+    const patch: any = { modelSource: 'local', backendProviderId: '', backendModelId: '', model: mId, apiModel: newDef.apiModel };
     if (newDef.paramKind === 'mj') {
       if (!d?.mjVersion) patch.mjVersion = DEFAULT_MJ_VERSION;
       if (!d?.mjAr) patch.mjAr = DEFAULT_MJ_RATIO;
@@ -342,10 +385,86 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       if (d?.mjSv === undefined) patch.mjSv = '1';
     } else {
       if (!newDef.aspectRatios.includes(aspectRatio)) patch.aspectRatio = newDef.defaultAspectRatio;
-      if (!newDef.sizes.includes(sizeLevel)) patch.sizeLevel = newDef.defaultSize;
+      if (shouldShowImageSizeControl(newDef.sizes)) {
+        if (!newDef.sizes.includes(sizeLevel)) patch.sizeLevel = newDef.defaultSize;
+      } else {
+        patch.sizeLevel = pickImageSizeOptionForAspectRatio(newDef.sizes, newDef.defaultAspectRatio, newDef.defaultSize);
+      }
     }
     update(patch);
   };
+
+  const switchBackendModel = (catalogId: string) => {
+    const next = backendImageModels.find((item) => item.id === catalogId) || backendProviderGroup?.models[0] || backendImageModels[0];
+    if (!next) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    const patch: any = {
+      modelSource: 'backend',
+      backendProviderId: next.providerId,
+      backendModelId: next.id,
+      providerSource: '',
+      providerId: next.providerId,
+      providerModel: next.modelId,
+      apiModel: next.modelId,
+    };
+    if (!next.ui.aspectRatios.includes(aspectRatio)) patch.aspectRatio = next.ui.defaultAspectRatio;
+    if (shouldShowImageSizeControl(next.ui.sizes || [])) {
+      if (!next.ui.sizes.includes(sizeLevel)) patch.sizeLevel = next.ui.defaultSize;
+    } else {
+      patch.sizeLevel = pickImageSizeOptionForAspectRatio(next.ui.sizes || [], next.ui.defaultAspectRatio, next.ui.defaultSize);
+    }
+    update(patch);
+  };
+
+  const switchBackendProvider = (providerId: string) => {
+    const nextProvider = backendProviderGroups.find((item) => item.providerId === providerId) || backendProviderGroups[0];
+    const nextModel = nextProvider?.models[0] || null;
+    if (!nextProvider || !nextModel) {
+      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+      return;
+    }
+    const patch: any = {
+      modelSource: 'backend',
+      backendProviderId: nextProvider.providerId,
+      backendModelId: nextModel.id,
+      providerSource: '',
+      providerId: nextModel.providerId,
+      providerModel: nextModel.modelId,
+      apiModel: nextModel.modelId,
+    };
+    if (!nextModel.ui.aspectRatios.includes(aspectRatio)) patch.aspectRatio = nextModel.ui.defaultAspectRatio;
+    patch.sizeLevel = shouldShowImageSizeControl(nextModel.ui.sizes || [])
+      ? nextModel.ui.defaultSize
+      : pickImageSizeOptionForAspectRatio(nextModel.ui.sizes || [], nextModel.ui.defaultAspectRatio, nextModel.ui.defaultSize);
+    update(patch);
+  };
+
+  useEffect(() => {
+    if (!isBackendSelected || !backendUi) return;
+    const patch: Record<string, unknown> = {};
+    if (!backendUi.aspectRatios.includes(aspectRatio)) patch.aspectRatio = backendUi.defaultAspectRatio;
+    if (backendImageShowsSizeControl) {
+      if (!backendUi.sizes.includes(sizeLevel)) patch.sizeLevel = backendUi.defaultSize;
+    } else if (backendAutoSize && backendAutoSize !== sizeLevel) {
+      patch.sizeLevel = backendAutoSize;
+    }
+    if (Object.keys(patch).length) update(patch);
+  }, [
+    aspectRatio,
+    backendAutoSize,
+    backendImageShowsSizeControl,
+    backendUi,
+    isBackendSelected,
+    sizeLevel,
+    update,
+  ]);
+
+  useEffect(() => {
+    if (isBackendSelected || isFal || isMj || isComfyExternal || localImageShowsSizeControl) return;
+    if (localAutoSize && localAutoSize !== sizeLevel) update({ sizeLevel: localAutoSize });
+  }, [isBackendSelected, isFal, isMj, isComfyExternal, localImageShowsSizeControl, localAutoSize, sizeLevel, update]);
 
   // 从上游节点 + 本地上传按用户排序后的顺序聚合 prompt + 参考图
   // 注意: 此处只输出已合并、已排序的列表, 不再原地从 edges/nodes 二次收集
@@ -441,10 +560,59 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       // 这里不再二次叠加 refImages, 避免本地参考图重复传递。
       const allRefs = upstreamImages.slice(0, maxRefs);
 
+      if (isBackendSelected && backendModel) {
+        const backendSizeValue = backendImageShowsSizeControl
+          ? sizeLevel
+          : (backendAutoSize || sizeLevel || backendModel.ui.defaultSize);
+        const size = String(backendSizeValue || '').includes('x') || backendSizeValue === 'auto'
+          ? String(backendSizeValue || backendModel.ui.defaultSize || '1024x1024')
+          : externalImageSizeFor(aspectRatio, backendSizeValue);
+        logBus.info(
+          `后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
+          src,
+        );
+        const res = await generateExternalImage({
+          providerId: backendModel.providerId,
+          providerModel: backendModel.modelId,
+          model: backendModel.modelId,
+          prompt: finalPrompt,
+          size,
+          images: allRefs,
+          n: 1,
+          providerParams: {
+            modelRecordId: backendModel.id,
+            capability: backendModel.capability,
+            protocol: backendModel.protocol,
+            aspectRatio,
+            size: backendSizeValue,
+          },
+        });
+        const urls = res.imageUrls || [];
+        if (!urls.length) throw new Error('后台模型完成但未返回图片');
+        update({
+          status: 'success',
+          progress: '100%',
+          imageUrl: urls[0],
+          imageUrls: urls,
+          remoteImageUrls: res.remoteImageUrls,
+          lastPrompt: finalPrompt,
+          usedI2I: allRefs.length > 0,
+          taskId: res.taskId || d?.taskId,
+        });
+        logBus.success(`后台模型完成 → ${urls[0]}`, src);
+        taskCompletionSound.notifyComplete(id, 'image');
+        return;
+      }
+
       if (isExternalSelected && providerSelection.provider) {
         const providerModel = externalProviderModel;
         if (!providerModel) throw new Error('扩展平台未配置可用图像模型');
-        let size = externalImageSizeFor(aspectRatio, sizeLevel);
+        const imageSizeToken = localImageShowsSizeControl
+          ? sizeLevel
+          : (localAutoSize || sizeLevel || modelDef.defaultSize);
+        let size = String(imageSizeToken || '').includes('x') || imageSizeToken === 'auto'
+          ? String(imageSizeToken || '1024x1024')
+          : externalImageSizeFor(aspectRatio, imageSizeToken);
         if (isComfyExternal && comfyWorkflow) {
           const width = comfyNumberForSource('width', 1024);
           const height = comfyNumberForSource('height', 1024);
@@ -455,7 +623,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         if (isModelScopeExternal && modelscopeLoraEnabled) {
           const lora = selectedModelscopeLora;
           const loraId = String(lora?.id || externalProviderParams.modelscopeLoraId || '').trim();
-          if (!loraId) throw new Error('当前 ModelScope 模型没有可用 LoRA，请先在 API 设置中绑定。');
+          if (!loraId) throw new Error('当前 ModelScope 模型没有可用 LoRA，请联系管理员在统一后台绑定。');
           const strength = normalizeModelscopeLoraStrength(externalProviderParams.modelscopeLoraStrength ?? lora?.strength, lora?.strength ?? 0.8);
           externalProviderParams.loras = { [loraId]: strength };
           externalProviderParams.modelscopeLoraId = loraId;
@@ -830,6 +998,8 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           <div className="text-[10px] text-white/40">
             {isExternalSelected && providerSelection.provider
               ? `${providerSelection.provider.label || providerSelection.provider.id} · ${externalProviderModel || '未选模型'}`
+              : isBackendSelected && backendModel
+                ? `${backendModel.provider.name} · ${backendModel.displayName || backendModel.modelId}`
               : `${modelDef.label} · ${modelDef.description}`}
           </div>
         </div>
@@ -837,7 +1007,99 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
       {/* 配置区 */}
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
-        {imageAdvancedProviders.length > 0 && (
+        {backendImageModels.length > 0 && (
+          <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-semibold text-cyan-100">发布模型</label>
+              <span className="text-[10px] text-cyan-200/70">{backendImageModels.length} 个已发布</span>
+            </div>
+            <div className="grid gap-2">
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">供应商</label>
+                <select
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  onChange={(e) => {
+                    if (e.target.value === '__local__') update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
+                    else switchBackendProvider(e.target.value);
+                  }}
+                  style={{ background: '#18181b', color: '#ffffff' }}
+                  className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                >
+                  {backendProviderGroups.map((group) => (
+                    <option key={group.providerId} value={group.providerId} style={{ background: '#18181b', color: '#ffffff' }}>
+                      {group.providerName}
+                    </option>
+                  ))}
+                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>
+                    本地 T8 内置模型
+                  </option>
+                </select>
+              </div>
+              {isBackendSelected && backendProviderGroup && (
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">模型</label>
+                  <select
+                    value={backendModel?.id || ''}
+                    onChange={(e) => switchBackendModel(e.target.value)}
+                    style={{ background: '#18181b', color: '#ffffff' }}
+                    className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                  >
+                    {backendProviderGroup.models.map((item) => (
+                      <option key={item.id} value={item.id} style={{ background: '#18181b', color: '#ffffff' }}>
+                        {item.displayName || item.modelId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {isBackendSelected && backendModel && (
+              <div className={`grid gap-2 ${backendImageShowsSizeControl && backendModel.ui.sizes.length ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">比例</label>
+                  <select
+                    value={aspectRatio}
+                    onChange={(e) => update({ aspectRatio: e.target.value })}
+                    style={{ background: '#18181b', color: '#ffffff' }}
+                    className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                  >
+                    {backendModel.ui.aspectRatios.map((ratio) => (
+                      <option key={ratio} value={ratio} style={{ background: '#18181b', color: '#ffffff' }}>{ratio}</option>
+                    ))}
+                  </select>
+                </div>
+                {backendImageShowsSizeControl && backendModel.ui.sizes.length > 0 && (
+                  <div>
+                    <label className="text-[10px] text-white/50 block mb-1">尺寸</label>
+                    <select
+                      value={sizeLevel}
+                      onChange={(e) => update({ sizeLevel: e.target.value })}
+                      style={{ background: '#18181b', color: '#ffffff' }}
+                      className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                    >
+                      {backendModel.ui.sizes.map((size) => (
+                        <option key={size} value={size} style={{ background: '#18181b', color: '#ffffff' }}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/65">
+                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点可见参数。
+                </div>
+                {!backendImageShowsSizeControl && (
+                  <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/55">
+                    当前模型的尺寸会随比例自动匹配，节点里只保留比例选择，避免和底层尺寸参数重复。
+                  </div>
+                )}
+                <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/50">
+                  {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isBackendSelected && imageAdvancedProviders.length > 0 && (
           <div className="rounded border border-white/10 bg-white/[0.03] p-2 space-y-2">
             <button
               type="button"
@@ -959,7 +1221,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                     )}
                     {!modelscopeLoras.length && (
                       <div className="text-[10px] leading-relaxed text-white/45">
-                        到 API 设置的 ModelScope LoRA 区，为当前外部模型绑定 LoRA 后即可在这里选择。
+                        联系管理员在统一后台为当前外部模型绑定 ModelScope LoRA 后即可在这里选择。
                       </div>
                     )}
                   </div>
@@ -1097,7 +1359,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                       </div>
                     ) : (
                       <div className="text-[10px] text-amber-200">
-                        当前工作流没有保存字段映射，请到 API 设置中点“自动映射”，或使用 ComfyUI应用制作工具重新导入 workflow。
+                        当前工作流没有保存字段映射，请在统一后台完成字段映射，或使用 ComfyUI应用制作工具重新导入 workflow。
                       </div>
                     )}
                     {(comfyImageInputFields.length > 0 || orderedTexts.length > 0 || excludedUpstreamCount > 0) && (
@@ -1139,7 +1401,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 模型 TAB 切换(对应主项目 gpt-image-2-web Tab 0/1/2) */}
-        {!isExternalSelected && <div>
+        {!isBackendSelected && !isExternalSelected && <div>
           <label className="text-[10px] text-white/50 block mb-1">模型</label>
           <div
             className={`flex gap-0.5 p-0.5 rounded ${isPixel ? '' : 'bg-white/5'}`}
@@ -1169,7 +1431,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         </div>}
 
         {/* 子模型选择(对齐主项目 Tab 内的 model 下拉) - MJ 模式隐藏(用下面专属版本选择) */}
-        {!isExternalSelected && !isMj && (
+        {!isBackendSelected && !isExternalSelected && !isMj && (
           <div>
             <label className="text-[10px] text-white/50 block mb-1">具体模型</label>
             <select
@@ -1186,8 +1448,8 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 比例 + 尺寸 并排(非 FAL 且非 MJ 模型);Grok Image 只需要比例 */}
-        {(!isFal && !isMj && !isComfyExternal) && (
-          <div className={`grid gap-2 ${isGrokImage || !modelDef.sizes.length ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {(!isBackendSelected && !isFal && !isMj && !isComfyExternal) && (
+          <div className={`grid gap-2 ${isGrokImage || !modelDef.sizes.length || !shouldShowImageSizeControl(modelDef.sizes) ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <div>
               <label className="text-[10px] text-white/50 block mb-1">比例</label>
               <select
@@ -1201,7 +1463,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 ))}
               </select>
             </div>
-            {!isGrokImage && modelDef.sizes.length > 0 && (
+            {!isGrokImage && modelDef.sizes.length > 0 && shouldShowImageSizeControl(modelDef.sizes) && (
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">尺寸</label>
                 <select
@@ -1447,7 +1709,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* ========== MJ 专属参数面板(完全对齐 gpt-image-2-web mj_* 控件 L1552~L1580) ========== */}
-        {!isExternalSelected && isMj && (
+        {!isBackendSelected && !isExternalSelected && isMj && (
           <div className="space-y-2 rounded border border-purple-400/30 bg-purple-500/5 p-2">
             <div className="text-[10px] text-purple-300 font-semibold tracking-wide">
               ✨ Midjourney(严格对齐主项目 runMJ)
