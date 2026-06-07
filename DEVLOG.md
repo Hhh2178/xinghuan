@@ -9,6 +9,43 @@
 
 ## 2026-06-08
 
+### 管理后台用户面板抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中用户管理 UI 的体积。
+- 保持新增成员、用户表格、角色/状态展示、重置密码和启用/禁用操作不变。
+- 为用户面板建立静态合同，避免后续拆分 Provider 或模型面板时误改用户管理入口。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-users-panel.tsx`，集中管理 `UsersPanel`。
+- `apps/admin/src/main.tsx` 改为导入用户面板，并导出 `AdminUser` 类型供用户面板复用。
+- 新增 `scripts/verify-admin-users-panel-contract.mjs` 与根脚本 `verify:admin-users-panel-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-users-panel-contract` 首次按预期因 `admin-users-panel.tsx` 模块缺失、`main.tsx` 仍内联 `UsersPanel` 和 `AdminUser` 未导出失败。
+- `npm run verify:admin-users-panel-contract` 通过，覆盖模块导出、主文件不再内联、新增成员表单、用户表格列、角色/状态展示、重置密码流程、启用/禁用流程和共享后台组件使用。
+- `npm run type-check -w @xinghuan/admin` 首次暴露 `Plus` 仍被 Provider/模型/LoRA 区域复用，恢复 import 后复跑通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+
+影响:
+
+- 管理后台主文件进一步减少用户管理 UI 噪音，为后续拆分 Provider 设置、模型目录或 RunningHub 面板铺路。
+- 用户创建、密码重置和启用/禁用仍通过同一个 `mutate` helper 调用现有后台 API，行为未改变。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分，下一步可评估 Provider 设置面板或模型相关子面板，但这些面板依赖更复杂，拆分前需要先补更细的合同脚本。
+
 ### 管理后台任务面板抽离
 
 目标:

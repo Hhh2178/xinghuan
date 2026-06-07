@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台用户面板抽离：
+  - 新增 `apps/admin/src/admin-users-panel.tsx`，把 `UsersPanel` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `AdminUser` 类型供用户面板复用。
+  - 新增 `scripts/verify-admin-users-panel-contract.mjs` 与 `verify:admin-users-panel-contract`，覆盖模块导出、主文件不再内联、新增成员表单、用户表格列、角色/状态展示、重置密码流程、启用/禁用流程和共享后台组件使用。
+  - 本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯；`type-check` 首次暴露 `Plus` 仍被其他区域复用，恢复 import 后复验通过。
+  - 本机 `verify:admin-users-panel-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台任务面板抽离：
   - 新增 `apps/admin/src/admin-task-panel.tsx`，把 `TasksPanel` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `TaskRecord` 类型供任务面板复用。

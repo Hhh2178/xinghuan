@@ -21,6 +21,7 @@
     "verify:admin-common-components-contract": "node scripts/verify-admin-common-components-contract.mjs",
     "verify:admin-readonly-panels-contract": "node scripts/verify-admin-readonly-panels-contract.mjs",
     "verify:admin-task-panel-contract": "node scripts/verify-admin-task-panel-contract.mjs",
+    "verify:admin-users-panel-contract": "node scripts/verify-admin-users-panel-contract.mjs",
     "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
     "verify:http-session-utils-contract": "npx tsx scripts/verify-http-session-utils-contract.ts",
     "verify:api-sanitizers-contract": "npx tsx scripts/verify-api-sanitizers-contract.ts",
