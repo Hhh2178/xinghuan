@@ -37,8 +37,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // [mimo-perf] React 生态单独分包，便于长期缓存
-          "vendor-react": ["react", "react-dom"],
           // [mimo-perf] 画布引擎单独分包
           "vendor-flow": ["@xyflow/react"],
           // [mimo-perf] MediaPipe 单独分包（体积较大）

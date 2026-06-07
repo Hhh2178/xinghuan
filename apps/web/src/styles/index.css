@@ -66,6 +66,21 @@
   opacity: 0.75;
 }
 
+.xh-workspace-fallback {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  color: #cffafe;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(54, 246, 180, 0.12), transparent 28rem),
+    linear-gradient(135deg, #030611 0%, #061526 58%, #041f1b 100%);
+}
+
+.xh-workspace-fallback > *:not(.xh-cursor-aura) {
+  z-index: 1;
+}
+
 .xh-login-stage,
 .xh-quantum-transition {
   min-height: 100vh;

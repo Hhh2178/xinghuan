@@ -1,18 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Moon, Sun, Wifi, WifiOff, Sparkles, Cloud, Library, Palette, Skull, Sailboat, LogOut, UserRound } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
 import { useShortcutStore } from './stores/shortcuts';
-import Sidebar from './components/Sidebar';
-import Canvas, { type AddNodeFn, type InsertWorkflowFn } from './components/Canvas';
-import ResourceLibraryDrawer from './components/ResourceLibraryDrawer';
 import LoginGate from './components/LoginGate';
 import StellarCursorAura from './components/StellarCursorAura';
-import MaterialContextMenu from './components/MaterialContextMenu';
-import ThemeTemplateManager from './components/ThemeTemplateManager';
 import ErrorBoundary from './components/ErrorBoundary';
-import { RHToolsProvider } from './providers/RHToolsProvider';
 import * as api from './services/api';
 import type { NodeType } from './types/canvas';
 import type { AuthUser, ResourceItem } from './services/api';
@@ -32,6 +26,18 @@ import {
   type PortraitLanguage,
 } from './data/portraitMasterOptions';
 
+const Sidebar = lazy(() => import('./components/Sidebar'));
+const Canvas = lazy(() => import('./components/Canvas'));
+const ResourceLibraryDrawer = lazy(() => import('./components/ResourceLibraryDrawer'));
+const MaterialContextMenu = lazy(() => import('./components/MaterialContextMenu'));
+const ThemeTemplateManager = lazy(() => import('./components/ThemeTemplateManager'));
+const RHToolsProvider = lazy(() =>
+  import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
+);
+
+type AddNodeFn = import('./components/Canvas').AddNodeFn;
+type InsertWorkflowFn = import('./components/Canvas').InsertWorkflowFn;
+
 // vite.config 注入的编译期常量（与 package.json 同步），勿硬编码 v1.x.x
 declare const __APP_VERSION__: string;
 
@@ -49,6 +55,23 @@ function isShortcutTypingTarget(target: EventTarget | null): boolean {
 
 function safePortraitLanguage(value: unknown): PortraitLanguage {
   return value === 'zh' ? 'zh' : 'en';
+}
+
+function WorkspaceShellFallback() {
+  return (
+    <div className="xh-workspace-fallback h-screen overflow-hidden">
+      <StellarCursorAura className="xh-cursor-aura--canvas" />
+      <div className="xh-stellar-grid" aria-hidden="true" />
+      <div className="xh-stellar-lines" aria-hidden="true" />
+      <div className="xh-glass-panel relative z-10 w-[min(420px,calc(100%-40px))] rounded-[30px] px-7 py-7 text-center">
+        <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-cyan-200/10 text-cyan-100">
+          <Sparkles size={28} />
+        </div>
+        <div className="text-lg font-black tracking-tight text-cyan-50">正在展开星幻工作区</div>
+        <div className="mt-2 text-sm text-cyan-100/60">画布、节点库和资源面板正在按需加载...</div>
+      </div>
+    </div>
+  );
 }
 
 function portraitResourceToNodeData(item: ResourceItem): Record<string, any> | null {
@@ -434,6 +457,7 @@ function App() {
   }
 
   return (
+    <Suspense fallback={<WorkspaceShellFallback />}>
     <RHToolsProvider>
     <div
       className={`t8-app-shell h-screen flex flex-col overflow-hidden ${
@@ -686,6 +710,7 @@ function App() {
       <MaterialContextMenu />
     </div>
     </RHToolsProvider>
+    </Suspense>
   );
 }
 
