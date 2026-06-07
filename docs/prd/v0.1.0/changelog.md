@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台导航与任务状态 ViewModel 抽离：
+  - 新增 `apps/admin/src/admin-view-model.ts`，把后台导航项、`titleFor`、`statusText` 和 `taskTone` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 和状态流转，但不再内联导航配置与任务状态展示映射。
+  - 新增 `scripts/verify-admin-view-model-contract.ts` 与 `verify:admin-view-model-contract`，覆盖导航 ID/文案顺序、标题 fallback、所有任务状态中文文案和状态色映射。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:admin-view-model-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台 API Client 抽离：
   - 新增 `apps/admin/src/admin-api-client.ts`，把后台 `api<T>(pathname, options?)` 请求 helper 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 和状态流转，但不再内联 fetch、same-origin credentials 和响应解包逻辑。

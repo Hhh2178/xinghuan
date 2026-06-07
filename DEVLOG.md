@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### 管理后台导航与任务状态 ViewModel 抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中导航配置、任务状态文案和状态色映射的耦合。
+- 保持后台导航顺序、标题文案、任务状态中文文案和状态胶囊颜色不变。
+- 为后台展示层的纯 view model 建立独立合同，避免后续拆分 Provider/任务面板时误改导航或任务状态展示。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-view-model.ts`，集中管理后台导航项、`titleFor`、`statusText` 和 `taskTone`。
+- `apps/admin/src/main.tsx` 改为导入 view model helpers，不再内联导航和任务状态映射。
+- 新增 `scripts/verify-admin-view-model-contract.ts` 与根脚本 `verify:admin-view-model-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-view-model-contract` 首次按预期因 `admin-view-model.js` 模块缺失失败。
+- `npm run verify:admin-view-model-contract` 通过，覆盖导航 ID/文案顺序、标题 fallback、所有任务状态中文文案和状态色映射。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+- `codegraph sync` 完成，`codegraph status` 显示索引最新。
+
+影响:
+
+- 管理后台主文件进一步减少纯展示映射噪音，为继续拆分 Provider 设置、任务表格和通用表格/弹窗组件铺路。
+- 导航和任务状态展示行为保持不变。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台大文件拆分，优先考虑 Provider 设置面板或通用表格/弹窗组件，或在需要上线时先推灰度并复跑后台验收。
+
 ### 管理后台 API Client 抽离
 
 目标:

@@ -4,7 +4,6 @@ import {
   Check,
   Database,
   KeyRound,
-  LayoutDashboard,
   ListChecks,
   Loader2,
   LogOut,
@@ -24,12 +23,13 @@ import { canCancelTask, canRetryTask, type TaskStatus } from "@xinghuan/shared";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./admin-api-client";
+import { adminNavItems, statusText, taskTone, titleFor, type AdminTabId, type StatusTone } from "./admin-view-model";
 import "./styles.css";
 
 type UserRole = "admin" | "member";
 type Capability = "chat" | "image" | "video";
 type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
-type TabId = "overview" | "users" | "providers" | "tasks" | "audit" | "system";
+type TabId = AdminTabId;
 
 interface AuthUser {
   id: string;
@@ -192,15 +192,6 @@ interface ConfirmAction {
   onConfirm: () => Promise<void>;
 }
 
-const navItems: Array<{ id: TabId; label: string; icon: typeof LayoutDashboard }> = [
-  { id: "overview", label: "总览", icon: LayoutDashboard },
-  { id: "users", label: "用户", icon: Users },
-  { id: "providers", label: "API 设置", icon: KeyRound },
-  { id: "tasks", label: "任务", icon: Activity },
-  { id: "audit", label: "审计", icon: ScrollText },
-  { id: "system", label: "系统", icon: ServerCog },
-];
-
 function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -310,7 +301,7 @@ function AdminApp() {
           </div>
         </div>
         <nav aria-label="后台模块">
-          {navItems.map((item) => {
+          {adminNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -1611,23 +1602,8 @@ function FormPanel({ title, icon: Icon, children }: { title: string; icon: typeo
   );
 }
 
-function StatusPill({ tone, children }: { tone: "success" | "danger" | "muted" | "warning"; children: React.ReactNode }) {
+function StatusPill({ tone, children }: { tone: StatusTone; children: React.ReactNode }) {
   return <span className={`status-pill ${tone}`}>{children}</span>;
-}
-
-function titleFor(tab: TabId) {
-  return navItems.find((item) => item.id === tab)?.label || "总览";
-}
-
-function statusText(status: TaskStatus) {
-  return ({ queued: "排队", running: "运行中", succeeded: "成功", failed: "失败", cancelled: "已取消" } as Record<TaskStatus, string>)[status];
-}
-
-function taskTone(status: TaskStatus) {
-  if (status === "succeeded") return "success";
-  if (status === "failed" || status === "cancelled") return "danger";
-  if (status === "running") return "warning";
-  return "muted";
 }
 
 createRoot(document.getElementById("root")!).render(
