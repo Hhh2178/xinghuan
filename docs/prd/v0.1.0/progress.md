@@ -10,6 +10,8 @@
 
 `2026-06-08` 同日继续完成 HTTP 请求与 Session Cookie 工具抽离：`readJsonBody`、Cookie 解析、登录/过期 cookie 构造、Session Cookie 名称和 7 天 TTL 迁入 `http-session-utils.ts`，新增 `verify:http-session-utils-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过，并在临时数据目录和临时端口 `127.0.0.1:18352` 下复跑 `verify:single-port`，确认登录、当前用户、管理员接口、成员隔离、文件上传和 SPA fallback 未被破坏。
 
+`2026-06-08` 同日继续完成 API 输入清洗与 MIME 推断工具抽离：`safeText`、`safeEmail`、`safeSlug`、`safeJsonText`、`safeFilename`、`safeUserId` 和 `inferMime` 迁入 `api-sanitizers.ts`，新增 `verify:api-sanitizers-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过，并在临时数据目录和临时端口 `127.0.0.1:18353` 下复跑 `verify:single-port`，确认静态资源、上传文件、登录、成员隔离和 SPA fallback 未被破坏；`safeSlug("!!!")` 继续锁定当前返回 `"-"` 的既有行为，后续如需改善应作为行为变更单独验收。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

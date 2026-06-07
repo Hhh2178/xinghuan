@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- API 输入清洗与 MIME 推断工具抽离：
+  - 新增 `apps/api/src/api-sanitizers.ts`，把 `safeText`、`safeEmail`、`safeSlug`、`safeJsonText`、`safeFilename`、`safeUserId` 和 `inferMime` 从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 继续负责路由、资源写入、Provider 和模型逻辑，但不再内联输入清洗与静态文件 MIME 推断纯函数。
+  - 新增 `scripts/verify-api-sanitizers-contract.ts` 与 `verify:api-sanitizers-contract`，覆盖长文本截断、邮箱归一化、slug 当前行为、JSON fallback、文件名清洗、用户 ID 清洗和常用 MIME 映射。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯；其中 `safeSlug("!!!")` 继续锁定当前返回 `"-"` 的既有行为，不在重构中暗改。
+  - 本机 `verify:api-sanitizers-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18353` 启动受控单端口服务，`verify:single-port` 通过，确认静态资源、上传文件、登录、成员隔离和 SPA fallback 未被重构破坏。
 - HTTP 请求与 Session Cookie 工具抽离：
   - 新增 `apps/api/src/http-session-utils.ts`，把 `readJsonBody`、`readCookie`、`buildSessionCookie`、`expireSessionCookie`、Session Cookie 名称和 7 天 TTL 从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 继续负责登录、退出、当前用户识别和 session 持久化，但不再内联基础 HTTP/session 工具函数。

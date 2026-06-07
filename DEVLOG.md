@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### API 输入清洗与 MIME 推断工具抽离
+
+目标:
+
+- 继续优化后端文件结构，降低 `apps/api/src/server.ts` 中输入清洗和静态文件 MIME 纯函数的杂糅程度。
+- 保持上传、静态资源返回、Provider/模型字段清洗、用户 ID 清洗和 JSON schema 文本 fallback 行为不变。
+- 为高频输入清洗函数建立独立合约，避免后续调整文件名、slug 或 MIME 映射时缺少回归。
+
+变更范围:
+
+- 新增 `apps/api/src/api-sanitizers.ts`，集中管理 `safeText`、`safeEmail`、`safeSlug`、`safeJsonText`、`safeFilename`、`safeUserId` 和 `inferMime`。
+- `apps/api/src/server.ts` 改为导入 API sanitizer helpers；路由、资源写入和 Provider 逻辑保持原调用方式。
+- 新增 `scripts/verify-api-sanitizers-contract.ts` 与根脚本 `verify:api-sanitizers-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:api-sanitizers-contract` 首次按预期因 `api-sanitizers.js` 模块缺失失败。
+- `npm run verify:api-sanitizers-contract` 通过，覆盖长文本截断、邮箱归一化、slug 当前行为、JSON fallback、文件名清洗、用户 ID 清洗和 web/image/video/audio/font/binary MIME 映射。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- `npm run build:single-port` 通过。
+- 使用临时数据目录和临时端口 `127.0.0.1:18353` 启动受控单端口服务，`npm run verify:single-port` 通过，确认静态资源、上传文件、登录、成员隔离和 SPA fallback 未被抽离破坏。
+
+影响:
+
+- 输入清洗和 MIME 推断从巨型 `server.ts` 中剥离，后续可以单独审查和扩展这些基础规则。
+- 保留 `safeSlug("!!!")` 当前返回 `"-"` 的既有行为；如需改善为 fallback，应后续作为行为变更单独验证。
+
+风险:
+
+- 当前仅完成本机源码、构建和受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进下一处高价值结构优化，或在需要上线时先推灰度并复跑文件上传、静态资源和后台 Provider/模型表单验收。
+
 ### HTTP 请求与 Session Cookie 工具抽离
 
 目标:
