@@ -9,6 +9,40 @@
 
 ## 2026-06-08
 
+### 入口 UI 设计文件 Brief 补强
+
+目标:
+
+- 把用户提供的 `stitch_ui_optimization_and_transitions/` 设计文件转化为可交给 Google/Gemini 前端生成使用的项目内正式 Brief。
+- 明确哪些设计内容可采用、哪些演示内容禁止照搬，避免再次生成带白色输入框、中心 logo、占位入口或调试文字的入口页。
+- 指定后续代码接入落点，确保 Google/Gemini 产出的页面能回接现有 React/Vite 登录流和工作区过渡。
+
+变更范围:
+
+- 更新 `docs/prd/v0.1.0/entry-ui-google-brief.md`，新增设计源使用矩阵、项目接入落点、推荐拆分方式和 Google/Gemini 接入顺序。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+- 本轮不改登录页代码、不改认证 API、不改灰度/生产部署。
+
+验证证据:
+
+- 已读取并核对 `stellar_canvas_internal/DESIGN.md`、`_1/code.html`、`_2/code.html`、`_1/screen.png`、`_2/screen.png`。
+- CodeGraph 当前索引为 OK，确认入口组件落点为 `apps/web/src/components/LoginGate.tsx`，工作区过渡落点为 `apps/web/src/App.tsx` 的 `WorkspaceShellFallback`。
+- 本轮为文档补强，后续真正接入 Google/Gemini 代码时仍需重新运行 `verify:xinghuan-entry-ui`、Web type-check 和 Web build。
+
+影响:
+
+- 后续入口 UI 生成有了更硬的约束：设计包作为视觉语言来源，不作为逐像素复刻目标。
+- 明确禁止 Tailwind CDN、Google Fonts CDN、远程图片、白色输入框、中心 logo、SSO/组织网络、坐标/延迟调试文字和白闪爆发。
+
+风险:
+
+- 当前只是设计 Brief 补强，尚未把 Google/Gemini 新产出的 UI 接入代码。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 若用户确认使用 Google/Gemini 产出的前端代码，下一轮应先对照 Brief 做结构审查，再用 TDD/验证脚本方式接入 `LoginGate` 和 `WorkspaceShellFallback`。
+
 ### 管理后台只读面板抽离
 
 目标:

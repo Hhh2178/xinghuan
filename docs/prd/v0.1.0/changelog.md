@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 入口 UI 设计文件 Brief 补强：
+  - 基于用户提供的 `stitch_ui_optimization_and_transitions/` 设计文件，补强 `docs/prd/v0.1.0/entry-ui-google-brief.md`。
+  - 新增设计源使用矩阵，明确 `stellar_canvas_internal/DESIGN.md`、`_1/code.html`、`_2/code.html` 和两张截图分别可采用与禁止照搬的内容。
+  - 新增项目接入落点，指向 `apps/web/src/components/LoginGate.tsx`、`apps/web/src/components/StellarCursorAura.tsx`、`apps/web/src/App.tsx` 的 `WorkspaceShellFallback` 和 `scripts/verify-xinghuan-entry-ui.mjs`。
+  - 新增 Google/Gemini 接入顺序，要求先迁移视觉结构和 CSS，再拆分星云纯展示组件、替换工作区过渡，并最终更新入口 UI 验证脚本。
+  - 本轮仅做文档补强，不改登录业务逻辑、不改认证 API、不推灰度或生产。
 - 管理后台只读面板抽离：
   - 新增 `apps/admin/src/admin-readonly-panels.tsx`，把 `AuditPanel` 和 `SystemPanel` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `AuditRecord`、`SystemInfo` 类型供只读面板复用。
