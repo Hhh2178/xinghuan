@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台任务面板抽离：
+  - 新增 `apps/admin/src/admin-task-panel.tsx`，把 `TasksPanel` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `TaskRecord` 类型供任务面板复用。
+  - 新增 `scripts/verify-admin-task-panel-contract.mjs` 与 `verify:admin-task-panel-contract`，覆盖模块导出、主文件不再内联、创建任务表单、任务监控列、状态 helper、取消/重试动作、日志/时间格式和共享后台组件使用。
+  - 本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。
+  - 本机 `verify:admin-task-panel-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 入口 UI 设计文件 Brief 补强：
   - 基于用户提供的 `stitch_ui_optimization_and_transitions/` 设计文件，补强 `docs/prd/v0.1.0/entry-ui-google-brief.md`。
   - 新增设计源使用矩阵，明确 `stellar_canvas_internal/DESIGN.md`、`_1/code.html`、`_2/code.html` 和两张截图分别可采用与禁止照搬的内容。

@@ -22,6 +22,8 @@
 
 `2026-06-08` 同日根据用户提供的 `stitch_ui_optimization_and_transitions/` 设计文件继续补强入口 UI 交付 Brief：`entry-ui-google-brief.md` 新增设计源使用矩阵、项目接入落点、推荐组件拆分和 Google/Gemini 代码接入顺序，明确设计包只作为视觉语言来源，不直接逐像素照搬；后续入口页仍必须保持左侧无文字/无 logo、右侧深色磨玻璃登录卡、无外链资源、无 SSO/组织网络占位、无坐标/延迟调试文字、无白闪爆发，并在接入代码时重新运行入口 UI 验证、Web type-check 和 Web build。本轮仅做文档收口，未推灰度或生产。
 
+`2026-06-08` 同日继续完成管理后台任务面板抽离：`TasksPanel` 迁入 `admin-task-panel.tsx`，`main.tsx` 导出 `TaskRecord` 供面板复用，并新增 `verify:admin-task-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认创建测试任务、任务监控列、状态文案/颜色、取消/重试动作、日志摘要、更新时间展示和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

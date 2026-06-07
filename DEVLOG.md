@@ -9,6 +9,43 @@
 
 ## 2026-06-08
 
+### 管理后台任务面板抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中任务监控和任务操作 UI 的体积。
+- 保持创建测试任务、任务监控表格、状态展示、取消/重试动作、日志摘要和更新时间展示不变。
+- 为任务面板建立静态合同，避免后续拆分用户、Provider 或模型面板时误改任务生命周期入口。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-task-panel.tsx`，集中管理 `TasksPanel`。
+- `apps/admin/src/main.tsx` 改为导入任务面板，并导出 `TaskRecord` 类型供任务面板复用。
+- 新增 `scripts/verify-admin-task-panel-contract.mjs` 与根脚本 `verify:admin-task-panel-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-task-panel-contract` 首次按预期因 `admin-task-panel.tsx` 模块缺失、`main.tsx` 仍内联 `TasksPanel` 和 `TaskRecord` 未导出失败。
+- `npm run verify:admin-task-panel-contract` 通过，覆盖模块导出、主文件不再内联、创建任务表单、任务监控表格列、状态 helper、取消/重试动作、日志/时间格式和共享后台组件使用。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台站内确认弹窗约束未被破坏。
+
+影响:
+
+- 管理后台主文件进一步减少任务监控 UI 噪音，为后续拆分用户面板、Provider 设置或模型面板铺路。
+- 任务取消/重试入口仍复用 `@xinghuan/shared` 的状态守卫，行为未改变。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分，下一步可优先选择用户面板，或在需要上线时先推灰度并复跑后台验收。
+
 ### 入口 UI 设计文件 Brief 补强
 
 目标:
