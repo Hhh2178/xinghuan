@@ -182,6 +182,15 @@ interface AuditRecord {
   createdAt: number;
 }
 
+interface ConfirmAction {
+  title: string;
+  message: string;
+  detail: string;
+  confirmLabel: string;
+  tone: "danger" | "warning";
+  onConfirm: () => Promise<void>;
+}
+
 const navItems: Array<{ id: TabId; label: string; icon: typeof LayoutDashboard }> = [
   { id: "overview", label: "总览", icon: LayoutDashboard },
   { id: "users", label: "用户", icon: Users },
@@ -525,6 +534,8 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
   const [fetchMessage, setFetchMessage] = useState("点击拉取后，会在这里显示上游返回结果。");
   const [fetchTone, setFetchTone] = useState<"muted" | "loading" | "success" | "warning">("muted");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
+  const [manualModelCapability, setManualModelCapability] = useState<Capability | null>(null);
 
   useEffect(() => {
     if (!selectedId && providers[0]) setSelectedId(providers[0].id);
@@ -537,6 +548,8 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
     setFetchMessage("点击拉取后，会在这里显示上游返回结果。");
     setFetchTone("muted");
     setPickerOpen(false);
+    setPendingConfirmAction(null);
+    setManualModelCapability(null);
   }, [selected?.id]);
 
   async function run<T>(action: () => Promise<T>, message: string) {
@@ -580,10 +593,20 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
     if (created) setSelectedId(created.id);
   }
 
-  async function deleteProvider() {
-    if (!selected || !confirm(`确认删除 ${selected.name}？其模型也会一起删除。`)) return;
-    await run(() => api(`/api/admin/providers/${selected.id}`, { method: "DELETE" }), "正在删除 Provider...");
-    setSelectedId(providers.find((item) => item.id !== selected.id)?.id || "");
+  function requestDeleteProvider() {
+    if (!selected) return;
+    const provider = selected;
+    setPendingConfirmAction({
+      title: "删除 Provider",
+      message: `确认删除 ${provider.name}？`,
+      detail: "该 Provider 下的模型会一并删除，画布节点将不能再选择这些模型。此操作不可自动恢复。",
+      confirmLabel: "删除 Provider",
+      tone: "danger",
+      onConfirm: async () => {
+        await run(() => api(`/api/admin/providers/${provider.id}`, { method: "DELETE" }), "正在删除 Provider...");
+        setSelectedId(providers.find((item) => item.id !== provider.id)?.id || "");
+      },
+    });
   }
 
   async function probeProvider() {
@@ -633,14 +656,26 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
     await run(() => api(`/api/admin/models/${model.id}`, { method: "PATCH", headers: jsonHeaders, body: JSON.stringify(patch) }), "正在更新模型...");
   }
 
-  async function deleteModel(model: ModelRecord) {
-    await run(() => api(`/api/admin/models/${model.id}`, { method: "DELETE" }), "正在删除模型...");
+  function requestDeleteModel(model: ModelRecord) {
+    setPendingConfirmAction({
+      title: "删除模型",
+      message: `确认删除 ${model.displayName || model.modelId}？`,
+      detail: "删除后，画布通用节点不会再显示该模型。已经保存的历史任务记录不会被删除。",
+      confirmLabel: "删除模型",
+      tone: "danger",
+      onConfirm: async () => {
+        await run(() => api(`/api/admin/models/${model.id}`, { method: "DELETE" }), "正在删除模型...");
+      },
+    });
   }
 
-  async function addManualModel(capability: Capability) {
+  function requestAddManualModel(capability: Capability) {
     if (!selected) return;
-    const modelId = window.prompt(`新增${capabilityLabel(capability)}模型 ID`);
-    if (!modelId) return;
+    setManualModelCapability(capability);
+  }
+
+  async function addManualModel(capability: Capability, modelId: string) {
+    if (!selected) return;
     await run(() => api("/api/admin/models", {
       method: "POST",
       headers: jsonHeaders,
@@ -655,6 +690,7 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
         parameterSchema: "{}",
       }),
     }), "正在新增模型...");
+    setManualModelCapability(null);
   }
 
   return (
@@ -694,7 +730,7 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
               <p>配置基础信息、API Key 和可用模型</p>
             </div>
             <div className="editor-actions">
-              <button className="ghost-action" type="button" onClick={deleteProvider} disabled={!selected}><Trash2 aria-hidden="true" /> 删除</button>
+              <button className="ghost-action danger-action" type="button" onClick={requestDeleteProvider} disabled={!selected}><Trash2 aria-hidden="true" /> 删除</button>
               <button className="primary-action" type="button" onClick={saveProvider}><Save aria-hidden="true" /> 保存</button>
             </div>
           </section>
@@ -763,9 +799,9 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
               key={capability}
               capability={capability}
               models={selectedModels.filter((model) => model.capability === capability)}
-              onAdd={() => addManualModel(capability)}
+              onAdd={() => requestAddManualModel(capability)}
               onUpdate={updateModel}
-              onDelete={deleteModel}
+              onDelete={requestDeleteModel}
             />
           ))}
         </div>
@@ -783,7 +819,113 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
           }}
         />
       ) : null}
+
+      {pendingConfirmAction ? (
+        <ConfirmActionDialog
+          action={pendingConfirmAction}
+          busy={busy}
+          onCancel={() => setPendingConfirmAction(null)}
+          onConfirm={async () => {
+            await pendingConfirmAction.onConfirm();
+            setPendingConfirmAction(null);
+          }}
+        />
+      ) : null}
+
+      {manualModelCapability && selected ? (
+        <ManualModelDialog
+          capability={manualModelCapability}
+          providerName={selected.name}
+          busy={busy}
+          onCancel={() => setManualModelCapability(null)}
+          onSubmit={(modelId) => addManualModel(manualModelCapability, modelId)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function ConfirmActionDialog({
+  action,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  action: ConfirmAction;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <div className="admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
+      <section className={`admin-confirm-dialog ${action.tone}`}>
+        <header>
+          <div className="confirm-icon"><Trash2 aria-hidden="true" /></div>
+          <div>
+            <h3 id="confirm-action-title">{action.title}</h3>
+            <p>{action.message}</p>
+          </div>
+        </header>
+        <p className="confirm-detail">{action.detail}</p>
+        <footer>
+          <button type="button" className="ghost-action" onClick={onCancel} disabled={busy}>取消</button>
+          <button type="button" className="danger-action solid" onClick={onConfirm} disabled={busy}>
+            {busy ? <Loader2 className="spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
+            {action.confirmLabel}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function ManualModelDialog({
+  capability,
+  providerName,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  capability: Capability;
+  providerName: string;
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (modelId: string) => Promise<void>;
+}) {
+  const [modelId, setModelId] = useState("");
+  const trimmedModelId = modelId.trim();
+  return (
+    <div className="admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-model-title">
+      <form
+        className="manual-model-dialog"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (trimmedModelId) void onSubmit(trimmedModelId);
+        }}
+      >
+        <header>
+          <h3 id="manual-model-title">新增{capabilityLabel(capability)}模型</h3>
+          <p>{providerName} · 手动登记模型 ID 后，画布会从模型目录读取。</p>
+        </header>
+        <label>
+          模型 ID
+          <input
+            value={modelId}
+            onChange={(event) => setModelId(event.target.value)}
+            placeholder={capability === "image" ? "gpt-image-2" : capability === "video" ? "grok-video" : "gpt-5.5"}
+            autoFocus
+          />
+        </label>
+        <p className="field-note">默认会按当前能力分类创建，并生成可继续编辑的参数 Schema。</p>
+        <footer>
+          <button type="button" className="ghost-action" onClick={onCancel} disabled={busy}>取消</button>
+          <button type="submit" className="primary-action" disabled={busy || !trimmedModelId}>
+            {busy ? <Loader2 className="spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+            创建模型
+          </button>
+        </footer>
+      </form>
+    </div>
   );
 }
 

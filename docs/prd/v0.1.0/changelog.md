@@ -2,6 +2,13 @@
 
 ## 2026-06-07
 
+- 管理后台危险操作交互收口：
+  - 新增 `verify:admin-interaction-guards`，静态检查后台不再使用原生 `confirm()` / `prompt()`，危险删除必须走站内确认面板。
+  - Provider 删除从浏览器原生确认框改为后台磨玻璃确认面板，并明确“Provider 下模型会一并删除”的影响。
+  - 模型删除新增二次确认，避免模型目录中误点垃圾桶后直接删除。
+  - 手动新增模型从 `window.prompt()` 改为站内表单弹窗，保持后台交互一致性。
+  - 新增 `.admin-modal-backdrop`、`.admin-confirm-dialog`、`.manual-model-dialog` 和危险按钮样式。
+  - 本机 `verify:admin-interaction-guards`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 通过。
 - UI 设计文件接入为 Google/Gemini 前端 brief：
   - 读取用户提供的 `C:\Users\Administrator\Desktop\UI设计\stitch_ui_optimization_and_transitions`，确认包含 `_1` 过渡页、`_2` 登录页和 `stellar_canvas_internal/DESIGN.md`。
   - 更新 `entry-ui-google-brief.md`，把设计文件中的深空色板、磨玻璃登录卡片、鼠标跟随光场和短暂过渡动画提炼为可执行要求。

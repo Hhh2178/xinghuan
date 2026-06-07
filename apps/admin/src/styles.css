@@ -621,6 +621,7 @@ td {
 .provider-recommend,
 .primary-action,
 .ghost-action,
+.danger-action,
 .inline-actions button,
 .icon-soft {
   display: inline-flex;
@@ -635,11 +636,24 @@ td {
 
 .provider-add,
 .ghost-action,
+.danger-action,
 .inline-actions button,
 .icon-soft {
   border: 1px solid rgba(56, 189, 248, 0.24);
   color: #e5f7ff;
   background: rgba(15, 23, 42, 0.82);
+}
+
+.danger-action {
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.2);
+}
+
+.danger-action.solid {
+  border-color: transparent;
+  color: #fff7ed;
+  background: linear-gradient(135deg, #ef4444, #f97316);
 }
 
 .provider-recommend,
@@ -653,6 +667,7 @@ td {
 .provider-recommend svg,
 .primary-action svg,
 .ghost-action svg,
+.danger-action svg,
 .inline-actions svg,
 .icon-soft svg {
   width: 16px;
@@ -932,7 +947,8 @@ td {
   font-weight: 700;
 }
 
-.picker-backdrop {
+.picker-backdrop,
+.admin-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -940,16 +956,22 @@ td {
   place-items: center;
   padding: 24px;
   background: rgba(3, 7, 18, 0.46);
+  backdrop-filter: blur(12px);
 }
 
-.model-picker {
+.model-picker,
+.admin-confirm-dialog,
+.manual-model-dialog {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  width: min(860px, 100%);
-  max-height: min(760px, calc(100vh - 48px));
   border-radius: 8px;
   background: #0a0f17;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.model-picker {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(860px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
   overflow: hidden;
 }
 
@@ -1054,6 +1076,91 @@ td {
   color: #a7f3d0;
   font-size: 12px;
   font-weight: 800;
+}
+
+.admin-confirm-dialog,
+.manual-model-dialog {
+  width: min(480px, 100%);
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(45, 212, 191, 0.12), transparent 38%),
+    #0a0f17;
+}
+
+.admin-confirm-dialog.danger {
+  border-color: rgba(248, 113, 113, 0.26);
+}
+
+.admin-confirm-dialog header,
+.manual-model-dialog header,
+.admin-confirm-dialog footer,
+.manual-model-dialog footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-confirm-dialog header,
+.manual-model-dialog header {
+  align-items: flex-start;
+}
+
+.admin-confirm-dialog footer,
+.manual-model-dialog footer {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.admin-confirm-dialog h3,
+.admin-confirm-dialog p,
+.manual-model-dialog h3,
+.manual-model-dialog p {
+  margin: 0;
+}
+
+.admin-confirm-dialog h3,
+.manual-model-dialog h3 {
+  color: #f0fdfa;
+  font-size: 19px;
+}
+
+.admin-confirm-dialog header p,
+.manual-model-dialog header p,
+.confirm-detail {
+  margin-top: 5px;
+  color: #93c5fd;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.confirm-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+  border: 1px solid rgba(248, 113, 113, 0.34);
+}
+
+.confirm-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.manual-model-dialog label {
+  display: grid;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.manual-model-dialog input {
+  height: 44px;
 }
 
 .rh-panel,
