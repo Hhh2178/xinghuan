@@ -188,6 +188,76 @@
   animation-delay: var(--xh-star-delay);
 }
 
+.xh-login-orbit-layout {
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.9fr);
+}
+
+.xh-login-visual-pane {
+  position: relative;
+  display: grid;
+  min-height: min(680px, calc(100dvh - 96px));
+  place-items: center;
+  overflow: hidden;
+  perspective: 1000px;
+  mask-image: radial-gradient(ellipse at 48% 50%, black 0 54%, transparent 76%);
+}
+
+.xh-login-visual-pane::before,
+.xh-login-visual-pane::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+}
+
+.xh-login-visual-pane::before {
+  width: clamp(260px, 48vw, 720px);
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(240, 253, 250, 0.08), transparent 10%),
+    radial-gradient(circle at 40% 48%, rgba(54, 246, 180, 0.12), transparent 30%),
+    radial-gradient(circle at 62% 52%, rgba(66, 217, 255, 0.13), transparent 34%);
+  filter: blur(28px);
+  opacity: 0.78;
+  transform:
+    translate3d(
+      calc((var(--xh-login-x, 0.5) - 0.5) * 22px),
+      calc((var(--xh-login-y, 0.5) - 0.5) * 18px),
+      0
+    )
+    rotate(-7deg);
+}
+
+.xh-login-visual-pane::after {
+  inset: 13% 8%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.65) 0 0.8px, transparent 1.4px) 0 0 / 84px 84px,
+    radial-gradient(circle, rgba(125, 211, 252, 0.36) 0 0.7px, transparent 1.5px) 19px 31px / 118px 118px;
+  opacity: 0.34;
+  transform: translate3d(
+    calc((0.5 - var(--xh-login-x, 0.5)) * 16px),
+    calc((0.5 - var(--xh-login-y, 0.5)) * 14px),
+    0
+  );
+}
+
+.xh-login-form-pane {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+
+.xh-micro-galaxy {
+  transform:
+    translate3d(
+      calc((var(--xh-login-x, 0.5) - 0.5) * -20px),
+      calc((var(--xh-login-y, 0.5) - 0.5) * -14px),
+      0
+    );
+  animation: xhGalaxyBreathe 18s cubic-bezier(0.45, 0, 0.2, 1) infinite alternate;
+}
+
 .xh-login-card-stellar {
   position: relative;
   overflow: hidden;
@@ -474,9 +544,14 @@
   aspect-ratio: 1.18;
   border-radius: 999px;
   transform-style: preserve-3d;
-  perspective: 980px;
+  perspective: 1000px;
   filter: drop-shadow(0 34px 96px rgba(20, 184, 166, 0.2));
   animation: xhPanelRise 720ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
+.xh-nebula-scene.xh-micro-galaxy {
+  width: clamp(320px, 54vw, 760px);
+  animation: xhGalaxyBreathe 18s cubic-bezier(0.45, 0, 0.2, 1) infinite alternate;
 }
 
 .xh-nebula-scene::before,
@@ -962,9 +1037,51 @@
   }
 }
 
+@keyframes xhGalaxyBreathe {
+  0% {
+    opacity: 0.82;
+    filter: drop-shadow(0 26px 82px rgba(20, 184, 166, 0.14));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 40px 118px rgba(66, 217, 255, 0.2));
+  }
+}
+
+@media (max-width: 900px) {
+  .xh-login-orbit-layout {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 1.5rem;
+  }
+
+  .xh-login-visual-pane {
+    position: absolute;
+    inset: 0;
+    min-height: auto;
+    opacity: 0.42;
+    transform: scale(1.12);
+  }
+
+  .xh-login-form-pane {
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .xh-nebula-scene.xh-micro-galaxy {
+    width: min(92vw, 560px);
+  }
+
+  .xh-login-card-stellar {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .xh-entry-hero,
   .xh-nebula-scene,
+  .xh-micro-galaxy,
   .xh-nebula-layer,
   .xh-nebula-bg::before,
   .xh-nebula-bg::after,

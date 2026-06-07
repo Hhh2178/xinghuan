@@ -18,22 +18,25 @@ const source = Object.fromEntries(
 
 const checks = [
   {
-    name: 'login matches approved centered stellar card copy',
+    name: 'login matches approved split stellar card copy',
     pass:
       source.login.includes('星幻画布') &&
       source.login.includes('XingHuan Canvas') &&
       source.login.includes('进入创作星域') &&
-      source.login.includes('量子星图系统已就绪') &&
+      source.login.includes('量子星图') &&
       !source.login.includes('把画布打开成一张星图') &&
       !source.login.includes('每个用户拥有独立星域') &&
       !source.login.includes('登录后将点亮星图装载动画') &&
       !source.login.includes('私有工作区'),
   },
   {
-    name: 'login uses centered glassmorphism stage',
+    name: 'login uses split glassmorphism observatory layout',
     pass:
       source.login.includes('xh-entry-shell') &&
       source.login.includes('xh-login-stage') &&
+      source.login.includes('xh-login-orbit-layout') &&
+      source.login.includes('xh-login-visual-pane') &&
+      source.login.includes('xh-login-form-pane') &&
       source.login.includes('xh-login-card-stellar') &&
       source.login.includes('xh-input-stellar') &&
       source.login.includes('xh-btn-stellar'),
@@ -48,19 +51,34 @@ const checks = [
       source.styles.includes('.xh-cursor-aura'),
   },
   {
-    name: 'login renders css-only nebula without design placeholder buttons',
+    name: 'login renders css-only left micro galaxy without design placeholder text',
     pass:
       source.login.includes('xh-nebula-bg') &&
       source.login.includes('xh-nebula-layer') &&
       source.login.includes('xh-star-field') &&
+      source.login.includes('xh-micro-galaxy') &&
+      source.login.includes('xh-galaxy-ring') &&
+      source.login.includes('aria-label="星幻微缩星系星图"') &&
       source.styles.includes('.xh-nebula-bg') &&
+      source.styles.includes('.xh-micro-galaxy') &&
+      source.styles.includes('perspective: 1000px') &&
+      source.styles.includes('@keyframes xhGalaxyBreathe') &&
       !source.login.includes('SSO 接入') &&
       !source.login.includes('组织网络') &&
       !source.login.includes('或通过以下方式接入') &&
       !source.login.includes('XINGHUAN') &&
       !source.login.includes('STELLAR CANVAS') &&
-      !source.login.includes('星幻微缩星系星图') &&
       !source.login.includes('>星幻<'),
+  },
+  {
+    name: 'login card is right aligned on desktop and mobile safe',
+    pass:
+      source.styles.includes('.xh-login-orbit-layout') &&
+      source.styles.includes('grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.9fr)') &&
+      source.styles.includes('.xh-login-form-pane') &&
+      source.styles.includes('@media (max-width: 900px)') &&
+      source.styles.includes('grid-template-columns: 1fr') &&
+      source.styles.includes('.xh-login-visual-pane'),
   },
   {
     name: 'startup transition uses quantum stellar sync',

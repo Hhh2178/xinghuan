@@ -2,6 +2,14 @@
 
 ## 2026-06-08
 
+- 入口登录页分栏微缩星系 UI 收口：
+  - 按用户最终方向，把登录页从居中星云卡片调整为桌面端左侧轻量伪 3D 微缩星系星图、右侧磨玻璃登录卡片。
+  - 左侧星图区域不再渲染开发描述、标识、说明文字、调试信息或占位入口；仅保留 CSS 星云、轨道、粒子和深度光场。
+  - 登录卡片继续保留 `星幻画布`、`XingHuan Canvas`、`进入创作星域` 和登录行为，副标题收敛为 `量子星图`。
+  - 鼠标跟随卡片倾斜从 12deg 降低到 7deg，降低眩晕感；移动端回退为登录卡覆盖星云背景，避免横向溢出。
+  - 更新 `verify:xinghuan-entry-ui`，新增分栏布局、左侧微缩星系、桌面右对齐和移动端安全结构检查。
+  - 本机 `verify:xinghuan-entry-ui`、`type-check -w @xinghuan/web` 和 `build -w @xinghuan/web` 通过；临时预览桌面/移动端截图已核对，CodeGraph 已同步。
+  - 当前仅完成本机收口，尚未单独推灰度或生产。
 - Provider 响应解析模块抽离：
   - 新增 `apps/api/src/provider-response-parser.ts`，把聊天文本抽取、图片 URL/base64 输出抽取、视频 URL 抽取、base64 图片识别和 data URL 转换从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 继续负责三类外部代理的鉴权、请求转发、任务落库和响应组装，但不再内联 Provider 响应解析纯逻辑。
