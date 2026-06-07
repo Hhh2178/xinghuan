@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台 API Client 抽离：
+  - 新增 `apps/admin/src/admin-api-client.ts`，把后台 `api<T>(pathname, options?)` 请求 helper 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 和状态流转，但不再内联 fetch、same-origin credentials 和响应解包逻辑。
+  - 新增 `scripts/verify-admin-api-client-contract.ts` 与 `verify:admin-api-client-contract`，覆盖 same-origin credentials、成功返回 `payload.data`、HTTP 失败、`success:false`、`ok:false` 和空成功响应。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:admin-api-client-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - API 输入清洗与 MIME 推断工具抽离：
   - 新增 `apps/api/src/api-sanitizers.ts`，把 `safeText`、`safeEmail`、`safeSlug`、`safeJsonText`、`safeFilename`、`safeUserId` 和 `inferMime` 从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 继续负责路由、资源写入、Provider 和模型逻辑，但不再内联输入清洗与静态文件 MIME 推断纯函数。

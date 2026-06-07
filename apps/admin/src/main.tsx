@@ -23,6 +23,7 @@ import {
 import { canCancelTask, canRetryTask, type TaskStatus } from "@xinghuan/shared";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { api } from "./admin-api-client";
 import "./styles.css";
 
 type UserRole = "admin" | "member";
@@ -1612,16 +1613,6 @@ function FormPanel({ title, icon: Icon, children }: { title: string; icon: typeo
 
 function StatusPill({ tone, children }: { tone: "success" | "danger" | "muted" | "warning"; children: React.ReactNode }) {
   return <span className={`status-pill ${tone}`}>{children}</span>;
-}
-
-async function api<T = unknown>(pathname: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(pathname, { ...options, credentials: "same-origin" });
-  const text = await response.text();
-  const payload = text ? JSON.parse(text) : {};
-  if (!response.ok || payload?.success === false || payload?.ok === false) {
-    throw new Error(payload?.error || `${pathname} ${response.status}`);
-  }
-  return payload.data as T;
 }
 
 function titleFor(tab: TabId) {

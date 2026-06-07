@@ -9,6 +9,44 @@
 
 ## 2026-06-08
 
+### 管理后台 API Client 抽离
+
+目标:
+
+- 优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 同时承载 UI 组件与请求 helper 的耦合。
+- 保持后台登录、数据加载、Provider/模型/任务/审计/系统接口请求行为不变。
+- 为后台 API 响应解包和错误处理建立独立合同，避免后续后台交互改动时破坏 `success:false`、`ok:false` 或 HTTP 错误处理。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-api-client.ts`，集中管理后台 `api<T>(pathname, options?)` 请求 helper。
+- `apps/admin/src/main.tsx` 改为导入 `api`，不再内联 fetch/响应解包逻辑。
+- 新增 `scripts/verify-admin-api-client-contract.ts` 与根脚本 `verify:admin-api-client-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-api-client-contract` 首次按预期因 `admin-api-client.js` 模块缺失失败。
+- `npm run verify:admin-api-client-contract` 通过，覆盖 same-origin credentials、成功返回 `payload.data`、HTTP 失败、`success:false`、`ok:false` 和空成功响应。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认后台仍未重新引入原生 `confirm()` / `prompt()`，危险操作仍走站内弹窗。
+- `codegraph sync` 完成，`codegraph status` 显示索引最新。
+
+影响:
+
+- 管理后台主文件减少基础请求逻辑噪音，后续拆分 Provider、任务或用户面板时有更清晰的 API 边界。
+- 后台请求错误处理行为保持不变，继续兼容服务端 `success` 和 `ok` 两种失败标记。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台大文件拆分，优先考虑 Provider 设置面板或可复用表格/弹窗组件，或在需要上线时先推灰度并复跑后台验收。
+
 ### API 输入清洗与 MIME 推断工具抽离
 
 目标:

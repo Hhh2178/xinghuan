@@ -12,6 +12,8 @@
 
 `2026-06-08` 同日继续完成 API 输入清洗与 MIME 推断工具抽离：`safeText`、`safeEmail`、`safeSlug`、`safeJsonText`、`safeFilename`、`safeUserId` 和 `inferMime` 迁入 `api-sanitizers.ts`，新增 `verify:api-sanitizers-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过，并在临时数据目录和临时端口 `127.0.0.1:18353` 下复跑 `verify:single-port`，确认静态资源、上传文件、登录、成员隔离和 SPA fallback 未被破坏；`safeSlug("!!!")` 继续锁定当前返回 `"-"` 的既有行为，后续如需改善应作为行为变更单独验收。
 
+`2026-06-08` 同日继续完成管理后台 API Client 抽离：后台 `api<T>(pathname, options?)` 请求 helper 迁入 `admin-api-client.ts`，新增 `verify:admin-api-client-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认后台请求解包、HTTP/业务错误处理、same-origin credentials 和既有危险操作站内弹窗约束未被破坏。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

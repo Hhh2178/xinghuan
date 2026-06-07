@@ -16,6 +16,7 @@
     "verify:single-port": "node scripts/verify-single-port.mjs",
     "verify:xinghuan-entry-ui": "node scripts/verify-xinghuan-entry-ui.mjs",
     "verify:admin-interaction-guards": "node scripts/verify-admin-interaction-guards.mjs",
+    "verify:admin-api-client-contract": "npx tsx scripts/verify-admin-api-client-contract.ts",
     "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
     "verify:http-session-utils-contract": "npx tsx scripts/verify-http-session-utils-contract.ts",
     "verify:api-sanitizers-contract": "npx tsx scripts/verify-api-sanitizers-contract.ts",
