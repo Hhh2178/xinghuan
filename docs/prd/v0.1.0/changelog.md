@@ -2,6 +2,13 @@
 
 ## 2026-06-07
 
+- UI 设计文件接入为 Google/Gemini 前端 brief：
+  - 读取用户提供的 `C:\Users\Administrator\Desktop\UI设计\stitch_ui_optimization_and_transitions`，确认包含 `_1` 过渡页、`_2` 登录页和 `stellar_canvas_internal/DESIGN.md`。
+  - 更新 `entry-ui-google-brief.md`，把设计文件中的深空色板、磨玻璃登录卡片、鼠标跟随光场和短暂过渡动画提炼为可执行要求。
+  - 明确不直接照搬设计稿中的远程图片、中心 logo、白色输入框、SSO/组织网络占位、坐标/延迟调试文字、Alpha 页脚和白闪爆发。
+  - 补充桌面端左侧 `58%-64%` 伪 3D 微缩星系星图、右侧 `36%-42%` 登录卡片构图要求。
+  - 补充过渡动画要求：替换旧 T8/旧项目页面，不固定长等待，不出现调试信息，支持 `prefers-reduced-motion`。
+  - 新增决策 `D-008`，记录 UI 设计文件只作为视觉 brief 来源，不直接逐像素照搬。
 - 设计稿最终入口页与过渡动画收口：
   - 按用户提供的 `stitch_ui_optimization_and_transitions` 设计文件，将登录页从此前分栏方案改为居中磨玻璃星云卡片。
   - 登录页保留 `星幻画布`、`XingHuan Canvas`、`进入创作星域`、`量子星图系统已就绪`，并移除设计稿演示用的 `SSO 接入`、`组织网络` 和分隔说明。
