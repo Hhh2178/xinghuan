@@ -7,6 +7,47 @@
 - 任何选型、部署、回滚、数据结构、节点规范和后台规范变化都要记录。
 - 禁止记录真实 API Key、Token、Cookie、SSH Key 和数据库密码。
 
+## 2026-06-08
+
+### Provider 文件访问签名模块抽离
+
+目标:
+
+- 优化后端文件结构，降低 `apps/api/src/server.ts` 中供应商参考素材签名逻辑的复杂度。
+- 保持 `/api/provider-files/...` 短期 HMAC 供应商短链行为不变，避免图像、视频和 LLM 上游再次无法拉取本地参考素材。
+- 为签名、过期、篡改拒绝和危险路径处理建立独立合约验证。
+
+变更范围:
+
+- 新增 `apps/api/src/provider-file-access.ts`，集中管理本地素材引用归一化、供应商短链生成、请求解析、HMAC 签名与校验、危险用户 ID 归一化。
+- `apps/api/src/server.ts` 改为导入 provider file access helpers；`sendProviderFile()` 只负责根据解析结果发送用户目录里的 input/output 文件。
+- 新增 `scripts/verify-provider-file-access-contract.ts` 与根脚本 `verify:provider-file-access-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- `npm run verify:provider-file-access-contract` 通过，覆盖模块存在、服务端不再内联签名函数、危险用户 ID 归一化、签名 URL、解析、过期拒绝、篡改拒绝和路径穿越文件名收敛。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- `npm run type-check` 通过。
+- `npm run build:single-port` 通过。
+- 受控临时单端口服务 `http://127.0.0.1:18347` 下，`npm run verify:external-image-proxy`、`npm run verify:external-chat-proxy`、`npm run verify:external-video-proxy` 均通过。
+
+影响:
+
+- Provider 签名短链成为独立可测试模块，后续修改图片、视频或 LLM 代理时更容易避免误伤素材访问链路。
+- `server.ts` 的安全敏感纯逻辑减少，职责边界更清晰。
+
+风险:
+
+- 当前仅完成本机源码与受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续按项目优化计划推进前端入口 UI 生产切换或下一块后端/后台结构优化。
+- 如准备发布，应先在灰度重新跑 `verify:single-port` 与三类外部代理验证。
+
 ## 2026-06-07
 
 ### 设计稿最终入口页与过渡动画收口

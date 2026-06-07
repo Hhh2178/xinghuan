@@ -16,6 +16,7 @@
     "verify:single-port": "node scripts/verify-single-port.mjs",
     "verify:xinghuan-entry-ui": "node scripts/verify-xinghuan-entry-ui.mjs",
     "verify:admin-interaction-guards": "node scripts/verify-admin-interaction-guards.mjs",
+    "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
     "verify:model-catalog": "node scripts/verify-model-catalog.mjs",
     "verify:grsai-draw": "npx tsx scripts/verify-grsai-image-adapter.ts && node scripts/verify-worker-grsai-contract.mjs",
     "verify:grsai-draw-gray": "node scripts/verify-grsai-draw-gray.mjs",

@@ -1,5 +1,14 @@
 # v0.1.0 Changelog
 
+## 2026-06-08
+
+- Provider 文件访问签名模块抽离：
+  - 新增 `apps/api/src/provider-file-access.ts`，把供应商参考素材短链的本地路径解析、用户 ID 归一化、HMAC 签名、过期校验和签名校验从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 改为通过 `normalizeProviderReferenceUrl(s)` 和 `parseProviderFileAccessRequest` 调用模块能力，`server.ts` 只保留路由响应、密钥来源和文件发送职责。
+  - 新增 `scripts/verify-provider-file-access-contract.ts` 与 `verify:provider-file-access-contract`，覆盖模块存在性、服务端不再内联签名函数、危险用户 ID 归一化、签名 URL 生成、解析、过期拒绝、篡改拒绝和路径穿越文件名收敛。
+  - 本机 `verify:provider-file-access-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api`、全仓 `type-check` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18347` 启动受控单端口服务，`verify:external-image-proxy`、`verify:external-chat-proxy`、`verify:external-video-proxy` 均通过，确认图片、LLM 和视频代理仍会生成可匿名读取的供应商短链。
+
 ## 2026-06-07
 
 - 管理后台危险操作交互收口：

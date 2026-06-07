@@ -10,8 +10,13 @@ import { createServer } from "node:http";
 import { createReadStream, createWriteStream } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createGrsaiImageClient } from "./grsai-image-adapter.js";
+import {
+  normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
+  normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
+  parseProviderFileAccessRequest,
+} from "./provider-file-access.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -1218,26 +1223,13 @@ function userDataDirsForId(userId: string) {
 }
 
 async function sendProviderFile(response: import("node:http").ServerResponse, url: URL) {
-  const match = url.pathname.match(/^\/api\/provider-files\/([^/]+)\/(input|output)\/([^/]+)$/);
-  if (!match) {
-    sendJson(response, { ok: false, success: false, error: "INVALID_PROVIDER_FILE_URL" }, 404);
+  const request = parseProviderFileAccessRequest(url, { secret: secretKey() });
+  if (!request.ok) {
+    sendJson(response, { ok: false, success: false, error: request.error }, request.error === "INVALID_PROVIDER_FILE_URL" ? 404 : 403);
     return;
   }
-  const userId = decodeURIComponent(match[1]);
-  const bucket = match[2] as "input" | "output";
-  const filename = decodeURIComponent(match[3]);
-  const exp = Number(url.searchParams.get("exp") || 0);
-  const sig = safeText(url.searchParams.get("sig"));
-  if (!Number.isFinite(exp) || exp < Date.now()) {
-    sendJson(response, { ok: false, success: false, error: "PROVIDER_FILE_EXPIRED" }, 403);
-    return;
-  }
-  if (!verifyProviderFileSignature(userId, bucket, filename, exp, sig)) {
-    sendJson(response, { ok: false, success: false, error: "PROVIDER_FILE_SIGNATURE_INVALID" }, 403);
-    return;
-  }
-  const dirs = userDataDirsForId(userId);
-  await sendStaticFile(response, bucket === "input" ? dirs.inputDir : dirs.outputDir, filename);
+  const dirs = userDataDirsForId(request.userId);
+  await sendStaticFile(response, request.bucket === "input" ? dirs.inputDir : dirs.outputDir, request.filename);
 }
 
 async function ensureDataDirs(user?: CurrentUser) {
@@ -2620,54 +2612,11 @@ function publicRequestOrigin(request: import("node:http").IncomingMessage) {
 }
 
 function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUser) {
-  return values.map((value) => normalizeProviderReferenceUrl(value, publicOrigin, user)).filter(Boolean);
+  return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: secretKey() });
 }
 
 function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUser) {
-  const text = safeText(value);
-  if (!text) return "";
-  if (/^data:image\//i.test(text) || /^https?:\/\//i.test(text)) return text;
-  if (text.startsWith("/files/") || text.startsWith("/input/") || text.startsWith("/output/")) {
-    return user ? providerFileAccessUrl(text, user, publicOrigin) : new URL(text, publicOrigin).toString();
-  }
-  if (/^(files|input|output)\//i.test(text)) {
-    return user ? providerFileAccessUrl(`/${text}`, user, publicOrigin) : new URL(`/${text}`, publicOrigin).toString();
-  }
-  return text;
-}
-
-function providerFileAccessUrl(value: string, user: CurrentUser, publicOrigin: string) {
-  const parsed = parseLocalProviderFileReference(value);
-  if (!parsed) return new URL(value, publicOrigin).toString();
-  const exp = Date.now() + 20 * 60 * 1000;
-  const sig = signProviderFile(user.id, parsed.bucket, parsed.filename, exp);
-  const path = `/api/provider-files/${encodeURIComponent(user.id)}/${parsed.bucket}/${encodeURIComponent(parsed.filename)}`;
-  const url = new URL(path, publicOrigin);
-  url.searchParams.set("exp", String(exp));
-  url.searchParams.set("sig", sig);
-  return url.toString();
-}
-
-function parseLocalProviderFileReference(value: string): { bucket: "input" | "output"; filename: string } | null {
-  const text = safeText(value).replace(/^\/+/, "");
-  const match = text.match(/^(?:files\/)?(input|output)\/(.+)$/i);
-  if (!match) return null;
-  const filename = basename(decodeURIComponent(match[2]));
-  if (!filename || filename === "." || filename === "..") return null;
-  return { bucket: match[1].toLowerCase() as "input" | "output", filename };
-}
-
-function signProviderFile(userId: string, bucket: "input" | "output", filename: string, exp: number) {
-  return createHmac("sha256", secretKey())
-    .update(`${safeUserId(userId)}:${bucket}:${filename}:${exp}`)
-    .digest("hex");
-}
-
-function verifyProviderFileSignature(userId: string, bucket: "input" | "output", filename: string, exp: number, sig: string) {
-  const expected = signProviderFile(userId, bucket, filename, exp);
-  const actual = safeText(sig);
-  if (actual.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: secretKey() });
 }
 
 function openAiImageGenerationUrl(baseUrlValue: unknown) {
