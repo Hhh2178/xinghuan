@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- 任务生命周期纯逻辑模块抽离：
+  - 新增 `apps/api/src/task-lifecycle.ts`，把任务取消补丁、取消应用、重试任务构造、可取消/可重试状态守卫从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 的任务取消和重试路由继续负责鉴权、持久化、队列和审计，但不再内联构造重试任务。
+  - 新增 `scripts/verify-task-lifecycle-contract.ts` 与 `verify:task-lifecycle-contract`，覆盖取消 actor/timestamp、取消合并 result、不可取消状态拒绝、重试保留 payload/provider/model、重试来源元数据和不可重试状态拒绝。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:task-lifecycle-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api`、全仓 `type-check` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18348` 启动受控单端口服务，`verify:task-lifecycle` 通过，确认后台任务取消/重试接口行为未被重构破坏。
 - Provider 文件访问签名模块抽离：
   - 新增 `apps/api/src/provider-file-access.ts`，把供应商参考素材短链的本地路径解析、用户 ID 归一化、HMAC 签名、过期校验和签名校验从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 改为通过 `normalizeProviderReferenceUrl(s)` 和 `parseProviderFileAccessRequest` 调用模块能力，`server.ts` 只保留路由响应、密钥来源和文件发送职责。

@@ -1,4 +1,4 @@
-import { canCancelTask, canRetryTask, createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
+import { createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
   uiMetadataFromSchema,
@@ -17,6 +17,12 @@ import {
   normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
   parseProviderFileAccessRequest,
 } from "./provider-file-access.js";
+import {
+  applyTaskCancellation,
+  assertTaskCancellable,
+  createRetriedTask,
+  taskCancellationPatch,
+} from "./task-lifecycle.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -1062,24 +1068,12 @@ async function handleAdminRequest(
     const id = decodeURIComponent(retryMatch[1]);
     const originalTask = await readTaskRecord(id);
     if (!originalTask) throw new Error("任务不存在");
-    if (!canRetryTask(originalTask.status)) throw new Error(`任务当前状态为 ${originalTask.status}，不可重试`);
     const now = Date.now();
-    const retriedTask: AdminTaskRecord = {
+    const retriedTask = createRetriedTask(originalTask, {
       id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
-      title: originalTask.title,
-      status: "queued",
-      ownerId: originalTask.ownerId || adminUser.id,
-      providerId: originalTask.providerId,
-      modelId: originalTask.modelId,
-      payload: plainObject(originalTask.payload),
-      result: {
-        retryOfTaskId: originalTask.id,
-        retryCreatedAt: new Date(now).toISOString(),
-      },
-      logs: [`由任务 ${originalTask.id} 重试创建`],
-      createdAt: now,
-      updatedAt: now,
-    };
+      ownerId: adminUser.id,
+      now,
+    });
     await insertTaskRecord(retriedTask);
     await appendTaskLog(id, `管理员发起重试，创建新任务 ${retriedTask.id}`);
     const queueResult = await enqueueTask(retriedTask.id);
@@ -2041,10 +2035,7 @@ async function writeTaskRecord(task: AdminTaskRecord) {
 async function cancelTaskRecord(taskId: string, actorEmail: string) {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
-    const resultPatch = {
-      cancelledAt: new Date().toISOString(),
-      cancelledBy: actorEmail,
-    };
+    const patch = taskCancellationPatch(actorEmail);
     const cancelledResult = await pool.query(
       `update xh_tasks
        set status = 'cancelled',
@@ -2054,34 +2045,19 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
        where id = $1
          and status in ('queued', 'running')
        returning id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at`,
-      [taskId, JSON.stringify([`管理员取消任务 (${actorEmail})`]), JSON.stringify(resultPatch)],
+      [taskId, JSON.stringify(patch.logs), JSON.stringify(patch.result)],
     );
     if (cancelledResult.rows[0]) return toAdminTaskRecord(cancelledResult.rows[0]);
     const currentTask = await readTaskRecord(taskId);
     if (!currentTask) return null;
-    if (!canCancelTask(currentTask.status)) {
-      throw new Error(`任务当前状态为 ${currentTask.status}，不可取消`);
-    }
+    assertTaskCancellable(currentTask.status);
     return currentTask;
   }
   const db = await readAdminDb();
   let updatedTask: AdminTaskRecord | null = null;
   const tasks = db.tasks.map((task) => {
     if (task.id !== taskId) return task;
-    if (!canCancelTask(task.status)) {
-      throw new Error(`任务当前状态为 ${task.status}，不可取消`);
-    }
-    updatedTask = {
-      ...task,
-      status: "cancelled",
-      result: {
-        ...plainObject(task.result),
-        cancelledAt: new Date().toISOString(),
-        cancelledBy: actorEmail,
-      },
-      logs: [...task.logs, `管理员取消任务 (${actorEmail})`],
-      updatedAt: Date.now(),
-    };
+    updatedTask = applyTaskCancellation(task, actorEmail);
     return updatedTask;
   });
   if (!updatedTask) return null;

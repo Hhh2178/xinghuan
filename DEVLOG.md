@@ -9,6 +9,45 @@
 
 ## 2026-06-08
 
+### 任务生命周期纯逻辑模块抽离
+
+目标:
+
+- 继续优化后端文件结构，降低 `apps/api/src/server.ts` 中任务取消/重试逻辑的耦合度。
+- 保持后台任务取消、重试、日志和队列行为不变。
+- 为 Phase 3 任务状态机建立更明确的纯逻辑合约，方便后续扩展运行中取消、重试策略或 Worker 状态守卫。
+
+变更范围:
+
+- 新增 `apps/api/src/task-lifecycle.ts`，集中管理取消补丁、取消应用、重试任务构造、可取消/可重试状态守卫。
+- `apps/api/src/server.ts` 改为调用任务生命周期 helpers；路由仍负责鉴权、持久化、Redis 入队和审计日志。
+- 新增 `scripts/verify-task-lifecycle-contract.ts` 与根脚本 `verify:task-lifecycle-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npx tsx scripts/verify-task-lifecycle-contract.ts` 首次按预期因 `task-lifecycle.js` 模块缺失失败。
+- `npm run verify:task-lifecycle-contract` 通过，覆盖取消 actor/timestamp、取消 result 合并、不可取消状态拒绝、重试保留输入与模型信息、重试来源元数据和不可重试状态拒绝。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- 受控临时单端口服务 `http://127.0.0.1:18348` 下，`npm run verify:task-lifecycle` 通过。
+- `npm run type-check` 通过。
+- `npm run build:single-port` 通过。
+
+影响:
+
+- 任务取消/重试的核心状态变更规则不再散落在路由和 repository 逻辑中，后续修改任务生命周期时可以先跑独立合约。
+- 后台 API 行为保持不变，现有任务生命周期接口验收继续通过。
+
+风险:
+
+- 当前仅完成本机源码与受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进下一处高价值结构优化，或在需要发版时先推灰度并复跑 `verify:task-lifecycle` 与核心验收链。
+
 ### Provider 文件访问签名模块抽离
 
 目标:
