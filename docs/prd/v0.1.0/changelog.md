@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- Provider 响应解析模块抽离：
+  - 新增 `apps/api/src/provider-response-parser.ts`，把聊天文本抽取、图片 URL/base64 输出抽取、视频 URL 抽取、base64 图片识别和 data URL 转换从 `server.ts` 抽到独立模块。
+  - `apps/api/src/server.ts` 继续负责三类外部代理的鉴权、请求转发、任务落库和响应组装，但不再内联 Provider 响应解析纯逻辑。
+  - 新增 `scripts/verify-provider-response-parser-contract.ts` 与 `verify:provider-response-parser-contract`，覆盖 OpenAI message/text/array 文本抽取、图片 URL/base64 去重、视频 URL 递归抽取、非视频 URL 排除和 data URL 转换。
+  - 本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。
+  - 本机 `verify:provider-response-parser-contract`、`type-check -w @xinghuan/api`、`build -w @xinghuan/api`、全仓 `type-check` 和 `build:single-port` 通过。
+  - 使用临时数据目录和临时端口 `127.0.0.1:18350` 启动受控单端口服务，`verify:external-image-proxy`、`verify:external-chat-proxy`、`verify:external-video-proxy` 均通过，确认图片、LLM 和视频代理响应解析未被重构破坏。
 - Provider 模型目录解析模块抽离：
   - 新增 `apps/api/src/provider-model-catalog.ts`，把 Provider 协议归一化、模型列表 URL、鉴权 header、上游模型去重和图像/视频/聊天分类从 `server.ts` 抽到独立模块。
   - `apps/api/src/server.ts` 继续负责 Provider 探测、错误响应和代理请求，但模型目录规则统一由模块提供。

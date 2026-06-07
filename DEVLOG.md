@@ -9,6 +9,45 @@
 
 ## 2026-06-08
 
+### Provider 响应解析模块抽离
+
+目标:
+
+- 继续优化后端文件结构，降低 `apps/api/src/server.ts` 中外部 Provider 返回解析逻辑的复杂度。
+- 保持图片、视频和 LLM 三类外部代理对上游响应的兼容能力不变。
+- 为聊天文本、图片 URL/base64 和视频 URL 抽取建立独立合约，避免后续新增 Provider 时在路由主文件中堆叠纯解析逻辑。
+
+变更范围:
+
+- 新增 `apps/api/src/provider-response-parser.ts`，集中管理聊天内容抽取、图片输出抽取、视频 URL 抽取、base64 图片识别和 data URL 转换。
+- `apps/api/src/server.ts` 改为导入 provider response parser helpers；外部代理路由继续负责鉴权、请求转发、任务落库和响应组装。
+- 新增 `scripts/verify-provider-response-parser-contract.ts` 与根脚本 `verify:provider-response-parser-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npx tsx scripts/verify-provider-response-parser-contract.ts` 首次按预期因 `provider-response-parser.js` 模块缺失失败。
+- `npm run verify:provider-response-parser-contract` 通过，覆盖 OpenAI message/text/array 文本抽取、图片 URL/base64 去重、视频 URL 递归抽取、非视频 URL 排除和 data URL 转换。
+- `npm run type-check -w @xinghuan/api` 通过。
+- `npm run build -w @xinghuan/api` 通过。
+- 受控临时单端口服务 `http://127.0.0.1:18350` 下，`npm run verify:external-image-proxy`、`npm run verify:external-chat-proxy`、`npm run verify:external-video-proxy` 均通过。
+- `npm run type-check` 通过。
+- `npm run build:single-port` 通过。
+
+影响:
+
+- 外部 Provider 响应解析从巨型 `server.ts` 中剥离，图片、视频和 LLM 代理的纯解析规则可以独立验证与扩展。
+- 现有三类外部代理行为保持不变，供应商短链和输出解析链路已在临时服务中复验。
+
+风险:
+
+- 当前仅完成本机源码与受控临时服务验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进下一处高价值结构优化，或回到入口 UI 方向读取用户提供的设计目录并落地新视觉。
+
 ### Provider 模型目录解析模块抽离
 
 目标:
