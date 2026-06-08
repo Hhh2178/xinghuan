@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 管理后台确认动作弹窗抽离：
+  - 新增 `apps/admin/src/admin-confirm-action-dialog.tsx`，把 `ConfirmActionDialog` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `ConfirmAction` 类型供弹窗 type-only 复用。
+  - 新增 `scripts/verify-admin-confirm-action-dialog-contract.mjs` 与 `verify:admin-confirm-action-dialog-contract`，覆盖模块导出、主文件不再内联、modal 语义、tone class、标题/说明/详情/确认文案、cancel/confirm 行为、危险图标和 loading 状态。
+  - 本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成弹窗抽离并复验绿灯。
+  - 本机 `verify:admin-confirm-action-dialog-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台手动模型弹窗抽离：
   - 新增 `apps/admin/src/admin-manual-model-dialog.tsx`，把 `ManualModelDialog` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `Capability` 类型供弹窗 type-only 复用。

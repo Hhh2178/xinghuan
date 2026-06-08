@@ -19,6 +19,7 @@ import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./admin-api-client";
 import { AdminTable, DataTable, FormPanel, StatusPill } from "./admin-common-components";
+import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { Overview } from "./admin-overview-panel";
 import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
@@ -184,14 +185,14 @@ export interface AuditRecord {
   createdAt: number;
 }
 
-interface ConfirmAction {
+export type ConfirmAction = {
   title: string;
   message: string;
   detail: string;
   confirmLabel: string;
   tone: "danger" | "warning";
   onConfirm: () => Promise<void>;
-}
+};
 
 function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
@@ -723,40 +724,6 @@ function ApiSettingsPanel({ providers, models, refresh }: { providers: ProviderR
         />
       ) : null}
     </section>
-  );
-}
-
-function ConfirmActionDialog({
-  action,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  action: ConfirmAction;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => Promise<void>;
-}) {
-  return (
-    <div className="admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
-      <section className={`admin-confirm-dialog ${action.tone}`}>
-        <header>
-          <div className="confirm-icon"><Trash2 aria-hidden="true" /></div>
-          <div>
-            <h3 id="confirm-action-title">{action.title}</h3>
-            <p>{action.message}</p>
-          </div>
-        </header>
-        <p className="confirm-detail">{action.detail}</p>
-        <footer>
-          <button type="button" className="ghost-action" onClick={onCancel} disabled={busy}>取消</button>
-          <button type="button" className="danger-action solid" onClick={onConfirm} disabled={busy}>
-            {busy ? <Loader2 className="spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
-            {action.confirmLabel}
-          </button>
-        </footer>
-      </section>
-    </div>
   );
 }
 

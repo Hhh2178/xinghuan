@@ -9,6 +9,43 @@
 
 ## 2026-06-08
 
+### 管理后台确认动作弹窗抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中危险操作确认弹窗的 UI 体积。
+- 保持 Provider/模型删除的站内确认面板、标题、说明、详情、确认按钮、取消按钮、禁用状态和 loading 图标不变。
+- 保持后台不使用原生 `confirm()` / `prompt()` 的交互守卫。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-confirm-action-dialog.tsx`，集中管理 `ConfirmActionDialog`。
+- `apps/admin/src/main.tsx` 改为导入确认动作弹窗，并导出 `ConfirmAction` 类型供弹窗 type-only 复用。
+- 新增 `scripts/verify-admin-confirm-action-dialog-contract.mjs` 与根脚本 `verify:admin-confirm-action-dialog-contract`。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-confirm-action-dialog-contract` 首次按预期因 `admin-confirm-action-dialog.tsx` 模块缺失、`main.tsx` 仍内联 `ConfirmActionDialog` 和 `ConfirmAction` 未按新边界导出失败。
+- `npm run verify:admin-confirm-action-dialog-contract` 通过，覆盖模块导出、主文件不再内联、modal 语义、tone class、标题/说明/详情/确认文案、cancel/confirm 行为、危险图标和 loading 状态。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认危险 Provider/模型动作仍使用站内确认弹窗且未引入原生 prompt/confirm。
+
+影响:
+
+- 管理后台主文件进一步减少危险操作弹窗 UI 噪音。
+- 删除确认面板的行为被独立合约锁定，后续拆分 Provider 大面板时更不容易误伤交互守卫。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分；下一步可考虑拆 `ModelPicker` 或 `ModelEditorRow`，再逐步为 Provider 设置大面板建立更细边界。
+
 ### 管理后台手动模型弹窗抽离
 
 目标:
