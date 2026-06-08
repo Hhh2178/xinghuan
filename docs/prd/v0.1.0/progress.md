@@ -32,7 +32,9 @@
 
 `2026-06-08` 同日继续完成管理后台确认动作弹窗抽离：`ConfirmActionDialog` 迁入 `admin-confirm-action-dialog.tsx`，`main.tsx` 导出 `ConfirmAction` 类型供弹窗 type-only 复用，并新增 `verify:admin-confirm-action-dialog-contract`。本机先验证确认动作弹窗合约红灯为模块缺失、主文件仍内联和类型未导出，再完成抽离并复验绿灯；随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认 Provider/模型删除的站内确认弹窗、标题/说明/详情/确认文案、cancel/confirm 行为、危险图标、loading 状态和后台交互守卫未被破坏。当前尚未单独推灰度或生产。
 
-无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
+`2026-06-08` 同日按用户要求建立当前修复与清理进度文档：新增 `ops/current-fix-cleanup-progress-2026-06-08.md`，集中记录最近后台拆分提交、验证状态、未提交运行期数据和文档清理原则；同时重写 `ops/README.md`，把入口从早期灰度/生产准备材料改为当前运行态、当前灰度材料、当前生产材料和历史发布记录，并将 6 月 4 日旧域名/旧服务器状态、6 月 5 日早期灰度材料从当前入口降级为历史审计证据。本轮清理的是活跃索引中的废旧表述，未批量删除历史发布文件，未触碰运行期 JSON，也未单独推灰度或生产。
+
+无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`；本机生产形态已收敛为 `apps/api` 单端口服务，灰度与生产入口均已建立。后续重点是继续完成后台模块拆分、真实业务验收补齐和按需灰度/生产发布。
 
 ## 已完成
 

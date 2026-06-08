@@ -2,6 +2,12 @@
 
 ## 2026-06-08
 
+- 当前修复与文档清理进度归档：
+  - 新增 `ops/current-fix-cleanup-progress-2026-06-08.md`，集中记录最近后台拆分提交、验证状态、未提交运行期数据和文档清理原则。
+  - 重写 `ops/README.md`，把入口从早期灰度/生产准备材料改为当前运行态、当前灰度材料、当前生产材料和历史发布记录。
+  - 将 6 月 4 日旧域名/旧服务器状态和 6 月 5 日早期灰度记录从当前入口降级为历史审计证据。
+  - 更新 `docs/prd/README.md` 当前版本日期与摘要。
+  - 本轮不删除历史发布证据文件、不触碰运行期 JSON、不推灰度或生产。
 - 管理后台确认动作弹窗抽离：
   - 新增 `apps/admin/src/admin-confirm-action-dialog.tsx`，把 `ConfirmActionDialog` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `ConfirmAction` 类型供弹窗 type-only 复用。
