@@ -5,6 +5,7 @@ import {
   taskTone,
   statusText,
   titleFor,
+  capabilityLabel,
 } from "../apps/admin/src/admin-view-model.js";
 
 const root = process.cwd();
@@ -58,6 +59,13 @@ const checks = [
       taskTone("succeeded") === "success" &&
       taskTone("failed") === "danger" &&
       taskTone("cancelled") === "danger",
+  },
+  {
+    name: "capabilityLabel maps model capabilities",
+    pass:
+      capabilityLabel("image") === "生图" &&
+      capabilityLabel("video") === "视频" &&
+      capabilityLabel("chat") === "聊天",
   },
 ];
 

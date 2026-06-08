@@ -9,6 +9,46 @@
 
 ## 2026-06-08
 
+### 管理后台手动模型弹窗抽离
+
+目标:
+
+- 继续优化管理后台文件结构，降低 `apps/admin/src/main.tsx` 中模型管理弹窗 UI 的体积。
+- 保持手动新增模型弹窗的标题、说明、模型 ID 输入、默认 placeholder、禁用状态、loading 图标和提交行为不变。
+- 避免新弹窗模块反向运行时依赖 `main.tsx`，把能力文案 helper 下沉到 view model。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-manual-model-dialog.tsx`，集中管理 `ManualModelDialog`。
+- `apps/admin/src/main.tsx` 改为导入手动模型弹窗，并导出 `Capability` 类型供弹窗 type-only 复用。
+- `capabilityLabel` 从 `main.tsx` 迁入 `apps/admin/src/admin-view-model.ts`，供主文件和弹窗共同复用。
+- 新增 `scripts/verify-admin-manual-model-dialog-contract.mjs` 与根脚本 `verify:admin-manual-model-dialog-contract`。
+- 扩展 `scripts/verify-admin-view-model-contract.ts`，锁定 `capabilityLabel("image"|"video"|"chat")` 映射。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`。
+
+验证证据:
+
+- TDD 红灯：`npm run verify:admin-manual-model-dialog-contract` 首次按预期因 `admin-manual-model-dialog.tsx` 模块缺失、`main.tsx` 仍内联 `ManualModelDialog` 和 `Capability/capabilityLabel` 未按新边界导出失败。
+- `npm run verify:admin-manual-model-dialog-contract` 通过，覆盖模块导出、主文件不再内联、modal 语义、标题/说明、placeholder、submit/disabled、cancel/loading 图标和能力文案 helper 不在 `main.tsx` 内联。
+- `npm run verify:admin-view-model-contract` 通过，新增覆盖 `capabilityLabel` 三类能力文案。
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run build -w @xinghuan/admin` 通过。
+- `npm run verify:admin-interaction-guards` 通过，确认手动模型创建仍使用站内弹窗且未引入原生 prompt/confirm。
+
+影响:
+
+- 管理后台主文件进一步减少模型创建弹窗 UI 噪音。
+- 能力文案映射从主文件迁入 view model，后续模型列表、模型选择器和弹窗可复用同一来源。
+
+风险:
+
+- 当前仅完成本机源码、构建和合同验证，尚未单独发布到灰度或生产。
+- 本机仍存在几份运行时数据文件脏改动，本次不会提交这些数据文件。
+
+下一步:
+
+- 继续推进后台面板级拆分；下一步可考虑拆 `ModelPicker` 或 `ModelEditorRow`，再逐步为 Provider 设置大面板建立更细边界。
+
 ### 管理后台总览面板抽离
 
 目标:

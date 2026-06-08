@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- 管理后台手动模型弹窗抽离：
+  - 新增 `apps/admin/src/admin-manual-model-dialog.tsx`，把 `ManualModelDialog` 从 `main.tsx` 抽到独立模块。
+  - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `Capability` 类型供弹窗 type-only 复用。
+  - `capabilityLabel` 从 `main.tsx` 迁入 `apps/admin/src/admin-view-model.ts`，主文件与弹窗共用同一能力文案来源。
+  - 新增 `scripts/verify-admin-manual-model-dialog-contract.mjs` 与 `verify:admin-manual-model-dialog-contract`，覆盖模块导出、主文件不再内联、modal 语义、标题/说明、placeholder、submit/disabled、cancel/loading 图标和无运行时反向依赖。
+  - 扩展 `verify:admin-view-model-contract`，新增 `capabilityLabel` 三类能力文案映射检查。
+  - 本机 `verify:admin-manual-model-dialog-contract`、`verify:admin-view-model-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过。
 - 管理后台总览面板抽离：
   - 新增 `apps/admin/src/admin-overview-panel.tsx`，把 `Overview` 从 `main.tsx` 抽到独立模块。
   - `apps/admin/src/main.tsx` 继续负责后台 UI 状态流转和面板组合，并导出 `Summary`、`ProviderRecord`、`ModelRecord` 类型供总览面板复用。

@@ -28,6 +28,8 @@
 
 `2026-06-08` 同日继续完成管理后台总览面板抽离：`Overview` 迁入 `admin-overview-panel.tsx`，`main.tsx` 导出 `Summary`、`ProviderRecord` 和 `ModelRecord` 供面板复用，并新增 `verify:admin-overview-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认总览指标卡、Provider 状态、最近任务、模型目录、任务状态文案和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
 
+`2026-06-08` 同日继续完成管理后台手动模型弹窗抽离：`ManualModelDialog` 迁入 `admin-manual-model-dialog.tsx`，`main.tsx` 导出 `Capability` 类型供弹窗 type-only 复用，并把 `capabilityLabel` 从主文件迁入 `admin-view-model.ts` 统一管理；新增 `verify:admin-manual-model-dialog-contract` 并扩展 `verify:admin-view-model-contract`。本机先验证手动模型弹窗合约红灯为模块缺失、主文件仍内联和 helper 边界不满足，再完成抽离并复验绿灯；随后 `verify:admin-view-model-contract`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认手动新增模型弹窗的标题/说明、placeholder、submit/disabled、cancel/loading 图标、能力文案和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
+
 无限画布 2.0 已作为新项目初始化文档。旧 Node Banana 改造项目被明确放弃作为后续主干。当前已建立星幻正式工程基线，并将 T8 成熟画板 UI 迁入 `apps/web`。本机生产形态已收敛为 `apps/api` 单端口服务，后续可进入服务器灰度部署准备。
 
 ## 已完成

@@ -11,6 +11,7 @@ import type { TaskStatus } from "@xinghuan/shared";
 
 export type AdminTabId = "overview" | "users" | "providers" | "tasks" | "audit" | "system";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
+export type ModelCapability = "chat" | "image" | "video";
 
 export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideIcon }> = [
   { id: "overview", label: "总览", icon: LayoutDashboard },
@@ -34,4 +35,8 @@ export function taskTone(status: TaskStatus): StatusTone {
   if (status === "failed" || status === "cancelled") return "danger";
   if (status === "running") return "warning";
   return "muted";
+}
+
+export function capabilityLabel(capability: ModelCapability) {
+  return capability === "image" ? "生图" : capability === "video" ? "视频" : "聊天";
 }
