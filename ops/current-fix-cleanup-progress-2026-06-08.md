@@ -12,6 +12,7 @@
 
 | 提交 | 范围 | 状态 |
 | --- | --- | --- |
+| 待提交 | GRSAI 图像参考图本地参数修复 | 本机验证通过，未单独推灰度/生产 |
 | `cc78a44` | 管理后台确认动作弹窗抽离 | 已提交，本机验证通过，未单独推灰度/生产 |
 | `7dae809` | 管理后台手动模型弹窗抽离 | 已提交，本机验证通过，未单独推灰度/生产 |
 | `4552a3f` | 管理后台总览面板抽离 | 已提交，本机验证通过 |
@@ -21,7 +22,18 @@
 
 ## 当前验证状态
 
-本轮确认动作弹窗抽离的最新验证：
+本轮 GRSAI 图像参考图本地参数修复的最新验证：
+
+- `npm run verify:grsai-reference-images-contract`
+- `npx tsx scripts/verify-grsai-image-adapter.ts`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/worker`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/worker`
+- `npm run verify:provider-file-access-contract`
+- `npm run verify:worker-grsai-contract`
+
+上一轮确认动作弹窗抽离的验证：
 
 - `npm run verify:admin-confirm-action-dialog-contract`
 - `npm run type-check -w @xinghuan/admin`

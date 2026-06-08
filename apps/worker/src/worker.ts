@@ -3,6 +3,7 @@ import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
 import { Pool } from "pg";
 import { createClient } from "redis";
+import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import { materializeTaskOutputs } from "./output-materials.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
@@ -282,7 +283,12 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
     apiKey,
     baseUrl: task.providerBaseUrl,
   });
-  const imageUrls = Array.isArray(task.payload.images) ? task.payload.images.map((item) => safeText(item)).filter(Boolean).slice(0, 16) : [];
+  const imageUrls = await prepareGrsaiReferenceImages({
+    dataDir,
+    ownerId: task.ownerId,
+    values: Array.isArray(task.payload.images) ? task.payload.images.map((item) => safeText(item)).filter(Boolean) : [],
+    limit: 16,
+  });
   const result = await client.generate({
     modelId: task.providerModelId,
     prompt,

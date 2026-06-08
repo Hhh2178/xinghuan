@@ -34,6 +34,7 @@
     "verify:model-catalog": "node scripts/verify-model-catalog.mjs",
     "verify:grsai-draw": "npx tsx scripts/verify-grsai-image-adapter.ts && node scripts/verify-worker-grsai-contract.mjs",
     "verify:grsai-draw-gray": "node scripts/verify-grsai-draw-gray.mjs",
+    "verify:grsai-reference-images-contract": "npx tsx scripts/verify-grsai-reference-images-contract.ts",
     "verify:external-image-proxy": "node scripts/verify-external-image-proxy.mjs",
     "verify:external-chat-proxy": "node scripts/verify-external-chat-proxy.mjs",
     "verify:external-video-proxy": "node scripts/verify-external-video-proxy.mjs",

@@ -21,6 +21,7 @@ import {
   safeUserId,
 } from "./api-sanitizers.js";
 import { createGrsaiImageClient } from "./grsai-image-adapter.js";
+import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import {
   SESSION_COOKIE_NAME,
   SESSION_TTL_MS,
@@ -2418,8 +2419,16 @@ async function generateExternalImageProxy(rawBody: unknown, user: CurrentUser, p
   if (aspectRatio) payload.aspect_ratio = aspectRatio;
   if (images.length > 0) payload.image = images;
 
+  const grsaiImages = protocol === "grsai_draw"
+    ? await prepareGrsaiReferenceImages({
+        dataDir,
+        ownerId: user.id,
+        values: Array.isArray(body.images) ? body.images.map((item) => safeText(item)).filter(Boolean) : [],
+        limit: ui.maxReferenceImages || 4,
+      })
+    : [];
   const extracted = protocol === "grsai_draw"
-    ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, images)
+    ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, grsaiImages)
     : await generateOpenAiLikeImage(provider.baseUrl, apiKey, protocol, payload);
   if (extracted.urls.length === 0 && extracted.base64.length === 0) throw new Error("上游未返回可用图像");
 

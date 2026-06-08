@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+- GRSAI 图像参考图本地参数修复：
+  - 新增 `apps/api/src/grsai-reference-images.ts` 与 `apps/worker/src/grsai-reference-images.ts`，仅针对 `grsai_draw` 将本地 `/files/input/...`、`/files/output/...` 参考图内联为 `data:image/...;base64,...` 后提交给 GRSAI `urls` 参数。
+  - `apps/api/src/server.ts` 和 `apps/worker/src/worker.ts` 改为 GRSAI 本地参考图走 data URL，远程 URL 和已有 data URL 保持原样，OpenAI-like 图像代理继续使用既有 provider-file 签名短链。
+  - 新增 `scripts/verify-grsai-reference-images-contract.ts` 与 `verify:grsai-reference-images-contract`，覆盖本地参考图内联、远程 URL 保留和数量上限。
+  - 更新 `scripts/verify-worker-grsai-image-adapter.mjs`，未来 Worker 联调会验证本地上传参考图提交给 GRSAI 前已被内联。
+  - 本机先验证合约红灯为 helper 模块缺失，再完成修复并复验 `verify:grsai-reference-images-contract`、`verify-grsai-image-adapter.ts`、API/Worker type-check、API/Worker build、`verify:provider-file-access-contract` 和 `verify:worker-grsai-contract` 通过。
+  - 本轮阻断了 GRSAI 因无法识别本地参考图而忽略原图或返回“unsupported file type”占位图的根因路径；尚未单独推灰度或生产。
 - 当前修复与文档清理进度归档：
   - 新增 `ops/current-fix-cleanup-progress-2026-06-08.md`，集中记录最近后台拆分提交、验证状态、未提交运行期数据和文档清理原则。
   - 重写 `ops/README.md`，把入口从早期灰度/生产准备材料改为当前运行态、当前灰度材料、当前生产材料和历史发布记录。

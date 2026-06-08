@@ -3,6 +3,8 @@ import { createServer } from "node:http";
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
+const png1x1 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l0e6kgAAAABJRU5ErkJggg==";
 
 let cookie = "";
 let submitRequest = null;
@@ -55,6 +57,12 @@ async function main() {
     const modelRecord = imported.data?.models?.find((model) => model.modelId === modelId);
     assert(Boolean(modelRecord?.id), "model was not imported");
 
+    const uploadForm = new FormData();
+    uploadForm.set("file", new Blob([Buffer.from(png1x1, "base64")], { type: "image/png" }), "worker-grsai-reference.png");
+    const uploadedReference = await fetchJson("/api/files/upload", { method: "POST", body: uploadForm });
+    const referenceUrl = uploadedReference.data?.url || "";
+    assert(referenceUrl.startsWith("/files/input/"), "reference image was not uploaded");
+
     const prompt = "worker grsai image adapter prompt";
     const created = await fetchJson("/api/admin/tasks", {
       method: "POST",
@@ -70,7 +78,7 @@ async function main() {
           size: "1024x1024",
           aspectRatio: "3:4",
           n: 1,
-          images: ["https://example.test/reference.png"],
+          images: [referenceUrl],
         },
       }),
     });
@@ -95,7 +103,7 @@ async function main() {
     assert(submitRequest?.body?.prompt === prompt, "submit prompt mismatch");
     assert(submitRequest?.body?.aspectRatio === "3:4", "submit aspect ratio mismatch");
     assert(submitRequest?.body?.size === "1024x1024", "submit size mismatch");
-    assert(Array.isArray(submitRequest?.body?.urls) && submitRequest.body.urls[0] === "https://example.test/reference.png", "submit urls mismatch");
+    assert(Array.isArray(submitRequest?.body?.urls) && /^data:image\/png;base64,/.test(submitRequest.body.urls[0] || ""), "submit local reference was not inlined");
     assert(submitRequest?.authorization === "Bearer verify-worker-grsai-key", "submit auth mismatch");
     assert(pollRequest?.body?.taskId === "task-worker-grsai-1", "poll task id mismatch");
 

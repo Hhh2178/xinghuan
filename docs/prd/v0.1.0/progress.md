@@ -6,6 +6,8 @@
 
 `2026-06-08` 同日继续完成 Provider 响应解析模块抽离：聊天文本、图片 URL/base64、视频 URL 和 data URL 转换迁入 `provider-response-parser.ts`，新增 `verify:provider-response-parser-contract`，并在临时单端口服务 `127.0.0.1:18350` 下复验图片、LLM 和视频外部代理。
 
+`2026-06-08` 同日继续修复 GRSAI 图像参考图本地参数问题：此前图像节点把本地上传图作为普通文件短链传给 GRSAI，外部上游可能无法识别或回拉该参考图，导致图生图不参考用户上传图片，并把“unsupported file type”占位提示图当作真实图片保存和下载。现在 API 直连代理和 Worker 的 `grsai_draw` 分支都会把本地 `/files/input/...`、`/files/output/...` 参考图读取并内联为 `data:image/...;base64,...` 后放入 GRSAI `urls` 参数；远程 URL 和已有 data URL 保持原样，OpenAI-like 图像代理继续使用既有 provider-file 签名短链。本机已完成 TDD 红绿验证，并通过 `verify:grsai-reference-images-contract`、`verify-grsai-image-adapter.ts`、API/Worker type-check、API/Worker build、`verify:provider-file-access-contract` 和 `verify:worker-grsai-contract`；当前尚未单独推灰度或生产，旧的已落库占位图也不会被自动清洗。
+
 `2026-06-08` 同日继续完成入口登录页分栏微缩星系 UI 本机收口：登录页桌面端改为左侧轻量伪 3D 微缩星系星图、右侧磨玻璃登录卡片，左侧不再渲染开发描述、标识、说明文字、调试信息或占位入口；移动端回退为登录卡覆盖星云背景，避免横向溢出。本机 `verify:xinghuan-entry-ui`、`type-check -w @xinghuan/web` 和 `build -w @xinghuan/web` 已通过，桌面/移动端临时预览截图已核对，CodeGraph 已同步；当前尚未单独推灰度或生产。
 
 `2026-06-08` 同日继续完成 HTTP 请求与 Session Cookie 工具抽离：`readJsonBody`、Cookie 解析、登录/过期 cookie 构造、Session Cookie 名称和 7 天 TTL 迁入 `http-session-utils.ts`，新增 `verify:http-session-utils-contract`；本机先验证合约脚本红灯为模块缺失，再完成模块抽离并复验绿灯。随后 `type-check -w @xinghuan/api`、`build -w @xinghuan/api` 和 `build:single-port` 通过，并在临时数据目录和临时端口 `127.0.0.1:18352` 下复跑 `verify:single-port`，确认登录、当前用户、管理员接口、成员隔离、文件上传和 SPA fallback 未被破坏。
