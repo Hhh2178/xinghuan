@@ -103,6 +103,8 @@ export interface GenerateExternalVideoRequest {
   resolution?: string;
   seed?: number;
   images?: string[];
+  first_frame?: string;
+  last_frame?: string;
   videos?: string[];
   audios?: string[];
   providerParams?: Record<string, any>;

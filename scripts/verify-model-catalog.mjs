@@ -54,6 +54,19 @@ async function main() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         inputProfile: "prompt,image_reference,multi_image",
+        inputCapabilities: {
+          prompt: true,
+          imageReference: true,
+          multiImage: true,
+          firstFrame: false,
+          lastFrame: false,
+        },
+        advancedConfig: {
+          requestMapping: {
+            resolution: "size",
+            referenceImages: "image_urls",
+          },
+        },
         parameterSchema: JSON.stringify(customSchema),
       }),
     });
@@ -76,6 +89,8 @@ async function main() {
     results.push(["GET /api/models image dynamic params", imageModels.every((model) => Array.isArray(model.ui?.sizes) && model.ui.sizes.length > 0 && Array.isArray(model.ui?.aspectRatios) && model.ui.aspectRatios.length > 0)]);
     results.push(["GET /api/models exposes edited input profile", verifyImageModel?.inputProfile === "prompt,image_reference,multi_image"]);
     results.push(["GET /api/models exposes edited dynamic schema", verifyImageModel?.ui?.defaultAspectRatio === "3:4" && verifyImageModel?.ui?.defaultSize === "800x1200" && verifyImageModel?.ui?.maxReferenceImages === 5]);
+    results.push(["GET /api/models exposes input capabilities", verifyImageModel?.inputCapabilities?.multiImage === true && verifyImageModel?.ui?.inputCapabilities?.multiImage === true]);
+    results.push(["GET /api/models exposes advanced config", verifyImageModel?.advancedConfig?.requestMapping?.resolution === "size"]);
     results.push(["GET /api/models no secrets", !JSON.stringify(data).match(/apiKey|api_key|enc:v1|scrypt\\$/i)]);
   } finally {
     if (cookie) {

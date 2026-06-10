@@ -1,0 +1,547 @@
+import {
+  mergeModelParameterSchema,
+  parseAdvancedConfig,
+  parseInputCapabilities,
+  uiMetadataFromSchema,
+  type ProviderProtocol as CatalogProtocol,
+} from "@xinghuan/model-core";
+import { createGrsaiImageClient } from "./grsai-image-adapter.js";
+import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
+import {
+  normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
+  normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
+} from "./provider-file-access.js";
+import {
+  extractChatContent,
+  extractImageOutputs,
+  extractVideoUrls,
+  toImageDataUrl,
+} from "./provider-response-parser.js";
+import {
+  createApimartVideoAdapterPayload,
+  extractApimartTask,
+  extractApimartVideoResult,
+  shouldUseApimartVideoAdapter,
+} from "./apimart-video-adapter.js";
+
+interface CurrentUserLike {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "member";
+}
+
+interface ProviderLike {
+  id: string;
+  name: string;
+  baseUrl: string;
+  protocol?: unknown;
+  enabled: boolean;
+  apiKey?: string;
+}
+
+interface ModelLike {
+  id: string;
+  providerId: string;
+  modelId: string;
+  displayName: string;
+  capability: "chat" | "image" | "video";
+  enabled: boolean;
+  inputCapabilities?: Record<string, unknown>;
+  parameterSchema: string;
+  advancedConfig?: Record<string, unknown>;
+  protocolOverride?: string;
+}
+
+interface GenerateExternalProxyDependencies {
+  dataDir: string;
+  normalizeProviderProtocol: (value: unknown) => string;
+  normalizeCapability: (value: unknown) => string;
+  providerModelHeaders: (apiKey: string, protocol: string) => Record<string, string>;
+  providerPlainApiKey: (provider: { apiKey?: string; protocol?: unknown; baseUrl?: unknown }) => string;
+  readAdminDb: () => Promise<{ providers: ProviderLike[]; models: ModelLike[] }>;
+  saveRemoteImageToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
+  saveRemoteVideoToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
+  saveBase64File: (body: { dataUrl?: string; prefix?: string }, user: CurrentUserLike) => Promise<{ url: string }>;
+  secretKey: () => Buffer;
+  safeSlug: (value: unknown, fallback?: string) => string;
+  safeText: (value: unknown, fallback?: string) => string;
+  plainObject: (value: unknown) => Record<string, unknown>;
+  stringMap: (value: unknown) => Record<string, string>;
+  looksLikeHtml: (value: string) => boolean;
+  clampInteger: (value: unknown, min: number, max: number, fallback: number) => number;
+}
+
+export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
+  const findEnabledImageModel = async (providerId: string, requestedModelId: string, modelRecordId: string) =>
+    findEnabledModel("image", providerId, requestedModelId, modelRecordId);
+
+  async function findEnabledModel(capability: "chat" | "image" | "video", providerId: string, requestedModelId: string, modelRecordId: string) {
+    const db = await deps.readAdminDb();
+    const provider = db.providers.find((item) => item.id === providerId);
+    if (!provider || !provider.enabled) throw new Error("Provider 不存在或未启用");
+    const model = db.models.find((item) => {
+      if (!item.enabled || item.providerId !== provider.id || deps.normalizeCapability(item.capability) !== capability) return false;
+      if (modelRecordId && item.id === modelRecordId) return true;
+      return Boolean(requestedModelId) && item.modelId === requestedModelId;
+    });
+    if (!model) throw new Error(`模型不存在、未启用或不是 ${capability} 模型`);
+    return { provider, model };
+  }
+
+  function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
+    const baseUrl = deps.safeText(baseUrlValue).replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
+    return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+  }
+
+  function openAiImageGenerationUrl(baseUrlValue: unknown) {
+    return openAiEndpoint(baseUrlValue, "images/generations");
+  }
+
+  function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUserLike) {
+    return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: deps.secretKey() });
+  }
+
+  function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUserLike) {
+    return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: deps.secretKey() });
+  }
+
+  function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
+    const part = deps.plainObject(value);
+    const imageUrl = part.image_url;
+    if (publicOrigin && user && imageUrl && typeof imageUrl === "object" && !Array.isArray(imageUrl)) {
+      const image = deps.plainObject(imageUrl);
+      if (typeof image.url === "string") {
+        return { ...part, image_url: { ...image, url: normalizeProviderReferenceUrl(image.url, publicOrigin, user) } };
+      }
+    }
+    return part;
+  }
+
+  function normalizeChatMessages(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(-100).map((item) => {
+      const row = deps.plainObject(item);
+      const role = ["system", "user", "assistant", "tool"].includes(String(row.role)) ? String(row.role) : "user";
+      const content = Array.isArray(row.content)
+        ? row.content.slice(0, 64).map((part) => normalizeChatContentPart(part, publicOrigin, user)).filter((part) => Object.keys(part).length > 0)
+        : String(row.content || "").slice(0, 100000);
+      return { role, content };
+    }).filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
+  }
+
+  async function pollApimartVideoTask(input: {
+    provider: ProviderLike;
+    apiKey: string;
+    taskId: string;
+    protocol: string;
+    advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+  }) {
+    const pollIntervalMs = deps.clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
+    const pollTimeoutMs = deps.clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+    const startedAt = Date.now();
+    let deadline = startedAt + pollTimeoutMs;
+    const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
+    while (Date.now() < deadline) {
+      const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+      const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
+        method: "GET",
+        headers: deps.providerModelHeaders(input.apiKey, input.protocol),
+        signal: AbortSignal.timeout(60000),
+      });
+      const text = await upstream.text();
+      if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+      if (!upstream.ok) throw new Error(`查询视频任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
+      const raw = text ? JSON.parse(text) : {};
+      const data = raw && typeof raw === "object" && !Array.isArray(raw)
+        ? deps.plainObject((raw as Record<string, unknown>).data)
+        : {};
+      const estimatedTimeSec = Number(data.estimated_time);
+      if (Number.isFinite(estimatedTimeSec) && estimatedTimeSec > 0) {
+        const adaptiveDeadline = startedAt + Math.min((estimatedTimeSec + 90) * 1000, 600000);
+        deadline = Math.max(deadline, adaptiveDeadline);
+      }
+      const result = extractApimartVideoResult(raw, {
+        statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
+        resultVideoPath: deps.safeText(input.advancedConfig.resultVideoPath, "data.result.videos"),
+      });
+      const normalizedStatus = String(result.status || "").trim().toLowerCase();
+      if (result.videoUrls.length > 0 && (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))) {
+        return result;
+      }
+      if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+        throw new Error(`视频任务失败: ${result.status || "failed"}`);
+      }
+      await sleep(pollIntervalMs);
+    }
+    throw new Error("视频任务轮询超时");
+  }
+
+  async function pollAsyncImageTask(input: {
+    provider: ProviderLike;
+    apiKey: string;
+    taskId: string;
+    protocol: string;
+    advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+  }) {
+    const pollIntervalMs = deps.clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
+    const pollTimeoutMs = deps.clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+    const startedAt = Date.now();
+    let deadline = startedAt + pollTimeoutMs;
+    const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
+    while (Date.now() < deadline) {
+      const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+      const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
+        method: "GET",
+        headers: deps.providerModelHeaders(input.apiKey, input.protocol),
+        signal: AbortSignal.timeout(60000),
+      });
+      const text = await upstream.text();
+      if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+      if (!upstream.ok) throw new Error(`查询图像任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
+      const raw = text ? JSON.parse(text) : {};
+      const data = raw && typeof raw === "object" && !Array.isArray(raw)
+        ? deps.plainObject((raw as Record<string, unknown>).data)
+        : {};
+      const estimatedTimeSec = Number(data.estimated_time);
+      if (Number.isFinite(estimatedTimeSec) && estimatedTimeSec > 0) {
+        const adaptiveDeadline = startedAt + Math.min((estimatedTimeSec + 90) * 1000, 600000);
+        deadline = Math.max(deadline, adaptiveDeadline);
+      }
+      const extracted = extractImageOutputs(raw);
+      const task = extractApimartTask(raw, {
+        statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
+      });
+      const normalizedStatus = String(task.status || "").trim().toLowerCase();
+      if (
+        (extracted.urls.length > 0 || extracted.base64.length > 0) &&
+        (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))
+      ) {
+        return extracted;
+      }
+      if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+        throw new Error(`图像任务失败: ${task.status || "failed"}`);
+      }
+      await sleep(pollIntervalMs);
+    }
+    throw new Error("图像任务轮询超时");
+  }
+
+  async function generateOpenAiLikeImage(input: {
+    provider: ProviderLike;
+    apiKey: string;
+    protocol: string;
+    payload: Record<string, unknown>;
+    advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+  }) {
+    const upstream = await fetch(openAiImageGenerationUrl(input.provider.baseUrl), {
+      method: "POST",
+      headers: {
+        ...deps.providerModelHeaders(input.apiKey, input.protocol),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input.payload),
+      signal: AbortSignal.timeout(120000),
+    });
+    const text = await upstream.text();
+    if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`上游图像生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const extracted = extractImageOutputs(raw);
+    if (extracted.urls.length > 0 || extracted.base64.length > 0) return extracted;
+    const task = extractApimartTask(raw, {
+      taskIdPath: deps.safeText(input.advancedConfig.taskIdPath, "data.0.task_id"),
+      statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.0.status"),
+    });
+    if (!task.taskId) return extracted;
+    return pollAsyncImageTask({
+      provider: input.provider,
+      apiKey: input.apiKey,
+      taskId: task.taskId,
+      protocol: input.protocol,
+      advancedConfig: input.advancedConfig,
+    });
+  }
+
+  async function generateGrsaiImage(
+    baseUrl: string,
+    apiKey: string,
+    modelId: string,
+    prompt: string,
+    aspectRatio: string,
+    size: string,
+    images: string[],
+  ) {
+    const client = createGrsaiImageClient({
+      apiKey,
+      baseUrl: deps.safeText(baseUrl),
+      pollIntervalMs: 1500,
+      timeoutMs: 120000,
+    });
+    const result = await client.generate({
+      modelId,
+      prompt,
+      ...(aspectRatio ? { aspectRatio } : {}),
+      ...(size && size !== "auto" ? { size } : {}),
+      ...(images.length > 0 ? { images } : {}),
+    });
+    return {
+      urls: result.imageUrls,
+      base64: [],
+      raw: result.raw,
+    };
+  }
+
+  async function generateExternalImageProxy(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
+    const body = deps.plainObject(rawBody);
+    const prompt = deps.safeText(body.prompt, "").slice(0, 8000);
+    if (!prompt) throw new Error("缺少 prompt");
+
+    const providerId = deps.safeSlug(body.providerId, "");
+    const requestedModelId = deps.safeText(body.providerModel || body.model);
+    const params = deps.plainObject(body.providerParams);
+    const modelRecordId = deps.safeText(params.modelRecordId);
+    const { provider, model } = await findEnabledImageModel(providerId, requestedModelId, modelRecordId);
+    const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    if (!["openai", "apimart", "custom", "grsai_draw"].includes(protocol)) {
+      throw new Error(`当前 Provider 协议暂未接入图像生成 Adapter: ${protocol}`);
+    }
+
+    const apiKey = deps.providerPlainApiKey(provider);
+    if (!apiKey) throw new Error("Provider 未配置 API Key");
+
+    const parameterSchema = mergeModelParameterSchema("image", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
+    const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const ui = uiMetadataFromSchema(parameterSchema, "image");
+    const requestedSize = deps.safeText(body.size || params.size || params.image_size);
+    const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
+    const count = Math.max(1, Math.min(4, Number(body.n) || 1));
+    const images = normalizeProviderReferenceUrls(
+      Array.isArray(body.images) ? body.images.map((item) => deps.safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4) : [],
+      publicOrigin,
+      user,
+    );
+    const payload: Record<string, unknown> = { model: model.modelId, prompt, n: count, size };
+    const aspectRatio = deps.safeText(params.aspectRatio || body.aspect_ratio);
+    if (aspectRatio) payload.aspect_ratio = aspectRatio;
+    if (images.length > 0) payload.image = images;
+
+    const grsaiImages = protocol === "grsai_draw"
+      ? await prepareGrsaiReferenceImages({
+          dataDir: deps.dataDir,
+          ownerId: user.id,
+          values: Array.isArray(body.images) ? body.images.map((item) => deps.safeText(item)).filter(Boolean) : [],
+          limit: ui.maxReferenceImages || 4,
+        })
+      : [];
+    const extracted = protocol === "grsai_draw"
+      ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, grsaiImages)
+      : await generateOpenAiLikeImage({ provider, apiKey, protocol, payload, advancedConfig });
+    if (extracted.urls.length === 0 && extracted.base64.length === 0) throw new Error("上游未返回可用图像");
+
+    const localUrls: string[] = [];
+    const remoteImageUrls: string[] = [];
+    for (const item of extracted.base64) {
+      const saved = await deps.saveBase64File({ dataUrl: toImageDataUrl(item), prefix: "external_image" }, user);
+      localUrls.push(saved.url);
+    }
+    for (const sourceUrl of extracted.urls) {
+      const saved = await deps.saveRemoteImageToOutput(sourceUrl, user);
+      localUrls.push(saved.url);
+      remoteImageUrls.push(sourceUrl);
+    }
+
+    return {
+      imageUrls: localUrls,
+      remoteImageUrls,
+      raw: { providerId: provider.id, modelId: model.modelId, count: localUrls.length },
+      provider: { id: provider.id, name: provider.name, protocol },
+    };
+  }
+
+  async function generateExternalChatProxy(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
+    const body = deps.plainObject(rawBody);
+    const params = deps.plainObject(body.providerParams);
+    const { provider, model } = await findEnabledModel(
+      "chat",
+      deps.safeSlug(body.providerId, ""),
+      deps.safeText(body.providerModel || body.model),
+      deps.safeText(params.modelRecordId),
+    );
+    const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    if (!["openai", "apimart", "custom"].includes(protocol)) {
+      throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
+    }
+    const apiKey = deps.providerPlainApiKey(provider);
+    if (!apiKey) throw new Error("Provider 未配置 API Key");
+    const messages = normalizeChatMessages(body.messages, publicOrigin, user);
+    if (messages.length === 0) throw new Error("缺少 messages");
+    const payload: Record<string, unknown> = { model: model.modelId, messages, stream: false };
+    const temperature = Number(body.temperature);
+    if (Number.isFinite(temperature)) payload.temperature = Math.max(0, Math.min(2, temperature));
+    const maxTokens = Number(body.max_tokens || body.maxTokens);
+    if (Number.isFinite(maxTokens) && maxTokens > 0) payload.max_tokens = Math.min(200000, Math.floor(maxTokens));
+
+    const upstream = await fetch(openAiEndpoint(provider.baseUrl, "chat/completions"), {
+      method: "POST",
+      headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000),
+    });
+    const text = await upstream.text();
+    if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`上游语言模型请求失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const content = extractChatContent(raw);
+    return {
+      content,
+      text: content,
+      raw: { providerId: provider.id, modelId: model.modelId, finishReason: (raw as any)?.choices?.[0]?.finish_reason || "" },
+      provider: { id: provider.id, name: provider.name, protocol },
+    };
+  }
+
+  async function generateExternalVideoProxy(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
+    const body = deps.plainObject(rawBody);
+    const prompt = String(body.prompt || "").trim().slice(0, 16000);
+    if (!prompt) throw new Error("缺少 prompt");
+    const params = deps.plainObject(body.providerParams);
+    const { provider, model } = await findEnabledModel(
+      "video",
+      deps.safeSlug(body.providerId, ""),
+      deps.safeText(body.providerModel || body.model),
+      deps.safeText(params.modelRecordId),
+    );
+    const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    if (!["openai", "apimart", "custom"].includes(protocol)) {
+      throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
+    }
+    const apiKey = deps.providerPlainApiKey(provider);
+    if (!apiKey) throw new Error("Provider 未配置 API Key");
+    const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
+    const inputCapabilities = parseInputCapabilities(model.inputCapabilities, "video");
+    const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
+    const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
+    const requestedDuration = body.duration ?? params.duration;
+    const requestedResolution = deps.safeText(body.resolution || params.resolution);
+    const images = normalizeProviderReferenceUrls(
+      Array.isArray(body.images) ? body.images.map((item) => String(item || "").trim()).filter(Boolean).slice(0, ui.maxReferenceImages || 1) : [],
+      publicOrigin,
+      user,
+    );
+    const resolvedFirstFrame = inputCapabilities.firstFrame
+      ? normalizeProviderReferenceUrl(deps.safeText(body.first_frame || params.first_frame), publicOrigin, user)
+      : "";
+    const resolvedLastFrame = inputCapabilities.lastFrame
+      ? normalizeProviderReferenceUrl(deps.safeText(body.last_frame || params.last_frame), publicOrigin, user)
+      : "";
+    const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
+    const duration = ui.durationOptions.length > 0
+      ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
+      : undefined;
+    const resolution = ui.resolutionOptions.length > 0
+      ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
+      : "";
+
+    const useApimartAsyncVideo = shouldUseApimartVideoAdapter({
+      protocol,
+      advancedMode: deps.safeText(advancedConfig.mode),
+      modelId: model.modelId,
+      providerBaseUrl: provider.baseUrl,
+    });
+
+    if (useApimartAsyncVideo) {
+      const payload = createApimartVideoAdapterPayload({
+        modelId: model.modelId,
+        prompt,
+        ratio,
+        duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
+        resolution,
+        images,
+        firstFrame: resolvedFirstFrame || undefined,
+        lastFrame: resolvedLastFrame || undefined,
+        requestMapping: deps.stringMap(advancedConfig.requestMapping),
+        fixedBody: deps.plainObject(advancedConfig.fixedBody),
+      });
+      const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
+        method: "POST",
+        headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(180000),
+      });
+      const submitText = await submitResponse.text();
+      if (deps.looksLikeHtml(submitText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+      if (!submitResponse.ok) throw new Error(`上游视频生成失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
+      const submitRaw = submitText ? JSON.parse(submitText) : {};
+      const task = extractApimartTask(submitRaw, {
+        taskIdPath: deps.safeText(advancedConfig.taskIdPath, "data.0.task_id"),
+        statusPath: deps.safeText(advancedConfig.taskStatusPath, "data.0.status"),
+      });
+      if (!task.taskId) throw new Error("APIMart 未返回 task_id");
+      const result = await pollApimartVideoTask({ provider, apiKey, taskId: task.taskId, protocol, advancedConfig });
+      if (result.videoUrls.length === 0) throw new Error("APIMart 未返回可用视频 URL");
+      const videoUrls: string[] = [];
+      for (const sourceUrl of result.videoUrls) {
+        const saved = await deps.saveRemoteVideoToOutput(sourceUrl, user);
+        videoUrls.push(saved.url);
+      }
+      return {
+        videoUrls,
+        remoteVideoUrls: result.videoUrls,
+        taskId: task.taskId,
+        raw: {
+          providerId: provider.id,
+          modelId: model.modelId,
+          count: videoUrls.length,
+          mode: "apimart_async_video",
+          inferredBy: protocol === "apimart" || deps.safeText(advancedConfig.mode) === "apimart_async_video" ? "explicit" : "fallback",
+        },
+        provider: { id: provider.id, name: provider.name, protocol },
+      };
+    }
+
+    const payload: Record<string, unknown> = { model: model.modelId, prompt };
+    if (ratio) payload.aspect_ratio = ratio;
+    if (duration !== undefined) payload.duration = duration;
+    if (resolution) payload.resolution = resolution;
+    if (images.length > 0) payload.image = images;
+    if (resolvedFirstFrame) payload.first_frame = resolvedFirstFrame;
+    if (resolvedLastFrame) payload.last_frame = resolvedLastFrame;
+
+    const upstream = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
+      method: "POST",
+      headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(180000),
+    });
+    const text = await upstream.text();
+    if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const remoteVideoUrls = extractVideoUrls(raw);
+    if (remoteVideoUrls.length === 0) throw new Error("上游未返回可用视频 URL");
+    const videoUrls: string[] = [];
+    for (const sourceUrl of remoteVideoUrls) {
+      const saved = await deps.saveRemoteVideoToOutput(sourceUrl, user);
+      videoUrls.push(saved.url);
+    }
+    return {
+      videoUrls,
+      remoteVideoUrls,
+      raw: { providerId: provider.id, modelId: model.modelId, count: videoUrls.length },
+      provider: { id: provider.id, name: provider.name, protocol },
+    };
+  }
+
+  return {
+    generateExternalImageProxy,
+    generateExternalChatProxy,
+    generateExternalVideoProxy,
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

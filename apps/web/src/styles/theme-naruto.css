@@ -305,8 +305,6 @@ html[data-theme-visual="naruto"] .t8-canvas-shell {
   --t8-floating-control-bottom: 12px;
   --t8-flow-controls-height: 132px;
   --t8-floating-control-gap: 10px;
-  --t8-theme-music-size: 30px;
-  --t8-theme-music-left-offset: 24px;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -730,29 +728,6 @@ html[data-theme-visual="naruto"] .t8-group-box__handle {
   box-shadow:
     0 0 0 5px color-mix(in srgb, var(--nt-chakra) 20%, transparent),
     0 0 18px color-mix(in srgb, var(--nt-fire) 34%, transparent) !important;
-}
-
-html[data-theme-visual="naruto"] .t8-theme-music-toggle {
-  padding: 0 !important;
-  border: 3px solid var(--nt-ink) !important;
-  border-radius: 8px !important;
-  clip-path: var(--nt-button-shape);
-  background: linear-gradient(180deg, var(--nt-paper), var(--nt-paper-deep)) !important;
-  color: var(--nt-fire) !important;
-  box-shadow: 3px 3px 0 var(--nt-ink) !important;
-}
-
-html[data-theme-visual="naruto"] .t8-theme-music-toggle svg {
-  width: 14px;
-  height: 14px;
-}
-
-html[data-theme-visual="naruto"] .t8-theme-music-toggle.is-playing {
-  background: linear-gradient(180deg, var(--nt-fire-hot), var(--nt-fire)) !important;
-  color: var(--t8-accent-text) !important;
-  box-shadow:
-    3px 3px 0 var(--nt-ink),
-    0 0 22px color-mix(in srgb, var(--nt-fire-hot) 52%, transparent) !important;
 }
 
 html[data-theme-visual="naruto"] [data-canvas-floating-ui],

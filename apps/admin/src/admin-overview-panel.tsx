@@ -1,7 +1,7 @@
 import { Activity, Boxes, KeyRound, ScrollText, Users } from "lucide-react";
 import { DataTable } from "./admin-common-components";
 import { statusText } from "./admin-view-model";
-import type { ModelRecord, ProviderRecord, Summary, TaskRecord } from "./main";
+import type { ModelRecord, ProviderRecord, Summary, TaskRecord } from "./admin-types";
 
 export function Overview({
   summary,

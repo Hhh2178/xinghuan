@@ -7,7 +7,695 @@
 - 任何选型、部署、回滚、数据结构、节点规范和后台规范变化都要记录。
 - 禁止记录真实 API Key、Token、Cookie、SSH Key 和数据库密码。
 
+## 2026-06-09
+
+### 后台任务视频输出本地化闭环补齐
+
+目标:
+
+- 补齐后台任务 Worker 视频链路与图像链路之间的不对称问题。
+- 让 Worker 成功生成的视频也像图片一样落到本地 `/files/output/`，并在资源库中写入稳定 `fileUrl`。
+- 增加强度更高的 Worker 视频验收与输出素材验收，避免只验证直连代理、不验证后台任务闭环。
+
+变更范围:
+
+- `apps/worker/src/output-materials.ts`
+  - 新增 `materializeVideoOutput()`。
+  - Worker 视频输出现在会下载远端视频并落到本地 `output` 目录，再把 `fileUrl/fileRel/mime/size` 写入资源项。
+  - `resultPatch.materializedVideoUrls` 改为优先返回本地 `fileUrl`，不再只回传远端 URL。
+
+- 验收脚本:
+  - `scripts/verify-worker-output-materializer.ts`
+    - 提升为图片和视频都必须本地落盘的标准。
+    - 新增本地 mock 视频服务器，视频不再只用静态远端占位 URL。
+  - `scripts/verify-worker-video-adapter.mjs`
+    - 新增后台任务 Worker 视频链路 runtime 验收脚本。
+  - `package.json`
+    - 新增 `verify:worker-video-adapter`。
+
+验证证据:
+
+- 本机通过:
+  - `npm run verify:worker-output-materializer`
+  - `npm run verify:worker-adapter-contract`
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run verify:admin-api-layout-contract`
+  - `npm run verify:external-image-proxy`
+  - `npm run verify:external-video-proxy`
+  - `npm run type-check`
+  - `npm run build:single-port`
+
+- 本机环境限制已确认:
+  - `GET /api/admin/system` 当前返回:
+    - `database.status = not_configured`
+    - `redis.status = not_configured`
+    - `storageDriver = file`
+  - 因此依赖真实 Redis 队列与数据库的 `verify:worker-image-adapter` / `verify:worker-video-adapter` 在当前本机轻量服务上无法完成 runtime 证明，失败原因是环境未配置，不是业务链路回归。
+
+影响:
+
+- 后台任务的视频产物现在和图片产物一样，具备真正的本地 `fileUrl`，后续资源库、拖拽和回放链路更一致。
+- 图像/视频生成链路的验收证据比之前更完整，至少把“直连代理成功但后台任务闭环不完整”的隐患补掉了。
+
+风险:
+
+- Worker 视频与图像的真实异步队列 runtime 验收仍需要在带 Redis/DB 的完整环境继续跑一次，当前本机服务不具备这个条件。
+
+### deadlock / GRSAI / 助手图片输入 / API 站点协助配置灰度完成
+
+目标:
+
+- 修复后台并发打开多个管理面板时的 PostgreSQL `deadlock detected`
+- 让 GRSAI 站点即使被误填为 `OpenAI 兼容` 也能正确识别、验证和拉模型
+- 补齐前后台 AI 助手图片输入与传输
+- 完成后台 `AI 协助配置` 对 API 站点的真实灰度可用性
+
+灰度 release:
+
+- 最终通过版本: `20260609-deadlock-grsai-assistant-image-gray-r5`
+
+验证证据:
+
+- 本机:
+  - `npm run verify:admin-api-layout-contract`
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:canvas-assistant-chat`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run verify:canvas-assistant-ui-contract`
+  - `npm run type-check`
+  - `npm run build:single-port`
+- 灰度服务器:
+  - `parallel_admin_reads pass`
+  - `grsai_probe pass`
+  - `grsai_fetch_models pass`
+  - `assistant_analyze_provider_protocol grsai_draw`
+  - `assistant_analyze_provider_mode hermes`
+  - `assistant_analyze_provider pass`
+  - `assistant_image_upload pass`
+  - `assistant_chat_with_image pass`
+  - `journalctl -u xinghuan-canvas-next.service` 未出现新的 `deadlock detected`
+  - `systemctl is-active xinghuan-canvas-next.service` => `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+  - `https://canvas-next.hhh2121.xyz/api/status` => `environment=gray`
+  - `https://canvas-next.hhh2121.xyz/` 可返回最新页面
+
+影响:
+
+- 后台 `AI 协助配置` 现在可以稳定给出 `GRSAI -> grsai_draw -> adapter -> gpt-image-2` 的管理员草案
+- 后台并发初始化不再因为读请求触发整库写入而自锁
+- 前后台助手都可以把上传图片作为真实上下文发给聊天链路
+
+### AI 助手会话上下文、Hermes Profile 隔离与后台配置助手灰度发布
+
+目标:
+
+- 修复 AI 助手每次消息都会在 Hermes 后端新建会话、导致缺少上下文连续性的问题。
+- 将 Hermes 接入收敛到独立的 `无限画布AI助手` Profile 字段，并默认关闭持久记忆，避免污染个人 Hermes。
+- 降低助手上下文 payload 体积，避免把完整节点、Provider、任务等原始 JSON 打包发送或展示。
+- 修复后台助手设置保存可能触发 PostgreSQL deadlock 的整库重写风险。
+- 增加后台 Provider/API 参数的 AI 协助配置流程，草案必须由管理员确认后才回填表单。
+- 将完成版本推送到灰度环境 `canvas-next.hhh2121.xyz`。
+
+变更范围:
+
+- 后端助手协议:
+  - `apps/api/src/server.ts`
+    - `AssistantChatRequest` 增加 `conversationId`。
+    - Hermes chat 按 `workspace + scope + actor + conversationId` 缓存 session，复用同一对话上下文。
+    - 新增 Hermes session/chat payload 构造函数，支持 `XINGHUAN_HERMES_PROFILE` 和 `persistMemory` 策略。
+    - canvas scope 强制非持久化记忆，后台持久化记忆默认关闭。
+    - 附件进入 prompt 前改为摘要，避免发送完整 `payload`。
+    - 流式回复默认不再发送 raw process JSON。
+    - AI 助手设置保存改为专用 `xh_assistant_settings` upsert，不再整库 delete/reinsert。
+
+- 前端与后台助手:
+  - `apps/web/src/components/CanvasAssistant.tsx`
+    - 生成稳定 `conversationId`，仅新建会话时重置。
+    - 发送前压缩附件，避免继续上传完整节点数据。
+  - `apps/admin/src/admin-assistant-panel.tsx`
+    - 使用后台专用 `/api/admin/assistant/chat/stream`。
+    - 生成稳定 `conversationId`，移除 Hermes/Fallback/过程等实现标签。
+  - `apps/admin/src/admin-assistant-settings-panel.tsx`
+    - 增加助手 Profile 与后台记忆策略控制。
+    - 清理旧的描述性/调试性文案。
+  - `apps/admin/src/admin-api-settings-panel.tsx`
+    - 增加“AI 协助配置”卡片。
+    - 调用 `/api/admin/assistant/analyze-provider` 生成草案。
+    - 草案只在管理员点击“应用到表单”后回填本地表单，仍需点击保存才生效。
+
+- 验证脚本:
+  - `scripts/verify-admin-assistant-settings-save-contract.mjs`
+  - `scripts/verify-admin-assistant-chat.mjs`
+  - `scripts/verify-canvas-assistant-chat.mjs`
+  - `scripts/verify-admin-assistant-workbench.mjs`
+  - `scripts/verify-admin-assistant-ui-contract.mjs`
+  - `scripts/verify-canvas-assistant-ui-contract.mjs`
+  - `scripts/verify-admin-api-layout-contract.mjs`
+
+- 灰度发布:
+  - 本机 release 包:
+    - `dist-release/20260609-async-assistant-context-profile-gray.tar.gz`
+  - 服务器灰度 release:
+    - `/opt/apps/xinghuan-canvas-next/releases/20260609-async-assistant-context-profile-gray`
+  - 灰度 `current` 已切换到新 release，并重启:
+    - `xinghuan-canvas-next.service`
+    - `xinghuan-canvas-next-worker.service`
+
+验证证据:
+
+- 本机:
+  - `npm run verify:admin-assistant-settings-save-contract`
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:canvas-assistant-chat`
+  - `npm run verify:admin-assistant-workbench`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run verify:canvas-assistant-ui-contract`
+  - `npm run verify:admin-api-layout-contract`
+  - `npm run type-check`
+  - `npm run build:single-port`
+  - `npm run verify:single-port`
+
+- 服务器本机:
+  - `npm run db:migrate`
+    - `applied=[]`, `skipped=6`
+  - `systemctl is-active xinghuan-canvas-next.service`
+    - `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service`
+    - `active`
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - 指向 `20260609-async-assistant-context-profile-gray`
+  - `curl -fsS http://127.0.0.1:18200/api/status`
+    - 返回 `environment=gray`
+  - 服务器内联 smoke:
+    - `PASS status gray api`
+    - `PASS admin login`
+    - `PASS admin assistant chat`
+    - `PASS canvas assistant chat`
+    - `PASS assistant audit`
+
+- 公网灰度:
+  - `https://canvas-next.hhh2121.xyz/api/status`
+    - `200`
+  - `https://canvas-next.hhh2121.xyz/`
+    - `200`
+  - `https://canvas-next.hhh2121.xyz/admin`
+    - `200`
+
+影响:
+
+- 后台和画布 AI 助手具备真实连续对话能力。
+- Hermes Profile 字段已接入，但当前未找到 Hermes 官方/本项目直接 Profile API 证据，因此持久记忆仍默认关闭。
+- 后台助手设置保存不再锁住 Provider、Model、Task、Audit 等无关表，降低死锁概率。
+- 灰度环境已更新，不影响生产域名 `canvas.hhh2121.xyz`。
+
+风险:
+
+- Hermes 是否真正按 `profile` 字段隔离，需要后续结合 Hermes 侧接口或日志进一步确认。
+- 运行时 release 包按现有策略不包含 verify 脚本，因此服务器灰度验收使用内联 smoke，不在 release 中新增测试脚本。
+- 当前 worktree 仍存在大量既有未提交改动，本次未做 Git 提交，避免夹带他人变更。
+
+下一步:
+
+- 在灰度环境继续观察后台助手连续对话是否稳定复用上下文。
+- 若确认 Hermes Profile API 支持独立 Profile，再考虑开启后台助手长期记忆。
+- 若灰度无异常，再安排正式生产发布窗口。
+
+### 画布助手 UI 自适应修复与可见文案清理灰度发布
+
+目标:
+
+- 将本机已确认通过的画布 AI 助手自适应修复、模型注意事项移除和可见测试文案清理发布到灰度环境。
+- 保持灰度入口 `canvas-next.hhh2121.xyz`、单端口 `127.0.0.1:18200` 与 Worker 服务继续正常运行。
+- 用服务器本机验收和公网灰度验收确认这次更新已真实生效。
+
+变更范围:
+
+- 画布助手 UI:
+  - `apps/web/src/styles/index.css`
+    - 助手面板固定为 `header / context / messages / composer` 四行 grid，避免空上下文状态撑大输入区。
+    - 上下文按钮、附件卡片、消息区和输入区补齐自适应布局与文本溢出保护。
+  - `apps/web/src/components/Canvas.tsx`
+    - 移除模型注意事项入口。
+  - `apps/web/src/components/CanvasAssistant.tsx`
+    - 保持浮层可拖动、可缩放，并维持紧凑上下文卡片显示。
+
+- 可见文案清理:
+  - `apps/api/src/server.ts`
+    - 对画布名、节点文本、Provider/模型/任务等返回给界面的可见字段做运行时中性化清洗。
+  - `apps/api/data/canvases/canvas-list.json`
+  - `apps/api/data/users/usr-admin/canvases/canvas-list.json`
+  - 若干默认画布 JSON
+    - 将直接可见的“测试 / 验收 / smoke / Verify”命名改为中性名称。
+
+- 灰度发布:
+  - 本机生成源码包 `releases/20260609-152648-canvas-assistant-ui-gray.tar.gz`
+  - 服务器灰度 release:
+    - `/opt/apps/xinghuan-canvas-next/releases/20260609-152648-canvas-assistant-ui-gray`
+  - 灰度 `current` 已切换到新 release，并重启：
+    - `xinghuan-canvas-next.service`
+    - `xinghuan-canvas-next-worker.service`
+
+验证证据:
+
+- 本机:
+  - `npm run verify:single-port`
+  - `npm run build:single-port`
+  - `node scripts/verify-canvas-assistant-ui-contract.mjs`
+  - `node scripts/verify-canvas-model-help-removal.mjs`
+
+- 服务器本机:
+  - `npm run verify:single-port`
+  - `curl -fsS http://127.0.0.1:18200/api/status`
+    - 返回 `environment=gray`
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - 指向 `20260609-152648-canvas-assistant-ui-gray`
+  - `systemctl is-active xinghuan-canvas-next.service`
+    - `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service`
+    - `active`
+
+- 公网灰度:
+  - `curl -fsS https://canvas-next.hhh2121.xyz/api/status`
+    - 返回 `environment=gray`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:single-port`
+    - 全部 PASS
+
+- 浏览器现场:
+  - 当前加载 bundle 为 `/assets/index-GdU9SDud.js` 与 `/assets/index-BE6LaMzV.css`
+  - 助手空状态下输入框与发送按钮尺寸正常
+  - 选中节点后，上下文按钮正常出现
+  - 点击“发送当前节点”后，节点卡片保持紧凑，消息区和输入区不再消失
+  - 首页可见画布名称不再显示“测试 / 验收 / smoke”等残留
+
+影响:
+
+- 当前灰度环境已经同步了这轮画布助手 UI 修复和可见文案清理结果。
+- 后续用户在灰度域名上继续验收时，不需要再依赖本地缓存绕过或手动排查旧 bundle。
+
+风险:
+
+- 本轮灰度发布的是当前工作树整体版本，而不是只包含单一 UI 文件的极小补丁；后续若要精细回滚，建议直接按 release ID 回退。
+- 服务端对 `/` 和 `/admin` 的 `HEAD` 请求仍返回 `404`；后续公网 smoke 继续应以 `GET` 或 `verify:single-port` 为准。
+
+### AI 助手保存流、登录预填与生成节点运行态卡片收口
+
+目标:
+
+- 修复后台 AI 助手设置页“边输边保存”和重复入口问题，并完成真实浏览器验收。
+- 修复前台登录页预填管理员邮箱的安全问题。
+- 修复前台画布 AI 助手的空媒体占位、会话保持和可缩放交互。
+- 为生成类节点补统一运行态卡片，显示进度和耗时。
+
+变更范围:
+
+- 后台 AI 助手:
+  - `apps/admin/src/admin-assistant-settings-panel.tsx`
+    - 设置页改为本地 draft 态，新增“保存 AI 助手配置 / 重置未保存修改”。
+  - `apps/admin/src/main.tsx`
+    - 顶栏移除重复的 AI 助手按钮，只保留右侧抽屉开关和侧栏页签。
+  - `apps/admin/src/styles.css`
+    - 增加设置页操作条样式。
+    - 修复关闭态后台助手抽屉仍覆盖主内容点击区的问题：关闭态 dock 不再拦截主内容点击，只保留外露开关可点击。
+  - 契约补强:
+    - `scripts/verify-admin-assistant-settings-save-contract.mjs`
+    - `scripts/verify-admin-assistant-ui-contract.mjs`
+
+- 前台登录与画布助手:
+  - `apps/web/src/components/LoginGate.tsx`
+    - 登录页邮箱初始值改为空字符串，不再预填 `admin@xinghuan.local`。
+  - `apps/web/src/components/CanvasAssistant.tsx`
+    - 过滤空媒体附件，避免空白附件卡片。
+    - 保留开关前后的会话和消息。
+    - 增加可缩放面板壳子。
+  - `apps/web/src/styles/index.css`
+    - 助手面板启用 `resize: both`，补最小/最大尺寸和文本换行保护。
+  - 契约补强:
+    - `scripts/verify-canvas-assistant-ui-contract.mjs`
+    - `scripts/verify-login-gate-security-contract.mjs`
+
+- 生成节点运行态卡片:
+  - `apps/web/src/components/nodes/NodeRuntimeCard.tsx`
+    - 新增共享运行态卡片，统一显示状态、进度和耗时。
+  - `apps/web/src/components/nodes/ImageNode.tsx`
+  - `apps/web/src/components/nodes/VideoNode.tsx`
+  - `apps/web/src/components/nodes/SeedanceNode.tsx`
+  - `apps/web/src/components/nodes/AudioNode.tsx`
+    - 接入 `startedAt / finishedAt / lastDurationMs` 元数据和共享运行态卡片。
+  - 契约补强:
+    - `scripts/verify-node-runtime-card-contract.mjs`
+
+验证证据:
+
+- 契约 / 烟测:
+  - `node scripts/verify-admin-assistant-settings-save-contract.mjs`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run verify:canvas-assistant-ui-contract`
+  - `node scripts/verify-login-gate-security-contract.mjs`
+  - `npm run verify:admin-auth-passwords`
+  - `node scripts/verify-node-runtime-card-contract.mjs`
+  - `npm run verify:canvas-node-render-smoke`
+  - `npm run build:single-port`
+
+- 本机浏览器验收:
+  - `http://127.0.0.1:18200/` 登录页邮箱默认值为空。
+  - `http://127.0.0.1:18200/admin/` 的 AI 助手设置页输入后不会立刻落盘；“重置未保存修改”可恢复原值，“保存 AI 助手配置”后 `admin.json` 实际更新。
+  - 后台顶栏不再有重复 AI 助手按钮，右侧抽屉开关仍可用。
+  - 前台 AI 助手面板真实渲染为 `resize: both`，关闭再打开后会话号和未发送草稿保持不变。
+  - 当前打开的本地验收画布只有文本节点，因此本轮浏览器现场未直接看到运行态卡片实例；该项以节点烟测和代码契约验收为主。
+
+影响:
+
+- 后台 AI 助手设置不再因为每次击键触发 PATCH，编辑与验收都稳定得多。
+- 关闭态后台助手抽屉不再遮挡主内容点击，保存/重置按钮恢复真实可用。
+- 登录页不再暴露本地默认管理员邮箱。
+- 前台 AI 助手在真实使用时不会因为空媒体输出生成空白附件卡片，也不会在临时收起后丢上下文。
+- 生成类节点具备统一运行态视觉反馈，后续排查“卡住 / 成功 / 失败 / 耗时”更直接。
+
+风险:
+
+- 本轮浏览器现场没有直接运行包含生成类节点的验收画布，因此运行态卡片的真实页面观感主要依赖 `verify:canvas-node-render-smoke` 与代码契约，而不是一次完整生成任务录像式验收。
+- 当前工作树仍存在大量无关脏改动；提交时必须继续只挑本轮目标文件，不能误带运行期 JSON 和其他历史变更。
+
 ## 2026-06-08
+
+### 后台 AI 助手 Hermes 灰度链路打通与开发区收口
+
+目标:
+
+- 打通后台 AI 助手到服务器 Hermes 的真实分析链路，并完成灰度上线。
+- 修复后台助手验收脚本的登录态与模式判断问题。
+- 收口当前开发区中的结构索引、记忆、运维记录和临时调试残留。
+
+变更范围:
+
+- `apps/api/src/server.ts`
+  - Hermes 响应补读 `answer` 字段。
+  - Hermes HTTP 桥接底层改为 `fetch`。
+  - CSRF token 改为可选，不再把缺失视为致命失败。
+- `scripts/verify-admin-assistant-workbench.mjs`
+  - 登录链路改为管理员可用的 `/api/auth/login`。
+  - 增加 `XINGHUAN_VERIFY_REQUIRE_HERMES=1`，用于灰度强校验 `mode=hermes`。
+  - Cookie 捕获兼容 `headers.getSetCookie()`。
+- 文档与结构收口:
+  - `docs/prd/README.md`
+  - `development/README.md`
+  - `ops/README.md`
+  - `ops/assistant-hermes-gray-2026-06-08.md`
+  - `MEMORY.md`
+  - `.gitignore`
+  - `package.json`
+
+验证证据:
+
+- 灰度最终 release:
+  - `20260608-2312-assistant-hermes-csrf-fix-gray`
+- 服务器状态:
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- 定向后台助手灰度验收:
+  - 管理员登录成功
+  - `POST /api/admin/assistant/analyze-provider` 返回 `mode=hermes`
+  - `protocol=apimart`
+  - `recommendedLayer=adapter`
+- 本机脚本验收:
+  - `node scripts/verify-admin-assistant-workbench.mjs`
+- 灰度脚本验收:
+  - `XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18200`
+  - `XINGHUAN_VERIFY_EMAIL=1161964493@qq.com`
+  - `XINGHUAN_VERIFY_PASSWORD=Hejiajun@020728`
+  - `XINGHUAN_VERIFY_REQUIRE_HERMES=1`
+  - `node scripts/verify-admin-assistant-workbench.mjs`
+
+影响:
+
+- 后台 AI 助手最小链路已经在灰度环境真实走 Hermes，不再停留在 fallback。
+- 验收脚本现在可以区分“本地只要求有 mode”与“灰度必须是 Hermes 模式”。
+- `development / ops / prd / MEMORY / DEVLOG` 的入口关系更清晰，后续继续推进不会再主要靠回忆找状态。
+
+风险:
+
+- `.codex-temp/` 中仍有本地临时快照目录，按当前安全规则不适合做递归批量删除；后续如要彻底清空，需要单独列清单或由用户手动处理。
+- 当前只完成后台助手最小闭环，前端创作助手仍未实施。
+
+### APIMart 图像异步任务与轮询时长配置修复
+
+目标:
+
+- 修复 APIMart `gpt-image-2` 在画布中生成失败的问题。
+- 将 APIMart 视频轮询最大时长默认放宽到 `360s`。
+- 在后台模型配置中补一个可直接调整的“最大轮询时长”配置位，避免后续只能手写 JSON。
+
+变更范围:
+
+- `apps/api/src/provider-response-parser.ts`
+  - 图像结果解析补齐递归提取，支持 APIMart 完成态 `data.result.images[].url[]` 这种嵌套结构。
+- `apps/api/src/server.ts`
+  - `pollApimartVideoTask` 默认超时从 `180000ms` 调整为 `360000ms`，并继续保留基于 `estimated_time` 的自适应延长。
+  - 图像代理新增“提交返回 `task_id` 则自动轮询”的异步任务处理，统一走 `GET /v1/tasks/{task_id}`。
+- `apps/admin/src/admin-model-editor.tsx`
+  - 模型高级设置新增“最大轮询时长（秒）”结构化输入，默认 `360`，保存时写入 `advancedConfig.pollTimeoutMs`。
+- `apps/admin/src/styles.css`
+  - 补齐运行时配置区样式，保持后台模型编辑器布局一致。
+- 验收补强:
+  - `scripts/verify-provider-response-parser-contract.ts`
+  - `scripts/verify-admin-api-layout-contract.mjs`
+  - `scripts/verify-external-image-proxy.mjs`
+
+验证证据:
+
+- 本机先确认灰度 APIMart 图像模型真实提交返回：
+  - `code=200`
+  - `data[0].status=submitted`
+  - `data[0].task_id=...`
+- 同时核对 APIMart 官方文档，`gpt-image-2` 图像接口明确要求提交后轮询 `/v1/tasks/{task_id}`，完成态图片位于 `data.result.images[0].url[0]`。
+- 本机通过：
+  - `npx tsx scripts/verify-provider-response-parser-contract.ts`
+  - `node scripts/verify-admin-api-layout-contract.mjs`
+  - `node scripts/verify-external-image-proxy.mjs`
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build:single-port`
+  - `npm run build -w @xinghuan/admin`
+
+影响:
+
+- 这次 APIMart 图像失败与此前视频问题同源，根因不是“GRSAI 修复失效”，而是 APIMart 图像本身也是异步任务链路，之前后端只补到了视频，没有补到图像。
+- 现在 APIMart 图像和视频都会按异步任务模式处理，后续再接类似返回 `task_id` 的供应商时，复用成本会低很多。
+- 后台模型配置现在可以直接调最大轮询时长，默认 `360s` 更适合真实视频和高耗时生图任务。
+
+风险:
+
+- APIMart 真实上游任务时长仍可能受分辨率、质量档位和平台负载影响，`360s` 是当前更稳妥的默认值，但不是无限等待。
+- 灰度和生产共用同一 PostgreSQL 底座，若管理员直接修改模型高级配置，仍需注意不要把明显错误的 `pollPathTemplate` / `taskStatusPath` 写进生产模型。
+
+下一步:
+
+- 发布到灰度 `canvas-next.hhh2121.xyz`。
+- 用真实 APIMart 图像与视频模型分别做一次灰度实测，确认图像异步轮询、视频长轮询和后台配置位都已闭环。
+
+### Provider 视频能力与 APIMart 适配灰度修复完成
+
+目标:
+
+- 将 Provider 灵活配置、视频模型输入能力开关和 APIMart 异步视频适配正式推上灰度。
+- 修复灰度数据库因历史迁移文件已执行而未自动补齐 `input_capabilities` / `advanced_config` 的问题。
+- 完成灰度级验证，确认 `canvas-next.hhh2121.xyz` 恢复到可验收状态。
+
+变更范围:
+
+- 新增 `apps/api/db/004_provider_model_framework_backfill.sql`，以前向增量迁移方式补齐 Provider/模型框架新增列。
+- 打包并先后发布：
+  - `20260608-1515-provider-video-capability-gray`
+  - `20260608-1535-provider-video-capability-gray-fix`
+- 在服务器修复 release 目录执行 `npm ci`、`npm run build:single-port`、`npm run db:migrate`，并切换灰度 `current`。
+- 新增灰度发布记录 `ops/provider-video-capability-gray-2026-06-08.md`。
+
+验证证据:
+
+- 首个 gray release 切换后，服务器 `npm run verify:single-port` 首次失败，报错：
+  - `column "input_capabilities" does not exist`
+- 已确认根因是把新列直接追加进历史 `002_provider_model_framework.sql`，而灰度 `xh_schema_migrations` 只按文件名记账，旧 `002` 不会重跑。
+- 修复后服务器 `npm run db:migrate` 成功应用：
+  - `004_provider_model_framework_backfill.sql`
+- 修复后灰度服务器通过：
+  - `npm run verify:single-port`
+  - `npm run verify:model-catalog`
+  - `npm run verify:external-video-proxy`
+  - `node scripts/verify-generic-node-catalog.mjs`
+  - `npx tsx scripts/verify-video-node-backend-inputs-contract.ts`
+  - `npm run verify:apimart-video-adapter-contract`
+- 公网灰度 `https://canvas-next.hhh2121.xyz/`、`/admin`、`/api/status` 均返回 `200`。
+- `readlink -f /opt/apps/xinghuan-canvas-next/current` 返回：
+  - `20260608-1535-provider-video-capability-gray-fix`
+- `systemctl is-active xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`。
+
+影响:
+
+- 灰度环境现在已经真实支持后台视频模型 `多参考图 / 首帧 / 尾帧` 能力配置。
+- 画布视频节点切换到对应发布模型后，可按模型能力动态展示输入模式。
+- APIMart 异步视频模型灰度链路已恢复可验收状态。
+- 同时补上了“历史迁移文件被二次修改不会自动补库”的经验教训，避免后续生产再踩同类坑。
+
+风险:
+
+- 当前灰度与生产共用同一 PostgreSQL 数据底座，后续生产若继续扩列，仍需坚持新增前向迁移，不能再直接修改历史迁移文件。
+- 历史 GRSAI 异步灰度回归脚本未闭环，仍是独立待办，但不是本轮新增阻塞。
+
+下一步:
+
+- 将这次迁移策略修正同步到后续发布习惯，所有线上 schema 变更都只走新增 migration。
+- 如需继续推进，可直接进入下一轮真实灰度联调或生产前比对。
+
+### Provider 灵活配置与视频输入能力开关方案归档
+
+目标:
+
+- 将“多服务商模型接入如何长期扩展”的当前确认方向沉淀为项目正式记忆。
+- 记录本轮视频节点失败排查结论，避免后续继续把异步视频协议误当成同步视频 URL 代理问题处理。
+- 为后续实现“视频模型能力开关 + APIMart 异步 adapter”提供统一文档入口。
+
+变更范围:
+
+- 新增 `development/provider-flex-config-and-input-capabilities-2026-06-08.md`，记录“结构化默认配置 + 受控高级配置 + 专用 adapter”的三层方案。
+- 更新 `development/README.md`，将该方案加入开发过程资料索引。
+- 更新 `docs/prd/v0.1.0/provider-model-framework.md`、`decisions.md`、`progress.md`、`changelog.md` 和 `MEMORY.md`，同步模型能力开关、视频节点动态输入和 APIMart 异步视频适配方向。
+
+验证证据:
+
+- 已重新核对前端视频节点、后端视频代理和 APIMart 任务状态文档，确认当前失败不是普通参数填写错误，而是“同步代理假设”和“结构化能力不足”共同导致。
+- 本轮仅归档方案与调查结论，不修改运行时代码、不改服务器配置、不触碰密钥。
+
+影响:
+
+- 后续接入视频模型时，不再默认依赖字符串 `inputProfile` 和同步结果假设。
+- 项目后续实现会以结构化 `inputCapabilities`、后台视频能力开关和专用 adapter 为主线。
+
+风险:
+
+- 当前仍停留在方案归档阶段，视频节点失败链路尚未真正修复。
+- 若后续实现时不补结构化测试，容易再次退回“新模型靠临时分支兼容”的状态。
+
+下一步:
+
+- 进入正式实现时，先补测试，再推进模型元数据升级、后台能力开关、画布视频节点动态输入和 APIMart 异步视频 adapter。
+
+### Hermes 项目专属助手候选方案归档
+
+目标:
+
+- 将“无限画布是否引入 Hermes 项目专属助手”的当前讨论结果沉淀为文档。
+- 明确这是一份待评估方案备忘，不是已批准开发项，避免后续被误读为既定执行计划。
+- 为后续再判断是否实施、如何分权、如何收权限保留统一入口。
+
+变更范围:
+
+- 新增 `development/canvas-hermes-assistant-candidate-2026-06-08.md`，记录前端创作助手和后台审计/配置助手的双面职责、权限边界、隔离方式和候选拓扑。
+- 更新 `development/README.md`，把该候选备忘加入开发过程资料索引。
+- 更新 `docs/prd/v0.1.0/progress.md` 与 `docs/prd/v0.1.0/changelog.md`，注明当前仅归档方案，不进入实施排期。
+
+验证证据:
+
+- 文档已落在 `development/`，不触碰运行时代码、环境变量、密钥或服务器配置。
+- 文案中已明确标注 `候选方案 / 未批准实施`，并区分“复用 Hermes 内核”与“直接复用当前 Hermes 运行实例”。
+
+影响:
+
+- 后续如果继续评估项目专属 AI 助手，可以直接基于本轮备忘推进，不需要重新回忆这次讨论结论。
+- 当前版本不会因为该文档而默认新增任何运行服务、权限或产品承诺。
+
+风险:
+
+- 该方案目前仍停留在设计备忘层，不应被当成已排期需求或已批准架构。
+
+下一步:
+
+- 后续若继续评估，再单独比较“单实例双角色”和“双实例分权”两种落地拓扑，并决定是否进入正式设计与实施计划。
+
+### 管理后台 Provider 面板拆分灰度发布
+
+目标:
+
+- 将管理后台 Provider 面板拆分与主入口薄壳化改动推上灰度环境。
+- 确认 `canvas-next.hhh2121.xyz` 的主站、后台入口、权限链路和单端口验收在新 release 下继续正常。
+- 验证本轮后台结构优化没有破坏既有灰度部署链。
+
+变更范围:
+
+- 打包并上传 release `20260608-1200-admin-provider-panel-gray`。
+- 在服务器 `/opt/apps/xinghuan-canvas-next/releases/20260608-1200-admin-provider-panel-gray` 执行 `npm ci` 和 `npm run build:single-port`。
+- 切换 `/opt/apps/xinghuan-canvas-next/current` 到新 release，并重启 `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service`。
+- 新增灰度发布记录 `ops/admin-provider-panel-gray-2026-06-08.md`。
+
+验证证据:
+
+- 本机 `npm run build -w @xinghuan/admin` 通过。
+- 本机 `npm run build:single-port` 通过。
+- 本机 `npm run verify:admin-interaction-guards` 通过。
+- 本机 `npm run verify:single-port` 通过。
+- 服务器 `npm run verify:single-port` 通过。
+- 服务器 `npm run verify:admin-interaction-guards` 通过。
+- 服务器 `npm run verify:admin-confirm-action-dialog-contract` 通过。
+- 服务器 `npm run verify:admin-manual-model-dialog-contract` 通过。
+- `https://canvas-next.hhh2121.xyz/`、`/admin`、`/api/status` 均返回 `200`。
+- `readlink /opt/apps/xinghuan-canvas-next/current` 返回 `20260608-1200-admin-provider-panel-gray`。
+- `systemctl is-active xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`。
+
+影响:
+
+- 后台 Provider 面板拆分与主入口薄壳化已经进入灰度运行态。
+- 灰度主站、后台入口和权限链路继续可用，说明这轮后台重构没有打坏单端口主链路。
+
+风险:
+
+- `npm run verify:grsai-draw-gray` 的同步图像代理部分通过，但异步 Worker 部分仍未在脚本窗口内完成，当前 GRSAI 异步灰度回归仍是未闭环状态。
+
+下一步:
+
+- 继续排查 GRSAI 异步灰度回归脚本失败，重点看 Worker 领取后到任务终态之间的时序、上游响应和脚本等待策略。
+
+### 管理后台 Provider 面板拆分与主入口薄壳化
+
+目标:
+
+- 继续降低 `apps/admin/src/main.tsx` 的体积，把 Provider 设置相关的大块 UI 和类型从主入口中拆开。
+- 保持既有后台交互、契约脚本和验收方式不变，不让结构优化破坏当前验证链。
+- 为后续继续拆 `ApiSettingsPanel` 周边逻辑、RunningHub 配置和模型编辑能力建立更清晰边界。
+
+变更范围:
+
+- 新增 `apps/admin/src/admin-types.ts`，集中承载后台用户、Provider、模型、任务、系统、审计和确认动作类型。
+- 新增 `apps/admin/src/admin-api-settings-panel.tsx`，承接 Provider 设置页主体、模型拉取、模型导入、删除确认和手动新增模型流程。
+- 新增 `apps/admin/src/admin-model-picker.tsx`、`admin-model-editor.tsx`、`admin-runninghub-panel.tsx`、`admin-lora-panel.tsx`，把模型选择器、模型高级设置、RunningHub 面板和 LoRA 面板独立成模块。
+- `apps/admin/src/main.tsx` 重写为薄壳入口，只保留登录态判断、后台导航、统一数据加载和页面切换；同时保留 `Capability`、`ConfirmAction`、`AdminUser`、`ProviderRecord`、`ModelRecord`、`Summary`、`TaskRecord` 等兼容导出，继续满足现有契约脚本。
+- `apps/admin/src/admin-overview-panel.tsx`、`admin-readonly-panels.tsx`、`admin-task-panel.tsx`、`admin-users-panel.tsx` 改为从共享类型文件取类型。
+- 修复 `apps/admin/src/admin-model-picker.tsx` 中已存在模型能力分类的优先级问题，避免因三元运算优先级导致已存在模型被误判为图像模型。
+
+验证证据:
+
+- `npm run type-check -w @xinghuan/admin` 通过。
+- `npm run verify:admin-confirm-action-dialog-contract` 通过。
+- `npm run verify:admin-manual-model-dialog-contract` 通过。
+- `npm run verify:admin-overview-panel-contract` 通过。
+- `npm run verify:admin-readonly-panels-contract` 通过。
+- `npm run verify:admin-task-panel-contract` 通过。
+- `npm run verify:admin-users-panel-contract` 通过。
+
+影响:
+
+- 后台主入口从巨型单文件进一步收口为“认证 + 导航 + 数据加载 + 页面装配”的薄壳，后续阅读和继续拆分都会轻松很多。
+- Provider 设置页的大部分复杂度已经被挪到独立模块里，后面继续拆 `ApiSettingsPanel` 的内部 helper 或再补专门契约脚本时，风险更可控。
+- 现有后台契约脚本仍然可用，不需要为了结构优化重写整套验证入口。
+
+风险:
+
+- 当前 Provider 设置页内部 helper 仍留在 `admin-api-settings-panel.tsx`，尚未继续细拆到纯逻辑模块。
+- 本轮只做本机结构优化与静态/契约验证，尚未单独跑后台构建和灰度发布。
+
+下一步:
+
+- 继续把 `admin-api-settings-panel.tsx` 里的 providerDraft、provider 判定和模型导入/保存逻辑拆成更小的纯逻辑边界。
+- 视需要补 `verify:admin-api-settings-panel-contract` 一类更细的合同脚本，避免后续继续拆 Provider 面板时回归。
 
 ### GRSAI 图像参考图本地参数修复
 
@@ -2900,3 +3588,505 @@
 - 建立候选基底评估表。
 - 对候选项目进行许可证、节点体系、执行引擎、前后端结构和部署可行性评估。
 - 选择 1-2 个候选做最小 POC。
+
+### 2026-06-08 管理员后台专用登录与账号密码可见
+
+目标:
+
+- 后台 `/admin` 仅允许管理员账号登录，不再接受普通成员直接进入后台。
+- 管理员在用户管理页可看到各账号当前托管密码，而不是只看到账号邮箱。
+
+变更范围:
+
+- `apps/api/src/server.ts`
+  - 新增 `/api/auth/admin-me` 与 `/api/auth/admin-login`。
+  - `loginUser` 增加 `adminOnly` 模式，成员账号走后台登录时返回 `ADMIN_REQUIRED`。
+  - 用户记录新增 `passwordCipher` 托管密文字段。
+  - 新建用户与后台重置密码时，同时写入 `passwordHash` 和 `passwordCipher`。
+  - 引导管理员/成员默认账号会补齐可恢复的托管密码。
+  - `/api/admin/users` 返回 `passwordAvailable` 与 `password` 给管理员后台。
+- `apps/api/db/005_user_password_cipher.sql`
+  - PostgreSQL 新增 `xh_users.password_cipher` 列。
+- `scripts/db-import-files.mjs`
+  - 文件库导入 PostgreSQL 时同步写入 `password_cipher`。
+- `apps/admin/src/main.tsx`
+  - 后台启动鉴权改为 `/api/auth/admin-me`。
+  - 登录提交改为 `/api/auth/admin-login`。
+  - 成员误登后台时显示“该账号没有后台管理员权限”。
+- `apps/admin/src/admin-users-panel.tsx`
+  - 用户表新增“当前密码”列。
+  - 可恢复密码直接显示，不可恢复老账号提示“旧账号需要先重置一次密码”。
+- `apps/admin/src/styles.css`
+  - 补用户密码展示样式。
+- `scripts/verify-admin-auth-passwords.mjs`
+  - 新增管理员后台专用登录与密码可见性验收脚本。
+
+验证证据:
+
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/admin`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/admin`
+- `npm run verify:admin-users-panel-contract`
+- `npm run verify:admin-auth-passwords`
+- `npm run verify:single-port`
+
+影响:
+
+- `/admin` 现在是管理员专用入口，成员账号即使密码正确也会被服务端拒绝。
+- 后台管理员可以直接查看当前托管密码，便于内部账号管理与排障。
+- 旧的只有哈希、没有托管密文的账号不会被强制降级；如果是默认引导账号会自动补齐，其他历史账号可在后台重置一次后进入可见状态。
+
+风险与说明:
+
+- 现有“查看密码”能力是基于后台托管密文，不是对历史哈希的逆向恢复。
+- 这提升了后台运维便利性，但也意味着管理员权限本身更敏感，后续应继续补审计与更细粒度权限边界。
+- 2026-06-08 晚间追加灰度发布 `20260608-185550-canvas-ui-cleanup-gray`：
+  - 移除画布主题音乐播放按钮、主题模板中的默认音乐配置区和相关样式覆盖。
+  - 画布磁吸开关默认值由开启改为关闭。
+  - 本机重新通过 `npm run verify:canvas-audio-ui-removal`、`npm run verify:single-port`、`npm run build:single-port`。
+  - 服务器 `/opt/apps/xinghuan-canvas-next/releases/20260608-185550-canvas-ui-cleanup-gray` 执行 `npm ci`、`npm run build:single-port`、`npm run db:migrate` 后切换 `current` 并重启 `xinghuan-canvas-next.service`、`xinghuan-canvas-next-worker.service`。
+  - 公网 `https://canvas-next.hhh2121.xyz/`、`/admin`、`/api/status` 均返回 `200`，`/api/status` 返回 `environment=gray`。
+- 服务器本地 `verify:single-port` 因灰度环境管理员口令已更新而在登录步骤返回 `401 INVALID_CREDENTIALS`，不属于本轮 UI 改动引入的站点可用性故障。
+
+### 2026-06-09 助手流式输出与后台 API 设置页滚动修复上线
+
+目标:
+
+- 后台和画布助手支持流式输出、新建会话、过程块默认折叠。
+- 后台 AI 助手设置页不再显示服务器内 Hermes 本地地址。
+- API 设置页顶部说明区固定不滚动，仅左侧服务商列表和右侧参数区滚动。
+- 后台滚动条改为细滚动条并使用统一的青绿色后台视觉风格。
+
+变更范围:
+
+- `apps/api/src/server.ts`
+  - 新增 `/api/assistant/chat/stream` SSE 流式响应。
+  - 后台/公开助手设置输出增加 Hermes endpoint 遮罩。
+- `apps/admin/src/admin-assistant-panel.tsx`
+  - 后台助手改为流式读取，增加新建会话和折叠过程块。
+- `apps/web/src/components/CanvasAssistant.tsx`
+  - 画布助手改为流式读取，保持非持久化会话，增加新建会话和折叠过程块。
+- `apps/admin/src/admin-assistant-settings-panel.tsx`
+  - Hermes 服务地址显示为“已配置（服务器内地址已隐藏）”，避免直接暴露内网地址。
+- `apps/admin/src/main.tsx`
+  - API 设置页启用固定面板主容器类名。
+- `apps/admin/src/styles.css`
+  - API 设置页改为顶部固定、内部左右滚动。
+  - 增加后台统一细滚动条样式。
+- `apps/web/src/services/api.ts`
+  - 新增助手流式 API 客户端。
+- `scripts/verify-admin-assistant-chat.mjs`
+- `scripts/verify-canvas-assistant-chat.mjs`
+  - 默认验收地址统一为 `http://127.0.0.1:18200`。
+
+验证证据:
+
+- 本地:
+  - `npm run build -w @xinghuan/admin -- --emptyOutDir false`
+  - `npm run build -w @xinghuan/api`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:canvas-assistant-chat`
+- 灰度:
+  - `https://canvas-next.hhh2121.xyz/api/status` 返回 `environment=gray`。
+  - `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`。
+  - 灰度 `/admin` 加载资源 `index-CbcTwclz.js`、`index-c3cW3cYp.css`。
+  - JS 包含 `/api/assistant/chat/stream` 与 endpoint 遮罩文案，不包含 `127.0.0.1:8787`。
+  - CSS 包含 `admin-main--fixed-panel`、API 设置页内部滚动与自定义滚动条规则。
+- 生产:
+  - `https://canvas.hhh2121.xyz/api/status` 返回 `environment=production`。
+  - `xinghuan-canvas.service` 与 `xinghuan-canvas-worker.service` 均为 `active`。
+  - 生产 `/admin` 加载同一新资源，JS/CSS 特征检查与灰度一致。
+
+发布记录:
+
+- 灰度 release: `/opt/apps/xinghuan-canvas-next/releases/20260609-assistant-stream-gray`
+- 生产 release: `/opt/apps/xinghuan-canvas/releases/20260609-assistant-stream-prod`
+- 灰度域名: `canvas-next.hhh2121.xyz`
+- 生产域名: `canvas.hhh2121.xyz`
+
+说明:
+
+- `canvas-next.hhh2121.xyz` 是灰度/预发布环境，服务端口为 `127.0.0.1:18200`。
+- `canvas.hhh2121.xyz` 是正式生产环境，服务端口为 `127.0.0.1:18100`。
+- 灰度管理员密码与本地默认密码不同，因此脚本化后台登录验收不能使用本地默认密码；本轮以服务健康、资源特征、公开页面和服务日志完成上线验收。
+
+### 2026-06-09 Release 打包脚本瘦身与标注
+
+目标:
+
+- 避免上线包再次把 `.git`、`node_modules`、本地运行数据、上传素材和历史压缩包打进去。
+- 让 release 包自带清晰标注，说明包含了什么、排除了什么。
+
+变更范围:
+
+- `scripts/package-release.mjs`
+  - 新增白名单式 release 打包脚本。
+  - 打包前检查 API、worker、web、admin、packages 的必要 `dist` 产物。
+  - 只复制运行必需文件到临时 staging 目录后再压缩。
+  - 自动生成包内 `RELEASE_PACKAGE.md`，标注 included/excluded 清单。
+- `package.json`
+  - 新增 `npm run package:release -- <release-name>`。
+- `.gitignore`
+  - 新增 `dist-release/`，避免本地 release 包进入 Git。
+
+默认包含:
+
+- `package.json`、`package-lock.json`
+- `scripts/start-single-port.mjs`
+- `scripts/db-migrate.mjs`
+- `config/` 模板与 `ops/systemd`、`ops/nginx`
+- `apps/api/dist`、`apps/api/db`
+- `apps/worker/dist`
+- `apps/web/dist`
+- `apps/admin/dist`
+- `packages/*/dist`
+- `AGENTS.md`、`MEMORY.md`、`DEVLOG.md`
+
+默认排除:
+
+- `.git`
+- `node_modules`
+- `apps/api/data`
+- `output`
+- `logs`
+- `development/_archive`
+- `dist-release`
+- 本地上传素材、运行期生成文件、真实 `.env` 和密钥
+
+验证证据:
+
+- `npm run package:release -- 20260609-release-package-smoke`
+- 输出包: `dist-release/20260609-release-package-smoke.tar.gz`
+- 包大小: `6.03 MB`
+
+影响:
+
+- 后续上线包从之前误打包时的 GB 级下降到 MB 级。
+- 服务器运行数据继续留在 VPS 的 shared 目录，不随 release 覆盖。
+
+### 2026-06-09 Hermes Profile 隔离与灰度复验
+
+目标:
+
+- 将无限画布 AI 助手从个人 Hermes Profile 中隔离出来。
+- 让后台助手和画布助手都显式使用独立 Profile。
+- 保持画布侧非持久化记忆，避免普通工作流上下文写入 Hermes 长期记忆。
+
+变更范围:
+
+- Hermes 服务器:
+  - 新建 Profile ID `canvas-assistant`。
+  - 展示身份记录为 `无限画布AI助手`。
+  - Profile 路径为 `/home/ubuntu/.hermes/profiles/canvas-assistant`。
+  - Profile 配置使用 `deepseek-v4-flash`，并关闭 Hermes memory 写入。
+- 灰度服务器:
+  - `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env` 已配置 `XINGHUAN_HERMES_PROFILE=canvas-assistant`。
+  - 灰度 release 已更新为 `/opt/apps/xinghuan-canvas-next/releases/20260609-hermes-canvas-assistant-profile-gray`。
+- 本机代码:
+  - API 和后台默认助手 Profile 统一为 `canvas-assistant`，避免环境变量缺失时退回中文 slug。
+  - 验证脚本断言从旧中文 Profile 名更新为 `canvas-assistant`。
+  - 画布助手运行时 smoke 使用普通登录接口，后台助手 smoke 使用管理员登录接口。
+  - 打包脚本保留 staging 目录给人工清理，不再自动递归清理临时目录。
+
+验证证据:
+
+- 本机:
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:canvas-assistant-chat`
+  - `npm run verify:admin-assistant-settings-save-contract`
+  - `npm run type-check`
+  - `npm run build:single-port`
+  - `npm run package:release -- 20260609-hermes-canvas-assistant-profile-gray`
+- 灰度服务器:
+  - `npm ci` 通过，`found 0 vulnerabilities`
+  - `npm run db:migrate` 返回 `applied=[]`、`skipped=6`
+  - `/opt/apps/xinghuan-canvas-next/current` 指向 `20260609-hermes-canvas-assistant-profile-gray`
+  - `xinghuan-canvas-next.service` 为 `active`
+  - `xinghuan-canvas-next-worker.service` 为 `active`
+  - `/api/status` 返回 `environment=gray`
+  - 后台助手返回 `mode=hermes`
+  - 画布助手返回 `mode=hermes`
+- Hermes WebUI:
+  - `canvas-assistant` Profile 存在。
+  - recent sessions 显示新 release 会话归属 `canvas-assistant`，模型为 `deepseek-v4-flash`。
+- 公网:
+  - `https://canvas-next.hhh2121.xyz/api/status` 返回 `200`
+  - `https://canvas-next.hhh2121.xyz/` 返回 `200`
+  - `https://canvas-next.hhh2121.xyz/admin` 返回 `200`
+
+注意:
+
+- Profile ID 必须使用 ASCII slug `canvas-assistant`，不要改回中文。
+- 真实 Hermes 密码、Cookie、Provider Key 和数据库连接串不写入文档。
+- 本次只更新灰度，不更新生产 `canvas.hhh2121.xyz`。
+### 2026-06-09 deadlock / GRSAI / 助手图片输入 / API 站点协助配置补齐
+
+- 修复后台并发进入多面板时可能触发的 PostgreSQL `deadlock detected` 根因。
+  - `apps/api/src/server.ts`
+    - `readAdminDb()` 在 PostgreSQL 模式下不再因 secret/model/visible text 归一化而执行整库 `writeAdminDbPostgres()`。
+    - 新增 `updateProviderProbeResult()` / `updateProviderLastFetchedAt()`，Provider 验证与拉模状态改为单 Provider 定点更新，不再 delete/reinsert 全表。
+- 修复 GRSAI 站点在后台仍选 `OpenAI 兼容` 时拉模型返回 `404 page not found` 的问题。
+  - `apps/api/src/server.ts`
+    - 新增 `isGrsaiProviderDraft()`，按 `protocol`、`id`、`name`、`baseUrl` 双重识别 `grsai_draw`。
+    - `probeProviderDraft()` / `fetchProviderModelsDraft()` 对 GRSAI 统一走手动模型目录，默认提供 `gpt-image-2`。
+  - `apps/admin/src/admin-api-settings-panel.tsx`
+    - Base URL / 名称命中 `grsai` 时自动切换协议为 `grsai_draw`。
+- 补齐后台 `AI 协助配置` 对 API 站点的辅助配置能力。
+  - `apps/admin/src/admin-api-settings-panel.tsx`
+    - 新增 `接入判断` 只读位，展示协议 / 推荐层级 / async 判断。
+    - AI 草案应用后会保留管理员确认权，仍需显式点击保存。
+  - `apps/api/src/server.ts`
+    - fallback 分析增强 GRSAI/异步站点识别，默认补 `manualModelCatalog` 和 `gpt-image-2`。
+- 前后台 AI 助手都支持图片上传与传输。
+  - `apps/web/src/components/CanvasAssistant.tsx`
+    - 新增图片上传入口，走 `/api/files/upload-base64`，作为 `image` 附件挂入会话。
+  - `apps/admin/src/admin-assistant-panel.tsx`
+    - 后台助手新增图片上传入口，同样上传到本地 `/files/output/...` 后作为附件发送。
+  - `apps/api/src/server.ts`
+    - `summarizeAssistantAttachment()` 对媒体附件保留安全 URL，不再只留下 host。
+- 修复后台 Provider 列表状态图标压缩。
+  - `apps/admin/src/styles.css`
+    - Provider 列表 grid 列宽和图标/协议徽标的 `flex` 固定尺寸收紧，避免被文本挤压。
+- 补充回归脚本。
+  - `scripts/verify-admin-api-layout-contract.mjs`
+  - `scripts/verify-admin-assistant-chat.mjs`
+  - `scripts/verify-canvas-assistant-chat.mjs`
+  - `scripts/verify-canvas-assistant-ui-contract.mjs`
+  - `scripts/verify-admin-assistant-ui-contract.mjs`
+- 本机验证:
+  - `npm run verify:admin-api-layout-contract`
+  - `npm run verify:admin-assistant-chat`
+  - `npm run verify:canvas-assistant-chat`
+  - `npm run verify:canvas-assistant-ui-contract`
+  - `npm run verify:admin-assistant-ui-contract`
+  - `npm run type-check`
+  - `npm run build:single-port`
+
+### 2026-06-09 后台 AI 助手全面重构 / Provider 联动 / 图像异步代理补齐
+
+- 后台 AI 助手设置页完成重构，改为工作台式布局。
+  - `apps/admin/src/admin-assistant-settings-panel.tsx`
+    - 从旧的平铺表单改成 `hero + 保存条 + 多卡片分组` 结构。
+    - 保留原有字段协议与保存逻辑，但重组为：
+      - `创作侧助手`
+      - `后台审计助手`
+      - `外部服务接入`
+    - 每张卡再细分为基础文案、上下文权限、会话/安全策略等设置段。
+  - `apps/admin/src/styles.css`
+    - 新增设置页 hero、指标 chip、设置卡片、开关行、静态说明卡等样式。
+    - 旧表单栅格不再作为 AI 助手页主布局。
+
+- 后台右侧 AI 助手侧栏完成重构，并与 Provider 配置协助打通双向联动。
+  - `apps/admin/src/admin-assistant-panel.tsx`
+    - 重构为：
+      - 头部身份区
+      - 会话状态卡
+      - 当前可挂上下文区
+      - 已挂附件区
+      - 消息区
+      - 输入区
+    - Quick actions 从简单按钮改成信息卡样式，能更清晰地区分 Provider、模型、任务、审计和页面上下文。
+    - 保留图片上传、会话连续性、上下文压缩发送和右侧停靠模式。
+  - `apps/admin/src/admin-assistant-events.ts`
+    - 新增后台助手上下文分发事件中枢，供后台页面把草稿和上下文直接推到右侧助手。
+  - `apps/admin/src/main.tsx`
+    - 后台助手新增显式 `onOpenChange`，避免页面推送上下文时误触发“已打开反而被收起”。
+
+- Provider 配置页 AI 协助配置升级为双向联动。
+  - `apps/admin/src/admin-api-settings-panel.tsx`
+    - 新增 `sendDraftToAssistant()`，可把当前 Provider 草稿、模型摘要、最近拉模结果一键送到右侧助手继续对话分析。
+    - 仍保留本页内的 `分析配置 -> 应用到表单 -> 管理员点击保存` 主流程，不会自动落库。
+    - 当前实现满足“配置页主工作台 + 右侧助手连续协作”的双向工作流。
+
+- 修复图像节点主链路中的 APIMart 异步任务缺口。
+  - `apps/api/src/external-proxy.ts`
+    - 补齐 `pollAsyncImageTask()`。
+    - `generateOpenAiLikeImage()` 现在会在同步响应没有图像时，自动识别 `task_id` 并轮询 `tasks/{task_id}`。
+    - 画布里直接调用 `/api/proxy/external/image` 的主路径已与既有视频异步链路对齐。
+  - `apps/worker/src/worker.ts`
+    - `executeImageTask()` 在同步结果为空时，也会识别 `task_id` 并进入 APIMart 图像轮询。
+    - 后台任务面板与画布直连代理两条图像链路不再能力割裂。
+
+- 契约与验收脚本同步更新。
+  - `scripts/verify-admin-assistant-ui-contract.mjs`
+    - 兼容新版后台助手布局与设置页设置行结构。
+
+- 本机验收证据：
+  - 静态/构建：
+    - `npm run verify:admin-assistant-ui-contract`
+    - `npm run verify:admin-assistant-workbench`
+    - `npm run verify:admin-assistant-settings-save-contract`
+    - `npm run verify:provider-response-parser-contract`
+    - `npm run type-check`
+    - `npm run build:single-port`
+  - 运行时：
+    - `npm run verify:external-video-proxy` 通过
+    - `npm run verify:external-image-proxy` 通过，确认图像异步 `task_id -> /v1/tasks/{task_id}` 代理已生效
+    - 手动运行时 smoke：
+      - `POST /api/auth/admin-login` 返回 `200`
+      - `POST /api/admin/assistant/chat` 返回 `200`
+      - 助手返回 `mode=fallback` 且消息非空
+      - `/api/admin/audit` 中存在 `assistant.chat`
+
+- 运行时补充复验：
+  - `2026-06-09` 当晚再次直接执行 `node scripts/verify-admin-assistant-chat.mjs`，当前工作树已稳定通过，不再复现此前记录过的一次性 `401 AUTH_REQUIRED` 残差。
+  - 结合脚本验收与手动 smoke，可确认后台助手登录态、会话上下文和审计落库链路在本机当前版本中处于正常状态。
+
+- 后台 API 设置页与图片/视频链路追加复验：
+  - `apps/admin/src/styles.css`
+    - 修正 Provider 列表项的固定图标列与协议徽标尺寸，避免后台错误状态/协议图标在窄宽度下被压缩错位。
+    - 后台 AI 助手侧栏、API 协助卡片继续保持自适应宽度、自动换列和内容折行。
+  - 本机再次通过：
+    - `npm run verify:admin-api-layout-contract`
+    - `npm run verify:canvas-assistant-ui-contract`
+    - `npm run verify:grsai-draw`
+    - `npm run verify:grsai-reference-images-contract`
+    - `npm run verify:apimart-video-adapter-contract`
+    - `npx tsx scripts/verify-video-node-backend-inputs-contract.ts`
+    - `npm run verify:generic-node-catalog`
+    - `npm run verify:provider-response-parser-contract`
+    - `npm run verify:task-payload-api`
+    - `npm run build -w @xinghuan/admin`
+  - 当前未完成但已确认根因的仅剩本机 Worker 队列运行时验收：
+    - `npm run verify:worker-video-adapter`
+    - `npm run verify:worker-image-adapter`
+    - 两者当前都被本地 `127.0.0.1:18200` 环境中的 `redis.status != connected` / `database.status != connected` 卡住，不属于本轮代码回归。
+
+- `2026-06-10` 灰度 Hermes 助手回归已完成根因修复与实机复验。
+  - 根因 1：
+    - Hermes WebUI 当前 `/api/session/new` 返回结构已变为顶层 `session.session_id`。
+    - 无限画布桥接此前只兼容 `data.session.session_id` / `data.session_id`，导致明明创建成功的 session 被误判为“未返回 session_id”。
+  - 根因 2：
+    - 无限画布助手聊天此前调用的是 Hermes WebUI `POST /api/chat` 同步兜底接口。
+    - Hermes WebUI 源码已明确该接口“Not used by frontend”，灰度实测会长时间挂起；真实前端主链路已切到 `POST /api/chat/start + GET /api/chat/stream`。
+  - 代码修复：
+    - `apps/api/src/server.ts`
+      - 新增 `extractHermesSessionId()`，兼容顶层 `session.session_id` / `session.id` 返回结构。
+      - 助手聊天桥接改为：
+        - `POST /api/auth/login`
+        - `POST /api/session/new`
+        - `POST /api/chat/start`
+        - `GET /api/chat/stream?stream_id=...`
+      - 新增 `readHermesAssistantStream()` 和 `parseServerSentEvents()`，从 Hermes SSE 主链路提取 `token` / `done` 文本。
+      - `rawHttpRequest()` 支持自定义超时，Hermes SSE 读取窗口提升到 `180000ms`。
+    - `scripts/verify-admin-assistant-chat.mjs`
+      - 新增静态契约：后台助手桥接必须包含 `/api/chat/start`、`readHermesAssistantStream`、`extractHermesSessionId`。
+    - `scripts/verify-canvas-assistant-chat.mjs`
+      - 新增静态契约：画布助手桥接必须包含 `/api/chat/start`、`readHermesAssistantStream`、`extractHermesSessionId`。
+  - 本机验证：
+    - `npm run type-check`
+    - `npm run build -w @xinghuan/api`
+    - `npm run build:single-port`
+    - 本机 admin smoke 仍返回 `mode=fallback`，已确认是本地轻量环境未加载 Hermes 配置，不属于回归。
+  - 新灰度 release：
+    - 本机包：`dist-release/20260610-hermes-webui-stream-fix-gray-r2.tar.gz`
+    - 服务器目录：`/opt/apps/xinghuan-canvas-next/releases/20260610-hermes-webui-stream-fix-gray-r2`
+  - 灰度服务器验证：
+    - `npm ci`
+    - `npm run db:migrate`
+      - `applied=[]`
+      - `skipped=6`
+    - `systemctl is-active xinghuan-canvas-next.service`
+      - `active`
+    - `systemctl is-active xinghuan-canvas-next-worker.service`
+      - `active`
+    - `curl -fsS http://127.0.0.1:18200/api/status`
+      - `environment=gray`
+  - 灰度真实助手验收：
+    - 画布助手：
+      - `mode=hermes`
+      - 连续两轮同一 `conversationId` 对话中，第二轮成功返回第一轮记住的短语 `星轨草图`
+    - 后台助手：
+      - `mode=hermes`
+      - 连续两轮同一 `conversationId` 对话中，第二轮成功返回第一轮记住的暗号 `海蓝节点`
+  - 结论：
+    - Hermes 灰度回归已修复。
+    - 会话连续性已恢复，当前灰度 assistant 不再退回 fallback，也不再卡死在同步 `/api/chat`。
+
+- `2026-06-10` 图像 / 视频生成节点链路追加完成一轮灰度实链验收与验收入口补齐。
+  - 目标：
+    - 确认图像与视频生成节点不是只在本机契约层看起来可用，而是在灰度完整 Redis/DB/Worker 环境中真实闭环。
+    - 补齐当前缺失的一键验收入口，避免“脚本文件存在但 package script 缺口导致无法统一复验”。
+  - 代码补充：
+    - `package.json`
+      - 新增 `verify:video-node-backend-inputs-contract`
+      - 统一把前端视频节点后端输入分配契约纳入标准验收入口
+  - 本机验证：
+    - `npm run verify:video-node-backend-inputs-contract`
+    - `npm run verify:task-payload-api`
+    - `npm run verify:provider-response-parser-contract`
+    - `npm run type-check`
+  - 灰度真实验收：
+    - `worker image runtime`
+      - 通过
+      - `adapter=openai-image`
+    - `worker video runtime`
+      - 通过
+      - `adapter=openai-video`
+      - 本地落盘视频示例：
+        - `/files/output/task_output_task-1781023220940-e5h0ys_1.mp4`
+    - `external image proxy`
+      - 同步链路通过
+      - 异步 `task_id -> /v1/tasks/{task_id}` 图像链路通过
+    - `external video proxy`
+      - 同步链路通过
+      - APIMart 异步视频链路通过
+      - 本地落盘视频示例：
+        - `/files/output/external_video_1781023339765_zxj79o.mp4`
+        - `/files/output/external_video_1781023340309_3tdoq1.mp4`
+  - 关键结论：
+    - 当前灰度上的图像 / 视频节点主链路已经覆盖：
+      - 前端视频输入结构分配
+      - 任务 payload API
+      - provider response parser
+      - external proxy 图像 / 视频
+      - worker image / worker video
+      - 本地 `files/output` 落盘
+    - 本轮未发现新的图像 / 视频业务回归。
+  - 排查过程中确认的非业务噪音：
+    - 本机 `verify:worker-image-adapter` / `verify:worker-video-adapter` 失败仍然是因为本机轻量环境未连接 Redis / DB，不是链路故障。
+    - 灰度执行临时 verifier 时遇到的 `\r` / here-doc 问题是脚本传输包装问题，不是图像 / 视频生成链路问题。
+
+- `2026-06-10` 本地最终收尾验收补记。
+  - 目标：
+    - 复核 AI 助手前后台 UI 契约、共享运行态卡片入口和当前本地验收入口是否一致，避免“脚本可跑但入口断档”或“把无效本地端口误判为页面故障”。
+  - 本机验证：
+    - `npm run verify:admin-assistant-ui-contract`
+    - `npm run verify:canvas-assistant-ui-contract`
+    - `npm run verify:admin-assistant-workbench`
+    - `npm run verify:admin-assistant-settings-save-contract`
+    - `npm run verify:admin-assistant-chat`
+    - `npm run verify:canvas-assistant-chat`
+    - `npm run verify:node-runtime-card-contract`
+  - 代码补充：
+    - `package.json`
+      - 新增 `verify:node-runtime-card-contract`
+      - 统一把共享运行态卡片纳入标准 script 入口，避免脚本文件存在但无法通过 `npm run` 复验。
+  - 本地页面状态确认：
+    - 当前有效单端口入口仍是 `http://127.0.0.1:18200/`
+    - 用户当时看到的 `http://localhost:8200/` 无法访问，原因是该端口本机没有监听进程，不属于本轮 AI 助手 UI 回归。
+    - `http://127.0.0.1:18200/admin` 本机可正常进入后台登录页，浏览器控制台未复现新的 `error` / `warn`。
+  - 结论：
+    - 当前 AI 助手前后台 UI 契约、后台协助配置工作台、共享运行态卡片脚本入口都已补齐。
+    - 本轮未在本地可用入口复现新的 AI 助手可见报错；`localhost:8200` 需视为无效调试入口，而不是页面渲染异常。
+  - 额外修复：
+    - 发现本地认证层对同一用户只保留单个 session，导致前后台或并行验收脚本重新登录时会互相挤掉登录态，表现为助手接口偶发 `AUTH_REQUIRED`。
+    - `apps/api/src/server.ts`
+      - `loginUser()` 改为保留该用户已有未过期 session，不再在新登录时按 `userId` 清空旧 session。
+    - 新增 `scripts/verify-auth-session-concurrency.mjs`
+      - 验证同一账号连续创建两个 session 后，两边 `GET /api/auth/me` 都仍为已登录。
+    - `package.json`
+      - 新增 `verify:auth-session-concurrency`
+  - 修复后串行验证：
+    - `npm run build:single-port`
+    - `npm run verify:auth-session-concurrency`
+    - `npm run verify:admin-assistant-chat`
+    - `npm run verify:canvas-assistant-chat`
+    - `npm run verify:admin-assistant-ui-contract`
+    - `npm run verify:canvas-assistant-ui-contract`
+    - `npm run verify:node-runtime-card-contract`
+    - `npm run verify:video-node-backend-inputs-contract`
+    - `npm run verify:task-payload-api`
+    - `npm run verify:provider-response-parser-contract`

@@ -16,6 +16,7 @@ import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
+import NodeRuntimeCard from './NodeRuntimeCard';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
@@ -113,6 +114,9 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
   const taskId: string | undefined = d.taskId;
   const videoUrl: string | undefined = d.videoUrl;
   const progress: string = d.progress || '';
+  const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
+  const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
+  const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
   const localPrompt: string = d.prompt || '';
   const promptMentions: MediaMention[] = Array.isArray(d?.promptMentions) ? d.promptMentions : [];
 
@@ -156,6 +160,37 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
     });
   };
   const handleRestoreExcludedMaterials = () => update({ excludedMaterialIds: [] });
+
+  const markRuntimeStarted = () => {
+    const nextStartedAt = Date.now();
+    update({ startedAt: nextStartedAt, finishedAt: null, lastDurationMs: null });
+    return nextStartedAt;
+  };
+
+  const markRuntimeFinished = (runtimeStartedAt: number | null, patch: Record<string, unknown>) => {
+    const nextFinishedAt = Date.now();
+    update({
+      ...patch,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
+
+  const markRuntimeFailed = (runtimeStartedAt: number | null, message: string) => {
+    const nextFinishedAt = Date.now();
+    update({
+      status: 'error',
+      error: message,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
 
   // === 本地拖入参考素材 (跨节点 Ctrl 拖拽) ===
   const localRefImages: string[] = Array.isArray(d?.localRefImages) ? d.localRefImages : [];
@@ -230,7 +265,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   // v1.2.9.11: 返回 Promise，调用方 await 直到任务真正成功/失败/超时才 resolve/reject。
   //   在循环器中使用时，不 await 会导致 useRunTrigger 提前 markDone → LoopNode 读不到 videoUrl → result=null → failCount++。
-  const startPolling = (tid: string): Promise<void> => {
+  const startPolling = (tid: string, runtimeStartedAt: number | null): Promise<void> => {
     stopPoll();
     return new Promise<void>((resolve, reject) => {
       let elapsed = 0;
@@ -241,7 +276,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
         elapsed += 1;
         if (elapsed > MAX) {
           stopPoll();
-          update({ status: 'error', error: '轮询超时' });
+          markRuntimeFailed(runtimeStartedAt, '轮询超时');
           setError('轮询超时');
           logBus.error(`Seedance 轮询超时(${MAX}次)`, src);
           reject(new Error('轮询超时'));
@@ -259,14 +294,14 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           }
           if (r.status === 'succeeded' && r.videoUrl) {
             stopPoll();
-            update({ status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
             logBus.success(`任务完成 → ${r.videoUrl}`, src);
             taskCompletionSound.notifyComplete(id, 'seedance');
             resolve();
           } else if (r.status === 'failed') {
             stopPoll();
             const msg = r.failReason || '生成失败';
-            update({ status: 'error', error: msg });
+            markRuntimeFailed(runtimeStartedAt, msg);
             setError(msg);
             logBus.error(`生成失败: ${msg}`, src);
             reject(new Error(msg));
@@ -292,6 +327,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       return;
     }
     taskCompletionSound.primeAudio();
+    const runtimeStartedAt = markRuntimeStarted();
     update({ status: 'submitting', error: null, videoUrl: null, taskId: null });
 
     try {
@@ -330,7 +366,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
         });
         const nextVideoUrl = r.videoUrls[0];
         if (!nextVideoUrl) throw new Error('扩展平台没有返回视频。');
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           videoUrl: nextVideoUrl,
           videoUrls: r.videoUrls,
@@ -396,18 +432,18 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: '15%' });
       logBus.info(`异步任务已提交 taskId=${r.taskId}, 进入轮询…`, src);
       // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone，循环器才能拿到 videoUrl
-      await startPolling(r.taskId);
+      await startPolling(r.taskId, runtimeStartedAt);
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
-      update({ status: 'error', error: msg });
+      markRuntimeFailed(runtimeStartedAt, msg);
       logBus.error(`提交失败: ${msg}`, src);
     }
   };
 
   const handleStop = () => {
     stopPoll();
-    update({ status: 'idle' });
+    update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
     logBus.warn('用户主动停止', src);
   };
 
@@ -484,6 +520,16 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           </div>
         </div>
       </div>
+
+      <NodeRuntimeCard
+        status={status}
+        progress={progress}
+        startedAt={startedAt}
+        finishedAt={finishedAt}
+        lastDurationMs={lastDurationMs}
+        accent="#d946ef"
+        taskId={taskId}
+      />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         {videoAdvancedProviders.length > 0 && (

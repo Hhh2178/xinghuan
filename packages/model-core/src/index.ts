@@ -2,6 +2,29 @@ export type ModelCapability = "chat" | "image" | "video";
 
 export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
 
+export interface ModelInputCapabilities {
+  prompt?: boolean;
+  imageReference?: boolean;
+  multiImage?: boolean;
+  firstFrame?: boolean;
+  lastFrame?: boolean;
+  mask?: boolean;
+  audioReference?: boolean;
+}
+
+export interface ModelAdvancedConfig {
+  mode?: string;
+  requestMapping?: Record<string, string>;
+  fixedBody?: Record<string, unknown>;
+  taskStatusPath?: string;
+  taskIdPath?: string;
+  resultVideoPath?: string;
+  pollPathTemplate?: string;
+  pollIntervalMs?: number;
+  pollTimeoutMs?: number;
+  [key: string]: unknown;
+}
+
 export interface ModelParameterSchema {
   prompt?: { type?: string; required?: boolean };
   aspectRatio?: { type?: string; options?: string[]; default?: string };
@@ -23,6 +46,13 @@ export interface ModelUiMetadata {
   defaultDuration: string | number;
   resolutionOptions: string[];
   defaultResolution: string;
+  inputCapabilities: {
+    prompt: boolean;
+    imageReference: boolean;
+    multiImage: boolean;
+    firstFrame: boolean;
+    lastFrame: boolean;
+  };
 }
 
 export interface ProviderModelDraft {
@@ -69,6 +99,43 @@ export function parseModelParameterSchema(value: unknown): ModelParameterSchema 
   }
 }
 
+export function parseInputCapabilities(value: unknown, capability: ModelCapability): ModelInputCapabilities {
+  const source = parsePlainObject(value);
+  const schema = parseModelParameterSchema(source.parameterSchema);
+  const schemaMaxReferenceImages = Number(schema.referenceImages?.max);
+  const schemaSupportsReference = Boolean(schema.referenceImages);
+  const defaultImageReference = capability === "image"
+    ? schemaSupportsReference || source.imageReference === true || source.multiImage === true
+    : capability === "video"
+    ? schemaSupportsReference || source.imageReference === true || source.multiImage === true
+    : false;
+  const defaultMultiImage = capability === "image"
+    ? Number.isFinite(schemaMaxReferenceImages) && schemaMaxReferenceImages > 1
+    : false;
+  return {
+    prompt: source.prompt !== false,
+    imageReference: source.imageReference === undefined ? defaultImageReference : Boolean(source.imageReference),
+    multiImage: source.multiImage === undefined ? defaultMultiImage : Boolean(source.multiImage),
+    firstFrame: Boolean(source.firstFrame),
+    lastFrame: Boolean(source.lastFrame),
+    mask: Boolean(source.mask),
+    audioReference: Boolean(source.audioReference),
+  };
+}
+
+export function parseAdvancedConfig(value: unknown): ModelAdvancedConfig {
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as ModelAdvancedConfig : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === "object" && !Array.isArray(value) ? value as ModelAdvancedConfig : {};
+}
+
 export function defaultParameterSchemaForModel(
   capability: ModelCapability,
   modelId: string,
@@ -110,13 +177,21 @@ export function mergeModelParameterSchema(
   };
 }
 
-export function uiMetadataFromSchema(schemaValue: unknown, capability: ModelCapability): ModelUiMetadata {
+export function uiMetadataFromSchema(
+  schemaValue: unknown,
+  capability: ModelCapability,
+  inputCapabilitiesValue?: unknown,
+): ModelUiMetadata {
   const schema = parseModelParameterSchema(schemaValue);
   const aspectRatios = compactStrings(schema.aspectRatio?.options, capability === "video" ? VIDEO_RATIOS : IMAGE_RATIOS);
   const sizes = compactStrings(schema.size?.options, capability === "image" ? OPENAI_IMAGE_SIZES : []);
   const durationOptions = compactValues(schema.duration?.options, capability === "video" ? VIDEO_DURATIONS : []);
   const resolutionOptions = compactStrings(schema.resolution?.options, capability === "video" ? VIDEO_RESOLUTIONS : []);
   const maxReferenceImages = Number(schema.referenceImages?.max);
+  const inputCapabilities = parseInputCapabilities(
+    { ...parsePlainObject(inputCapabilitiesValue), parameterSchema: schema },
+    capability,
+  );
   return {
     aspectRatios,
     defaultAspectRatio: stringInList(schema.aspectRatio?.default, aspectRatios, aspectRatios[0] || "1:1"),
@@ -128,7 +203,20 @@ export function uiMetadataFromSchema(schemaValue: unknown, capability: ModelCapa
     defaultDuration: valueInList(schema.duration?.default, durationOptions, durationOptions[0] || ""),
     resolutionOptions,
     defaultResolution: stringInList(schema.resolution?.default, resolutionOptions, resolutionOptions[0] || ""),
+    inputCapabilities: {
+      prompt: inputCapabilities.prompt !== false,
+      imageReference: Boolean(inputCapabilities.imageReference),
+      multiImage: Boolean(inputCapabilities.multiImage),
+      firstFrame: Boolean(inputCapabilities.firstFrame),
+      lastFrame: Boolean(inputCapabilities.lastFrame),
+    },
   };
+}
+
+function parsePlainObject(value: unknown): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+  return {};
 }
 
 function compactStrings(values: unknown, fallback: string[]): string[] {

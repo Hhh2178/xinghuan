@@ -10,8 +10,10 @@ runtime/
 logs/
 tmp/
 .tmp/
+.codex-temp/
 output/
 releases/
+dist-release/
 .codegraph/
 .playwright-cli/
 apps/api/data/users/

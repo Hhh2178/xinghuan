@@ -686,7 +686,6 @@ html[data-theme-visual="slamdunk"] .react-flow__minimap::after {
 }
 
 html[data-theme-visual="slamdunk"] .react-flow__controls,
-html[data-theme-visual="slamdunk"] .t8-theme-music-toggle,
 html[data-theme-visual="slamdunk"] .t8-control-rail-help {
   border: 2px solid var(--sd-ink) !important;
   border-radius: 8px !important;
@@ -698,7 +697,6 @@ html[data-theme-visual="slamdunk"] .react-flow__controls {
 }
 
 html[data-theme-visual="slamdunk"] .react-flow__controls-button,
-html[data-theme-visual="slamdunk"] .t8-theme-music-toggle,
 html[data-theme-visual="slamdunk"] .t8-control-rail-help {
   background: linear-gradient(180deg, var(--sd-board-dark), #0b0504) !important;
   color: #fff0ce !important;
@@ -706,7 +704,6 @@ html[data-theme-visual="slamdunk"] .t8-control-rail-help {
 }
 
 html[data-theme-visual="slamdunk"] .react-flow__controls-button svg,
-html[data-theme-visual="slamdunk"] .t8-theme-music-toggle svg,
 html[data-theme-visual="slamdunk"] .t8-control-rail-help svg {
   color: currentColor !important;
   stroke: currentColor !important;
@@ -714,7 +711,6 @@ html[data-theme-visual="slamdunk"] .t8-control-rail-help svg {
 }
 
 html[data-theme-visual="slamdunk"] .react-flow__controls-button:hover,
-html[data-theme-visual="slamdunk"] .t8-theme-music-toggle:hover,
 html[data-theme-visual="slamdunk"] .t8-control-rail-help:hover {
   background: linear-gradient(180deg, var(--sd-red-hot), var(--sd-red)) !important;
   color: var(--t8-accent-text) !important;

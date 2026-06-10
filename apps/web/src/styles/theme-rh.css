@@ -504,18 +504,6 @@ html[data-theme-visual="rh"] .react-flow__nodesselection-rect {
   border: 1px dashed var(--rh-lime) !important;
 }
 
-html[data-theme-visual="rh"] .t8-theme-music-toggle {
-  background: color-mix(in srgb, var(--rh-card) 88%, transparent) !important;
-  border-color: var(--rh-card-border) !important;
-  color: var(--rh-lime) !important;
-  box-shadow: var(--rh-card-shadow) !important;
-}
-
-html[data-theme-visual="rh"] .t8-theme-music-toggle.is-playing {
-  background: linear-gradient(135deg, var(--rh-lime), var(--rh-cyan)) !important;
-  color: var(--t8-accent-text) !important;
-}
-
 .t8-theme-preview[data-theme-visual="rh"] {
   --rh-lime: var(--t8-accent);
   --rh-cyan: var(--t8-secondary);

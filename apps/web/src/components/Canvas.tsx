@@ -21,7 +21,32 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Play, Copy, CopyPlus, Trash2, FolderPlus, PackagePlus, Library, Download, Workflow, Send as SendIcon, Orbit, Sparkles } from 'lucide-react';
+import {
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalSpaceBetween,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalSpaceBetween,
+  Bot,
+  Copy,
+  CopyPlus,
+  Download,
+  FolderPlus,
+  Grid3x3,
+  LayoutGrid,
+  Library,
+  Magnet,
+  Orbit,
+  PackagePlus,
+  Play,
+  Send as SendIcon,
+  Sparkles,
+  Trash2,
+  Workflow,
+} from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useCanvasStore } from '../stores/canvas';
 import { useThemeStore } from '../stores/theme';
@@ -94,22 +119,22 @@ import { logBus } from '../stores/logs';
 import CanvasToolbar from './CanvasToolbar';
 import TerminalPanel from './TerminalPanel';
 import NodeActionBar from './NodeActionBar';
+import CanvasAssistant from './CanvasAssistant';
 import MaterialDragOverlay from './MaterialDragOverlay';
-import ThemeMusicToggle from './ThemeMusicToggle';
 import SendMaterialsModal from './SendMaterialsModal';
 import { useCanvasHistory } from '../hooks/useCanvasHistory';
 import type { CanvasTemplate } from '../config/canvasTemplates';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
-import ImageNode from './nodes/ImageNode';
-import LLMNode from './nodes/LLMNode';
-import VideoNode from './nodes/VideoNode';
-import SeedanceNode from './nodes/SeedanceNode';
+const ImageNode = lazy(() => import('./nodes/ImageNode'));
+const LLMNode = lazy(() => import('./nodes/LLMNode'));
+const VideoNode = lazy(() => import('./nodes/VideoNode'));
+const SeedanceNode = lazy(() => import('./nodes/SeedanceNode'));
 import AudioNode from './nodes/AudioNode';
-import RunningHubNode from './nodes/RunningHubNode';
+const RunningHubNode = lazy(() => import('./nodes/RunningHubNode'));
 import RhConfigNode from './nodes/RhConfigNode';
-import RHToolsNode from './nodes/RHToolsNode';
-import RHToolboxNode from './nodes/RHToolboxNode';
+const RHToolsNode = lazy(() => import('./nodes/RHToolsNode'));
+const RHToolboxNode = lazy(() => import('./nodes/RHToolboxNode'));
 import ComfyUIStoreNode from './nodes/ComfyUIStoreNode';
 import ComfyUIAppMakerNode from './nodes/ComfyUIAppMakerNode';
 import ResizeNode from './nodes/ResizeNode';
@@ -118,10 +143,10 @@ import GridCropNode from './nodes/GridCropNode';
 import GridEditorNode from './nodes/GridEditorNode';
 import CombineNode from './nodes/CombineNode';
 import RemoveBgNode from './nodes/RemoveBgNode';
-import ImageCompareNode from './nodes/ImageCompareNode';
-import ToolboxParamNode from './nodes/ToolboxParamNode';
-import PortraitMasterNode from './nodes/PortraitMasterNode';
-import PoseMasterNode from './nodes/PoseMasterNode';
+const ImageCompareNode = lazy(() => import('./nodes/ImageCompareNode'));
+const ToolboxParamNode = lazy(() => import('./nodes/ToolboxParamNode'));
+const PortraitMasterNode = lazy(() => import('./nodes/PortraitMasterNode'));
+const PoseMasterNode = lazy(() => import('./nodes/PoseMasterNode'));
 import IdeaNode from './nodes/IdeaNode';
 import BpNode from './nodes/BpNode';
 import RelayNode from './nodes/RelayNode';
@@ -130,16 +155,16 @@ import VideoOutputNode from './nodes/VideoOutputNode';
 import PortraitMetadataNode from './nodes/PortraitMetadataNode';
 import StoryboardGridNode from './nodes/StoryboardGridNode';
 import PresetImageNode from './nodes/PresetImageNode';
-import DrawingBoardNode from './nodes/DrawingBoardNode';
+const DrawingBoardNode = lazy(() => import('./nodes/DrawingBoardNode'));
 import BrowserNode from './nodes/BrowserNode';
 import FrameExtractorNode from './nodes/FrameExtractorNode';
 import FramePairNode from './nodes/FramePairNode';
-import LoopNode from './nodes/LoopNode';
+const LoopNode = lazy(() => import('./nodes/LoopNode'));
 import PickFromSetNode from './nodes/PickFromSetNode';
-import TextSplitNode from './nodes/TextSplitNode';
+const TextSplitNode = lazy(() => import('./nodes/TextSplitNode'));
 import MaterialSetNode from './nodes/MaterialSetNode';
 import UploadNode from './nodes/UploadNode';
-import OutputNode from './nodes/OutputNode';
+const OutputNode = lazy(() => import('./nodes/OutputNode'));
 import GroupBoxNode from './nodes/GroupBoxNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
@@ -165,22 +190,48 @@ const RHToolboxMakerDevNode = (props: any) => import.meta.env?.DEV ? (
   </Suspense>
 ) : <PlaceholderNode {...props} />;
 
+function withLazyNode<P extends object>(Component: ComponentType<P>) {
+  return function LazyWrappedNode(props: P) {
+    return (
+      <Suspense fallback={<PlaceholderNode {...(props as any)} />}>
+        <Component {...props} />
+      </Suspense>
+    );
+  };
+}
+
+const LazyVideoNode = withLazyNode(VideoNode);
+const LazyImageNode = withLazyNode(ImageNode);
+const LazyLLMNode = withLazyNode(LLMNode);
+const LazySeedanceNode = withLazyNode(SeedanceNode);
+const LazyRunningHubNode = withLazyNode(RunningHubNode);
+const LazyRHToolsNode = withLazyNode(RHToolsNode);
+const LazyRHToolboxNode = withLazyNode(RHToolboxNode);
+const LazyToolboxParamNode = withLazyNode(ToolboxParamNode);
+const LazyPortraitMasterNode = withLazyNode(PortraitMasterNode);
+const LazyPoseMasterNode = withLazyNode(PoseMasterNode);
+const LazyDrawingBoardNode = withLazyNode(DrawingBoardNode);
+const LazyImageCompareNode = withLazyNode(ImageCompareNode);
+const LazyLoopNode = withLazyNode(LoopNode);
+const LazyTextSplitNode = withLazyNode(TextSplitNode);
+const LazyOutputNode = withLazyNode(OutputNode);
+
 // Phase 4 阶段:全部 24 个节点均已实现业务逻辑
 const SPECIFIC_NODES: Record<string, any> = {
   // Core (8)
   text: TextNode,
-  image: ImageNode,
-  video: VideoNode,
-  seedance: SeedanceNode, // 完全对齐 gpt-image-2-web Seedance2.0(独立 /seedance/v3 路径)
+  image: LazyImageNode,
+  video: LazyVideoNode,
+  seedance: LazySeedanceNode, // 完全对齐 gpt-image-2-web Seedance2.0(独立 /seedance/v3 路径)
   audio: AudioNode,
-  llm: LLMNode,
-  runninghub: RunningHubNode,
+  llm: LazyLLMNode,
+  runninghub: LazyRunningHubNode,
   // RH 钱包应用：复用 RunningHubNode。v1.2.9.16 起与普通 RunningHub 节点统一使用 settings.rhApiKey
-  'runninghub-wallet': RunningHubNode,
+  'runninghub-wallet': LazyRunningHubNode,
   'rh-config': RhConfigNode,
   // RH 工具节点：内置启动器 + 应用运行面板（v1.2.10+）
-  'rh-tools': RHToolsNode,
-  'rh-toolbox': RHToolboxNode,
+  'rh-tools': LazyRHToolsNode,
+  'rh-toolbox': LazyRHToolboxNode,
   ...(import.meta.env?.DEV ? { 'rh-toolbox-maker': RHToolboxMakerDevNode } : {}),
   'comfyui-store': ComfyUIStoreNode,
   'comfyui-app-maker': ComfyUIAppMakerNode,
@@ -191,14 +242,14 @@ const SPECIFIC_NODES: Record<string, any> = {
   'portrait-metadata': PortraitMetadataNode,
   'storyboard-grid': StoryboardGridNode,
   // Utility (9)
-  'drawing-board': DrawingBoardNode,
+  'drawing-board': LazyDrawingBoardNode,
   browser: BrowserNode,
-  'image-compare': ImageCompareNode,
+  'image-compare': LazyImageCompareNode,
   'frame-extractor': FrameExtractorNode,
   'frame-pair': FramePairNode,
-  loop: LoopNode,
+  loop: LazyLoopNode,
   'pick-from-set': PickFromSetNode,
-  'text-split': TextSplitNode,
+  'text-split': LazyTextSplitNode,
   'material-set': MaterialSetNode,
   resize: ResizeNode,
   combine: CombineNode,
@@ -214,15 +265,15 @@ const SPECIFIC_NODES: Record<string, any> = {
   'remove-ai-watermark': RemoveAiWatermarkNode,
   'video-output': VideoOutputNode,
   // Toolbox (5)
-  cinematic: ToolboxParamNode,
-  'video-motion': ToolboxParamNode,
-  'multi-angle-visual': ToolboxParamNode,
-  'portrait-master': PortraitMasterNode,
-  'pose-master': PoseMasterNode,
+  cinematic: LazyToolboxParamNode,
+  'video-motion': LazyToolboxParamNode,
+  'multi-angle-visual': LazyToolboxParamNode,
+  'portrait-master': LazyPortraitMasterNode,
+  'pose-master': LazyPoseMasterNode,
   // Input (1) - 上传素材
   upload: UploadNode,
   // Output (1) - 输出素材(文本/图像/视频/音频 预览 + 文本双击编辑)
-  output: OutputNode,
+  output: LazyOutputNode,
 };
 
 const NODE_SERIAL_ANCHOR_LEFT = '--t8-node-serial-anchor-left';
@@ -1073,35 +1124,6 @@ function isCanvasOverviewShortcutBlocked(target: EventTarget | null): boolean {
   );
 }
 
-const MODEL_USAGE_HELP_TEXT = `特别注意事项：
-
-如果不小心网页崩溃等，但是实际任务没失败，需要去网站异步任务看下，有个蓝色的TASKID，点进去可以看到下载地址，手动下载。另外fal模型会预扣3.4个币，生成结束后会多退少补。seedance2.0模型会预扣10个币，生成结束后多退少补
-
-图像模型注意事项：
-
-gpt-image-2-all模型（default分组）只能出1K图，速度最快，最稳定，审核最松
-gpt-image-2模型（default分组）可以出1K，2K，4K图，4K不一定稳定，如果提示系统错误，降低分辨率重试，超过1K，需要选择分辨率， auto不支持1K以上
-gpt-image-2-fal模型，兜底模型，支持2K，4K，价格较贵
-nano-banana-2和nano-banana-pro模型，需要用gemini优质分组，default分组不稳定（尤其4K）
-nano-banana-2-fal和nano-banana-pro-fal模型，兜底模型，支持4K，价格较贵
-grok-4.2-image模型（Default分组），审核最松，可以做各种姿势，支持多图编辑，保持一致性需要单独写保证脸部100%一致性不变
-MJ系列模型（Default分组），不同模型的用法都不一样，参考官方，推荐用fast模式，relax模式封号比较严重
-
-视频模型注意事项：
-seedance2.0（Default分组）非远景推荐480P+FAST模式，质量吊打快乐马，价格只要5个币15秒，后续用flashvsr放大即可，720P满血15秒大概15币，不排队，支持真人
-seedance2.0（sd-global分组）需要联系T8微信单独开通，只支持企业开通，由于除版权外基本无审核，防止有人搞色情，需要签协议才能开通，价格和上面一样
-veo3.1模型，需要看下网站左侧分类教程，有多个分组可用，目前比较稳的是veo&grok备用分组2的veo3.1模型和默认分组的fal模型
-grok-video模型，需要看下网站左侧分类教程，有多个分组可用，目前比较稳的是fal模型，新增支持最新imagine 1.5模型（支持图生视频），最佳SD平替（default分组），以及veo&grok备用分组2，支持15秒多参生视频
-sora-2模型，由于官方下架了，虽然我加上了，但是目前有问题，先不要用
-
-音频模型注意事项：
-
-suno v5.5模型（Default分组）支持生成，翻唱，延长，一次生成两首歌，翻唱模式情况下，如果是版权歌曲大概率会失败，需要做各种前置处理，可以在网站异步任务查看。
-
-LLM模型注意事项：
-
-LLM模型有时候因为官方问题会出现速度慢，失败等现象，这时候换个模型即可，预置了多个模型。`;
-
 function getReactFlowHandleInfo(target: EventTarget | null): {
   nodeId: string;
   handleType: 'source' | 'target';
@@ -1182,7 +1204,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const connectionPanModeRef = useRef(false);
   const connectionPanPointerRef = useRef<{ x: number; y: number } | null>(null);
   const [connectionPanModeActive, setConnectionPanModeActive] = useState(false);
-  const [modelHelpOpen, setModelHelpOpen] = useState(false);
   const altDragCloneRef = useRef<{
     placeholderIds: Map<string, string>; // origId -> placeholderId
   } | null>(null);
@@ -1267,7 +1288,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   }, []);
 
   // 吸附 + 对齐辅助线
-  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [snapEnabled, setSnapEnabled] = useState(false);
   const [guides, setGuides] = useState<{ vertical: number[]; horizontal: number[] }>({
     vertical: [],
     horizontal: [],
@@ -3371,20 +3392,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     };
   }, [getViewport, onConnect, resetConnectionPanMode, setConnectionPanMode, setViewport, shortcuts]);
 
-  useEffect(() => {
-    if (!modelHelpOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (!target?.closest('.t8-canvas-shell')) return;
-      if (target.closest('[data-canvas-floating-ui="model-help-panel"], [data-canvas-floating-ui="model-help-toggle"]')) {
-        return;
-      }
-      setModelHelpOpen(false);
-    };
-    window.addEventListener('pointerdown', onPointerDown, true);
-    return () => window.removeEventListener('pointerdown', onPointerDown, true);
-  }, [modelHelpOpen]);
-
   // ===== 全局 SHIFT+Handle 批量移线拦截器 =====
   // 原因: ReactFlow 的 multiSelectionKeyCode 包含 'Shift'，导致按住 SHIFT 在 handle 上 mousedown
   // 会被 ReactFlow 拦截为多选事件，onConnectStart 可能不会触发。
@@ -4815,21 +4822,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           </ViewportPortal>
         )}
         <div className="t8-control-rail nodrag nopan" data-canvas-floating-ui="control-rail">
-          <button
-            type="button"
-            className={`t8-control-rail-help t8-mini-icon-button${modelHelpOpen ? ' is-active' : ''}`}
-            data-canvas-floating-ui="model-help-toggle"
-            aria-label="模型注意事项"
-            title="模型注意事项"
-            aria-expanded={modelHelpOpen}
-            onClick={(event) => {
-              event.stopPropagation();
-              setModelHelpOpen((value) => !value);
-            }}
-          >
-            <LucideIcons.CircleHelp size={16} />
-          </button>
-          <ThemeMusicToggle template={currentTemplate} />
           <Controls
             style={{
               background: isOp
@@ -4843,37 +4835,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
             }}
           />
         </div>
-        {modelHelpOpen && (
-          <div
-            className="t8-model-help-panel nodrag nopan"
-            data-canvas-floating-ui="model-help-panel"
-            role="dialog"
-            aria-modal="false"
-            aria-label="模型注意事项"
-          >
-            <div className="t8-model-help-panel__header">
-              <div>
-                <div className="t8-model-help-panel__eyebrow">MODEL NOTES</div>
-                <h2>模型注意事项</h2>
-              </div>
-              <button
-                type="button"
-                className="t8-model-help-panel__close t8-mini-icon-button"
-                aria-label="关闭说明"
-                title="关闭说明"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setModelHelpOpen(false);
-                }}
-              >
-                <LucideIcons.X size={16} />
-              </button>
-            </div>
-            <div className="t8-model-help-panel__body">
-              <div className="t8-model-help-panel__text">{MODEL_USAGE_HELP_TEXT}</div>
-            </div>
-          </div>
-        )}
         <MiniMap
           pannable
           zoomable
@@ -5072,6 +5033,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         onSendToEagle={handleSendMaterialsToEagle}
       />
 
+      <CanvasAssistant nodes={nodes} edges={edges} activeCanvasId={activeId} />
+
       {/* 右键菜单(框选 右键 或 节点右键) */}
       {contextMenu && (() => {
         const ids = contextMenu.ids;
@@ -5153,22 +5116,22 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
               </div>
               <div className="px-2 py-2">
                 <div className="mb-1 flex items-center gap-1 text-[10px] font-bold opacity-65">
-                  <LucideIcons.LayoutGrid size={11} />
+                  <LayoutGrid size={11} />
                   <span>对齐 / 整理</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1">
-                  {alignButton('align-left', '左', LucideIcons.AlignStartVertical)}
-                  {alignButton('align-center-x', '水平中', LucideIcons.AlignCenterVertical)}
-                  {alignButton('align-right', '右', LucideIcons.AlignEndVertical)}
-                  {alignButton('align-top', '上', LucideIcons.AlignStartHorizontal)}
-                  {alignButton('align-center-y', '垂直中', LucideIcons.AlignCenterHorizontal)}
-                  {alignButton('align-bottom', '下', LucideIcons.AlignEndHorizontal)}
+                  {alignButton('align-left', '左', AlignStartVertical)}
+                  {alignButton('align-center-x', '水平中', AlignCenterVertical)}
+                  {alignButton('align-right', '右', AlignEndVertical)}
+                  {alignButton('align-top', '上', AlignStartHorizontal)}
+                  {alignButton('align-center-y', '垂直中', AlignCenterHorizontal)}
+                  {alignButton('align-bottom', '下', AlignEndHorizontal)}
                 </div>
                 <div className="mt-1 grid grid-cols-2 gap-1">
-                  {alignButton('distribute-x', '水平等距', LucideIcons.AlignHorizontalSpaceBetween, 3)}
-                  {alignButton('distribute-y', '垂直等距', LucideIcons.AlignVerticalSpaceBetween, 3)}
-                  {alignButton('snap-grid', '吸附网格', LucideIcons.Magnet, 1)}
-                  {alignButton('arrange-grid', '整理网格', LucideIcons.Grid3x3, 2)}
+                  {alignButton('distribute-x', '水平等距', AlignHorizontalSpaceBetween, 3)}
+                  {alignButton('distribute-y', '垂直等距', AlignVerticalSpaceBetween, 3)}
+                  {alignButton('snap-grid', '吸附网格', Magnet, 1)}
+                  {alignButton('arrange-grid', '整理网格', Grid3x3, 2)}
                 </div>
               </div>
               <button
@@ -5267,6 +5230,55 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
                 <span>发送到... ({sendMenuSummary})</span>
               </button>
               <button
+                className={`${menuItemCls} t8-context-menu__item--assistant`}
+                disabled={!canSendSelection}
+                title={canSendSelection ? "把当前选中节点、工作流和素材挂到 AI 助手对话框" : "所选内容没有可发送上下文"}
+                onClick={() => {
+                  closeContextMenu();
+                  const assistantAttachments = [];
+                  if (sendNodeCount > 0) {
+                    assistantAttachments.push({
+                      id: `workflow-${activeId || 'canvas'}-${ids.join('-')}`,
+                      kind: 'workflow',
+                      title: sendEdgeCount > 0 ? `选中工作流 (${sendNodeCount} 节点 / ${sendEdgeCount} 连线)` : `选中节点片段 (${sendNodeCount} 节点)`,
+                      summary: sendEdgeCount > 0 ? `${sendNodeCount} 节点 / ${sendEdgeCount} 连线` : `${sendNodeCount} 节点`,
+                      payload: {
+                        canvasId: activeId,
+                        nodes: nodeFragmentPreview.nodes,
+                        edges: nodeFragmentPreview.edges,
+                      },
+                    });
+                  }
+                  collectSendableMaterialsFromNodes(selNodes, activeId).slice(0, 8).forEach((item, index) => {
+                    assistantAttachments.push({
+                      id: `selection-material-${index}-${item.id || item.url || item.name || item.kind}`,
+                      kind: item.kind,
+                      title: item.name || item.kind,
+                      summary: item.url || item.text || '',
+                      payload: {
+                        kind: item.kind,
+                        url: item.url,
+                        text: item.text,
+                        sourceNodeId: item.sourceNodeId,
+                        sourceCanvasId: item.sourceCanvasId,
+                      },
+                    });
+                  });
+                  if (assistantAttachments.length === 0) return;
+                  window.dispatchEvent(
+                    new CustomEvent('penguin:append-assistant-context', {
+                      detail: {
+                        open: true,
+                        attachments: assistantAttachments,
+                      },
+                    }),
+                  );
+                }}
+              >
+                <Bot size={13} />
+                <span>发送到 AI 助手</span>
+              </button>
+              <button
                 className={menuItemCls}
                 disabled={downloadableCount === 0}
                 title={downloadableCount > 0 ? `下载所选节点中的 ${downloadableCount} 个素材` : '所选节点没有可下载素材'}
@@ -5349,7 +5361,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
                 快速添加节点
               </div>
               {QUICK_NODES.map((meta) => {
-                const Icon = (LucideIcons as any)[meta.icon] || LucideIcons.Box;
                 const color = COLOR_HEX[meta.color] || COLOR_HEX.slate;
                 return (
                   <button
@@ -5365,7 +5376,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
                       className="t8-context-menu__node-icon"
                       style={{ '--t8-menu-icon-color': color } as CSSProperties}
                     >
-                      <Icon size={13} />
+                      {(() => {
+                        const Icon = (LucideIcons as any)[meta.icon] || LucideIcons.Box;
+                        return <Icon size={13} />;
+                      })()}
                     </span>
                     <span className="flex-1 truncate">{meta.label}</span>
                   </button>

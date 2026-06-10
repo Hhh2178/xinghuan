@@ -13,6 +13,7 @@ import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
+import NodeRuntimeCard from './NodeRuntimeCard';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
@@ -72,6 +73,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const tracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }>
     = d?.tracks || [];
   const pollProgress: string = d?.progress || '';
+  const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
+  const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
+  const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
 
   const stopPoll = () => {
     if (pollTimer.current) {
@@ -111,6 +115,37 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     });
   };
   const handleRestoreExcludedMaterials = () => update({ excludedMaterialIds: [] });
+
+  const markRuntimeStarted = () => {
+    const nextStartedAt = Date.now();
+    update({ startedAt: nextStartedAt, finishedAt: null, lastDurationMs: null });
+    return nextStartedAt;
+  };
+
+  const markRuntimeFinished = (runtimeStartedAt: number | null, patch: Record<string, unknown>) => {
+    const nextFinishedAt = Date.now();
+    update({
+      ...patch,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
+
+  const markRuntimeFailed = (runtimeStartedAt: number | null, message: string) => {
+    const nextFinishedAt = Date.now();
+    update({
+      status: 'error',
+      error: message,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
 
   // === 本地拖入参考音频 (跨节点 Ctrl 拖拽) ===
   const localRefAudio: string = typeof d?.localRefAudio === 'string' ? d.localRefAudio : '';
@@ -192,7 +227,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   //   useRunTrigger 认为 runFn 完成 markDone(true)。 但实际任务 audioUrl 还未赋值 → LoopNode awaitNode
   //   立即继续 → extractFromNode 读不到 audioUrl → result=null → failCount++。
   //   修复后: 轮询完成才 resolve，handleGenerate await 它，什么时候 markDone 什么时候任务真正结束。
-  const startPolling = (clipIds: string[]): Promise<void> => {
+  const startPolling = (clipIds: string[], runtimeStartedAt: number | null): Promise<void> => {
     stopPoll();
     return new Promise<void>((resolve, reject) => {
       let elapsed = 0;
@@ -202,7 +237,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         elapsed += 1;
         if (elapsed > MAX) {
           stopPoll();
-          update({ status: 'error', error: '轮询超时 (60min)' });
+          markRuntimeFailed(runtimeStartedAt, '轮询超时 (60min)');
           setError('轮询超时 (60min)');
           logBus.error('轮询超时', src);
           reject(new Error('轮询超时 (60min)'));
@@ -213,7 +248,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           if (r.status === 'SUCCESS' && r.tracks.length > 0) {
             stopPoll();
             // 双输出口: audioUrl=轨1, audioUrl_1=轨2
-            update({
+            markRuntimeFinished(runtimeStartedAt, {
               status: 'success',
               tracks: r.tracks,
               audioUrl: r.tracks[0]?.audioUrl || '',
@@ -244,6 +279,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       return;
     }
     taskCompletionSound.primeAudio();
+    const runtimeStartedAt = markRuntimeStarted();
     update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined });
     try {
       // cover/extend: 如预传 clipId 为空但上游有 audioUrl, 则自动上传
@@ -272,18 +308,18 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       update({ status: 'polling', taskId: r.taskId, clipIds: r.clipIds, lastPrompt: finalPrompt, progress: '0/?' });
       const idsToPoll = r.clipIds && r.clipIds.length > 0 ? r.clipIds : [r.taskId];
       // v1.2.9.11: await 轮询 —— 让 useRunTrigger 等到任务真正完成才 markDone，LoopNode awaitNode 才能拿到 audioUrl
-      await startPolling(idsToPoll);
+      await startPolling(idsToPoll, runtimeStartedAt);
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
       logBus.error(msg, src);
-      update({ status: 'error', error: msg });
+      markRuntimeFailed(runtimeStartedAt, msg);
     }
   };
 
   const handleStop = () => {
     stopPoll();
-    update({ status: 'idle' });
+    update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
   };
 
   // 接入运行总线
@@ -354,6 +390,16 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           </div>
         </div>
       </div>
+
+      <NodeRuntimeCard
+        status={status}
+        progress={pollProgress}
+        startedAt={startedAt}
+        finishedAt={finishedAt}
+        lastDurationMs={lastDurationMs}
+        accent={audioColor}
+        taskId={taskId}
+      />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         <div className="grid grid-cols-2 gap-2">

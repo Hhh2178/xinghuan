@@ -34,6 +34,7 @@ import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
+import NodeRuntimeCard from './NodeRuntimeCard';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
@@ -54,6 +55,14 @@ import {
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
 import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import {
+  getBackendFrameModeOptions,
+  getBackendImageSlotCount,
+  normalizeBackendFrameMode,
+  resolveBackendVideoInputAssignment,
+  resolveVideoPreviewGroups,
+  type BackendVideoFrameMode,
+} from './videoNodeBackendInputs';
 
 /**
  * VideoNode - 异步视频生成(完全对齐 gpt-image-2-web)
@@ -104,6 +113,28 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const backendProviderGroups = backendSelection.providerGroups;
   const backendProviderGroup = backendSelection.selectedProviderGroup;
   const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
+  const backendVideoCaps = backendModel?.ui.inputCapabilities ?? {
+    prompt: true,
+    imageReference: false,
+    multiImage: false,
+    firstFrame: false,
+    lastFrame: false,
+  };
+  const backendSupportsImageReference = Boolean(backendVideoCaps.imageReference);
+  const backendSupportsMultiImage = Boolean(backendVideoCaps.multiImage);
+  const backendSupportsFirstFrame = Boolean(backendVideoCaps.firstFrame);
+  const backendSupportsLastFrame = Boolean(backendVideoCaps.lastFrame);
+  const backendImageSlotCount = isBackendSelected
+    ? getBackendImageSlotCount(backendVideoCaps, backendModel?.ui.maxReferenceImages || 1)
+    : 0;
+  const backendShowsImageInputs = isBackendSelected && backendImageSlotCount > 0;
+  const rawFrameMode: BackendVideoFrameMode =
+    d?.frameMode === 'firstlast' ? 'firstlast' : d?.frameMode === 'first' ? 'first' : d?.frameMode === 'last' ? 'last' : 'auto';
+  const backendFrameModeOptions = useMemo(() => {
+    if (!isBackendSelected) return [];
+    return getBackendFrameModeOptions(backendVideoCaps);
+  }, [backendVideoCaps, isBackendSelected]);
+  const frameMode = normalizeBackendFrameMode(rawFrameMode, backendFrameModeOptions);
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const videoAdvancedProviders = useMemo(
     () => advancedProvidersForNode(advancedProviders, 'video'),
@@ -161,6 +192,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     : isJimengSeedanceSelected
     ? ['480p', '720p', '1080p']
     : modelDef.resolutions || [];
+  const showImageMaterials = isBackendSelected ? backendShowsImageInputs : modelDef.supportImages;
 
   useEffect(() => {
     if (!isBackendSelected || !backendModel) return;
@@ -168,11 +200,15 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     if (!backendModel.ui.aspectRatios.includes(ratio)) patch.ratio = backendModel.ui.defaultAspectRatio;
     if (!backendModel.ui.durationOptions.includes(duration)) patch.duration = backendModel.ui.defaultDuration;
     if (!backendModel.ui.resolutionOptions.includes(resolution)) patch.resolution = backendModel.ui.defaultResolution;
+    if (backendFrameModeOptions.length > 0 && rawFrameMode !== frameMode) patch.frameMode = frameMode;
     if (Object.keys(patch).length) update(patch);
   }, [
+    backendFrameModeOptions,
     backendModel,
     duration,
+    frameMode,
     isBackendSelected,
+    rawFrameMode,
     ratio,
     resolution,
     update,
@@ -205,6 +241,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const taskId: string | undefined = d?.taskId;
   const videoUrl: string | undefined = d?.videoUrl;
   const progress: string = d?.progress || '';
+  const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
+  const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
+  const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
   const localPrompt: string = d?.prompt || '';
   const promptMentions: MediaMention[] = Array.isArray(d?.promptMentions) ? d.promptMentions : [];
 
@@ -249,6 +288,37 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   };
   const handleRestoreExcludedMaterials = () => update({ excludedMaterialIds: [] });
 
+  const markRuntimeStarted = () => {
+    const nextStartedAt = Date.now();
+    update({ startedAt: nextStartedAt, finishedAt: null, lastDurationMs: null });
+    return nextStartedAt;
+  };
+
+  const markRuntimeFinished = (runtimeStartedAt: number | null, patch: Record<string, unknown>) => {
+    const nextFinishedAt = Date.now();
+    update({
+      ...patch,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
+
+  const markRuntimeFailed = (runtimeStartedAt: number | null, message: string) => {
+    const nextFinishedAt = Date.now();
+    update({
+      status: 'error',
+      error: message,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
+
   // === 本地拖入参考素材 (跨节点 Ctrl 拖拽) ===
   const localRefImages: string[] = Array.isArray(d?.localRefImages) ? d.localRefImages : [];
   const localRefVideos: string[] = Array.isArray(d?.localRefVideos) ? d.localRefVideos : [];
@@ -283,7 +353,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     [localRefImages, localRefVideos, localRefAudios, id],
   );
   const maxMentionRefs =
-    isJimengSeedanceSelected
+    isBackendSelected
+      ? backendImageSlotCount
+      : isJimengSeedanceSelected
       ? JIMENG_SEEDANCE_LIMITS.images
       : isFal && falReg
       ? falReg.paramKind === 'grok-fal' && (isGrokFalV15 || gkfMode !== 'reference_to_video')
@@ -303,8 +375,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
   // 分组动态跟随子模型: Seedance / 即梦 CLI 支持 image/video/audio, 其他 (grok/veo/sora) 仅 image
   const previewGroups = useMemo<ReadonlyArray<'text' | 'image' | 'video' | 'audio'>>(
-    () => (modelDef.kind === 'seedance' || isJimengSeedanceSelected ? ['text', 'image', 'video', 'audio'] : ['text', 'image']),
-    [modelDef.kind, isJimengSeedanceSelected],
+    () => resolveVideoPreviewGroups({
+      isBackendSelected,
+      isJimengSeedanceSelected,
+      localKind: modelDef.kind,
+      showImageMaterials,
+    }),
+    [isBackendSelected, isJimengSeedanceSelected, modelDef.kind, showImageMaterials],
   );
 
   // 收集上游 prompt + 参考图/视频/音频 (按用户拖拽顺序), 合并本地拖入素材
@@ -410,7 +487,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   //   useRunTrigger 认为 runFn 完成 markDone(true)。 但实际任务 videoUrl 还未赋值 → LoopNode awaitNode
   //   立即继续 → extractFromNode 读不到 videoUrl → result=null → failCount++。
   //   修复: 轮询完成才 resolve，handleGenerate await 它，markDone 时机=任务真正结束。
-  const startPolling = (tid: string): Promise<void> => {
+  const startPolling = (tid: string, runtimeStartedAt: number | null): Promise<void> => {
     stopPoll();
     return new Promise<void>((resolve, reject) => {
       let elapsed = 0;
@@ -421,7 +498,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         elapsed += 1;
         if (elapsed > MAX) {
           stopPoll();
-          update({ status: 'error', error: '轮询超时' });
+          markRuntimeFailed(runtimeStartedAt, '轮询超时');
           setError('轮询超时');
           logBus.error('轮询超时', src);
           reject(new Error('轮询超时'));
@@ -435,14 +512,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           }
           if (r.status === 'SUCCESS' && r.videoUrl) {
             stopPoll();
-            update({ status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
             logBus.success(`任务完成 → ${r.videoUrl}`, src);
             taskCompletionSound.notifyComplete(id, 'video');
             resolve();
           } else if (r.status === 'FAILURE') {
             stopPoll();
             const msg = r.failReason || '生成失败';
-            update({ status: 'error', error: msg });
+            markRuntimeFailed(runtimeStartedAt, msg);
             setError(msg);
             logBus.error(`生成失败: ${msg}`, src);
             reject(new Error(msg));
@@ -461,7 +538,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const falPollRef = useRef<{ responseUrl?: string; endpoint?: string; requestId?: string } | null>(null);
 
   // v1.2.9.11: 同样改造为 Promise（理由同 startPolling）
-  const startFalPolling = (): Promise<void> => {
+  const startFalPolling = (runtimeStartedAt: number | null): Promise<void> => {
     stopPoll();
     return new Promise<void>((resolve, reject) => {
       let elapsed = 0;
@@ -471,7 +548,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         elapsed += 1;
         if (elapsed > MAX) {
           stopPoll();
-          update({ status: 'error', error: 'FAL 轮询超时' });
+          markRuntimeFailed(runtimeStartedAt, 'FAL 轮询超时');
           setError('FAL 轮询超时');
           logBus.error('FAL 轮询超时', src);
           reject(new Error('FAL 轮询超时'));
@@ -482,14 +559,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           if (elapsed % 10 === 0) logBus.debug(`[FAL ${elapsed}/${MAX}] status=${r.status}`, src);
           if (r.status === 'completed' && r.videoUrl) {
             stopPoll();
-            update({ status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
             logBus.success(`FAL 视频完成 → ${r.videoUrl}`, src);
             taskCompletionSound.notifyComplete(id, 'video');
             resolve();
           } else if (r.status === 'failed') {
             stopPoll();
             const msg = r.error || 'FAL 生成失败';
-            update({ status: 'error', error: msg });
+            markRuntimeFailed(runtimeStartedAt, msg);
             setError(msg);
             logBus.error(`FAL 生成失败: ${msg}`, src);
             reject(new Error(msg));
@@ -514,12 +591,18 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       return;
     }
     taskCompletionSound.primeAudio();
+    const runtimeStartedAt = markRuntimeStarted();
     update({ status: 'submitting', error: null, videoUrl: null, taskId: null });
     try {
       if (isBackendSelected && backendModel) {
-        const refs = imageUrls.slice(0, backendModel.ui.maxReferenceImages || 1);
+        const { refs, firstFrameUrl, lastFrameUrl } = resolveBackendVideoInputAssignment({
+          imageUrls,
+          frameMode,
+          maxReferenceImages: backendModel.ui.maxReferenceImages || 1,
+          inputCapabilities: backendVideoCaps,
+        });
         logBus.info(
-          `后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length}`,
+          `后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length} first=${firstFrameUrl ? 1 : 0} last=${lastFrameUrl ? 1 : 0}`,
           src,
         );
         const r = await generateExternalVideo({
@@ -533,11 +616,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           resolution,
           seed: seed > 0 ? seed : undefined,
           images: refs,
+          first_frame: firstFrameUrl,
+          last_frame: lastFrameUrl,
           providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id },
         });
         const nextVideoUrl = r.videoUrls[0];
         if (!nextVideoUrl) throw new Error('后台视频模型没有返回视频。');
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           videoUrl: nextVideoUrl,
           videoUrls: r.videoUrls,
@@ -578,7 +663,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         });
         const nextVideoUrl = r.videoUrls[0];
         if (!nextVideoUrl) throw new Error('扩展平台没有返回视频。');
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           videoUrl: nextVideoUrl,
           videoUrls: r.videoUrls,
@@ -662,7 +747,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
         const r = await submitVideoFal(falReq);
         if (r.sync && r.videoUrl) {
-          update({ status: 'success', videoUrl: r.videoUrl, lastPrompt: finalPrompt, progress: '100%' });
+          markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, lastPrompt: finalPrompt, progress: '100%' });
           logBus.success(`FAL 同步完成 → ${r.videoUrl}`, src);
           taskCompletionSound.notifyComplete(id, 'video');
         } else {
@@ -670,7 +755,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           update({ status: 'polling', lastPrompt: finalPrompt, progress: '15%' });
           logBus.info(`FAL 异步任务 requestId=${r.requestId} 进入轮询…`, src);
           // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone
-          await startFalPolling();
+          await startFalPolling(runtimeStartedAt);
         }
         return;
       }
@@ -721,18 +806,18 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: '0%' });
       logBus.info(`异步任务已提交 taskId=${r.taskId} 进入轮询…`, src);
       // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone
-      await startPolling(r.taskId);
+      await startPolling(r.taskId, runtimeStartedAt);
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
-      update({ status: 'error', error: msg });
+      markRuntimeFailed(runtimeStartedAt, msg);
       logBus.error(`提交失败: ${msg}`, src);
     }
   };
 
   const handleStop = () => {
     stopPoll();
-    update({ status: 'idle' });
+    update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
     logBus.warn('用户主动停止', src);
   };
 
@@ -756,7 +841,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     if (payload.kind === 'image' && payload.url) {
       const cur = Array.isArray(d?.localRefImages) ? d.localRefImages : [];
       if (cur.indexOf(payload.url) !== -1) return;
-      const cap = isJimengSeedanceSelected ? JIMENG_SEEDANCE_LIMITS.images : (modelDef.maxRefImages || 7) + 4;
+      const cap = isBackendSelected
+        ? Math.max(backendImageSlotCount, 1)
+        : isJimengSeedanceSelected
+          ? JIMENG_SEEDANCE_LIMITS.images
+          : (modelDef.maxRefImages || 7) + 4;
       if (cur.length >= cap) return;
       update({ localRefImages: [...cur, payload.url] });
     } else if (payload.kind === 'video' && payload.url && isJimengSeedanceSelected) {
@@ -773,7 +862,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   };
   const { dropProps, isAccepting } = useMaterialDropTarget({
     id,
-    accepts: isJimengSeedanceSelected ? ['image', 'video', 'audio', 'text'] : ['image', 'text'],
+    accepts: isJimengSeedanceSelected ? ['image', 'video', 'audio', 'text'] : showImageMaterials ? ['image', 'text'] : ['text'],
     onDrop: handleDrop,
   });
 
@@ -783,7 +872,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const audioRefsCount = orderedAudios.length + localRefAudios.length;
   const previewTitle = isJimengSeedanceSelected
     ? `上游素材 · 图${Math.min(refsCount, JIMENG_SEEDANCE_LIMITS.images)}/${JIMENG_SEEDANCE_LIMITS.images} 视${Math.min(videoRefsCount, JIMENG_SEEDANCE_LIMITS.videos)}/${JIMENG_SEEDANCE_LIMITS.videos} 音${Math.min(audioRefsCount, JIMENG_SEEDANCE_LIMITS.audios)}/${JIMENG_SEEDANCE_LIMITS.audios}`
-    : `上游素材 · 参考图 ${Math.min(refsCount, maxMentionRefs)}/${maxMentionRefs}`;
+    : `上游素材 · 参考图 ${Math.min(refsCount, Math.max(maxMentionRefs, 0))}/${Math.max(maxMentionRefs, 0)}`;
 
   return (
     <div
@@ -818,6 +907,16 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           </div>
         </div>
       </div>
+
+      <NodeRuntimeCard
+        status={status}
+        progress={progress}
+        startedAt={startedAt}
+        finishedAt={finishedAt}
+        lastDurationMs={lastDurationMs}
+        accent="#f43f5e"
+        taskId={taskId}
+      />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         {backendVideoModels.length > 0 && (
@@ -1192,6 +1291,21 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           </div>
         )}
 
+        {isBackendSelected && backendFrameModeOptions.length > 0 && (
+          <div>
+            <label className="text-[10px] text-white/50 block mb-1">参考图模式</label>
+            <select
+              value={frameMode}
+              onChange={(e) => update({ frameMode: e.target.value })}
+              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+            >
+              {backendFrameModeOptions.map((item) => (
+                <option key={item.value} value={item.value} className="bg-zinc-900">{item.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* veo 专用选项(非FAL) */}
         {!isBackendSelected && !isExternalSelected && !isFal && modelDef.kind === 'veo' && (
           <div className="grid grid-cols-2 gap-1.5">
@@ -1232,7 +1346,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 上游素材聚合预览区 (代替原「参考图(上游)」计数提示) */}
-        {modelDef.supportImages && (
+        {showImageMaterials && (
           <MaterialPreviewSection
             texts={orderedTexts}
             images={orderedImages}
@@ -1252,7 +1366,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 本地拖入参考素材 (Ctrl+拖拽自其他节点) */}
-        {modelDef.supportImages && (localRefImages.length + localRefVideos.length + localRefAudios.length) > 0 && (
+        {showImageMaterials && (localRefImages.length + localRefVideos.length + localRefAudios.length) > 0 && (
           <div className="rounded border border-emerald-400/30 bg-emerald-500/5 p-1.5 space-y-1">
             <div className="text-[10px] text-emerald-200/80">
               本地拖入 · 图{localRefImages.length} 视{localRefVideos.length} 音{localRefAudios.length}

@@ -3,7 +3,7 @@ import { PlayCircle } from "lucide-react";
 import { canCancelTask, canRetryTask } from "@xinghuan/shared";
 import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
 import { statusText, taskTone } from "./admin-view-model";
-import type { TaskRecord } from "./main";
+import type { TaskRecord } from "./admin-types";
 
 type AdminMutate = (path: string, payload: Record<string, unknown>, method?: string) => void;
 

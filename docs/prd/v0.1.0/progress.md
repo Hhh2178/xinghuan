@@ -4,6 +4,10 @@
 
 状态：Phase 2 节点与模型治理已完成灰度收口，当前进入 Phase 3 任务与素材闭环。`2026-06-06` 已先后将“Worker 输出素材落库 + 14 天保守自动清理”推上灰度 release `20260606-1515-phase3-output-prune-gray`，随后又将“素材空间读取闭环 + 取消 / 重试 + Worker 取消保护”推上灰度 release `20260606-2358-phase3-lifecycle-gray`；`2026-06-07` 已完成“画布 / 素材 PostgreSQL repository 灰度热修复”并发布 release `20260607-0115-phase3-canvas-pg-hotfix-gray`，随后继续完成“RunningHub 工作流字段映射与画布消费第一版”并发布 release `20260607-0218-phase3-runninghub-workflow-gray`。当前灰度运行态中，Worker 图像任务成功后会把输出结果 materialize 为用户目录下的 `/files/output/...` 文件，并写入 PostgreSQL 资源库；首次读取 `GET /api/canvas` 后，原有文件画布已成功导入 PostgreSQL，当前验收结果为 `xh_canvases=13`、`xh_assets=2`。同时，后台现在已经可以保存 RunningHub 工作流 `runTargetId`、工作流 JSON 和字段映射，并通过 `/api/runninghub/catalog` 向画布节点暴露预设目录；当前灰度接口验收通过，但因为尚未录入真实工作流卡片，目录结果暂为空列表。资源库抽屉在打开状态下会静默轮询并响应 `penguin:resources-changed` 事件，因此新生成素材会自动出现在素材空间里；后台任务取消不再是任意状态补丁，重试会创建新任务并保留原任务取消日志，Worker 也不会再把运行中已取消的任务覆写成成功或失败。灰度真实队列联调已通过，自动清理 timer 已接入并处于 `active (waiting)`。`2026-06-07` 用户已明确要求暂缓 RunningHub 真实工作流卡片录入、字段展开和预览运行类测试；当前生产域名 `canvas.hhh2121.xyz` 已切到生产服务。`2026-06-06` 生产进一步更新到 release `20260606-1810-provider-signed-refs-xinghuan-empty`，灰度同步更新到 release `20260606-1818-provider-signed-refs-xinghuan-empty-gray`：图像/视频/LLM 代理会把本地素材引用转换为短期 HMAC 签名的 `/api/provider-files/...` 供应商短链，避免外部上游因普通 `/files` 需要登录 cookie 而无法拉取参考图；进入工作区的权限校验页和无画布空态已替换为星幻画布设计。当前灰度与生产是两套 Nginx 入口、端口和 release，但共用同一 PostgreSQL 数据底座。`2026-06-07` 本机已新增全节点验收矩阵和浏览器真实渲染烟测，46 个注册节点全部能在真实 ReactFlow 画布渲染；去 AI 水印节点的状态/处理 API 已改为结构化未配置兜底，不再因接口 404 破坏节点挂载；`npm run verify:local-acceptance-chain` 已在临时本地服务 `127.0.0.1:18333` 通过 20 项核心验收。随后灰度已发布 release `20260607-1545-node-acceptance-gray`，生产已发布 release `20260607-1610-node-acceptance-prod`，服务器核心验收和公网 46/46 节点浏览器烟测均通过。与此同时，本机、生产和灰度 `npm run verify:single-port` 已通过，历史 `POST /api/admin/providers` `401` 未再复现。`2026-06-07` 已按用户提供的 `stitch_ui_optimization_and_transitions` 设计文件完成最终入口页收口：登录页改为居中磨玻璃星云卡片，权限校验阶段改为量子同步过渡动画，并移除设计稿演示用 SSO/组织网络入口。该入口 UI 已发布到灰度 release `20260607-entrance-ui-gray`，本机与服务器 `npm run verify:xinghuan-entry-ui`、服务器 `npm run verify:single-port`、公网 `https://canvas-next.hhh2121.xyz/` 浏览器截图和 0 error 控制台检查均通过；生产暂未切换。`2026-06-07 23:51` 已重新接入用户提供的本地 UI 设计目录，并把其中可用部分沉淀到 `entry-ui-google-brief.md` 与决策 `D-008`：后续给 Google/Gemini 的前端生成应采用左侧轻量伪 3D 微缩星系星图、右侧磨玻璃登录卡片和短暂星云过渡动画，但不得逐像素照搬设计稿里的远程图片、白色输入框、中心 logo、占位入口、调试文字和白闪爆发。`2026-06-07` 本机已完成管理后台危险操作交互收口：Provider/模型删除改为站内确认面板，手动新增模型改为站内表单弹窗，并新增 `verify:admin-interaction-guards` 防止后台重新引入原生 `confirm()` / `prompt()`。`2026-06-08` 本机已完成 Provider 文件访问签名逻辑模块抽离：`/api/provider-files/...` 的签名、过期、篡改拒绝、用户 ID 归一化和本地素材路径解析迁入独立模块，并新增 `verify:provider-file-access-contract`；在临时单端口服务 `127.0.0.1:18347` 下，图片、LLM 和视频外部代理短链验收均通过。同日继续完成任务生命周期纯逻辑模块抽离：取消补丁、取消应用、重试任务构造和状态守卫迁入 `task-lifecycle.ts`，新增 `verify:task-lifecycle-contract`，并在临时单端口服务 `127.0.0.1:18348` 下复验后台取消/重试 API。随后完成 Provider 模型目录解析模块抽离：协议归一化、模型列表 URL/header、上游模型去重和图像/视频/聊天分类迁入 `provider-model-catalog.ts`，新增 `verify:provider-model-catalog-contract`，并在临时单端口服务 `127.0.0.1:18349` 下复验 `/api/models` 目录接口。
 
+`2026-06-09` 本机继续完成三组问题收口：后台 AI 助手设置页改为本地草稿态 + 明确保存/重置，不再每次输入都触发 PATCH；同时修复关闭态后台助手抽屉仍覆盖主内容点击区的回归，避免真实页面里的“保存 / 重置”按钮被遮挡失效。登录页已去掉默认预填管理员邮箱，前台画布 AI 助手补齐空媒体过滤、可缩放面板和开关后的会话保持；图像、视频、Seedance、音频等生成类节点则新增统一运行态卡片，显示状态、进度和耗时。本机已通过 `verify-admin-assistant-settings-save-contract`、`verify:admin-assistant-ui-contract`、`verify:canvas-assistant-ui-contract`、`verify-login-gate-security-contract`、`verify:admin-auth-passwords`、`verify-node-runtime-card-contract`、`verify:canvas-node-render-smoke` 和 `build:single-port`。浏览器现场已确认：登录页邮箱默认为空、后台 AI 助手设置输入不自动落盘且“重置 / 保存”真实可用、后台顶栏重复入口已移除、前台助手面板支持 `resize: both` 且开关后会话不丢；当前打开的本地验收画布仅含文本节点，因此运行态卡片的真实浏览器观感主要由节点烟测与代码契约覆盖。
+
+`2026-06-09` 同日已将画布助手 UI 自适应修复、模型注意事项移除和可见测试文案清理发布到灰度 release `20260609-152648-canvas-assistant-ui-gray`。服务器新 release 已完成 `npm ci`、`build:single-port`、`db:migrate`、`current` 切换与 API/Worker 重启；服务器本机 `verify:single-port`、`curl http://127.0.0.1:18200/api/status` 和公网 `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:single-port` 均通过。当前灰度浏览器现场已确认：助手空状态下输入框和发送按钮尺寸正常，选中节点后的上下文按钮与“发送当前节点”附件卡片恢复紧凑显示，首页可见画布名称不再显示“测试 / 验收 / smoke”等残留。
+
 `2026-06-08` 同日继续完成 Provider 响应解析模块抽离：聊天文本、图片 URL/base64、视频 URL 和 data URL 转换迁入 `provider-response-parser.ts`，新增 `verify:provider-response-parser-contract`，并在临时单端口服务 `127.0.0.1:18350` 下复验图片、LLM 和视频外部代理。
 
 `2026-06-08` 同日继续修复 GRSAI 图像参考图本地参数问题：此前图像节点把本地上传图作为普通文件短链传给 GRSAI，外部上游可能无法识别或回拉该参考图，导致图生图不参考用户上传图片，并把“unsupported file type”占位提示图当作真实图片保存和下载。现在 API 直连代理和 Worker 的 `grsai_draw` 分支都会把本地 `/files/input/...`、`/files/output/...` 参考图读取并内联为 `data:image/...;base64,...` 后放入 GRSAI `urls` 参数；远程 URL 和已有 data URL 保持原样，OpenAI-like 图像代理继续使用既有 provider-file 签名短链。本机已完成 TDD 红绿验证，并通过 `verify:grsai-reference-images-contract`、`verify-grsai-image-adapter.ts`、API/Worker type-check、API/Worker build、`verify:provider-file-access-contract` 和 `verify:worker-grsai-contract`；当前尚未单独推灰度或生产，旧的已落库占位图也不会被自动清洗。
@@ -24,6 +28,14 @@
 
 `2026-06-08` 同日根据用户提供的 `stitch_ui_optimization_and_transitions/` 设计文件继续补强入口 UI 交付 Brief：`entry-ui-google-brief.md` 新增设计源使用矩阵、项目接入落点、推荐组件拆分和 Google/Gemini 代码接入顺序，明确设计包只作为视觉语言来源，不直接逐像素照搬；后续入口页仍必须保持左侧无文字/无 logo、右侧深色磨玻璃登录卡、无外链资源、无 SSO/组织网络占位、无坐标/延迟调试文字、无白闪爆发，并在接入代码时重新运行入口 UI 验证、Web type-check 和 Web build。本轮仅做文档收口，未推灰度或生产。
 
+`2026-06-08` 同日按当前讨论新增项目专属 Hermes 助手候选方案备忘：`development/canvas-hermes-assistant-candidate-2026-06-08.md` 记录“复用 Hermes 作为底层内核，但为无限画布建立独立隔离实例”的当前倾向，同时保留前端创作助手与后台审计/配置助手两套能力面的职责划分、权限边界和运行时隔离建议。该文件明确标注为 `候选方案 / 未批准实施`，本轮仅做思路归档，不代表当前版本已经立项、排期或开始开发。
+
+`2026-06-08` 同日继续完成 Provider 灵活配置与视频输入能力开关方案归档：基于当前视频节点失败排查，已确认现有发布模型视频链路并不适合直接覆盖 APIMart 这类异步任务协议。后续 Provider 扩展采用“结构化默认配置 + 受控高级配置 + 专用 adapter”三层方案：模型元数据将从单纯 `inputProfile` 升级为结构化 `inputCapabilities`，后台视频模型补“多参考图 / 首帧 / 尾帧”开关，画布视频节点改为按模型能力动态渲染输入区域，APIMart 视频类模型则通过专用 adapter 处理提交、轮询和结果提取。本轮已将方案同步到 `development/provider-flex-config-and-input-capabilities-2026-06-08.md`、`provider-model-framework.md`、`decisions.md`、`MEMORY.md` 和 `DEVLOG.md`，当前仍是文档归档阶段，尚未进入代码实现或灰度发布。
+
+`2026-06-08` 同日继续完成 Provider 视频能力与 APIMart 适配正式实现和灰度修复：模型元数据已升级为结构化 `inputCapabilities` / `advancedConfig`，后台视频模型可配置 `多参考图 / 首帧 / 尾帧` 开关，画布视频节点可按当前发布模型能力动态切换输入方式；APIMart 视频类模型已通过专用 adapter 处理提交、轮询和结果提取。本机已通过 `type-check -w @xinghuan/model-core`、`@xinghuan/api`、`@xinghuan/admin`、`@xinghuan/web`，并通过 `verify:apimart-video-adapter-contract`、`verify:model-catalog`、`verify:external-video-proxy`、`verify-video-node-backend-inputs-contract` 和 `verify:generic-node-catalog`。灰度首次发布 `20260608-1515-provider-video-capability-gray` 后暴露 PostgreSQL schema 漏迁移：历史 `002_provider_model_framework.sql` 已执行过，新增列 `input_capabilities` / `advanced_config` 不会自动补库；随后新增前向迁移 `004_provider_model_framework_backfill.sql`，发布修复 release `20260608-1535-provider-video-capability-gray-fix` 并在灰度执行 `npm run db:migrate`，成功应用 `004_provider_model_framework_backfill.sql`。修复后灰度服务器已通过 `verify:single-port`、`verify:model-catalog`、`verify:external-video-proxy`、`verify:apimart-video-adapter-contract`、`verify-video-node-backend-inputs-contract` 和 `verify:generic-node-catalog`，公网 `https://canvas-next.hhh2121.xyz/`、`/admin`、`/api/status` 均返回 `200`。
+
+`2026-06-08` 同日继续完成 APIMart 图像异步任务适配和轮询时长配置收口：通过灰度真实 Provider 记录与 APIMart 官方文档共同确认，APIMart `gpt-image-2` 图像接口并不是同步返回图片，而是先返回 `task_id`，再通过 `GET /v1/tasks/{task_id}` 轮询完成态，最终图片位于 `data.result.images[].url[]`。本轮已把图像代理补成“提交返回 `task_id` 则自动轮询”的通用异步模式，同时将视频轮询默认上限提升到 `360s`，后台模型编辑器新增“最大轮询时长（秒）”结构化配置位，保存时写入 `advancedConfig.pollTimeoutMs`。本机已通过 `verify-provider-response-parser-contract`、`verify-admin-api-layout-contract`、`verify-external-image-proxy`、`type-check -w @xinghuan/api`、`type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `build:single-port`；灰度发布与真实图像/视频回归进入当前收口阶段。
+
 `2026-06-08` 同日继续完成管理后台任务面板抽离：`TasksPanel` 迁入 `admin-task-panel.tsx`，`main.tsx` 导出 `TaskRecord` 供面板复用，并新增 `verify:admin-task-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 通过，确认创建测试任务、任务监控列、状态文案/颜色、取消/重试动作、日志摘要、更新时间展示和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
 
 `2026-06-08` 同日继续完成管理后台用户面板抽离：`UsersPanel` 迁入 `admin-users-panel.tsx`，`main.tsx` 导出 `AdminUser` 供面板复用，并新增 `verify:admin-users-panel-contract`；本机先验证合约脚本红灯为模块缺失、主文件仍内联和类型未导出，再完成面板抽离并复验绿灯。随后 `type-check -w @xinghuan/admin` 首次暴露 `Plus` 仍被 Provider/模型/LoRA 区域复用，恢复 import 后 `type-check -w @xinghuan/admin`、`build -w @xinghuan/admin` 和 `verify:admin-interaction-guards` 均通过，确认新增成员、用户表格列、角色/状态展示、重置密码、启用/禁用和站内交互守卫未被破坏。当前尚未单独推灰度或生产。
@@ -40,6 +52,12 @@
 
 ## 已完成
 
+- 已完成后台 AI 助手设置页草稿态保存流，支持“保存 AI 助手配置 / 重置未保存修改”。
+- 已移除后台顶栏重复 AI 助手入口，仅保留侧栏页签和右侧抽屉开关。
+- 已修复关闭态后台 AI 助手抽屉遮挡主内容点击的问题。
+- 已移除登录页默认预填管理员邮箱。
+- 已完成前台 AI 助手空媒体过滤、可缩放面板和开关后会话保持。
+- 已为图像、视频、Seedance、音频等生成类节点接入统一运行态卡片。
 - 创建 2.0 项目目录。
 - 建立 `AGENTS.md`。
 - 建立 `MEMORY.md`。
@@ -48,6 +66,7 @@
 - 明确旧项目不再作为继续开发主干。
 - 明确核心产品方向：通用生成节点、模型后台、云端项目、用户隔离、任务系统和素材空间。
 - 建立首批测试服务商矩阵：GRSAI `gpt-image-2` 和 ToAPIs Grok Video。
+- 已归档 Provider 灵活配置与视频输入能力开关方案，确认后续以结构化 `inputCapabilities`、后台视频能力开关和异步视频 adapter 为扩展主线。
 - 建立 `.env.local.example`，明确真实 Key 只进本地未提交环境文件、服务器环境变量或后台加密字段。
 - 记录 `2026-06-04` 腾讯云服务器状态和旧项目空间占用。
 - 创建 Milestone B 独立 worktree：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b`。
@@ -214,6 +233,7 @@
 - `XINGHUAN_SECRET_KEY` 需要纳入正式密钥备份和轮换流程。
 - 当前灰度管理员密码已重新对齐 bootstrap 环境，但正式生产前仍需完成独立密码轮换策略，不能长期依赖 bootstrap 凭据。
 - RunningHub 目录接口当前为空列表，这符合“链路已通但尚无真实卡片”的现状；若后续恢复 RH 真实测试，仍需补真实配置数据。
+- 当前视频节点对 APIMart 一类异步视频协议仍未完成真实修复；如果继续沿用同步视频 URL 假设，后续新增视频模型仍可能失败。
 
 ## 验证状态
 
@@ -341,6 +361,8 @@
 
 ## 更新日志
 
+- 2026-06-08：完成无限画布 AI 助手正式方案与实施计划归档，确定采用“产品层自有 + 项目专属 Hermes runtime”路线；前端为悬浮 / 可固定创作助手，后台为安全审计 / 配置工作台，第一阶段只做“分析 + 草案生成 + 人工确认后应用”。
+- 2026-06-08：完成 Provider 灵活配置与视频输入能力开关方案归档，明确视频模型后续走结构化 `inputCapabilities`、后台能力开关和 APIMart 异步 adapter，不再把异步视频协议继续塞进同步代理假设里。
 - 2026-06-06：落下 Phase 3 第一刀本地实现，Worker 图像结果现在会 materialize 成用户输出文件并写入资源库索引，附带任务/来源节点/画布/模型追踪字段和按 `taskId` 去重逻辑；本地定向验证、类型检查和单端口构建通过，灰度真实队列联调待下一轮执行。
 - 2026-06-06：新增 14 天输出素材保守清理脚本与 systemd timer 模板，只清 `task-output` 旧素材，默认保护收藏、分类、最近使用和共享文件引用；本地清理回归与 dry-run CLI 已通过。
 - 2026-06-06：建立并同步本项目 CodeGraph 索引后，将 Phase 3 输出素材落库和 14 天自动清理一起发布到灰度 `20260606-1515-phase3-output-prune-gray`；灰度真实 Worker 落库验收通过，清理 dry-run 与 systemd timer 启用通过。

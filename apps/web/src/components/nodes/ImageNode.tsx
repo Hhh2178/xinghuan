@@ -5,6 +5,7 @@ import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
+import NodeRuntimeCard from './NodeRuntimeCard';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import {
   IMAGE_MODELS,
@@ -313,6 +314,11 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     ? backendUi.maxReferenceImages
     : isExternalSelected ? Math.max(8, modelDef.maxReferenceImages || 0) : (falDef?.maxRefs ?? modelDef.maxReferenceImages);
   const status: 'idle' | 'generating' | 'success' | 'error' = d?.status || 'idle';
+  const progress: string = d?.progress || '';
+  const taskId: string | undefined = d?.taskId;
+  const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
+  const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
+  const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
   const imageUrl = d?.imageUrl as string | undefined;
   const localPrompt = d?.prompt || '';
   const promptMentions: MediaMention[] = Array.isArray(d?.promptMentions) ? d.promptMentions : [];
@@ -373,6 +379,37 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     });
   };
   const handleRestoreExcludedMaterials = () => update({ excludedMaterialIds: [] });
+
+  const markRuntimeStarted = () => {
+    const nextStartedAt = Date.now();
+    update({ status: 'generating', progress: '0%', error: null, startedAt: nextStartedAt, finishedAt: null, lastDurationMs: null });
+    return nextStartedAt;
+  };
+
+  const markRuntimeFinished = (runtimeStartedAt: number | null, patch: Record<string, unknown>) => {
+    const nextFinishedAt = Date.now();
+    update({
+      ...patch,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
+
+  const markRuntimeFailed = (runtimeStartedAt: number | null, message: string) => {
+    const nextFinishedAt = Date.now();
+    update({
+      status: 'error',
+      error: message,
+      finishedAt: nextFinishedAt,
+      lastDurationMs:
+        typeof runtimeStartedAt === 'number'
+          ? Math.max(0, nextFinishedAt - runtimeStartedAt)
+          : null,
+    });
+  };
 
   // 切换模型时,如果当前比例/尺寸不在新模型选项里则重置
   const switchModel = (mId: string) => {
@@ -553,8 +590,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       logBus.error('生成中止: 缺少 prompt', src);
       return;
     }
+    let runtimeStartedAt: number | null = null;
     taskCompletionSound.primeAudio();
-    update({ status: 'generating', progress: '0%', error: null });
+    runtimeStartedAt = markRuntimeStarted();
     try {
       // collectUpstream 已返回「本地上传 + 上游接入」按用户拖拽顺序合并后的列表,
       // 这里不再二次叠加 refImages, 避免本地参考图重复传递。
@@ -589,7 +627,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         });
         const urls = res.imageUrls || [];
         if (!urls.length) throw new Error('后台模型完成但未返回图片');
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           progress: '100%',
           imageUrl: urls[0],
@@ -657,7 +695,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         });
         const urls = res.imageUrls || [];
         if (!urls.length) throw new Error('扩展平台完成但未返回图片');
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           progress: '100%',
           imageUrl: urls[0],
@@ -758,7 +796,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             }
             const final = main || all[0];
             logBus.success(`MJ 任务完成 → ${final}` + (grid.length ? ` (含 ${grid.length} 张子图)` : ''), src);
-            update({
+            markRuntimeFinished(runtimeStartedAt, {
               status: 'success',
               progress: '100%',
               imageUrl: final,
@@ -808,7 +846,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         // 同步完成
         if (submit.sync && submit.urls && submit.urls.length) {
           logBus.success(`FAL同步返回 → ${submit.urls[0]}`, src);
-          update({
+          markRuntimeFinished(runtimeStartedAt, {
             status: 'success',
             progress: '100%',
             imageUrl: submit.urls[0],
@@ -839,7 +877,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             const url = q.urls?.[0];
             if (!url) throw new Error('FAL 任务完成但未返回图片');
             logBus.success(`FAL 任务完成 → ${url}`, src);
-            update({
+            markRuntimeFinished(runtimeStartedAt, {
               status: 'success',
               progress: '100%',
               imageUrl: url,
@@ -881,7 +919,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       // 分支一:同步完成
       if (submit.sync && submit.urls && submit.urls.length) {
         logBus.success(`同步返回 → ${submit.urls[0]}`, src);
-        update({
+        markRuntimeFinished(runtimeStartedAt, {
           status: 'success',
           progress: '100%',
           imageUrl: submit.urls[0],
@@ -916,7 +954,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           const url = q.urls?.[0];
           if (!url) throw new Error('任务完成但未返回图片');
           logBus.success(`任务完成 → ${url}`, src);
-          update({
+          markRuntimeFinished(runtimeStartedAt, {
             status: 'success',
             progress: '100%',
             imageUrl: url,
@@ -936,7 +974,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       const msg = e?.message || '生成失败';
       setError(msg);
       logBus.error(`生成失败: ${msg}`, src);
-      update({ status: 'error', error: msg });
+      markRuntimeFailed(runtimeStartedAt, msg);
     }
   };
 
@@ -1004,6 +1042,16 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           </div>
         </div>
       </div>
+
+      <NodeRuntimeCard
+        status={status}
+        progress={progress}
+        startedAt={startedAt}
+        finishedAt={finishedAt}
+        lastDurationMs={lastDurationMs}
+        accent="#f59e0b"
+        taskId={taskId}
+      />
 
       {/* 配置区 */}
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
@@ -1981,7 +2029,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         >
           {status === 'generating' ? (
             <>
-              <Loader2 size={12} className="animate-spin" /> 生成中 {d?.progress || ''}
+              <Loader2 size={12} className="animate-spin" /> 生成中 {progress || ''}
             </>
           ) : (
             <>

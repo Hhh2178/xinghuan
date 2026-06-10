@@ -27,7 +27,6 @@ const PlaceholderNode = ({ data, type, selected }: NodeProps) => {
   const label = (data as any)?.label || meta?.label || type;
   const description = meta?.description || '';
   const iconName = meta?.icon || 'Box';
-  // 动态查找 lucide-react 图标
   const IconComp = (Icons as any)[iconName] || Icons.Box;
   const colorKey = meta?.color || 'slate';
   const color = COLOR_MAP[colorKey] || COLOR_MAP.slate;

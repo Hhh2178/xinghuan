@@ -291,7 +291,6 @@ html[data-theme-visual="yyh"] .t8-sidebar input {
 }
 
 html[data-theme-visual="yyh"] .t8-canvas-shell {
-  --t8-theme-music-size: 30px;
   --t8-floating-control-left: 14px;
   --t8-floating-control-bottom: 12px;
   --t8-floating-control-gap: 10px;
@@ -733,8 +732,7 @@ html[data-theme-visual="yyh"] .t8-material-preview-count {
 
 html[data-theme-visual="yyh"] .t8-mini-icon-button,
 html[data-theme-visual="yyh"] .resource-card-action,
-html[data-theme-visual="yyh"] .resource-library-favorite-filter,
-html[data-theme-visual="yyh"] .t8-theme-music-toggle {
+html[data-theme-visual="yyh"] .resource-library-favorite-filter {
   width: 32px !important;
   min-width: 32px !important;
   height: 32px !important;
@@ -745,12 +743,6 @@ html[data-theme-visual="yyh"] .t8-theme-music-toggle {
   background: color-mix(in srgb, var(--yyh-panel-2) 86%, var(--yyh-cyan) 12%) !important;
   color: var(--yyh-cyan) !important;
   box-shadow: 0 0 14px color-mix(in srgb, var(--yyh-cyan) 20%, transparent) !important;
-}
-
-html[data-theme-visual="yyh"] .t8-theme-music-toggle.is-playing {
-  color: var(--yyh-green) !important;
-  border-color: var(--yyh-green) !important;
-  background: color-mix(in srgb, var(--yyh-green) 22%, var(--yyh-panel-2)) !important;
 }
 
 html[data-theme-visual="yyh"] .react-flow__controls {

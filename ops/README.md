@@ -9,6 +9,8 @@
 - 灰度与生产是两套 Nginx 入口、端口和 release 目录；当前共用同一 PostgreSQL 数据底座。
 - 旧无限画布服务器运行态已清理，最终证据见 `old-canvas-cleanup-2026-06-04.md`。
 - 当前本机修复与文档清理进度见 `current-fix-cleanup-progress-2026-06-08.md`。
+- 后台 AI 助手 Hermes 灰度联调与上线记录见 `assistant-hermes-gray-2026-06-08.md`。
+- 画布助手 UI 与可见文案清理灰度记录见 `canvas-assistant-ui-gray-2026-06-09.md`。
 
 ## 当前运行态入口
 
@@ -16,6 +18,8 @@
 - `current-fix-cleanup-progress-2026-06-08.md`
 - `entry-ui-gray-2026-06-07.md`
 - `full-node-acceptance-audit-2026-06-07.md`
+- `assistant-hermes-gray-2026-06-08.md`
+- `canvas-assistant-ui-gray-2026-06-09.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`

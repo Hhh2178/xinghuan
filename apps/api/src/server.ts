@@ -1,6 +1,8 @@
 import { createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
+  parseAdvancedConfig,
+  parseInputCapabilities,
   uiMetadataFromSchema,
   type ModelCapability as CatalogCapability,
   type ProviderProtocol as CatalogProtocol,
@@ -11,6 +13,8 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { request as httpsRequest } from "node:https";
+import { request as httpRequest } from "node:http";
 import {
   inferMime,
   safeEmail,
@@ -50,11 +54,18 @@ import {
   toImageDataUrl,
 } from "./provider-response-parser.js";
 import {
+  createApimartVideoAdapterPayload,
+  extractApimartTask,
+  extractApimartVideoResult,
+  shouldUseApimartVideoAdapter,
+} from "./apimart-video-adapter.js";
+import {
   applyTaskCancellation,
   assertTaskCancellable,
   createRetriedTask,
   taskCancellationPatch,
 } from "./task-lifecycle.js";
+import { createExternalProxyHandlers } from "./external-proxy.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -79,6 +90,29 @@ const adminDistCandidates = [
   resolve(process.cwd(), "../../apps/admin/dist"),
   resolve(process.cwd(), "apps/admin/dist"),
 ].filter(Boolean) as string[];
+
+const {
+  generateExternalImageProxy,
+  generateExternalChatProxy,
+  generateExternalVideoProxy,
+} = createExternalProxyHandlers({
+  dataDir,
+  normalizeProviderProtocol,
+  normalizeCapability,
+  providerModelHeaders,
+  providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
+  readAdminDb,
+  saveRemoteImageToOutput,
+  saveRemoteVideoToOutput,
+  saveBase64File,
+  secretKey,
+  safeSlug,
+  safeText,
+  plainObject,
+  stringMap,
+  looksLikeHtml,
+  clampInteger,
+});
 
 interface CanvasListItem {
   id: string;
@@ -144,6 +178,7 @@ interface UserRecord {
   name: string;
   role: "admin" | "member";
   passwordHash: string;
+  passwordCipher?: string;
   disabled?: boolean;
   createdAt: number;
   updatedAt: number;
@@ -230,7 +265,9 @@ interface AdminModelRecord {
   capability: ModelCapability;
   enabled: boolean;
   inputProfile: string;
+  inputCapabilities?: Record<string, unknown>;
   parameterSchema: string;
+  advancedConfig?: Record<string, unknown>;
   protocolOverride?: string;
   createdAt: number;
   updatedAt: number;
@@ -255,6 +292,7 @@ interface AdminDb {
   models: AdminModelRecord[];
   tasks: AdminTaskRecord[];
   auditLogs?: AdminAuditRecord[];
+  assistantSettings?: AssistantSettingsRecord;
 }
 
 interface AdminAuditRecord {
@@ -266,6 +304,232 @@ interface AdminAuditRecord {
   targetId: string;
   summary: string;
   createdAt: number;
+}
+
+interface AssistantFrontendSettingsRecord {
+  enabled: boolean;
+  title: string;
+  hint: string;
+  placeholder: string;
+  allowWorkflowAttachment: boolean;
+  allowNodeAttachment: boolean;
+  allowMediaAttachment: boolean;
+  persistMemory: false;
+}
+
+interface AssistantBackendSettingsRecord {
+  enabled: boolean;
+  title: string;
+  hint: string;
+  placeholder: string;
+  defaultOpen: boolean;
+  allowProviderContext: boolean;
+  allowModelContext: boolean;
+  allowTaskContext: boolean;
+  allowUserContext: boolean;
+  allowAuditContext: boolean;
+}
+
+interface AssistantIntegrationSettingsRecord {
+  kernel: "hermes" | "fallback";
+  endpoint: string;
+  endpointConfigured?: boolean;
+  workspace: string;
+  model: string;
+  profile: string;
+  persistMemory: boolean;
+  strictMode: boolean;
+}
+
+interface AssistantSettingsRecord {
+  frontend: AssistantFrontendSettingsRecord;
+  backend: AssistantBackendSettingsRecord;
+  integration: AssistantIntegrationSettingsRecord;
+  updatedAt: number;
+}
+
+interface AssistantAnalyzeRequest {
+  providerName?: string;
+  baseUrl?: string;
+  protocolHint?: string;
+  capability?: string;
+  modelId?: string;
+  docUrl?: string;
+  sampleRequest?: string;
+  sampleResponse?: string;
+  notes?: string;
+}
+
+interface AssistantChatAttachment {
+  id?: string;
+  kind?: string;
+  title?: string;
+  summary?: string;
+  payload?: Record<string, unknown>;
+}
+
+interface AssistantChatRequest {
+  message?: string;
+  attachments?: AssistantChatAttachment[];
+  scope?: "canvas" | "admin";
+  conversationId?: string;
+}
+
+interface AssistantAnalysisResult {
+  mode: "hermes" | "fallback";
+  summary: string;
+  recommendedLayer: "default" | "advanced" | "adapter";
+  protocol: string;
+  asyncTask: boolean;
+  docFetch: {
+    attempted: boolean;
+    ok: boolean;
+    status?: number;
+    excerpt?: string;
+    error?: string;
+  };
+  probe: {
+    attempted: boolean;
+    ok: boolean;
+    status?: number;
+    error?: string;
+  };
+  drafts: {
+    provider: {
+      name: string;
+      baseUrl: string;
+      protocol: string;
+      note: string;
+    };
+    model: {
+      modelId: string;
+      displayName: string;
+      capability: ModelCapability;
+      inputProfile: string;
+      inputCapabilities: Record<string, boolean>;
+      parameterSchema: string;
+      advancedConfig: Record<string, unknown>;
+    };
+  };
+  risks: string[];
+  checklist: string[];
+  rawAssistant: string;
+}
+
+interface AssistantChatResult {
+  mode: "hermes" | "fallback";
+  message: string;
+  rawAssistant: string;
+}
+
+interface AssistantProcessEntry {
+  label: string;
+  content: string;
+}
+
+const assistantHermesSessionCache = new Map<string, { sessionId: string; updatedAt: number }>();
+const ASSISTANT_HERMES_SESSION_TTL_MS = 1000 * 60 * 60 * 6;
+
+const visibleSeedTextRules: Array<[RegExp, string]> = [
+  [/^单端口脚本验收画布/g, "单端口工作画布"],
+  [/^单端口验收画布/g, "单端口画布"],
+  [/^星幻测试画布$/g, "星幻画布"],
+  [/^Node render smoke /g, "节点渲染工作区 "],
+  [/^单端口脚本验收节点$/g, "单端口节点"],
+  [/^单端口验收节点$/g, "单端口节点"],
+  [/^verify-single-port$/g, "单端口连通性检查"],
+  [/^18200 save\/read check$/g, "18200 端口读写记录"],
+  [/^星幻 API 兼容层测试$/g, "月光下的企鹅，极简卡通风格"],
+  [/^验收 Provider$/g, "默认 Provider"],
+  [/Verify Async Image Provider/g, "异步图像 Provider"],
+  [/Verify Image Provider/g, "图像 Provider"],
+  [/Verify Video Provider/g, "视频 Provider"],
+  [/Verify Chat Provider/g, "对话 Provider"],
+  [/Verify Catalog Provider/g, "目录 Provider"],
+  [/Verify Worker Output Provider/g, "输出 Provider"],
+  [/Verify Chat Model/g, "对话模型"],
+  [/Verify Image Model/g, "图像模型"],
+  [/^图像模型测试服务商$/g, "图像模型服务商"],
+  [/^视频模型测试服务商$/g, "视频模型服务商"],
+  [/^后台任务系统占位验收$/g, "后台任务队列"],
+  [/^后台测试任务$/g, "后台任务"],
+  [/\blifecycle task\b/g, "任务流程记录"],
+  [/\bworker output material\b/g, "输出素材任务"],
+  [/\bpayload contract\b/g, "任务载荷记录"],
+];
+
+function sanitizeVisibleSeedText(value: string): string {
+  let next = value;
+  for (const [pattern, replacement] of visibleSeedTextRules) {
+    next = next.replace(pattern, replacement);
+  }
+  return next;
+}
+
+function sanitizeCanvasListItem(item: CanvasListItem): CanvasListItem {
+  const name = sanitizeVisibleSeedText(typeof item.name === "string" ? item.name : "");
+  return name === item.name ? item : { ...item, name };
+}
+
+function sanitizeCanvasNodeData(data: unknown): unknown {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  const source = data as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...source };
+  let changed = false;
+  for (const key of ["prompt", "text", "title", "content"] as const) {
+    if (typeof source[key] !== "string") continue;
+    const cleaned = sanitizeVisibleSeedText(source[key]);
+    if (cleaned === source[key]) continue;
+    next[key] = cleaned;
+    changed = true;
+  }
+  return changed ? next : data;
+}
+
+function sanitizeCanvasNodes(nodes: unknown[]): unknown[] {
+  let changed = false;
+  const sanitized = nodes.map((node) => {
+    if (!node || typeof node !== "object" || Array.isArray(node)) return node;
+    const source = node as Record<string, unknown>;
+    const nextData = sanitizeCanvasNodeData(source.data);
+    if (nextData === source.data) return node;
+    changed = true;
+    return { ...source, data: nextData };
+  });
+  return changed ? sanitized : nodes;
+}
+
+function sanitizeAdminDbVisibleText(db: AdminDb): { db: AdminDb; changed: boolean } {
+  let changed = false;
+  const providers = db.providers.map((provider) => {
+    const name = sanitizeVisibleSeedText(provider.name);
+    const note = provider.note ? sanitizeVisibleSeedText(provider.note) : provider.note;
+    if (name === provider.name && note === provider.note) return provider;
+    changed = true;
+    return { ...provider, name, note };
+  });
+  const models = db.models.map((model) => {
+    const displayName = sanitizeVisibleSeedText(model.displayName);
+    if (displayName === model.displayName) return model;
+    changed = true;
+    return { ...model, displayName };
+  });
+  const tasks = db.tasks.map((task) => {
+    const title = sanitizeVisibleSeedText(task.title);
+    if (title === task.title) return task;
+    changed = true;
+    return { ...task, title };
+  });
+  const auditLogs = (db.auditLogs || []).map((record) => {
+    const summary = sanitizeVisibleSeedText(record.summary);
+    if (summary === record.summary) return record;
+    changed = true;
+    return { ...record, summary };
+  });
+  return {
+    db: changed ? { ...db, providers, models, tasks, auditLogs } : db,
+    changed,
+  };
 }
 
 const emptyCanvasData = (): CanvasData => ({
@@ -316,10 +580,34 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/auth/admin-me" && request.method === "GET") {
+      const user = await getCurrentUser(request);
+      const adminUser = user?.role === "admin" ? user : null;
+      sendT8(response, { authenticated: Boolean(adminUser), user: adminUser });
+      return;
+    }
+
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       const body = await readJsonBody<{ email?: string; password?: string }>(request);
       const login = await loginUser(body.email, body.password);
-      if (!login) {
+      if (!login || typeof login === "string") {
+        sendJson(response, { ok: false, success: false, error: "INVALID_CREDENTIALS" }, 401);
+        return;
+      }
+      sendT8(response, { authenticated: true, user: toPublicUser(login.user) }, 200, {
+        "set-cookie": buildSessionCookie(request, login.session.id),
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/admin-login" && request.method === "POST") {
+      const body = await readJsonBody<{ email?: string; password?: string }>(request);
+      const login = await loginUser(body.email, body.password, { adminOnly: true });
+      if (login === "ADMIN_REQUIRED") {
+        sendJson(response, { ok: false, success: false, error: "ADMIN_REQUIRED" }, 403);
+        return;
+      }
+      if (!login || typeof login === "string") {
         sendJson(response, { ok: false, success: false, error: "INVALID_CREDENTIALS" }, 401);
         return;
       }
@@ -358,6 +646,25 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname.startsWith("/files/input/")) {
       await sendStaticFile(response, userDataDirs(currentUser!).inputDir, url.pathname.slice("/files/input/".length));
+      return;
+    }
+
+    if (url.pathname === "/api/assistant/chat" && request.method === "POST") {
+      const body = await readJsonBody<AssistantChatRequest>(request);
+      const result = await runAssistantChat({ ...body, scope: body.scope || "canvas" }, currentUser!);
+      sendT8(response, result);
+      return;
+    }
+
+    if (url.pathname === "/api/assistant/chat/stream" && request.method === "POST") {
+      const body = await readJsonBody<AssistantChatRequest>(request);
+      await streamAssistantChatResponse(response, { ...body, scope: body.scope || "canvas" }, currentUser!);
+      return;
+    }
+
+    if (url.pathname === "/api/assistant/settings" && request.method === "GET") {
+      const adminDb = await readAdminDb();
+      sendT8(response, toPublicAssistantSettings(adminDb.assistantSettings || defaultAssistantSettings()));
       return;
     }
 
@@ -742,12 +1049,14 @@ async function handleAdminRequest(
       if (!email) throw new Error("缺少邮箱");
       if (authDb.users.some((user) => user.email.toLowerCase() === email)) throw new Error("邮箱已存在");
       const now = Date.now();
+      const rawPassword = String(body.password || randomToken(10));
       const user: UserRecord = {
         id: `usr-${now}-${Math.random().toString(36).slice(2, 8)}`,
         email,
         name: safeText(body.name, email.split("@")[0]),
         role: body.role === "admin" ? "admin" : "member",
-        passwordHash: hashPassword(String(body.password || randomToken(10))),
+        passwordHash: hashPassword(rawPassword),
+        passwordCipher: encryptSecret(rawPassword),
         createdAt: now,
         updatedAt: now,
       };
@@ -776,7 +1085,10 @@ async function handleAdminRequest(
         disabled: body.disabled === undefined ? user.disabled : Boolean(body.disabled),
         updatedAt: Date.now(),
       };
-      if (body.password) next.passwordHash = hashPassword(String(body.password));
+      if (body.password) {
+        next.passwordHash = hashPassword(String(body.password));
+        next.passwordCipher = encryptSecret(String(body.password));
+      }
       updatedUser = next;
       return next;
     });
@@ -847,17 +1159,7 @@ async function handleAdminRequest(
     if (!provider) throw new Error("Provider 不存在");
     const result = await probeProviderDraft({ ...provider, ...body });
     const now = Date.now();
-    const providers = db.providers.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            lastProbeStatus: result.ok ? "ok" : "error",
-            lastProbeMessage: safeText(result.message),
-            updatedAt: now,
-          }
-        : item,
-    );
-    await writeAdminDb({ ...db, providers });
+    await updateProviderProbeResult(id, result, now);
     await appendAudit(adminUser, "provider.probe", "provider", id, `验证 Provider ${provider.name}: ${result.ok ? "ok" : "error"}`);
     sendT8(response, result);
     return true;
@@ -872,10 +1174,7 @@ async function handleAdminRequest(
     if (!provider) throw new Error("Provider 不存在");
     const result = await fetchProviderModelsDraft({ ...provider, ...body });
     const now = Date.now();
-    await writeAdminDb({
-      ...db,
-      providers: db.providers.map((item) => (item.id === id ? { ...item, lastFetchedAt: now, updatedAt: now } : item)),
-    });
+    await updateProviderLastFetchedAt(id, now);
     await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`);
     sendT8(response, result);
     return true;
@@ -905,14 +1204,28 @@ async function handleAdminRequest(
         displayName: safeText(item.displayName, modelId),
         capability,
         enabled: true,
-        inputProfile: capability === "video" ? "prompt,first_frame,last_frame" : capability === "image" ? "prompt,image_reference" : "prompt",
+        inputProfile:
+          existingIndex >= 0
+            ? nextModels[existingIndex].inputProfile
+            : capability === "image" || capability === "video"
+              ? "prompt,image_reference"
+              : "prompt",
+        inputCapabilities:
+          existingIndex >= 0
+            ? plainObject(nextModels[existingIndex].inputCapabilities)
+            : capability === "video"
+              ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
+              : capability === "image"
+                ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
+                : { prompt: true, imageReference: false, multiImage: false, firstFrame: false, lastFrame: false },
         parameterSchema: existingIndex >= 0 ? nextModels[existingIndex].parameterSchema : "{}",
+        advancedConfig: existingIndex >= 0 ? plainObject(nextModels[existingIndex].advancedConfig) : {},
         protocolOverride: normalizeOptionalProtocol(item.protocolOverride),
         createdAt: existingIndex >= 0 ? nextModels[existingIndex].createdAt : now,
         updatedAt: now,
       };
-      if (existingIndex >= 0) nextModels[existingIndex] = { ...nextModels[existingIndex], ...model };
-      else nextModels.unshift(model);
+      if (existingIndex >= 0) nextModels[existingIndex] = normalizeAdminModelRecord({ ...nextModels[existingIndex], ...model });
+      else nextModels.unshift(normalizeAdminModelRecord(model));
       imported += 1;
     }
     await writeAdminDb({ ...db, models: nextModels });
@@ -998,15 +1311,18 @@ async function handleAdminRequest(
         capability: normalizeCapability(body.capability),
         enabled: Boolean(body.enabled),
         inputProfile: safeText(body.inputProfile, "prompt"),
+        inputCapabilities: { ...parseInputCapabilities(body.inputCapabilities, normalizeCapability(body.capability)) },
         parameterSchema: safeJsonText(body.parameterSchema, "{}"),
+        advancedConfig: parseAdvancedConfig(body.advancedConfig),
         protocolOverride: normalizeOptionalProtocol(body.protocolOverride),
         createdAt: now,
         updatedAt: now,
       };
       if (db.models.some((item) => item.id === model.id)) throw new Error("模型 ID 已存在");
-      await writeAdminDb({ ...db, models: [model, ...db.models] });
-      await appendAudit(adminUser, "model.create", "model", model.id, `创建模型 ${model.displayName}`);
-      sendT8(response, model);
+      const normalizedModel = normalizeAdminModelRecord(model);
+      await writeAdminDb({ ...db, models: [normalizedModel, ...db.models] });
+      await appendAudit(adminUser, "model.create", "model", normalizedModel.id, `创建模型 ${normalizedModel.displayName}`);
+      sendT8(response, normalizedModel);
       return true;
     }
   }
@@ -1027,12 +1343,17 @@ async function handleAdminRequest(
         capability: body.capability === undefined ? model.capability : normalizeCapability(body.capability),
         enabled: body.enabled === undefined ? model.enabled : Boolean(body.enabled),
         inputProfile: body.inputProfile === undefined ? model.inputProfile : safeText(body.inputProfile, model.inputProfile),
+        inputCapabilities:
+          body.inputCapabilities === undefined
+            ? plainObject(model.inputCapabilities)
+            : { ...parseInputCapabilities(body.inputCapabilities, body.capability === undefined ? model.capability : normalizeCapability(body.capability)) },
         parameterSchema: body.parameterSchema === undefined ? model.parameterSchema : safeJsonText(body.parameterSchema, "{}"),
+        advancedConfig: body.advancedConfig === undefined ? plainObject(model.advancedConfig) : parseAdvancedConfig(body.advancedConfig),
         protocolOverride: body.protocolOverride === undefined ? model.protocolOverride : normalizeOptionalProtocol(body.protocolOverride),
         updatedAt: Date.now(),
       };
-      updated = next;
-      return next;
+      updated = normalizeAdminModelRecord(next);
+      return updated;
     });
     if (!updated) throw new Error("模型不存在");
     await writeAdminDb({ ...db, models });
@@ -1067,7 +1388,7 @@ async function handleAdminRequest(
       const now = Date.now();
       const task: AdminTaskRecord = {
         id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
-        title: safeText(body.title, "后台测试任务"),
+        title: safeText(body.title, "后台任务"),
         status: normalizeTaskStatus(body.status),
         ownerId: safeText(body.ownerId, adminUser.id),
         providerId: safeText(body.providerId),
@@ -1167,6 +1488,64 @@ async function handleAdminRequest(
   if (url.pathname === "/api/admin/audit" && request.method === "GET") {
     const db = await readAdminDb();
     sendT8(response, (db.auditLogs || []).slice(0, 200));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/assistant/analyze-provider" && request.method === "POST") {
+    const body = await readJsonBody<AssistantAnalyzeRequest>(request);
+    const result = await analyzeProviderAssistant(body);
+    await appendAudit(
+      adminUser,
+      "assistant.analyzeProvider",
+      "assistant",
+      safeText(body.providerName || body.baseUrl || body.modelId, "provider-analysis"),
+      `AI 助手分析 ${safeText(body.providerName || body.modelId || "未命名服务商")}`,
+    );
+    sendT8(response, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/assistant/settings") {
+    if (request.method === "GET") {
+      const db = await readAdminDb();
+      sendT8(response, maskAssistantEndpoint(db.assistantSettings || defaultAssistantSettings()));
+      return true;
+    }
+    if (request.method === "PATCH") {
+      const body = await readJsonBody<Partial<AssistantSettingsRecord>>(request);
+      const db = await readAdminDb();
+      const settings = normalizeAssistantSettings(body, db.assistantSettings || defaultAssistantSettings());
+      await writeAssistantSettingsRecord(settings);
+      await appendAudit(adminUser, "assistant.settings.update", "assistant", "assistant-settings", "更新 AI 助手接入与显示设置");
+      sendT8(response, maskAssistantEndpoint(settings));
+      return true;
+    }
+  }
+
+    if (url.pathname === "/api/admin/assistant/chat" && request.method === "POST") {
+      const body = await readJsonBody<AssistantChatRequest>(request);
+      const result = await runAssistantChat({ ...body, scope: "admin" }, adminUser);
+      await appendAudit(
+        adminUser,
+        "assistant.chat",
+      "assistant",
+      safeText(body.scope || "admin", "assistant-chat"),
+      `AI 助手对话 ${safeText((body.message || "").slice(0, 48) || "空消息")}`,
+    );
+    sendT8(response, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/assistant/chat/stream" && request.method === "POST") {
+    const body = await readJsonBody<AssistantChatRequest>(request);
+    await streamAssistantChatResponse(response, { ...body, scope: "admin" }, adminUser);
+    await appendAudit(
+      adminUser,
+      "assistant.chat",
+      "assistant",
+      "admin",
+      `AI 助手对话 ${safeText((body.message || "").slice(0, 48) || "空消息")}`,
+    );
     return true;
   }
 
@@ -1275,7 +1654,7 @@ function canvasDataPath(id: string, user: CurrentUser) {
 async function readCanvasListFromFile(user: CurrentUser): Promise<CanvasListItem[]> {
   await ensureDataDirs(user);
   try {
-    return JSON.parse(await readFile(userDataDirs(user).canvasListPath, "utf-8")) as CanvasListItem[];
+    return (JSON.parse(await readFile(userDataDirs(user).canvasListPath, "utf-8")) as CanvasListItem[]).map(sanitizeCanvasListItem);
   } catch {
     return [];
   }
@@ -1297,7 +1676,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
       "select id, name, node_count, created_at, updated_at from xh_canvases where owner_id = $1 order by updated_at desc, created_at desc",
       [user.id],
     );
-    if (result.rows.length > 0) return result.rows.map((row) => toCanvasListItem(row));
+    if (result.rows.length > 0) return result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
     const fileList = await readCanvasListFromFile(user);
     if (fileList.length > 0) {
       await writeCanvasList(fileList, user);
@@ -1309,6 +1688,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
 }
 
 async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
+  const sanitizedList = list.map(sanitizeCanvasListItem);
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const client = await pool.connect();
@@ -1316,13 +1696,13 @@ async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
       await client.query("begin");
       const existingResult = await client.query("select id, data from xh_canvases where owner_id = $1", [user.id]);
       const dataById = new Map(existingResult.rows.map((row) => [String(row.id), normalizeCanvasData(row.data)]));
-      const ids = list.map((item) => item.id);
+      const ids = sanitizedList.map((item) => item.id);
       if (ids.length > 0) {
         await client.query("delete from xh_canvases where owner_id = $1 and not (id = any($2::text[]))", [user.id, ids]);
       } else {
         await client.query("delete from xh_canvases where owner_id = $1", [user.id]);
       }
-      for (const item of list) {
+      for (const item of sanitizedList) {
         const canvasData = dataById.get(item.id) || (await readCanvasDataFromFile(item.id, user));
         await client.query(
           `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
@@ -1354,7 +1734,7 @@ async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
     }
   }
   await ensureDataDirs(user);
-  await writeFile(userDataDirs(user).canvasListPath, JSON.stringify(list, null, 2), "utf-8");
+  await writeFile(userDataDirs(user).canvasListPath, JSON.stringify(sanitizedList, null, 2), "utf-8");
 }
 
 async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData> {
@@ -1426,7 +1806,7 @@ async function writeCanvasAndUpdateList(id: string, data: CanvasData, user: Curr
 function normalizeCanvasData(value: unknown): CanvasData {
   const data = (value && typeof value === "object" ? value : {}) as Partial<CanvasData>;
   return {
-    nodes: Array.isArray(data.nodes) ? data.nodes : [],
+    nodes: sanitizeCanvasNodes(Array.isArray(data.nodes) ? data.nodes : []),
     edges: Array.isArray(data.edges) ? data.edges : [],
     viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
     nextNodeSerialId: typeof data.nextNodeSerialId === "number" ? data.nextNodeSerialId : 1,
@@ -1464,14 +1844,17 @@ async function writeAuthDb(db: AuthDb) {
 }
 
 async function readAdminDb(): Promise<AdminDb> {
-  if (usePostgresRepository()) return readAdminDbPostgres();
-  await ensureDataDirs();
   let db: AdminDb;
-  try {
-    db = JSON.parse(await readFile(adminDbPath, "utf-8")) as AdminDb;
-  } catch {
-    db = defaultAdminDb();
-    await writeAdminDb(db);
+  if (usePostgresRepository()) {
+    db = await readAdminDbPostgres();
+  } else {
+    await ensureDataDirs();
+    try {
+      db = JSON.parse(await readFile(adminDbPath, "utf-8")) as AdminDb;
+    } catch {
+      db = defaultAdminDb();
+      await writeAdminDb(db);
+    }
   }
   let secretMigrated = false;
   const providers = Array.isArray(db.providers)
@@ -1483,12 +1866,18 @@ async function readAdminDb(): Promise<AdminDb> {
     : [];
   const normalizedDb = {
     providers,
-    models: Array.isArray(db.models) ? db.models : [],
+    models: Array.isArray(db.models) ? db.models.map((model) => normalizeAdminModelRecord(model)) : [],
     tasks: Array.isArray(db.tasks) ? db.tasks : [],
     auditLogs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
+    assistantSettings: normalizeAssistantSettings(db.assistantSettings),
   };
-  if (secretMigrated) await writeAdminDb(normalizedDb);
-  return normalizedDb;
+  const modelMigrated = Array.isArray(db.models) && db.models.some((model, index) => normalizedDb.models[index] !== model);
+  const assistantMigrated = normalizedDb.assistantSettings !== db.assistantSettings;
+  const visibleSanitized = sanitizeAdminDbVisibleText(normalizedDb);
+  if (!usePostgresRepository() && (secretMigrated || modelMigrated || assistantMigrated || visibleSanitized.changed)) {
+    await writeAdminDb(visibleSanitized.db);
+  }
+  return visibleSanitized.db;
 }
 
 async function writeAdminDb(db: AdminDb) {
@@ -1498,6 +1887,28 @@ async function writeAdminDb(db: AdminDb) {
   }
   await ensureDataDirs();
   await writeFile(adminDbPath, JSON.stringify(db, null, 2), "utf-8");
+}
+
+async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord) {
+  const normalized = normalizeAssistantSettings(settings);
+  if (usePostgresRepository()) {
+    await writeAssistantSettingsRecordPostgres(normalized);
+    return;
+  }
+  const db = await readAdminDb();
+  await ensureDataDirs();
+  await writeFile(
+    adminDbPath,
+    JSON.stringify(
+      {
+        ...db,
+        assistantSettings: normalized,
+      },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
 }
 
 function usePostgresRepository() {
@@ -1524,7 +1935,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   const pool = await getPostgresPool();
   const [usersResult, sessionsResult] = await Promise.all([
     pool.query(
-      "select id, email, name, role, password_hash, disabled, created_at, updated_at from xh_users order by created_at asc",
+      "select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at from xh_users order by created_at asc",
     ),
     pool.query("select id, user_id, created_at, expires_at from xh_sessions order by created_at desc"),
   ]);
@@ -1535,6 +1946,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       name: row.name,
       role: row.role === "admin" ? "admin" : "member",
       passwordHash: row.password_hash,
+      passwordCipher: row.password_cipher || undefined,
       disabled: Boolean(row.disabled),
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
@@ -1567,14 +1979,15 @@ async function writeAuthDbPostgres(db: AuthDb) {
     await client.query("delete from xh_users");
     for (const user of db.users) {
       await client.query(
-        `insert into xh_users (id, email, name, role, password_hash, disabled, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           user.id,
           user.email,
           user.name,
           user.role,
           user.passwordHash,
+          user.passwordCipher || null,
           Boolean(user.disabled),
           millisToDate(user.createdAt),
           millisToDate(user.updatedAt),
@@ -1599,15 +2012,16 @@ async function writeAuthDbPostgres(db: AuthDb) {
 
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
-  const [providersResult, modelsResult, tasksResult, auditResult] = await Promise.all([
+  const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult] = await Promise.all([
     pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
     pool.query(
-      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, protocol_override, created_at, updated_at from xh_models order by created_at desc",
+      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
     ),
     pool.query("select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks order by created_at desc"),
     pool.query(
       "select id, actor_id, actor_email, action, target_type, target_id, summary, created_at from xh_audit_logs order by created_at desc limit 500",
     ),
+    pool.query("select id, frontend, backend, integration, updated_at from xh_assistant_settings where id = 'default' limit 1"),
   ]);
   const db: AdminDb = {
     providers: providersResult.rows.map((row) =>
@@ -1630,19 +2044,23 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         updatedAt: dateToMillis(row.updated_at),
       }),
     ),
-    models: modelsResult.rows.map((row) => ({
-      id: row.id,
-      providerId: row.provider_id,
-      modelId: row.model_id,
-      displayName: row.display_name,
-      capability: normalizeCapability(row.capability),
-      enabled: Boolean(row.enabled),
-      inputProfile: row.input_profile || "prompt",
-      parameterSchema: JSON.stringify(row.parameter_schema || {}, null, 2),
-      protocolOverride: normalizeOptionalProtocol(row.protocol_override),
-      createdAt: dateToMillis(row.created_at),
-      updatedAt: dateToMillis(row.updated_at),
-    })),
+    models: modelsResult.rows.map((row) =>
+      normalizeAdminModelRecord({
+        id: row.id,
+        providerId: row.provider_id,
+        modelId: row.model_id,
+        displayName: row.display_name,
+        capability: normalizeCapability(row.capability),
+        enabled: Boolean(row.enabled),
+        inputProfile: row.input_profile || "prompt",
+        inputCapabilities: plainObject(row.input_capabilities),
+        parameterSchema: JSON.stringify(row.parameter_schema || {}, null, 2),
+        advancedConfig: plainObject(row.advanced_config),
+        protocolOverride: normalizeOptionalProtocol(row.protocol_override),
+        createdAt: dateToMillis(row.created_at),
+        updatedAt: dateToMillis(row.updated_at),
+      }),
+    ),
     tasks: tasksResult.rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -1666,6 +2084,18 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
       summary: row.summary,
       createdAt: dateToMillis(row.created_at),
     })),
+    assistantSettings: normalizeAssistantSettings(
+      assistantSettingsResult.rows[0]
+        ? {
+            frontend: plainObject(assistantSettingsResult.rows[0].frontend),
+            backend: plainObject(assistantSettingsResult.rows[0].backend),
+            integration: plainObject(assistantSettingsResult.rows[0].integration),
+            updatedAt: assistantSettingsResult.rows[0].updated_at
+              ? dateToMillis(assistantSettingsResult.rows[0].updated_at)
+              : Date.now(),
+          }
+        : undefined,
+    ),
   };
   if (db.providers.length === 0 && db.models.length === 0 && db.tasks.length === 0) {
     const seeded = defaultAdminDb();
@@ -1680,6 +2110,7 @@ async function writeAdminDbPostgres(db: AdminDb) {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query("delete from xh_assistant_settings");
     await client.query("delete from xh_audit_logs");
     await client.query("delete from xh_tasks");
     await client.query("delete from xh_models");
@@ -1709,21 +2140,24 @@ async function writeAdminDbPostgres(db: AdminDb) {
       );
     }
     for (const model of db.models) {
+      const normalizedModel = normalizeAdminModelRecord(model);
       await client.query(
-        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, protocol_override, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)`,
+        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)`,
         [
-          model.id,
-          model.providerId,
-          model.modelId,
-          model.displayName,
-          model.capability,
-          model.enabled,
-          model.inputProfile,
-          JSON.stringify(parseJsonObject(model.parameterSchema)),
-          model.protocolOverride || null,
-          millisToDate(model.createdAt),
-          millisToDate(model.updatedAt),
+          normalizedModel.id,
+          normalizedModel.providerId,
+          normalizedModel.modelId,
+          normalizedModel.displayName,
+          normalizedModel.capability,
+          normalizedModel.enabled,
+          normalizedModel.inputProfile,
+          JSON.stringify(plainObject(normalizedModel.inputCapabilities)),
+          JSON.stringify(parseJsonObject(normalizedModel.parameterSchema)),
+          JSON.stringify(plainObject(normalizedModel.advancedConfig)),
+          normalizedModel.protocolOverride || null,
+          millisToDate(normalizedModel.createdAt),
+          millisToDate(normalizedModel.updatedAt),
         ],
       );
     }
@@ -1762,6 +2196,18 @@ async function writeAdminDbPostgres(db: AdminDb) {
         ],
       );
     }
+    const assistantSettings = normalizeAssistantSettings(db.assistantSettings);
+    await client.query(
+      `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
+       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)`,
+      [
+        "default",
+        JSON.stringify(assistantSettings.frontend),
+        JSON.stringify(assistantSettings.backend),
+        JSON.stringify(assistantSettings.integration),
+        millisToDate(assistantSettings.updatedAt),
+      ],
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
@@ -1769,6 +2215,78 @@ async function writeAdminDbPostgres(db: AdminDb) {
   } finally {
     client.release();
   }
+}
+
+async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord) {
+  const pool = await getPostgresPool();
+  const normalized = normalizeAssistantSettings(settings);
+  await pool.query(
+    `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
+     values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)
+     on conflict (id) do update set
+       frontend = excluded.frontend,
+       backend = excluded.backend,
+       integration = excluded.integration,
+       updated_at = excluded.updated_at`,
+    [
+      "default",
+      JSON.stringify(normalized.frontend),
+      JSON.stringify(normalized.backend),
+      JSON.stringify(normalized.integration),
+      millisToDate(normalized.updatedAt),
+    ],
+  );
+}
+
+async function updateProviderProbeResult(providerId: string, result: { ok?: boolean; message?: string }, now: number) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `update xh_providers
+       set last_probe_status = $2,
+           last_probe_message = $3,
+           updated_at = $4
+       where id = $1`,
+      [
+        providerId,
+        result.ok ? "ok" : "error",
+        safeText(result.message),
+        millisToDate(now),
+      ],
+    );
+    return;
+  }
+  const db = await readAdminDb();
+  const providers = db.providers.map((item) =>
+    item.id === providerId
+      ? {
+          ...item,
+          lastProbeStatus: result.ok ? "ok" : "error",
+          lastProbeMessage: safeText(result.message),
+          updatedAt: now,
+        }
+      : item,
+  );
+  await writeAdminDb({ ...db, providers });
+}
+
+async function updateProviderLastFetchedAt(providerId: string, now: number) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    await pool.query(
+      `update xh_providers
+       set last_fetched_at = $2,
+           updated_at = $2
+       where id = $1`,
+      [providerId, millisToDate(now)],
+    );
+    return;
+  }
+  const db = await readAdminDb();
+  await writeAdminDb({
+    ...db,
+    providers: db.providers.map((item) => (item.id === providerId ? { ...item, lastFetchedAt: now, updatedAt: now } : item)),
+  });
 }
 
 function toAdminTaskRecord(row: {
@@ -1919,6 +2437,175 @@ function parseJsonObject(value: string) {
 
 function plainObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringMap(value: unknown): Record<string, string> {
+  const source = plainObject(value);
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(source)) {
+    const text = String(entry ?? "").trim();
+    if (text) out[key] = text;
+  }
+  return out;
+}
+
+function normalizeAdminModelRecord(model: AdminModelRecord): AdminModelRecord {
+  const capability = normalizeCapability(model.capability);
+  const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
+  const inputProfile = normalizeModelInputProfile(model.inputProfile, inputCapabilities, capability);
+  return {
+    ...model,
+    capability,
+    enabled: Boolean(model.enabled),
+    inputProfile,
+    inputCapabilities: { ...inputCapabilities },
+    parameterSchema: safeJsonText(model.parameterSchema, "{}"),
+    advancedConfig: parseAdvancedConfig(model.advancedConfig),
+    protocolOverride: normalizeOptionalProtocol(model.protocolOverride),
+  };
+}
+
+function normalizeModelInputProfile(
+  value: unknown,
+  inputCapabilities: ReturnType<typeof parseInputCapabilities>,
+  capability: ModelCapability,
+) {
+  const requested = safeText(value);
+  const parts = requested
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const out: string[] = [];
+  const push = (token: string, enabled: boolean) => {
+    if (enabled && !out.includes(token)) out.push(token);
+  };
+  push("prompt", inputCapabilities.prompt !== false || parts.length === 0);
+  push("image_reference", inputCapabilities.imageReference || capability === "image" || capability === "video");
+  push("multi_image", Boolean(inputCapabilities.multiImage));
+  push("first_frame", Boolean(inputCapabilities.firstFrame));
+  push("last_frame", Boolean(inputCapabilities.lastFrame));
+  for (const part of parts) if (!out.includes(part)) out.push(part);
+  return out.join(",") || "prompt";
+}
+
+async function pollApimartVideoTask(input: {
+  provider: AdminProviderRecord;
+  apiKey: string;
+  taskId: string;
+  protocol: ProviderProtocol;
+  advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+}) {
+  const pollIntervalMs = clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
+  const pollTimeoutMs = clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+  const startedAt = Date.now();
+  let deadline = startedAt + pollTimeoutMs;
+  const pollPathTemplate = safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
+  while (Date.now() < deadline) {
+    const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+    const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
+      method: "GET",
+      headers: providerModelHeaders(input.apiKey, input.protocol),
+      signal: AbortSignal.timeout(60000),
+    });
+    const text = await upstream.text();
+    if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`查询视频任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const data = raw && typeof raw === "object" && !Array.isArray(raw)
+      ? plainObject((raw as Record<string, unknown>).data)
+      : {};
+    const estimatedTimeSec = Number(data.estimated_time);
+    if (Number.isFinite(estimatedTimeSec) && estimatedTimeSec > 0) {
+      const adaptiveDeadline = startedAt + Math.min((estimatedTimeSec + 90) * 1000, 600000);
+      deadline = Math.max(deadline, adaptiveDeadline);
+    }
+    const result = extractApimartVideoResult(raw, {
+      statusPath: safeText(input.advancedConfig.taskStatusPath, "data.status"),
+      resultVideoPath: safeText(input.advancedConfig.resultVideoPath, "data.result.videos"),
+    });
+    const normalizedStatus = String(result.status || "").trim().toLowerCase();
+    if (
+      result.videoUrls.length > 0 &&
+      (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))
+    ) {
+      return result;
+    }
+    if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+      throw new Error(`视频任务失败: ${result.status || "failed"}`);
+    }
+    await sleep(pollIntervalMs);
+  }
+  throw new Error("视频任务轮询超时");
+}
+
+async function pollAsyncImageTask(input: {
+  provider: AdminProviderRecord;
+  apiKey: string;
+  taskId: string;
+  protocol: ProviderProtocol;
+  advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+}) {
+  const pollIntervalMs = clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
+  const pollTimeoutMs = clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+  const startedAt = Date.now();
+  let deadline = startedAt + pollTimeoutMs;
+  const pollPathTemplate = safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
+  while (Date.now() < deadline) {
+    const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+    const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
+      method: "GET",
+      headers: providerModelHeaders(input.apiKey, input.protocol),
+      signal: AbortSignal.timeout(60000),
+    });
+    const text = await upstream.text();
+    if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`查询图像任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const data = raw && typeof raw === "object" && !Array.isArray(raw)
+      ? plainObject((raw as Record<string, unknown>).data)
+      : {};
+    const estimatedTimeSec = Number(data.estimated_time);
+    if (Number.isFinite(estimatedTimeSec) && estimatedTimeSec > 0) {
+      const adaptiveDeadline = startedAt + Math.min((estimatedTimeSec + 90) * 1000, 600000);
+      deadline = Math.max(deadline, adaptiveDeadline);
+    }
+    const extracted = extractImageOutputs(raw);
+    const task = extractApimartTask(raw, {
+      statusPath: safeText(input.advancedConfig.taskStatusPath, "data.status"),
+    });
+    const normalizedStatus = String(task.status || "").trim().toLowerCase();
+    if (
+      (extracted.urls.length > 0 || extracted.base64.length > 0) &&
+      (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))
+    ) {
+      return extracted;
+    }
+    if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+      throw new Error(`图像任务失败: ${task.status || "failed"}`);
+    }
+    await sleep(pollIntervalMs);
+  }
+  throw new Error("图像任务轮询超时");
+}
+
+function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
+  const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
+  return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+}
+
+function openAiImageGenerationUrl(baseUrlValue: unknown) {
+  return openAiEndpoint(baseUrlValue, "images/generations");
+}
+
+function clampInteger(value: unknown, min: number, max: number, fallback: number) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(num)));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function millisToDate(value: number | undefined) {
@@ -2126,7 +2813,7 @@ function defaultAdminDb(): AdminDb {
         baseUrl: "https://api.grsai.com",
         protocol: "openai",
         enabled: false,
-        note: "图像模型测试服务商",
+        note: "图像模型服务商",
         createdAt: now,
         updatedAt: now,
       },
@@ -2136,7 +2823,7 @@ function defaultAdminDb(): AdminDb {
         baseUrl: "https://api.toapis.com",
         protocol: "openai",
         enabled: false,
-        note: "视频模型测试服务商",
+        note: "视频模型服务商",
         createdAt: now,
         updatedAt: now,
       },
@@ -2170,7 +2857,7 @@ function defaultAdminDb(): AdminDb {
     tasks: [
       {
         id: `task-${now}-seed`,
-        title: "后台任务系统占位验收",
+        title: "后台任务队列",
         status: "queued",
         logs: ["任务队列骨架已创建，等待 worker 接入"],
         createdAt: now,
@@ -2178,7 +2865,143 @@ function defaultAdminDb(): AdminDb {
       },
     ],
     auditLogs: [],
+    assistantSettings: defaultAssistantSettings(),
   };
+}
+
+function defaultAssistantSettings(): AssistantSettingsRecord {
+  const endpoint = safeText(process.env.XINGHUAN_HERMES_WEBUI_URL);
+  return {
+    frontend: {
+      enabled: true,
+      title: "画布 AI 助手",
+      hint: "",
+      placeholder: "输入问题或要求",
+      allowWorkflowAttachment: true,
+      allowNodeAttachment: true,
+      allowMediaAttachment: true,
+      persistMemory: false,
+    },
+    backend: {
+      enabled: true,
+      title: "后台 AI 助手",
+      hint: "",
+      placeholder: "输入问题或要求",
+      defaultOpen: true,
+      allowProviderContext: true,
+      allowModelContext: true,
+      allowTaskContext: true,
+      allowUserContext: true,
+      allowAuditContext: true,
+    },
+    integration: {
+      kernel: "hermes",
+      endpoint: endpoint || "已配置（服务器内地址已隐藏）",
+      endpointConfigured: Boolean(endpoint),
+      workspace: "gray",
+      model: "hermes",
+      profile: safeText(process.env.XINGHUAN_HERMES_PROFILE, "canvas-assistant"),
+      persistMemory: false,
+      strictMode: true,
+    },
+    updatedAt: Date.now(),
+  };
+}
+
+function maskAssistantEndpoint(settings: AssistantSettingsRecord): AssistantSettingsRecord {
+  return {
+    ...settings,
+    integration: {
+      ...settings.integration,
+      endpoint: settings.integration.endpointConfigured ? "已配置（服务器内地址已隐藏）" : "",
+    },
+  };
+}
+
+function toPublicAssistantSettings(settings: AssistantSettingsRecord) {
+  return {
+    frontend: settings.frontend,
+    integration: {
+      ...settings.integration,
+      endpoint: settings.integration.endpointConfigured ? "已配置（服务器内地址已隐藏）" : "",
+    },
+    updatedAt: settings.updatedAt,
+  };
+}
+
+function normalizeAssistantSettings(
+  value: unknown,
+  base: AssistantSettingsRecord = defaultAssistantSettings(),
+): AssistantSettingsRecord {
+  const source = plainObject(value);
+  const frontendSource = plainObject(source.frontend);
+  const backendSource = plainObject(source.backend);
+  const integrationSource = plainObject(source.integration);
+  const baseEndpoint = safeText(base.integration.endpoint);
+  const incomingEndpoint =
+    typeof integrationSource.endpoint === "string" ? integrationSource.endpoint.trim() : undefined;
+  const maskedEndpoint = "已配置（服务器内地址已隐藏）";
+  let nextEndpoint =
+    baseEndpoint && baseEndpoint !== maskedEndpoint ? baseEndpoint : "";
+  let nextEndpointConfigured = booleanValue(
+    base.integration.endpointConfigured,
+    nextEndpoint.length > 0,
+  );
+
+  if (incomingEndpoint !== undefined) {
+    if (!incomingEndpoint) {
+      nextEndpoint = "";
+      nextEndpointConfigured = false;
+    } else if (incomingEndpoint === maskedEndpoint) {
+      nextEndpointConfigured = nextEndpoint.length > 0;
+    } else {
+      nextEndpoint = incomingEndpoint;
+      nextEndpointConfigured = true;
+    }
+  } else if (typeof integrationSource.endpointConfigured === "boolean") {
+    nextEndpointConfigured = integrationSource.endpointConfigured;
+    if (!nextEndpointConfigured) nextEndpoint = "";
+  }
+
+  return {
+    frontend: {
+      enabled: booleanValue(frontendSource.enabled, base.frontend.enabled),
+      title: safeText(frontendSource.title, base.frontend.title),
+      hint: safeText(frontendSource.hint, base.frontend.hint),
+      placeholder: safeText(frontendSource.placeholder, base.frontend.placeholder),
+      allowWorkflowAttachment: booleanValue(frontendSource.allowWorkflowAttachment, base.frontend.allowWorkflowAttachment),
+      allowNodeAttachment: booleanValue(frontendSource.allowNodeAttachment, base.frontend.allowNodeAttachment),
+      allowMediaAttachment: booleanValue(frontendSource.allowMediaAttachment, base.frontend.allowMediaAttachment),
+      persistMemory: false,
+    },
+    backend: {
+      enabled: booleanValue(backendSource.enabled, base.backend.enabled),
+      title: safeText(backendSource.title, base.backend.title),
+      hint: safeText(backendSource.hint, base.backend.hint),
+      placeholder: safeText(backendSource.placeholder, base.backend.placeholder),
+      defaultOpen: booleanValue(backendSource.defaultOpen, base.backend.defaultOpen),
+      allowProviderContext: booleanValue(backendSource.allowProviderContext, base.backend.allowProviderContext),
+      allowModelContext: booleanValue(backendSource.allowModelContext, base.backend.allowModelContext),
+      allowTaskContext: booleanValue(backendSource.allowTaskContext, base.backend.allowTaskContext),
+      allowUserContext: booleanValue(backendSource.allowUserContext, base.backend.allowUserContext),
+      allowAuditContext: booleanValue(backendSource.allowAuditContext, base.backend.allowAuditContext),
+    },
+    integration: {
+      kernel: integrationSource.kernel === "fallback" ? "fallback" : "hermes",
+      endpoint: nextEndpoint,
+      endpointConfigured: nextEndpointConfigured,
+      workspace: safeText(integrationSource.workspace, base.integration.workspace),
+      model: safeText(integrationSource.model, base.integration.model),
+      profile: safeText(integrationSource.profile, base.integration.profile || "canvas-assistant"),
+      persistMemory: booleanValue(integrationSource.persistMemory, false),
+      strictMode: booleanValue(integrationSource.strictMode, base.integration.strictMode),
+    },
+    updatedAt: Number.isFinite(source.updatedAt) ? Number(source.updatedAt) : Date.now(),
+  };
+}
+
+function booleanValue(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 async function ensureBootstrapUser(db: AuthDb): Promise<AuthDb> {
@@ -2196,11 +3019,13 @@ async function ensureBootstrapUser(db: AuthDb): Promise<AuthDb> {
       name: safeText(process.env.XINGHUAN_BOOTSTRAP_ADMIN_NAME, "星幻管理员"),
       role: "admin",
       passwordHash: hashPassword(password),
+      passwordCipher: encryptSecret(password),
       createdAt: now,
       updatedAt: now,
     });
     changed = true;
   }
+  changed = syncManagedPassword(users, email, password, { allowBootstrapReset: true }) || changed;
   const memberEmail = safeText(process.env.XINGHUAN_BOOTSTRAP_MEMBER_EMAIL, "member@xinghuan.local").toLowerCase();
   const memberPassword =
     process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ||
@@ -2212,24 +3037,53 @@ async function ensureBootstrapUser(db: AuthDb): Promise<AuthDb> {
       name: safeText(process.env.XINGHUAN_BOOTSTRAP_MEMBER_NAME, "星幻成员"),
       role: "member",
       passwordHash: hashPassword(memberPassword),
+      passwordCipher: encryptSecret(memberPassword),
       createdAt: now,
       updatedAt: now,
     });
     changed = true;
   }
+  changed = syncManagedPassword(users, memberEmail, memberPassword, { allowBootstrapReset: true }) || changed;
   return changed ? {
     ...db,
     users,
   } : db;
 }
 
-async function loginUser(emailValue: unknown, passwordValue: unknown) {
+function syncManagedPassword(
+  users: UserRecord[],
+  email: string,
+  password: string,
+  options?: { allowBootstrapReset?: boolean },
+) {
+  let changed = false;
+  for (const user of users) {
+    if (user.email.toLowerCase() !== email || !password) continue;
+    const passwordMatches = verifyPassword(password, user.passwordHash);
+    if (user.passwordCipher && passwordMatches) continue;
+    if (!passwordMatches && !options?.allowBootstrapReset) continue;
+    if (!passwordMatches) {
+      user.passwordHash = hashPassword(password);
+    }
+    user.passwordCipher = encryptSecret(password);
+    user.updatedAt = Date.now();
+    changed = true;
+  }
+  return changed;
+}
+
+async function loginUser(
+  emailValue: unknown,
+  passwordValue: unknown,
+  options?: { adminOnly?: boolean },
+) {
   const email = safeText(emailValue).toLowerCase();
   const password = String(passwordValue || "");
   if (!email || !password) return null;
   const db = await readAuthDb();
   const user = db.users.find((item) => item.email.toLowerCase() === email && !item.disabled);
   if (!user || !verifyPassword(password, user.passwordHash)) return null;
+  if (options?.adminOnly && user.role !== "admin") return "ADMIN_REQUIRED" as const;
   const now = Date.now();
   const session: SessionRecord = {
     id: randomToken(32),
@@ -2237,7 +3091,10 @@ async function loginUser(emailValue: unknown, passwordValue: unknown) {
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
   };
-  await writeAuthDb({ ...db, sessions: [session, ...db.sessions.filter((item) => item.userId !== user.id)] });
+  await writeAuthDb({
+    ...db,
+    sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)],
+  });
   return { user, session };
 }
 
@@ -2315,23 +3172,27 @@ async function publicModelCatalog() {
       const provider = providerMap.get(model.providerId);
       if (!provider || !provider.enabled) return null;
       const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+      const capability = normalizeCapability(model.capability) as CatalogCapability;
       const parameterSchema = mergeModelParameterSchema(
-        normalizeCapability(model.capability) as CatalogCapability,
+        capability,
         model.modelId,
         protocol as CatalogProtocol,
         model.parameterSchema,
       );
+      const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
       return {
         id: model.id,
         providerId: model.providerId,
         modelId: model.modelId,
         displayName: model.displayName,
-        capability: normalizeCapability(model.capability),
+        capability,
         enabled: true,
         inputProfile: model.inputProfile,
+        inputCapabilities,
+        advancedConfig: plainObject(model.advancedConfig),
         protocol,
         parameterSchema,
-        ui: uiMetadataFromSchema(parameterSchema, normalizeCapability(model.capability) as CatalogCapability),
+        ui: uiMetadataFromSchema(parameterSchema, capability, inputCapabilities),
         provider: {
           id: provider.id,
           name: provider.name,
@@ -2376,215 +3237,6 @@ async function publicRunningHubCatalog() {
   };
 }
 
-async function generateExternalImageProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
-  const body = (rawBody && typeof rawBody === "object" ? rawBody : {}) as Record<string, unknown>;
-  const prompt = safeText(body.prompt, "").slice(0, 8000);
-  if (!prompt) throw new Error("缺少 prompt");
-
-  const providerId = safeSlug(body.providerId, "");
-  const requestedModelId = safeText(body.providerModel || body.model);
-  const params = (body.providerParams && typeof body.providerParams === "object" ? body.providerParams : {}) as Record<string, unknown>;
-  const modelRecordId = safeText(params.modelRecordId);
-  const { provider, model } = await findEnabledImageModel(providerId, requestedModelId, modelRecordId);
-  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "custom", "grsai_draw"].includes(protocol)) {
-    throw new Error(`当前 Provider 协议暂未接入图像生成 Adapter: ${protocol}`);
-  }
-
-  const apiKey = providerPlainApiKey(provider);
-  if (!apiKey) throw new Error("Provider 未配置 API Key");
-
-  const parameterSchema = mergeModelParameterSchema(
-    "image",
-    model.modelId,
-    protocol as CatalogProtocol,
-    model.parameterSchema,
-  );
-  const ui = uiMetadataFromSchema(parameterSchema, "image");
-  const requestedSize = safeText(body.size || params.size || params.image_size);
-  const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
-  const count = Math.max(1, Math.min(4, Number(body.n) || 1));
-  const images = normalizeProviderReferenceUrls(
-    Array.isArray(body.images) ? body.images.map((item) => safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4) : [],
-    publicOrigin,
-    user,
-  );
-  const payload: Record<string, unknown> = {
-    model: model.modelId,
-    prompt,
-    n: count,
-    size,
-  };
-  const aspectRatio = safeText(params.aspectRatio || body.aspect_ratio);
-  if (aspectRatio) payload.aspect_ratio = aspectRatio;
-  if (images.length > 0) payload.image = images;
-
-  const grsaiImages = protocol === "grsai_draw"
-    ? await prepareGrsaiReferenceImages({
-        dataDir,
-        ownerId: user.id,
-        values: Array.isArray(body.images) ? body.images.map((item) => safeText(item)).filter(Boolean) : [],
-        limit: ui.maxReferenceImages || 4,
-      })
-    : [];
-  const extracted = protocol === "grsai_draw"
-    ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, grsaiImages)
-    : await generateOpenAiLikeImage(provider.baseUrl, apiKey, protocol, payload);
-  if (extracted.urls.length === 0 && extracted.base64.length === 0) throw new Error("上游未返回可用图像");
-
-  const localUrls: string[] = [];
-  const remoteImageUrls: string[] = [];
-  for (const item of extracted.base64) {
-    const saved = await saveBase64File({ dataUrl: toImageDataUrl(item), prefix: "external_image" }, user);
-    localUrls.push(saved.url);
-  }
-  for (const sourceUrl of extracted.urls) {
-    const saved = await saveRemoteImageToOutput(sourceUrl, user);
-    localUrls.push(saved.url);
-    remoteImageUrls.push(sourceUrl);
-  }
-
-  return {
-    imageUrls: localUrls,
-    remoteImageUrls,
-    raw: {
-      providerId: provider.id,
-      modelId: model.modelId,
-      count: localUrls.length,
-    },
-    provider: {
-      id: provider.id,
-      name: provider.name,
-      protocol,
-    },
-  };
-}
-
-async function generateExternalChatProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
-  const body = plainObject(rawBody);
-  const params = plainObject(body.providerParams);
-  const { provider, model } = await findEnabledModel(
-    "chat",
-    safeSlug(body.providerId, ""),
-    safeText(body.providerModel || body.model),
-    safeText(params.modelRecordId),
-  );
-  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
-    throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
-  }
-  const apiKey = providerPlainApiKey(provider);
-  if (!apiKey) throw new Error("Provider 未配置 API Key");
-  const messages = normalizeChatMessages(body.messages, publicOrigin, user);
-  if (messages.length === 0) throw new Error("缺少 messages");
-  const payload: Record<string, unknown> = { model: model.modelId, messages, stream: false };
-  const temperature = Number(body.temperature);
-  if (Number.isFinite(temperature)) payload.temperature = Math.max(0, Math.min(2, temperature));
-  const maxTokens = Number(body.max_tokens || body.maxTokens);
-  if (Number.isFinite(maxTokens) && maxTokens > 0) payload.max_tokens = Math.min(200000, Math.floor(maxTokens));
-
-  const upstream = await fetch(openAiEndpoint(provider.baseUrl, "chat/completions"), {
-    method: "POST",
-    headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(120000),
-  });
-  const text = await upstream.text();
-  if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
-  if (!upstream.ok) throw new Error(`上游语言模型请求失败 ${upstream.status}: ${text.slice(0, 500)}`);
-  const raw = text ? JSON.parse(text) : {};
-  const content = extractChatContent(raw);
-  return {
-    content,
-    text: content,
-    raw: { providerId: provider.id, modelId: model.modelId, finishReason: raw?.choices?.[0]?.finish_reason || "" },
-    provider: { id: provider.id, name: provider.name, protocol },
-  };
-}
-
-async function generateExternalVideoProxy(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
-  const body = plainObject(rawBody);
-  const prompt = String(body.prompt || "").trim().slice(0, 16000);
-  if (!prompt) throw new Error("缺少 prompt");
-  const params = plainObject(body.providerParams);
-  const { provider, model } = await findEnabledModel(
-    "video",
-    safeSlug(body.providerId, ""),
-    safeText(body.providerModel || body.model),
-    safeText(params.modelRecordId),
-  );
-  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
-    throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
-  }
-  const apiKey = providerPlainApiKey(provider);
-  if (!apiKey) throw new Error("Provider 未配置 API Key");
-  const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
-  const ui = uiMetadataFromSchema(schema, "video");
-  const requestedRatio = safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
-  const requestedDuration = body.duration ?? params.duration;
-  const requestedResolution = safeText(body.resolution || params.resolution);
-  const payload: Record<string, unknown> = { model: model.modelId, prompt };
-  if (ui.aspectRatios.length > 0) payload.aspect_ratio = ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio;
-  if (ui.durationOptions.length > 0) payload.duration = ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration;
-  if (ui.resolutionOptions.length > 0) payload.resolution = ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution;
-  const images = normalizeProviderReferenceUrls(
-    Array.isArray(body.images)
-      ? body.images.map((item) => String(item || "").trim()).filter(Boolean).slice(0, ui.maxReferenceImages || 1)
-      : [],
-    publicOrigin,
-    user,
-  );
-  if (images.length > 0) payload.image = images;
-
-  const upstream = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
-    method: "POST",
-    headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(180000),
-  });
-  const text = await upstream.text();
-  if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
-  if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
-  const raw = text ? JSON.parse(text) : {};
-  const remoteVideoUrls = extractVideoUrls(raw);
-  if (remoteVideoUrls.length === 0) throw new Error("上游未返回可用视频 URL");
-  const videoUrls: string[] = [];
-  for (const sourceUrl of remoteVideoUrls) {
-    const saved = await saveRemoteVideoToOutput(sourceUrl, user);
-    videoUrls.push(saved.url);
-  }
-  return {
-    videoUrls,
-    remoteVideoUrls,
-    raw: { providerId: provider.id, modelId: model.modelId, count: videoUrls.length },
-    provider: { id: provider.id, name: provider.name, protocol },
-  };
-}
-
-async function findEnabledImageModel(providerId: string, requestedModelId: string, modelRecordId: string) {
-  return findEnabledModel("image", providerId, requestedModelId, modelRecordId);
-}
-
-async function findEnabledModel(capability: ModelCapability, providerId: string, requestedModelId: string, modelRecordId: string) {
-  const db = await readAdminDb();
-  const provider = db.providers.find((item) => item.id === providerId);
-  if (!provider || !provider.enabled) throw new Error("Provider 不存在或未启用");
-  const model = db.models.find((item) => {
-    if (!item.enabled || item.providerId !== provider.id || normalizeCapability(item.capability) !== capability) return false;
-    if (modelRecordId && item.id === modelRecordId) return true;
-    return Boolean(requestedModelId) && item.modelId === requestedModelId;
-  });
-  if (!model) throw new Error(`模型不存在、未启用或不是 ${capability} 模型`);
-  return { provider, model };
-}
-
-function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
-  const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
-  if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
-  return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
-}
-
 function publicRequestOrigin(request: import("node:http").IncomingMessage) {
   const forwardedProto = safeText(request.headers["x-forwarded-proto"]);
   const forwardedHost = safeText(request.headers["x-forwarded-host"]);
@@ -2594,41 +3246,6 @@ function publicRequestOrigin(request: import("node:http").IncomingMessage) {
   return `${proto}://${hostValue}`.replace(/\/+$/, "");
 }
 
-function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUser) {
-  return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: secretKey() });
-}
-
-function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUser) {
-  return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: secretKey() });
-}
-
-function openAiImageGenerationUrl(baseUrlValue: unknown) {
-  return openAiEndpoint(baseUrlValue, "images/generations");
-}
-
-function normalizeChatMessages(value: unknown, publicOrigin?: string, user?: CurrentUser) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(-100).map((item) => {
-    const row = plainObject(item);
-    const role = ["system", "user", "assistant", "tool"].includes(String(row.role)) ? String(row.role) : "user";
-    const content = Array.isArray(row.content)
-      ? row.content.slice(0, 64).map((part) => normalizeChatContentPart(part, publicOrigin, user)).filter((part) => Object.keys(part).length > 0)
-      : String(row.content || "").slice(0, 100000);
-    return { role, content };
-  }).filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
-}
-
-function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUser) {
-  const part = plainObject(value);
-  const imageUrl = part.image_url;
-  if (publicOrigin && user && imageUrl && typeof imageUrl === "object" && !Array.isArray(imageUrl)) {
-    const image = plainObject(imageUrl);
-    if (typeof image.url === "string") {
-      return { ...part, image_url: { ...image, url: normalizeProviderReferenceUrl(image.url, publicOrigin, user) } };
-    }
-  }
-  return part;
-}
 
 function normalizeResourceKind(value: unknown): ResourceKind | "" {
   const kind = String(value || "").toLowerCase();
@@ -2783,9 +3400,18 @@ function providerPlainApiKey(provider: Partial<AdminProviderRecord> & { apiKey?:
   return decryptSecret(provider.apiKey || "");
 }
 
-async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
+function isGrsaiProviderDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
   const protocol = normalizeProviderProtocol(provider.protocol);
-  if (protocol === "grsai_draw") {
+  if (protocol === "grsai_draw") return true;
+  const id = safeText(provider.id).toLowerCase();
+  const name = safeText(provider.name).toLowerCase();
+  const baseUrl = safeText(provider.baseUrl).toLowerCase();
+  return [id, name, baseUrl].some((value) => value.includes("grsai") || value.includes("grsai.dakka.com.cn"));
+}
+
+async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
+  const protocol = isGrsaiProviderDraft(provider) ? "grsai_draw" : normalizeProviderProtocol(provider.protocol);
+  if (isGrsaiProviderDraft(provider)) {
     const baseUrl = safeText(provider.baseUrl).replace(/\/+$/, "");
     if (!baseUrl) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
     if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
@@ -2836,7 +3462,7 @@ async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { api
 }
 
 async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
-  if (normalizeProviderProtocol(provider.protocol) === "grsai_draw") {
+  if (isGrsaiProviderDraft(provider)) {
     return {
       ok: true,
       status: 200,
@@ -2860,21 +3486,40 @@ async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> &
   };
 }
 
-async function generateOpenAiLikeImage(baseUrl: string, apiKey: string, protocol: ProviderProtocol, payload: Record<string, unknown>) {
-  const upstream = await fetch(openAiImageGenerationUrl(baseUrl), {
+async function generateOpenAiLikeImage(input: {
+  provider: AdminProviderRecord;
+  apiKey: string;
+  protocol: ProviderProtocol;
+  payload: Record<string, unknown>;
+  advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+}) {
+  const upstream = await fetch(openAiImageGenerationUrl(input.provider.baseUrl), {
     method: "POST",
     headers: {
-      ...providerModelHeaders(apiKey, protocol),
+      ...providerModelHeaders(input.apiKey, input.protocol),
       "content-type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(input.payload),
     signal: AbortSignal.timeout(120000),
   });
   const text = await upstream.text();
   if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
   if (!upstream.ok) throw new Error(`上游图像生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
   const raw = text ? JSON.parse(text) : {};
-  return extractImageOutputs(raw);
+  const extracted = extractImageOutputs(raw);
+  if (extracted.urls.length > 0 || extracted.base64.length > 0) return extracted;
+  const task = extractApimartTask(raw, {
+    taskIdPath: safeText(input.advancedConfig.taskIdPath, "data.0.task_id"),
+    statusPath: safeText(input.advancedConfig.taskStatusPath, "data.0.status"),
+  });
+  if (!task.taskId) return extracted;
+  return pollAsyncImageTask({
+    provider: input.provider,
+    apiKey: input.apiKey,
+    taskId: task.taskId,
+    protocol: input.protocol,
+    advancedConfig: input.advancedConfig,
+  });
 }
 
 async function generateGrsaiImage(
@@ -2912,15 +3557,22 @@ function normalizeTaskStatus(value: unknown): TaskStatus {
 }
 
 function toAdminUser(user: UserRecord) {
+  const password = decryptManagedPassword(user);
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
     disabled: Boolean(user.disabled),
+    passwordAvailable: Boolean(password),
+    password,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+function decryptManagedPassword(user: UserRecord) {
+  return user.passwordCipher ? decryptSecret(user.passwordCipher) : "";
 }
 
 function toPublicProvider(provider: AdminProviderRecord) {
@@ -2989,6 +3641,816 @@ function secretKey() {
     process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ||
     (environment === "local" ? "xinghuan-local-admin-secret" : "");
   return createHash("sha256").update(source || "xinghuan-fallback-secret").digest();
+}
+
+async function analyzeProviderAssistant(input: AssistantAnalyzeRequest): Promise<AssistantAnalysisResult> {
+  const grsaiSignal = /grsai|grsai\.dakka\.com\.cn/i.test(
+    [
+      safeText(input.providerName),
+      safeText(input.baseUrl),
+      safeText(input.protocolHint),
+      safeText(input.notes),
+      safeText(input.sampleRequest),
+      safeText(input.sampleResponse),
+      safeText(input.modelId),
+    ].join("\n"),
+  );
+  const fallback = await buildFallbackAssistantAnalysis(input);
+  const settings = normalizeAssistantSettings((await readAdminDb()).assistantSettings);
+  const hermesBaseUrl = safeText(process.env.XINGHUAN_HERMES_WEBUI_URL || "http://127.0.0.1:8787").replace(/\/+$/, "");
+  const hermesPassword = safeText(process.env.XINGHUAN_HERMES_WEBUI_PASSWORD);
+  if (!hermesPassword) {
+    return fallback;
+  }
+  try {
+    const hermes = await runHermesAssistantAnalysis({
+      baseUrl: hermesBaseUrl,
+      password: hermesPassword,
+      workspace: safeText(process.env.XINGHUAN_HERMES_WORKSPACE, process.cwd()),
+      prompt: buildHermesAssistantPrompt(input, fallback),
+      settings,
+    });
+    const merged: AssistantAnalysisResult = {
+      ...fallback,
+      mode: "hermes",
+      rawAssistant: hermes.rawAssistant,
+      summary: hermes.summary || fallback.summary,
+      recommendedLayer: hermes.recommendedLayer || fallback.recommendedLayer,
+      protocol: fallback.protocol === "grsai_draw" ? fallback.protocol : (hermes.protocol || fallback.protocol),
+      asyncTask: hermes.asyncTask ?? fallback.asyncTask,
+      risks: hermes.risks.length ? hermes.risks : fallback.risks,
+      checklist: hermes.checklist.length ? hermes.checklist : fallback.checklist,
+      drafts: {
+        provider: {
+          ...fallback.drafts.provider,
+          ...hermes.drafts.provider,
+          protocol:
+            fallback.drafts.provider.protocol === "grsai_draw"
+              ? "grsai_draw"
+              : safeText(hermes.drafts.provider.protocol, fallback.drafts.provider.protocol),
+          baseUrl: safeText(hermes.drafts.provider.baseUrl, fallback.drafts.provider.baseUrl),
+          note: safeText(hermes.drafts.provider.note, fallback.drafts.provider.note),
+        },
+        model: {
+          ...fallback.drafts.model,
+          ...hermes.drafts.model,
+          inputCapabilities: {
+            ...fallback.drafts.model.inputCapabilities,
+            ...(plainObject(hermes.drafts.model.inputCapabilities) as Record<string, boolean>),
+          },
+          advancedConfig: {
+            ...fallback.drafts.model.advancedConfig,
+            ...plainObject(hermes.drafts.model.advancedConfig),
+          },
+          parameterSchema: safeJsonText(hermes.drafts.model.parameterSchema, fallback.drafts.model.parameterSchema),
+        },
+      },
+    };
+    if (!grsaiSignal) return merged;
+    const providerNote = safeText(
+      merged.drafts.provider.note,
+      fallback.drafts.provider.note,
+    );
+    return {
+      ...merged,
+      protocol: "grsai_draw",
+      asyncTask: true,
+      recommendedLayer: merged.recommendedLayer === "default" ? "adapter" : merged.recommendedLayer,
+      drafts: {
+        ...merged.drafts,
+        provider: {
+          ...merged.drafts.provider,
+          baseUrl: safeText(merged.drafts.provider.baseUrl, fallback.drafts.provider.baseUrl),
+          protocol: "grsai_draw",
+          note: providerNote.includes("GRSAI")
+            ? providerNote
+            : `${providerNote} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。`.trim(),
+        },
+        model: {
+          ...merged.drafts.model,
+          modelId: safeText(merged.drafts.model.modelId, "gpt-image-2"),
+          advancedConfig: {
+            ...plainObject(merged.drafts.model.advancedConfig),
+            manualModelCatalog: true,
+            defaultModelId: "gpt-image-2",
+          },
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      ...fallback,
+      rawAssistant: `${fallback.rawAssistant}\n\n[Hermes 调用失败，已回退]\n${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser): Promise<AssistantChatResult> {
+  const fallback = buildFallbackAssistantChat(input, actor);
+  const settings = normalizeAssistantSettings((await readAdminDb()).assistantSettings);
+  const workspace = safeText(process.env.XINGHUAN_HERMES_WORKSPACE, settings.integration.workspace || process.cwd());
+  const hermesBaseUrl = safeText(process.env.XINGHUAN_HERMES_WEBUI_URL || "http://127.0.0.1:8787").replace(/\/+$/, "");
+  const hermesPassword = safeText(process.env.XINGHUAN_HERMES_WEBUI_PASSWORD);
+  if (!hermesPassword) return fallback;
+  try {
+    const hermes = await runHermesAssistantChat({
+      baseUrl: hermesBaseUrl,
+      password: hermesPassword,
+      workspace,
+      prompt: buildHermesAssistantChatPrompt(input, actor, fallback),
+      settings: assistantMemoryPolicySettings(input, settings),
+      conversationKey: assistantConversationKey(input, actor, workspace),
+    });
+    return {
+      mode: "hermes",
+      message: hermes.message || fallback.message,
+      rawAssistant: hermes.rawAssistant,
+    };
+  } catch (error) {
+    return {
+      ...fallback,
+      rawAssistant: `${fallback.rawAssistant}\n\n[Hermes 调用失败，已回退]\n${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+function extractAssistantProcess(rawAssistant: string): AssistantProcessEntry[] {
+  void rawAssistant;
+  return [];
+}
+
+async function streamAssistantChatResponse(
+  response: import("node:http").ServerResponse,
+  input: AssistantChatRequest,
+  actor: CurrentUser,
+) {
+  response.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-store",
+    connection: "keep-alive",
+    "x-accel-buffering": "no",
+  });
+  const sendEvent = (event: string, data: unknown) => {
+    response.write(`event: ${event}\n`);
+    response.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+  sendEvent("status", { status: "starting" });
+  sendEvent("status", { status: "building-context" });
+  const result = await runAssistantChat(input, actor);
+  sendEvent("status", { status: "generating" });
+  const message = safeText(result.message);
+  const chunks = splitAssistantMessage(message);
+  for (const chunk of chunks) {
+    sendEvent("delta", { delta: chunk });
+  }
+  sendEvent("done", { ...result, rawAssistant: "" });
+  response.end();
+}
+
+function splitAssistantMessage(message: string) {
+  const text = safeText(message, "");
+  if (!text) return [];
+  const chunks: string[] = [];
+  for (let index = 0; index < text.length; index += 24) {
+    chunks.push(text.slice(index, index + 24));
+  }
+  return chunks;
+}
+
+async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): Promise<AssistantAnalysisResult> {
+  const providerName = safeText(input.providerName, "未命名服务商");
+  const baseUrl = safeText(input.baseUrl);
+  const capability = normalizeCapability(input.capability);
+  const modelId = safeText(input.modelId, `${providerName.toLowerCase()}-${capability}`);
+  const protocolHint = safeText(input.protocolHint).toLowerCase();
+  const sampleRequest = safeText(input.sampleRequest);
+  const sampleResponse = safeText(input.sampleResponse);
+  const notes = safeText(input.notes);
+  const grsaiDetected = /grsai|grsai\.dakka\.com\.cn/i.test(`${providerName}\n${baseUrl}\n${notes}\n${sampleRequest}\n${sampleResponse}`);
+  const asyncTask =
+    grsaiDetected ||
+    /task[_-]?id|\/tasks\/|status["']?\s*:|poll/i.test(sampleResponse) ||
+    /task[_-]?id|\/tasks\/|status["']?\s*:/i.test(sampleRequest) ||
+    /async|poll/i.test(notes);
+  const protocol =
+    (grsaiDetected ? "grsai_draw" :
+    protocolHint ||
+    (/apimart/i.test(baseUrl) || /apimart/i.test(providerName) ? "apimart" :
+      /gemini/i.test(providerName) ? "gemini" :
+      /runninghub/i.test(providerName) ? "runninghub" :
+      grsaiDetected ? "grsai_draw" :
+      "openai"));
+  const recommendedLayer: AssistantAnalysisResult["recommendedLayer"] =
+    asyncTask ? "adapter" :
+    /resultVideoPath|pollPathTemplate|taskStatusPath/i.test(sampleResponse + notes) ? "advanced" :
+    "default";
+  const docFetch = await safeFetchDocExcerpt(safeText(input.docUrl));
+  const probe = await safeProbeBaseUrl(baseUrl);
+  const inputCapabilities = {
+    prompt: true,
+    imageReference: capability !== "chat",
+    multiImage: /multi|多图|reference/i.test(notes + sampleRequest + sampleResponse),
+    firstFrame: capability === "video" && /first[_-]?frame|首帧/i.test(notes + sampleRequest + sampleResponse),
+    lastFrame: capability === "video" && /last[_-]?frame|尾帧/i.test(notes + sampleRequest + sampleResponse),
+    mask: /mask/i.test(notes + sampleRequest + sampleResponse),
+    audioReference: /audio/i.test(notes + sampleRequest + sampleResponse),
+  };
+  const advancedConfig: Record<string, unknown> = {};
+  if (asyncTask) {
+    advancedConfig.pollPathTemplate = "tasks/{task_id}";
+    advancedConfig.taskIdPath = capability === "image" ? "data.0.task_id" : "task_id";
+    advancedConfig.taskStatusPath = /data\.status/i.test(sampleResponse) ? "data.status" : "status";
+    advancedConfig.resultVideoPath = capability === "video" ? "result.videos" : undefined;
+  }
+  if (grsaiDetected) {
+    advancedConfig.manualModelCatalog = true;
+    advancedConfig.defaultModelId = "gpt-image-2";
+  }
+  const summary = asyncTask
+    ? `${providerName} 更像异步任务型 ${capability === "video" ? "视频" : capability === "image" ? "图像" : "模型"} 接口，建议走 ${recommendedLayer} 层处理。`
+    : `${providerName} 当前更接近同步返回结果的 ${protocol} 风格接口，优先走统一结构化配置。`;
+  const risks = [
+    asyncTask ? "当前链路若按同步结果解析，任务会直接失败或超时。" : "仍需验证该接口是否存在隐藏的异步轮询阶段。",
+    capability === "video" ? "视频模型需要明确首帧、尾帧、多参考图能力，避免前端错误展示输入口。" : "需要确认参数 schema 与上游字段映射是否一致。",
+    probe.ok ? "基础域名探活通过，但不代表鉴权、配额和模型调用完全可用。" : "Base URL 探活未确认成功，上游地址或权限可能仍有问题。",
+  ];
+  const checklist = [
+    "在后台确认 Provider 基本信息、协议类型和 Base URL。",
+    "导入或新建模型草案，检查 capability、inputCapabilities、parameterSchema。",
+    asyncTask ? "补齐 task_id、status、pollPathTemplate、结果路径等 adapter / advancedConfig 配置。" : "先用默认结构化配置打通，再决定是否补高级映射。",
+    "在灰度环境使用真实密钥跑一次最小生成请求并检查任务日志。",
+  ];
+  return {
+    mode: "fallback",
+    summary,
+    recommendedLayer,
+    protocol,
+    asyncTask,
+    docFetch,
+    probe,
+    drafts: {
+      provider: {
+        name: providerName,
+        baseUrl,
+        protocol,
+        note: grsaiDetected ? `${summary} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。` : summary,
+      },
+      model: {
+        modelId: grsaiDetected ? "gpt-image-2" : modelId,
+        displayName: safeText(input.modelId, modelId),
+        capability,
+        inputProfile: capability === "chat" ? "prompt" : "prompt,image_reference",
+        inputCapabilities,
+        parameterSchema: JSON.stringify(defaultAssistantParameterSchema(capability), null, 2),
+        advancedConfig,
+      },
+    },
+    risks,
+    checklist,
+    rawAssistant: JSON.stringify({
+      source: "fallback",
+      providerName,
+      protocol,
+      recommendedLayer,
+      asyncTask,
+      sampleSignals: {
+        sampleRequest: sampleRequest.slice(0, 400),
+        sampleResponse: sampleResponse.slice(0, 400),
+        notes: notes.slice(0, 400),
+      },
+    }, null, 2),
+  };
+}
+
+function buildFallbackAssistantChat(input: AssistantChatRequest, _actor: CurrentUser): AssistantChatResult {
+  const message = safeText(input.message);
+  const attachments = Array.isArray(input.attachments) ? input.attachments : [];
+  const attachmentSummary = attachments
+    .map((item) => summarizeAssistantAttachment(item))
+    .map((item) => `${safeText(item.kind || "context")}:${safeText(item.title || item.summary || item.kind)}`)
+    .slice(0, 8);
+  return {
+    mode: "fallback",
+    message: [
+      attachmentSummary.length
+        ? `已收到 ${attachments.length} 个上下文卡片：${attachmentSummary.join(" / ")}。`
+        : "当前没有上下文卡片。",
+      message
+        ? `问题：${message}`
+        : "请继续输入问题或要求。",
+      "可继续补充节点、工作流或媒体上下文。",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    rawAssistant: "",
+  };
+}
+
+function summarizeAssistantAttachment(item: AssistantChatAttachment) {
+  const payload = plainObject(item.payload);
+  const kind = safeText(item.kind || "context");
+  const summary: Record<string, unknown> = {
+    kind,
+    title: safeText(item.title).slice(0, 120),
+    summary: safeText(item.summary).slice(0, 240),
+  };
+  if (kind === "workflow") {
+    const nodes = Array.isArray(payload.nodes) ? payload.nodes : [];
+    const edges = Array.isArray(payload.edges) ? payload.edges : [];
+    summary.nodeCount = nodes.length;
+    summary.edgeCount = edges.length;
+    summary.nodeTypes = nodes
+      .slice(0, 12)
+      .map((node) => safeText(plainObject(node).type))
+      .filter(Boolean);
+  }
+  if (kind === "node") {
+    summary.nodeId = safeText(payload.id || payload.nodeId).slice(0, 80);
+    summary.nodeType = safeText(payload.type || payload.nodeType).slice(0, 80);
+  }
+  if (kind === "provider" || kind === "model" || kind === "task") {
+    summary.id = safeText(payload.id || payload.providerId || payload.modelId || payload.taskId).slice(0, 80);
+    summary.status = safeText(payload.status).slice(0, 80);
+    summary.capability = safeText(payload.capability).slice(0, 80);
+    summary.protocol = safeText(payload.protocol).slice(0, 80);
+  }
+  if (kind === "user" || kind === "audit" || kind === "page" || kind === "context") {
+    summary.id = safeText(payload.id || payload.userId || payload.auditId || payload.targetId).slice(0, 80);
+    summary.status = safeText(payload.status || payload.role || payload.activeTab).slice(0, 80);
+    summary.targetType = safeText(payload.targetType).slice(0, 80);
+    summary.action = safeText(payload.action).slice(0, 80);
+  }
+  if (kind === "image" || kind === "video" || kind === "audio") {
+    summary.mediaKind = kind;
+    const mediaUrl = safeText(payload.url || payload.sourceUrl);
+    summary.urlHost = mediaUrl.replace(/^https?:\/\//, "").split("/")[0].slice(0, 120);
+    if (/^(https?:\/\/|\/files\/)/i.test(mediaUrl)) {
+      summary.url = mediaUrl.slice(0, 240);
+    }
+  }
+  return summary;
+}
+
+function defaultAssistantParameterSchema(capability: ModelCapability) {
+  if (capability === "chat") {
+    return {
+      type: "object",
+      properties: {
+        temperature: { type: "number", minimum: 0, maximum: 2, default: 0.7 },
+        max_tokens: { type: "integer", minimum: 1, maximum: 8192, default: 1024 },
+      },
+    };
+  }
+  return {
+    type: "object",
+    properties: {
+      prompt: { type: "string", title: "提示词" },
+      negative_prompt: { type: "string", title: "反向提示词" },
+      aspect_ratio: { type: "string", enum: ["1:1", "16:9", "9:16"] },
+      duration_seconds: capability === "video" ? { type: "integer", minimum: 1, maximum: 30, default: 5 } : undefined,
+    },
+  };
+}
+
+function buildHermesAssistantPrompt(input: AssistantAnalyzeRequest, fallback: AssistantAnalysisResult) {
+  return [
+    "你是无限画布后台的受限接入审计助手。",
+    "请根据给定信息输出严格 JSON，不要输出 Markdown 代码块。",
+    'JSON schema: {"summary":"", "protocol":"", "recommendedLayer":"default|advanced|adapter", "asyncTask":true, "risks":[""], "checklist":[""], "drafts":{"provider":{"name":"","baseUrl":"","protocol":"","note":""},"model":{"modelId":"","displayName":"","capability":"chat|image|video","inputProfile":"","inputCapabilities":{"prompt":true,"imageReference":false,"multiImage":false,"firstFrame":false,"lastFrame":false,"mask":false,"audioReference":false},"parameterSchema":"{}", "advancedConfig":{}}}}',
+    "如果信息不足，也要尽量给出保守建议。",
+    `输入能力: ${JSON.stringify(input)}`,
+    `当前回退分析: ${JSON.stringify(fallback)}`,
+  ].join("\n");
+}
+
+function buildHermesAssistantChatPrompt(input: AssistantChatRequest, actor: CurrentUser, fallback: AssistantChatResult) {
+  const attachments = Array.isArray(input.attachments) ? input.attachments : [];
+  return [
+    "你是无限画布的内置 AI 助手。",
+    "你会收到用户问题，以及若干来自画布或后台的上下文卡片。",
+    "请结合这些上下文，用简洁、专业、可执行的中文直接回复。",
+    "不要输出 Markdown 代码块，不要假装你已经修改了配置或执行了操作。",
+    "如果用户提供的是工作流、节点或媒体，请优先做分析、诊断、建议和下一步动作。",
+    `当前作用域: ${input.scope === "admin" ? "后台管理" : "画布工作区"}`,
+    `当前用户: ${actor.email} (${actor.role})`,
+    `用户问题: ${safeText(input.message) || "未提供问题"}`,
+    `上下文卡片摘要: ${JSON.stringify(attachments.map((item) => summarizeAssistantAttachment(item)))}`,
+    `本地兜底回复摘要: ${safeText(fallback.message).slice(0, 500)}`,
+  ].join("\n");
+}
+
+function hermesProfileName(settings?: AssistantSettingsRecord) {
+  return safeText(
+    process.env.XINGHUAN_HERMES_PROFILE || settings?.integration.profile,
+    "canvas-assistant",
+  );
+}
+
+function buildHermesSessionPayload(workspace: string, settings?: AssistantSettingsRecord) {
+  return {
+    workspace,
+    profile: hermesProfileName(settings),
+    memory: Boolean(settings?.integration.persistMemory),
+    persistMemory: Boolean(settings?.integration.persistMemory),
+  };
+}
+
+function buildHermesChatPayload(sessionId: string, message: string, workspace: string, settings?: AssistantSettingsRecord) {
+  return {
+    session_id: sessionId,
+    message,
+    workspace,
+    profile: hermesProfileName(settings),
+    memory: Boolean(settings?.integration.persistMemory),
+    persistMemory: Boolean(settings?.integration.persistMemory),
+  };
+}
+
+function assistantMemoryPolicySettings(input: AssistantChatRequest, settings: AssistantSettingsRecord): AssistantSettingsRecord {
+  const memoryAllowed = input.scope === "admin" && Boolean(settings.integration.persistMemory);
+  return {
+    ...settings,
+    integration: {
+      ...settings.integration,
+      persistMemory: memoryAllowed,
+    },
+  };
+}
+
+function assistantConversationKey(input: AssistantChatRequest, actor: CurrentUser, workspace: string) {
+  const scope = input.scope === "admin" ? "admin" : "canvas";
+  const conversationId = safeText(input.conversationId, "default");
+  return [workspace, scope, actor.id || actor.email, conversationId].join("::");
+}
+
+function extractHermesSessionId(payload: any) {
+  return safeText(
+    payload?.data?.session?.session_id ||
+    payload?.data?.session_id ||
+    payload?.data?.session?.id ||
+    payload?.session?.session_id ||
+    payload?.session_id ||
+    payload?.session?.id,
+  );
+}
+
+async function getHermesAssistantSessionId(input: {
+  baseUrl: string;
+  cookie: string;
+  csrf: string;
+  workspace: string;
+  conversationKey: string;
+  settings?: AssistantSettingsRecord;
+}) {
+  const now = Date.now();
+  const cached = assistantHermesSessionCache.get(input.conversationKey);
+  if (cached && now - cached.updatedAt < ASSISTANT_HERMES_SESSION_TTL_MS) {
+    cached.updatedAt = now;
+    return cached.sessionId;
+  }
+  const sessionResp = await hermesRequestJson(input.baseUrl, "/api/session/new", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Cookie: input.cookie,
+      ...(input.csrf ? { "X-Hermes-CSRF-Token": input.csrf, Origin: input.baseUrl } : {}),
+    },
+    body: JSON.stringify(buildHermesSessionPayload(input.workspace, input.settings)),
+  });
+  const sessionId = extractHermesSessionId(sessionResp.data);
+  if (!sessionId) throw new Error("Hermes 未返回 session_id");
+  assistantHermesSessionCache.set(input.conversationKey, { sessionId, updatedAt: now });
+  return sessionId;
+}
+
+async function runHermesAssistantAnalysis(input: {
+  baseUrl: string;
+  password: string;
+  workspace: string;
+  prompt: string;
+  settings?: AssistantSettingsRecord;
+}) {
+  const login = await hermesRequestJson(input.baseUrl, "/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: input.password }),
+  });
+  const cookie = extractCookieHeader(login.headers["set-cookie"]);
+  if (!cookie) throw new Error("Hermes 登录成功但未返回会话 Cookie");
+  const shell = await hermesRequestText(input.baseUrl, "/", { headers: { Cookie: cookie } });
+  const csrf = extractHermesCsrfToken(shell.body);
+  const sessionResp = await hermesRequestJson(input.baseUrl, "/api/session/new", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Cookie: cookie,
+      ...(csrf ? { "X-Hermes-CSRF-Token": csrf, Origin: input.baseUrl } : {}),
+    },
+    body: JSON.stringify(buildHermesSessionPayload(input.workspace, input.settings)),
+  });
+  const sessionId = extractHermesSessionId(sessionResp.data);
+  if (!sessionId) throw new Error("Hermes 未返回 session_id");
+  const chatResp = await hermesRequestJson(input.baseUrl, "/api/chat", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Cookie: cookie,
+      ...(csrf ? { "X-Hermes-CSRF-Token": csrf, Origin: input.baseUrl } : {}),
+    },
+    body: JSON.stringify(buildHermesChatPayload(sessionId, input.prompt, input.workspace, input.settings)),
+  });
+  const rawAssistant =
+    safeText(
+      chatResp.data?.answer ||
+      chatResp.data?.assistant ||
+      chatResp.data?.response ||
+      chatResp.data?.message ||
+      chatResp.data?.text ||
+      chatResp.data?.result ||
+      "",
+    ) || JSON.stringify(chatResp.data ?? chatResp, null, 2);
+  const parsed = tryParseAssistantJson(rawAssistant);
+  return {
+    rawAssistant,
+    summary: safeText(parsed?.summary),
+    protocol: safeText(parsed?.protocol),
+    recommendedLayer: parseAssistantLayer(parsed?.recommendedLayer),
+    asyncTask: typeof parsed?.asyncTask === "boolean" ? parsed.asyncTask : undefined,
+    risks: Array.isArray(parsed?.risks) ? parsed.risks.map((item: unknown) => safeText(item)).filter(Boolean) : [],
+    checklist: Array.isArray(parsed?.checklist) ? parsed.checklist.map((item: unknown) => safeText(item)).filter(Boolean) : [],
+    drafts: {
+      provider: plainObject(parsed?.drafts?.provider),
+      model: plainObject(parsed?.drafts?.model),
+    },
+  };
+}
+
+async function runHermesAssistantChat(input: {
+  baseUrl: string;
+  password: string;
+  workspace: string;
+  prompt: string;
+  settings?: AssistantSettingsRecord;
+  conversationKey: string;
+}) {
+  const login = await hermesRequestJson(input.baseUrl, "/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: input.password }),
+  });
+  const cookie = extractCookieHeader(login.headers["set-cookie"]);
+  if (!cookie) throw new Error("Hermes 登录成功但未返回会话 Cookie");
+  const shell = await hermesRequestText(input.baseUrl, "/", { headers: { Cookie: cookie } });
+  const csrf = extractHermesCsrfToken(shell.body);
+  const sessionId = await getHermesAssistantSessionId({
+    baseUrl: input.baseUrl,
+    cookie,
+    csrf,
+    workspace: input.workspace,
+    conversationKey: input.conversationKey,
+    settings: input.settings,
+  });
+  const chatStartResp = await hermesRequestJson(input.baseUrl, "/api/chat/start", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Cookie: cookie,
+      ...(csrf ? { "X-Hermes-CSRF-Token": csrf, Origin: input.baseUrl } : {}),
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      message: input.prompt,
+      workspace: input.workspace,
+      profile: hermesProfileName(input.settings),
+      attachments: [],
+    }),
+  });
+  const streamId = safeText(chatStartResp.data?.stream_id);
+  if (!streamId) {
+    throw new Error("Hermes 未返回 stream_id");
+  }
+  const rawAssistant = await readHermesAssistantStream(input.baseUrl, streamId, cookie);
+  return {
+    rawAssistant,
+    message: rawAssistant.trim(),
+  };
+}
+
+async function readHermesAssistantStream(baseUrl: string, streamId: string, cookie: string) {
+  const response = await rawHttpRequest(
+    baseUrl,
+    `/api/chat/stream?${new URLSearchParams({ stream_id: streamId }).toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Cookie: cookie,
+        accept: "text/event-stream",
+      },
+      timeoutMs: 180000,
+    },
+  );
+  if (response.status >= 400) {
+    throw new Error(`Hermes stream 请求失败: HTTP ${response.status}`);
+  }
+  const events = parseServerSentEvents(response.body);
+  const tokenText = events
+    .filter((event) => event.event === "token")
+    .map((event) => safeText(plainObject(event.data).text))
+    .join("");
+  if (tokenText.trim()) return tokenText;
+  const doneEvent = events.find((event) => event.event === "done");
+  const donePayload = plainObject(doneEvent?.data);
+  const doneText = safeText(
+    donePayload.answer ||
+    donePayload.assistant ||
+    donePayload.response ||
+    donePayload.message ||
+    donePayload.text ||
+    donePayload.result,
+  );
+  if (doneText.trim()) return doneText;
+  const appError = events.find((event) => event.event === "apperror" || event.event === "error");
+  if (appError) {
+    const payload = plainObject(appError.data);
+    throw new Error(safeText(payload.message || payload.error || JSON.stringify(payload), "Hermes stream error"));
+  }
+  return "";
+}
+
+function parseServerSentEvents(body: string) {
+  const blocks = String(body || "").split(/\r?\n\r?\n/);
+  const events: Array<{ event: string; data: unknown }> = [];
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/).filter(Boolean);
+    if (!lines.length) continue;
+    let event = "message";
+    const dataLines: string[] = [];
+    for (const line of lines) {
+      if (line.startsWith("event:")) {
+        event = line.slice(6).trim() || "message";
+        continue;
+      }
+      if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+    }
+    const rawData = dataLines.join("\n");
+    events.push({
+      event,
+      data: safeJsonParse(rawData) ?? rawData,
+    });
+  }
+  return events;
+}
+
+function parseAssistantLayer(value: unknown): "default" | "advanced" | "adapter" | undefined {
+  const text = safeText(value).toLowerCase();
+  if (text === "default" || text === "advanced" || text === "adapter") return text;
+  return undefined;
+}
+
+function tryParseAssistantJson(text: string): any {
+  const trimmed = String(text || "").trim();
+  const direct = safeJsonParse(trimmed);
+  if (direct && typeof direct === "object") return direct;
+  const match = trimmed.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  return safeJsonParse(match[0]);
+}
+
+function safeJsonParse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractHermesCsrfToken(html: string) {
+  const match = html.match(/__CSRF_TOKEN_JSON__"\s*:\s*("[^"]*")/);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return "";
+    }
+  }
+  const fallback = html.match(/"csrfToken"\s*:\s*"([^"]+)"/);
+  return fallback?.[1] || "";
+}
+
+function extractCookieHeader(setCookieHeader: string | string[] | undefined) {
+  if (!setCookieHeader) return "";
+  const first = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
+  return String(first || "").split(";")[0] || "";
+}
+
+async function safeFetchDocExcerpt(docUrl: string) {
+  if (!docUrl) return { attempted: false, ok: false };
+  try {
+    const response = await httpJsonLike(docUrl, { method: "GET", timeoutMs: 8000 });
+    return {
+      attempted: true,
+      ok: response.status >= 200 && response.status < 400,
+      status: response.status,
+      excerpt: response.body.slice(0, 600),
+    };
+  } catch (error) {
+    return {
+      attempted: true,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function safeProbeBaseUrl(baseUrl: string) {
+  if (!baseUrl) return { attempted: false, ok: false };
+  try {
+    const response = await httpJsonLike(baseUrl, { method: "GET", timeoutMs: 5000 });
+    return {
+      attempted: true,
+      ok: response.status >= 200 && response.status < 500,
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      attempted: true,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function hermesRequestJson(baseUrl: string, path: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
+  const response = await rawHttpRequest(baseUrl, path, options);
+  const payload = safeJsonParse(response.body);
+  if (!payload || typeof payload !== "object") {
+    throw new Error(`Hermes 返回了非 JSON 数据: HTTP ${response.status}`);
+  }
+  if (response.status >= 400 || payload.error) {
+    throw new Error(`Hermes 请求失败: HTTP ${response.status} ${safeText(payload.error)}`);
+  }
+  return { data: payload, headers: response.headers };
+}
+
+async function hermesRequestText(baseUrl: string, path: string, options: { headers?: Record<string, string> }) {
+  return rawHttpRequest(baseUrl, path, { method: "GET", headers: options.headers });
+}
+
+async function httpJsonLike(targetUrl: string, options: { method: string; timeoutMs: number }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new Error("timeout")), options.timeoutMs);
+  try {
+    const response = await fetch(targetUrl, {
+      method: options.method,
+      headers: { "user-agent": "xinghuan-assistant-probe" },
+      signal: controller.signal,
+    });
+    return {
+      status: response.status,
+      body: await response.text(),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function rawHttpRequest(
+  baseUrl: string,
+  path: string,
+  options: { method: string; headers?: Record<string, string>; body?: string; timeoutMs?: number },
+) {
+  const target = new URL(path, `${baseUrl}/`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new Error("timeout")), options.timeoutMs ?? 60000);
+  try {
+    const response = await fetch(target, {
+      method: options.method,
+      headers: {
+        accept: "application/json, text/html;q=0.9, */*;q=0.8",
+        "user-agent": "xinghuan-hermes-bridge",
+        ...options.headers,
+      },
+      body: options.body,
+      signal: controller.signal,
+    });
+    const headerRecord: Record<string, string | string[] | undefined> = {};
+    response.headers.forEach((value, key) => {
+      headerRecord[key] = value;
+    });
+    const getSetCookie = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+    if (typeof getSetCookie === "function") {
+      headerRecord["set-cookie"] = getSetCookie.call(response.headers);
+    }
+    return {
+      status: response.status,
+      body: await response.text(),
+      headers: headerRecord,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function appendAudit(

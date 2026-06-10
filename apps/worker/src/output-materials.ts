@@ -78,13 +78,15 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   if (!safeText(task.ownerId)) throw new Error("任务缺少 ownerId，无法写入输出素材");
 
   const imageUrls = readStringList(result.imageUrls);
-  if (imageUrls.length === 0) {
+  const videoUrls = readStringList(result.videoUrls);
+  if (imageUrls.length === 0 && videoUrls.length === 0) {
     return {
       resourceItems: [] as ResourceItem[],
       resultPatch: {
         resourceItemIds: [],
         resourceCount: 0,
         materializedImageUrls: [],
+        materializedVideoUrls: [],
       },
     };
   }
@@ -100,6 +102,32 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       kind: "image",
       title: buildResourceTitle(task.title, index, imageUrls.length),
+      url: saved.sourceUrl,
+      sourceUrl: saved.sourceUrl,
+      originalName: saved.filename,
+      fileUrl: saved.fileUrl,
+      fileRel: saved.fileUrl,
+      mime: saved.mime,
+      size: saved.size,
+      categoryId: "",
+      tags: buildTaskTags(task),
+      favorite: false,
+      createdAt,
+      updatedAt: createdAt,
+      sourceNodeId: safeText(task.payload.sourceNodeId),
+      sourceCanvasId: safeText(task.payload.sourceCanvasId),
+      taskId: task.id,
+      providerId: task.providerId,
+      modelId: task.providerModelId || task.modelRecordId,
+    });
+  }
+
+  for (const [index, sourceUrl] of videoUrls.entries()) {
+    const saved = await materializeVideoOutput(sourceUrl, dirs.outputDir, task.id, index);
+    resourceItems.push({
+      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind: "video",
+      title: buildResourceTitle(task.title, imageUrls.length + index, imageUrls.length + videoUrls.length),
       url: saved.sourceUrl,
       sourceUrl: saved.sourceUrl,
       originalName: saved.filename,
@@ -140,6 +168,7 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       resourceItemIds: resourceItems.map((item) => item.id),
       resourceCount: resourceItems.length,
       materializedImageUrls: resourceItems.map((item) => item.fileUrl).filter(Boolean),
+      materializedVideoUrls: resourceItems.filter((item) => item.kind === "video").map((item) => item.fileUrl || item.url).filter(Boolean),
     },
   };
 }
@@ -289,6 +318,31 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
   };
 }
 
+async function materializeVideoOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {
+  const localOutput = await tryResolveLocalOutput(sourceUrl, outputDir);
+  if (localOutput) return localOutput;
+
+  if (!/^https?:\/\//i.test(sourceUrl)) {
+    throw new Error(`暂不支持的输出视频 URL: ${sourceUrl.slice(0, 120)}`);
+  }
+
+  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
+  if (!upstream.ok) throw new Error(`下载输出视频失败 ${upstream.status}`);
+  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!mime.startsWith("video/")) throw new Error(`输出素材不是视频: ${mime || "unknown"}`);
+  const ext = videoExtensionFromMime(mime) || videoExtensionFromUrl(sourceUrl) || "mp4";
+  const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  await writeFile(join(outputDir, filename), buffer);
+  return {
+    filename,
+    fileUrl: `/files/output/${filename}`,
+    size: buffer.length,
+    mime,
+    sourceUrl,
+  };
+}
+
 async function tryReadLocalOutput(sourceUrl: string, outputDir: string) {
   const filename = decodeOutputFilename(sourceUrl);
   if (!filename) return null;
@@ -351,6 +405,10 @@ function inferMime(filename: string) {
   if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
   if (ext === ".webp") return "image/webp";
   if (ext === ".gif") return "image/gif";
+  if (ext === ".mp4") return "video/mp4";
+  if (ext === ".webm") return "video/webm";
+  if (ext === ".mov") return "video/quicktime";
+  if (ext === ".m4v") return "video/x-m4v";
   return "application/octet-stream";
 }
 
@@ -366,6 +424,23 @@ function imageExtensionFromUrl(sourceUrl: string) {
   try {
     const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
     return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "";
+  } catch {
+    return "";
+  }
+}
+
+function videoExtensionFromMime(mime: string) {
+  if (mime === "video/mp4") return "mp4";
+  if (mime === "video/webm") return "webm";
+  if (mime === "video/quicktime") return "mov";
+  if (mime === "video/x-m4v") return "m4v";
+  return "";
+}
+
+function videoExtensionFromUrl(sourceUrl: string) {
+  try {
+    const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
+    return ["mp4", "webm", "mov", "m4v"].includes(ext) ? ext : "";
   } catch {
     return "";
   }

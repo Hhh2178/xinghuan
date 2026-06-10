@@ -1,18 +1,6 @@
 import { THEME_TEMPLATE_VERSION } from './types';
 import type { ThemeMode, ThemeTemplate, ThemeTokens } from './types';
 
-const classicThemeMusicUrl = new URL('../assets/theme-music/classic-one-summer-day.mp3', import.meta.url).href;
-const pixelThemeMusicUrl = new URL('../assets/theme-music/pixel-theme-of-sss.mp3', import.meta.url).href;
-const opThemeMusicUrl = new URL('../assets/theme-music/op-battle-scars.mp3', import.meta.url).href;
-export const rhThemeMusicUrl = new URL('../assets/theme-music/rh-tide.mp3', import.meta.url).href;
-export const rhHiddenThemeMusicUrl = new URL('../assets/theme-music/rh-hidden-saya.mp3', import.meta.url).href;
-export const narutoThemeMusicUrl = new URL('../assets/theme-music/naruto-shinsei-gyakuten.mp3', import.meta.url).href;
-export const evaThemeMusicUrl = new URL('../assets/theme-music/eva-decisive-battle.mp3', import.meta.url).href;
-export const yyhThemeMusicUrl = new URL('../assets/theme-music/yyh-unbalanced-kiss-piano.mp3', import.meta.url).href;
-export const yyhHiddenThemeMusicUrl = new URL('../assets/theme-music/yyh-hidden-tonight.mp3', import.meta.url).href;
-export const slamdunkThemeMusicUrl = new URL('../assets/theme-music/slamdunk-kimi-ga-suki.mp3', import.meta.url).href;
-export const soccerThemeMusicUrl = new URL('../assets/theme-music/soccer-tsubasa-burning-hero.mid', import.meta.url).href;
-
 export const DEFAULT_THEME_TEMPLATE_ID = 'tech-default';
 export const TECH_TEMPLATE_ID = 'tech-default';
 export const PIXEL_TEMPLATE_ID = 'pixel-candy';
@@ -700,15 +688,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       nodeFrame: 'glass',
       headerMark: '科技',
     },
-    music: {
-      title: "One Summer's Day",
-      preset: 'tech-pulse',
-      source: 'url',
-      url: classicThemeMusicUrl,
-      volume: 0.16,
-      bpm: 112,
-      copyrightNote: '经典主题默认音乐文件，可在主题模板中上传替换。',
-    },
     modes: { dark: { tokens: techDark }, light: { tokens: techLight } },
   },
   {
@@ -727,15 +706,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       canvasPattern: 'dots',
       nodeFrame: 'sticker',
       headerMark: '像素',
-    },
-    music: {
-      title: 'Theme Of SSS',
-      preset: 'pixel-pop',
-      source: 'url',
-      url: pixelThemeMusicUrl,
-      volume: 0.15,
-      bpm: 128,
-      copyrightNote: '像素风默认音乐文件，可在主题模板中上传替换。',
     },
     modes: { dark: { tokens: pixelDark }, light: { tokens: pixelLight } },
   },
@@ -756,15 +726,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       nodeFrame: 'wanted',
       headerMark: 'ONE PIECE',
     },
-    music: {
-      title: 'Battle Scars',
-      preset: 'grand-line-adventure',
-      source: 'url',
-      url: opThemeMusicUrl,
-      volume: 0.16,
-      bpm: 96,
-      copyrightNote: 'OP 风格默认音乐文件，可在主题模板中上传替换。',
-    },
     modes: { dark: { tokens: opDark }, light: { tokens: opLight } },
   },
   {
@@ -783,18 +744,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       canvasPattern: 'hub',
       nodeFrame: 'hub-card',
       headerMark: 'RH',
-    },
-    music: {
-      title: '潮鸣',
-      preset: 'rh-pulse',
-      source: 'url',
-      url: rhThemeMusicUrl,
-      hiddenTitle: '沙耶之歌',
-      hiddenUrl: rhHiddenThemeMusicUrl,
-      hiddenVolume: 0.2,
-      volume: 0.16,
-      bpm: 104,
-      copyrightNote: 'RH 风格默认音乐文件；隐藏模式会自动切换到隐藏主题音乐，可在主题模板中上传替换普通主题音乐。',
     },
     modes: { dark: { tokens: rhDark }, light: { tokens: rhLight } },
   },
@@ -815,15 +764,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       nodeFrame: 'shinobi-scroll',
       headerMark: 'KONOHA',
     },
-    music: {
-      title: '形势逆转',
-      preset: 'shinobi-flame',
-      source: 'url',
-      url: narutoThemeMusicUrl,
-      volume: 0.16,
-      bpm: 146,
-      copyrightNote: '火影忍者风格默认音乐文件，可在主题模板中上传替换。',
-    },
     modes: { dark: { tokens: narutoDark }, light: { tokens: narutoLight } },
   },
   {
@@ -842,15 +782,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       canvasPattern: 'eva-grid',
       nodeFrame: 'eva-panel',
       headerMark: 'EVA',
-    },
-    music: {
-      title: 'Decisive Battle',
-      preset: 'eva-sync',
-      source: 'url',
-      url: evaThemeMusicUrl,
-      volume: 0.16,
-      bpm: 152,
-      copyrightNote: 'EVA 风格默认音乐文件，可在主题模板中上传替换。公开分发前请确认音乐授权边界。',
     },
     modes: { dark: { tokens: evaDark }, light: { tokens: evaLight } },
   },
@@ -871,18 +802,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       nodeFrame: 'spirit-case',
       headerMark: 'REI GUN',
     },
-    music: {
-      title: '不平衡的 KISS 钢琴曲',
-      preset: 'spirit-gun',
-      source: 'url',
-      url: yyhThemeMusicUrl,
-      hiddenTitle: '今夜属于彼此',
-      hiddenUrl: yyhHiddenThemeMusicUrl,
-      hiddenVolume: 0.18,
-      volume: 0.16,
-      bpm: 138,
-      copyrightNote: '幽游白书风格默认音乐文件；肖像大师隐藏模式会自动切换到隐藏主题音乐，可在主题模板中上传替换普通主题音乐。公开分发前请确认音乐授权边界。',
-    },
     modes: { dark: { tokens: yyhDark }, light: { tokens: yyhLight } },
   },
   {
@@ -902,15 +821,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       nodeFrame: 'scoreboard-card',
       headerMark: 'BUZZER BEATER',
     },
-    music: {
-      title: '想大声说喜欢你',
-      preset: 'buzzer-beater',
-      source: 'url',
-      url: slamdunkThemeMusicUrl,
-      volume: 0.18,
-      bpm: 142,
-      copyrightNote: '灌篮高手风格默认音乐文件，可在主题模板中上传替换。公开分发前请确认音乐授权边界。',
-    },
     modes: { dark: { tokens: slamdunkDark }, light: { tokens: slamdunkLight } },
   },
   {
@@ -929,15 +839,6 @@ export const BUILT_IN_THEME_TEMPLATES: ThemeTemplate[] = [
       canvasPattern: 'pitch',
       nodeFrame: 'match-card',
       headerMark: 'GOLDEN GOAL',
-    },
-    music: {
-      title: '足球小将主题歌（燃烧英雄）',
-      preset: 'golden-goal',
-      source: 'url',
-      url: soccerThemeMusicUrl,
-      volume: 0.18,
-      bpm: 150,
-      copyrightNote: '足球小将风格默认 MIDI 音乐文件；若公开分发请确认音乐授权边界，golden-goal 仅作为兜底 preset。',
     },
     modes: { dark: { tokens: soccerDark }, light: { tokens: soccerLight } },
   },

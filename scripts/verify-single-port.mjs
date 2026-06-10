@@ -4,10 +4,19 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
-const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
+const loginEmailCandidates = uniqueNonEmpty([
+  process.env.XINGHUAN_VERIFY_EMAIL,
+  process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL,
+  "admin@xinghuan.local",
+]);
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
-const memberEmail = process.env.XINGHUAN_VERIFY_MEMBER_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_EMAIL ?? "member@xinghuan.local";
-const memberPassword = process.env.XINGHUAN_VERIFY_MEMBER_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ?? "member123456";
+const memberEmailCandidates = uniqueNonEmpty([
+  process.env.XINGHUAN_VERIFY_MEMBER_EMAIL,
+  process.env.XINGHUAN_BOOTSTRAP_MEMBER_EMAIL,
+  "member@xinghuan.local",
+]);
+const memberPasswordFallback =
+  process.env.XINGHUAN_VERIFY_MEMBER_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ?? "member123456";
 let cookie = "";
 
 async function main() {
@@ -28,21 +37,17 @@ async function main() {
   const unauthAdmin = await fetchText("/api/admin/summary");
   results.push(["Unauthenticated admin rejected", unauthAdmin.status === 401]);
 
-  const login = await fetchJson("/api/auth/login", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-  });
-  results.push(["POST /api/auth/login", login.data?.authenticated === true && Boolean(login.data?.user?.id)]);
+  const adminLogin = await loginFirstAvailable(loginEmailCandidates, loginPassword, "/api/auth/login");
+  results.push(["POST /api/auth/login", adminLogin.data?.authenticated === true && Boolean(adminLogin.data?.user?.id)]);
 
   const me = await fetchJson("/api/auth/me");
-  results.push(["GET /api/auth/me", me.data?.authenticated === true && me.data?.user?.email === loginEmail]);
+  results.push(["GET /api/auth/me", me.data?.authenticated === true && me.data?.user?.email === adminLogin.email]);
 
   const adminSummary = await fetchJson("/api/admin/summary");
   results.push(["GET /api/admin/summary", typeof adminSummary.data?.users === "number" && typeof adminSummary.data?.models === "number"]);
 
   const adminUsers = await fetchJson("/api/admin/users");
-  results.push(["GET /api/admin/users", Array.isArray(adminUsers.data) && adminUsers.data.some((user) => user.email === loginEmail)]);
+  results.push(["GET /api/admin/users", Array.isArray(adminUsers.data) && adminUsers.data.some((user) => user.email === adminLogin.email)]);
 
   const adminProviders = await fetchJson("/api/admin/providers");
   results.push(["GET /api/admin/providers", Array.isArray(adminProviders.data)]);
@@ -117,12 +122,13 @@ async function main() {
   results.push(["GET /api/canvas/:id", Array.isArray(readBack.data?.nodes) && readBack.data.nodes.length === 1]);
 
   const adminCookie = cookie;
+  const memberCredentials = resolveMemberCredentials(adminUsers.data);
   cookie = "";
-  const memberLogin = await fetchJson("/api/auth/login", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: memberEmail, password: memberPassword }),
-  });
+  const memberLogin = await loginFirstAvailable(
+    memberCredentials.emailCandidates,
+    memberCredentials.password,
+    "/api/auth/login",
+  );
   results.push(["POST /api/auth/login member", memberLogin.data?.authenticated === true && memberLogin.data?.user?.role === "member"]);
   const memberList = await fetchJson("/api/canvas");
   const seesAdminCanvas = Array.isArray(memberList.data) && memberList.data.some((item) => item.id === canvasId || item.name === adminCanvasName);
@@ -153,20 +159,53 @@ async function main() {
   }
 }
 
+function resolveMemberCredentials(users) {
+  const memberUser = Array.isArray(users)
+    ? users.find((user) => user?.role === "member" && typeof user?.email === "string" && user.email.trim())
+    : null;
+  return {
+    emailCandidates: uniqueNonEmpty([memberUser?.email, ...memberEmailCandidates]),
+    password:
+      typeof memberUser?.password === "string" && memberUser.password.trim()
+        ? memberUser.password.trim()
+        : memberPasswordFallback,
+  };
+}
+
+async function loginFirstAvailable(emailCandidates, password, pathname) {
+  const failures = [];
+  for (const email of emailCandidates) {
+    const response = await fetchJson(pathname, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }, { allowFailure: true });
+    if (response.status >= 200 && response.status < 300 && response.data?.authenticated === true) {
+      return { email, data: response.data };
+    }
+    failures.push(`${email}:${response.status}`);
+  }
+  throw new Error(`${pathname} login failed for all admin email candidates (${failures.join(", ")})`);
+}
+
 async function fetchText(pathname, options) {
   const response = await fetch(toUrl(pathname), withCookie(options));
   captureCookie(response);
   return { status: response.status, text: await response.text() };
 }
 
-async function fetchJson(pathname, options) {
+async function fetchJson(pathname, options, config = {}) {
   const response = await fetch(toUrl(pathname), withCookie(options));
   captureCookie(response);
   const text = await response.text();
-  if (!response.ok) {
+  if (!response.ok && !config.allowFailure) {
     throw new Error(`${pathname} returned ${response.status}: ${text}`);
   }
-  return JSON.parse(text);
+  const payload = text ? JSON.parse(text) : {};
+  return {
+    status: response.status,
+    ...payload,
+  };
 }
 
 function withCookie(options = {}) {
@@ -188,6 +227,10 @@ function captureCookie(response) {
 function toUrl(pathname) {
   if (String(pathname).startsWith("http://") || String(pathname).startsWith("https://")) return pathname;
   return `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+}
+
+function uniqueNonEmpty(values) {
+  return [...new Set(values.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean))];
 }
 
 main().catch((error) => {

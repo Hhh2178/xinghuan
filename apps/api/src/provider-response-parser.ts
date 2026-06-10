@@ -79,6 +79,7 @@ function collectImageOutput(value: unknown, urls: string[], base64: string[]) {
   const row = value as Record<string, unknown>;
   for (const key of ["url", "image_url", "imageUrl", "output_url", "outputUrl"]) collectImageOutput(row[key], urls, base64);
   for (const key of ["b64_json", "base64", "image_base64", "imageBase64"]) collectImageOutput(row[key], urls, base64);
+  for (const key of ["data", "images", "output", "outputs", "result", "results"]) collectImageOutput(row[key], urls, base64);
 }
 
 function safeText(value: unknown, fallback = "") {

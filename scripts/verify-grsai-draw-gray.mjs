@@ -83,7 +83,7 @@ async function main() {
   if (!taskId) return finish(results);
 
   let task = null;
-  for (let attempt = 0; attempt < 90; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     await sleep(1000);
     const tasks = await fetchJson("/api/admin/tasks");
     task = (tasks.data || []).find((item) => item.id === taskId);
@@ -92,7 +92,9 @@ async function main() {
 
   results.push(["Worker task succeeds", task?.status === "succeeded"]);
   results.push(["Worker uses grsai image adapter", task?.result?.adapter === "grsai-image"]);
-  const workerImageUrl = Array.isArray(task?.result?.imageUrls) ? task.result.imageUrls[0] || "" : "";
+  const workerImageUrl =
+    (Array.isArray(task?.result?.materializedImageUrls) ? task.result.materializedImageUrls[0] || "" : "")
+    || (Array.isArray(task?.result?.imageUrls) ? task.result.imageUrls[0] || "" : "");
   results.push(["Worker result has image URL", /^https?:\/\//i.test(workerImageUrl) || workerImageUrl.startsWith("/files/output/")]);
   if (/^https?:\/\//i.test(workerImageUrl) || workerImageUrl.startsWith("/files/output/")) {
     const image = await fetchText(workerImageUrl);

@@ -1,0 +1,522 @@
+import { useEffect, useState } from "react";
+import { Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { capabilityLabel } from "./admin-view-model";
+import type { Capability, ModelRecord } from "./admin-types";
+
+/* ── helpers ──────────────────────────────────────────────────────────── */
+
+function capabilityHelp(c: Capability) {
+  if (c === "image") return "在线生图和无限画布 API 生成使用。";
+  if (c === "video") return "无限画布视频生成节点使用。";
+  return "GPT 对话和 LLM 节点使用。";
+}
+
+function modelCapabilityTips(c: Capability) {
+  if (c === "image")
+    return [
+      "推荐把 aspectRatio 作为主控项，节点会按比例自动匹配适合的尺寸档位。",
+      "只有当 size 代表质量档位或独立分辨率套餐时，再把 size 暴露给前端选择。",
+      "如模型支持垫图或角色参考，可在 schema 中增加 referenceImages、imageCount、seed 等字段。",
+    ];
+  if (c === "video")
+    return [
+      "视频节点常见参数是 aspectRatio、duration、resolution、fps，尽量与上游真实能力保持一致。",
+      "如果不同 provider 的时长或清晰度档位不同，应在各自模型 schema 内单独声明，不要写死在前端。",
+      "参考图、首尾帧或镜头控制类输入，优先通过 inputProfile 和 schema 联合表达。",
+    ];
+  return [
+    "聊天节点通常保留 temperature、maxTokens、topP 等推理参数，字段名尽量与上游协议一致。",
+    "如果模型支持 systemPrompt、reasoningEffort 或 tools 开关，也应通过 schema 显式暴露。",
+    "inputProfile 一般保持 prompt；只有确实需要额外输入口时再扩展。",
+  ];
+}
+
+function modelSchemaExample(c: Capability) {
+  if (c === "image")
+    return `{
+  "aspectRatio": {
+    "type": "enum",
+    "label": "画幅比例",
+    "options": ["1:1", "3:4", "4:3", "9:16", "16:9"],
+    "default": "1:1"
+  },
+  "size": {
+    "type": "enum",
+    "label": "尺寸档位",
+    "options": ["1024x1024", "1024x1536", "1536x1024"]
+  },
+  "referenceImages": {
+    "type": "number",
+    "label": "参考图张数",
+    "min": 0,
+    "max": 4,
+    "default": 0
+  }
+}`;
+  if (c === "video")
+    return `{
+  "aspectRatio": {
+    "type": "enum",
+    "label": "画幅比例",
+    "options": ["16:9", "9:16", "1:1"],
+    "default": "16:9"
+  },
+  "duration": {
+    "type": "enum",
+    "label": "时长",
+    "options": ["5", "10"],
+    "default": "5"
+  },
+  "resolution": {
+    "type": "enum",
+    "label": "清晰度",
+    "options": ["720p", "1080p"],
+    "default": "720p"
+  }
+}`;
+  return `{
+  "temperature": {
+    "type": "number",
+    "label": "采样温度",
+    "min": 0,
+    "max": 2,
+    "step": 0.1,
+    "default": 0.7
+  },
+  "maxTokens": {
+    "type": "number",
+    "label": "最大输出",
+    "min": 256,
+    "max": 8192,
+    "step": 256,
+    "default": 2048
+  }
+}`;
+}
+
+function normalizeInputCapabilities(model: ModelRecord) {
+  return {
+    prompt: model.inputCapabilities?.prompt !== false,
+    imageReference:
+      model.inputCapabilities?.imageReference ??
+      (model.capability === "image" || model.capability === "video"),
+    multiImage: Boolean(model.inputCapabilities?.multiImage),
+    firstFrame: Boolean(model.inputCapabilities?.firstFrame),
+    lastFrame: Boolean(model.inputCapabilities?.lastFrame),
+  };
+}
+
+function deriveInputProfile(
+  capability: Capability,
+  inputCapabilities: ReturnType<typeof normalizeInputCapabilities>,
+) {
+  const parts: string[] = ["prompt"];
+  if (inputCapabilities.imageReference || capability === "image" || capability === "video") {
+    parts.push("image_reference");
+  }
+  if (inputCapabilities.multiImage) parts.push("multi_image");
+  if (inputCapabilities.firstFrame) parts.push("first_frame");
+  if (inputCapabilities.lastFrame) parts.push("last_frame");
+  return parts.join(",");
+}
+
+function inputCapabilityMeta(capability: Capability) {
+  const items: Array<{
+    key: keyof ReturnType<typeof normalizeInputCapabilities>;
+    label: string;
+    description: string;
+    visible: boolean;
+  }> = [
+    {
+      key: "imageReference",
+      label: "参考图",
+      description: capability === "video" ? "允许视频节点接入静态参考图。" : "允许节点接入单张参考图。",
+      visible: capability === "image" || capability === "video",
+    },
+    {
+      key: "multiImage",
+      label: "多参考图",
+      description: "允许节点显示多图输入并按顺序分配。",
+      visible: capability === "image" || capability === "video",
+    },
+    {
+      key: "firstFrame",
+      label: "首帧",
+      description: "允许视频节点单独指定开场画面。",
+      visible: capability === "video",
+    },
+    {
+      key: "lastFrame",
+      label: "尾帧",
+      description: "允许视频节点单独指定结束画面。",
+      visible: capability === "video",
+    },
+  ];
+  return items.filter((item) => item.visible);
+}
+
+function pollTimeoutSecondsValue(model: ModelRecord) {
+  const value = Number(model.advancedConfig?.pollTimeoutMs);
+  if (!Number.isFinite(value) || value <= 0) return "360";
+  return String(Math.max(30, Math.min(600, Math.round(value / 1000))));
+}
+
+/* ── ModelEditorRow ───────────────────────────────────────────────────── */
+
+export function ModelEditorRow({
+  model,
+  onUpdate,
+  onDelete,
+}: {
+  model: ModelRecord;
+  onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
+  onDelete: (model: ModelRecord) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [draft, setDraft] = useState(model);
+  const [schemaError, setSchemaError] = useState("");
+  const [configError, setConfigError] = useState("");
+  const [advancedConfigText, setAdvancedConfigText] = useState("{}");
+  const [pollTimeoutSeconds, setPollTimeoutSeconds] = useState("360");
+
+  useEffect(() => {
+    setDraft({
+      ...model,
+      inputCapabilities: normalizeInputCapabilities(model),
+      advancedConfig: model.advancedConfig || {},
+    });
+    setSchemaError("");
+    setConfigError("");
+    setAdvancedConfigText(JSON.stringify(model.advancedConfig || {}, null, 2));
+    setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
+  }, [model.id, model.updatedAt]);
+
+  async function saveModel() {
+    let parameterSchema = draft.parameterSchema.trim() || "{}";
+    let advancedConfig: Record<string, unknown> = {};
+    try {
+      parameterSchema = JSON.stringify(JSON.parse(parameterSchema), null, 2);
+    } catch {
+      setSchemaError("参数 schema 必须是有效 JSON。");
+      return;
+    }
+    try {
+      advancedConfig = JSON.parse(advancedConfigText || "{}");
+    } catch {
+      setConfigError("高级配置必须是有效 JSON。");
+      return;
+    }
+    if (draft.capability === "image" || draft.capability === "video") {
+      const seconds = Number(pollTimeoutSeconds);
+      if (!Number.isFinite(seconds) || seconds < 30 || seconds > 600) {
+        setConfigError("最大轮询时长需要填写 30 到 600 秒。");
+        return;
+      }
+      advancedConfig.pollTimeoutMs = Math.round(seconds) * 1000;
+    }
+    setSchemaError("");
+    setConfigError("");
+    const inputCapabilities = normalizeInputCapabilities(draft);
+    await onUpdate(model, {
+      displayName: draft.displayName.trim() || draft.modelId.trim(),
+      modelId: draft.modelId.trim(),
+      capability: draft.capability,
+      protocolOverride: draft.protocolOverride || "",
+      inputProfile: deriveInputProfile(draft.capability, inputCapabilities),
+      inputCapabilities,
+      parameterSchema,
+      advancedConfig,
+    });
+  }
+
+  const tips = modelCapabilityTips(draft.capability);
+  const example = modelSchemaExample(draft.capability);
+  const normalizedCaps = normalizeInputCapabilities(draft);
+  const capabilityItems = inputCapabilityMeta(draft.capability);
+
+  return (
+    <div className={expanded ? "model-row-wrap expanded" : "model-row-wrap"}>
+      <div className="model-row">
+        <button
+          type="button"
+          className="model-identity"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <strong>{model.displayName}</strong>
+          <span>{model.modelId}</span>
+        </button>
+        <select
+          value={model.protocolOverride || ""}
+          onChange={(e) =>
+            onUpdate(model, { protocolOverride: e.target.value })
+          }
+          aria-label={`${model.displayName} 协议`}
+        >
+          <option value="">默认协议</option>
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Gemini</option>
+          <option value="volcengine">火山</option>
+          <option value="runninghub">RH</option>
+          <option value="apimart">APIMart</option>
+          <option value="grsai_draw">GRSAI Draw</option>
+          <option value="custom">自定义</option>
+        </select>
+        <button
+          type="button"
+          className="icon-soft"
+          onClick={() => onUpdate(model, { enabled: !model.enabled })}
+        >
+          {model.enabled ? "启用" : "停用"}
+        </button>
+        <button
+          type="button"
+          className="icon-soft"
+          onClick={() => setExpanded((v) => !v)}
+          title="模型高级设置"
+        >
+          <Settings2 aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="icon-soft"
+          onClick={() => onDelete(model)}
+          title="删除"
+        >
+          <Trash2 aria-hidden="true" />
+        </button>
+      </div>
+      {expanded ? (
+        <div className="model-advanced">
+          <section className="schema-guide-card">
+            <div className="schema-guide-grid">
+              <div>
+                <strong>协议来源</strong>
+                <p>
+                  Provider 或协议覆盖决定实际调用哪个上游协议，例如
+                  OpenAI、Gemini、GRSAI Draw。
+                </p>
+              </div>
+              <div>
+                <strong>节点参数来源</strong>
+                <p>
+                  通用节点右侧看到的动态参数，直接来自当前模型的参数
+                  Schema，而不是写死在前端里。
+                </p>
+              </div>
+              <div>
+                <strong>输入口来源</strong>
+                <p>
+                  输入能力开关决定节点暴露哪些输入口，例如参考图、多图、首帧、尾帧。
+                </p>
+              </div>
+            </div>
+            <div className="schema-guide-note">
+              <strong>当前输入映射</strong>
+              <span>
+                <code>{deriveInputProfile(draft.capability, normalizeInputCapabilities(draft))}</code>
+              </span>
+            </div>
+          </section>
+          <div className="model-fields">
+            <label>
+              显示名称
+              <input
+                value={draft.displayName}
+                onChange={(e) =>
+                  setDraft({ ...draft, displayName: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              模型 ID
+              <input
+                value={draft.modelId}
+                onChange={(e) =>
+                  setDraft({ ...draft, modelId: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              能力分类
+              <select
+                value={draft.capability}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    capability: e.target.value as Capability,
+                  })
+                }
+              >
+                <option value="image">图像</option>
+                <option value="chat">语言</option>
+                <option value="video">视频</option>
+              </select>
+            </label>
+            <label>
+              输入 Profile（只读预览）
+              <input value={deriveInputProfile(draft.capability, normalizeInputCapabilities(draft))} readOnly />
+            </label>
+          </div>
+          <section className="schema-guide-card compact">
+            <div className="schema-guide-head">
+              <strong>输入能力</strong>
+              <span>切换模型时，画布视频节点会按这里的能力动态显示输入方式。</span>
+            </div>
+            <div className="capability-toggle-grid">
+              {capabilityItems.map((item) => (
+                <label className={normalizedCaps[item.key] ? "capability-toggle active" : "capability-toggle"} key={item.key}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(normalizedCaps[item.key])}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        inputCapabilities: {
+                          ...normalizedCaps,
+                          [item.key]: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <span className="capability-toggle-copy">
+                    <span className="capability-toggle-head">
+                      <strong>{item.label}</strong>
+                      <span
+                        className={
+                          normalizedCaps[item.key]
+                            ? "capability-toggle-state active"
+                            : "capability-toggle-state"
+                        }
+                      >
+                        {normalizedCaps[item.key] ? "已开启" : "未开启"}
+                      </span>
+                    </span>
+                    <small>{item.description}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
+          <section className="schema-guide-card compact">
+            <div className="schema-guide-head">
+              <strong>{capabilityLabel(draft.capability)}节点建议参数</strong>
+              <span>
+                下面这些字段会直接影响前端节点展示和任务 payload。
+              </span>
+            </div>
+            <ul className="schema-bullet-list">
+              {tips.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <pre className="schema-example-block">{example}</pre>
+          </section>
+          {draft.capability === "image" || draft.capability === "video" ? (
+            <section className="schema-guide-card compact">
+              <div className="schema-guide-head">
+                <strong>运行时控制</strong>
+                <span>默认 360 秒，适合 APIMart 这类异步任务模型。</span>
+              </div>
+              <div className="model-runtime-grid">
+                <label className="model-runtime-field">
+                  最大轮询时长（秒）
+                  <input
+                    type="number"
+                    min={30}
+                    max={600}
+                    step={10}
+                    value={pollTimeoutSeconds}
+                    onChange={(e) => {
+                      setConfigError("");
+                      setPollTimeoutSeconds(e.target.value);
+                    }}
+                  />
+                  <small>保存时会写入 `advancedConfig.pollTimeoutMs`。</small>
+                </label>
+              </div>
+            </section>
+          ) : null}
+          <label>
+            参数 Schema（JSON）
+            <textarea
+              value={draft.parameterSchema}
+              onChange={(e) =>
+                setDraft({ ...draft, parameterSchema: e.target.value })
+              }
+              spellCheck={false}
+            />
+          </label>
+          <label>
+            高级配置（JSON）
+            <textarea
+              value={advancedConfigText}
+              onChange={(e) => {
+                setConfigError("");
+                setAdvancedConfigText(e.target.value);
+              }}
+              spellCheck={false}
+            />
+          </label>
+          <div className="model-advanced-footer">
+            <span className={schemaError || configError ? "schema-note error" : "schema-note"}>
+              {schemaError ||
+                configError ||
+                "保存后，模型分类、输入能力和动态参数会立即同步到画布通用节点。"}
+            </span>
+            <button
+              type="button"
+              className="primary-action"
+              onClick={saveModel}
+            >
+              <Save aria-hidden="true" /> 保存模型设置
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── ModelSection ─────────────────────────────────────────────────────── */
+
+export function ModelSection({
+  capability,
+  models,
+  onAdd,
+  onUpdate,
+  onDelete,
+}: {
+  capability: Capability;
+  models: ModelRecord[];
+  onAdd: () => void;
+  onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
+  onDelete: (model: ModelRecord) => void;
+}) {
+  return (
+    <section className="api-card model-section">
+      <div className="model-section-head">
+        <div>
+          <h3>{capabilityLabel(capability)}模型</h3>
+          <p>{capabilityHelp(capability)}</p>
+        </div>
+        <button type="button" className="ghost-action" onClick={onAdd}>
+          <Plus aria-hidden="true" /> 模型
+        </button>
+      </div>
+      <div className="model-list">
+        {models.length ? (
+          models.map((m) => (
+            <ModelEditorRow
+              key={m.id}
+              model={m}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          ))
+        ) : (
+          <div className="empty-models">暂无模型</div>
+        )}
+      </div>
+    </section>
+  );
+}

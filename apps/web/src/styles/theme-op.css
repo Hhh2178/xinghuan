@@ -560,8 +560,7 @@ html[data-theme-visual="op"] .t8-btn:hover {
 
 html[data-theme-visual="op"] .t8-mini-icon-button,
 html[data-theme-visual="op"] .px-btn.px-btn--icon,
-html[data-theme-visual="op"] .resource-card-action,
-html[data-theme-visual="op"] .t8-theme-music-toggle {
+html[data-theme-visual="op"] .resource-card-action {
   box-sizing: border-box !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -577,16 +576,14 @@ html[data-theme-visual="op"] .t8-theme-music-toggle {
 
 html[data-theme-visual="op"] .t8-mini-icon-button:hover,
 html[data-theme-visual="op"] .px-btn.px-btn--icon:hover,
-html[data-theme-visual="op"] .resource-card-action:hover,
-html[data-theme-visual="op"] .t8-theme-music-toggle:hover {
+html[data-theme-visual="op"] .resource-card-action:hover {
   transform: translate(-1px, -1px) !important;
   box-shadow: 3px 3px 0 var(--op-ink) !important;
 }
 
 html[data-theme-visual="op"] .t8-mini-icon-button svg,
 html[data-theme-visual="op"] .px-btn.px-btn--icon svg,
-html[data-theme-visual="op"] .resource-card-action svg,
-html[data-theme-visual="op"] .t8-theme-music-toggle svg {
+html[data-theme-visual="op"] .resource-card-action svg {
   width: 14px;
   height: 14px;
 }

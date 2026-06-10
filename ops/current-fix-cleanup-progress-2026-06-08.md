@@ -20,6 +20,12 @@
 | `016a6c4` | 管理后台任务面板抽离 | 已提交，本机验证通过 |
 | `dcca705` | 入口 UI Google/Gemini 设计 brief 补强 | 已提交，仅文档收口 |
 
+当前未提交但已验证通过的后台拆分收口：
+
+- `apps/admin/src/main.tsx` 已重写为薄壳入口，只保留认证、导航、统一数据加载与页面切换。
+- 新增 `apps/admin/src/admin-types.ts`、`admin-api-settings-panel.tsx`、`admin-model-picker.tsx`、`admin-model-editor.tsx`、`admin-runninghub-panel.tsx`、`admin-lora-panel.tsx`。
+- `ModelPicker` 已修复已存在模型能力分类优先级问题，避免旧模型被误判为图像模型。
+
 ## 当前验证状态
 
 本轮 GRSAI 图像参考图本地参数修复的最新验证：
@@ -50,6 +56,16 @@
 - `npm run build -w @xinghuan/admin`
 - `npm run verify:admin-interaction-guards`
 - `codegraph sync`
+
+本轮 Provider 面板拆分与主入口薄壳化验证：
+
+- `npm run type-check -w @xinghuan/admin`
+- `npm run verify:admin-confirm-action-dialog-contract`
+- `npm run verify:admin-manual-model-dialog-contract`
+- `npm run verify:admin-overview-panel-contract`
+- `npm run verify:admin-readonly-panels-contract`
+- `npm run verify:admin-task-panel-contract`
+- `npm run verify:admin-users-panel-contract`
 
 ## 当前未提交运行期数据
 
@@ -96,6 +112,7 @@
 
 ## 下一步
 
-- 继续管理后台 `main.tsx` 拆分，优先候选：`ModelPicker`、`ModelEditorRow`。
+- 继续把 `admin-api-settings-panel.tsx` 中的 helper 和导入/保存逻辑下沉为更小的纯逻辑模块。
+- 视需要补 `verify:admin-api-settings-panel-contract`，避免后续继续拆 Provider 面板时回归。
 - 如果要做文档瘦身，下一步应先建立 `ops/_archive/README.md` 或归档索引，再逐个迁移或删除明确不再需要的历史文件。
 - 灰度/生产发布前，需要重新运行对应服务器验收，不使用这份本机修复文档替代部署验收。

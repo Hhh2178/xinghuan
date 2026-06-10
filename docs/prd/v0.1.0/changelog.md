@@ -1,6 +1,59 @@
 # v0.1.0 Changelog
 
+## 2026-06-09
+
+- 画布助手 UI 自适应修复与可见测试文案清理已发布到灰度：
+  - 灰度 release: `20260609-152648-canvas-assistant-ui-gray`
+  - `apps/web/src/styles/index.css` 固定画布助手四行 grid 布局，避免空上下文状态把输入区错误撑大，并补齐上下文按钮、附件卡片、消息区和输入区的自适应布局与溢出保护。
+  - `apps/web/src/components/Canvas.tsx` 移除模型注意事项入口，`verify-canvas-model-help-removal` 已通过。
+  - `apps/api/src/server.ts` 对画布名、节点文本、Provider/模型/任务等返回给界面的可见字段做运行时中性化清洗；同步清理默认画布与用户画布列表中的直接可见测试/验收命名。
+  - 本机与服务器均已通过 `verify:single-port`；公网灰度 `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:single-port` 全部 PASS。
+
+- AI 助手设置保存流、登录预填与生成节点运行态卡片收口：
+  - `apps/admin/src/admin-assistant-settings-panel.tsx` 改为本地 draft 态编辑，新增“保存 AI 助手配置 / 重置未保存修改”，不再每次输入都触发 PATCH。
+  - `apps/admin/src/main.tsx` 移除后台顶栏重复 AI 助手按钮，只保留侧栏页签和右侧抽屉开关。
+  - `apps/admin/src/styles.css` 增加助手设置操作条样式，并修复关闭态后台助手抽屉仍遮挡主内容点击的问题；关闭态 dock 现在不再拦截主内容点击，只保留外露开关可点。
+  - `apps/web/src/components/LoginGate.tsx` 去掉默认预填 `admin@xinghuan.local`，登录页邮箱初始值恢复为空。
+  - `apps/web/src/components/CanvasAssistant.tsx` 与 `apps/web/src/styles/index.css` 补齐空媒体过滤、面板 `resize: both`、文本换行保护和开关后的会话保持。
+  - `apps/web/src/components/nodes/NodeRuntimeCard.tsx` 新增共享运行态卡片，并接入 `ImageNode / VideoNode / SeedanceNode / AudioNode`，统一显示状态、进度和耗时。
+  - 新增 / 更新契约与烟测：`verify-admin-assistant-settings-save-contract`、`verify:admin-assistant-ui-contract`、`verify:canvas-assistant-ui-contract`、`verify-login-gate-security-contract`、`verify-node-runtime-card-contract`、`verify:canvas-node-render-smoke`。
+  - 本机浏览器已复验：登录页邮箱默认为空、后台 AI 助手设置输入不自动落盘、保存/重置真实可用、后台顶栏重复入口已移除、前台助手面板支持缩放且关开后会话不丢。
+
 ## 2026-06-08
+
+- APIMart 图像异步任务与轮询时长配置修复：
+  - `apps/api/src/server.ts` 现在会在图像生成提交返回 `task_id` 时自动轮询 `/v1/tasks/{task_id}`，不再把 APIMart `gpt-image-2` 当成同步生图接口处理。
+  - `apps/api/src/provider-response-parser.ts` 补齐图像结果递归解析，支持 APIMart 完成态 `data.result.images[].url[]` 嵌套结构。
+  - `pollApimartVideoTask` 默认最大轮询时长从 `180s` 提升到 `360s`，并继续保留基于 `estimated_time` 的自适应延长。
+  - `apps/admin/src/admin-model-editor.tsx` 新增“最大轮询时长（秒）”结构化输入，默认 `360`，保存时会写入 `advancedConfig.pollTimeoutMs`。
+  - 验收补强：`verify-provider-response-parser-contract`、`verify-admin-api-layout-contract`、`verify-external-image-proxy`。
+  - 本机已确认 APIMart 图像提交返回 `task_id`，并依据 APIMart 官方文档与真实回包完成适配；灰度发布与真实回归见对应运维记录。
+
+- Provider 视频能力与 APIMart 适配正式实现并完成灰度修复：
+  - `packages/model-core/src/index.ts` 新增结构化 `inputCapabilities` / `advancedConfig` 解析与 UI metadata 透出。
+  - `apps/api/src/server.ts` 新增 Provider/模型读写 `input_capabilities`、`advanced_config`，并接入 APIMart 异步视频提交、轮询和结果提取。
+  - 新增 `apps/api/src/apimart-video-adapter.ts`，封装 APIMart 视频适配逻辑。
+  - `apps/admin/src/admin-model-editor.tsx`、`admin-api-settings-panel.tsx` 支持视频模型 `参考图 / 多图 / 首帧 / 尾帧` 能力开关和高级配置编辑。
+  - `apps/web/src/components/nodes/VideoNode.tsx` 改为按后台发布模型能力动态切换视频输入方式，并新增 `videoNodeBackendInputs.ts` 纯逻辑分配。
+  - 新增 `scripts/verify-video-node-backend-inputs-contract.ts`，覆盖仅尾帧、多图、首尾帧和后台预览分组分支。
+  - 新增 `apps/api/db/004_provider_model_framework_backfill.sql`，作为前向增量迁移补齐线上库缺失的 `input_capabilities` / `advanced_config` 等字段。
+  - 灰度首次 release `20260608-1515-provider-video-capability-gray` 暴露 `column "input_capabilities" does not exist`；修复后发布 `20260608-1535-provider-video-capability-gray-fix`，并在灰度 `db:migrate` 中成功应用 `004_provider_model_framework_backfill.sql`。
+  - 修复后灰度通过 `verify:single-port`、`verify:model-catalog`、`verify:external-video-proxy`、`verify:apimart-video-adapter-contract`、`verify-video-node-backend-inputs-contract` 和 `verify:generic-node-catalog`；公网 `canvas-next.hhh2121.xyz`、`/admin`、`/api/status` 均返回 `200`。
+
+- Provider 灵活配置与视频输入能力开关方案归档：
+  - 新增 `development/provider-flex-config-and-input-capabilities-2026-06-08.md`，记录“结构化默认配置 + 受控高级配置 + 专用 adapter”的三层接入方向。
+  - 更新 `development/README.md`，将该方案加入开发过程资料索引。
+  - 更新 `docs/prd/v0.1.0/provider-model-framework.md`，补充结构化 `inputCapabilities`、受控 `advancedConfig`、视频模型能力开关和 APIMart 异步视频协议说明。
+  - 新增决策 `D-009`，明确后续 Provider 扩展不再依赖字符串 `inputProfile + 同步视频代理` 的单一路径。
+  - 同步更新 `MEMORY.md`、`DEVLOG.md`、`progress.md`，记录当前视频节点失败排查结论和后续实现主线。
+  - 本轮仅做方案与记忆归档，不修改运行时代码、不推灰度或生产。
+
+- Hermes 项目专属助手候选方案归档：
+  - 新增 `development/canvas-hermes-assistant-candidate-2026-06-08.md`，记录“复用 Hermes 底层内核，但为无限画布建立独立隔离实例”的当前倾向。
+  - 文档中区分了三种候选路径：直接挂当前 Hermes 实例、复用 Hermes 内核但单独建立项目实例、完全自建独立助手服务。
+  - 当前更倾向第二种方案，并将助手拆为“前端创作助手”和“后台审计/配置助手”两类能力面。
+  - 文档同时记录运行时隔离、工具白名单、动作分级和高风险动作人工确认原则。
+  - 本轮仅归档后续评估思路，不改代码、不改部署、不新增运行服务。
 
 - GRSAI 图像参考图本地参数修复：
   - 新增 `apps/api/src/grsai-reference-images.ts` 与 `apps/worker/src/grsai-reference-images.ts`，仅针对 `grsai_draw` 将本地 `/files/input/...`、`/files/output/...` 参考图内联为 `data:image/...;base64,...` 后提交给 GRSAI `urls` 参数。

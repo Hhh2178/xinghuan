@@ -27,6 +27,22 @@ const imageRaw = {
   },
 };
 
+const apimartAsyncImageRaw = {
+  code: 200,
+  data: {
+    status: "completed",
+    result: {
+      images: [
+        {
+          url: [
+            "https://cdn.example.com/apimart-result.png",
+          ],
+        },
+      ],
+    },
+  },
+};
+
 const videoRaw = {
   data: [
     { url: "https://cdn.example.com/a.mp4?download=1" },
@@ -39,6 +55,7 @@ const videoRaw = {
 };
 
 const imageOutputs = extractImageOutputs(imageRaw);
+const apimartImageOutputs = extractImageOutputs(apimartAsyncImageRaw);
 const videoUrls = extractVideoUrls(videoRaw);
 
 const checks = [
@@ -75,6 +92,12 @@ const checks = [
       imageOutputs.base64.length === 2 &&
       imageOutputs.base64.includes(base64Png) &&
       imageOutputs.base64.includes(dataUrl),
+  },
+  {
+    name: "extracts nested APIMart async image urls",
+    pass:
+      apimartImageOutputs.urls.length === 1 &&
+      apimartImageOutputs.urls[0] === "https://cdn.example.com/apimart-result.png",
   },
   {
     name: "extracts and deduplicates video urls only",

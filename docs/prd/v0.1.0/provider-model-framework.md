@@ -68,10 +68,34 @@
 - `capability`：`chat`、`image`、`video`。
 - `enabled`：是否发布给画布。
 - `inputProfile`：输入形态，如 `prompt`、`image-prompt`、`first-last-frame`。
+- `inputCapabilities`：结构化输入能力，用于驱动画布节点真实输入口与校验。
 - `parameterSchema`：节点参数 schema。
+- `advancedConfig`：受控高级配置，用于字段映射、固定附加参数、响应路径提示和轮询参数。
 - `protocolOverride`：可选，单模型覆盖 Provider 协议。
 - `sortOrder`：后台排序和画布默认排序。
 - `createdAt`、`updatedAt`。
+
+建议 `inputCapabilities` 至少支持：
+
+- `prompt`
+- `imageReference`
+- `multiImage`
+- `firstFrame`
+- `lastFrame`
+- `mask`
+- `audioReference`
+
+其中视频模型首批必须显式表达：
+
+- 是否支持多参考图
+- 是否支持首帧
+- 是否支持尾帧
+- 是否允许首尾帧同时出现
+
+说明：
+
+- `inputProfile` 暂时保留，用于兼容现有节点和历史数据。
+- 新增结构化 `inputCapabilities` 后，前端节点和后端校验应优先读取结构化字段，不再只依赖字符串推断。
 
 建议新增临时候选结构 `FetchedModelCandidate`，用于“拉取后选择导入”：
 
@@ -83,6 +107,34 @@
 - `raw`
 
 候选可以只存在于接口响应和后台前端状态中，也可以落库为最近一次拉取快照，供管理员稍后继续选择。
+
+## 分层接入策略
+
+为了支持更多 API 服务商，同时避免“每接一个模型就补一段临时分支”，Provider/模型接入采用三层结构：
+
+### 第一层：默认结构化配置
+
+适用于大多数 OpenAI-like 或仅有轻微差异的模型。
+
+- 使用标准 `capability`、`inputCapabilities`、`parameterSchema`、时长/分辨率/比例选项表达模型能力。
+- 画布节点按结构化能力渲染输入口和参数项。
+- 后端代理按默认协议模板组装请求。
+
+### 第二层：受控高级配置
+
+适用于协议接近，但字段名、枚举值或响应路径存在差异的模型。
+
+- 允许在 `advancedConfig` 中声明受控字段映射。
+- 允许声明固定附加字段、响应路径、任务状态字段和轮询参数。
+- 不允许任意脚本执行；高级配置必须走白名单 schema 校验。
+
+### 第三层：专用 Adapter
+
+适用于请求/响应形态与默认链路差异明显的 Provider。
+
+- 例如“先提交任务，再轮询状态，再提取结果”的异步视频协议。
+- 例如需要额外签名、阶段式解析或大量字段重写的 Provider。
+- 这类差异应封装在 adapter 中，而不是堆在通用节点或通用代理分支里。
 
 ## 后端接口设计
 
@@ -118,12 +170,23 @@ Key 与安全：
 - `POST /api/admin/providers/:id/import-models`
   - 请求体包含管理员选择后的模型列表，不接受全量自动导入。
 
+建议补充：
+
+- `PATCH /api/admin/models/:id/capabilities`
+  - 允许后台独立更新结构化输入能力和高级配置。
+
 画布消费接口：
 
 - `GET /api/models`
   - 返回当前用户可用模型，按 `chatModels`、`imageModels`、`videoModels` 分组。
 - `GET /api/providers/public`
   - 如画布确需显示 Provider 名称，只返回非敏感公开字段。
+
+视频代理补充：
+
+- 通用视频代理默认仍可支持同步返回视频 URL 的模型。
+- 对于异步视频模型，需要由协议 adapter 接管提交、轮询和结果提取。
+- `APIMart grok-imagine-1.5-video-apimart` 这类模型不能继续假设 `/v1/videos/generations` 会立即返回可用视频 URL。
 
 ## 上游模型拉取策略
 
@@ -142,6 +205,22 @@ Key 与安全：
 
 启发分类只是建议，管理员在选择导入时可以覆盖分类。
 
+## 特殊视频协议说明
+
+当前已确认存在一类视频模型不适合继续走默认同步代理，例如 APIMart 视频协议：
+
+- 提交接口：`POST /v1/videos/generations`
+- 提交结果只返回 `task_id`
+- 查询接口：`GET /v1/tasks/{task_id}`
+- 最终视频位于 `result.videos`
+
+这类模型通常还伴随字段差异，例如：
+
+- 默认链路常用 `resolution`，上游实际需要 `size`
+- 默认链路常用 `image`，上游实际需要 `image_urls`
+
+因此该类视频模型应优先通过“高级配置 + 专用 adapter”接入，而不是继续在统一同步路径中做字符串拼接式兼容。
+
 ## 后台交互验收
 
 - 管理员可以新增 Provider，填写名称、Base URL、协议和 Key。
@@ -152,8 +231,11 @@ Key 与安全：
 - 管理员可以在选择器里搜索、按分类过滤、勾选模型，并修改模型分类。
 - 导入后模型进入对应的语言、图像、视频分区。
 - 管理员可以手动新增模型、改模型所属 Provider、改能力分类、停用或删除模型。
+- 管理员可以为视频模型显式切换“多参考图 / 首帧 / 尾帧”能力开关。
+- 管理员可以为特殊模型填写受控高级配置，并在保存前得到 schema 校验反馈。
 - 画布端 API 设置入口不可见。
 - 画布端通用节点只能使用后台已启用模型。
+- 画布视频节点切换模型后，会按后台模型能力动态显示多图、首帧、尾帧输入区域，而不是写死展示。
 
 ## 视觉验收
 
@@ -170,9 +252,13 @@ Key 与安全：
 3. 新增 Provider probe/fetch-models API。
 4. 新增后台 Provider 编辑器和模型选择器。
 5. 扩展模型目录 CRUD，支持三类分区和手工调整。
-6. 新增画布模型消费接口，将通用节点模型来源切到后台。
-7. Worker 按 `capability + provider.protocol` 分发到真实 Provider Adapter。
-8. 输出素材落库和资源库联动。
+6. 为模型补充结构化 `inputCapabilities` 和受控 `advancedConfig`。
+7. 后台模型编辑器补视频能力开关与高级配置编辑入口。
+8. 新增画布模型消费接口，将通用节点模型来源切到后台。
+9. 画布视频节点按模型能力动态渲染输入口。
+10. Worker / API 按 `capability + provider.protocol` 分发到真实 Provider Adapter。
+11. 对 APIMart 等异步视频模型补专用 adapter。
+12. 输出素材落库和资源库联动。
 
 ## 暂不做
 

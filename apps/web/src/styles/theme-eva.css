@@ -319,7 +319,6 @@ html[data-theme-visual="eva"] .t8-canvas-shell {
   --t8-floating-control-bottom: 12px;
   --t8-flow-controls-height: 132px;
   --t8-floating-control-gap: 10px;
-  --t8-theme-music-size: 30px;
   position: relative;
   overflow: hidden;
   background:
@@ -851,26 +850,6 @@ html[data-theme-visual="eva"] .t8-group-box__handle {
   box-shadow:
     0 0 0 5px color-mix(in srgb, var(--eva-red) 22%, transparent),
     0 0 18px color-mix(in srgb, var(--eva-red) 44%, transparent) !important;
-}
-
-html[data-theme-visual="eva"] .t8-theme-music-toggle {
-  padding: 0 !important;
-  border: 1px solid var(--eva-red) !important;
-  border-radius: 0 !important;
-  clip-path: var(--eva-button-shape);
-  background: color-mix(in srgb, var(--eva-panel) 90%, #000 10%) !important;
-  color: var(--eva-red) !important;
-  box-shadow: var(--t8-shadow-panel) !important;
-}
-
-html[data-theme-visual="eva"] .t8-theme-music-toggle svg {
-  width: 14px;
-  height: 14px;
-}
-
-html[data-theme-visual="eva"] .t8-theme-music-toggle.is-playing {
-  background: linear-gradient(135deg, var(--eva-red), var(--eva-amber)) !important;
-  color: #111 !important;
 }
 
 html[data-theme-visual="eva"] .t8-mini-icon-button,

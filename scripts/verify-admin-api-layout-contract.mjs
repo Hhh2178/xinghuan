@@ -1,0 +1,115 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const root = process.cwd();
+const stylesSource = readFileSync(join(root, "apps", "admin", "src", "styles.css"), "utf8");
+const modelEditorSource = readFileSync(join(root, "apps", "admin", "src", "admin-model-editor.tsx"), "utf8");
+const apiSettingsSource = readFileSync(join(root, "apps", "admin", "src", "admin-api-settings-panel.tsx"), "utf8");
+const apiServerSource = readFileSync(join(root, "apps", "api", "src", "server.ts"), "utf8");
+
+const readAdminDbSource = apiServerSource.slice(
+  apiServerSource.indexOf("async function readAdminDb()"),
+  apiServerSource.indexOf("async function writeAdminDb("),
+);
+const providerProbeRouteSource = apiServerSource.slice(
+  apiServerSource.indexOf("const providerProbeMatch"),
+  apiServerSource.indexOf("const providerImportModelsMatch"),
+);
+const providerProbeSource = apiServerSource.slice(
+  apiServerSource.indexOf("async function probeProviderDraft"),
+  apiServerSource.indexOf("async function fetchProviderModelsDraft"),
+);
+
+const checks = [
+  {
+    name: "styles define shared sticky offset",
+    pass: stylesSource.includes("--admin-sticky-offset"),
+  },
+  {
+    name: "provider rail uses shared sticky offset",
+    pass: stylesSource.includes(".provider-rail {\n  position: sticky;\n  top: var(--admin-sticky-offset);"),
+  },
+  {
+    name: "users create column uses shared sticky offset",
+    pass: stylesSource.includes(".users-create-column {\n  position: sticky;\n  top: var(--admin-sticky-offset);"),
+  },
+  {
+    name: "api settings exposes styled status chip",
+    pass: apiSettingsSource.includes("api-settings-status"),
+  },
+  {
+    name: "api settings exposes assistant configuration card",
+    pass: apiSettingsSource.includes("AI 协助配置") && stylesSource.includes(".api-assistant-card"),
+  },
+  {
+    name: "api settings requires explicit assistant draft apply",
+    pass:
+      apiSettingsSource.includes("applyAssistantProviderDraft") &&
+      apiSettingsSource.includes("应用到表单") &&
+      !apiSettingsSource.includes("autoSaveAssistantDraft"),
+  },
+  {
+    name: "api settings calls assistant analyze-provider endpoint",
+    pass: apiSettingsSource.includes("/api/admin/assistant/analyze-provider"),
+  },
+  {
+    name: "api settings surfaces assistant-driven site access judgment",
+    pass:
+      apiSettingsSource.includes("接入判断") &&
+      apiSettingsSource.includes("recommendedLayer") &&
+      apiSettingsSource.includes("应用到表单"),
+  },
+  {
+    name: "model editor exposes toggle head and state",
+    pass:
+      modelEditorSource.includes("capability-toggle-head") &&
+      modelEditorSource.includes("capability-toggle-state"),
+  },
+  {
+    name: "model editor exposes structured poll timeout controls",
+    pass:
+      modelEditorSource.includes("model-runtime-grid") &&
+      modelEditorSource.includes("最大轮询时长（秒）") &&
+      modelEditorSource.includes("默认 360 秒"),
+  },
+  {
+    name: "postgres admin reads do not perform full-table writes",
+    pass:
+      readAdminDbSource.includes("if (!usePostgresRepository()") &&
+      readAdminDbSource.includes("await writeAdminDb(visibleSanitized.db);"),
+  },
+  {
+    name: "provider probe and fetch status updates are targeted in postgres",
+    pass:
+      providerProbeRouteSource.includes("updateProviderProbeResult") &&
+      providerProbeRouteSource.includes("updateProviderLastFetchedAt") &&
+      !providerProbeRouteSource.includes("await writeAdminDb({ ...db, providers"),
+  },
+  {
+    name: "GRSAI providers are detected by endpoint as well as protocol",
+    pass:
+      apiServerSource.includes("function isGrsaiProviderDraft") &&
+      providerProbeSource.includes("isGrsaiProviderDraft(provider)") &&
+      !providerProbeSource.includes('normalizeProviderProtocol(provider.protocol) === "grsai_draw"'),
+  },
+  {
+    name: "provider list status icon keeps fixed dimensions",
+    pass:
+      stylesSource.includes("grid-template-columns: 18px 36px minmax(0, 1fr) max-content;") &&
+      stylesSource.includes(".provider-grip {\n  flex: 0 0 auto;") &&
+      stylesSource.includes(".provider-key {\n  display: grid;\n  flex: 0 0 34px;") &&
+      stylesSource.includes(".provider-item em {\n  flex: 0 0 auto;"),
+  },
+];
+
+const failed = checks.filter((check) => !check.pass);
+
+if (failed.length) {
+  console.error("Admin API layout contract verification failed:");
+  for (const check of failed) {
+    console.error(`- ${check.name}`);
+  }
+  process.exit(1);
+}
+
+console.log(JSON.stringify({ ok: true, checks: checks.map((check) => check.name) }, null, 2));

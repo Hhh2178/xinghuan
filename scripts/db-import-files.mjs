@@ -42,14 +42,15 @@ try {
 
   for (const user of authDb.users) {
     await client.query(
-      `insert into xh_users (id, email, name, role, password_hash, disabled, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         user.id,
         user.email,
         user.name,
         user.role === "admin" ? "admin" : "member",
         user.passwordHash,
+        user.passwordCipher || null,
         Boolean(user.disabled),
         toDate(user.createdAt),
         toDate(user.updatedAt),
@@ -91,8 +92,8 @@ try {
       continue;
     }
     await client.query(
-      `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, parameter_schema, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)`,
+      `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12)`,
       [
         model.id,
         model.providerId,
@@ -101,7 +102,9 @@ try {
         normalizeCapability(model.capability),
         Boolean(model.enabled),
         model.inputProfile || "prompt",
+        JSON.stringify(parseJsonObject(model.inputCapabilities)),
         JSON.stringify(parseJsonObject(model.parameterSchema)),
+        JSON.stringify(parseJsonObject(model.advancedConfig)),
         toDate(model.createdAt),
         toDate(model.updatedAt),
       ],
@@ -173,6 +176,7 @@ function toDate(value) {
 }
 
 function parseJsonObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
   try {
     const parsed = JSON.parse(String(value || "{}"));
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};

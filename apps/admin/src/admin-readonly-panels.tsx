@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { DataTable } from "./admin-common-components";
-import type { AuditRecord, SystemInfo } from "./main";
+import type { AuditRecord, SystemInfo } from "./admin-types";
 
 export function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
   return (
