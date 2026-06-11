@@ -1,6 +1,44 @@
-export type ModelCapability = "chat" | "image" | "video";
+export type ModelCapability = "chat" | "image" | "video" | "audio";
 
 export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
+
+export type ModelCapabilityTag =
+  | "text_chat"
+  | "image_understanding"
+  | "video_understanding"
+  | "audio_understanding"
+  | "reasoning"
+  | "long_context"
+  | "web_search"
+  | "image_generation"
+  | "image_edit"
+  | "video_generation"
+  | "tts"
+  | "voice_design"
+  | "voice_clone"
+  | "music_generation"
+  | "audio_cover"
+  | "audio_extend";
+
+export interface ModelTestResult {
+  ok: boolean;
+  status: number;
+  message: string;
+  checkedAt: number;
+  latencyMs?: number;
+  inferredTags?: ModelCapabilityTag[];
+  sampleOutput?: string;
+}
+
+export interface ModelTestState {
+  chat?: ModelTestResult;
+  imageUnderstanding?: ModelTestResult;
+  videoUnderstanding?: ModelTestResult;
+  imageGeneration?: ModelTestResult;
+  videoGeneration?: ModelTestResult;
+  audioGeneration?: ModelTestResult;
+  voiceClone?: ModelTestResult;
+}
 
 export interface ModelInputCapabilities {
   prompt?: boolean;
@@ -10,6 +48,7 @@ export interface ModelInputCapabilities {
   lastFrame?: boolean;
   mask?: boolean;
   audioReference?: boolean;
+  videoReference?: boolean;
 }
 
 export interface ModelAdvancedConfig {
@@ -34,8 +73,11 @@ export interface ModelParameterSchema {
   aspectRatio?: { type?: string; options?: string[]; default?: string };
   size?: { type?: string; options?: string[]; default?: string };
   referenceImages?: { type?: string; max?: number };
+  referenceAudio?: { type?: string; max?: number; formats?: string[] };
   duration?: { type?: string; options?: Array<string | number>; default?: string | number };
   resolution?: { type?: string; options?: string[]; default?: string };
+  audioFormat?: { type?: string; options?: string[]; default?: string };
+  voice?: { type?: string; options?: string[]; default?: string };
   [key: string]: unknown;
 }
 
@@ -53,6 +95,8 @@ export interface ModelUiMetadata {
   inputCapabilities: {
     prompt: boolean;
     imageReference: boolean;
+    videoReference: boolean;
+    audioReference: boolean;
     multiImage: boolean;
     firstFrame: boolean;
     lastFrame: boolean;
@@ -90,6 +134,8 @@ const LEVEL_IMAGE_SIZES = ["1K", "2K", "4K"];
 const VIDEO_RATIOS = ["16:9", "9:16", "1:1"];
 const VIDEO_DURATIONS = [4, 6, 8, 10, 15];
 const VIDEO_RESOLUTIONS = ["480p", "720p", "1080p"];
+const AUDIO_FORMATS = ["wav", "mp3", "pcm16"];
+const MIMO_VOICES = ["mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean"];
 
 export function parseModelParameterSchema(value: unknown): ModelParameterSchema {
   if (!value) return {};
@@ -123,7 +169,10 @@ export function parseInputCapabilities(value: unknown, capability: ModelCapabili
     firstFrame: Boolean(source.firstFrame),
     lastFrame: Boolean(source.lastFrame),
     mask: Boolean(source.mask),
-    audioReference: Boolean(source.audioReference),
+    audioReference: source.audioReference === undefined
+      ? capability === "audio" && Boolean(schema.referenceAudio)
+      : Boolean(source.audioReference),
+    videoReference: Boolean(source.videoReference),
   };
 }
 
@@ -162,6 +211,14 @@ export function defaultParameterSchemaForModel(
       duration: { type: "select", options: VIDEO_DURATIONS, default: 6 },
       resolution: { type: "select", options: VIDEO_RESOLUTIONS, default: "720p" },
       referenceImages: { type: "image[]", max: 1 },
+    };
+  }
+  if (capability === "audio") {
+    return {
+      prompt: { type: "string", required: true },
+      audioFormat: { type: "select", options: AUDIO_FORMATS, default: "wav" },
+      voice: { type: "select", options: MIMO_VOICES, default: "mimo_default" },
+      referenceAudio: { type: "audio[]", max: 1, formats: ["mp3", "wav"] },
     };
   }
   return {
@@ -210,6 +267,8 @@ export function uiMetadataFromSchema(
     inputCapabilities: {
       prompt: inputCapabilities.prompt !== false,
       imageReference: Boolean(inputCapabilities.imageReference),
+      videoReference: Boolean(inputCapabilities.videoReference),
+      audioReference: Boolean(inputCapabilities.audioReference),
       multiImage: Boolean(inputCapabilities.multiImage),
       firstFrame: Boolean(inputCapabilities.firstFrame),
       lastFrame: Boolean(inputCapabilities.lastFrame),

@@ -1,7 +1,15 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Loader2, Music, Sparkles, Square, Upload, X } from 'lucide-react';
-import { submitAudio, queryAudio, uploadAudioForSuno, cancelGenerationTask, type AudioMode } from '../../services/generation';
+import {
+  submitAudio,
+  queryAudio,
+  uploadAudioForSuno,
+  cancelGenerationTask,
+  fileToDataUrl,
+  generateExternalAudio,
+  type AudioMode,
+} from '../../services/generation';
 import { SUNO_VERSIONS, DEFAULT_SUNO_VERSION } from '../../providers/models';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
@@ -25,6 +33,9 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
+import { useModelCatalogStore } from '../../stores/modelCatalog';
+import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import type { PublicModelRecord } from '../../services/api';
 
 /**
  * AudioNode - Suno (generate / cover / extend) — 完全对齐 gpt-image-2-web
@@ -37,6 +48,11 @@ const MODES: Array<{ id: AudioMode; label: string }> = [
   { id: 'cover', label: '翻唱(Cover)' },
   { id: 'extend', label: '续写(Extend)' },
 ];
+
+const PROVIDER_AUDIO_MODES = [
+  { id: 'tts', label: '生成语音' },
+  { id: 'voice_clone', label: '克隆音色' },
+] as const;
 
 const SUNO_POLL_INTERVAL_MS = 3000;
 const SUNO_POLL_TIMEOUT_SECONDS = 3600;
@@ -64,6 +80,21 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const isPixel = themeStyle === 'pixel';
 
   const d = data as any;
+  const backendAudioModels = useModelCatalogStore((s) => s.catalog.audioModels);
+  const audioEngine: 'provider' | 'suno' = d?.audioEngine === 'suno' ? 'suno' : 'provider';
+  const providerAudioMode: 'tts' | 'voice_clone' = d?.providerAudioMode === 'voice_clone' ? 'voice_clone' : 'tts';
+  const backendSelection = useMemo(
+    () => resolvePublishedModelSelection(backendAudioModels, {
+      selectedModelId: d?.backendModelId,
+      selectedProviderId: d?.backendProviderId,
+    }),
+    [backendAudioModels, d?.backendModelId, d?.backendProviderId],
+  );
+  const backendAudioModel: PublicModelRecord | null = backendSelection.selectedModel;
+  const backendProviderGroups = backendSelection.providerGroups;
+  const backendProviderGroup = backendSelection.selectedProviderGroup;
+  const voice: string = d?.voice || backendAudioModel?.parameterSchema?.voice?.default || 'mimo_default';
+  const audioFormat: string = d?.audioFormat || backendAudioModel?.parameterSchema?.audioFormat?.default || 'wav';
   const mode: AudioMode = d?.mode || 'generate';
   const version: string = d?.version || DEFAULT_SUNO_VERSION;
   const generationCount = clampGenerationCount(d?.generationCount ?? 1);
@@ -182,8 +213,8 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   
   // 分组动态跟随模式: generate 只要文本, cover/extend 需要参考音频
   const previewGroups = useMemo<ReadonlyArray<'text' | 'image' | 'video' | 'audio'>>(
-    () => (mode === 'generate' ? ['text'] : ['text', 'audio']),
-    [mode],
+    () => (audioEngine === 'provider' ? (providerAudioMode === 'voice_clone' ? ['text', 'audio'] : ['text']) : mode === 'generate' ? ['text'] : ['text', 'audio']),
+    [audioEngine, mode, providerAudioMode],
   );
   
   // 收集上游: prompt + audioUrl(cover/extend 兼底, 取 ordered 首个, 后补本地拖入)
@@ -217,12 +248,26 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     return await uploadFile(file);
   };
 
+  const audioUrlToDataUrl = async (url: string): Promise<string> => {
+    if (/^data:audio\//i.test(url)) return url;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`下载参考音频失败: ${resp.status}`);
+    const blob = await resp.blob();
+    return await fileToDataUrl(new File([blob], 'reference-audio', { type: blob.type || 'audio/wav' }));
+  };
+
   const onSelectFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setError(null);
     try {
-      await uploadFile(f);
+      if (audioEngine === 'provider') {
+        const dataUrl = await fileToDataUrl(f);
+        update({ localRefAudio: dataUrl, uploadedClipId: '', uploadedFilename: f.name });
+        logBus.success(`已载入参考音频: ${f.name}`, src);
+      } else {
+        await uploadFile(f);
+      }
     } catch (err: any) {
       setError(err?.message || '上传失败');
       logBus.error(err?.message || '上传失败', src);
@@ -232,6 +277,46 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   };
 
   const clearUpload = () => update({ uploadedClipId: '', uploadedFilename: '' });
+
+  const handleProviderGenerate = async (finalPrompt: string, runtimeStartedAt: number) => {
+    if (!backendAudioModel) throw new Error('后台未发布可用的音频模型，请先在 API 服务商中发布 MiMo 音频模型');
+    const referenceUrl = orderedAudios[0]?.url || localRefAudio || '';
+    if (providerAudioMode === 'voice_clone' && !referenceUrl) throw new Error('音色克隆需要连接或上传一段参考音频');
+    const sampleDataUrl = providerAudioMode === 'voice_clone' ? await audioUrlToDataUrl(referenceUrl) : '';
+    logBus.info(`提交音频 Provider: ${backendAudioModel.provider.name} · ${backendAudioModel.modelId} · ${providerAudioMode}`, src);
+    const result = await generateExternalAudio({
+      providerId: backendAudioModel.providerId,
+      providerModel: backendAudioModel.modelId,
+      model: backendAudioModel.modelId,
+      mode: providerAudioMode,
+      text: finalPrompt,
+      stylePrompt: tags || title || '',
+      voice,
+      audioFormat,
+      sampleDataUrl,
+      providerParams: { modelRecordId: backendAudioModel.id },
+    });
+    const audioUrls = result.audioUrls || [];
+    if (audioUrls.length === 0) throw new Error('音频生成完成但未返回音频文件');
+    const nextTracks = audioUrls.map((audioUrl, index) => ({
+      id: `${backendAudioModel.id}-${Date.now()}-${index}`,
+      audioUrl,
+      title: title || (providerAudioMode === 'voice_clone' ? '克隆语音' : '生成语音'),
+      tags,
+    }));
+    markRuntimeFinished(runtimeStartedAt, {
+      status: 'success',
+      tracks: nextTracks,
+      audioUrl: audioUrls[0] || '',
+      audioUrl_1: audioUrls[1] || '',
+      audioUrls,
+      taskId: null,
+      taskIds: [],
+      lastPrompt: finalPrompt,
+      progress: '100%',
+    });
+    taskCompletionSound.notifyComplete(id, 'audio');
+  };
 
   // 轮询: 3000ms × 1200 次 = 3600s，避免 Suno 长任务 3 分钟提前超时。
   // v1.2.9.11: 返回 Promise，调用方 await 直到任务成功/失败/超时才 resolve/reject。
@@ -286,6 +371,10 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     const runtimeStartedAt = markRuntimeStarted();
     update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined, audioUrl_1: '', audioUrls: [], clipIds: [], taskId: null, progress: generationCount > 1 ? `1/${generationCount}` : '0/?' });
     try {
+      if (audioEngine === 'provider') {
+        await handleProviderGenerate(finalPrompt, runtimeStartedAt);
+        return;
+      }
       // cover/extend: 如预传 clipId 为空但上游有 audioUrl, 则自动上传
       let clipIdForRef = uploadedClipId;
       if ((mode === 'cover' || mode === 'extend') && !clipIdForRef && upstream.audioUrl) {
@@ -424,7 +513,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   });
 
   const isBusy = status === 'submitting' || status === 'polling';
-  const showRefArea = mode === 'cover' || mode === 'extend';
+  const showRefArea = audioEngine === 'provider' ? providerAudioMode === 'voice_clone' : mode === 'cover' || mode === 'extend';
   const audioColor = PORT_COLOR.audio;
 
   return (
@@ -456,9 +545,11 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           <Music size={13} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white">音频 Suno</div>
+          <div className="text-sm font-semibold text-white">音频 / 语音</div>
           <div className="text-[10px] text-white/40 truncate">
-            {version} · {MODES.find((m) => m.id === mode)?.label}
+            {audioEngine === 'provider'
+              ? `${backendAudioModel?.provider.name || '未配置供应商'} · ${PROVIDER_AUDIO_MODES.find((m) => m.id === providerAudioMode)?.label}`
+              : `${version} · ${MODES.find((m) => m.id === mode)?.label}`}
           </div>
         </div>
         {isBusy && (
@@ -485,6 +576,124 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-white/50 block mb-1">引擎</label>
+            <select
+              value={audioEngine}
+              onChange={(e) => update({ audioEngine: e.target.value })}
+              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+            >
+              <option value="provider" className="bg-zinc-900">Provider 语音</option>
+              <option value="suno" className="bg-zinc-900">Legacy Suno</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-white/50 block mb-1">用途</label>
+            {audioEngine === 'provider' ? (
+              <select
+                value={providerAudioMode}
+                onChange={(e) => update({ providerAudioMode: e.target.value })}
+                className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+              >
+                {PROVIDER_AUDIO_MODES.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-zinc-900">{m.label}</option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={mode}
+                onChange={(e) => update({ mode: e.target.value })}
+                className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+              >
+                {MODES.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-zinc-900">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {audioEngine === 'provider' && (
+          <div className="rounded border border-violet-300/20 bg-violet-500/5 p-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">供应商</label>
+                <select
+                  value={backendProviderGroup?.providerId || ''}
+                  onChange={(e) => {
+                    const nextProvider = backendProviderGroups.find((item) => item.providerId === e.target.value) || backendProviderGroups[0];
+                    const nextModel = nextProvider?.models[0];
+                    update({
+                      backendProviderId: nextProvider?.providerId || '',
+                      backendModelId: nextModel?.id || '',
+                      providerId: nextModel?.providerId || '',
+                      providerModel: nextModel?.modelId || '',
+                    });
+                  }}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+                >
+                  {backendProviderGroups.length === 0 && <option className="bg-zinc-900" value="">未发布音频模型</option>}
+                  {backendProviderGroups.map((group) => (
+                    <option key={group.providerId} value={group.providerId} className="bg-zinc-900">
+                      {group.provider.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">模型</label>
+                <select
+                  value={backendAudioModel?.id || ''}
+                  onChange={(e) => {
+                    const next = backendProviderGroup?.models.find((item) => item.id === e.target.value) || backendProviderGroup?.models[0];
+                    update({
+                      backendModelId: next?.id || '',
+                      backendProviderId: next?.providerId || '',
+                      providerId: next?.providerId || '',
+                      providerModel: next?.modelId || '',
+                    });
+                  }}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+                >
+                  {!backendProviderGroup && <option className="bg-zinc-900" value="">暂无模型</option>}
+                  {backendProviderGroup?.models.map((model) => (
+                    <option key={model.id} value={model.id} className="bg-zinc-900">
+                      {model.displayName || model.modelId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">音色</label>
+                <input
+                  value={voice}
+                  onChange={(e) => update({ voice: e.target.value })}
+                  placeholder="mimo_default"
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">格式</label>
+                <select
+                  value={audioFormat}
+                  onChange={(e) => update({ audioFormat: e.target.value })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+                >
+                  {['wav', 'mp3', 'pcm16'].map((fmt) => (
+                    <option key={fmt} value={fmt} className="bg-zinc-900">{fmt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {audioEngine === 'suno' && (
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[10px] text-white/50 block mb-1">模式</label>
@@ -515,7 +724,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             </select>
           </div>
         </div>
+        )}
 
+        {audioEngine === 'suno' && (
         <div>
           <label className="text-[10px] text-white/50 block mb-1">版本</label>
           <select
@@ -530,7 +741,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             ))}
           </select>
         </div>
+        )}
 
+        {audioEngine === 'suno' && (
         <div>
           <label className="text-[10px] text-white/50 block mb-1">标题</label>
           <input
@@ -541,8 +754,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
           />
         </div>
+        )}
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">风格 Tags</label>
+          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? '语气 / 风格' : '风格 Tags'}</label>
           <input
             type="text"
             value={tags}
@@ -552,7 +766,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           />
         </div>
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">歌词 / 提示词</label>
+          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? '要生成的语音文本' : '歌词 / 提示词'}</label>
           <MentionPromptInput
             value={localPrompt}
             mentions={promptMentions}
@@ -565,6 +779,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           />
         </div>
 
+        {audioEngine === 'suno' && (
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[10px] text-white/50 block mb-1">Seed (0=随机)</label>
@@ -587,6 +802,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             </div>
           )}
         </div>
+        )}
 
         {/* 上游素材聚合预览区 (generate=仅文本, cover/extend=文本+音频) */}
         <MaterialPreviewSection
@@ -608,7 +824,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           <div className="rounded border border-violet-400/30 bg-violet-500/5 p-2 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-violet-200/80">
-                {mode === 'cover' ? '参考音频 (Cover)' : '参考音频 (Extend)'}
+                {audioEngine === 'provider' ? '参考音频 (音色克隆)' : mode === 'cover' ? '参考音频 (Cover)' : '参考音频 (Extend)'}
               </span>
               {(uploadedClipId || localRefAudio) && (
                 <button
@@ -630,8 +846,8 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
               </div>
             ) : localRefAudio ? (
               <div className="text-[10px] text-emerald-200/90 truncate">
-                📥 本地拖入: {localRefAudio.split('/').pop()}
-                <span className="text-white/40 ml-1">(生成时上传)</span>
+                本地参考: {localRefAudio.startsWith('data:') ? (uploadedFilename || '音频样本') : localRefAudio.split('/').pop()}
+                <span className="text-white/40 ml-1">{audioEngine === 'provider' ? '(生成时传入)' : '(生成时上传)'}</span>
               </div>
             ) : (
               <div className="text-[10px] text-white/40">未上传 · 连接上游音频节点可自动拉取</div>
@@ -650,7 +866,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
                 className="flex-1 flex items-center justify-center gap-1 py-1 rounded bg-white/5 hover:bg-white/10 text-violet-100 text-[10px] disabled:opacity-50"
               >
                 {uploading ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
-                {uploading ? '上传中…' : '上传本地音频'}
+                {uploading ? '处理中…' : '选择本地音频'}
               </button>
             </div>
           </div>

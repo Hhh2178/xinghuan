@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Settings2, Trash2 } from "lucide-react";
-import { capabilityLabel } from "./admin-view-model";
-import type { Capability, ModelRecord } from "./admin-types";
+import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
+import type { Capability, ModelCapabilityTag, ModelRecord } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 
 function capabilityHelp(c: Capability) {
   if (c === "image") return "在线生图和无限画布 API 生成使用。";
   if (c === "video") return "无限画布视频生成节点使用。";
+  if (c === "audio") return "语音生成、音色克隆和音频生成节点使用。";
   return "GPT 对话和 LLM 节点使用。";
 }
 
@@ -23,6 +24,12 @@ function modelCapabilityTips(c: Capability) {
       "视频节点常见参数是 aspectRatio、duration、resolution、fps，尽量与上游真实能力保持一致。",
       "如果不同 provider 的时长或清晰度档位不同，应在各自模型 schema 内单独声明，不要写死在前端。",
       "参考图、首尾帧或镜头控制类输入，优先通过 inputProfile 和 schema 联合表达。",
+    ];
+  if (c === "audio")
+    return [
+      "语音生成模型建议声明 voice、audioFormat 和 referenceAudio，方便节点自动展示音色与音频样本输入。",
+      "MiMo 语音合成可用 openai_audio_chat 模式，目标文本放 assistant message，风格指令放 user message。",
+      "音色克隆模型需要开启音频参考能力，并使用 voice_clone 标签区分普通 TTS。",
     ];
   return [
     "聊天节点通常保留 temperature、maxTokens、topP 等推理参数，字段名尽量与上游协议一致。",
@@ -74,6 +81,26 @@ function modelSchemaExample(c: Capability) {
     "default": "720p"
   }
 }`;
+  if (c === "audio")
+    return `{
+  "audioFormat": {
+    "type": "enum",
+    "label": "音频格式",
+    "options": ["wav", "mp3"],
+    "default": "wav"
+  },
+  "voice": {
+    "type": "enum",
+    "label": "音色",
+    "options": ["mimo_default", "冰糖", "茉莉", "苏打", "白桦"]
+  },
+  "referenceAudio": {
+    "type": "audio[]",
+    "label": "克隆样本",
+    "max": 1,
+    "formats": ["mp3", "wav"]
+  }
+}`;
   return `{
   "temperature": {
     "type": "number",
@@ -103,6 +130,8 @@ function normalizeInputCapabilities(model: ModelRecord) {
     multiImage: Boolean(model.inputCapabilities?.multiImage),
     firstFrame: Boolean(model.inputCapabilities?.firstFrame),
     lastFrame: Boolean(model.inputCapabilities?.lastFrame),
+    audioReference: Boolean(model.inputCapabilities?.audioReference) || model.capability === "audio",
+    videoReference: Boolean(model.inputCapabilities?.videoReference),
   };
 }
 
@@ -114,6 +143,8 @@ function deriveInputProfile(
   if (inputCapabilities.imageReference || capability === "image" || capability === "video") {
     parts.push("image_reference");
   }
+  if (inputCapabilities.videoReference) parts.push("video_reference");
+  if (inputCapabilities.audioReference || capability === "audio") parts.push("audio_reference");
   if (inputCapabilities.multiImage) parts.push("multi_image");
   if (inputCapabilities.firstFrame) parts.push("first_frame");
   if (inputCapabilities.lastFrame) parts.push("last_frame");
@@ -151,8 +182,29 @@ function inputCapabilityMeta(capability: Capability) {
       description: "允许视频节点单独指定结束画面。",
       visible: capability === "video",
     },
+    {
+      key: "audioReference",
+      label: "参考音频",
+      description: "允许语音克隆或音频处理节点接入音频样本。",
+      visible: capability === "audio" || capability === "chat",
+    },
+    {
+      key: "videoReference",
+      label: "视频理解",
+      description: "允许 LLM 节点向该模型发送视频输入。",
+      visible: capability === "chat",
+    },
   ];
   return items.filter((item) => item.visible);
+}
+
+const TAG_GROUPS: Array<{ title: string; tags: ModelCapabilityTag[] }> = [
+  { title: "理解", tags: ["image_understanding", "video_understanding", "audio_understanding", "reasoning", "long_context", "web_search"] },
+  { title: "生成", tags: ["image_generation", "image_edit", "video_generation", "tts", "voice_design", "voice_clone", "music_generation", "audio_cover", "audio_extend"] },
+];
+
+function normalizeCapabilityTags(tags: unknown): ModelCapabilityTag[] {
+  return Array.isArray(tags) ? tags.filter((tag): tag is ModelCapabilityTag => typeof tag === "string") : [];
 }
 
 function pollTimeoutSecondsValue(model: ModelRecord) {
@@ -167,10 +219,12 @@ export function ModelEditorRow({
   model,
   onUpdate,
   onDelete,
+  onTest,
 }: {
   model: ModelRecord;
   onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
   onDelete: (model: ModelRecord) => void;
+  onTest: (model: ModelRecord, kind: string, autoApply?: boolean) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(model);
@@ -183,6 +237,7 @@ export function ModelEditorRow({
     setDraft({
       ...model,
       inputCapabilities: normalizeInputCapabilities(model),
+      capabilityTags: normalizeCapabilityTags(model.capabilityTags),
       advancedConfig: model.advancedConfig || {},
     });
     setSchemaError("");
@@ -221,6 +276,7 @@ export function ModelEditorRow({
       displayName: draft.displayName.trim() || draft.modelId.trim(),
       modelId: draft.modelId.trim(),
       capability: draft.capability,
+      capabilityTags: normalizeCapabilityTags(draft.capabilityTags),
       protocolOverride: draft.protocolOverride || "",
       inputProfile: deriveInputProfile(draft.capability, inputCapabilities),
       inputCapabilities,
@@ -233,6 +289,14 @@ export function ModelEditorRow({
   const example = modelSchemaExample(draft.capability);
   const normalizedCaps = normalizeInputCapabilities(draft);
   const capabilityItems = inputCapabilityMeta(draft.capability);
+  const tags = normalizeCapabilityTags(model.capabilityTags);
+  const testButtons = [
+    { kind: "chat", label: "测文本", visible: draft.capability === "chat" },
+    { kind: "image_understanding", label: "测图像理解", visible: draft.capability === "chat" || tags.includes("image_understanding") },
+    { kind: "video_understanding", label: "测视频理解", visible: draft.capability === "chat" || tags.includes("video_understanding") },
+    { kind: "audio_generation", label: "测语音", visible: draft.capability === "audio" || tags.includes("tts") },
+    { kind: "voice_clone", label: "测克隆", visible: draft.capability === "audio" || tags.includes("voice_clone") },
+  ].filter((item) => item.visible);
 
   return (
     <div className={expanded ? "model-row-wrap expanded" : "model-row-wrap"}>
@@ -244,6 +308,13 @@ export function ModelEditorRow({
         >
           <strong>{model.displayName}</strong>
           <span>{model.modelId}</span>
+          {normalizeCapabilityTags(model.capabilityTags).length ? (
+            <span className="model-tag-strip">
+              {normalizeCapabilityTags(model.capabilityTags).slice(0, 4).map((tag) => (
+                <em key={tag}>{modelCapabilityTagLabel(tag)}</em>
+              ))}
+            </span>
+          ) : null}
         </button>
         <select
           value={model.protocolOverride || ""}
@@ -350,6 +421,7 @@ export function ModelEditorRow({
                 <option value="image">图像</option>
                 <option value="chat">语言</option>
                 <option value="video">视频</option>
+                <option value="audio">音频</option>
               </select>
             </label>
             <label>
@@ -357,6 +429,76 @@ export function ModelEditorRow({
               <input value={deriveInputProfile(draft.capability, normalizeInputCapabilities(draft))} readOnly />
             </label>
           </div>
+          <section className="schema-guide-card compact">
+            <div className="schema-guide-head">
+              <strong>能力标签</strong>
+              <span>标签决定模型是否可用于图像理解、视频理解、思考推理、语音生成和音色克隆。</span>
+            </div>
+            <div className="model-tag-editor">
+              {TAG_GROUPS.map((group) => (
+                <div className="model-tag-group" key={group.title}>
+                  <strong>{group.title}</strong>
+                  <div className="model-tag-options">
+                    {group.tags.map((tag) => {
+                      const tags = normalizeCapabilityTags(draft.capabilityTags);
+                      const checked = tags.includes(tag);
+                      return (
+                        <label className={checked ? "model-tag-option active" : "model-tag-option"} key={tag}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = new Set(tags);
+                              if (e.target.checked) next.add(tag);
+                              else next.delete(tag);
+                              setDraft({ ...draft, capabilityTags: [...next] });
+                            }}
+                          />
+                          <span>{modelCapabilityTagLabel(tag)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="schema-guide-card compact">
+            <div className="schema-guide-head">
+              <strong>模型连通性测试</strong>
+              <span>测试结果会写入模型记录；“测试并修正”会把成功测试推断出的标签写回模型。</span>
+            </div>
+            <div className="model-test-actions">
+              {testButtons.map((item) => (
+                <span className="model-test-action" key={item.kind}>
+                  <button type="button" className="ghost-action" onClick={() => onTest(model, item.kind, false)}>
+                    {item.label}
+                  </button>
+                  <button type="button" className="icon-soft" onClick={() => onTest(model, item.kind, true)}>
+                    测试并修正
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="model-test-state">
+              {Object.entries(model.testState || {}).length ? (
+                Object.entries(model.testState || {}).map(([key, value]) => {
+                  const checkedAt = value?.checkedAt ? new Date(value.checkedAt).toLocaleString() : "";
+                  const sampleOutput = value?.sampleOutput || "";
+                  return (
+                    <span className={value?.ok ? "success" : "danger"} key={key}>
+                      {key}: {value?.message || "-"}
+                      {typeof value?.status === "number" ? ` · HTTP ${value.status}` : ""}
+                      {checkedAt ? ` · ${checkedAt}` : ""}
+                      {sampleOutput ? ` · 样例：${sampleOutput}` : ""}
+                    </span>
+                  );
+                })
+              ) : (
+                <span>暂无测试记录</span>
+              )}
+            </div>
+          </section>
           <section className="schema-guide-card compact">
             <div className="schema-guide-head">
               <strong>输入能力</strong>
@@ -485,12 +627,14 @@ export function ModelSection({
   onAdd,
   onUpdate,
   onDelete,
+  onTest,
 }: {
   capability: Capability;
   models: ModelRecord[];
   onAdd: () => void;
   onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
   onDelete: (model: ModelRecord) => void;
+  onTest: (model: ModelRecord, kind: string, autoApply?: boolean) => Promise<void>;
 }) {
   return (
     <section className="api-card model-section">
@@ -511,6 +655,7 @@ export function ModelSection({
               model={m}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              onTest={onTest}
             />
           ))
         ) : (

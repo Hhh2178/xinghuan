@@ -12,7 +12,7 @@ import type { TaskStatus } from "@xinghuan/shared";
 
 export type AdminTabId = "overview" | "users" | "providers" | "assistant" | "tasks" | "audit" | "system";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
-export type ModelCapability = "chat" | "image" | "video";
+export type ModelCapability = "chat" | "image" | "video" | "audio";
 
 export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideIcon }> = [
   { id: "overview", label: "总览", icon: LayoutDashboard },
@@ -40,5 +40,26 @@ export function taskTone(status: TaskStatus): StatusTone {
 }
 
 export function capabilityLabel(capability: ModelCapability) {
-  return capability === "image" ? "生图" : capability === "video" ? "视频" : "聊天";
+  return capability === "image" ? "生图" : capability === "video" ? "视频" : capability === "audio" ? "音频" : "聊天";
+}
+
+export function modelCapabilityTagLabel(tag: string) {
+  return ({
+    text_chat: "文本对话",
+    image_understanding: "图像理解",
+    video_understanding: "视频理解",
+    audio_understanding: "音频理解",
+    reasoning: "思考推理",
+    long_context: "长上下文",
+    web_search: "联网",
+    image_generation: "图像生成",
+    image_edit: "图像编辑",
+    video_generation: "视频生成",
+    tts: "语音生成",
+    voice_design: "音色设计",
+    voice_clone: "音色克隆",
+    music_generation: "音乐生成",
+    audio_cover: "翻唱",
+    audio_extend: "续写",
+  } as Record<string, string>)[tag] || tag;
 }

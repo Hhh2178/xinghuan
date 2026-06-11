@@ -15,6 +15,7 @@ const EMPTY: PublicModelCatalog = {
   chatModels: [],
   imageModels: [],
   videoModels: [],
+  audioModels: [],
 };
 
 export const useModelCatalogStore = create<ModelCatalogState>((set) => ({

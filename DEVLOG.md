@@ -4904,3 +4904,25 @@
       - `npm run verify:node-resize-sync-contract`
       - `npm run verify:video-upload-connect-admin-assistant-toggle`
       - `npm run verify:external-video-proxy`
+
+- `2026-06-11` 落地多模态模型标签、后台模型测试入口与 MiMo 音频 Provider 基础链路。
+  - 模型与导入：
+    - `@xinghuan/model-core` 扩展 `audio` capability、能力标签、模型测试状态、音频参数 schema。
+    - Provider 模型拉取解析新增 `audioModels` 和 `modelTags`。
+    - Qwen3-VL 导入后自动带视觉理解与视频理解标签，避免视频/图片输入被当作普通文本模型处理。
+  - 后台：
+    - API 服务商模型管理支持手动编辑能力标签。
+    - 新增 `/api/admin/models/:id/test`，支持文本、图像理解、视频理解、音频生成、音色克隆等测试入口。
+    - PostgreSQL 新增 `capability_tags`、`test_state`，并回填现有模型标签。
+  - 画布与代理：
+    - 新增 `/api/proxy/external/audio` 与 `audio-provider-adapter`。
+    - 音频节点新增 Provider 语音模式，支持 TTS 与音色克隆；旧 Suno 保留为 Legacy 模式。
+    - 前端模型目录新增 `audioModels`，音频节点读取后台发布模型。
+  - 验证：
+    - `npm run build -w @xinghuan/model-core`
+    - `npm run build -w @xinghuan/api`
+    - `npm run build -w @xinghuan/admin`
+    - `npm run build -w @xinghuan/web`
+    - `npm run verify:model-capability-tags-contract`
+    - `npm run verify:provider-model-tests-contract`
+    - `npm run verify:external-audio-proxy`

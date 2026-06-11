@@ -438,3 +438,24 @@
     - `apps/api/data/` 已加入 `.gitignore`
     - 本地运行态 auth/admin/canvas/input/resource 数据已从 Git 索引取消跟踪，但本地磁盘文件保留
     - 后续提交不得重新纳入 `apps/api/data/` 下的运行态文件
+- `2026-06-11` 已启动多模态模型标签与 MiMo 音频 Provider 基础链路：
+  - MiniMax 暂不纳入本轮；当前仅落地通用音频能力框架与 MiMo OpenAI-compatible audio chat 形态。
+  - 模型 broad capability 扩展为 `chat/image/video/audio`，细分 `capabilityTags` 支持：
+    - 视觉理解、视频理解、音频理解、推理、长上下文、联网搜索、图像/视频生成、TTS、音色设计、音色克隆、音乐生成等。
+  - ModelScope/魔搭导入规则：
+    - `Qwen/Qwen3-VL-*` 仍归类为 `chat`，但自动带 `image_understanding` 与 `video_understanding`。
+    - `Thinking/reasoning/r1/qwq` 类模型自动带 `reasoning`。
+    - `mimo-v2.5-tts` 归类为 `audio + tts`。
+    - `mimo-v2.5-tts-voiceclone` 归类为 `audio + tts + voice_clone`。
+  - 后台模型管理新增能力：
+    - 手动编辑能力标签。
+    - 每个模型行内有连接测试入口，测试结果写入 `testState`。
+    - “测试并修正”可在测试成功后把推断标签写回模型记录。
+  - 画布音频节点已改为：
+    - 默认 Provider 语音模式，读取后台发布的 `audioModels`。
+    - 支持 TTS 与音色克隆，调用 `/api/proxy/external/audio`。
+    - 旧 Suno 作为 `Legacy Suno` 模式保留，后续再决定恢复或迁移。
+  - 新增验证：
+    - `npm run verify:model-capability-tags-contract`
+    - `npm run verify:provider-model-tests-contract`
+    - `npm run verify:external-audio-proxy`

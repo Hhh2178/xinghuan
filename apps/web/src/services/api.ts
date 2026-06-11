@@ -255,7 +255,7 @@ export async function updateSettings(patch: Partial<ApiSettings>): Promise<void>
   });
 }
 
-export type ModelCapability = 'chat' | 'image' | 'video';
+export type ModelCapability = 'chat' | 'image' | 'video' | 'audio';
 
 export interface PublicProviderRef {
   id: string;
@@ -281,6 +281,8 @@ export interface PublicModelUi {
     multiImage: boolean;
     firstFrame: boolean;
     lastFrame: boolean;
+    videoReference?: boolean;
+    audioReference?: boolean;
   };
 }
 
@@ -298,7 +300,10 @@ export interface PublicModelRecord {
     multiImage?: boolean;
     firstFrame?: boolean;
     lastFrame?: boolean;
+    videoReference?: boolean;
+    audioReference?: boolean;
   };
+  capabilityTags?: string[];
   advancedConfig?: Record<string, any>;
   protocol: string;
   parameterSchema: Record<string, any>;
@@ -312,11 +317,12 @@ export interface PublicModelCatalog {
   chatModels: PublicModelRecord[];
   imageModels: PublicModelRecord[];
   videoModels: PublicModelRecord[];
+  audioModels: PublicModelRecord[];
 }
 
 export async function getModelCatalog(): Promise<PublicModelCatalog> {
   const res = await request<{ success: boolean; data: PublicModelCatalog }>(`${BASE}/models`);
-  return res.data || { all: [], chatModels: [], imageModels: [], videoModels: [] };
+  return res.data || { all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [] };
 }
 
 export interface AdvancedProviderTestResult {

@@ -2,7 +2,24 @@ import { type TaskStatus } from "@xinghuan/shared";
 import type { AdminTabId } from "./admin-view-model";
 
 export type UserRole = "admin" | "member";
-export type Capability = "chat" | "image" | "video";
+export type Capability = "chat" | "image" | "video" | "audio";
+export type ModelCapabilityTag =
+  | "text_chat"
+  | "image_understanding"
+  | "video_understanding"
+  | "audio_understanding"
+  | "reasoning"
+  | "long_context"
+  | "web_search"
+  | "image_generation"
+  | "image_edit"
+  | "video_generation"
+  | "tts"
+  | "voice_design"
+  | "voice_clone"
+  | "music_generation"
+  | "audio_cover"
+  | "audio_extend";
 export type ProviderProtocol =
   | "openai"
   | "gemini"
@@ -89,6 +106,8 @@ export interface ModelRecord {
   modelId: string;
   displayName: string;
   capability: Capability;
+  capabilityTags?: ModelCapabilityTag[];
+  testState?: ModelTestState;
   enabled: boolean;
   inputProfile: string;
   inputCapabilities?: ModelInputCapabilities;
@@ -106,6 +125,27 @@ export interface ModelInputCapabilities {
   lastFrame?: boolean;
   mask?: boolean;
   audioReference?: boolean;
+  videoReference?: boolean;
+}
+
+export interface ModelTestResult {
+  ok: boolean;
+  status: number;
+  message: string;
+  checkedAt: number;
+  latencyMs?: number;
+  inferredTags?: ModelCapabilityTag[];
+  sampleOutput?: string;
+}
+
+export interface ModelTestState {
+  chat?: ModelTestResult;
+  imageUnderstanding?: ModelTestResult;
+  videoUnderstanding?: ModelTestResult;
+  imageGeneration?: ModelTestResult;
+  videoGeneration?: ModelTestResult;
+  audioGeneration?: ModelTestResult;
+  voiceClone?: ModelTestResult;
 }
 
 export interface FetchModelsResult {
@@ -118,6 +158,8 @@ export interface FetchModelsResult {
   chatModels: string[];
   imageModels: string[];
   videoModels: string[];
+  audioModels: string[];
+  modelTags?: Record<string, ModelCapabilityTag[]>;
 }
 
 export interface TaskRecord {

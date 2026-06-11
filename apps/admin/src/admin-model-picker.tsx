@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { capabilityLabel } from "./admin-view-model";
-import type { Capability, FetchModelsResult, ModelRecord } from "./admin-types";
+import type { Capability, FetchModelsResult, ModelCapabilityTag, ModelRecord } from "./admin-types";
 
 export function ModelPicker({
   fetched,
@@ -18,6 +18,7 @@ export function ModelPicker({
       modelId: string;
       capability: Capability;
       displayName: string;
+      capabilityTags?: ModelCapabilityTag[];
     }>,
   ) => Promise<void>;
 }) {
@@ -37,7 +38,9 @@ export function ModelPicker({
           ? "image"
           : (fetched.videoModels || []).includes(id)
             ? "video"
-            : "chat";
+            : (fetched.audioModels || []).includes(id)
+              ? "audio"
+              : "chat";
       category[id] = capability;
       selected[id] = Boolean(existingCapability);
     }
@@ -61,6 +64,7 @@ export function ModelPicker({
       modelId: id,
       displayName: id,
       capability: category[id] || "chat",
+      capabilityTags: fetched.modelTags?.[id] || [],
     }));
 
   return (
@@ -84,7 +88,7 @@ export function ModelPicker({
             placeholder="搜索模型"
           />
           {(
-            ["all", "image", "chat", "video"] as Array<Capability | "all">
+            ["all", "image", "chat", "video", "audio"] as Array<Capability | "all">
           ).map((item) => (
             <button
               key={item}
@@ -129,6 +133,7 @@ export function ModelPicker({
                 <option value="image">图像</option>
                 <option value="chat">语言</option>
                 <option value="video">视频</option>
+                <option value="audio">音频</option>
               </select>
             </div>
           ))}
@@ -142,6 +147,9 @@ export function ModelPicker({
           </span>
           <span>
             视频 {importItems.filter((i) => i.capability === "video").length}
+          </span>
+          <span>
+            音频 {importItems.filter((i) => i.capability === "audio").length}
           </span>
           <button
             type="button"

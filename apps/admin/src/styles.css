@@ -2059,6 +2059,97 @@ td {
   font-size: 11px;
 }
 
+.model-tag-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.model-tag-strip em,
+.model-tag-option {
+  border: 1px solid rgba(45, 212, 191, 0.26);
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.1);
+  color: #9ff7ed;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.model-tag-strip em {
+  padding: 4px 6px;
+}
+
+.model-tag-editor,
+.model-tag-group {
+  display: grid;
+  gap: 10px;
+}
+
+.model-tag-group > strong {
+  color: #dffbff;
+  font-size: 12px;
+}
+
+.model-tag-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.model-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+
+.model-tag-option.active {
+  border-color: rgba(45, 212, 191, 0.62);
+  background: rgba(13, 148, 136, 0.24);
+  color: #ecfeff;
+}
+
+.model-tag-option input {
+  margin: 0;
+}
+
+.model-test-actions,
+.model-test-action,
+.model-test-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-test-action {
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.model-test-state span {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.model-test-state span.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
+}
+
+.model-test-state span.danger {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
 .model-advanced {
   display: grid;
   gap: 14px;

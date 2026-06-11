@@ -24,6 +24,10 @@ import {
   extractApimartVideoResult,
   shouldUseApimartVideoAdapter,
 } from "./apimart-video-adapter.js";
+import {
+  createOpenAiAudioChatPayload,
+  extractAudioProviderResult,
+} from "./audio-provider-adapter.js";
 
 interface CurrentUserLike {
   id: string;
@@ -46,7 +50,7 @@ interface ModelLike {
   providerId: string;
   modelId: string;
   displayName: string;
-  capability: "chat" | "image" | "video";
+  capability: "chat" | "image" | "video" | "audio";
   enabled: boolean;
   inputCapabilities?: Record<string, unknown>;
   parameterSchema: string;
@@ -63,7 +67,9 @@ interface GenerateExternalProxyDependencies {
   readAdminDb: () => Promise<{ providers: ProviderLike[]; models: ModelLike[] }>;
   saveRemoteImageToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
   saveRemoteVideoToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
+  saveRemoteAudioToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
   saveBase64File: (body: { dataUrl?: string; prefix?: string }, user: CurrentUserLike) => Promise<{ url: string }>;
+  saveBase64AudioFile: (body: { dataUrl?: string; prefix?: string }, user: CurrentUserLike) => Promise<{ url: string }>;
   secretKey: () => Buffer;
   safeSlug: (value: unknown, fallback?: string) => string;
   safeText: (value: unknown, fallback?: string) => string;
@@ -77,7 +83,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
   const findEnabledImageModel = async (providerId: string, requestedModelId: string, modelRecordId: string) =>
     findEnabledModel("image", providerId, requestedModelId, modelRecordId);
 
-  async function findEnabledModel(capability: "chat" | "image" | "video", providerId: string, requestedModelId: string, modelRecordId: string) {
+  async function findEnabledModel(capability: "chat" | "image" | "video" | "audio", providerId: string, requestedModelId: string, modelRecordId: string) {
     const db = await deps.readAdminDb();
     const provider = db.providers.find((item) => item.id === providerId);
     if (!provider || !provider.enabled) throw new Error("Provider 不存在或未启用");
@@ -595,10 +601,70 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     };
   }
 
+  async function generateExternalAudioProxy(rawBody: unknown, user: CurrentUserLike) {
+    const body = deps.plainObject(rawBody);
+    const text = deps.safeText(body.text || body.prompt, "").slice(0, 16000);
+    if (!text) throw new Error("缺少要合成的文本");
+    const params = deps.plainObject(body.providerParams);
+    const { provider, model } = await findEnabledModel(
+      "audio",
+      deps.safeSlug(body.providerId, ""),
+      deps.safeText(body.providerModel || body.model),
+      deps.safeText(params.modelRecordId),
+    );
+    const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    if (!["openai", "apimart", "custom"].includes(protocol)) {
+      throw new Error(`当前 Provider 协议暂未接入音频模型 Adapter: ${protocol}`);
+    }
+    const apiKey = deps.providerPlainApiKey(provider);
+    if (!apiKey) throw new Error("Provider 未配置 API Key");
+    const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const mode = deps.safeText(body.mode || params.mode || advancedConfig.mode, "tts");
+    const sampleDataUrl = mode === "voice_clone"
+      ? deps.safeText(body.sampleDataUrl || params.sampleDataUrl || body.voiceSampleDataUrl)
+      : "";
+    const payload = createOpenAiAudioChatPayload({
+      modelId: model.modelId,
+      text,
+      stylePrompt: deps.safeText(body.stylePrompt || params.stylePrompt),
+      voice: deps.safeText(body.voice || params.voice || "mimo_default"),
+      audioFormat: deps.safeText(body.audioFormat || params.audioFormat || advancedConfig.audioFormat || "wav"),
+      mode,
+      sampleDataUrl,
+    });
+    const submitPath = deps.safeText(advancedConfig.submitPath, "chat/completions");
+    const upstream = await fetch(openAiEndpoint(provider.baseUrl, submitPath), {
+      method: "POST",
+      headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000),
+    });
+    const responseText = await upstream.text();
+    if (deps.looksLikeHtml(responseText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`上游音频模型请求失败 ${upstream.status}: ${responseText.slice(0, 500)}`);
+    const raw = responseText ? JSON.parse(responseText) : {};
+    const result = extractAudioProviderResult(raw);
+    const audioUrls: string[] = [];
+    for (const dataUrl of result.audioDataUrls) {
+      audioUrls.push((await deps.saveBase64AudioFile({ dataUrl, prefix: "external_audio" }, user)).url);
+    }
+    for (const sourceUrl of result.audioUrls) {
+      audioUrls.push((await deps.saveRemoteAudioToOutput(sourceUrl, user)).url);
+    }
+    if (audioUrls.length === 0) throw new Error("音频模型未返回可用音频");
+    return {
+      audioUrls,
+      text: result.text,
+      raw: { providerId: provider.id, modelId: model.modelId, count: audioUrls.length },
+      provider: { id: provider.id, name: provider.name, protocol },
+    };
+  }
+
   return {
     generateExternalImageProxy,
     generateExternalChatProxy,
     generateExternalVideoProxy,
+    generateExternalAudioProxy,
   };
 }
 

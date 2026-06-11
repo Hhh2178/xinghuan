@@ -1,4 +1,4 @@
-import type { ModelCapability, ProviderProtocol } from "@xinghuan/model-core";
+import type { ModelCapability, ModelCapabilityTag, ProviderProtocol } from "@xinghuan/model-core";
 
 export interface ParsedUpstreamModels {
   total: number;
@@ -6,12 +6,15 @@ export interface ParsedUpstreamModels {
   chatModels: string[];
   imageModels: string[];
   videoModels: string[];
+  audioModels: string[];
+  modelTags: Record<string, ModelCapabilityTag[]>;
 }
 
 export function normalizeCapability(value: unknown): ModelCapability {
   const capability = String(value || "").toLowerCase();
   if (capability === "text" || capability === "llm") return "chat";
-  return ["chat", "image", "video"].includes(capability) ? (capability as ModelCapability) : "image";
+  if (["tts", "speech", "voice", "music"].includes(capability)) return "audio";
+  return ["chat", "image", "video", "audio"].includes(capability) ? (capability as ModelCapability) : "image";
 }
 
 export function normalizeProviderProtocol(value: unknown): ProviderProtocol {
@@ -46,11 +49,35 @@ export function providerModelHeaders(apiKey: string, protocolValue: unknown): Re
 
 export function classifyUpstreamModel(modelId: unknown): ModelCapability {
   const value = String(modelId || "").toLowerCase();
+  const audioKeys = ["mimo-v2.5-tts", "tts", "text-to-speech", "speech", "voiceclone", "voice_clone", "voice-clone", "suno", "music"];
+  if (audioKeys.some((key) => value.includes(key))) return "audio";
   const videoKeys = ["veo", "sora", "wan2", "wanx", "seedance", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"];
   if (videoKeys.some((key) => value.includes(key))) return "video";
   const imageKeys = ["banana", "image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein", "seedream", "text-to-image", "image-to-image"];
   if (imageKeys.some((key) => value.includes(key))) return "image";
   return "chat";
+}
+
+export function inferModelCapabilityTags(modelId: unknown, capabilityValue?: unknown): ModelCapabilityTag[] {
+  const value = String(modelId || "").toLowerCase();
+  const capability = normalizeCapability(capabilityValue || classifyUpstreamModel(modelId));
+  const tags = new Set<ModelCapabilityTag>();
+  if (capability === "chat") tags.add("text_chat");
+  if (capability === "image") tags.add(value.includes("edit") || value.includes("image-to-image") ? "image_edit" : "image_generation");
+  if (capability === "video") tags.add("video_generation");
+  if (capability === "audio") tags.add("tts");
+  if (/\bvl\b|qwen\d*(?:\.?\d*)?-vl|vision|visual|omni|multimodal|multi-modal/.test(value)) tags.add("image_understanding");
+  if (/video[_-]?understanding|video[_-]?chat|video[_-]?vl|qwen.*vl|omni/.test(value)) tags.add("video_understanding");
+  if (/audio[_-]?understanding|audio[_-]?chat|asr|speech[_-]?recognition|omni/.test(value)) tags.add("audio_understanding");
+  if (/thinking|reason|reasoning|qwq|r1|deepseek-v4|glm-5\.1/.test(value)) tags.add("reasoning");
+  if (/long|128k|200k|1m|million|context/.test(value)) tags.add("long_context");
+  if (/web[_-]?search|search/.test(value)) tags.add("web_search");
+  if (/voice[_-]?design|voicedesign/.test(value)) tags.add("voice_design");
+  if (/voice[_-]?clone|voiceclone/.test(value)) tags.add("voice_clone");
+  if (/suno|music|song/.test(value)) tags.add("music_generation");
+  if (/cover/.test(value)) tags.add("audio_cover");
+  if (/extend/.test(value)) tags.add("audio_extend");
+  return [...tags];
 }
 
 export function parseUpstreamModels(raw: unknown, protocolValue: unknown): ParsedUpstreamModels {
@@ -75,9 +102,14 @@ export function parseUpstreamModels(raw: unknown, protocolValue: unknown): Parse
     if (modelId) ids.add(modelId);
   }
   const all = [...ids].sort();
-  const grouped: Record<ModelCapability, string[]> = { chat: [], image: [], video: [] };
-  for (const modelId of all) grouped[classifyUpstreamModel(modelId)].push(modelId);
-  return { total: all.length, all, chatModels: grouped.chat, imageModels: grouped.image, videoModels: grouped.video };
+  const grouped: Record<ModelCapability, string[]> = { chat: [], image: [], video: [], audio: [] };
+  const modelTags: Record<string, ModelCapabilityTag[]> = {};
+  for (const modelId of all) {
+    const capability = classifyUpstreamModel(modelId);
+    grouped[capability].push(modelId);
+    modelTags[modelId] = inferModelCapabilityTags(modelId, capability);
+  }
+  return { total: all.length, all, chatModels: grouped.chat, imageModels: grouped.image, videoModels: grouped.video, audioModels: grouped.audio, modelTags };
 }
 
 function safeText(value: unknown, fallback = "") {

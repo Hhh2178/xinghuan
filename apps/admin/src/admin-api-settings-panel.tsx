@@ -127,6 +127,27 @@ function assistantAdvancedJsonValue(result: AssistantAnalysisResult | null, key:
   return JSON.stringify(value, null, 2);
 }
 
+function defaultInputProfileForCapability(capability: Capability) {
+  if (capability === "audio") return "prompt,audio_reference";
+  if (capability === "image" || capability === "video") return "prompt,image_reference";
+  return "prompt";
+}
+
+function defaultInputCapabilitiesForCapability(capability: Capability, capabilityTags: string[] = []) {
+  if (capability === "audio") return { prompt: true, audioReference: capabilityTags.includes("voice_clone") };
+  if (capability === "video") return { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false };
+  if (capability === "image") return { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false };
+  return {
+    prompt: true,
+    imageReference: capabilityTags.includes("image_understanding"),
+    videoReference: capabilityTags.includes("video_understanding"),
+    audioReference: capabilityTags.includes("audio_understanding"),
+    multiImage: false,
+    firstFrame: false,
+    lastFrame: false,
+  };
+}
+
 function safeAssistantSchemaText(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return "{}";
   try {
@@ -526,6 +547,18 @@ export function ApiSettingsPanel({
     });
   }
 
+  async function testModel(model: ModelRecord, kind: string, autoApply = false) {
+    await run(
+      () =>
+        api(`/api/admin/models/${model.id}/test`, {
+          method: "POST",
+          headers: jsonHeaders,
+          body: JSON.stringify({ kind, autoApply }),
+        }),
+      autoApply ? "正在测试并修正模型标签..." : "正在测试模型连通性...",
+    );
+  }
+
   function requestAddManualModel(capability: Capability) {
     if (!selected) return;
     setManualModelCapability(capability);
@@ -548,34 +581,8 @@ export function ApiSettingsPanel({
             displayName: modelId,
             capability,
             enabled: true,
-            inputProfile:
-              capability === "image" || capability === "video"
-                ? "prompt,image_reference"
-                : "prompt",
-            inputCapabilities:
-              capability === "video"
-                ? {
-                    prompt: true,
-                    imageReference: true,
-                    multiImage: false,
-                    firstFrame: false,
-                    lastFrame: false,
-                  }
-                : capability === "image"
-                  ? {
-                      prompt: true,
-                      imageReference: true,
-                      multiImage: false,
-                      firstFrame: false,
-                      lastFrame: false,
-                    }
-                  : {
-                      prompt: true,
-                      imageReference: false,
-                      multiImage: false,
-                      firstFrame: false,
-                      lastFrame: false,
-                    },
+            inputProfile: defaultInputProfileForCapability(capability),
+            inputCapabilities: defaultInputCapabilitiesForCapability(capability),
             parameterSchema: "{}",
           }),
         }),
@@ -987,7 +994,7 @@ export function ApiSettingsPanel({
             />
           ) : null}
 
-          {(["image", "video", "chat"] as Capability[]).map((cap) => (
+          {(["image", "video", "audio", "chat"] as Capability[]).map((cap) => (
             <ModelSection
               key={cap}
               capability={cap}
@@ -995,6 +1002,7 @@ export function ApiSettingsPanel({
               onAdd={() => requestAddManualModel(cap)}
               onUpdate={updateModel}
               onDelete={requestDeleteModel}
+              onTest={testModel}
             />
           ))}
         </div>
@@ -1019,35 +1027,10 @@ export function ApiSettingsPanel({
                       modelId: item.modelId,
                       displayName: item.displayName,
                       capability: item.capability,
+                      capabilityTags: item.capabilityTags || [],
                       enabled: true,
-                      inputProfile:
-                        item.capability === "image" || item.capability === "video"
-                          ? "prompt,image_reference"
-                          : "prompt",
-                      inputCapabilities:
-                        item.capability === "video"
-                          ? {
-                              prompt: true,
-                              imageReference: true,
-                              multiImage: false,
-                              firstFrame: false,
-                              lastFrame: false,
-                            }
-                          : item.capability === "image"
-                            ? {
-                                prompt: true,
-                                imageReference: true,
-                                multiImage: false,
-                                firstFrame: false,
-                                lastFrame: false,
-                              }
-                            : {
-                                prompt: true,
-                                imageReference: false,
-                                multiImage: false,
-                                firstFrame: false,
-                                lastFrame: false,
-                              },
+                      inputProfile: defaultInputProfileForCapability(item.capability),
+                      inputCapabilities: defaultInputCapabilitiesForCapability(item.capability, item.capabilityTags || []),
                       parameterSchema: "{}",
                     }),
                   }),

@@ -5,6 +5,8 @@ import {
   parseInputCapabilities,
   uiMetadataFromSchema,
   type ModelCapability as CatalogCapability,
+  type ModelCapabilityTag,
+  type ModelTestState,
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
 import Busboy from "busboy";
@@ -36,6 +38,7 @@ import {
 } from "./http-session-utils.js";
 import {
   classifyUpstreamModel,
+  inferModelCapabilityTags,
   normalizeCapability,
   normalizeOptionalProtocol,
   normalizeProviderProtocol,
@@ -97,6 +100,7 @@ const {
   generateExternalImageProxy,
   generateExternalChatProxy,
   generateExternalVideoProxy,
+  generateExternalAudioProxy,
 } = createExternalProxyHandlers({
   dataDir,
   normalizeProviderProtocol,
@@ -106,7 +110,9 @@ const {
   readAdminDb,
   saveRemoteImageToOutput,
   saveRemoteVideoToOutput,
+  saveRemoteAudioToOutput,
   saveBase64File,
+  saveBase64AudioFile,
   secretKey,
   safeSlug,
   safeText,
@@ -223,7 +229,7 @@ interface AuthDb {
 
 type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role">;
 
-type ModelCapability = "chat" | "image" | "video";
+type ModelCapability = "chat" | "image" | "video" | "audio";
 type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
 
 interface AdminProviderRecord {
@@ -291,6 +297,8 @@ interface AdminModelRecord {
   enabled: boolean;
   inputProfile: string;
   inputCapabilities?: Record<string, unknown>;
+  capabilityTags?: ModelCapabilityTag[];
+  testState?: ModelTestState;
   parameterSchema: string;
   advancedConfig?: Record<string, unknown>;
   protocolOverride?: string;
@@ -811,6 +819,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/proxy/external/audio" && request.method === "POST") {
+      sendT8(response, await generateExternalAudioProxy(await readJsonBody(request), currentUser!));
+      return;
+    }
+
     if (url.pathname === "/api/settings/rh-tool-categories" || url.pathname === "/api/settings/rh-tool-apps") {
       sendT8(response, []);
       return;
@@ -1259,7 +1272,7 @@ async function handleAdminRequest(
   const providerImportModelsMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/import-models$/);
   if (providerImportModelsMatch && request.method === "POST") {
     const providerId = decodeURIComponent(providerImportModelsMatch[1]);
-    const body = await readJsonBody<{ models?: Array<{ modelId?: string; capability?: string; displayName?: string; protocolOverride?: string }> }>(request);
+    const body = await readJsonBody<{ models?: Array<{ modelId?: string; capability?: string; displayName?: string; protocolOverride?: string; capabilityTags?: unknown }> }>(request);
     const db = await readAdminDb();
     const provider = db.providers.find((item) => item.id === providerId);
     if (!provider) throw new Error("Provider 不存在");
@@ -1271,6 +1284,11 @@ async function handleAdminRequest(
       const modelId = safeText(item.modelId);
       if (!modelId) continue;
       const capability = normalizeCapability(item.capability);
+      const capabilityTags = normalizeModelCapabilityTags(
+        item.capabilityTags === undefined ? inferModelCapabilityTags(modelId, capability) : item.capabilityTags,
+        capability,
+        modelId,
+      );
       const id = safeSlug(`${providerId}-${capability}-${modelId}`, `model-${now}-${imported}`);
       const existingIndex = nextModels.findIndex((model) => model.providerId === providerId && model.modelId === modelId);
       const model: AdminModelRecord = {
@@ -1283,17 +1301,33 @@ async function handleAdminRequest(
         inputProfile:
           existingIndex >= 0
             ? nextModels[existingIndex].inputProfile
+            : capability === "audio"
+              ? "prompt,audio_reference"
             : capability === "image" || capability === "video"
               ? "prompt,image_reference"
               : "prompt",
         inputCapabilities:
           existingIndex >= 0
             ? plainObject(nextModels[existingIndex].inputCapabilities)
+            : capability === "audio"
+              ? { prompt: true, audioReference: capabilityTags.includes("voice_clone") }
             : capability === "video"
               ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
               : capability === "image"
                 ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
-                : { prompt: true, imageReference: false, multiImage: false, firstFrame: false, lastFrame: false },
+                : {
+                    prompt: true,
+                    imageReference: capabilityTags.includes("image_understanding"),
+                    videoReference: capabilityTags.includes("video_understanding"),
+                    audioReference: capabilityTags.includes("audio_understanding"),
+                    multiImage: false,
+                    firstFrame: false,
+                    lastFrame: false,
+                  },
+        capabilityTags: existingIndex >= 0
+          ? normalizeModelCapabilityTags(nextModels[existingIndex].capabilityTags, capability, modelId)
+          : capabilityTags,
+        testState: existingIndex >= 0 ? normalizeModelTestState(nextModels[existingIndex].testState) : {},
         parameterSchema: existingIndex >= 0 ? nextModels[existingIndex].parameterSchema : "{}",
         advancedConfig: existingIndex >= 0 ? plainObject(nextModels[existingIndex].advancedConfig) : {},
         protocolOverride: normalizeOptionalProtocol(item.protocolOverride),
@@ -1388,6 +1422,8 @@ async function handleAdminRequest(
         enabled: Boolean(body.enabled),
         inputProfile: safeText(body.inputProfile, "prompt"),
         inputCapabilities: { ...parseInputCapabilities(body.inputCapabilities, normalizeCapability(body.capability)) },
+        capabilityTags: normalizeModelCapabilityTags(body.capabilityTags, normalizeCapability(body.capability), body.modelId),
+        testState: normalizeModelTestState(body.testState),
         parameterSchema: safeJsonText(body.parameterSchema, "{}"),
         advancedConfig: parseAdvancedConfig(body.advancedConfig),
         protocolOverride: normalizeOptionalProtocol(body.protocolOverride),
@@ -1401,6 +1437,39 @@ async function handleAdminRequest(
       sendT8(response, normalizedModel);
       return true;
     }
+  }
+
+  const modelTestMatch = url.pathname.match(/^\/api\/admin\/models\/([^/]+)\/test$/);
+  if (modelTestMatch && request.method === "POST") {
+    const id = decodeURIComponent(modelTestMatch[1]);
+    const body = await readJsonBody<{ kind?: string; autoApply?: boolean }>(request);
+    const db = await readAdminDb();
+    const model = db.models.find((item) => item.id === id);
+    if (!model) throw new Error("模型不存在");
+    const provider = db.providers.find((item) => item.id === model.providerId);
+    if (!provider) throw new Error("Provider 不存在");
+    const result = await testAdminModelConnectivity(provider, model, safeText(body.kind, "chat"));
+    const models = db.models.map((item) => {
+      if (item.id !== id) return item;
+      const testState = normalizeModelTestState({
+        ...normalizeModelTestState(item.testState),
+        [result.stateKey]: result.test,
+      });
+      const currentTags = normalizeModelCapabilityTags(item.capabilityTags, item.capability, item.modelId);
+      const nextTags = body.autoApply && result.test.ok
+        ? [...new Set([...currentTags, ...(result.test.inferredTags || [])])]
+        : currentTags;
+      return normalizeAdminModelRecord({
+        ...item,
+        capabilityTags: nextTags,
+        testState,
+        updatedAt: Date.now(),
+      });
+    });
+    await writeAdminDb({ ...db, models });
+    await appendAudit(adminUser, "model.test", "model", id, `测试模型 ${model.displayName}: ${result.test.ok ? "ok" : "error"}`);
+    sendT8(response, result.test);
+    return true;
   }
 
   const modelMatch = url.pathname.match(/^\/api\/admin\/models\/([^/]+)$/);
@@ -1423,6 +1492,10 @@ async function handleAdminRequest(
           body.inputCapabilities === undefined
             ? plainObject(model.inputCapabilities)
             : { ...parseInputCapabilities(body.inputCapabilities, body.capability === undefined ? model.capability : normalizeCapability(body.capability)) },
+        capabilityTags: body.capabilityTags === undefined
+          ? normalizeModelCapabilityTags(model.capabilityTags, body.capability === undefined ? model.capability : normalizeCapability(body.capability), body.modelId === undefined ? model.modelId : body.modelId)
+          : normalizeModelCapabilityTags(body.capabilityTags, body.capability === undefined ? model.capability : normalizeCapability(body.capability), body.modelId === undefined ? model.modelId : body.modelId),
+        testState: body.testState === undefined ? normalizeModelTestState(model.testState) : normalizeModelTestState(body.testState),
         parameterSchema: body.parameterSchema === undefined ? model.parameterSchema : safeJsonText(body.parameterSchema, "{}"),
         advancedConfig: body.advancedConfig === undefined ? plainObject(model.advancedConfig) : parseAdvancedConfig(body.advancedConfig),
         protocolOverride: body.protocolOverride === undefined ? model.protocolOverride : normalizeOptionalProtocol(body.protocolOverride),
@@ -2092,7 +2165,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
   const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult] = await Promise.all([
     pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
     pool.query(
-      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
+      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
     ),
     pool.query("select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks order by created_at desc"),
     pool.query(
@@ -2131,6 +2204,8 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         enabled: Boolean(row.enabled),
         inputProfile: row.input_profile || "prompt",
         inputCapabilities: plainObject(row.input_capabilities),
+        capabilityTags: Array.isArray(row.capability_tags) ? row.capability_tags : [],
+        testState: plainObject(row.test_state),
         parameterSchema: JSON.stringify(row.parameter_schema || {}, null, 2),
         advancedConfig: plainObject(row.advanced_config),
         protocolOverride: normalizeOptionalProtocol(row.protocol_override),
@@ -2219,8 +2294,8 @@ async function writeAdminDbPostgres(db: AdminDb) {
     for (const model of db.models) {
       const normalizedModel = normalizeAdminModelRecord(model);
       await client.query(
-        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)`,
+        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)`,
         [
           normalizedModel.id,
           normalizedModel.providerId,
@@ -2230,6 +2305,8 @@ async function writeAdminDbPostgres(db: AdminDb) {
           normalizedModel.enabled,
           normalizedModel.inputProfile,
           JSON.stringify(plainObject(normalizedModel.inputCapabilities)),
+          JSON.stringify(normalizedModel.capabilityTags || []),
+          JSON.stringify(normalizeModelTestState(normalizedModel.testState)),
           JSON.stringify(parseJsonObject(normalizedModel.parameterSchema)),
           JSON.stringify(plainObject(normalizedModel.advancedConfig)),
           normalizedModel.protocolOverride || null,
@@ -2530,16 +2607,81 @@ function normalizeAdminModelRecord(model: AdminModelRecord): AdminModelRecord {
   const capability = normalizeCapability(model.capability);
   const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
   const inputProfile = normalizeModelInputProfile(model.inputProfile, inputCapabilities, capability);
+  const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
   return {
     ...model,
     capability,
     enabled: Boolean(model.enabled),
     inputProfile,
     inputCapabilities: { ...inputCapabilities },
+    capabilityTags,
+    testState: normalizeModelTestState(model.testState),
     parameterSchema: safeJsonText(model.parameterSchema, "{}"),
     advancedConfig: parseAdvancedConfig(model.advancedConfig),
     protocolOverride: normalizeOptionalProtocol(model.protocolOverride),
   };
+}
+
+const MODEL_CAPABILITY_TAGS = new Set<ModelCapabilityTag>([
+  "text_chat",
+  "image_understanding",
+  "video_understanding",
+  "audio_understanding",
+  "reasoning",
+  "long_context",
+  "web_search",
+  "image_generation",
+  "image_edit",
+  "video_generation",
+  "tts",
+  "voice_design",
+  "voice_clone",
+  "music_generation",
+  "audio_cover",
+  "audio_extend",
+]);
+
+function normalizeModelCapabilityTags(value: unknown, capability: ModelCapability, modelId: unknown): ModelCapabilityTag[] {
+  const source = Array.isArray(value) ? value : [];
+  const tags = new Set<ModelCapabilityTag>();
+  for (const item of source) {
+    const tag = String(item || "").trim() as ModelCapabilityTag;
+    if (MODEL_CAPABILITY_TAGS.has(tag)) tags.add(tag);
+  }
+  for (const tag of inferModelCapabilityTags(modelId, capability)) tags.add(tag);
+  if (capability === "chat") tags.add("text_chat");
+  if (capability === "image" && !tags.has("image_edit")) tags.add("image_generation");
+  if (capability === "video") tags.add("video_generation");
+  if (capability === "audio" && !tags.has("music_generation")) tags.add("tts");
+  return [...tags];
+}
+
+function normalizeModelTestState(value: unknown): ModelTestState {
+  const source = plainObject(value);
+  const out: ModelTestState = {};
+  const keys = [
+    "chat",
+    "imageUnderstanding",
+    "videoUnderstanding",
+    "imageGeneration",
+    "videoGeneration",
+    "audioGeneration",
+    "voiceClone",
+  ] as const;
+  for (const key of keys) {
+    const item = plainObject(source[key]);
+    if (!Object.keys(item).length) continue;
+    out[key] = {
+      ok: Boolean(item.ok),
+      status: Number.isFinite(Number(item.status)) ? Number(item.status) : 0,
+      message: safeText(item.message),
+      checkedAt: Number.isFinite(Number(item.checkedAt)) ? Number(item.checkedAt) : Date.now(),
+      latencyMs: Number.isFinite(Number(item.latencyMs)) ? Number(item.latencyMs) : undefined,
+      inferredTags: normalizeModelCapabilityTags(item.inferredTags, "chat", "").filter((tag) => tag !== "text_chat"),
+      sampleOutput: safeText(item.sampleOutput, ""),
+    };
+  }
+  return out;
 }
 
 function normalizeModelInputProfile(
@@ -2558,6 +2700,8 @@ function normalizeModelInputProfile(
   };
   push("prompt", inputCapabilities.prompt !== false || parts.length === 0);
   push("image_reference", inputCapabilities.imageReference || capability === "image" || capability === "video");
+  push("video_reference", Boolean(inputCapabilities.videoReference));
+  push("audio_reference", Boolean(inputCapabilities.audioReference) || capability === "audio");
   push("multi_image", Boolean(inputCapabilities.multiImage));
   push("first_frame", Boolean(inputCapabilities.firstFrame));
   push("last_frame", Boolean(inputCapabilities.lastFrame));
@@ -3302,6 +3446,7 @@ async function publicModelCatalog() {
     chatModels: all.filter((model) => model?.capability === "chat"),
     imageModels: all.filter((model) => model?.capability === "image"),
     videoModels: all.filter((model) => model?.capability === "video"),
+    audioModels: all.filter((model) => model?.capability === "audio"),
   };
 }
 
@@ -3507,10 +3652,10 @@ async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { api
   const protocol = isGrsaiProviderDraft(provider) ? "grsai_draw" : normalizeProviderProtocol(provider.protocol);
   if (isGrsaiProviderDraft(provider)) {
     const baseUrl = safeText(provider.baseUrl).replace(/\/+$/, "");
-    if (!baseUrl) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
-    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    if (!baseUrl) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
+    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
     const apiKey = providerPlainApiKey(provider);
-    if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
     return {
       ok: true,
       status: 200,
@@ -3520,18 +3665,20 @@ async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { api
       chatModels: [],
       imageModels: ["gpt-image-2"],
       videoModels: [],
+      audioModels: [],
+      modelTags: { "gpt-image-2": inferModelCapabilityTags("gpt-image-2", "image") },
     };
   }
   const url = providerModelsUrl(provider.baseUrl, protocol);
-  if (!url) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
-  if (!/^https?:\/\//i.test(url)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+  if (!url) return { ok: false, status: 0, message: "请先填写请求地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
+  if (!/^https?:\/\//i.test(url)) return { ok: false, status: 0, message: "请求地址必须以 http:// 或 https:// 开头", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
   const apiKey = providerPlainApiKey(provider);
-  if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+  if (!apiKey) return { ok: false, status: 0, message: "请先填写或保存 API Key", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
   try {
     const upstream = await fetch(url, { headers: providerModelHeaders(apiKey, protocol), signal: AbortSignal.timeout(15000) });
     const text = await upstream.text();
-    if (looksLikeHtml(text)) return { ok: false, status: upstream.status, message: "上游返回网页 HTML，请检查 Base URL 是否为 API 地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
-    if (!upstream.ok) return { ok: false, status: upstream.status, message: text.slice(0, 300), modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [] };
+    if (looksLikeHtml(text)) return { ok: false, status: upstream.status, message: "上游返回网页 HTML，请检查 Base URL 是否为 API 地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
+    if (!upstream.ok) return { ok: false, status: upstream.status, message: text.slice(0, 300), modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
     const raw = text ? JSON.parse(text) : {};
     const parsed = parseUpstreamModels(raw, protocol);
     return {
@@ -3551,6 +3698,8 @@ async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { api
       chatModels: [],
       imageModels: [],
       videoModels: [],
+      audioModels: [],
+      modelTags: {},
     };
   }
 }
@@ -3567,6 +3716,8 @@ async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> &
       chatModels: [],
       imageModels: ["gpt-image-2"],
       videoModels: [],
+      audioModels: [],
+      modelTags: { "gpt-image-2": inferModelCapabilityTags("gpt-image-2", "image") },
     };
   }
   const result = await probeProviderDraft(provider);
@@ -3576,8 +3727,102 @@ async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> &
     chatModels: result.chatModels || [],
     imageModels: result.imageModels || [],
     videoModels: result.videoModels || [],
+    audioModels: result.audioModels || [],
+    modelTags: result.modelTags || {},
     all: result.all || [],
   };
+}
+
+const TEST_IMAGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
+async function testAdminModelConnectivity(provider: AdminProviderRecord, model: AdminModelRecord, rawKind: string): Promise<{
+  stateKey: keyof ModelTestState;
+  test: NonNullable<ModelTestState[keyof ModelTestState]>;
+}> {
+  const kind = normalizeModelTestKind(rawKind);
+  const startedAt = Date.now();
+  const fail = (message: string, status = 0, inferredTags: ModelCapabilityTag[] = []) => ({
+    stateKey: kind.stateKey,
+    test: {
+      ok: false,
+      status,
+      message,
+      checkedAt: Date.now(),
+      latencyMs: Date.now() - startedAt,
+      inferredTags,
+    },
+  });
+  const apiKey = providerPlainApiKey(provider);
+  if (!apiKey) return fail("Provider 未配置 API Key");
+  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+  if (!["openai", "apimart", "custom"].includes(protocol)) {
+    return fail(`当前模型测试暂未接入 ${protocol} 协议`);
+  }
+  const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, model.capability, model.modelId);
+  if (kind.stateKey === "videoUnderstanding") {
+    if (!capabilityTags.includes("video_understanding")) {
+      return fail("模型未标记为视频理解模型；请先手动开启视频理解标签，或使用图像关键帧测试。", 0, ["video_understanding"]);
+    }
+    return fail("视频理解真实样本测试需要固定测试视频，本版本先记录能力标签，不自动消耗视频测试。", 0, ["video_understanding"]);
+  }
+  if (kind.stateKey === "audioGeneration" || kind.stateKey === "voiceClone") {
+    return fail("音频模型测试将在 MiMo 音频 Provider 适配完成后启用。", 0, kind.stateKey === "voiceClone" ? ["voice_clone"] : ["tts"]);
+  }
+  if (kind.stateKey === "imageGeneration" || kind.stateKey === "videoGeneration") {
+    return fail("生成类模型测试可能产生费用，请在下一阶段通过专用低成本测试按钮启用。");
+  }
+  const messages = kind.stateKey === "imageUnderstanding"
+    ? [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "请用一句中文说明你是否能看到这张测试图片。" },
+            { type: "image_url", image_url: { url: TEST_IMAGE_DATA_URL } },
+          ],
+        },
+      ]
+    : [{ role: "user", content: "请只回答：连接正常" }];
+  try {
+    const upstream = await fetch(openAiEndpoint(provider.baseUrl, "chat/completions"), {
+      method: "POST",
+      headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+      body: JSON.stringify({ model: model.modelId, messages, stream: false, max_tokens: 64 }),
+      signal: AbortSignal.timeout(45000),
+    });
+    const text = await upstream.text();
+    if (looksLikeHtml(text)) return fail("上游返回网页 HTML，请检查 Base URL 是否为 API 地址", upstream.status);
+    if (!upstream.ok) return fail(`上游请求失败 ${upstream.status}: ${text.slice(0, 300)}`, upstream.status);
+    const raw = text ? JSON.parse(text) : {};
+    const content = extractChatContent(raw);
+    if (!content.trim()) return fail("上游返回成功但没有文本内容", upstream.status);
+    const inferredTags = kind.stateKey === "imageUnderstanding" ? ["image_understanding" as ModelCapabilityTag] : ["text_chat" as ModelCapabilityTag];
+    return {
+      stateKey: kind.stateKey,
+      test: {
+        ok: true,
+        status: upstream.status,
+        message: kind.stateKey === "imageUnderstanding" ? "图像理解测试请求成功" : "文本对话测试请求成功",
+        checkedAt: Date.now(),
+        latencyMs: Date.now() - startedAt,
+        inferredTags,
+        sampleOutput: content.slice(0, 240),
+      },
+    };
+  } catch (error) {
+    return fail(error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300));
+  }
+}
+
+function normalizeModelTestKind(kind: string): { stateKey: keyof ModelTestState } {
+  const value = kind.trim();
+  if (value === "image_understanding") return { stateKey: "imageUnderstanding" };
+  if (value === "video_understanding") return { stateKey: "videoUnderstanding" };
+  if (value === "image_generation") return { stateKey: "imageGeneration" };
+  if (value === "video_generation") return { stateKey: "videoGeneration" };
+  if (value === "audio_generation" || value === "tts") return { stateKey: "audioGeneration" };
+  if (value === "voice_clone") return { stateKey: "voiceClone" };
+  return { stateKey: "chat" };
 }
 
 async function generateOpenAiLikeImage(input: {
@@ -4945,6 +5190,18 @@ async function saveBase64File(body: { dataUrl?: string; prefix?: string }, user:
   return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
 }
 
+async function saveBase64AudioFile(body: { dataUrl?: string; prefix?: string }, user: CurrentUser) {
+  await ensureDataDirs(user);
+  const dirs = userDataDirs(user);
+  const match = /^data:(audio\/(?:mpeg|mp3|wav|x-wav|webm|ogg));base64,(.+)$/i.exec(body.dataUrl || "");
+  if (!match) throw new Error("音频 dataUrl 格式不支持");
+  const ext = audioExtensionFromMime(match[1]) || "wav";
+  const filename = `${safeFilename(body.prefix, "audio")}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const buffer = Buffer.from(match[2], "base64");
+  await writeFile(join(dirs.outputDir, filename), buffer);
+  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
+}
+
 async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
   await ensureDataDirs(user);
   if (!/^https?:\/\//i.test(sourceUrl)) throw new Error("远程图片 URL 必须以 http:// 或 https:// 开头");
@@ -4955,6 +5212,20 @@ async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
   const ext = imageExtensionFromMime(mime) || imageExtensionFromUrl(sourceUrl) || "png";
   const buffer = Buffer.from(await upstream.arrayBuffer());
   const filename = `external_image_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
+  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+}
+
+async function saveRemoteAudioToOutput(sourceUrl: string, user: CurrentUser) {
+  await ensureDataDirs(user);
+  if (!/^https?:\/\//i.test(sourceUrl)) throw new Error("远程音频 URL 必须以 http:// 或 https:// 开头");
+  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
+  if (!upstream.ok) throw new Error(`下载远程音频失败 ${upstream.status}`);
+  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!mime.startsWith("audio/")) throw new Error("远程 URL 不是音频");
+  const ext = audioExtensionFromMime(mime) || audioExtensionFromUrl(sourceUrl) || "wav";
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  const filename = `external_audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
   return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
 }
@@ -4984,6 +5255,23 @@ function videoExtensionFromUrl(sourceUrl: string) {
   try {
     const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
     return ["mp4", "webm", "mov"].includes(ext) ? ext : "";
+  } catch {
+    return "";
+  }
+}
+
+function audioExtensionFromMime(mime: string) {
+  if (mime === "audio/mpeg" || mime === "audio/mp3") return "mp3";
+  if (mime === "audio/wav" || mime === "audio/x-wav") return "wav";
+  if (mime === "audio/webm") return "webm";
+  if (mime === "audio/ogg") return "ogg";
+  return "";
+}
+
+function audioExtensionFromUrl(sourceUrl: string) {
+  try {
+    const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
+    return ["mp3", "wav", "webm", "ogg"].includes(ext) ? ext : "";
   } catch {
     return "";
   }

@@ -138,6 +138,49 @@ export async function generateExternalVideo(req: GenerateExternalVideoRequest): 
   };
 }
 
+export interface GenerateExternalAudioRequest {
+  providerId: string;
+  providerModel?: string;
+  model?: string;
+  mode?: 'tts' | 'voice_clone' | 'voice_design' | 'music_generation';
+  text?: string;
+  prompt?: string;
+  stylePrompt?: string;
+  voice?: string;
+  audioFormat?: 'wav' | 'mp3' | 'opus' | string;
+  sampleDataUrl?: string;
+  audios?: string[];
+  providerParams?: Record<string, any>;
+}
+
+export interface GenerateExternalAudioResult {
+  audioUrls: string[];
+  remoteAudioUrls?: string[];
+  text?: string;
+  raw?: any;
+  provider?: any;
+}
+
+export async function generateExternalAudio(req: GenerateExternalAudioRequest): Promise<GenerateExternalAudioResult> {
+  const r = await fetch('/api/proxy/external/audio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const data = await r.json();
+  if (!r.ok || !data.success) {
+    throw new Error(data?.error || `HTTP ${r.status}`);
+  }
+  const payload = data.data || {};
+  return {
+    audioUrls: Array.isArray(payload.audioUrls) ? payload.audioUrls : [],
+    remoteAudioUrls: Array.isArray(payload.remoteAudioUrls) ? payload.remoteAudioUrls : undefined,
+    text: typeof payload.text === 'string' ? payload.text : undefined,
+    raw: payload.raw,
+    provider: payload.provider,
+  };
+}
+
 // ========================================================================
 // 图像异步任务(对齐 gpt-image-2-web 的 submit + poll 模式)
 // submitImageAsync 返 { sync, taskId?, urls?, status, progress }
