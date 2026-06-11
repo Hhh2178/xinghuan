@@ -36,6 +36,7 @@ void ConfirmActionDialog;
 void ManualModelDialog;
 
 const ADMIN_ASSISTANT_STORAGE_KEY = "xinghuan.adminAssistant.open";
+const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 
 export type Capability = CapabilityShape;
 export type ConfirmAction = ConfirmActionShape;
@@ -159,7 +160,7 @@ function defaultAssistantSettings(): AssistantSettings {
       endpoint: "已配置（服务器内地址已隐藏）",
       endpointConfigured: true,
       workspace: "gray",
-      model: "hermes",
+      model: DEFAULT_ASSISTANT_MODEL,
       profile: "canvas-assistant",
       persistMemory: false,
       strictMode: true,

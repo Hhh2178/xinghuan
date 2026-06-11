@@ -74,6 +74,7 @@ import { createExternalProxyHandlers } from "./external-proxy.js";
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
+const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
@@ -3121,7 +3122,7 @@ function defaultAssistantSettings(): AssistantSettingsRecord {
       endpoint: endpoint || "已配置（服务器内地址已隐藏）",
       endpointConfigured: Boolean(endpoint),
       workspace: safeText(process.env.XINGHUAN_HERMES_WORKSPACE, process.cwd()),
-      model: "hermes",
+      model: normalizeAssistantIntegrationModel(process.env.XINGHUAN_HERMES_MODEL, DEFAULT_ASSISTANT_MODEL),
       profile: safeText(process.env.XINGHUAN_HERMES_PROFILE, "canvas-assistant"),
       persistMemory: false,
       strictMode: true,
@@ -3229,7 +3230,7 @@ function normalizeAssistantSettings(
       endpoint: nextEndpoint,
       endpointConfigured: nextEndpointConfigured,
       workspace: safeText(integrationSource.workspace, base.integration.workspace),
-      model: safeText(integrationSource.model, base.integration.model),
+      model: normalizeAssistantIntegrationModel(integrationSource.model, base.integration.model),
       profile: safeText(integrationSource.profile, base.integration.profile || "canvas-assistant"),
       persistMemory: booleanValue(integrationSource.persistMemory, false),
       strictMode: booleanValue(integrationSource.strictMode, base.integration.strictMode),
@@ -3240,6 +3241,12 @@ function normalizeAssistantSettings(
 
 function booleanValue(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeAssistantIntegrationModel(value: unknown, fallback = DEFAULT_ASSISTANT_MODEL) {
+  const next = safeText(value, fallback);
+  if (!next || next.toLowerCase() === "hermes") return DEFAULT_ASSISTANT_MODEL;
+  return next;
 }
 
 async function ensureBootstrapUser(db: AuthDb): Promise<AuthDb> {

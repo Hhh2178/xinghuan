@@ -28,6 +28,7 @@ const PANEL_DEFAULT_WIDTH = 388;
 const PANEL_OFFSET_Y = 72;
 const FRONTEND_ASSISTANT_TITLE = '画布 AI 助手';
 const FRONTEND_ASSISTANT_PLACEHOLDER = '输入问题或要求';
+const DEFAULT_ASSISTANT_MODEL = 'Agnes-2.0-Flash';
 
 const DEFAULT_SETTINGS: PublicAssistantSettings = {
   frontend: {
@@ -44,7 +45,7 @@ const DEFAULT_SETTINGS: PublicAssistantSettings = {
     kernel: 'fallback',
     endpoint: '',
     workspace: 'gray',
-    model: 'hermes',
+    model: DEFAULT_ASSISTANT_MODEL,
     profile: '',
     persistMemory: false,
     strictMode: true,
