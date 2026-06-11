@@ -11,7 +11,7 @@ export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: Adm
   const [title, setTitle] = useState("");
   return (
     <section className="panel-stack">
-      <FormPanel title="创建测试任务" icon={PlayCircle}>
+      <FormPanel title="创建任务" icon={PlayCircle}>
         <input placeholder="任务标题" value={title} onChange={(e) => setTitle(e.target.value)} />
         <button type="button" onClick={() => mutate("/api/admin/tasks", { title, status: "queued" })}>创建任务</button>
       </FormPanel>

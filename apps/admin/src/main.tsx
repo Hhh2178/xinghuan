@@ -1,4 +1,4 @@
-import { KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-react";
+import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-react";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
@@ -335,7 +335,7 @@ function AdminApp() {
       </aside>
 
       <div className={`admin-workspace${assistantOpen ? " admin-workspace--with-assistant" : ""}`}>
-        <main className={`admin-main${activeTab === "providers" ? " admin-main--fixed-panel" : ""}`}>
+        <main className={`admin-main${activeTab === "providers" || activeTab === "assistant" ? " admin-main--fixed-panel" : ""}${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
           <header className="admin-topbar">
             <div>
               <p>统一后台</p>
@@ -347,6 +347,18 @@ function AdminApp() {
               ) : (
                 <span className="health-dot">API 已连接</span>
               )}
+              {assistantSettings.backend.enabled ? (
+                <button
+                  type="button"
+                  className={assistantOpen ? "icon-button admin-assistant-topbar-toggle active" : "icon-button admin-assistant-topbar-toggle"}
+                  onClick={() => setAssistantOpen((current) => !current)}
+                  title={assistantOpen ? "收起 AI 助手" : "展开 AI 助手"}
+                  aria-pressed={assistantOpen}
+                >
+                  <Bot aria-hidden="true" />
+                  <span>AI 助手</span>
+                </button>
+              ) : null}
               <span className="user-chip">
                 <UserCog aria-hidden="true" />
                 {currentUser.email}

@@ -49,6 +49,13 @@ const checks = [
       !apiSettingsSource.includes("autoSaveAssistantDraft"),
   },
   {
+    name: "api settings applies assistant model draft as well as provider draft",
+    pass:
+      apiSettingsSource.includes("upsertAssistantModelDraft") &&
+      apiSettingsSource.includes("assistantResult.drafts?.model") &&
+      apiSettingsSource.includes("/api/admin/models/"),
+  },
+  {
     name: "api settings calls assistant analyze-provider endpoint",
     pass: apiSettingsSource.includes("/api/admin/assistant/analyze-provider"),
   },
@@ -58,6 +65,12 @@ const checks = [
       apiSettingsSource.includes("接入判断") &&
       apiSettingsSource.includes("recommendedLayer") &&
       apiSettingsSource.includes("应用到表单"),
+  },
+  {
+    name: "api settings surfaces generic async video task fields",
+    pass:
+      apiSettingsSource.includes("submitPath") &&
+      apiSettingsSource.includes("async_video_task"),
   },
   {
     name: "model editor exposes toggle head and state",

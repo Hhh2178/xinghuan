@@ -220,6 +220,8 @@ export interface AssistantAnalysisResult {
   recommendedLayer: "default" | "advanced" | "adapter";
   protocol: string;
   asyncTask: boolean;
+  chainTemplate?: string;
+  chainTemplateVersion?: string;
   docFetch: {
     attempted: boolean;
     ok: boolean;

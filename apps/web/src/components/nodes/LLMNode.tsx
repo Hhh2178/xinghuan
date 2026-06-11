@@ -741,12 +741,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">供应商</label>
                 <select
-                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : (backendProviderGroups[0]?.providerId || '')}
                   onChange={(e) => {
-                    if (e.target.value === '__local__') {
-                      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
-                      return;
-                    }
                     switchBackendChatProvider(e.target.value);
                     update({ stream: false });
                   }}
@@ -758,7 +754,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
                       {group.providerName}
                     </option>
                   ))}
-                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>本地 T8 内置模型</option>
                 </select>
               </div>
               {isBackendSelected && backendProviderGroup && (
@@ -784,9 +779,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
             </div>
             {isBackendSelected && backendModel && (
               <>
-                <div className="text-[10px] leading-relaxed text-cyan-100/65">
-                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点真正调用的能力边界。
-                </div>
                 <div className="text-[10px] leading-relaxed text-cyan-100/50">
                   {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
                 </div>

@@ -5,6 +5,7 @@ import {
   generateExternalVideo,
   submitSeedance,
   querySeedance,
+  cancelGenerationTask,
   type SeedanceSubmitRequest,
 } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
@@ -17,6 +18,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
@@ -62,12 +64,19 @@ const DURATION_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const SEEDANCE_POLL_TIMEOUT_SECONDS = 3600;
 const seedanceMinPollCount = (intervalMs: number) =>
   Math.ceil((SEEDANCE_POLL_TIMEOUT_SECONDS * 1000) / Math.max(1, intervalMs));
+const clampGenerationCount = (value: unknown, fallback = 1) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(4, Math.max(1, Math.trunc(num)));
+};
 
 const SeedanceNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef } = useSyncNodeInternalsOnResize(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
+  const pollTimers = useRef<Set<number>>(new Set());
   const src = `seedance:${id.slice(0, 6)}`;
 
   // 主题适配
@@ -97,6 +106,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
     : [];
   const externalProviderModel = providerSelection.providerModel || externalModelOptions[0] || '';
   const model: string = d.model || MODEL_OPTIONS[0].value;
+  const generationCount = clampGenerationCount(d?.generationCount ?? 1);
   const duration: number = typeof d.duration === 'number' ? d.duration : 5;
   const ratio: string = d.ratio || '16:9';
   const resolution: string = d.resolution || '480p';
@@ -112,6 +122,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d.status || 'idle';
   const taskId: string | undefined = d.taskId;
+  const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
   const videoUrl: string | undefined = d.videoUrl;
   const progress: string = d.progress || '';
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
@@ -259,25 +270,25 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       window.clearInterval(pollTimer.current);
       pollTimer.current = null;
     }
+    pollTimers.current.forEach((timer) => window.clearInterval(timer));
+    pollTimers.current.clear();
   };
 
   useEffect(() => () => stopPoll(), []);
 
   // v1.2.9.11: 返回 Promise，调用方 await 直到任务真正成功/失败/超时才 resolve/reject。
   //   在循环器中使用时，不 await 会导致 useRunTrigger 提前 markDone → LoopNode 读不到 videoUrl → result=null → failCount++。
-  const startPolling = (tid: string, runtimeStartedAt: number | null): Promise<void> => {
-    stopPoll();
-    return new Promise<void>((resolve, reject) => {
+  const startPolling = (tid: string): Promise<{ videoUrl: string }> => {
+    return new Promise<{ videoUrl: string }>((resolve, reject) => {
       let elapsed = 0;
       const POLL_MS = Math.max(2, pollInt) * 1000;
       const MAX = Math.max(10, maxPoll, seedanceMinPollCount(POLL_MS));
       let lastProgress = '';
-      pollTimer.current = window.setInterval(async () => {
+      const timer = window.setInterval(async () => {
         elapsed += 1;
         if (elapsed > MAX) {
-          stopPoll();
-          markRuntimeFailed(runtimeStartedAt, '轮询超时');
-          setError('轮询超时');
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
           logBus.error(`Seedance 轮询超时(${MAX}次)`, src);
           reject(new Error('轮询超时'));
           return;
@@ -293,16 +304,14 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
             logBus.debug(`[${elapsed}/${MAX}] status=${r.status}`, src);
           }
           if (r.status === 'succeeded' && r.videoUrl) {
-            stopPoll();
-            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
             logBus.success(`任务完成 → ${r.videoUrl}`, src);
-            taskCompletionSound.notifyComplete(id, 'seedance');
-            resolve();
+            resolve({ videoUrl: r.videoUrl });
           } else if (r.status === 'failed') {
-            stopPoll();
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
             const msg = r.failReason || '生成失败';
-            markRuntimeFailed(runtimeStartedAt, msg);
-            setError(msg);
             logBus.error(`生成失败: ${msg}`, src);
             reject(new Error(msg));
           } else {
@@ -313,6 +322,8 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           console.warn('Seedance 轮询出错', e?.message);
         }
       }, POLL_MS);
+      pollTimer.current = timer;
+      pollTimers.current.add(timer);
     });
   };
 
@@ -328,111 +339,163 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
     }
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
-    update({ status: 'submitting', error: null, videoUrl: null, taskId: null });
+    update({
+      status: 'submitting',
+      error: null,
+      videoUrl: null,
+      videoUrls: [],
+      remoteVideoUrls: [],
+      taskId: null,
+      progress: generationCount > 1 ? `1/${generationCount}` : '',
+    });
 
     try {
-      if (isExternalSelected && providerSelection.provider) {
-        const providerModel = externalProviderModel;
+      const runSingleSeedanceGeneration = async (batchIndex: number) => {
+        const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
+        if (isExternalSelected && providerSelection.provider) {
+          const providerModel = externalProviderModel;
+          logBus.info(
+            `${batchLabel} 扩展平台 SD2.0 提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · 图${imageUrls.length}/视${videoUrls.length}/音${audioUrls.length}`,
+            src,
+          );
+          const r = await generateExternalVideo({
+            providerId: providerSelection.provider.id,
+            providerModel,
+            model: providerModel,
+            prompt: finalPrompt,
+            aspect_ratio: ratio,
+            ratio,
+            duration,
+            resolution,
+            seed: seed >= 0 ? seed : undefined,
+            images: imageUrls,
+            videos: videoUrls,
+            audios: audioUrls,
+            providerParams: isJimengCliSelected
+              ? {
+                  ...(d?.providerParams || {}),
+                  frameMode,
+                }
+              : {
+                  ...(d?.providerParams || {}),
+                  generate_audio: generateAudio,
+                  return_last_frame: returnLastFrame,
+                  watermark,
+                  web_search: webSearch,
+                  frameMode,
+                },
+          });
+          if (!r.videoUrls[0]) throw new Error('扩展平台没有返回视频。');
+          return { videoUrls: r.videoUrls, remoteVideoUrls: r.remoteVideoUrls || [], taskId: r.taskId || null };
+        }
+
+        let firstFrame: string | undefined;
+        let lastFrame: string | undefined;
+        let refImages: string[] = [];
+        if (frameMode === 'first' && imageUrls.length >= 1) {
+          firstFrame = imageUrls[0];
+          refImages = imageUrls.slice(1);
+        } else if (frameMode === 'firstlast' && imageUrls.length >= 1) {
+          firstFrame = imageUrls[0];
+          if (imageUrls.length >= 2) lastFrame = imageUrls[1];
+          refImages = imageUrls.slice(2);
+        } else {
+          refImages = imageUrls;
+        }
+
+        const payload: SeedanceSubmitRequest = {
+          model,
+          prompt: finalPrompt,
+          duration,
+          ratio,
+          resolution,
+          generate_audio: generateAudio,
+          return_last_frame: returnLastFrame,
+          watermark,
+          web_search: webSearch,
+        };
+        if (seed !== -1) payload.seed = seed;
+        if (firstFrame) payload.firstFrame = firstFrame;
+        if (lastFrame) payload.lastFrame = lastFrame;
+        if (refImages.length) payload.refImages = refImages;
+        if (videoUrls.length) payload.videos = videoUrls;
+        if (audioUrls.length) payload.audios = audioUrls;
+
         logBus.info(
-          `扩展平台 SD2.0 提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · 图${imageUrls.length}/视${videoUrls.length}/音${audioUrls.length}`,
+          `${batchLabel} 提交 Seedance2.0: model=${model} ${duration}s ${ratio} ${resolution} ` +
+            `audio=${generateAudio} retLast=${returnLastFrame} ` +
+            `frame=${frameMode} refs=${refImages.length}` +
+            (firstFrame ? ' +first' : '') +
+            (lastFrame ? ' +last' : '') +
+            (videoUrls.length ? ` +${videoUrls.length}video` : '') +
+            (audioUrls.length ? ` +${audioUrls.length}audio` : '') +
+            ` prompt="${finalPrompt.slice(0, 30)}…"`,
           src,
         );
-        const r = await generateExternalVideo({
-          providerId: providerSelection.provider.id,
-          providerModel,
-          model: providerModel,
-          prompt: finalPrompt,
-          aspect_ratio: ratio,
-          ratio,
-          duration,
-          resolution,
-          seed: seed >= 0 ? seed : undefined,
-          images: imageUrls,
-          videos: videoUrls,
-          audios: audioUrls,
-          providerParams: isJimengCliSelected
-            ? {
-                ...(d?.providerParams || {}),
-                frameMode,
-              }
-            : {
-                ...(d?.providerParams || {}),
-                generate_audio: generateAudio,
-                return_last_frame: returnLastFrame,
-                watermark,
-                web_search: webSearch,
-                frameMode,
-              },
-        });
-        const nextVideoUrl = r.videoUrls[0];
-        if (!nextVideoUrl) throw new Error('扩展平台没有返回视频。');
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          videoUrl: nextVideoUrl,
-          videoUrls: r.videoUrls,
-          remoteVideoUrls: r.remoteVideoUrls,
-          taskId: r.taskId || null,
-          lastPrompt: finalPrompt,
-          progress: '100%',
-        });
-        logBus.success(`扩展平台 SD2.0 完成 → ${nextVideoUrl}`, src);
-        taskCompletionSound.notifyComplete(id, 'seedance');
-        return;
-      }
 
-      // 拆分参考图(对齐主项目 sd_firstFrame / sd_lastFrame / sd_refImgs):
-      //  - frameMode='auto'(默认): 全部走 reference_image
-      //  - frameMode='first':   第 1 张作为 firstFrame, 其余作为 reference_image
-      //  - frameMode='firstlast': 第 1 张 first, 第 2 张 last, 其余作为 reference_image
-      let firstFrame: string | undefined;
-      let lastFrame: string | undefined;
-      let refImages: string[] = [];
-      if (frameMode === 'first' && imageUrls.length >= 1) {
-        firstFrame = imageUrls[0];
-        refImages = imageUrls.slice(1);
-      } else if (frameMode === 'firstlast' && imageUrls.length >= 1) {
-        firstFrame = imageUrls[0];
-        if (imageUrls.length >= 2) lastFrame = imageUrls[1];
-        refImages = imageUrls.slice(2);
-      } else {
-        refImages = imageUrls;
-      }
-
-      const payload: SeedanceSubmitRequest = {
-        model,
-        prompt: finalPrompt,
-        duration,
-        ratio,
-        resolution,
-        generate_audio: generateAudio,
-        return_last_frame: returnLastFrame,
-        watermark,
-        web_search: webSearch,
+        const r = await submitSeedance(payload);
+        update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: generationCount > 1 ? `${batchIndex + 1}/${generationCount}` : '15%' });
+        logBus.info(`${batchLabel} 异步任务已提交 taskId=${r.taskId}, 进入轮询…`, src);
+        const polled = await startPolling(r.taskId);
+        return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.taskId };
       };
-      if (seed !== -1) payload.seed = seed;
-      if (firstFrame) payload.firstFrame = firstFrame;
-      if (lastFrame) payload.lastFrame = lastFrame;
-      if (refImages.length) payload.refImages = refImages;
-      if (videoUrls.length) payload.videos = videoUrls;
-      if (audioUrls.length) payload.audios = audioUrls;
 
-      logBus.info(
-        `提交 Seedance2.0: model=${model} ${duration}s ${ratio} ${resolution} ` +
-          `audio=${generateAudio} retLast=${returnLastFrame} ` +
-          `frame=${frameMode} refs=${refImages.length}` +
-          (firstFrame ? ' +first' : '') +
-          (lastFrame ? ' +last' : '') +
-          (videoUrls.length ? ` +${videoUrls.length}video` : '') +
-          (audioUrls.length ? ` +${audioUrls.length}audio` : '') +
-          ` prompt="${finalPrompt.slice(0, 30)}…"`,
-        src,
-      );
+      const aggregatedVideoUrls: string[] = [];
+      const aggregatedRemoteVideoUrls: string[] = [];
+      const taskIds: string[] = [];
+      let lastTaskId: string | null = null;
 
-      const r = await submitSeedance(payload);
-      update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: '15%' });
-      logBus.info(`异步任务已提交 taskId=${r.taskId}, 进入轮询…`, src);
-      // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone，循环器才能拿到 videoUrl
-      await startPolling(r.taskId, runtimeStartedAt);
+      const appendSeedanceGenerationResult = (result: Awaited<ReturnType<typeof runSingleSeedanceGeneration>>) => {
+        for (const url of result.videoUrls) {
+          if (url && !aggregatedVideoUrls.includes(url)) aggregatedVideoUrls.push(url);
+        }
+        for (const url of result.remoteVideoUrls) {
+          if (url && !aggregatedRemoteVideoUrls.includes(url)) aggregatedRemoteVideoUrls.push(url);
+        }
+        if (result.taskId) {
+          lastTaskId = result.taskId;
+          if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
+        }
+        update({
+          status: 'polling',
+          progress: generationCount > 1 ? `${aggregatedVideoUrls.length}/${generationCount}` : '95%',
+          videoUrl: aggregatedVideoUrls[0] || null,
+          videoUrls: [...aggregatedVideoUrls],
+          remoteVideoUrls: [...aggregatedRemoteVideoUrls],
+          taskId: lastTaskId,
+          taskIds: [...taskIds],
+        });
+      };
+
+      const runConcurrentSeedanceGenerations = async () => {
+        const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
+          runSingleSeedanceGeneration(batchIndex).then((result) => {
+            appendSeedanceGenerationResult(result);
+            return result;
+          })
+        );
+        return Promise.allSettled(jobs);
+      };
+
+      const settled = await runConcurrentSeedanceGenerations();
+      const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+
+      const nextVideoUrl = aggregatedVideoUrls[0];
+      if (!nextVideoUrl) throw new Error('视频生成完成但未返回视频。');
+      markRuntimeFinished(runtimeStartedAt, {
+        status: 'success',
+        videoUrl: nextVideoUrl,
+        videoUrls: aggregatedVideoUrls,
+        remoteVideoUrls: aggregatedRemoteVideoUrls,
+        taskId: lastTaskId,
+        taskIds,
+        lastPrompt: finalPrompt,
+        progress: '100%',
+      });
+      if (rejected.length > 0) {
+        logBus.warn(`部分 Seedance 生成失败: ${rejected.map((item) => item.reason?.message || '未知错误').join('；')}`, src);
+      }
+      taskCompletionSound.notifyComplete(id, 'seedance');
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
@@ -443,6 +506,9 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
+    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'seedance', model })))
+      .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
     logBus.warn('用户主动停止', src);
   };
@@ -491,6 +557,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   return (
     <div
+      ref={rootRef}
       {...dropProps}
       className={`relative rounded-xl border-2 transition-all w-[300px] ${
         selected ? 'border-fuchsia-400 shadow-2xl shadow-fuchsia-500/20' : isAccepting ? 'border-emerald-400' : 'border-white/15 hover:border-white/30'
@@ -519,6 +586,17 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
               : 'Seedance 2.0 · 字节'}
           </div>
         </div>
+        {isBusy && (
+          <button
+            type="button"
+            onClick={handleStop}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-lg border border-red-300/30 bg-red-500/15 text-red-200 transition hover:bg-red-500/25"
+            title="终止当前生成任务"
+          >
+            <Square size={12} />
+          </button>
+        )}
       </div>
 
       <NodeRuntimeCard
@@ -626,7 +704,35 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           </div>
         )}
 
-        {/* Duration / Ratio */}
+        {/* Ratio / Count */}
+        <div className="grid grid-cols-2 gap-1.5">
+          <div>
+            <label className="text-[10px] text-white/50 block mb-1">Ratio</label>
+            <select
+              value={ratio}
+              onChange={(e) => update({ ratio: e.target.value })}
+              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+            >
+              {RATIO_OPTIONS.map((r) => (
+                <option key={r} value={r} className="bg-zinc-900">{r}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+            <select
+              value={generationCount}
+              onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+            >
+              {[1, 2, 3, 4].map((count) => (
+                <option key={count} value={count} className="bg-zinc-900">{count}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Duration / Resolution */}
         <div className="grid grid-cols-2 gap-1.5">
           <div>
             <label className="text-[10px] text-white/50 block mb-1">Duration(s)</label>
@@ -641,22 +747,6 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-white/50 block mb-1">Ratio</label>
-            <select
-              value={ratio}
-              onChange={(e) => update({ ratio: e.target.value })}
-              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-            >
-              {RATIO_OPTIONS.map((r) => (
-                <option key={r} value={r} className="bg-zinc-900">{r}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Resolution / Seed */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <div>
             <label className="text-[10px] text-white/50 block mb-1">Resolution</label>
             <select
               value={resolution}
@@ -668,7 +758,9 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
               ))}
             </select>
           </div>
-          <div>
+        </div>
+
+        <div>
             <label className="text-[10px] text-white/50 block mb-1">Seed (-1=随机)</label>
             <input
               type="number"
@@ -678,7 +770,6 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
               onChange={(e) => update({ seed: Number(e.target.value) || -1 })}
               className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             />
-          </div>
         </div>
 
         {/* 帧使用模式 */}
@@ -885,12 +976,10 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
             <Sparkles size={12} /> 生成视频
           </button>
         ) : (
-          <button
-            onClick={handleStop}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-200 text-xs font-medium transition-colors"
-          >
-            <Square size={11} /> 停止({progress || (status === 'submitting' ? '提交中' : '排队中')})
-          </button>
+          <div className="flex items-center justify-center gap-1.5 rounded border border-fuchsia-300/15 bg-fuchsia-500/10 py-1.5 text-xs font-medium text-fuchsia-100/80">
+            <Loader2 size={11} className="animate-spin" />
+            {progress || (status === 'submitting' ? '提交中' : '排队中')}
+          </div>
         )}
 
         {isBusy && (

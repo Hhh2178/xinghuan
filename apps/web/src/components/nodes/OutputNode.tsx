@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Handle,
   Position,
@@ -35,9 +35,11 @@ import {
 } from '../../utils/imageCompare';
 import { collectMaterialSetBucketsFromData, valueOfMaterialSetItem } from '../../utils/materialSet';
 import {
+  computeOutputGridLayout,
   computeOutputNodeAutoHeight,
   computeOutputPreviewFrameHeight,
 } from './outputPreviewLayout';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 // v1.2.10.5: 节点落点防重叠 —— 双击编辑产出 N 节点 3 列宫格整组避让
 import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
 
@@ -68,6 +70,41 @@ import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../.
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|m4v|mkv)(\?|$)/i.test(u);
 const isAudioUrl = (u: string) => /\.(mp3|wav|ogg|m4a|flac)(\?|$)/i.test(u);
 
+const buildMediaGridStyle = (
+  count: number,
+  nodeWidth: number,
+  nodeHeight: number | undefined,
+  media: Array<{ width?: number; height?: number } | undefined> = [],
+): CSSProperties => {
+  const layout = computeOutputGridLayout({ count, nodeWidth, nodeHeight, media });
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+    gap: 8,
+    alignItems: 'stretch',
+    gridAutoRows: `${layout.cardHeight}px`,
+  };
+};
+
+const buildMediaFrameStyle = (
+  count: number,
+  singleMediaFrameHeight?: number,
+): CSSProperties => ({
+  objectFit: 'contain',
+  width: '100%',
+  height: count > 1 ? '100%' : (singleMediaFrameHeight ? `${singleMediaFrameHeight}px` : 'auto'),
+  maxHeight: count > 1 ? undefined : (singleMediaFrameHeight ?? 420),
+});
+
+const buildMultiMediaViewportStyle = (
+  count: number,
+  nodeWidth: number,
+  nodeHeight: number | undefined,
+  media: Array<{ width?: number; height?: number } | undefined> = [],
+): CSSProperties => ({
+  height: computeOutputGridLayout({ count, nodeWidth, nodeHeight, media }).mediaHeight,
+});
+
 const NODE_INPUT_LABELS: Record<string, string> = {
   upload: '上传图',
   output: '上游输出图',
@@ -91,6 +128,7 @@ interface Collected {
 
 const OutputNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, templateId, customTemplates } = useThemeStore();
   const isDark = theme === 'dark';
   const d = (data as any) || {};
@@ -433,8 +471,31 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
     && collected.audios.length === 0
     && !editing
     && !isEdited;
-  const rootHeight = shouldAutoFitSingleMedia && singleMediaFrameHeight
+  const dominantMultiMedia =
+    collected.texts.length === 0
+    && collected.audios.length === 0
+    && !editing
+    && !isEdited
+    && (
+      (collected.images.length >= 2 && collected.videos.length === 0) ||
+      (collected.videos.length >= 2 && collected.images.length === 0)
+    );
+  const multiMediaItems = collected.images.length >= 2 ? collected.images : collected.videos;
+  const multiMediaLayout = dominantMultiMedia
+    ? computeOutputGridLayout({
+        count: multiMediaItems.length,
+        nodeWidth: size.w,
+        nodeHeight: size.h,
+        media: multiMediaItems.map((url) => mediaMeta[url]),
+      })
+    : undefined;
+  const contentFitHeight = shouldAutoFitSingleMedia && singleMediaFrameHeight
     ? computeOutputNodeAutoHeight(singleMediaFrameHeight)
+    : dominantMultiMedia && multiMediaLayout
+      ? multiMediaLayout.gridHeight + 116
+      : undefined;
+  const rootHeight = contentFitHeight
+    ? Math.max(size.h ?? 0, contentFitHeight)
     : size.h;
 
   const enterEdit = () => {
@@ -738,6 +799,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
     <div
       data-rh-duck-output={isRhDuckOutput ? 'true' : undefined}
       data-yyh-portrait-hidden-output={isYyhPortraitOutput ? 'true' : undefined}
+      ref={rootRef}
       className="relative flex flex-col"
       style={{ width: size.w, height: rootHeight, minWidth: 260 }}
       {...dropProps}
@@ -747,8 +809,15 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
         selected={selected}
         minWidth={260}
         minHeight={160}
+        maxWidth={980}
+        maxHeight={980}
         accent={effectiveAccent}
-        onResize={(_e, p) => setSize({ w: p.width, h: p.height })}
+        keepAspectRatio={false}
+        onResize={(_e, p) => {
+          setSize({ w: p.width, h: p.height });
+          syncNodeInternals();
+        }}
+        onResizeEnd={syncNodeInternals}
       />
       {/* 选中时浮动「Edit」按钮 — 仅图像类型可用，与双击预览图等价 */}
       {canEditImage && (
@@ -830,7 +899,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
         className={`rounded-xl border-2 transition-colors ${size.h ? 'flex-1 min-h-0' : ''}`}
         style={{
           background: isDark ? 'rgb(20,20,22)' : 'rgb(255,255,255)',
-          overflow: 'auto',
+          overflow: 'visible',
           width: '100%',
           borderColor: isAccepting
             ? effectiveAccent
@@ -976,23 +1045,35 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
             </div>
             {/* 单张：全宽大图预览；多张：3 列网格（一行最多 3 张，超过自动换行） */}
             <div
-              className={
-                collected.images.length >= 2
-                  ? 'grid grid-cols-3 gap-1.5'
-                  : 'space-y-1'
-              }
+              className={collected.images.length >= 2 ? '' : 'space-y-1'}
+              style={collected.images.length >= 2
+                ? buildMediaGridStyle(
+                    collected.images.length,
+                    size.w,
+                    size.h,
+                    collected.images.map((url) => mediaMeta[url]),
+                  )
+                : undefined}
             >
               {collected.images.map((u, i) => (
                 <div key={i} className="group group/output-image-card space-y-0.5">
-                  <div className="relative">
+                  <div
+                    className="relative min-h-0 rounded"
+                    style={collected.images.length >= 2
+                      ? buildMultiMediaViewportStyle(
+                          collected.images.length,
+                          size.w,
+                          size.h,
+                          collected.images.map((url) => mediaMeta[url]),
+                        )
+                      : undefined}
+                  >
                     <img
                       src={u}
                       alt={`图像 ${i + 1}`}
-                      className="w-full h-auto rounded block cursor-zoom-in"
+                      className="rounded block cursor-zoom-in"
                       style={{
-                        background: '#0008',
-                        objectFit: 'contain',
-                        maxHeight: collected.images.length >= 2 ? 140 : (singleMediaFrameHeight ?? 420),
+                        ...buildMediaFrameStyle(collected.images.length, singleMediaFrameHeight),
                       }}
                       onLoad={(event) => {
                         rememberMediaMeta(
@@ -1076,50 +1157,72 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
                 className="opacity-100 transition sm:opacity-0 sm:group-hover/output-videos:opacity-100 sm:focus-within:opacity-100"
               />
             </div>
-            {collected.videos.map((u, i) => (
-              <div key={i} className="space-y-0.5">
-                <LoopingVideo
-                  src={u}
-                  controls
-                  className="w-full h-auto rounded block"
-                  style={{
-                    background: '#000',
-                    objectFit: 'contain',
-                    maxHeight: collected.videos.length >= 2 ? 140 : (singleMediaFrameHeight ?? 420),
-                  }}
-                  onLoadedMetadata={(event) => {
-                    rememberMediaMeta(
-                      u,
-                      event.currentTarget.videoWidth,
-                      event.currentTarget.videoHeight,
-                    );
-                  }}
-                  data-drag-source
-                  data-drag-kind="video"
-                  data-drag-url={u}
-                  data-drag-preview={u}
-                  data-drag-node-id={id}
-                  data-resource-title={u.split('/').pop()}
-                  onMouseDown={(e) =>
-                    beginMaterialDrag(e, { kind: 'video', url: u, sourceNodeId: id, previewUrl: u })
-                  }
-                />
-                <div className={`flex items-center gap-1 text-[10px] ${isDark ? 'text-white/40' : 'text-zinc-400'}`}>
-                  <span className="truncate flex-1" title={u}>{u.split('/').pop()}</span>
-                  <a
-                    href={u}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${
-                      isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-black/10 text-zinc-600'
-                    }`}
+            <div
+              className={collected.videos.length >= 2 ? '' : 'space-y-1'}
+              style={collected.videos.length >= 2
+                ? buildMediaGridStyle(
+                    collected.videos.length,
+                    size.w,
+                    size.h,
+                    collected.videos.map((url) => mediaMeta[url]),
+                  )
+                : undefined}
+            >
+              {collected.videos.map((u, i) => (
+                <div key={i} className="space-y-0.5">
+                  <div
+                    className="min-h-0 rounded"
+                    style={collected.videos.length >= 2
+                      ? buildMultiMediaViewportStyle(
+                          collected.videos.length,
+                          size.w,
+                          size.h,
+                          collected.videos.map((url) => mediaMeta[url]),
+                        )
+                      : undefined}
                   >
-                    <Download size={10} /> 下载
-                  </a>
+                    <LoopingVideo
+                      src={u}
+                      controls
+                      className="rounded block"
+                      style={{
+                        ...buildMediaFrameStyle(collected.videos.length, singleMediaFrameHeight),
+                      }}
+                      onLoadedMetadata={(event) => {
+                        rememberMediaMeta(
+                          u,
+                          event.currentTarget.videoWidth,
+                          event.currentTarget.videoHeight,
+                        );
+                      }}
+                      data-drag-source
+                      data-drag-kind="video"
+                      data-drag-url={u}
+                      data-drag-preview={u}
+                      data-drag-node-id={id}
+                      data-resource-title={u.split('/').pop()}
+                      onMouseDown={(e) =>
+                        beginMaterialDrag(e, { kind: 'video', url: u, sourceNodeId: id, previewUrl: u })
+                      }
+                    />
+                  </div>
+                  <div className={`flex items-center gap-1 text-[10px] ${isDark ? 'text-white/40' : 'text-zinc-400'}`}>
+                    <span className="truncate flex-1" title={u}>{u.split('/').pop()}</span>
+                    <a
+                      href={u}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${
+                        isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-black/10 text-zinc-600'
+                      }`}
+                    >
+                      <Download size={10} /> 下载
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 

@@ -7,6 +7,373 @@
 - 任何选型、部署、回滚、数据结构、节点规范和后台规范变化都要记录。
 - 禁止记录真实 API Key、Token、Cookie、SSH Key 和数据库密码。
 
+## 2026-06-10
+
+### 灰度画布版本同步正式环境核对
+
+目标:
+
+- 按用户要求确认当前灰度画布版本是否已推送到正式环境。
+- 避免把灰度 release 原样覆盖正式，导致正式后台 Provider footer 修复和供应商清理结果被回退。
+
+核对结果:
+
+- 灰度 current:
+  - `/opt/apps/xinghuan-canvas-next/releases/20260610-output-complete-fit-copy-cleanup-gray-r3-f295040`
+- 正式 current:
+  - `/opt/apps/xinghuan-canvas/releases/20260610-admin-provider-footer-cleanup-prod-r2-f295040`
+- 灰度与正式前台画布资源一致:
+  - `index-CZT1hWSs.js`
+  - `index-BATb1Dbj.css`
+- 正式后台比灰度后台更新:
+  - 灰度后台资源: `index-DMvEA4um.js` / `index-K_WB6hC4.css`
+  - 正式后台资源: `index-Ckni9yF3.js` / `index-ClQ6DtDI.css`
+  - 正式后台包含 `.provider-rail-footer` 修复。
+
+结论:
+
+- 当前灰度前台画布版本已在正式环境生效。
+- 不应将灰度 release 目录原样切到正式，否则会回退正式后台 Provider 底部按钮修复。
+- 正式环境保留组合版：灰度前台画布修复 + 正式后台 Provider footer 修复 + 供应商清理。
+
+环境关系:
+
+- 灰度入口: `https://canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`，release 根目录 `/opt/apps/xinghuan-canvas-next`。
+- 正式入口: `https://canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`，release 根目录 `/opt/apps/xinghuan-canvas`。
+- 两者当前使用同一个 PostgreSQL 数据库 `xinghuan_canvas_next` 和同一个 Redis `127.0.0.1:6379/0`。
+- 两者 `dataDir` 不同:
+  - 灰度: `/opt/apps/xinghuan-canvas-next/shared/data`
+  - 正式: `/opt/apps/xinghuan-canvas/shared/data`
+
+影响:
+
+- 后台 Provider、模型、任务等数据库数据会在灰度和正式之间共享。
+- 灰度中创建或更新的 Provider/模型/任务，正式环境也可能看到。
+- 两个环境的上传/输出本地文件目录不同，因此如果数据库里引用了某一环境本地文件路径，另一环境可能需要依赖 `/files` 链路或重新生成/同步素材才能完整访问。
+- 若后续需要彻底隔离灰度与正式，需要拆分数据库、Redis 队列命名空间和文件存储目录。
+
+### 后台 API 平台列表底部按钮二次修复与供应商清理生产发布
+
+目标:
+
+- 修复后台 API 设置页左侧 `新增平台` 仍然与 Provider 列表视觉混在一起、随列表滚动的问题。
+- 清理此前验收脚本和本地测试创建的无用 API 供应商。
+- 正式环境只保留实际可用供应商：`GRSAI`、`ToAPIs`、`Apimart`。
+
+根因:
+
+- 上一版虽然把按钮放在 `.provider-list` 外，但 `.provider-rail` 仍依赖 `position: sticky + height: 100% + flex` 的剩余高度计算。
+- 在实际后台视口中，侧栏高度约束不够硬，按钮区域容易与滚动列表产生视觉重叠。
+
+变更:
+
+- `apps/admin/src/admin-api-settings-panel.tsx`
+  - 将 `新增平台` 按钮包入独立 `.provider-rail-footer`。
+- `apps/admin/src/styles.css`
+  - `.provider-rail` 改为明确三行 grid：标题、滚动列表、底部按钮区。
+  - `.provider-list` 独占滚动。
+  - `.provider-rail-footer` 增加顶部边界和背景，固定作为列表 UI 底部操作区。
+- `scripts/verify-admin-provider-rail-layout.mjs`
+  - 验证 DOM 中按钮必须位于 `.provider-rail-footer`，且不能回到 `.provider-list`。
+  - 验证 CSS 必须保留三行 grid、列表滚动、footer 分隔和按钮满宽。
+
+验证:
+
+- `npm run verify:admin-provider-rail-layout`
+- `npm run verify:static-html-cache-contract`
+- `npm run build -w @xinghuan/admin`
+- `npm run build:single-port`
+
+生产数据清理:
+
+- 清理前生产 PostgreSQL `xh_providers` 共 21 个 Provider。
+- 事务移除 18 个测试 Provider：
+  - `verify-provider-*`
+  - `verify-image-*`
+  - `默认 Provider`
+  - `图像 Provider`
+  - `https://verify.local`
+  - `http://127.0.0.1:*`
+- 同步移除 1 个测试模型。
+- 清理后仅剩：
+  - `custom-api-1780893241867 | Apimart | apimart | 2 models`
+  - `toapis | ToAPIs | openai | 1 model`
+  - `grsai | GRSAI | grsai_draw | 1 model`
+- 本次未输出或记录任何 API Key。
+
+生产发布:
+
+- Release: `20260610-admin-provider-footer-cleanup-prod-r2-f295040`
+- 当前生产:
+  - `/opt/apps/xinghuan-canvas/releases/20260610-admin-provider-footer-cleanup-prod-r2-f295040`
+- 公网后台 `GET https://canvas.hhh2121.xyz/admin` 已返回新资源：
+  - 后台 JS: `index-Ckni9yF3.js`
+  - 后台 CSS: `index-ClQ6DtDI.css`
+- 远端 bundle 已确认包含：
+  - `.provider-rail-footer`
+  - `grid-template-rows:auto minmax(0,1fr) auto`
+  - `.provider-list{...overflow-y:auto...}`
+- 生产状态:
+  - `https://canvas.hhh2121.xyz/api/status` -> `environment=production`
+  - `xinghuan-canvas.service` -> `active`
+  - `xinghuan-canvas-worker.service` -> `active`
+
+注意:
+
+- `HEAD https://canvas.hhh2121.xyz/admin` 当前返回 `404`，但 `GET /admin` 正常返回后台 HTML，且 `cache-control: no-store`。这是当前路由对 HEAD 的处理差异，不影响后台访问。
+
+### 后台 API 平台列表新增按钮固定底部并发布生产
+
+目标:
+
+- 修复后台 API 设置页左侧平台列表滚动时，`新增平台` 按钮跟随列表内容一起滚动的问题。
+- 让按钮固定在左侧列表 UI 底部，只有 Provider 列表区域本身滚动。
+- 修复完成后发布到正式环境。
+
+变更:
+
+- `apps/admin/src/styles.css`
+  - `.provider-rail` 改为固定三段式 flex column 容器。
+  - `.provider-rail` 自身不再滚动，改为 `overflow: hidden`。
+  - `.provider-list` 负责滚动，设置 `flex: 1 1 auto`、`min-height: 0`、`overflow-y: auto`。
+  - `.provider-rail > .ghost-action` 固定在底部，设置 `flex: 0 0 auto` 和 `width: 100%`。
+- `scripts/verify-admin-provider-rail-layout.mjs`
+  - 新增后台 Provider 侧栏布局契约验证，防止按钮再次进入滚动内容流。
+- `package.json`
+  - 新增 `verify:admin-provider-rail-layout`。
+
+验证:
+
+- `npm run verify:admin-provider-rail-layout`
+- `npm run verify:static-html-cache-contract`
+- `npm run build -w @xinghuan/admin`
+- `npm run build:single-port`
+
+生产发布:
+
+- Release: `20260610-admin-provider-rail-fixed-prod-r1-f295040`
+- 当前生产:
+  - `/opt/apps/xinghuan-canvas/releases/20260610-admin-provider-rail-fixed-prod-r1-f295040`
+- 公网后台:
+  - `https://canvas.hhh2121.xyz/admin` -> `200`
+  - `cache-control: no-store`
+  - 后台 JS: `index-DytMYiMH.js`
+  - 后台 CSS: `index-DEbHk4VC.css`
+- 生产状态:
+  - `https://canvas.hhh2121.xyz/api/status` -> `environment=production`
+  - `xinghuan-canvas.service` -> `active`
+  - `xinghuan-canvas-worker.service` -> `active`
+- 远端 CSS 检查:
+  - `.provider-list`
+  - `overflow-y:auto`
+  - `flex:1 1 auto`
+  - `.provider-rail>.ghost-action`
+  - `flex:0 0 auto`
+
+### 输出素材完整显示与生成节点 T8 预留清理灰度热修复
+
+目标:
+
+- 修复单图输出节点初始显示不全、必须滚动才能看到文件名和下载入口的问题。
+- 修复输出节点拉伸后底部文件名/下载行被遮挡、素材两侧出现黑色填充、缩放到一定尺寸后交互异常的问题。
+- 清理图像、视频、LLM 生成节点中暴露的 `本地 T8 内置模型` 预留入口和实现解释文案。
+
+变更:
+
+- 输出节点:
+  - 单图/单视频按素材比例计算完整显示高度，自动补足标题区和底部文件名/下载区高度。
+  - 内层素材容器不再使用内部滚动条遮挡内容。
+  - 单图/单视频移除黑色背景填充，保持素材自身完整显示。
+  - 缩放改为自由宽高，设置最大宽高边界，避免无限横向/纵向延伸。
+- 生成节点:
+  - `ImageNode`、`VideoNode`、`LLMNode` 的发布模型供应商下拉移除 `本地 T8 内置模型`。
+  - 移除 `参数来源...`、`当前模型尺寸...` 等实现说明型可见文案。
+
+验证:
+
+- `npm run verify:output-node-preview-layout`
+- `npm run verify:generation-node-copy-cleanup`
+- `npm run verify:node-resize-sync-contract`
+- `npm run verify:static-html-cache-contract`
+- `npm run build:single-port`
+
+灰度:
+
+- Release: `20260610-output-complete-fit-copy-cleanup-gray-r3-f295040`
+- 当前灰度:
+  - `/opt/apps/xinghuan-canvas-next/releases/20260610-output-complete-fit-copy-cleanup-gray-r3-f295040`
+- 公网首页资源:
+  - `index-CZT1hWSs.js`
+  - `OutputNode-BT411FHf.js`
+  - `ImageNode-7laYmbZx.js`
+  - `VideoNode-BbiszG2e.js`
+  - `LLMNode-CFRAkwAc.js`
+- 远端 bundle 检查:
+  - 未发现 `本地 T8 内置模型`
+  - 未发现 `参数来源：当前发布模型`
+  - 未发现 `当前模型的尺寸会随比例自动匹配`
+- API/Worker 均为 `active`。
+
+### 输出集合智能网格 r2 灰度热修复
+
+目标:
+
+- 修复 r1 消除黑边后，宽高输出节点中素材仍停留在左上角、下方大面积空白的问题。
+- 让多图/多视频输出集合根据素材数量、节点宽度、节点高度和素材比例智能选择列数与卡片高度。
+
+变更:
+
+- 两个产物在宽节点中固定采用均衡两列，不再被误排成四列缩小。
+- 多素材卡片拆分为卡片总高度和媒体视口高度，文件名/下载栏不再撑坏媒体网格。
+- 多素材节点的自动高度收敛到内容需要的高度，避免节点被拉高后无限空白延伸。
+
+验证:
+
+- `npm run verify:output-node-preview-layout`
+- `npm run verify:node-resize-sync-contract`
+- `npm run verify:static-html-cache-contract`
+- `npm run build:single-port`
+
+灰度:
+
+- Release: `20260610-output-grid-smart-layout-gray-r2-f295040`
+- 当前灰度:
+  - `/opt/apps/xinghuan-canvas-next/releases/20260610-output-grid-smart-layout-gray-r2-f295040`
+- 公网首页资源:
+  - `index-Vxk81PeH.js`
+  - `OutputNode-DRI5JIF7.js`
+- API/Worker 均为 `active`。
+
+### 节点尺寸同步与输出素材比例修复灰度发布
+
+目标:
+
+- 修复节点运行态/完成态切换后，节点视觉缩小或高度变化导致连线锚点不同步的问题。
+- 修复输出集合节点在窄高尺寸下，多图/多视频出现严重上下黑边和素材比例观感畸变的问题。
+- 将本机已验证版本发布到灰度 `canvas-next.hhh2121.xyz`，供继续实测。
+
+变更范围:
+
+- `OutputNode`、`UploadNode`、`ImageNode`、`VideoNode`、`SeedanceNode`、`AudioNode`
+  - 接入 `ResizeObserver` 驱动的节点内部测量同步。
+- `OutputNode`
+  - 多图/多视频网格按素材宽高比计算行高，不再为了填满节点高度而拉高媒体容器。
+- `outputPreviewLayout`
+  - 补齐输出集合网格行高计算契约。
+
+本机验证:
+
+- `npm run verify:output-node-preview-layout`
+- `npm run verify:node-resize-sync-contract`
+- `npm run verify:generation-count-contract`
+- `npm run verify:static-html-cache-contract`
+- `npm run build:single-port`
+
+灰度发布:
+
+- Release: `20260610-node-resize-sync-output-layout-gray-r1-f295040`
+- 灰度 current:
+  - `/opt/apps/xinghuan-canvas-next/releases/20260610-node-resize-sync-output-layout-gray-r1-f295040`
+- 服务器动作:
+  - 上传 `/tmp/20260610-node-resize-sync-output-layout-gray-r1-f295040.tar.gz`
+  - 解压到灰度 release 目录
+  - 执行 `npm ci`
+  - 执行 `npm run db:migrate`
+    - `applied=[]`
+    - `skipped=6`
+  - 重启 `xinghuan-canvas-next.service`
+  - 重启 `xinghuan-canvas-next-worker.service`
+
+灰度验证:
+
+- `systemctl is-active xinghuan-canvas-next.service`
+  - `active`
+- `systemctl is-active xinghuan-canvas-next-worker.service`
+  - `active`
+- `curl -fsS http://127.0.0.1:18200/api/status`
+  - `environment=gray`
+- 公网 `GET https://canvas-next.hhh2121.xyz/`
+  - `200`
+  - `cache-control: no-store`
+  - 资源 hash: `index-BnZP74ac.js`
+- 公网 `GET https://canvas-next.hhh2121.xyz/admin`
+  - `200`
+  - `cache-control: no-store`
+  - 资源 hash: `index-DMvEA4um.js`
+- 服务器当前前端 bundle 已包含:
+  - `ResizeObserver`
+  - 输出节点 `gridTemplateColumns`
+- in-app browser 打开灰度页面后进入登录门禁页，控制台未出现 error。
+
+影响:
+
+- 这次只发布灰度，不切生产。
+- 用户继续在灰度画布中验证生成节点状态切换、输出集合节点拖拽缩放、图像和视频集合显示即可。
+
+### 灰度“发布后仍像旧版本”根因排查与静态 HTML 缓存修复
+
+目标:
+
+- 查明“已经推送灰度，但页面仍像旧版本”的真实原因。
+- 避免后续灰度或生产发布后，浏览器继续持有旧 `index.html` 导致前端资源 hash 不刷新。
+
+根因结论:
+
+- 灰度服务、`current` 符号链接、systemd 工作目录和 Node 进程都已经指向新 release，不是“没部署成功”。
+- 真正的问题是单端口静态文件响应把 `apps/web/dist/index.html` 和 `apps/admin/dist/index.html` 也按 `cache-control: public, max-age=3600` 返回。
+- 浏览器一旦缓存旧 HTML，就会继续引用旧的 JS/CSS 资源路径；即使服务器已经切到新 release，用户侧仍可能在 1 小时内继续看到旧版本。
+
+变更范围:
+
+- `apps/api/src/server.ts`
+  - `trySendStaticFile()` 按扩展名拆分缓存策略：
+    - `.html` 返回 `cache-control: no-store`
+    - 其他静态资源继续保留 `cache-control: public, max-age=3600`
+- `scripts/verify-static-html-cache-contract.mjs`
+  - 新增静态缓存契约验收：
+    - `/` 与 `/admin` HTML 必须禁用缓存
+    - `/assets/*` 与 `/admin/assets/*` 仍需保持缓存
+- `package.json`
+  - 新增 `verify:static-html-cache-contract`
+
+验证证据:
+
+- 本机排查证据:
+  - `http://127.0.0.1:18200/api/status`
+    - `environment=local`
+  - `https://canvas-next.hhh2121.xyz/api/status`
+    - `environment=gray`
+  - 灰度 `realpath /opt/apps/xinghuan-canvas-next/current`
+    - 已指向 `20260610-assistant-media-chain-gray-r3-f295040`
+  - 灰度与本机返回的首页资源 hash 一致：
+    - `/assets/index-Du4Et5fv.js`
+    - `/admin/assets/index-DMvEA4um.js`
+- 修复前失败:
+  - `npm run verify:static-html-cache-contract`
+    - `FAIL GET / cache-control disables HTML caching`
+    - `FAIL GET /admin cache-control disables HTML caching`
+- 修复后通过:
+  - `curl -i http://127.0.0.1:18200/`
+    - `cache-control: no-store`
+  - `curl -i http://127.0.0.1:18200/admin`
+    - `cache-control: no-store`
+  - `npm run verify:static-html-cache-contract`
+  - `npm run verify:single-port`
+
+影响:
+
+- 后续发布后，浏览器不会再因为缓存旧 HTML 而长时间停留在旧版入口。
+- 带 hash 的 JS/CSS 资源仍保留缓存，不影响正常静态资源命中率。
+
+风险:
+
+- 当前本机 `build:single-port` 存在一次 `apps/web/dist/index.html` 的 Windows `EPERM` 写入残差；本轮修复本身已通过 API 构建与运行态验收，不影响静态缓存策略正确性。
+
+下一步:
+
+- 将静态 HTML 缓存修复补发到灰度。
+- 灰度复验 `/`、`/admin` 的 `cache-control` 响应头，确认发布后旧版残留问题不再复现。
+
 ## 2026-06-09
 
 ### 后台任务视频输出本地化闭环补齐
@@ -4090,3 +4457,450 @@
     - `npm run verify:video-node-backend-inputs-contract`
     - `npm run verify:task-payload-api`
     - `npm run verify:provider-response-parser-contract`
+
+- `2026-06-10` 灰度发布 `20260610-assistant-media-chain-gray-r3-f295040` 并完成真实入口验收。
+  - 发布来源：
+    - 本地提交：`f295040`
+    - 本机包：`dist-release/20260610-assistant-media-chain-gray-r3-f295040.tar.gz`
+  - 灰度部署：
+    - 上传到 `/tmp/20260610-assistant-media-chain-gray-r3-f295040.tar.gz`
+    - 解压到 `/opt/apps/xinghuan-canvas-next/releases/20260610-assistant-media-chain-gray-r3-f295040`
+    - 在新 release 执行 `npm ci`
+    - 加载 `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+    - 执行 `npm run db:migrate`
+      - `applied=[]`
+      - `skipped=6`
+    - 切换 `/opt/apps/xinghuan-canvas-next/current`
+    - 重启：
+      - `xinghuan-canvas-next.service`
+      - `xinghuan-canvas-next-worker.service`
+  - 灰度验证：
+    - `realpath /opt/apps/xinghuan-canvas-next/current`
+      - 指向 `20260610-assistant-media-chain-gray-r3-f295040`
+    - `curl http://127.0.0.1:18200/api/status`
+      - `environment=gray`
+    - 远端 `apps/api/dist/server.js` 已包含：
+      - `sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)]`
+    - 后台助手连续会话：
+      - `mode=hermes`
+      - 同一 `conversationId` 下成功取回暗号 `海蓝节点R3`
+    - 画布助手连续会话：
+      - `mode=hermes`
+      - 同一 `conversationId` 下成功取回短语 `星轨草图R3`
+    - 灰度本机并发会话：
+      - 同一管理员连续两次登录后，两张 session 调 `/api/auth/me` 都保持 `authenticated=true`
+    - 公网灰度入口：
+      - `https://canvas-next.hhh2121.xyz/`
+      - `https://canvas-next.hhh2121.xyz/admin`
+      - `https://canvas-next.hhh2121.xyz/api/status`
+      - 均可正常访问
+    - 任务 payload API：
+      - 灰度 `POST /api/admin/tasks` 创建 `cancelled` 验证任务成功
+      - `GET /api/admin/tasks` 可回读 `payload/result`
+
+- `2026-06-10` 生成类节点 `生成数量` 能力完成并已发布到灰度与生产。
+  - 目标：
+    - 为所有实际生成节点补齐 `生成数量` 选择，采用与比例等核心参数并排的紧凑布局。
+    - 所有类型统一走前端自动拆单，不依赖不同上游的原生多数量能力。
+  - 覆盖节点：
+    - `apps/web/src/components/nodes/ImageNode.tsx`
+    - `apps/web/src/components/nodes/VideoNode.tsx`
+    - `apps/web/src/components/nodes/AudioNode.tsx`
+    - `apps/web/src/components/nodes/SeedanceNode.tsx`
+    - `apps/web/src/components/nodes/PresetImageNode.tsx`
+  - 契约与实现：
+    - 新增/更新 `scripts/verify-generation-count-contract.mjs`
+    - 节点统一支持 `generationCount=1..4`
+    - 图像聚合到 `imageUrls`
+    - 视频聚合到 `videoUrls`
+    - 音频聚合到 `tracks + audioUrls`，兼容 `audioUrl / audioUrl_1`
+  - 本机验证：
+    - `npm run build:single-port`
+    - `npm run verify:generation-count-contract`
+    - `npm run verify:single-port`
+    - `npm run verify:static-html-cache-contract`
+  - 发布来源：
+    - 统一 release：`20260610-generation-count-r1-f295040`
+    - 本地提交：`f295040`
+    - 本机包：`dist-release/20260610-generation-count-r1-f295040.tar.gz`
+  - 灰度部署：
+    - 上传到 `/tmp/20260610-generation-count-r1-f295040.tar.gz`
+    - 解压到 `/opt/apps/xinghuan-canvas-next/releases/20260610-generation-count-r1-f295040`
+    - `npm ci`
+    - 加载 `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+    - `npm run db:migrate`
+      - `applied=[]`
+      - `skipped=6`
+    - 切换 `/opt/apps/xinghuan-canvas-next/current`
+    - 重启：
+      - `xinghuan-canvas-next.service`
+      - `xinghuan-canvas-next-worker.service`
+  - 灰度验收：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+      - `20260610-generation-count-r1-f295040`
+    - `curl http://127.0.0.1:18200/api/status`
+      - `environment=gray`
+    - 公网：
+      - `https://canvas-next.hhh2121.xyz/` -> `200`
+      - `https://canvas-next.hhh2121.xyz/admin` -> `200`
+      - `https://canvas-next.hhh2121.xyz/api/status` -> `environment=gray`
+    - 使用灰度真实引导账号执行：
+      - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:single-port`
+      - 全部通过
+  - 生产部署：
+    - 复用同一份 `/tmp/20260610-generation-count-r1-f295040.tar.gz`
+    - 解压到 `/opt/apps/xinghuan-canvas/releases/20260610-generation-count-r1-f295040`
+    - `npm ci`
+    - 加载 `/opt/apps/xinghuan-canvas/shared/canvas.env`
+    - `npm run db:migrate`
+      - `applied=[]`
+      - `skipped=6`
+    - 切换 `/opt/apps/xinghuan-canvas/current`
+    - 重启：
+      - `xinghuan-canvas.service`
+      - `xinghuan-canvas-worker.service`
+  - 生产验收：
+    - `readlink -f /opt/apps/xinghuan-canvas/current`
+      - `20260610-generation-count-r1-f295040`
+    - `curl http://127.0.0.1:18100/api/status`
+      - `environment=production`
+    - 公网：
+      - `https://canvas.hhh2121.xyz/` -> `200`
+      - `https://canvas.hhh2121.xyz/admin` -> `200`
+      - `https://canvas.hhh2121.xyz/api/status` -> `environment=production`
+    - 使用生产真实引导账号执行：
+      - `XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz npm run verify:single-port`
+      - 全部通过
+  - 运维记录：
+    - `ops/generation-count-release-2026-06-10.md`
+
+- `2026-06-10` 生成节点多产物与终止交互补强。
+  - 本轮处理用户反馈：
+    - 一次生成多张图片、多个视频或多段音频时，产物应放在同一个输出节点中。
+    - 输出节点需随节点拖拽和比例变化自适应排布，但保持素材画面完整，不允许拉伸变形或裁切素材内容。
+    - 多数量生成应拆成并发异步子任务，完成一个回写一个，全部返回或 settled 后结束节点任务。
+    - 生成类节点需要终止当前任务按钮，入口放在节点头部，避免和底部运行区混杂。
+    - 灰度与正式入口的数据关系需要解释清楚。
+  - 本机实现：
+    - `Canvas.tsx` 自动输出改为按生成节点创建单个 `groupOutputMode: 'collection'` 输出集合节点。
+    - `OutputNode.tsx` 为图片/视频集合增加自适应 contain 网格，避免固定比例拉伸。
+    - `ImageNode`、`VideoNode`、`SeedanceNode`、`AudioNode` 多数量生成改为并发拆单提交，子任务完成后即时 append 到当前节点数据。
+    - 视频、Seedance、音频的轮询定时器改为多 timer 管理，避免并发子任务互相清掉轮询。
+    - 生成节点头部增加紧凑终止按钮；底部运行区保留状态条，不再重复出现大号停止按钮。
+    - 新增 `/api/proxy/generation/cancel` 与前端 `cancelGenerationTask()`，当前语义为停止本地轮询和运行态；上游取消能力待按服务商协议逐个补齐。
+    - 清理新加的前端解释型文案，避免把“自动拆单/聚合”等实现说明暴露在节点 UI 中。
+  - 环境结论：
+    - 灰度和生产目前是不同入口/端口/release，但共用同一 PostgreSQL 数据底座。
+    - 因此灰度任务可在生产画布中出现，后台配置也可能共享；若要求完全隔离，需要拆数据库或 schema，并拆 Redis 队列命名空间。
+  - 本机验收入口：
+    - `npm run verify:generation-count-contract`
+    - `npm run build:single-port`
+
+- `2026-06-10` 修复生成节点状态变化后的连线锚点不同步与输出素材集合黑边过大问题。
+  - 问题现象：
+    - 生成类节点进入运行态、完成态或展开运行信息后，节点视觉高度变化，但 React Flow 连接锚点未及时跟随，画布连线出现断开/错位感。
+    - 输出素材集合节点在窄高比例下，多图和多视频格子被强行撑满节点高度，`object-fit: contain` 虽然不裁切素材，但上下黑边过大，呈现为素材显示区域严重畸变。
+  - 修复：
+    - 新增 `useSyncNodeInternalsOnResize`，用 `ResizeObserver + 双 requestAnimationFrame` 在节点 DOM 真实尺寸变化后刷新 React Flow 内部测量。
+    - 已接入：
+      - `OutputNode`
+      - `UploadNode`
+      - `ImageNode`
+      - `VideoNode`
+      - `SeedanceNode`
+      - `AudioNode`
+    - `OutputNode` 多图/多视频网格行高改为基于素材实际宽高比计算，并受节点高度上限约束，不再盲目填满高节点。
+  - 新增验收：
+    - `npm run verify:node-resize-sync-contract`
+    - `npm run verify:output-node-preview-layout`
+  - 本机验证：
+    - `npm run verify:output-node-preview-layout`
+    - `npm run verify:node-resize-sync-contract`
+    - `npm run build:single-port`
+
+- `2026-06-10` 后台 AI 助手入口与面板 UI 混杂清理。
+  - 本轮处理用户反馈：
+    - 后台顶部栏 `AI 助手` 入口不应被通用图标按钮宽高压缩，避免和用户信息、刷新等操作混杂。
+    - 右侧 AI 助手面板头部文案不应与关闭按钮、状态标签互相挤压。
+    - AI 助手设置页不应出现额外撑开的空白纵向滚动，页面高度需要服从后台主内容容器。
+  - 本机修复：
+    - 顶部 `AI 助手` 按钮改为独立的自适应 pill 按钮，保留图标但不再套用固定 34px 图标按钮宽度。
+    - 移除旧的右侧浮动侧栏开关残留样式，统一由顶部栏按钮打开/关闭 AI 助手。
+    - 右侧 AI 助手面板头部改为 `minmax(0, 1fr) + 关闭按钮` 网格，长文本使用安全换行。
+    - AI 助手设置页增加主轴起始对齐和高度约束，避免单页撑出其他页面没有的底部空白滚动。
+  - 本机验收：
+    - `npm run verify:video-upload-connect-admin-assistant-toggle`
+    - `npm run build -w @xinghuan/admin`
+    - `npm run build:single-port`
+    - `npm run verify:static-html-cache-contract`
+    - `npm run verify:admin-provider-rail-layout`
+
+- `2026-06-10` 后台 AI 助手输出结构、通用 API 错误原因解析与灰度/正式发布。
+  - 本轮处理用户反馈：
+    - 后台 AI 助手页面仍存在底部空白滚动与上方信息拥挤。
+    - API 配置协助结果需要更清晰，不能只输出大段混杂文本。
+    - ToAPIs/APIMart 视频生成失败时，节点不应误显示“完成但没有正确返回”，需要把上游失败原因清楚写出来。
+    - 错误分析与 API 接入能力应尽量通用，后续新增 API 平台也能复用。
+  - 本机修复：
+    - `admin-assistant-panel` 去掉大块状态卡，改为紧凑状态 chips。
+    - AI 助手上下文选择器改为默认折叠，减少页面较多时的顶部拥挤。
+    - AI 助手设置页使用内部滚动和高度约束，避免后台主页面出现额外底部滚动。
+    - API 配置协助结果改为结构化展示：摘要、Provider 草案、模型草案、异步任务配置、风险、检查清单，原始输出折叠保留。
+    - APIMart/ToAPIs 适配器新增通用失败原因提取，保留 raw response 兜底，后续新服务商可按同一方式接入。
+    - Worker 和 API 代理链路统一透传 `failureReason`，前端视频节点优先展示聚合后的真实失败原因。
+    - 多子任务部分失败时保留已成功产物，并在失败区域写出失败子任务原因。
+  - 本机验收：
+    - `npm run build:single-port`
+    - `npm run verify:apimart-video-adapter-contract`
+    - `npm run verify:video-upload-connect-admin-assistant-toggle`
+    - `npm run verify:admin-provider-rail-layout`
+  - 发布：
+    - Release: `20260610-ai-assistant-error-ux-r1-f295040`
+    - 灰度 current:
+      - `/opt/apps/xinghuan-canvas-next/releases/20260610-ai-assistant-error-ux-r1-f295040`
+    - 生产 current:
+      - `/opt/apps/xinghuan-canvas/releases/20260610-ai-assistant-error-ux-r1-f295040`
+  - 灰度验收：
+    - `https://canvas-next.hhh2121.xyz/` -> `200`
+    - `https://canvas-next.hhh2121.xyz/admin` -> `200`
+    - `cache-control: no-store`
+    - `https://canvas-next.hhh2121.xyz/api/status` -> `environment=gray`
+    - `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`
+    - 后台资源：`/admin/assets/index-Bhvvj8cF.js`、`/admin/assets/index-BjjiwG4_.css`
+    - 前台资源：`/assets/index-DNFNUrQ5.js`
+  - 生产验收：
+    - `https://canvas.hhh2121.xyz/` -> `200`
+    - `https://canvas.hhh2121.xyz/admin` -> `200`
+    - `cache-control: no-store`
+    - `https://canvas.hhh2121.xyz/api/status` -> `environment=production`
+    - `xinghuan-canvas.service` 与 `xinghuan-canvas-worker.service` 均为 `active`
+    - 后台资源：`/admin/assets/index-Bhvvj8cF.js`、`/admin/assets/index-BjjiwG4_.css`
+    - 前台资源：`/assets/index-DNFNUrQ5.js`
+  - 后续接入规则：
+    - 新增 API Provider 时，优先实现通用 response parser，提取 `message`、`error`、`reason`、`fail_reason`、`data.fail_reason`、`data.status_msg` 等候选字段。
+    - 前端节点只展示管理员可行动的失败原因，不展示密钥、完整请求头或无意义 raw JSON。
+    - AI 助手配置建议继续输出结构化草案，避免把分析过程直接变成后台可见的大段说明文。
+
+- `2026-06-10` 前台生成库与后台 AI 助手滚动/折叠修复。
+  - 本轮处理用户反馈：
+    - 前台需要仿照资源库新增 `生成库`，放在资源库旁边。
+    - 生成库自动收藏所有生成出来的图片、视频、音频。
+    - 生成库素材最多保留 3 天，超过 3 天自动清理。
+    - 后台 AI 助手页面右侧出现页面级滚轴和底部空白，需要收敛滚动容器。
+    - AI 助手折叠后的上下文区域看起来无法打开，需要明确交互入口。
+  - 本机实现：
+    - 新增 `GenerationLibraryDrawer`，入口位于前台顶栏 `资源库` 按钮旁边。
+    - 新增 `/api/generation-library/items` 列表/新增接口和 `/api/generation-library/items/:id` 删除接口。
+    - 生成库使用独立 `generation-library.json` 台账，不混入长期资源库分类。
+    - 生成库只登记图片、视频、音频三类，默认 `expiresAt = createdAt + 3 天`。
+    - 重复 URL 只去重置顶，不刷新原始过期时间，保证“最多 3 天”是真上限。
+    - 过期或手动删除时，只对明确的 `/files/output/<filename>` 单文件路径执行删除，不做批量删除。
+    - 画布层自动扫描生成/处理节点产出的 `/files/output/*` 图片、视频、音频 URL，并静默登记到生成库。
+    - 后台 `assistant` 页加入固定面板布局，`body/admin-workspace` 不再承载页面级滚动。
+    - `assistant-settings-page` 改为固定内容槽内部滚动，消除最右侧页面级滚轴和底部空白。
+    - AI 助手上下文折叠入口改为整行可点击区域，并用 `展开/收起` 文案明确状态。
+  - 新增验收：
+    - `npm run verify:generation-library-admin-assistant-layout`
+  - 本机验证：
+    - `npm run verify:generation-library-admin-assistant-layout`
+    - `npm run verify:video-upload-connect-admin-assistant-toggle`
+    - `npm run verify:admin-provider-rail-layout`
+    - `npm run build:single-port`
+  - 发布与复验：
+    - 新 release：`20260610-generation-library-admin-scroll-r2`
+    - 灰度 current：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260610-generation-library-admin-scroll-r2`
+    - 生产 current：
+      - `/opt/apps/xinghuan-canvas/releases/20260610-generation-library-admin-scroll-r2`
+    - 灰度与生产 `GET /`、`GET /admin` 均返回 `200`
+    - 灰度 `GET /api/status` 返回 `environment=gray`
+    - 生产 `GET /api/status` 返回 `environment=production`
+    - `xinghuan-canvas-next.service`、`xinghuan-canvas-next-worker.service`、`xinghuan-canvas.service`、`xinghuan-canvas-worker.service` 均为 `active`
+  - AI 助手链路诊断：
+    - 2026-06-10 再次核对灰度 AI 助手时，Hermes 网关与画布 API 进程均正常，不存在 Hermes 服务整体断链。
+    - 服务器直连验证通过：`/api/auth/login`、`/api/session/new`、`/api/chat/start`、`/api/chat/stream` 均能成功返回。
+    - 服务器直连验证通过：`POST http://127.0.0.1:18200/api/admin/assistant/chat/stream` 返回 `mode=hermes` 且消息内容正常。
+    - 因此“AI 助手没响应”不属于 Hermes 后端失联，更像是浏览器当前页状态、旧标签页脚本或前端显示态异常。
+
+- `2026-06-10` 完成 ToAPIs + Agnes 通用异步视频链路验收，并补齐 Agnes 二段结果查询。
+  - 本机代码修改：
+    - `packages/model-core` 新增异步视频高级配置字段：
+      - `finalResultTaskIdPath`
+      - `finalResultPathTemplate`
+      - `finalResultVideoPath`
+    - `apps/api/src/external-proxy.ts` 与 `apps/worker/src/worker.ts` 支持：
+      - 先轮询任务状态
+      - 若状态响应只返回中间资源 ID，则按 `finalResult*` 再查最终结果
+    - `openAiEndpoint`/worker endpoint helper 支持 `../` 相对路径，允许从 `/v1/...` 跳转到站点根路径
+    - Agnes fallback 助手草案改为直接输出：
+      - `/v1/videos`
+      - `/v1/videos/{task_id}`
+      - `/agnesapi?video_id={video_id}`
+    - `verify:external-video-proxy` 新增 Agnes mock 验收
+  - 本机验证：
+    - `npm run verify:apimart-video-adapter-contract`
+    - `npm run build:single-port`
+    - `npm run verify:admin-api-layout-contract`
+    - `npm run verify:external-video-proxy`
+    - `npm run verify:worker-adapter-contract`
+  - 发布：
+    - Release: `20260610-video-doc-chain-prod-r4`
+    - 生产 current：
+      - `/opt/apps/xinghuan-canvas/releases/20260610-video-doc-chain-prod-r4`
+  - 生产配置修正：
+    - `custom-api-1781079959833-video-agnes-video-v2-0` 增加：
+      - `finalResultTaskIdPath = video_id`
+      - `finalResultPathTemplate = ../agnesapi?video_id={task_id}`
+      - `finalResultVideoPath = remixed_from_video_id`
+  - 生产真实验收：
+    - ToAPIs：
+      - 提交成功，任务 `tsk_vid_01KTRZ83XSNVYKVD0YDQ5DZZE2`
+      - 最终状态 `completed`
+      - 返回真实 mp4 URL
+    - Agnes：
+      - 提交成功，任务 `task_hxcT15x0xgnYSzyQkknoa4RZf360amkr`
+      - 第一段状态 `in_progress`
+      - 第二段 `video_id` 查询状态 `completed`
+      - 返回真实 mp4 URL
+
+- `2026-06-10` 扩展后台 AI 助手异步视频模板，并同步 Hermes 协同规范。
+  - 代码层：
+    - `AssistantAnalysisResult` 新增：
+      - `chainTemplate`
+      - `chainTemplateVersion`
+    - Hermes provider 分析提示词现在要求显式判断模板类型
+    - fallback 分析会为 ToAPIs / Agnes / GRSAI 写入明确模板名
+    - 后台 API 草案面板新增模板展示和第二段最终查询字段展示
+  - 文档层：
+    - 新增项目规范：
+      - `docs/prd/v0.1.0/provider-async-video-template-spec.md`
+    - 扩展总框架文档：
+      - `docs/prd/v0.1.0/provider-model-framework.md`
+    - 新增 Hermes 协同规范：
+      - `D:\codex\服务器\Hermes\docs\specs\2026-06-10-provider-async-video-template-spec.md`
+    - 决策补充：
+      - `docs/prd/v0.1.0/decisions.md` 增加 D-011
+  - 本机验证：
+    - `npm run build:single-port`
+    - `npm run verify:admin-api-layout-contract`
+    - `npm run verify:apimart-video-adapter-contract`
+  - 运行态补充修复：
+    - 发现后台 AI 助手在未显式传入 `capability` 时，会把 `agnes-video-v2.0` 与 `grok-video-1.5-preview` 误判为图像能力，导致 `chainTemplate` 与二段查询字段为空
+    - 已改为基于 `modelId`、Provider 信号和文档线索补充视频能力识别，并引入 `classifyUpstreamModel(modelId)` 兜底
+    - 新增校验脚本：
+      - `npm run verify:assistant-provider-template-contract`
+  - 本机运行态验收：
+    - 重启本地 `127.0.0.1:18200` 单端口服务后复测通过
+    - Agnes：
+      - `chainTemplate = async_task_poll_then_final_lookup`
+      - `finalResultTaskIdPath = video_id`
+      - `finalResultPathTemplate = ../agnesapi?video_id={task_id}`
+      - `finalResultVideoPath = remixed_from_video_id`
+    - ToAPIs：
+      - `chainTemplate = async_task_poll_result`
+      - `pollPathTemplate = videos/generations/{task_id}`
+      - `taskIdPath = id`
+      - `taskStatusPath = status`
+      - `resultVideoPath = result.data.0.url`
+  - 云端部署：
+    - 灰度 release：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260610-provider-template-gray-r6`
+      - `current` 已切到该 release
+      - `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`
+      - `https://canvas-next.hhh2121.xyz/api/status` 返回 `environment=gray`
+      - `https://canvas-next.hhh2121.xyz/admin` 返回 `200`
+    - 正式 release：
+      - `/opt/apps/xinghuan-canvas/releases/20260610-provider-template-prod-r6`
+      - `current` 已切到该 release
+      - `xinghuan-canvas.service` 与 `xinghuan-canvas-worker.service` 均为 `active`
+      - `https://canvas.hhh2121.xyz/api/status` 返回 `environment=production`
+      - `https://canvas.hhh2121.xyz/admin` 返回 `200`
+    - 服务器 bundle 在位核验：
+      - `async_task_poll_then_final_lookup`
+      - `classifyUpstreamModel(modelId)`
+      - `../agnesapi?video_id={task_id}`
+
+- `2026-06-11` 完成后台 AI 助手模板字段验收补丁、灰度与正式 r7 发布，并进行前后端完整性排查。
+  - 验收发现：
+    - 生产 `/api/admin/assistant/analyze-provider` 在 `mode=hermes` 时，Hermes 返回空字符串会覆盖 fallback 的 `chainTemplate`
+    - Agnes 二段查询字段正常，但 `chainTemplate` / `chainTemplateVersion` 为空
+  - 修复：
+    - `apps/api/src/server.ts` 将 Hermes 空字符串视作未提供，回退到 fallback 模板字段
+    - `scripts/verify-assistant-provider-template-contract.mjs` 增加该合并规则检查
+  - 本地验证：
+    - `npm run build:single-port`
+    - `npm run verify:assistant-provider-template-contract`
+    - `npm run verify:admin-api-layout-contract`
+    - `npm run verify:apimart-video-adapter-contract`
+    - `npm run verify:external-video-proxy`
+    - `npm run verify:static-html-cache-contract`
+    - `npm run verify:generation-count-contract`
+    - `npm run verify:generation-node-copy-cleanup`
+    - `npm run verify:generation-library-admin-assistant-layout`
+    - `npm run verify:video-upload-connect-admin-assistant-toggle`
+    - `npm run verify:node-resize-sync-contract`
+    - `npm run verify:output-node-preview-layout`
+    - `npm run verify:task-lifecycle-contract`
+    - `npm run verify:output-material-prune`
+    - `npm run verify:worker-output-materializer`
+    - `npm audit --omit=dev`
+  - 灰度发布：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260611-provider-template-gray-r7`
+    - `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`
+    - 公网 `/api/status` 返回 `environment=gray`
+    - 公网 `/admin` 返回 `200`
+    - 登录态后台分析接口验收：
+      - Agnes：`chainTemplate=async_task_poll_then_final_lookup`
+      - ToAPIs：`chainTemplate=async_task_poll_result`
+  - 正式发布：
+    - `/opt/apps/xinghuan-canvas/releases/20260611-provider-template-prod-r7`
+    - `xinghuan-canvas.service` 与 `xinghuan-canvas-worker.service` 均为 `active`
+    - 公网 `/api/status` 返回 `environment=production`
+    - 公网 `/admin` 返回 `200`
+    - 登录态后台分析接口验收：
+      - Agnes：`chainTemplate=async_task_poll_then_final_lookup`
+      - ToAPIs：`chainTemplate=async_task_poll_result`
+    - 后台助手聊天接口验收：
+      - `mode=hermes`
+      - 返回非空消息
+  - 排查结论：
+    - 灰度和正式当前仍共用同一 PostgreSQL 与 Redis 实例；队列名已隔离，数据库数据仍会跨环境可见
+    - 生成库 API 逻辑 TTL 为 3 天，但输出素材清理脚本和环境模板仍默认 14 天，物理文件删除周期尚未与生成库需求统一
+    - 后台助手设置页存在嵌套滚动结构：页面自身 `overflow:auto`，外层后台主区域也负责滚动
+    - 后台任务页仍存在“创建测试任务”可见文案
+    - 本地 `apps/api/data/auth/auth.json` 与 `apps/api/data/admin/admin.json` 是 Git 已跟踪运行态数据，当前含会话和加密凭据样本；发布包已排除 `apps/api/data`，但提交时需要单独治理
+
+- `2026-06-11` 完成审计问题修复、灰度验收、正式 r8 发布与运行态数据治理。
+  - 修复内容：
+    - 灰度 PostgreSQL 拆分为独立 `xinghuan_canvas_gray`，避免灰度任务/画布数据进入正式视图。
+    - 灰度与正式 `XINGHUAN_OUTPUT_MATERIAL_RETENTION_DAYS` 统一为 `3`。
+    - 输出素材清理脚本默认保留期从 14 天改为 3 天。
+    - 后台 AI 助手设置页取消内外双滚动，改为外层主区域统一滚动。
+    - 后台任务页“创建测试任务”改为“创建任务”。
+    - `.gitignore` 改为忽略整个 `apps/api/data/`，并从 Git 索引取消跟踪运行态数据文件；磁盘文件保留。
+  - 灰度发布：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260611-fix-audit-issues-gray-r8`
+    - `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service` 均为 `active`
+    - `https://canvas-next.hhh2121.xyz/api/status` 返回 `environment=gray`
+    - `https://canvas-next.hhh2121.xyz/admin` 返回 `200`
+  - 正式发布：
+    - `/opt/apps/xinghuan-canvas/releases/20260611-fix-audit-issues-prod-r8`
+    - `xinghuan-canvas.service` 与 `xinghuan-canvas-worker.service` 均为 `active`
+    - `https://canvas.hhh2121.xyz/api/status` 返回 `environment=production`
+    - `https://canvas.hhh2121.xyz/admin` 返回 `200`
+  - 验收：
+    - 环境隔离：`db_same=no`，灰度/正式数据库 URL 哈希不同
+    - 保留期：灰度/正式均为 `3`
+    - 正式 bundle 中“创建测试任务”计数为 `0`，“创建任务”计数为 `1`
+    - 正式后台 AI 助手 Provider 分析：
+      - Agnes：`mode=hermes`，`chainTemplate=async_task_poll_then_final_lookup`，`hasFinalLookup=true`
+      - ToAPIs：`mode=hermes`，`chainTemplate=async_task_poll_result`
+    - 本地验证通过：
+      - `npm run build:single-port`
+      - `npm run verify:generation-library-admin-assistant-layout`
+      - `npm run verify:admin-task-panel-contract`
+      - `npm run verify:output-material-prune`
+      - `npm run verify:assistant-provider-template-contract`
+      - `npm run verify:node-resize-sync-contract`
+      - `npm run verify:video-upload-connect-admin-assistant-toggle`
+      - `npm run verify:external-video-proxy`

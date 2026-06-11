@@ -9,7 +9,7 @@ import StellarCursorAura from './components/StellarCursorAura';
 import ErrorBoundary from './components/ErrorBoundary';
 import * as api from './services/api';
 import type { NodeType } from './types/canvas';
-import type { AuthUser, ResourceItem } from './services/api';
+import type { AuthUser, GenerationLibraryItem, ResourceItem } from './services/api';
 import { applyThemeTemplate } from './theme/applyTheme';
 import { resolveThemeTemplate } from './theme/defaultTemplates';
 import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } from './utils/materialSet';
@@ -29,6 +29,7 @@ import {
 const Sidebar = lazy(() => import('./components/Sidebar'));
 const Canvas = lazy(() => import('./components/Canvas'));
 const ResourceLibraryDrawer = lazy(() => import('./components/ResourceLibraryDrawer'));
+const GenerationLibraryDrawer = lazy(() => import('./components/GenerationLibraryDrawer'));
 const MaterialContextMenu = lazy(() => import('./components/MaterialContextMenu'));
 const ThemeTemplateManager = lazy(() => import('./components/ThemeTemplateManager'));
 const RHToolsProvider = lazy(() =>
@@ -191,13 +192,14 @@ function App() {
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [resourceOpen, setResourceOpen] = useState(false);
+  const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
   const addNodeRef = useRef<AddNodeFn | null>(null);
   const insertWorkflowRef = useRef<InsertWorkflowFn | null>(null);
 
   useEffect(() => {
-    if (!resourceOpen) return;
+    if (!resourceOpen && !generationLibraryOpen) return;
 
     const onDocPointerDown = (e: PointerEvent) => {
       const target = e.target;
@@ -205,6 +207,7 @@ function App() {
       if (
         target.closest('.t8-topbar') ||
         target.closest('.resource-library-drawer') ||
+        target.closest('.generation-library-drawer') ||
         target.closest('[data-canvas-floating-ui]') ||
         target.closest('.react-flow__node') ||
         target.closest('.react-flow__edge') ||
@@ -216,13 +219,14 @@ function App() {
       }
 
       setResourceOpen(false);
+      setGenerationLibraryOpen(false);
     };
 
     document.addEventListener('pointerdown', onDocPointerDown, true);
     return () => {
       document.removeEventListener('pointerdown', onDocPointerDown, true);
     };
-  }, [resourceOpen]);
+  }, [generationLibraryOpen, resourceOpen]);
 
   // 将主题状态注入 <html> 供 CSS 选择器使用
   useEffect(() => {
@@ -378,6 +382,26 @@ function App() {
       data.videoUrl = item.fileUrl;
     } else if (item.kind === 'audio') {
       data.audioUrl = item.fileUrl;
+    }
+    addNodeRef.current?.('upload', { data });
+  };
+
+  const handleInsertGeneration = async (item: GenerationLibraryItem) => {
+    const data: Record<string, any> = {
+      uploadType: item.kind,
+      fileName: item.title || '生成素材',
+      fileSize: item.size || 0,
+      mime: item.mime || '',
+    };
+    if (item.kind === 'image') {
+      data.imageUrl = item.fileUrl;
+      data.imageUrls = [item.fileUrl];
+    } else if (item.kind === 'video') {
+      data.videoUrl = item.fileUrl;
+      data.videoUrls = [item.fileUrl];
+    } else if (item.kind === 'audio') {
+      data.audioUrl = item.fileUrl;
+      data.audioUrls = [item.fileUrl];
     }
     addNodeRef.current?.('upload', { data });
   };
@@ -664,7 +688,10 @@ function App() {
             <span className="text-[11px] truncate">{currentTemplate.name}</span>
           </button>
           <button
-            onClick={() => setResourceOpen(true)}
+            onClick={() => {
+              setGenerationLibraryOpen(false);
+              setResourceOpen(true);
+            }}
             className={
               isPixel
                 ? 'px-btn px-btn--sm px-btn--mint'
@@ -678,6 +705,25 @@ function App() {
           >
             <Library size={14} />
             <span className="text-[11px]">资源库</span>
+          </button>
+          <button
+            onClick={() => {
+              setResourceOpen(false);
+              setGenerationLibraryOpen(true);
+            }}
+            className={
+              isPixel
+                ? 'px-btn px-btn--sm px-btn--yellow'
+                : `flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
+                    isDark
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                      : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                  }`
+            }
+            title="生成库"
+          >
+            <Sparkles size={14} />
+            <span className="text-[11px]">生成库</span>
           </button>
           <button
             onClick={toggleTheme}
@@ -706,6 +752,11 @@ function App() {
         open={resourceOpen}
         onClose={() => setResourceOpen(false)}
         onInsertMaterial={handleInsertResource}
+      />
+      <GenerationLibraryDrawer
+        open={generationLibraryOpen}
+        onClose={() => setGenerationLibraryOpen(false)}
+        onInsertMaterial={handleInsertGeneration}
       />
       <MaterialContextMenu />
     </div>

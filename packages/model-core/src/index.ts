@@ -14,12 +14,16 @@ export interface ModelInputCapabilities {
 
 export interface ModelAdvancedConfig {
   mode?: string;
+  submitPath?: string;
   requestMapping?: Record<string, string>;
   fixedBody?: Record<string, unknown>;
   taskStatusPath?: string;
   taskIdPath?: string;
   resultVideoPath?: string;
   pollPathTemplate?: string;
+  finalResultTaskIdPath?: string;
+  finalResultPathTemplate?: string;
+  finalResultVideoPath?: string;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   [key: string]: unknown;

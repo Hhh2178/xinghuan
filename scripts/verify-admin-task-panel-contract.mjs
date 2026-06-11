@@ -32,7 +32,7 @@ const checks = [
   {
     name: "task panel preserves create task form",
     pass:
-      panelSource.includes('title="创建测试任务"') &&
+      panelSource.includes('title="创建任务"') &&
       panelSource.includes("任务标题") &&
       panelSource.includes('mutate("/api/admin/tasks", { title, status: "queued" })') &&
       panelSource.includes("创建任务"),

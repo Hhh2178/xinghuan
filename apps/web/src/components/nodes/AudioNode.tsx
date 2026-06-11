@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Loader2, Music, Sparkles, Square, Upload, X } from 'lucide-react';
-import { submitAudio, queryAudio, uploadAudioForSuno, type AudioMode } from '../../services/generation';
+import { submitAudio, queryAudio, uploadAudioForSuno, cancelGenerationTask, type AudioMode } from '../../services/generation';
 import { SUNO_VERSIONS, DEFAULT_SUNO_VERSION } from '../../providers/models';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
@@ -14,6 +14,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
@@ -40,13 +41,20 @@ const MODES: Array<{ id: AudioMode; label: string }> = [
 const SUNO_POLL_INTERVAL_MS = 3000;
 const SUNO_POLL_TIMEOUT_SECONDS = 3600;
 const SUNO_MAX_POLL = Math.ceil((SUNO_POLL_TIMEOUT_SECONDS * 1000) / SUNO_POLL_INTERVAL_MS);
+const clampGenerationCount = (value: unknown, fallback = 1) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(4, Math.max(1, Math.trunc(num)));
+};
 
 const AudioNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef } = useSyncNodeInternalsOnResize(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const pollTimer = useRef<number | null>(null);
+  const pollTimers = useRef<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const src = `audio:${id.slice(0, 6)}`;
 
@@ -58,6 +66,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const d = data as any;
   const mode: AudioMode = d?.mode || 'generate';
   const version: string = d?.version || DEFAULT_SUNO_VERSION;
+  const generationCount = clampGenerationCount(d?.generationCount ?? 1);
   const title: string = d?.title || '';
   const tags: string = d?.tags || '';
   const localPrompt: string = d?.prompt || '';
@@ -70,6 +79,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
 
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
+  const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
   const tracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }>
     = d?.tracks || [];
   const pollProgress: string = d?.progress || '';
@@ -82,6 +92,8 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       window.clearInterval(pollTimer.current);
       pollTimer.current = null;
     }
+    pollTimers.current.forEach((timer) => window.clearInterval(timer));
+    pollTimers.current.clear();
   };
   useEffect(() => () => stopPoll(), []);
 
@@ -227,18 +239,16 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   //   useRunTrigger 认为 runFn 完成 markDone(true)。 但实际任务 audioUrl 还未赋值 → LoopNode awaitNode
   //   立即继续 → extractFromNode 读不到 audioUrl → result=null → failCount++。
   //   修复后: 轮询完成才 resolve，handleGenerate await 它，什么时候 markDone 什么时候任务真正结束。
-  const startPolling = (clipIds: string[], runtimeStartedAt: number | null): Promise<void> => {
-    stopPoll();
-    return new Promise<void>((resolve, reject) => {
+  const startPolling = (clipIds: string[]): Promise<{ tracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }> }> => {
+    return new Promise<{ tracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }> }>((resolve, reject) => {
       let elapsed = 0;
       const POLL_INT = SUNO_POLL_INTERVAL_MS;
       const MAX = SUNO_MAX_POLL;
-      pollTimer.current = window.setInterval(async () => {
+      const timer = window.setInterval(async () => {
         elapsed += 1;
         if (elapsed > MAX) {
-          stopPoll();
-          markRuntimeFailed(runtimeStartedAt, '轮询超时 (60min)');
-          setError('轮询超时 (60min)');
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
           logBus.error('轮询超时', src);
           reject(new Error('轮询超时 (60min)'));
           return;
@@ -246,18 +256,10 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         try {
           const r = await queryAudio(clipIds, true);
           if (r.status === 'SUCCESS' && r.tracks.length > 0) {
-            stopPoll();
-            // 双输出口: audioUrl=轨1, audioUrl_1=轨2
-            markRuntimeFinished(runtimeStartedAt, {
-              status: 'success',
-              tracks: r.tracks,
-              audioUrl: r.tracks[0]?.audioUrl || '',
-              audioUrl_1: r.tracks[1]?.audioUrl || '',
-              progress: `${r.completed}/${r.total}`,
-            });
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
             logBus.success(`完成 ${r.tracks.length} 轨: ${r.tracks.map((t) => t.audioUrl).join(' | ')}`, src);
-            taskCompletionSound.notifyComplete(id, 'audio');
-            resolve();
+            resolve({ tracks: r.tracks });
           } else {
             update({ status: 'polling', progress: `${r.completed}/${r.total} · #${elapsed}` });
             if (elapsed % 3 === 0) logBus.info(`轮询 #${elapsed} · ${r.completed}/${r.total}`, src);
@@ -266,6 +268,8 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           logBus.warn(`轮询出错: ${e?.message}`, src);
         }
       }, POLL_INT);
+      pollTimer.current = timer;
+      pollTimers.current.add(timer);
     });
   };
 
@@ -280,7 +284,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     }
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
-    update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined });
+    update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined, audioUrl_1: '', audioUrls: [], clipIds: [], taskId: null, progress: generationCount > 1 ? `1/${generationCount}` : '0/?' });
     try {
       // cover/extend: 如预传 clipId 为空但上游有 audioUrl, 则自动上传
       let clipIdForRef = uploadedClipId;
@@ -292,23 +296,87 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         throw new Error(`${mode === 'cover' ? '翻唱' : '续写'}模式需先上传参考音频 (或连接上游音频节点)`);
       }
 
-      logBus.info(`提交 Suno ${version} (${mode})...`, src);
-      const r = await submitAudio({
-        mode,
-        prompt: finalPrompt,
-        title: title || '',
-        tags: tags || '',
-        version,
-        seed: seed > 0 ? seed : undefined,
-        cover_clip_id: mode === 'cover' ? clipIdForRef : undefined,
-        continue_clip_id: mode === 'extend' ? clipIdForRef : undefined,
-        continue_at: mode === 'extend' ? continueAt : undefined,
+      const runSingleAudioGeneration = async (batchIndex: number) => {
+        const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
+        logBus.info(`${batchLabel} 提交 Suno ${version} (${mode})...`, src);
+        const r = await submitAudio({
+          mode,
+          prompt: finalPrompt,
+          title: title || '',
+          tags: tags || '',
+          version,
+          seed: seed > 0 ? seed : undefined,
+          cover_clip_id: mode === 'cover' ? clipIdForRef : undefined,
+          continue_clip_id: mode === 'extend' ? clipIdForRef : undefined,
+          continue_at: mode === 'extend' ? continueAt : undefined,
+        });
+        logBus.success(`${batchLabel} taskId=${r.taskId} clips=${(r.clipIds || []).join(',') || '?'}`, src);
+        update({ status: 'polling', taskId: r.taskId, clipIds: r.clipIds, lastPrompt: finalPrompt, progress: generationCount > 1 ? `${batchIndex + 1}/${generationCount}` : '0/?' });
+        const idsToPoll = r.clipIds && r.clipIds.length > 0 ? r.clipIds : [r.taskId];
+        const polled = await startPolling(idsToPoll);
+        return { tracks: polled.tracks, taskId: r.taskId, clipIds: r.clipIds || idsToPoll };
+      };
+
+      const aggregatedTracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }> = [];
+      const aggregatedAudioUrls: string[] = [];
+      const aggregatedClipIds: string[] = [];
+      const taskIds: string[] = [];
+      let lastTaskId: string | null = null;
+
+      const appendAudioGenerationResult = (result: Awaited<ReturnType<typeof runSingleAudioGeneration>>) => {
+        for (const clipId of result.clipIds) {
+          if (clipId && !aggregatedClipIds.includes(clipId)) aggregatedClipIds.push(clipId);
+        }
+        for (const track of result.tracks) {
+          if (!track?.audioUrl || aggregatedAudioUrls.includes(track.audioUrl)) continue;
+          aggregatedTracks.push(track);
+          aggregatedAudioUrls.push(track.audioUrl);
+        }
+        lastTaskId = result.taskId;
+        if (result.taskId && !taskIds.includes(result.taskId)) taskIds.push(result.taskId);
+        update({
+          status: 'polling',
+          tracks: [...aggregatedTracks],
+          audioUrl: aggregatedAudioUrls[0] || '',
+          audioUrl_1: aggregatedAudioUrls[1] || '',
+          audioUrls: [...aggregatedAudioUrls],
+          clipIds: [...aggregatedClipIds],
+          taskId: lastTaskId,
+          taskIds: [...taskIds],
+          progress: generationCount > 1 ? `${aggregatedAudioUrls.length}/${generationCount}` : '95%',
+        });
+      };
+
+      const runConcurrentAudioGenerations = async () => {
+        const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
+          runSingleAudioGeneration(batchIndex).then((result) => {
+            appendAudioGenerationResult(result);
+            return result;
+          })
+        );
+        return Promise.allSettled(jobs);
+      };
+
+      const settled = await runConcurrentAudioGenerations();
+      const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+
+      if (aggregatedTracks.length === 0) throw new Error('音频生成完成但未返回音频');
+      markRuntimeFinished(runtimeStartedAt, {
+        status: 'success',
+        tracks: aggregatedTracks,
+        audioUrl: aggregatedAudioUrls[0] || '',
+        audioUrl_1: aggregatedAudioUrls[1] || '',
+        audioUrls: aggregatedAudioUrls,
+        clipIds: aggregatedClipIds,
+        taskId: lastTaskId,
+        taskIds,
+        lastPrompt: finalPrompt,
+        progress: '100%',
       });
-      logBus.success(`taskId=${r.taskId} clips=${(r.clipIds || []).join(',') || '?'}`, src);
-      update({ status: 'polling', taskId: r.taskId, clipIds: r.clipIds, lastPrompt: finalPrompt, progress: '0/?' });
-      const idsToPoll = r.clipIds && r.clipIds.length > 0 ? r.clipIds : [r.taskId];
-      // v1.2.9.11: await 轮询 —— 让 useRunTrigger 等到任务真正完成才 markDone，LoopNode awaitNode 才能拿到 audioUrl
-      await startPolling(idsToPoll, runtimeStartedAt);
+      if (rejected.length > 0) {
+        logBus.warn(`部分音频生成失败: ${rejected.map((item) => item.reason?.message || '未知错误').join('；')}`, src);
+      }
+      taskCompletionSound.notifyComplete(id, 'audio');
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
@@ -319,6 +387,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
+    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'audio', model: version })))
+      .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
   };
 
@@ -358,6 +429,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
 
   return (
     <div
+      ref={rootRef}
       {...dropProps}
       className={`relative rounded-xl border-2 transition-all w-[320px] ${
         selected ? 'border-violet-400 shadow-2xl shadow-violet-500/20' : isAccepting ? 'border-emerald-400' : 'border-white/15 hover:border-white/30'
@@ -389,6 +461,17 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             {version} · {MODES.find((m) => m.id === mode)?.label}
           </div>
         </div>
+        {isBusy && (
+          <button
+            type="button"
+            onClick={handleStop}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-lg border border-red-300/30 bg-red-500/15 text-red-200 transition hover:bg-red-500/25"
+            title="终止当前生成任务"
+          >
+            <Square size={12} />
+          </button>
+        )}
       </div>
 
       <NodeRuntimeCard
@@ -418,19 +501,34 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-white/50 block mb-1">版本</label>
+            <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
             <select
-              value={version}
-              onChange={(e) => update({ version: e.target.value })}
+              value={generationCount}
+              onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
               className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             >
-              {SUNO_VERSIONS.map((v) => (
-                <option key={v.value} value={v.value} className="bg-zinc-900">
-                  {v.label}
+              {[1, 2, 3, 4].map((count) => (
+                <option key={count} value={count} className="bg-zinc-900">
+                  {count}
                 </option>
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] text-white/50 block mb-1">版本</label>
+          <select
+            value={version}
+            onChange={(e) => update({ version: e.target.value })}
+            className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+          >
+            {SUNO_VERSIONS.map((v) => (
+              <option key={v.value} value={v.value} className="bg-zinc-900">
+                {v.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -566,12 +664,10 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             <Sparkles size={12} /> 生成音频
           </button>
         ) : (
-          <button
-            onClick={handleStop}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-200 text-xs font-medium transition-colors"
-          >
-            <Square size={11} /> 停止
-          </button>
+          <div className="flex items-center justify-center gap-1.5 rounded border border-violet-300/15 bg-violet-500/10 py-1.5 text-xs font-medium text-violet-100/80">
+            <Loader2 size={11} className="animate-spin" />
+            {pollProgress || (status === 'submitting' ? '提交中' : '排队中')}
+          </div>
         )}
 
         {isBusy && (

@@ -15,7 +15,11 @@ export function providerJsonHeaders(apiKey: string) {
 export function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
   const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
-  return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+  const normalizedPathname = safeText(pathname);
+  if (normalizedPathname.startsWith("../") || normalizedPathname.startsWith("./")) {
+    return new URL(normalizedPathname, `${baseUrl}/`).toString();
+  }
+  return baseUrl.endsWith("/v1") ? `${baseUrl}/${normalizedPathname}` : `${baseUrl}/v1/${normalizedPathname}`;
 }
 
 export function openAiImageGenerationUrl(baseUrlValue: unknown) {

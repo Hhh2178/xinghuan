@@ -782,6 +782,65 @@ export function deleteResourceItem(id: string) {
   });
 }
 
+// ========== 生成库：短期生成素材，默认保留 3 天 ==========
+export type GenerationLibraryKind = 'image' | 'video' | 'audio';
+
+export interface GenerationLibraryItem {
+  id: string;
+  kind: GenerationLibraryKind;
+  title: string;
+  url: string;
+  fileUrl: string;
+  mime?: string;
+  size?: number;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+  sourceNodeId?: string;
+  sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
+  duplicate?: boolean;
+}
+
+export interface AddGenerationLibraryItemPayload {
+  kind: GenerationLibraryKind;
+  url: string;
+  title?: string;
+  mime?: string;
+  size?: number;
+  sourceNodeId?: string;
+  sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
+}
+
+export function getGenerationLibraryItems(params: {
+  kind?: GenerationLibraryKind;
+  q?: string;
+} = {}) {
+  const sp = new URLSearchParams();
+  if (params.kind) sp.set('kind', params.kind);
+  if (params.q) sp.set('q', params.q);
+  const qs = sp.toString();
+  return safeRequest<GenerationLibraryItem[]>(`${BASE}/generation-library/items${qs ? `?${qs}` : ''}`);
+}
+
+export function addGenerationLibraryItem(payload: AddGenerationLibraryItemPayload) {
+  return safeRequest<GenerationLibraryItem>(`${BASE}/generation-library/items`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteGenerationLibraryItem(id: string) {
+  return safeRequest<void>(`${BASE}/generation-library/items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ========== Eagle 本地库 ==========
 export interface EagleImportMaterial {
   id?: string;

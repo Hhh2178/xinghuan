@@ -22,6 +22,7 @@ import {
   queryVideo,
   submitVideoFal,
   queryVideoFal,
+  cancelGenerationTask,
   type VideoSubmitRequest,
   type VideoFalSubmitRequest,
 } from '../../services/generation';
@@ -35,6 +36,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
@@ -85,13 +87,32 @@ const splitGrokFalRefUrls = (raw: string): string[] =>
     .split(/[\n,，]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+const clampGenerationCount = (value: unknown, fallback = 1) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(4, Math.round(parsed)));
+};
+const videoGenerationErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (error && typeof error === 'object') {
+    const row = error as Record<string, unknown>;
+    for (const key of ['message', 'error', 'failureReason', 'reason', 'detail']) {
+      const value = row[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+  }
+  const text = String(error || '').trim();
+  return text || '未知错误';
+};
 
 const VideoNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef } = useSyncNodeInternalsOnResize(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const { getEdges, getNodes } = useReactFlow();
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
+  const pollTimers = useRef<Set<number>>(new Set());
   const src = `video:${id.slice(0, 6)}`;
 
   // 主题适配 (默认科技风深色, 传递给聚合预览区)
@@ -165,6 +186,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const apiModel: string = d?.model && modelDef.apiModelOptions.some((o) => o.value === d.model) ? d.model : modelDef.apiModelOptions[0].value;
   // 各参数(跳过着调用 update 默认值)
   const ratio: string = d?.ratio || backendModel?.ui.defaultAspectRatio || modelDef.defaultRatio;
+  const generationCount = clampGenerationCount(d?.generationCount ?? 1);
   const duration: number | string = d?.duration ?? backendModel?.ui.defaultDuration ?? modelDef.defaultDuration ?? (modelDef.durations?.[0] || 0);
   const resolution: string = d?.resolution || backendModel?.ui.defaultResolution || (isJimengSeedanceSelected ? '720p' : modelDef.defaultResolution || '');
   const seed: number = typeof d?.seed === 'number' ? d.seed : 0;
@@ -239,6 +261,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
+  const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
   const videoUrl: string | undefined = d?.videoUrl;
   const progress: string = d?.progress || '';
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
@@ -420,6 +443,8 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       window.clearInterval(pollTimer.current);
       pollTimer.current = null;
     }
+    pollTimers.current.forEach((timer) => window.clearInterval(timer));
+    pollTimers.current.clear();
   };
 
   useEffect(() => () => stopPoll(), []);
@@ -482,25 +507,17 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     update(patch);
   };
 
-  // v1.2.9.11: 返回 Promise，调用方 await 直到任务真正成功/失败/超时才 resolve/reject。
-  //   原设计中 startPolling 启动 setInterval 后立即返回 → handleGenerate 提交成功后也立即返回 →
-  //   useRunTrigger 认为 runFn 完成 markDone(true)。 但实际任务 videoUrl 还未赋值 → LoopNode awaitNode
-  //   立即继续 → extractFromNode 读不到 videoUrl → result=null → failCount++。
-  //   修复: 轮询完成才 resolve，handleGenerate await 它，markDone 时机=任务真正结束。
-  const startPolling = (tid: string, runtimeStartedAt: number | null): Promise<void> => {
-    stopPoll();
-    return new Promise<void>((resolve, reject) => {
+  const startPolling = (tid: string): Promise<{ videoUrl: string }> => {
+    return new Promise<{ videoUrl: string }>((resolve, reject) => {
       let elapsed = 0;
       const POLL_INT = VIDEO_POLL_INTERVAL_MS;
-      const MAX = VIDEO_MAX_POLL; // 60 分钟
+      const MAX = VIDEO_MAX_POLL;
       let lastProgress = '';
-      pollTimer.current = window.setInterval(async () => {
+      const timer = window.setInterval(async () => {
         elapsed += 1;
         if (elapsed > MAX) {
-          stopPoll();
-          markRuntimeFailed(runtimeStartedAt, '轮询超时');
-          setError('轮询超时');
-          logBus.error('轮询超时', src);
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
           reject(new Error('轮询超时'));
           return;
         }
@@ -511,65 +528,53 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             logBus.debug(`[${elapsed}/${MAX}] status=${r.status} progress=${r.progress}`, src);
           }
           if (r.status === 'SUCCESS' && r.videoUrl) {
-            stopPoll();
-            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
             logBus.success(`任务完成 → ${r.videoUrl}`, src);
-            taskCompletionSound.notifyComplete(id, 'video');
-            resolve();
+            resolve({ videoUrl: r.videoUrl });
           } else if (r.status === 'FAILURE') {
-            stopPoll();
-            const msg = r.failReason || '生成失败';
-            markRuntimeFailed(runtimeStartedAt, msg);
-            setError(msg);
-            logBus.error(`生成失败: ${msg}`, src);
-            reject(new Error(msg));
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error(r.failReason || '生成失败'));
           } else {
             update({ status: 'polling', progress: r.progress || '' });
           }
         } catch (e: any) {
-          // 偶尔失败不停止
           console.warn('轮询出错', e?.message);
         }
       }, POLL_INT);
+      pollTimer.current = timer;
+      pollTimers.current.add(timer);
     });
   };
 
-  // FAL 轮询
   const falPollRef = useRef<{ responseUrl?: string; endpoint?: string; requestId?: string } | null>(null);
 
-  // v1.2.9.11: 同样改造为 Promise（理由同 startPolling）
-  const startFalPolling = (runtimeStartedAt: number | null): Promise<void> => {
-    stopPoll();
-    return new Promise<void>((resolve, reject) => {
+  const startFalPolling = (params = falPollRef.current): Promise<{ videoUrl: string }> => {
+    return new Promise<{ videoUrl: string }>((resolve, reject) => {
       let elapsed = 0;
       const POLL_INT = VIDEO_FAL_POLL_INTERVAL_MS;
-      const MAX = VIDEO_FAL_MAX_POLL; // 60分钟
-      pollTimer.current = window.setInterval(async () => {
+      const MAX = VIDEO_FAL_MAX_POLL;
+      const timer = window.setInterval(async () => {
         elapsed += 1;
         if (elapsed > MAX) {
-          stopPoll();
-          markRuntimeFailed(runtimeStartedAt, 'FAL 轮询超时');
-          setError('FAL 轮询超时');
-          logBus.error('FAL 轮询超时', src);
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
           reject(new Error('FAL 轮询超时'));
           return;
         }
         try {
-          const r = await queryVideoFal(falPollRef.current!);
+          const r = await queryVideoFal(params!);
           if (elapsed % 10 === 0) logBus.debug(`[FAL ${elapsed}/${MAX}] status=${r.status}`, src);
           if (r.status === 'completed' && r.videoUrl) {
-            stopPoll();
-            markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, progress: '100%' });
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
             logBus.success(`FAL 视频完成 → ${r.videoUrl}`, src);
-            taskCompletionSound.notifyComplete(id, 'video');
-            resolve();
+            resolve({ videoUrl: r.videoUrl });
           } else if (r.status === 'failed') {
-            stopPoll();
-            const msg = r.error || 'FAL 生成失败';
-            markRuntimeFailed(runtimeStartedAt, msg);
-            setError(msg);
-            logBus.error(`FAL 生成失败: ${msg}`, src);
-            reject(new Error(msg));
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error(r.error || 'FAL 生成失败'));
           } else {
             update({ status: 'polling', progress: `${Math.min(95, Math.round(20 + elapsed / MAX * 75))}%` });
           }
@@ -577,6 +582,8 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           console.warn('FAL 轮询出错', e?.message);
         }
       }, POLL_INT);
+      pollTimer.current = timer;
+      pollTimers.current.add(timer);
     });
   };
 
@@ -590,10 +597,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       logBus.error('生成中止: 缺少 prompt', src);
       return;
     }
+
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
-    update({ status: 'submitting', error: null, videoUrl: null, taskId: null });
-    try {
+
+    const runSingleVideoGeneration = async (batchIndex: number) => {
+      const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
+
       if (isBackendSelected && backendModel) {
         const { refs, firstFrameUrl, lastFrameUrl } = resolveBackendVideoInputAssignment({
           imageUrls,
@@ -602,7 +612,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           inputCapabilities: backendVideoCaps,
         });
         logBus.info(
-          `后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length} first=${firstFrameUrl ? 1 : 0} last=${lastFrameUrl ? 1 : 0}`,
+          `${batchLabel} 后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length} first=${firstFrameUrl ? 1 : 0} last=${lastFrameUrl ? 1 : 0}`,
           src,
         );
         const r = await generateExternalVideo({
@@ -620,21 +630,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           last_frame: lastFrameUrl,
           providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id },
         });
-        const nextVideoUrl = r.videoUrls[0];
-        if (!nextVideoUrl) throw new Error('后台视频模型没有返回视频。');
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          videoUrl: nextVideoUrl,
-          videoUrls: r.videoUrls,
-          remoteVideoUrls: r.remoteVideoUrls,
-          taskId: r.taskId || null,
-          lastPrompt: finalPrompt,
-          progress: '100%',
-        });
-        logBus.success(`后台视频模型完成 → ${nextVideoUrl}`, src);
-        taskCompletionSound.notifyComplete(id, 'video');
-        return;
+        if (!r.videoUrls[0]) {
+          const upstreamReason = typeof r.raw?.failureReason === 'string' ? r.raw.failureReason.trim() : '';
+          throw new Error(upstreamReason || `后台视频模型没有返回视频：${backendModel.provider.name} / ${backendModel.modelId}`);
+        }
+        return { videoUrls: r.videoUrls, remoteVideoUrls: r.remoteVideoUrls || [], taskId: r.taskId || null };
       }
+
       if (isExternalSelected && providerSelection.provider) {
         const providerModel = externalProviderModel;
         const refs = imageUrls.slice(0, Math.max(1, maxMentionRefs || modelDef.maxRefImages || 8));
@@ -642,8 +644,8 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         const audioRefs = audioUrls.slice(0, maxMentionAudios);
         logBus.info(
           isJimengSeedanceSelected
-            ? `扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · 图${refs.length}/视${videoRefs.length}/音${audioRefs.length}`
-            : `扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · refs=${refs.length}`,
+            ? `${batchLabel} 扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · 图${refs.length}/视${videoRefs.length}/音${audioRefs.length}`
+            : `${batchLabel} 扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · refs=${refs.length}`,
           src,
         );
         const r = await generateExternalVideo({
@@ -661,37 +663,22 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           audios: audioRefs,
           providerParams: d?.providerParams,
         });
-        const nextVideoUrl = r.videoUrls[0];
-        if (!nextVideoUrl) throw new Error('扩展平台没有返回视频。');
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          videoUrl: nextVideoUrl,
-          videoUrls: r.videoUrls,
-          remoteVideoUrls: r.remoteVideoUrls,
-          taskId: r.taskId || null,
-          lastPrompt: finalPrompt,
-          progress: '100%',
-        });
-        logBus.success(`扩展平台视频完成 → ${nextVideoUrl}`, src);
-        taskCompletionSound.notifyComplete(id, 'video');
-        return;
+        if (!r.videoUrls[0]) {
+          const upstreamReason = typeof r.raw?.failureReason === 'string' ? r.raw.failureReason.trim() : '';
+          throw new Error(upstreamReason || `扩展平台没有返回视频：${providerSelection.provider.label || providerSelection.provider.id} / ${providerModel}`);
+        }
+        return { videoUrls: r.videoUrls, remoteVideoUrls: r.remoteVideoUrls || [], taskId: r.taskId || null };
       }
 
-      // === FAL 分支 ===
       if (isFal && falReg) {
         const falMaxRefs =
           falReg.paramKind === 'grok-fal' && (isGrokFalV15 || gkfMode !== 'reference_to_video')
             ? 1
             : falReg.maxRefImages;
         const refs = imageUrls.slice(0, falMaxRefs);
-        let images: string[] | undefined;
-        if (refs.length > 0) {
-          // FAL 参考图直传 URL 或 base64，后端会处理上传
-          images = refs;
-        }
-
+        const images = refs.length > 0 ? refs : undefined;
         const falReq: VideoFalSubmitRequest = { apiModel, prompt: finalPrompt };
-        if (images && images.length) falReq.images = images;
+        if (images?.length) falReq.images = images;
 
         if (falReg.paramKind === 'veo-fal') {
           falReq.aspect_ratio = vfRatio;
@@ -732,38 +719,17 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           falReq.image_mode = falReg.defaultImageMode || 'base64';
         }
 
-        const falInfo =
-          falReg.paramKind === 'veo-fal'
-            ? `ratio=${vfRatio} dur=${vfDuration} res=${vfResolution} audio=${vfAudio}`
-            : falReg.paramKind === 'grok-fal'
-              ? isGrokFalV15
-                ? `model=1.5 mode=image_to_video dur=${gkfDuration}s res=${gkfResolution} image=${falReg.defaultImageMode || 'base64'}`
-                : `mode=${gkfMode} ratio=${gkfMode === 'reference_to_video' && gkfRatio === 'auto' ? '16:9' : gkfRatio} dur=${gkfDuration}s res=${gkfResolution} image=${falReg.defaultImageMode || 'base64'} urls=${splitGrokFalRefUrls(gkfReferenceUrls).length}`
-              : `mode=${soraMode} ratio=${soraRatio} dur=${soraDuration}s res=${soraResolution} image=base64`;
-        logBus.info(
-          `提交 FAL 视频: ${apiModel} ${falInfo} refs=${images?.length || 0} prompt="${finalPrompt.slice(0, 30)}…"`,
-          src,
-        );
-
+        logBus.info(`${batchLabel} 提交 FAL 视频: ${apiModel} refs=${images?.length || 0}`, src);
         const r = await submitVideoFal(falReq);
         if (r.sync && r.videoUrl) {
-          markRuntimeFinished(runtimeStartedAt, { status: 'success', videoUrl: r.videoUrl, lastPrompt: finalPrompt, progress: '100%' });
-          logBus.success(`FAL 同步完成 → ${r.videoUrl}`, src);
-          taskCompletionSound.notifyComplete(id, 'video');
-        } else {
-          falPollRef.current = { responseUrl: r.responseUrl, endpoint: r.endpoint, requestId: r.requestId };
-          update({ status: 'polling', lastPrompt: finalPrompt, progress: '15%' });
-          logBus.info(`FAL 异步任务 requestId=${r.requestId} 进入轮询…`, src);
-          // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone
-          await startFalPolling(runtimeStartedAt);
+          return { videoUrls: [r.videoUrl], remoteVideoUrls: [], taskId: r.requestId || null };
         }
-        return;
+        falPollRef.current = { responseUrl: r.responseUrl, endpoint: r.endpoint, requestId: r.requestId };
+        update({ status: 'polling', lastPrompt: finalPrompt, progress: '15%' });
+        const polled = await startFalPolling();
+        return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.requestId || null };
       }
 
-      // === 原有贞贞工坊分支 ===
-      // 参考图预处理:
-      //   - Grok: 直接传 URL (本地 /files/* 也可,后端会转上游 URL)
-      //   - Veo / Seedance: 转 base64
       const refs = imageUrls.slice(0, modelDef.maxRefImages);
       let images: string[] | undefined;
       if (modelDef.supportImages && refs.length > 0) {
@@ -779,7 +745,6 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         }
       }
 
-      // 按 kind 走不同字段(完全对齐 gpt-image-2-web payload)
       const payload: VideoSubmitRequest = { model: apiModel, prompt: finalPrompt };
       if (modelDef.kind === 'grok') {
         payload.ratio = ratio;
@@ -787,26 +752,77 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         payload.resolution = resolution || modelDef.defaultResolution || '720P';
         if (seed > 0) payload.seed = seed;
       } else {
-        // veo / seedance
         payload.aspect_ratio = ratio;
         payload.enhance_prompt = enhancePrompt;
         if (enableUpsample) payload.enable_upsample = true;
         if (seed > 0) payload.seed = seed;
       }
-      if (images && images.length) payload.images = images;
+      if (images?.length) payload.images = images;
 
-      logBus.info(
-        `提交任务: kind=${modelDef.kind} model=${apiModel} ratio=${ratio}` +
-        (modelDef.kind === 'grok' ? ` duration=${payload.duration}s resolution=${payload.resolution}` : ` enhance=${payload.enhance_prompt}`) +
-        ` refs=${images?.length || 0} prompt="${finalPrompt.slice(0, 30)}…"`,
-        src,
-      );
-
+      logBus.info(`${batchLabel} 提交任务: kind=${modelDef.kind} model=${apiModel} refs=${images?.length || 0}`, src);
       const r = await submitVideo(payload);
       update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: '0%' });
-      logBus.info(`异步任务已提交 taskId=${r.taskId} 进入轮询…`, src);
-      // v1.2.9.11: await 让 useRunTrigger 等到任务真正完成才 markDone
-      await startPolling(r.taskId, runtimeStartedAt);
+      const polled = await startPolling(r.taskId);
+      return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.taskId };
+    };
+
+    update({ status: 'submitting', error: null, videoUrl: null, videoUrls: [], taskId: null });
+    try {
+      const aggregatedVideoUrls: string[] = [];
+      const aggregatedRemoteVideoUrls: string[] = [];
+      const taskIds: string[] = [];
+      let lastTaskId: string | null = null;
+
+      const appendVideoGenerationResult = (result: Awaited<ReturnType<typeof runSingleVideoGeneration>>) => {
+        for (const url of result.videoUrls) if (url && !aggregatedVideoUrls.includes(url)) aggregatedVideoUrls.push(url);
+        for (const url of result.remoteVideoUrls) if (url && !aggregatedRemoteVideoUrls.includes(url)) aggregatedRemoteVideoUrls.push(url);
+        if (result.taskId) {
+          lastTaskId = result.taskId;
+          if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
+        }
+        update({
+          status: 'polling',
+          progress: generationCount > 1 ? `${aggregatedVideoUrls.length}/${generationCount}` : '95%',
+          videoUrl: aggregatedVideoUrls[0] || null,
+          videoUrls: [...aggregatedVideoUrls],
+          remoteVideoUrls: [...aggregatedRemoteVideoUrls],
+          taskId: lastTaskId,
+          taskIds: [...taskIds],
+        });
+      };
+
+      const runConcurrentVideoGenerations = async () => {
+        const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
+          runSingleVideoGeneration(batchIndex).then((result) => {
+            appendVideoGenerationResult(result);
+            return result;
+          })
+        );
+        return Promise.allSettled(jobs);
+      };
+
+      const settled = await runConcurrentVideoGenerations();
+      const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+
+      const nextVideoUrl = aggregatedVideoUrls[0];
+      if (!nextVideoUrl) {
+        const reasons = rejected.map((item) => videoGenerationErrorMessage(item.reason)).filter(Boolean);
+        throw new Error(reasons.length > 0 ? `视频生成失败：${reasons.join('；')}` : '视频生成失败：没有返回可用视频。');
+      }
+      markRuntimeFinished(runtimeStartedAt, {
+        status: 'success',
+        videoUrl: nextVideoUrl,
+        videoUrls: aggregatedVideoUrls,
+        remoteVideoUrls: aggregatedRemoteVideoUrls,
+        taskId: lastTaskId,
+        taskIds,
+        lastPrompt: finalPrompt,
+        progress: '100%',
+      });
+      if (rejected.length > 0) {
+        logBus.warn(`部分视频生成失败: ${rejected.map((item) => videoGenerationErrorMessage(item.reason)).join('；')}`, src);
+      }
+      taskCompletionSound.notifyComplete(id, 'video');
     } catch (e: any) {
       const msg = e?.message || '提交失败';
       setError(msg);
@@ -817,6 +833,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
+    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'video', model: apiModel })))
+      .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
     logBus.warn('用户主动停止', src);
   };
@@ -876,6 +895,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
   return (
     <div
+      ref={rootRef}
       {...dropProps}
       className={`relative rounded-xl border-2 transition-all w-[300px] ${
         selected ? 'border-rose-400 shadow-2xl shadow-rose-500/20' : isAccepting ? 'border-emerald-400' : 'border-white/15 hover:border-white/30'
@@ -906,6 +926,17 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
               : `${modelDef.label} · ${modelDef.kind}`}
           </div>
         </div>
+        {isBusy && (
+          <button
+            type="button"
+            onClick={handleStop}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-lg border border-red-300/30 bg-red-500/15 text-red-200 transition hover:bg-red-500/25"
+            title="终止当前生成任务"
+          >
+            <Square size={12} />
+          </button>
+        )}
       </div>
 
       <NodeRuntimeCard
@@ -929,12 +960,8 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">供应商</label>
                 <select
-                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : (backendProviderGroups[0]?.providerId || '')}
                   onChange={(e) => {
-                    if (e.target.value === '__local__') {
-                      update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
-                      return;
-                    }
                     switchBackendVideoProvider(e.target.value);
                   }}
                   style={{ background: '#18181b', color: '#ffffff' }}
@@ -945,7 +972,6 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
                       {group.providerName}
                     </option>
                   ))}
-                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>本地 T8 内置模型</option>
                 </select>
               </div>
               {isBackendSelected && backendProviderGroup && (
@@ -968,9 +994,6 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             </div>
             {isBackendSelected && backendModel && (
               <>
-                <div className="text-[10px] leading-relaxed text-cyan-100/65">
-                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点可见参数。
-                </div>
                 <div className="text-[10px] leading-relaxed text-cyan-100/50">
                   {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
                 </div>
@@ -1083,6 +1106,19 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             </select>
           </div>
         )}
+
+        <div>
+          <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+          <select
+            value={generationCount}
+            onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+            className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
+          >
+            {[1, 2, 3, 4].map((count) => (
+              <option key={count} value={count} className="bg-zinc-900">{count}</option>
+            ))}
+          </select>
+        </div>
 
         {/* === FAL 专属参数面板 === */}
         {showBuiltinFalControls && falReg?.paramKind === 'veo-fal' && (
@@ -1473,12 +1509,10 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             <Sparkles size={12} /> 生成视频
           </button>
         ) : (
-          <button
-            onClick={handleStop}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-200 text-xs font-medium transition-colors"
-          >
-            <Square size={11} /> 停止({progress || (status === 'submitting' ? '提交中' : '排队中')})
-          </button>
+          <div className="flex items-center justify-center gap-1.5 rounded border border-rose-300/15 bg-rose-500/10 py-1.5 text-xs font-medium text-rose-100/80">
+            <Loader2 size={11} className="animate-spin" />
+            {progress || (status === 'submitting' ? '提交中' : '排队中')}
+          </div>
         )}
 
         {isBusy && (

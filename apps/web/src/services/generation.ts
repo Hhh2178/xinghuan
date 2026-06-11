@@ -182,6 +182,23 @@ export async function queryImageStatus(taskId: string, apiModel?: string): Promi
   return data.data || { status: data.success ? 'pending' : 'failed', progress: '0%', error: data?.error };
 }
 
+export async function cancelGenerationTask(req: {
+  taskId: string;
+  kind?: 'image' | 'video' | 'audio' | 'seedance' | 'external' | string;
+  model?: string;
+  providerId?: string;
+  providerModel?: string;
+}): Promise<{ cancelled: boolean; upstream: boolean; message?: string }> {
+  const r = await fetch('/api/proxy/generation/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const data = await r.json();
+  if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
+  return data.data;
+}
+
 // ========================================================================
 // FAL 渠道(独立提交 + 轮询,对齐 gpt-image-2-web runGPTFal / runNanoFal)
 //   submitImageFal 返 { sync, urls? } 或 { sync:false, requestId, responseUrl, endpoint }

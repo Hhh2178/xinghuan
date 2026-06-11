@@ -1,4 +1,4 @@
-import { Bot, ChevronLeft, ChevronRight, Image as ImageIcon, KeyRound, MonitorCog, RotateCcw, ScrollText, Send, Sparkles, UserCog, Workflow, X } from "lucide-react";
+import { Bot, Image as ImageIcon, KeyRound, MonitorCog, RotateCcw, ScrollText, Send, Sparkles, UserCog, Workflow, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AdminUser,
@@ -402,11 +402,6 @@ export function AdminAssistantPanel({
 
   return (
     <aside className={`admin-assistant-dock${open ? " admin-assistant-dock--open" : ""}`}>
-      <button type="button" className="admin-assistant-dock__toggle" onClick={onToggle} title={open ? "收起 AI 助手" : "展开 AI 助手"}>
-        {open ? <ChevronRight aria-hidden="true" /> : <ChevronLeft aria-hidden="true" />}
-        <span>AI 助手</span>
-      </button>
-
       {open ? (
         <div className="admin-assistant-dock__panel">
           <header className="admin-assistant-dock__header">
@@ -422,32 +417,22 @@ export function AdminAssistantPanel({
               <X aria-hidden="true" />
             </button>
           </header>
-          <div className="admin-assistant-dock__status">
-            <div className="admin-assistant-dock__status-card">
-              <span>当前页面</span>
-              <strong>{activeTab}</strong>
-            </div>
-            <div className="admin-assistant-dock__status-card">
-              <span>可挂上下文</span>
-              <strong>{pageAttachments.length}</strong>
-            </div>
-            <div className="admin-assistant-dock__status-card">
-              <span>已挂卡片</span>
-              <strong>{attachments.length}</strong>
-            </div>
-          </div>
           <div className="admin-assistant-dock__session-bar">
-            <span>当前对话</span>
+            <div className="admin-assistant-dock__status">
+              <span className="admin-assistant-dock__status-card">页面 <strong>{activeTab}</strong></span>
+              <span className="admin-assistant-dock__status-card">可挂 <strong>{pageAttachments.length}</strong></span>
+              <span className="admin-assistant-dock__status-card">已挂 <strong>{attachments.length}</strong></span>
+            </div>
             <button type="button" onClick={resetSession} title="清空上下文并新建会话">
               <RotateCcw aria-hidden="true" />
               <span>新建会话</span>
             </button>
           </div>
-          <section className="admin-assistant-dock__context">
-            <div className="admin-assistant-dock__section-head">
-              <strong>当前可挂上下文</strong>
-              <span>从当前后台页挑选需要一起分析的对象</span>
-            </div>
+          <details className="admin-assistant-dock__context">
+            <summary className="admin-assistant-dock__section-head">
+              <strong>添加当前页上下文</strong>
+              <span>{pageAttachments.length} 项</span>
+            </summary>
             <div className="admin-assistant-dock__quick-actions">
               {pageAttachments.slice(0, 6).map((item) => {
                 const Icon =
@@ -475,7 +460,7 @@ export function AdminAssistantPanel({
                 );
               })}
             </div>
-          </section>
+          </details>
 
           {attachments.length > 0 ? (
             <div className="admin-assistant-dock__attachments">
@@ -502,7 +487,7 @@ export function AdminAssistantPanel({
               ))}
             </div>
           ) : (
-            <div className="admin-assistant-dock__empty">先从上面选几条上下文卡片，再补一句你想分析的问题。当前也可以直接挂入 Provider、模型、任务或页面状态。</div>
+            <div className="admin-assistant-dock__empty">可直接提问，或展开上方添加当前页上下文。</div>
           )}
 
           <div className="admin-assistant-dock__messages">

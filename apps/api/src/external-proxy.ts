@@ -19,6 +19,7 @@ import {
 } from "./provider-response-parser.js";
 import {
   createApimartVideoAdapterPayload,
+  extractApimartFinalTaskId,
   extractApimartTask,
   extractApimartVideoResult,
   shouldUseApimartVideoAdapter,
@@ -92,7 +93,11 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
   function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
     const baseUrl = deps.safeText(baseUrlValue).replace(/\/+$/, "");
     if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
-    return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+    const normalizedPathname = deps.safeText(pathname);
+    if (normalizedPathname.startsWith("../") || normalizedPathname.startsWith("./")) {
+      return new URL(normalizedPathname, `${baseUrl}/`).toString();
+    }
+    return baseUrl.endsWith("/v1") ? `${baseUrl}/${normalizedPathname}` : `${baseUrl}/v1/${normalizedPathname}`;
   }
 
   function openAiImageGenerationUrl(baseUrlValue: unknown) {
@@ -170,12 +175,61 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       if (result.videoUrls.length > 0 && (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))) {
         return result;
       }
+      const finalResultPathTemplate = deps.safeText(input.advancedConfig.finalResultPathTemplate);
+      if (finalResultPathTemplate) {
+        const finalTaskId = extractApimartFinalTaskId(raw, {
+          taskIdPath: deps.safeText(input.advancedConfig.finalResultTaskIdPath),
+        });
+        if (finalTaskId) {
+          const finalResult = await fetchFinalApimartVideoResult({
+            provider: input.provider,
+            apiKey: input.apiKey,
+            protocol: input.protocol,
+            advancedConfig: input.advancedConfig,
+            taskId: finalTaskId,
+          });
+          const finalStatus = String(finalResult.status || "").trim().toLowerCase();
+          if (finalResult.videoUrls.length > 0 && (!finalStatus || ["completed", "succeeded", "success", "done"].includes(finalStatus))) {
+            return finalResult;
+          }
+          if (["failed", "error", "cancelled", "canceled"].includes(finalStatus)) {
+            const reason = deps.safeText(finalResult.failureReason, finalResult.status || "failed");
+            throw new Error(`视频任务失败: ${reason}`);
+          }
+        }
+      }
       if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
-        throw new Error(`视频任务失败: ${result.status || "failed"}`);
+        const reason = deps.safeText(result.failureReason, result.status || "failed");
+        throw new Error(`视频任务失败: ${reason}`);
       }
       await sleep(pollIntervalMs);
     }
     throw new Error("视频任务轮询超时");
+  }
+
+  async function fetchFinalApimartVideoResult(input: {
+    provider: ProviderLike;
+    apiKey: string;
+    taskId: string;
+    protocol: string;
+    advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+  }) {
+    const finalResultPathTemplate = deps.safeText(input.advancedConfig.finalResultPathTemplate);
+    if (!finalResultPathTemplate) return { status: "", failureReason: "", videoUrls: [], raw: {} };
+    const finalPath = finalResultPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+    const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, finalPath), {
+      method: "GET",
+      headers: deps.providerModelHeaders(input.apiKey, input.protocol),
+      signal: AbortSignal.timeout(60000),
+    });
+    const text = await upstream.text();
+    if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+    if (!upstream.ok) throw new Error(`查询最终视频结果失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    return extractApimartVideoResult(raw, {
+      statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
+      resultVideoPath: deps.safeText(input.advancedConfig.finalResultVideoPath || input.advancedConfig.resultVideoPath, "data.result.videos"),
+    });
   }
 
   async function pollAsyncImageTask(input: {
@@ -451,6 +505,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       modelId: model.modelId,
       providerBaseUrl: provider.baseUrl,
     });
+    const submitPath = deps.safeText(advancedConfig.submitPath, "videos/generations");
 
     if (useApimartAsyncVideo) {
       const payload = createApimartVideoAdapterPayload({
@@ -463,9 +518,10 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         firstFrame: resolvedFirstFrame || undefined,
         lastFrame: resolvedLastFrame || undefined,
         requestMapping: deps.stringMap(advancedConfig.requestMapping),
+        requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
         fixedBody: deps.plainObject(advancedConfig.fixedBody),
       });
-      const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
+      const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, submitPath), {
         method: "POST",
         headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
         body: JSON.stringify(payload),
@@ -479,9 +535,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         taskIdPath: deps.safeText(advancedConfig.taskIdPath, "data.0.task_id"),
         statusPath: deps.safeText(advancedConfig.taskStatusPath, "data.0.status"),
       });
-      if (!task.taskId) throw new Error("APIMart 未返回 task_id");
+      if (!task.taskId) throw new Error("异步视频任务未返回 task_id/id");
       const result = await pollApimartVideoTask({ provider, apiKey, taskId: task.taskId, protocol, advancedConfig });
-      if (result.videoUrls.length === 0) throw new Error("APIMart 未返回可用视频 URL");
+      if (result.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
       const videoUrls: string[] = [];
       for (const sourceUrl of result.videoUrls) {
         const saved = await deps.saveRemoteVideoToOutput(sourceUrl, user);
@@ -495,8 +551,12 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
           providerId: provider.id,
           modelId: model.modelId,
           count: videoUrls.length,
-          mode: "apimart_async_video",
-          inferredBy: protocol === "apimart" || deps.safeText(advancedConfig.mode) === "apimart_async_video" ? "explicit" : "fallback",
+          mode: "async_video_task",
+          inferredBy:
+            protocol === "apimart" ||
+            ["async_video_task", "apimart_async_video"].includes(deps.safeText(advancedConfig.mode))
+              ? "explicit"
+              : "fallback",
         },
         provider: { id: provider.id, name: provider.name, protocol },
       };
@@ -510,7 +570,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     if (resolvedFirstFrame) payload.first_frame = resolvedFirstFrame;
     if (resolvedLastFrame) payload.last_frame = resolvedLastFrame;
 
-    const upstream = await fetch(openAiEndpoint(provider.baseUrl, "videos/generations"), {
+    const upstream = await fetch(openAiEndpoint(provider.baseUrl, submitPath), {
       method: "POST",
       headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
       body: JSON.stringify(payload),

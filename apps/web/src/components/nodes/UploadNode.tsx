@@ -18,6 +18,7 @@ import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import ImageEditModal, { type ImageEditProduceMeta } from './ImageEditModal';
 import ResizableCorners from './ResizableCorners';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import CollectionSplitButton from '../CollectionSplitButton';
 import ImageHoverPreview from '../ImageHoverPreview';
 import LoopingVideo from '../LoopingVideo';
@@ -103,6 +104,7 @@ function inferKindFromFile(file: File): UploadKind | null {
 
 const UploadNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, style, templateId, customTemplates } = useThemeStore();
   const isDark = theme === 'dark';
   const isPixel = style === 'pixel';
@@ -461,6 +463,7 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
       data-upload-node-id={id}
       data-rh-duck-mode={rhDuckMode ? 'true' : undefined}
       data-yyh-portrait-hidden-upload={yyhPortraitUploadMode ? 'true' : undefined}
+      ref={rootRef}
       className="relative rounded-xl border-2 transition-colors flex flex-col"
       style={{
         background: isDark ? 'rgba(20,20,22,.92)' : 'rgba(255,255,255,.96)',
@@ -478,7 +481,11 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
         minWidth={220}
         minHeight={180}
         accent={effectiveHandleColor}
-        onResize={(_e, p) => setSize({ w: p.width, h: p.height })}
+        onResize={(_e, p) => {
+          setSize({ w: p.width, h: p.height });
+          syncNodeInternals();
+        }}
+        onResizeEnd={syncNodeInternals}
       />
       {/* 选中时浮动「Edit」按钮 — 仅图像类型可用，与双击预览图等价 */}
       {selected && canEditImage && (

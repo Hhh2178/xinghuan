@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import {
   createApimartVideoAdapterPayload,
+  extractApimartFinalTaskId,
+  extractApimartFailureReason,
   extractApimartTask,
   extractApimartVideoResult,
   shouldUseApimartVideoAdapter,
@@ -22,6 +24,16 @@ assert.equal(payload.duration, 6);
 assert.equal(payload.quality, "720p");
 assert.deepEqual(payload.image_urls, ["https://example.com/frame.png"]);
 
+const stringDurationPayload = createApimartVideoAdapterPayload({
+  modelId: "grok-video-1.5-preview",
+  prompt: "让静态画面缓慢推进",
+  duration: 10,
+  requestMapping: { duration: "seconds" },
+  requestValueTypes: { duration: "string" },
+});
+
+assert.equal(stringDurationPayload.seconds, "10");
+
 const task = extractApimartTask({
   code: 200,
   data: [{ task_id: "task_123", status: "submitted" }],
@@ -29,6 +41,23 @@ const task = extractApimartTask({
 
 assert.equal(task.taskId, "task_123");
 assert.equal(task.status, "submitted");
+
+const requestTask = extractApimartTask({
+  request_id: "req_123",
+  status: "queued",
+});
+
+assert.equal(requestTask.taskId, "req_123");
+assert.equal(requestTask.status, "queued");
+
+const idTask = extractApimartTask({
+  id: "video_abc123def456",
+  object: "generation.task",
+  status: "queued",
+});
+
+assert.equal(idTask.taskId, "video_abc123def456");
+assert.equal(idTask.status, "queued");
 
 const result = extractApimartVideoResult({
   code: 200,
@@ -62,10 +91,82 @@ const nestedResult = extractApimartVideoResult({
 assert.equal(nestedResult.status, "completed");
 assert.deepEqual(nestedResult.videoUrls, ["https://example.com/result-nested.mp4"]);
 
+const xaiStyleResult = extractApimartVideoResult({
+  status: "done",
+  video: {
+    url: "https://example.com/result-top-level.mp4",
+  },
+});
+
+assert.equal(xaiStyleResult.status, "done");
+assert.deepEqual(xaiStyleResult.videoUrls, ["https://example.com/result-top-level.mp4"]);
+
+const toapisStyleResult = extractApimartVideoResult({
+  id: "video_abc123def456",
+  status: "completed",
+  result: {
+    data: [
+      {
+        url: "https://example.com/toapis-result.mp4",
+        format: "mp4",
+      },
+    ],
+  },
+});
+
+assert.equal(toapisStyleResult.status, "completed");
+assert.deepEqual(toapisStyleResult.videoUrls, ["https://example.com/toapis-result.mp4"]);
+
+const agnesTaskId = extractApimartFinalTaskId({
+  id: "task_abc",
+  video_id: "video_abc",
+  status: "queued",
+});
+
+assert.equal(agnesTaskId, "video_abc");
+
+const agnesStyleResult = extractApimartVideoResult({
+  status: "completed",
+  remixed_from_video_id: "https://example.com/agnes-result.mp4",
+});
+
+assert.equal(agnesStyleResult.status, "completed");
+assert.deepEqual(agnesStyleResult.videoUrls, ["https://example.com/agnes-result.mp4"]);
+
+const failedReason = extractApimartFailureReason({
+  code: 400,
+  data: {
+    status: "failed",
+    error: {
+      message: "Insufficient balance for video generation",
+    },
+  },
+});
+
+assert.equal(failedReason, "Insufficient balance for video generation");
+
+const nestedFailedReason = extractApimartFailureReason({
+  status: "error",
+  result: {
+    failure_reason: "Reference image is not reachable",
+  },
+});
+
+assert.equal(nestedFailedReason, "Reference image is not reachable");
+
 assert.equal(
   shouldUseApimartVideoAdapter({
     protocol: "apimart",
     advancedMode: "",
+    modelId: "plain-video-model",
+    providerBaseUrl: "https://api.example.com/v1",
+  }),
+  true,
+);
+assert.equal(
+  shouldUseApimartVideoAdapter({
+    protocol: "openai",
+    advancedMode: "async_video_task",
     modelId: "plain-video-model",
     providerBaseUrl: "https://api.example.com/v1",
   }),

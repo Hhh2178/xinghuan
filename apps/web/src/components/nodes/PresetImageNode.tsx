@@ -17,6 +17,11 @@ import { useRunTrigger } from '../../hooks/useRunTrigger';
  * 复用 generateImage,把上游 prompt + 预设模板 拼接后调用
  */
 const COLOR = '#818cf8';
+const clampGenerationCount = (value: unknown, fallback = 1) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(4, Math.max(1, Math.trunc(num)));
+};
 
 interface PresetMeta {
   title: string;
@@ -70,6 +75,7 @@ const PresetImageNode = (p: NodeProps) => {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const status: 'idle' | 'running' | 'success' | 'error' = d?.status || 'idle';
   const localPrompt: string = d?.localPrompt || '';
+  const generationCount = clampGenerationCount(d?.generationCount ?? 1);
   const urls: string[] = d?.urls || [];
   const imageUrl: string | undefined = d?.imageUrl;
   const abortRef = useRef(false);
@@ -100,8 +106,8 @@ const PresetImageNode = (p: NodeProps) => {
       return;
     }
 
-    const prompts = meta.promptTemplate(userPrompt);
-    const total = prompts.length;
+    const promptTemplates = meta.promptTemplate(userPrompt);
+    const total = promptTemplates.length * generationCount;
     update({ status: 'running', error: null, urls: [], imageUrl: undefined });
     setProgress({ done: 0, total });
 
@@ -120,17 +126,22 @@ const PresetImageNode = (p: NodeProps) => {
 
     const out: string[] = [];
     try {
-      for (let i = 0; i < prompts.length; i++) {
+      let done = 0;
+      for (let batchIndex = 0; batchIndex < generationCount; batchIndex += 1) {
+        for (let promptIndex = 0; promptIndex < promptTemplates.length; promptIndex += 1) {
+          if (abortRef.current) break;
+          const r = await generateImage({
+            model: modelDef.id,
+            prompt: promptTemplates[promptIndex],
+            size: meta.size || '1024x1024',
+          });
+          const firstUrl = r.urls?.[0];
+          if (firstUrl) out.push(firstUrl);
+          done += 1;
+          setProgress({ done, total });
+          update({ urls: [...out] });
+        }
         if (abortRef.current) break;
-        const r = await generateImage({
-          model: modelDef.id,
-          prompt: prompts[i],
-          size: meta.size || '1024x1024',
-        });
-        const firstUrl = r.urls?.[0];
-        if (firstUrl) out.push(firstUrl);
-        setProgress({ done: i + 1, total });
-        update({ urls: [...out] });
       }
       update({
         status: 'success',
@@ -179,6 +190,21 @@ const PresetImageNode = (p: NodeProps) => {
       </div>
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
+        <div>
+          <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+          <select
+            value={generationCount}
+            onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-white/30"
+          >
+            {[1, 2, 3, 4].map((count) => (
+              <option key={count} value={count} className="bg-zinc-900">
+                {count}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <textarea
           value={localPrompt}
           onChange={(e) => update({ localPrompt: e.target.value })}

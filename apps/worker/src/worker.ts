@@ -7,6 +7,7 @@ import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import { materializeTaskOutputs } from "./output-materials.js";
 import {
   createApimartVideoAdapterPayload,
+  extractApimartFinalTaskId,
   extractApimartTask,
   extractApimartVideoResult,
   shouldUseApimartVideoAdapter,
@@ -334,6 +335,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const firstFrame = safeText(task.payload.first_frame || task.payload.firstFrame);
   const lastFrame = safeText(task.payload.last_frame || task.payload.lastFrame);
   const advancedMode = safeText(task.payload.advancedMode || task.payload.mode);
+  const submitPath = safeText(task.payload.submitPath, "videos/generations");
 
   if (shouldUseApimartVideoAdapter({
     protocol,
@@ -351,9 +353,10 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       firstFrame: firstFrame || undefined,
       lastFrame: lastFrame || undefined,
       requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
+      requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
       fixedBody: plainObject(task.payload.fixedBody),
     });
-    const submitResponse = await fetch(openAiEndpoint(task.providerBaseUrl, "videos/generations"), {
+    const submitResponse = await fetch(openAiEndpoint(task.providerBaseUrl, submitPath), {
       method: "POST",
       headers: buildProviderJsonHeaders(apiKey),
       body: JSON.stringify(submitPayload),
@@ -366,17 +369,21 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       taskIdPath: safeText(task.payload.taskIdPath, "data.0.task_id"),
       statusPath: safeText(task.payload.taskStatusPath, "data.0.status"),
     });
-    if (!taskMeta.taskId) throw new Error("APIMart 未返回 task_id");
+    if (!taskMeta.taskId) throw new Error("异步视频任务未返回 task_id/id");
     const polled = await pollApimartVideoTask({
       baseUrl: task.providerBaseUrl,
       apiKey,
       taskId: taskMeta.taskId,
-      statusPath: safeText(task.payload.pollStatusPath, "data.status"),
+      statusPath: safeText(task.payload.taskStatusPath || task.payload.pollStatusPath, "data.status"),
       resultVideoPath: safeText(task.payload.resultVideoPath, "data.result.videos"),
+      pollPathTemplate: safeText(task.payload.pollPathTemplate, "tasks/{task_id}"),
+      finalResultTaskIdPath: safeText(task.payload.finalResultTaskIdPath),
+      finalResultPathTemplate: safeText(task.payload.finalResultPathTemplate),
+      finalResultVideoPath: safeText(task.payload.finalResultVideoPath),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
       timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
     });
-    if (polled.videoUrls.length === 0) throw new Error("APIMart 未返回可用视频 URL");
+    if (polled.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
     return {
       adapter: "apimart-video",
       providerId: task.providerId,
@@ -396,7 +403,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   if (firstFrame) payload.first_frame = firstFrame;
   if (lastFrame) payload.last_frame = lastFrame;
 
-  const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, "videos/generations"), {
+  const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, submitPath), {
     method: "POST",
     headers: buildProviderJsonHeaders(apiKey),
     body: JSON.stringify(payload),
@@ -756,32 +763,77 @@ async function pollApimartVideoTask(options: {
   taskId: string;
   statusPath: string;
   resultVideoPath: string;
+  pollPathTemplate: string;
+  finalResultTaskIdPath: string;
+  finalResultPathTemplate: string;
+  finalResultVideoPath: string;
   pollIntervalMs: number;
   timeoutMs: number;
 }) {
   const startedAt = Date.now();
   for (;;) {
-    if (Date.now() - startedAt > options.timeoutMs) throw new Error("APIMart 视频生成轮询超时");
+    if (Date.now() - startedAt > options.timeoutMs) throw new Error("视频生成轮询超时");
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
-    const response = await fetch(openAiEndpoint(options.baseUrl, "videos/records"), {
-      method: "POST",
-      headers: buildProviderJsonHeaders(options.apiKey),
-      body: JSON.stringify({ task_id: options.taskId, taskId: options.taskId, id: options.taskId }),
+    const pollPath = safeText(options.pollPathTemplate, "tasks/{task_id}").replace("{task_id}", encodeURIComponent(options.taskId));
+    const response = await fetch(openAiEndpoint(options.baseUrl, pollPath), {
+      method: "GET",
+      headers: providerHeaders(options.apiKey),
       signal: AbortSignal.timeout(120000),
     });
     const text = await response.text();
-    if (!response.ok) throw new Error(`APIMart 轮询失败 ${response.status}: ${text.slice(0, 500)}`);
+    if (!response.ok) throw new Error(`视频任务轮询失败 ${response.status}: ${text.slice(0, 500)}`);
     const raw = text ? JSON.parse(text) : {};
     const result = extractApimartVideoResult(raw, {
       statusPath: options.statusPath,
       resultVideoPath: options.resultVideoPath,
     });
     const status = safeText(result.status).toLowerCase();
-    if (result.videoUrls.length > 0) return result;
+    if (result.videoUrls.length > 0 && (!status || ["completed", "succeeded", "success", "done"].includes(status))) return result;
+    if (options.finalResultPathTemplate) {
+      const finalTaskId = extractApimartFinalTaskId(raw, { taskIdPath: options.finalResultTaskIdPath });
+      if (finalTaskId) {
+        const finalResult = await fetchFinalApimartVideoResult({
+          baseUrl: options.baseUrl,
+          apiKey: options.apiKey,
+          taskId: finalTaskId,
+          statusPath: options.statusPath,
+          resultVideoPath: options.finalResultVideoPath || options.resultVideoPath,
+          finalResultPathTemplate: options.finalResultPathTemplate,
+        });
+        const finalStatus = safeText(finalResult.status).toLowerCase();
+        if (finalResult.videoUrls.length > 0 && (!finalStatus || ["completed", "succeeded", "success", "done"].includes(finalStatus))) return finalResult;
+        if (["failed", "error", "cancelled", "canceled"].includes(finalStatus)) {
+          throw new Error(`视频任务失败: ${safeText(finalResult.failureReason, finalStatus || "unknown")}`);
+        }
+      }
+    }
     if (["failed", "error", "cancelled", "canceled"].includes(status)) {
-      throw new Error(`APIMart 视频任务失败: ${status || "unknown"}`);
+      throw new Error(`视频任务失败: ${safeText(result.failureReason, status || "unknown")}`);
     }
   }
+}
+
+async function fetchFinalApimartVideoResult(options: {
+  baseUrl: string;
+  apiKey: string;
+  taskId: string;
+  statusPath: string;
+  resultVideoPath: string;
+  finalResultPathTemplate: string;
+}) {
+  const finalPath = safeText(options.finalResultPathTemplate).replace("{task_id}", encodeURIComponent(options.taskId));
+  const response = await fetch(openAiEndpoint(options.baseUrl, finalPath), {
+    method: "GET",
+    headers: providerHeaders(options.apiKey),
+    signal: AbortSignal.timeout(120000),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`最终视频结果查询失败 ${response.status}: ${text.slice(0, 500)}`);
+  const raw = text ? JSON.parse(text) : {};
+  return extractApimartVideoResult(raw, {
+    statusPath: options.statusPath,
+    resultVideoPath: options.resultVideoPath,
+  });
 }
 
 async function pollApimartImageTask(options: {

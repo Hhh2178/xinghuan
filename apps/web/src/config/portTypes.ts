@@ -159,7 +159,8 @@ export function getNodeOutputs(node: Node | null | undefined): PortType[] {
 
   // upload 节点根据 data.uploadType 动态决定输出类型
   if (node.type === 'upload') {
-    const uploadType = (node.data as any)?.uploadType as
+    const data = (node.data as any) || {};
+    const uploadType = data?.uploadType as
       | 'image'
       | 'video'
       | 'audio'
@@ -167,6 +168,9 @@ export function getNodeOutputs(node: Node | null | undefined): PortType[] {
     if (uploadType === 'image') return ['image'];
     if (uploadType === 'video') return ['video'];
     if (uploadType === 'audio') return ['audio'];
+    if (hasMediaOutput(data, 'image')) return ['image'];
+    if (hasMediaOutput(data, 'video')) return ['video'];
+    if (hasMediaOutput(data, 'audio')) return ['audio'];
     // 未上传时不暴露任何输出类型
     return [];
   }
@@ -190,6 +194,19 @@ export function getNodeOutputs(node: Node | null | undefined): PortType[] {
 
   const ports = NODE_PORTS[node.type];
   return ports?.outputs ?? [];
+}
+
+function hasMediaOutput(data: Record<string, any>, kind: 'image' | 'video' | 'audio'): boolean {
+  const singleField = kind === 'image' ? 'imageUrl' : kind === 'video' ? 'videoUrl' : 'audioUrl';
+  const arrayField = kind === 'image' ? 'imageUrls' : kind === 'video' ? 'videoUrls' : 'audioUrls';
+  const directSingleField = kind === 'image' ? 'directImageUrl' : kind === 'video' ? 'directVideoUrl' : 'directAudioUrl';
+  const directArrayField = kind === 'image' ? 'directImageUrls' : kind === 'video' ? 'directVideoUrls' : 'directAudioUrls';
+  return (
+    typeof data[singleField] === 'string' && data[singleField].trim().length > 0 ||
+    typeof data[directSingleField] === 'string' && data[directSingleField].trim().length > 0 ||
+    Array.isArray(data[arrayField]) && data[arrayField].some((url: unknown) => typeof url === 'string' && url.trim().length > 0) ||
+    Array.isArray(data[directArrayField]) && data[directArrayField].some((url: unknown) => typeof url === 'string' && url.trim().length > 0)
+  );
 }
 
 /**

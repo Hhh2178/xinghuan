@@ -2,7 +2,7 @@ import { readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 
 const defaultDataDir = process.env.XINGHUAN_DATA_DIR || join(process.cwd(), "apps", "api", "data");
-const defaultRetentionDays = clampDays(process.env.XINGHUAN_OUTPUT_MATERIAL_RETENTION_DAYS || "14");
+const defaultRetentionDays = clampDays(process.env.XINGHUAN_OUTPUT_MATERIAL_RETENTION_DAYS || "3");
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
 let pgPoolPromise = null;

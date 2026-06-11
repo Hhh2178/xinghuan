@@ -11,6 +11,8 @@
 - 当前本机修复与文档清理进度见 `current-fix-cleanup-progress-2026-06-08.md`。
 - 后台 AI 助手 Hermes 灰度联调与上线记录见 `assistant-hermes-gray-2026-06-08.md`。
 - 画布助手 UI 与可见文案清理灰度记录见 `canvas-assistant-ui-gray-2026-06-09.md`。
+- 生成节点 `生成数量` 灰度与生产发布记录见 `generation-count-release-2026-06-10.md`。
+- 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
 
 ## 当前运行态入口
 
@@ -20,6 +22,7 @@
 - `full-node-acceptance-audit-2026-06-07.md`
 - `assistant-hermes-gray-2026-06-08.md`
 - `canvas-assistant-ui-gray-2026-06-09.md`
+- `generation-count-release-2026-06-10.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`

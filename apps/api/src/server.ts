@@ -35,6 +35,7 @@ import {
   readJsonBody,
 } from "./http-session-utils.js";
 import {
+  classifyUpstreamModel,
   normalizeCapability,
   normalizeOptionalProtocol,
   normalizeProviderProtocol,
@@ -75,6 +76,7 @@ const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_UR
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const taskQueueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
+const GENERATION_LIBRARY_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const authDir = join(dataDir, "auth");
 const adminDir = join(dataDir, "admin");
 const usersDir = join(dataDir, "users");
@@ -130,6 +132,7 @@ interface CanvasData {
 }
 
 type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
+type GenerationLibraryKind = "image" | "video" | "audio";
 
 interface ResourceCategory {
   id: string;
@@ -170,6 +173,28 @@ interface ResourceItem {
 interface ResourceDb {
   categories: ResourceCategory[];
   items: ResourceItem[];
+}
+
+interface GenerationLibraryItem {
+  id: string;
+  kind: GenerationLibraryKind;
+  title: string;
+  url: string;
+  fileUrl: string;
+  mime?: string;
+  size?: number;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+  sourceNodeId?: string;
+  sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
+}
+
+interface GenerationLibraryDb {
+  items: GenerationLibraryItem[];
 }
 
 interface UserRecord {
@@ -381,6 +406,8 @@ interface AssistantAnalysisResult {
   recommendedLayer: "default" | "advanced" | "adapter";
   protocol: string;
   asyncTask: boolean;
+  chainTemplate?: string;
+  chainTemplateVersion?: string;
   docFetch: {
     attempted: boolean;
     ok: boolean;
@@ -754,6 +781,21 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/proxy/generation/cancel" && request.method === "POST") {
+      const body = await readJsonBody<Record<string, unknown>>(request);
+      const taskId = safeText(body.taskId);
+      if (!taskId) throw new Error("缺少 taskId");
+      const kind = safeText(body.kind, "generation");
+      sendT8(response, {
+        cancelled: true,
+        upstream: false,
+        taskId,
+        kind,
+        message: "已停止本地轮询；当前上游未配置可确认的取消接口。",
+      });
+      return;
+    }
+
     if (url.pathname === "/api/proxy/external/image" && request.method === "POST") {
       sendT8(response, await generateExternalImageProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
       return;
@@ -901,6 +943,40 @@ const server = createServer(async (request, response) => {
       }
       if (request.method === "DELETE") {
         await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
+        sendT8(response, null);
+        return;
+      }
+    }
+
+    if (url.pathname === "/api/generation-library/items") {
+      const db = await readGenerationLibraryDb(currentUser!, { cleanup: true });
+      if (request.method === "GET") {
+        const kind = normalizeGenerationLibraryKind(url.searchParams.get("kind"));
+        const q = safeText(url.searchParams.get("q"), "").toLowerCase();
+        sendT8(
+          response,
+          db.items.filter((item) => {
+            if (kind && item.kind !== kind) return false;
+            if (q && !`${item.title} ${item.url}`.toLowerCase().includes(q)) return false;
+            return true;
+          }),
+        );
+        return;
+      }
+      if (request.method === "POST") {
+        sendT8(response, await addGenerationLibraryItem(await readJsonBody(request), currentUser!, db));
+        return;
+      }
+    }
+
+    const generationLibraryItemMatch = url.pathname.match(/^\/api\/generation-library\/items\/([^/]+)$/);
+    if (generationLibraryItemMatch) {
+      const id = decodeURIComponent(generationLibraryItemMatch[1]);
+      const db = await readGenerationLibraryDb(currentUser!, { cleanup: true });
+      if (request.method === "DELETE") {
+        const item = db.items.find((entry) => entry.id === id);
+        await writeGenerationLibraryDb({ items: db.items.filter((entry) => entry.id !== id) }, currentUser!);
+        if (item) await deleteGenerationLibraryLocalFile(item, currentUser!);
         sendT8(response, null);
         return;
       }
@@ -1622,6 +1698,7 @@ function userDataDirsForId(userId: string) {
     resourceDir,
     canvasListPath: join(canvasDir, "canvas-list.json"),
     resourceDbPath: join(resourceDir, "resource-library.json"),
+    generationLibraryDbPath: join(resourceDir, "generation-library.json"),
   };
 }
 
@@ -2531,7 +2608,8 @@ async function pollApimartVideoTask(input: {
       return result;
     }
     if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
-      throw new Error(`视频任务失败: ${result.status || "failed"}`);
+      const reason = safeText(result.failureReason, result.status || "failed");
+      throw new Error(`视频任务失败: ${reason}`);
     }
     await sleep(pollIntervalMs);
   }
@@ -2898,7 +2976,7 @@ function defaultAssistantSettings(): AssistantSettingsRecord {
       kernel: "hermes",
       endpoint: endpoint || "已配置（服务器内地址已隐藏）",
       endpointConfigured: Boolean(endpoint),
-      workspace: "gray",
+      workspace: safeText(process.env.XINGHUAN_HERMES_WORKSPACE, process.cwd()),
       model: "hermes",
       profile: safeText(process.env.XINGHUAN_HERMES_PROFILE, "canvas-assistant"),
       persistMemory: false,
@@ -2933,20 +3011,29 @@ function normalizeAssistantSettings(
   value: unknown,
   base: AssistantSettingsRecord = defaultAssistantSettings(),
 ): AssistantSettingsRecord {
+  const runtimeDefaults = defaultAssistantSettings();
   const source = plainObject(value);
   const frontendSource = plainObject(source.frontend);
   const backendSource = plainObject(source.backend);
   const integrationSource = plainObject(source.integration);
   const baseEndpoint = safeText(base.integration.endpoint);
+  const runtimeEndpoint = safeText(runtimeDefaults.integration.endpoint);
   const incomingEndpoint =
     typeof integrationSource.endpoint === "string" ? integrationSource.endpoint.trim() : undefined;
   const maskedEndpoint = "已配置（服务器内地址已隐藏）";
   let nextEndpoint =
-    baseEndpoint && baseEndpoint !== maskedEndpoint ? baseEndpoint : "";
+    baseEndpoint && baseEndpoint !== maskedEndpoint
+      ? baseEndpoint
+      : runtimeEndpoint && runtimeEndpoint !== maskedEndpoint
+        ? runtimeEndpoint
+        : "";
   let nextEndpointConfigured = booleanValue(
     base.integration.endpointConfigured,
     nextEndpoint.length > 0,
   );
+  if (!nextEndpointConfigured && runtimeDefaults.integration.endpointConfigured && incomingEndpoint === undefined) {
+    nextEndpointConfigured = true;
+  }
 
   if (incomingEndpoint !== undefined) {
     if (!incomingEndpoint) {
@@ -2959,8 +3046,15 @@ function normalizeAssistantSettings(
       nextEndpointConfigured = true;
     }
   } else if (typeof integrationSource.endpointConfigured === "boolean") {
-    nextEndpointConfigured = integrationSource.endpointConfigured;
-    if (!nextEndpointConfigured) nextEndpoint = "";
+    if (integrationSource.endpointConfigured) {
+      nextEndpointConfigured = true;
+    } else if (runtimeDefaults.integration.endpointConfigured) {
+      nextEndpointConfigured = true;
+      if (!nextEndpoint && runtimeEndpoint && runtimeEndpoint !== maskedEndpoint) nextEndpoint = runtimeEndpoint;
+    } else {
+      nextEndpointConfigured = false;
+      nextEndpoint = "";
+    }
   }
 
   return {
@@ -3678,6 +3772,8 @@ async function analyzeProviderAssistant(input: AssistantAnalyzeRequest): Promise
       recommendedLayer: hermes.recommendedLayer || fallback.recommendedLayer,
       protocol: fallback.protocol === "grsai_draw" ? fallback.protocol : (hermes.protocol || fallback.protocol),
       asyncTask: hermes.asyncTask ?? fallback.asyncTask,
+      chainTemplate: safeText((hermes as any).chainTemplate) || fallback.chainTemplate,
+      chainTemplateVersion: safeText((hermes as any).chainTemplateVersion) || fallback.chainTemplateVersion,
       risks: hermes.risks.length ? hermes.risks : fallback.risks,
       checklist: hermes.checklist.length ? hermes.checklist : fallback.checklist,
       drafts: {
@@ -3820,17 +3916,38 @@ function splitAssistantMessage(message: string) {
 async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): Promise<AssistantAnalysisResult> {
   const providerName = safeText(input.providerName, "未命名服务商");
   const baseUrl = safeText(input.baseUrl);
-  const capability = normalizeCapability(input.capability);
-  const modelId = safeText(input.modelId, `${providerName.toLowerCase()}-${capability}`);
+  const requestedCapability = safeText(input.capability).toLowerCase();
+  const fallbackCapability = normalizeCapability(input.capability);
+  const modelId = safeText(input.modelId, `${providerName.toLowerCase()}-${fallbackCapability}`);
   const protocolHint = safeText(input.protocolHint).toLowerCase();
   const sampleRequest = safeText(input.sampleRequest);
   const sampleResponse = safeText(input.sampleResponse);
   const notes = safeText(input.notes);
-  const grsaiDetected = /grsai|grsai\.dakka\.com\.cn/i.test(`${providerName}\n${baseUrl}\n${notes}\n${sampleRequest}\n${sampleResponse}`);
+  const docUrl = safeText(input.docUrl);
+  const signals = `${providerName}\n${baseUrl}\n${docUrl}\n${notes}\n${sampleRequest}\n${sampleResponse}`;
+  const grsaiDetected = /grsai|grsai\.dakka\.com\.cn/i.test(signals);
+  const toapisDetected = /toapis|grok-video-1\.5-preview|videos\/generations\/\{task_id\}|POST\s+https:\/\/toapis\.com\/v1\/videos\/generations/i.test(signals);
+  const agnesDetected = /agnes|agnes-ai\.com|agnes-video/i.test(signals);
+  const videoDetected =
+    toapisDetected ||
+    agnesDetected ||
+    /video|i2v|t2v|grok-video|wanx|seedance|kling|veo|sora/i.test(`${signals}\n${modelId}`);
+  const capability =
+    requestedCapability === "chat" || requestedCapability === "image" || requestedCapability === "video"
+      ? normalizeCapability(requestedCapability)
+      : grsaiDetected
+        ? "image"
+        : videoDetected
+          ? "video"
+          : classifyUpstreamModel(modelId);
   const asyncTask =
     grsaiDetected ||
-    /task[_-]?id|\/tasks\/|status["']?\s*:|poll/i.test(sampleResponse) ||
-    /task[_-]?id|\/tasks\/|status["']?\s*:/i.test(sampleRequest) ||
+    toapisDetected ||
+    agnesDetected ||
+    /request[_-]?id|\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleResponse) ||
+    /\bid\b|task[_-]?id|\/tasks\/|status["']?\s*:|poll/i.test(sampleResponse) ||
+    /request[_-]?id|\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleRequest) ||
+    /\bid\b|task[_-]?id|\/tasks\/|status["']?\s*:/i.test(sampleRequest) ||
     /async|poll/i.test(notes);
   const protocol =
     (grsaiDetected ? "grsai_draw" :
@@ -3844,7 +3961,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     asyncTask ? "adapter" :
     /resultVideoPath|pollPathTemplate|taskStatusPath/i.test(sampleResponse + notes) ? "advanced" :
     "default";
-  const docFetch = await safeFetchDocExcerpt(safeText(input.docUrl));
+  const docFetch = await safeFetchDocExcerpt(docUrl);
   const probe = await safeProbeBaseUrl(baseUrl);
   const inputCapabilities = {
     prompt: true,
@@ -3856,15 +3973,86 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     audioReference: /audio/i.test(notes + sampleRequest + sampleResponse),
   };
   const advancedConfig: Record<string, unknown> = {};
+  let chainTemplate = asyncTask ? "async_task_poll_result" : "sync_inline_result";
+  const chainTemplateVersion = "video-provider-template/v1";
   if (asyncTask) {
-    advancedConfig.pollPathTemplate = "tasks/{task_id}";
-    advancedConfig.taskIdPath = capability === "image" ? "data.0.task_id" : "task_id";
-    advancedConfig.taskStatusPath = /data\.status/i.test(sampleResponse) ? "data.status" : "status";
-    advancedConfig.resultVideoPath = capability === "video" ? "result.videos" : undefined;
+    if (capability === "video") {
+      advancedConfig.mode = "async_video_task";
+      advancedConfig.submitPath = "videos/generations";
+      advancedConfig.pollIntervalMs = 2500;
+      advancedConfig.pollTimeoutMs = 360000;
+    }
+    const xaiStyleVideo =
+      capability === "video" &&
+      (/request[_-]?id/i.test(sampleResponse + sampleRequest) ||
+        /\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleResponse + notes));
+    const generationStatusPath = /videos\/generations\/\{task_id\}|video-status/i.test(signals);
+    advancedConfig.pollPathTemplate = toapisDetected || generationStatusPath
+      ? "videos/generations/{task_id}"
+      : xaiStyleVideo
+        ? "videos/{task_id}"
+        : "tasks/{task_id}";
+    advancedConfig.taskIdPath = toapisDetected || /\bid\b/i.test(sampleResponse)
+      ? "id"
+      : xaiStyleVideo
+        ? "request_id"
+        : capability === "image"
+          ? "data.0.task_id"
+          : "task_id";
+    advancedConfig.taskStatusPath =
+      xaiStyleVideo || toapisDetected
+        ? "status"
+        : /data\.status/i.test(sampleResponse)
+          ? "data.status"
+          : "status";
+    advancedConfig.resultVideoPath = capability === "video"
+      ? toapisDetected || /result\.data/i.test(sampleResponse + notes)
+        ? "result.data.0.url"
+        : xaiStyleVideo
+        ? "video.url"
+        : "result.videos"
+      : undefined;
+    if (capability === "video") {
+      advancedConfig.requestMapping = toapisDetected
+        ? { ratio: "aspect_ratio", duration: "seconds", images: "images" }
+        : { ratio: "size", duration: "duration", resolution: "quality", images: "image_urls", firstFrame: "first_frame", lastFrame: "last_frame" };
+      if (toapisDetected) advancedConfig.requestValueTypes = { duration: "string" };
+    }
+  }
+  if (toapisDetected) {
+    advancedConfig.baseUrlSuggestion = "https://toapis.com";
+    advancedConfig.docStatusPath = "GET /v1/videos/generations/{task_id}";
+  }
+  if (agnesDetected && capability === "video") {
+    chainTemplate = "async_task_poll_then_final_lookup";
+    advancedConfig.baseUrlSuggestion = "https://apihub.agnes-ai.com/v1";
+    advancedConfig.submitPath = "videos";
+    advancedConfig.taskIdPath = "task_id";
+    advancedConfig.pollPathTemplate = "videos/{task_id}";
+    advancedConfig.taskStatusPath = "status";
+    advancedConfig.resultVideoPath = "video_url";
+    advancedConfig.finalResultTaskIdPath = "video_id";
+    advancedConfig.finalResultPathTemplate = "../agnesapi?video_id={task_id}";
+    advancedConfig.finalResultVideoPath = "remixed_from_video_id";
+    advancedConfig.pollIntervalMs = 10000;
+    advancedConfig.pollTimeoutMs = 600000;
+    advancedConfig.requestMapping = {
+      ratio: "aspect_ratio",
+      duration: "duration",
+      resolution: "resolution",
+      images: "image_urls",
+      firstFrame: "first_frame",
+      lastFrame: "last_frame",
+      ...plainObject(advancedConfig.requestMapping),
+    };
   }
   if (grsaiDetected) {
+    chainTemplate = "adapter_manual_model_catalog";
     advancedConfig.manualModelCatalog = true;
     advancedConfig.defaultModelId = "gpt-image-2";
+  }
+  if (toapisDetected && capability === "video") {
+    chainTemplate = "async_task_poll_result";
   }
   const summary = asyncTask
     ? `${providerName} 更像异步任务型 ${capability === "video" ? "视频" : capability === "image" ? "图像" : "模型"} 接口，建议走 ${recommendedLayer} 层处理。`
@@ -3886,14 +4074,22 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     recommendedLayer,
     protocol,
     asyncTask,
+    chainTemplate,
+    chainTemplateVersion,
     docFetch,
     probe,
     drafts: {
       provider: {
         name: providerName,
-        baseUrl,
+        baseUrl: toapisDetected && (!baseUrl || /api\.toapis\.com/i.test(baseUrl)) ? "https://toapis.com" : baseUrl,
         protocol,
-        note: grsaiDetected ? `${summary} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。` : summary,
+        note: grsaiDetected
+          ? `${summary} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。`
+          : toapisDetected
+            ? `${summary} 官方文档使用 https://toapis.com/v1/videos/generations 和 /v1/videos/generations/{task_id}。`
+            : agnesDetected
+              ? `${summary} Agnes 使用 /v1/videos 提交、/v1/videos/{task_id} 查询任务，并通过 /agnesapi?video_id={video_id} 读取最终视频 URL。`
+              : summary,
       },
       model: {
         modelId: grsaiDetected ? "gpt-image-2" : modelId,
@@ -3913,6 +4109,8 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       protocol,
       recommendedLayer,
       asyncTask,
+      chainTemplate,
+      chainTemplateVersion,
       sampleSignals: {
         sampleRequest: sampleRequest.slice(0, 400),
         sampleResponse: sampleResponse.slice(0, 400),
@@ -4016,7 +4214,10 @@ function buildHermesAssistantPrompt(input: AssistantAnalyzeRequest, fallback: As
   return [
     "你是无限画布后台的受限接入审计助手。",
     "请根据给定信息输出严格 JSON，不要输出 Markdown 代码块。",
-    'JSON schema: {"summary":"", "protocol":"", "recommendedLayer":"default|advanced|adapter", "asyncTask":true, "risks":[""], "checklist":[""], "drafts":{"provider":{"name":"","baseUrl":"","protocol":"","note":""},"model":{"modelId":"","displayName":"","capability":"chat|image|video","inputProfile":"","inputCapabilities":{"prompt":true,"imageReference":false,"multiImage":false,"firstFrame":false,"lastFrame":false,"mask":false,"audioReference":false},"parameterSchema":"{}", "advancedConfig":{}}}}',
+    'JSON schema: {"summary":"", "protocol":"", "recommendedLayer":"default|advanced|adapter", "asyncTask":true, "chainTemplate":"sync_inline_result|async_task_poll_result|async_task_poll_then_final_lookup|adapter_manual_model_catalog", "chainTemplateVersion":"video-provider-template/v1", "risks":[""], "checklist":[""], "drafts":{"provider":{"name":"","baseUrl":"","protocol":"","note":""},"model":{"modelId":"","displayName":"","capability":"chat|image|video","inputProfile":"","inputCapabilities":{"prompt":true,"imageReference":false,"multiImage":false,"firstFrame":false,"lastFrame":false,"mask":false,"audioReference":false},"parameterSchema":"{}", "advancedConfig":{}}}}',
+    "如果是异步视频平台，必须优先判断属于哪一类模板：同步直返、单段轮询、二段最终结果查询。",
+    "如果属于二段最终结果查询，advancedConfig 必须尽量给出 finalResultTaskIdPath、finalResultPathTemplate、finalResultVideoPath。",
+    "只允许输出受控配置字段，不要输出 shell 命令、数据库写入语句或需要管理员复制执行的脚本。",
     "如果信息不足，也要尽量给出保守建议。",
     `输入能力: ${JSON.stringify(input)}`,
     `当前回退分析: ${JSON.stringify(fallback)}`,
@@ -4176,6 +4377,8 @@ async function runHermesAssistantAnalysis(input: {
     protocol: safeText(parsed?.protocol),
     recommendedLayer: parseAssistantLayer(parsed?.recommendedLayer),
     asyncTask: typeof parsed?.asyncTask === "boolean" ? parsed.asyncTask : undefined,
+    chainTemplate: safeText(parsed?.chainTemplate),
+    chainTemplateVersion: safeText(parsed?.chainTemplateVersion),
     risks: Array.isArray(parsed?.risks) ? parsed.risks.map((item: unknown) => safeText(item)).filter(Boolean) : [],
     checklist: Array.isArray(parsed?.checklist) ? parsed.checklist.map((item: unknown) => safeText(item)).filter(Boolean) : [],
     drafts: {
@@ -4621,10 +4824,11 @@ async function trySendStaticFile(response: import("node:http").ServerResponse, b
   try {
     const info = await stat(target);
     if (!info.isFile()) throw new Error("not file");
+    const cacheControl = extname(target).toLowerCase() === ".html" ? "no-store" : "public, max-age=3600";
     response.writeHead(200, {
       "content-type": inferMime(target),
       "content-length": String(info.size),
-      "cache-control": "public, max-age=3600",
+      "cache-control": cacheControl,
       "access-control-allow-origin": "*",
     });
     createReadStream(target).pipe(response);
@@ -4983,4 +5187,114 @@ function pickResourcePatch(patch: Partial<ResourceItem>) {
       : {}),
     ...(patch.favorite !== undefined ? { favorite: Boolean(patch.favorite) } : {}),
   };
+}
+
+function normalizeGenerationLibraryKind(value: unknown): GenerationLibraryKind | "" {
+  const kind = safeText(value).toLowerCase();
+  return ["image", "video", "audio"].includes(kind) ? (kind as GenerationLibraryKind) : "";
+}
+
+async function readGenerationLibraryDb(
+  user: CurrentUser,
+  options: { cleanup?: boolean } = {},
+): Promise<GenerationLibraryDb> {
+  await ensureDataDirs(user);
+  let db: GenerationLibraryDb;
+  try {
+    const raw = JSON.parse(await readFile(userDataDirs(user).generationLibraryDbPath, "utf-8")) as GenerationLibraryDb;
+    db = { items: Array.isArray(raw.items) ? raw.items.map(sanitizeGenerationLibraryItem).filter(Boolean) as GenerationLibraryItem[] : [] };
+  } catch {
+    db = { items: [] };
+  }
+  if (!options.cleanup) return db;
+  const now = Date.now();
+  const active: GenerationLibraryItem[] = [];
+  const expired: GenerationLibraryItem[] = [];
+  for (const item of db.items) {
+    if (item.expiresAt <= now) expired.push(item);
+    else active.push(item);
+  }
+  if (expired.length > 0) {
+    await writeGenerationLibraryDb({ items: active }, user);
+    for (const item of expired) {
+      await deleteGenerationLibraryLocalFile(item, user);
+    }
+    return { items: active };
+  }
+  return db;
+}
+
+function sanitizeGenerationLibraryItem(item: unknown): GenerationLibraryItem | null {
+  if (!item || typeof item !== "object") return null;
+  const raw = item as Partial<GenerationLibraryItem>;
+  const kind = normalizeGenerationLibraryKind(raw.kind);
+  const url = safeText(raw.url || raw.fileUrl);
+  if (!kind || !url) return null;
+  const createdAt = Number(raw.createdAt) || Date.now();
+  const expiresAt = Number(raw.expiresAt) || createdAt + GENERATION_LIBRARY_TTL_MS;
+  return {
+    id: safeText(raw.id, `gen-${createdAt}-${safeSlug(url).slice(0, 8)}`),
+    kind,
+    title: safeText(raw.title, basename(url)),
+    url,
+    fileUrl: safeText(raw.fileUrl, url),
+    mime: safeText(raw.mime, inferMime(url)),
+    size: Number(raw.size) || 0,
+    createdAt,
+    updatedAt: Number(raw.updatedAt) || createdAt,
+    expiresAt,
+    sourceNodeId: safeText(raw.sourceNodeId),
+    sourceCanvasId: safeText(raw.sourceCanvasId),
+    taskId: safeText(raw.taskId),
+    providerId: safeText(raw.providerId),
+    modelId: safeText(raw.modelId),
+  };
+}
+
+async function writeGenerationLibraryDb(db: GenerationLibraryDb, user: CurrentUser) {
+  await ensureDataDirs(user);
+  await writeFile(userDataDirs(user).generationLibraryDbPath, JSON.stringify({ items: db.items }, null, 2), "utf-8");
+}
+
+async function addGenerationLibraryItem(raw: unknown, user: CurrentUser, existingDb?: GenerationLibraryDb) {
+  const payload = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const kind = normalizeGenerationLibraryKind(payload.kind);
+  const url = safeText(payload.url || payload.fileUrl);
+  if (!kind || !url) throw new Error("生成库素材缺少类型或 URL");
+  const now = Date.now();
+  const expiresAt = now + GENERATION_LIBRARY_TTL_MS;
+  const db = existingDb || await readGenerationLibraryDb(user, { cleanup: true });
+  const duplicateIndex = db.items.findIndex((item) => item.kind === kind && item.url === url);
+  const existing = duplicateIndex >= 0 ? db.items[duplicateIndex] : null;
+  const item: GenerationLibraryItem = {
+    id: existing ? existing.id : `gen-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    kind,
+    title: safeText(payload.title, basename(url)),
+    url,
+    fileUrl: url,
+    mime: safeText(payload.mime, inferMime(url)),
+    size: Number(payload.size) || 0,
+    createdAt: existing ? existing.createdAt : now,
+    updatedAt: now,
+    expiresAt: existing ? existing.expiresAt : expiresAt,
+    sourceNodeId: safeText(payload.sourceNodeId),
+    sourceCanvasId: safeText(payload.sourceCanvasId),
+    taskId: safeText(payload.taskId),
+    providerId: safeText(payload.providerId),
+    modelId: safeText(payload.modelId),
+  };
+  const nextItems = duplicateIndex >= 0
+    ? [item, ...db.items.filter((_, index) => index !== duplicateIndex)]
+    : [item, ...db.items];
+  await writeGenerationLibraryDb({ items: nextItems }, user);
+  return { ...item, duplicate: duplicateIndex >= 0 };
+}
+
+async function deleteGenerationLibraryLocalFile(item: GenerationLibraryItem, user: CurrentUser) {
+  const dirs = userDataDirs(user);
+  const url = safeText(item.fileUrl || item.url);
+  if (!url.startsWith("/files/output/")) return;
+  const filename = decodeURIComponent(url.slice("/files/output/".length));
+  if (!filename || filename.includes("/") || filename.includes("\\") || filename.includes("..")) return;
+  await unlink(join(dirs.outputDir, filename)).catch(() => undefined);
 }

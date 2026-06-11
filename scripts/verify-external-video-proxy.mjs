@@ -15,11 +15,13 @@ async function main() {
   const providerId = `verify-video-${Date.now()}`;
   const syncModelId = "verify-video-model";
   try {
+    console.log("[verify] login");
     await fetchJson("/api/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
     });
+    console.log("[verify] create provider");
     await fetchJson("/api/admin/providers", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -32,18 +34,21 @@ async function main() {
         apiKey: "verify-video-key",
       }),
     });
+    console.log("[verify] import model");
     const imported = await fetchJson(`/api/admin/providers/${providerId}/import-models`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ models: [{ modelId: syncModelId, capability: "video", displayName: "Verify Video Model" }] }),
     });
     const modelRecord = imported.data?.models?.find((model) => model.modelId === syncModelId);
+    console.log("[verify] upload reference");
     const uploadForm = new FormData();
     uploadForm.set("file", new Blob([Buffer.from(png1x1, "base64")], { type: "image/png" }), "video-reference.png");
     const uploadedReference = await fetchJson("/api/files/upload", { method: "POST", body: uploadForm });
     const referenceUrl = uploadedReference.data?.url || "";
     assert(referenceUrl.startsWith("/files/input/"), "reference image was not uploaded");
 
+    console.log("[verify] sync video");
     const generated = await fetchJson("/api/proxy/external/video", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -77,11 +82,13 @@ async function main() {
     const syncAsset = await fetch(`${baseUrl}${videoUrl}`, { headers: { cookie } });
     assert(syncAsset.ok && /^video\//i.test(syncAsset.headers.get("content-type") || ""), "saved sync video is not accessible");
 
+    console.log("[verify] apimart async video");
     await fetchJson(`/api/admin/providers/${providerId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ protocol: "apimart" }),
     });
+    console.log("[verify] generic async video");
     await fetchJson(`/api/admin/models/${modelRecord.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -131,7 +138,116 @@ async function main() {
     const asyncAsset = await fetch(`${baseUrl}${asyncVideoUrl}`, { headers: { cookie } });
     assert(asyncAsset.ok && /^video\//i.test(asyncAsset.headers.get("content-type") || ""), "saved apimart video is not accessible");
 
-    console.log(JSON.stringify({ ok: true, videoUrl, asyncVideoUrl, authorization: "present" }, null, 2));
+    console.log("[verify] agnes async video");
+    await fetchJson(`/api/admin/models/${modelRecord.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        modelId: "grok-video-1.5-preview",
+        displayName: "Verify Generic Async Video Model",
+        inputProfile: "prompt,image_reference",
+        inputCapabilities: {
+          prompt: true,
+          imageReference: true,
+          multiImage: false,
+          firstFrame: false,
+          lastFrame: false,
+        },
+        advancedConfig: {
+          mode: "async_video_task",
+          submitPath: "videos/generations",
+          taskIdPath: "id",
+          pollPathTemplate: "videos/generations/{task_id}",
+          taskStatusPath: "status",
+          resultVideoPath: "result.data.0.url",
+          requestMapping: { ratio: "aspect_ratio", duration: "seconds", images: "images" },
+        },
+      }),
+    });
+
+    upstreamRequests = [];
+    const generatedGenericAsync = await fetchJson("/api/proxy/external/video", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        providerId,
+        providerModel: "grok-video-1.5-preview",
+        model: "grok-video-1.5-preview",
+        prompt: "verification generic async video",
+        images: [referenceUrl],
+        aspect_ratio: "16:9",
+        duration: 6,
+        resolution: "720p",
+        providerParams: { modelRecordId: modelRecord?.id },
+      }),
+    });
+    const genericAsyncVideoUrl = generatedGenericAsync.data?.videoUrls?.[0] || "";
+    assert(genericAsyncVideoUrl.startsWith("/files/output/"), "generic async video was not saved locally");
+    const genericAsyncSubmit = upstreamRequests.find((item) => item.kind === "generic-async-submit");
+    const genericAsyncStatus = upstreamRequests.find((item) => item.kind === "generic-async-status");
+    assert(genericAsyncSubmit?.url === "/v1/videos/generations", "generic async submit endpoint mismatch");
+    assert(genericAsyncSubmit?.body?.seconds === 6, "generic async duration mapping mismatch");
+    assert(genericAsyncSubmit?.body?.aspect_ratio === "16:9", "generic async ratio mapping mismatch");
+    assert(Array.isArray(genericAsyncSubmit?.body?.images), "generic async images mapping mismatch");
+    assert(genericAsyncStatus?.url === "/v1/videos/generations/video_verify_456", "generic async poll endpoint mismatch");
+
+    await fetchJson(`/api/admin/models/${modelRecord.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        modelId: "agnes-video-v2.0",
+        displayName: "Verify Agnes Async Video Model",
+        inputProfile: "prompt,image_reference",
+        inputCapabilities: {
+          prompt: true,
+          imageReference: true,
+          multiImage: false,
+          firstFrame: false,
+          lastFrame: false,
+        },
+        advancedConfig: {
+          mode: "async_video_task",
+          submitPath: "videos",
+          taskIdPath: "task_id",
+          pollPathTemplate: "videos/{task_id}",
+          taskStatusPath: "status",
+          resultVideoPath: "video_url",
+          finalResultTaskIdPath: "video_id",
+          finalResultPathTemplate: "../agnesapi?video_id={task_id}",
+          finalResultVideoPath: "remixed_from_video_id",
+          requestMapping: { ratio: "aspect_ratio", duration: "duration", images: "image_urls" },
+        },
+      }),
+    });
+
+    upstreamRequests = [];
+    const generatedAgnesAsync = await fetchJson("/api/proxy/external/video", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        providerId,
+        providerModel: "agnes-video-v2.0",
+        model: "agnes-video-v2.0",
+        prompt: "verification agnes async video",
+        images: [referenceUrl],
+        aspect_ratio: "16:9",
+        duration: 6,
+        resolution: "720p",
+        providerParams: { modelRecordId: modelRecord?.id },
+      }),
+    });
+    const agnesAsyncVideoUrl = generatedAgnesAsync.data?.videoUrls?.[0] || "";
+    assert(agnesAsyncVideoUrl.startsWith("/files/output/"), "agnes async video was not saved locally");
+    const agnesAsyncSubmit = upstreamRequests.find((item) => item.kind === "agnes-async-submit");
+    const agnesAsyncStatus = upstreamRequests.find((item) => item.kind === "agnes-async-status");
+    const agnesAsyncFinal = upstreamRequests.find((item) => item.kind === "agnes-async-final");
+    assert(agnesAsyncSubmit?.url === "/v1/videos", "agnes async submit endpoint mismatch");
+    assert(agnesAsyncSubmit?.body?.aspect_ratio === "16:9", "agnes async ratio mapping mismatch");
+    assert(Array.isArray(agnesAsyncSubmit?.body?.image_urls), "agnes async image_urls mapping mismatch");
+    assert(agnesAsyncStatus?.url === "/v1/videos/task_verify_agnes", "agnes async poll endpoint mismatch");
+    assert(agnesAsyncFinal?.url === "/agnesapi?video_id=video_verify_agnes", "agnes async final endpoint mismatch");
+
+    console.log(JSON.stringify({ ok: true, videoUrl, asyncVideoUrl, genericAsyncVideoUrl, agnesAsyncVideoUrl, authorization: "present" }, null, 2));
   } finally {
     if (cookie) await fetchText(`/api/admin/providers/${providerId}`, { method: "DELETE" }).catch(() => undefined);
     upstream.server.close();
@@ -160,15 +276,45 @@ function startMockServer() {
             response.end(JSON.stringify({ code: 200, data: [{ task_id: "task_verify_123", status: "submitted" }] }));
             return;
           }
+          if (body.model === "grok-video-1.5-preview") {
+            upstreamRequests.push({ kind: "generic-async-submit", url: request.url, authorization: request.headers.authorization, body });
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(JSON.stringify({ id: "video_verify_456", object: "generation.task", status: "queued" }));
+            return;
+          }
           upstreamRequests.push({ kind: "sync-submit", url: request.url, authorization: request.headers.authorization, body });
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ data: [{ url: `http://127.0.0.1:${address.port}/asset.mp4` }] }));
+          return;
+        }
+        if (request.url === "/v1/videos" && body.model === "agnes-video-v2.0") {
+          upstreamRequests.push({ kind: "agnes-async-submit", url: request.url, authorization: request.headers.authorization, body });
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ id: "task_verify_agnes", task_id: "task_verify_agnes", video_id: "video_verify_agnes", status: "queued" }));
           return;
         }
         if (request.url === "/v1/tasks/task_verify_123") {
           upstreamRequests.push({ kind: "apimart-status", url: request.url, authorization: request.headers.authorization, body });
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ code: 200, data: { status: "completed", result: { videos: [`http://127.0.0.1:${address.port}/asset.mp4`] } } }));
+          return;
+        }
+        if (request.url === "/v1/videos/generations/video_verify_456") {
+          upstreamRequests.push({ kind: "generic-async-status", url: request.url, authorization: request.headers.authorization, body });
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ status: "completed", result: { data: [{ url: `http://127.0.0.1:${address.port}/asset.mp4`, format: "mp4" }] } }));
+          return;
+        }
+        if (request.url === "/v1/videos/task_verify_agnes") {
+          upstreamRequests.push({ kind: "agnes-async-status", url: request.url, authorization: request.headers.authorization, body });
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ id: "task_verify_agnes", status: "queued", video_id: "video_verify_agnes" }));
+          return;
+        }
+        if (request.url === "/agnesapi?video_id=video_verify_agnes") {
+          upstreamRequests.push({ kind: "agnes-async-final", url: request.url, authorization: request.headers.authorization, body });
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ id: "video_verify_agnes", status: "completed", remixed_from_video_id: `http://127.0.0.1:${address.port}/asset.mp4` }));
           return;
         }
         response.writeHead(200, { "content-type": "application/json" });

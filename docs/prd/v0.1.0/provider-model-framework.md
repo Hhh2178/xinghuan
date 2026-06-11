@@ -136,6 +136,80 @@
 - 例如需要额外签名、阶段式解析或大量字段重写的 Provider。
 - 这类差异应封装在 adapter 中，而不是堆在通用节点或通用代理分支里。
 
+## 异步视频模板规范
+
+为避免后续每接一个视频 Provider 就重新猜一次链路，异步视频接入统一归入以下模板：
+
+- `sync_inline_result`
+  - 提交请求后直接返回最终视频 URL。
+  - 典型场景：同步视频生成或短链路包装接口。
+- `async_task_poll_result`
+  - 提交后返回 `task_id` 或 `id`。
+  - 通过单一轮询接口拿到最终结果 URL。
+  - 典型场景：ToAPIs。
+- `async_task_poll_then_final_lookup`
+  - 提交后返回任务 ID。
+  - 轮询任务接口只能拿到中间资源 ID，例如 `video_id`。
+  - 需要再请求一次最终资源接口拿到视频 URL。
+  - 典型场景：Agnes。
+- `adapter_manual_model_catalog`
+  - 不走标准自动拉取目录或标准 OpenAI-like 视频协议。
+  - 需要手动目录或更重的 adapter 封装。
+
+推荐规则：
+
+- 后台 AI 助手必须先判断模板，再输出 Provider / Model / advancedConfig 草案。
+- Hermes 分析结果应与后台 AI 助手使用同名模板，避免出现多套命名。
+- 新增 Provider 的 first-pass 验收必须先证明它落在哪个模板，再决定是否需要新增 adapter。
+
+### 模板字段白名单
+
+异步视频模板可用字段：
+
+- 第一段提交/轮询：
+  - `submitPath`
+  - `taskIdPath`
+  - `pollPathTemplate`
+  - `taskStatusPath`
+  - `resultVideoPath`
+- 请求构造：
+  - `requestMapping`
+  - `requestValueTypes`
+  - `fixedBody`
+- 第二段最终结果查询：
+  - `finalResultTaskIdPath`
+  - `finalResultPathTemplate`
+  - `finalResultVideoPath`
+- 运行参数：
+  - `pollIntervalMs`
+  - `pollTimeoutMs`
+
+注意：
+
+- `advancedConfig` 只允许受控白名单字段，不允许脚本、表达式、命令模板或任意数据库写入指令。
+- `../` 相对路径允许用于从 `/v1/...` 回跳到站点根路径，例如 Agnes 的 `/agnesapi?...`。
+
+### 当前样板
+
+- ToAPIs：
+  - 模板：`async_task_poll_result`
+  - `submitPath = videos/generations`
+  - `taskIdPath = id`
+  - `pollPathTemplate = videos/generations/{task_id}`
+  - `taskStatusPath = status`
+  - `resultVideoPath = result.data.0.url`
+  - `requestMapping = { ratio: aspect_ratio, duration: seconds, images: images }`
+  - `requestValueTypes = { duration: string }`
+- Agnes：
+  - 模板：`async_task_poll_then_final_lookup`
+  - `submitPath = videos`
+  - `taskIdPath = task_id`
+  - `pollPathTemplate = videos/{task_id}`
+  - `taskStatusPath = status`
+  - `finalResultTaskIdPath = video_id`
+  - `finalResultPathTemplate = ../agnesapi?video_id={task_id}`
+  - `finalResultVideoPath = remixed_from_video_id`
+
 ## 后端接口设计
 
 Provider CRUD：

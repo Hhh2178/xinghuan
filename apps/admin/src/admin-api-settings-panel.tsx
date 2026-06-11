@@ -111,6 +111,31 @@ function buildProviderAssistantAttachments(
   return attachments;
 }
 
+function assistantValue(value: unknown, fallback = "未建议") {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
+
+function assistantAdvancedValue(result: AssistantAnalysisResult | null, key: string) {
+  return assistantValue(result?.drafts?.model?.advancedConfig?.[key], "未建议");
+}
+
+function assistantAdvancedJsonValue(result: AssistantAnalysisResult | null, key: string) {
+  const value = result?.drafts?.model?.advancedConfig?.[key];
+  if (!value || typeof value !== "object") return "未建议";
+  return JSON.stringify(value, null, 2);
+}
+
+function safeAssistantSchemaText(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return "{}";
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
 /* ── component ────────────────────────────────────────────────────────── */
 
 export function ApiSettingsPanel({
@@ -368,9 +393,51 @@ export function ApiSettingsPanel({
     }
   }
 
-  function applyAssistantProviderDraft() {
+  async function upsertAssistantModelDraft(result: AssistantAnalysisResult) {
+    const modelDraft = result.drafts?.model;
+    if (!selected || !modelDraft) return;
+    const capability = (modelDraft.capability || "video") as Capability;
+    const existingModel =
+      selectedModels.find((model) => model.modelId === modelDraft.modelId) ||
+      selectedModels.find((model) => model.capability === capability);
+    const payload = {
+      providerId: selected.id,
+      modelId: modelDraft.modelId || existingModel?.modelId || `${selected.id}-${capability}`,
+      displayName:
+        modelDraft.displayName ||
+        modelDraft.modelId ||
+        existingModel?.displayName ||
+        `${selected.name || selected.id} ${capability}`,
+      capability,
+      enabled: existingModel?.enabled ?? true,
+      inputProfile: modelDraft.inputProfile || existingModel?.inputProfile || "prompt",
+      inputCapabilities: modelDraft.inputCapabilities || existingModel?.inputCapabilities || {},
+      parameterSchema: safeAssistantSchemaText(modelDraft.parameterSchema),
+      advancedConfig: modelDraft.advancedConfig || existingModel?.advancedConfig || {},
+      protocolOverride: existingModel?.protocolOverride || "",
+    };
+    if (existingModel) {
+      await api(`/api/admin/models/${existingModel.id}`, {
+        method: "PATCH",
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+      });
+      return;
+    }
+    await api("/api/admin/models", {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        id: `${selected.id}-${capability}-${payload.modelId}`,
+        ...payload,
+      }),
+    });
+  }
+
+  async function applyAssistantProviderDraft() {
     if (!assistantResult) return;
     const providerDraft = assistantResult.drafts?.provider || {};
+    const assistantModelDraft = assistantResult.drafts?.model;
     setDraft((current) => ({
       ...current,
       name:
@@ -390,9 +457,21 @@ export function ApiSettingsPanel({
           ? providerDraft.note
           : current.note,
     }));
-    setStatus("AI 草案已应用到表单，仍需点击保存才会生效。");
-    if (!assistantPrompt && assistantResult.checklist?.length) {
-      setAssistantPrompt(assistantResult.checklist.join("\n"));
+    setBusy(true);
+    setStatus("正在把 AI 草案同步到 Provider 与模型表单...");
+    try {
+      if (assistantModelDraft) {
+        await upsertAssistantModelDraft(assistantResult);
+      }
+      await refresh();
+      setStatus("AI 草案已应用到表单，仍需点击保存才会生效。");
+      if (!assistantPrompt && assistantResult.checklist?.length) {
+        setAssistantPrompt(assistantResult.checklist.join("\n"));
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -551,13 +630,15 @@ export function ApiSettingsPanel({
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="ghost-action"
-            onClick={addProvider}
-          >
-            <Plus aria-hidden="true" /> 新增平台
-          </button>
+          <div className="provider-rail-footer">
+            <button
+              type="button"
+              className="ghost-action"
+              onClick={addProvider}
+            >
+              <Plus aria-hidden="true" /> 新增平台
+            </button>
+          </div>
         </aside>
 
         <div className="api-settings-content">
@@ -739,21 +820,140 @@ export function ApiSettingsPanel({
             </div>
             {assistantResult ? (
               <div className="assistant-draft-preview">
-                <p>{assistantResult.summary}</p>
-                <dl>
-                  <div>
-                    <dt>建议协议</dt>
-                    <dd>{assistantResult.drafts.provider.protocol || assistantResult.protocol}</dd>
-                  </div>
-                  <div>
-                    <dt>建议地址</dt>
-                    <dd>{assistantResult.drafts.provider.baseUrl || "保持当前表单"}</dd>
-                  </div>
-                  <div>
-                    <dt>推荐层级</dt>
-                    <dd>{assistantResult.recommendedLayer}{assistantResult.asyncTask ? " / async" : ""}</dd>
-                  </div>
-                </dl>
+                  <section className="assistant-draft-section assistant-draft-section--summary">
+                    <span>{assistantResult.mode === "hermes" ? "Hermes 分析" : "本地分析"}</span>
+                    <p>{assistantResult.summary}</p>
+                  </section>
+                <div className="assistant-draft-grid">
+                  <section className="assistant-draft-section">
+                    <strong>接入模板</strong>
+                    <dl>
+                      <div>
+                        <dt>模板</dt>
+                        <dd>{assistantResult.chainTemplate || "未标记"}</dd>
+                      </div>
+                      <div>
+                        <dt>版本</dt>
+                        <dd>{assistantResult.chainTemplateVersion || "video-provider-template/v1"}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  <section className="assistant-draft-section">
+                    <strong>Provider 草案</strong>
+                    <dl>
+                      <div>
+                        <dt>协议</dt>
+                        <dd>{assistantResult.drafts.provider.protocol || assistantResult.protocol}</dd>
+                      </div>
+                      <div>
+                        <dt>地址</dt>
+                        <dd>{assistantResult.drafts.provider.baseUrl || "保持当前表单"}</dd>
+                      </div>
+                      <div>
+                        <dt>备注</dt>
+                        <dd>{assistantResult.drafts.provider.note || "未建议"}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  <section className="assistant-draft-section">
+                    <strong>模型草案</strong>
+                    <dl>
+                      <div>
+                        <dt>模型</dt>
+                        <dd>{assistantResult.drafts.model.modelId || selectedModels[0]?.modelId || "未建议"}</dd>
+                      </div>
+                      <div>
+                        <dt>能力</dt>
+                        <dd>{assistantResult.drafts.model.capability || "video"}</dd>
+                      </div>
+                      <div>
+                        <dt>输入</dt>
+                        <dd>{assistantResult.drafts.model.inputProfile || "prompt"}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  <section className="assistant-draft-section assistant-draft-section--span">
+                    <strong>异步任务配置</strong>
+                    <dl>
+                      <div>
+                        <dt>任务 ID</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "taskIdPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>状态路径</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "taskStatusPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>异步模式</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "mode") || "async_video_task"}</dd>
+                      </div>
+                      <div>
+                        <dt>提交路径</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "submitPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>轮询路径</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "pollPathTemplate")}</dd>
+                      </div>
+                      <div>
+                        <dt>结果视频</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "resultVideoPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>最终资源 ID</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "finalResultTaskIdPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>最终查询路径</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "finalResultPathTemplate")}</dd>
+                      </div>
+                      <div>
+                        <dt>最终视频路径</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "finalResultVideoPath")}</dd>
+                      </div>
+                      <div>
+                        <dt>请求映射</dt>
+                        <dd>
+                          <pre>{assistantAdvancedJsonValue(assistantResult, "requestMapping")}</pre>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>类型转换</dt>
+                        <dd>
+                          <pre>{assistantAdvancedJsonValue(assistantResult, "requestValueTypes")}</pre>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>固定参数</dt>
+                        <dd>
+                          <pre>{assistantAdvancedJsonValue(assistantResult, "fixedBody")}</pre>
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+                </div>
+                {assistantResult.risks?.length ? (
+                  <section className="assistant-draft-section">
+                    <strong>风险</strong>
+                    <ul>
+                      {assistantResult.risks.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </section>
+                ) : null}
+                {assistantResult.checklist?.length ? (
+                  <section className="assistant-draft-section">
+                    <strong>检查清单</strong>
+                    <ul>
+                      {assistantResult.checklist.slice(0, 6).map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </section>
+                ) : null}
+                {assistantResult.rawAssistant ? (
+                  <details className="assistant-draft-raw">
+                    <summary>查看原始输出</summary>
+                    <pre>{assistantResult.rawAssistant}</pre>
+                  </details>
+                ) : null}
                 <small>草案只会写入当前表单，点击保存后才会生效。</small>
               </div>
             ) : null}

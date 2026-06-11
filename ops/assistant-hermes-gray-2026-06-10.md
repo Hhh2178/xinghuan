@@ -177,3 +177,86 @@ ln -sfn /opt/apps/xinghuan-canvas-next/releases/20260610-assistant-media-chain-g
 sudo systemctl restart xinghuan-canvas-next.service
 sudo systemctl restart xinghuan-canvas-next-worker.service
 ```
+
+## 继续发布补记
+
+- 发布日期：
+  - `2026-06-10`
+- 新灰度 release：
+  - `20260610-assistant-media-chain-gray-r3-f295040`
+- 本机提交：
+  - `f295040`
+- 服务器动作：
+  - 上传 `/tmp/20260610-assistant-media-chain-gray-r3-f295040.tar.gz`
+  - 解压到 `/opt/apps/xinghuan-canvas-next/releases/20260610-assistant-media-chain-gray-r3-f295040`
+  - 执行 `npm ci`
+  - 加载 `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+  - 执行 `npm run db:migrate`
+    - `applied=[]`
+    - `skipped=6`
+  - 切换 `current`
+  - 重启 `xinghuan-canvas-next.service` 与 `xinghuan-canvas-next-worker.service`
+- 发布后核对：
+  - `realpath /opt/apps/xinghuan-canvas-next/current`
+    - `/opt/apps/xinghuan-canvas-next/releases/20260610-assistant-media-chain-gray-r3-f295040`
+  - `curl -fsS http://127.0.0.1:18200/api/status`
+    - `environment=gray`
+  - 远端 `apps/api/dist/server.js` 已包含多 session 修复逻辑：
+    - `sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)]`
+- 发布后验收：
+  - 灰度本机并发 session：
+    - 同一管理员连续登录两次后，两张 cookie 调 `/api/auth/me` 都保持 `authenticated=true`
+  - 后台助手：
+    - `mode=hermes`
+    - 同一 `conversationId` 下成功取回暗号 `海蓝节点R3`
+  - 画布助手：
+    - `mode=hermes`
+    - 同一 `conversationId` 下成功取回短语 `星轨草图R3`
+  - 公网灰度入口：
+    - `https://canvas-next.hhh2121.xyz/`
+    - `https://canvas-next.hhh2121.xyz/admin`
+    - `https://canvas-next.hhh2121.xyz/api/status`
+    - 均可正常访问
+  - 任务 payload API：
+    - `POST /api/admin/tasks` 创建验证任务成功
+    - `GET /api/admin/tasks` 可回读 `payload/result`
+
+## 灰度旧版本残留排查补记
+
+- 排查日期：
+  - `2026-06-10`
+- 现象：
+  - 用户反馈“推送后仍像之前的版本”
+- 排查结论：
+  - 灰度部署本身正常：
+    - `realpath /opt/apps/xinghuan-canvas-next/current`
+      - 指向 `20260610-assistant-media-chain-gray-r3-f295040`
+    - `systemctl cat xinghuan-canvas-next.service`
+      - `WorkingDirectory=/opt/apps/xinghuan-canvas-next/current`
+    - 运行中 Node 进程：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260610-assistant-media-chain-gray-r3-f295040/apps/api/dist/server.js`
+  - 灰度域名和本机入口返回的资源 hash 一致：
+    - `/assets/index-Du4Et5fv.js`
+    - `/admin/assets/index-DMvEA4um.js`
+  - 真正根因是静态入口 HTML 缓存策略错误：
+    - `/` 和 `/admin` 返回：
+      - `cache-control: public, max-age=3600`
+    - 浏览器可能在 1 小时内继续复用旧 HTML，从而继续加载旧的 JS/CSS 文件
+- 修复方案：
+  - `apps/api/src/server.ts`
+    - `.html` 静态文件改为：
+      - `cache-control: no-store`
+    - 其他静态资源仍保留：
+      - `cache-control: public, max-age=3600`
+  - 新增验收脚本：
+    - `scripts/verify-static-html-cache-contract.mjs`
+    - `package.json -> verify:static-html-cache-contract`
+- 本机修复后验证：
+  - `curl -i http://127.0.0.1:18200/`
+    - `cache-control: no-store`
+  - `curl -i http://127.0.0.1:18200/admin`
+    - `cache-control: no-store`
+  - `npm run verify:static-html-cache-contract`
+    - 全部通过
+  - `npm run verify:single-port`
+    - 全部通过

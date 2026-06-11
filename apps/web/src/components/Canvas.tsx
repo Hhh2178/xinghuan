@@ -647,6 +647,16 @@ const EXECUTABLE_NODE_TYPES = new Set<string>([
   'remove-ai-watermark',
 ]);
 
+const GENERATION_LIBRARY_NODE_TYPES = new Set<string>([
+  'image', 'edit',
+  'multi-angle-3d', 'panorama-720', 'penguin-portrait',
+  'video', 'seedance', 'audio', 'llm', 'runninghub', 'runninghub-wallet',
+  'rh-tools', 'rh-toolbox', 'comfyui-store',
+  'resize', 'upscale', 'grid-crop', 'grid-editor', 'remove-bg', 'combine', 'image-compare', 'drawing-board',
+  'frame-extractor', 'frame-pair',
+  'remove-ai-watermark',
+]);
+
 // 网格吸附步长 / 对齐阈值(世界坐标)
 const SNAP_GRID: [number, number] = [20, 20];
 const ALIGN_THRESHOLD = 6;
@@ -3940,6 +3950,46 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     logBus.success(`已连接 NodeID #${serialId}`, '发送到ID');
   }, [onConnect, picker]);
 
+  // ===== 自动登记生成库 =====
+  // 生成库是短期产物池，和长期资源库分离；节点一旦出现新的图片/视频/音频 URL，就静默登记。
+  const generationLibraryRegisteredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!loaded || !activeId) return;
+    const pending: Array<api.AddGenerationLibraryItemPayload> = [];
+    for (const node of nodes) {
+      const type = String(node.type || '');
+      if (!GENERATION_LIBRARY_NODE_TYPES.has(type)) continue;
+      const data = (node.data || {}) as Record<string, any>;
+      if (data.__loopAccumulate) continue;
+      for (const kind of ['image', 'video', 'audio'] as const) {
+        for (const item of getMediaItemsFromData(data, kind)) {
+          if (!item.url || !item.url.startsWith('/files/output/')) continue;
+          const key = `${activeId}:${node.id}:${kind}:${item.url}`;
+          if (generationLibraryRegisteredRef.current.has(key)) continue;
+          generationLibraryRegisteredRef.current.add(key);
+          pending.push({
+            kind,
+            url: item.url,
+            title: item.name || fileNameFromUrl(item.url),
+            mime: item.mime,
+            size: item.size,
+            sourceNodeId: node.id,
+            sourceCanvasId: activeId,
+            taskId: typeof data.taskId === 'string' ? data.taskId : undefined,
+            providerId: typeof data.providerId === 'string' ? data.providerId : undefined,
+            modelId: typeof data.providerModel === 'string' ? data.providerModel : typeof data.model === 'string' ? data.model : undefined,
+          });
+        }
+      }
+    }
+    if (pending.length === 0) return;
+    void Promise.all(pending.map((item) => api.addGenerationLibraryItem(item))).then(() => {
+      window.dispatchEvent(new CustomEvent('penguin:generation-library-changed'));
+    }).catch((error) => {
+      logBus.warn(error?.message || '生成库登记失败', '生成库');
+    });
+  }, [activeId, loaded, nodes]);
+
   // ===== 自动创建输出素材节点 =====
   // 生成类节点 (image/video/audio/seedance/llm/runninghub 等) 输出字段有值后,
   // 自动创建对应数量的 OutputNode 并连线。
@@ -4147,10 +4197,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       const lastSig = autoOutputProcessedRef.current.get(n.id);
       if (lastSig === sig) continue;
 
-      // 收集当前下游 OutputNode（手动 + 自动）
-      // 意图：N 个产物 → N 个独立 OutputNode。只要某个 OutputNode 仅从本节点连入且未带 pickKind，
-      // 就给它“升级”为 pickKind+pickIndex（按 items 排序中未被占用的下一个），让它只显示一项；
-      // 不够再补建 autoOutput 节点。
+      // 收集当前下游 OutputNode（手动 + 自动）。
+      // 生成节点的多产物默认收纳到同一个集合 OutputNode，由 OutputNode 内部自适应网格展示。
       const downstreamOutputs: Array<{
         id: string;
         pickKind?: string;
@@ -4200,96 +4248,49 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         console.warn('[autoOutput] 清理过期自动输出节点', downstreamOutputs.length - activeDownstreamOutputs.length);
       }
 
-      // 差异化处理:
-      //   1) 已带 pickKind+pickIndex 的 → 计作“已占用该项”
-      //   2) 未带 pickKind 的 → 依次升级为 items 中还未被占用的项
-      const occupied = new Set<string>(); // key=`${kind}:${kindIndex}`
-      for (const o of activeDownstreamOutputs) {
-        if (o.pickKind && typeof o.pickIndex === 'number') {
-          occupied.add(`${o.pickKind}:${o.pickIndex}`);
-        }
-      }
-      const upgradePatches: Array<[string, { pickKind: string; pickIndex: number }]> = [];
-      for (const o of activeDownstreamOutputs) {
-        if (o.pickKind) continue;
-        // 指定下一个未占用项
-        const next = items.find((it) => !occupied.has(itemKey(it)));
-        if (!next) break;
-        occupied.add(itemKey(next));
-        upgradePatches.push([o.id, { pickKind: next.kind, pickIndex: next.kindIndex }]);
-      }
-
-      // 仍然未被占用的 items 数量 = 需要补建的 OutputNode 个数
-      const remainingItems = items.filter((it) => !occupied.has(itemKey(it)));
-      const needCount = remainingItems.length;
       newSigPatches.push([n.id, sig]);
 
-      // 接下来先应用 upgradePatches 再补建节点
-      if (upgradePatches.length > 0) {
-        const patchMap = new Map(upgradePatches);
+      const existingCollectionOutput = activeDownstreamOutputs.find((o) => !o.pickKind) || activeDownstreamOutputs[0];
+      if (existingCollectionOutput) {
         setNodes((prev) =>
           prev.map((nd) => {
-            const p = patchMap.get(nd.id);
-            if (!p) return nd;
-            return { ...nd, data: { ...(nd.data as any), pickKind: p.pickKind, pickIndex: p.pickIndex } };
+            if (nd.id !== existingCollectionOutput.id) return nd;
+            const nextData = { ...(nd.data as any), groupOutputMode: 'collection' };
+            delete nextData.pickKind;
+            delete nextData.pickIndex;
+            return { ...nd, data: nextData };
           })
         );
+        continue;
       }
-      if (needCount <= 0) continue;
 
       const _srcRectGen = rectOf(n);
       const baseX = (n.position?.x ?? 0) + _srcRectGen.w + 80;
 
-      // v1.2.10.5: 整组防重叠 —— 先算期望网格矩形, 再求公共偏移
+      // v1.2.10.5: 集合输出节点防重叠 —— 只补建一个自适应 OutputNode。
       const _szGen = defaultSizeOf('output');
-      // v1.2.10.7: baseY 让输出组垂直中心对齐源节点中心（handle 位置），避免输出偏上
-      const _gridRows = Math.ceil(needCount / 3);
-      const _groupHGen = (_gridRows - 1) * 360 + _szGen.h;
-      const baseY = (n.position?.y ?? 0) + _srcRectGen.h / 2 - _groupHGen / 2;
-      const _desiredGen: PlacementRect[] = remainingItems.slice(0, needCount).map((item) => {
-        const idx = items.findIndex((it) => it.kind === item.kind && it.kindIndex === item.kindIndex);
-        return {
-          x: baseX + (idx % 3) * 350,
-          y: baseY + Math.floor(idx / 3) * 360,
-          w: _szGen.w, h: _szGen.h,
-        };
-      });
+      const baseY = (n.position?.y ?? 0) + _srcRectGen.h / 2 - _szGen.h / 2;
+      const _desiredGen: PlacementRect[] = [{ x: baseX, y: baseY, w: _szGen.w, h: _szGen.h }];
       const _offGen = placeBatchNodes(_desiredGen, [...nodes, ...pendingPlacedNodes], { source: 'placement:auto-output', gap: 0 });
 
-      for (let i = 0; i < needCount; i++) {
-        const item = remainingItems[i];
-        if (!item) break;
-        // 排列 offsetIndex 以 items 中 item 的全局位置为准，保证不同 kind 不会重叠
-        const offsetIndex = items.findIndex((it) => it.kind === item.kind && it.kindIndex === item.kindIndex);
-        const newId = `output-auto-${n.id}-${Date.now()}-${offsetIndex}-${Math.random()
-          .toString(36)
-          .slice(2, 6)}`;
-        const _newNodeGen: Node = {
-          id: newId,
-          type: 'output',
-          // 网格排列: 每行 3 个, 超过换行。
-          // OutputNode 宽 320 + 横间距 30 = 列宽 350; 行高 360 (包含图像预览).
-          // v1.2.10.5: 掠上 _offGen 避让现有节点。
-          position: {
-            x: baseX + (offsetIndex % 3) * 350 + _offGen.dx,
-            y: baseY + Math.floor(offsetIndex / 3) * 360 + _offGen.dy,
-          },
-          // pickKind/pickIndex: 下游 OutputNode 只拾上游对应 kind 的第 kindIndex 项,
-          // 避免多图场景下所有 OutputNode 都重复显示全部输出
-          data: { pickKind: item.kind, pickIndex: item.kindIndex },
-          selected: false,
-        } as Node;
-        toAddNodes.push(_newNodeGen);
-        // v1.2.10.5-hotfix3: 通用路径也必须累积到 pendingPlacedNodes，
-        // 否则同一 effect 周期内后续源节点看不到本轮已创建的 OutputNode → 重叠
-        pendingPlacedNodes.push(_newNodeGen);
-        toAddEdges.push({
-          id: `e-auto-${newId}`,
-          source: n.id,
-          target: newId,
-          type: 'deletable',
-        } as Edge);
-      }
+      const newId = `output-auto-${n.id}-${Date.now()}-collection-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`;
+      const _newNodeGen: Node = {
+        id: newId,
+        type: 'output',
+        position: { x: baseX + _offGen.dx, y: baseY + _offGen.dy },
+        data: { groupOutputMode: 'collection' },
+        selected: false,
+      } as Node;
+      toAddNodes.push(_newNodeGen);
+      pendingPlacedNodes.push(_newNodeGen);
+      toAddEdges.push({
+        id: `e-auto-${newId}`,
+        source: n.id,
+        target: newId,
+        type: 'deletable',
+      } as Edge);
     }
 
     // 先写 ref 避免下次 useEffect 重进入重复创建

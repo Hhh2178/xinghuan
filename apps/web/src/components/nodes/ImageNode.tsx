@@ -1,11 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
-import { AlertCircle, Image as ImageIcon, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Image as ImageIcon, Loader2, Plus, Sparkles, Square, X } from 'lucide-react';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import {
   IMAGE_MODELS,
@@ -33,6 +34,7 @@ import {
   uploadMjImage,
   buildMjPrompt,
   generateExternalImage,
+  cancelGenerationTask,
   type MjSpeed,
 } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
@@ -120,9 +122,15 @@ const comfyImageSourceIndex = (source: string) => {
   const match = source.match(COMFY_IMAGE_SOURCE_RE);
   return match ? Math.max(1, Number(match[1]) || 1) : 0;
 };
+const clampGenerationCount = (value: unknown, fallback = 1) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(4, Math.round(parsed)));
+};
 
 const ImageNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
+  const { rootRef } = useSyncNodeInternalsOnResize(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const { getEdges, getNodes } = useReactFlow();
   const { style, theme } = useThemeStore();
@@ -135,6 +143,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const mjUploadKindRef = useRef<'sref' | 'oref'>('sref');
 
   const [error, setError] = useState<string | null>(null);
+  const src = `image:${id.slice(0, 6)}`;
   const d = data as any;
   const backendImageModels = useModelCatalogStore((s) => s.catalog.imageModels);
   const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
@@ -266,6 +275,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   );
   // 子模型变体(对齐 gpt-image-2-web 的 g_model/n_model)
   const apiModel = isBackendSelected && backendModel ? backendModel.modelId : (d?.apiModel || modelDef.apiModel);
+  const generationCount = clampGenerationCount(d?.generationCount ?? d?.falN ?? d?.providerParams?.n ?? 1);
 
   // ========== FAL 渠道识别及参数(不影响其他模型) ==========
   const isFal = isFalModel(apiModel);
@@ -278,7 +288,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const falCustomW: number = d?.falCustomW ?? 1280;
   const falCustomH: number = d?.falCustomH ?? 1280;
   const falQuality: 'low' | 'medium' | 'high' | 'auto' = d?.falQuality || 'medium';
-  const falN: number = d?.falN ?? 1;
   const falFormat: 'png' | 'jpeg' | 'webp' = d?.falFormat || 'png';
   const falSync: boolean = d?.falSync === true;
   // nbpro-fal: aspect_ratio/resolution/safety/imgMode/webSearch/sysPrompt/seed
@@ -316,6 +325,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const status: 'idle' | 'generating' | 'success' | 'error' = d?.status || 'idle';
   const progress: string = d?.progress || '';
   const taskId: string | undefined = d?.taskId;
+  const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
   const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
   const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
@@ -584,19 +594,18 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       ? resolveMediaMentions(comfyProviderPrompt || localPrompt, promptMentions, mentionMaterials)
       : '';
     const finalPrompt = (upstreamPrompt || (isComfyExternal ? resolvedComfyPrompt : resolvedLocalPrompt) || '').trim();
-    const src = `image:${id.slice(0, 6)}`;
     if (!finalPrompt && (!isComfyExternal || comfyHasPromptField)) {
       setError('未连接 text 节点也未填写 prompt');
       logBus.error('生成中止: 缺少 prompt', src);
       return;
     }
-    let runtimeStartedAt: number | null = null;
+
     taskCompletionSound.primeAudio();
-    runtimeStartedAt = markRuntimeStarted();
-    try {
-      // collectUpstream 已返回「本地上传 + 上游接入」按用户拖拽顺序合并后的列表,
-      // 这里不再二次叠加 refImages, 避免本地参考图重复传递。
-      const allRefs = upstreamImages.slice(0, maxRefs);
+    const runtimeStartedAt = markRuntimeStarted();
+    const allRefs = upstreamImages.slice(0, maxRefs);
+
+    const runSingleImageGeneration = async (batchIndex: number) => {
+      const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
 
       if (isBackendSelected && backendModel) {
         const backendSizeValue = backendImageShowsSizeControl
@@ -606,7 +615,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           ? String(backendSizeValue || backendModel.ui.defaultSize || '1024x1024')
           : externalImageSizeFor(aspectRatio, backendSizeValue);
         logBus.info(
-          `后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
+          `${batchLabel} 后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
           src,
         );
         const res = await generateExternalImage({
@@ -627,19 +636,12 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         });
         const urls = res.imageUrls || [];
         if (!urls.length) throw new Error('后台模型完成但未返回图片');
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          progress: '100%',
-          imageUrl: urls[0],
+        return {
           imageUrls: urls,
-          remoteImageUrls: res.remoteImageUrls,
-          lastPrompt: finalPrompt,
-          usedI2I: allRefs.length > 0,
+          remoteImageUrls: res.remoteImageUrls || [],
           taskId: res.taskId || d?.taskId,
-        });
-        logBus.success(`后台模型完成 → ${urls[0]}`, src);
-        taskCompletionSound.notifyComplete(id, 'image');
-        return;
+          usedI2I: allRefs.length > 0,
+        };
       }
 
       if (isExternalSelected && providerSelection.provider) {
@@ -678,7 +680,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             ).trim()
           : '';
         logBus.info(
-          `扩展平台提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel}${loraLog} · size=${size} · 参考图=${allRefs.length}`,
+          `${batchLabel} 扩展平台提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel}${loraLog} · size=${size} · 参考图=${allRefs.length}`,
           src,
         );
         const res = await generateExternalImage({
@@ -690,33 +692,24 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           images: allRefs,
           negativePrompt: externalNegativePrompt || undefined,
           negative: externalNegativePrompt || undefined,
-          n: Math.max(1, Math.min(4, Number(d?.providerParams?.n || 1))),
+          n: 1,
           providerParams: externalProviderParams,
         });
         const urls = res.imageUrls || [];
         if (!urls.length) throw new Error('扩展平台完成但未返回图片');
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          progress: '100%',
-          imageUrl: urls[0],
+        return {
           imageUrls: urls,
-          remoteImageUrls: res.remoteImageUrls,
-          lastPrompt: finalPrompt,
-          usedI2I: allRefs.length > 0,
+          remoteImageUrls: res.remoteImageUrls || [],
           taskId: res.taskId || d?.taskId,
-        });
-        logBus.success(`扩展平台完成 → ${urls[0]}`, src);
-        taskCompletionSound.notifyComplete(id, 'image');
-        return;
+          usedI2I: allRefs.length > 0,
+        };
       }
 
-      // ============ MJ 路径(对齐 gpt-image-2-web runMJ L4437~L4716) ============
       if (isMj) {
         logBus.info(
-          `MJ提交: version=${mjVersion} ar=${mjAr} speed=${mjSpeed} ref=${allRefs.length} sref=${mjSrefImages.length} oref=${mjOrefImages.length} prompt="${finalPrompt.slice(0, 60)}${finalPrompt.length > 60 ? '…' : ''}"`,
+          `${batchLabel} MJ提交: version=${mjVersion} ar=${mjAr} speed=${mjSpeed} ref=${allRefs.length} sref=${mjSrefImages.length} oref=${mjOrefImages.length} prompt="${finalPrompt.slice(0, 60)}${finalPrompt.length > 60 ? '…' : ''}"`,
           src,
         );
-        // 主参考图(垫图): 将 URL 转 base64(主项目只接受 base64Array,上游节点输出的 imageUrl 需下载转换)
         const base64Array: string[] = [];
         for (const u of allRefs) {
           try {
@@ -729,11 +722,10 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
               fr.readAsDataURL(blob);
             });
             base64Array.push(dataUrl);
-          } catch (err: any) {
+          } catch {
             logBus.warn(`MJ 主参考图转 base64 失败,跳过: ${u}`, src);
           }
         }
-        // sref/oref 允许多张(buildMjPrompt 会为每个 URL 各追加一个 flag)
         const fullPrompt = buildMjPrompt({
           prompt: finalPrompt,
           model: mjVersion,
@@ -762,7 +754,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           remix: true,
         });
         const taskId = submit.taskId;
-        logBus.info(`MJ 任务已提交 taskId=${taskId} fullPrompt="${fullPrompt.slice(0, 120)}${fullPrompt.length > 120 ? '…' : ''}"`, src);
         update({ progress: '15%', taskId });
         const interval = Math.max(1, Math.min(30, mjPollInt || 3)) * 1000;
         const maxPoll = Math.max(
@@ -770,7 +761,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           minPollCountForTimeout(interval),
           Math.min(3600, mjMaxPoll || 1200),
         );
-        for (let i = 0; i < maxPoll; i++) {
+        for (let i = 0; i < maxPoll; i += 1) {
           await new Promise((r) => setTimeout(r, interval));
           const q = await queryMjTask(taskId, mjSpeed);
           if (q.status === 'FAILURE') {
@@ -778,62 +769,44 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           }
           if (q.progress) {
             const pct = parseInt(String(q.progress)) || 0;
-            const out = `${Math.min(99, 15 + Math.floor(pct * 0.85))}%`;
-            update({ progress: out });
-            if (i % 3 === 2) logBus.debug(`[${i + 1}/${maxPoll}] MJ progress=${q.progress} status=${q.status}`, src);
+            update({ progress: `${Math.min(99, 15 + Math.floor(pct * 0.85))}%` });
           }
           if (q.status === 'SUCCESS') {
             const main = q.imageUrl || '';
             const grid = q.imageUrls || [];
-            const all = grid.length ? grid : (main ? [main] : []);
-            if (!all.length) {
-              // 调试：上游字段名可能变化，把原始报文打到日志便于定位
-              try {
-                const dump = JSON.stringify(q.raw)?.slice(0, 800) || String(q.raw);
-                logBus.warn(`MJ 任务完成但未拿到 imageUrl/imageUrls，raw=${dump}`, src);
-              } catch {}
-              throw new Error('MJ 任务完成但未返回图片');
-            }
-            const final = main || all[0];
-            logBus.success(`MJ 任务完成 → ${final}` + (grid.length ? ` (含 ${grid.length} 张子图)` : ''), src);
-            markRuntimeFinished(runtimeStartedAt, {
-              status: 'success',
-              progress: '100%',
-              imageUrl: final,
-              imageUrls: all,
-              lastPrompt: finalPrompt,
+            const urls = grid.length ? grid : (main ? [main] : []);
+            if (!urls.length) throw new Error('MJ 任务完成但未返回图片');
+            return {
+              imageUrls: urls,
+              remoteImageUrls: [],
+              taskId,
               usedI2I: allRefs.length > 0 || mjSrefImages.length > 0 || mjOrefImages.length > 0,
-            });
-            taskCompletionSound.notifyComplete(id, 'image');
-            return;
+            };
           }
         }
         throw new Error(`MJ 轮询超时: ${maxPoll} 次 × ${interval / 1000}s`);
       }
 
-      // ============ FAL 路径(对齐 gpt-image-2-web runGPTFal / runNanoFal) ============
       if (isFal && falDef) {
         const sizeDesc = falKind === 'gpt-fal'
           ? (falSize === 'custom' ? `${falCustomW}×${falCustomH}` : falSize)
           : `${nbAspect}/${nbResolution}`;
         logBus.info(
-          `FAL提交: model=${apiModel} kind=${falKind} size=${sizeDesc} 参考图=${allRefs.length} prompt="${finalPrompt.slice(0, 60)}${finalPrompt.length > 60 ? '…' : ''}"`,
+          `${batchLabel} FAL提交: model=${apiModel} kind=${falKind} size=${sizeDesc} 参考图=${allRefs.length}`,
           src,
         );
         const submit = await submitImageFal({
           apiModel,
           prompt: finalPrompt,
           images: allRefs,
-          n: falKind === 'gpt-fal' ? falN : (d?.falN ?? 1),
+          n: 1,
           format: falFormat,
           sync: falSync,
-          // gpt-fal
           mode: falKind === 'gpt-fal' ? falMode : undefined,
           size: falKind === 'gpt-fal' ? falSize : undefined,
           customW: falKind === 'gpt-fal' && falSize === 'custom' ? falCustomW : undefined,
           customH: falKind === 'gpt-fal' && falSize === 'custom' ? falCustomH : undefined,
           quality: falKind === 'gpt-fal' ? falQuality : undefined,
-          // nbpro-fal
           aspect_ratio: falKind === 'nbpro-fal' ? nbAspect : undefined,
           resolution: falKind === 'nbpro-fal' ? nbResolution : undefined,
           safety_tolerance: falKind === 'nbpro-fal' ? nbSafety : undefined,
@@ -843,71 +816,49 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           image_mode: falKind === 'nbpro-fal' ? nbImgMode : undefined,
         });
 
-        // 同步完成
         if (submit.sync && submit.urls && submit.urls.length) {
-          logBus.success(`FAL同步返回 → ${submit.urls[0]}`, src);
-          markRuntimeFinished(runtimeStartedAt, {
-            status: 'success',
-            progress: '100%',
-            imageUrl: submit.urls[0],
-            lastPrompt: finalPrompt,
+          return {
+            imageUrls: submit.urls,
+            remoteImageUrls: [],
+            taskId: submit.requestId || d?.taskId,
             usedI2I: allRefs.length > 0,
-          });
-          taskCompletionSound.notifyComplete(id, 'image');
-          return;
+          };
         }
 
-        // 异步轮询: 1200×3s = 3600s，避免 FAL 图像长队列 30min 提前超时。
         const { requestId, responseUrl, endpoint } = submit;
         if (!requestId || !responseUrl) throw new Error('FAL 提交后未获得 request_id/response_url');
-        logBus.info(`FAL异步任务已提交 requestId=${requestId}`, src);
-        update({
-          progress: '5%',
-          taskId: requestId,
-          falResponseUrl: responseUrl,
-          falEndpoint: endpoint,
-        });
+        update({ progress: '5%', taskId: requestId, falResponseUrl: responseUrl, falEndpoint: endpoint });
         const interval = 3000;
         const maxPoll = minPollCountForTimeout(interval);
-        for (let i = 0; i < maxPoll; i++) {
+        for (let i = 0; i < maxPoll; i += 1) {
           await new Promise((r) => setTimeout(r, interval));
           const q = await queryImageFal({ responseUrl, endpoint, requestId });
-          const st = String(q.status || '').toLowerCase();
-          if (st === 'completed') {
-            const url = q.urls?.[0];
-            if (!url) throw new Error('FAL 任务完成但未返回图片');
-            logBus.success(`FAL 任务完成 → ${url}`, src);
-            markRuntimeFinished(runtimeStartedAt, {
-              status: 'success',
-              progress: '100%',
-              imageUrl: url,
-              lastPrompt: finalPrompt,
+          const status = String(q.status || '').toLowerCase();
+          if (status === 'completed') {
+            const urls = Array.isArray(q.urls) ? q.urls.filter(Boolean) : [];
+            if (!urls.length) throw new Error('FAL 任务完成但未返回图片');
+            return {
+              imageUrls: urls,
+              remoteImageUrls: [],
+              taskId: requestId,
               usedI2I: allRefs.length > 0,
-            });
-            taskCompletionSound.notifyComplete(id, 'image');
-            return;
+            };
           }
-          if (st === 'failed') {
-            throw new Error(q.error || 'FAL 任务失败');
-          }
-          // 进度估算(15% 起步,到 95% 上限)
-          const pct = Math.min(95, 15 + Math.floor((i / maxPoll) * 80));
+          if (status === 'failed') throw new Error(q.error || 'FAL 任务失败');
           if (i % 5 === 4) {
-            update({ progress: `${pct}%` });
-            logBus.debug(`[${i + 1}/${maxPoll}] FAL 轮询 status=${q.falStatus || 'IN_QUEUE'}`, src);
+            update({ progress: `${Math.min(95, 15 + Math.floor((i / maxPoll) * 80))}%` });
           }
         }
         throw new Error(`FAL 超时: ${(maxPoll * interval) / 1000}s 未完成`);
       }
 
-      // ============ 原有标准路径(GPT2 standard / nano-banana / nano-banana-pro 未动) ============
       logBus.info(
-        `提交任务: model=${apiModel} 比例=${aspectRatio} 尺寸=${sizeLevel} 参考图=${allRefs.length} prompt="${finalPrompt.slice(0, 60)}${finalPrompt.length > 60 ? '…' : ''}"`,
+        `${batchLabel} 提交任务: model=${apiModel} 比例=${aspectRatio} 尺寸=${sizeLevel} 参考图=${allRefs.length}`,
         src,
       );
       const submit = await submitImageAsync({
         model: modelDef.id,
-        apiModel: apiModel,
+        apiModel,
         paramKind: modelDef.paramKind,
         prompt: finalPrompt,
         aspect_ratio: aspectRatio,
@@ -916,66 +867,130 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         n: 1,
       });
 
-      // 分支一:同步完成
       if (submit.sync && submit.urls && submit.urls.length) {
-        logBus.success(`同步返回 → ${submit.urls[0]}`, src);
-        markRuntimeFinished(runtimeStartedAt, {
-          status: 'success',
-          progress: '100%',
-          imageUrl: submit.urls[0],
+        return {
           imageUrls: submit.urls,
-          lastPrompt: finalPrompt,
+          remoteImageUrls: [],
+          taskId: submit.taskId || d?.taskId,
           usedI2I: allRefs.length > 0,
-        });
-        taskCompletionSound.notifyComplete(id, 'image');
-        return;
+        };
       }
 
-      // 分支二:异步任务 → 轮询状态(对齐主项目 gpt-image-2-web pollTask)
       const taskId = submit.taskId;
       if (!taskId) throw new Error('未获取到 taskId 且无同步结果');
-      logBus.info(`异步任务已提交 taskId=${taskId} 进入轮询…`, src);
       update({ progress: submit.progress || '5%', taskId });
-      // GPT2 / nano-banana / nano-banana-pro 标准路径轮询上限:
-      //   maxPoll × interval = 1800 × 2s = 3600s = 60 分钟(避免复杂 prompt / 多参考图任务被 120s 提前中断)
-      const maxPoll = 1800;     // 最多 1800 次
-      const interval = 2000;    // 每 2 秒一次
+      const maxPoll = 1800;
+      const interval = 2000;
       let lastProg = '5%';
-      for (let i = 0; i < maxPoll; i++) {
+      for (let i = 0; i < maxPoll; i += 1) {
         await new Promise((r) => setTimeout(r, interval));
         const q = await queryImageStatus(taskId, apiModel);
         if (q.progress && q.progress !== lastProg) {
           lastProg = q.progress;
           update({ progress: q.progress });
-          logBus.debug(`[${i + 1}/${maxPoll}] status=${q.status} progress=${q.progress}`, src);
         }
-        const st = String(q.status || '').toLowerCase();
-        if (st === 'completed' || st === 'success' || st === 'done') {
-          const url = q.urls?.[0];
-          if (!url) throw new Error('任务完成但未返回图片');
-          logBus.success(`任务完成 → ${url}`, src);
-          markRuntimeFinished(runtimeStartedAt, {
-            status: 'success',
-            progress: '100%',
-            imageUrl: url,
-            imageUrls: q.urls,
-            lastPrompt: finalPrompt,
+        const status = String(q.status || '').toLowerCase();
+        if (status === 'completed' || status === 'success' || status === 'done') {
+          const urls = Array.isArray(q.urls) ? q.urls.filter(Boolean) : [];
+          if (!urls.length) throw new Error('任务完成但未返回图片');
+          return {
+            imageUrls: urls,
+            remoteImageUrls: [],
+            taskId,
             usedI2I: allRefs.length > 0,
-          });
-          taskCompletionSound.notifyComplete(id, 'image');
-          return;
+          };
         }
-        if (st === 'failed' || st === 'failure' || st === 'error') {
+        if (status === 'failed' || status === 'failure' || status === 'error') {
           throw new Error(q.error || '任务失败');
         }
       }
       throw new Error(`超时:${maxPoll * interval / 1000}s 未完成`);
+    };
+
+    try {
+      update({
+        status: 'generating',
+        error: null,
+        imageUrl: undefined,
+        imageUrls: [],
+        remoteImageUrls: [],
+        progress: generationCount > 1 ? `1/${generationCount}` : '0%',
+      });
+      const aggregatedImageUrls: string[] = [];
+      const aggregatedRemoteImageUrls: string[] = [];
+      const taskIds: string[] = [];
+      let lastTaskId: string | undefined = undefined;
+      let usedI2I = false;
+
+      const appendImageGenerationResult = (result: Awaited<ReturnType<typeof runSingleImageGeneration>>) => {
+        for (const url of result.imageUrls) {
+          if (url && !aggregatedImageUrls.includes(url)) aggregatedImageUrls.push(url);
+        }
+        for (const url of result.remoteImageUrls) {
+          if (url && !aggregatedRemoteImageUrls.includes(url)) aggregatedRemoteImageUrls.push(url);
+        }
+        if (result.taskId) {
+          lastTaskId = result.taskId;
+          if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
+        }
+        usedI2I = usedI2I || result.usedI2I;
+        update({
+          progress: generationCount > 1 ? `${aggregatedImageUrls.length}/${generationCount}` : '95%',
+          imageUrl: aggregatedImageUrls[0],
+          imageUrls: [...aggregatedImageUrls],
+          remoteImageUrls: [...aggregatedRemoteImageUrls],
+          taskId: lastTaskId,
+          taskIds: [...taskIds],
+        });
+      };
+
+      const runConcurrentImageGenerations = async () => {
+        const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
+          runSingleImageGeneration(batchIndex).then((result) => {
+            appendImageGenerationResult(result);
+            return result;
+          })
+        );
+        return Promise.allSettled(jobs);
+      };
+
+      const settled = await runConcurrentImageGenerations();
+      const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+
+      if (aggregatedImageUrls.length === 0) throw new Error('生成完成但未返回图片');
+      markRuntimeFinished(runtimeStartedAt, {
+        status: 'success',
+        progress: '100%',
+        imageUrl: aggregatedImageUrls[0],
+        imageUrls: aggregatedImageUrls,
+        remoteImageUrls: aggregatedRemoteImageUrls,
+        lastPrompt: finalPrompt,
+        usedI2I,
+        taskId: lastTaskId || d?.taskId,
+        taskIds,
+      });
+      if (rejected.length > 0) {
+        logBus.warn(`部分生成失败: ${rejected.map((item) => item.reason?.message || '未知错误').join('；')}`, src);
+      }
+      logBus.success(`生成完成，共 ${aggregatedImageUrls.length} 张图片`, src);
+      taskCompletionSound.notifyComplete(id, 'image');
     } catch (e: any) {
       const msg = e?.message || '生成失败';
       setError(msg);
       logBus.error(`生成失败: ${msg}`, src);
       markRuntimeFailed(runtimeStartedAt, msg);
     }
+  };
+
+  const cancelKnownTasks = async () => {
+    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    await Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'image', model: apiModel })));
+  };
+
+  const handleStop = () => {
+    cancelKnownTasks().catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
+    update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
+    logBus.warn('用户主动停止图像生成', src);
   };
 
   // 接入运行总线,供批量运行调起
@@ -1007,9 +1022,11 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     accepts: ['image', 'text'],
     onDrop: handleDrop,
   });
+  const isBusy = status === 'generating';
 
   return (
     <div
+      ref={rootRef}
       className={`relative rounded-xl border-2 transition-all w-[320px] ${
         selected ? 'border-amber-400 shadow-2xl shadow-amber-500/20' : 'border-white/15 hover:border-white/30'
       }`}
@@ -1038,9 +1055,20 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
               ? `${providerSelection.provider.label || providerSelection.provider.id} · ${externalProviderModel || '未选模型'}`
               : isBackendSelected && backendModel
                 ? `${backendModel.provider.name} · ${backendModel.displayName || backendModel.modelId}`
-              : `${modelDef.label} · ${modelDef.description}`}
+                : `${modelDef.label} · ${modelDef.description}`}
           </div>
         </div>
+        {isBusy && (
+          <button
+            type="button"
+            onClick={handleStop}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-lg border border-red-300/30 bg-red-500/15 text-red-200 transition hover:bg-red-500/25"
+            title="终止当前生成任务"
+          >
+            <Square size={12} />
+          </button>
+        )}
       </div>
 
       <NodeRuntimeCard
@@ -1065,10 +1093,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">供应商</label>
                 <select
-                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : '__local__'}
+                  value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : (backendProviderGroups[0]?.providerId || '')}
                   onChange={(e) => {
-                    if (e.target.value === '__local__') update({ modelSource: 'local', backendProviderId: '', backendModelId: '' });
-                    else switchBackendProvider(e.target.value);
+                    switchBackendProvider(e.target.value);
                   }}
                   style={{ background: '#18181b', color: '#ffffff' }}
                   className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
@@ -1078,9 +1105,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                       {group.providerName}
                     </option>
                   ))}
-                  <option value="__local__" style={{ background: '#18181b', color: '#ffffff' }}>
-                    本地 T8 内置模型
-                  </option>
                 </select>
               </div>
               {isBackendSelected && backendProviderGroup && (
@@ -1102,7 +1126,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
               )}
             </div>
             {isBackendSelected && backendModel && (
-              <div className={`grid gap-2 ${backendImageShowsSizeControl && backendModel.ui.sizes.length ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <div className={`grid gap-2 ${backendImageShowsSizeControl && backendModel.ui.sizes.length ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <div>
                   <label className="text-[10px] text-white/50 block mb-1">比例</label>
                   <select
@@ -1113,6 +1137,19 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                   >
                     {backendModel.ui.aspectRatios.map((ratio) => (
                       <option key={ratio} value={ratio} style={{ background: '#18181b', color: '#ffffff' }}>{ratio}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+                  <select
+                    value={generationCount}
+                    onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+                    style={{ background: '#18181b', color: '#ffffff' }}
+                    className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
+                  >
+                    {[1, 2, 3, 4].map((count) => (
+                      <option key={count} value={count} style={{ background: '#18181b', color: '#ffffff' }}>{count}</option>
                     ))}
                   </select>
                 </div>
@@ -1129,14 +1166,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                         <option key={size} value={size} style={{ background: '#18181b', color: '#ffffff' }}>{size}</option>
                       ))}
                     </select>
-                  </div>
-                )}
-                <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/65">
-                  参数来源：当前发布模型的 schema。供应商决定协议与上游能力，模型决定当前节点可见参数。
-                </div>
-                {!backendImageShowsSizeControl && (
-                  <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/55">
-                    当前模型的尺寸会随比例自动匹配，节点里只保留比例选择，避免和底层尺寸参数重复。
                   </div>
                 )}
                 <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/50">
@@ -1497,7 +1526,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
         {/* 比例 + 尺寸 并排(非 FAL 且非 MJ 模型);Grok Image 只需要比例 */}
         {(!isBackendSelected && !isFal && !isMj && !isComfyExternal) && (
-          <div className={`grid gap-2 ${isGrokImage || !modelDef.sizes.length || !shouldShowImageSizeControl(modelDef.sizes) ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <div className="grid gap-2 grid-cols-2">
             <div>
               <label className="text-[10px] text-white/50 block mb-1">比例</label>
               <select
@@ -1511,8 +1540,21 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+              <select
+                value={generationCount}
+                onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+                style={{ background: '#18181b', color: '#ffffff' }}
+                className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-white/30"
+              >
+                {[1, 2, 3, 4].map((count) => (
+                  <option key={count} value={count} style={{ background: '#18181b', color: '#ffffff' }}>{count}</option>
+                ))}
+              </select>
+            </div>
             {!isGrokImage && modelDef.sizes.length > 0 && shouldShowImageSizeControl(modelDef.sizes) && (
-              <div>
+              <div className="col-span-full">
                 <label className="text-[10px] text-white/50 block mb-1">尺寸</label>
                 <select
                   value={sizeLevel}
@@ -1602,14 +1644,17 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-white/50 block mb-1">N</label>
-                <input
-                  type="number" min={1} max={4}
-                  value={falN}
-                  onChange={(e) => update({ falN: Math.max(1, Math.min(4, parseInt(e.target.value) || 1)) })}
+                <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+                <select
+                  value={generationCount}
+                  onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
                   style={{ background: '#18181b', color: '#ffffff' }}
                   className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-white/30"
-                />
+                >
+                  {[1, 2, 3, 4].map((count) => (
+                    <option key={count} value={count} style={{ background: '#18181b', color: '#ffffff' }}>{count}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">Format</label>
@@ -1643,14 +1688,17 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-[10px] text-white/50 block mb-1">N</label>
-                <input
-                  type="number" min={1} max={4}
-                  value={falN}
-                  onChange={(e) => update({ falN: Math.max(1, Math.min(4, parseInt(e.target.value) || 1)) })}
+                <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+                <select
+                  value={generationCount}
+                  onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
                   style={{ background: '#18181b', color: '#ffffff' }}
                   className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-white/30"
-                />
+                >
+                  {[1, 2, 3, 4].map((count) => (
+                    <option key={count} value={count} style={{ background: '#18181b', color: '#ffffff' }}>{count}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">Aspect</label>
@@ -1762,7 +1810,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             <div className="text-[10px] text-purple-300 font-semibold tracking-wide">
               ✨ Midjourney(严格对齐主项目 runMJ)
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">版本</label>
                 <select
@@ -1786,6 +1834,19 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 >
                   {MJ_RATIOS.map((r) => (
                     <option key={r} value={r} style={{ background: '#18181b', color: '#ffffff' }}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/50 block mb-1">生成数量</label>
+                <select
+                  value={generationCount}
+                  onChange={(e) => update({ generationCount: clampGenerationCount(e.target.value) })}
+                  style={{ background: '#18181b', color: '#ffffff' }}
+                  className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-white/30"
+                >
+                  {[1, 2, 3, 4].map((count) => (
+                    <option key={count} value={count} style={{ background: '#18181b', color: '#ffffff' }}>{count}</option>
                   ))}
                 </select>
               </div>
