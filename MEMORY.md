@@ -459,3 +459,12 @@
     - `npm run verify:model-capability-tags-contract`
     - `npm run verify:provider-model-tests-contract`
     - `npm run verify:external-audio-proxy`
+  - `2026-06-11` 继续补齐画布交互约束：
+    - `LLM / Vision` 节点现在会根据后台发布模型的 `capabilityTags` / `inputCapabilities` 判断是否允许发送图像或视频。
+    - 若模型缺少 `image_understanding` / `video_understanding`，节点 UI 会直接提示，并在提交时自动忽略不支持的媒体。
+    - 若用户只提供了不受支持的媒体，没有文本输入，节点会直接报清楚原因，而不是让上游返回空内容。
+    - 旧 `Suno` 链路已明确标记为历史兼容：
+      - 侧栏优先显示 `语音生成`
+      - 节点内 `Legacy Suno` 会显示未接入后端代理，不再伪装成可运行状态
+    - 新增验证：
+      - `npm run verify:llm-media-capability-contract`

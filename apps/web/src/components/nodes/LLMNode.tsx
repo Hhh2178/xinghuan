@@ -150,6 +150,18 @@ function splitAssistantReplyForScatter(input: string): string[] {
   return fallbacks.find((parts) => parts.length > 1) || [text];
 }
 
+function modelSupportsImageUnderstanding(model: PublicModelRecord | null): boolean {
+  if (!model) return false;
+  const tags = Array.isArray(model.capabilityTags) ? model.capabilityTags : [];
+  return tags.includes('image_understanding') || Boolean(model.ui?.inputCapabilities?.imageReference);
+}
+
+function modelSupportsVideoUnderstanding(model: PublicModelRecord | null): boolean {
+  if (!model) return false;
+  const tags = Array.isArray(model.capabilityTags) ? model.capabilityTags : [];
+  return tags.includes('video_understanding') || Boolean(model.ui?.inputCapabilities?.videoReference);
+}
+
 const LLMNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { getEdges, getNodes, getNode, addNodes } = useReactFlow();
@@ -228,6 +240,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const activeModel = isBackendSelected && backendModel ? backendModel.modelId : isExternalSelected ? externalProviderModel : model;
   const src = `LLM·${activeModel || model}·#${id.slice(-4)}`;
   const isImgOut = !isBackendSelected && !isExternalSelected && isImageOutputLlm(model);
+  const backendSupportsImageInput = useMemo(() => modelSupportsImageUnderstanding(backendModel), [backendModel]);
+  const backendSupportsVideoInput = useMemo(() => modelSupportsVideoUnderstanding(backendModel), [backendModel]);
 
   const switchBackendChatModel = (catalogId: string) => {
     const next = backendChatModels.find((item) => item.id === catalogId) || backendProviderGroup?.models[0] || backendChatModels[0];
@@ -329,6 +343,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const orderedImages = useOrderedMaterials(allImagesUnordered, materialOrder);
   const orderedVideos = useOrderedMaterials(allVideosUnordered, materialOrder);
   const orderedTexts = useOrderedMaterials(visibleUpstreamTexts, materialOrder);
+  const blockedImageCount = isBackendSelected && !backendSupportsImageInput ? orderedImages.length : 0;
+  const blockedVideoCount = isBackendSelected && !backendSupportsVideoInput ? orderedVideos.length : 0;
   const setMaterialOrder = (newOrder: string[]) => update({ materialOrder: newOrder });
   const handleRemoveLocalMaterial = (m: Material) => {
     if (m.origin !== 'local') return;
@@ -411,10 +427,27 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     const upstream = collectUpstream();
     const resolvedLocalPrompt = resolveMediaMentions(localPrompt, userPromptMentions, orderedImages);
     const userText = (upstream.text || resolvedLocalPrompt || '').trim();
-    // 注: orderedImages 已包含本地 pickedFiles + 上游，不再重复拼接
-    const userImages = upstream.images;
-    const userVideos = upstream.videos;
+    const canSendImages = !isBackendSelected || backendSupportsImageInput;
+    const canSendVideos = !isBackendSelected || backendSupportsVideoInput;
+    const ignoredImageCount = canSendImages ? 0 : upstream.images.length;
+    const ignoredVideoCount = canSendVideos ? 0 : upstream.videos.length;
+    const userImages = canSendImages ? upstream.images : [];
+    const userVideos = canSendVideos ? upstream.videos : [];
     if (!userText && userImages.length === 0 && userVideos.length === 0) {
+      if (ignoredImageCount > 0 || ignoredVideoCount > 0) {
+        const reasons = [
+          ignoredImageCount > 0 ? `${ignoredImageCount} 张图片未发送` : '',
+          ignoredVideoCount > 0 ? `${ignoredVideoCount} 个视频未发送` : '',
+        ].filter(Boolean).join('，');
+        const capabilityReason = [
+          ignoredImageCount > 0 ? '当前模型未开启图像理解标签' : '',
+          ignoredVideoCount > 0 ? '当前模型未开启视频理解标签' : '',
+        ].filter(Boolean).join('，');
+        const message = `${reasons}；${capabilityReason}。请切换支持多模态理解的模型，或先补充文本问题。`;
+        setError(message);
+        logBus.error(message, src);
+        return;
+      }
       setError('未提供用户输入(无上游 prompt / 本地输入 / 图片 / 视频)');
       logBus.error('缺少用户输入', src);
       return;
@@ -423,6 +456,13 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
 
     taskCompletionSound.primeAudio();
     update({ status: 'generating', error: null });
+    if (ignoredImageCount > 0 || ignoredVideoCount > 0) {
+      const skipped = [
+        ignoredImageCount > 0 ? `图片 ${ignoredImageCount}` : '',
+        ignoredVideoCount > 0 ? `视频 ${ignoredVideoCount}` : '',
+      ].filter(Boolean).join(' / ');
+      logBus.warn(`当前后台模型缺少对应理解标签，已自动忽略 ${skipped}`, src);
+    }
     logBus.info(
       `发送到 ${isBackendSelected && backendModel ? backendModel.provider.name : isExternalSelected && providerSelection.provider ? providerSelection.provider.label : model} · ${
         !isBackendSelected && !isExternalSelected && useStream && !isImgOut && userVideos.length === 0 ? 'SSE' : '非流式'
@@ -985,6 +1025,15 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
             className="w-full h-60 resize-none rounded bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-white/30 placeholder:text-white/30 overflow-y-auto"
           />
         </div>
+
+        {isBackendSelected && (blockedImageCount > 0 || blockedVideoCount > 0) && (
+          <div className="rounded border border-amber-400/25 bg-amber-500/[0.08] px-2 py-1.5 text-[10px] leading-snug text-amber-100/90">
+            当前后台模型未标记完整多模态理解能力：
+            {blockedImageCount > 0 ? ` 图片 ${blockedImageCount} 张将不会发送。` : ''}
+            {blockedVideoCount > 0 ? ` 视频 ${blockedVideoCount} 个将不会发送。` : ''}
+            请在后台模型管理中开启对应标签，或切换到支持视觉/视频理解的模型。
+          </div>
+        )}
 
         {orderedVideos.length > 0 && (
           <div className="rounded border border-sky-400/20 bg-sky-500/[0.06] p-2 space-y-1.5">

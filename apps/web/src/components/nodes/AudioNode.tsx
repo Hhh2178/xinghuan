@@ -57,6 +57,7 @@ const PROVIDER_AUDIO_MODES = [
 const SUNO_POLL_INTERVAL_MS = 3000;
 const SUNO_POLL_TIMEOUT_SECONDS = 3600;
 const SUNO_MAX_POLL = Math.ceil((SUNO_POLL_TIMEOUT_SECONDS * 1000) / SUNO_POLL_INTERVAL_MS);
+const LEGACY_SUNO_AVAILABLE = false;
 const clampGenerationCount = (value: unknown, fallback = 1) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
@@ -360,6 +361,13 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
 
   const handleGenerate = async () => {
     setError(null);
+    if (audioEngine === 'suno' && !LEGACY_SUNO_AVAILABLE) {
+      const message = '旧 Suno 链路当前未接入后端代理，请改用 Provider 语音模式；历史节点仍可保留查看。';
+      setError(message);
+      logBus.error(message, src);
+      update({ status: 'error', error: message });
+      return;
+    }
     const upstream = collectUpstream();
     const resolvedLocalPrompt = resolveMediaMentions(localPrompt, promptMentions, mentionMaterials);
     const finalPrompt = (upstream.prompt || resolvedLocalPrompt || '').trim();
@@ -545,11 +553,11 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           <Music size={13} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white">音频 / 语音</div>
+          <div className="text-sm font-semibold text-white">{audioEngine === 'suno' ? '音频 Suno（旧）' : '语音生成 / 克隆'}</div>
           <div className="text-[10px] text-white/40 truncate">
             {audioEngine === 'provider'
               ? `${backendAudioModel?.provider.name || '未配置供应商'} · ${PROVIDER_AUDIO_MODES.find((m) => m.id === providerAudioMode)?.label}`
-              : `${version} · ${MODES.find((m) => m.id === mode)?.label}`}
+              : `${version} · ${MODES.find((m) => m.id === mode)?.label} · 历史兼容`}
           </div>
         </div>
         {isBusy && (
@@ -690,6 +698,13 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
                 </select>
               </div>
             </div>
+          </div>
+        )}
+
+        {audioEngine === 'suno' && !LEGACY_SUNO_AVAILABLE && (
+          <div className="rounded border border-amber-400/25 bg-amber-500/[0.08] px-2 py-1.5 text-[10px] leading-snug text-amber-100/90">
+            该节点使用旧版 Suno 音频链路，当前后端未接入对应代理接口。
+            建议迁移到上方的 Provider 语音模式；历史画布节点仍可保留查看与改配。
           </div>
         )}
 

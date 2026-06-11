@@ -49,6 +49,7 @@
     "verify:provider-model-catalog-contract": "npx tsx scripts/verify-provider-model-catalog-contract.ts",
     "verify:model-capability-tags-contract": "npx tsx scripts/verify-model-capability-tags-contract.ts",
     "verify:provider-model-tests-contract": "node scripts/verify-provider-model-tests-contract.mjs",
+    "verify:llm-media-capability-contract": "npx tsx scripts/verify-llm-media-capability-contract.ts",
     "verify:provider-response-parser-contract": "npx tsx scripts/verify-provider-response-parser-contract.ts",
     "verify:apimart-video-adapter-contract": "npx tsx scripts/verify-apimart-video-adapter-contract.ts",
     "verify:video-node-backend-inputs-contract": "npx tsx scripts/verify-video-node-backend-inputs-contract.ts",

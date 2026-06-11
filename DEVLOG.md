@@ -4926,3 +4926,21 @@
     - `npm run verify:model-capability-tags-contract`
     - `npm run verify:provider-model-tests-contract`
     - `npm run verify:external-audio-proxy`
+
+- `2026-06-11` 继续收口 LLM 多模态守门与旧 Suno 迁移提示。
+  - `LLMNode` 新增后台模型能力判断：
+    - 读取已发布 `chat` 模型的 `capabilityTags` 与 `inputCapabilities`
+    - 不支持图像理解时自动阻止图片发送
+    - 不支持视频理解时自动阻止视频发送
+    - 如果只有不被支持的媒体而无文本，会直接提示用户切换模型或补充文本
+  - 音频节点调整：
+    - 侧栏标签改为 `语音生成`
+    - 旧模式标题改为 `音频 Suno（旧）`
+    - `Legacy Suno` 在当前版本明确提示未接入后端代理，停止伪可用状态
+  - 新增验证：
+    - `npm run verify:llm-media-capability-contract`
+  - 本地验证：
+    - `npm run build -w @xinghuan/web`
+    - `npm run build -w @xinghuan/admin`
+    - `npm run verify:llm-media-capability-contract`
+    - `npm run verify:external-audio-proxy`
