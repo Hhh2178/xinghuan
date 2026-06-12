@@ -79,7 +79,8 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
 
   const imageUrls = readStringList(result.imageUrls);
   const videoUrls = readStringList(result.videoUrls);
-  if (imageUrls.length === 0 && videoUrls.length === 0) {
+  const audioUrls = readStringList(result.audioUrls);
+  if (imageUrls.length === 0 && videoUrls.length === 0 && audioUrls.length === 0) {
     return {
       resourceItems: [] as ResourceItem[],
       resultPatch: {
@@ -87,6 +88,7 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
         resourceCount: 0,
         materializedImageUrls: [],
         materializedVideoUrls: [],
+        materializedAudioUrls: [],
       },
     };
   }
@@ -148,6 +150,32 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
     });
   }
 
+  for (const [index, sourceUrl] of audioUrls.entries()) {
+    const saved = await materializeAudioOutput(sourceUrl, dirs.outputDir, task.id, index);
+    resourceItems.push({
+      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind: "audio",
+      title: buildResourceTitle(task.title, imageUrls.length + videoUrls.length + index, imageUrls.length + videoUrls.length + audioUrls.length),
+      url: saved.sourceUrl,
+      sourceUrl: saved.sourceUrl,
+      originalName: saved.filename,
+      fileUrl: saved.fileUrl,
+      fileRel: saved.fileUrl,
+      mime: saved.mime,
+      size: saved.size,
+      categoryId: "",
+      tags: buildTaskTags(task),
+      favorite: false,
+      createdAt,
+      updatedAt: createdAt,
+      sourceNodeId: safeText(task.payload.sourceNodeId),
+      sourceCanvasId: safeText(task.payload.sourceCanvasId),
+      taskId: task.id,
+      providerId: task.providerId,
+      modelId: task.providerModelId || task.modelRecordId,
+    });
+  }
+
   if (usePostgresResourceRepository()) {
     await writeTaskOutputResourcesToPostgres(task.ownerId, task.id, resourceItems);
   } else {
@@ -167,8 +195,9 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
     resultPatch: {
       resourceItemIds: resourceItems.map((item) => item.id),
       resourceCount: resourceItems.length,
-      materializedImageUrls: resourceItems.map((item) => item.fileUrl).filter(Boolean),
+      materializedImageUrls: resourceItems.filter((item) => item.kind === "image").map((item) => item.fileUrl || item.url).filter(Boolean),
       materializedVideoUrls: resourceItems.filter((item) => item.kind === "video").map((item) => item.fileUrl || item.url).filter(Boolean),
+      materializedAudioUrls: resourceItems.filter((item) => item.kind === "audio").map((item) => item.fileUrl || item.url).filter(Boolean),
     },
   };
 }
@@ -343,6 +372,47 @@ async function materializeVideoOutput(sourceUrl: string, outputDir: string, task
   };
 }
 
+async function materializeAudioOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {
+  const localOutput = await tryResolveLocalOutput(sourceUrl, outputDir);
+  if (localOutput) return localOutput;
+
+  const dataUrlMatch = /^data:(audio\/[a-z0-9.+-]+);base64,(.+)$/i.exec(sourceUrl);
+  if (dataUrlMatch) {
+    const mime = dataUrlMatch[1].toLowerCase();
+    const ext = audioExtensionFromMime(mime) || "wav";
+    const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
+    const buffer = Buffer.from(dataUrlMatch[2], "base64");
+    await writeFile(join(outputDir, filename), buffer);
+    return {
+      filename,
+      fileUrl: `/files/output/${filename}`,
+      size: buffer.length,
+      mime,
+      sourceUrl,
+    };
+  }
+
+  if (!/^https?:\/\//i.test(sourceUrl)) {
+    throw new Error(`暂不支持的输出音频 URL: ${sourceUrl.slice(0, 120)}`);
+  }
+
+  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
+  if (!upstream.ok) throw new Error(`下载输出音频失败 ${upstream.status}`);
+  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!mime.startsWith("audio/")) throw new Error(`输出素材不是音频: ${mime || "unknown"}`);
+  const ext = audioExtensionFromMime(mime) || audioExtensionFromUrl(sourceUrl) || "mp3";
+  const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  await writeFile(join(outputDir, filename), buffer);
+  return {
+    filename,
+    fileUrl: `/files/output/${filename}`,
+    size: buffer.length,
+    mime,
+    sourceUrl,
+  };
+}
+
 async function tryReadLocalOutput(sourceUrl: string, outputDir: string) {
   const filename = decodeOutputFilename(sourceUrl);
   if (!filename) return null;
@@ -409,6 +479,10 @@ function inferMime(filename: string) {
   if (ext === ".webm") return "video/webm";
   if (ext === ".mov") return "video/quicktime";
   if (ext === ".m4v") return "video/x-m4v";
+  if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".wav") return "audio/wav";
+  if (ext === ".ogg") return "audio/ogg";
+  if (ext === ".m4a") return "audio/mp4";
   return "application/octet-stream";
 }
 
@@ -441,6 +515,23 @@ function videoExtensionFromUrl(sourceUrl: string) {
   try {
     const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
     return ["mp4", "webm", "mov", "m4v"].includes(ext) ? ext : "";
+  } catch {
+    return "";
+  }
+}
+
+function audioExtensionFromMime(mime: string) {
+  if (mime === "audio/mpeg") return "mp3";
+  if (mime === "audio/wav" || mime === "audio/x-wav") return "wav";
+  if (mime === "audio/ogg") return "ogg";
+  if (mime === "audio/mp4" || mime === "audio/x-m4a") return "m4a";
+  return "";
+}
+
+function audioExtensionFromUrl(sourceUrl: string) {
+  try {
+    const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
+    return ["mp3", "wav", "ogg", "m4a"].includes(ext) ? ext : "";
   } catch {
     return "";
   }

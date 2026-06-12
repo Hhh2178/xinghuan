@@ -8,6 +8,8 @@ import { materializeTaskOutputs } from "../apps/worker/src/output-materials.js";
 const png1x1 =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l0e6kgAAAABJRU5ErkJggg==";
 const videoBytes = Buffer.from("00000018667479706d703432000000006d703432", "hex");
+const wav1x1 =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
 async function main() {
   const mediaServer = await startMockMediaServer();
@@ -21,6 +23,11 @@ async function main() {
     result: { videoUrls: [`${mediaServer.origin}/demo.mp4`] },
     expectedKind: "video",
   });
+  const audio = await verifyMaterialization({
+    title: "Worker 音频输出素材落库验证",
+    result: { audioUrls: [wav1x1] },
+    expectedKind: "audio",
+  });
 
   mediaServer.server.close();
 
@@ -30,6 +37,7 @@ async function main() {
         ok: true,
         image,
         video,
+        audio,
       },
       null,
       2,
@@ -44,7 +52,7 @@ async function verifyMaterialization({
 }: {
   title: string;
   result: Record<string, unknown>;
-  expectedKind: "image" | "video";
+  expectedKind: "image" | "video" | "audio";
 }) {
   const dataDir = await mkdtemp(join(tmpdir(), "xinghuan-worker-output-"));
   const storage = storageContext();
@@ -78,10 +86,16 @@ async function verifyMaterialization({
     assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "image resource fileUrl was not materialized");
     const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
     await readFile(outputPath);
-  } else {
+  } else if (expectedKind === "video") {
     assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "video resource fileUrl was not materialized");
     assert(/^https?:\/\//i.test(materialized.resourceItems[0]?.url || ""), "video resource url mismatch");
     assert(materialized.resourceItems[0]?.sourceUrl === materialized.resourceItems[0]?.url, "video resource sourceUrl mismatch");
+    const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
+    await readFile(outputPath);
+  } else {
+    assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "audio resource fileUrl was not materialized");
+    assert(/^data:audio\//i.test(materialized.resourceItems[0]?.url || ""), "audio resource url mismatch");
+    assert(materialized.resourceItems[0]?.sourceUrl === materialized.resourceItems[0]?.url, "audio resource sourceUrl mismatch");
     const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
     await readFile(outputPath);
   }

@@ -6,6 +6,7 @@ import {
   uiMetadataFromSchema,
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
+import { createOpenAiAudioChatPayload } from "./audio-provider-adapter.js";
 
 type GenerationCapability = "image" | "video" | "audio";
 
@@ -90,7 +91,7 @@ interface ReadProviderGenerationTaskStatusInput {
 }
 
 export function createProviderGenerationTaskService(deps: ProviderGenerationTaskServiceDependencies) {
-  const supportedTaskCapabilities = new Set<GenerationCapability>(deps.supportedTaskCapabilities ?? ["image", "video"]);
+  const supportedTaskCapabilities = new Set<GenerationCapability>(deps.supportedTaskCapabilities ?? ["image", "video", "audio"]);
 
   async function submitProviderGenerationTask(input: SubmitProviderGenerationTaskInput) {
     if (input.capability === "image") {
@@ -316,8 +317,70 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     });
   }
 
-  async function submitAudioTask(_rawBody: unknown, _user: CurrentUserLike) {
-    throw new Error("音频后台任务链路尚未完成 Worker 与素材落库接入，请暂时继续使用同步音频接口 /api/proxy/external/audio");
+  async function submitAudioTask(rawBody: unknown, user: CurrentUserLike) {
+    if (!supportedTaskCapabilities.has("audio")) {
+      throw new Error("当前版本未启用音频后台任务执行链路");
+    }
+    const body = deps.plainObject(rawBody);
+    const text = deps.safeText(body.text || body.prompt, "").slice(0, 16000);
+    if (!text) throw new Error("缺少要合成的文本");
+
+    const params = deps.plainObject(body.providerParams);
+    const { provider, model } = await deps.findEnabledProviderModel(
+      "audio",
+      deps.safeSlug(body.providerId, ""),
+      deps.safeText(body.providerModel || body.model),
+      deps.safeText(params.modelRecordId),
+    );
+    const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    if (!["openai", "apimart", "custom"].includes(protocol)) {
+      throw new Error(`当前 Provider 协议暂未接入音频任务 Adapter: ${protocol}`);
+    }
+    if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
+
+    const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const mode = deps.safeText(body.mode || params.mode || advancedConfig.mode, "tts");
+    const capabilityTags = Array.isArray(model.capabilityTags)
+      ? model.capabilityTags.filter((item): item is string => typeof item === "string")
+      : [];
+    if (mode === "voice_clone" && !capabilityTags.includes("voice_clone")) {
+      throw new Error("当前模型未标记为音色克隆模型，请在后台开启 voice_clone 标签后再试");
+    }
+
+    const payload: Record<string, unknown> = {
+      ...advancedConfig,
+      ...params,
+      prompt: text,
+      text,
+      mode,
+      stylePrompt: deps.safeText(body.stylePrompt || params.stylePrompt),
+      voice: deps.safeText(body.voice || params.voice || "mimo_default"),
+      audioFormat: deps.safeText(body.audioFormat || params.audioFormat || advancedConfig.audioFormat || "wav"),
+      sampleDataUrl: mode === "voice_clone"
+        ? readAudioSampleDataUrl(body.sampleDataUrl, params.sampleDataUrl, body.voiceSampleDataUrl)
+        : "",
+      taskCapability: "audio",
+      executionMode: "worker_queue",
+      sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
+      sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
+    };
+    createOpenAiAudioChatPayload({
+      modelId: model.modelId,
+      text,
+      stylePrompt: deps.safeText(payload.stylePrompt),
+      voice: deps.safeText(payload.voice),
+      audioFormat: deps.safeText(payload.audioFormat),
+      mode,
+      sampleDataUrl: deps.safeText(payload.sampleDataUrl),
+    });
+    return createQueuedTask({
+      capability: "audio",
+      provider,
+      model,
+      protocol,
+      ownerId: user.id,
+      payload,
+    });
   }
 
   async function createQueuedTask(input: {
@@ -416,4 +479,12 @@ function lastTaskFailureLog(logs: string[]) {
 function normalizeGenerationCapability(value: unknown): GenerationCapability | "" {
   const capability = String(value || "").trim().toLowerCase();
   return ["image", "video", "audio"].includes(capability) ? (capability as GenerationCapability) : "";
+}
+
+function readAudioSampleDataUrl(...values: unknown[]) {
+  for (const value of values) {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text) return text.slice(0, 20_000_000);
+  }
+  return "";
 }

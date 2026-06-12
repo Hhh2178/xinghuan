@@ -61,8 +61,11 @@ export function extractAudioProviderResult(raw: unknown): AudioProviderResult {
   ].filter(Boolean);
   for (const item of candidates) {
     if (/^data:audio\//i.test(item)) audioDataUrls.push(item);
-    else if (/^[A-Za-z0-9+/=]+$/.test(item) && item.length > 100) audioDataUrls.push(`data:audio/wav;base64,${item}`);
     else if (/^https?:\/\//i.test(item)) audioUrls.push(item);
+    else {
+      const inferredMime = inferAudioMimeFromBase64(item);
+      if (inferredMime) audioDataUrls.push(`data:${inferredMime};base64,${normalizeBase64(item)}`);
+    }
   }
   return { audioDataUrls, audioUrls, text, raw };
 }
@@ -86,4 +89,27 @@ function readStringAtPath(source: unknown, path: string): string {
     current = (current as Record<string, unknown>)[part];
   }
   return typeof current === "string" ? current.trim() : "";
+}
+
+function normalizeBase64(value: string) {
+  return value.replace(/\s+/g, "");
+}
+
+function inferAudioMimeFromBase64(value: string) {
+  const normalized = normalizeBase64(value);
+  if (!/^[A-Za-z0-9+/=]+$/.test(normalized) || normalized.length <= 100) return "";
+  try {
+    const buffer = Buffer.from(normalized, "base64");
+    if (buffer.length < 4) return "";
+    if (buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WAVE") {
+      return "audio/wav";
+    }
+    if (buffer.subarray(0, 4).toString("ascii") === "OggS") return "audio/ogg";
+    if (buffer.subarray(0, 3).toString("ascii") === "ID3") return "audio/mpeg";
+    if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) return "audio/mpeg";
+    if (buffer.subarray(4, 8).toString("ascii") === "ftyp") return "audio/mp4";
+    return "";
+  } catch {
+    return "";
+  }
 }

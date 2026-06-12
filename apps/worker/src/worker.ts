@@ -6,6 +6,10 @@ import { createClient } from "redis";
 import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import { materializeTaskOutputs } from "./output-materials.js";
 import {
+  createOpenAiAudioChatPayload,
+  extractAudioProviderResult,
+} from "./worker-audio-provider-adapter.js";
+import {
   createApimartVideoAdapterPayload,
   extractApimartFinalTaskId,
   extractApimartTask,
@@ -139,6 +143,7 @@ async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
   }
   if (task.capability === "image") return executeImageTask(task);
   if (task.capability === "video") return executeVideoTask(task);
+  if (task.capability === "audio") return executeAudioTask(task);
   if (task.capability === "chat") return executeChatTask(task);
   throw new Error(`当前 Worker Adapter 暂不支持能力: ${task.capability || "unknown"}`);
 }
@@ -473,6 +478,54 @@ async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> 
   };
 }
 
+async function executeAudioTask(task: TaskRow): Promise<Record<string, unknown>> {
+  if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
+  if (!task.modelEnabled) throw new Error("模型不存在或未启用");
+  if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
+  if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (!["openai", "apimart", "custom"].includes(protocol)) {
+    throw new Error(`当前 Worker 音频 Adapter 暂不支持协议: ${protocol}`);
+  }
+  const apiKey = decryptSecret(task.apiKeyCipher);
+  if (!apiKey) throw new Error("Provider 未配置 API Key 或无法解密");
+
+  const text = safeText(task.payload.text || task.payload.prompt);
+  if (!text) throw new Error("音频任务缺少 text/prompt");
+  const payload = createOpenAiAudioChatPayload({
+    modelId: task.providerModelId,
+    text,
+    stylePrompt: safeText(task.payload.stylePrompt),
+    voice: safeText(task.payload.voice || "mimo_default"),
+    audioFormat: safeText(task.payload.audioFormat || "wav"),
+    mode: safeText(task.payload.mode || "tts"),
+    sampleDataUrl: safeText(task.payload.sampleDataUrl),
+  });
+  const submitPath = safeText(task.payload.submitPath, "chat/completions");
+
+  const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, submitPath), {
+    method: "POST",
+    headers: buildProviderJsonHeaders(apiKey),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(120000),
+  });
+  const responseText = await upstream.text();
+  if (!upstream.ok) throw new Error(`上游音频模型请求失败 ${upstream.status}: ${responseText.slice(0, 500)}`);
+  const raw = responseText ? JSON.parse(responseText) : {};
+  const result = extractAudioProviderResult(raw);
+  const audioUrls = [...result.audioDataUrls, ...result.audioUrls];
+  if (audioUrls.length === 0) throw new Error("音频模型未返回可用音频");
+  return {
+    adapter: "openai-audio",
+    providerId: task.providerId,
+    modelId: task.providerModelId,
+    text: result.text,
+    audioUrls,
+    remoteAudioUrls: result.audioUrls,
+    audioCount: audioUrls.length,
+  };
+}
+
 async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unknown>> {
   const apiKey = decryptSecret(task.apiKeyCipher);
   if (!apiKey) throw new Error("Provider 未配置 API Key 或无法解密");
@@ -517,7 +570,7 @@ function normalizeStatus(value: unknown): TaskStatus {
 function normalizeCapability(value: unknown) {
   const capability = String(value || "").toLowerCase();
   if (capability === "text" || capability === "llm") return "chat";
-  return ["chat", "image", "video"].includes(capability) ? capability : "";
+  return ["chat", "image", "video", "audio"].includes(capability) ? capability : "";
 }
 
 function normalizeProtocol(value: unknown) {

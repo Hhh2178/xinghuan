@@ -14,7 +14,7 @@ assert.match(serverSource, /\/api\/proxy\/external\/audio\/task/);
 assert.match(serverSource, /createProviderGenerationTaskService/);
 assert.match(serverSource, /submitProviderGenerationTask/);
 assert.match(serverSource, /readProviderGenerationTaskStatus/);
-assert.match(serverSource, /AUDIO_TASK_QUEUE_NOT_READY/);
+assert.match(serverSource, /capability: "audio"/);
 assert.match(serviceSource, /taskPayload\.taskCapability/);
 assert.match(serviceSource, /normalizeGenerationCapability/);
 

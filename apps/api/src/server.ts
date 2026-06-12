@@ -134,7 +134,7 @@ const {
   readProviderGenerationTaskStatus,
 } = createProviderGenerationTaskService({
   taskQueueName,
-  supportedTaskCapabilities: ["image", "video"],
+  supportedTaskCapabilities: ["image", "video", "audio"],
   normalizeProviderProtocol,
   providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
   findEnabledProviderModel,
@@ -894,12 +894,12 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/proxy/external/audio/task" && request.method === "POST") {
-      sendJson(response, {
-        ok: false,
-        success: false,
-        error: "AUDIO_TASK_QUEUE_NOT_READY",
-        message: "音频后台任务路由已预留，但 Worker 与素材落库尚未接通，请继续使用 /api/proxy/external/audio",
-      }, 501);
+      sendT8(response, await submitProviderGenerationTask({
+        capability: "audio",
+        rawBody: await readJsonBody(request),
+        user: currentUser!,
+        publicOrigin: providerFilePublicOrigin(request),
+      }));
       return;
     }
 
