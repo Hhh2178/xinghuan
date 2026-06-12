@@ -3,7 +3,11 @@ export const PRODUCT_NAME = "星幻";
 export const appVersion = "0.1.0";
 
 export type AppEnvironment = "local" | "gray" | "production";
-export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export * from "./provider-generation-task.js";
+
+import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
+
+export type TaskStatus = ProviderGenerationTaskStatus;
 
 export interface HealthPayload {
   ok: true;
