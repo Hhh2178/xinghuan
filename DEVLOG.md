@@ -15,6 +15,125 @@
 
 ## 2026-06-12
 
+### Provider 生成任务标准化文档与验收收口
+
+目标:
+
+- 把本轮已经完成的 Provider 生成任务标准化改造补充进长期记忆、进度文档和运维清单。
+- 固化“后台发布模型默认任务化”的验收顺序，避免后续灰度/生产切换时遗漏关键检查项。
+
+变更:
+
+- 文档与记忆收口:
+  - `MEMORY.md`
+    - 补充标准执行模式：
+      - `sync_inline`
+      - `async_poll`
+      - `async_poll_then_final_lookup`
+      - `worker_queue`
+    - 明确默认策略：
+      - `chat -> sync_inline`
+      - `image/video/audio -> worker_queue`
+    - 明确 `advancedConfig.mode` 与 `executionMode` 不是同一层概念
+  - `docs/prd/v0.1.0/progress.md`
+    - 补记图片/视频/音频后台发布模型统一走“提交任务 -> Worker 执行 -> 前端轮询 -> 素材落库”的标准主线
+    - 补记后台模型编辑器与 AI 协助配置已经进入结构化 `executionMode` 阶段
+  - `ops/README.md`
+    - 新增 Provider 任务标准化 rollout checklist 入口
+    - 修正灰度/生产数据库关系描述
+- 新增运维清单:
+  - `ops/provider-generation-task-rollout-checklist-2026-06-12.md`
+    - 固化灰度优先、服务活性、任务提交、轮询状态、素材落库、后台任务面板、取消/重试和生产 smoke 的检查顺序
+
+验证:
+
+- 文档收口后继续执行完整本地验收矩阵：
+  - `npm run build:single-port`
+  - `npm run verify:provider-generation-task-contract`
+  - `npm run verify:provider-generation-task-service`
+  - `npm run verify:provider-generation-worker`
+  - `npm run verify:provider-generation-web-task-consumption`
+  - `npm run verify:provider-generation-admin-contract`
+  - `node scripts/verify-admin-assistant-structured-analysis-contract.mjs`
+  - `node scripts/verify-admin-task-panel-contract.mjs`
+
+影响:
+
+- 后续新增图片 / 视频 / 音频 Provider 时，不再需要先决定“要不要继续走同步直返”，默认先套标准任务链路。
+- 后台管理员、AI 协助配置、画布节点、Worker 和运维验收，现在都围绕同一套 `executionMode + task status + materialization` 约定推进。
+
+### Provider 生成任务标准化第二阶段收口
+
+目标:
+
+- 把后台发布模型的图片、视频、音频链路进一步统一到“提交任务 -> Worker 执行 -> 前端轮询 -> 素材落库”的标准方案。
+- 补齐后台模型执行模式、AI 协助配置和任务观测的结构化能力，避免后续新 Provider 继续走分叉逻辑。
+
+变更:
+
+- 前端任务消费:
+  - `apps/web/src/services/generation.ts`
+    - 新增：
+      - `submitExternalImageTask`
+      - `queryExternalImageTask`
+      - `submitExternalAudioTask`
+      - `queryExternalAudioTask`
+  - `apps/web/src/components/nodes/ImageNode.tsx`
+    - 后台发布模型与扩展平台图像链路统一改为 `taskId + polling`
+    - 增加后台图像任务轮询与停止时轮询清理
+  - `apps/web/src/components/nodes/AudioNode.tsx`
+    - Provider 音频链路改为 `taskId + polling`
+    - 保留 `Legacy Suno` 历史链路，不与标准化 Provider 任务链路混用
+  - 新增契约脚本：
+    - `scripts/verify-provider-generation-web-task-consumption.mjs`
+- 后台执行模式与 AI 协助配置:
+  - `apps/admin/src/admin-model-editor.tsx`
+    - 新增结构化 `executionMode` 下拉：
+      - `worker_queue`
+      - `sync_inline`
+      - `async_poll`
+      - `async_poll_then_final_lookup`
+  - `apps/admin/src/admin-api-settings-panel.tsx`
+    - AI 协助配置结果新增 `executionMode` 展示
+    - 应用草案时会把 `executionMode` 回填到模型草稿与 `advancedConfig.executionMode`
+  - `apps/admin/src/admin-task-panel.tsx`
+    - 补充能力 / Provider / 状态筛选
+    - 失败任务优先显示清晰失败原因，而不是只显示原始日志拼接
+  - `apps/admin/src/admin-types.ts`
+    - 模型、任务、AI 分析结果新增 `executionMode` 与任务详情类型
+  - `apps/api/src/server.ts`
+    - 模型记录新增 `executionMode` 归一化
+    - 通过 `advancedConfig.executionMode` 做前后端桥接，避免先动数据库 schema
+    - AI 协助分析结果新增 `executionMode`
+  - 新增契约脚本：
+    - `scripts/verify-provider-generation-admin-contract.mjs`
+
+验证:
+
+- 前端:
+  - `node scripts/verify-provider-generation-web-task-consumption.mjs`
+  - `npm run verify:provider-generation-web-task-consumption`
+  - `npm run build -w @xinghuan/web`
+- 后台 / API:
+  - `npm run build -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/api`
+  - `npm run verify:provider-generation-admin-contract`
+  - `node scripts/verify-admin-assistant-structured-analysis-contract.mjs`
+  - `node scripts/verify-admin-task-panel-contract.mjs`
+- 本地提交:
+  - `0d62d3e feat: move provider image and audio flows to task polling`
+  - `3481a1c feat: standardize admin execution mode controls`
+
+影响:
+
+- 现在后台发布模型的图片 / 视频 / 音频已经形成统一的任务化主线，前端不再依赖长请求等待上游完成。
+- 后台管理员现在可以显式标记模型执行模式，AI 协助配置也能把“链路模板”和“执行模式”作为结构化建议返回。
+- 后续新接入异步 Provider 时，应优先走：
+  - `executionMode`
+  - `chainTemplate`
+  - `advancedConfig`
+  这套标准化模板，而不是继续新增零散分支。
+
 ### 视频上游 HTML / 非 JSON 响应兜底修复并推送灰度
 
 目标:

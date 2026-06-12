@@ -164,6 +164,16 @@
 - 2.0 是新项目，不在 `node-banana-enterprise` 上继续堆功能。
 - 候选基底必须先经过 POC，不允许因为界面像画布就直接采用。
 - 不采用“一个服务商一个节点”的模型；采用“通用节点 + 模型目录 + schema 驱动参数和端口”。
+- 后台发布模型的图片、视频、音频默认走任务化标准链路，而不是长请求直返。
+- Provider 生成任务标准执行模式固定为：
+  - `sync_inline`
+  - `async_poll`
+  - `async_poll_then_final_lookup`
+  - `worker_queue`
+- 当前默认执行策略固定为：
+  - `chat -> sync_inline`
+  - `image/video/audio -> worker_queue`
+- `executionMode` 是后台、AI 协助配置、画布节点和任务验收的统一语义字段；`advancedConfig.mode` 仍只用于具体 Provider adapter 行为，不再混用。
 - Provider 接入采用“结构化默认配置 + 受控高级配置 + 专用 adapter”三层方案；GRSAI 保留为已接入样本，APIMart 异步视频和异步图像类模型都走 adapter / task polling 路径。
 - 后台必须独立为 `/admin` 或独立后台应用，不挂在画布侧栏。
 - 项目默认云端保存，本地文件夹只作为导入/导出备份能力。
@@ -717,3 +727,12 @@
   - 灰度 release：`20260612-external-video-task-gray-r1`。
   - 灰度验收：API/Worker active，`/api/status` 为 `environment=gray`，未登录任务接口返回 JSON `AUTH_REQUIRED`，登录态空请求返回 JSON `缺少 prompt`，Redis `PONG`，Agnes 模型目录仍为 `async_video_task`。
   - 为避免消耗上游额度，本轮未自动发起真实 Agnes 生成；需要人工在灰度画布提交一个低成本视频任务做最终素材展示验收。
+- `2026-06-12` Provider 生成任务标准化已进一步收口到整套前后端与后台配置规范：
+  - 前端图片/音频后台发布模型已经切到 `submit task -> poll task` 模式，视频与此前的任务化改造一起形成统一消费方式。
+  - 后台模型编辑器已提供结构化 `executionMode`，AI 协助配置会把 `executionMode` 与 `chainTemplate` 一起作为草案输出。
+  - 当前统一验收标准已经沉淀到：
+    - `ops/provider-generation-task-rollout-checklist-2026-06-12.md`
+  - 后续新增生成类 Provider 时，优先顺序固定为：
+    - 先定义 `executionMode`
+    - 再定义 `chainTemplate`
+    - 最后补充 `advancedConfig` 的 Provider 细节

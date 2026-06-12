@@ -6,7 +6,7 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 灰度与生产是两套 Nginx 入口、端口和 release 目录；当前共用同一 PostgreSQL 数据底座。
+- 灰度与生产是两套 Nginx 入口、端口和 release 目录；当前已经拆分为独立 PostgreSQL 数据库与独立 release 指针。
 - 旧无限画布服务器运行态已清理，最终证据见 `old-canvas-cleanup-2026-06-04.md`。
 - 当前本机修复与文档清理进度见 `current-fix-cleanup-progress-2026-06-08.md`。
 - 后台 AI 助手 Hermes 灰度联调与上线记录见 `assistant-hermes-gray-2026-06-08.md`。
@@ -19,6 +19,7 @@
 - `files.hhh2121.xyz` 的可执行切换清单见 `files-origin-seal-execution-checklist-2026-06-12.md`。
 - `Provider Files` 从裸 IP 切到 `files.hhh2121.xyz` 的正式切换记录见 `provider-files-files-domain-cutover-2026-06-12.md`。
 - 视频生成 `Unexpected token '<'` 前端误报修复灰度发布记录见 `video-json-guard-gray-2026-06-12.md`。
+- Provider 生成任务标准化灰度/生产切换清单见 `provider-generation-task-rollout-checklist-2026-06-12.md`。
 
 ## 当前运行态入口
 
@@ -30,6 +31,7 @@
 - `canvas-assistant-ui-gray-2026-06-09.md`
 - `generation-count-release-2026-06-10.md`
 - `video-json-guard-gray-2026-06-12.md`
+- `provider-generation-task-rollout-checklist-2026-06-12.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`
