@@ -45,6 +45,7 @@
     "verify:static-html-cache-contract": "node scripts/verify-static-html-cache-contract.mjs",
     "verify:generation-json-response-contract": "node scripts/verify-generation-json-response-contract.mjs",
     "verify:provider-generation-task-contract": "npx tsx scripts/verify-provider-generation-task-contract.ts",
+    "verify:provider-generation-task-service": "node scripts/verify-provider-generation-task-service.mjs",
     "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
     "verify:http-session-utils-contract": "npx tsx scripts/verify-http-session-utils-contract.ts",
     "verify:api-sanitizers-contract": "npx tsx scripts/verify-api-sanitizers-contract.ts",

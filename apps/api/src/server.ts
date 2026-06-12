@@ -74,6 +74,7 @@ import {
   taskCancellationPatch,
 } from "./task-lifecycle.js";
 import { createExternalProxyHandlers } from "./external-proxy.js";
+import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -126,6 +127,29 @@ const {
   stringMap,
   looksLikeHtml,
   clampInteger,
+});
+
+const {
+  submitProviderGenerationTask,
+  readProviderGenerationTaskStatus,
+} = createProviderGenerationTaskService({
+  taskQueueName,
+  supportedTaskCapabilities: ["image", "video"],
+  normalizeProviderProtocol,
+  providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
+  findEnabledProviderModel,
+  normalizeProviderReferenceUrls: (values, publicOrigin, user) =>
+    normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: secretKey(), scope: environment }),
+  normalizeProviderReferenceUrl: (value, publicOrigin, user) =>
+    normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: secretKey(), scope: environment }),
+  readTaskRecord,
+  insertTaskRecord,
+  writeTaskRecord,
+  appendTaskLog,
+  enqueueTask,
+  safeText,
+  safeSlug,
+  plainObject,
 });
 
 interface CanvasListItem {
@@ -824,6 +848,16 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/proxy/external/image/task" && request.method === "POST") {
+      sendT8(response, await submitProviderGenerationTask({
+        capability: "image",
+        rawBody: await readJsonBody(request),
+        user: currentUser!,
+        publicOrigin: providerFilePublicOrigin(request),
+      }));
+      return;
+    }
+
     if (url.pathname === "/api/proxy/external/llm" && request.method === "POST") {
       sendT8(response, await generateExternalChatProxy(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
       return;
@@ -835,18 +869,37 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/proxy/external/video/task" && request.method === "POST") {
-      sendT8(response, await submitExternalVideoTask(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
+      sendT8(response, await submitProviderGenerationTask({
+        capability: "video",
+        rawBody: await readJsonBody(request),
+        user: currentUser!,
+        publicOrigin: providerFilePublicOrigin(request),
+      }));
       return;
     }
 
-    const externalVideoTaskMatch = url.pathname.match(/^\/api\/proxy\/external\/video\/task\/([^/]+)$/);
-    if (externalVideoTaskMatch && request.method === "GET") {
-      sendT8(response, await readExternalVideoTaskStatus(decodeURIComponent(externalVideoTaskMatch[1]), currentUser!));
+    const externalGenerationTaskMatch = url.pathname.match(/^\/api\/proxy\/external\/(image|video|audio)\/task\/([^/]+)$/);
+    if (externalGenerationTaskMatch && request.method === "GET") {
+      sendT8(response, await readProviderGenerationTaskStatus({
+        capability: externalGenerationTaskMatch[1] as "image" | "video" | "audio",
+        taskId: decodeURIComponent(externalGenerationTaskMatch[2]),
+        user: currentUser!,
+      }));
       return;
     }
 
     if (url.pathname === "/api/proxy/external/audio" && request.method === "POST") {
       sendT8(response, await generateExternalAudioProxy(await readJsonBody(request), currentUser!));
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/external/audio/task" && request.method === "POST") {
+      sendJson(response, {
+        ok: false,
+        success: false,
+        error: "AUDIO_TASK_QUEUE_NOT_READY",
+        message: "音频后台任务路由已预留，但 Worker 与素材落库尚未接通，请继续使用 /api/proxy/external/audio",
+      }, 501);
       return;
     }
 
