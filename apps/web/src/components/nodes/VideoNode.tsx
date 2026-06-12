@@ -18,6 +18,8 @@ import {
 } from '../../providers/models';
 import {
   generateExternalVideo,
+  submitExternalVideoTask,
+  queryExternalVideoTask,
   submitVideo,
   queryVideo,
   submitVideoFal,
@@ -548,6 +550,50 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     });
   };
 
+  const startExternalVideoTaskPolling = (tid: string): Promise<{ videoUrls: string[]; remoteVideoUrls: string[] }> => {
+    return new Promise<{ videoUrls: string[]; remoteVideoUrls: string[] }>((resolve, reject) => {
+      let elapsed = 0;
+      const timer = window.setInterval(async () => {
+        elapsed += 1;
+        if (elapsed > VIDEO_MAX_POLL) {
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
+          reject(new Error('后台视频任务轮询超时'));
+          return;
+        }
+        try {
+          const r = await queryExternalVideoTask(tid);
+          const videoUrls = Array.isArray(r.videoUrls) ? r.videoUrls.filter(Boolean) : [];
+          const remoteVideoUrls = Array.isArray(r.remoteVideoUrls) ? r.remoteVideoUrls.filter(Boolean) : [];
+          if (r.status === 'succeeded' && videoUrls.length > 0) {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            logBus.success(`后台视频任务完成 → ${videoUrls[0]}`, src);
+            resolve({ videoUrls, remoteVideoUrls });
+            return;
+          }
+          if (r.status === 'succeeded') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error('后台视频任务完成但没有返回可用视频'));
+            return;
+          }
+          if (r.status === 'failed' || r.status === 'cancelled') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台视频任务失败')));
+            return;
+          }
+          update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
+        } catch (e: any) {
+          console.warn('后台视频任务轮询出错', e?.message);
+        }
+      }, VIDEO_POLL_INTERVAL_MS);
+      pollTimer.current = timer;
+      pollTimers.current.add(timer);
+    });
+  };
+
   const falPollRef = useRef<{ responseUrl?: string; endpoint?: string; requestId?: string } | null>(null);
 
   const startFalPolling = (params = falPollRef.current): Promise<{ videoUrl: string }> => {
@@ -615,7 +661,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           `${batchLabel} 后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length} first=${firstFrameUrl ? 1 : 0} last=${lastFrameUrl ? 1 : 0}`,
           src,
         );
-        const r = await generateExternalVideo({
+        const r = await submitExternalVideoTask({
           providerId: backendModel.providerId,
           providerModel: backendModel.modelId,
           model: backendModel.modelId,
@@ -628,13 +674,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           images: refs,
           first_frame: firstFrameUrl,
           last_frame: lastFrameUrl,
-          providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id },
+          providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id, sourceNodeId: id },
         });
-        if (!r.videoUrls[0]) {
-          const upstreamReason = typeof r.raw?.failureReason === 'string' ? r.raw.failureReason.trim() : '';
-          throw new Error(upstreamReason || `后台视频模型没有返回视频：${backendModel.provider.name} / ${backendModel.modelId}`);
-        }
-        return { videoUrls: r.videoUrls, remoteVideoUrls: r.remoteVideoUrls || [], taskId: r.taskId || null };
+        if (!r.taskId) throw new Error(`后台视频任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
+        update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: r.progress || '5%' });
+        const polled = await startExternalVideoTaskPolling(r.taskId);
+        if (!polled.videoUrls[0]) throw new Error(`后台视频任务完成但没有返回视频：${backendModel.provider.name} / ${backendModel.modelId}`);
+        return { videoUrls: polled.videoUrls, remoteVideoUrls: polled.remoteVideoUrls || [], taskId: r.taskId };
       }
 
       if (isExternalSelected && providerSelection.provider) {

@@ -37,6 +37,7 @@ async function run() {
   assert.match(adminApiPanel, /Provider 草案/, "API assistant result should show provider draft section");
   assert.match(adminApiPanel, /模型草案/, "API assistant result should show model draft section");
   assert.match(adminApiPanel, /异步任务配置/, "API assistant result should show async task configuration section");
+  assert.match(adminApiPanel, /formatAssistantRawOutput\(/, "API assistant raw output should be normalized before rendering");
   assert.match(adminApiPanel, /assistant-draft-raw/, "API assistant raw output should be collapsed behind details");
   assert.match(adminCss, /\.assistant-draft-raw pre[\s\S]*?max-height:\s*220px;/, "API assistant raw output should be height-limited");
 

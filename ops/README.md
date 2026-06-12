@@ -13,6 +13,12 @@
 - 画布助手 UI 与可见文案清理灰度记录见 `canvas-assistant-ui-gray-2026-06-09.md`。
 - 生成节点 `生成数量` 灰度与生产发布记录见 `generation-count-release-2026-06-10.md`。
 - 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
+- 仓库结构和当前 worktree 说明见 `../docs/repo-structure.md`。
+- Cloudflare 源站封口与橙云切换验收见 `cloudflare-origin-lock-2026-06-12.md`。
+- `files.hhh2121.xyz` 的完整封口方案见 `files-origin-seal-plan-2026-06-12.md`。
+- `files.hhh2121.xyz` 的可执行切换清单见 `files-origin-seal-execution-checklist-2026-06-12.md`。
+- `Provider Files` 从裸 IP 切到 `files.hhh2121.xyz` 的正式切换记录见 `provider-files-files-domain-cutover-2026-06-12.md`。
+- 视频生成 `Unexpected token '<'` 前端误报修复灰度发布记录见 `video-json-guard-gray-2026-06-12.md`。
 
 ## 当前运行态入口
 
@@ -23,6 +29,7 @@
 - `assistant-hermes-gray-2026-06-08.md`
 - `canvas-assistant-ui-gray-2026-06-09.md`
 - `generation-count-release-2026-06-10.md`
+- `video-json-guard-gray-2026-06-12.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`
@@ -58,23 +65,10 @@
 
 ## 历史发布记录
 
-以下文件保留为历史审计证据，不再作为当前运行态入口：
+以下材料已归档到 `archive/`，保留为历史审计证据，不再作为当前运行态入口：
 
-- `domain-map-2026-06-04.md`
-- `server-state-2026-06-04.md`
-- `server-disk-usage-2026-06-04.md`
-- `old-canvas-cleanup-2026-06-04.md`
-- `gray-deploy-2026-06-05.md`
-- `gray-auth-deploy-2026-06-05.md`
-- `gray-admin-deploy-2026-06-05.md`
-- `gray-admin-security-2026-06-05.md`
-- `gray-db-readiness-2026-06-05.md`
-- `postgresql-gray-migration-2026-06-05.md`
-- `postgresql-repository-cutover-2026-06-05.md`
-- `worker-queue-gray-deploy-2026-06-05.md`
-- `phase2-complete-gray-2026-06-06.md`
-- `grsai-worker-gray-2026-06-06.md`
-- `production-preflight-2026-06-06.md`
+- `archive/2026-06-initial-rollout/`
+  - 初始灰度、认证、后台、安全、数据库切换、旧画布清理和第一轮运行态落地材料
 
 ## 清理规则
 
@@ -82,3 +76,4 @@
 - 不使用递归删除命令。
 - 不清理运行期数据、密钥、服务器环境文件或用户素材。
 - 如需删除历史文档，必须先列出单个明确路径，再逐个删除。
+- 历史材料优先移动到 `archive/`，不要直接删除。

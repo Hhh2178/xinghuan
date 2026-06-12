@@ -34,7 +34,7 @@ import {
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
 import { useModelCatalogStore } from '../../stores/modelCatalog';
-import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import { filterAudioModelsByMode, resolveCompatibleAudioProviderSelection } from '../../utils/publishedModelSelection';
 import type { PublicModelRecord } from '../../services/api';
 
 /**
@@ -52,7 +52,15 @@ const MODES: Array<{ id: AudioMode; label: string }> = [
 const PROVIDER_AUDIO_MODES = [
   { id: 'tts', label: '生成语音' },
   { id: 'voice_clone', label: '克隆音色' },
+  { id: 'voice_design', label: '音色定制' },
 ] as const;
+
+const PILL_FIELD_SHELL =
+  'rounded-xl border border-white/10 bg-black/20 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+const PILL_SELECT_CLASS =
+  'w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-medium text-white outline-none transition focus:border-violet-300/35 focus:bg-white/[0.08]';
+const PILL_INPUT_CLASS =
+  'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-medium text-white outline-none transition focus:border-violet-300/35 focus:bg-white/[0.08] placeholder:text-white/28';
 
 const SUNO_POLL_INTERVAL_MS = 3000;
 const SUNO_POLL_TIMEOUT_SECONDS = 3600;
@@ -83,19 +91,50 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const d = data as any;
   const backendAudioModels = useModelCatalogStore((s) => s.catalog.audioModels);
   const audioEngine: 'provider' | 'suno' = d?.audioEngine === 'suno' ? 'suno' : 'provider';
-  const providerAudioMode: 'tts' | 'voice_clone' = d?.providerAudioMode === 'voice_clone' ? 'voice_clone' : 'tts';
+  const providerAudioMode: 'tts' | 'voice_clone' | 'voice_design' =
+    d?.providerAudioMode === 'voice_clone'
+      ? 'voice_clone'
+      : d?.providerAudioMode === 'voice_design'
+        ? 'voice_design'
+        : 'tts';
+  const compatibleBackendAudioModels = useMemo(
+    () => filterAudioModelsByMode(backendAudioModels, providerAudioMode),
+    [backendAudioModels, providerAudioMode],
+  );
   const backendSelection = useMemo(
-    () => resolvePublishedModelSelection(backendAudioModels, {
+    () => resolveCompatibleAudioProviderSelection(backendAudioModels, providerAudioMode, {
       selectedModelId: d?.backendModelId,
       selectedProviderId: d?.backendProviderId,
     }),
-    [backendAudioModels, d?.backendModelId, d?.backendProviderId],
+    [backendAudioModels, providerAudioMode, d?.backendModelId, d?.backendProviderId],
   );
   const backendAudioModel: PublicModelRecord | null = backendSelection.selectedModel;
   const backendProviderGroups = backendSelection.providerGroups;
   const backendProviderGroup = backendSelection.selectedProviderGroup;
-  const voice: string = d?.voice || backendAudioModel?.parameterSchema?.voice?.default || 'mimo_default';
-  const audioFormat: string = d?.audioFormat || backendAudioModel?.parameterSchema?.audioFormat?.default || 'wav';
+  const voiceOptions = useMemo(
+    () =>
+      Array.isArray(backendAudioModel?.parameterSchema?.voice?.options)
+        ? backendAudioModel?.parameterSchema?.voice?.options
+            .map((item: unknown) => String(item || '').trim())
+            .filter((item: string, index: number, list: string[]) => Boolean(item) && list.indexOf(item) === index)
+        : [],
+    [backendAudioModel?.parameterSchema?.voice?.options],
+  );
+  const audioFormatOptions = useMemo(
+    () =>
+      Array.isArray(backendAudioModel?.parameterSchema?.audioFormat?.options)
+        ? backendAudioModel?.parameterSchema?.audioFormat?.options
+            .map((item: unknown) => String(item || '').trim().toLowerCase())
+            .filter((item: string, index: number, list: string[]) => Boolean(item) && list.indexOf(item) === index)
+        : ['wav', 'mp3', 'pcm16'],
+    [backendAudioModel?.parameterSchema?.audioFormat?.options],
+  );
+  const voice: string = d?.voice || backendAudioModel?.parameterSchema?.voice?.default || voiceOptions[0] || 'mimo_default';
+  const audioFormat: string = d?.audioFormat || backendAudioModel?.parameterSchema?.audioFormat?.default || audioFormatOptions[0] || 'wav';
+  const showPresetVoiceControls = audioEngine === 'provider' && providerAudioMode === 'tts';
+  const showReferenceAudioInput = audioEngine === 'provider' && providerAudioMode === 'voice_clone';
+  const providerStyleLabel = providerAudioMode === 'voice_design' ? '音色定制描述' : '语气 / 风格';
+  const providerPromptLabel = providerAudioMode === 'voice_design' ? '要播报的文本' : '要生成的语音文本';
   const mode: AudioMode = d?.mode || 'generate';
   const version: string = d?.version || DEFAULT_SUNO_VERSION;
   const generationCount = clampGenerationCount(d?.generationCount ?? 1);
@@ -128,6 +167,50 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     pollTimers.current.clear();
   };
   useEffect(() => () => stopPoll(), []);
+
+  useEffect(() => {
+    if (audioEngine !== 'provider') return;
+    const nextProviderId = backendSelection.selectedProviderGroup?.providerId || '';
+    const nextModelId = backendSelection.selectedModel?.id || '';
+    const nextProviderModelId = backendSelection.selectedModel?.modelId || '';
+    if (
+      d?.backendProviderId === nextProviderId &&
+      d?.backendModelId === nextModelId &&
+      d?.providerId === nextProviderId &&
+      d?.providerModel === nextProviderModelId
+    ) {
+      return;
+    }
+    update({
+      backendProviderId: nextProviderId,
+      backendModelId: nextModelId,
+      providerId: nextProviderId,
+      providerModel: nextProviderModelId,
+    });
+  }, [
+    audioEngine,
+    backendSelection.selectedModel?.id,
+    backendSelection.selectedModel?.modelId,
+    backendSelection.selectedProviderGroup?.providerId,
+    d?.backendModelId,
+    d?.backendProviderId,
+    d?.providerId,
+    d?.providerModel,
+    update,
+  ]);
+
+  useEffect(() => {
+    if (!showPresetVoiceControls || !voiceOptions.length) return;
+    if (voiceOptions.includes(String(d?.voice || '').trim())) return;
+    update({ voice: backendAudioModel?.parameterSchema?.voice?.default || voiceOptions[0] });
+  }, [backendAudioModel?.parameterSchema?.voice?.default, d?.voice, showPresetVoiceControls, update, voiceOptions]);
+
+  useEffect(() => {
+    if (audioEngine !== 'provider' || !audioFormatOptions.length) return;
+    const currentAudioFormat = String(d?.audioFormat || '').trim().toLowerCase();
+    if (currentAudioFormat && audioFormatOptions.includes(currentAudioFormat)) return;
+    update({ audioFormat: backendAudioModel?.parameterSchema?.audioFormat?.default || audioFormatOptions[0] });
+  }, [audioEngine, audioFormatOptions, backendAudioModel?.parameterSchema?.audioFormat?.default, d?.audioFormat, update]);
 
   // === 上游素材聚合 (跨节点统一机制) ===
   const upstream = useUpstreamMaterials(id);
@@ -283,6 +366,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     if (!backendAudioModel) throw new Error('后台未发布可用的音频模型，请先在 API 服务商中发布 MiMo 音频模型');
     const referenceUrl = orderedAudios[0]?.url || localRefAudio || '';
     if (providerAudioMode === 'voice_clone' && !referenceUrl) throw new Error('音色克隆需要连接或上传一段参考音频');
+    if (providerAudioMode === 'voice_design' && !(tags || title || '').trim()) throw new Error('音色定制需要填写音色描述');
     const sampleDataUrl = providerAudioMode === 'voice_clone' ? await audioUrlToDataUrl(referenceUrl) : '';
     logBus.info(`提交音频 Provider: ${backendAudioModel.provider.name} · ${backendAudioModel.modelId} · ${providerAudioMode}`, src);
     const result = await generateExternalAudio({
@@ -292,7 +376,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       mode: providerAudioMode,
       text: finalPrompt,
       stylePrompt: tags || title || '',
-      voice,
+      voice: providerAudioMode === 'tts' ? voice : '',
       audioFormat,
       sampleDataUrl,
       providerParams: { modelRecordId: backendAudioModel.id },
@@ -302,7 +386,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     const nextTracks = audioUrls.map((audioUrl, index) => ({
       id: `${backendAudioModel.id}-${Date.now()}-${index}`,
       audioUrl,
-      title: title || (providerAudioMode === 'voice_clone' ? '克隆语音' : '生成语音'),
+      title: title || (providerAudioMode === 'voice_clone' ? '克隆语音' : providerAudioMode === 'voice_design' ? '定制语音' : '生成语音'),
       tags,
     }));
     markRuntimeFinished(runtimeStartedAt, {
@@ -521,7 +605,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   });
 
   const isBusy = status === 'submitting' || status === 'polling';
-  const showRefArea = audioEngine === 'provider' ? providerAudioMode === 'voice_clone' : mode === 'cover' || mode === 'extend';
+  const showRefArea = audioEngine === 'provider' ? showReferenceAudioInput : mode === 'cover' || mode === 'extend';
   const audioColor = PORT_COLOR.audio;
 
   return (
@@ -553,7 +637,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           <Music size={13} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white">{audioEngine === 'suno' ? '音频 Suno（旧）' : '语音生成 / 克隆'}</div>
+          <div className="text-sm font-semibold text-white">{audioEngine === 'suno' ? '音频 Suno（旧）' : '语音生成 / 克隆 / 定制'}</div>
           <div className="text-[10px] text-white/40 truncate">
             {audioEngine === 'provider'
               ? `${backendAudioModel?.provider.name || '未配置供应商'} · ${PROVIDER_AUDIO_MODES.find((m) => m.id === providerAudioMode)?.label}`
@@ -587,27 +671,39 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[10px] text-white/50 block mb-1">引擎</label>
-            <select
-              value={audioEngine}
-              onChange={(e) => update({ audioEngine: e.target.value })}
-              className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-            >
-              <option value="provider" className="bg-zinc-900">Provider 语音</option>
-              <option value="suno" className="bg-zinc-900">Legacy Suno</option>
-            </select>
+            <div className={PILL_FIELD_SHELL}>
+              <select
+                value={audioEngine}
+                onChange={(e) => update({ audioEngine: e.target.value })}
+                className={PILL_SELECT_CLASS}
+              >
+                <option value="provider" className="bg-zinc-900">Provider 语音</option>
+                <option value="suno" className="bg-zinc-900">Legacy Suno</option>
+              </select>
+            </div>
           </div>
           <div>
             <label className="text-[10px] text-white/50 block mb-1">用途</label>
             {audioEngine === 'provider' ? (
-              <select
-                value={providerAudioMode}
-                onChange={(e) => update({ providerAudioMode: e.target.value })}
-                className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-              >
-                {PROVIDER_AUDIO_MODES.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-zinc-900">{m.label}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-black/20 p-1">
+                {PROVIDER_AUDIO_MODES.map((m) => {
+                  const active = providerAudioMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => update({ providerAudioMode: m.id })}
+                      className={`rounded-lg px-2 py-1.5 text-[11px] font-medium transition ${
+                        active
+                          ? 'bg-violet-500/25 text-violet-100 shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35)]'
+                          : 'text-white/55 hover:bg-white/5 hover:text-white/80'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
               <select
                 value={mode}
@@ -625,79 +721,139 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         </div>
 
         {audioEngine === 'provider' && (
-          <div className="rounded border border-violet-300/20 bg-violet-500/5 p-2 space-y-2">
+          <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(180deg,rgba(124,58,237,0.14),rgba(15,23,42,0.4))] p-3 space-y-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold text-violet-100">Provider 语音链路</div>
+                <div className="text-[10px] leading-5 text-white/45">
+                  {providerAudioMode === 'voice_clone'
+                    ? '仅展示支持音色克隆的模型，并要求接入参考音频。'
+                    : providerAudioMode === 'voice_design'
+                      ? '仅展示支持音色定制的模型，使用文本描述新的音色特征。'
+                      : '仅展示可直接播报文本的语音模型，并优先读取后台预设音色。'}
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full border border-violet-200/15 bg-white/5 px-2 py-1 text-[10px] text-violet-100/80">
+                {compatibleBackendAudioModels.length || 0} 个兼容模型
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">供应商</label>
-                <select
-                  value={backendProviderGroup?.providerId || ''}
-                  onChange={(e) => {
-                    const nextProvider = backendProviderGroups.find((item) => item.providerId === e.target.value) || backendProviderGroups[0];
-                    const nextModel = nextProvider?.models[0];
-                    update({
-                      backendProviderId: nextProvider?.providerId || '',
-                      backendModelId: nextModel?.id || '',
-                      providerId: nextModel?.providerId || '',
-                      providerModel: nextModel?.modelId || '',
-                    });
-                  }}
-                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-                >
-                  {backendProviderGroups.length === 0 && <option className="bg-zinc-900" value="">未发布音频模型</option>}
-                  {backendProviderGroups.map((group) => (
-                    <option key={group.providerId} value={group.providerId} className="bg-zinc-900">
-                      {group.provider.name}
-                    </option>
-                  ))}
-                </select>
+                <div className={PILL_FIELD_SHELL}>
+                  <select
+                    value={backendProviderGroup?.providerId || ''}
+                    onChange={(e) => {
+                      const nextProvider = backendProviderGroups.find((item) => item.providerId === e.target.value) || backendProviderGroups[0];
+                      const nextModel = nextProvider?.models[0];
+                      update({
+                        backendProviderId: nextProvider?.providerId || '',
+                        backendModelId: nextModel?.id || '',
+                        providerId: nextModel?.providerId || '',
+                        providerModel: nextModel?.modelId || '',
+                      });
+                    }}
+                    className={PILL_SELECT_CLASS}
+                  >
+                    {backendProviderGroups.length === 0 && <option className="bg-zinc-900" value="">当前模式暂无模型</option>}
+                    {backendProviderGroups.map((group) => (
+                      <option key={group.providerId} value={group.providerId} className="bg-zinc-900">
+                        {group.provider.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">模型</label>
-                <select
-                  value={backendAudioModel?.id || ''}
-                  onChange={(e) => {
-                    const next = backendProviderGroup?.models.find((item) => item.id === e.target.value) || backendProviderGroup?.models[0];
-                    update({
-                      backendModelId: next?.id || '',
-                      backendProviderId: next?.providerId || '',
-                      providerId: next?.providerId || '',
-                      providerModel: next?.modelId || '',
-                    });
-                  }}
-                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-                >
-                  {!backendProviderGroup && <option className="bg-zinc-900" value="">暂无模型</option>}
-                  {backendProviderGroup?.models.map((model) => (
-                    <option key={model.id} value={model.id} className="bg-zinc-900">
-                      {model.displayName || model.modelId}
-                    </option>
-                  ))}
-                </select>
+                <div className={PILL_FIELD_SHELL}>
+                  <select
+                    value={backendAudioModel?.id || ''}
+                    onChange={(e) => {
+                      const next = backendProviderGroup?.models.find((item) => item.id === e.target.value) || backendProviderGroup?.models[0];
+                      update({
+                        backendModelId: next?.id || '',
+                        backendProviderId: next?.providerId || '',
+                        providerId: next?.providerId || '',
+                        providerModel: next?.modelId || '',
+                      });
+                    }}
+                    className={PILL_SELECT_CLASS}
+                  >
+                    {!backendProviderGroup && <option className="bg-zinc-900" value="">暂无兼容模型</option>}
+                    {backendProviderGroup?.models.map((model) => (
+                      <option key={model.id} value={model.id} className="bg-zinc-900">
+                        {model.displayName || model.modelId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-white/50 block mb-1">音色</label>
-                <input
-                  value={voice}
-                  onChange={(e) => update({ voice: e.target.value })}
-                  placeholder="mimo_default"
-                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
-                />
-              </div>
+            <div className={`grid gap-2 ${showPresetVoiceControls ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {showPresetVoiceControls && (
+                <div>
+                  <label className="text-[10px] text-white/50 block mb-1">音色</label>
+                  {voiceOptions.length ? (
+                    <div className={PILL_FIELD_SHELL}>
+                      <select
+                        value={voice}
+                        onChange={(e) => update({ voice: e.target.value })}
+                        className={PILL_SELECT_CLASS}
+                      >
+                        {voiceOptions.map((item: string) => (
+                          <option key={item} value={item} className="bg-zinc-900">{item}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className={PILL_FIELD_SHELL}>
+                      <input
+                        value={voice}
+                        onChange={(e) => update({ voice: e.target.value })}
+                        placeholder="mimo_default"
+                        className={PILL_INPUT_CLASS}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="text-[10px] text-white/50 block mb-1">格式</label>
-                <select
-                  value={audioFormat}
-                  onChange={(e) => update({ audioFormat: e.target.value })}
-                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-                >
-                  {['wav', 'mp3', 'pcm16'].map((fmt) => (
-                    <option key={fmt} value={fmt} className="bg-zinc-900">{fmt}</option>
-                  ))}
-                </select>
+                <div className={PILL_FIELD_SHELL}>
+                  <select
+                    value={audioFormat}
+                    onChange={(e) => update({ audioFormat: e.target.value })}
+                    className={PILL_SELECT_CLASS}
+                  >
+                    {audioFormatOptions.map((fmt: string) => (
+                      <option key={fmt} value={fmt} className="bg-zinc-900">{fmt}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
+            {showPresetVoiceControls && voiceOptions.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-black/15 px-2.5 py-2">
+                <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-violet-100/45">预设音色</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {voiceOptions.map((item: string) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => update({ voice: item })}
+                      className={`rounded-full border px-2 py-1 text-[10px] transition ${
+                        voice === item
+                          ? 'border-violet-200/40 bg-violet-400/20 text-violet-50'
+                          : 'border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/85'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -771,17 +927,17 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         </div>
         )}
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? '语气 / 风格' : '风格 Tags'}</label>
+          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? providerStyleLabel : '风格 Tags'}</label>
           <input
             type="text"
             value={tags}
             onChange={(e) => update({ tags: e.target.value })}
-            placeholder="pop, electronic, female vocal"
+            placeholder={audioEngine === 'provider' && providerAudioMode === 'voice_design' ? '例如：少女感、轻快、清亮、略带气声' : 'pop, electronic, female vocal'}
             className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
           />
         </div>
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? '要生成的语音文本' : '歌词 / 提示词'}</label>
+          <label className="text-[10px] text-white/50 block mb-1">{audioEngine === 'provider' ? providerPromptLabel : '歌词 / 提示词'}</label>
           <MentionPromptInput
             value={localPrompt}
             mentions={promptMentions}

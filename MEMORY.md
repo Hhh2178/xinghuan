@@ -4,6 +4,134 @@
 
 无限画布 2.0 是公司内部节点式 AIGC 创作平台的新项目。核心目标是让成员在无限画布中通过节点工作流、素材空间和 Agent 辅助创作图片、视频、音频和文本；所有生成能力通过外部 API 调用；管理员在独立后台统一管理用户、项目、Provider、模型、参数、任务、素材、日志、配额和审计。
 
+## 当前入口说明
+
+当前文件是无限画布 2.0 的主记忆入口，适用于：
+
+- 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- 当前灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
+- 当前生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
+
+相关入口：
+
+- 根入口：`README.md`
+- 协作规则：`AGENTS.md`
+- 结构说明：`docs/repo-structure.md`
+- 运行产物：`docs/runtime-artifacts.md`
+- 开发推进：`DEVLOG.md`
+- 运维与验收：`ops/`
+
+## 快速导航
+
+如果只是要快速恢复当前状态，优先看：
+
+1. 本文件前部的“项目摘要 / 当前关键决策 / 当前阶段”
+2. `docs/repo-structure.md`
+3. `docs/runtime-artifacts.md`
+4. `ops/README.md`
+5. `DEVLOG.md` 顶部最近几天记录
+
+使用边界：
+
+- 本文件保留长期有效的项目判断、部署状态、关键规则和阶段结论。
+- 按天展开的详细推进与验证证据，优先看 `DEVLOG.md`。
+- 具体部署材料与历史验收记录，优先看 `ops/`。
+- 临时方案与开发草稿，优先看 `development/`。
+
+## 当前结构记忆
+
+- 当前 2.0 默认工作根已经固定为：
+  - `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- 该目录是主仓库 `D:/codex/无限画布2.0` 的 Git worktree，不是另一份独立项目副本。
+- 当前 worktree 的根入口文件已经补齐为 `README.md`，用于快速说明：
+  - 为什么当前工作在 worktree 中
+  - 当前应查看哪些入口文件
+  - 哪些目录是正式源码
+  - 哪些目录只是运行产物
+- `D:/codex/服务器/无限画布/` 已明确降级为旧主干 / 历史参考入口，不再作为当前 2.0 主入口。
+- 若旧目录文档与当前 worktree 文档冲突，以当前 worktree 为准。
+
+## 运行产物与归档规则记忆
+
+- `output/`、`releases/`、`dist-release/`、`logs/`、`.tmp/`、`.codex-temp/`、`.codegraph/`、`.playwright-cli/` 都属于运行产物或本机辅助目录，不是正式源码结构。
+- 运行产物目录的正式边界说明已经沉淀到：
+  - `docs/runtime-artifacts.md`
+- 当前整理策略不是直接清空运行产物，而是：
+  - 先把长期有效结论收口到 `docs/`、`ops/`、`DEVLOG.md`、`MEMORY.md`
+  - 再按单个明确路径清理无用文件
+  - 禁止批量删除
+- `ops/` 中第一批明显历史化的灰度初期材料已移动到：
+  - `ops/archive/2026-06-initial-rollout/`
+- `ops/archive/` 现在承担历史运维审计材料归档职责；旧材料优先归档，不直接删除。
+- `2026-06-12` Cloudflare 源站封口状态已更新：
+  - `canvas.hhh2121.xyz` 与 `canvas-next.hhh2121.xyz` 已补齐 `cloudflare-only.conf`，源站 HTTPS 直打均返回 `403`
+  - `hermes.hhh2121.xyz` 继续保持已存在的 Cloudflare 源站封口与 Access 保护
+  - `files.hhh2121.xyz` 在用户切为橙云后也已完成封口：公网静态文件访问正常，已知源站 IP 直打真实静态资源路径返回 `403`
+  - `files.hhh2121.xyz/healthz` 仍可返回 `200`，这是健康检查例外路径，不代表静态文件可以继续被绕过
+  - 服务器本机短时可能因 DNS/递归缓存尚未收敛，访问 `files.hhh2121.xyz` 时出现假性 `403`；该现象不代表公网异常
+  - 随后 `Provider Files` 公网出口也已完成收口：
+    - `XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN` 在灰度和正式都改为 `https://files.hhh2121.xyz`
+    - Provider 文件签名 URL 已升级为带环境 scope 的格式：
+      - `/api/provider-files/gray/...`
+      - `/api/provider-files/production/...`
+    - `files.hhh2121.xyz` Nginx 已按 scope 分流到 `18200` 与 `18100`
+    - 旧裸 IP `http://101.33.75.38/api/provider-files/...` 不再直接出内容，而是 `302` 跳转到 `files.hhh2121.xyz`
+    - 灰度/正式图像代理真实脚本验收与灰度视频代理验收均已通过
+- `2026-06-12` 视频生成 `Unexpected token '<'` 前端误报修复已进入灰度：
+  - 前端 `apps/web/src/services/generation.ts` 已统一改为 `readJsonResponse`，不再在生成服务里直接 `await r.json()`
+  - 当前灰度 release：
+    - `20260612-generation-json-guard-gray-r1`
+  - 灰度验收已确认：
+    - `canvas-next.hhh2121.xyz/api/status` 正常
+    - 未登录 `POST /api/proxy/external/video` 返回 `401 AUTH_REQUIRED` 且 `Content-Type=application/json`
+    - 灰度前端打包产物已包含“返回了 HTML 页面，请检查登录状态、网关代理或上游配置”提示文案
+  - 本机验收时要注意：
+    - `verify:external-video-proxy` 与 `verify:single-port` 不能并行跑在 file-based local 环境上，否则可能因 admin 数据文件互相覆盖而产生假性 `Provider 不存在`
+- `2026-06-12` 视频节点 `Unexpected token '<'` 的后端兜底修复已继续进入灰度：
+  - 当前灰度 release：
+    - `20260612-video-upstream-json-guard-gray-r2`
+  - 新判断：
+    - 当前灰度/正式运行进程都已经加载 `XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN=https://files.hhh2121.xyz`
+    - 使用真实签名规则生成的 `https://files.hhh2121.xyz/api/provider-files/gray/...` 已实测返回 `200 image/png`
+    - 因此“橙云切换后导致 Provider 参考图外链天然不可用”不再成立，不能继续把该报错笼统归因到橙云
+  - 当前更准确的结论是：
+    - 某些视频链路上游仍可能返回 HTML 页面或其它非 JSON 文本
+    - 过去后端部分链路存在裸 `JSON.parse(...)`，会把上游异常重新糊成 `Unexpected token '<'`
+  - 本轮已补齐后端统一兜底：
+    - `apps/api/src/external-proxy.ts`
+    - `apps/api/src/server.ts`
+    - 统一增加上游 `HTML / 非 JSON` 安全解析与报错归一
+  - 新错误文案已经进入灰度产物：
+    - `返回网页 HTML，请检查 Base URL、Cloudflare/WAF 或上游鉴权`
+    - `返回非 JSON 响应`
+  - 后续如果用户再次在灰度复现视频失败，应优先记录：
+    - 是哪一个 Provider / 模型
+    - 是否带参考图
+    - 报错现在落在“提交接口 / 轮询接口 / 最终结果接口”的哪一段
+- `2026-06-12` 同一视频上游响应兜底已同步到正式环境：
+  - 用户继续看到 `Unexpected token '<', "<!DOCTYPE"... is not valid JSON` 的直接原因是：
+    - 用户实际复现发生在正式环境
+    - 正式环境当时仍停在 `20260612-video-html-json-guard-r1`
+    - 正式前端已有 `readJsonResponse`，但正式后端缺少 `parseUpstreamJson`
+    - 因此后端裸 `JSON.parse(...)` 的原生错误被包进 JSON `error` 字段，再由前端显示
+  - 当前正式 release：
+    - `20260612-video-upstream-json-guard-prod-r1`
+  - 正式验收：
+    - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260612-video-upstream-json-guard-prod-r1`
+    - `xinghuan-canvas.service` / `xinghuan-canvas-worker.service` 均为 `active`
+    - `https://canvas.hhh2121.xyz/api/status` 返回 `environment=production`
+    - 未登录 `POST /api/proxy/external/video` 返回 JSON `AUTH_REQUIRED`，不是 HTML
+    - `https://files.hhh2121.xyz/api/provider-files/production/...` 真实签名 URL 返回 `200 image/jpeg`
+  - 后台“能生成”不等价于画布带参考图真实生成：
+    - 当前后台模型连通性测试不会自动执行付费视频生成
+    - 画布视频节点会额外携带参考图、首帧/尾帧、`providerParams.modelRecordId`
+    - 若后续同一节点仍失败，应以新的具体错误文案继续定位是哪一段上游响应异常
+
+边界说明：
+
+- `D:/codex/服务器/无限画布/MEMORY.md` 是旧主干/历史入口，不再代表当前 2.0 最新状态
+- 如出现两个记忆文件内容冲突，以当前 worktree 下本文件为准
+
 ## 为什么放弃旧项目
 
 旧项目基于 Node Banana 改造后暴露出结构性问题：
@@ -468,3 +596,124 @@
       - 节点内 `Legacy Suno` 会显示未接入后端代理，不再伪装成可运行状态
     - 新增验证：
       - `npm run verify:llm-media-capability-contract`
+- `2026-06-11` 继续打通后台 AI 协助配置与 MiMo 音频真实测试链路。
+  - 根因确认：
+    - 后台 AI 助手仍自报 `DS V4` 不是灰度代码未更新，而是 Hermes 独立 `canvas-assistant` profile 运行配置仍指向 `deepseek-v4-flash`。
+    - 后台“测语音 / 测克隆”之前仍是占位返回，不会真实请求 MiMo。
+    - AI 协助配置卡片中的原始输出区域会把对象渲染成 `[object Object]`，导致管理员无法判断真实结构。
+  - 当前代码修复方向：
+    - `apps/api/src/server.ts`
+      - `/api/admin/models/:id/test` 的 `audioGeneration` / `voiceClone` 改为真实走音频请求。
+      - 直接复用 `createOpenAiAudioChatPayload` 与 `extractAudioProviderResult`，不再返回“待启用”的占位文案。
+      - 内置最小测试音频样本用于 `voice_clone` 冒烟测试。
+    - `apps/admin/src/admin-api-settings-panel.tsx`
+      - 新增 `formatAssistantRawOutput()`，避免原始输出出现 `[object Object]`。
+      - 明确区分“配置草案”和“真实验证”两个阶段，应用草案后继续提示管理员执行验证地址、拉取模型和模型测试。
+  - Hermes 侧联通结论：
+    - 服务器上直接运行 MiMo TTS 已成功，说明 Hermes → MiMo 已通。
+    - 画布后台后续只需要把管理端真实测试链路与 Hermes/profile 默认模型对齐即可。
+- `2026-06-11` 音频节点与后台音色预设新增约束：
+  - 画布 `AudioNode` 的 Provider 模式不能再混用全部音频模型，必须按 `capabilityTags` 做模式筛选：
+    - `tts` 仅显示可直接播报文本的语音模型。
+    - `voice_clone` 仅显示带 `voice_clone` 标签的模型。
+    - 纯 `voice_design` 模型在当前画布节点中不作为 `tts / voice_clone` 备选。
+  - 后台音频模型若支持固定音色，需要把预设落在 `parameterSchema.voice.options`，默认值落在 `parameterSchema.voice.default`，并同步 `advancedConfig.voice` 作为后端默认音色。
+  - 前端音频节点优先读取后台 `parameterSchema.voice.options/default` 与 `parameterSchema.audioFormat.options/default`，不要继续在节点内写死 `mimo_default`、`wav/mp3/pcm16` 作为唯一来源。
+  - 后端外部音频代理需要在 `voice_clone` 模式下再次校验 `voice_clone` 标签，避免前端错误选择模型时直接把错误请求打到上游。
+- `2026-06-11` 后台 `AI 协助配置` 面板结构化输入新增约束：
+  - 面板需要优先接收结构化材料，而不是把所有信息混在一个备注文本框里。
+  - 当前推荐输入维度固定为：
+    - `docUrls`: 多个文档链接，每行一个
+    - `sampleRequest`: 请求样例
+    - `sampleResponse`: 响应样例
+    - `asyncTemplate`: `auto | sync_inline_result | async_task_poll_result | async_task_poll_then_final_lookup | adapter_manual_model_catalog`
+    - `notes`: 管理员补充说明
+  - 后端分析逻辑需要对多个文档链接逐个抓取，并先做基础 HTML 文本抽取，再作为分析信号输入；不要只保留单个 `docUrl`。
+  - 面板和 Hermes prompt 都要把 `docUrls` 与 `asyncTemplate` 显式传下去，这样后续新平台接入时，管理员只给文档链接也能先得到可审阅的草案。
+- `2026-06-11` 后台 `AI 协助配置` 结构化输入已完成灰度与生产发布：
+  - 灰度 release：`20260611-admin-assistant-structured-inputs-gray-r1`
+    - current: `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260611-admin-assistant-structured-inputs-gray-r1`
+    - 灰度状态：
+      - `GET http://127.0.0.1:18200/api/status` => `environment=gray`
+      - `GET https://canvas-next.hhh2121.xyz/admin` 返回后台新资源 `index-czJ_Z3QS.js` / `index-CsjzixIg.css`
+  - 生产 release：`20260611-admin-assistant-structured-inputs-prod-r1`
+    - current: `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260611-admin-assistant-structured-inputs-prod-r1`
+    - 生产状态：
+      - `GET http://127.0.0.1:18100/api/status` => `environment=production`
+      - `GET https://canvas.hhh2121.xyz/admin` 返回后台新资源 `index-czJ_Z3QS.js` / `index-CsjzixIg.css`
+  - 发布注意：
+    - 本轮两套环境发布时，`npm run db:migrate` 在 release 目录内出现 `PG_DRIVER_NOT_INSTALLED`，但由于本轮没有新增 migration SQL，所以未阻断发布。
+    - 后续若有真实 schema 变更，必须先单独修正服务器 release 环境下 `scripts/db-migrate.mjs` 对 `pg` 的动态导入问题，再执行带 migration 的发布。
+- `2026-06-11` 已收口生产后台 schema 漏迁移故障：
+  - 直接故障：生产后台多个页面统一报错 `column "capability_tags" does not exist`，造成 Provider / 模型 / 用户 / 系统等读取结果整体为空。
+  - 根因：
+    - 运行时代码已依赖 `xh_models.capability_tags` 与 `test_state`
+    - 灰度库已执行 `007_model_capability_tags_audio.sql`
+    - 生产库只执行到 `006`，缺少新增列
+    - 同时当前 release 的 `scripts/db-migrate.mjs` 在服务器环境下会报 `PG_DRIVER_NOT_INSTALLED`
+  - 已执行修复：
+    - 生产数据库已前向执行 `007_model_capability_tags_audio.sql`，并补记 `xh_schema_migrations`
+    - 本地源码 `scripts/db-migrate.mjs` 已增加 `createRequire(import.meta.url)` 回退加载 `pg`
+    - 修好的脚本已同步覆盖到当前两套线上 release：
+      - `/opt/apps/xinghuan-canvas/current/scripts/db-migrate.mjs`
+      - `/opt/apps/xinghuan-canvas-next/current/scripts/db-migrate.mjs`
+  - 验证：
+    - 生产 current release 执行 `node scripts/db-migrate.mjs` => `{"ok":true,"applied":[],"skipped":7}`
+    - 灰度 current release 执行 `node scripts/db-migrate.mjs` => `{"ok":true,"applied":[],"skipped":7}`
+    - `https://canvas.hhh2121.xyz/api/status` 已恢复返回 `environment=production`
+    - 四个服务 `xinghuan-canvas(.service/.worker)` 与 `xinghuan-canvas-next(.service/.worker)` 均为 `active`
+    - 生产服务新日志中未再出现 `capability_tags` 报错
+- `2026-06-11` 画布音频节点的 MiMo 模型展示链路已补齐：
+  - 前端 `AudioNode` 的 Provider 音频模式会按 `capabilityTags` 过滤 `tts / voice_clone` 兼容模型，因此 `/api/models` 必须向前端公开 `capabilityTags`。
+  - 若公开模型目录缺少 `capabilityTags`，画布会出现“当前模式暂无模型 / 0 个兼容模型”，即使后台已经完整配置并发布了 MiMo 音频模型。
+  - 后台音频模型若配置了 `parameterSchema.voice.options/default`，画布音频节点应自动切换为音色下拉；若未配置，则继续回退为自由输入框。
+  - 2026-06-11 已补齐 `publicModelCatalog()` 的 `capabilityTags` 输出，并把音频节点的引擎 / 供应商 / 模型 / 音色 / 格式统一成胶囊式下拉外观。
+- `2026-06-11` 音频节点 MiMo 展示修复版已灰度发布：
+  - 灰度 release：`20260611-audio-node-mimo-gray-r2-b9ee3bd`
+  - 当前灰度指针：`/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260611-audio-node-mimo-gray-r2-b9ee3bd`
+  - 灰度环境已在 release 目录执行：
+    - `npm ci`
+    - `node scripts/db-migrate.mjs`
+    - `systemctl restart xinghuan-canvas-next.service`
+    - `systemctl restart xinghuan-canvas-next-worker.service`
+  - 验收结果：
+    - `db-migrate` 返回 `{"ok":true,"applied":[],"skipped":7}`
+    - `http://127.0.0.1:18200/api/status` 返回 `environment=gray`
+    - `https://canvas-next.hhh2121.xyz/api/status` 返回 `environment=gray`
+    - 灰度 API / Worker 均为 `active`
+- `2026-06-11` MiMo 音频节点模式已进一步拆分并灰度发布：
+  - 当前灰度 release：`20260611-audio-modes-voicedesign-gray-r4-b9ee3bd`
+  - 当前灰度指针：`/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260611-audio-modes-voicedesign-gray-r4-b9ee3bd`
+  - 关键规则：
+    - `voice_clone` 向 MiMo 上游必须发送完整 `data:audio/...;base64,...` DataURL，不能剥成纯 base64。
+    - `tts`、`voice_clone`、`voice_design` 需要按 `capabilityTags` 严格分为三个独立模式。
+    - `克隆音色` 模式不应显示预设音色/音色下拉，只应要求参考音频。
+    - `音色定制` 需要作为与 `生成语音`、`克隆音色` 同级的第三个模式显示。
+  - 当前灰度已包含以上结构修复，并通过 `db-migrate` 与 `/api/status` 验收。
+- `2026-06-11` 音频克隆/音色定制与视频参考图直连链路已灰度修复：
+  - 当前灰度 release：`20260611-audio-clone-provider-files-gray-r6-b9ee3bd`
+  - 当前灰度指针：`/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260611-audio-clone-provider-files-gray-r6-b9ee3bd`
+  - 根因记录：
+    - `voice_clone` 的 `sampleDataUrl` 曾被 `safeText()` 截断到 240 字符，导致 MiMo 返回 `invalid base64 data`。
+    - `voice_design` 曾被默认补入 `audio.voice=mimo_default`，但 MiMo 音色定制模型不支持该字段。
+    - 视频参考图签名 URL 走 `canvas-next.hhh2121.xyz` 时，上游服务器侧抓取会遇到 Cloudflare `Just a moment...`，表现为 `AssetsUploadReverse: Upload failed, 403`。
+  - 当前规则：
+    - `voice_clone` 必须发送完整 `data:audio/...;base64,...` 到 `audio.voice`。
+    - `voice_design` 不发送 `audio.voice`，只发送 `audio.format` 与消息文本。
+    - Provider 参考文件公网源由 `XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN` 控制；留空时沿用当前请求域名。
+  - 灰度服务器已设置：
+    - `XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN=http://101.33.75.38`
+    - Nginx 直连 IP 的 80 端口仅开放只读 `/api/provider-files/` 到 `127.0.0.1:18200`，其他路径保持 404。
+  - 验收结果：
+    - 本地 `verify:external-audio-proxy`、`verify:provider-file-access-contract`、`verify:audio-provider-model-selection-contract`、`verify:external-video-proxy`、`build:single-port` 均通过。
+    - 灰度 `/api/status` 返回 `environment=gray`，API/Worker 均为 `active`。
+    - 直连签名文件 URL 返回 `200 image/png`。
+    - 灰度真实 MiMo `voice_clone` 与 `voice_design` API 请求均返回 `200` 且各保存 1 条音频。
+- `2026-06-12` 橙云代理下后台视频生成 HTML 错页根因已确认并完成灰度修复：
+  - 根因不是 Agnes 直接失败，也不是模型异步配置丢失；灰度/生产 DB 中 Agnes 视频模型仍为 `advancedConfig.mode=async_video_task`。
+  - 真正断点在画布旧链路：`/api/proxy/external/video` 会在一个浏览器 HTTP 请求内提交并轮询视频任务，Cloudflare 橙云会把这种长请求在约 100 秒级别断开。Nginx 证据为 `POST /api/proxy/external/video` 返回 `499`，节点显示约 2 分钟后“扩展视频生成接口返回了 HTML 页面”。
+  - 修复策略：后台发布视频模型不再走长请求，改为 `POST /api/proxy/external/video/task` 短提交入现有 Redis/Worker 队列，再由 `GET /api/proxy/external/video/task/:taskId` 轮询任务表。
+  - Worker 继续复用现有通用异步视频 adapter；任务 payload 会带上模型 `advancedConfig`、签名后的 Provider 文件 URL、比例、时长、分辨率、首帧/尾帧等参数。
+  - 灰度 release：`20260612-external-video-task-gray-r1`。
+  - 灰度验收：API/Worker active，`/api/status` 为 `environment=gray`，未登录任务接口返回 JSON `AUTH_REQUIRED`，登录态空请求返回 JSON `缺少 prompt`，Redis `PONG`，Agnes 模型目录仍为 `async_video_task`。
+  - 为避免消耗上游额度，本轮未自动发起真实 Agnes 生成；需要人工在灰度画布提交一个低成本视频任务做最终素材展示验收。

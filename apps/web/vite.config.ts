@@ -1,9 +1,27 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import path from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+
+const webBuildMarker = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+
+function buildMetaPlugin() {
+  return {
+    name: "xinghuan-web-build-meta",
+    closeBundle() {
+      const distDir = path.resolve(__dirname, "dist");
+      mkdirSync(distDir, { recursive: true });
+      writeFileSync(
+        path.join(distDir, "build-meta.json"),
+        JSON.stringify({ app: "web", buildMarker: webBuildMarker }, null, 2),
+        "utf8",
+      );
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), buildMetaPlugin()],
   assetsInclude: ["**/*.mid"],
   resolve: {
     alias: {
@@ -52,5 +70,6 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify("0.1.0"),
     __APP_NAME__: JSON.stringify("xinghuan-canvas"),
+    __WEB_BUILD_MARKER__: JSON.stringify(webBuildMarker),
   },
 });

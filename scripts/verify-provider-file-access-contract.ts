@@ -22,8 +22,16 @@ const signedUrl = providerFileAccessUrl("/files/input/reference image.png", user
   now,
   ttlMs: 1_000,
 });
+const scopedUrl = providerFileAccessUrl("/files/input/reference image.png", user, origin, {
+  secret,
+  now,
+  ttlMs: 1_000,
+  scope: "gray",
+});
 const parsedUrl = new URL(signedUrl);
 const parsed = parseProviderFileAccessRequest(parsedUrl, { secret, now });
+const scopedParsedUrl = new URL(scopedUrl);
+const scopedParsed = parseProviderFileAccessRequest(scopedParsedUrl, { secret, now });
 const expired = parseProviderFileAccessRequest(parsedUrl, { secret, now: now + 2_000 });
 parsedUrl.searchParams.set("sig", "0".repeat(64));
 const tampered = parseProviderFileAccessRequest(parsedUrl, { secret, now });
@@ -36,6 +44,12 @@ const checks = [
   {
     name: "server imports provider file access helpers",
     pass: serverSource.includes('from "./provider-file-access.js"'),
+  },
+  {
+    name: "server supports provider file public origin override",
+    pass:
+      serverSource.includes("providerFilePublicOrigin") &&
+      serverSource.includes("XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN"),
   },
   {
     name: "server does not inline provider HMAC signing",
@@ -53,12 +67,29 @@ const checks = [
       signedUrl.includes("sig="),
   },
   {
+    name: "provider file access supports scoped URLs",
+    pass:
+      scopedUrl.startsWith(`${origin}/api/provider-files/gray/${normalizedUserId}/input/`) &&
+      scopedUrl.includes("exp=") &&
+      scopedUrl.includes("sig="),
+  },
+  {
     name: "provider file request parses signed URL",
     pass:
       parsed.ok === true &&
+      parsed.scope === "" &&
       parsed.userId === normalizedUserId &&
       parsed.bucket === "input" &&
       parsed.filename === "reference image.png",
+  },
+  {
+    name: "provider file request parses scoped signed URL",
+    pass:
+      scopedParsed.ok === true &&
+      scopedParsed.scope === "gray" &&
+      scopedParsed.userId === normalizedUserId &&
+      scopedParsed.bucket === "input" &&
+      scopedParsed.filename === "reference image.png",
   },
   {
     name: "provider file request rejects expired URL",

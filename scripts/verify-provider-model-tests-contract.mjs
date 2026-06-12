@@ -30,6 +30,13 @@ const checks = [
       serverSource.includes("inferredTags"),
   },
   {
+    name: "audio model tests no longer use placeholder disabled response",
+    pass:
+      !serverSource.includes("音频模型测试将在 MiMo 音频 Provider 适配完成后启用。") &&
+      serverSource.includes("createOpenAiAudioChatPayload") &&
+      serverSource.includes("extractAudioProviderResult"),
+  },
+  {
     name: "admin settings panel wires test callback",
     pass: adminPanelSource.includes("testModel") && adminPanelSource.includes("onTest={testModel}"),
   },

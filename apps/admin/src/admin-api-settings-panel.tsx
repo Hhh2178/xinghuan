@@ -10,6 +10,7 @@ import { RunningHubPanel } from "./admin-runninghub-panel";
 import { appendAdminAssistantContext } from "./admin-assistant-events";
 import type {
   Capability,
+  AssistantAnalysisRequest,
   AssistantAnalysisResult,
   AssistantChatAttachment,
   ConfirmAction,
@@ -127,6 +128,21 @@ function assistantAdvancedJsonValue(result: AssistantAnalysisResult | null, key:
   return JSON.stringify(value, null, 2);
 }
 
+function formatAssistantRawOutput(value: unknown) {
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) return "";
+    if (text === "[object Object]") return JSON.stringify({ raw: value }, null, 2);
+    return text;
+  }
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 function defaultInputProfileForCapability(capability: Capability) {
   if (capability === "audio") return "prompt,audio_reference";
   if (capability === "image" || capability === "video") return "prompt,image_reference";
@@ -155,6 +171,13 @@ function safeAssistantSchemaText(value: unknown) {
   } catch {
     return "{}";
   }
+}
+
+function parseAssistantDocUrls(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter((item, index, list) => /^https?:\/\//i.test(item) && list.indexOf(item) === index);
 }
 
 /* ── component ────────────────────────────────────────────────────────── */
@@ -192,10 +215,15 @@ export function ApiSettingsPanel({
     useState<ConfirmAction | null>(null);
   const [manualModelCapability, setManualModelCapability] =
     useState<Capability | null>(null);
+  const [assistantDocUrls, setAssistantDocUrls] = useState("");
+  const [assistantSampleRequest, setAssistantSampleRequest] = useState("");
+  const [assistantSampleResponse, setAssistantSampleResponse] = useState("");
+  const [assistantAsyncTemplate, setAssistantAsyncTemplate] = useState("auto");
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [assistantResult, setAssistantResult] =
     useState<AssistantAnalysisResult | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
+  const assistantRawOutput = formatAssistantRawOutput((assistantResult as { rawAssistant?: unknown } | null)?.rawAssistant);
 
   useEffect(() => {
     if (!selectedId && providers[0]) setSelectedId(providers[0].id);
@@ -210,6 +238,10 @@ export function ApiSettingsPanel({
     setPickerOpen(false);
     setPendingConfirmAction(null);
     setManualModelCapability(null);
+    setAssistantDocUrls("");
+    setAssistantSampleRequest("");
+    setAssistantSampleResponse("");
+    setAssistantAsyncTemplate("auto");
     setAssistantPrompt("");
     setAssistantResult(null);
   }, [selected?.id]);
@@ -220,6 +252,22 @@ export function ApiSettingsPanel({
       setDraft((current) => ({ ...current, protocol: inferred }));
     }
   }, [draft.baseUrl, draft.id, draft.name]);
+
+  function buildAssistantAnalysisPayload(): AssistantAnalysisRequest {
+    const docUrls = parseAssistantDocUrls(assistantDocUrls);
+    return {
+      providerName: draft.name,
+      baseUrl: draft.baseUrl,
+      protocolHint: draft.protocol,
+      modelId: selectedModels[0]?.modelId || "",
+      docUrl: docUrls[0] || "",
+      docUrls,
+      sampleRequest: assistantSampleRequest,
+      sampleResponse: assistantSampleResponse,
+      asyncTemplate: assistantAsyncTemplate,
+      notes: assistantPrompt,
+    };
+  }
 
   async function run<T>(action: () => Promise<T>, message: string) {
     setBusy(true);
@@ -391,18 +439,13 @@ export function ApiSettingsPanel({
     setAssistantBusy(true);
     setStatus("正在分析服务商配置...");
     try {
+      const payload = buildAssistantAnalysisPayload();
       const result = await api<AssistantAnalysisResult>(
         "/api/admin/assistant/analyze-provider",
         {
           method: "POST",
           headers: jsonHeaders,
-          body: JSON.stringify({
-            providerName: draft.name,
-            baseUrl: draft.baseUrl,
-            protocolHint: draft.protocol,
-            modelId: selectedModels[0]?.modelId || "",
-            notes: assistantPrompt,
-          }),
+          body: JSON.stringify(payload),
         },
       );
       setAssistantResult(result);
@@ -485,7 +528,7 @@ export function ApiSettingsPanel({
         await upsertAssistantModelDraft(assistantResult);
       }
       await refresh();
-      setStatus("AI 草案已应用到表单，仍需点击保存才会生效。");
+      setStatus("AI 草案已应用到表单，仍需点击保存；保存后请继续执行验证地址、拉取模型和模型测试。");
       if (!assistantPrompt && assistantResult.checklist?.length) {
         setAssistantPrompt(assistantResult.checklist.join("\n"));
       }
@@ -497,12 +540,17 @@ export function ApiSettingsPanel({
   }
 
   function sendDraftToAssistant() {
+    const payload = buildAssistantAnalysisPayload();
     appendAdminAssistantContext({
       open: true,
       message: [
         `请帮我分析并完善这个 Provider 配置草稿。`,
         draft.baseUrl ? `当前地址：${draft.baseUrl}` : "当前地址还未填写。",
         `目标协议倾向：${draft.protocol}`,
+        payload.docUrls?.length ? `参考文档：\n${payload.docUrls.join("\n")}` : "",
+        payload.sampleRequest?.trim() ? `请求样例：\n${payload.sampleRequest.trim()}` : "",
+        payload.sampleResponse?.trim() ? `响应样例：\n${payload.sampleResponse.trim()}` : "",
+        payload.asyncTemplate && payload.asyncTemplate !== "auto" ? `期望异步模板：${payload.asyncTemplate}` : "",
         assistantPrompt.trim() ? `补充要求：${assistantPrompt.trim()}` : "",
       ]
         .filter(Boolean)
@@ -792,13 +840,67 @@ export function ApiSettingsPanel({
           <div className="api-card api-assistant-card">
             <div className="fetch-result-head">
               <strong>AI 协助配置</strong>
-              <span>生成草案后由管理员确认应用</span>
+              <span>先生成草案，再进入真实验证</span>
             </div>
-            <textarea
-              value={assistantPrompt}
-              onChange={(event) => setAssistantPrompt(event.target.value)}
-              placeholder="粘贴接口文档片段、请求样例、响应样例或配置目标"
-            />
+            <div className="assistant-analysis-grid">
+              <label className="assistant-analysis-field assistant-analysis-field--span">
+                <span>文档链接</span>
+                <textarea
+                  value={assistantDocUrls}
+                  onChange={(event) => setAssistantDocUrls(event.target.value)}
+                  placeholder={"https://agnes-ai.com/doc/agnes-20-flash\nhttps://agnes-ai.com/doc/quick-start"}
+                />
+                <small>支持多个链接，每行一个。建议同时提供模型页、API 调用页、Quick Start 和错误码页。</small>
+              </label>
+              <label className="assistant-analysis-field">
+                <span>请求样例</span>
+                <textarea
+                  value={assistantSampleRequest}
+                  onChange={(event) => setAssistantSampleRequest(event.target.value)}
+                  placeholder='POST /v1/videos {"model":"agnes-video-v2.0","prompt":"..."}'
+                />
+                <small>尽量贴完整请求体、路径、字段名和鉴权方式。</small>
+              </label>
+              <label className="assistant-analysis-field">
+                <span>响应样例</span>
+                <textarea
+                  value={assistantSampleResponse}
+                  onChange={(event) => setAssistantSampleResponse(event.target.value)}
+                  placeholder='{"task_id":"xxx","status":"processing","video_url":""}'
+                />
+                <small>优先贴创建任务响应、轮询响应和最终结果响应。</small>
+              </label>
+              <label className="assistant-analysis-field">
+                <span>异步模板</span>
+                <select
+                  value={assistantAsyncTemplate}
+                  onChange={(event) => setAssistantAsyncTemplate(event.target.value)}
+                >
+                  <option value="auto">自动判断</option>
+                  <option value="sync_inline_result">同步直返结果</option>
+                  <option value="async_task_poll_result">提交后轮询结果</option>
+                  <option value="async_task_poll_then_final_lookup">轮询后再二段查最终资源</option>
+                  <option value="adapter_manual_model_catalog">特殊适配 / 手动模型目录</option>
+                </select>
+                <small>如果你已经明确知道链路类型，可以在这里提前约束 AI 分析方向。</small>
+              </label>
+              <label className="assistant-analysis-field assistant-analysis-field--span">
+                <span>补充说明</span>
+                <textarea
+                  value={assistantPrompt}
+                  onChange={(event) => setAssistantPrompt(event.target.value)}
+                  placeholder="补充你对字段映射、模型能力、首帧尾帧、轮询路径、失败现象的判断"
+                />
+                <small>这里适合放你的要求、异常现象和管理员判断，不建议再把文档链接混在这里。</small>
+              </label>
+            </div>
+            {parseAssistantDocUrls(assistantDocUrls).length ? (
+              <div className="assistant-analysis-chip-row">
+                {parseAssistantDocUrls(assistantDocUrls).map((url) => (
+                  <span key={url} className="assistant-analysis-chip">{url}</span>
+                ))}
+              </div>
+            ) : null}
             <div className="provider-form-actions">
               <button
                 type="button"
@@ -832,6 +934,21 @@ export function ApiSettingsPanel({
                     <p>{assistantResult.summary}</p>
                   </section>
                 <div className="assistant-draft-grid">
+                  {assistantResult.docFetch?.items?.length ? (
+                    <section className="assistant-draft-section assistant-draft-section--span">
+                      <strong>文档抓取结果</strong>
+                      <dl>
+                        {assistantResult.docFetch.items.map((item) => (
+                          <div key={item.url}>
+                            <dt>{item.url}</dt>
+                            <dd>
+                              {item.ok ? `HTTP ${item.status || "-"} · 已抓取片段` : item.error || `HTTP ${item.status || "-"}`}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                  ) : null}
                   <section className="assistant-draft-section">
                     <strong>接入模板</strong>
                     <dl>
@@ -958,10 +1075,10 @@ export function ApiSettingsPanel({
                 {assistantResult.rawAssistant ? (
                   <details className="assistant-draft-raw">
                     <summary>查看原始输出</summary>
-                    <pre>{assistantResult.rawAssistant}</pre>
+                    <pre>{assistantRawOutput}</pre>
                   </details>
                 ) : null}
-                <small>草案只会写入当前表单，点击保存后才会生效。</small>
+                <small>当前区域产出的是配置草案，不等于真实连通测试；应用后请继续执行验证地址、拉取模型和模型测试。</small>
               </div>
             ) : null}
           </div>

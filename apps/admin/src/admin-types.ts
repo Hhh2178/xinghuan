@@ -233,8 +233,10 @@ export interface AssistantAnalysisRequest {
   capability?: Capability;
   modelId?: string;
   docUrl?: string;
+  docUrls?: string[];
   sampleRequest?: string;
   sampleResponse?: string;
+  asyncTemplate?: string;
   notes?: string;
 }
 
@@ -270,6 +272,13 @@ export interface AssistantAnalysisResult {
     status?: number;
     excerpt?: string;
     error?: string;
+    items?: Array<{
+      url: string;
+      ok: boolean;
+      status?: number;
+      excerpt?: string;
+      error?: string;
+    }>;
   };
   probe: {
     attempted: boolean;

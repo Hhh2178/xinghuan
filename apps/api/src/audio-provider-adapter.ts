@@ -17,21 +17,33 @@ export interface AudioProviderResult {
 
 export function createOpenAiAudioChatPayload(input: AudioProviderPayloadInput) {
   const audioFormat = safeAudioFormat(input.audioFormat);
-  const voice = input.mode === "voice_clone"
-    ? String(input.sampleDataUrl || "").trim()
-    : String(input.voice || "mimo_default").trim();
-  if (input.mode === "voice_clone" && !voice) throw new Error("音色克隆需要参考音频样本");
+  const mode = String(input.mode || "tts").trim().toLowerCase();
+  if (mode === "voice_design" && !String(input.stylePrompt || "").trim()) {
+    throw new Error("音色定制需要填写音色描述");
+  }
+  const audio: { format: string; voice?: string } = { format: audioFormat };
+  if (mode === "voice_clone") {
+    audio.voice = requireVoiceCloneSample(input.sampleDataUrl);
+  } else if (mode !== "voice_design") {
+    audio.voice = String(input.voice || "mimo_default").trim();
+  }
   return {
     model: input.modelId,
     messages: [
       { role: "user", content: String(input.stylePrompt || "").trim() },
       { role: "assistant", content: String(input.text || "").trim() },
     ],
-    audio: {
-      format: audioFormat,
-      voice,
-    },
+    audio,
   };
+}
+
+function requireVoiceCloneSample(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("音色克隆需要参考音频样本");
+  if (!/^data:audio\/[a-z0-9.+-]+;base64,[a-z0-9+/=\r\n]+$/i.test(raw)) {
+    throw new Error("音色克隆参考音频必须是完整的 DataURL");
+  }
+  return raw.replace(/\s+/g, "");
 }
 
 export function extractAudioProviderResult(raw: unknown): AudioProviderResult {

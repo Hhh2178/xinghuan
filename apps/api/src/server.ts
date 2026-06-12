@@ -64,6 +64,10 @@ import {
   shouldUseApimartVideoAdapter,
 } from "./apimart-video-adapter.js";
 import {
+  createOpenAiAudioChatPayload,
+  extractAudioProviderResult,
+} from "./audio-provider-adapter.js";
+import {
   applyTaskCancellation,
   assertTaskCancellable,
   createRetriedTask,
@@ -104,6 +108,7 @@ const {
   generateExternalAudioProxy,
 } = createExternalProxyHandlers({
   dataDir,
+  providerFileScope: environment,
   normalizeProviderProtocol,
   normalizeCapability,
   providerModelHeaders,
@@ -389,8 +394,10 @@ interface AssistantAnalyzeRequest {
   capability?: string;
   modelId?: string;
   docUrl?: string;
+  docUrls?: string[];
   sampleRequest?: string;
   sampleResponse?: string;
+  asyncTemplate?: string;
   notes?: string;
 }
 
@@ -423,6 +430,13 @@ interface AssistantAnalysisResult {
     status?: number;
     excerpt?: string;
     error?: string;
+    items?: Array<{
+      url: string;
+      ok: boolean;
+      status?: number;
+      excerpt?: string;
+      error?: string;
+    }>;
   };
   probe: {
     attempted: boolean;
@@ -806,17 +820,28 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/proxy/external/image" && request.method === "POST") {
-      sendT8(response, await generateExternalImageProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      sendT8(response, await generateExternalImageProxy(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
       return;
     }
 
     if (url.pathname === "/api/proxy/external/llm" && request.method === "POST") {
-      sendT8(response, await generateExternalChatProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      sendT8(response, await generateExternalChatProxy(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
       return;
     }
 
     if (url.pathname === "/api/proxy/external/video" && request.method === "POST") {
-      sendT8(response, await generateExternalVideoProxy(await readJsonBody(request), currentUser!, publicRequestOrigin(request)));
+      sendT8(response, await generateExternalVideoProxy(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/external/video/task" && request.method === "POST") {
+      sendT8(response, await submitExternalVideoTask(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
+      return;
+    }
+
+    const externalVideoTaskMatch = url.pathname.match(/^\/api\/proxy\/external\/video\/task\/([^/]+)$/);
+    if (externalVideoTaskMatch && request.method === "GET") {
+      sendT8(response, await readExternalVideoTaskStatus(decodeURIComponent(externalVideoTaskMatch[1]), currentUser!));
       return;
     }
 
@@ -2732,7 +2757,7 @@ async function pollApimartVideoTask(input: {
     const text = await upstream.text();
     if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`查询视频任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "视频任务轮询接口", upstream.headers.get("content-type") || "");
     const data = raw && typeof raw === "object" && !Array.isArray(raw)
       ? plainObject((raw as Record<string, unknown>).data)
       : {};
@@ -2783,7 +2808,7 @@ async function pollAsyncImageTask(input: {
     const text = await upstream.text();
     if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`查询图像任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "图像任务轮询接口", upstream.headers.get("content-type") || "");
     const data = raw && typeof raw === "object" && !Array.isArray(raw)
       ? plainObject((raw as Record<string, unknown>).data)
       : {};
@@ -3425,6 +3450,7 @@ async function publicModelCatalog() {
         model.parameterSchema,
       );
       const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
+      const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
       return {
         id: model.id,
         providerId: model.providerId,
@@ -3434,6 +3460,7 @@ async function publicModelCatalog() {
         enabled: true,
         inputProfile: model.inputProfile,
         inputCapabilities,
+        capabilityTags,
         advancedConfig: plainObject(model.advancedConfig),
         protocol,
         parameterSchema,
@@ -3455,6 +3482,161 @@ async function publicModelCatalog() {
     videoModels: all.filter((model) => model?.capability === "video"),
     audioModels: all.filter((model) => model?.capability === "audio"),
   };
+}
+
+async function findEnabledProviderModel(capability: ModelCapability, providerId: string, requestedModelId: string, modelRecordId = "") {
+  const db = await readAdminDb();
+  const provider = db.providers.find((item) => item.id === providerId);
+  if (!provider || !provider.enabled) throw new Error("Provider 不存在或未启用");
+  const model = db.models.find((item) => {
+    if (!item.enabled || item.providerId !== provider.id || normalizeCapability(item.capability) !== capability) return false;
+    if (modelRecordId && item.id === modelRecordId) return true;
+    return Boolean(requestedModelId) && item.modelId === requestedModelId;
+  });
+  if (!model) throw new Error(`模型不存在、未启用或不是 ${capability} 模型`);
+  return { provider, model };
+}
+
+async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
+  const body = plainObject(rawBody);
+  const prompt = String(body.prompt || "").trim().slice(0, 16000);
+  if (!prompt) throw new Error("缺少 prompt");
+  const params = plainObject(body.providerParams);
+  const { provider, model } = await findEnabledProviderModel(
+    "video",
+    safeSlug(body.providerId, ""),
+    safeText(body.providerModel || body.model),
+    safeText(params.modelRecordId),
+  );
+  const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+  if (!["openai", "apimart", "custom"].includes(protocol)) {
+    throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
+  }
+  if (!providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
+
+  const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
+  const inputCapabilities = parseInputCapabilities(model.inputCapabilities, "video");
+  const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+  const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
+  const requestedRatio = safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
+  const requestedDuration = body.duration ?? params.duration;
+  const requestedResolution = safeText(body.resolution || params.resolution);
+  const images = normalizeProviderReferenceUrlsForAccess(
+    Array.isArray(body.images)
+      ? body.images.map((item) => safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 1)
+      : [],
+    publicOrigin,
+    user,
+    { secret: secretKey(), scope: environment },
+  );
+  const firstFrame = inputCapabilities.firstFrame
+    ? normalizeProviderReferenceUrlForAccess(safeText(body.first_frame || params.first_frame), publicOrigin, user, { secret: secretKey(), scope: environment })
+    : "";
+  const lastFrame = inputCapabilities.lastFrame
+    ? normalizeProviderReferenceUrlForAccess(safeText(body.last_frame || params.last_frame), publicOrigin, user, { secret: secretKey(), scope: environment })
+    : "";
+  const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
+  const duration = ui.durationOptions.length > 0
+    ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
+    : undefined;
+  const resolution = ui.resolutionOptions.length > 0
+    ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
+    : "";
+
+  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const payload: Record<string, unknown> = {
+    ...advancedConfig,
+    ...params,
+    prompt,
+    aspect_ratio: ratio,
+    ratio,
+    duration,
+    resolution,
+    images,
+    first_frame: firstFrame,
+    last_frame: lastFrame,
+    advancedMode: safeText(advancedConfig.mode || params.mode),
+    sourceNodeId: safeText(params.sourceNodeId || body.sourceNodeId),
+    sourceCanvasId: safeText(params.sourceCanvasId || body.sourceCanvasId),
+  };
+  const now = Date.now();
+  const task: AdminTaskRecord = {
+    id: taskId,
+    title: `视频生成 · ${provider.name} · ${model.displayName || model.modelId}`,
+    status: "queued",
+    ownerId: user.id,
+    providerId: provider.id,
+    modelId: model.id,
+    payload,
+    result: {},
+    logs: ["画布提交后台视频任务"],
+    createdAt: now,
+    updatedAt: now,
+  };
+  await insertTaskRecord(task);
+  const queueResult = await enqueueTask(task.id);
+  const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+  await appendTaskLog(task.id, queueLog);
+  if (!queueResult.queued) {
+    await writeTaskRecord({
+      ...task,
+      status: "failed",
+      result: { error: queueLog },
+      logs: [...task.logs, queueLog],
+      updatedAt: Date.now(),
+    });
+    throw new Error(`视频任务队列不可用：${queueResult.reason}`);
+  }
+  return {
+    taskId: task.id,
+    status: "queued",
+    progress: "0%",
+    provider: { id: provider.id, name: provider.name, protocol },
+    raw: {
+      providerId: provider.id,
+      modelId: model.modelId,
+      modelRecordId: model.id,
+      mode: safeText(advancedConfig.mode),
+      queued: true,
+    },
+  };
+}
+
+async function readExternalVideoTaskStatus(taskId: string, user: CurrentUser) {
+  const task = await readTaskRecord(taskId);
+  if (!task) throw new Error("任务不存在");
+  if (task.ownerId && task.ownerId !== user.id && user.role !== "admin") throw new Error("无权查看该任务");
+  const result = plainObject(task.result);
+  const videoUrls = readStringArray(result.materializedVideoUrls).length > 0
+    ? readStringArray(result.materializedVideoUrls)
+    : readStringArray(result.videoUrls);
+  const remoteVideoUrls = readStringArray(result.remoteVideoUrls);
+  const error = safeText(result.error || result.failureReason || result.failReason)
+    || (task.status === "failed" ? lastTaskFailureLog(task.logs) : "");
+  return {
+    taskId: task.id,
+    status: task.status,
+    progress: task.status === "succeeded" ? "100%" : task.status === "running" ? "45%" : task.status === "queued" ? "5%" : "",
+    videoUrls,
+    remoteVideoUrls,
+    error,
+    logs: task.logs.slice(-8),
+    raw: {
+      providerId: task.providerId,
+      modelRecordId: task.modelId,
+      workerId: safeText(result.workerId),
+      adapter: safeText(result.adapter),
+      videoCount: Number(result.videoCount || videoUrls.length) || videoUrls.length,
+    },
+  };
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => safeText(item)).filter(Boolean) : [];
+}
+
+function lastTaskFailureLog(logs: string[]) {
+  return [...logs].reverse().find((line) => /失败|error|failed/i.test(line)) || "";
 }
 
 async function publicRunningHubCatalog() {
@@ -3490,6 +3672,12 @@ function publicRequestOrigin(request: import("node:http").IncomingMessage) {
   const hostValue = forwardedHost || hostHeader || `${host}:${port}`;
   const proto = forwardedProto || (hostValue.startsWith("127.0.0.1") || hostValue.startsWith("localhost") ? "http" : "https");
   return `${proto}://${hostValue}`.replace(/\/+$/, "");
+}
+
+function providerFilePublicOrigin(request: import("node:http").IncomingMessage) {
+  const configured = safeText(process.env.XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN);
+  if (/^https?:\/\//i.test(configured)) return configured.replace(/\/+$/, "");
+  return publicRequestOrigin(request);
 }
 
 
@@ -3637,7 +3825,35 @@ function normalizeModelScopeLoras(value: unknown): ModelScopeLora[] {
 }
 
 function looksLikeHtml(value: string) {
-  return /^\s*<!doctype html/i.test(value) || /^\s*<html[\s>]/i.test(value);
+  const normalized = String(value || "").trim().toLowerCase();
+  return (
+    /^<!doctype html/i.test(normalized)
+    || /^<html[\s>]/i.test(normalized)
+    || /^<body[\s>]/i.test(normalized)
+    || /^<head[\s>]/i.test(normalized)
+    || normalized.includes("<html")
+    || normalized.includes("just a moment")
+    || normalized.includes("cf-browser-verification")
+    || normalized.includes("attention required")
+  );
+}
+
+function summarizeUpstreamBody(text: string) {
+  return String(text || "").replace(/\s+/g, " ").trim().slice(0, 320);
+}
+
+function parseUpstreamJson(text: string, label: string, contentType?: string) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return {};
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    const type = safeText(contentType);
+    if (looksLikeHtml(normalized) || /text\/html|application\/xhtml\+xml/i.test(type)) {
+      throw new Error(`${label}返回网页 HTML，请检查 Base URL、Cloudflare/WAF 或上游鉴权`);
+    }
+    throw new Error(`${label}返回非 JSON 响应${type ? ` (${type})` : ""}: ${summarizeUpstreamBody(normalized)}`);
+  }
 }
 
 function providerPlainApiKey(provider: Partial<AdminProviderRecord> & { apiKey?: string }) {
@@ -3686,7 +3902,7 @@ async function probeProviderDraft(provider: Partial<AdminProviderRecord> & { api
     const text = await upstream.text();
     if (looksLikeHtml(text)) return { ok: false, status: upstream.status, message: "上游返回网页 HTML，请检查 Base URL 是否为 API 地址", modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
     if (!upstream.ok) return { ok: false, status: upstream.status, message: text.slice(0, 300), modelCount: 0, all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [], modelTags: {} };
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "模型列表探测接口", upstream.headers.get("content-type") || "");
     const parsed = parseUpstreamModels(raw, protocol);
     return {
       ok: true,
@@ -3742,6 +3958,8 @@ async function fetchProviderModelsDraft(provider: Partial<AdminProviderRecord> &
 
 const TEST_IMAGE_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const TEST_AUDIO_DATA_URL =
+  "data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 async function testAdminModelConnectivity(provider: AdminProviderRecord, model: AdminModelRecord, rawKind: string): Promise<{
   stateKey: keyof ModelTestState;
@@ -3773,11 +3991,54 @@ async function testAdminModelConnectivity(provider: AdminProviderRecord, model: 
     }
     return fail("视频理解真实样本测试需要固定测试视频，本版本先记录能力标签，不自动消耗视频测试。", 0, ["video_understanding"]);
   }
-  if (kind.stateKey === "audioGeneration" || kind.stateKey === "voiceClone") {
-    return fail("音频模型测试将在 MiMo 音频 Provider 适配完成后启用。", 0, kind.stateKey === "voiceClone" ? ["voice_clone"] : ["tts"]);
-  }
   if (kind.stateKey === "imageGeneration" || kind.stateKey === "videoGeneration") {
     return fail("生成类模型测试可能产生费用，请在下一阶段通过专用低成本测试按钮启用。");
+  }
+  if (kind.stateKey === "audioGeneration" || kind.stateKey === "voiceClone") {
+    const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const mode = kind.stateKey === "voiceClone" ? "voice_clone" : "tts";
+    if (mode === "voice_clone" && !capabilityTags.includes("voice_clone")) {
+      return fail("模型未标记为音色克隆模型；请先开启 voice_clone 标签。", 0, ["voice_clone"]);
+    }
+    try {
+      const payload = createOpenAiAudioChatPayload({
+        modelId: model.modelId,
+        text: mode === "voice_clone" ? "请复刻参考音色并播报：星幻画布音色克隆测试。" : "星幻画布语音链路测试。",
+        stylePrompt: mode === "voice_clone" ? "尽量保留原始音色，清晰播报。" : "自然、清晰、稳定地播报。",
+        voice: safeText(advancedConfig.voice, "mimo_default"),
+        audioFormat: safeText(advancedConfig.audioFormat, "wav"),
+        mode,
+        sampleDataUrl: mode === "voice_clone" ? TEST_AUDIO_DATA_URL : "",
+      });
+      const submitPath = safeText(advancedConfig.submitPath, "chat/completions");
+      const upstream = await fetch(openAiEndpoint(provider.baseUrl, submitPath), {
+        method: "POST",
+        headers: { ...providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(45000),
+      });
+      const text = await upstream.text();
+      if (looksLikeHtml(text)) return fail("上游返回网页 HTML，请检查 Base URL 是否为 API 地址", upstream.status);
+      if (!upstream.ok) return fail(`上游音频请求失败 ${upstream.status}: ${text.slice(0, 300)}`, upstream.status);
+      const raw = parseUpstreamJson(text, "音频模型测试接口", upstream.headers.get("content-type") || "");
+      const result = extractAudioProviderResult(raw);
+      const audioCount = result.audioDataUrls.length + result.audioUrls.length;
+      if (audioCount === 0) return fail("上游返回成功但没有音频内容", upstream.status);
+      return {
+        stateKey: kind.stateKey,
+        test: {
+          ok: true,
+          status: upstream.status,
+          message: mode === "voice_clone" ? "音色克隆测试请求成功" : "语音生成测试请求成功",
+          checkedAt: Date.now(),
+          latencyMs: Date.now() - startedAt,
+          inferredTags: mode === "voice_clone" ? ["voice_clone"] : ["tts"],
+          sampleOutput: result.text?.slice(0, 240) || `${audioCount} 段音频已返回`,
+        },
+      };
+    } catch (error) {
+      return fail(error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300), 0, mode === "voice_clone" ? ["voice_clone"] : ["tts"]);
+    }
   }
   const messages = kind.stateKey === "imageUnderstanding"
     ? [
@@ -3800,7 +4061,7 @@ async function testAdminModelConnectivity(provider: AdminProviderRecord, model: 
     const text = await upstream.text();
     if (looksLikeHtml(text)) return fail("上游返回网页 HTML，请检查 Base URL 是否为 API 地址", upstream.status);
     if (!upstream.ok) return fail(`上游请求失败 ${upstream.status}: ${text.slice(0, 300)}`, upstream.status);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "文本对话测试接口", upstream.headers.get("content-type") || "");
     const content = extractChatContent(raw);
     if (!content.trim()) return fail("上游返回成功但没有文本内容", upstream.status);
     const inferredTags = kind.stateKey === "imageUnderstanding" ? ["image_understanding" as ModelCapabilityTag] : ["text_chat" as ModelCapabilityTag];
@@ -3851,7 +4112,7 @@ async function generateOpenAiLikeImage(input: {
   const text = await upstream.text();
   if (looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
   if (!upstream.ok) throw new Error(`上游图像生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
-  const raw = text ? JSON.parse(text) : {};
+  const raw = parseUpstreamJson(text, "图像生成接口", upstream.headers.get("content-type") || "");
   const extracted = extractImageOutputs(raw);
   if (extracted.urls.length > 0 || extracted.base64.length > 0) return extracted;
   const task = extractApimartTask(raw, {
@@ -3989,13 +4250,41 @@ function secretKey() {
   return createHash("sha256").update(source || "xinghuan-fallback-secret").digest();
 }
 
+function normalizeAssistantDocUrls(input: AssistantAnalyzeRequest) {
+  const combined = [
+    safeText(input.docUrl),
+    ...(Array.isArray(input.docUrls) ? input.docUrls : []).map((item) => safeText(item)),
+  ]
+    .flatMap((item) => item.split(/\r?\n/))
+    .flatMap((item) => item.split(/[,\s]+/))
+    .map((item) => item.trim())
+    .filter((item, index, list) => /^https?:\/\//i.test(item) && list.indexOf(item) === index);
+  return combined.slice(0, 6);
+}
+
+function normalizeAssistantAsyncTemplate(value: unknown) {
+  const text = safeText(value);
+  if ([
+    "auto",
+    "sync_inline_result",
+    "async_task_poll_result",
+    "async_task_poll_then_final_lookup",
+    "adapter_manual_model_catalog",
+  ].includes(text)) {
+    return text;
+  }
+  return "auto";
+}
+
 async function analyzeProviderAssistant(input: AssistantAnalyzeRequest): Promise<AssistantAnalysisResult> {
+  const docUrls = normalizeAssistantDocUrls(input);
   const grsaiSignal = /grsai|grsai\.dakka\.com\.cn/i.test(
     [
       safeText(input.providerName),
       safeText(input.baseUrl),
       safeText(input.protocolHint),
       safeText(input.notes),
+      docUrls.join("\n"),
       safeText(input.sampleRequest),
       safeText(input.sampleResponse),
       safeText(input.modelId),
@@ -4175,8 +4464,10 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   const sampleRequest = safeText(input.sampleRequest);
   const sampleResponse = safeText(input.sampleResponse);
   const notes = safeText(input.notes);
-  const docUrl = safeText(input.docUrl);
-  const signals = `${providerName}\n${baseUrl}\n${docUrl}\n${notes}\n${sampleRequest}\n${sampleResponse}`;
+  const docUrls = normalizeAssistantDocUrls(input);
+  const docUrl = docUrls[0] || safeText(input.docUrl);
+  const asyncTemplateHint = normalizeAssistantAsyncTemplate(input.asyncTemplate);
+  const signals = `${providerName}\n${baseUrl}\n${docUrls.join("\n")}\n${notes}\n${sampleRequest}\n${sampleResponse}\n${asyncTemplateHint}`;
   const grsaiDetected = /grsai|grsai\.dakka\.com\.cn/i.test(signals);
   const toapisDetected = /toapis|grok-video-1\.5-preview|videos\/generations\/\{task_id\}|POST\s+https:\/\/toapis\.com\/v1\/videos\/generations/i.test(signals);
   const agnesDetected = /agnes|agnes-ai\.com|agnes-video/i.test(signals);
@@ -4193,6 +4484,9 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
           ? "video"
           : classifyUpstreamModel(modelId);
   const asyncTask =
+    asyncTemplateHint === "sync_inline_result"
+      ? false
+      : (
     grsaiDetected ||
     toapisDetected ||
     agnesDetected ||
@@ -4200,7 +4494,9 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     /\bid\b|task[_-]?id|\/tasks\/|status["']?\s*:|poll/i.test(sampleResponse) ||
     /request[_-]?id|\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleRequest) ||
     /\bid\b|task[_-]?id|\/tasks\/|status["']?\s*:/i.test(sampleRequest) ||
-    /async|poll/i.test(notes);
+    /async|poll/i.test(notes) ||
+    asyncTemplateHint !== "auto"
+    );
   const protocol =
     (grsaiDetected ? "grsai_draw" :
     protocolHint ||
@@ -4213,7 +4509,16 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     asyncTask ? "adapter" :
     /resultVideoPath|pollPathTemplate|taskStatusPath/i.test(sampleResponse + notes) ? "advanced" :
     "default";
-  const docFetch = await safeFetchDocExcerpt(docUrl);
+  const docFetchItems = await safeFetchDocExcerpts(docUrls);
+  const firstDocItem = docFetchItems.find((item) => item.ok) || docFetchItems[0];
+  const docFetch = {
+    attempted: docFetchItems.length > 0,
+    ok: docFetchItems.some((item) => item.ok),
+    status: firstDocItem?.status,
+    excerpt: firstDocItem?.excerpt,
+    error: firstDocItem?.ok ? undefined : firstDocItem?.error,
+    items: docFetchItems,
+  };
   const probe = await safeProbeBaseUrl(baseUrl);
   const inputCapabilities = {
     prompt: true,
@@ -4227,6 +4532,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   const advancedConfig: Record<string, unknown> = {};
   let chainTemplate = asyncTask ? "async_task_poll_result" : "sync_inline_result";
   const chainTemplateVersion = "video-provider-template/v1";
+  if (asyncTemplateHint !== "auto") chainTemplate = asyncTemplateHint;
   if (asyncTask) {
     if (capability === "video") {
       advancedConfig.mode = "async_video_task";
@@ -4303,7 +4609,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     advancedConfig.manualModelCatalog = true;
     advancedConfig.defaultModelId = "gpt-image-2";
   }
-  if (toapisDetected && capability === "video") {
+  if (toapisDetected && capability === "video" && asyncTemplateHint === "auto") {
     chainTemplate = "async_task_poll_result";
   }
   const summary = asyncTask
@@ -4364,6 +4670,8 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       chainTemplate,
       chainTemplateVersion,
       sampleSignals: {
+        docUrls,
+        asyncTemplateHint,
         sampleRequest: sampleRequest.slice(0, 400),
         sampleResponse: sampleResponse.slice(0, 400),
         notes: notes.slice(0, 400),
@@ -4463,6 +4771,7 @@ function defaultAssistantParameterSchema(capability: ModelCapability) {
 }
 
 function buildHermesAssistantPrompt(input: AssistantAnalyzeRequest, fallback: AssistantAnalysisResult) {
+  const docUrls = normalizeAssistantDocUrls(input);
   return [
     "你是无限画布后台的受限接入审计助手。",
     "请根据给定信息输出严格 JSON，不要输出 Markdown 代码块。",
@@ -4471,7 +4780,7 @@ function buildHermesAssistantPrompt(input: AssistantAnalyzeRequest, fallback: As
     "如果属于二段最终结果查询，advancedConfig 必须尽量给出 finalResultTaskIdPath、finalResultPathTemplate、finalResultVideoPath。",
     "只允许输出受控配置字段，不要输出 shell 命令、数据库写入语句或需要管理员复制执行的脚本。",
     "如果信息不足，也要尽量给出保守建议。",
-    `输入能力: ${JSON.stringify(input)}`,
+    `输入能力: ${JSON.stringify({ ...input, docUrls, asyncTemplate: normalizeAssistantAsyncTemplate(input.asyncTemplate) })}`,
     `当前回退分析: ${JSON.stringify(fallback)}`,
   ].join("\n");
 }
@@ -4800,23 +5109,51 @@ function extractCookieHeader(setCookieHeader: string | string[] | undefined) {
   return String(first || "").split(";")[0] || "";
 }
 
+async function safeFetchDocExcerpts(docUrls: string[]) {
+  const uniqueUrls = docUrls.filter((item, index, list) => item && list.indexOf(item) === index).slice(0, 6);
+  const items = [];
+  for (const url of uniqueUrls) {
+    items.push(await safeFetchDocExcerpt(url));
+  }
+  return items;
+}
+
 async function safeFetchDocExcerpt(docUrl: string) {
-  if (!docUrl) return { attempted: false, ok: false };
+  if (!docUrl) return { url: docUrl, attempted: false, ok: false };
   try {
     const response = await httpJsonLike(docUrl, { method: "GET", timeoutMs: 8000 });
+    const excerpt = extractReadableDocText(response.body).slice(0, 900);
     return {
+      url: docUrl,
       attempted: true,
       ok: response.status >= 200 && response.status < 400,
       status: response.status,
-      excerpt: response.body.slice(0, 600),
+      excerpt,
     };
   } catch (error) {
     return {
+      url: docUrl,
       attempted: true,
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function extractReadableDocText(source: string) {
+  const text = safeText(source);
+  if (!text) return "";
+  if (!/<[a-z][\s\S]*>/i.test(text)) return text;
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function safeProbeBaseUrl(baseUrl: string) {

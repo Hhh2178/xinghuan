@@ -55,7 +55,7 @@ async function main() {
     assert(upstreamRequest?.url === "/v1/chat/completions", "chat endpoint mismatch");
     assert(upstreamRequest?.body?.model === modelId, "chat model mismatch");
     const providerReferenceUrl = upstreamRequest?.body?.messages?.[0]?.content?.[1]?.image_url?.url || "";
-    assert(providerReferenceUrl.startsWith(`${baseUrl}/api/provider-files/`) && providerReferenceUrl.includes("/input/") && providerReferenceUrl.includes("?exp="), "chat image URL was not signed");
+    assert(isSignedProviderReferenceUrl(providerReferenceUrl), "chat image URL was not signed");
     const providerReference = await fetch(providerReferenceUrl);
     assert(providerReference.ok && /^image\//i.test(providerReference.headers.get("content-type") || ""), "signed chat reference is not anonymously accessible");
     assert(upstreamRequest?.authorization === "Bearer verify-chat-key", "chat authorization missing");
@@ -103,6 +103,13 @@ function captureCookie(response) {
 function assert(value, message) {
   if (!value) throw new Error(message);
 }
+
+function isSignedProviderReferenceUrl(value) {
+  if (!value || !/^https?:\/\//i.test(String(value))) return false;
+  const url = new URL(String(value));
+  return url.pathname.startsWith("/api/provider-files/") && url.pathname.includes("/input/") && url.searchParams.has("exp") && url.searchParams.has("sig");
+}
+
 main().catch((error) => {
   console.error(error);
   process.exit(1);

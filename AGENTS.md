@@ -11,12 +11,38 @@
 - `AGENTS.md`：本文件，记录协作和工程规则。
 - `MEMORY.md`：长期项目记忆、关键决策、服务器和部署状态。
 - `DEVLOG.md`：开发日志台账，按日期记录真实推进、测试和部署。
+- `docs/repo-structure.md`：当前 worktree、主仓库、过程目录和运行产物目录说明。
+- `docs/runtime-artifacts.md`：运行产物目录和清理边界说明。
 - `docs/prd/README.md`：PRD 版本索引。
 - `docs/prd/v0.1.0/`：当前 2.0 初始规划版本文档。
 - `ops/`：服务器、部署、运维和验收记录。
 - `config/`：非密钥配置模板。
 - `development/`：开发过程资料和临时实施记录。
 - `research/`：候选项目、节点库、参考项目调研。
+
+## 默认查看顺序
+
+当需要快速恢复上下文时，优先顺序：
+
+1. `AGENTS.md`
+2. `MEMORY.md`
+3. `docs/repo-structure.md`
+4. `docs/runtime-artifacts.md`
+5. `DEVLOG.md`
+6. `ops/README.md`
+
+## 入口优先级
+
+当前无限画布 2.0 的默认工作入口就是本目录：
+
+- `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+
+使用原则：
+
+- 当前开发、部署、验收、结构整理，优先看本目录下的 `AGENTS.md`、`MEMORY.md`、`DEVLOG.md`、`docs/`、`ops/`
+- `D:/codex/无限画布2.0` 是主仓库，不是当前默认工作现场
+- `D:/codex/服务器/无限画布/` 只作为旧主干/旧文档参考入口，不作为当前 2.0 的主说明来源
+- `output/`、`releases/`、`dist-release/`、`logs/` 等目录不作为需求和设计入口，说明统一看 `docs/runtime-artifacts.md`
 
 ## 安全规则
 

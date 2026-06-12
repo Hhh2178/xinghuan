@@ -14,6 +14,8 @@ export interface PublishedModelSelection {
   selectedModel: PublicModelRecord | null;
 }
 
+export type AudioProviderMode = 'tts' | 'voice_clone' | 'voice_design';
+
 const DIMENSION_RE = /^(\d{2,5})x(\d{2,5})$/i;
 
 export function resolvePublishedModelSelection(
@@ -48,6 +50,21 @@ export function resolvePublishedModelSelection(
     selectedProviderGroup,
     selectedModel,
   };
+}
+
+export function filterAudioModelsByMode(
+  models: PublicModelRecord[],
+  mode: AudioProviderMode,
+): PublicModelRecord[] {
+  return models.filter((model) => isAudioModelCompatible(model, mode));
+}
+
+export function resolveCompatibleAudioProviderSelection(
+  models: PublicModelRecord[],
+  mode: AudioProviderMode,
+  current?: { selectedModelId?: string; selectedProviderId?: string },
+): PublishedModelSelection {
+  return resolvePublishedModelSelection(filterAudioModelsByMode(models, mode), current);
 }
 
 export function shouldShowImageSizeControl(sizeOptions: string[]): boolean {
@@ -97,6 +114,18 @@ function groupPublishedModelsByProvider(models: PublicModelRecord[]): PublishedM
     });
   }
   return [...map.values()];
+}
+
+function isAudioModelCompatible(model: PublicModelRecord, mode: AudioProviderMode): boolean {
+  const tags = Array.isArray(model.capabilityTags)
+    ? model.capabilityTags.filter((tag): tag is string => typeof tag === 'string')
+    : [];
+  const hasTts = tags.includes('tts');
+  const hasVoiceClone = tags.includes('voice_clone');
+  const hasVoiceDesign = tags.includes('voice_design');
+  if (mode === 'voice_clone') return hasVoiceClone;
+  if (mode === 'voice_design') return hasVoiceDesign && !hasVoiceClone;
+  return hasTts && !hasVoiceClone && !hasVoiceDesign;
 }
 
 function uniqueCompactStrings(values: string[]): string[] {

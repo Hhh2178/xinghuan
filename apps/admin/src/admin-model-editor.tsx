@@ -213,6 +213,47 @@ function pollTimeoutSecondsValue(model: ModelRecord) {
   return String(Math.max(30, Math.min(600, Math.round(value / 1000))));
 }
 
+function safeJsonObject(value: string) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeVoicePresetList(value: string) {
+  return value
+    .split(/[\n,，]/)
+    .map((item) => item.trim())
+    .filter((item, index, list) => Boolean(item) && list.indexOf(item) === index);
+}
+
+function syncAudioVoicePresetSchema(
+  schema: Record<string, unknown>,
+  advancedConfig: Record<string, unknown>,
+  defaultVoice: string,
+  presetVoiceText: string,
+) {
+  const nextSchema = { ...schema };
+  const nextAdvancedConfig = { ...advancedConfig };
+  if (!defaultVoice && !presetVoiceText.trim()) return { schema: nextSchema, advancedConfig: nextAdvancedConfig };
+  const voiceOptions = normalizeVoicePresetList(presetVoiceText);
+  const existingVoice = nextSchema.voice && typeof nextSchema.voice === "object" && !Array.isArray(nextSchema.voice)
+    ? nextSchema.voice as Record<string, unknown>
+    : {};
+  nextSchema.voice = {
+    type: "enum",
+    label: "音色",
+    ...existingVoice,
+    ...(voiceOptions.length ? { options: voiceOptions } : {}),
+    ...(defaultVoice ? { default: defaultVoice } : {}),
+  };
+  if (defaultVoice) nextAdvancedConfig.voice = defaultVoice;
+  if (voiceOptions.length) nextAdvancedConfig.presetVoices = voiceOptions;
+  return { schema: nextSchema, advancedConfig: nextAdvancedConfig };
+}
+
 /* ── ModelEditorRow ───────────────────────────────────────────────────── */
 
 export function ModelEditorRow({
@@ -232,6 +273,8 @@ export function ModelEditorRow({
   const [configError, setConfigError] = useState("");
   const [advancedConfigText, setAdvancedConfigText] = useState("{}");
   const [pollTimeoutSeconds, setPollTimeoutSeconds] = useState("360");
+  const [defaultVoice, setDefaultVoice] = useState("");
+  const [presetVoiceText, setPresetVoiceText] = useState("");
 
   useEffect(() => {
     setDraft({
@@ -244,13 +287,24 @@ export function ModelEditorRow({
     setConfigError("");
     setAdvancedConfigText(JSON.stringify(model.advancedConfig || {}, null, 2));
     setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
+    const schemaObject = safeJsonObject(model.parameterSchema);
+    const voiceSchema = schemaObject.voice && typeof schemaObject.voice === "object" && !Array.isArray(schemaObject.voice)
+      ? schemaObject.voice as Record<string, unknown>
+      : {};
+    const voiceOptions = Array.isArray(voiceSchema.options)
+      ? voiceSchema.options.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    setDefaultVoice(String(voiceSchema.default || model.advancedConfig?.voice || "").trim());
+    setPresetVoiceText(voiceOptions.join("\n"));
   }, [model.id, model.updatedAt]);
 
   async function saveModel() {
     let parameterSchema = draft.parameterSchema.trim() || "{}";
     let advancedConfig: Record<string, unknown> = {};
+    let parameterSchemaObject: Record<string, unknown> = {};
     try {
-      parameterSchema = JSON.stringify(JSON.parse(parameterSchema), null, 2);
+      parameterSchemaObject = JSON.parse(parameterSchema);
+      parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     } catch {
       setSchemaError("参数 schema 必须是有效 JSON。");
       return;
@@ -268,6 +322,12 @@ export function ModelEditorRow({
         return;
       }
       advancedConfig.pollTimeoutMs = Math.round(seconds) * 1000;
+    }
+    if (draft.capability === "audio") {
+      const synced = syncAudioVoicePresetSchema(parameterSchemaObject, advancedConfig, defaultVoice.trim(), presetVoiceText);
+      parameterSchemaObject = synced.schema;
+      advancedConfig = synced.advancedConfig;
+      parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     }
     setSchemaError("");
     setConfigError("");
@@ -290,6 +350,7 @@ export function ModelEditorRow({
   const normalizedCaps = normalizeInputCapabilities(draft);
   const capabilityItems = inputCapabilityMeta(draft.capability);
   const tags = normalizeCapabilityTags(model.capabilityTags);
+  const presetVoices = normalizeVoicePresetList(presetVoiceText);
   const testButtons = [
     { kind: "chat", label: "测文本", visible: draft.capability === "chat" },
     { kind: "image_understanding", label: "测图像理解", visible: draft.capability === "chat" || tags.includes("image_understanding") },
@@ -463,6 +524,49 @@ export function ModelEditorRow({
               ))}
             </div>
           </section>
+          {draft.capability === "audio" ? (
+            <section className="schema-guide-card compact audio-preset-card">
+              <div className="schema-guide-head">
+                <strong>音色预设</strong>
+                <span>当模型支持固定音色时，这里填写的默认音色与音色列表会直接同步到画布音频节点。</span>
+              </div>
+              <div className="audio-preset-grid">
+                <label className="audio-preset-field">
+                  默认音色
+                  <input
+                    value={defaultVoice}
+                    onChange={(e) => setDefaultVoice(e.target.value)}
+                    placeholder="mimo_default"
+                  />
+                  <small>生成语音时默认选中的音色，也会回写到 `advancedConfig.voice`。</small>
+                </label>
+                <label className="audio-preset-field">
+                  预设音色
+                  <textarea
+                    value={presetVoiceText}
+                    onChange={(e) => setPresetVoiceText(e.target.value)}
+                    placeholder={"mimo_default\n冰糖\n茉莉\n苏打"}
+                    spellCheck={false}
+                  />
+                  <small>支持逗号或换行分隔，保存后写入 `parameterSchema.voice.options`。</small>
+                </label>
+              </div>
+              {presetVoices.length ? (
+                <div className="audio-preset-chip-row">
+                  {presetVoices.map((voiceName) => (
+                    <span key={voiceName} className={voiceName === defaultVoice.trim() ? "audio-preset-chip active" : "audio-preset-chip"}>
+                      {voiceName}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="schema-guide-note">
+                  <strong>提示</strong>
+                  <span>如果该模型没有固定音色，可以保留为空，前端会继续使用自由输入框。</span>
+                </div>
+              )}
+            </section>
+          ) : null}
           <section className="schema-guide-card compact">
             <div className="schema-guide-head">
               <strong>模型连通性测试</strong>

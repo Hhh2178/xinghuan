@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,6 +16,16 @@ let pg;
 try {
   pg = await import("pg");
 } catch {
+  try {
+    const require = createRequire(import.meta.url);
+    pg = require("pg");
+  } catch {
+    console.error("PG_DRIVER_NOT_INSTALLED");
+    process.exit(3);
+  }
+}
+
+if (!pg) {
   console.error("PG_DRIVER_NOT_INSTALLED");
   process.exit(3);
 }

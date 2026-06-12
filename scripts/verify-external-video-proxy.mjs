@@ -71,9 +71,7 @@ async function main() {
     assert(syncSubmit?.body?.model === syncModelId, "video model mismatch");
     const providerReferenceUrl = syncSubmit?.body?.image?.[0] || "";
     assert(
-      providerReferenceUrl.startsWith(`${baseUrl}/api/provider-files/`) &&
-        providerReferenceUrl.includes("/input/") &&
-        providerReferenceUrl.includes("?exp="),
+      isSignedProviderReferenceUrl(providerReferenceUrl),
       "video reference URL was not signed",
     );
     assert(syncSubmit?.authorization === "Bearer verify-video-key", "video authorization missing");
@@ -347,6 +345,13 @@ function captureCookie(response) {
 function assert(value, message) {
   if (!value) throw new Error(message);
 }
+
+function isSignedProviderReferenceUrl(value) {
+  if (!value || !/^https?:\/\//i.test(String(value))) return false;
+  const url = new URL(String(value));
+  return url.pathname.startsWith("/api/provider-files/") && url.pathname.includes("/input/") && url.searchParams.has("exp") && url.searchParams.has("sig");
+}
+
 main().catch((error) => {
   console.error(error);
   process.exit(1);

@@ -94,6 +94,13 @@ const checks = [
       serverSource.includes("normalizeModelTestState"),
   },
   {
+    name: "public model catalog exposes capability tags to frontend nodes",
+    pass:
+      serverSource.includes("async function publicModelCatalog()") &&
+      serverSource.includes("const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);") &&
+      serverSource.includes("capabilityTags,"),
+  },
+  {
     name: "admin model editor exposes manual tag editing",
     pass:
       adminEditorSource.includes("TAG_GROUPS") &&

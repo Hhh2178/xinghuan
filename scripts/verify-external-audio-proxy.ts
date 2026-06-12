@@ -29,6 +29,14 @@ const clonePayload = createOpenAiAudioChatPayload({
   audioFormat: "mp3",
   mode: "voice_clone",
 });
+const voiceDesignPayload = createOpenAiAudioChatPayload({
+  modelId: "mimo-v2.5-tts-voicedesign",
+  text: "音色定制验证",
+  stylePrompt: "清亮、轻快、略带气声的少女感声音",
+  voice: "mimo_default",
+  audioFormat: "wav",
+  mode: "voice_design",
+});
 const parsedInline = extractAudioProviderResult({
   choices: [
     {
@@ -52,11 +60,24 @@ const checks = [
       ttsPayload.messages[1]?.role === "assistant",
   },
   {
-    name: "MiMo voice clone payload carries reference audio in voice field",
+    name: "MiMo voice clone payload keeps full data url sample for clone model",
     pass:
       clonePayload.model === "mimo-v2.5-tts-voiceclone" &&
       clonePayload.audio.format === "mp3" &&
       clonePayload.audio.voice === sampleAudio,
+  },
+  {
+    name: "MiMo voice design payload omits unsupported audio voice",
+    pass:
+      voiceDesignPayload.model === "mimo-v2.5-tts-voicedesign" &&
+      voiceDesignPayload.audio.format === "wav" &&
+      !("voice" in voiceDesignPayload.audio),
+  },
+  {
+    name: "external proxy preserves full voice clone data URLs",
+    pass:
+      externalProxySource.includes("readAudioSampleDataUrl") &&
+      !externalProxySource.includes("deps.safeText(body.sampleDataUrl"),
   },
   {
     name: "audio parser extracts inline data URLs and remote URLs",
@@ -96,7 +117,8 @@ const checks = [
       audioNodeSource.includes("Provider 语音") &&
       audioNodeSource.includes("generateExternalAudio") &&
       audioNodeSource.includes("providerAudioMode") &&
-      audioNodeSource.includes("voice_clone"),
+      audioNodeSource.includes("voice_clone") &&
+      audioNodeSource.includes("voice_design"),
   },
   {
     name: "audio node keeps legacy Suno mode isolated",

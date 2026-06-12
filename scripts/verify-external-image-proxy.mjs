@@ -98,7 +98,7 @@ async function main() {
     results.push(["Proxy forwards selected provider model", syncSubmit?.body?.model === modelId]);
     results.push(["Proxy forwards prompt", syncSubmit?.body?.prompt === "verification image"]);
     const providerReferenceUrl = syncSubmit?.body?.image?.[0] || "";
-    results.push(["Proxy creates signed provider reference URL", providerReferenceUrl.startsWith(`${baseUrl}/api/provider-files/`) && providerReferenceUrl.includes("/input/") && providerReferenceUrl.includes("?exp=")]);
+    results.push(["Proxy creates signed provider reference URL", isSignedProviderReferenceUrl(providerReferenceUrl)]);
     results.push(["Proxy sends auth header", syncSubmit?.authorization === "Bearer verify-key"]);
 
     const image = await fetchText(imageUrl);
@@ -245,6 +245,12 @@ function captureCookie(response) {
 function toUrl(pathname) {
   if (String(pathname).startsWith("http://") || String(pathname).startsWith("https://")) return pathname;
   return `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+}
+
+function isSignedProviderReferenceUrl(value) {
+  if (!value || !/^https?:\/\//i.test(String(value))) return false;
+  const url = new URL(String(value));
+  return url.pathname.startsWith("/api/provider-files/") && url.pathname.includes("/input/") && url.searchParams.has("exp") && url.searchParams.has("sig");
 }
 
 main().catch((error) => {

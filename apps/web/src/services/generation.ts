@@ -4,6 +4,24 @@
  */
 import type { AdvancedProviderConfig } from '../types/canvas';
 
+function looksLikeHtmlResponse(text: string) {
+  const normalized = String(text || '').trim().toLowerCase();
+  return normalized.startsWith('<!doctype html') || normalized.startsWith('<html') || normalized.startsWith('<body') || normalized.includes('<html');
+}
+
+async function readJsonResponse(response: Response, label: string) {
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (looksLikeHtmlResponse(text)) {
+      throw new Error(`${label}返回了 HTML 页面，请检查登录状态、网关代理或上游配置`);
+    }
+    throw new Error(`${label}返回了非 JSON 响应: ${text.slice(0, 240)}`);
+  }
+}
+
 export interface GenerateImageRequest {
   model: string;          // 节点 id (gpt-image-2 / nano-banana-2 / nano-banana-pro / grok-image)
   apiModel?: string;       // 上游真实模型名(优先使用)
@@ -32,7 +50,7 @@ export async function generateImage(req: GenerateImageRequest): Promise<Generate
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '图像生成接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -75,7 +93,7 @@ export async function generateExternalImage(req: GenerateExternalImageRequest): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '扩展图像生成接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -124,7 +142,7 @@ export async function generateExternalVideo(req: GenerateExternalVideoRequest): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '扩展视频生成接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -136,6 +154,45 @@ export async function generateExternalVideo(req: GenerateExternalVideoRequest): 
     raw: payload.raw,
     provider: payload.provider,
   };
+}
+
+export interface ExternalVideoTaskSubmitResult {
+  taskId: string;
+  status: string;
+  progress?: string;
+  raw?: any;
+  provider?: any;
+}
+
+export async function submitExternalVideoTask(req: GenerateExternalVideoRequest): Promise<ExternalVideoTaskSubmitResult> {
+  const r = await fetch('/api/proxy/external/video/task', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const data = await readJsonResponse(r, '后台视频任务提交接口');
+  if (!r.ok || !data.success) {
+    throw new Error(data?.error || `HTTP ${r.status}`);
+  }
+  return data.data || {};
+}
+
+export interface ExternalVideoTaskStatusResult {
+  taskId: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | string;
+  progress?: string;
+  videoUrls?: string[];
+  remoteVideoUrls?: string[];
+  error?: string;
+  raw?: any;
+  logs?: string[];
+}
+
+export async function queryExternalVideoTask(taskId: string): Promise<ExternalVideoTaskStatusResult> {
+  const r = await fetch(`/api/proxy/external/video/task/${encodeURIComponent(taskId)}`);
+  const data = await readJsonResponse(r, '后台视频任务轮询接口');
+  if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
+  return data.data || { taskId, status: 'queued' };
 }
 
 export interface GenerateExternalAudioRequest {
@@ -167,7 +224,7 @@ export async function generateExternalAudio(req: GenerateExternalAudioRequest): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '扩展音频生成接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -202,7 +259,7 @@ export async function submitImageAsync(req: GenerateImageRequest): Promise<Image
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '图像提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -219,7 +276,7 @@ export interface ImageQueryResult {
 export async function queryImageStatus(taskId: string, apiModel?: string): Promise<ImageQueryResult> {
   const qs = apiModel ? `?model=${encodeURIComponent(apiModel)}` : '';
   const r = await fetch(`/api/proxy/image/status/${encodeURIComponent(taskId)}${qs}`);
-  const data = await r.json();
+  const data = await readJsonResponse(r, '图像轮询接口');
   if (!r.ok) throw new Error(data?.error || `HTTP ${r.status}`);
   // 失败状态下 success=false 但返回 body 中仍包含 status:'failed'
   return data.data || { status: data.success ? 'pending' : 'failed', progress: '0%', error: data?.error };
@@ -237,7 +294,7 @@ export async function cancelGenerationTask(req: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '任务取消接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -300,7 +357,7 @@ export async function submitImageFal(req: FalSubmitRequest): Promise<FalSubmitRe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'FAL 图像提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -318,7 +375,7 @@ export async function queryImageFal(params: { responseUrl?: string; endpoint?: s
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'FAL 图像轮询接口');
   // 后端在 FAILED 时会 success=false 但 data.status='failed',这里返回结果供上层判断
   if (!r.ok && !data.data) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data || { status: 'failed', error: data?.error || 'unknown' };
@@ -388,7 +445,7 @@ export async function submitMjImagine(req: MjImagineRequest): Promise<MjImagineR
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'MJ 提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   const upstream = data.data || {};
   // upstream.code === 1 表示提交成功(主项目 L4658)
@@ -411,7 +468,7 @@ export interface MjTaskResult {
 
 export async function queryMjTask(taskId: string, speed: MjSpeed = 'fast'): Promise<MjTaskResult> {
   const r = await fetch(`/api/proxy/mj/task/${encodeURIComponent(taskId)}?speed=${encodeURIComponent(speed)}`);
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'MJ 轮询接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   const d = data.data || {};
   // 主项目 L4675~L4694: image_urls 可能是 JSON 字符串 / 对象数组 / 字符串数组
@@ -448,7 +505,7 @@ export async function uploadMjImage(file: File, speed: MjSpeed = 'fast'): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ base64Data: dataUrl, speed }),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'MJ 上传接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   const url = data.data?.url || '';
   if (!url) throw new Error('MJ upload 未返回 URL');
@@ -499,7 +556,7 @@ export async function generateLlm(req: GenerateLlmRequest): Promise<GenerateLlmR
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...req, stream: false }),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'LLM 接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -518,7 +575,7 @@ export async function generateExternalLlm(req: GenerateExternalLlmRequest): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '扩展 LLM 接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -553,10 +610,10 @@ export async function generateLlmStream(
     // 后端在 stream 错路仍返 JSON
     let msg = `HTTP ${r.status}`;
     try {
-      const j = await r.json();
+      const j = await readJsonResponse(r, 'LLM 流式接口');
       msg = j?.error || msg;
-    } catch {
-      /* noop */
+    } catch (error) {
+      msg = error instanceof Error ? error.message : msg;
     }
     throw new Error(msg);
   }
@@ -608,7 +665,7 @@ export async function uploadFile(file: File): Promise<{ url: string; filename: s
   const fd = new FormData();
   fd.append('file', file);
   const r = await fetch('/api/files/upload', { method: 'POST', body: fd });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '文件上传接口');
   if (!r.ok || !data.success) {
     throw new Error(data?.error || `HTTP ${r.status}`);
   }
@@ -676,7 +733,7 @@ export async function submitVideoFal(req: VideoFalSubmitRequest): Promise<VideoF
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'FAL 视频提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -694,7 +751,7 @@ export async function queryVideoFal(params: { responseUrl?: string; endpoint?: s
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'FAL 视频轮询接口');
   if (!r.ok && !data.data) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data || { status: 'failed', error: data?.error || 'unknown' };
 }
@@ -734,7 +791,7 @@ export async function submitVideo(req: VideoSubmitRequest): Promise<{ taskId: st
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '视频提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -750,7 +807,7 @@ export interface VideoQueryResult {
 export async function queryVideo(taskId: string, model?: string): Promise<VideoQueryResult> {
   const extra = model ? `&model=${encodeURIComponent(model)}` : '';
   const r = await fetch(`/api/proxy/video/query?taskId=${encodeURIComponent(taskId)}${extra}`);
-  const data = await r.json();
+  const data = await readJsonResponse(r, '视频轮询接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -798,7 +855,7 @@ export async function submitSeedance(req: SeedanceSubmitRequest): Promise<{ task
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'Seedance 提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -813,7 +870,7 @@ export interface SeedanceQueryResult {
 
 export async function querySeedance(taskId: string): Promise<SeedanceQueryResult> {
   const r = await fetch(`/api/proxy/seedance/query?taskId=${encodeURIComponent(taskId)}`);
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'Seedance 轮询接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -847,7 +904,7 @@ export async function submitAudio(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '音频提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -879,7 +936,7 @@ export async function queryAudio(clipIds: string[], saveLocal: boolean = true): 
   const ids = clipIds.join(',');
   const params = new URLSearchParams({ clipIds: ids, saveLocal: String(saveLocal) });
   const r = await fetch(`/api/proxy/audio/query?${params.toString()}`);
-  const data = await r.json();
+  const data = await readJsonResponse(r, '音频轮询接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -894,7 +951,7 @@ export async function uploadAudioForSuno(
   const fd = new FormData();
   fd.append('file', file, file.name);
   const r = await fetch('/api/proxy/audio/upload', { method: 'POST', body: fd });
-  const data = await r.json();
+  const data = await readJsonResponse(r, '音频上传接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -916,7 +973,7 @@ export async function submitRh(req: RhSubmitRequest): Promise<{ taskId: string }
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'RunningHub 提交接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -931,7 +988,7 @@ export interface RhQueryResult {
 export async function queryRh(taskId: string): Promise<RhQueryResult> {
   const url = `/api/proxy/runninghub/query?taskId=${encodeURIComponent(taskId)}`;
   const r = await fetch(url);
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'RunningHub 轮询接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -939,7 +996,7 @@ export async function queryRh(taskId: string): Promise<RhQueryResult> {
 export async function fetchRhAppInfo(webappId: string): Promise<any> {
   const url = `/api/proxy/runninghub/app-info?webappId=${encodeURIComponent(webappId)}`;
   const r = await fetch(url);
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'RunningHub 应用信息接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }
@@ -954,7 +1011,7 @@ export async function uploadRhAsset(url: string): Promise<{ fileName: string; fi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
   });
-  const data = await r.json();
+  const data = await readJsonResponse(r, 'RunningHub 资源上传接口');
   if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
   return data.data;
 }

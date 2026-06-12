@@ -10,6 +10,7 @@ import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import {
   normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
   normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
+  type ProviderFileScope,
 } from "./provider-file-access.js";
 import {
   extractChatContent,
@@ -51,6 +52,7 @@ interface ModelLike {
   modelId: string;
   displayName: string;
   capability: "chat" | "image" | "video" | "audio";
+  capabilityTags?: string[];
   enabled: boolean;
   inputCapabilities?: Record<string, unknown>;
   parameterSchema: string;
@@ -60,6 +62,7 @@ interface ModelLike {
 
 interface GenerateExternalProxyDependencies {
   dataDir: string;
+  providerFileScope?: ProviderFileScope;
   normalizeProviderProtocol: (value: unknown) => string;
   normalizeCapability: (value: unknown) => string;
   providerModelHeaders: (apiKey: string, protocol: string) => Record<string, string>;
@@ -80,6 +83,28 @@ interface GenerateExternalProxyDependencies {
 }
 
 export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
+  function summarizeUpstreamBody(text: string) {
+    return String(text || "").replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+
+  function parseUpstreamJson(text: string, label: string, contentType?: string) {
+    const normalized = String(text || "").trim();
+    if (!normalized) return {};
+    try {
+      return JSON.parse(normalized);
+    } catch {
+      const type = deps.safeText(contentType);
+      if (
+        deps.looksLikeHtml(normalized)
+        || /text\/html|application\/xhtml\+xml/i.test(type)
+        || /just a moment|cf-browser-verification|attention required/i.test(normalized.toLowerCase())
+      ) {
+        throw new Error(`${label}返回网页 HTML，请检查 Base URL、Cloudflare/WAF 或上游鉴权`);
+      }
+      throw new Error(`${label}返回非 JSON 响应${type ? ` (${type})` : ""}: ${summarizeUpstreamBody(normalized)}`);
+    }
+  }
+
   const findEnabledImageModel = async (providerId: string, requestedModelId: string, modelRecordId: string) =>
     findEnabledModel("image", providerId, requestedModelId, modelRecordId);
 
@@ -111,11 +136,17 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
   }
 
   function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUserLike) {
-    return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: deps.secretKey() });
+    return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, {
+      secret: deps.secretKey(),
+      scope: deps.providerFileScope,
+    });
   }
 
   function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUserLike) {
-    return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: deps.secretKey() });
+    return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, {
+      secret: deps.secretKey(),
+      scope: deps.providerFileScope,
+    });
   }
 
   function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
@@ -142,6 +173,14 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     }).filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
   }
 
+  function readAudioSampleDataUrl(...values: unknown[]) {
+    for (const value of values) {
+      const text = typeof value === "string" ? value.trim() : "";
+      if (text) return text.slice(0, 20_000_000);
+    }
+    return "";
+  }
+
   async function pollApimartVideoTask(input: {
     provider: ProviderLike;
     apiKey: string;
@@ -164,7 +203,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       const text = await upstream.text();
       if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
       if (!upstream.ok) throw new Error(`查询视频任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
-      const raw = text ? JSON.parse(text) : {};
+      const raw = parseUpstreamJson(text, "视频任务轮询接口", upstream.headers.get("content-type") || "");
       const data = raw && typeof raw === "object" && !Array.isArray(raw)
         ? deps.plainObject((raw as Record<string, unknown>).data)
         : {};
@@ -231,7 +270,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const text = await upstream.text();
     if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`查询最终视频结果失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "视频最终结果接口", upstream.headers.get("content-type") || "");
     return extractApimartVideoResult(raw, {
       statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
       resultVideoPath: deps.safeText(input.advancedConfig.finalResultVideoPath || input.advancedConfig.resultVideoPath, "data.result.videos"),
@@ -260,7 +299,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       const text = await upstream.text();
       if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
       if (!upstream.ok) throw new Error(`查询图像任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
-      const raw = text ? JSON.parse(text) : {};
+      const raw = parseUpstreamJson(text, "图像任务轮询接口", upstream.headers.get("content-type") || "");
       const data = raw && typeof raw === "object" && !Array.isArray(raw)
         ? deps.plainObject((raw as Record<string, unknown>).data)
         : {};
@@ -307,7 +346,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const text = await upstream.text();
     if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`上游图像生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "图像生成接口", upstream.headers.get("content-type") || "");
     const extracted = extractImageOutputs(raw);
     if (extracted.urls.length > 0 || extracted.base64.length > 0) return extracted;
     const task = extractApimartTask(raw, {
@@ -452,7 +491,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const text = await upstream.text();
     if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`上游语言模型请求失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "扩展对话接口", upstream.headers.get("content-type") || "");
     const content = extractChatContent(raw);
     return {
       content,
@@ -536,7 +575,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       const submitText = await submitResponse.text();
       if (deps.looksLikeHtml(submitText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
       if (!submitResponse.ok) throw new Error(`上游视频生成失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
-      const submitRaw = submitText ? JSON.parse(submitText) : {};
+      const submitRaw = parseUpstreamJson(submitText, "扩展视频提交接口", submitResponse.headers.get("content-type") || "");
       const task = extractApimartTask(submitRaw, {
         taskIdPath: deps.safeText(advancedConfig.taskIdPath, "data.0.task_id"),
         statusPath: deps.safeText(advancedConfig.taskStatusPath, "data.0.status"),
@@ -585,7 +624,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const text = await upstream.text();
     if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
-    const raw = text ? JSON.parse(text) : {};
+    const raw = parseUpstreamJson(text, "扩展视频生成接口", upstream.headers.get("content-type") || "");
     const remoteVideoUrls = extractVideoUrls(raw);
     if (remoteVideoUrls.length === 0) throw new Error("上游未返回可用视频 URL");
     const videoUrls: string[] = [];
@@ -620,8 +659,14 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     if (!apiKey) throw new Error("Provider 未配置 API Key");
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
     const mode = deps.safeText(body.mode || params.mode || advancedConfig.mode, "tts");
+    const capabilityTags = Array.isArray(model.capabilityTags)
+      ? model.capabilityTags.filter((item): item is string => typeof item === "string")
+      : [];
+    if (mode === "voice_clone" && !capabilityTags.includes("voice_clone")) {
+      throw new Error("当前模型未标记为音色克隆模型，请在后台开启 voice_clone 标签后再试");
+    }
     const sampleDataUrl = mode === "voice_clone"
-      ? deps.safeText(body.sampleDataUrl || params.sampleDataUrl || body.voiceSampleDataUrl)
+      ? readAudioSampleDataUrl(body.sampleDataUrl, params.sampleDataUrl, body.voiceSampleDataUrl)
       : "";
     const payload = createOpenAiAudioChatPayload({
       modelId: model.modelId,
@@ -642,7 +687,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const responseText = await upstream.text();
     if (deps.looksLikeHtml(responseText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
     if (!upstream.ok) throw new Error(`上游音频模型请求失败 ${upstream.status}: ${responseText.slice(0, 500)}`);
-    const raw = responseText ? JSON.parse(responseText) : {};
+    const raw = parseUpstreamJson(responseText, "扩展音频接口", upstream.headers.get("content-type") || "");
     const result = extractAudioProviderResult(raw);
     const audioUrls: string[] = [];
     for (const dataUrl of result.audioDataUrls) {
