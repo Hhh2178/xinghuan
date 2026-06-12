@@ -156,6 +156,45 @@ export async function generateExternalVideo(req: GenerateExternalVideoRequest): 
   };
 }
 
+export interface ExternalImageTaskSubmitResult {
+  taskId: string;
+  status: string;
+  progress?: string;
+  raw?: any;
+  provider?: any;
+}
+
+export async function submitExternalImageTask(req: GenerateExternalImageRequest): Promise<ExternalImageTaskSubmitResult> {
+  const r = await fetch('/api/proxy/external/image/task', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const data = await readJsonResponse(r, '后台图像任务提交接口');
+  if (!r.ok || !data.success) {
+    throw new Error(data?.error || `HTTP ${r.status}`);
+  }
+  return data.data || {};
+}
+
+export interface ExternalImageTaskStatusResult {
+  taskId: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | string;
+  progress?: string;
+  imageUrls?: string[];
+  remoteImageUrls?: string[];
+  error?: string;
+  raw?: any;
+  logs?: string[];
+}
+
+export async function queryExternalImageTask(taskId: string): Promise<ExternalImageTaskStatusResult> {
+  const r = await fetch(`/api/proxy/external/image/task/${encodeURIComponent(taskId)}`);
+  const data = await readJsonResponse(r, '后台图像任务轮询接口');
+  if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
+  return data.data || { taskId, status: 'queued' };
+}
+
 export interface ExternalVideoTaskSubmitResult {
   taskId: string;
   status: string;
@@ -236,6 +275,45 @@ export async function generateExternalAudio(req: GenerateExternalAudioRequest): 
     raw: payload.raw,
     provider: payload.provider,
   };
+}
+
+export interface ExternalAudioTaskSubmitResult {
+  taskId: string;
+  status: string;
+  progress?: string;
+  raw?: any;
+  provider?: any;
+}
+
+export async function submitExternalAudioTask(req: GenerateExternalAudioRequest): Promise<ExternalAudioTaskSubmitResult> {
+  const r = await fetch('/api/proxy/external/audio/task', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const data = await readJsonResponse(r, '后台音频任务提交接口');
+  if (!r.ok || !data.success) {
+    throw new Error(data?.error || `HTTP ${r.status}`);
+  }
+  return data.data || {};
+}
+
+export interface ExternalAudioTaskStatusResult {
+  taskId: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | string;
+  progress?: string;
+  audioUrls?: string[];
+  remoteAudioUrls?: string[];
+  error?: string;
+  raw?: any;
+  logs?: string[];
+}
+
+export async function queryExternalAudioTask(taskId: string): Promise<ExternalAudioTaskStatusResult> {
+  const r = await fetch(`/api/proxy/external/audio/task/${encodeURIComponent(taskId)}`);
+  const data = await readJsonResponse(r, '后台音频任务轮询接口');
+  if (!r.ok || !data.success) throw new Error(data?.error || `HTTP ${r.status}`);
+  return data.data || { taskId, status: 'queued' };
 }
 
 // ========================================================================

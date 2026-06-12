@@ -7,7 +7,8 @@ import {
   uploadAudioForSuno,
   cancelGenerationTask,
   fileToDataUrl,
-  generateExternalAudio,
+  submitExternalAudioTask,
+  queryExternalAudioTask,
   type AudioMode,
 } from '../../services/generation';
 import { SUNO_VERSIONS, DEFAULT_SUNO_VERSION } from '../../providers/models';
@@ -274,6 +275,49 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     });
   };
 
+  const startExternalAudioTaskPolling = (tid: string): Promise<{ audioUrls: string[]; remoteAudioUrls: string[] }> => {
+    return new Promise<{ audioUrls: string[]; remoteAudioUrls: string[] }>((resolve, reject) => {
+      let elapsed = 0;
+      const timer = window.setInterval(async () => {
+        elapsed += 1;
+        if (elapsed > SUNO_MAX_POLL) {
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
+          reject(new Error('后台音频任务轮询超时'));
+          return;
+        }
+        try {
+          const r = await queryExternalAudioTask(tid);
+          const audioUrls = Array.isArray(r.audioUrls) ? r.audioUrls.filter(Boolean) : [];
+          const remoteAudioUrls = Array.isArray(r.remoteAudioUrls) ? r.remoteAudioUrls.filter(Boolean) : [];
+          if (r.status === 'succeeded' && audioUrls.length > 0) {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            logBus.success(`后台音频任务完成 → ${audioUrls[0]}`, src);
+            resolve({ audioUrls, remoteAudioUrls });
+            return;
+          }
+          if (r.status === 'succeeded') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error('后台音频任务完成但没有返回可用音频'));
+            return;
+          }
+          if (r.status === 'failed' || r.status === 'cancelled') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台音频任务失败')));
+            return;
+          }
+          update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
+        } catch (e: any) {
+          console.warn('后台音频任务轮询出错', e?.message);
+        }
+      }, SUNO_POLL_INTERVAL_MS);
+      pollTimers.current.add(timer);
+    });
+  };
+
   // === 本地拖入参考音频 (跨节点 Ctrl 拖拽) ===
   const localRefAudio: string = typeof d?.localRefAudio === 'string' ? d.localRefAudio : '';
   const localRefAudioMaterials: Material[] = useMemo(
@@ -369,7 +413,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     if (providerAudioMode === 'voice_design' && !(tags || title || '').trim()) throw new Error('音色定制需要填写音色描述');
     const sampleDataUrl = providerAudioMode === 'voice_clone' ? await audioUrlToDataUrl(referenceUrl) : '';
     logBus.info(`提交音频 Provider: ${backendAudioModel.provider.name} · ${backendAudioModel.modelId} · ${providerAudioMode}`, src);
-    const result = await generateExternalAudio({
+    const submit = await submitExternalAudioTask({
       providerId: backendAudioModel.providerId,
       providerModel: backendAudioModel.modelId,
       model: backendAudioModel.modelId,
@@ -379,9 +423,12 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       voice: providerAudioMode === 'tts' ? voice : '',
       audioFormat,
       sampleDataUrl,
-      providerParams: { modelRecordId: backendAudioModel.id },
+      providerParams: { modelRecordId: backendAudioModel.id, sourceNodeId: id },
     });
-    const audioUrls = result.audioUrls || [];
+    if (!submit.taskId) throw new Error(`后台音频任务没有返回任务号：${backendAudioModel.provider.name} / ${backendAudioModel.modelId}`);
+    update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
+    const polled = await startExternalAudioTaskPolling(submit.taskId);
+    const audioUrls = polled.audioUrls || [];
     if (audioUrls.length === 0) throw new Error('音频生成完成但未返回音频文件');
     const nextTracks = audioUrls.map((audioUrl, index) => ({
       id: `${backendAudioModel.id}-${Date.now()}-${index}`,
@@ -395,7 +442,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       audioUrl: audioUrls[0] || '',
       audioUrl_1: audioUrls[1] || '',
       audioUrls,
-      taskId: null,
+      taskId: submit.taskId,
       taskIds: [],
       lastPrompt: finalPrompt,
       progress: '100%',

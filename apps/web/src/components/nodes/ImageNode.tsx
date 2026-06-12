@@ -33,7 +33,8 @@ import {
   queryMjTask,
   uploadMjImage,
   buildMjPrompt,
-  generateExternalImage,
+  submitExternalImageTask,
+  queryExternalImageTask,
   cancelGenerationTask,
   type MjSpeed,
 } from '../../services/generation';
@@ -141,6 +142,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // MJ 上传时区分 sref 还是 oref(共用 fileInputRef)
   const mjUploadKindRef = useRef<'sref' | 'oref'>('sref');
+  const pollTimers = useRef<Set<number>>(new Set());
 
   const [error, setError] = useState<string | null>(null);
   const src = `image:${id.slice(0, 6)}`;
@@ -322,7 +324,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const maxRefs = isBackendSelected && backendUi
     ? backendUi.maxReferenceImages
     : isExternalSelected ? Math.max(8, modelDef.maxReferenceImages || 0) : (falDef?.maxRefs ?? modelDef.maxReferenceImages);
-  const status: 'idle' | 'generating' | 'success' | 'error' = d?.status || 'idle';
+  const status: 'idle' | 'generating' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const progress: string = d?.progress || '';
   const taskId: string | undefined = d?.taskId;
   const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
@@ -390,6 +392,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   };
   const handleRestoreExcludedMaterials = () => update({ excludedMaterialIds: [] });
 
+  const stopPolling = () => {
+    pollTimers.current.forEach((timer) => window.clearInterval(timer));
+    pollTimers.current.clear();
+  };
+
+  useEffect(() => () => stopPolling(), []);
+
   const markRuntimeStarted = () => {
     const nextStartedAt = Date.now();
     update({ status: 'generating', progress: '0%', error: null, startedAt: nextStartedAt, finishedAt: null, lastDurationMs: null });
@@ -418,6 +427,49 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         typeof runtimeStartedAt === 'number'
           ? Math.max(0, nextFinishedAt - runtimeStartedAt)
           : null,
+    });
+  };
+
+  const startExternalImageTaskPolling = (tid: string): Promise<{ imageUrls: string[]; remoteImageUrls: string[] }> => {
+    return new Promise<{ imageUrls: string[]; remoteImageUrls: string[] }>((resolve, reject) => {
+      let elapsed = 0;
+      const timer = window.setInterval(async () => {
+        elapsed += 1;
+        if (elapsed > IMAGE_POLL_TIMEOUT_SECONDS) {
+          window.clearInterval(timer);
+          pollTimers.current.delete(timer);
+          reject(new Error('后台图像任务轮询超时'));
+          return;
+        }
+        try {
+          const r = await queryExternalImageTask(tid);
+          const imageUrls = Array.isArray(r.imageUrls) ? r.imageUrls.filter(Boolean) : [];
+          const remoteImageUrls = Array.isArray(r.remoteImageUrls) ? r.remoteImageUrls.filter(Boolean) : [];
+          if (r.status === 'succeeded' && imageUrls.length > 0) {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            logBus.success(`后台图像任务完成 → ${imageUrls[0]}`, src);
+            resolve({ imageUrls, remoteImageUrls });
+            return;
+          }
+          if (r.status === 'succeeded') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error('后台图像任务完成但没有返回可用图片'));
+            return;
+          }
+          if (r.status === 'failed' || r.status === 'cancelled') {
+            window.clearInterval(timer);
+            pollTimers.current.delete(timer);
+            reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台图像任务失败')));
+            return;
+          }
+          update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
+        } catch (e: any) {
+          console.warn('后台图像任务轮询出错', e?.message);
+        }
+      }, 3000);
+      pollTimers.current.add(timer);
     });
   };
 
@@ -618,7 +670,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           `${batchLabel} 后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
           src,
         );
-        const res = await generateExternalImage({
+        const submit = await submitExternalImageTask({
           providerId: backendModel.providerId,
           providerModel: backendModel.modelId,
           model: backendModel.modelId,
@@ -634,12 +686,15 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             size: backendSizeValue,
           },
         });
-        const urls = res.imageUrls || [];
+        if (!submit.taskId) throw new Error(`后台模型任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
+        update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
+        const polled = await startExternalImageTaskPolling(submit.taskId);
+        const urls = polled.imageUrls || [];
         if (!urls.length) throw new Error('后台模型完成但未返回图片');
         return {
           imageUrls: urls,
-          remoteImageUrls: res.remoteImageUrls || [],
-          taskId: res.taskId || d?.taskId,
+          remoteImageUrls: polled.remoteImageUrls || [],
+          taskId: submit.taskId || d?.taskId,
           usedI2I: allRefs.length > 0,
         };
       }
@@ -683,7 +738,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           `${batchLabel} 扩展平台提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel}${loraLog} · size=${size} · 参考图=${allRefs.length}`,
           src,
         );
-        const res = await generateExternalImage({
+        const submit = await submitExternalImageTask({
           providerId: providerSelection.provider.id,
           providerModel,
           model: providerModel,
@@ -695,12 +750,15 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           n: 1,
           providerParams: externalProviderParams,
         });
-        const urls = res.imageUrls || [];
+        if (!submit.taskId) throw new Error(`扩展平台任务没有返回任务号：${providerSelection.provider.label || providerSelection.provider.id} / ${providerModel}`);
+        update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
+        const polled = await startExternalImageTaskPolling(submit.taskId);
+        const urls = polled.imageUrls || [];
         if (!urls.length) throw new Error('扩展平台完成但未返回图片');
         return {
           imageUrls: urls,
-          remoteImageUrls: res.remoteImageUrls || [],
-          taskId: res.taskId || d?.taskId,
+          remoteImageUrls: polled.remoteImageUrls || [],
+          taskId: submit.taskId || d?.taskId,
           usedI2I: allRefs.length > 0,
         };
       }
@@ -988,6 +1046,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   };
 
   const handleStop = () => {
+    stopPolling();
     cancelKnownTasks().catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
     logBus.warn('用户主动停止图像生成', src);
@@ -1022,7 +1081,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     accepts: ['image', 'text'],
     onDrop: handleDrop,
   });
-  const isBusy = status === 'generating';
+  const isBusy = status === 'generating' || status === 'polling';
 
   return (
     <div
@@ -2085,10 +2144,10 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         {/* 生成按钮(包含异步进度) */}
         <button
           onClick={handleGenerate}
-          disabled={status === 'generating'}
+          disabled={isBusy}
           className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-medium disabled:opacity-50 transition-colors"
         >
-          {status === 'generating' ? (
+          {isBusy ? (
             <>
               <Loader2 size={12} className="animate-spin" /> 生成中 {progress || ''}
             </>
