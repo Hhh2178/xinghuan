@@ -1,4 +1,4 @@
-import { type TaskStatus } from "@xinghuan/shared";
+import { type ProviderGenerationExecutionMode, type TaskStatus } from "@xinghuan/shared";
 import type { AdminTabId } from "./admin-view-model";
 
 export type UserRole = "admin" | "member";
@@ -109,6 +109,7 @@ export interface ModelRecord {
   capabilityTags?: ModelCapabilityTag[];
   testState?: ModelTestState;
   enabled: boolean;
+  executionMode?: ProviderGenerationExecutionMode;
   inputProfile: string;
   inputCapabilities?: ModelInputCapabilities;
   parameterSchema: string;
@@ -166,9 +167,13 @@ export interface TaskRecord {
   id: string;
   title: string;
   status: TaskStatus;
+  ownerId?: string;
   providerId?: string;
   modelId?: string;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown>;
   logs: string[];
+  createdAt?: number;
   updatedAt: number;
 }
 
@@ -251,6 +256,7 @@ export interface AssistantDraft {
     modelId: string;
     displayName: string;
     capability: Capability;
+    executionMode?: ProviderGenerationExecutionMode;
     inputProfile: string;
     inputCapabilities: ModelInputCapabilities;
     parameterSchema: string;
@@ -264,6 +270,7 @@ export interface AssistantAnalysisResult {
   recommendedLayer: "default" | "advanced" | "adapter";
   protocol: string;
   asyncTask: boolean;
+  executionMode?: ProviderGenerationExecutionMode;
   chainTemplate?: string;
   chainTemplateVersion?: string;
   docFetch: {

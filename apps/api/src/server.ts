@@ -1,4 +1,4 @@
-import { createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
+import { createHealthPayload, type AppEnvironment, type ProviderGenerationExecutionMode, type TaskStatus } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
   parseAdvancedConfig,
@@ -325,6 +325,7 @@ interface AdminModelRecord {
   displayName: string;
   capability: ModelCapability;
   enabled: boolean;
+  executionMode?: ProviderGenerationExecutionMode;
   inputProfile: string;
   inputCapabilities?: Record<string, unknown>;
   capabilityTags?: ModelCapabilityTag[];
@@ -446,6 +447,7 @@ interface AssistantAnalysisResult {
   recommendedLayer: "default" | "advanced" | "adapter";
   protocol: string;
   asyncTask: boolean;
+  executionMode?: ProviderGenerationExecutionMode;
   chainTemplate?: string;
   chainTemplateVersion?: string;
   docFetch: {
@@ -479,6 +481,7 @@ interface AssistantAnalysisResult {
       modelId: string;
       displayName: string;
       capability: ModelCapability;
+      executionMode?: ProviderGenerationExecutionMode;
       inputProfile: string;
       inputCapabilities: Record<string, boolean>;
       parameterSchema: string;
@@ -1492,19 +1495,24 @@ async function handleAdminRequest(
     if (request.method === "POST") {
       const body = await readJsonBody<Partial<AdminModelRecord>>(request);
       const now = Date.now();
+      const capability = normalizeCapability(body.capability);
+      const advancedConfig = parseAdvancedConfig(body.advancedConfig);
+      const executionMode = normalizeProviderGenerationExecutionMode(body.executionMode, advancedConfig, capability);
+      advancedConfig.executionMode = executionMode;
       const model: AdminModelRecord = {
         id: safeSlug(body.id, `model-${now}`),
         providerId: safeSlug(body.providerId, "provider"),
         modelId: safeText(body.modelId, "model"),
         displayName: safeText(body.displayName, "新模型"),
-        capability: normalizeCapability(body.capability),
+        capability,
         enabled: Boolean(body.enabled),
+        executionMode,
         inputProfile: safeText(body.inputProfile, "prompt"),
-        inputCapabilities: { ...parseInputCapabilities(body.inputCapabilities, normalizeCapability(body.capability)) },
-        capabilityTags: normalizeModelCapabilityTags(body.capabilityTags, normalizeCapability(body.capability), body.modelId),
+        inputCapabilities: { ...parseInputCapabilities(body.inputCapabilities, capability) },
+        capabilityTags: normalizeModelCapabilityTags(body.capabilityTags, capability, body.modelId),
         testState: normalizeModelTestState(body.testState),
         parameterSchema: safeJsonText(body.parameterSchema, "{}"),
-        advancedConfig: parseAdvancedConfig(body.advancedConfig),
+        advancedConfig,
         protocolOverride: normalizeOptionalProtocol(body.protocolOverride),
         createdAt: now,
         updatedAt: now,
@@ -1559,24 +1567,34 @@ async function handleAdminRequest(
     let updated: AdminModelRecord | undefined;
     const models = db.models.map((model) => {
       if (model.id !== id) return model;
+      const nextCapability = body.capability === undefined ? model.capability : normalizeCapability(body.capability);
+      const nextAdvancedConfig =
+        body.advancedConfig === undefined ? plainObject(model.advancedConfig) : parseAdvancedConfig(body.advancedConfig);
+      const nextExecutionMode = normalizeProviderGenerationExecutionMode(
+        body.executionMode === undefined ? model.executionMode : body.executionMode,
+        nextAdvancedConfig,
+        nextCapability,
+      );
+      nextAdvancedConfig.executionMode = nextExecutionMode;
       const next: AdminModelRecord = {
         ...model,
         providerId: body.providerId === undefined ? model.providerId : safeSlug(body.providerId, model.providerId),
         modelId: body.modelId === undefined ? model.modelId : safeText(body.modelId, model.modelId),
         displayName: body.displayName === undefined ? model.displayName : safeText(body.displayName, model.displayName),
-        capability: body.capability === undefined ? model.capability : normalizeCapability(body.capability),
+        capability: nextCapability,
         enabled: body.enabled === undefined ? model.enabled : Boolean(body.enabled),
+        executionMode: nextExecutionMode,
         inputProfile: body.inputProfile === undefined ? model.inputProfile : safeText(body.inputProfile, model.inputProfile),
         inputCapabilities:
           body.inputCapabilities === undefined
             ? plainObject(model.inputCapabilities)
-            : { ...parseInputCapabilities(body.inputCapabilities, body.capability === undefined ? model.capability : normalizeCapability(body.capability)) },
+            : { ...parseInputCapabilities(body.inputCapabilities, nextCapability) },
         capabilityTags: body.capabilityTags === undefined
-          ? normalizeModelCapabilityTags(model.capabilityTags, body.capability === undefined ? model.capability : normalizeCapability(body.capability), body.modelId === undefined ? model.modelId : body.modelId)
-          : normalizeModelCapabilityTags(body.capabilityTags, body.capability === undefined ? model.capability : normalizeCapability(body.capability), body.modelId === undefined ? model.modelId : body.modelId),
+          ? normalizeModelCapabilityTags(model.capabilityTags, nextCapability, body.modelId === undefined ? model.modelId : body.modelId)
+          : normalizeModelCapabilityTags(body.capabilityTags, nextCapability, body.modelId === undefined ? model.modelId : body.modelId),
         testState: body.testState === undefined ? normalizeModelTestState(model.testState) : normalizeModelTestState(body.testState),
         parameterSchema: body.parameterSchema === undefined ? model.parameterSchema : safeJsonText(body.parameterSchema, "{}"),
-        advancedConfig: body.advancedConfig === undefined ? plainObject(model.advancedConfig) : parseAdvancedConfig(body.advancedConfig),
+        advancedConfig: nextAdvancedConfig,
         protocolOverride: body.protocolOverride === undefined ? model.protocolOverride : normalizeOptionalProtocol(body.protocolOverride),
         updatedAt: Date.now(),
       };
@@ -2687,18 +2705,53 @@ function normalizeAdminModelRecord(model: AdminModelRecord): AdminModelRecord {
   const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
   const inputProfile = normalizeModelInputProfile(model.inputProfile, inputCapabilities, capability);
   const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
+  const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+  const executionMode = normalizeProviderGenerationExecutionMode(model.executionMode, advancedConfig, capability);
+  advancedConfig.executionMode = executionMode;
   return {
     ...model,
     capability,
     enabled: Boolean(model.enabled),
+    executionMode,
     inputProfile,
     inputCapabilities: { ...inputCapabilities },
     capabilityTags,
     testState: normalizeModelTestState(model.testState),
     parameterSchema: safeJsonText(model.parameterSchema, "{}"),
-    advancedConfig: parseAdvancedConfig(model.advancedConfig),
+    advancedConfig,
     protocolOverride: normalizeOptionalProtocol(model.protocolOverride),
   };
+}
+
+const PROVIDER_GENERATION_EXECUTION_MODES = new Set<ProviderGenerationExecutionMode>([
+  "sync_inline",
+  "async_poll",
+  "async_poll_then_final_lookup",
+  "worker_queue",
+]);
+
+function defaultExecutionModeForCapability(capability: ModelCapability): ProviderGenerationExecutionMode {
+  return capability === "chat" ? "sync_inline" : "worker_queue";
+}
+
+function normalizeProviderGenerationExecutionMode(
+  value: unknown,
+  advancedConfig: Record<string, unknown>,
+  capability: ModelCapability,
+): ProviderGenerationExecutionMode {
+  const direct = typeof value === "string" ? value.trim() : "";
+  if (PROVIDER_GENERATION_EXECUTION_MODES.has(direct as ProviderGenerationExecutionMode)) {
+    return direct as ProviderGenerationExecutionMode;
+  }
+  const bridged = typeof advancedConfig.executionMode === "string"
+    ? advancedConfig.executionMode.trim()
+    : typeof advancedConfig.mode === "string"
+      ? advancedConfig.mode.trim()
+      : "";
+  if (PROVIDER_GENERATION_EXECUTION_MODES.has(bridged as ProviderGenerationExecutionMode)) {
+    return bridged as ProviderGenerationExecutionMode;
+  }
+  return defaultExecutionModeForCapability(capability);
 }
 
 const MODEL_CAPABILITY_TAGS = new Set<ModelCapabilityTag>([
@@ -4366,6 +4419,7 @@ async function analyzeProviderAssistant(input: AssistantAnalyzeRequest): Promise
       recommendedLayer: hermes.recommendedLayer || fallback.recommendedLayer,
       protocol: fallback.protocol === "grsai_draw" ? fallback.protocol : (hermes.protocol || fallback.protocol),
       asyncTask: hermes.asyncTask ?? fallback.asyncTask,
+      executionMode: parseAssistantExecutionMode((hermes as any).executionMode) || fallback.executionMode,
       chainTemplate: safeText((hermes as any).chainTemplate) || fallback.chainTemplate,
       chainTemplateVersion: safeText((hermes as any).chainTemplateVersion) || fallback.chainTemplateVersion,
       risks: hermes.risks.length ? hermes.risks : fallback.risks,
@@ -4384,6 +4438,9 @@ async function analyzeProviderAssistant(input: AssistantAnalyzeRequest): Promise
         model: {
           ...fallback.drafts.model,
           ...hermes.drafts.model,
+          executionMode:
+            parseAssistantExecutionMode((hermes.drafts.model as Record<string, unknown>)?.executionMode)
+            || fallback.drafts.model.executionMode,
           inputCapabilities: {
             ...fallback.drafts.model.inputCapabilities,
             ...(plainObject(hermes.drafts.model.inputCapabilities) as Record<string, boolean>),
@@ -4562,6 +4619,14 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     asyncTask ? "adapter" :
     /resultVideoPath|pollPathTemplate|taskStatusPath/i.test(sampleResponse + notes) ? "advanced" :
     "default";
+  const executionMode: ProviderGenerationExecutionMode =
+    asyncTask
+      ? asyncTemplateHint === "async_task_poll_then_final_lookup"
+        ? "async_poll_then_final_lookup"
+        : asyncTemplateHint === "async_task_poll_result"
+          ? "async_poll"
+          : "worker_queue"
+      : "sync_inline";
   const docFetchItems = await safeFetchDocExcerpts(docUrls);
   const firstDocItem = docFetchItems.find((item) => item.ok) || docFetchItems[0];
   const docFetch = {
@@ -4685,6 +4750,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     recommendedLayer,
     protocol,
     asyncTask,
+    executionMode,
     chainTemplate,
     chainTemplateVersion,
     docFetch,
@@ -4706,6 +4772,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
         modelId: grsaiDetected ? "gpt-image-2" : modelId,
         displayName: safeText(input.modelId, modelId),
         capability,
+        executionMode,
         inputProfile: capability === "chat" ? "prompt" : "prompt,image_reference",
         inputCapabilities,
         parameterSchema: JSON.stringify(defaultAssistantParameterSchema(capability), null, 2),
@@ -4720,6 +4787,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       protocol,
       recommendedLayer,
       asyncTask,
+      executionMode,
       chainTemplate,
       chainTemplateVersion,
       sampleSignals: {
@@ -4991,6 +5059,7 @@ async function runHermesAssistantAnalysis(input: {
     protocol: safeText(parsed?.protocol),
     recommendedLayer: parseAssistantLayer(parsed?.recommendedLayer),
     asyncTask: typeof parsed?.asyncTask === "boolean" ? parsed.asyncTask : undefined,
+    executionMode: parseAssistantExecutionMode(parsed?.executionMode),
     chainTemplate: safeText(parsed?.chainTemplate),
     chainTemplateVersion: safeText(parsed?.chainTemplateVersion),
     risks: Array.isArray(parsed?.risks) ? parsed.risks.map((item: unknown) => safeText(item)).filter(Boolean) : [],
@@ -5124,6 +5193,13 @@ function parseAssistantLayer(value: unknown): "default" | "advanced" | "adapter"
   const text = safeText(value).toLowerCase();
   if (text === "default" || text === "advanced" || text === "adapter") return text;
   return undefined;
+}
+
+function parseAssistantExecutionMode(value: unknown): ProviderGenerationExecutionMode | undefined {
+  const text = safeText(value);
+  return PROVIDER_GENERATION_EXECUTION_MODES.has(text as ProviderGenerationExecutionMode)
+    ? (text as ProviderGenerationExecutionMode)
+    : undefined;
 }
 
 function tryParseAssistantJson(text: string): any {

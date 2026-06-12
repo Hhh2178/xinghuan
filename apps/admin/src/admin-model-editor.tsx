@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { type ProviderGenerationExecutionMode } from "@xinghuan/shared";
 import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
 import type { Capability, ModelCapabilityTag, ModelRecord } from "./admin-types";
 
@@ -254,6 +255,37 @@ function syncAudioVoicePresetSchema(
   return { schema: nextSchema, advancedConfig: nextAdvancedConfig };
 }
 
+const EXECUTION_MODE_OPTIONS: Array<{
+  value: ProviderGenerationExecutionMode;
+  label: string;
+  description: string;
+}> = [
+  { value: "worker_queue", label: "后台任务队列", description: "前端只拿 taskId，我方 Worker 负责执行与轮询。" },
+  { value: "sync_inline", label: "同步直返", description: "适合真正低时延、同步返回结果的能力。" },
+  { value: "async_poll", label: "异步轮询", description: "提交任务后由调用方轮询状态并读取结果。" },
+  { value: "async_poll_then_final_lookup", label: "轮询后二段查询", description: "先轮询任务，再额外查询最终资源或成品。" },
+];
+
+function defaultExecutionModeForCapability(capability: Capability): ProviderGenerationExecutionMode {
+  return capability === "chat" ? "sync_inline" : "worker_queue";
+}
+
+function normalizeExecutionMode(model: Pick<ModelRecord, "capability" | "executionMode" | "advancedConfig">): ProviderGenerationExecutionMode {
+  const direct = typeof model.executionMode === "string" ? model.executionMode : "";
+  if (EXECUTION_MODE_OPTIONS.some((item) => item.value === direct)) {
+    return direct as ProviderGenerationExecutionMode;
+  }
+  const configValue = typeof model.advancedConfig?.executionMode === "string"
+    ? model.advancedConfig.executionMode
+    : typeof model.advancedConfig?.mode === "string"
+      ? model.advancedConfig.mode
+      : "";
+  if (EXECUTION_MODE_OPTIONS.some((item) => item.value === configValue)) {
+    return configValue as ProviderGenerationExecutionMode;
+  }
+  return defaultExecutionModeForCapability(model.capability);
+}
+
 /* ── ModelEditorRow ───────────────────────────────────────────────────── */
 
 export function ModelEditorRow({
@@ -279,6 +311,7 @@ export function ModelEditorRow({
   useEffect(() => {
     setDraft({
       ...model,
+      executionMode: normalizeExecutionMode(model),
       inputCapabilities: normalizeInputCapabilities(model),
       capabilityTags: normalizeCapabilityTags(model.capabilityTags),
       advancedConfig: model.advancedConfig || {},
@@ -315,6 +348,8 @@ export function ModelEditorRow({
       setConfigError("高级配置必须是有效 JSON。");
       return;
     }
+    const executionMode = normalizeExecutionMode(draft);
+    advancedConfig.executionMode = executionMode;
     if (draft.capability === "image" || draft.capability === "video") {
       const seconds = Number(pollTimeoutSeconds);
       if (!Number.isFinite(seconds) || seconds < 30 || seconds > 600) {
@@ -337,6 +372,7 @@ export function ModelEditorRow({
       modelId: draft.modelId.trim(),
       capability: draft.capability,
       capabilityTags: normalizeCapabilityTags(draft.capabilityTags),
+      executionMode,
       protocolOverride: draft.protocolOverride || "",
       inputProfile: deriveInputProfile(draft.capability, inputCapabilities),
       inputCapabilities,
@@ -488,6 +524,25 @@ export function ModelEditorRow({
             <label>
               输入 Profile（只读预览）
               <input value={deriveInputProfile(draft.capability, normalizeInputCapabilities(draft))} readOnly />
+            </label>
+            <label>
+              执行模式
+              <select
+                value={normalizeExecutionMode(draft)}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    executionMode: e.target.value as ProviderGenerationExecutionMode,
+                  })
+                }
+              >
+                {EXECUTION_MODE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <small>{EXECUTION_MODE_OPTIONS.find((item) => item.value === normalizeExecutionMode(draft))?.description}</small>
             </label>
           </div>
           <section className="schema-guide-card compact">

@@ -474,10 +474,15 @@ export function ApiSettingsPanel({
         `${selected.name || selected.id} ${capability}`,
       capability,
       enabled: existingModel?.enabled ?? true,
+      executionMode: modelDraft.executionMode || existingModel?.executionMode || (capability === "chat" ? "sync_inline" : "worker_queue"),
       inputProfile: modelDraft.inputProfile || existingModel?.inputProfile || "prompt",
       inputCapabilities: modelDraft.inputCapabilities || existingModel?.inputCapabilities || {},
       parameterSchema: safeAssistantSchemaText(modelDraft.parameterSchema),
-      advancedConfig: modelDraft.advancedConfig || existingModel?.advancedConfig || {},
+      advancedConfig: {
+        ...(existingModel?.advancedConfig || {}),
+        ...(modelDraft.advancedConfig || {}),
+        executionMode: modelDraft.executionMode || existingModel?.executionMode || (capability === "chat" ? "sync_inline" : "worker_queue"),
+      },
       protocolOverride: existingModel?.protocolOverride || "",
     };
     if (existingModel) {
@@ -953,6 +958,10 @@ export function ApiSettingsPanel({
                     <strong>接入模板</strong>
                     <dl>
                       <div>
+                        <dt>执行模式</dt>
+                        <dd>{assistantResult.executionMode || assistantResult.drafts.model.executionMode || "未标记"}</dd>
+                      </div>
+                      <div>
                         <dt>模板</dt>
                         <dd>{assistantResult.chainTemplate || "未标记"}</dd>
                       </div>
@@ -989,6 +998,10 @@ export function ApiSettingsPanel({
                       <div>
                         <dt>能力</dt>
                         <dd>{assistantResult.drafts.model.capability || "video"}</dd>
+                      </div>
+                      <div>
+                        <dt>执行模式</dt>
+                        <dd>{assistantResult.drafts.model.executionMode || assistantResult.executionMode || "未建议"}</dd>
                       </div>
                       <div>
                         <dt>输入</dt>

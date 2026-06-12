@@ -48,6 +48,7 @@
     "verify:provider-generation-web-task-consumption": "node scripts/verify-provider-generation-web-task-consumption.mjs",
     "verify:provider-generation-task-service": "node scripts/verify-provider-generation-task-service.mjs",
     "verify:provider-generation-worker": "node scripts/verify-provider-generation-worker.mjs",
+    "verify:provider-generation-admin-contract": "node scripts/verify-provider-generation-admin-contract.mjs",
     "verify:provider-file-access-contract": "npx tsx scripts/verify-provider-file-access-contract.ts",
     "verify:http-session-utils-contract": "npx tsx scripts/verify-http-session-utils-contract.ts",
     "verify:api-sanitizers-contract": "npx tsx scripts/verify-api-sanitizers-contract.ts",
