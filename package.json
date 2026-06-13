@@ -38,6 +38,7 @@
     "verify:auth-session-concurrency": "node scripts/verify-auth-session-concurrency.mjs",
     "verify:phase-a-hardening-contract": "node scripts/verify-phase-a-hardening-contract.mjs",
     "verify:multi-user-isolation": "node scripts/verify-multi-user-isolation.mjs",
+    "verify:release-preflight": "node scripts/capture-release-preflight.mjs",
     "verify:canvas-assistant-chat": "node scripts/verify-canvas-assistant-chat.mjs",
     "verify:canvas-assistant-ui-contract": "node scripts/verify-canvas-assistant-ui-contract.mjs",
     "verify:generation-count-contract": "node scripts/verify-generation-count-contract.mjs",

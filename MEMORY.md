@@ -902,6 +902,16 @@
       - 临时验收数据清理后，计数恢复到 `admin canvas=13/member canvas=0/admin resources=6/member resources=0`
     - 迁移标记已再次确认：
       - `usr-admin` / `usr-member` 的 `canvases`、`resources` 均已存在 `.postgres-migration-complete`
+  - 发布前快照标准化入口已补齐并完成灰度实跑：
+    - 新增脚本：`scripts/capture-release-preflight.mjs`
+    - package 入口：`verify:release-preflight`
+    - Runbook：`ops/release-preflight-snapshot-runbook-2026-06-13.md`
+    - 灰度实跑结果：
+      - `currentReleaseTarget = /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r3-6293798`
+      - `database = xinghuan_canvas_gray`
+      - `counts = users:6 / canvases:13 / assets:6 / tasks:99 / sessions:57`
+      - `api service = active`
+      - `worker service = active`
   - 下一阶段建议：
     - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
     - 建立生产数据备份/回滚/验收清单

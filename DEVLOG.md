@@ -6509,3 +6509,26 @@
   - 下一环节：
     - 推进“生产数据备份 / 回滚 / 放行前快照流程”的标准化
     - 再补“同账号双标签 / 双设备”的版本冲突验收，为 Phase B 做入口
+- `2026-06-13` 发布前快照与回滚基线 Runbook 已落档并通过灰度实跑：
+  - 新增：
+    - `scripts/capture-release-preflight.mjs`
+    - `package.json` 新增 `verify:release-preflight`
+    - `ops/release-preflight-snapshot-runbook-2026-06-13.md`
+  - 灰度服务器实跑结果：
+    - `baseUrl = https://canvas-next.hhh2121.xyz`
+    - `currentReleaseTarget = /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r3-6293798`
+    - `current_database() = xinghuan_canvas_gray`
+    - 计数快照：
+      - `xh_users = 6`
+      - `xh_canvases = 13`
+      - `xh_assets = 6`
+      - `xh_tasks = 99`
+      - `xh_sessions = 57`
+    - 服务状态：
+      - `xinghuan-canvas-next.service = active`
+      - `xinghuan-canvas-next-worker.service = active`
+  - 结论：
+    - 灰度发版前的数据库目标、release 指针、核心数据量和服务状态，已经有统一脚本可以直接采集，不需要再靠临时命令拼接。
+  - 下一步：
+    - 把这份快照作为灰度放行和正式放行的固定前置动作
+    - 再继续推进 Phase B 的同账号双标签版本冲突验收

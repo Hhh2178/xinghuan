@@ -28,6 +28,7 @@
 - 多用户正式化加固验收方案见 `production-multi-user-acceptance-plan-2026-06-13.md`。
 - 多用户正式化实施主方案见 `../docs/production-multi-user-hardening-plan-2026-06-13.md`。
 - Phase A 灰度多用户隔离真实验收记录见 `phase-a-gray-multi-user-acceptance-2026-06-13.md`。
+- 发布前快照与回滚基线 Runbook 见 `release-preflight-snapshot-runbook-2026-06-13.md`。
 
 ## 当前运行态入口
 
@@ -47,6 +48,7 @@
 - `database-target-guard-release-2026-06-13.md`
 - `production-multi-user-acceptance-plan-2026-06-13.md`
 - `phase-a-gray-multi-user-acceptance-2026-06-13.md`
+- `release-preflight-snapshot-runbook-2026-06-13.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`
