@@ -6619,3 +6619,42 @@
   - 结论：
     - 资源库已经具备和画布同级别的 revision 并发防护
     - 本地 file-mode 的 auto-save 行为已与 Postgres 模式对齐，不会再把旧 revision 写回画布快照
+- `2026-06-13` Phase B 第三批后台关键设置 revision 冲突防护已完成灰度验收：
+  - 新增：
+    - `apps/api/db/011_admin_settings_revision.sql`
+    - `scripts/verify-admin-settings-revision-conflict.mjs`
+    - `ops/phase-b-admin-settings-revision-gray-2026-06-13.md`
+  - 后端收口：
+    - `/api/admin/assistant/settings` PATCH 支持 `revision`
+    - `/api/admin/system` GET 返回 `taskQueueSettingsRevision` / `taskQueueSettingsUpdatedAt`
+    - `/api/admin/system` PATCH 支持 `revision`
+    - stale 配置写入统一返回 `409 ADMIN_SETTINGS_REVISION_CONFLICT`
+  - 后台收口：
+    - AI 助手配置保存附带 `revision`
+    - 系统并发配置保存附带 `revision`
+    - 冲突时自动刷新最新配置，并提示管理员基于最新版本重试
+  - 本地验收：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run build:single-port`
+    - `npm run verify:admin-assistant-settings-save-contract`
+    - `npm run verify:admin-api-client-contract`
+    - `npm run verify:admin-readonly-panels-contract`
+  - 灰度发布：
+    - release: `20260613-phase-b-admin-settings-revision-gray-r1`
+    - `current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-admin-settings-revision-gray-r1`
+    - `db:migrate` 应用：`011_admin_settings_revision.sql`
+  - 真实公网灰度验收：
+    - `verify:admin-settings-revision-conflict`
+      - `ok = true`
+      - AI 助手配置 stale save => `409 ADMIN_SETTINGS_REVISION_CONFLICT`
+      - 任务并发配置 stale save => `409 ADMIN_SETTINGS_REVISION_CONFLICT`
+    - `verify:resource-revision-conflict`
+      - `ok = true`
+    - `verify:canvas-revision-conflict`
+      - `ok = true`
+    - `verify:multi-user-isolation`
+      - `ok = true`
+  - 结论：
+    - Phase B 的后台关键设置版本化保存已经完成实链收口
+    - 当前 Phase B 已覆盖画布、资源库、AI 助手配置、任务并发配置四类核心并发写入

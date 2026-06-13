@@ -2,7 +2,7 @@ import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-rea
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
-import { api } from "./admin-api-client";
+import { AdminApiError, api } from "./admin-api-client";
 import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
 import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
@@ -166,6 +166,7 @@ function defaultAssistantSettings(): AssistantSettings {
       strictMode: true,
     },
     updatedAt: Date.now(),
+    revision: 1,
   };
 }
 
@@ -410,7 +411,13 @@ function AdminApp() {
                   });
                   setAssistantSettings(saved);
                 } catch (nextError) {
-                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                  if (nextError instanceof AdminApiError && nextError.code === "ADMIN_SETTINGS_REVISION_CONFLICT") {
+                    const latestSettings = await api<AssistantSettings>("/api/admin/assistant/settings");
+                    setAssistantSettings(latestSettings);
+                    setError("AI 助手配置已在其他页面更新，已刷新为最新版本，请重新确认后再保存。");
+                  } else {
+                    setError(nextError instanceof Error ? nextError.message : String(nextError));
+                  }
                 } finally {
                   setBusy(false);
                 }
@@ -427,18 +434,24 @@ function AdminApp() {
             <SystemPanel
               system={system}
               saving={busy}
-              onSave={async (taskQueueSettings) => {
+              onSave={async ({ taskQueueSettings, revision }) => {
                 setBusy(true);
                 setError("");
                 try {
                   await api("/api/admin/system", {
                     method: "PATCH",
                     headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ taskQueueSettings }),
+                    body: JSON.stringify({ taskQueueSettings, revision }),
                   });
                   await loadAdminData();
                 } catch (nextError) {
-                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                  if (nextError instanceof AdminApiError && nextError.code === "ADMIN_SETTINGS_REVISION_CONFLICT") {
+                    const latestSystem = await api<SystemInfo>("/api/admin/system");
+                    setSystem(latestSystem);
+                    setError("任务并发配置已在其他页面更新，已刷新为最新版本，请重新确认后再保存。");
+                  } else {
+                    setError(nextError instanceof Error ? nextError.message : String(nextError));
+                  }
                 } finally {
                   setBusy(false);
                 }

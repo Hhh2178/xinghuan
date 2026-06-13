@@ -222,6 +222,8 @@ export interface SystemInfo {
     error: string;
   };
   taskQueueSettings: TaskQueueSettings;
+  taskQueueSettingsRevision: number;
+  taskQueueSettingsUpdatedAt: number;
   authDbPath: string;
   adminDbPath: string;
   service: string;
@@ -373,12 +375,14 @@ export interface AssistantSettings {
   backend: AssistantBackendSettings;
   integration: AssistantIntegrationSettings;
   updatedAt: number;
+  revision: number;
 }
 
 export interface PublicAssistantSettings {
   frontend: AssistantFrontendSettings;
   integration: AssistantIntegrationSettings;
   updatedAt: number;
+  revision: number;
 }
 
 export type ConfirmAction = {

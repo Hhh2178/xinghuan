@@ -26,7 +26,7 @@ export function SystemPanel({
 }: {
   system: SystemInfo | null;
   saving?: boolean;
-  onSave?: (settings: SystemInfo["taskQueueSettings"]) => Promise<void>;
+  onSave?: (payload: { taskQueueSettings: SystemInfo["taskQueueSettings"]; revision: number }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<SystemInfo["taskQueueSettings"] | null>(system?.taskQueueSettings ?? null);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +49,8 @@ export function SystemPanel({
     ["按类别并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.concurrency}`).join(" / ") || "-"],
     ["按类别深度", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
     ["Redis 错误", system?.redis?.error || "-"],
+    ["配置版本", String(system?.taskQueueSettingsRevision ?? 1)],
+    ["最近更新", system?.taskQueueSettingsUpdatedAt ? new Date(system.taskQueueSettingsUpdatedAt).toLocaleString() : "-"],
     ["数据目录", system?.dataDir || "-"],
     ["认证数据", system?.authDbPath || "-"],
     ["后台数据", system?.adminDbPath || "-"],
@@ -115,7 +117,10 @@ export function SystemPanel({
               if (!onSave || !values) return;
               setSubmitting(true);
               try {
-                await onSave(values);
+                await onSave({
+                  taskQueueSettings: values,
+                  revision: system?.taskQueueSettingsRevision ?? 1,
+                });
               } finally {
                 setSubmitting(false);
               }

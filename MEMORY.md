@@ -953,3 +953,23 @@
     - `verify-resource-revision-conflict = ok`
     - `verify-canvas-revision-conflict = ok`
     - `verify-multi-user-isolation = ok`
+- `2026-06-13` Phase B 后台关键设置 revision 防护：
+  - 数据库与接口：
+    - `xh_assistant_settings.revision`
+    - `xh_system_settings.revision`
+    - `/api/admin/assistant/settings` PATCH 必须携带 `revision`
+    - `/api/admin/system` PATCH 必须携带 `revision`
+    - stale 配置写入统一返回 `409 ADMIN_SETTINGS_REVISION_CONFLICT`
+  - 后台前端要求：
+    - AI 助手配置草稿保存失败时，不能只提示失败，必须回拉最新配置并提示管理员基于最新版本重试
+    - 任务并发配置保存失败时，也必须回拉最新系统配置，避免管理员继续基于旧页面覆盖
+    - `/api/admin/system` GET 需要返回 `taskQueueSettingsRevision` 和 `taskQueueSettingsUpdatedAt`
+  - 当前灰度 release：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-admin-settings-revision-gray-r1`
+  - 当前灰度验收：
+    - `verify-admin-settings-revision-conflict = ok`
+    - `verify-resource-revision-conflict = ok`
+    - `verify-canvas-revision-conflict = ok`
+    - `verify-multi-user-isolation = ok`
+  - 结论：
+    - Phase B 目前已经把后台关键设置纳入 revision 模型，灰度实链可视为完成收口

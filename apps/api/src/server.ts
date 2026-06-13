@@ -387,11 +387,14 @@ interface AdminDb {
   auditLogs?: AdminAuditRecord[];
   assistantSettings?: AssistantSettingsRecord;
   taskQueueSettings?: TaskQueueSettings;
+  taskQueueSettingsRevision?: number;
+  taskQueueSettingsUpdatedAt?: number;
 }
 
 interface SystemSettingsRecord {
   taskQueueSettings: TaskQueueSettings;
   updatedAt: number;
+  revision: number;
 }
 
 interface AdminAuditRecord {
@@ -445,6 +448,7 @@ interface AssistantSettingsRecord {
   backend: AssistantBackendSettingsRecord;
   integration: AssistantIntegrationSettingsRecord;
   updatedAt: number;
+  revision: number;
 }
 
 interface AssistantAnalyzeRequest {
@@ -1944,6 +1948,8 @@ async function handleAdminRequest(
       database: await readDatabaseStatus(),
       redis: await readRedisStatus(taskQueueSettingsRecord.taskQueueSettings),
       taskQueueSettings: taskQueueSettingsRecord.taskQueueSettings,
+      taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
+      taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,
       storageDriver,
       authDbPath,
       adminDbPath,
@@ -1955,15 +1961,21 @@ async function handleAdminRequest(
   }
 
   if (url.pathname === "/api/admin/system" && request.method === "PATCH") {
-    const body = await readJsonBody<{ taskQueueSettings?: Partial<Record<TaskQueueCapability, { concurrency?: number }>> }>(request);
+    const body = await readJsonBody<{
+      taskQueueSettings?: Partial<Record<TaskQueueCapability, { concurrency?: number }>>;
+      revision?: number;
+    }>(request);
     const current = await readTaskQueueSettingsRecord();
     const saved = await writeTaskQueueSettingsRecord(
       normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
+      adminSettingsRevisionFromPayload(body),
     );
     await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置");
     sendT8(response, {
       ok: true,
       taskQueueSettings: saved.taskQueueSettings,
+      revision: saved.revision,
+      updatedAt: saved.updatedAt,
     });
     return true;
   }
@@ -1998,9 +2010,9 @@ async function handleAdminRequest(
       const body = await readJsonBody<Partial<AssistantSettingsRecord>>(request);
       const db = await readAdminDb();
       const settings = normalizeAssistantSettings(body, db.assistantSettings || defaultAssistantSettings());
-      await writeAssistantSettingsRecord(settings);
+      const saved = await writeAssistantSettingsRecord(settings, adminSettingsRevisionFromPayload(body));
       await appendAudit(adminUser, "assistant.settings.update", "assistant", "assistant-settings", "更新 AI 助手接入与显示设置");
-      sendT8(response, maskAssistantEndpoint(settings));
+      sendT8(response, maskAssistantEndpoint(saved));
       return true;
     }
   }
@@ -2474,6 +2486,14 @@ function resourceRevisionFromPayload(value: unknown): number | undefined {
   return Number.isFinite(revision) && revision > 0 ? Math.floor(revision) : undefined;
 }
 
+function adminSettingsRevisionFromPayload(value: unknown): number | undefined {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+  const revision = Number(source?.revision);
+  return Number.isFinite(revision) && revision > 0 ? Math.floor(revision) : undefined;
+}
+
 function normalizeCanvasData(value: unknown): CanvasData {
   const data = (value && typeof value === "object" ? value : {}) as Partial<CanvasData>;
   return {
@@ -2546,10 +2566,19 @@ async function readAdminDb(): Promise<AdminDb> {
     auditLogs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
     assistantSettings: normalizeAssistantSettings(db.assistantSettings),
     taskQueueSettings: normalizeTaskQueueSettings(db.taskQueueSettings),
+    taskQueueSettingsRevision: Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
+      ? Math.floor(Number(db.taskQueueSettingsRevision))
+      : 1,
+    taskQueueSettingsUpdatedAt: Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
+      ? Number(db.taskQueueSettingsUpdatedAt)
+      : Date.now(),
   };
   const modelMigrated = Array.isArray(db.models) && db.models.some((model, index) => normalizedDb.models[index] !== model);
   const assistantMigrated = normalizedDb.assistantSettings !== db.assistantSettings;
-  const taskQueueMigrated = normalizedDb.taskQueueSettings !== db.taskQueueSettings;
+  const taskQueueMigrated =
+    normalizedDb.taskQueueSettings !== db.taskQueueSettings ||
+    normalizedDb.taskQueueSettingsRevision !== db.taskQueueSettingsRevision ||
+    normalizedDb.taskQueueSettingsUpdatedAt !== db.taskQueueSettingsUpdatedAt;
   const visibleSanitized = sanitizeAdminDbVisibleText(normalizedDb);
   if (!usePostgresRepository() && (secretMigrated || modelMigrated || assistantMigrated || taskQueueMigrated || visibleSanitized.changed)) {
     await writeAdminDb(visibleSanitized.db);
@@ -2569,26 +2598,43 @@ async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: 
   await writeFile(adminDbPath, JSON.stringify(db, null, 2), "utf-8");
 }
 
-async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord) {
+async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord, expectedRevision?: number) {
   const normalized = normalizeAssistantSettings(settings);
   if (usePostgresRepository()) {
-    await writeAssistantSettingsRecordPostgres(normalized);
-    return;
+    return writeAssistantSettingsRecordPostgres(normalized, expectedRevision);
   }
   const db = await readAdminDb();
+  const current = normalizeAssistantSettings(db.assistantSettings);
+  if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
+      settingsKey: "assistant",
+      currentRevision: current.revision,
+    });
+  }
+  const nextRevision = current.revision + 1;
+  const updatedAt = Date.now();
   await ensureDataDirs();
   await writeFile(
     adminDbPath,
     JSON.stringify(
       {
         ...db,
-        assistantSettings: normalized,
+        assistantSettings: {
+          ...normalized,
+          revision: nextRevision,
+          updatedAt,
+        },
       },
       null,
       2,
     ),
     "utf-8",
   );
+  return {
+    ...normalized,
+    revision: nextRevision,
+    updatedAt,
+  };
 }
 
 function usePostgresRepository() {
@@ -2806,8 +2852,8 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
     pool.query(
       "select id, actor_id, actor_email, action, target_type, target_id, summary, created_at from xh_audit_logs order by created_at desc limit 500",
     ),
-    pool.query("select id, frontend, backend, integration, updated_at from xh_assistant_settings where id = 'default' limit 1"),
-    pool.query("select id, task_queue_settings, updated_at from xh_system_settings where id = 'default' limit 1"),
+    pool.query("select id, frontend, backend, integration, revision, updated_at from xh_assistant_settings where id = 'default' limit 1"),
+    pool.query("select id, task_queue_settings, revision, updated_at from xh_system_settings where id = 'default' limit 1"),
   ]);
   const db: AdminDb = {
     providers: providersResult.rows.map((row) =>
@@ -2878,6 +2924,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
             frontend: plainObject(assistantSettingsResult.rows[0].frontend),
             backend: plainObject(assistantSettingsResult.rows[0].backend),
             integration: plainObject(assistantSettingsResult.rows[0].integration),
+            revision: Number(assistantSettingsResult.rows[0].revision) || 1,
             updatedAt: assistantSettingsResult.rows[0].updated_at
               ? dateToMillis(assistantSettingsResult.rows[0].updated_at)
               : Date.now(),
@@ -2889,6 +2936,10 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         ? plainObject(systemSettingsResult.rows[0].task_queue_settings)
         : undefined,
     ),
+    taskQueueSettingsRevision: Number(systemSettingsResult.rows[0]?.revision) || 1,
+    taskQueueSettingsUpdatedAt: systemSettingsResult.rows[0]?.updated_at
+      ? dateToMillis(systemSettingsResult.rows[0].updated_at)
+      : Date.now(),
   };
   if (db.providers.length === 0 && db.models.length === 0 && db.tasks.length === 0) {
     const seeded = defaultAdminDb();
@@ -2997,24 +3048,32 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
     }
     const assistantSettings = normalizeAssistantSettings(db.assistantSettings);
     await client.query(
-      `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
-       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)`,
+      `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
+       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)`,
       [
         "default",
         JSON.stringify(assistantSettings.frontend),
         JSON.stringify(assistantSettings.backend),
         JSON.stringify(assistantSettings.integration),
+        Number.isFinite(assistantSettings.revision) && assistantSettings.revision > 0 ? Math.floor(assistantSettings.revision) : 1,
         millisToDate(assistantSettings.updatedAt),
       ],
     );
     const taskQueueSettings = normalizeTaskQueueSettings(db.taskQueueSettings);
     await client.query(
-      `insert into xh_system_settings (id, task_queue_settings, updated_at)
-       values ($1, $2::jsonb, $3)`,
+      `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
+       values ($1, $2::jsonb, $3, $4)`,
       [
         "default",
         JSON.stringify(taskQueueSettings),
-        millisToDate(Date.now()),
+        Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
+          ? Math.floor(Number(db.taskQueueSettingsRevision))
+          : 1,
+        millisToDate(
+          Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
+            ? Number(db.taskQueueSettingsUpdatedAt)
+            : Date.now(),
+        ),
       ],
     );
     await client.query("commit");
@@ -3103,26 +3162,34 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
     }
     const assistantSettings = normalizeAssistantSettings(db.assistantSettings);
     await client.query(
-      `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
-       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)
+      `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
+       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)
        on conflict (id) do nothing`,
       [
         "default",
         JSON.stringify(assistantSettings.frontend),
         JSON.stringify(assistantSettings.backend),
         JSON.stringify(assistantSettings.integration),
+        Number.isFinite(assistantSettings.revision) && assistantSettings.revision > 0 ? Math.floor(assistantSettings.revision) : 1,
         millisToDate(assistantSettings.updatedAt),
       ],
     );
     const taskQueueSettings = normalizeTaskQueueSettings(db.taskQueueSettings);
     await client.query(
-      `insert into xh_system_settings (id, task_queue_settings, updated_at)
-       values ($1, $2::jsonb, $3)
+      `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
+       values ($1, $2::jsonb, $3, $4)
        on conflict (id) do nothing`,
       [
         "default",
         JSON.stringify(taskQueueSettings),
-        millisToDate(Date.now()),
+        Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
+          ? Math.floor(Number(db.taskQueueSettingsRevision))
+          : 1,
+        millisToDate(
+          Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
+            ? Number(db.taskQueueSettingsUpdatedAt)
+            : Date.now(),
+        ),
       ],
     );
     await client.query("commit");
@@ -3279,25 +3346,42 @@ async function deleteModelRecordPostgres(modelId: string) {
   await pool.query("delete from xh_models where id = $1", [modelId]);
 }
 
-async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord) {
+async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord, expectedRevision?: number) {
   const pool = await getPostgresPool();
   const normalized = normalizeAssistantSettings(settings);
+  const currentResult = await pool.query("select revision from xh_assistant_settings where id = 'default' limit 1");
+  const currentRevision = Number(currentResult.rows[0]?.revision) || 1;
+  if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
+      settingsKey: "assistant",
+      currentRevision,
+    });
+  }
+  const nextRevision = currentResult.rows[0] ? currentRevision + 1 : currentRevision;
+  const updatedAt = Date.now();
   await pool.query(
-    `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
-     values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)
+    `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
+     values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)
      on conflict (id) do update set
        frontend = excluded.frontend,
        backend = excluded.backend,
        integration = excluded.integration,
+       revision = excluded.revision,
        updated_at = excluded.updated_at`,
     [
       "default",
       JSON.stringify(normalized.frontend),
       JSON.stringify(normalized.backend),
       JSON.stringify(normalized.integration),
-      millisToDate(normalized.updatedAt),
+      nextRevision,
+      millisToDate(updatedAt),
     ],
   );
+  return {
+    ...normalized,
+    revision: nextRevision,
+    updatedAt,
+  };
 }
 
 async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
@@ -3307,48 +3391,79 @@ async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
   const db = await readAdminDb();
   return {
     taskQueueSettings: normalizeTaskQueueSettings(db.taskQueueSettings),
-    updatedAt: Date.now(),
+    updatedAt: Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
+      ? Number(db.taskQueueSettingsUpdatedAt)
+      : Date.now(),
+    revision: Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
+      ? Math.floor(Number(db.taskQueueSettingsRevision))
+      : 1,
   };
 }
 
 async function readTaskQueueSettingsRecordPostgres(): Promise<SystemSettingsRecord> {
   const pool = await getPostgresPool();
-  const result = await pool.query("select task_queue_settings, updated_at from xh_system_settings where id = 'default' limit 1");
+  const result = await pool.query("select task_queue_settings, revision, updated_at from xh_system_settings where id = 'default' limit 1");
   if (!result.rows[0]) {
     return {
       taskQueueSettings: defaultTaskQueueSettings(),
       updatedAt: Date.now(),
+      revision: 1,
     };
   }
   return {
     taskQueueSettings: normalizeTaskQueueSettings(plainObject(result.rows[0].task_queue_settings)),
     updatedAt: result.rows[0].updated_at ? dateToMillis(result.rows[0].updated_at) : Date.now(),
+    revision: Number(result.rows[0].revision) || 1,
   };
 }
 
-async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings): Promise<SystemSettingsRecord> {
+async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings, expectedRevision?: number): Promise<SystemSettingsRecord> {
   const normalized = normalizeTaskQueueSettings(taskQueueSettings);
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
+    const currentResult = await pool.query("select revision from xh_system_settings where id = 'default' limit 1");
+    const currentRevision = Number(currentResult.rows[0]?.revision) || 1;
+    if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+      throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
+        settingsKey: "task-queue",
+        currentRevision,
+      });
+    }
+    const nextRevision = currentResult.rows[0] ? currentRevision + 1 : currentRevision;
     const updatedAt = Date.now();
     await pool.query(
-      `insert into xh_system_settings (id, task_queue_settings, updated_at)
-       values ($1, $2::jsonb, $3)
+      `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
+       values ($1, $2::jsonb, $3, $4)
        on conflict (id) do update set
          task_queue_settings = excluded.task_queue_settings,
+         revision = excluded.revision,
          updated_at = excluded.updated_at`,
-      ["default", JSON.stringify(normalized), millisToDate(updatedAt)],
+      ["default", JSON.stringify(normalized), nextRevision, millisToDate(updatedAt)],
     );
-    return { taskQueueSettings: normalized, updatedAt };
+    return { taskQueueSettings: normalized, updatedAt, revision: nextRevision };
   }
   const db = await readAdminDb();
+  const currentRevision = Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
+    ? Math.floor(Number(db.taskQueueSettingsRevision))
+    : 1;
+  if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
+      settingsKey: "task-queue",
+      currentRevision,
+    });
+  }
+  const nextRevision = currentRevision + 1;
+  const updatedAt = Date.now();
   await writeAdminDb({
     ...db,
     taskQueueSettings: normalized,
+    taskQueueSettingsRevision: nextRevision,
+    taskQueueSettingsUpdatedAt: updatedAt,
   });
   return {
     taskQueueSettings: normalized,
-    updatedAt: Date.now(),
+    updatedAt,
+    revision: nextRevision,
   };
 }
 
@@ -4094,6 +4209,8 @@ function defaultAdminDb(): AdminDb {
     auditLogs: [],
     assistantSettings: defaultAssistantSettings(),
     taskQueueSettings: defaultTaskQueueSettings(),
+    taskQueueSettingsRevision: 1,
+    taskQueueSettingsUpdatedAt: now,
   };
 }
 
@@ -4133,6 +4250,7 @@ function defaultAssistantSettings(): AssistantSettingsRecord {
       strictMode: true,
     },
     updatedAt: Date.now(),
+    revision: 1,
   };
 }
 
@@ -4154,6 +4272,7 @@ function toPublicAssistantSettings(settings: AssistantSettingsRecord) {
       endpoint: settings.integration.endpointConfigured ? "已配置（服务器内地址已隐藏）" : "",
     },
     updatedAt: settings.updatedAt,
+    revision: settings.revision,
   };
 }
 
@@ -4241,6 +4360,9 @@ function normalizeAssistantSettings(
       strictMode: booleanValue(integrationSource.strictMode, base.integration.strictMode),
     },
     updatedAt: Number.isFinite(source.updatedAt) ? Number(source.updatedAt) : Date.now(),
+    revision: Number.isFinite(source.revision) && Number(source.revision) > 0
+      ? Math.floor(Number(source.revision))
+      : (Number.isFinite(base.revision) && base.revision > 0 ? Math.floor(base.revision) : 1),
   };
 }
 

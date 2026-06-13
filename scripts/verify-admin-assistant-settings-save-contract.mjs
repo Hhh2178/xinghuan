@@ -31,7 +31,7 @@ async function main() {
     ],
     [
       "Assistant settings PATCH uses targeted settings writer",
-      /await writeAssistantSettingsRecord\(settings\)/.test(settingsRoute),
+      /await writeAssistantSettingsRecord\(settings,\s*adminSettingsRevisionFromPayload\(body\)\)/.test(settingsRoute),
     ],
     [
       "Assistant settings PATCH does not rewrite the full admin database",
@@ -50,7 +50,12 @@ async function main() {
       "File assistant settings writer preserves the rest of admin.json",
       /adminDbPath/.test(storageWriter) &&
         /\.\.\.db/.test(storageWriter) &&
-        /assistantSettings:\s*normalized/.test(storageWriter),
+        /assistantSettings:\s*\{/.test(storageWriter),
+    ],
+    [
+      "Assistant settings writer supports revision conflict protection",
+      /ADMIN_SETTINGS_REVISION_CONFLICT/.test(storageWriter) &&
+        /expectedRevision/.test(storageWriter),
     ],
     [
       "Assistant settings panel keeps local draft state instead of saving on every keystroke",
