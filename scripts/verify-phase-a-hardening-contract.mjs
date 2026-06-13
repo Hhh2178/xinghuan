@@ -73,6 +73,14 @@ const checks = [
       /async function bootstrapDefaultAdminDbPostgres\(db: AdminDb\)/i.test(api) &&
       /async function bootstrapDefaultAdminDbPostgres[\s\S]*on conflict \(id\) do nothing/i.test(api),
   ],
+  [
+    "Canvas and resource postgres reads honor one-time migration markers",
+    /canvasPostgresMigrationMarkerPath/.test(api) &&
+      /resourcePostgresMigrationMarkerPath/.test(api) &&
+      /async function hasRepositoryMigrationMarker/.test(api) &&
+      /await hasRepositoryMigrationMarker\(dirs\.canvasPostgresMigrationMarkerPath\)/.test(api) &&
+      /await hasRepositoryMigrationMarker\(dirs\.resourcePostgresMigrationMarkerPath\)/.test(api),
+  ],
 ];
 
 let failed = false;

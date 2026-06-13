@@ -2006,7 +2006,9 @@ function userDataDirsForId(userId: string) {
     outputDir,
     resourceDir,
     canvasListPath: join(canvasDir, "canvas-list.json"),
+    canvasPostgresMigrationMarkerPath: join(canvasDir, ".postgres-migration-complete"),
     resourceDbPath: join(resourceDir, "resource-library.json"),
+    resourcePostgresMigrationMarkerPath: join(resourceDir, ".postgres-migration-complete"),
     generationLibraryDbPath: join(resourceDir, "generation-library.json"),
   };
 }
@@ -2046,6 +2048,19 @@ async function readCanvasListFromFile(user: CurrentUser): Promise<CanvasListItem
   }
 }
 
+async function hasRepositoryMigrationMarker(path: string) {
+  try {
+    const info = await stat(path);
+    return info.isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function markRepositoryMigrationComplete(path: string) {
+  await writeFile(path, JSON.stringify({ completedAt: new Date().toISOString() }, null, 2), "utf-8");
+}
+
 async function readCanvasDataFromFile(id: string, user: CurrentUser): Promise<CanvasData> {
   await ensureDataDirs(user);
   try {
@@ -2062,12 +2077,19 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
       "select id, name, node_count, created_at, updated_at from xh_canvases where owner_id = $1 order by updated_at desc, created_at desc",
       [user.id],
     );
-    if (result.rows.length > 0) return result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
+    const dirs = userDataDirs(user);
+    if (result.rows.length > 0) {
+      await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
+      return result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
+    }
+    if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) return [];
     const fileList = await readCanvasListFromFile(user);
     if (fileList.length > 0) {
       await writeCanvasList(fileList, user, { pruneMissing: true });
+      await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
       return fileList;
     }
+    await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
     return [];
   }
   return readCanvasListFromFile(user);
@@ -2122,6 +2144,7 @@ async function writeCanvasList(
         }
       }
       await client.query("commit");
+      await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
       return;
     } catch (error) {
       await client.query("rollback").catch(() => undefined);
@@ -2138,16 +2161,25 @@ async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query("select data from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
-    if (result.rows[0]) return normalizeCanvasData(result.rows[0].data);
+    const dirs = userDataDirs(user);
+    if (result.rows[0]) {
+      await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
+      return normalizeCanvasData(result.rows[0].data);
+    }
     const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
     if (foreign.rows[0]) {
       throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
     }
+    if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) {
+      return emptyCanvasData();
+    }
     const fileData = await readCanvasDataFromFile(id, user);
     if (fileData.nodes.length > 0 || fileData.edges.length > 0 || fileData.nextNodeSerialId !== 1) {
       await writeCanvasData(id, fileData, user);
+      await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
       return fileData;
     }
+    await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
     return emptyCanvasData();
   }
   return readCanvasDataFromFile(id, user);
@@ -2190,6 +2222,7 @@ async function writeCanvasData(
           millisToDate(now),
         ],
       );
+      await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
     } else {
       await pool.query(
         `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
@@ -2204,6 +2237,7 @@ async function writeCanvasData(
           millisToDate(now),
         ],
       );
+      await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
     }
     return;
   }
@@ -2240,7 +2274,10 @@ async function deleteCanvasRecord(id: string, user: CurrentUser) {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query("delete from xh_canvases where id = $1 and owner_id = $2 returning id", [id, user.id]);
-    if (result.rows[0]) return;
+    if (result.rows[0]) {
+      await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
+      return;
+    }
     const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
     if (foreign.rows[0]) throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
     return;
@@ -6519,17 +6556,27 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
         [user.id],
       ),
     ]);
+    const dirs = userDataDirs(user);
     if (categoriesResult.rows.length > 0 || itemsResult.rows.length > 0) {
+      await markRepositoryMigrationComplete(dirs.resourcePostgresMigrationMarkerPath);
       return {
         categories: categoriesResult.rows.map((row) => toResourceCategory(row)),
         items: itemsResult.rows.map((row) => toResourceItem(row)),
       };
     }
+    if (await hasRepositoryMigrationMarker(dirs.resourcePostgresMigrationMarkerPath)) {
+      return {
+        categories: [],
+        items: [],
+      };
+    }
     const fileDb = await readResourceDbFromFile(user);
     if (fileDb.categories.length > 0 || fileDb.items.length > 0) {
       await writeResourceDb(fileDb, user, { pruneMissing: true });
+      await markRepositoryMigrationComplete(dirs.resourcePostgresMigrationMarkerPath);
       return fileDb;
     }
+    await markRepositoryMigrationComplete(dirs.resourcePostgresMigrationMarkerPath);
     return {
       categories: [],
       items: [],
@@ -6624,6 +6671,7 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
         if (upsertedItem.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
       }
       await client.query("commit");
+      await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
       return;
     } catch (error) {
       await client.query("rollback").catch(() => undefined);
@@ -6656,6 +6704,7 @@ async function upsertResourceCategoryPostgres(category: ResourceCategory, user: 
     ],
   );
   if (result.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
+  await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
   return category;
 }
 
@@ -6677,6 +6726,7 @@ async function updateResourceCategoryPostgres(id: string, name: string, user: Cu
 async function deleteResourceCategoryPostgres(id: string, user: CurrentUser) {
   const pool = await getPostgresPool();
   await pool.query("delete from xh_resource_categories where id = $1 and owner_id = $2", [id, user.id]);
+  await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
 }
 
 async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser) {
@@ -6715,6 +6765,7 @@ async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser)
     ],
   );
   if (result.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
+  await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
   return item;
 }
 
@@ -6743,6 +6794,7 @@ async function updateResourceItemPostgres(id: string, patch: Partial<ResourceIte
 async function deleteResourceItemPostgres(id: string, user: CurrentUser) {
   const pool = await getPostgresPool();
   await pool.query("delete from xh_assets where id = $1 and owner_id = $2", [id, user.id]);
+  await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
 }
 
 async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKind?: ResourceKind) {
