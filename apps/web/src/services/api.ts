@@ -539,7 +539,15 @@ export interface AddRHToolPayload {
 }
 
 export type OkData<T> = { success: true; data: T };
-export type ErrData = { success: false; error: string };
+export type ErrData = {
+  success: false;
+  error: string;
+  status?: number;
+  currentRevision?: number;
+  resourceKind?: string;
+  resourceId?: string;
+  [key: string]: unknown;
+};
 export type Result<T> = OkData<T> | ErrData;
 
 async function safeRequest<T>(url: string, init?: RequestInit): Promise<Result<T>> {
@@ -549,7 +557,14 @@ async function safeRequest<T>(url: string, init?: RequestInit): Promise<Result<T
       ...init,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) return { success: false, error: json.error || `HTTP ${res.status}` };
+    if (!res.ok) {
+      return {
+        success: false,
+        ...(json && typeof json === 'object' ? json : {}),
+        status: res.status,
+        error: json?.error || `HTTP ${res.status}`,
+      };
+    }
     if (json && typeof json === 'object' && 'success' in json) return json as Result<T>;
     return { success: true, data: json as T };
   } catch (e: any) {
@@ -636,7 +651,9 @@ export interface ResourceCategory {
   name: string;
   order: number;
   system?: boolean;
+  revision: number;
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface ResourceItem {
@@ -679,6 +696,7 @@ export interface ResourceItem {
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;
+  revision: number;
 }
 
 export interface AddResourceSetPayload {
@@ -743,16 +761,17 @@ export function addResourceCategory(kind: ResourceKind, name: string) {
   });
 }
 
-export function renameResourceCategory(id: string, name: string) {
+export function renameResourceCategory(id: string, name: string, revision?: number) {
   return safeRequest<ResourceCategory>(`${BASE}/resources/categories/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, ...(revision ? { revision } : {}) }),
   });
 }
 
-export function deleteResourceCategory(id: string) {
+export function deleteResourceCategory(id: string, revision?: number) {
   return safeRequest<{ movedTo: string }>(`${BASE}/resources/categories/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+    body: JSON.stringify(revision ? { revision } : {}),
   });
 }
 
@@ -799,16 +818,20 @@ export function addResourceWorkflow(payload: AddResourceWorkflowPayload) {
   });
 }
 
-export function updateResourceItem(id: string, patch: Partial<Pick<ResourceItem, 'title' | 'categoryId' | 'tags' | 'favorite'>> & { touch?: boolean }) {
+export function updateResourceItem(
+  id: string,
+  patch: Partial<Pick<ResourceItem, 'title' | 'categoryId' | 'tags' | 'favorite'>> & { touch?: boolean; revision?: number },
+) {
   return safeRequest<ResourceItem>(`${BASE}/resources/items/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(patch),
   });
 }
 
-export function deleteResourceItem(id: string) {
+export function deleteResourceItem(id: string, revision?: number) {
   return safeRequest<void>(`${BASE}/resources/items/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+    body: JSON.stringify(revision ? { revision } : {}),
   });
 }
 

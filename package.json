@@ -40,6 +40,7 @@
     "verify:multi-user-isolation": "node scripts/verify-multi-user-isolation.mjs",
     "verify:release-preflight": "node scripts/capture-release-preflight.mjs",
     "verify:canvas-revision-conflict": "node scripts/verify-canvas-revision-conflict.mjs",
+    "verify:resource-revision-conflict": "node scripts/verify-resource-revision-conflict.mjs",
     "verify:canvas-assistant-chat": "node scripts/verify-canvas-assistant-chat.mjs",
     "verify:canvas-assistant-ui-contract": "node scripts/verify-canvas-assistant-ui-contract.mjs",
     "verify:generation-count-contract": "node scripts/verify-generation-count-contract.mjs",

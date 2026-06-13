@@ -229,31 +229,76 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
     }
   };
 
+  const handleResourceMutationError = useCallback(
+    async <T,>(result: api.Result<T>, fallbackMessage: string) => {
+      if (result.success) return false;
+      if (result.error === 'RESOURCE_REVISION_CONFLICT') {
+        setMsg('资源库内容已在其他页面更新，已自动刷新，请基于最新状态重试');
+        await load({ silent: true });
+        return true;
+      }
+      setMsg(result.error || fallbackMessage);
+      return false;
+    },
+    [load],
+  );
+
   const renameCategory = async (cat: ResourceCategory) => {
     if (cat.system) return;
-    const name = window.prompt('重命名分类', cat.name);
-    if (!name?.trim() || name.trim() === cat.name) return;
-    const r = await api.renameResourceCategory(cat.id, name.trim());
-    setMsg(r.success ? '分类已重命名' : r.error || '分类重命名失败');
+    const nextName = window.prompt('重命名分类', cat.name);
+    if (!nextName?.trim() || nextName.trim() === cat.name) return;
+    const result = await api.renameResourceCategory(cat.id, nextName.trim(), cat.revision);
+    if (result.success) {
+      setMsg('分类已重命名');
+      await load({ silent: true });
+      return;
+    }
+    await handleResourceMutationError(result, '分类重命名失败');
+    return;
+    if (cat.system) return;
+    const legacyName = window.prompt('重命名分类', cat.name);
+    const legacyNameText = legacyName?.trim();
+    if (!legacyNameText || legacyNameText === cat.name) return;
+    const r = await api.renameResourceCategory(cat.id, legacyNameText || '');
+    setMsg(r.success ? '分类已重命名' : (r as api.ErrData).error || '分类重命名失败');
     await load();
   };
 
   const removeCategory = async (cat: ResourceCategory) => {
     if (cat.system) return;
+    if (!window.confirm(`删除分类“${cat.name}”？该分类内资源会移动到未分类。`)) return;
+    const result = await api.deleteResourceCategory(cat.id, cat.revision);
+    if (result.success) {
+      setMsg('分类已删除');
+      if (categoryId === cat.id) setCategoryId('all');
+      await load({ silent: true });
+      return;
+    }
+    await handleResourceMutationError(result, '分类删除失败');
+    return;
+    if (cat.system) return;
     if (!window.confirm(`删除分类「${cat.name}」？该分类内资源会移动到未分类。`)) return;
     const r = await api.deleteResourceCategory(cat.id);
-    setMsg(r.success ? '分类已删除' : r.error || '分类删除失败');
+    setMsg(r.success ? '分类已删除' : (r as api.ErrData).error || '分类删除失败');
     if (categoryId === cat.id) setCategoryId('all');
     await load();
   };
 
   const updateItem = async (item: ResourceItem, patch: Parameters<typeof api.updateResourceItem>[1]) => {
+    const result = await api.updateResourceItem(item.id, { ...patch, revision: item.revision });
+    if (result.success) {
+      setItems((prev) => prev.map((x) => (x.id === item.id ? result.data : x)));
+      window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+      return true;
+    }
+    await handleResourceMutationError(result, '资源更新失败');
+    return false;
     const r = await api.updateResourceItem(item.id, patch);
     if (r.success) {
-      setItems((prev) => prev.map((x) => (x.id === item.id ? r.data : x)));
+      setItems((prev) => prev.map((x) => (x.id === item.id ? (r.data as ResourceItem) : x)));
       window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
     } else {
-      setMsg(r.error || '资源更新失败');
+      setMsg((r as api.ErrData).error || '资源更新失败');
     }
   };
 
@@ -264,6 +309,16 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   };
 
   const deleteItem = async (item: ResourceItem) => {
+    if (!window.confirm(`从资源库删除“${item.title}”？`)) return;
+    const result = await api.deleteResourceItem(item.id, item.revision);
+    if (result.success) {
+      setItems((prev) => prev.filter((x) => x.id !== item.id));
+      setMsg('资源已删除');
+      window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+      return;
+    }
+    await handleResourceMutationError(result, '资源删除失败');
+    return;
     if (!window.confirm(`从资源库删除「${item.title}」？`)) return;
     const r = await api.deleteResourceItem(item.id);
     if (r.success) {
@@ -271,14 +326,15 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
       setMsg('资源已删除');
       window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
     } else {
-      setMsg(r.error || '资源删除失败');
+      setMsg((r as api.ErrData).error || '资源删除失败');
     }
   };
 
   const insertItem = async (item: ResourceItem) => {
     try {
+      const source = items.find((entry) => entry.id === item.id) || item;
       await onInsertMaterial(item);
-      await api.updateResourceItem(item.id, { touch: true });
+      await updateItem(source, { touch: true });
       setMsg(item.kind === 'pose' ? '已恢复为姿势大师节点' : item.kind === 'workflow' ? '已插入工作流' : '已插入画布');
     } catch (e: any) {
       setMsg(e?.message || '插入失败');
@@ -298,7 +354,8 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
         defaultMode: item.kind === 'set' ? 'material-set' : 'upload',
       },
     }));
-    await api.updateResourceItem(item.id, { touch: true });
+    const source = items.find((entry) => entry.id === item.id) || item;
+    await updateItem(source, { touch: true });
   };
 
   const showImagePreview = useCallback((target: HTMLButtonElement, item: ResourceItem) => {

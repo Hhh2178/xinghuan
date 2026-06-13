@@ -6576,3 +6576,46 @@
   - 下一步：
     - 继续把 revision 机制推广到资源库和后台关键配置
     - 再补“同账号双标签/双设备”的可视化并发验收
+- `2026-06-13` Phase B 第二批资源库 revision 冲突防护已完成本地与灰度验收：
+  - 新增：
+    - `apps/api/db/010_resource_revision.sql`
+    - `scripts/verify-resource-revision-conflict.mjs`
+    - `ops/phase-b-resource-revision-gray-2026-06-13.md`
+  - 后端收口：
+    - `xh_resource_categories` / `xh_assets` 新增 `revision`
+    - 资源分类重命名、删除支持 `expectedRevision`
+    - 资源条目更新、删除支持 `expectedRevision`
+    - stale resource/category 写入统一返回 `409 RESOURCE_REVISION_CONFLICT`
+    - 分类删除时，同步给受影响资源清空 `categoryId` 并递增资源 `revision`
+  - 前端收口：
+    - 资源库分类/条目操作都随请求携带当前 `revision`
+    - 遇到 `RESOURCE_REVISION_CONFLICT` 时自动刷新资源库，并提示用户基于最新状态重试
+    - `touch` 类操作也统一走 revision 链路，避免静默覆盖 `favorite/tags/category`
+  - 本地验收：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/web`
+    - `npm run build:single-port`
+    - `npm run verify:resource-revision-conflict`
+    - `npm run verify:canvas-revision-conflict`
+  - 本地 file-mode 补正：
+    - `/api/canvas/:id/auto-save` 在 file-mode 下改为只写快照文件，不再误走主保存链路
+    - 快照写入时继承当前画布 revision，保证 `postAutoSaveRevision` 不被旧 payload 回写成 `1`
+    - 当前 `verify:multi-user-isolation` 在 file-mode 仍不代表真实多用户边界，正式判定以 Postgres 灰度验收为准
+  - 灰度发布：
+    - release: `20260613-phase-b-resource-revision-gray-r1`
+    - `current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-resource-revision-gray-r1`
+    - `db:migrate` 应用：`010_resource_revision.sql`
+  - 真实公网灰度验收：
+    - `verify-resource-revision-conflict`
+      - 分类与资源初始 `revision = 1`
+      - 首次写入后 `revision = 2`
+      - stale update/delete 全部返回 `409 RESOURCE_REVISION_CONFLICT`
+    - `verify-canvas-revision-conflict`
+      - `postAutoSaveRevision = 2`
+      - stale save => `409 CANVAS_REVISION_CONFLICT`
+    - `verify-multi-user-isolation`
+      - `ok = true`
+      - 管理员/成员双登录、画布隔离、资源隔离、跨用户拒绝全部通过
+  - 结论：
+    - 资源库已经具备和画布同级别的 revision 并发防护
+    - 本地 file-mode 的 auto-save 行为已与 Postgres 模式对齐，不会再把旧 revision 写回画布快照

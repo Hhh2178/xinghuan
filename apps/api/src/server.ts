@@ -201,6 +201,7 @@ interface ResourceCategory {
   id: string;
   kind: ResourceKind;
   name: string;
+  revision: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -231,6 +232,7 @@ interface ResourceItem {
   taskId?: string;
   providerId?: string;
   modelId?: string;
+  revision: number;
 }
 
 interface ResourceDb {
@@ -581,6 +583,20 @@ function sanitizeCanvasListItem(item: CanvasListItem): CanvasListItem {
   const revision = Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1;
   const next = revision === item.revision ? item : { ...item, revision };
   return name === next.name ? next : { ...next, name };
+}
+
+function normalizeResourceCategoryRecord(category: ResourceCategory): ResourceCategory {
+  return {
+    ...category,
+    revision: Number.isFinite(category.revision) && category.revision > 0 ? Math.floor(category.revision) : 1,
+  };
+}
+
+function normalizeResourceItemRecord(item: ResourceItem): ResourceItem {
+  return {
+    ...item,
+    revision: Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1,
+  };
 }
 
 function sanitizeCanvasNodeData(data: unknown): unknown {
@@ -981,6 +997,7 @@ const server = createServer(async (request, response) => {
           id: `cat-${now}-${Math.random().toString(36).slice(2, 8)}`,
           kind,
           name: safeText(body.name, "未分类"),
+          revision: 1,
           createdAt: now,
           updatedAt: now,
         };
@@ -1001,27 +1018,62 @@ const server = createServer(async (request, response) => {
     if (resourceCategoryMatch) {
       const id = decodeURIComponent(resourceCategoryMatch[1]);
       if (request.method === "PUT") {
-        const body = await readJsonBody<{ name?: string }>(request);
+        const body = await readJsonBody<{ name?: string; revision?: number }>(request);
         if (usePostgresRepository()) {
-          sendT8(response, await updateResourceCategoryPostgres(id, safeText(body.name, "未分类"), currentUser!));
+          sendT8(
+            response,
+            await updateResourceCategoryPostgres(
+              id,
+              safeText(body.name, "未分类"),
+              currentUser!,
+              resourceRevisionFromPayload(body),
+            ),
+          );
           return;
         }
         const db = await readResourceDb(currentUser!);
+        const current = db.categories.find((item) => item.id === id);
+        if (!current) throw new Error("分类不存在");
+        const expectedRevision = resourceRevisionFromPayload(body);
+        if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+          throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+            resourceKind: "category",
+            resourceId: id,
+            currentRevision: current.revision,
+          });
+        }
         const updated = db.categories.map((item) =>
-          item.id === id ? { ...item, name: safeText(body.name, item.name), updatedAt: Date.now() } : item,
+          item.id === id
+            ? { ...item, name: safeText(body.name, item.name), revision: (item.revision || 1) + 1, updatedAt: Date.now() }
+            : item,
         );
         await writeResourceDb({ ...db, categories: updated }, currentUser!);
         sendT8(response, updated.find((item) => item.id === id) ?? null);
         return;
       }
       if (request.method === "DELETE") {
+        const body = await readJsonBody<{ revision?: number }>(request);
         if (usePostgresRepository()) {
-          await deleteResourceCategoryPostgres(id, currentUser!);
+          await deleteResourceCategoryPostgresWithItemRevision(id, currentUser!, resourceRevisionFromPayload(body));
         } else {
           const db = await readResourceDb(currentUser!);
+          const current = db.categories.find((item) => item.id === id);
+          if (!current) throw new Error("分类不存在");
+          const expectedRevision = resourceRevisionFromPayload(body);
+          if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+            throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+              resourceKind: "category",
+              resourceId: id,
+              currentRevision: current.revision,
+            });
+          }
           await writeResourceDb({
             categories: db.categories.filter((item) => item.id !== id),
-            items: db.items.map((item) => (item.categoryId === id ? { ...item, categoryId: "" } : item)),
+            items: db.items.map((item) =>
+              item.categoryId === id
+                ? { ...item, categoryId: "", revision: (item.revision || 1) + 1, updatedAt: Date.now() }
+                : item,
+            ),
           }, currentUser!);
         }
         sendT8(response, { movedTo: "" });
@@ -1074,15 +1126,26 @@ const server = createServer(async (request, response) => {
       if (request.method === "PUT") {
         const patch = await readJsonBody<Partial<ResourceItem> & { touch?: boolean }>(request);
         if (usePostgresRepository()) {
-          sendT8(response, await updateResourceItemPostgres(id, patch, currentUser!));
+          sendT8(response, await updateResourceItemPostgres(id, patch, currentUser!, resourceRevisionFromPayload(patch)));
           return;
         }
         const db = await readResourceDb(currentUser!);
+        const current = db.items.find((item) => item.id === id);
+        if (!current) throw new Error("资源不存在");
+        const expectedRevision = resourceRevisionFromPayload(patch);
+        if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+          throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+            resourceKind: "item",
+            resourceId: id,
+            currentRevision: current.revision,
+          });
+        }
         const updated = db.items.map((item) =>
           item.id === id
             ? {
                 ...item,
                 ...pickResourcePatch(patch),
+                revision: (item.revision || 1) + 1,
                 updatedAt: Date.now(),
                 ...(patch.touch ? { lastUsedAt: Date.now() } : {}),
               }
@@ -1093,10 +1156,21 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (request.method === "DELETE") {
+        const body = await readJsonBody<{ revision?: number }>(request);
         if (usePostgresRepository()) {
-          await deleteResourceItemPostgres(id, currentUser!);
+          await deleteResourceItemPostgres(id, currentUser!, resourceRevisionFromPayload(body));
         } else {
           const db = await readResourceDb(currentUser!);
+          const current = db.items.find((item) => item.id === id);
+          if (!current) throw new Error("资源不存在");
+          const expectedRevision = resourceRevisionFromPayload(body);
+          if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+            throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+              resourceKind: "item",
+              resourceId: id,
+              currentRevision: current.revision,
+            });
+          }
           await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
         }
         sendT8(response, null);
@@ -1198,7 +1272,10 @@ const server = createServer(async (request, response) => {
         await assertCanvasOwnershipForSnapshot(id, currentUser!);
         await writeCanvasDataToFileSnapshot(id, data, currentUser!);
       } else {
-        await writeCanvasAndUpdateList(id, data, currentUser!, { expectedRevision: canvasRevisionFromPayload(rawBody) });
+        const list = await readCanvasList(currentUser!);
+        const current = list.find((item) => item.id === id);
+        if (!current) throw new Error("画布不存在");
+        await writeCanvasDataToFileSnapshot(id, { ...data, revision: current.revision }, currentUser!);
       }
       sendT8(response, {
         path: canvasDataPath(id, currentUser!),
@@ -2389,6 +2466,14 @@ function canvasRevisionFromPayload(value: unknown): number | undefined {
   return Number.isFinite(revision) && revision > 0 ? Math.floor(revision) : undefined;
 }
 
+function resourceRevisionFromPayload(value: unknown): number | undefined {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+  const revision = Number(source?.revision);
+  return Number.isFinite(revision) && revision > 0 ? Math.floor(revision) : undefined;
+}
+
 function normalizeCanvasData(value: unknown): CanvasData {
   const data = (value && typeof value === "object" ? value : {}) as Partial<CanvasData>;
   return {
@@ -3390,6 +3475,7 @@ function toResourceCategory(row: {
   id: string;
   kind?: string | null;
   name?: string | null;
+  revision?: number | null;
   created_at?: unknown;
   updated_at?: unknown;
 }): ResourceCategory {
@@ -3397,6 +3483,7 @@ function toResourceCategory(row: {
     id: row.id,
     kind: normalizeResourceKind(row.kind) || "image",
     name: safeText(row.name, "未分类"),
+    revision: Number(row.revision) || 1,
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
   };
@@ -3414,6 +3501,7 @@ function toResourceItem(row: {
   favorite?: boolean | null;
   last_used_at?: unknown;
   metadata?: unknown;
+  revision?: number | null;
   created_at?: unknown;
   updated_at?: unknown;
 }): ResourceItem {
@@ -3454,6 +3542,7 @@ function toResourceItem(row: {
     taskId: taskId || undefined,
     providerId: providerId || undefined,
     modelId: modelId || undefined,
+    revision: Number(row.revision) || 1,
   };
 }
 
@@ -6631,11 +6720,11 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
     const pool = await getPostgresPool();
     const [categoriesResult, itemsResult] = await Promise.all([
       pool.query(
-        "select id, kind, name, created_at, updated_at from xh_resource_categories where owner_id = $1 order by created_at asc",
+        "select id, kind, name, revision, created_at, updated_at from xh_resource_categories where owner_id = $1 order by created_at asc",
         [user.id],
       ),
       pool.query(
-        `select a.id, a.kind, a.title, a.url, a.mime, a.size_bytes, a.category_id, a.tags, a.favorite, a.last_used_at, a.metadata, a.created_at, a.updated_at
+        `select a.id, a.kind, a.title, a.url, a.mime, a.size_bytes, a.category_id, a.tags, a.favorite, a.last_used_at, a.metadata, a.revision, a.created_at, a.updated_at
          from xh_assets a
          left join xh_resource_categories c on c.id = a.category_id
          where a.owner_id = $1
@@ -6675,7 +6764,11 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
 async function readResourceDbFromFile(user: CurrentUser): Promise<ResourceDb> {
   await ensureDataDirs(user);
   try {
-    return JSON.parse(await readFile(userDataDirs(user).resourceDbPath, "utf-8")) as ResourceDb;
+    const raw = JSON.parse(await readFile(userDataDirs(user).resourceDbPath, "utf-8")) as ResourceDb;
+    return {
+      categories: Array.isArray(raw.categories) ? raw.categories.map(normalizeResourceCategoryRecord) : [],
+      items: Array.isArray(raw.items) ? raw.items.map(normalizeResourceItemRecord) : [],
+    };
   } catch {
     return { categories: [], items: [] };
   }
@@ -6703,11 +6796,12 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
       }
       for (const category of Array.isArray(db.categories) ? db.categories : []) {
         const upsertedCategory = await client.query(
-          `insert into xh_resource_categories (id, owner_id, kind, name, created_at, updated_at)
-           values ($1, $2, $3, $4, $5, $6)
+          `insert into xh_resource_categories (id, owner_id, kind, name, revision, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7)
            on conflict (id) do update set
              kind = excluded.kind,
              name = excluded.name,
+             revision = greatest(xh_resource_categories.revision, excluded.revision),
              updated_at = excluded.updated_at
            where xh_resource_categories.owner_id = excluded.owner_id`,
           [
@@ -6715,6 +6809,7 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
             user.id,
             normalizeResourceKind(category.kind) || "image",
             safeText(category.name, "未分类"),
+            Number.isFinite(category.revision) && category.revision > 0 ? Math.floor(category.revision) : 1,
             millisToDate(category.createdAt),
             millisToDate(category.updatedAt),
           ],
@@ -6723,8 +6818,8 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
       }
       for (const item of Array.isArray(db.items) ? db.items : []) {
         const upsertedItem = await client.query(
-          `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
-           values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)
+          `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, revision, created_at, updated_at)
+           values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14, $15)
            on conflict (id) do update set
              kind = excluded.kind,
              title = excluded.title,
@@ -6736,6 +6831,7 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
              tags = excluded.tags,
              favorite = excluded.favorite,
              last_used_at = excluded.last_used_at,
+             revision = greatest(xh_assets.revision, excluded.revision),
              updated_at = excluded.updated_at
            where xh_assets.owner_id = excluded.owner_id`,
           [
@@ -6751,6 +6847,7 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
             JSON.stringify(Array.isArray(item.tags) ? item.tags.map((tag) => safeText(tag)).filter(Boolean) : []),
             Boolean(item.favorite),
             item.lastUsedAt ? millisToDate(item.lastUsedAt) : null,
+            Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1,
             millisToDate(item.createdAt),
             millisToDate(item.updatedAt),
           ],
@@ -6774,11 +6871,12 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pr
 async function upsertResourceCategoryPostgres(category: ResourceCategory, user: CurrentUser) {
   const pool = await getPostgresPool();
   const result = await pool.query(
-    `insert into xh_resource_categories (id, owner_id, kind, name, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into xh_resource_categories (id, owner_id, kind, name, revision, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7)
      on conflict (id) do update set
        kind = excluded.kind,
        name = excluded.name,
+       revision = greatest(xh_resource_categories.revision, excluded.revision),
        updated_at = excluded.updated_at
      where xh_resource_categories.owner_id = excluded.owner_id`,
     [
@@ -6786,6 +6884,7 @@ async function upsertResourceCategoryPostgres(category: ResourceCategory, user: 
       user.id,
       normalizeResourceKind(category.kind) || "image",
       safeText(category.name, "未分类"),
+      Number.isFinite(category.revision) && category.revision > 0 ? Math.floor(category.revision) : 1,
       millisToDate(category.createdAt),
       millisToDate(category.updatedAt),
     ],
@@ -6795,32 +6894,103 @@ async function upsertResourceCategoryPostgres(category: ResourceCategory, user: 
   return category;
 }
 
-async function updateResourceCategoryPostgres(id: string, name: string, user: CurrentUser) {
+async function updateResourceCategoryPostgres(id: string, name: string, user: CurrentUser, expectedRevision?: number) {
   const pool = await getPostgresPool();
+  const currentResult = await pool.query(
+    `select id, kind, name, revision, created_at, updated_at
+     from xh_resource_categories
+     where id = $1
+       and owner_id = $2
+     limit 1`,
+    [id, user.id],
+  );
+  if (!currentResult.rows[0]) throw new Error("分类不存在");
+  const current = toResourceCategory(currentResult.rows[0]);
+  if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+    throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+      resourceKind: "category",
+      resourceId: id,
+      currentRevision: current.revision,
+    });
+  }
   const result = await pool.query(
     `update xh_resource_categories
      set name = $3,
+         revision = revision + 1,
          updated_at = now()
      where id = $1
        and owner_id = $2
-     returning id, kind, name, created_at, updated_at`,
+     returning id, kind, name, revision, created_at, updated_at`,
     [id, user.id, safeText(name, "未分类")],
   );
   if (result.rows[0]) return toResourceCategory(result.rows[0]);
   throw new Error("分类不存在");
 }
 
-async function deleteResourceCategoryPostgres(id: string, user: CurrentUser) {
+async function deleteResourceCategoryPostgres(id: string, user: CurrentUser, expectedRevision?: number) {
   const pool = await getPostgresPool();
+  if (expectedRevision !== undefined) {
+    const currentResult = await pool.query(
+      "select revision from xh_resource_categories where id = $1 and owner_id = $2 limit 1",
+      [id, user.id],
+    );
+    if (!currentResult.rows[0]) throw new Error("分类不存在");
+    const currentRevision = Number(currentResult.rows[0].revision) || 1;
+    if (expectedRevision !== currentRevision) {
+      throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+        resourceKind: "category",
+        resourceId: id,
+        currentRevision,
+      });
+    }
+  }
   await pool.query("delete from xh_resource_categories where id = $1 and owner_id = $2", [id, user.id]);
+  await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
+}
+
+async function deleteResourceCategoryPostgresWithItemRevision(id: string, user: CurrentUser, expectedRevision?: number) {
+  const pool = await getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const currentResult = await client.query(
+      "select revision from xh_resource_categories where id = $1 and owner_id = $2 limit 1",
+      [id, user.id],
+    );
+    if (!currentResult.rows[0]) throw new Error("分类不存在");
+    const currentRevision = Number(currentResult.rows[0].revision) || 1;
+    if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+      throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+        resourceKind: "category",
+        resourceId: id,
+        currentRevision,
+      });
+    }
+    await client.query(
+      `update xh_assets
+       set category_id = null,
+           revision = coalesce(revision, 1) + 1,
+           updated_at = now()
+       where owner_id = $1
+         and category_id = $2`,
+      [user.id, id],
+    );
+    await client.query("delete from xh_resource_categories where id = $1 and owner_id = $2", [id, user.id]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
   await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
 }
 
 async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser) {
   const pool = await getPostgresPool();
   const result = await pool.query(
-    `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
-     values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)
+    `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, revision, created_at, updated_at)
+     values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14, $15)
      on conflict (id) do update set
        kind = excluded.kind,
        title = excluded.title,
@@ -6832,6 +7002,7 @@ async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser)
        tags = excluded.tags,
        favorite = excluded.favorite,
        last_used_at = excluded.last_used_at,
+       revision = greatest(xh_assets.revision, excluded.revision),
        updated_at = excluded.updated_at
      where xh_assets.owner_id = excluded.owner_id`,
     [
@@ -6847,6 +7018,7 @@ async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser)
       JSON.stringify(Array.isArray(item.tags) ? item.tags.map((tag) => safeText(tag)).filter(Boolean) : []),
       Boolean(item.favorite),
       item.lastUsedAt ? millisToDate(item.lastUsedAt) : null,
+      Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1,
       millisToDate(item.createdAt),
       millisToDate(item.updatedAt),
     ],
@@ -6856,10 +7028,15 @@ async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser)
   return item;
 }
 
-async function updateResourceItemPostgres(id: string, patch: Partial<ResourceItem> & { touch?: boolean }, user: CurrentUser) {
+async function updateResourceItemPostgres(
+  id: string,
+  patch: Partial<ResourceItem> & { touch?: boolean },
+  user: CurrentUser,
+  expectedRevision?: number,
+) {
   const pool = await getPostgresPool();
   const currentResult = await pool.query(
-    `select id, kind, title, url, mime, size_bytes, category_id, tags, favorite, last_used_at, metadata, created_at, updated_at
+    `select id, kind, title, url, mime, size_bytes, category_id, tags, favorite, last_used_at, metadata, revision, created_at, updated_at
      from xh_assets
      where id = $1
        and owner_id = $2
@@ -6868,9 +7045,17 @@ async function updateResourceItemPostgres(id: string, patch: Partial<ResourceIte
   );
   if (!currentResult.rows[0]) throw new Error("资源不存在");
   const current = toResourceItem(currentResult.rows[0]);
+  if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+    throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+      resourceKind: "item",
+      resourceId: id,
+      currentRevision: current.revision,
+    });
+  }
   const next: ResourceItem = {
     ...current,
     ...pickResourcePatch(patch),
+    revision: current.revision + 1,
     updatedAt: Date.now(),
     ...(patch.touch ? { lastUsedAt: Date.now() } : {}),
   };
@@ -6878,8 +7063,20 @@ async function updateResourceItemPostgres(id: string, patch: Partial<ResourceIte
   return next;
 }
 
-async function deleteResourceItemPostgres(id: string, user: CurrentUser) {
+async function deleteResourceItemPostgres(id: string, user: CurrentUser, expectedRevision?: number) {
   const pool = await getPostgresPool();
+  if (expectedRevision !== undefined) {
+    const currentResult = await pool.query("select revision from xh_assets where id = $1 and owner_id = $2 limit 1", [id, user.id]);
+    if (!currentResult.rows[0]) throw new Error("资源不存在");
+    const currentRevision = Number(currentResult.rows[0].revision) || 1;
+    if (expectedRevision !== currentRevision) {
+      throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+        resourceKind: "item",
+        resourceId: id,
+        currentRevision,
+      });
+    }
+  }
   await pool.query("delete from xh_assets where id = $1 and owner_id = $2", [id, user.id]);
   await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
 }
@@ -6915,6 +7112,7 @@ async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKin
     taskId: safeText(payload.taskId),
     providerId: safeText(payload.providerId),
     modelId: safeText(payload.modelId),
+    revision: 1,
   };
   if (usePostgresRepository()) {
     await upsertResourceItemPostgres(item, user);

@@ -933,3 +933,23 @@
     - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
     - 建立生产数据备份/回滚/验收清单
     - 做真实灰度多账号并发验收，重点观察画布、资源库、后台模型配置是否相互串写
+- `2026-06-13` Phase B 资源库 revision 防护与 file-mode auto-save 对齐：
+  - 数据库与接口：
+    - `xh_resource_categories.revision`
+    - `xh_assets.revision`
+    - `PUT/DELETE /api/resources/categories/:id` 支持 `revision`
+    - `PUT/DELETE /api/resources/items/:id` 支持 `revision`
+    - stale 写入返回 `409 RESOURCE_REVISION_CONFLICT`
+  - 关键约束：
+    - 删除分类时，不只是清空资源 `categoryId`，还必须同步递增资源 `revision`
+    - `touch` 这类轻量更新也必须走 revision 检查，否则会覆盖 `favorite/tags/categoryId`
+  - file-mode 边界：
+    - `/api/canvas/:id/auto-save` 在 file-mode 只能写快照，不能再走 `writeCanvasAndUpdateList(...)`
+    - 快照文件必须继承当前画布 revision，而不是直接写回请求里的旧 revision
+    - 否则 `verify-canvas-revision-conflict` 会出现 `postAutoSaveRevision != 2`
+  - 当前灰度 release：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-resource-revision-gray-r1`
+  - 当前灰度验收：
+    - `verify-resource-revision-conflict = ok`
+    - `verify-canvas-revision-conflict = ok`
+    - `verify-multi-user-isolation = ok`
