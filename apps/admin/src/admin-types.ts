@@ -1,4 +1,4 @@
-import { type ProviderGenerationExecutionMode, type TaskStatus } from "@xinghuan/shared";
+import { type ProviderGenerationExecutionMode, type TaskQueueSettings, type TaskStatus } from "@xinghuan/shared";
 import type { AdminTabId } from "./admin-view-model";
 
 export type UserRole = "admin" | "member";
@@ -26,6 +26,7 @@ export type ProviderProtocol =
   | "runninghub"
   | "volcengine"
   | "apimart"
+  | "modelscope"
   | "custom"
   | "grsai_draw";
 export type TabId = AdminTabId;
@@ -212,8 +213,15 @@ export interface SystemInfo {
     status: string;
     queue: string;
     depth: number;
+    queues?: Array<{
+      capability: "image" | "audio" | "video";
+      queue: string;
+      concurrency: number;
+      depth?: number;
+    }>;
     error: string;
   };
+  taskQueueSettings: TaskQueueSettings;
   authDbPath: string;
   adminDbPath: string;
   service: string;

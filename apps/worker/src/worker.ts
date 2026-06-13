@@ -1,4 +1,15 @@
-import { createHealthPayload, type AppEnvironment, type TaskStatus } from "@xinghuan/shared";
+import {
+  TASK_QUEUE_CAPABILITIES,
+  buildTaskQueueRuntimeDescriptors,
+  createHealthPayload,
+  defaultTaskQueueSettings,
+  normalizeTaskQueueSettings,
+  taskQueueNameForCapability,
+  type AppEnvironment,
+  type TaskQueueCapability,
+  type TaskQueueSettings,
+  type TaskStatus,
+} from "@xinghuan/shared";
 import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
 import { Pool } from "pg";
@@ -29,6 +40,7 @@ import {
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
+const expectedDatabaseName = (process.env.XINGHUAN_EXPECTED_DATABASE_NAME || "").trim();
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const queueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
 const pollTimeoutSeconds = Number.parseInt(process.env.XINGHUAN_WORKER_POLL_TIMEOUT_SECONDS || "5", 10);
@@ -50,6 +62,8 @@ const pool = new Pool({
   max: 3,
 });
 
+let currentDatabaseNamePromise: Promise<string> | null = null;
+
 const redis = createClient({ url: redisUrl });
 redis.on("error", (error) => {
   console.error("xinghuan-worker redis error", error instanceof Error ? error.message : String(error));
@@ -63,23 +77,79 @@ process.on("SIGINT", () => {
   stopping = true;
 });
 
+await ensureRuntimeDatabaseTarget("xinghuan-worker");
 await redis.connect();
-console.log(JSON.stringify({ ...createHealthPayload("xinghuan-worker", environment), workerId, queueName }));
+const taskQueueSettings = await readTaskQueueSettings();
+const queueDescriptors = buildTaskQueueRuntimeDescriptors(queueName, taskQueueSettings);
+const queueNames = TASK_QUEUE_CAPABILITIES.map((capability) => taskQueueNameForCapability(queueName, capability));
+console.log(JSON.stringify({ ...createHealthPayload("xinghuan-worker", environment), workerId, queueName, queueNames, queues: queueDescriptors }));
 
-while (!stopping) {
-  const item = await redis.brPop(queueName, pollTimeoutSeconds).catch((error) => {
-    console.error("xinghuan-worker queue read failed", error instanceof Error ? error.message : String(error));
-    return null;
-  });
-  if (!item) continue;
-  await processTask(item.element).catch((error) => {
-    console.error("xinghuan-worker task processing crashed", item.element, error instanceof Error ? error.message : String(error));
-  });
-}
+const workerLoops = queueDescriptors.flatMap((descriptor) =>
+  Array.from({ length: descriptor.concurrency }, (_, slotIndex) =>
+    runQueueLoop(descriptor.capability, descriptor.queue, slotIndex),
+  ),
+);
+await Promise.allSettled(workerLoops);
 
 await redis.quit().catch(() => undefined);
 await pool.end().catch(() => undefined);
 console.log("xinghuan-worker stopped");
+
+async function readCurrentDatabaseName() {
+  currentDatabaseNamePromise ??= (async () => {
+    const result = await pool.query("select current_database() as name");
+    return String(result.rows?.[0]?.name || "").trim();
+  })();
+  return currentDatabaseNamePromise;
+}
+
+async function ensureRuntimeDatabaseTarget(serviceName: string) {
+  if (!expectedDatabaseName) return;
+  const currentDatabaseName = await readCurrentDatabaseName();
+  if (!currentDatabaseName) throw new Error("DATABASE_TARGET_UNAVAILABLE");
+  if (currentDatabaseName !== expectedDatabaseName) {
+    throw new Error(
+      `DATABASE_TARGET_MISMATCH service=${serviceName} env=${environment} expected=${expectedDatabaseName} actual=${currentDatabaseName}`,
+    );
+  }
+  console.log(
+    JSON.stringify({
+      ok: true,
+      service: serviceName,
+      environment,
+      databaseTargetCheck: "passed",
+      currentDatabase: currentDatabaseName,
+    }),
+  );
+}
+
+async function runQueueLoop(capability: TaskQueueCapability, queue: string, slotIndex: number) {
+  while (!stopping) {
+    const item = await redis.brPop(queue, pollTimeoutSeconds).catch((error) => {
+      console.error(
+        "xinghuan-worker queue read failed",
+        JSON.stringify({ capability, queue, slotIndex, error: error instanceof Error ? error.message : String(error) }),
+      );
+      return null;
+    });
+    if (!item) continue;
+    await processTask(item.element).catch((error) => {
+      console.error(
+        "xinghuan-worker task processing crashed",
+        JSON.stringify({ capability, queue, slotIndex, taskId: item.element, error: error instanceof Error ? error.message : String(error) }),
+      );
+    });
+  }
+}
+
+async function readTaskQueueSettings(): Promise<TaskQueueSettings> {
+  const fallback = defaultTaskQueueSettings();
+  const result = await pool
+    .query("select task_queue_settings from xh_system_settings where id = 'default' limit 1")
+    .catch(() => null);
+  if (!result?.rows?.[0]) return fallback;
+  return normalizeTaskQueueSettings(result.rows[0].task_queue_settings, fallback);
+}
 
 async function processTask(taskId: string) {
   console.log(`xinghuan-worker received ${taskId}`);
@@ -252,7 +322,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
   if (protocol === "grsai_draw") {
     return executeGrsaiImageTask(task);
   }
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 图像 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -269,12 +339,13 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
   };
   const aspectRatio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio);
   if (aspectRatio) requestBody.aspect_ratio = aspectRatio;
-  if (imageUrls.length > 0) requestBody.image = imageUrls;
+  const isModelScope = isModelScopeImageProvider(protocol, task.providerBaseUrl);
+  applyImageReferencePayload(requestBody, imageUrls, isModelScope);
 
   const upstream = await fetch(openAiImageGenerationUrl(task.providerBaseUrl), {
     method: "POST",
     headers: {
-      ...providerHeaders(apiKey),
+      ...(isModelScope ? modelScopeHeaders(apiKey, "submit") : providerHeaders(apiKey)),
       "content-type": "application/json",
     },
     body: JSON.stringify(requestBody),
@@ -285,22 +356,34 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
   const raw = text ? JSON.parse(text) : {};
   const extracted = extractImageOutputs(raw);
   if (extracted.imageUrls.length === 0) {
-    const taskMeta = extractApimartTask(raw, {
-      taskIdPath: safeText(task.payload.taskIdPath, "data.0.task_id"),
-      statusPath: safeText(task.payload.taskStatusPath, "data.0.status"),
-    });
+    const taskMeta = isModelScope
+      ? extractModelScopeImageTask(raw, plainObject(task.payload))
+      : extractApimartTask(raw, {
+          taskIdPath: safeText(task.payload.taskIdPath, "data.0.task_id"),
+          statusPath: safeText(task.payload.taskStatusPath, "data.0.status"),
+        });
     if (!taskMeta.taskId) throw new Error("上游未返回可用图像");
-    const polled = await pollApimartImageTask({
-      baseUrl: task.providerBaseUrl,
-      apiKey,
-      taskId: taskMeta.taskId,
-      statusPath: safeText(task.payload.pollStatusPath, "data.status"),
-      pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
-      timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
-    });
-    if (polled.imageUrls.length === 0) throw new Error("APIMart 未返回可用图像");
+    const polled = isModelScope
+      ? await pollModelScopeImageTask({
+          baseUrl: task.providerBaseUrl,
+          apiKey,
+          taskId: taskMeta.taskId,
+          statusPath: safeText(task.payload.taskStatusPath, "task_status"),
+          pollPathTemplate: safeText(task.payload.pollPathTemplate, "tasks/{task_id}"),
+          pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
+          timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 360000, 5000, 1800000),
+        })
+      : await pollApimartImageTask({
+          baseUrl: task.providerBaseUrl,
+          apiKey,
+          taskId: taskMeta.taskId,
+          statusPath: safeText(task.payload.pollStatusPath, "data.status"),
+          pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
+          timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
+        });
+    if (polled.imageUrls.length === 0) throw new Error(isModelScope ? "ModelScope 未返回可用图像" : "APIMart 未返回可用图像");
     return {
-      adapter: "apimart-image",
+      adapter: isModelScope ? "modelscope-image" : "apimart-image",
       providerId: task.providerId,
       modelId: task.providerModelId,
       taskId: taskMeta.taskId,
@@ -325,7 +408,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
   const protocol = normalizeProtocol(task.providerProtocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 视频 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -435,7 +518,7 @@ async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> 
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
   const protocol = normalizeProtocol(task.providerProtocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 语言模型 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -484,7 +567,7 @@ async function executeAudioTask(task: TaskRow): Promise<Record<string, unknown>>
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
   const protocol = normalizeProtocol(task.providerProtocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 音频 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -575,7 +658,7 @@ function normalizeCapability(value: unknown) {
 
 function normalizeProtocol(value: unknown) {
   const protocol = String(value || "").toLowerCase();
-  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "custom", "grsai_draw"].includes(protocol) ? protocol : "openai";
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol) ? protocol : "openai";
 }
 
 function plainObject(value: unknown): Record<string, unknown> {
@@ -584,6 +667,15 @@ function plainObject(value: unknown): Record<string, unknown> {
 
 function safeText(value: unknown, fallback = "") {
   return String(value ?? fallback).trim();
+}
+
+function applyImageReferencePayload(requestBody: Record<string, unknown>, imageUrls: string[], isModelScope: boolean) {
+  if (imageUrls.length === 0) return;
+  requestBody.image = isModelScope && imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+  if (!isModelScope) return;
+  requestBody.images = imageUrls;
+  requestBody.image_url = imageUrls[0];
+  requestBody.image_urls = imageUrls;
 }
 
 function readString(value: unknown) {
@@ -928,6 +1020,89 @@ async function pollApimartImageTask(options: {
       throw new Error(`APIMart 图像任务失败: ${status || "unknown"}`);
     }
   }
+}
+
+async function pollModelScopeImageTask(options: {
+  baseUrl: string;
+  apiKey: string;
+  taskId: string;
+  statusPath: string;
+  pollPathTemplate: string;
+  pollIntervalMs: number;
+  timeoutMs: number;
+}) {
+  const startedAt = Date.now();
+  const pollPathTemplate = safeText(options.pollPathTemplate, "tasks/{task_id}");
+  for (;;) {
+    if (Date.now() - startedAt > options.timeoutMs) throw new Error("ModelScope 图像生成轮询超时");
+    if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
+    const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(options.taskId));
+    const response = await fetch(openAiEndpoint(options.baseUrl, statusPath), {
+      method: "GET",
+      headers: modelScopeHeaders(options.apiKey, "poll"),
+      signal: AbortSignal.timeout(120000),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`ModelScope 图像轮询失败 ${response.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const extracted = extractImageOutputs(raw);
+    const taskState = extractModelScopeImageTask(raw, { taskStatusPath: options.statusPath });
+    const status = safeText(taskState.status).toLowerCase();
+    if (extracted.imageUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return extracted;
+    if (isFailedAsyncStatus(status)) throw new Error(`ModelScope 图像任务失败: ${status || "unknown"}`);
+  }
+}
+
+function extractModelScopeImageTask(raw: unknown, advancedConfig: Record<string, unknown>) {
+  const root = plainObject(raw);
+  const data = plainObject(root.data);
+  const taskIdPath = safeText(advancedConfig.taskIdPath, "task_id");
+  const statusPath = safeText(advancedConfig.taskStatusPath, "task_status");
+  return {
+    taskId:
+      readPathText(root, taskIdPath)
+      || safeText(root.task_id)
+      || safeText(data.task_id)
+      || safeText(root.id),
+    status:
+      readPathText(root, statusPath)
+      || safeText(root.task_status)
+      || safeText(data.task_status)
+      || safeText(root.status),
+  };
+}
+
+function isModelScopeImageProvider(protocol: string, baseUrl: string) {
+  return protocol === "modelscope" || safeText(baseUrl).toLowerCase().includes("api-inference.modelscope.cn");
+}
+
+function modelScopeHeaders(apiKey: string, mode: "submit" | "poll") {
+  return {
+    ...providerHeaders(apiKey),
+    ...(mode === "submit" ? { "X-ModelScope-Async-Mode": "true" } : {}),
+    ...(mode === "poll" ? { "X-ModelScope-Task-Type": "image_generation" } : {}),
+  };
+}
+
+function isCompletedAsyncStatus(status: string) {
+  return ["completed", "succeeded", "success", "done", "succeed"].includes(status);
+}
+
+function isFailedAsyncStatus(status: string) {
+  return ["failed", "error", "cancelled", "canceled", "fail"].includes(status);
+}
+
+function readPathText(value: Record<string, unknown>, path: string) {
+  if (!path) return "";
+  let current: unknown = value;
+  for (const segment of path.split(".").filter(Boolean)) {
+    if (current && typeof current === "object" && !Array.isArray(current)) {
+      current = (current as Record<string, unknown>)[segment];
+      continue;
+    }
+    return "";
+  }
+  return safeText(current);
 }
 
 function wait(ms: number) {

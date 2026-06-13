@@ -100,6 +100,9 @@ function collectImageOutput(value: unknown, imageUrls: string[], remoteImageUrls
   const row = value as Record<string, unknown>;
   for (const key of ["url", "image_url", "imageUrl", "output_url", "outputUrl"]) collectImageOutput(row[key], imageUrls, remoteImageUrls);
   for (const key of ["b64_json", "base64", "image_base64", "imageBase64"]) collectImageOutput(row[key], imageUrls, remoteImageUrls);
+  for (const key of ["data", "images", "output", "outputs", "result", "results", "output_images", "outputImages"]) {
+    collectImageOutput(row[key], imageUrls, remoteImageUrls);
+  }
 }
 
 function plainObject(value: unknown): Record<string, unknown> {

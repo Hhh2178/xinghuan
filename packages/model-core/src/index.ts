@@ -1,6 +1,6 @@
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 
-export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
+export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "modelscope" | "custom" | "grsai_draw";
 
 export type ModelCapabilityTag =
   | "text_chat"

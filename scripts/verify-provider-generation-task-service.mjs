@@ -15,7 +15,11 @@ assert.match(serverSource, /createProviderGenerationTaskService/);
 assert.match(serverSource, /submitProviderGenerationTask/);
 assert.match(serverSource, /readProviderGenerationTaskStatus/);
 assert.match(serverSource, /capability: "audio"/);
+assert.match(serverSource, /taskQueueNameForCapability/);
+assert.match(serverSource, /normalizeTaskQueueSettings/);
 assert.match(serviceSource, /taskPayload\.taskCapability/);
 assert.match(serviceSource, /normalizeGenerationCapability/);
+assert.match(serviceSource, /enqueueTask\(task\.id,\s*input\.capability\)/);
+assert.match(serviceSource, /queueName/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));

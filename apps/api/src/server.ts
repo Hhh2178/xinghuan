@@ -1,4 +1,15 @@
-import { createHealthPayload, type AppEnvironment, type ProviderGenerationExecutionMode, type TaskStatus } from "@xinghuan/shared";
+import {
+  buildTaskQueueRuntimeDescriptors,
+  createHealthPayload,
+  defaultTaskQueueSettings,
+  normalizeTaskQueueSettings,
+  taskQueueNameForCapability,
+  type AppEnvironment,
+  type ProviderGenerationExecutionMode,
+  type TaskQueueCapability,
+  type TaskQueueSettings,
+  type TaskStatus,
+} from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
   parseAdvancedConfig,
@@ -82,6 +93,7 @@ const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
+const expectedDatabaseName = safeText(process.env.XINGHUAN_EXPECTED_DATABASE_NAME || "");
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const taskQueueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
@@ -101,6 +113,9 @@ const adminDistCandidates = [
   resolve(process.cwd(), "../../apps/admin/dist"),
   resolve(process.cwd(), "apps/admin/dist"),
 ].filter(Boolean) as string[];
+let postgresPoolPromise: Promise<import("pg").Pool> | null = null;
+let postgresDatabaseNamePromise: Promise<string> | null = null;
+let redisClientPromise: Promise<import("redis").RedisClientType> | null = null;
 
 const {
   generateExternalImageProxy,
@@ -133,7 +148,6 @@ const {
   submitProviderGenerationTask,
   readProviderGenerationTaskStatus,
 } = createProviderGenerationTaskService({
-  taskQueueName,
   supportedTaskCapabilities: ["image", "video", "audio"],
   normalizeProviderProtocol,
   providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
@@ -260,7 +274,7 @@ interface AuthDb {
 type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role">;
 
 type ModelCapability = "chat" | "image" | "video" | "audio";
-type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "custom" | "grsai_draw";
+type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "modelscope" | "custom" | "grsai_draw";
 
 interface AdminProviderRecord {
   id: string;
@@ -357,6 +371,12 @@ interface AdminDb {
   tasks: AdminTaskRecord[];
   auditLogs?: AdminAuditRecord[];
   assistantSettings?: AssistantSettingsRecord;
+  taskQueueSettings?: TaskQueueSettings;
+}
+
+interface SystemSettingsRecord {
+  taskQueueSettings: TaskQueueSettings;
+  updatedAt: number;
 }
 
 interface AdminAuditRecord {
@@ -615,6 +635,8 @@ const emptyCanvasData = (): CanvasData => ({
   viewport: { x: 0, y: 0, zoom: 1 },
   nextNodeSerialId: 1,
 });
+
+await ensureRuntimeDatabaseTarget("xinghuan-api");
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
@@ -1151,7 +1173,7 @@ const server = createServer(async (request, response) => {
       }
       if (request.method === "DELETE") {
         const list = await readCanvasList(currentUser!);
-        await writeCanvasList(list.filter((item) => item.id !== id), currentUser!);
+        await writeCanvasList(list.filter((item) => item.id !== id), currentUser!, { allowEmptyReplace: true });
         await unlink(canvasDataPath(id, currentUser!)).catch(() => undefined);
         sendT8(response, null);
         return;
@@ -1646,8 +1668,11 @@ async function handleAdminRequest(
         updatedAt: now,
       };
       await insertTaskRecord(task);
-      const queueResult = task.status === "queued" ? await enqueueTask(task.id) : { queued: false, reason: "not_queued_status" };
-      const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+      const capability = normalizeTaskQueueCapability(task.payload?.taskCapability);
+      const queueResult = task.status === "queued" && capability
+        ? await enqueueTask(task.id, capability)
+        : { queued: false, reason: task.status === "queued" ? "unsupported_capability" : "not_queued_status", queueName: "" };
+      const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
       await appendTaskLog(task.id, queueLog);
       const queuedTask: AdminTaskRecord = {
         ...task,
@@ -1673,8 +1698,11 @@ async function handleAdminRequest(
     });
     await insertTaskRecord(retriedTask);
     await appendTaskLog(id, `管理员发起重试，创建新任务 ${retriedTask.id}`);
-    const queueResult = await enqueueTask(retriedTask.id);
-    const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+    const capability = normalizeTaskQueueCapability(retriedTask.payload?.taskCapability);
+    const queueResult = capability
+      ? await enqueueTask(retriedTask.id, capability)
+      : { queued: false, reason: "unsupported_capability", queueName: "" };
+    const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
     await appendTaskLog(retriedTask.id, queueLog);
     retriedTask.logs = [...retriedTask.logs, queueLog];
     retriedTask.updatedAt = Date.now();
@@ -1716,17 +1744,33 @@ async function handleAdminRequest(
   }
 
   if (url.pathname === "/api/admin/system" && request.method === "GET") {
+    const taskQueueSettingsRecord = await readTaskQueueSettingsRecord();
     sendT8(response, {
       environment,
       dataDir,
       database: await readDatabaseStatus(),
-      redis: await readRedisStatus(),
+      redis: await readRedisStatus(taskQueueSettingsRecord.taskQueueSettings),
+      taskQueueSettings: taskQueueSettingsRecord.taskQueueSettings,
       storageDriver,
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
       version: "0.1.0",
       storage: await readStorageStats(),
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/system" && request.method === "PATCH") {
+    const body = await readJsonBody<{ taskQueueSettings?: Partial<Record<TaskQueueCapability, { concurrency?: number }>> }>(request);
+    const current = await readTaskQueueSettingsRecord();
+    const saved = await writeTaskQueueSettingsRecord(
+      normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
+    );
+    await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置");
+    sendT8(response, {
+      ok: true,
+      taskQueueSettings: saved.taskQueueSettings,
     });
     return true;
   }
@@ -1934,8 +1978,15 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
   return readCanvasListFromFile(user);
 }
 
-async function writeCanvasList(list: CanvasListItem[], user: CurrentUser) {
+async function writeCanvasList(
+  list: CanvasListItem[],
+  user: CurrentUser,
+  options?: { allowEmptyReplace?: boolean },
+) {
   const sanitizedList = list.map(sanitizeCanvasListItem);
+  if (sanitizedList.length === 0 && !options?.allowEmptyReplace) {
+    throw new Error("EMPTY_CANVAS_LIST_WRITE_REJECTED");
+  }
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const client = await pool.connect();
@@ -2117,11 +2168,13 @@ async function readAdminDb(): Promise<AdminDb> {
     tasks: Array.isArray(db.tasks) ? db.tasks : [],
     auditLogs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
     assistantSettings: normalizeAssistantSettings(db.assistantSettings),
+    taskQueueSettings: normalizeTaskQueueSettings(db.taskQueueSettings),
   };
   const modelMigrated = Array.isArray(db.models) && db.models.some((model, index) => normalizedDb.models[index] !== model);
   const assistantMigrated = normalizedDb.assistantSettings !== db.assistantSettings;
+  const taskQueueMigrated = normalizedDb.taskQueueSettings !== db.taskQueueSettings;
   const visibleSanitized = sanitizeAdminDbVisibleText(normalizedDb);
-  if (!usePostgresRepository() && (secretMigrated || modelMigrated || assistantMigrated || visibleSanitized.changed)) {
+  if (!usePostgresRepository() && (secretMigrated || modelMigrated || assistantMigrated || taskQueueMigrated || visibleSanitized.changed)) {
     await writeAdminDb(visibleSanitized.db);
   }
   return visibleSanitized.db;
@@ -2162,9 +2215,6 @@ function usePostgresRepository() {
   return storageDriver === "postgres" && Boolean(databaseUrl);
 }
 
-let postgresPoolPromise: Promise<import("pg").Pool> | null = null;
-let redisClientPromise: Promise<import("redis").RedisClientType> | null = null;
-
 async function getPostgresPool() {
   if (!databaseUrl) throw new Error("DATABASE_NOT_CONFIGURED");
   postgresPoolPromise ??= import("pg").then((pg) => {
@@ -2176,6 +2226,36 @@ async function getPostgresPool() {
     });
   });
   return postgresPoolPromise;
+}
+
+async function readCurrentDatabaseName() {
+  if (!usePostgresRepository()) return "";
+  postgresDatabaseNamePromise ??= (async () => {
+    const pool = await getPostgresPool();
+    const result = await pool.query("select current_database() as name");
+    return safeText(String(result.rows?.[0]?.name || ""));
+  })();
+  return postgresDatabaseNamePromise;
+}
+
+async function ensureRuntimeDatabaseTarget(serviceName: string) {
+  if (!usePostgresRepository() || !expectedDatabaseName) return;
+  const currentDatabaseName = await readCurrentDatabaseName();
+  if (!currentDatabaseName) throw new Error("DATABASE_TARGET_UNAVAILABLE");
+  if (currentDatabaseName !== expectedDatabaseName) {
+    throw new Error(
+      `DATABASE_TARGET_MISMATCH service=${serviceName} env=${environment} expected=${expectedDatabaseName} actual=${currentDatabaseName}`,
+    );
+  }
+  console.log(
+    JSON.stringify({
+      ok: true,
+      service: serviceName,
+      environment,
+      databaseTargetCheck: "passed",
+      currentDatabase: currentDatabaseName,
+    }),
+  );
 }
 
 async function readAuthDbPostgres(): Promise<AuthDb> {
@@ -2259,7 +2339,7 @@ async function writeAuthDbPostgres(db: AuthDb) {
 
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
-  const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult] = await Promise.all([
+  const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult, systemSettingsResult] = await Promise.all([
     pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
     pool.query(
       "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
@@ -2269,6 +2349,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
       "select id, actor_id, actor_email, action, target_type, target_id, summary, created_at from xh_audit_logs order by created_at desc limit 500",
     ),
     pool.query("select id, frontend, backend, integration, updated_at from xh_assistant_settings where id = 'default' limit 1"),
+    pool.query("select id, task_queue_settings, updated_at from xh_system_settings where id = 'default' limit 1"),
   ]);
   const db: AdminDb = {
     providers: providersResult.rows.map((row) =>
@@ -2345,6 +2426,11 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
           }
         : undefined,
     ),
+    taskQueueSettings: normalizeTaskQueueSettings(
+      systemSettingsResult.rows[0]
+        ? plainObject(systemSettingsResult.rows[0].task_queue_settings)
+        : undefined,
+    ),
   };
   if (db.providers.length === 0 && db.models.length === 0 && db.tasks.length === 0) {
     const seeded = defaultAdminDb();
@@ -2359,6 +2445,7 @@ async function writeAdminDbPostgres(db: AdminDb) {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query("delete from xh_system_settings");
     await client.query("delete from xh_assistant_settings");
     await client.query("delete from xh_audit_logs");
     await client.query("delete from xh_tasks");
@@ -2459,6 +2546,16 @@ async function writeAdminDbPostgres(db: AdminDb) {
         millisToDate(assistantSettings.updatedAt),
       ],
     );
+    const taskQueueSettings = normalizeTaskQueueSettings(db.taskQueueSettings);
+    await client.query(
+      `insert into xh_system_settings (id, task_queue_settings, updated_at)
+       values ($1, $2::jsonb, $3)`,
+      [
+        "default",
+        JSON.stringify(taskQueueSettings),
+        millisToDate(Date.now()),
+      ],
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
@@ -2487,6 +2584,58 @@ async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsR
       millisToDate(normalized.updatedAt),
     ],
   );
+}
+
+async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
+  if (usePostgresRepository()) {
+    return readTaskQueueSettingsRecordPostgres();
+  }
+  const db = await readAdminDb();
+  return {
+    taskQueueSettings: normalizeTaskQueueSettings(db.taskQueueSettings),
+    updatedAt: Date.now(),
+  };
+}
+
+async function readTaskQueueSettingsRecordPostgres(): Promise<SystemSettingsRecord> {
+  const pool = await getPostgresPool();
+  const result = await pool.query("select task_queue_settings, updated_at from xh_system_settings where id = 'default' limit 1");
+  if (!result.rows[0]) {
+    return {
+      taskQueueSettings: defaultTaskQueueSettings(),
+      updatedAt: Date.now(),
+    };
+  }
+  return {
+    taskQueueSettings: normalizeTaskQueueSettings(plainObject(result.rows[0].task_queue_settings)),
+    updatedAt: result.rows[0].updated_at ? dateToMillis(result.rows[0].updated_at) : Date.now(),
+  };
+}
+
+async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings): Promise<SystemSettingsRecord> {
+  const normalized = normalizeTaskQueueSettings(taskQueueSettings);
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const updatedAt = Date.now();
+    await pool.query(
+      `insert into xh_system_settings (id, task_queue_settings, updated_at)
+       values ($1, $2::jsonb, $3)
+       on conflict (id) do update set
+         task_queue_settings = excluded.task_queue_settings,
+         updated_at = excluded.updated_at`,
+      ["default", JSON.stringify(normalized), millisToDate(updatedAt)],
+    );
+    return { taskQueueSettings: normalized, updatedAt };
+  }
+  const db = await readAdminDb();
+  await writeAdminDb({
+    ...db,
+    taskQueueSettings: normalized,
+  });
+  return {
+    taskQueueSettings: normalized,
+    updatedAt: Date.now(),
+  };
 }
 
 async function updateProviderProbeResult(providerId: string, result: { ok?: boolean; message?: string }, now: number) {
@@ -2985,14 +3134,18 @@ async function getRedisClient() {
   return redisClientPromise;
 }
 
-async function enqueueTask(taskId: string): Promise<{ queued: boolean; reason: string }> {
-  if (!redisUrl) return { queued: false, reason: "redis_not_configured" };
+async function enqueueTask(
+  taskId: string,
+  capability: TaskQueueCapability,
+): Promise<{ queued: boolean; reason: string; queueName: string }> {
+  const queueName = taskQueueNameForCapability(taskQueueName, capability);
+  if (!redisUrl) return { queued: false, reason: "redis_not_configured", queueName };
   try {
     const client = await getRedisClient();
-    await client.lPush(taskQueueName, taskId);
-    return { queued: true, reason: "queued" };
+    await client.lPush(queueName, taskId);
+    return { queued: true, reason: "queued", queueName };
   } catch (error) {
-    return { queued: false, reason: error instanceof Error ? error.message : String(error) };
+    return { queued: false, reason: error instanceof Error ? error.message : String(error), queueName };
   }
 }
 
@@ -3134,7 +3287,7 @@ function defaultAdminDb(): AdminDb {
         id: "modelscope",
         name: "ModelScope",
         baseUrl: "https://api-inference.modelscope.cn/v1",
-        protocol: "openai",
+        protocol: "modelscope",
         enabled: true,
         msLoras: [
           {
@@ -3220,6 +3373,7 @@ function defaultAdminDb(): AdminDb {
     ],
     auditLogs: [],
     assistantSettings: defaultAssistantSettings(),
+    taskQueueSettings: defaultTaskQueueSettings(),
   };
 }
 
@@ -3368,6 +3522,11 @@ function normalizeAssistantSettings(
     },
     updatedAt: Number.isFinite(source.updatedAt) ? Number(source.updatedAt) : Date.now(),
   };
+}
+
+function normalizeTaskQueueCapability(value: unknown): TaskQueueCapability | null {
+  const text = safeText(value).trim();
+  return text === "image" || text === "audio" || text === "video" ? text : null;
 }
 
 function booleanValue(value: unknown, fallback: boolean) {
@@ -3615,7 +3774,7 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
     safeText(params.modelRecordId),
   );
   const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
   }
   if (!providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -3680,8 +3839,8 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
     updatedAt: now,
   };
   await insertTaskRecord(task);
-  const queueResult = await enqueueTask(task.id);
-  const queueLog = queueResult.queued ? `已进入 Redis 队列 ${taskQueueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+  const queueResult = await enqueueTask(task.id, "video");
+  const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
   await appendTaskLog(task.id, queueLog);
   if (!queueResult.queued) {
     await writeTaskRecord({
@@ -4087,7 +4246,7 @@ async function testAdminModelConnectivity(provider: AdminProviderRecord, model: 
   const apiKey = providerPlainApiKey(provider);
   if (!apiKey) return fail("Provider 未配置 API Key");
   const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     return fail(`当前模型测试暂未接入 ${protocol} 协议`);
   }
   const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, model.capability, model.modelId);
@@ -4579,6 +4738,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   const asyncTemplateHint = normalizeAssistantAsyncTemplate(input.asyncTemplate);
   const signals = `${providerName}\n${baseUrl}\n${docUrls.join("\n")}\n${notes}\n${sampleRequest}\n${sampleResponse}\n${asyncTemplateHint}`;
   const grsaiDetected = /grsai|grsai\.dakka\.com\.cn/i.test(signals);
+  const modelscopeDetected = /modelscope|api-inference\.modelscope\.cn/i.test(signals);
   const toapisDetected = /toapis|grok-video-1\.5-preview|videos\/generations\/\{task_id\}|POST\s+https:\/\/toapis\.com\/v1\/videos\/generations/i.test(signals);
   const agnesDetected = /agnes|agnes-ai\.com|agnes-video/i.test(signals);
   const videoDetected =
@@ -4590,6 +4750,8 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       ? normalizeCapability(requestedCapability)
       : grsaiDetected
         ? "image"
+        : modelscopeDetected
+          ? "image"
         : videoDetected
           ? "video"
           : classifyUpstreamModel(modelId);
@@ -4598,6 +4760,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       ? false
       : (
     grsaiDetected ||
+    modelscopeDetected ||
     toapisDetected ||
     agnesDetected ||
     /request[_-]?id|\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleResponse) ||
@@ -4609,11 +4772,13 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     );
   const protocol =
     (grsaiDetected ? "grsai_draw" :
+    modelscopeDetected ? "modelscope" :
     protocolHint ||
     (/apimart/i.test(baseUrl) || /apimart/i.test(providerName) ? "apimart" :
       /gemini/i.test(providerName) ? "gemini" :
       /runninghub/i.test(providerName) ? "runninghub" :
       grsaiDetected ? "grsai_draw" :
+      modelscopeDetected ? "modelscope" :
       "openai"));
   const recommendedLayer: AssistantAnalysisResult["recommendedLayer"] =
     asyncTask ? "adapter" :
@@ -4681,6 +4846,13 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
         : /data\.status/i.test(sampleResponse)
           ? "data.status"
           : "status";
+    if (modelscopeDetected && capability === "image") {
+      advancedConfig.pollPathTemplate = "tasks/{task_id}";
+      advancedConfig.taskIdPath = "task_id";
+      advancedConfig.taskStatusPath = "task_status";
+      advancedConfig.pollIntervalMs = 2500;
+      advancedConfig.pollTimeoutMs = 360000;
+    }
     advancedConfig.resultVideoPath = capability === "video"
       ? toapisDetected || /result\.data/i.test(sampleResponse + notes)
         ? "result.data.0.url"
@@ -4726,6 +4898,9 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     chainTemplate = "adapter_manual_model_catalog";
     advancedConfig.manualModelCatalog = true;
     advancedConfig.defaultModelId = "gpt-image-2";
+  }
+  if (modelscopeDetected && capability === "image" && asyncTemplateHint === "auto") {
+    chainTemplate = "async_task_poll_result";
   }
   if (toapisDetected && capability === "video" && asyncTemplateHint === "auto") {
     chainTemplate = "async_task_poll_result";
@@ -5485,25 +5660,34 @@ async function readDatabaseStatus() {
   }
 }
 
-async function readRedisStatus() {
+async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
+  const queues = buildTaskQueueRuntimeDescriptors(taskQueueName, taskQueueSettings);
   if (!redisUrl) {
     return {
       configured: false,
       status: "not_configured",
       queue: taskQueueName,
       depth: 0,
+      queues,
       error: "",
     };
   }
   try {
     const client = await getRedisClient();
     const pong = await client.ping();
-    const depth = await client.lLen(taskQueueName);
+    const queueStates = await Promise.all(
+      queues.map(async (item) => ({
+        ...item,
+        depth: await client.lLen(item.queue),
+      })),
+    );
+    const depth = queueStates.reduce((sum, item) => sum + item.depth, 0);
     return {
       configured: true,
       status: pong === "PONG" ? "connected" : "unknown",
       queue: taskQueueName,
       depth,
+      queues: queueStates,
       error: "",
     };
   } catch (error) {
@@ -5512,6 +5696,7 @@ async function readRedisStatus() {
       status: "error",
       queue: taskQueueName,
       depth: 0,
+      queues,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -5681,12 +5866,15 @@ async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
   const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(120000) });
   if (!upstream.ok) throw new Error(`下载远程图片失败 ${upstream.status}`);
   const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (!mime.startsWith("image/")) throw new Error("远程 URL 不是图片");
-  const ext = imageExtensionFromMime(mime) || imageExtensionFromUrl(sourceUrl) || "png";
+  const extFromUrl = imageExtensionFromUrl(sourceUrl);
+  const isGenericBinaryImage = mime === "application/octet-stream" && Boolean(extFromUrl);
+  if (!mime.startsWith("image/") && !isGenericBinaryImage) throw new Error("远程 URL 不是图片");
+  const ext = imageExtensionFromMime(mime) || extFromUrl || "png";
+  const effectiveMime = mime.startsWith("image/") ? mime : inferMime(`placeholder.${ext}`);
   const buffer = Buffer.from(await upstream.arrayBuffer());
   const filename = `external_image_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: effectiveMime };
 }
 
 async function saveRemoteAudioToOutput(sourceUrl: string, user: CurrentUser) {

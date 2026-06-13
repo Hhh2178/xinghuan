@@ -1,5 +1,6 @@
-import { useMemo } from "react";
-import { DataTable } from "./admin-common-components";
+import { Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { DataTable, FormPanel } from "./admin-common-components";
 import type { AuditRecord, SystemInfo } from "./admin-types";
 
 export function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
@@ -18,7 +19,22 @@ export function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
   );
 }
 
-export function SystemPanel({ system }: { system: SystemInfo | null }) {
+export function SystemPanel({
+  system,
+  saving = false,
+  onSave,
+}: {
+  system: SystemInfo | null;
+  saving?: boolean;
+  onSave?: (settings: SystemInfo["taskQueueSettings"]) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<SystemInfo["taskQueueSettings"] | null>(system?.taskQueueSettings ?? null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setDraft(system?.taskQueueSettings ?? null);
+  }, [system]);
+
   const rows = useMemo(() => [
     ["环境", system?.environment || "-"],
     ["服务", system?.service || "-"],
@@ -30,6 +46,8 @@ export function SystemPanel({ system }: { system: SystemInfo | null }) {
     ["Redis 状态", system?.redis?.status || "-"],
     ["Redis 队列", system?.redis?.queue || "-"],
     ["Redis 深度", String(system?.redis?.depth ?? 0)],
+    ["按类别并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.concurrency}`).join(" / ") || "-"],
+    ["按类别深度", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
     ["Redis 错误", system?.redis?.error || "-"],
     ["数据目录", system?.dataDir || "-"],
     ["认证数据", system?.authDbPath || "-"],
@@ -37,5 +55,76 @@ export function SystemPanel({ system }: { system: SystemInfo | null }) {
     ["画布数量", String(system?.storage?.canvases ?? 0)],
     ["资源数量", String(system?.storage?.resources ?? 0)],
   ], [system]);
-  return <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />;
+
+  const values = draft || system?.taskQueueSettings;
+
+  return (
+    <>
+      <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />
+      <FormPanel title="任务并发设置" icon={Settings2}>
+        <label>
+          图片并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.image.concurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
+                image: { concurrency: Number(event.target.value || 4) },
+              }))
+            }
+          />
+        </label>
+        <label>
+          音频并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.audio.concurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
+                audio: { concurrency: Number(event.target.value || 4) },
+              }))
+            }
+          />
+        </label>
+        <label>
+          视频并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.video.concurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
+                video: { concurrency: Number(event.target.value || 4) },
+              }))
+            }
+          />
+        </label>
+        <div className="inline-actions">
+          <button
+            type="button"
+            disabled={!onSave || !values || saving || submitting}
+            onClick={async () => {
+              if (!onSave || !values) return;
+              setSubmitting(true);
+              try {
+                await onSave(values);
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+          >
+            {saving || submitting ? "保存中..." : "保存并发设置"}
+          </button>
+        </div>
+      </FormPanel>
+    </>
+  );
 }

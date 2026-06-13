@@ -164,12 +164,27 @@
 - 2.0 是新项目，不在 `node-banana-enterprise` 上继续堆功能。
 - 候选基底必须先经过 POC，不允许因为界面像画布就直接采用。
 - 不采用“一个服务商一个节点”的模型；采用“通用节点 + 模型目录 + schema 驱动参数和端口”。
+- 正式多用户环境的 PostgreSQL 仓储不允许继续新增“整表删除后重写”模式；`AuthDb`、`AdminDb`、画布、资源和任务都必须逐步收口到实体级增量写入。
+- 正式多用户环境下，客户端传入的业务 `id` 不能直接改变资源归属；画布、素材、任务等核心对象都必须由服务端按 `owner_id` / 版本号校验后写入。
+- 后续正式化治理以 `docs/production-multi-user-hardening-plan-2026-06-13.md` 为主方案，以 `ops/production-multi-user-acceptance-plan-2026-06-13.md` 为放行门槛。
 - 后台发布模型的图片、视频、音频默认走任务化标准链路，而不是长请求直返。
 - Provider 生成任务标准执行模式固定为：
   - `sync_inline`
   - `async_poll`
   - `async_poll_then_final_lookup`
   - `worker_queue`
+- Provider 生成 Worker 并发治理规则固定为：
+  - 生成类任务按能力拆分独立队列：
+    - `image`
+    - `audio`
+    - `video`
+  - 队列名前缀基于 `XINGHUAN_TASK_QUEUE`，当前运行态会展开为：
+    - `xinghuan:tasks:image`
+    - `xinghuan:tasks:audio`
+    - `xinghuan:tasks:video`
+  - 后台系统页允许管理员按类别调节并发
+  - 当前产品约束是每类并发 `1..4`
+  - 默认值为每类 `4`
 - 当前默认执行策略固定为：
   - `chat -> sync_inline`
   - `image/video/audio -> worker_queue`
@@ -736,3 +751,80 @@
     - 先定义 `executionMode`
     - 再定义 `chainTemplate`
     - 最后补充 `advancedConfig` 的 Provider 细节
+- `2026-06-12` Provider 任务并发治理已升级为分类独立队列：
+  - 根因确认：
+    - 前端图片 / 视频 / 音频的多数量生成早已是拆单并发提交
+    - 真正堵塞短任务的是 Worker 仍采用单进程单循环串行消费一个总队列
+  - 当前标准方案：
+    - `image / audio / video` 各自进入独立 Redis 队列
+    - Worker 按类别独立启动多个消费槽位
+    - 后台 `/admin` 的系统页支持直接修改分类并发值
+    - 每类上限固定为 `4`
+  - 当前新增数据库结构：
+    - `xh_system_settings.task_queue_settings`
+    - migration: `008_task_queue_settings.sql`
+  - 当前验收结论：
+    - 本地契约验证、类型检查、分类队列脚本验证和 `build:single-port` 已全部通过
+    - 灰度 release 已上线：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-queue-concurrency-gray-r2-local`
+    - 灰度 `008_task_queue_settings.sql` 已执行成功
+    - 灰度 API / Worker 已 `active`
+    - 灰度公网 `/`、`/admin`、`/api/status` 已恢复正常
+    - 当前分类队列深度：
+      - `xinghuan:tasks:image = 0`
+      - `xinghuan:tasks:audio = 0`
+      - `xinghuan:tasks:video = 0`
+    - 正式 release 已上线：
+      - `/opt/apps/xinghuan-canvas/releases/20260612-provider-task-queue-concurrency-prod-r1-local`
+    - 正式 `008_task_queue_settings.sql` 已执行成功
+    - 正式 API / Worker / output prune timer 已 `active`
+    - 正式公网 `/`、`/admin`、`/api/status` 已恢复正常
+    - 当前正式分类队列深度：
+      - `xinghuan:tasks:prod:image = 0`
+      - `xinghuan:tasks:prod:audio = 0`
+      - `xinghuan:tasks:prod:video = 0`
+    - 下一步是灰度发布后，使用真实登录态人工验收：
+      - 长视频 + 短音频并发提交
+      - 观察音频是否先完成返回
+- `2026-06-12` ModelScope 图像协议与图像编辑链路已完成灰度/生产验收：
+  - 根因确认：
+    - 正式环境中魔搭图像失败的核心原因不是模型整体不可用，而是图像链路曾把 `ModelScope` 图像任务错误套进了 `APIMart` 图像异步判定。
+    - 在修复 `ModelScope` 协议分支后，`Qwen/Qwen-Image-Edit` 又暴露出两个真实兼容点：
+      - 参考图请求体不能只发 `image: [url]` 数组，需要兼容 `image / images / image_url / image_urls`
+      - 上游返回的真实图片下载地址可能给 `application/octet-stream`，不能被本地素材落地误判成非图片
+  - 当前标准方案：
+    - `protocol` 与 `executionMode` 分层：
+      - `executionMode` 决定 `worker_queue / async_poll / ...`
+      - `protocol` 决定 `openai / apimart / modelscope / ...`
+    - `ModelScope` 图像单独协议分支负责：
+      - 提交头 `X-ModelScope-Async-Mode: true`
+      - 轮询头 `X-ModelScope-Task-Type: image_generation`
+      - `task_id / task_status / pollPathTemplate`
+      - 图像编辑参考图字段兼容
+    - 对线上旧记录继续保留兼容：
+      - 即使数据库里 Provider 仍是 `protocol=openai`
+      - 只要 `baseUrl` 包含 `api-inference.modelscope.cn`
+      - 图像链路仍自动走 `ModelScope` 分支
+  - 当前灰度 release：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260612-modelscope-image-materialize-fix-gray-r3`
+  - 当前正式 release：
+    - `/opt/apps/xinghuan-canvas/releases/20260612-modelscope-image-protocol-prod-r2`
+  - 真实验收结果：
+    - 灰度：
+      - `Agnes` 图像生成成功
+      - `魔搭 Qwen/Qwen-Image-Edit` 参考图编辑成功
+      - 混合并发 `2 Agnes + 2 魔搭` 全部成功
+      - 魔搭任务结果 `raw.adapter = modelscope-image`
+    - 正式：
+      - `Agnes` 图像生成成功
+      - `魔搭 Qwen/Qwen-Image-Edit` 参考图编辑成功
+      - 正式任务进入 `xinghuan:tasks:prod:image`
+      - 魔搭任务结果 `raw.adapter = modelscope-image`
+  - 后续接新图像平台的规范：
+    - 先判断是文生图还是图像编辑
+    - 再定义协议分支，而不是先套通用 `openai/apimart`
+    - 如果上游图片下载返回 `application/octet-stream`，但 URL 扩展名明确是图片，可按受控白名单方式落地
+    - 真正上线前必须至少做：
+      - 单任务真实验收
+      - 参考图真实验收
+      - 混合并发真实验收

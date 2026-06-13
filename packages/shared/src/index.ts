@@ -4,6 +4,7 @@ export const appVersion = "0.1.0";
 
 export type AppEnvironment = "local" | "gray" | "production";
 export * from "./provider-generation-task.js";
+export * from "./task-queue-settings.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

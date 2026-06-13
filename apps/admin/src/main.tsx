@@ -423,7 +423,28 @@ function AdminApp() {
           {activeTab === "audit" ? (
             <AuditPanel auditLogs={auditLogs} />
           ) : null}
-          {activeTab === "system" ? <SystemPanel system={system} /> : null}
+          {activeTab === "system" ? (
+            <SystemPanel
+              system={system}
+              saving={busy}
+              onSave={async (taskQueueSettings) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await api("/api/admin/system", {
+                    method: "PATCH",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ taskQueueSettings }),
+                  });
+                  await loadAdminData();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          ) : null}
         </main>
 
         <AdminAssistantPanel

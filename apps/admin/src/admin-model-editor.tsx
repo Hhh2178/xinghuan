@@ -426,6 +426,7 @@ export function ModelEditorRow({
           <option value="volcengine">火山</option>
           <option value="runninghub">RH</option>
           <option value="apimart">APIMart</option>
+          <option value="modelscope">ModelScope</option>
           <option value="grsai_draw">GRSAI Draw</option>
           <option value="custom">自定义</option>
         </select>

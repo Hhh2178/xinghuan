@@ -20,6 +20,13 @@
 - `Provider Files` 从裸 IP 切到 `files.hhh2121.xyz` 的正式切换记录见 `provider-files-files-domain-cutover-2026-06-12.md`。
 - 视频生成 `Unexpected token '<'` 前端误报修复灰度发布记录见 `video-json-guard-gray-2026-06-12.md`。
 - Provider 生成任务标准化灰度/生产切换清单见 `provider-generation-task-rollout-checklist-2026-06-12.md`。
+- Provider 生成任务标准化灰度发布记录见 `provider-generation-task-gray-release-2026-06-12.md`。
+- Provider 分类队列并发灰度发布记录见 `provider-task-queue-concurrency-gray-2026-06-12.md`。
+- Provider 分类队列并发正式发布记录见 `provider-task-queue-concurrency-production-2026-06-12.md`。
+- ModelScope 图像协议修复与灰度/正式真实验收记录见 `modelscope-image-protocol-release-2026-06-12.md`。
+- 数据库目标防呆与防空画布误清理发布记录见 `database-target-guard-release-2026-06-13.md`。
+- 多用户正式化加固验收方案见 `production-multi-user-acceptance-plan-2026-06-13.md`。
+- 多用户正式化实施主方案见 `../docs/production-multi-user-hardening-plan-2026-06-13.md`。
 
 ## 当前运行态入口
 
@@ -32,6 +39,12 @@
 - `generation-count-release-2026-06-10.md`
 - `video-json-guard-gray-2026-06-12.md`
 - `provider-generation-task-rollout-checklist-2026-06-12.md`
+- `provider-generation-task-gray-release-2026-06-12.md`
+- `provider-task-queue-concurrency-gray-2026-06-12.md`
+- `provider-task-queue-concurrency-production-2026-06-12.md`
+- `modelscope-image-protocol-release-2026-06-12.md`
+- `database-target-guard-release-2026-06-13.md`
+- `production-multi-user-acceptance-plan-2026-06-13.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`

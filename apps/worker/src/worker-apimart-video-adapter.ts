@@ -15,6 +15,7 @@ interface ApimartVideoAdapterPayloadInput {
 interface ExtractApimartTaskOptions {
   taskIdPath?: string;
   statusPath?: string;
+  allowGenericIdFallback?: boolean;
 }
 
 interface ExtractApimartVideoResultOptions {
@@ -55,16 +56,17 @@ export function createApimartVideoAdapterPayload(input: ApimartVideoAdapterPaylo
 
 export function extractApimartTask(raw: unknown, options: ExtractApimartTaskOptions = {}) {
   const data = firstDataNode(raw);
+  const allowGenericIdFallback = options.allowGenericIdFallback === true || !options.taskIdPath;
   return {
     taskId: readStringAtPath(raw, options.taskIdPath || "data.0.task_id")
-      || readStringAtPath(raw, "request_id")
-      || readStringAtPath(raw, "id")
       || readStringAtPath(raw, "data.task_id")
-      || readStringAtPath(raw, "data.id")
       || readStringAtPath(data, "task_id")
-      || readStringAtPath(data, "request_id")
-      || readStringAtPath(data, "id")
-      || readStringAtPath(raw, "task_id"),
+      || readStringAtPath(raw, "task_id")
+      || (allowGenericIdFallback ? readStringAtPath(raw, "request_id") : "")
+      || (allowGenericIdFallback ? readStringAtPath(raw, "id") : "")
+      || (allowGenericIdFallback ? readStringAtPath(raw, "data.id") : "")
+      || (allowGenericIdFallback ? readStringAtPath(data, "request_id") : "")
+      || (allowGenericIdFallback ? readStringAtPath(data, "id") : ""),
     status: readStringAtPath(raw, options.statusPath || "data.0.status")
       || readStringAtPath(raw, "status")
       || readStringAtPath(raw, "data.status")

@@ -73,6 +73,18 @@ cp config/canvas-production.env.example /opt/apps/xinghuan-canvas/shared/canvas.
 
 然后只在服务器上填入真实连接串、密钥和 bootstrap 密码，不把真实值写回仓库。
 
+同时必须设置：
+
+```bash
+XINGHUAN_EXPECTED_DATABASE_NAME=<正式数据库名>
+```
+
+要求：
+
+- 必须是正式实际使用的 PostgreSQL 数据库名。
+- 不得留空。
+- 不得复用灰度数据库名。
+
 ## 发布步骤
 
 1. 上传或拉取 release 到：
@@ -115,7 +127,18 @@ curl -fsS http://127.0.0.1:18100/api/status
 curl -fsS http://127.0.0.1:18100/
 ```
 
-6. 安装 Nginx 示例并切域名：
+6. 验证生产进程没有连错库：
+
+```bash
+set -a
+. /opt/apps/xinghuan-canvas/shared/canvas.env
+set +a
+psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"
+```
+
+返回值必须与 `XINGHUAN_EXPECTED_DATABASE_NAME` 一致。
+
+7. 安装 Nginx 示例并切域名：
 
 ```bash
 sudo cp ops/nginx/canvas.hhh2121.xyz.conf.example /etc/nginx/sites-available/canvas.hhh2121.xyz
@@ -124,7 +147,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-7. 域名切换后，按生产验收清单补 smoke：
+8. 域名切换后，按生产验收清单补 smoke：
 
 ```text
 ops/production-acceptance-checklist.md

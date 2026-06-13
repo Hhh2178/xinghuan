@@ -48,6 +48,8 @@
 - 生产数据目录不复用灰度 `shared/data`。
 - 生产日志目录不复用灰度 `shared/logs`。
 - 生产 Redis 队列不复用灰度 `xinghuan:tasks`。
+- `XINGHUAN_EXPECTED_DATABASE_NAME` 已设置为正式数据库名。
+- `psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"` 返回值与 `XINGHUAN_EXPECTED_DATABASE_NAME` 一致。
 - RunningHub 真实工作流能力本轮不作为生产切换前必验项。
 
 ## 回滚验收

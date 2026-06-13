@@ -333,8 +333,11 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
   const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(120000) });
   if (!upstream.ok) throw new Error(`下载输出素材失败 ${upstream.status}`);
   const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (!mime.startsWith("image/")) throw new Error(`输出素材不是图片: ${mime || "unknown"}`);
-  const ext = imageExtensionFromMime(mime) || imageExtensionFromUrl(sourceUrl) || "png";
+  const extFromUrl = imageExtensionFromUrl(sourceUrl);
+  const isGenericBinaryImage = mime === "application/octet-stream" && Boolean(extFromUrl);
+  if (!mime.startsWith("image/") && !isGenericBinaryImage) throw new Error(`输出素材不是图片: ${mime || "unknown"}`);
+  const ext = imageExtensionFromMime(mime) || extFromUrl || "png";
+  const effectiveMime = mime.startsWith("image/") ? mime : inferMime(`placeholder.${ext}`);
   const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
   const buffer = Buffer.from(await upstream.arrayBuffer());
   await writeFile(join(outputDir, filename), buffer);
@@ -342,7 +345,7 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
     filename,
     fileUrl: `/files/output/${filename}`,
     size: buffer.length,
-    mime,
+    mime: effectiveMime,
     sourceUrl,
   };
 }

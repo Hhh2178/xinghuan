@@ -66,6 +66,17 @@ cp config/canvas-next.env.example /opt/apps/xinghuan-canvas-next/shared/canvas-n
 
 然后只在服务器上编辑真实路径和环境变量，不写入真实密钥到仓库。
 
+如果灰度使用 PostgreSQL，必须同时设置：
+
+```bash
+XINGHUAN_EXPECTED_DATABASE_NAME=<灰度数据库名>
+```
+
+要求：
+
+- 必须填灰度实际数据库名。
+- 不得复用正式数据库名。
+
 ## 发布步骤
 
 1. 上传或拉取 release 到：
@@ -106,6 +117,17 @@ sudo systemctl reload nginx
 ```
 
 6. HTTPS 证书在确认 HTTP 灰度可用后再处理，避免把证书问题和应用问题混在一起。
+
+7. 若灰度使用 PostgreSQL，发布后补做数据库目标校验：
+
+```bash
+set -a
+. /opt/apps/xinghuan-canvas-next/shared/canvas-next.env
+set +a
+psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"
+```
+
+返回值必须与 `XINGHUAN_EXPECTED_DATABASE_NAME` 一致。
 
 ## 验收
 

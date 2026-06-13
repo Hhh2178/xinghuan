@@ -52,7 +52,7 @@ function isModelScopeProvider(p: ReturnType<typeof providerDraft>) {
 function inferProviderProtocol(p: ReturnType<typeof providerDraft>) {
   if (/grsai|grsai\.dakka\.com\.cn/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "grsai_draw" as ProviderProtocol;
   if (/runninghub/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "runninghub" as ProviderProtocol;
-  if (/modelscope/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "custom" as ProviderProtocol;
+  if (/modelscope|api-inference\.modelscope\.cn/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "modelscope" as ProviderProtocol;
   if (/gemini/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "gemini" as ProviderProtocol;
   if (/apimart/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "apimart" as ProviderProtocol;
   return p.protocol;
@@ -762,6 +762,7 @@ export function ApiSettingsPanel({
                   <option value="runninghub">RunningHub</option>
                   <option value="volcengine">火山方舟</option>
                   <option value="apimart">APIMart</option>
+                  <option value="modelscope">ModelScope</option>
                   <option value="custom">自定义</option>
                 </select>
               </label>

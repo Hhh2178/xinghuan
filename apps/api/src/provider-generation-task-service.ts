@@ -53,7 +53,6 @@ interface AdminTaskRecordLike {
 }
 
 interface ProviderGenerationTaskServiceDependencies {
-  taskQueueName: string;
   supportedTaskCapabilities?: readonly GenerationCapability[];
   normalizeProviderProtocol: (value: unknown) => string;
   providerPlainApiKey: (provider: ProviderLike) => string;
@@ -69,7 +68,10 @@ interface ProviderGenerationTaskServiceDependencies {
   insertTaskRecord: (task: AdminTaskRecordLike) => Promise<void>;
   writeTaskRecord: (task: AdminTaskRecordLike) => Promise<void>;
   appendTaskLog: (taskId: string, line: string) => Promise<void>;
-  enqueueTask: (taskId: string) => Promise<{ queued: boolean; reason: string }>;
+  enqueueTask: (
+    taskId: string,
+    capability: GenerationCapability,
+  ) => Promise<{ queued: boolean; reason: string; queueName: string }>;
   safeText: (value: unknown, fallback?: string) => string;
   safeSlug: (value: unknown, fallback?: string) => string;
   plainObject: (value: unknown) => Record<string, unknown>;
@@ -197,7 +199,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom", "grsai_draw"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -258,7 +260,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -333,7 +335,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入音频任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -407,9 +409,9 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       updatedAt: now,
     };
     await deps.insertTaskRecord(task);
-    const queueResult = await deps.enqueueTask(task.id);
+    const queueResult = await deps.enqueueTask(task.id, input.capability);
     const queueLog = queueResult.queued
-      ? `已进入 Redis 队列 ${deps.taskQueueName}`
+      ? `已进入 Redis 队列 ${queueResult.queueName}`
       : `未进入 Redis 队列: ${queueResult.reason}`;
     await deps.appendTaskLog(task.id, queueLog);
     if (!queueResult.queued) {

@@ -83,6 +83,53 @@ interface GenerateExternalProxyDependencies {
 }
 
 export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
+  function isModelScopeImageProvider(protocol: string, provider: ProviderLike) {
+    const baseUrl = deps.safeText(provider.baseUrl).toLowerCase();
+    return protocol === "modelscope" || baseUrl.includes("api-inference.modelscope.cn");
+  }
+
+  function applyImageReferencePayload(payload: Record<string, unknown>, imageUrls: string[], isModelScope: boolean) {
+    if (imageUrls.length === 0) return;
+    payload.image = isModelScope && imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+    if (!isModelScope) return;
+    payload.images = imageUrls;
+    payload.image_url = imageUrls[0];
+    payload.image_urls = imageUrls;
+  }
+
+  function modelScopeHeaders(apiKey: string, mode: "submit" | "poll") {
+    return {
+      ...deps.providerModelHeaders(apiKey, "modelscope"),
+      ...(mode === "submit" ? { "X-ModelScope-Async-Mode": "true" } : {}),
+      ...(mode === "poll" ? { "X-ModelScope-Task-Type": "image_generation" } : {}),
+    };
+  }
+
+  function extractModelScopeImageTask(raw: unknown, advancedConfig: ReturnType<typeof parseAdvancedConfig>) {
+    const root = deps.plainObject(raw);
+    const data = deps.plainObject(root.data);
+    return {
+      taskId:
+        deps.safeText(root[deps.safeText(advancedConfig.taskIdPath || "task_id")] as unknown)
+        || deps.safeText(root.task_id)
+        || deps.safeText(data.task_id)
+        || deps.safeText(root.id),
+      status:
+        deps.safeText(root[deps.safeText(advancedConfig.taskStatusPath || "task_status")] as unknown)
+        || deps.safeText(root.task_status)
+        || deps.safeText(data.task_status)
+        || deps.safeText(root.status),
+    };
+  }
+
+  function isCompletedAsyncStatus(status: string) {
+    return ["completed", "succeeded", "success", "done", "succeed"].includes(status);
+  }
+
+  function isFailedAsyncStatus(status: string) {
+    return ["failed", "error", "cancelled", "canceled", "fail"].includes(status);
+  }
+
   function summarizeUpstreamBody(text: string) {
     return String(text || "").replace(/\s+/g, " ").trim().slice(0, 320);
   }
@@ -291,9 +338,10 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
     while (Date.now() < deadline) {
       const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+      const isModelScope = isModelScopeImageProvider(input.protocol, input.provider);
       const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
         method: "GET",
-        headers: deps.providerModelHeaders(input.apiKey, input.protocol),
+        headers: isModelScope ? modelScopeHeaders(input.apiKey, "poll") : deps.providerModelHeaders(input.apiKey, input.protocol),
         signal: AbortSignal.timeout(60000),
       });
       const text = await upstream.text();
@@ -309,17 +357,19 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         deadline = Math.max(deadline, adaptiveDeadline);
       }
       const extracted = extractImageOutputs(raw);
-      const task = extractApimartTask(raw, {
-        statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
-      });
+      const task = isModelScope
+        ? extractModelScopeImageTask(raw, input.advancedConfig)
+        : extractApimartTask(raw, {
+            statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.status"),
+          });
       const normalizedStatus = String(task.status || "").trim().toLowerCase();
       if (
         (extracted.urls.length > 0 || extracted.base64.length > 0) &&
-        (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))
+        (!normalizedStatus || isCompletedAsyncStatus(normalizedStatus))
       ) {
         return extracted;
       }
-      if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+      if (isFailedAsyncStatus(normalizedStatus)) {
         throw new Error(`图像任务失败: ${task.status || "failed"}`);
       }
       await sleep(pollIntervalMs);
@@ -334,10 +384,11 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     payload: Record<string, unknown>;
     advancedConfig: ReturnType<typeof parseAdvancedConfig>;
   }) {
+    const isModelScope = isModelScopeImageProvider(input.protocol, input.provider);
     const upstream = await fetch(openAiImageGenerationUrl(input.provider.baseUrl), {
       method: "POST",
       headers: {
-        ...deps.providerModelHeaders(input.apiKey, input.protocol),
+        ...(isModelScope ? modelScopeHeaders(input.apiKey, "submit") : deps.providerModelHeaders(input.apiKey, input.protocol)),
         "content-type": "application/json",
       },
       body: JSON.stringify(input.payload),
@@ -349,10 +400,12 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const raw = parseUpstreamJson(text, "图像生成接口", upstream.headers.get("content-type") || "");
     const extracted = extractImageOutputs(raw);
     if (extracted.urls.length > 0 || extracted.base64.length > 0) return extracted;
-    const task = extractApimartTask(raw, {
-      taskIdPath: deps.safeText(input.advancedConfig.taskIdPath, "data.0.task_id"),
-      statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.0.status"),
-    });
+    const task = isModelScope
+      ? extractModelScopeImageTask(raw, input.advancedConfig)
+      : extractApimartTask(raw, {
+          taskIdPath: deps.safeText(input.advancedConfig.taskIdPath, "data.0.task_id"),
+          statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "data.0.status"),
+        });
     if (!task.taskId) return extracted;
     return pollAsyncImageTask({
       provider: input.provider,
@@ -403,7 +456,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const modelRecordId = deps.safeText(params.modelRecordId);
     const { provider, model } = await findEnabledImageModel(providerId, requestedModelId, modelRecordId);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom", "grsai_draw"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像生成 Adapter: ${protocol}`);
     }
 
@@ -424,7 +477,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const payload: Record<string, unknown> = { model: model.modelId, prompt, n: count, size };
     const aspectRatio = deps.safeText(params.aspectRatio || body.aspect_ratio);
     if (aspectRatio) payload.aspect_ratio = aspectRatio;
-    if (images.length > 0) payload.image = images;
+    applyImageReferencePayload(payload, images, isModelScopeImageProvider(protocol, provider));
 
     const grsaiImages = protocol === "grsai_draw"
       ? await prepareGrsaiReferenceImages({
@@ -469,7 +522,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
     }
     const apiKey = deps.providerPlainApiKey(provider);
@@ -513,7 +566,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
     }
     const apiKey = deps.providerPlainApiKey(provider);
@@ -652,7 +705,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入音频模型 Adapter: ${protocol}`);
     }
     const apiKey = deps.providerPlainApiKey(provider);

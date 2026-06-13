@@ -13,7 +13,523 @@
 - 本文件保留逐日推进细节，不承担“唯一入口摘要”职责。
 - 已经沉淀为长期规则的内容，应同步收口到 `MEMORY.md`、`docs/` 或 `ops/`，避免只存在于日志中。
 
+## 2026-06-13
+
+### 多用户正式化加固方案、边界和验收清单落档
+
+目标:
+
+- 把本轮生产级审查结论沉淀为可执行方案，而不是只停留在聊天结论。
+- 明确后续仓储重构、并发控制、会话安全、任务取消和上线门槛的执行顺序。
+
+变更:
+
+- 新增主方案文档：
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+- 新增验收与放行文档：
+  - `ops/production-multi-user-acceptance-plan-2026-06-13.md`
+- 更新：
+  - `ops/README.md`
+  - `MEMORY.md`
+- 本轮文档收口内容包括：
+  - 为什么当前问题不能继续按零散热修处理
+  - Phase A 到 Phase E 的实施顺序
+  - 允许做与禁止做的边界
+  - 灰度放行条件、正式放行条件和立即回滚条件
+  - 并发写入、跨用户 owner、会话安全、任务取消和审计追踪的验收项
+
+验证:
+
+- 已确认新文档落在当前 worktree 正式入口下，而不是历史目录：
+  - `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/docs/`
+  - `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/ops/`
+- 已同步更新 `MEMORY.md` 和 `ops/README.md`，后续恢复上下文时可直接命中。
+
+影响:
+
+- 后续实施不再以“临时修一个点”为单位，而是按正式多用户治理分阶段推进。
+- 灰度和正式上线前将有固定放行标准，减少“代码能跑但正式数据不安全”的情况。
+
+风险:
+
+- 当前只是方案和验收标准落档，还没有开始 Phase A 的代码改造。
+- 在 Phase A 和 Phase B 完成前，正式环境仍然存在仓储并发与归属层面的结构性风险。
+
+下一步:
+
+- 从 Phase A 开始，先改画布归属写入和 PostgreSQL 整表重写仓储。
+
+### 生产画布“清空”根因定位与数据库目标防呆
+
+目标:
+
+- 查清“生产每次更新后用户画布像被清空”的真实原因。
+- 判断当前生产里 `ModelScope/魔搭` 图像失败是否仍是协议链路问题。
+- 加上运行态防呆，防止生产/灰度再次连错数据库。
+
+变更:
+
+- 生产运行态取证：
+  - 生产当前 release：
+    - `/opt/apps/xinghuan-canvas/releases/20260612-modelscope-image-protocol-prod-r2`
+  - 生产当前环境：
+    - `APP_ENV=production`
+    - `STORAGE_DRIVER=postgres`
+    - `DATA_DIR=/opt/apps/xinghuan-canvas/shared/data`
+  - 生产 PostgreSQL 当前数据库名：
+    - `xinghuan_canvas_next`
+  - 生产库现状：
+    - `xh_users=7`
+    - `xh_tasks=69`
+    - `xh_canvases=0`
+  - 灰度 PostgreSQL 当前数据库名：
+    - `xinghuan_canvas_gray`
+  - 灰度库现状：
+    - `xh_users=6`
+    - `xh_tasks=99`
+    - `xh_canvases=13`
+- 生产画布丢失排查结论：
+  - 当前服务器只存在：
+    - `xinghuan_canvas_gray`
+    - `xinghuan_canvas_next`
+  - 不存在第三个可直接回切的“正式老库”。
+  - 生产 `shared/data/users/*/canvases/` 目录为空，没有可直接自动回导的历史画布 JSON。
+  - 因此当前“更新后像清空”不是这次新代码把现有画布删掉了，而是生产运行态当前读到的数据库目标里本来就没有画布数据。
+- `ModelScope/魔搭` 图像链路复核：
+  - 查询生产旧任务后确认：
+    - `Qwen/Qwen-Image-2512`
+    - `通义万相 turbo`
+    - 失败记录都是 `2026-06-12` 修复前旧任务，日志为：
+      - `APIMart 图像生成轮询超时`
+  - 在当前生产服务上使用临时 mock `ModelScope` Provider 复验：
+    - `Qwen/Qwen-Image-2512`
+    - 提交头 `X-ModelScope-Async-Mode: true`
+    - 轮询头 `X-ModelScope-Task-Type: image_generation`
+    - 返回本地 `/files/output/...png`
+  - 说明当前正式代码里的 `ModelScope` 异步图像协议已经生效，界面里再次看到的这类失败节点大概率是历史失败任务状态残留，不是当前代码仍走旧 APIMart 图像链路。
+- 本轮代码与文档防护：
+  - `apps/api/src/server.ts`
+    - 新增 `XINGHUAN_EXPECTED_DATABASE_NAME` 运行态校验。
+    - API 启动时会先查询 `current_database()`；若与期望库名不一致，直接抛出 `DATABASE_TARGET_MISMATCH`。
+    - 收紧 `writeCanvasList(...)`：默认拒绝空列表整表替换，只有明确“删除最后一个画布”时才允许 `allowEmptyReplace`。
+  - `apps/worker/src/worker.ts`
+    - 同步新增 `XINGHUAN_EXPECTED_DATABASE_NAME` 校验。
+    - Worker 启动前即校验数据库目标，避免静默消费到错误环境。
+  - `config/canvas-production.env.example`
+  - `config/canvas-next.env.example`
+    - 新增 `XINGHUAN_EXPECTED_DATABASE_NAME` 占位项。
+  - `ops/production-deploy-runbook.md`
+  - `ops/gray-deploy-runbook.md`
+  - `ops/production-acceptance-checklist.md`
+    - 发布与验收流程新增数据库目标校验步骤，避免后续只验 `api/status` 和 service active，却没验真实数据库目标。
+
+验证:
+
+- 远端生产取证：
+  - `current_database()`:
+    - 生产 => `xinghuan_canvas_next`
+    - 灰度 => `xinghuan_canvas_gray`
+  - `xh_canvases`:
+    - 生产 => `0`
+    - 灰度 => `13`
+- 远端生产 mock 协议回归：
+  - `node /tmp/verify-modelscope-image-proxy.mjs`
+  - 返回 `ok: true`
+  - `Qwen/Qwen-Image-2512` mock 任务成功落本地图片。
+- 本地构建验收：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/worker`
+  - `npm run build:single-port`
+- 灰度发布与验收：
+  - release:
+    - `/opt/apps/xinghuan-canvas-next/releases/20260613-db-target-guard-gray-r1`
+  - API 启动日志：
+    - `databaseTargetCheck=passed`
+    - `currentDatabase=xinghuan_canvas_gray`
+  - Worker 启动日志：
+    - `databaseTargetCheck=passed`
+    - `currentDatabase=xinghuan_canvas_gray`
+  - `curl http://127.0.0.1:18200/api/status` 返回 `environment=gray`
+- 正式发布与验收：
+  - release:
+    - `/opt/apps/xinghuan-canvas/releases/20260613-db-target-guard-prod-r1`
+  - API 启动日志：
+    - `databaseTargetCheck=passed`
+    - `currentDatabase=xinghuan_canvas_next`
+  - Worker 启动日志：
+    - `databaseTargetCheck=passed`
+    - `currentDatabase=xinghuan_canvas_next`
+  - `curl http://127.0.0.1:18100/api/status` 返回 `environment=production`
+
+影响:
+
+- 以后只要生产或灰度 env 里的期望数据库名与真实连接目标不一致，API/Worker 会直接报错而不是继续提供一个“能打开但数据看起来被清空”的错误环境。
+- 当前生产画布恢复仍需要单独决定数据源，因为服务器上没有现成的第三个正式旧库或文件快照可直接回导。
+
+风险与注意:
+
+- 这轮只加了防呆和根因定位，没有擅自切换生产数据库目标。
+- 若后续要恢复生产画布，需要先明确：
+  - 目标正式数据库名是什么
+  - 是否要从现有灰度库迁移管理员 `13` 个画布
+  - 还是要从其它外部备份恢复
+
 ## 2026-06-12
+
+### ModelScope 图像协议专属化修复并完成灰度/生产验收
+
+目标:
+
+- 解决正式环境中魔搭图像模型被误套进 APIMart 图像异步链路的问题。
+- 将 ModelScope 图像链路从“半通用兼容”收口为明确协议分支。
+- 使用 `Agnes + 魔搭` 做真实灰度验收、真实生产验收和混合并发验收。
+
+变更:
+
+- 协议与后台枚举:
+  - `packages/model-core/src/index.ts`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/api/src/provider-model-catalog.ts`
+  - `apps/api/src/server.ts`
+  - `apps/worker/src/worker.ts`
+  - 新增显式 `modelscope` 协议识别与归一化。
+- 图像异步链路:
+  - `apps/api/src/external-proxy.ts`
+  - `apps/worker/src/worker.ts`
+  - `apps/api/src/apimart-video-adapter.ts`
+  - `apps/worker/src/worker-apimart-video-adapter.ts`
+  - `apps/api/src/provider-response-parser.ts`
+  - `apps/worker/src/worker-provider-utils.ts`
+  - 新增 / 修复：
+    - `ModelScope` 图像异步提交头 `X-ModelScope-Async-Mode: true`
+    - `ModelScope` 图像轮询头 `X-ModelScope-Task-Type: image_generation`
+    - `ModelScope` 图像任务提取 `task_id / task_status`
+    - 兼容线上旧 Provider 记录仍是 `protocol=openai` 但 `baseUrl` 指向 `api-inference.modelscope.cn`
+    - `APIMart` 图像任务提取不再误把普通 `request_id/id` 当异步任务 ID
+- ModelScope 图像编辑补强:
+  - `apps/api/src/external-proxy.ts`
+  - `apps/worker/src/worker.ts`
+  - 对参考图输入增加 `image / images / image_url / image_urls` 兼容别名。
+- 输出素材落地补强:
+  - `apps/worker/src/output-materials.ts`
+  - `apps/api/src/server.ts`
+  - 当上游图片下载返回 `application/octet-stream` 但 URL 扩展名明确是图片时，允许按图片保存，避免误判“不是图片”。
+- 验证脚本:
+  - `scripts/verify-modelscope-image-adapter-contract.ts`
+    - 新增 `ModelScope` 参考图请求别名断言。
+  - `scripts/verify-modelscope-image-proxy.mjs`
+  - `scripts/verify-agnes-modelscope-concurrency.mjs`
+
+验证:
+
+- 本地:
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/worker`
+  - `npm run verify:modelscope-image-adapter-contract`
+  - `npm run verify:provider-generation-task-service`
+  - `npm run verify:provider-generation-worker`
+  - `npm run build:single-port`
+- 灰度部署:
+  - `20260612-modelscope-image-protocol-gray-r1`
+  - `20260612-modelscope-image-edit-fix-gray-r2`
+  - `20260612-modelscope-image-materialize-fix-gray-r3`
+- 灰度真实验收:
+  - `Agnes` 图像生成成功
+  - `魔搭 Qwen/Qwen-Image-Edit` 图像编辑成功
+  - 混合并发 4 个图像任务成功：
+    - 2 个 `Agnes`
+    - 2 个 `魔搭`
+  - 魔搭任务 `raw.adapter = modelscope-image`
+- 生产部署:
+  - `20260612-modelscope-image-protocol-prod-r2`
+- 生产真实验收:
+  - `Agnes` 图像生成成功
+  - `魔搭 Qwen/Qwen-Image-Edit` 图像编辑成功
+  - 生产图像任务进入独立队列：
+    - `xinghuan:tasks:prod:image`
+  - 魔搭任务 `raw.adapter = modelscope-image`
+
+结果:
+
+- 通过
+
+影响:
+
+- 魔搭图像模型不再误走 APIMart 图像异步协议。
+- 线上旧的魔搭 Provider 即使数据库里暂时还是 `protocol=openai`，只要 `baseUrl` 是 `api-inference.modelscope.cn`，也能走正确的 `ModelScope` 图像分支。
+- `Qwen-Image-Edit` 这类图像编辑模型现在可以通过画布任务链路正常处理参考图和输出素材落地。
+
+风险与注意:
+
+- `Qwen/Qwen-Image-Edit` 是图像编辑模型，不是纯文生图模型；没有参考图时会返回上游 `400 requires image upload`，这属于模型能力要求，不是协议故障。
+- 部分上游图片下载地址虽然实际是图片，但会返回 `application/octet-stream`；当前已按“URL 扩展名明确是图片”做受控放宽，后续接新平台时仍需观察是否存在异常误判。
+- Windows 本机通过 `scp` 上传 release 包时，对中文路径的直接绝对路径引用不稳定；后续优先在 `dist-release/` 目录下执行相对路径上传并补远端 `sha256` / `tar_ok` 校验。
+
+### 分类队列并发改造并推送灰度准备
+
+目标:
+
+- 解决长视频任务堵住后发短音频任务的问题。
+- 将 Worker 从单总队列串行消费改为图片 / 音频 / 视频分队列独立并发消费。
+- 让后台管理员可以按类别调节并发上限，且每类限制在 `1..4`。
+
+变更:
+
+- 共享结构:
+  - `packages/shared/src/task-queue-settings.ts`
+    - 新增任务队列能力定义：
+      - `image`
+      - `audio`
+      - `video`
+    - 新增统一默认值、归一化、并发 clamp 和队列名生成逻辑
+  - `packages/shared/src/index.ts`
+    - 导出任务队列设置相关类型与工具
+- API / 后台:
+  - `apps/api/src/provider-generation-task-service.ts`
+    - 任务创建时不再只知道单一队列名，而是按 `capability` 调用入队
+    - 任务日志记录实际入队的 Redis 队列名
+  - `apps/api/src/server.ts`
+    - 新增 `taskQueueSettings` 持久化读写
+    - 文件仓库与 PostgreSQL 仓库都支持保存任务并发设置
+    - `/api/admin/system`
+      - `GET` 返回分类并发配置与各队列深度
+      - `PATCH` 支持管理员更新分类并发
+    - 后台手工建任务、重试任务、视频任务补录入口统一改为按能力分队列入队
+  - `apps/api/db/008_task_queue_settings.sql`
+    - 新增 `xh_system_settings`
+    - 持久化 `task_queue_settings`
+- Worker:
+  - `apps/worker/src/worker.ts`
+    - 从单 `brPop(xinghuan:tasks)` 改为：
+      - `xinghuan:tasks:image`
+      - `xinghuan:tasks:audio`
+      - `xinghuan:tasks:video`
+    - 每类按配置创建多个消费槽位
+    - 当前默认都是 `4`
+    - Worker 启动日志会输出三类实际监听队列与并发槽位
+- Admin:
+  - `apps/admin/src/admin-types.ts`
+    - 新增系统页 `taskQueueSettings` 与分类队列状态类型
+  - `apps/admin/src/admin-readonly-panels.tsx`
+    - 系统状态面板新增：
+      - 按类别并发显示
+      - 按类别深度显示
+      - “任务并发设置”编辑区
+  - `apps/admin/src/main.tsx`
+    - 打通系统页保存动作，直接提交 `/api/admin/system`
+- 验证脚本:
+  - `scripts/verify-provider-generation-task-service.mjs`
+  - `scripts/verify-provider-generation-worker.mjs`
+  - `scripts/verify-provider-generation-admin-contract.mjs`
+    - 全部补充分类队列并发相关断言
+
+验证:
+
+- `node scripts/verify-provider-generation-task-service.mjs`
+- `node scripts/verify-provider-generation-worker.mjs`
+- `node scripts/verify-provider-generation-admin-contract.mjs`
+- `npm run type-check -w @xinghuan/shared`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/worker`
+- `npm run type-check -w @xinghuan/admin`
+- `npm run verify:provider-generation-task-service`
+- `npm run verify:provider-generation-worker`
+- `npm run verify:provider-generation-admin-contract`
+- `npm run build:single-port`
+
+结果:
+
+- 全部通过
+
+影响:
+
+- 现在多任务不会再因为共用一个 Worker 串行循环而互相堵死。
+- 管理员可以在后台按类别调节并发，而不是只能接受固定全局行为。
+- Redis 观测维度从“单总队列深度”升级为“分类队列深度 + 分类并发”。
+
+### 分类队列并发灰度发布与验收
+
+目标:
+
+- 将“分类独立队列 + 分类独立并发”改造推送到灰度。
+- 确认 migration、服务切换、公网入口和分类队列健康都正常。
+
+发布:
+
+- 灰度 release：
+  - `20260612-provider-task-queue-concurrency-gray-r2-local`
+- 上一灰度回滚点：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-standardization-gray-r1-aa5f499`
+
+服务器动作:
+
+- 本机执行：
+  - `npm run package:release -- 20260612-provider-task-queue-concurrency-gray-r2-local`
+- 上传：
+  - `/tmp/20260612-provider-task-queue-concurrency-gray-r2-local.tar.gz`
+- 服务器执行：
+  - 解压到 `/opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-queue-concurrency-gray-r2-local`
+  - `npm ci`
+  - 加载 `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+  - `node scripts/db-migrate.mjs`
+    - `applied=["008_task_queue_settings.sql"]`
+    - `skipped=7`
+  - 切换：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-queue-concurrency-gray-r2-local`
+  - 重启：
+    - `xinghuan-canvas-next.service`
+    - `xinghuan-canvas-next-worker.service`
+
+验收:
+
+- 服务层:
+  - `systemctl is-active xinghuan-canvas-next.service` => `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current` => 新 release
+  - `curl http://127.0.0.1:18200/api/status` => `environment=gray`
+- 公网入口:
+  - `https://canvas-next.hhh2121.xyz/` => `200`
+  - `https://canvas-next.hhh2121.xyz/admin` => `200`
+  - `https://canvas-next.hhh2121.xyz/api/status` => `environment=gray`
+- 分类队列:
+  - `LLEN xinghuan:tasks:image` => `0`
+  - `LLEN xinghuan:tasks:audio` => `0`
+  - `LLEN xinghuan:tasks:video` => `0`
+
+影响:
+
+- 灰度环境已经开始使用新的分类队列并发模型。
+- 后续只需要再做一次登录态真实并发任务验收，就可以判断是否推进生产。
+
+### 分类队列并发正式发布与验收
+
+目标:
+
+- 将灰度已通过的分类队列并发方案同步到正式环境。
+- 确认正式数据库 migration、服务状态、公网入口和正式分类队列健康都正常。
+
+发布:
+
+- 正式 release：
+  - `20260612-provider-task-queue-concurrency-prod-r1-local`
+- 上一正式回滚点：
+  - `/opt/apps/xinghuan-canvas/releases/20260612-video-upstream-json-guard-prod-r1`
+
+服务器动作:
+
+- 本机执行：
+  - `npm run package:release -- 20260612-provider-task-queue-concurrency-prod-r1-local`
+- 上传：
+  - `/tmp/20260612-provider-task-queue-concurrency-prod-r1-local.tar.gz`
+- 服务器执行：
+  - 解压到 `/opt/apps/xinghuan-canvas/releases/20260612-provider-task-queue-concurrency-prod-r1-local`
+  - `npm ci`
+  - 加载 `/opt/apps/xinghuan-canvas/shared/canvas.env`
+  - `node scripts/db-migrate.mjs`
+    - `applied=["008_task_queue_settings.sql"]`
+    - `skipped=7`
+  - 切换：
+    - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260612-provider-task-queue-concurrency-prod-r1-local`
+  - 重启：
+    - `xinghuan-canvas.service`
+    - `xinghuan-canvas-worker.service`
+    - `xinghuan-canvas-output-prune.timer`
+
+验收:
+
+- 服务层:
+  - `systemctl is-active xinghuan-canvas.service` => `active`
+  - `systemctl is-active xinghuan-canvas-worker.service` => `active`
+  - `systemctl is-active xinghuan-canvas-output-prune.timer` => `active`
+  - `readlink -f /opt/apps/xinghuan-canvas/current` => 新 release
+  - `curl http://127.0.0.1:18100/api/status` => `environment=production`
+- 公网入口:
+  - `https://canvas.hhh2121.xyz/` => `200`
+  - `https://canvas.hhh2121.xyz/admin` => `200`
+  - `https://canvas.hhh2121.xyz/api/status` => `environment=production`
+- 分类队列:
+  - `LLEN xinghuan:tasks:prod:image` => `0`
+  - `LLEN xinghuan:tasks:prod:audio` => `0`
+  - `LLEN xinghuan:tasks:prod:video` => `0`
+
+影响:
+
+- 正式环境已经启用新的分类队列并发模型。
+- 现在灰度和正式都统一到了同一套分类并发标准方案。
+
+### Provider 生成任务标准化灰度发布与验收
+
+目标:
+
+- 将 Provider 生成任务标准化这组提交推送到灰度环境。
+- 完成灰度服务、公网入口、任务接口和队列健康的验收确认。
+
+发布:
+
+- 灰度 release：
+  - `20260612-provider-task-standardization-gray-r1-aa5f499`
+- 对应本地提交：
+  - `aa5f499 docs: add provider generation task rollout checklist`
+- 上一灰度回滚点：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260612-external-video-task-gray-r1`
+
+服务器动作:
+
+- 本机执行：
+  - `npm run package:release -- 20260612-provider-task-standardization-gray-r1-aa5f499`
+- 上传：
+  - `/tmp/20260612-provider-task-standardization-gray-r1-aa5f499.tar.gz`
+- 服务器执行：
+  - 解压到 `/opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-standardization-gray-r1-aa5f499`
+  - `npm ci`
+  - 加载 `/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+  - `node scripts/db-migrate.mjs`
+    - `applied=[]`
+    - `skipped=7`
+  - 切换：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260612-provider-task-standardization-gray-r1-aa5f499`
+  - 重启：
+    - `xinghuan-canvas-next.service`
+    - `xinghuan-canvas-next-worker.service`
+
+验收:
+
+- 服务层:
+  - `systemctl is-active xinghuan-canvas-next.service` => `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+  - `curl http://127.0.0.1:18200/api/status` => `environment=gray`
+- 公网入口:
+  - `https://canvas-next.hhh2121.xyz/` => `200 text/html`
+  - `https://canvas-next.hhh2121.xyz/admin` => `200 text/html`
+  - `https://canvas-next.hhh2121.xyz/api/status` => `200 application/json`
+  - 注意：
+    - 先前使用 `HEAD /` 与 `HEAD /admin` 会收到 `404 JSON`
+    - 当前页面验收必须按真实 `GET` 请求判断，`GET` 结果正常
+- 新任务接口未登录守卫:
+  - `POST /api/proxy/external/image/task` => `AUTH_REQUIRED`
+  - `POST /api/proxy/external/audio/task` => `AUTH_REQUIRED`
+  - `POST /api/proxy/external/video/task` => `AUTH_REQUIRED`
+- 队列健康:
+  - `redis-cli ... PING` => `PONG`
+  - `LLEN xinghuan:tasks` => `0`
+
+边界与说明:
+
+- 当前 release 包依然是运行时精简包，不包含本地这轮新增的 `scripts/verify-provider-generation-*.{ts,mjs}` 验证脚本。
+- 因此这次灰度验收采用：
+  - 发布前本地完整验证矩阵
+  - 发布后服务器服务活性 + 公网 smoke + 任务接口守卫 + Redis 健康
+  组合方式，而不是在服务器 release 目录直接复跑同一批本地脚本。
+
+影响:
+
+- Provider 生成任务标准化这轮改造已进入灰度运行态。
+- 当前灰度已经具备：
+  - 图片任务提交接口
+  - 音频任务提交接口
+  - 视频任务提交接口
+  - 后台执行模式结构化配置
+  - 统一的任务化运行主线
 
 ### Provider 生成任务标准化文档与验收收口
 

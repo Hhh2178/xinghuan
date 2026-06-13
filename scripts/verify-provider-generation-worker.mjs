@@ -13,6 +13,11 @@ assert.match(workerSource, /async function executeAudioTask/);
 assert.match(workerSource, /createOpenAiAudioChatPayload/);
 assert.match(workerSource, /extractAudioProviderResult/);
 assert.match(workerSource, /return \["chat", "image", "video", "audio"\]\.includes\(capability\)/);
+assert.match(workerSource, /TASK_QUEUE_CAPABILITIES/);
+assert.match(workerSource, /slotIndex/);
+assert.match(workerSource, /buildTaskQueueRuntimeDescriptors/);
+assert.match(workerSource, /Promise\.allSettled\(workerLoops\)/);
+assert.match(workerSource, /readTaskQueueSettings/);
 
 assert.match(outputMaterialsSource, /const audioUrls = readStringList\(result\.audioUrls\)/);
 assert.match(outputMaterialsSource, /materializedAudioUrls/);

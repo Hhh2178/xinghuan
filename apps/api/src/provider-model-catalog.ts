@@ -19,14 +19,14 @@ export function normalizeCapability(value: unknown): ModelCapability {
 
 export function normalizeProviderProtocol(value: unknown): ProviderProtocol {
   const protocol = String(value || "").toLowerCase();
-  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "custom", "grsai_draw"].includes(protocol)
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)
     ? (protocol as ProviderProtocol)
     : "openai";
 }
 
 export function normalizeOptionalProtocol(value: unknown) {
   const protocol = String(value || "").toLowerCase();
-  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "custom", "grsai_draw"].includes(protocol) ? protocol : "";
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol) ? protocol : "";
 }
 
 export function providerModelsUrl(baseUrlValue: unknown, protocolValue: unknown) {
