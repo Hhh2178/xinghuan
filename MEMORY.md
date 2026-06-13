@@ -167,6 +167,16 @@
 - 正式多用户环境的 PostgreSQL 仓储不允许继续新增“整表删除后重写”模式；`AuthDb`、`AdminDb`、画布、资源和任务都必须逐步收口到实体级增量写入。
 - 正式多用户环境下，客户端传入的业务 `id` 不能直接改变资源归属；画布、素材、任务等核心对象都必须由服务端按 `owner_id` / 版本号校验后写入。
 - 后续正式化治理以 `docs/production-multi-user-hardening-plan-2026-06-13.md` 为主方案，以 `ops/production-multi-user-acceptance-plan-2026-06-13.md` 为放行门槛。
+- `2026-06-13` 已经开始进入 `Phase A` 的第一批真实改造：
+  - 本地回退检查点：
+    - commit `9f2e134`
+    - tag `phase-a-start-checkpoint-2026-06-13`
+  - 画布 PostgreSQL 写入已不再允许 `on conflict (id)` 改写 `owner_id`
+  - PostgreSQL 画布创建 / 重命名 / 删除已改成定向写入，不再默认依赖全量列表替换
+  - `readAuthDbPostgres` 已去掉“读取即整表重写”的高频路径；登录 / 登出 / 后台用户创建 / 后台用户更新改为定向会话或用户写入
+  - 仍未完成的 `Phase A` 部分：
+    - `writeAdminDbPostgres(...)`
+    - 资源库 / 生成库 PostgreSQL 全量替换逻辑
 - 后台发布模型的图片、视频、音频默认走任务化标准链路，而不是长请求直返。
 - Provider 生成任务标准执行模式固定为：
   - `sync_inline`
@@ -828,3 +838,30 @@
       - 单任务真实验收
       - 参考图真实验收
       - 混合并发真实验收
+- `2026-06-13` Phase A 多用户止血推进状态：
+  - 已建立检查回退点：
+    - commit: `9f2e134`
+    - tag: `phase-a-start-checkpoint-2026-06-13`
+  - 第一批已完成：
+    - 画布 `writeCanvasList/writeCanvasData/readCanvasData`
+    - 认证 `readAuthDbPostgres/login/logout/admin users`
+    - 关键目标是阻止 Postgres 模式下的 owner 转移、空列表覆盖和读路径整库重写
+  - 第二批已完成并通过本机验收：
+    - 资源库 `categories/items` 热路径改为定向 Postgres 写入
+    - 后台 `providers/models` 的新增、更新、删除、模型导入热路径改为定向 Postgres 写入
+    - 资源库 upsert 增加 `RESOURCE_OWNERSHIP_MISMATCH` 防护，避免跨用户同 ID 时静默失败
+    - `readResourceDb -> writeResourceDb(..., { pruneMissing: true })` 仅保留为冷迁移/导入路径
+    - `writeAuthDb(...)` 与 `writeAdminDb(...)` 在 Postgres 模式下默认关闭 full-replace，防止后续误用回归
+  - 第二批本机验收：
+    - `npm run verify:phase-a-hardening-contract`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run verify:postgres-canvas-resource-contract`
+    - `npm run verify:auth-session-concurrency`
+    - `npm run build:single-port`
+  - 当前边界：
+    - 现在止住的是“高频热路径整库覆写”和“静默 owner 冲突”两类高风险问题
+    - 还没有完成真实灰度多用户验收，也还没有把所有冷路径整库写入全部拆干净
+  - 下一阶段建议：
+    - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
+    - 建立生产数据备份/回滚/验收清单
+    - 做真实灰度多账号并发验收，重点观察画布、资源库、后台模型配置是否相互串写

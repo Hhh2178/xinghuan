@@ -15,6 +15,75 @@
 
 ## 2026-06-13
 
+### Phase A 第一批止血落地：画布 owner 收口与认证定向写入
+
+目标:
+
+- 在正式多用户加固方案落档后，先把最危险的 `Phase A` 高风险入口真正动起来。
+- 先止住画布 owner 串改、画布列表误删，以及登录/登出/用户更新继续走整表会话重写的问题。
+
+变更:
+
+- 建立本地回退检查点：
+  - commit:
+    - `9f2e134`
+  - tag:
+    - `phase-a-start-checkpoint-2026-06-13`
+- `apps/api/src/server.ts`
+  - 新增 `HttpError`，允许把权限类问题按 `403` 返回，而不是统一落成 `500`。
+  - 画布创建的 PostgreSQL 路径不再依赖 `writeCanvasList([item, ...list])`。
+  - 画布重命名新增 `renameCanvasRecord(...)`，避免通过全量列表重写来改单个名字。
+  - 画布删除新增 `deleteCanvasRecord(...)`，避免通过“过滤列表再整表同步”删除单个画布。
+  - `writeCanvasData(...)` 改为先检查 `id` 的真实 `owner_id`：
+    - 若已存在且 owner 不一致，返回 `CANVAS_OWNERSHIP_MISMATCH`
+    - 不再允许通过 `on conflict (id)` 改写 `owner_id`
+  - `readCanvasData(...)` 在 PostgreSQL 模式下也会检查 foreign id，不再把别人的画布静默伪装成空白画布。
+  - `writeCanvasList(...)` 新增 `pruneMissing` 语义：
+    - 默认只 upsert 提交项
+    - 只有明确需要裁剪缺失项时才删除
+    - 写入冲突时如果 owner 不匹配会返回 `CANVAS_OWNERSHIP_MISMATCH`
+  - `readAuthDbPostgres(...)` 不再在读取时调用 `writeAuthDbPostgres(cleaned)` 触发全表重写：
+    - bootstrap 用户改为逐个 upsert
+    - 过期会话改为定向清理
+  - 登录、登出、后台用户创建、后台用户更新在 PostgreSQL 模式下改为定向写入：
+    - 登录 => `createSessionRecordPostgres`
+    - 登出 => `deleteSessionRecordPostgres`
+    - 创建用户 => `insertAuthUserPostgres`
+    - 更新用户 => `upsertAuthUserPostgres + revokeUserSessionsPostgres`
+- `scripts/verify-phase-a-hardening-contract.mjs`
+  - 新增静态契约校验脚本，覆盖：
+    - 画布 owner 不再可通过 conflict 改写
+    - PostgreSQL 画布创建/重命名/删除走定向路径
+    - 登录/登出会话走定向写入
+    - `readAuthDbPostgres` 不再读取即整表回写
+- `package.json`
+  - 新增：
+    - `verify:phase-a-hardening-contract`
+
+验证:
+
+- `npm run type-check -w @xinghuan/api`
+- `npm run verify:phase-a-hardening-contract`
+- `npm run verify:postgres-canvas-resource-contract`
+- `npm run verify:auth-session-concurrency`
+- `npm run build:single-port`
+
+影响:
+
+- 这轮已经把最危险的“伪造 canvas id 改 owner”和“登录/登出触发全表会话重写”先收住了。
+- 画布和认证在 PostgreSQL 模式下开始从“全量同步思维”转向“实体定向写入思维”。
+
+风险:
+
+- `AdminDb` 的 PostgreSQL 整表重写还没有拆完，Provider / Model / Task / Assistant Settings 这部分仍在下一轮 `Phase A` 处理范围内。
+- 资源库 PostgreSQL 写入仍然是删光后重建，尚未进入这一批改造。
+
+下一步:
+
+- 继续推进 `Phase A` 第二批：
+  - 拆 `writeAdminDbPostgres(...)`
+  - 收口资源库 / 生成库的 PostgreSQL 全量替换逻辑
+
 ### 多用户正式化加固方案、边界和验收清单落档
 
 目标:
@@ -6321,3 +6390,28 @@
     - 登录态本机 `POST http://127.0.0.1:18200/api/proxy/external/video/task` 空请求 => JSON 错误 `缺少 prompt`
     - 灰度 Redis => `PONG`，队列深度 `0`
     - 登录态 `/api/models` => Agnes 视频模型 `advancedConfig.mode=async_video_task`
+- `2026-06-13` Phase A 第二批多用户止血已完成本地验收：
+  - 检查回退点：
+    - git commit: `9f2e134` `chore: create rollback checkpoint before phase-a hardening`
+    - git tag: `phase-a-start-checkpoint-2026-06-13`
+  - 本轮收口内容：
+    - `apps/api/src/server.ts`
+      - 资源库 `categories/items` 的 Postgres 热路径已改为定向写入，不再走整库 `writeResourceDb(...)` 覆写。
+      - 后台 `providers/models` 的新增、更新、删除、导入模型热路径已改为定向 Postgres 写入，不再在 Postgres 模式下走整库 `writeAdminDb(...)` 覆写。
+      - 资源库 Postgres upsert 新增 `RESOURCE_OWNERSHIP_MISMATCH` 防护，避免跨用户同 ID 冲突时静默失败但前端误判成功。
+      - 文件到 Postgres 的资源导入保留 `pruneMissing: true`，仅用于冷迁移，不再把“整库替换”当作常态写路径。
+      - `writeAuthDb(...)` 与 `writeAdminDb(...)` 在 Postgres 模式下默认禁止 full-replace，除非显式传入白名单选项，避免未来回归到整库覆写。
+    - `scripts/verify-phase-a-hardening-contract.mjs`
+      - 新增资源库热路径、跨用户资源冲突保护、Provider/Model 热路径和模型导入定向写入的契约验证。
+  - 本机验收：
+    - `npm run verify:phase-a-hardening-contract`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run verify:postgres-canvas-resource-contract`
+    - `npm run verify:auth-session-concurrency`
+    - `npm run build:single-port`
+  - 当前结论：
+    - Phase A 第一批和第二批的“高频整库覆写止血”已在本地通过。
+    - 下一阶段再继续推进：
+      - 剩余冷路径整库写入边界梳理
+      - 生产数据持久化/回滚/验收流程补强
+      - 真实灰度多用户并发验收

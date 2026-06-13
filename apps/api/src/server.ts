@@ -117,6 +117,15 @@ let postgresPoolPromise: Promise<import("pg").Pool> | null = null;
 let postgresDatabaseNamePromise: Promise<string> | null = null;
 let redisClientPromise: Promise<import("redis").RedisClientType> | null = null;
 
+class HttpError extends Error {
+  statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
 const {
   generateExternalImageProxy,
   generateExternalChatProxy,
@@ -968,9 +977,14 @@ const server = createServer(async (request, response) => {
           createdAt: now,
           updatedAt: now,
         };
-        const db = await readResourceDb(currentUser!);
-        db.categories.push(category);
-        await writeResourceDb(db, currentUser!);
+        if (usePostgresRepository()) {
+          sendT8(response, await upsertResourceCategoryPostgres(category, currentUser!));
+          return;
+        } else {
+          const db = await readResourceDb(currentUser!);
+          db.categories.push(category);
+          await writeResourceDb(db, currentUser!);
+        }
         sendT8(response, category);
         return;
       }
@@ -979,9 +993,13 @@ const server = createServer(async (request, response) => {
     const resourceCategoryMatch = url.pathname.match(/^\/api\/resources\/categories\/([^/]+)$/);
     if (resourceCategoryMatch) {
       const id = decodeURIComponent(resourceCategoryMatch[1]);
-      const db = await readResourceDb(currentUser!);
       if (request.method === "PUT") {
         const body = await readJsonBody<{ name?: string }>(request);
+        if (usePostgresRepository()) {
+          sendT8(response, await updateResourceCategoryPostgres(id, safeText(body.name, "未分类"), currentUser!));
+          return;
+        }
+        const db = await readResourceDb(currentUser!);
         const updated = db.categories.map((item) =>
           item.id === id ? { ...item, name: safeText(body.name, item.name), updatedAt: Date.now() } : item,
         );
@@ -990,10 +1008,15 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (request.method === "DELETE") {
-        await writeResourceDb({
-          categories: db.categories.filter((item) => item.id !== id),
-          items: db.items.map((item) => (item.categoryId === id ? { ...item, categoryId: "" } : item)),
-        }, currentUser!);
+        if (usePostgresRepository()) {
+          await deleteResourceCategoryPostgres(id, currentUser!);
+        } else {
+          const db = await readResourceDb(currentUser!);
+          await writeResourceDb({
+            categories: db.categories.filter((item) => item.id !== id),
+            items: db.items.map((item) => (item.categoryId === id ? { ...item, categoryId: "" } : item)),
+          }, currentUser!);
+        }
         sendT8(response, { movedTo: "" });
         return;
       }
@@ -1041,9 +1064,13 @@ const server = createServer(async (request, response) => {
     const resourceItemMatch = url.pathname.match(/^\/api\/resources\/items\/([^/]+)$/);
     if (resourceItemMatch) {
       const id = decodeURIComponent(resourceItemMatch[1]);
-      const db = await readResourceDb(currentUser!);
       if (request.method === "PUT") {
         const patch = await readJsonBody<Partial<ResourceItem> & { touch?: boolean }>(request);
+        if (usePostgresRepository()) {
+          sendT8(response, await updateResourceItemPostgres(id, patch, currentUser!));
+          return;
+        }
+        const db = await readResourceDb(currentUser!);
         const updated = db.items.map((item) =>
           item.id === id
             ? {
@@ -1059,7 +1086,12 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (request.method === "DELETE") {
-        await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
+        if (usePostgresRepository()) {
+          await deleteResourceItemPostgres(id, currentUser!);
+        } else {
+          const db = await readResourceDb(currentUser!);
+          await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
+        }
         sendT8(response, null);
         return;
       }
@@ -1120,9 +1152,13 @@ const server = createServer(async (request, response) => {
           createdAt: now,
           updatedAt: now,
         };
-        const list = await readCanvasList(currentUser!);
-        await writeCanvasData(id, emptyCanvasData(), currentUser!);
-        await writeCanvasList([item, ...list], currentUser!);
+        if (usePostgresRepository()) {
+          await writeCanvasData(id, emptyCanvasData(), currentUser!, { name: item.name, createdAt: now });
+        } else {
+          const list = await readCanvasList(currentUser!);
+          await writeCanvasData(id, emptyCanvasData(), currentUser!);
+          await writeCanvasList([item, ...list], currentUser!);
+        }
         sendT8(response, item);
         return;
       }
@@ -1132,6 +1168,10 @@ const server = createServer(async (request, response) => {
     if (canvasNameMatch && request.method === "PATCH") {
       const id = decodeURIComponent(canvasNameMatch[1]);
       const body = await readJsonBody<{ name?: string }>(request);
+      if (usePostgresRepository()) {
+        sendT8(response, await renameCanvasRecord(id, safeText(body.name, "未命名画布"), currentUser!));
+        return;
+      }
       const list = await readCanvasList(currentUser!);
       const updated = list.map((item) =>
         item.id === id ? { ...item, name: body.name || item.name, updatedAt: Date.now() } : item,
@@ -1172,8 +1212,12 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (request.method === "DELETE") {
-        const list = await readCanvasList(currentUser!);
-        await writeCanvasList(list.filter((item) => item.id !== id), currentUser!, { allowEmptyReplace: true });
+        if (usePostgresRepository()) {
+          await deleteCanvasRecord(id, currentUser!);
+        } else {
+          const list = await readCanvasList(currentUser!);
+          await writeCanvasList(list.filter((item) => item.id !== id), currentUser!, { allowEmptyReplace: true });
+        }
         await unlink(canvasDataPath(id, currentUser!)).catch(() => undefined);
         sendT8(response, null);
         return;
@@ -1190,6 +1234,7 @@ const server = createServer(async (request, response) => {
 
     sendJson(response, { ok: false, success: false, error: "NOT_FOUND" }, 404);
   } catch (error) {
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
     sendJson(
       response,
       {
@@ -1197,7 +1242,7 @@ const server = createServer(async (request, response) => {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       },
-      500,
+      statusCode,
     );
   }
 });
@@ -1253,7 +1298,11 @@ async function handleAdminRequest(
         createdAt: now,
         updatedAt: now,
       };
-      await writeAuthDb({ ...authDb, users: [user, ...authDb.users] });
+      if (usePostgresRepository()) {
+        await insertAuthUserPostgres(user);
+      } else {
+        await writeAuthDb({ ...authDb, users: [user, ...authDb.users] });
+      }
       await appendAudit(adminUser, "user.create", "user", user.id, `创建用户 ${user.email}`);
       sendT8(response, toAdminUser(user));
       return true;
@@ -1289,11 +1338,16 @@ async function handleAdminRequest(
     if (users.some((user) => user.id !== id && user.email.toLowerCase() === updatedUser!.email.toLowerCase())) {
       throw new Error("邮箱已存在");
     }
-    await writeAuthDb({
-      ...authDb,
-      users,
-      sessions: authDb.sessions.filter((session) => session.userId !== id),
-    });
+    if (usePostgresRepository()) {
+      await upsertAuthUserPostgres(updatedUser);
+      await revokeUserSessionsPostgres(id);
+    } else {
+      await writeAuthDb({
+        ...authDb,
+        users,
+        sessions: authDb.sessions.filter((session) => session.userId !== id),
+      });
+    }
     await appendAudit(adminUser, "user.update", "user", id, `更新用户 ${updatedUser.email}`);
     sendT8(response, toAdminUser(updatedUser));
     return true;
@@ -1324,7 +1378,11 @@ async function handleAdminRequest(
         updatedAt: now,
       };
       if (db.providers.some((item) => item.id === provider.id)) throw new Error("Provider ID 已存在");
-      await writeAdminDb({ ...db, providers: [provider, ...db.providers] });
+      if (usePostgresRepository()) {
+        await insertProviderRecordPostgres(provider);
+      } else {
+        await writeAdminDb({ ...db, providers: [provider, ...db.providers] });
+      }
       await appendAudit(adminUser, "provider.create", "provider", provider.id, `创建 Provider ${provider.name}`);
       sendT8(response, toPublicProvider(provider));
       return true;
@@ -1383,6 +1441,7 @@ async function handleAdminRequest(
     const now = Date.now();
     const incoming = Array.isArray(body.models) ? body.models : [];
     const nextModels = [...db.models];
+    const touchedModels: AdminModelRecord[] = [];
     let imported = 0;
     for (const item of incoming) {
       const modelId = safeText(item.modelId);
@@ -1438,11 +1497,21 @@ async function handleAdminRequest(
         createdAt: existingIndex >= 0 ? nextModels[existingIndex].createdAt : now,
         updatedAt: now,
       };
-      if (existingIndex >= 0) nextModels[existingIndex] = normalizeAdminModelRecord({ ...nextModels[existingIndex], ...model });
-      else nextModels.unshift(normalizeAdminModelRecord(model));
+      const normalized = existingIndex >= 0
+        ? normalizeAdminModelRecord({ ...nextModels[existingIndex], ...model })
+        : normalizeAdminModelRecord(model);
+      if (existingIndex >= 0) nextModels[existingIndex] = normalized;
+      else nextModels.unshift(normalized);
+      touchedModels.push(normalized);
       imported += 1;
     }
-    await writeAdminDb({ ...db, models: nextModels });
+    if (usePostgresRepository()) {
+      for (const model of touchedModels) {
+        await upsertModelRecordPostgres(model);
+      }
+    } else {
+      await writeAdminDb({ ...db, models: nextModels });
+    }
     await appendAudit(adminUser, "model.import", "provider", providerId, `导入模型 ${imported} 个`);
     sendT8(response, { imported, models: nextModels.filter((model) => model.providerId === providerId) });
     return true;
@@ -1481,7 +1550,11 @@ async function handleAdminRequest(
       return next;
     });
     if (!updated) throw new Error("Provider 不存在");
-    await writeAdminDb({ ...db, providers });
+    if (usePostgresRepository()) {
+      await upsertProviderRecordPostgres(updated);
+    } else {
+      await writeAdminDb({ ...db, providers });
+    }
     await appendAudit(adminUser, "provider.update", "provider", id, `更新 Provider ${updated.name}`);
     sendT8(response, toPublicProvider(updated));
     return true;
@@ -1492,17 +1565,21 @@ async function handleAdminRequest(
     const db = await readAdminDb();
     const provider = db.providers.find((item) => item.id === id);
     if (!provider) throw new Error("Provider 不存在");
-    const removedModelIds = new Set(db.models.filter((item) => item.providerId === id).map((item) => item.id));
-    await writeAdminDb({
-      ...db,
-      providers: db.providers.filter((item) => item.id !== id),
-      models: db.models.filter((item) => item.providerId !== id),
-      tasks: db.tasks.map((task) =>
-        task.providerId === id || (task.modelId && removedModelIds.has(task.modelId))
-          ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
-          : task,
-      ),
-    });
+    if (usePostgresRepository()) {
+      await deleteProviderRecordPostgres(id);
+    } else {
+      const removedModelIds = new Set(db.models.filter((item) => item.providerId === id).map((item) => item.id));
+      await writeAdminDb({
+        ...db,
+        providers: db.providers.filter((item) => item.id !== id),
+        models: db.models.filter((item) => item.providerId !== id),
+        tasks: db.tasks.map((task) =>
+          task.providerId === id || (task.modelId && removedModelIds.has(task.modelId))
+            ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
+            : task,
+        ),
+      });
+    }
     await appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`);
     sendT8(response, null);
     return true;
@@ -1541,7 +1618,11 @@ async function handleAdminRequest(
       };
       if (db.models.some((item) => item.id === model.id)) throw new Error("模型 ID 已存在");
       const normalizedModel = normalizeAdminModelRecord(model);
-      await writeAdminDb({ ...db, models: [normalizedModel, ...db.models] });
+      if (usePostgresRepository()) {
+        await insertModelRecordPostgres(normalizedModel);
+      } else {
+        await writeAdminDb({ ...db, models: [normalizedModel, ...db.models] });
+      }
       await appendAudit(adminUser, "model.create", "model", normalizedModel.id, `创建模型 ${normalizedModel.displayName}`);
       sendT8(response, normalizedModel);
       return true;
@@ -1573,9 +1654,15 @@ async function handleAdminRequest(
         capabilityTags: nextTags,
         testState,
         updatedAt: Date.now(),
-      });
+        });
     });
-    await writeAdminDb({ ...db, models });
+    const updatedModel = models.find((item) => item.id === id);
+    if (!updatedModel) throw new Error("模型不存在");
+    if (usePostgresRepository()) {
+      await upsertModelRecordPostgres(updatedModel);
+    } else {
+      await writeAdminDb({ ...db, models });
+    }
     await appendAudit(adminUser, "model.test", "model", id, `测试模型 ${model.displayName}: ${result.test.ok ? "ok" : "error"}`);
     sendT8(response, result.test);
     return true;
@@ -1624,7 +1711,11 @@ async function handleAdminRequest(
       return updated;
     });
     if (!updated) throw new Error("模型不存在");
-    await writeAdminDb({ ...db, models });
+    if (usePostgresRepository()) {
+      await upsertModelRecordPostgres(updated);
+    } else {
+      await writeAdminDb({ ...db, models });
+    }
     await appendAudit(adminUser, "model.update", "model", id, `更新模型 ${updated.displayName}`);
     sendT8(response, updated);
     return true;
@@ -1635,11 +1726,15 @@ async function handleAdminRequest(
     const db = await readAdminDb();
     const model = db.models.find((item) => item.id === id);
     if (!model) throw new Error("模型不存在");
-    await writeAdminDb({
-      ...db,
-      models: db.models.filter((item) => item.id !== id),
-      tasks: db.tasks.map((task) => (task.modelId === id ? { ...task, modelId: "" } : task)),
-    });
+    if (usePostgresRepository()) {
+      await deleteModelRecordPostgres(id);
+    } else {
+      await writeAdminDb({
+        ...db,
+        models: db.models.filter((item) => item.id !== id),
+        tasks: db.tasks.map((task) => (task.modelId === id ? { ...task, modelId: "" } : task)),
+      });
+    }
     await appendAudit(adminUser, "model.delete", "model", id, `删除模型 ${model.displayName}`);
     sendT8(response, null);
     return true;
@@ -1970,7 +2065,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
     if (result.rows.length > 0) return result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
     const fileList = await readCanvasListFromFile(user);
     if (fileList.length > 0) {
-      await writeCanvasList(fileList, user);
+      await writeCanvasList(fileList, user, { pruneMissing: true });
       return fileList;
     }
     return [];
@@ -1981,7 +2076,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
 async function writeCanvasList(
   list: CanvasListItem[],
   user: CurrentUser,
-  options?: { allowEmptyReplace?: boolean },
+  options?: { allowEmptyReplace?: boolean; pruneMissing?: boolean },
 ) {
   const sanitizedList = list.map(sanitizeCanvasListItem);
   if (sanitizedList.length === 0 && !options?.allowEmptyReplace) {
@@ -1995,22 +2090,23 @@ async function writeCanvasList(
       const existingResult = await client.query("select id, data from xh_canvases where owner_id = $1", [user.id]);
       const dataById = new Map(existingResult.rows.map((row) => [String(row.id), normalizeCanvasData(row.data)]));
       const ids = sanitizedList.map((item) => item.id);
-      if (ids.length > 0) {
+      if (options?.pruneMissing && ids.length > 0) {
         await client.query("delete from xh_canvases where owner_id = $1 and not (id = any($2::text[]))", [user.id, ids]);
-      } else {
+      } else if (options?.pruneMissing && ids.length === 0 && options?.allowEmptyReplace) {
         await client.query("delete from xh_canvases where owner_id = $1", [user.id]);
       }
       for (const item of sanitizedList) {
         const canvasData = dataById.get(item.id) || (await readCanvasDataFromFile(item.id, user));
-        await client.query(
+        const writeResult = await client.query(
           `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
            values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)
            on conflict (id) do update
-             set owner_id = excluded.owner_id,
-                 name = excluded.name,
+             set name = excluded.name,
                  node_count = excluded.node_count,
                  data = excluded.data,
-                 updated_at = excluded.updated_at`,
+                 updated_at = excluded.updated_at
+             where xh_canvases.owner_id = excluded.owner_id
+           returning id`,
           [
             item.id,
             user.id,
@@ -2021,6 +2117,9 @@ async function writeCanvasList(
             millisToDate(item.updatedAt),
           ],
         );
+        if ((writeResult.rowCount || 0) === 0) {
+          throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+        }
       }
       await client.query("commit");
       return;
@@ -2040,6 +2139,10 @@ async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData
     const pool = await getPostgresPool();
     const result = await pool.query("select data from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
     if (result.rows[0]) return normalizeCanvasData(result.rows[0].data);
+    const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
+    if (foreign.rows[0]) {
+      throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+    }
     const fileData = await readCanvasDataFromFile(id, user);
     if (fileData.nodes.length > 0 || fileData.edges.length > 0 || fileData.nextNodeSerialId !== 1) {
       await writeCanvasData(id, fileData, user);
@@ -2050,36 +2153,100 @@ async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData
   return readCanvasDataFromFile(id, user);
 }
 
-async function writeCanvasData(id: string, data: CanvasData, user: CurrentUser) {
+async function writeCanvasData(
+  id: string,
+  data: CanvasData,
+  user: CurrentUser,
+  options?: { name?: string; createdAt?: number },
+) {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
-    const existing = await pool.query("select name, created_at from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
+    const existing = await pool.query("select owner_id, name, created_at from xh_canvases where id = $1 limit 1", [id]);
+    if (existing.rows[0] && safeText(existing.rows[0].owner_id) !== user.id) {
+      throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+    }
     const fileList = existing.rows[0] ? [] : await readCanvasListFromFile(user);
     const fileItem = fileList.find((item) => item.id === id);
     const now = Date.now();
-    await pool.query(
-      `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
-       values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)
-       on conflict (id) do update
-         set owner_id = excluded.owner_id,
-             name = excluded.name,
-             node_count = excluded.node_count,
-             data = excluded.data,
-             updated_at = excluded.updated_at`,
-      [
-        id,
-        user.id,
-        safeText(existing.rows[0]?.name || fileItem?.name, "未命名画布"),
-        data.nodes.length,
-        JSON.stringify(normalizeCanvasData(data)),
-        millisToDate(existing.rows[0] ? dateToMillis(existing.rows[0].created_at) : fileItem?.createdAt || now),
-        millisToDate(now),
-      ],
-    );
+    const canvasName = safeText(options?.name || existing.rows[0]?.name || fileItem?.name, "未命名画布");
+    const createdAt = existing.rows[0]
+      ? dateToMillis(existing.rows[0].created_at)
+      : options?.createdAt || fileItem?.createdAt || now;
+    if (existing.rows[0]) {
+      await pool.query(
+        `update xh_canvases
+         set name = $3,
+             node_count = $4,
+             data = $5::jsonb,
+             updated_at = $6
+         where id = $1
+           and owner_id = $2`,
+        [
+          id,
+          user.id,
+          canvasName,
+          data.nodes.length,
+          JSON.stringify(normalizeCanvasData(data)),
+          millisToDate(now),
+        ],
+      );
+    } else {
+      await pool.query(
+        `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
+         values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)`,
+        [
+          id,
+          user.id,
+          canvasName,
+          data.nodes.length,
+          JSON.stringify(normalizeCanvasData(data)),
+          millisToDate(createdAt),
+          millisToDate(now),
+        ],
+      );
+    }
     return;
   }
   await ensureDataDirs(user);
   await writeFile(canvasDataPath(id, user), JSON.stringify(data, null, 2), "utf-8");
+}
+
+async function renameCanvasRecord(id: string, name: string, user: CurrentUser) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `update xh_canvases
+       set name = $3,
+           updated_at = now()
+       where id = $1
+         and owner_id = $2
+       returning id, name, node_count, created_at, updated_at`,
+      [id, user.id, safeText(name, "未命名画布")],
+    );
+    if (result.rows[0]) return sanitizeCanvasListItem(toCanvasListItem(result.rows[0]));
+    const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
+    if (foreign.rows[0]) throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+    throw new Error("画布不存在");
+  }
+  const list = await readCanvasList(user);
+  const updated = list.map((item) =>
+    item.id === id ? { ...item, name: safeText(name, item.name), updatedAt: Date.now() } : item,
+  );
+  await writeCanvasList(updated, user);
+  return updated.find((item) => item.id === id) ?? null;
+}
+
+async function deleteCanvasRecord(id: string, user: CurrentUser) {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query("delete from xh_canvases where id = $1 and owner_id = $2 returning id", [id, user.id]);
+    if (result.rows[0]) return;
+    const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
+    if (foreign.rows[0]) throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+    return;
+  }
+  const list = await readCanvasList(user);
+  await writeCanvasList(list.filter((item) => item.id !== id), user, { allowEmptyReplace: true });
 }
 
 async function writeCanvasAndUpdateList(id: string, data: CanvasData, user: CurrentUser) {
@@ -2132,8 +2299,11 @@ async function readAuthDb(): Promise<AuthDb> {
   return cleaned;
 }
 
-async function writeAuthDb(db: AuthDb) {
+async function writeAuthDb(db: AuthDb, options?: { allowPostgresFullReplace?: boolean; reason?: string }) {
   if (usePostgresRepository()) {
+    if (!options?.allowPostgresFullReplace) {
+      throw new Error("writeAuthDb full replace is disabled in postgres mode");
+    }
     await writeAuthDbPostgres(db);
     return;
   }
@@ -2180,8 +2350,11 @@ async function readAdminDb(): Promise<AdminDb> {
   return visibleSanitized.db;
 }
 
-async function writeAdminDb(db: AdminDb) {
+async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: boolean; reason?: string }) {
   if (usePostgresRepository()) {
+    if (!options?.allowPostgresFullReplace) {
+      throw new Error("writeAdminDb full replace is disabled in postgres mode");
+    }
     await writeAdminDbPostgres(db);
     return;
   }
@@ -2291,8 +2464,13 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
   };
-  if (cleaned.sessions.length !== bootstrapped.sessions.length || bootstrapped !== db) {
-    await writeAuthDbPostgres(cleaned);
+  if (bootstrapped !== db) {
+    for (const user of cleaned.users) {
+      await upsertAuthUserPostgres(user);
+    }
+  }
+  if (cleaned.sessions.length !== bootstrapped.sessions.length) {
+    await pruneExpiredSessionsPostgres(now);
   }
   return cleaned;
 }
@@ -2335,6 +2513,76 @@ async function writeAuthDbPostgres(db: AuthDb) {
   } finally {
     client.release();
   }
+}
+
+async function insertAuthUserPostgres(user: UserRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      user.id,
+      user.email,
+      user.name,
+      user.role,
+      user.passwordHash,
+      user.passwordCipher || null,
+      Boolean(user.disabled),
+      millisToDate(user.createdAt),
+      millisToDate(user.updatedAt),
+    ],
+  );
+}
+
+async function upsertAuthUserPostgres(user: UserRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     on conflict (id) do update set
+       email = excluded.email,
+       name = excluded.name,
+       role = excluded.role,
+       password_hash = excluded.password_hash,
+       password_cipher = excluded.password_cipher,
+       disabled = excluded.disabled,
+       updated_at = excluded.updated_at`,
+    [
+      user.id,
+      user.email,
+      user.name,
+      user.role,
+      user.passwordHash,
+      user.passwordCipher || null,
+      Boolean(user.disabled),
+      millisToDate(user.createdAt),
+      millisToDate(user.updatedAt),
+    ],
+  );
+}
+
+async function createSessionRecordPostgres(session: SessionRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_sessions (id, user_id, created_at, expires_at)
+     values ($1, $2, $3, $4)`,
+    [session.id, session.userId, millisToDate(session.createdAt), millisToDate(session.expiresAt)],
+  );
+}
+
+async function deleteSessionRecordPostgres(sessionId: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_sessions where id = $1", [sessionId]);
+}
+
+async function revokeUserSessionsPostgres(userId: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_sessions where user_id = $1", [userId]);
+}
+
+async function pruneExpiredSessionsPostgres(now: number) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_sessions where expires_at <= $1", [millisToDate(now)]);
 }
 
 async function readAdminDbPostgres(): Promise<AdminDb> {
@@ -2563,6 +2811,151 @@ async function writeAdminDbPostgres(db: AdminDb) {
   } finally {
     client.release();
   }
+}
+
+async function insertProviderRecordPostgres(provider: AdminProviderRecord) {
+  const normalized = normalizeProviderSecret(provider);
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
+    [
+      normalized.id,
+      normalized.name,
+      normalized.baseUrl,
+      normalizeProviderProtocol(normalized.protocol),
+      normalized.enabled,
+      normalized.apiKey || null,
+      normalized.apiKeyPreview || null,
+      normalized.lastProbeStatus || null,
+      normalized.lastProbeMessage || null,
+      normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
+      JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
+      JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
+      JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
+      normalized.note || null,
+      millisToDate(normalized.createdAt),
+      millisToDate(normalized.updatedAt),
+    ],
+  );
+}
+
+async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
+  const normalized = normalizeProviderSecret(provider);
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)
+     on conflict (id) do update set
+       name = excluded.name,
+       base_url = excluded.base_url,
+       protocol = excluded.protocol,
+       enabled = excluded.enabled,
+       api_key_cipher = excluded.api_key_cipher,
+       api_key_preview = excluded.api_key_preview,
+       last_probe_status = excluded.last_probe_status,
+       last_probe_message = excluded.last_probe_message,
+       last_fetched_at = excluded.last_fetched_at,
+       rh_apps = excluded.rh_apps,
+       rh_workflows = excluded.rh_workflows,
+       ms_loras = excluded.ms_loras,
+       note = excluded.note,
+       updated_at = excluded.updated_at`,
+    [
+      normalized.id,
+      normalized.name,
+      normalized.baseUrl,
+      normalizeProviderProtocol(normalized.protocol),
+      normalized.enabled,
+      normalized.apiKey || null,
+      normalized.apiKeyPreview || null,
+      normalized.lastProbeStatus || null,
+      normalized.lastProbeMessage || null,
+      normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
+      JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
+      JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
+      JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
+      normalized.note || null,
+      millisToDate(normalized.createdAt),
+      millisToDate(normalized.updatedAt),
+    ],
+  );
+}
+
+async function deleteProviderRecordPostgres(providerId: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_providers where id = $1", [providerId]);
+}
+
+async function insertModelRecordPostgres(model: AdminModelRecord) {
+  const normalized = normalizeAdminModelRecord(model);
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)`,
+    [
+      normalized.id,
+      normalized.providerId,
+      normalized.modelId,
+      normalized.displayName,
+      normalized.capability,
+      normalized.enabled,
+      normalized.inputProfile,
+      JSON.stringify(plainObject(normalized.inputCapabilities)),
+      JSON.stringify(normalized.capabilityTags || []),
+      JSON.stringify(normalizeModelTestState(normalized.testState)),
+      JSON.stringify(parseJsonObject(normalized.parameterSchema)),
+      JSON.stringify(plainObject(normalized.advancedConfig)),
+      normalized.protocolOverride || null,
+      millisToDate(normalized.createdAt),
+      millisToDate(normalized.updatedAt),
+    ],
+  );
+}
+
+async function upsertModelRecordPostgres(model: AdminModelRecord) {
+  const normalized = normalizeAdminModelRecord(model);
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)
+     on conflict (id) do update set
+       provider_id = excluded.provider_id,
+       model_id = excluded.model_id,
+       display_name = excluded.display_name,
+       capability = excluded.capability,
+       enabled = excluded.enabled,
+       input_profile = excluded.input_profile,
+       input_capabilities = excluded.input_capabilities,
+       capability_tags = excluded.capability_tags,
+       test_state = excluded.test_state,
+       parameter_schema = excluded.parameter_schema,
+       advanced_config = excluded.advanced_config,
+       protocol_override = excluded.protocol_override,
+       updated_at = excluded.updated_at`,
+    [
+      normalized.id,
+      normalized.providerId,
+      normalized.modelId,
+      normalized.displayName,
+      normalized.capability,
+      normalized.enabled,
+      normalized.inputProfile,
+      JSON.stringify(plainObject(normalized.inputCapabilities)),
+      JSON.stringify(normalized.capabilityTags || []),
+      JSON.stringify(normalizeModelTestState(normalized.testState)),
+      JSON.stringify(parseJsonObject(normalized.parameterSchema)),
+      JSON.stringify(plainObject(normalized.advancedConfig)),
+      normalized.protocolOverride || null,
+      millisToDate(normalized.createdAt),
+      millisToDate(normalized.updatedAt),
+    ],
+  );
+}
+
+async function deleteModelRecordPostgres(modelId: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_models where id = $1", [modelId]);
 }
 
 async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord) {
@@ -3626,16 +4019,24 @@ async function loginUser(
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
   };
-  await writeAuthDb({
-    ...db,
-    sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)],
-  });
+  if (usePostgresRepository()) {
+    await createSessionRecordPostgres(session);
+  } else {
+    await writeAuthDb({
+      ...db,
+      sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)],
+    });
+  }
   return { user, session };
 }
 
 async function logoutUser(request: import("node:http").IncomingMessage) {
   const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return;
+  if (usePostgresRepository()) {
+    await deleteSessionRecordPostgres(sessionId);
+    return;
+  }
   const db = await readAuthDb();
   await writeAuthDb({ ...db, sessions: db.sessions.filter((session) => session.id !== sessionId) });
 }
@@ -6012,7 +6413,7 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
     }
     const fileDb = await readResourceDbFromFile(user);
     if (fileDb.categories.length > 0 || fileDb.items.length > 0) {
-      await writeResourceDb(fileDb, user);
+      await writeResourceDb(fileDb, user, { pruneMissing: true });
       return fileDb;
     }
     return {
@@ -6032,18 +6433,35 @@ async function readResourceDbFromFile(user: CurrentUser): Promise<ResourceDb> {
   }
 }
 
-async function writeResourceDb(db: ResourceDb, user: CurrentUser) {
+async function writeResourceDb(db: ResourceDb, user: CurrentUser, options?: { pruneMissing?: boolean }) {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const client = await pool.connect();
     try {
       await client.query("begin");
-      await client.query("delete from xh_assets where owner_id = $1", [user.id]);
-      await client.query("delete from xh_resource_categories where owner_id = $1", [user.id]);
+      if (options?.pruneMissing) {
+        const itemIds = Array.isArray(db.items) ? db.items.map((item) => safeText(item.id)).filter(Boolean) : [];
+        const categoryIds = Array.isArray(db.categories) ? db.categories.map((item) => safeText(item.id)).filter(Boolean) : [];
+        if (itemIds.length > 0) {
+          await client.query("delete from xh_assets where owner_id = $1 and not (id = any($2::text[]))", [user.id, itemIds]);
+        } else {
+          await client.query("delete from xh_assets where owner_id = $1", [user.id]);
+        }
+        if (categoryIds.length > 0) {
+          await client.query("delete from xh_resource_categories where owner_id = $1 and not (id = any($2::text[]))", [user.id, categoryIds]);
+        } else {
+          await client.query("delete from xh_resource_categories where owner_id = $1", [user.id]);
+        }
+      }
       for (const category of Array.isArray(db.categories) ? db.categories : []) {
-        await client.query(
+        const upsertedCategory = await client.query(
           `insert into xh_resource_categories (id, owner_id, kind, name, created_at, updated_at)
-           values ($1, $2, $3, $4, $5, $6)`,
+           values ($1, $2, $3, $4, $5, $6)
+           on conflict (id) do update set
+             kind = excluded.kind,
+             name = excluded.name,
+             updated_at = excluded.updated_at
+           where xh_resource_categories.owner_id = excluded.owner_id`,
           [
             category.id,
             user.id,
@@ -6053,11 +6471,25 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser) {
             millisToDate(category.updatedAt),
           ],
         );
+        if (upsertedCategory.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
       }
       for (const item of Array.isArray(db.items) ? db.items : []) {
-        await client.query(
+        const upsertedItem = await client.query(
           `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
-           values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)`,
+           values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)
+           on conflict (id) do update set
+             kind = excluded.kind,
+             title = excluded.title,
+             url = excluded.url,
+             mime = excluded.mime,
+             size_bytes = excluded.size_bytes,
+             metadata = excluded.metadata,
+             category_id = excluded.category_id,
+             tags = excluded.tags,
+             favorite = excluded.favorite,
+             last_used_at = excluded.last_used_at,
+             updated_at = excluded.updated_at
+           where xh_assets.owner_id = excluded.owner_id`,
           [
             item.id,
             user.id,
@@ -6075,6 +6507,7 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser) {
             millisToDate(item.updatedAt),
           ],
         );
+        if (upsertedItem.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
       }
       await client.query("commit");
       return;
@@ -6087,6 +6520,115 @@ async function writeResourceDb(db: ResourceDb, user: CurrentUser) {
   }
   await ensureDataDirs(user);
   await writeFile(userDataDirs(user).resourceDbPath, JSON.stringify(db, null, 2), "utf-8");
+}
+
+async function upsertResourceCategoryPostgres(category: ResourceCategory, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  const result = await pool.query(
+    `insert into xh_resource_categories (id, owner_id, kind, name, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6)
+     on conflict (id) do update set
+       kind = excluded.kind,
+       name = excluded.name,
+       updated_at = excluded.updated_at
+     where xh_resource_categories.owner_id = excluded.owner_id`,
+    [
+      category.id,
+      user.id,
+      normalizeResourceKind(category.kind) || "image",
+      safeText(category.name, "未分类"),
+      millisToDate(category.createdAt),
+      millisToDate(category.updatedAt),
+    ],
+  );
+  if (result.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
+  return category;
+}
+
+async function updateResourceCategoryPostgres(id: string, name: string, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  const result = await pool.query(
+    `update xh_resource_categories
+     set name = $3,
+         updated_at = now()
+     where id = $1
+       and owner_id = $2
+     returning id, kind, name, created_at, updated_at`,
+    [id, user.id, safeText(name, "未分类")],
+  );
+  if (result.rows[0]) return toResourceCategory(result.rows[0]);
+  throw new Error("分类不存在");
+}
+
+async function deleteResourceCategoryPostgres(id: string, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_resource_categories where id = $1 and owner_id = $2", [id, user.id]);
+}
+
+async function upsertResourceItemPostgres(item: ResourceItem, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  const result = await pool.query(
+    `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
+     values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)
+     on conflict (id) do update set
+       kind = excluded.kind,
+       title = excluded.title,
+       url = excluded.url,
+       mime = excluded.mime,
+       size_bytes = excluded.size_bytes,
+       metadata = excluded.metadata,
+       category_id = excluded.category_id,
+       tags = excluded.tags,
+       favorite = excluded.favorite,
+       last_used_at = excluded.last_used_at,
+       updated_at = excluded.updated_at
+     where xh_assets.owner_id = excluded.owner_id`,
+    [
+      item.id,
+      user.id,
+      normalizeResourceKind(item.kind) || "image",
+      safeText(item.title, "资源"),
+      safeText(item.url),
+      safeText(item.mime),
+      Number(item.size) || 0,
+      JSON.stringify(resourceItemMetadata(item)),
+      safeText(item.categoryId) || null,
+      JSON.stringify(Array.isArray(item.tags) ? item.tags.map((tag) => safeText(tag)).filter(Boolean) : []),
+      Boolean(item.favorite),
+      item.lastUsedAt ? millisToDate(item.lastUsedAt) : null,
+      millisToDate(item.createdAt),
+      millisToDate(item.updatedAt),
+    ],
+  );
+  if (result.rowCount === 0) throw new HttpError(403, "RESOURCE_OWNERSHIP_MISMATCH");
+  return item;
+}
+
+async function updateResourceItemPostgres(id: string, patch: Partial<ResourceItem> & { touch?: boolean }, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  const currentResult = await pool.query(
+    `select id, kind, title, url, mime, size_bytes, category_id, tags, favorite, last_used_at, metadata, created_at, updated_at
+     from xh_assets
+     where id = $1
+       and owner_id = $2
+     limit 1`,
+    [id, user.id],
+  );
+  if (!currentResult.rows[0]) throw new Error("资源不存在");
+  const current = toResourceItem(currentResult.rows[0]);
+  const next: ResourceItem = {
+    ...current,
+    ...pickResourcePatch(patch),
+    updatedAt: Date.now(),
+    ...(patch.touch ? { lastUsedAt: Date.now() } : {}),
+  };
+  await upsertResourceItemPostgres(next, user);
+  return next;
+}
+
+async function deleteResourceItemPostgres(id: string, user: CurrentUser) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_assets where id = $1 and owner_id = $2", [id, user.id]);
 }
 
 async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKind?: ResourceKind) {
@@ -6121,9 +6663,13 @@ async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKin
     providerId: safeText(payload.providerId),
     modelId: safeText(payload.modelId),
   };
-  const db = await readResourceDb(user);
-  db.items.unshift(item);
-  await writeResourceDb(db, user);
+  if (usePostgresRepository()) {
+    await upsertResourceItemPostgres(item, user);
+  } else {
+    const db = await readResourceDb(user);
+    db.items.unshift(item);
+    await writeResourceDb(db, user);
+  }
   return item;
 }
 
