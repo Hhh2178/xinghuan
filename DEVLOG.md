@@ -6475,3 +6475,37 @@
     - 剩余冷路径整库写入边界梳理
     - 生产数据持久化/回滚/验收流程补强
     - 真实灰度多用户并发验收
+- `2026-06-13` Phase A 灰度多用户隔离真实验收与标准脚本已补齐：
+  - 新增标准脚本：
+    - `scripts/verify-multi-user-isolation.mjs`
+    - `package.json` 新增 `verify:multi-user-isolation`
+  - 覆盖项：
+    - 管理员与成员双登录
+    - 双方各自创建画布并校验列表隔离
+    - 成员跨用户读取 / `PUT /api/canvas/:id` / `POST /api/canvas/:id/auto-save` 均被 `403 CANVAS_OWNERSHIP_MISMATCH` 拒绝
+    - 双方各自创建资源并校验资源列表隔离
+    - 成员访问后台 Provider 列表被拒绝
+    - 临时验收画布与资源清理完成
+  - 真实公网灰度验收：
+    - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz node scripts/verify-multi-user-isolation.mjs`
+    - 返回 `ok: true`
+    - 验收前后计数一致：
+      - admin canvas `13 -> 13`
+      - member canvas `0 -> 0`
+      - admin image resources `6 -> 6`
+      - member image resources `0 -> 0`
+  - 灰度运行态复核：
+    - `GET https://canvas-next.hhh2121.xyz/api/status` => `environment=gray`
+    - `current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r3-6293798`
+    - 数据库计数：
+      - `xh_users = 6`
+      - `xh_canvases = 13`
+      - `xh_assets = 6`
+      - `xh_tasks = 99`
+    - 迁移标记：
+      - `usr-admin` / `usr-member` 的 `canvases` 与 `resources` 都已存在 `.postgres-migration-complete`
+  - 结论：
+    - Phase A 当前已经不只是本机契约通过，真实公网灰度下的画布隔离、资源隔离、跨用户拒绝和数据清理也都已通过。
+  - 下一环节：
+    - 推进“生产数据备份 / 回滚 / 放行前快照流程”的标准化
+    - 再补“同账号双标签 / 双设备”的版本冲突验收，为 Phase B 做入口

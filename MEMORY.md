@@ -889,6 +889,19 @@
       - 数据计数保持 `users=6/canvases=13/assets=6/tasks=99`
   - 运维注意：
     - 灰度 `/` 与 `/admin` 的 `HEAD` 请求会返回 `404`，不要用 `curl -I` 作为页面健康判断，应改用真实 `GET`
+  - 真实公网灰度多用户隔离验收已补齐：
+    - 新增标准脚本：`scripts/verify-multi-user-isolation.mjs`
+    - package 入口：`verify:multi-user-isolation`
+    - 公网灰度 `https://canvas-next.hhh2121.xyz` 验收结果：
+      - `ok = true`
+      - 管理员与成员双登录成功
+      - 画布列表隔离成功
+      - 资源列表隔离成功
+      - 跨用户 `GET/PUT/auto-save /api/canvas/:id` 都明确返回 `403 CANVAS_OWNERSHIP_MISMATCH`
+      - 成员后台 Provider 访问被拒绝
+      - 临时验收数据清理后，计数恢复到 `admin canvas=13/member canvas=0/admin resources=6/member resources=0`
+    - 迁移标记已再次确认：
+      - `usr-admin` / `usr-member` 的 `canvases`、`resources` 均已存在 `.postgres-migration-complete`
   - 下一阶段建议：
     - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
     - 建立生产数据备份/回滚/验收清单
