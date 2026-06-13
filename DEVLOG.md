@@ -6411,6 +6411,28 @@
     - `npm run build:single-port`
   - 当前结论：
     - Phase A 第一批和第二批的“高频整库覆写止血”已在本地通过。
+  - 灰度发布：
+    - git commit: `01f6e5f` `fix: harden postgres multi-user hot paths`
+    - release: `20260613-phase-a-hardening-gray-r1-01f6e5f`
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r1-01f6e5f`
+    - `db:migrate` => `{"ok":true,"applied":[],"skipped":8}`
+    - `systemctl is-active xinghuan-canvas-next.service` => `active`
+    - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+    - `GET http://127.0.0.1:18200/api/status` => `environment=gray`
+    - `GET https://canvas-next.hhh2121.xyz/` => `200 text/html`
+    - `GET https://canvas-next.hhh2121.xyz/admin` => `200 text/html`
+    - `GET https://canvas-next.hhh2121.xyz/api/status` => `200 application/json`
+    - `current_database()` => `xinghuan_canvas_gray`
+    - 运行中 dist 已确认包含 `RESOURCE_OWNERSHIP_MISMATCH`
+    - 灰度数据计数：
+      - `xh_users = 6`
+      - `xh_canvases = 13`
+      - `xh_assets = 6`
+      - `xh_tasks = 99`
+    - 当前灰度画布 owner 分布示例：
+      - `usr-admin = 13`
+  - 额外发现：
+    - 使用 `HEAD` 探测灰度 `/` 与 `/admin` 会返回 `404`，但 `GET` 正常返回 `200`；后续运维 smoke 应以 `GET` 为准，避免误报。
     - 下一阶段再继续推进：
       - 剩余冷路径整库写入边界梳理
       - 生产数据持久化/回滚/验收流程补强

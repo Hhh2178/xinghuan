@@ -861,6 +861,23 @@
   - 当前边界：
     - 现在止住的是“高频热路径整库覆写”和“静默 owner 冲突”两类高风险问题
     - 还没有完成真实灰度多用户验收，也还没有把所有冷路径整库写入全部拆干净
+  - 已完成灰度发布与线上 smoke：
+    - commit: `01f6e5f`
+    - release: `20260613-phase-a-hardening-gray-r1-01f6e5f`
+    - `current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r1-01f6e5f`
+    - `db:migrate` 为 `skipped: 8`
+    - gray API / Worker 都是 `active`
+    - `GET /`、`GET /admin`、`GET /api/status` 都正常
+    - `current_database()` = `xinghuan_canvas_gray`
+    - 运行中 dist 已确认包含 `RESOURCE_OWNERSHIP_MISMATCH`
+  - 当前灰度数据仍在：
+    - `xh_users = 6`
+    - `xh_canvases = 13`
+    - `xh_assets = 6`
+    - `xh_tasks = 99`
+    - 当前样本 owner 分布显示 `usr-admin = 13`，说明这次灰度发版后画布记录没有被清空
+  - 运维注意：
+    - 灰度 `/` 与 `/admin` 的 `HEAD` 请求会返回 `404`，不要用 `curl -I` 作为页面健康判断，应改用真实 `GET`
   - 下一阶段建议：
     - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
     - 建立生产数据备份/回滚/验收清单
