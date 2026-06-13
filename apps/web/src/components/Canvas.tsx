@@ -1187,6 +1187,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const saveTimersByCanvasRef = useRef<Map<string, number>>(new Map());
   const pendingSaveByCanvasRef = useRef<Map<string, { nodes: Node[]; edges: Edge[]; snapshot: string; nextNodeSerialId: number }>>(new Map());
   const lastSavedByCanvasRef = useRef<Map<string, string>>(new Map());
+  const revisionByCanvasRef = useRef<Map<string, number>>(new Map());
+  const saveConflictCanvasIdsRef = useRef<Set<string>>(new Set());
   const nextNodeSerialIdRef = useRef(1);
   const allowEmptySaveCanvasIdsRef = useRef<Set<string>>(new Set());
 
@@ -1358,6 +1360,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     [histCapture]
   );
 
+  const isCanvasRevisionConflictError = useCallback((error: unknown) => {
+    return error instanceof api.ApiError && error.status === 409 && error.payload?.error === 'CANVAS_REVISION_CONFLICT';
+  }, []);
+
   // 加载画布数据
   useEffect(() => {
     if (!activeId) {
@@ -1407,6 +1413,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           requestedCanvasId,
           normalized.changed || normalizedSnapshot !== loadedSnapshot ? loadedSnapshot : normalizedSnapshot,
         );
+        revisionByCanvasRef.current.set(requestedCanvasId, Math.max(1, Number(data.revision) || 1));
+        saveConflictCanvasIdsRef.current.delete(requestedCanvasId);
         allowEmptySaveCanvasIdsRef.current.delete(requestedCanvasId);
         histReset({ nodes: fixedNs, edges: es });
         setLoadedCanvasId(requestedCanvasId);
@@ -1419,6 +1427,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         setNodes([]);
         setEdges([]);
         histReset();
+        saveConflictCanvasIdsRef.current.delete(requestedCanvasId);
         setLoadedCanvasId(requestedCanvasId);
         setLoaded(true);
       });
@@ -1486,6 +1495,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     const nextNodeSerialId = nextNodeSerialIdRef.current;
     const snapshot = JSON.stringify({ nodes: persistNodes, edges: persistEdges, nextNodeSerialId });
     const canvasIdForSave = activeId;
+    if (saveConflictCanvasIdsRef.current.has(canvasIdForSave)) return;
     const previousSnapshot = lastSavedByCanvasRef.current.get(canvasIdForSave) || '';
     if (snapshot === previousSnapshot) return;
     let previousNodeCount = 0;
@@ -1508,10 +1518,14 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       snapshot,
     });
     const timer = window.setTimeout(async () => {
-      const payload = { nodes: persistNodes, edges: persistEdges, viewport: getViewport(), nextNodeSerialId };
+      const currentRevision = Math.max(1, revisionByCanvasRef.current.get(canvasIdForSave) || 1);
+      const payload = { nodes: persistNodes, edges: persistEdges, viewport: getViewport(), revision: currentRevision, nextNodeSerialId };
       try {
-        await api.saveCanvasData(canvasIdForSave, payload, { allowEmpty: allowEmptySave });
-        api.autoSaveCanvasData(canvasIdForSave, payload).catch((e) => {
+        const saved = await api.saveCanvasData(canvasIdForSave, payload, { allowEmpty: allowEmptySave });
+        const nextRevision = Math.max(currentRevision, Number(saved.revision) || currentRevision);
+        revisionByCanvasRef.current.set(canvasIdForSave, nextRevision);
+        saveConflictCanvasIdsRef.current.delete(canvasIdForSave);
+        api.autoSaveCanvasData(canvasIdForSave, { ...payload, revision: nextRevision }).catch((e) => {
           console.warn('画布自动保存到本地路径失败', e);
         });
         if (allowEmptySave) allowEmptySaveCanvasIdsRef.current.delete(canvasIdForSave);
@@ -1527,6 +1541,12 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           ),
         }));
       } catch (e) {
+        if (isCanvasRevisionConflictError(e)) {
+          saveConflictCanvasIdsRef.current.add(canvasIdForSave);
+          pendingSaveByCanvasRef.current.delete(canvasIdForSave);
+          logBus.warn('当前画布已在其他标签页或设备更新，请刷新后再继续编辑', '画布冲突');
+          return;
+        }
         console.error('保存画布失败', e);
       } finally {
         if (saveTimersByCanvasRef.current.get(canvasIdForSave) === timer) {
@@ -1535,7 +1555,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       }
     }, 800);
     saveTimersByCanvasRef.current.set(canvasIdForSave, timer);
-  }, [nodes, edges, activeId, loaded, loadedCanvasId, getViewport]);
+  }, [nodes, edges, activeId, loaded, loadedCanvasId, getViewport, isCanvasRevisionConflictError]);
 
   // 添加节点(供 Sidebar 调用) —— 默认落在当前视口中心
   // 可选 atScreen 传入屏幕坐标，节点会落在该点(用于右键画布空白区添加)
@@ -1966,29 +1986,109 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const handleSendMaterialsToCanvas = useCallback(
     async (targetCanvasId: string, mode: SendTargetMode, switchAfter: boolean) => {
       if (!sendModal) return;
-      const currentSend = {
-        ...sendModal,
-        materials: sendModal.materials.map((item) => ({ ...item })),
-      };
-      const effectiveMode = resolveSendMode(mode);
-      if (effectiveMode === 'node-fragment') {
-        const fragment = currentSend.nodeFragment;
-        if (!fragment || fragment.nodes.length === 0) {
-          logBus.warn('没有可发送到画布的节点片段', '发送节点');
+      try {
+        const currentSend = {
+          ...sendModal,
+          materials: sendModal.materials.map((item) => ({ ...item })),
+        };
+        const effectiveMode = resolveSendMode(mode);
+        if (effectiveMode === 'node-fragment') {
+          const fragment = currentSend.nodeFragment;
+          if (!fragment || fragment.nodes.length === 0) {
+            logBus.warn('没有可发送到画布的节点片段', '发送节点');
+            return;
+          }
+
+          if (targetCanvasId === activeId) {
+            const base = basePositionForActiveSend();
+            const placedInstance = placeInstantiatedNodeFragment(
+              instantiateSendNodeFragment(fragment, nodesRef.current, base),
+              nodesRef.current,
+            );
+            const instance = {
+              ...placedInstance,
+              nodes: assignActiveNodeSerials(placedInstance.nodes, nodesRef.current),
+            };
+            const focusCenter = centerOfMaterialNodes(instance.nodes);
+            if (activeId && focusCenter) {
+              const { zoom } = getViewport();
+              pendingSendFocusRef.current = {
+                canvasId: activeId,
+                center: focusCenter,
+                zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
+              };
+            }
+            setEdges([...edgesRef.current.map((edge) => ({ ...edge, selected: false })), ...instance.edges]);
+            setNodes([...nodesRef.current.map((node) => ({ ...node, selected: false })), ...instance.nodes]);
+            setSendModal(null);
+            logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到当前画布`, '发送节点');
+            return;
+          }
+
+          const data = await api.getCanvasData(targetCanvasId);
+          const targetNodesRaw = (Array.isArray(data.nodes) ? data.nodes : []) as Node[];
+          const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw, data.nextNodeSerialId);
+          const targetNodes = normalizedTarget.nodes;
+          const targetEdges = (Array.isArray(data.edges) ? data.edges : []) as Edge[];
+          const placedInstance = placeInstantiatedNodeFragment(
+            instantiateSendNodeFragment(fragment, targetNodes, basePositionForAppend(targetNodes)),
+            targetNodes,
+          );
+          const freshSerials = assignFreshNodeSerials(placedInstance.nodes, targetNodes, normalizedTarget.nextNodeSerialId);
+          const instance = { ...placedInstance, nodes: freshSerials.nodes };
+          const focusCenter = centerOfMaterialNodes(instance.nodes);
+          if (switchAfter && focusCenter) {
+            pendingSendFocusRef.current = {
+              canvasId: targetCanvasId,
+              center: focusCenter,
+              zoom: 0.88,
+            };
+          }
+          const payload = {
+            nodes: [...targetNodes, ...instance.nodes],
+            edges: [...targetEdges, ...instance.edges],
+            viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
+            revision: data.revision,
+            nextNodeSerialId: freshSerials.nextNodeSerialId,
+          };
+          const saved = await api.saveCanvasData(targetCanvasId, payload);
+          api.autoSaveCanvasData(targetCanvasId, { ...payload, revision: saved.revision ?? data.revision }).catch(() => {});
+          await loadCanvases();
+          if (switchAfter) setActive(targetCanvasId);
+          setSendModal(null);
+          logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到目标画布`, '发送节点');
           return;
         }
 
+        if (currentSend.materials.length === 0) {
+          logBus.warn('当前发送方式需要素材；请选择“节点片段”发送选中节点和连线', '发送素材');
+          return;
+        }
+        const specs = buildSendNodeSpecs(currentSend.materials, effectiveMode);
+        if (specs.length === 0) {
+          logBus.warn('没有可发送到画布的素材', '发送素材');
+          return;
+        }
+        const bridgeSignature = sendableMaterialSignature(currentSend.materials);
+        const bridgeSourceNodeIds = sourceNodeIdsFromMaterials(currentSend.materials);
+
         if (targetCanvasId === activeId) {
           const base = basePositionForActiveSend();
-          const placedInstance = placeInstantiatedNodeFragment(
-            instantiateSendNodeFragment(fragment, nodesRef.current, base),
+          const cleaned = removeDuplicateSendBridgeNodes(
             nodesRef.current,
+            edgesRef.current,
+            currentSend.materials,
+            bridgeSignature,
+            activeId,
           );
-          const instance = {
-            ...placedInstance,
-            nodes: assignActiveNodeSerials(placedInstance.nodes, nodesRef.current),
-          };
-          const focusCenter = centerOfMaterialNodes(instance.nodes);
+          const newNodes = materialNodesFromSpecs(specs, cleaned.nodes, base, {
+            signature: bridgeSignature,
+            mode: effectiveMode,
+            sourceCanvasId: activeId,
+            sourceNodeIds: bridgeSourceNodeIds,
+          });
+          const assignedNewNodes = assignActiveNodeSerials(newNodes, cleaned.nodes);
+          const focusCenter = centerOfMaterialNodes(assignedNewNodes);
           if (activeId && focusCenter) {
             const { zoom } = getViewport();
             pendingSendFocusRef.current = {
@@ -1997,25 +2097,36 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
               zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
             };
           }
-          setEdges([...edgesRef.current.map((edge) => ({ ...edge, selected: false })), ...instance.edges]);
-          setNodes([...nodesRef.current.map((node) => ({ ...node, selected: false })), ...instance.nodes]);
+          setEdges(cleaned.edges);
+          setNodes([...cleaned.nodes.map((node) => ({ ...node, selected: false })), ...assignedNewNodes]);
           setSendModal(null);
-          logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到当前画布`, '发送节点');
+          logBus.success(
+            `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到当前画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
+            '发送素材',
+          );
           return;
         }
 
         const data = await api.getCanvasData(targetCanvasId);
-        const targetNodesRaw = (Array.isArray(data.nodes) ? data.nodes : []) as Node[];
-        const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw, data.nextNodeSerialId);
+        const targetNodesRaw = Array.isArray(data.nodes) ? data.nodes : [];
+        const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw as Node[], data.nextNodeSerialId);
         const targetNodes = normalizedTarget.nodes;
-        const targetEdges = (Array.isArray(data.edges) ? data.edges : []) as Edge[];
-        const placedInstance = placeInstantiatedNodeFragment(
-          instantiateSendNodeFragment(fragment, targetNodes, basePositionForAppend(targetNodes)),
-          targetNodes,
+        const targetEdges = Array.isArray(data.edges) ? data.edges : [];
+        const cleaned = removeDuplicateSendBridgeNodes(
+          targetNodes as Node[],
+          targetEdges as Edge[],
+          currentSend.materials,
+          bridgeSignature,
+          activeId,
         );
-        const freshSerials = assignFreshNodeSerials(placedInstance.nodes, targetNodes, normalizedTarget.nextNodeSerialId);
-        const instance = { ...placedInstance, nodes: freshSerials.nodes };
-        const focusCenter = centerOfMaterialNodes(instance.nodes);
+        const newNodes = materialNodesFromSpecs(specs, cleaned.nodes as Node[], basePositionForAppend(cleaned.nodes as Node[]), {
+          signature: bridgeSignature,
+          mode: effectiveMode,
+          sourceCanvasId: activeId,
+          sourceNodeIds: bridgeSourceNodeIds,
+        });
+        const freshSerials = assignFreshNodeSerials(newNodes, cleaned.nodes as Node[], normalizedTarget.nextNodeSerialId);
+        const focusCenter = centerOfMaterialNodes(freshSerials.nodes);
         if (switchAfter && focusCenter) {
           pendingSendFocusRef.current = {
             canvasId: targetCanvasId,
@@ -2024,111 +2135,30 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           };
         }
         const payload = {
-          nodes: [...targetNodes, ...instance.nodes],
-          edges: [...targetEdges, ...instance.edges],
+          nodes: [...cleaned.nodes, ...freshSerials.nodes],
+          edges: cleaned.edges,
           viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
+          revision: data.revision,
           nextNodeSerialId: freshSerials.nextNodeSerialId,
         };
-        await api.saveCanvasData(targetCanvasId, payload);
-        api.autoSaveCanvasData(targetCanvasId, payload).catch(() => {});
+        const saved = await api.saveCanvasData(targetCanvasId, payload);
+        api.autoSaveCanvasData(targetCanvasId, { ...payload, revision: saved.revision ?? data.revision }).catch(() => {});
         await loadCanvases();
         if (switchAfter) setActive(targetCanvasId);
         setSendModal(null);
-        logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到目标画布`, '发送节点');
-        return;
-      }
-
-      if (currentSend.materials.length === 0) {
-        logBus.warn('当前发送方式需要素材；请选择“节点片段”发送选中节点和连线', '发送素材');
-        return;
-      }
-      const specs = buildSendNodeSpecs(currentSend.materials, effectiveMode);
-      if (specs.length === 0) {
-        logBus.warn('没有可发送到画布的素材', '发送素材');
-        return;
-      }
-      const bridgeSignature = sendableMaterialSignature(currentSend.materials);
-      const bridgeSourceNodeIds = sourceNodeIdsFromMaterials(currentSend.materials);
-
-      if (targetCanvasId === activeId) {
-        const base = basePositionForActiveSend();
-        const cleaned = removeDuplicateSendBridgeNodes(
-          nodesRef.current,
-          edgesRef.current,
-          currentSend.materials,
-          bridgeSignature,
-          activeId,
-        );
-        const newNodes = materialNodesFromSpecs(specs, cleaned.nodes, base, {
-          signature: bridgeSignature,
-          mode: effectiveMode,
-          sourceCanvasId: activeId,
-          sourceNodeIds: bridgeSourceNodeIds,
-        });
-        const assignedNewNodes = assignActiveNodeSerials(newNodes, cleaned.nodes);
-        const focusCenter = centerOfMaterialNodes(assignedNewNodes);
-        if (activeId && focusCenter) {
-          const { zoom } = getViewport();
-          pendingSendFocusRef.current = {
-            canvasId: activeId,
-            center: focusCenter,
-            zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
-          };
-        }
-        setEdges(cleaned.edges);
-        setNodes([...cleaned.nodes.map((node) => ({ ...node, selected: false })), ...assignedNewNodes]);
-        setSendModal(null);
         logBus.success(
-          `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到当前画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
+          `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到目标画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
           '发送素材',
         );
-        return;
+      } catch (error: any) {
+        if (isCanvasRevisionConflictError(error)) {
+          logBus.warn('目标画布已被其他标签页或设备更新，请先重新打开目标画布后再发送', '画布冲突');
+          return;
+        }
+        logBus.warn(error?.message || '发送到画布失败', '发送');
       }
-
-      const data = await api.getCanvasData(targetCanvasId);
-      const targetNodesRaw = Array.isArray(data.nodes) ? data.nodes : [];
-      const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw as Node[], data.nextNodeSerialId);
-      const targetNodes = normalizedTarget.nodes;
-      const targetEdges = Array.isArray(data.edges) ? data.edges : [];
-      const cleaned = removeDuplicateSendBridgeNodes(
-        targetNodes as Node[],
-        targetEdges as Edge[],
-        currentSend.materials,
-        bridgeSignature,
-        activeId,
-      );
-      const newNodes = materialNodesFromSpecs(specs, cleaned.nodes as Node[], basePositionForAppend(cleaned.nodes as Node[]), {
-        signature: bridgeSignature,
-        mode: effectiveMode,
-        sourceCanvasId: activeId,
-        sourceNodeIds: bridgeSourceNodeIds,
-      });
-      const freshSerials = assignFreshNodeSerials(newNodes, cleaned.nodes as Node[], normalizedTarget.nextNodeSerialId);
-      const focusCenter = centerOfMaterialNodes(freshSerials.nodes);
-      if (switchAfter && focusCenter) {
-        pendingSendFocusRef.current = {
-          canvasId: targetCanvasId,
-          center: focusCenter,
-          zoom: 0.88,
-        };
-      }
-      const payload = {
-        nodes: [...cleaned.nodes, ...freshSerials.nodes],
-        edges: cleaned.edges,
-        viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
-        nextNodeSerialId: freshSerials.nextNodeSerialId,
-      };
-      await api.saveCanvasData(targetCanvasId, payload);
-      api.autoSaveCanvasData(targetCanvasId, payload).catch(() => {});
-      await loadCanvases();
-      if (switchAfter) setActive(targetCanvasId);
-      setSendModal(null);
-      logBus.success(
-        `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到目标画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
-        '发送素材',
-      );
     },
-    [activeId, assignActiveNodeSerials, basePositionForActiveSend, getViewport, loadCanvases, resolveSendMode, sendModal, setActive],
+    [activeId, assignActiveNodeSerials, basePositionForActiveSend, getViewport, isCanvasRevisionConflictError, loadCanvases, resolveSendMode, sendModal, setActive],
   );
 
   const saveWorkflowFragmentToResource = useCallback(

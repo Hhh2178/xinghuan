@@ -233,6 +233,7 @@ export interface CanvasListItem {
   id: string;
   name: string;
   nodeCount: number;
+  revision: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -242,6 +243,7 @@ export interface CanvasData {
   nodes: any[];
   edges: any[];
   viewport: { x: number; y: number; zoom: number };
+  revision?: number;
   nextNodeSerialId?: number;
 }
 

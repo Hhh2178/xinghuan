@@ -119,10 +119,12 @@ let redisClientPromise: Promise<import("redis").RedisClientType> | null = null;
 
 class HttpError extends Error {
   statusCode: number;
+  payload?: Record<string, unknown>;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, payload?: Record<string, unknown>) {
     super(message);
     this.statusCode = statusCode;
+    this.payload = payload;
   }
 }
 
@@ -179,6 +181,7 @@ interface CanvasListItem {
   id: string;
   name: string;
   nodeCount: number;
+  revision: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -187,6 +190,7 @@ interface CanvasData {
   nodes: unknown[];
   edges: unknown[];
   viewport: { x: number; y: number; zoom: number };
+  revision?: number;
   nextNodeSerialId?: number;
 }
 
@@ -574,7 +578,9 @@ function sanitizeVisibleSeedText(value: string): string {
 
 function sanitizeCanvasListItem(item: CanvasListItem): CanvasListItem {
   const name = sanitizeVisibleSeedText(typeof item.name === "string" ? item.name : "");
-  return name === item.name ? item : { ...item, name };
+  const revision = Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1;
+  const next = revision === item.revision ? item : { ...item, revision };
+  return name === next.name ? next : { ...next, name };
 }
 
 function sanitizeCanvasNodeData(data: unknown): unknown {
@@ -642,6 +648,7 @@ const emptyCanvasData = (): CanvasData => ({
   nodes: [],
   edges: [],
   viewport: { x: 0, y: 0, zoom: 1 },
+  revision: 1,
   nextNodeSerialId: 1,
 });
 
@@ -1149,6 +1156,7 @@ const server = createServer(async (request, response) => {
           id,
           name: body.name || "未命名画布",
           nodeCount: 0,
+          revision: 1,
           createdAt: now,
           updatedAt: now,
         };
@@ -1184,12 +1192,19 @@ const server = createServer(async (request, response) => {
     const canvasAutoSaveMatch = url.pathname.match(/^\/api\/canvas\/([^/]+)\/auto-save$/);
     if (canvasAutoSaveMatch && request.method === "POST") {
       const id = decodeURIComponent(canvasAutoSaveMatch[1]);
-      const data = normalizeCanvasData(await readJsonBody(request));
-      await writeCanvasAndUpdateList(id, data, currentUser!);
+      const rawBody = await readJsonBody(request);
+      const data = normalizeCanvasData(rawBody);
+      if (usePostgresRepository()) {
+        await assertCanvasOwnershipForSnapshot(id, currentUser!);
+        await writeCanvasDataToFileSnapshot(id, data, currentUser!);
+      } else {
+        await writeCanvasAndUpdateList(id, data, currentUser!, { expectedRevision: canvasRevisionFromPayload(rawBody) });
+      }
       sendT8(response, {
         path: canvasDataPath(id, currentUser!),
         nodeCount: data.nodes.length,
         edgeCount: data.edges.length,
+        revision: data.revision,
       });
       return;
     }
@@ -1202,12 +1217,17 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (request.method === "PUT") {
-        const data = normalizeCanvasData(await readJsonBody(request));
-        await writeCanvasAndUpdateList(id, data, currentUser!);
+        const rawBody = await readJsonBody(request);
+        const data = normalizeCanvasData(rawBody);
+        const result = await writeCanvasAndUpdateList(id, data, currentUser!, {
+          expectedRevision: canvasRevisionFromPayload(rawBody),
+        });
         sendT8(response, {
           path: canvasDataPath(id, currentUser!),
           nodeCount: data.nodes.length,
           edgeCount: data.edges.length,
+          revision: result.revision,
+          updatedAt: result.updatedAt,
         });
         return;
       }
@@ -1241,6 +1261,7 @@ const server = createServer(async (request, response) => {
         ok: false,
         success: false,
         error: error instanceof Error ? error.message : String(error),
+        ...(error instanceof HttpError && error.payload ? error.payload : {}),
       },
       statusCode,
     );
@@ -2074,7 +2095,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query(
-      "select id, name, node_count, created_at, updated_at from xh_canvases where owner_id = $1 order by updated_at desc, created_at desc",
+      "select id, name, node_count, revision, created_at, updated_at from xh_canvases where owner_id = $1 order by updated_at desc, created_at desc",
       [user.id],
     );
     const dirs = userDataDirs(user);
@@ -2120,13 +2141,14 @@ async function writeCanvasList(
       for (const item of sanitizedList) {
         const canvasData = dataById.get(item.id) || (await readCanvasDataFromFile(item.id, user));
         const writeResult = await client.query(
-          `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
-           values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)
+          `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, revision, created_at, updated_at)
+           values ($1, $2, null, $3, $4, $5::jsonb, $6, $7, $8)
            on conflict (id) do update
              set name = excluded.name,
                  node_count = excluded.node_count,
                  data = excluded.data,
-                 updated_at = excluded.updated_at
+                 updated_at = excluded.updated_at,
+                 revision = greatest(xh_canvases.revision, excluded.revision)
              where xh_canvases.owner_id = excluded.owner_id
            returning id`,
           [
@@ -2135,6 +2157,7 @@ async function writeCanvasList(
             item.name,
             Number.isFinite(item.nodeCount) ? item.nodeCount : 0,
             JSON.stringify(canvasData),
+            Number.isFinite(item.revision) && item.revision > 0 ? Math.floor(item.revision) : 1,
             millisToDate(item.createdAt),
             millisToDate(item.updatedAt),
           ],
@@ -2160,11 +2183,14 @@ async function writeCanvasList(
 async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData> {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
-    const result = await pool.query("select data from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
+    const result = await pool.query("select data, revision from xh_canvases where id = $1 and owner_id = $2 limit 1", [id, user.id]);
     const dirs = userDataDirs(user);
     if (result.rows[0]) {
       await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
-      return normalizeCanvasData(result.rows[0].data);
+      return {
+        ...normalizeCanvasData(result.rows[0].data),
+        revision: Number(result.rows[0].revision) || 1,
+      };
     }
     const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
     if (foreign.rows[0]) {
@@ -2189,60 +2215,88 @@ async function writeCanvasData(
   id: string,
   data: CanvasData,
   user: CurrentUser,
-  options?: { name?: string; createdAt?: number },
-) {
+  options?: { name?: string; createdAt?: number; expectedRevision?: number },
+): Promise<{ revision: number; updatedAt: number }> {
+  const normalizedData = normalizeCanvasData(data);
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
-    const existing = await pool.query("select owner_id, name, created_at from xh_canvases where id = $1 limit 1", [id]);
+    const existing = await pool.query("select owner_id, name, created_at, revision from xh_canvases where id = $1 limit 1", [id]);
     if (existing.rows[0] && safeText(existing.rows[0].owner_id) !== user.id) {
       throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
     }
     const fileList = existing.rows[0] ? [] : await readCanvasListFromFile(user);
     const fileItem = fileList.find((item) => item.id === id);
     const now = Date.now();
+    const currentRevision = Number(existing.rows[0]?.revision) || 1;
     const canvasName = safeText(options?.name || existing.rows[0]?.name || fileItem?.name, "未命名画布");
     const createdAt = existing.rows[0]
       ? dateToMillis(existing.rows[0].created_at)
       : options?.createdAt || fileItem?.createdAt || now;
+    if (existing.rows[0] && options?.expectedRevision !== undefined && options.expectedRevision !== currentRevision) {
+      throw new HttpError(409, "CANVAS_REVISION_CONFLICT", {
+        canvasId: id,
+        currentRevision,
+      });
+    }
+    const nextRevision = existing.rows[0] ? currentRevision + 1 : Math.max(options?.expectedRevision || 1, 1);
+    const persistedData = { ...normalizedData, revision: nextRevision };
     if (existing.rows[0]) {
-      await pool.query(
+      const updateResult = await pool.query(
         `update xh_canvases
          set name = $3,
              node_count = $4,
              data = $5::jsonb,
-             updated_at = $6
+             updated_at = $6,
+             revision = $7
          where id = $1
            and owner_id = $2`,
         [
           id,
           user.id,
           canvasName,
-          data.nodes.length,
-          JSON.stringify(normalizeCanvasData(data)),
+          normalizedData.nodes.length,
+          JSON.stringify(persistedData),
           millisToDate(now),
+          nextRevision,
         ],
       );
+      if (!updateResult.rowCount) throw new Error("画布不存在");
       await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
+      return { revision: nextRevision, updatedAt: now };
     } else {
       await pool.query(
-        `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, created_at, updated_at)
-         values ($1, $2, null, $3, $4, $5::jsonb, $6, $7)`,
+        `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, revision, created_at, updated_at)
+         values ($1, $2, null, $3, $4, $5::jsonb, $6, $7, $8)`,
         [
           id,
           user.id,
           canvasName,
-          data.nodes.length,
-          JSON.stringify(normalizeCanvasData(data)),
+          normalizedData.nodes.length,
+          JSON.stringify(persistedData),
+          nextRevision,
           millisToDate(createdAt),
           millisToDate(now),
         ],
       );
       await markRepositoryMigrationComplete(userDataDirs(user).canvasPostgresMigrationMarkerPath);
+      return { revision: nextRevision, updatedAt: now };
     }
-    return;
   }
-  await ensureDataDirs(user);
-  await writeFile(canvasDataPath(id, user), JSON.stringify(data, null, 2), "utf-8");
+  const fileList = await readCanvasListFromFile(user);
+  const fileItem = fileList.find((item) => item.id === id);
+  const existingFile = await readCanvasDataFromFile(id, user);
+  const hasExistingFile = Boolean(fileItem) || existingFile.nodes.length > 0 || existingFile.edges.length > 0 || existingFile.nextNodeSerialId !== 1;
+  const currentRevision = Number(existingFile.revision) || 1;
+  if (hasExistingFile && options?.expectedRevision !== undefined && options.expectedRevision !== currentRevision) {
+    throw new HttpError(409, "CANVAS_REVISION_CONFLICT", {
+      canvasId: id,
+      currentRevision,
+    });
+  }
+  const now = Date.now();
+  const nextRevision = hasExistingFile ? currentRevision + 1 : Math.max(options?.expectedRevision || 1, 1);
+  await writeCanvasDataToFileSnapshot(id, { ...normalizedData, revision: nextRevision }, user);
+  return { revision: nextRevision, updatedAt: now };
 }
 
 async function renameCanvasRecord(id: string, name: string, user: CurrentUser) {
@@ -2251,10 +2305,11 @@ async function renameCanvasRecord(id: string, name: string, user: CurrentUser) {
     const result = await pool.query(
       `update xh_canvases
        set name = $3,
-           updated_at = now()
+           updated_at = now(),
+           revision = revision + 1
        where id = $1
          and owner_id = $2
-       returning id, name, node_count, created_at, updated_at`,
+       returning id, name, node_count, revision, created_at, updated_at`,
       [id, user.id, safeText(name, "未命名画布")],
     );
     if (result.rows[0]) return sanitizeCanvasListItem(toCanvasListItem(result.rows[0]));
@@ -2264,7 +2319,7 @@ async function renameCanvasRecord(id: string, name: string, user: CurrentUser) {
   }
   const list = await readCanvasList(user);
   const updated = list.map((item) =>
-    item.id === id ? { ...item, name: safeText(name, item.name), updatedAt: Date.now() } : item,
+    item.id === id ? { ...item, name: safeText(name, item.name), revision: (item.revision || 1) + 1, updatedAt: Date.now() } : item,
   );
   await writeCanvasList(updated, user);
   return updated.find((item) => item.id === id) ?? null;
@@ -2286,13 +2341,17 @@ async function deleteCanvasRecord(id: string, user: CurrentUser) {
   await writeCanvasList(list.filter((item) => item.id !== id), user, { allowEmptyReplace: true });
 }
 
-async function writeCanvasAndUpdateList(id: string, data: CanvasData, user: CurrentUser) {
+async function writeCanvasAndUpdateList(
+  id: string,
+  data: CanvasData,
+  user: CurrentUser,
+  options?: { expectedRevision?: number },
+) {
   if (usePostgresRepository()) {
-    await writeCanvasData(id, data, user);
-    return;
+    return writeCanvasData(id, data, user, options);
   }
-  await writeCanvasData(id, data, user);
-  const now = Date.now();
+  const result = await writeCanvasData(id, data, user, options);
+  const now = result.updatedAt;
   const list = await readCanvasList(user);
   const existing = list.find((item) => item.id === id);
   const item: CanvasListItem = {
@@ -2301,8 +2360,33 @@ async function writeCanvasAndUpdateList(id: string, data: CanvasData, user: Curr
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     nodeCount: data.nodes.length,
+    revision: result.revision,
   };
   await writeCanvasList([item, ...list.filter((entry) => entry.id !== id)], user);
+  return result;
+}
+
+async function writeCanvasDataToFileSnapshot(id: string, data: CanvasData, user: CurrentUser) {
+  await ensureDataDirs(user);
+  await writeFile(canvasDataPath(id, user), JSON.stringify(normalizeCanvasData(data), null, 2), "utf-8");
+}
+
+async function assertCanvasOwnershipForSnapshot(id: string, user: CurrentUser) {
+  if (!usePostgresRepository()) return;
+  const pool = await getPostgresPool();
+  const result = await pool.query("select owner_id from xh_canvases where id = $1 limit 1", [id]);
+  if (!result.rows[0]) return;
+  if (safeText(result.rows[0].owner_id) !== user.id) {
+    throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
+  }
+}
+
+function canvasRevisionFromPayload(value: unknown): number | undefined {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+  const revision = Number(source?.revision);
+  return Number.isFinite(revision) && revision > 0 ? Math.floor(revision) : undefined;
 }
 
 function normalizeCanvasData(value: unknown): CanvasData {
@@ -2311,6 +2395,7 @@ function normalizeCanvasData(value: unknown): CanvasData {
     nodes: sanitizeCanvasNodes(Array.isArray(data.nodes) ? data.nodes : []),
     edges: Array.isArray(data.edges) ? data.edges : [],
     viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
+    revision: Number.isFinite(data.revision) && Number(data.revision) > 0 ? Math.floor(Number(data.revision)) : 1,
     nextNodeSerialId: typeof data.nextNodeSerialId === "number" ? data.nextNodeSerialId : 1,
   };
 }
@@ -3265,6 +3350,7 @@ function toCanvasListItem(row: {
   id: string;
   name?: string | null;
   node_count?: number | null;
+  revision?: number | null;
   created_at?: unknown;
   updated_at?: unknown;
 }): CanvasListItem {
@@ -3272,6 +3358,7 @@ function toCanvasListItem(row: {
     id: row.id,
     name: safeText(row.name, "未命名画布"),
     nodeCount: Number(row.node_count) || 0,
+    revision: Number(row.revision) || 1,
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
   };

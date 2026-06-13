@@ -8,6 +8,17 @@ import type { MediaKind } from '../utils/mediaCollection';
 
 const BASE = '/api';
 
+export class ApiError extends Error {
+  status: number;
+  payload: any;
+
+  constructor(status: number, message: string, payload?: any) {
+    super(message);
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -16,13 +27,18 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let errMsg = `HTTP ${res.status}`;
+    let payload: any = null;
     try {
-      const data = await res.json();
-      errMsg = data.error || data.message || errMsg;
+      payload = await res.json();
+      errMsg = payload.error || payload.message || errMsg;
     } catch {
-      /* ignore */
+      try {
+        errMsg = await res.text() || errMsg;
+      } catch {
+        /* ignore */
+      }
     }
-    throw new Error(errMsg);
+    throw new ApiError(res.status, errMsg, payload);
   }
   return res.json();
 }
@@ -199,21 +215,29 @@ export async function getCanvasData(id: string): Promise<CanvasData> {
   return res.data;
 }
 
-export async function saveCanvasData(id: string, data: CanvasData, options?: { allowEmpty?: boolean }): Promise<void> {
+export async function saveCanvasData(
+  id: string,
+  data: CanvasData,
+  options?: { allowEmpty?: boolean },
+): Promise<{ path?: string; nodeCount?: number; edgeCount?: number; revision?: number; updatedAt?: number }> {
   const query = options?.allowEmpty ? '?allowEmpty=1' : '';
-  await request(`${BASE}/canvas/${id}${query}`, {
+  const res = await request<{
+    success: boolean;
+    data: { path?: string; nodeCount?: number; edgeCount?: number; revision?: number; updatedAt?: number };
+  }>(`${BASE}/canvas/${id}${query}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+  return res.data || {};
 }
 
 export async function autoSaveCanvasData(
   id: string,
   data: CanvasData,
-): Promise<{ path?: string; nodeCount?: number; edgeCount?: number }> {
+): Promise<{ path?: string; nodeCount?: number; edgeCount?: number; revision?: number }> {
   const res = await request<{
     success: boolean;
-    data: { path?: string; nodeCount?: number; edgeCount?: number };
+    data: { path?: string; nodeCount?: number; edgeCount?: number; revision?: number };
   }>(`${BASE}/canvas/${id}/auto-save`, {
     method: 'POST',
     body: JSON.stringify(data),

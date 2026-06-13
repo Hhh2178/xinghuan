@@ -6532,3 +6532,47 @@
   - 下一步：
     - 把这份快照作为灰度放行和正式放行的固定前置动作
     - 再继续推进 Phase B 的同账号双标签版本冲突验收
+- `2026-06-13` Phase B 第一批画布 revision 冲突防护已完成灰度发布与真实验收：
+  - 新增：
+    - `apps/api/db/009_canvas_revision.sql`
+    - `scripts/verify-canvas-revision-conflict.mjs`
+    - `ops/phase-b-canvas-revision-gray-2026-06-13.md`
+  - 后端收口：
+    - `xh_canvases` 新增 `revision`
+    - `GET /api/canvas/:id` 返回 revision
+    - `PUT /api/canvas/:id` 保存成功后递增 revision
+    - stale revision 保存返回 `409 CANVAS_REVISION_CONFLICT`
+    - `PATCH /api/canvas/:id/name` 同步递增 revision
+    - Postgres 模式下 `/api/canvas/:id/auto-save` 改为只落本地快照，不再重复写库
+    - 同时补回 `/auto-save` 的 owner 校验，避免跨用户绕过
+  - 前端收口：
+    - 画布主保存链路跟踪当前 revision
+    - revision 冲突后阻断继续自动保存，并提示刷新后再编辑
+    - 发送节点/素材到目标画布时也带上目标 revision
+  - 灰度发布：
+    - `r1 = 20260613-phase-b-canvas-revision-gray-r1`
+      - `009_canvas_revision.sql` 已成功应用
+      - revision 验收通过
+      - 发现回归：跨用户 `/auto-save` 丢失 owner 校验
+    - `r2 = 20260613-phase-b-canvas-revision-gray-r2`
+      - 补回 `/auto-save` owner 校验
+      - `current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-canvas-revision-gray-r2`
+  - 真实公网灰度验收：
+    - `npm run verify:canvas-revision-conflict`
+      - `initialRevision = 1`
+      - `savedRevision = 2`
+      - `postAutoSaveRevision = 2`
+      - stale write => `409 CANVAS_REVISION_CONFLICT`
+    - `npm run verify:multi-user-isolation`
+      - `ok = true`
+      - 画布隔离 / 资源隔离 / 跨用户 `GET/PUT/auto-save` 拒绝 / 临时数据清理 全部通过
+    - `verify:release-preflight`
+      - `currentReleaseTarget = /opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-canvas-revision-gray-r2`
+      - `database = xinghuan_canvas_gray`
+      - `counts = users:6 / canvases:13 / assets:6 / tasks:99 / sessions:63`
+  - 结论：
+    - Phase B 第一批已经在灰度实链上证明：同一画布的旧 revision 不会再静默覆盖新保存。
+    - 同时确认 Phase A 的多用户隔离没有被这一轮破坏。
+  - 下一步：
+    - 继续把 revision 机制推广到资源库和后台关键配置
+    - 再补“同账号双标签/双设备”的可视化并发验收

@@ -912,6 +912,23 @@
       - `counts = users:6 / canvases:13 / assets:6 / tasks:99 / sessions:57`
       - `api service = active`
       - `worker service = active`
+  - Phase B 第一批画布 revision 冲突防护已完成灰度实链验收：
+    - 数据库迁移：`009_canvas_revision.sql`
+    - 新增标准脚本：`scripts/verify-canvas-revision-conflict.mjs`
+    - 当前灰度 release：
+      - `20260613-phase-b-canvas-revision-gray-r2`
+    - revision 验收结果：
+      - `initialRevision = 1`
+      - `savedRevision = 2`
+      - `postAutoSaveRevision = 2`
+      - stale save => `409 CANVAS_REVISION_CONFLICT`
+    - 回归修复：
+      - `r1` 暴露出跨用户 `/auto-save` 丢失 owner 校验
+      - `r2` 已补回 owner 校验，并通过 `verify:multi-user-isolation`
+    - 当前灰度发布后快照：
+      - `currentReleaseTarget = /opt/apps/xinghuan-canvas-next/releases/20260613-phase-b-canvas-revision-gray-r2`
+      - `database = xinghuan_canvas_gray`
+      - `counts = users:6 / canvases:13 / assets:6 / tasks:99 / sessions:63`
   - 下一阶段建议：
     - 继续梳理 `admin/tasks`、系统设置、冷迁移导入等剩余整库写入边界
     - 建立生产数据备份/回滚/验收清单
