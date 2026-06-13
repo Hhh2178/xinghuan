@@ -2304,7 +2304,7 @@ async function writeAuthDb(db: AuthDb, options?: { allowPostgresFullReplace?: bo
     if (!options?.allowPostgresFullReplace) {
       throw new Error("writeAuthDb full replace is disabled in postgres mode");
     }
-    await writeAuthDbPostgres(db);
+    await writeAuthDbPostgres(db, { allowFullReplace: true, reason: options.reason || "writeAuthDb" });
     return;
   }
   await ensureDataDirs();
@@ -2355,7 +2355,7 @@ async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: 
     if (!options?.allowPostgresFullReplace) {
       throw new Error("writeAdminDb full replace is disabled in postgres mode");
     }
-    await writeAdminDbPostgres(db);
+    await writeAdminDbPostgres(db, { allowFullReplace: true, reason: options.reason || "writeAdminDb" });
     return;
   }
   await ensureDataDirs();
@@ -2475,7 +2475,10 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   return cleaned;
 }
 
-async function writeAuthDbPostgres(db: AuthDb) {
+async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: boolean; reason?: string }) {
+  if (!options?.allowFullReplace) {
+    throw new Error("writeAuthDbPostgres full replace requires explicit allowFullReplace");
+  }
   const pool = await getPostgresPool();
   const client = await pool.connect();
   try {
@@ -2682,13 +2685,16 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
   };
   if (db.providers.length === 0 && db.models.length === 0 && db.tasks.length === 0) {
     const seeded = defaultAdminDb();
-    await writeAdminDbPostgres(seeded);
+    await bootstrapDefaultAdminDbPostgres(seeded);
     return seeded;
   }
   return db;
 }
 
-async function writeAdminDbPostgres(db: AdminDb) {
+async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: boolean; reason?: string }) {
+  if (!options?.allowFullReplace) {
+    throw new Error("writeAdminDbPostgres full replace requires explicit allowFullReplace");
+  }
   const pool = await getPostgresPool();
   const client = await pool.connect();
   try {
@@ -2798,6 +2804,114 @@ async function writeAdminDbPostgres(db: AdminDb) {
     await client.query(
       `insert into xh_system_settings (id, task_queue_settings, updated_at)
        values ($1, $2::jsonb, $3)`,
+      [
+        "default",
+        JSON.stringify(taskQueueSettings),
+        millisToDate(Date.now()),
+      ],
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
+  const pool = await getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    for (const provider of db.providers.map(normalizeProviderSecret)) {
+      await client.query(
+        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)
+         on conflict (id) do nothing`,
+        [
+          provider.id,
+          provider.name,
+          provider.baseUrl,
+          normalizeProviderProtocol(provider.protocol),
+          provider.enabled,
+          provider.apiKey || null,
+          provider.apiKeyPreview || null,
+          provider.lastProbeStatus || null,
+          provider.lastProbeMessage || null,
+          provider.lastFetchedAt ? millisToDate(provider.lastFetchedAt) : null,
+          JSON.stringify(normalizeRunningHubEntries(provider.rhApps, "app")),
+          JSON.stringify(normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
+          JSON.stringify(normalizeModelScopeLoras(provider.msLoras)),
+          provider.note || null,
+          millisToDate(provider.createdAt),
+          millisToDate(provider.updatedAt),
+        ],
+      );
+    }
+    for (const model of db.models) {
+      const normalizedModel = normalizeAdminModelRecord(model);
+      await client.query(
+        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)
+         on conflict (id) do nothing`,
+        [
+          normalizedModel.id,
+          normalizedModel.providerId,
+          normalizedModel.modelId,
+          normalizedModel.displayName,
+          normalizedModel.capability,
+          normalizedModel.enabled,
+          normalizedModel.inputProfile,
+          JSON.stringify(plainObject(normalizedModel.inputCapabilities)),
+          JSON.stringify(normalizedModel.capabilityTags || []),
+          JSON.stringify(normalizeModelTestState(normalizedModel.testState)),
+          JSON.stringify(parseJsonObject(normalizedModel.parameterSchema)),
+          JSON.stringify(plainObject(normalizedModel.advancedConfig)),
+          normalizedModel.protocolOverride || null,
+          millisToDate(normalizedModel.createdAt),
+          millisToDate(normalizedModel.updatedAt),
+        ],
+      );
+    }
+    for (const task of db.tasks) {
+      await client.query(
+        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)
+         on conflict (id) do nothing`,
+        [
+          task.id,
+          task.ownerId || null,
+          task.title,
+          task.status,
+          task.providerId || null,
+          task.modelId || null,
+          JSON.stringify(plainObject(task.payload)),
+          JSON.stringify(plainObject(task.result)),
+          JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
+          millisToDate(task.createdAt),
+          millisToDate(task.updatedAt),
+        ],
+      );
+    }
+    const assistantSettings = normalizeAssistantSettings(db.assistantSettings);
+    await client.query(
+      `insert into xh_assistant_settings (id, frontend, backend, integration, updated_at)
+       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5)
+       on conflict (id) do nothing`,
+      [
+        "default",
+        JSON.stringify(assistantSettings.frontend),
+        JSON.stringify(assistantSettings.backend),
+        JSON.stringify(assistantSettings.integration),
+        millisToDate(assistantSettings.updatedAt),
+      ],
+    );
+    const taskQueueSettings = normalizeTaskQueueSettings(db.taskQueueSettings);
+    await client.query(
+      `insert into xh_system_settings (id, task_queue_settings, updated_at)
+       values ($1, $2::jsonb, $3)
+       on conflict (id) do nothing`,
       [
         "default",
         JSON.stringify(taskQueueSettings),

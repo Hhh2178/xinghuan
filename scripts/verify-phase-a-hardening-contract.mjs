@@ -62,6 +62,17 @@ const checks = [
     /async function writeAuthDb\(db: AuthDb, options\?: \{ allowPostgresFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(usePostgresRepository\(\)\) \{\s*if \(!options\?\.allowPostgresFullReplace\)/i.test(api) &&
       /async function writeAdminDb\(db: AdminDb, options\?: \{ allowPostgresFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(usePostgresRepository\(\)\) \{\s*if \(!options\?\.allowPostgresFullReplace\)/i.test(api),
   ],
+  [
+    "Direct postgres full-replace helpers also require explicit allow flags",
+    /async function writeAuthDbPostgres\(db: AuthDb, options\?: \{ allowFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(!options\?\.allowFullReplace\)/i.test(api) &&
+      /async function writeAdminDbPostgres\(db: AdminDb, options\?: \{ allowFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(!options\?\.allowFullReplace\)/i.test(api),
+  ],
+  [
+    "Admin postgres cold bootstrap no longer uses destructive full replace",
+    /await bootstrapDefaultAdminDbPostgres\(seeded\);/i.test(api) &&
+      /async function bootstrapDefaultAdminDbPostgres\(db: AdminDb\)/i.test(api) &&
+      /async function bootstrapDefaultAdminDbPostgres[\s\S]*on conflict \(id\) do nothing/i.test(api),
+  ],
 ];
 
 let failed = false;
