@@ -6433,7 +6433,45 @@
       - `usr-admin = 13`
   - 额外发现：
     - 使用 `HEAD` 探测灰度 `/` 与 `/admin` 会返回 `404`，但 `GET` 正常返回 `200`；后续运维 smoke 应以 `GET` 为准，避免误报。
-    - 下一阶段再继续推进：
-      - 剩余冷路径整库写入边界梳理
-      - 生产数据持久化/回滚/验收流程补强
-      - 真实灰度多用户并发验收
+  - 后续追加加固：
+    - git commit: `fe57a76` `fix: harden postgres cold bootstrap paths`
+    - release: `20260613-phase-a-hardening-gray-r2-fe57a76`
+    - 收口点：
+      - `readAdminDbPostgres()` 的空库 seed 不再走 destructive `writeAdminDbPostgres(...)`
+      - 改为 `bootstrapDefaultAdminDbPostgres(...)` 基于 `insert ... on conflict do nothing` 的安全初始化
+      - `writeAdminDbPostgres(...)` / `writeAuthDbPostgres(...)` 自身也要求显式 `allowFullReplace`
+    - 灰度验收：
+      - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r2-fe57a76`
+      - `db:migrate` => `{"ok":true,"applied":[],"skipped":8}`
+      - `systemctl is-active xinghuan-canvas-next.service` => `active`
+      - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+      - 运行中 dist 已确认：
+        - `bootstrapDefaultAdminDbPostgres`
+        - `writeAdminDbPostgres full replace requires explicit allowFullReplace`
+        - `writeAuthDbPostgres full replace requires explicit allowFullReplace`
+    - git commit: `6293798` `fix: prevent postgres file fallback resurrection`
+    - release: `20260613-phase-a-hardening-gray-r3-6293798`
+    - 收口点：
+      - 为每个用户新增画布/资源库的 Postgres 迁移完成标记
+      - 一旦某用户已进入 Postgres 主路径，后续数据库为空时不再回退导入旧文件
+      - 避免“用户已在库中删空，但旧本地文件再次把画布/素材复活”
+    - 灰度验收：
+      - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260613-phase-a-hardening-gray-r3-6293798`
+      - `db:migrate` => `{"ok":true,"applied":[],"skipped":8}`
+      - `GET https://canvas-next.hhh2121.xyz/` => `200 text/html`
+      - `GET https://canvas-next.hhh2121.xyz/admin` => `200 text/html`
+      - `GET https://canvas-next.hhh2121.xyz/api/status` => `200 application/json`
+      - `current_database()` => `xinghuan_canvas_gray`
+      - 数据计数保持不变：
+        - `xh_users = 6`
+        - `xh_canvases = 13`
+        - `xh_assets = 6`
+        - `xh_tasks = 99`
+      - 运行中 dist 已确认：
+        - `canvasPostgresMigrationMarkerPath`
+        - `resourcePostgresMigrationMarkerPath`
+        - `hasRepositoryMigrationMarker`
+  - 下一阶段再继续推进：
+    - 剩余冷路径整库写入边界梳理
+    - 生产数据持久化/回滚/验收流程补强
+    - 真实灰度多用户并发验收

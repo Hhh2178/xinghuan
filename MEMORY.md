@@ -876,6 +876,17 @@
     - `xh_assets = 6`
     - `xh_tasks = 99`
     - 当前样本 owner 分布显示 `usr-admin = 13`，说明这次灰度发版后画布记录没有被清空
+  - 当天后续两轮追加加固也已上灰度：
+    - `fe57a76` / `20260613-phase-a-hardening-gray-r2-fe57a76`
+      - admin 空库 bootstrap 不再走 destructive full replace
+      - `writeAdminDbPostgres(...)` / `writeAuthDbPostgres(...)` 需要显式 allow 才能 full replace
+    - `6293798` / `20260613-phase-a-hardening-gray-r3-6293798`
+      - 画布与资源库新增用户级 Postgres 迁移完成标记
+      - 防止数据库删空后又回退读取旧文件，把历史画布/素材重新导回
+    - `r2`、`r3` 的灰度 smoke 都通过：
+      - `GET /`、`GET /admin`、`GET /api/status` 正常
+      - `current_database()` 始终为 `xinghuan_canvas_gray`
+      - 数据计数保持 `users=6/canvases=13/assets=6/tasks=99`
   - 运维注意：
     - 灰度 `/` 与 `/admin` 的 `HEAD` 请求会返回 `404`，不要用 `curl -I` 作为页面健康判断，应改用真实 `GET`
   - 下一阶段建议：
