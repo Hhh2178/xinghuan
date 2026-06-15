@@ -1035,5 +1035,11 @@
     - `node scripts/verify-csrf-origin-guard.mjs = ok`
     - `node scripts/verify-admin-session-governance.mjs = ok`
   - 当前状态：
-    - 代码与本地验收已完成
-    - 待灰度发布后与 `verify-multi-user-isolation` 一起做整链复验
+    - 本地实现与验收已完成
+    - 灰度 release:
+      - `/opt/apps/xinghuan-canvas-next/releases/20260615-phase-c-login-rate-limit-gray-r1`
+    - 灰度验收已通过：
+      - 登录限流
+      - CSRF 登录同源校验
+      - 会话撤销链路
+    - 待生产发布

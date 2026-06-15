@@ -6743,5 +6743,22 @@
     - `node scripts/verify-csrf-origin-guard.mjs`
     - `node scripts/verify-admin-session-governance.mjs`
   - 边界说明：
-    - 本轮尚未进入灰度/生产发布
-    - `verify-multi-user-isolation` 未作为本轮结论项；当前需在下一轮灰度联调时与发布链路一起复验
+    - 生产尚未发布
+- `2026-06-15` Phase C 第三批登录限流与失败计数已完成灰度发布与实链验收：
+  - 灰度发布：
+    - release: `20260615-phase-c-login-rate-limit-gray-r1`
+    - `current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-c-login-rate-limit-gray-r1`
+    - `db:migrate` 应用：`013_login_rate_limit.sql`
+    - `xinghuan-canvas-next.service = active`
+    - `xinghuan-canvas-next-worker.service = active`
+  - 灰度本机验收：
+    - `CSRF = ok`
+    - `member login rate limit = ok`
+    - `admin login rate limit = ok`
+    - `session revoke chain = ok`
+  - 结论：
+    - Phase C 三项能力目前已在灰度收口：
+      - 会话治理
+      - CSRF 同源防护
+      - 登录限流与失败计数
+    - 下一步只剩生产发布与公网复验
