@@ -3,6 +3,7 @@ export class AdminApiError extends Error {
   code?: string;
   currentRevision?: number;
   settingsKey?: string;
+  retryAfterSec?: number;
 
   constructor(message: string, payload?: Record<string, unknown>, status?: number) {
     super(message);
@@ -13,6 +14,9 @@ export class AdminApiError extends Error {
       ? Number(payload?.currentRevision)
       : undefined;
     this.settingsKey = typeof payload?.settingsKey === "string" ? payload.settingsKey : undefined;
+    this.retryAfterSec = Number.isFinite(Number(payload?.retryAfterSec))
+      ? Number(payload?.retryAfterSec)
+      : undefined;
   }
 }
 

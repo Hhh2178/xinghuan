@@ -1014,3 +1014,26 @@
     - `verify-multi-user-isolation = ok`
   - 当前阶段结论：
     - Phase C 剩余项只剩登录限流与失败计数
+- `2026-06-15` Phase C 第三批登录限流与失败计数：
+  - 数据库与接口：
+    - `xh_login_attempts`
+    - `POST /api/auth/login`
+    - `POST /api/auth/admin-login`
+  - 限流口径：
+    - 维度：`scope(member/admin) + email + ip`
+    - 窗口：`10 分钟`
+    - 阈值：`5 次失败`
+    - 封禁：`15 分钟`
+  - 行为要求：
+    - 第 1-5 次错误密码返回 `401 INVALID_CREDENTIALS`
+    - 达到阈值后下一次尝试返回 `429 LOGIN_RATE_LIMITED`
+    - 返回体必须带 `retryAfterSec`
+    - 成功登录后必须清空该维度失败计数
+    - 后台与前台登录页都要给出明确的人类可读提示
+  - 本地验收：
+    - `node scripts/verify-login-rate-limit.mjs = ok`
+    - `node scripts/verify-csrf-origin-guard.mjs = ok`
+    - `node scripts/verify-admin-session-governance.mjs = ok`
+  - 当前状态：
+    - 代码与本地验收已完成
+    - 待灰度发布后与 `verify-multi-user-isolation` 一起做整链复验

@@ -57,7 +57,13 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
     try {
       onLogin(await api.login(email, password));
     } catch (err: any) {
-      setError(err?.message === 'INVALID_CREDENTIALS' ? '账号或密码不正确' : err?.message || '登录失败');
+      setError(
+        err?.message === 'INVALID_CREDENTIALS'
+          ? '账号或密码不正确'
+          : err?.message === 'LOGIN_RATE_LIMITED'
+            ? '登录尝试过多，请稍后再试'
+            : err?.message || '登录失败',
+      );
     } finally {
       setSubmitting(false);
     }

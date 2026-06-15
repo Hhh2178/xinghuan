@@ -274,8 +274,16 @@ function AdminApp() {
       );
       setCurrentUser(data.user);
     } catch (nextError) {
-      const message = nextError instanceof Error ? nextError.message : "";
-      setError(message === "ADMIN_REQUIRED" ? "该账号没有后台管理员权限。" : "登录失败，请检查账号和密码。");
+      if (nextError instanceof AdminApiError && nextError.code === "LOGIN_RATE_LIMITED") {
+        setError(
+          nextError.retryAfterSec
+            ? `登录尝试过多，请在 ${Math.max(1, Math.ceil(nextError.retryAfterSec / 60))} 分钟后重试。`
+            : "登录尝试过多，请稍后再试。",
+        );
+      } else {
+        const message = nextError instanceof Error ? nextError.message : "";
+        setError(message === "ADMIN_REQUIRED" ? "该账号没有后台管理员权限。" : "登录失败，请检查账号和密码。");
+      }
     } finally {
       setBusy(false);
     }

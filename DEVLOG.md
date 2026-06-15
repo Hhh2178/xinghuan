@@ -6718,3 +6718,30 @@
     - 会话治理公网复验遇到 TLS `ECONNRESET` 边缘抖动，随后用服务器本机 `127.0.0.1:18100` 做等价校验，结果 `ok = true`
   - 结论：
     - Phase C 目前只剩“登录限流与失败计数”尚未落地
+- `2026-06-15` Phase C 第三批登录限流与失败计数已完成本地实现与验收：
+  - 新增：
+    - `apps/api/db/013_login_rate_limit.sql`
+    - `scripts/verify-login-rate-limit.mjs`
+    - `ops/phase-c-login-rate-limit-local-validation-2026-06-15.md`
+  - 后端收口：
+    - `AuthDb` 新增 `loginAttempts` 结构，file-mode 与 PostgreSQL 同步支持失败计数
+    - 登录接口按 `账号 + IP + scope(member/admin)` 维度计数
+    - 连续失败窗口：`10 分钟`
+    - 连续失败阈值：`5 次`
+    - 封禁时长：`15 分钟`
+    - 成功登录后自动清除对应失败计数
+    - PostgreSQL 新增 `xh_login_attempts` 表与索引
+  - 前端收口：
+    - 后台登录页补充 `LOGIN_RATE_LIMITED` 明确提示
+    - 画布登录页补充限流错误提示
+  - 本地验收：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run type-check -w @xinghuan/web`
+    - `npm run build:single-port`
+    - `node scripts/verify-login-rate-limit.mjs`
+    - `node scripts/verify-csrf-origin-guard.mjs`
+    - `node scripts/verify-admin-session-governance.mjs`
+  - 边界说明：
+    - 本轮尚未进入灰度/生产发布
+    - `verify-multi-user-isolation` 未作为本轮结论项；当前需在下一轮灰度联调时与发布链路一起复验

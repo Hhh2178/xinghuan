@@ -34,6 +34,7 @@
     "verify:admin-assistant-settings-save-contract": "node scripts/verify-admin-assistant-settings-save-contract.mjs",
     "verify:admin-session-governance": "node scripts/verify-admin-session-governance.mjs",
     "verify:csrf-origin-guard": "node scripts/verify-csrf-origin-guard.mjs",
+    "verify:login-rate-limit": "node scripts/verify-login-rate-limit.mjs",
     "verify:admin-assistant-chat": "node scripts/verify-admin-assistant-chat.mjs",
     "verify:admin-assistant-ui-contract": "node scripts/verify-admin-assistant-ui-contract.mjs",
     "verify:admin-auth-passwords": "node scripts/verify-admin-auth-passwords.mjs",

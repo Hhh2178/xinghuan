@@ -98,6 +98,10 @@ const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "post
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const taskQueueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
 const GENERATION_LIBRARY_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+const LOGIN_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_LIMIT_MAX_FAILURES = 5;
+const LOGIN_LIMIT_BLOCK_MS = 15 * 60 * 1000;
+const LOGIN_LIMIT_RETENTION_MS = 2 * 24 * 60 * 60 * 1000;
 const authDir = join(dataDir, "auth");
 const adminDir = join(dataDir, "admin");
 const usersDir = join(dataDir, "users");
@@ -285,9 +289,24 @@ interface SessionRecord {
   revokedAt?: number;
 }
 
+type LoginAttemptScope = "member" | "admin";
+
+interface LoginAttemptRecord {
+  key: string;
+  scope: LoginAttemptScope;
+  email: string;
+  ip: string;
+  failureCount: number;
+  firstFailedAt: number;
+  lastFailedAt: number;
+  blockedUntil?: number;
+  updatedAt: number;
+}
+
 interface AuthDb {
   users: UserRecord[];
   sessions: SessionRecord[];
+  loginAttempts: LoginAttemptRecord[];
 }
 
 interface AdminSessionRecord {
@@ -2616,19 +2635,25 @@ async function readAuthDb(): Promise<AuthDb> {
   try {
     db = JSON.parse(await readFile(authDbPath, "utf-8")) as AuthDb;
   } catch {
-    db = { users: [], sessions: [] };
+    db = { users: [], sessions: [], loginAttempts: [] };
   }
   db = {
     users: Array.isArray(db.users) ? db.users : [],
     sessions: Array.isArray(db.sessions) ? db.sessions.map(normalizeSessionRecord) : [],
+    loginAttempts: Array.isArray(db.loginAttempts) ? db.loginAttempts.map(normalizeLoginAttemptRecord) : [],
   };
   const bootstrapped = await ensureBootstrapUser(db);
   const now = Date.now();
   const cleaned = {
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
+    loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
   };
-  if (cleaned.sessions.length !== bootstrapped.sessions.length || bootstrapped !== db) {
+  if (
+    cleaned.sessions.length !== bootstrapped.sessions.length ||
+    cleaned.loginAttempts.length !== bootstrapped.loginAttempts.length ||
+    bootstrapped !== db
+  ) {
     await writeAuthDb(cleaned);
   }
   return cleaned;
@@ -2794,11 +2819,14 @@ async function ensureRuntimeDatabaseTarget(serviceName: string) {
 
 async function readAuthDbPostgres(): Promise<AuthDb> {
   const pool = await getPostgresPool();
-  const [usersResult, sessionsResult] = await Promise.all([
+  const [usersResult, sessionsResult, attemptsResult] = await Promise.all([
     pool.query(
       "select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at from xh_users order by created_at asc",
     ),
     pool.query("select id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at from xh_sessions order by created_at desc"),
+    pool.query(
+      "select key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at from xh_login_attempts order by updated_at desc",
+    ),
   ]);
   const db: AuthDb = {
     users: usersResult.rows.map((row) => ({
@@ -2822,12 +2850,26 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       userAgent: safeText(row.user_agent),
       revokedAt: row.revoked_at ? dateToMillis(row.revoked_at) : undefined,
     })),
+    loginAttempts: attemptsResult.rows.map((row) =>
+      normalizeLoginAttemptRecord({
+        key: row.key,
+        scope: row.scope === "admin" ? "admin" : "member",
+        email: row.email,
+        ip: row.ip,
+        failureCount: Number(row.failure_count) || 0,
+        firstFailedAt: dateToMillis(row.first_failed_at),
+        lastFailedAt: dateToMillis(row.last_failed_at),
+        blockedUntil: row.blocked_until ? dateToMillis(row.blocked_until) : undefined,
+        updatedAt: dateToMillis(row.updated_at),
+      })
+    ),
   };
   const bootstrapped = await ensureBootstrapUser(db);
   const now = Date.now();
   const cleaned: AuthDb = {
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
+    loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
   };
   if (bootstrapped !== db) {
     for (const user of cleaned.users) {
@@ -2836,6 +2878,9 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   }
   if (cleaned.sessions.length !== bootstrapped.sessions.length) {
     await pruneExpiredSessionsPostgres(now);
+  }
+  if (cleaned.loginAttempts.length !== bootstrapped.loginAttempts.length) {
+    await pruneLoginAttemptsPostgres(now);
   }
   return cleaned;
 }
@@ -2848,6 +2893,7 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query("delete from xh_login_attempts");
     await client.query("delete from xh_sessions");
     await client.query("delete from xh_users");
     for (const user of db.users) {
@@ -2880,6 +2926,23 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
           session.ip || null,
           session.userAgent || null,
           session.revokedAt ? millisToDate(session.revokedAt) : null,
+        ],
+      );
+    }
+    for (const attempt of db.loginAttempts) {
+      await client.query(
+        `insert into xh_login_attempts (key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          attempt.key,
+          attempt.scope,
+          attempt.email,
+          attempt.ip,
+          attempt.failureCount,
+          millisToDate(attempt.firstFailedAt),
+          millisToDate(attempt.lastFailedAt),
+          attempt.blockedUntil ? millisToDate(attempt.blockedUntil) : null,
+          millisToDate(attempt.updatedAt),
         ],
       );
     }
@@ -2981,6 +3044,49 @@ async function touchSessionRecordPostgres(sessionId: string, lastSeenAt: number,
 async function pruneExpiredSessionsPostgres(now: number) {
   const pool = await getPostgresPool();
   await pool.query("delete from xh_sessions where expires_at <= $1", [millisToDate(now)]);
+}
+
+async function upsertLoginAttemptPostgres(attempt: LoginAttemptRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_login_attempts (key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     on conflict (key) do update set
+       scope = excluded.scope,
+       email = excluded.email,
+       ip = excluded.ip,
+       failure_count = excluded.failure_count,
+       first_failed_at = excluded.first_failed_at,
+       last_failed_at = excluded.last_failed_at,
+       blocked_until = excluded.blocked_until,
+       updated_at = excluded.updated_at`,
+    [
+      attempt.key,
+      attempt.scope,
+      attempt.email,
+      attempt.ip,
+      attempt.failureCount,
+      millisToDate(attempt.firstFailedAt),
+      millisToDate(attempt.lastFailedAt),
+      attempt.blockedUntil ? millisToDate(attempt.blockedUntil) : null,
+      millisToDate(attempt.updatedAt),
+    ],
+  );
+}
+
+async function deleteLoginAttemptPostgres(key: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_login_attempts where key = $1", [key]);
+}
+
+async function pruneLoginAttemptsPostgres(now: number) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `delete from xh_login_attempts
+     where coalesce(blocked_until, to_timestamp(0)) <= $1
+       and updated_at < $2`,
+    [millisToDate(now), millisToDate(now - LOGIN_LIMIT_RETENTION_MS)],
+  );
 }
 
 async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRecord[]> {
@@ -4647,19 +4753,27 @@ async function loginUser(
 ) {
   const email = safeText(emailValue).toLowerCase();
   const password = String(passwordValue || "");
+  const scope: LoginAttemptScope = options?.adminOnly ? "admin" : "member";
+  const ip = requestIp(request);
+  const now = Date.now();
   if (!email || !password) return null;
+  await assertLoginAllowed(scope, email, ip, now);
   const db = await readAuthDb();
   const user = db.users.find((item) => item.email.toLowerCase() === email && !item.disabled);
-  if (!user || !verifyPassword(password, user.passwordHash)) return null;
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    await recordLoginFailure(scope, email, ip, now);
+    return null;
+  }
+  await clearLoginFailures(scope, email, ip);
+  const clearedLoginAttemptKey = loginAttemptKey(scope, email, ip);
   if (options?.adminOnly && user.role !== "admin") return "ADMIN_REQUIRED" as const;
-  const now = Date.now();
   const session: SessionRecord = {
     id: randomToken(32),
     userId: user.id,
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
     lastSeenAt: now,
-    ip: requestIp(request),
+    ip,
     userAgent: requestUserAgent(request),
   };
   if (usePostgresRepository()) {
@@ -4667,6 +4781,7 @@ async function loginUser(
   } else {
     await writeAuthDb({
       ...db,
+      loginAttempts: db.loginAttempts.filter((item) => item.key !== clearedLoginAttemptKey),
       sessions: [session, ...db.sessions.filter((item) => item.expiresAt > now && item.id !== session.id)],
     });
   }
@@ -4716,6 +4831,26 @@ function normalizeSessionRecord(session: SessionRecord): SessionRecord {
   };
 }
 
+function normalizeLoginAttemptRecord(attempt: LoginAttemptRecord): LoginAttemptRecord {
+  const scope: LoginAttemptScope = attempt?.scope === "admin" ? "admin" : "member";
+  const email = safeText(attempt?.email).toLowerCase();
+  const ip = normalizeLoginAttemptIp(attempt?.ip);
+  const updatedAt = Number(attempt?.updatedAt) > 0 ? Number(attempt.updatedAt) : Date.now();
+  const firstFailedAt = Number(attempt?.firstFailedAt) > 0 ? Number(attempt.firstFailedAt) : updatedAt;
+  const lastFailedAt = Number(attempt?.lastFailedAt) > 0 ? Number(attempt.lastFailedAt) : updatedAt;
+  return {
+    key: safeText(attempt?.key) || loginAttemptKey(scope, email, ip),
+    scope,
+    email,
+    ip,
+    failureCount: Math.max(0, Math.floor(Number(attempt?.failureCount) || 0)),
+    firstFailedAt,
+    lastFailedAt,
+    blockedUntil: Number(attempt?.blockedUntil) > 0 ? Number(attempt.blockedUntil) : undefined,
+    updatedAt,
+  };
+}
+
 function requestIp(request: import("node:http").IncomingMessage) {
   const forwarded = safeText(String(request.headers["x-forwarded-for"] || ""));
   if (forwarded) return safeText(forwarded.split(",")[0]);
@@ -4726,6 +4861,122 @@ function requestIp(request: import("node:http").IncomingMessage) {
 
 function requestUserAgent(request: import("node:http").IncomingMessage) {
   return safeText(String(request.headers["user-agent"] || ""));
+}
+
+function normalizeLoginAttemptIp(value: unknown) {
+  return safeText(value) || "unknown";
+}
+
+function loginAttemptKey(scope: LoginAttemptScope, email: string, ip: string) {
+  return `${scope}:${safeText(email).toLowerCase()}:${normalizeLoginAttemptIp(ip)}`;
+}
+
+function pruneLoginAttempts(attempts: LoginAttemptRecord[], now: number) {
+  const cutoff = now - LOGIN_LIMIT_RETENTION_MS;
+  return attempts
+    .map(normalizeLoginAttemptRecord)
+    .filter((attempt) => {
+      if (!attempt.email) return false;
+      const stillBlocked = Boolean(attempt.blockedUntil && attempt.blockedUntil > now);
+      const withinWindow = attempt.lastFailedAt >= now - LOGIN_LIMIT_WINDOW_MS;
+      const recentlyUpdated = attempt.updatedAt >= cutoff;
+      return stillBlocked || withinWindow || recentlyUpdated;
+    });
+}
+
+async function readLoginAttempt(scope: LoginAttemptScope, email: string, ip: string) {
+  const normalizedEmail = safeText(email).toLowerCase();
+  const normalizedIp = normalizeLoginAttemptIp(ip);
+  const key = loginAttemptKey(scope, normalizedEmail, normalizedIp);
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `select key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at
+       from xh_login_attempts
+       where key = $1
+       limit 1`,
+      [key],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return normalizeLoginAttemptRecord({
+      key: row.key,
+      scope: row.scope === "admin" ? "admin" : "member",
+      email: row.email,
+      ip: row.ip,
+      failureCount: Number(row.failure_count) || 0,
+      firstFailedAt: dateToMillis(row.first_failed_at),
+      lastFailedAt: dateToMillis(row.last_failed_at),
+      blockedUntil: row.blocked_until ? dateToMillis(row.blocked_until) : undefined,
+      updatedAt: dateToMillis(row.updated_at),
+    });
+  }
+  const db = await readAuthDb();
+  return db.loginAttempts.find((attempt) => attempt.key === key) || null;
+}
+
+async function writeLoginAttempt(attempt: LoginAttemptRecord) {
+  const normalized = normalizeLoginAttemptRecord(attempt);
+  if (usePostgresRepository()) {
+    await upsertLoginAttemptPostgres(normalized);
+    await pruneLoginAttemptsPostgres(normalized.updatedAt);
+    return;
+  }
+  const db = await readAuthDb();
+  await writeAuthDb({
+    ...db,
+    loginAttempts: pruneLoginAttempts(
+      [...db.loginAttempts.filter((item) => item.key !== normalized.key), normalized],
+      normalized.updatedAt,
+    ),
+  });
+}
+
+async function removeLoginAttempt(key: string) {
+  if (!key) return;
+  if (usePostgresRepository()) {
+    await deleteLoginAttemptPostgres(key);
+    return;
+  }
+  const db = await readAuthDb();
+  const nextAttempts = db.loginAttempts.filter((attempt) => attempt.key !== key);
+  if (nextAttempts.length === db.loginAttempts.length) return;
+  await writeAuthDb({
+    ...db,
+    loginAttempts: nextAttempts,
+  });
+}
+
+async function assertLoginAllowed(scope: LoginAttemptScope, email: string, ip: string, now: number) {
+  const attempt = await readLoginAttempt(scope, email, ip);
+  if (!attempt?.blockedUntil || attempt.blockedUntil <= now) return;
+  throw new HttpError(429, "LOGIN_RATE_LIMITED", {
+    retryAfterSec: Math.max(1, Math.ceil((attempt.blockedUntil - now) / 1000)),
+    blockedUntil: attempt.blockedUntil,
+  });
+}
+
+async function recordLoginFailure(scope: LoginAttemptScope, email: string, ip: string, now: number) {
+  const normalizedEmail = safeText(email).toLowerCase();
+  const normalizedIp = normalizeLoginAttemptIp(ip);
+  const current = await readLoginAttempt(scope, normalizedEmail, normalizedIp);
+  const resetWindow = !current || current.lastFailedAt < now - LOGIN_LIMIT_WINDOW_MS;
+  const nextFailureCount = resetWindow ? 1 : current.failureCount + 1;
+  await writeLoginAttempt({
+    key: loginAttemptKey(scope, normalizedEmail, normalizedIp),
+    scope,
+    email: normalizedEmail,
+    ip: normalizedIp,
+    failureCount: nextFailureCount,
+    firstFailedAt: resetWindow ? now : current.firstFailedAt,
+    lastFailedAt: now,
+    blockedUntil: nextFailureCount >= LOGIN_LIMIT_MAX_FAILURES ? now + LOGIN_LIMIT_BLOCK_MS : undefined,
+    updatedAt: now,
+  });
+}
+
+async function clearLoginFailures(scope: LoginAttemptScope, email: string, ip: string) {
+  await removeLoginAttempt(loginAttemptKey(scope, safeText(email).toLowerCase(), ip));
 }
 
 function shouldTouchSession(session: SessionRecord, request: import("node:http").IncomingMessage, now: number) {
