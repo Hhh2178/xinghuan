@@ -6761,4 +6761,21 @@
       - 会话治理
       - CSRF 同源防护
       - 登录限流与失败计数
-    - 下一步只剩生产发布与公网复验
+- `2026-06-15` Phase C 第三批登录限流与失败计数已完成生产发布与本机实链验收：
+  - 生产发布：
+    - release: `20260615-phase-c-login-rate-limit-prod-r1`
+    - `current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-c-login-rate-limit-prod-r1`
+    - `db:migrate` 应用：`013_login_rate_limit.sql`
+    - `xinghuan-canvas.service = active`
+    - `xinghuan-canvas-worker.service = active`
+  - 生产本机验收：
+    - `CSRF = ok`
+    - `member login rate limit = ok`
+    - `admin login rate limit = ok`
+    - `session revoke chain = ok`
+  - 结论：
+    - Phase C 已完整上线：
+      - 会话治理
+      - CSRF 同源防护
+      - 登录限流与失败计数
+    - 多用户正式化方案可进入 Phase D

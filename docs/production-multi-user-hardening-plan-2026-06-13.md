@@ -204,7 +204,6 @@
   - 后台强制下线
   - 会话 `ip / user_agent / last_seen_at / revoked_at` 元数据
   - 危险写请求 CSRF 同源校验
-- 已完成灰度发布与验收，待生产发布复验：
   - 登录限流与失败计数
 
 ### Phase D 完成标准

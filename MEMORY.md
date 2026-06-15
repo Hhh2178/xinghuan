@@ -1042,4 +1042,10 @@
       - 登录限流
       - CSRF 登录同源校验
       - 会话撤销链路
-    - 待生产发布
+    - 生产 release:
+      - `/opt/apps/xinghuan-canvas/releases/20260615-phase-c-login-rate-limit-prod-r1`
+    - 生产本机验收已通过：
+      - 登录限流
+      - CSRF 登录同源校验
+      - 会话撤销链路
+    - Phase C 已完成，可进入 Phase D

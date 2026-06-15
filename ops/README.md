@@ -35,6 +35,7 @@
 - Phase C 第二批 CSRF 同源防护灰度/生产发布记录见 `phase-c-csrf-origin-release-2026-06-15.md`。
 - Phase C 第三批登录限流本地验收记录见 `phase-c-login-rate-limit-local-validation-2026-06-15.md`。
 - Phase C 第三批登录限流灰度发布记录见 `phase-c-login-rate-limit-gray-2026-06-15.md`。
+- Phase C 第三批登录限流灰度/生产发布记录见 `phase-c-login-rate-limit-release-2026-06-15.md`。
 
 ## 当前运行态入口
 
@@ -61,6 +62,7 @@
 - `phase-c-csrf-origin-release-2026-06-15.md`
 - `phase-c-login-rate-limit-local-validation-2026-06-15.md`
 - `phase-c-login-rate-limit-gray-2026-06-15.md`
+- `phase-c-login-rate-limit-release-2026-06-15.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`
