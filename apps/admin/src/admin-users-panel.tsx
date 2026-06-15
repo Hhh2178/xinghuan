@@ -1,15 +1,24 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
-import type { AdminUser } from "./admin-types";
+import type { AdminSessionRecord, AdminUser } from "./admin-types";
 
 type AdminMutate = (path: string, payload: Record<string, unknown>, method?: string) => void;
 
-export function UsersPanel({ users, mutate }: { users: AdminUser[]; mutate: AdminMutate }) {
+export function UsersPanel({
+  users,
+  sessions,
+  mutate,
+}: {
+  users: AdminUser[];
+  sessions: AdminSessionRecord[];
+  mutate: AdminMutate;
+}) {
   const [form, setForm] = useState({ email: "", name: "", role: "member", password: "" });
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const enabledCount = users.filter((user) => !user.disabled).length;
   const adminCount = users.filter((user) => user.role === "admin").length;
+  const activeSessionCount = sessions.filter((session) => !session.revokedAt).length;
   return (
     <section className="panel-stack users-page">
       <div className="api-card users-hero">
@@ -21,6 +30,7 @@ export function UsersPanel({ users, mutate }: { users: AdminUser[]; mutate: Admi
           <span>{users.length} 个账号</span>
           <span>{enabledCount} 个启用</span>
           <span>{adminCount} 个管理员</span>
+          <span>{activeSessionCount} 个活跃会话</span>
         </div>
       </div>
 
@@ -108,6 +118,54 @@ export function UsersPanel({ users, mutate }: { users: AdminUser[]; mutate: Admi
           </tbody>
         </AdminTable>
       </div>
+
+      <AdminTable title="活跃会话">
+        <thead>
+          <tr>
+            <th>账号</th>
+            <th>角色</th>
+            <th>登录时间</th>
+            <th>最近活跃</th>
+            <th>到期时间</th>
+            <th>来源 IP</th>
+            <th>客户端</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.map((session) => (
+            <tr key={session.id}>
+              <td>
+                <div className="user-password-cell">
+                  <strong>{session.userEmail}</strong>
+                  <span>{session.userName}</span>
+                </div>
+              </td>
+              <td>{session.userRole === "admin" ? "管理员" : "成员"}</td>
+              <td>{new Date(session.createdAt).toLocaleString()}</td>
+              <td>{new Date(session.lastSeenAt).toLocaleString()}</td>
+              <td>{new Date(session.expiresAt).toLocaleString()}</td>
+              <td><code>{session.ip || "-"}</code></td>
+              <td title={session.userAgent || "-"}>{session.userAgent || "-"}</td>
+              <td>
+                <StatusPill tone={session.revokedAt ? "danger" : session.current ? "warning" : "success"}>
+                  {session.revokedAt ? "已撤销" : session.current ? "当前会话" : "活跃"}
+                </StatusPill>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  disabled={session.current || Boolean(session.revokedAt)}
+                  onClick={() => mutate(`/api/admin/sessions/${session.id}/revoke`, {}, "POST")}
+                >
+                  {session.revokedAt ? "已撤销" : session.current ? "当前会话" : "强制下线"}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </AdminTable>
     </section>
   );
 }

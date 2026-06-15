@@ -46,6 +46,21 @@ export interface AdminUser extends AuthUser {
   updatedAt: number;
 }
 
+export interface AdminSessionRecord {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userRole: UserRole;
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+  ip: string;
+  userAgent: string;
+  revokedAt?: number;
+  current: boolean;
+}
+
 export interface ProviderRecord {
   id: string;
   name: string;

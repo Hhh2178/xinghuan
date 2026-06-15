@@ -279,11 +279,30 @@ interface SessionRecord {
   userId: string;
   createdAt: number;
   expiresAt: number;
+  lastSeenAt?: number;
+  ip?: string;
+  userAgent?: string;
+  revokedAt?: number;
 }
 
 interface AuthDb {
   users: UserRecord[];
   sessions: SessionRecord[];
+}
+
+interface AdminSessionRecord {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userRole: "admin" | "member";
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+  ip: string;
+  userAgent: string;
+  revokedAt?: number;
+  current: boolean;
 }
 
 type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role">;
@@ -724,7 +743,7 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       const body = await readJsonBody<{ email?: string; password?: string }>(request);
-      const login = await loginUser(body.email, body.password);
+      const login = await loginUser(request, body.email, body.password);
       if (!login || typeof login === "string") {
         sendJson(response, { ok: false, success: false, error: "INVALID_CREDENTIALS" }, 401);
         return;
@@ -737,7 +756,7 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/auth/admin-login" && request.method === "POST") {
       const body = await readJsonBody<{ email?: string; password?: string }>(request);
-      const login = await loginUser(body.email, body.password, { adminOnly: true });
+      const login = await loginUser(request, body.email, body.password, { adminOnly: true });
       if (login === "ADMIN_REQUIRED") {
         sendJson(response, { ok: false, success: false, error: "ADMIN_REQUIRED" }, 403);
         return;
@@ -1411,6 +1430,34 @@ async function handleAdminRequest(
     }
   }
 
+  if (url.pathname === "/api/admin/sessions" && request.method === "GET") {
+    const currentSessionId = readCookie(request, SESSION_COOKIE_NAME);
+    const sessions = await readAdminSessions(currentSessionId);
+    sendT8(response, sessions);
+    return true;
+  }
+
+  const sessionRevokeMatch = url.pathname.match(/^\/api\/admin\/sessions\/([^/]+)\/revoke$/);
+  if (sessionRevokeMatch && request.method === "POST") {
+    const sessionId = decodeURIComponent(sessionRevokeMatch[1]);
+    const sessions = await readAdminSessions(readCookie(request, SESSION_COOKIE_NAME));
+    const target = sessions.find((item) => item.id === sessionId);
+    if (!target) throw new Error("会话不存在");
+    const revokedAt = Date.now();
+    if (usePostgresRepository()) {
+      await revokeSessionRecordPostgres(sessionId, revokedAt);
+    } else {
+      const authDb = await readAuthDb();
+      await writeAuthDb({
+        ...authDb,
+        sessions: authDb.sessions.map((session) => (session.id === sessionId ? { ...session, revokedAt } : session)),
+      });
+    }
+    await appendAudit(adminUser, "session.revoke", "session", sessionId, `撤销会话 ${target.userEmail}`);
+    sendT8(response, { ok: true, sessionId, revokedAt });
+    return true;
+  }
+
   const userMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
   if (userMatch && request.method === "PATCH") {
     const id = decodeURIComponent(userMatch[1]);
@@ -1442,12 +1489,13 @@ async function handleAdminRequest(
     }
     if (usePostgresRepository()) {
       await upsertAuthUserPostgres(updatedUser);
-      await revokeUserSessionsPostgres(id);
+      await revokeUserSessionsPostgres(id, Date.now());
     } else {
+      const revokedAt = Date.now();
       await writeAuthDb({
         ...authDb,
         users,
-        sessions: authDb.sessions.filter((session) => session.userId !== id),
+        sessions: authDb.sessions.map((session) => (session.userId === id ? { ...session, revokedAt } : session)),
       });
     }
     await appendAudit(adminUser, "user.update", "user", id, `更新用户 ${updatedUser.email}`);
@@ -2514,6 +2562,10 @@ async function readAuthDb(): Promise<AuthDb> {
   } catch {
     db = { users: [], sessions: [] };
   }
+  db = {
+    users: Array.isArray(db.users) ? db.users : [],
+    sessions: Array.isArray(db.sessions) ? db.sessions.map(normalizeSessionRecord) : [],
+  };
   const bootstrapped = await ensureBootstrapUser(db);
   const now = Date.now();
   const cleaned = {
@@ -2690,7 +2742,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
     pool.query(
       "select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at from xh_users order by created_at asc",
     ),
-    pool.query("select id, user_id, created_at, expires_at from xh_sessions order by created_at desc"),
+    pool.query("select id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at from xh_sessions order by created_at desc"),
   ]);
   const db: AuthDb = {
     users: usersResult.rows.map((row) => ({
@@ -2709,6 +2761,10 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       userId: row.user_id,
       createdAt: dateToMillis(row.created_at),
       expiresAt: dateToMillis(row.expires_at),
+      lastSeenAt: row.last_seen_at ? dateToMillis(row.last_seen_at) : dateToMillis(row.created_at),
+      ip: safeText(row.ip),
+      userAgent: safeText(row.user_agent),
+      revokedAt: row.revoked_at ? dateToMillis(row.revoked_at) : undefined,
     })),
   };
   const bootstrapped = await ensureBootstrapUser(db);
@@ -2757,9 +2813,18 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
     }
     for (const session of db.sessions) {
       await client.query(
-        `insert into xh_sessions (id, user_id, created_at, expires_at)
-         values ($1, $2, $3, $4)`,
-        [session.id, session.userId, millisToDate(session.createdAt), millisToDate(session.expiresAt)],
+        `insert into xh_sessions (id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          session.id,
+          session.userId,
+          millisToDate(session.createdAt),
+          millisToDate(session.expiresAt),
+          millisToDate(session.lastSeenAt || session.createdAt),
+          session.ip || null,
+          session.userAgent || null,
+          session.revokedAt ? millisToDate(session.revokedAt) : null,
+        ],
       );
     }
     await client.query("commit");
@@ -2820,25 +2885,94 @@ async function upsertAuthUserPostgres(user: UserRecord) {
 async function createSessionRecordPostgres(session: SessionRecord) {
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_sessions (id, user_id, created_at, expires_at)
-     values ($1, $2, $3, $4)`,
-    [session.id, session.userId, millisToDate(session.createdAt), millisToDate(session.expiresAt)],
+    `insert into xh_sessions (id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      session.id,
+      session.userId,
+      millisToDate(session.createdAt),
+      millisToDate(session.expiresAt),
+      millisToDate(session.lastSeenAt || session.createdAt),
+      session.ip || null,
+      session.userAgent || null,
+      session.revokedAt ? millisToDate(session.revokedAt) : null,
+    ],
   );
 }
 
-async function deleteSessionRecordPostgres(sessionId: string) {
+async function revokeSessionRecordPostgres(sessionId: string, revokedAt: number) {
   const pool = await getPostgresPool();
-  await pool.query("delete from xh_sessions where id = $1", [sessionId]);
+  await pool.query("update xh_sessions set revoked_at = $2 where id = $1 and revoked_at is null", [sessionId, millisToDate(revokedAt)]);
 }
 
-async function revokeUserSessionsPostgres(userId: string) {
+async function revokeUserSessionsPostgres(userId: string, revokedAt: number) {
   const pool = await getPostgresPool();
-  await pool.query("delete from xh_sessions where user_id = $1", [userId]);
+  await pool.query("update xh_sessions set revoked_at = $2 where user_id = $1 and revoked_at is null", [userId, millisToDate(revokedAt)]);
+}
+
+async function touchSessionRecordPostgres(sessionId: string, lastSeenAt: number, ip: string, userAgent: string) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `update xh_sessions
+     set last_seen_at = $2,
+         ip = $3,
+         user_agent = $4
+     where id = $1 and revoked_at is null`,
+    [sessionId, millisToDate(lastSeenAt), ip || null, userAgent || null],
+  );
 }
 
 async function pruneExpiredSessionsPostgres(now: number) {
   const pool = await getPostgresPool();
   await pool.query("delete from xh_sessions where expires_at <= $1", [millisToDate(now)]);
+}
+
+async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRecord[]> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `select s.id, s.user_id, s.created_at, s.expires_at, s.last_seen_at, s.ip, s.user_agent, s.revoked_at,
+              u.email as user_email, u.name as user_name, u.role as user_role
+       from xh_sessions s
+       join xh_users u on u.id = s.user_id
+       where s.expires_at > now()
+       order by s.created_at desc
+       limit 300`,
+    );
+    return result.rows.map((row) =>
+      toAdminSession(
+        {
+          id: row.id,
+          userId: row.user_id,
+          createdAt: dateToMillis(row.created_at),
+          expiresAt: dateToMillis(row.expires_at),
+          lastSeenAt: row.last_seen_at ? dateToMillis(row.last_seen_at) : dateToMillis(row.created_at),
+          ip: safeText(row.ip),
+          userAgent: safeText(row.user_agent),
+          revokedAt: row.revoked_at ? dateToMillis(row.revoked_at) : undefined,
+        },
+        {
+          id: row.user_id,
+          email: row.user_email,
+          name: row.user_name,
+          role: row.user_role === "admin" ? "admin" : "member",
+        },
+        currentSessionId,
+      ),
+    );
+  }
+  const authDb = await readAuthDb();
+  const userMap = new Map(authDb.users.map((user) => [user.id, user]));
+  return authDb.sessions
+    .filter((session) => session.expiresAt > Date.now())
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 300)
+    .map((session) => {
+      const user = userMap.get(session.userId);
+      if (!user) return null;
+      return toAdminSession(session, user, currentSessionId);
+    })
+    .filter(Boolean) as AdminSessionRecord[];
 }
 
 async function readAdminDbPostgres(): Promise<AdminDb> {
@@ -4450,6 +4584,7 @@ function syncManagedPassword(
 }
 
 async function loginUser(
+  request: import("node:http").IncomingMessage,
   emailValue: unknown,
   passwordValue: unknown,
   options?: { adminOnly?: boolean },
@@ -4467,6 +4602,9 @@ async function loginUser(
     userId: user.id,
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
+    lastSeenAt: now,
+    ip: requestIp(request),
+    userAgent: requestUserAgent(request),
   };
   if (usePostgresRepository()) {
     await createSessionRecordPostgres(session);
@@ -4482,22 +4620,89 @@ async function loginUser(
 async function logoutUser(request: import("node:http").IncomingMessage) {
   const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return;
+  const revokedAt = Date.now();
   if (usePostgresRepository()) {
-    await deleteSessionRecordPostgres(sessionId);
+    await revokeSessionRecordPostgres(sessionId, revokedAt);
     return;
   }
   const db = await readAuthDb();
-  await writeAuthDb({ ...db, sessions: db.sessions.filter((session) => session.id !== sessionId) });
+  await writeAuthDb({
+    ...db,
+    sessions: db.sessions.map((session) => (session.id === sessionId ? { ...session, revokedAt } : session)),
+  });
 }
 
 async function getCurrentUser(request: import("node:http").IncomingMessage): Promise<CurrentUser | null> {
   const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return null;
   const db = await readAuthDb();
-  const session = db.sessions.find((item) => item.id === sessionId && item.expiresAt > Date.now());
+  const now = Date.now();
+  const session = db.sessions.find((item) => item.id === sessionId && item.expiresAt > now && !item.revokedAt);
   if (!session) return null;
   const user = db.users.find((item) => item.id === session.userId && !item.disabled);
+  if (!user) return null;
+  if (shouldTouchSession(session, request, now)) {
+    await touchSessionRecord(session.id, request, now);
+  }
   return user ? toPublicUser(user) : null;
+}
+
+function normalizeSessionRecord(session: SessionRecord): SessionRecord {
+  return {
+    id: safeText(session?.id),
+    userId: safeText(session?.userId),
+    createdAt: Number(session?.createdAt) || Date.now(),
+    expiresAt: Number(session?.expiresAt) || Date.now(),
+    lastSeenAt: Number(session?.lastSeenAt) || Number(session?.createdAt) || Date.now(),
+    ip: safeText(session?.ip),
+    userAgent: safeText(session?.userAgent),
+    revokedAt: Number(session?.revokedAt) > 0 ? Number(session.revokedAt) : undefined,
+  };
+}
+
+function requestIp(request: import("node:http").IncomingMessage) {
+  const forwarded = safeText(String(request.headers["x-forwarded-for"] || ""));
+  if (forwarded) return safeText(forwarded.split(",")[0]);
+  const realIp = safeText(String(request.headers["x-real-ip"] || ""));
+  if (realIp) return realIp;
+  return safeText(request.socket.remoteAddress || "");
+}
+
+function requestUserAgent(request: import("node:http").IncomingMessage) {
+  return safeText(String(request.headers["user-agent"] || ""));
+}
+
+function shouldTouchSession(session: SessionRecord, request: import("node:http").IncomingMessage, now: number) {
+  const ip = requestIp(request);
+  const userAgent = requestUserAgent(request);
+  const lastSeenAt = session.lastSeenAt || session.createdAt || 0;
+  if (!lastSeenAt || now - lastSeenAt >= 5 * 60 * 1000) return true;
+  if (ip && ip !== safeText(session.ip)) return true;
+  if (userAgent && userAgent !== safeText(session.userAgent)) return true;
+  return false;
+}
+
+async function touchSessionRecord(sessionId: string, request: import("node:http").IncomingMessage, now: number) {
+  const ip = requestIp(request);
+  const userAgent = requestUserAgent(request);
+  if (usePostgresRepository()) {
+    await touchSessionRecordPostgres(sessionId, now, ip, userAgent);
+    return;
+  }
+  const db = await readAuthDb();
+  await writeAuthDb({
+    ...db,
+    sessions: db.sessions.map((session) =>
+      session.id === sessionId
+        ? {
+            ...session,
+            lastSeenAt: now,
+            ip: ip || session.ip,
+            userAgent: userAgent || session.userAgent,
+          }
+        : session,
+    ),
+  });
 }
 
 function toPublicUser(user: UserRecord): CurrentUser {
@@ -5290,6 +5495,27 @@ function toAdminUser(user: UserRecord) {
     password,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+  };
+}
+
+function toAdminSession(
+  session: SessionRecord,
+  user: Pick<UserRecord, "id" | "email" | "name" | "role">,
+  currentSessionId: string,
+): AdminSessionRecord {
+  return {
+    id: session.id,
+    userId: user.id,
+    userEmail: user.email,
+    userName: user.name,
+    userRole: user.role,
+    createdAt: session.createdAt,
+    lastSeenAt: session.lastSeenAt || session.createdAt,
+    expiresAt: session.expiresAt,
+    ip: safeText(session.ip),
+    userAgent: safeText(session.userAgent),
+    revokedAt: session.revokedAt,
+    current: currentSessionId === session.id,
   };
 }
 

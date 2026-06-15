@@ -973,3 +973,23 @@
     - `verify-multi-user-isolation = ok`
   - 结论：
     - Phase B 目前已经把后台关键设置纳入 revision 模型，灰度实链可视为完成收口
+- `2026-06-15` Phase C 第一批会话治理：
+  - 数据库与接口：
+    - `xh_sessions.last_seen_at`
+    - `xh_sessions.ip`
+    - `xh_sessions.user_agent`
+    - `xh_sessions.revoked_at`
+    - `/api/admin/sessions`
+    - `/api/admin/sessions/:id/revoke`
+  - 行为要求：
+    - 会话撤销后，原 cookie 再请求 `/api/auth/me` 必须立刻返回未登录
+    - 会话列表里要能区分当前会话、活跃会话、已撤销会话
+    - 用户禁用/重置密码时，也必须同步撤销该用户现有会话
+  - 发布：
+    - gray: `/opt/apps/xinghuan-canvas-next/releases/20260615-phase-c-session-governance-gray-r1`
+    - production: `/opt/apps/xinghuan-canvas/releases/20260615-phase-c-session-governance-prod-r1`
+  - 验收：
+    - `verify-admin-session-governance = ok`
+    - `verify-multi-user-isolation = ok`
+  - 边界：
+    - 当前只是 Phase C 第一批，不代表 CSRF 和登录限流已经完成

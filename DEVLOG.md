@@ -6658,3 +6658,36 @@
   - 结论：
     - Phase B 的后台关键设置版本化保存已经完成实链收口
     - 当前 Phase B 已覆盖画布、资源库、AI 助手配置、任务并发配置四类核心并发写入
+- `2026-06-15` Phase C 第一批会话治理已完成灰度与生产发布：
+  - 新增：
+    - `apps/api/db/012_session_governance.sql`
+    - `scripts/verify-admin-session-governance.mjs`
+    - `ops/phase-c-session-governance-release-2026-06-15.md`
+  - 后端收口：
+    - `xh_sessions` 增加 `last_seen_at` / `ip` / `user_agent` / `revoked_at`
+    - 登录时写入会话来源信息
+    - 鉴权请求按节流刷新 `lastSeenAt`
+    - `/api/admin/sessions` 返回后台会话列表
+    - `/api/admin/sessions/:id/revoke` 支持强制下线
+  - 后台收口：
+    - 用户页新增“活跃会话”表
+    - 可查看账号、角色、最近活跃、IP、客户端、状态
+    - 可对非当前会话执行“强制下线”
+  - 本地验收：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run verify:admin-users-panel-contract`
+    - `npm run build:single-port`
+  - 灰度发布：
+    - release: `20260615-phase-c-session-governance-gray-r1`
+    - `db:migrate` 应用：`012_session_governance.sql`
+    - `verify:admin-session-governance = ok`
+    - `verify:multi-user-isolation = ok`
+  - 生产发布：
+    - release: `20260615-phase-c-session-governance-prod-r1`
+    - `db:migrate` 应用：`012_session_governance.sql`
+    - `verify:admin-session-governance = ok`
+    - `verify:multi-user-isolation = ok`
+  - 结论：
+    - Phase C 已完成第一批“会话治理”落地
+    - 但 Phase C 尚未完成，CSRF 与登录限流仍是后续必须继续推进的项

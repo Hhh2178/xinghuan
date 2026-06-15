@@ -13,6 +13,7 @@ import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
 import { TasksPanel } from "./admin-task-panel";
 import type {
   AdminUser as AdminUserShape,
+  AdminSessionRecord as AdminSessionRecordShape,
   AuditRecord as AuditRecordShape,
   AuthUser as AuthUserShape,
   Capability as CapabilityShape,
@@ -55,6 +56,8 @@ export interface AdminUser extends AuthUser {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface AdminSessionRecord extends AdminSessionRecordShape {}
 
 export interface ProviderRecord {
   id: string;
@@ -184,6 +187,7 @@ function AdminApp() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [assistantSettings, setAssistantSettings] = useState<AssistantSettings>(defaultAssistantSettings());
   const [users, setUsers] = useState<AdminUserShape[]>([]);
+  const [sessions, setSessions] = useState<AdminSessionRecordShape[]>([]);
   const [providers, setProviders] = useState<ProviderRecordShape[]>([]);
   const [models, setModels] = useState<ModelRecordShape[]>([]);
   const [tasks, setTasks] = useState<TaskRecordShape[]>([]);
@@ -215,6 +219,7 @@ function AdminApp() {
         nextSummary,
         nextAssistantSettings,
         nextUsers,
+        nextSessions,
         nextProviders,
         nextModels,
         nextTasks,
@@ -224,6 +229,7 @@ function AdminApp() {
         api<Summary>("/api/admin/summary"),
         api<AssistantSettings>("/api/admin/assistant/settings"),
         api<AdminUserShape[]>("/api/admin/users"),
+        api<AdminSessionRecordShape[]>("/api/admin/sessions"),
         api<ProviderRecordShape[]>("/api/admin/providers"),
         api<ModelRecordShape[]>("/api/admin/models"),
         api<TaskRecordShape[]>("/api/admin/tasks"),
@@ -233,6 +239,7 @@ function AdminApp() {
       setSummary(nextSummary);
       setAssistantSettings(nextAssistantSettings);
       setUsers(nextUsers);
+      setSessions(nextSessions);
       setProviders(nextProviders);
       setModels(nextModels);
       setTasks(nextTasks);
@@ -387,7 +394,7 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "users" ? (
-            <UsersPanel users={users} mutate={mutate} />
+            <UsersPanel users={users} sessions={sessions} mutate={mutate} />
           ) : null}
           {activeTab === "providers" ? (
             <ApiSettingsPanel
