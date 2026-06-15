@@ -203,8 +203,8 @@
   - 后台查看活跃会话
   - 后台强制下线
   - 会话 `ip / user_agent / last_seen_at / revoked_at` 元数据
+  - 危险写请求 CSRF 同源校验
 - 仍未完成：
-  - 写操作 CSRF 防护
   - 登录限流与失败计数
 
 ### Phase D 完成标准

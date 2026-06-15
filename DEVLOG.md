@@ -6691,3 +6691,30 @@
   - 结论：
     - Phase C 已完成第一批“会话治理”落地
     - 但 Phase C 尚未完成，CSRF 与登录限流仍是后续必须继续推进的项
+- `2026-06-15` Phase C 第二批 CSRF 同源防护已完成灰度与生产发布：
+  - 新增：
+    - `scripts/verify-csrf-origin-guard.mjs`
+    - `ops/phase-c-csrf-origin-release-2026-06-15.md`
+  - 后端收口：
+    - 所有 `/api/*` 下危险写请求统一进入同源来源校验
+    - 优先校验 `Origin`，回退 `Referer`，再回退 `Sec-Fetch-Site`
+    - 登录、登出、后台写操作、画布写入、资源写入、生成代理提交链路全部纳入
+  - 验收脚本收口：
+    - 常用验收脚本补上 `Origin` 头，适配 Node fetch 环境
+  - 本地验收：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run build:single-port`
+  - 灰度发布：
+    - release: `20260615-phase-c-csrf-origin-gray-r1`
+    - `db:migrate`: `applied=[] skipped=12`
+    - `verify:csrf-origin-guard = ok`
+    - `verify:admin-session-governance = ok`
+    - `verify:multi-user-isolation = ok`
+  - 生产发布：
+    - release: `20260615-phase-c-csrf-origin-prod-r1`
+    - `db:migrate`: `applied=[] skipped=12`
+    - 公网 `verify:csrf-origin-guard = ok`
+    - 公网 `verify:multi-user-isolation = ok`
+    - 会话治理公网复验遇到 TLS `ECONNRESET` 边缘抖动，随后用服务器本机 `127.0.0.1:18100` 做等价校验，结果 `ok = true`
+  - 结论：
+    - Phase C 目前只剩“登录限流与失败计数”尚未落地

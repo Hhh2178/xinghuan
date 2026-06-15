@@ -728,6 +728,10 @@ const server = createServer(async (request, response) => {
   }
 
   try {
+    if (requiresCsrfProtection(url.pathname, request.method || "GET")) {
+      assertSameOriginWriteRequest(request);
+    }
+
     if (url.pathname === "/api/auth/me" && request.method === "GET") {
       const user = await getCurrentUser(request);
       sendT8(response, { authenticated: Boolean(user), user });
@@ -2118,6 +2122,58 @@ function sendT8(
   headers: Record<string, string> = {},
 ) {
   sendJson(response, { success: true, data }, statusCode, headers);
+}
+
+function isUnsafeHttpMethod(method: string) {
+  const upper = String(method || "GET").toUpperCase();
+  return upper === "POST" || upper === "PUT" || upper === "PATCH" || upper === "DELETE";
+}
+
+function requiresCsrfProtection(pathname: string, method: string) {
+  if (!isUnsafeHttpMethod(method)) return false;
+  if (!pathname.startsWith("/api/")) return false;
+  if (pathname === "/api/health" || pathname === "/api/status" || pathname === "/api/version") return false;
+  return true;
+}
+
+function requestPublicOrigin(request: import("node:http").IncomingMessage) {
+  const forwardedProto = safeText(String(request.headers["x-forwarded-proto"] || "")).split(",")[0].trim();
+  const forwardedHost = safeText(String(request.headers["x-forwarded-host"] || "")).split(",")[0].trim();
+  const host = forwardedHost || safeText(String(request.headers.host || ""));
+  const proto = forwardedProto || "http";
+  return host ? `${proto}://${host}` : "";
+}
+
+function sameOriginMatch(source: string, expectedOrigin: string) {
+  try {
+    return new URL(source).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function assertSameOriginWriteRequest(request: import("node:http").IncomingMessage) {
+  const expectedOrigin = requestPublicOrigin(request);
+  const origin = safeText(String(request.headers.origin || ""));
+  const referer = safeText(String(request.headers.referer || ""));
+  const fetchSite = safeText(String(request.headers["sec-fetch-site"] || "")).toLowerCase();
+
+  if (expectedOrigin && origin) {
+    if (!sameOriginMatch(origin, expectedOrigin)) {
+      throw new HttpError(403, "CSRF_ORIGIN_MISMATCH", { expectedOrigin, actualOrigin: origin });
+    }
+    return;
+  }
+  if (expectedOrigin && referer) {
+    if (!sameOriginMatch(referer, expectedOrigin)) {
+      throw new HttpError(403, "CSRF_REFERER_MISMATCH", { expectedOrigin, referer });
+    }
+    return;
+  }
+  if (fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none") {
+    return;
+  }
+  throw new HttpError(403, "CSRF_ORIGIN_REQUIRED", { expectedOrigin });
 }
 
 function isProtectedRequest(pathname: string) {

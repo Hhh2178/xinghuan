@@ -12,6 +12,7 @@ const memberEmailCandidates = uniqueNonEmpty([
 ]);
 const memberPassword =
   process.env.XINGHUAN_VERIFY_MEMBER_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ?? "member123456";
+const requestOrigin = new URL(baseUrl).origin;
 
 const adminJar = { cookie: "" };
 const memberJar = { cookie: "" };
@@ -289,10 +290,12 @@ function responseContains(response, fragment) {
 }
 
 function withCookie(options = {}, jar) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(jar?.cookie ? { cookie: jar.cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options?.headers || {}),
     },
   };

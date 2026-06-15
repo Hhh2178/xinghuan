@@ -993,3 +993,24 @@
     - `verify-multi-user-isolation = ok`
   - 边界：
     - 当前只是 Phase C 第一批，不代表 CSRF 和登录限流已经完成
+- `2026-06-15` Phase C 第二批 CSRF 同源防护：
+  - 防护范围：
+    - 所有 `/api/*` 的 `POST / PUT / PATCH / DELETE`
+    - 包括登录、登出、后台配置写入、画布写入、资源写入、生成代理提交
+  - 判定顺序：
+    - `Origin`
+    - `Referer`
+    - `Sec-Fetch-Site`
+  - 标准验证：
+    - `verify-csrf-origin-guard`
+    - 伪造 `Origin=https://evil.example` 的登录请求必须返回 `403`
+    - 同源 `Origin=<baseUrl origin>` 的登录请求必须继续成功
+  - 发布：
+    - gray: `/opt/apps/xinghuan-canvas-next/releases/20260615-phase-c-csrf-origin-gray-r1`
+    - production: `/opt/apps/xinghuan-canvas/releases/20260615-phase-c-csrf-origin-prod-r1`
+  - 验收：
+    - `verify-csrf-origin-guard = ok`
+    - `verify-admin-session-governance = ok`
+    - `verify-multi-user-isolation = ok`
+  - 当前阶段结论：
+    - Phase C 剩余项只剩登录限流与失败计数

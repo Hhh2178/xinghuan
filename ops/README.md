@@ -32,6 +32,7 @@
 - Phase B 画布 Revision 冲突防护灰度发布记录见 `phase-b-canvas-revision-gray-2026-06-13.md`。
 - Phase B 后台关键设置 Revision 冲突防护灰度发布记录见 `phase-b-admin-settings-revision-gray-2026-06-13.md`。
 - Phase C 第一批会话治理灰度/生产发布记录见 `phase-c-session-governance-release-2026-06-15.md`。
+- Phase C 第二批 CSRF 同源防护灰度/生产发布记录见 `phase-c-csrf-origin-release-2026-06-15.md`。
 
 ## 当前运行态入口
 
@@ -55,6 +56,7 @@
 - `phase-b-canvas-revision-gray-2026-06-13.md`
 - `phase-b-admin-settings-revision-gray-2026-06-13.md`
 - `phase-c-session-governance-release-2026-06-15.md`
+- `phase-c-csrf-origin-release-2026-06-15.md`
 - `phase3-node-acceptance-gray-2026-06-07.md`
 - `phase3-node-acceptance-production-2026-06-07.md`
 - `production-cutover-2026-06-06.md`

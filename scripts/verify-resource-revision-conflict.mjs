@@ -5,6 +5,7 @@ const loginEmailCandidates = uniqueNonEmpty([
   "admin@xinghuan.local",
 ]);
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
+const requestOrigin = new URL(baseUrl).origin;
 
 let cookie = "";
 
@@ -168,10 +169,12 @@ async function fetchJson(pathname, options, config = {}) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };
