@@ -5,6 +5,8 @@ const registryText = await read("apps/web/src/config/nodeRegistry.ts");
 const canvasText = await read("apps/web/src/components/Canvas.tsx");
 const portText = await read("apps/web/src/config/portTypes.ts");
 const apiText = await read("apps/api/src/server.ts");
+const externalProxyText = await read("apps/api/src/external-proxy.ts");
+const providerFileAccessText = await read("apps/api/src/provider-file-access.ts");
 
 const REQUIRED_INITIAL_DATA = {
   image: { label: "base image defaults", patterns: [/model:\s*'gpt-image-2'/, /aspectRatio:\s*'1:1'/, /referenceImages:\s*\[\]/] },
@@ -89,9 +91,26 @@ for (const type of CRITICAL_PROXY_NODE_TYPES) {
   check(`Critical proxy node ${type} has port declaration`, hasPortDeclaration(portText, type));
 }
 
-check("Image proxy signs local provider references", canvasText.includes("ImageNode") && apiHas("providerFileAccessUrl") && apiHas("generateExternalImageProxy"));
-check("Video proxy signs local provider references", apiHas("generateExternalVideoProxy") && apiHas("normalizeProviderReferenceUrls("));
-check("LLM proxy signs local image references", apiHas("generateExternalChatProxy") && apiHas("normalizeChatContentPart"));
+check(
+  "Image proxy signs local provider references",
+  externalProxyHas("generateExternalImageProxy") &&
+    externalProxyHas("normalizeProviderReferenceUrls(") &&
+    providerFileAccessHas("providerFileAccessUrl("),
+);
+check(
+  "Video proxy signs local provider references",
+  externalProxyHas("generateExternalVideoProxy") &&
+    externalProxyHas("normalizeProviderReferenceUrls(") &&
+    externalProxyHas("normalizeProviderReferenceUrl(") &&
+    providerFileAccessHas("providerFileAccessUrl("),
+);
+check(
+  "LLM proxy signs local image references",
+  externalProxyHas("generateExternalChatProxy") &&
+    externalProxyHas("normalizeChatContentPart") &&
+    externalProxyHas("normalizeProviderReferenceUrl(") &&
+    providerFileAccessHas("providerFileAccessUrl("),
+);
 check("Provider files endpoint remains separate from ordinary /files auth", apiHas('"/api/provider-files/"') && apiHas("sendProviderFile"));
 
 const summary = {
@@ -185,6 +204,14 @@ function extractSetValues(text, setName) {
 
 function apiHas(value) {
   return apiText.includes(value);
+}
+
+function externalProxyHas(value) {
+  return externalProxyText.includes(value);
+}
+
+function providerFileAccessHas(value) {
+  return providerFileAccessText.includes(value);
 }
 
 function countBy(items, key) {

@@ -846,6 +846,12 @@ export interface GenerationLibraryItem {
   fileUrl: string;
   mime?: string;
   size?: number;
+  filename?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
+  openUrl?: string;
+  canDownload?: boolean;
+  isExpired?: boolean;
   createdAt: number;
   updatedAt: number;
   expiresAt: number;

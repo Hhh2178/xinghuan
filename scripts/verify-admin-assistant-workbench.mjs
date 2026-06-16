@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const requestOrigin = new URL(baseUrl).origin;
 const adminEmail =
   process.env.XINGHUAN_VERIFY_EMAIL ??
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ??
@@ -34,7 +35,7 @@ async function main() {
 
   const login = await fetchJson("/api/auth/admin-login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: adminEmail, password: adminPassword }),
   });
   results.push([
@@ -50,7 +51,7 @@ async function main() {
 
   const analysis = await fetchJson("/api/admin/assistant/analyze-provider", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({
       providerName: "APIMart",
       baseUrl: "https://api.apimart.com/v1",
@@ -128,7 +129,7 @@ function verifyStaticUiContract() {
     ],
     [
       "Assistant result only applies after admin confirmation",
-      source.includes("AI 草案已应用到表单，仍需点击保存才会生效。"),
+      source.includes("AI 草案已应用到表单，仍需点击保存；保存后请继续执行验证地址、拉取模型和模型测试。"),
     ],
   ];
 }
@@ -158,10 +159,12 @@ async function fetchJson(pathname, options) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };

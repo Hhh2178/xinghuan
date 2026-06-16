@@ -15,6 +15,60 @@
 
 ## 2026-06-16
 
+### Phase E 本地观测验收补样复核与脚本同源修正
+
+目标:
+
+- 复核 `verify-request-chain-observability` 与 `verify-system-observability` 在当前 worktree 上的真实失败原因。
+- 区分“后端认证/审计链路故障”和“本地 file-mode 验收脚本未对齐 CSRF/串行约束”的假失败。
+- 收口当前几份仍停留在 CSRF 上线前习惯的验证脚本，避免后续再次误判。
+
+排查结论:
+
+- `admin-login -> admin-me -> audit` 主链在隔离本地实例上是正常的。
+- 使用独立数据目录起本地实例：
+  - `XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18220`
+  - `XINGHUAN_DATA_DIR=.tmp/obs-debug-data`
+- 在该隔离实例上，以下验证已通过：
+  - `node scripts/verify-request-chain-observability.mjs`
+  - `node scripts/verify-system-observability.mjs`
+  - `node scripts/verify-admin-task-pagination.mjs`
+- 先前现场看到的失败，主要不是后端认证链路损坏，而是两类本地验收噪音：
+  1. 部分旧脚本对 `POST` / `PATCH` / `DELETE` 没有自动补 same-origin `Origin`
+  2. 多个依赖登录态和 file-mode JSON 的脚本并行运行时，会互相踩本地会话与审计样本，出现假性 `AUTH_REQUIRED`、假性“缺少 audit sample”
+
+变更:
+
+- 更新以下脚本，使写请求统一自动带同源 `Origin`，对齐 `Phase C` CSRF 规则：
+  - `scripts/verify-admin-auth-passwords.mjs`
+  - `scripts/verify-admin-assistant-chat.mjs`
+  - `scripts/verify-admin-assistant-workbench.mjs`
+  - `scripts/verify-canvas-assistant-chat.mjs`
+- 同步修正 `verify-admin-assistant-workbench.mjs` 的静态文案断言，使其匹配当前真实 UI 提示：
+  - 从旧文案“仍需点击保存才会生效”
+  - 更新为当前文案“仍需点击保存；保存后请继续执行验证地址、拉取模型和模型测试。”
+
+验证:
+
+- 隔离实例串行验证通过：
+  - `node scripts/verify-admin-auth-passwords.mjs`
+  - `node scripts/verify-admin-assistant-workbench.mjs`
+  - `node scripts/verify-canvas-assistant-chat.mjs`
+  - `node scripts/verify-system-observability.mjs`
+  - `node scripts/verify-request-chain-observability.mjs`
+  - `node scripts/verify-admin-task-pagination.mjs`
+- 关键经验复核：
+  - 同一批本地观测/后台/登录态脚本应串行执行，不应并行打到同一 file-mode 实例
+  - 若要排除本地数据干扰，优先起隔离数据目录实例再验
+
+影响:
+
+- 当前更准确的阶段判断是：
+  - `Phase E` 本地观测链路本身没有重新退化
+  - 需要收口的是脚本维护口径和本地验收方式
+- 后续凡是涉及 `admin-login`、后台写接口、助手写接口、任务写接口的本地脚本，都要默认检查是否已随 `withCookie(...)` 自动补同源 `Origin`
+- 本地 file-mode 只适合做单链路、串行 smoke；涉及多脚本并发或稳定性结论时，应优先切隔离实例或 PostgreSQL 环境
+
 ### 文档治理与运维归档入口继续收束
 
 目标:

@@ -3,27 +3,18 @@ import { PlayCircle } from "lucide-react";
 import { canCancelTask, canRetryTask } from "@xinghuan/shared";
 import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
 import { statusText, taskTone } from "./admin-view-model";
-import type { TaskRecord } from "./admin-types";
+import type { TaskListPage, TaskRecord } from "./admin-types";
 
 type AdminMutate = (path: string, payload: Record<string, unknown>, method?: string) => void;
 
-export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: AdminMutate }) {
+type TaskQuery = Pick<TaskListPage, "page" | "pageSize" | "filters">;
+
+export function TasksPanel(
+  { taskPage, mutate, onQueryChange }: { taskPage: TaskListPage; mutate: AdminMutate; onQueryChange: (next: TaskQuery) => void },
+) {
   const [title, setTitle] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("");
-  const [selectedCapability, setSelectedCapability] = useState("");
-  const providerOptions = Array.from(new Set(tasks.map((task) => String(task.providerId || "").trim()).filter(Boolean))).sort();
-  const filteredTasks = tasks.filter((task) => {
-    if (selectedStatus && task.status !== selectedStatus) return false;
-    if (selectedProvider && task.providerId !== selectedProvider) return false;
-    if (selectedCapability) {
-      const resultRow = (task.result && typeof task.result === "object" ? task.result : {}) as Record<string, unknown>;
-      const rawRow = (resultRow.raw && typeof resultRow.raw === "object" ? resultRow.raw : {}) as Record<string, unknown>;
-      const taskCapability = String(task.payload?.taskCapability || resultRow.capability || rawRow.capability || "").trim();
-      if (taskCapability !== selectedCapability) return false;
-    }
-    return true;
-  });
+  const providerOptions = Array.from(new Set(taskPage.items.map((task) => String(task.providerId || "").trim()).filter(Boolean))).sort();
+  const pageCount = Math.max(1, Math.ceil(taskPage.total / taskPage.pageSize));
   return (
     <section className="panel-stack">
       <FormPanel title="创建任务" icon={PlayCircle}>
@@ -31,19 +22,28 @@ export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: Adm
         <button type="button" onClick={() => mutate("/api/admin/tasks", { title, status: "queued" })}>创建任务</button>
       </FormPanel>
       <FormPanel title="筛选任务" icon={PlayCircle}>
-        <select value={selectedCapability} onChange={(e) => setSelectedCapability(e.target.value)}>
+        <select
+          value={taskPage.filters.capability}
+          onChange={(e) => onQueryChange({ page: 1, pageSize: taskPage.pageSize, filters: { ...taskPage.filters, capability: e.target.value } })}
+        >
           <option value="">全部能力</option>
           <option value="image">图像</option>
           <option value="video">视频</option>
           <option value="audio">音频</option>
         </select>
-        <select value={selectedProvider} onChange={(e) => setSelectedProvider(e.target.value)}>
+        <select
+          value={taskPage.filters.providerId}
+          onChange={(e) => onQueryChange({ page: 1, pageSize: taskPage.pageSize, filters: { ...taskPage.filters, providerId: e.target.value } })}
+        >
           <option value="">全部 Provider</option>
           {providerOptions.map((providerId) => (
             <option key={providerId} value={providerId}>{providerId}</option>
           ))}
         </select>
-        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+        <select
+          value={taskPage.filters.status}
+          onChange={(e) => onQueryChange({ page: 1, pageSize: taskPage.pageSize, filters: { ...taskPage.filters, status: e.target.value } })}
+        >
           <option value="">全部状态</option>
           <option value="queued">queued</option>
           <option value="running">running</option>
@@ -51,11 +51,19 @@ export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: Adm
           <option value="failed">failed</option>
           <option value="cancelled">cancelled</option>
         </select>
+        <select
+          value={String(taskPage.pageSize)}
+          onChange={(e) => onQueryChange({ page: 1, pageSize: Number(e.target.value) || 20, filters: taskPage.filters })}
+        >
+          <option value="10">10 / 页</option>
+          <option value="20">20 / 页</option>
+          <option value="50">50 / 页</option>
+        </select>
       </FormPanel>
       <AdminTable title="任务监控">
         <thead><tr><th>任务</th><th>状态</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
         <tbody>
-          {filteredTasks.map((task) => (
+          {taskPage.items.map((task) => (
             <tr key={task.id}>
               <td>{task.title}</td>
               <td><StatusPill tone={taskTone(task.status)}>{statusText(task.status)}</StatusPill></td>
@@ -64,6 +72,8 @@ export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: Adm
               <td>
                 {task.status === "failed" ? (
                   <span>{String(task.result?.failureReason || task.result?.error || task.logs?.slice(-1)[0] || "未知失败")}</span>
+                ) : task.status === "cancelled" ? (
+                  <span>{String(task.result?.cancellationMessage || task.logs?.slice(-1)[0] || "任务已取消")}</span>
                 ) : (
                   <span>{task.logs?.slice(-2).join(" / ") || "-"}</span>
                 )}
@@ -86,6 +96,25 @@ export function TasksPanel({ tasks, mutate }: { tasks: TaskRecord[]; mutate: Adm
           ))}
         </tbody>
       </AdminTable>
+      <div className="table-toolbar">
+        <span>共 {taskPage.total} 条，当前第 {taskPage.page} / {pageCount} 页</span>
+        <div className="row-actions">
+          <button
+            type="button"
+            disabled={taskPage.page <= 1}
+            onClick={() => onQueryChange({ page: taskPage.page - 1, pageSize: taskPage.pageSize, filters: taskPage.filters })}
+          >
+            上一页
+          </button>
+          <button
+            type="button"
+            disabled={!taskPage.hasMore}
+            onClick={() => onQueryChange({ page: taskPage.page + 1, pageSize: taskPage.pageSize, filters: taskPage.filters })}
+          >
+            下一页
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

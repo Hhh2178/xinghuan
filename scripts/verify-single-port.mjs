@@ -1,9 +1,14 @@
-import { readFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const verifyDataDir = process.env.XINGHUAN_DATA_DIR ? resolve(process.env.XINGHUAN_DATA_DIR) : "";
+const sameOriginHeaders = {
+  origin: baseUrl,
+  referer: `${baseUrl}/`,
+};
 const loginEmailCandidates = uniqueNonEmpty([
   process.env.XINGHUAN_VERIFY_EMAIL,
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL,
@@ -56,7 +61,12 @@ async function main() {
   results.push(["GET /api/admin/models", Array.isArray(adminModels.data)]);
 
   const adminTasks = await fetchJson("/api/admin/tasks");
-  results.push(["GET /api/admin/tasks", Array.isArray(adminTasks.data)]);
+  results.push([
+    "GET /api/admin/tasks",
+    Array.isArray(adminTasks.data?.items) &&
+      typeof adminTasks.data?.total === "number" &&
+      typeof adminTasks.data?.page === "number",
+  ]);
 
   const adminSystem = await fetchJson("/api/admin/system");
   results.push(["GET /api/admin/system database status", typeof adminSystem.data?.database?.status === "string"]);
@@ -146,6 +156,130 @@ async function main() {
   const uploaded = await fetchText(upload.data.url);
   results.push(["GET uploaded file", uploaded.status === 200 && uploaded.text.includes("xinghuan-canvas")]);
 
+  const generationImageFile = await fetchJson("/api/files/upload-base64", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      prefix: "verify-generation-library",
+      dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn0k1sAAAAASUVORK5CYII=",
+    }),
+  });
+  results.push(["POST /api/files/upload-base64", Boolean(generationImageFile.data?.url)]);
+
+  const localVideoFile = await seedLocalVideoOutput();
+  results.push(["Local sample video seeded", Boolean(localVideoFile)]);
+
+  const generationImageTitle = `单端口生成库图片-${Date.now()}`;
+  const generationImage = await fetchJson("/api/generation-library/items", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      kind: "image",
+      url: generationImageFile.data?.url,
+      title: generationImageTitle,
+      mime: generationImageFile.data?.mime || "image/png",
+      size: generationImageFile.data?.size || 0,
+    }),
+  });
+  results.push(["POST /api/generation-library/items image", generationImage.data?.kind === "image"]);
+
+  const generationVideoTitle = `单端口生成库视频-${Date.now()}`;
+  const generationVideo = localVideoFile
+    ? await fetchJson("/api/generation-library/items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "video",
+          url: `/files/output/${encodeURIComponent(localVideoFile)}`,
+          title: generationVideoTitle,
+          mime: localVideoFile.endsWith(".webm") ? "video/webm" : localVideoFile.endsWith(".mov") ? "video/quicktime" : "video/mp4",
+        }),
+      })
+    : { data: null };
+  results.push(["POST /api/generation-library/items video", generationVideo.data?.kind === "video"]);
+
+  const generationImages = await fetchJson("/api/generation-library/items?kind=image");
+  const generationImageEntry = Array.isArray(generationImages.data)
+    ? generationImages.data.find((item) => item.title === generationImageTitle)
+    : null;
+  results.push([
+    "GET /api/generation-library/items image metadata",
+    Boolean(
+      generationImageEntry?.previewUrl &&
+      generationImageEntry?.downloadUrl &&
+      generationImageEntry?.openUrl &&
+      generationImageEntry?.filename &&
+      generationImageEntry?.canDownload === true &&
+      generationImageEntry?.isExpired === false,
+    ),
+  ]);
+
+  const generationVideos = await fetchJson("/api/generation-library/items?kind=video");
+  const generationVideoEntry = Array.isArray(generationVideos.data)
+    ? generationVideos.data.find((item) => item.title === generationVideoTitle)
+    : null;
+  results.push([
+    "GET /api/generation-library/items video metadata",
+    Boolean(
+      generationVideoEntry?.previewUrl &&
+      generationVideoEntry?.downloadUrl &&
+      generationVideoEntry?.openUrl &&
+      generationVideoEntry?.filename &&
+      generationVideoEntry?.canDownload === true &&
+      generationVideoEntry?.isExpired === false,
+    ),
+  ]);
+
+  const imagePreview = generationImageEntry?.previewUrl ? await fetchBinary(generationImageEntry.previewUrl) : null;
+  results.push([
+    "GET generation image preview route",
+    Boolean(imagePreview?.status === 200 && String(imagePreview.headers.get("content-type") || "").startsWith("image/")),
+  ]);
+
+  const imageDownload = generationImageEntry?.downloadUrl ? await fetchBinary(generationImageEntry.downloadUrl) : null;
+  results.push([
+    "GET generation image download route",
+    Boolean(
+      imageDownload?.status === 200 &&
+      String(imageDownload.headers.get("content-disposition") || "").includes("attachment;"),
+    ),
+  ]);
+
+  const videoPreview = generationVideoEntry?.previewUrl ? await fetchBinary(generationVideoEntry.previewUrl) : null;
+  results.push([
+    "GET generation video preview route",
+    Boolean(videoPreview?.status === 200 && String(videoPreview.headers.get("content-type") || "").startsWith("video/")),
+  ]);
+
+  const videoDownload = generationVideoEntry?.downloadUrl ? await fetchBinary(generationVideoEntry.downloadUrl) : null;
+  results.push([
+    "GET generation video download route",
+    Boolean(
+      videoDownload?.status === 200 &&
+      String(videoDownload.headers.get("content-disposition") || "").includes("attachment;"),
+    ),
+  ]);
+
+  if (!(videoPreview?.status === 200 && String(videoPreview.headers.get("content-type") || "").startsWith("video/"))) {
+    console.error("DEBUG generation video preview", JSON.stringify({
+      localVideoFile,
+      generationVideoEntry,
+      previewStatus: videoPreview?.status || null,
+      previewContentType: videoPreview?.headers?.get?.("content-type") || null,
+      previewBody: videoPreview?.buffer ? videoPreview.buffer.toString("utf8") : null,
+    }, null, 2));
+  }
+  if (!(videoDownload?.status === 200 && String(videoDownload.headers.get("content-disposition") || "").includes("attachment;"))) {
+    console.error("DEBUG generation video download", JSON.stringify({
+      localVideoFile,
+      generationVideoEntry,
+      downloadStatus: videoDownload?.status || null,
+      downloadDisposition: videoDownload?.headers?.get?.("content-disposition") || null,
+      downloadContentType: videoDownload?.headers?.get?.("content-type") || null,
+      downloadBody: videoDownload?.buffer ? videoDownload.buffer.toString("utf8") : null,
+    }, null, 2));
+  }
+
   const fallback = await fetchText("/workspace/deep/link");
   results.push(["SPA fallback", fallback.status === 200 && fallback.text.includes('<div id="root"></div>')]);
 
@@ -208,10 +342,18 @@ async function fetchJson(pathname, options, config = {}) {
   };
 }
 
+async function fetchBinary(pathname, options) {
+  const response = await fetch(toUrl(pathname), withCookie(options));
+  captureCookie(response);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return { status: response.status, headers: response.headers, buffer };
+}
+
 function withCookie(options = {}) {
   return {
     ...options,
     headers: {
+      ...sameOriginHeaders,
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
     },
@@ -231,6 +373,35 @@ function toUrl(pathname) {
 
 function uniqueNonEmpty(values) {
   return [...new Set(values.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean))];
+}
+
+async function findLocalVideoOutput() {
+  const outputDir = join(rootDir, "apps", "api", "data", "users", "usr-admin", "output");
+  const { readdir } = await import("node:fs/promises");
+  try {
+    const entries = await readdir(outputDir, { withFileTypes: true });
+    const file = entries.find((entry) => entry.isFile() && [".mp4", ".webm", ".mov"].some((ext) => entry.name.toLowerCase().endsWith(ext)));
+    return file?.name || "";
+  } catch {
+    return "";
+  }
+}
+
+async function seedLocalVideoOutput() {
+  const sourceName = await findLocalVideoOutput();
+  if (!sourceName) return "";
+  const sourcePath = join(rootDir, "apps", "api", "data", "users", "usr-admin", "output", sourceName);
+  const targetDir = verifyDataDir
+    ? join(verifyDataDir, "users", "usr-admin", "output")
+    : join(rootDir, "apps", "api", "data", "users", "usr-admin", "output");
+  await mkdir(targetDir, { recursive: true });
+  const targetName = `verify_seed_${Date.now()}_${sourceName}`;
+  try {
+    await copyFile(sourcePath, join(targetDir, targetName));
+    return targetName;
+  } catch {
+    return "";
+  }
 }
 
 main().catch((error) => {

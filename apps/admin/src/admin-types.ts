@@ -193,6 +193,19 @@ export interface TaskRecord {
   updatedAt: number;
 }
 
+export interface TaskListPage {
+  items: TaskRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  filters: {
+    status: string;
+    providerId: string;
+    capability: string;
+  };
+}
+
 export interface Summary {
   users: number;
   enabledUsers: number;
@@ -222,6 +235,9 @@ export interface SystemInfo {
     serverTime?: string;
     migrations: string[];
     error: string;
+    currentDatabase?: string;
+    expectedDatabase?: string;
+    targetMatched?: boolean;
   };
   redis: {
     configured: boolean;
@@ -235,6 +251,82 @@ export interface SystemInfo {
       depth?: number;
     }>;
     error: string;
+  };
+  observability: {
+    tasks: {
+      total: number;
+      queued: number;
+      running: number;
+      succeeded: number;
+      failed: number;
+      cancelled: number;
+      failedLast1h: number;
+      failedLast24h: number;
+      failedLast7d: number;
+      failedLast30d: number;
+      health: {
+        status: "healthy" | "warning" | "critical";
+        summary: string;
+      };
+      trend: {
+        failed24hDailyAverageBaseline: number;
+        failed30dDailyAverageBaseline: number;
+        failed24hVs7dDailyAverage: number;
+        failed24hVs30dDailyAverage: number;
+        failed7dDailyAverage: number;
+        failed7dVs30dDailyAverage: number;
+      };
+    };
+    audits: {
+      total: number;
+      sampled: number;
+      withRequestId: number;
+      requestIdCoveragePercent: number;
+      sampledLast24h: number;
+      withRequestIdLast24h: number;
+      requestIdCoverageLast24hPercent: number;
+      sampledLast7d: number;
+      withRequestIdLast7d: number;
+      requestIdCoverageLast7dPercent: number;
+      coverageHealth: {
+        status: "healthy" | "warning" | "critical";
+        summary: string;
+      };
+      coverageTrend: {
+        requestIdCoverageLast24hVsLatestSample: number;
+        requestIdCoverageLast7dVsLatestSample: number;
+      };
+      conflicts: {
+        totalLast24h: number;
+        totalLast7d: number;
+        totalLast30d: number;
+        canvasRevisionLast24h: number;
+        resourceRevisionLast24h: number;
+        adminSettingsRevisionLast24h: number;
+        health: {
+          status: "healthy" | "warning" | "critical";
+          summary: string;
+        };
+        trend: {
+          total7dDailyAverageBaseline: number;
+          total30dDailyAverageBaseline: number;
+          total24hVs7dDailyAverage: number;
+          total24hVs30dDailyAverage: number;
+        };
+      };
+      latestCreatedAt?: number;
+    };
+    alerts: {
+      activeCount: number;
+      highestSeverity: "healthy" | "warning" | "critical";
+      items: Array<{
+        code: string;
+        severity: "warning" | "critical";
+        source: string;
+        summary: string;
+        action: string;
+      }>;
+    };
   };
   taskQueueSettings: TaskQueueSettings;
   taskQueueSettingsRevision: number;
@@ -253,6 +345,9 @@ export interface AuditRecord {
   targetType: string;
   targetId: string;
   summary: string;
+  requestId?: string;
+  ip?: string;
+  userAgent?: string;
   createdAt: number;
 }
 

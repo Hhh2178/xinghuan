@@ -87,22 +87,32 @@ export function useUpstreamMaterials(nodeId: string): UpstreamMaterials {
       };
     };
 
-    const pushText = (sourceId: string, v: any, keyOverride?: string, labelOverride?: string, meta?: Pick<Material, 'rhNodeId' | 'sourceNodeSerialId'>) => {
+    const pushText = (
+      sourceId: string,
+      v: any,
+      options?: {
+        dedupeKey?: string;
+        idKey?: string;
+        labelOverride?: string;
+        meta?: Pick<Material, 'rhNodeId' | 'sourceNodeSerialId'>;
+      },
+    ) => {
       if (typeof v !== 'string') return;
       const s = v.trim();
       if (!s) return;
-      const dedupeKey = keyOverride || `text:${s}`;
+      const dedupeKey = options?.dedupeKey || `text:${sourceId}:${s}`;
       if (seen.has(dedupeKey)) return;
       seen.add(dedupeKey);
+      const idKey = options?.idKey || dedupeKey;
       texts.push({
-        id: `${sourceId}::${dedupeKey}`,
+        id: `${sourceId}::${idKey}`,
         kind: 'text',
         url: s,
         sourceNodeId: sourceId,
         origin: 'upstream',
-        label: labelOverride || (s.length > 24 ? s.slice(0, 22) + '…' : s),
-        rhNodeId: meta?.rhNodeId,
-        sourceNodeSerialId: meta?.sourceNodeSerialId,
+        label: options?.labelOverride || (s.length > 24 ? s.slice(0, 22) + '…' : s),
+        rhNodeId: options?.meta?.rhNodeId,
+        sourceNodeSerialId: options?.meta?.sourceNodeSerialId,
       });
     };
 
@@ -142,7 +152,13 @@ export function useUpstreamMaterials(nodeId: string): UpstreamMaterials {
       if (n.type === 'material-set' && Array.isArray(ud.materialSetItems)) {
         const buckets = collectMaterialSetBucketsFromData(ud);
         buckets.text.forEach((item, index) => {
-          pushText(sid, valueOfMaterialSetItem(item), `material-set:${sid}:text:${index}`, item.name, textMeta);
+          const key = `material-set:${sid}:text:${index}`;
+          pushText(sid, valueOfMaterialSetItem(item), {
+            dedupeKey: key,
+            idKey: key,
+            labelOverride: item.name,
+            meta: textMeta,
+          });
         });
         buckets.image.forEach((item, index) => {
           pushUrl(sid, 'image', item.url, images, `material-set:${sid}:image:${index}`, item.name);
@@ -161,14 +177,19 @@ export function useUpstreamMaterials(nodeId: string): UpstreamMaterials {
       const textArrayField = textArrayFields.find((f) => Array.isArray(ud[f]) && ud[f].length > 0);
       if (textArrayField) {
         ud[textArrayField].forEach((item: any, index: number) => {
-          pushText(sid, item, `text-array:${sid}:${textArrayField}:${index}`, undefined, textMeta);
+          const key = `text-array:${sid}:${textArrayField}:${index}`;
+          pushText(sid, item, {
+            dedupeKey: key,
+            idKey: key,
+            meta: textMeta,
+          });
         });
       } else {
         // 文本: outputText (用户编辑覆盖) > reply > prompt > text
-        pushText(sid, ud.outputText, `text-field:${sid}:outputText`, undefined, textMeta);
-        pushText(sid, ud.reply, `text-field:${sid}:reply`, undefined, textMeta);
-        pushText(sid, ud.prompt, `text-field:${sid}:prompt`, undefined, textMeta);
-        pushText(sid, ud.text, `text-field:${sid}:text`, undefined, textMeta);
+        pushText(sid, ud.outputText, { meta: textMeta });
+        pushText(sid, ud.reply, { meta: textMeta });
+        pushText(sid, ud.prompt, { meta: textMeta });
+        pushText(sid, ud.text, { meta: textMeta });
       }
 
       // === v1.2.8.3: FramePair 双端口语义 ===

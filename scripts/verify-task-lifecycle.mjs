@@ -1,6 +1,7 @@
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
+const requestOrigin = new URL(baseUrl).origin;
 
 let cookie = "";
 
@@ -43,9 +44,10 @@ async function main() {
   assert(retriedTask.payload?.prompt === "task lifecycle", "retry task did not keep original payload");
   assert(retriedTask.result?.retryOfTaskId === taskId, "retry task did not record original task id");
 
-  const tasks = await fetchJson("/api/admin/tasks");
-  const originalTask = tasks.data?.find((item) => item.id === taskId);
-  const clonedTask = tasks.data?.find((item) => item.id === retriedTask.id);
+  const tasks = await fetchJson("/api/admin/tasks?page=1&pageSize=50");
+  const taskItems = Array.isArray(tasks.data?.items) ? tasks.data.items : [];
+  const originalTask = taskItems.find((item) => item.id === taskId);
+  const clonedTask = taskItems.find((item) => item.id === retriedTask.id);
   assert(originalTask?.status === "cancelled", "original task lost cancelled status");
   assert((originalTask?.logs || []).some((line) => String(line).includes("管理员取消")), "cancel log missing");
   assert((clonedTask?.logs || []).some((line) => String(line).includes("重试")), "retry log missing");
@@ -74,10 +76,12 @@ async function fetchJson(pathname, options) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };

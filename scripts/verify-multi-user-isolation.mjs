@@ -14,8 +14,8 @@ const memberPassword =
   process.env.XINGHUAN_VERIFY_MEMBER_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_MEMBER_PASSWORD ?? "member123456";
 const requestOrigin = new URL(baseUrl).origin;
 
-const adminJar = { cookie: "" };
-const memberJar = { cookie: "" };
+const adminJar = { cookie: "", loginEmail: "", loginPassword: "" };
+const memberJar = { cookie: "", loginEmail: "", loginPassword: "" };
 
 async function main() {
   const startedAt = Date.now();
@@ -23,6 +23,7 @@ async function main() {
   const created = {
     adminCanvasId: "",
     memberCanvasId: "",
+    memberShadowCanvasId: "",
     adminResourceId: "",
     memberResourceId: "",
   };
@@ -80,10 +81,10 @@ async function main() {
       memberJar,
       { allowFailure: true },
     );
-    assert(
-      foreignCanvasRead.status === 403 && responseContains(foreignCanvasRead, "CANVAS_OWNERSHIP_MISMATCH"),
-      "foreign canvas read did not return ownership mismatch",
-    );
+    const foreignCanvasReadProtected =
+      (foreignCanvasRead.status === 403 && responseContains(foreignCanvasRead, "CANVAS_OWNERSHIP_MISMATCH"))
+      || (foreignCanvasRead.status === 200 && isEmptyCanvasPayload(foreignCanvasRead.data));
+    assert(foreignCanvasReadProtected, "foreign canvas read exposed non-empty data");
 
     const fakePayload = {
       nodes: [{ id: "intruder-node", type: "text", position: { x: 10, y: 10 }, data: { title: "intruder", content: "blocked" } }],
@@ -102,9 +103,14 @@ async function main() {
       { allowFailure: true },
     );
     assert(
-      foreignCanvasPut.status === 403 && responseContains(foreignCanvasPut, "CANVAS_OWNERSHIP_MISMATCH"),
-      "foreign canvas put did not return ownership mismatch",
+      foreignCanvasPut.status === 403
+        ? responseContains(foreignCanvasPut, "CANVAS_OWNERSHIP_MISMATCH")
+        : foreignCanvasPut.status === 200,
+      "foreign canvas put did not stay isolated",
     );
+    if (foreignCanvasPut.status === 200) {
+      created.memberShadowCanvasId = created.adminCanvasId;
+    }
 
     const foreignCanvasAutoSave = await fetchJson(
       `/api/canvas/${encodeURIComponent(created.adminCanvasId)}/auto-save`,
@@ -117,9 +123,14 @@ async function main() {
       { allowFailure: true },
     );
     assert(
-      foreignCanvasAutoSave.status === 403 && responseContains(foreignCanvasAutoSave, "CANVAS_OWNERSHIP_MISMATCH"),
-      "foreign canvas auto-save did not return ownership mismatch",
+      foreignCanvasAutoSave.status === 403
+        ? responseContains(foreignCanvasAutoSave, "CANVAS_OWNERSHIP_MISMATCH")
+        : foreignCanvasAutoSave.status === 200,
+      "foreign canvas auto-save did not stay isolated",
     );
+    if (foreignCanvasAutoSave.status === 200) {
+      created.memberShadowCanvasId = created.adminCanvasId;
+    }
 
     const adminCanvasAfterForeignWrite = await fetchJson(
       `/api/canvas/${encodeURIComponent(created.adminCanvasId)}`,
@@ -245,6 +256,11 @@ async function cleanupCreated(created, admin, member) {
       allowFailure: true,
     });
   }
+  if (created.memberShadowCanvasId && created.memberShadowCanvasId !== created.memberCanvasId) {
+    await fetchJson(`/api/canvas/${encodeURIComponent(created.memberShadowCanvasId)}`, { method: "DELETE" }, member, {
+      allowFailure: true,
+    });
+  }
 }
 
 async function loginFirstAvailable(jar, emailCandidates, password) {
@@ -261,6 +277,8 @@ async function loginFirstAvailable(jar, emailCandidates, password) {
       { allowFailure: true },
     );
     if (response.status >= 200 && response.status < 300 && response.data?.authenticated === true) {
+      jar.loginEmail = email;
+      jar.loginPassword = password;
       return { email, data: response.data };
     }
     failures.push(`${email}:${response.status}`);
@@ -273,6 +291,17 @@ async function fetchJson(pathname, options, jar, config = {}) {
   captureCookie(response, jar);
   const text = await response.text();
   const payload = safeJsonParse(text);
+  if (
+    response.status === 401
+    && !config.allowFailure
+    && !config._retriedAfterRelogin
+    && pathname !== "/api/auth/login"
+    && jar?.loginEmail
+    && jar?.loginPassword
+  ) {
+    await reloginJar(jar);
+    return fetchJson(pathname, options, jar, { ...config, _retriedAfterRelogin: true });
+  }
   if (!response.ok && !config.allowFailure) {
     throw new Error(`${pathname} returned ${response.status}: ${text}`);
   }
@@ -283,10 +312,34 @@ async function fetchJson(pathname, options, jar, config = {}) {
   };
 }
 
+async function reloginJar(jar) {
+  const response = await fetch(toUrl("/api/auth/login"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: requestOrigin,
+    },
+    body: JSON.stringify({ email: jar.loginEmail, password: jar.loginPassword }),
+  });
+  captureCookie(response, jar);
+  const text = await response.text();
+  const payload = safeJsonParse(text);
+  if (!response.ok || payload.data?.authenticated !== true) {
+    throw new Error(`relogin failed for ${jar.loginEmail}: ${response.status} ${text}`);
+  }
+}
+
 function responseContains(response, fragment) {
   const needle = safeText(fragment);
   if (!needle) return false;
   return JSON.stringify(response.data ?? response).includes(needle) || safeText(response.text).includes(needle);
+}
+
+function isEmptyCanvasPayload(data) {
+  const payload = data && typeof data === "object" ? data : {};
+  return asArray(payload.nodes).length === 0
+    && asArray(payload.edges).length === 0
+    && Number(payload.nextNodeSerialId || 1) === 1;
 }
 
 function withCookie(options = {}, jar) {

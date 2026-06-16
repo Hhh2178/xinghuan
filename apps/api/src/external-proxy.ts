@@ -424,6 +424,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     aspectRatio: string,
     size: string,
     images: string[],
+    advancedConfig: Record<string, unknown> = {},
   ) {
     const client = createGrsaiImageClient({
       apiKey,
@@ -437,6 +438,8 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(size && size !== "auto" ? { size } : {}),
       ...(images.length > 0 ? { images } : {}),
+      submitPath: deps.safeText(advancedConfig.submitPath),
+      pollPath: deps.safeText(advancedConfig.pollPath || advancedConfig.pollPathTemplate),
     });
     return {
       urls: result.imageUrls,
@@ -488,7 +491,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         })
       : [];
     const extracted = protocol === "grsai_draw"
-      ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, grsaiImages)
+      ? await generateGrsaiImage(provider.baseUrl, apiKey, model.modelId, prompt, aspectRatio, size, grsaiImages, advancedConfig)
       : await generateOpenAiLikeImage({ provider, apiKey, protocol, payload, advancedConfig });
     if (extracted.urls.length === 0 && extracted.base64.length === 0) throw new Error("上游未返回可用图像");
 

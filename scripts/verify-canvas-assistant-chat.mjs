@@ -8,6 +8,7 @@ const apiServerPath = path.join(root, "apps/api/src/server.ts");
 const webApiPath = path.join(root, "apps/web/src/services/api.ts");
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const requestOrigin = new URL(baseUrl).origin;
 const adminEmail =
   process.env.XINGHUAN_VERIFY_EMAIL ??
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ??
@@ -117,7 +118,7 @@ async function runRuntimeSmoke() {
 
   const login = await fetchJson("/api/auth/login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: adminEmail, password: adminPassword }),
   }, true);
   results.push([
@@ -128,7 +129,7 @@ async function runRuntimeSmoke() {
   const conversationId = `verify-canvas-${Date.now()}`;
   const assistant = await fetchJson("/api/assistant/chat", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({
       conversationId,
       scope: "canvas",
@@ -193,10 +194,12 @@ async function fetchJson(pathname, options, refreshCookie = false) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };

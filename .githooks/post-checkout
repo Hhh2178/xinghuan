@@ -1,0 +1,2 @@
+#!/bin/sh
+node scripts/codegraph-hook.mjs post-checkout

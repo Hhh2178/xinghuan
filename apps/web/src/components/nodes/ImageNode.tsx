@@ -128,6 +128,18 @@ const clampGenerationCount = (value: unknown, fallback = 1) => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(4, Math.round(parsed)));
 };
+const imageGenerationErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (error && typeof error === 'object') {
+    const row = error as Record<string, unknown>;
+    for (const key of ['message', 'error', 'failureReason', 'reason', 'detail']) {
+      const value = row[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+  }
+  const text = String(error || '').trim();
+  return text || '未知错误';
+};
 
 const ImageNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
@@ -1015,7 +1027,10 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       const settled = await runConcurrentImageGenerations();
       const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
 
-      if (aggregatedImageUrls.length === 0) throw new Error('生成完成但未返回图片');
+      if (aggregatedImageUrls.length === 0) {
+        const reasons = rejected.map((item) => imageGenerationErrorMessage(item.reason)).filter(Boolean);
+        throw new Error(reasons.length > 0 ? `图片生成失败：${reasons.join('；')}` : '图片生成失败：没有返回可用图片。');
+      }
       markRuntimeFinished(runtimeStartedAt, {
         status: 'success',
         progress: '100%',
@@ -1028,7 +1043,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         taskIds,
       });
       if (rejected.length > 0) {
-        logBus.warn(`部分生成失败: ${rejected.map((item) => item.reason?.message || '未知错误').join('；')}`, src);
+        logBus.warn(`部分生成失败: ${rejected.map((item) => imageGenerationErrorMessage(item.reason)).join('；')}`, src);
       }
       logBus.success(`生成完成，共 ${aggregatedImageUrls.length} 张图片`, src);
       taskCompletionSound.notifyComplete(id, 'image');

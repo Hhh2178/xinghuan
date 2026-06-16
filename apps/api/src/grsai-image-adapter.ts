@@ -12,6 +12,9 @@ export interface GrsaiImageGenerateInput {
   aspectRatio?: string;
   size?: string;
   images?: string[];
+  submitPath?: string;
+  pollPath?: string;
+  onHeartbeat?: (patch: Record<string, unknown>) => void | Promise<void>;
 }
 
 export interface GrsaiImageGenerateResult {
@@ -43,7 +46,9 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
 
   return {
     async generate(input: GrsaiImageGenerateInput): Promise<GrsaiImageGenerateResult> {
-      const submit = await requestJson(fetcher, `${baseUrl}/v1/draw/completions`, options.apiKey, {
+      const submitPath = resolveGrsaiSubmitPath(input.submitPath, input.modelId);
+      const pollPath = resolveGrsaiPollPath(input.pollPath);
+      const submit = await requestJson(fetcher, `${baseUrl}${submitPath}`, options.apiKey, {
         model: input.modelId,
         prompt: input.prompt,
         webHook: "-1",
@@ -62,13 +67,15 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
       }
 
       const submitState = normalizeState(submit.payload);
+      await input.onHeartbeat?.({
+        upstreamTaskId: submitState.taskId || "",
+        taskId: submitState.taskId || "",
+        upstreamStatus: submitState.rawStatus || "submitted",
+        runtimeStage: submitState.kind === "pending" ? "polling" : "running",
+      });
       if (submitState.kind === "failed") throw new Error(submitState.errorMessage);
       if (submitState.kind === "success") {
-        return {
-          imageUrls: submitUrls,
-          taskId: submitState.taskId,
-          raw: submit.payload,
-        };
+        throw new Error(buildMissingImageResultError(submit.payload, submitState));
       }
       if (!submitState.taskId) throw new Error("GRSAI 未返回任务 ID");
 
@@ -77,7 +84,7 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
         if (Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
         if (pollIntervalMs > 0) await sleep(pollIntervalMs);
 
-        const polled = await pollJson(fetcher, baseUrl, options.apiKey, submitState.taskId);
+        const polled = await pollJson(fetcher, baseUrl, options.apiKey, submitState.taskId, pollPath);
         const imageUrls = extractImageUrls(polled.payload);
         if (imageUrls.length > 0) {
           return {
@@ -87,13 +94,15 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
           };
         }
         const state = normalizeState(polled.payload);
+        await input.onHeartbeat?.({
+          upstreamTaskId: state.taskId || submitState.taskId,
+          taskId: state.taskId || submitState.taskId,
+          upstreamStatus: state.rawStatus || "pending",
+          runtimeStage: "polling",
+        });
         if (state.kind === "failed") throw new Error(state.errorMessage);
         if (state.kind === "success") {
-          return {
-            imageUrls,
-            taskId: state.taskId || submitState.taskId,
-            raw: polled.payload,
-          };
+          throw new Error(buildMissingImageResultError(polled.payload, state));
         }
       }
     },
@@ -111,14 +120,14 @@ async function requestJson(fetcher: typeof fetch, url: string, apiKey: string, b
   return { response, payload };
 }
 
-async function pollJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string) {
-  const postResponse = await fetcher(`${baseUrl}/v1/draw/result`, {
+async function pollJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string, pollPath: string) {
+  const postResponse = await fetcher(`${baseUrl}${pollPath}`, {
     method: "POST",
     headers: jsonHeaders(apiKey),
     body: JSON.stringify({ taskId, id: taskId }),
   });
   if (postResponse.status === 405) {
-    const fallback = await fetcher(`${baseUrl}/v1/draw/result?taskId=${encodeURIComponent(taskId)}`, {
+    const fallback = await fetcher(`${baseUrl}${pollPath}?taskId=${encodeURIComponent(taskId)}`, {
       method: "GET",
       headers: jsonHeaders(apiKey),
     });
@@ -141,17 +150,26 @@ function normalizeState(payload: Record<string, unknown>) {
       ? envelope.code
       : undefined;
   const taskId = readString(readTaskId(payload));
-  const status = readString(
+  const rawStatus = readString(
     envelope.status || envelope.state || envelope.progressState || payload.status || payload.state || payload.progressState,
-  ).toLowerCase();
+  );
+  const status = rawStatus.toLowerCase();
   const errorMessage = extractErrorMessage(payload);
   const successSignal = ["success", "succeeded", "completed", "done", "ok"].includes(errorMessage.toLowerCase());
 
-  if (code !== undefined && code !== 0) return { kind: "failed" as const, errorMessage: errorMessage || `Provider request failed with code ${code}` };
-  if (["failed", "error", "cancelled", "canceled"].includes(status)) return { kind: "failed" as const, errorMessage: errorMessage || "Provider request failed" };
-  if (["succeeded", "success", "completed", "done"].includes(status)) return { kind: "success" as const, taskId };
-  if (errorMessage && !successSignal && !taskId) return { kind: "failed" as const, errorMessage };
-  return { kind: "pending" as const, taskId };
+  if (code !== undefined && code !== 0) {
+    return { kind: "failed" as const, errorMessage: errorMessage || `Provider request failed with code ${code}`, taskId, rawStatus };
+  }
+  if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+    return { kind: "failed" as const, errorMessage: errorMessage || "Provider request failed", taskId, rawStatus };
+  }
+  if (["succeeded", "success", "completed", "done"].includes(status)) {
+    return { kind: "success" as const, taskId, rawStatus };
+  }
+  if (errorMessage && !successSignal && !taskId) {
+    return { kind: "failed" as const, errorMessage, taskId, rawStatus };
+  }
+  return { kind: "pending" as const, taskId, rawStatus };
 }
 
 function readTaskId(payload: Record<string, unknown>) {
@@ -185,12 +203,49 @@ function extractErrorMessage(payload: Record<string, unknown>) {
     ? payload.data as Record<string, unknown>
     : payload;
   return readString(envelope.error)
+    || readString(envelope.reason)
+    || readString(envelope.detail)
+    || readString(envelope.description)
     || readString(envelope.failure_reason)
     || readString(envelope.message)
     || readString(payload.error)
+    || readString(payload.reason)
+    || readString(payload.detail)
+    || readString(payload.description)
     || readString(payload.failure_reason)
     || readString(payload.message)
     || readString(payload.msg);
+}
+
+function resolveGrsaiSubmitPath(path: string | undefined, modelId: string) {
+  const override = normalizeApiPath(path);
+  if (override) return override;
+  return /nano-banana/i.test(modelId) ? "/v1/draw/nano-banana" : "/v1/draw/completions";
+}
+
+function resolveGrsaiPollPath(path: string | undefined) {
+  return normalizeApiPath(path) || "/v1/draw/result";
+}
+
+function normalizeApiPath(path: string | undefined) {
+  const value = readString(path);
+  if (!value) return "";
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function buildMissingImageResultError(
+  payload: Record<string, unknown>,
+  state: { taskId?: string; rawStatus?: string },
+) {
+  const status = readString(state.rawStatus) || "success";
+  const taskId = readString(state.taskId);
+  const providerMessage = extractErrorMessage(payload);
+  const detail =
+    providerMessage && !["ok", "success", "succeeded", "completed", "done"].includes(providerMessage.toLowerCase())
+      ? `: ${providerMessage}`
+      : "";
+  const taskSuffix = taskId ? ` (taskId=${taskId})` : "";
+  return `GRSAI 任务状态 ${status} 但未返回图片${taskSuffix}${detail}`;
 }
 
 async function readJson(response: Response) {

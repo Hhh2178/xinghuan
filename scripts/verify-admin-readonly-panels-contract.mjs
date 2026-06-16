@@ -12,11 +12,40 @@ const requiredSystemRows = [
   "版本",
   "存储驱动",
   "数据库状态",
+  "当前数据库",
+  "目标数据库",
+  "数据库目标校验",
   "数据库迁移",
   "数据库错误",
   "Redis 状态",
   "Redis 队列",
   "Redis 深度",
+  "任务总数",
+  "排队任务",
+  "运行任务",
+  "1h 失败任务",
+  "24h 失败任务",
+  "7d 失败任务",
+  "30d 失败任务",
+  "任务健康",
+  "24h 失败 vs 7d 日均",
+  "24h 失败 vs 30d 日均",
+  "7d 日均 vs 30d 日均",
+  "最近审计样本",
+  "请求ID覆盖率",
+  "请求ID健康",
+  "近24h 请求ID覆盖率",
+  "近7d 请求ID覆盖率",
+  "24h 覆盖率 vs 最近样本",
+  "24h 冲突总数",
+  "7d 冲突总数",
+  "30d 冲突总数",
+  "画布 revision 冲突",
+  "资源 revision 冲突",
+  "后台设置冲突",
+  "24h 冲突 vs 30d 日均",
+  "冲突健康",
+  "活动告警",
   "Redis 错误",
   "数据目录",
   "认证数据",
@@ -46,8 +75,15 @@ const checks = [
     name: "audit panel preserves title and columns",
     pass:
       panelSource.includes('title="审计日志"') &&
-      panelSource.includes('columns={["时间", "操作者", "动作", "对象", "说明"]}') &&
+      panelSource.includes('columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}') &&
       panelSource.includes("`${item.targetType}:${item.targetId}`"),
+  },
+  {
+    name: "audit panel shows request and source context",
+    pass:
+      panelSource.includes("item.requestId") &&
+      panelSource.includes("item.ip") &&
+      panelSource.includes("item.userAgent"),
   },
   {
     name: "system panel preserves title, columns and row labels",

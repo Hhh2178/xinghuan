@@ -1,4 +1,5 @@
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const requestOrigin = new URL(baseUrl).origin;
 const adminEmail =
   process.env.XINGHUAN_VERIFY_EMAIL ??
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ??
@@ -31,7 +32,7 @@ async function main() {
 
   const memberAdminLogin = await fetchText("/api/auth/admin-login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: memberEmail, password: memberPassword }),
   });
   results.push([
@@ -41,7 +42,7 @@ async function main() {
 
   const adminLogin = await fetchJson("/api/auth/admin-login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: adminEmail, password: adminPassword }),
   });
   results.push([
@@ -107,10 +108,12 @@ async function fetchJson(pathname, options) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };

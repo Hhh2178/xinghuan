@@ -84,6 +84,10 @@ interface SubmitProviderGenerationTaskInput {
   rawBody: unknown;
   user: CurrentUserLike;
   publicOrigin: string;
+  requestContext?: {
+    requestId?: string;
+    userId?: string;
+  };
 }
 
 interface ReadProviderGenerationTaskStatusInput {
@@ -97,13 +101,13 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
 
   async function submitProviderGenerationTask(input: SubmitProviderGenerationTaskInput) {
     if (input.capability === "image") {
-      return submitImageTask(input.rawBody, input.user, input.publicOrigin);
+      return submitImageTask(input.rawBody, input.user, input.publicOrigin, input.requestContext);
     }
     if (input.capability === "video") {
-      return submitVideoTask(input.rawBody, input.user, input.publicOrigin);
+      return submitVideoTask(input.rawBody, input.user, input.publicOrigin, input.requestContext);
     }
     if (input.capability === "audio") {
-      return submitAudioTask(input.rawBody, input.user);
+      return submitAudioTask(input.rawBody, input.user, input.requestContext);
     }
     throw new Error(`当前任务 service 暂不支持能力: ${input.capability}`);
   }
@@ -121,18 +125,26 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const result = deps.plainObject(task.result);
     const error = deps.safeText(result.error || result.failureReason || result.failReason)
       || (task.status === "failed" ? lastTaskFailureLog(task.logs) : "");
+    const cancellationMessage = deps.safeText(result.cancellationMessage);
     const response = {
       taskId: task.id,
       status: task.status,
       progress: progressText(task.status),
       error,
+      message: task.status === "cancelled" ? cancellationMessage : "",
       logs: task.logs.slice(-8),
+      cancelScope: deps.safeText(result.cancelScope),
+      upstreamSupported: Boolean(result.upstreamSupported),
+      upstreamAttempted: Boolean(result.upstreamAttempted),
       raw: {
         providerId: task.providerId,
         modelRecordId: task.modelId,
         workerId: deps.safeText(result.workerId),
         adapter: deps.safeText(result.adapter),
         capability: effectiveCapability,
+        heartbeatAt: deps.safeText(result.heartbeatAt),
+        upstreamTaskId: deps.safeText(result.upstreamTaskId || result.taskId),
+        upstreamCancelledAt: deps.safeText(result.upstreamCancelledAt),
       },
     };
 
@@ -183,7 +195,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     };
   }
 
-  async function submitImageTask(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
+  async function submitImageTask(rawBody: unknown, user: CurrentUserLike, publicOrigin: string, requestContext?: SubmitProviderGenerationTaskInput["requestContext"]) {
     if (!supportedTaskCapabilities.has("image")) {
       throw new Error("当前版本未启用图像后台任务执行链路");
     }
@@ -241,10 +253,11 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       protocol,
       ownerId: user.id,
       payload,
+      requestContext,
     });
   }
 
-  async function submitVideoTask(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
+  async function submitVideoTask(rawBody: unknown, user: CurrentUserLike, publicOrigin: string, requestContext?: SubmitProviderGenerationTaskInput["requestContext"]) {
     if (!supportedTaskCapabilities.has("video")) {
       throw new Error("当前版本未启用视频后台任务执行链路");
     }
@@ -316,10 +329,11 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       protocol,
       ownerId: user.id,
       payload,
+      requestContext,
     });
   }
 
-  async function submitAudioTask(rawBody: unknown, user: CurrentUserLike) {
+  async function submitAudioTask(rawBody: unknown, user: CurrentUserLike, requestContext?: SubmitProviderGenerationTaskInput["requestContext"]) {
     if (!supportedTaskCapabilities.has("audio")) {
       throw new Error("当前版本未启用音频后台任务执行链路");
     }
@@ -382,6 +396,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       protocol,
       ownerId: user.id,
       payload,
+      requestContext,
     });
   }
 
@@ -392,9 +407,12 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     protocol: string;
     ownerId: string;
     payload: Record<string, unknown>;
+    requestContext?: SubmitProviderGenerationTaskInput["requestContext"];
   }) {
     const taskId = deps.taskIdFactory ? deps.taskIdFactory() : `task-${timestamp()}-${Math.random().toString(36).slice(2, 8)}`;
     const now = timestamp();
+    const requestId = deps.safeText(input.requestContext?.requestId);
+    const userId = deps.safeText(input.requestContext?.userId || input.ownerId);
     const task: AdminTaskRecordLike = {
       id: taskId,
       title: `${taskCapabilityLabel(input.capability)} · ${input.provider.name} · ${input.model.displayName || input.model.modelId}`,
@@ -402,8 +420,15 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       ownerId: input.ownerId,
       providerId: input.provider.id,
       modelId: input.model.id,
-      payload: input.payload,
-      result: {},
+      payload: {
+        ...input.payload,
+        requestId,
+        userId,
+      },
+      result: {
+        requestId,
+        userId,
+      },
       logs: [`画布提交后台${taskCapabilityLabel(input.capability)}任务`],
       createdAt: now,
       updatedAt: now,
@@ -418,7 +443,10 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       await deps.writeTaskRecord({
         ...task,
         status: "failed",
-        result: { error: queueLog },
+        result: {
+          ...task.result,
+          error: queueLog,
+        },
         logs: [...task.logs, queueLog],
         updatedAt: timestamp(),
       });

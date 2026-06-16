@@ -1,6 +1,10 @@
 import { createServer } from "node:http";
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const sameOriginHeaders = {
+  origin: baseUrl,
+  referer: `${baseUrl}/`,
+};
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 const videoBytes = Buffer.from("00000018667479706d703432000000006d703432", "hex");
@@ -336,7 +340,14 @@ async function fetchText(pathname, options) {
   return response.text();
 }
 function withCookie(options = {}) {
-  return { ...options, headers: { ...(cookie ? { cookie } : {}), ...(options.headers || {}) } };
+  return {
+    ...options,
+    headers: {
+      ...sameOriginHeaders,
+      ...(cookie ? { cookie } : {}),
+      ...(options.headers || {}),
+    },
+  };
 }
 function captureCookie(response) {
   const raw = response.headers.get("set-cookie");

@@ -21,6 +21,7 @@ const serverEnv = {
 const verifyEnv = {
   ...process.env,
   XINGHUAN_VERIFY_BASE_URL: baseUrl,
+  XINGHUAN_DATA_DIR: dataDir,
 };
 
 const commands = [

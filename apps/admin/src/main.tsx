@@ -27,6 +27,7 @@ import type {
   Summary as SummaryShape,
   SystemInfo as SystemInfoShape,
   TabId,
+  TaskListPage as TaskListPageShape,
   TaskRecord as TaskRecordShape,
 } from "./admin-types";
 import { UsersPanel } from "./admin-users-panel";
@@ -129,6 +130,8 @@ export interface TaskRecord {
   updatedAt: number;
 }
 
+export interface TaskListPage extends TaskListPageShape {}
+
 export interface AssistantSettings extends AssistantSettingsShape {}
 
 type AuditRecord = AuditRecordShape;
@@ -173,6 +176,32 @@ function defaultAssistantSettings(): AssistantSettings {
   };
 }
 
+function defaultTaskListPage(): TaskListPage {
+  return {
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 20,
+    hasMore: false,
+    filters: {
+      status: "",
+      providerId: "",
+      capability: "",
+    },
+  };
+}
+
+function taskPagePath(page: number, pageSize: number, filters: TaskListPage["filters"]) {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (filters.status) params.set("status", filters.status);
+  if (filters.providerId) params.set("providerId", filters.providerId);
+  if (filters.capability) params.set("capability", filters.capability);
+  return `/api/admin/tasks?${params.toString()}`;
+}
+
 function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
   const [currentUser, setCurrentUser] = useState<AuthUserShape | null>(null);
@@ -190,7 +219,7 @@ function AdminApp() {
   const [sessions, setSessions] = useState<AdminSessionRecordShape[]>([]);
   const [providers, setProviders] = useState<ProviderRecordShape[]>([]);
   const [models, setModels] = useState<ModelRecordShape[]>([]);
-  const [tasks, setTasks] = useState<TaskRecordShape[]>([]);
+  const [taskPage, setTaskPage] = useState<TaskListPage>(defaultTaskListPage());
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>([]);
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -222,7 +251,6 @@ function AdminApp() {
         nextSessions,
         nextProviders,
         nextModels,
-        nextTasks,
         nextAuditLogs,
         nextSystem,
       ] = await Promise.all([
@@ -232,7 +260,6 @@ function AdminApp() {
         api<AdminSessionRecordShape[]>("/api/admin/sessions"),
         api<ProviderRecordShape[]>("/api/admin/providers"),
         api<ModelRecordShape[]>("/api/admin/models"),
-        api<TaskRecordShape[]>("/api/admin/tasks"),
         api<AuditRecord[]>("/api/admin/audit"),
         api<SystemInfo>("/api/admin/system"),
       ]);
@@ -242,7 +269,6 @@ function AdminApp() {
       setSessions(nextSessions);
       setProviders(nextProviders);
       setModels(nextModels);
-      setTasks(nextTasks);
       setAuditLogs(nextAuditLogs);
       setSystem(nextSystem);
     } catch (nextError) {
@@ -252,8 +278,16 @@ function AdminApp() {
     }
   }
 
+  async function loadTaskPage(page = taskPage.page, pageSize = taskPage.pageSize, filters = taskPage.filters) {
+    if (!isAdmin) return;
+    const nextTaskPage = await api<TaskListPage>(taskPagePath(page, pageSize, filters));
+    setTaskPage(nextTaskPage);
+  }
+
   useEffect(() => {
+    if (!isAdmin) return;
     void loadAdminData();
+    void loadTaskPage();
   }, [isAdmin]);
 
   useEffect(() => {
@@ -307,7 +341,7 @@ function AdminApp() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await loadAdminData();
+      await Promise.all([loadAdminData(), loadTaskPage()]);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -398,7 +432,7 @@ function AdminApp() {
               summary={summary}
               providers={providers}
               models={models}
-              tasks={tasks}
+              tasks={taskPage.items}
             />
           ) : null}
           {activeTab === "users" ? (
@@ -440,7 +474,13 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "tasks" ? (
-            <TasksPanel tasks={tasks} mutate={mutate} />
+            <TasksPanel
+              taskPage={taskPage}
+              mutate={mutate}
+              onQueryChange={(next) => {
+                void loadTaskPage(next.page, next.pageSize, next.filters);
+              }}
+            />
           ) : null}
           {activeTab === "audit" ? (
             <AuditPanel auditLogs={auditLogs} />
@@ -482,7 +522,7 @@ function AdminApp() {
           activeTab={activeTab}
           providers={providers}
           models={models}
-          tasks={tasks}
+          tasks={taskPage.items}
           auditLogs={auditLogs}
           users={users}
           settings={assistantSettings.backend}

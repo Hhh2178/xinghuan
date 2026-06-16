@@ -1,14 +1,23 @@
 import { readFile } from "node:fs/promises";
 
 const api = await readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf-8");
-const admin = await readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf-8");
+const adminSettings = await readFile(new URL("../apps/admin/src/admin-api-settings-panel.tsx", import.meta.url), "utf-8");
+const adminRunningHub = await readFile(new URL("../apps/admin/src/admin-runninghub-panel.tsx", import.meta.url), "utf-8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf-8");
 const catalogService = await readFile(new URL("../apps/web/src/services/runninghubCatalog.ts", import.meta.url), "utf-8");
 
 const checks = [
   ["API exposes runninghub catalog endpoint", /\/api\/runninghub\/catalog/.test(api) && /publicRunningHubCatalog/.test(api)],
   ["API normalizes workflow json and field definitions", /normalizeRunningHubFieldDefinitions/.test(api) && /workflowJson: normalizeOptionalJsonText/.test(api)],
-  ["Admin workflow editor persists workflowJson and fields", /RhWorkflowEntryEditor/.test(admin) && /字段映射 JSON/.test(admin) && /工作流 JSON/.test(admin)],
+  [
+    "Admin workflow editor persists workflowJson and fields",
+    /RunningHubPanel/.test(adminSettings) &&
+      /admin-runninghub-panel/.test(adminSettings) &&
+      /applyWorkflowJson/.test(adminRunningHub) &&
+      /applyFields/.test(adminRunningHub) &&
+      /字段映射 JSON/.test(adminRunningHub) &&
+      /工作流 JSON/.test(adminRunningHub),
+  ],
   ["Web has runninghub catalog service", /fetchRunningHubCatalog/.test(catalogService) && /buildRunningHubAppInfoFromCatalog/.test(catalogService)],
   ["RunningHub node consumes workflow presets", /rhWorkflowPresetId/.test(node) && /fetchRunningHubCatalog/.test(node) && /工作流预设/.test(node)],
 ];

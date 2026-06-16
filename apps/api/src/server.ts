@@ -84,7 +84,9 @@ import {
   createRetriedTask,
   taskCancellationPatch,
 } from "./task-lifecycle.js";
+import { createTaskCancellationService } from "./task-cancellation-service.js";
 import { createExternalProxyHandlers } from "./external-proxy.js";
+import { createMaterialAccessService } from "./material-access-service.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
@@ -181,6 +183,18 @@ const {
   plainObject,
 });
 
+const {
+  cancelTaskWithStrategy,
+} = createTaskCancellationService({
+  readTaskRecord,
+  writeTaskRecord,
+  readAdminDb,
+  providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
+  normalizeProviderProtocol,
+  safeText,
+  plainObject,
+});
+
 interface CanvasListItem {
   id: string;
   name: string;
@@ -252,6 +266,12 @@ interface GenerationLibraryItem {
   fileUrl: string;
   mime?: string;
   size?: number;
+  filename?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
+  openUrl?: string;
+  canDownload?: boolean;
+  isExpired?: boolean;
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
@@ -418,6 +438,27 @@ interface AdminTaskRecord {
   updatedAt: number;
 }
 
+interface AdminTaskListQuery {
+  page: number;
+  pageSize: number;
+  status: string;
+  providerId: string;
+  capability: string;
+}
+
+interface AdminTaskListPage {
+  items: AdminTaskRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  filters: {
+    status: string;
+    providerId: string;
+    capability: string;
+  };
+}
+
 interface AdminDb {
   providers: AdminProviderRecord[];
   models: AdminModelRecord[];
@@ -443,7 +484,21 @@ interface AdminAuditRecord {
   targetType: string;
   targetId: string;
   summary: string;
+  requestId?: string;
+  ip?: string;
+  userAgent?: string;
   createdAt: number;
+}
+
+interface RequestContext {
+  requestId: string;
+  method: string;
+  path: string;
+  ip: string;
+  userAgent: string;
+  startedAt: number;
+  userId?: string;
+  userEmail?: string;
 }
 
 interface AssistantFrontendSettingsRecord {
@@ -710,16 +765,26 @@ const emptyCanvasData = (): CanvasData => ({
   nextNodeSerialId: 1,
 });
 
+const materialAccessService = createMaterialAccessService({
+  safeText,
+  inferMime,
+  requestPublicOrigin,
+  userDataDirs: (user) => userDataDirsForId(user.id),
+});
+
 await ensureRuntimeDatabaseTarget("xinghuan-api");
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
+  const requestContext = createRequestContext(request, url);
+  response.setHeader("x-request-id", requestContext.requestId);
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
       "access-control-allow-headers": "content-type",
+      "x-request-id": requestContext.requestId,
     });
     response.end();
     return;
@@ -760,6 +825,18 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/api/auth/admin-me" && request.method === "GET") {
       const user = await getCurrentUser(request);
       const adminUser = user?.role === "admin" ? user : null;
+      if (adminUser) {
+        requestContext.userId = adminUser.id;
+        requestContext.userEmail = adminUser.email;
+        await appendAudit(
+          { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role },
+          "auth.admin_me",
+          "auth",
+          adminUser.id,
+          `读取管理员登录态 ${adminUser.email}`,
+          requestContext,
+        );
+      }
       sendT8(response, { authenticated: Boolean(adminUser), user: adminUser });
       return;
     }
@@ -788,6 +865,16 @@ const server = createServer(async (request, response) => {
         sendJson(response, { ok: false, success: false, error: "INVALID_CREDENTIALS" }, 401);
         return;
       }
+      requestContext.userId = login.user.id;
+      requestContext.userEmail = login.user.email;
+      await appendAudit(
+        { id: login.user.id, email: login.user.email, name: login.user.name, role: login.user.role },
+        "auth.admin_login",
+        "auth",
+        login.user.id,
+        `管理员登录 ${login.user.email}`,
+        requestContext,
+      );
       sendT8(response, { authenticated: true, user: toPublicUser(login.user) }, 200, {
         "set-cookie": buildSessionCookie(request, login.session.id),
       });
@@ -795,7 +882,20 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      const actor = await getCurrentUser(request);
       await logoutUser(request);
+      if (actor?.role === "admin") {
+        requestContext.userId = actor.id;
+        requestContext.userEmail = actor.email;
+        await appendAudit(
+          { id: actor.id, email: actor.email, name: actor.name, role: actor.role },
+          "auth.admin_logout",
+          "auth",
+          actor.id,
+          `管理员退出 ${actor.email}`,
+          requestContext,
+        );
+      }
       sendT8(response, { authenticated: false }, 200, {
         "set-cookie": expireSessionCookie(request),
       });
@@ -803,6 +903,10 @@ const server = createServer(async (request, response) => {
     }
 
     const currentUser = await getCurrentUser(request);
+    if (currentUser) {
+      requestContext.userId = currentUser.id;
+      requestContext.userEmail = currentUser.email;
+    }
     if (request.method === "GET" && url.pathname.startsWith("/api/provider-files/")) {
       await sendProviderFile(response, url);
       return;
@@ -818,7 +922,7 @@ const server = createServer(async (request, response) => {
         sendJson(response, { ok: false, success: false, error: "ADMIN_REQUIRED" }, 403);
         return;
       }
-      if (await handleAdminRequest(request, response, url, currentUser)) return;
+      if (await handleAdminRequest(request, response, url, currentUser, requestContext)) return;
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/files/input/")) {
@@ -847,6 +951,46 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname.startsWith("/files/output/")) {
       await sendStaticFile(response, userDataDirs(currentUser!).outputDir, url.pathname.slice("/files/output/".length));
+      return;
+    }
+
+    const generationLibraryContentMatch = url.pathname.match(/^\/api\/materials\/generation-library\/([^/]+)\/content$/);
+    if (generationLibraryContentMatch && request.method === "GET") {
+      if (!currentUser) throw new HttpError(401, "AUTH_REQUIRED");
+      const db = await readGenerationLibraryDb(currentUser, { cleanup: true });
+      const itemId = decodeURIComponent(generationLibraryContentMatch[1]);
+      const item = db.items.find((entry) => entry.id === itemId);
+      if (!item) throw new HttpError(404, "MATERIAL_NOT_FOUND");
+
+      let resolved;
+      try {
+        resolved = materialAccessService.resolveGenerationLibraryMaterial({ item, user: currentUser });
+      } catch (error) {
+        throw new HttpError(403, "MATERIAL_ACCESS_DENIED", {
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+      if (resolved.isExpired) throw new HttpError(410, "MATERIAL_EXPIRED");
+
+      let body: Buffer;
+      try {
+        body = await readFile(resolved.absolutePath);
+      } catch {
+        throw new HttpError(404, "MATERIAL_NOT_FOUND");
+      }
+
+      const disposition = safeText(url.searchParams.get("disposition"), "inline") === "attachment" ? "attachment" : "inline";
+      response.statusCode = 200;
+      response.setHeader("content-type", resolved.mime || "application/octet-stream");
+      response.setHeader("content-length", String(body.length));
+      response.setHeader("cache-control", "private, max-age=300");
+      if (disposition === "attachment") {
+        response.setHeader(
+          "Content-Disposition",
+          `attachment; filename*=UTF-8''${encodeURIComponent(resolved.filename)}`,
+        );
+      }
+      response.end(body);
       return;
     }
 
@@ -936,12 +1080,24 @@ const server = createServer(async (request, response) => {
       const taskId = safeText(body.taskId);
       if (!taskId) throw new Error("缺少 taskId");
       const kind = safeText(body.kind, "generation");
+      const cancelled = await cancelTaskWithStrategy(taskId, currentUser!);
+      if (!cancelled) throw new Error("任务不存在");
+      logApiEvent("task.cancelled", requestContext, {
+        taskId,
+        userId: currentUser!.id,
+        providerId: cancelled.task?.providerId,
+        modelId: cancelled.task?.modelId,
+        status: cancelled.cancelled ? "cancelled" : "not_cancelled",
+      });
       sendT8(response, {
-        cancelled: true,
-        upstream: false,
+        cancelled: cancelled.cancelled,
+        upstream: cancelled.upstream,
+        cancelScope: cancelled.cancelScope,
+        upstreamSupported: cancelled.upstreamSupported,
+        upstreamAttempted: cancelled.upstreamAttempted,
         taskId,
         kind,
-        message: "已停止本地轮询；当前上游未配置可确认的取消接口。",
+        message: cancelled.message,
       });
       return;
     }
@@ -957,6 +1113,7 @@ const server = createServer(async (request, response) => {
         rawBody: await readJsonBody(request),
         user: currentUser!,
         publicOrigin: providerFilePublicOrigin(request),
+        requestContext,
       }));
       return;
     }
@@ -977,6 +1134,7 @@ const server = createServer(async (request, response) => {
         rawBody: await readJsonBody(request),
         user: currentUser!,
         publicOrigin: providerFilePublicOrigin(request),
+        requestContext,
       }));
       return;
     }
@@ -1002,6 +1160,7 @@ const server = createServer(async (request, response) => {
         rawBody: await readJsonBody(request),
         user: currentUser!,
         publicOrigin: providerFilePublicOrigin(request),
+        requestContext,
       }));
       return;
     }
@@ -1231,11 +1390,20 @@ const server = createServer(async (request, response) => {
         const q = safeText(url.searchParams.get("q"), "").toLowerCase();
         sendT8(
           response,
-          db.items.filter((item) => {
-            if (kind && item.kind !== kind) return false;
-            if (q && !`${item.title} ${item.url}`.toLowerCase().includes(q)) return false;
-            return true;
-          }),
+          db.items
+            .filter((item) => {
+              if (kind && item.kind !== kind) return false;
+              if (q && !`${item.title} ${item.mime || ""} ${item.url}`.toLowerCase().includes(q)) return false;
+              return true;
+            })
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .map((item) => ({
+              ...item,
+              ...materialAccessService.buildGenerationLibraryAccessDescriptor({
+                request,
+                item,
+              }),
+            })),
         );
         return;
       }
@@ -1378,6 +1546,15 @@ const server = createServer(async (request, response) => {
     sendJson(response, { ok: false, success: false, error: "NOT_FOUND" }, 404);
   } catch (error) {
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    if (error instanceof HttpError) {
+      await appendObservabilityConflictAudit(error, requestContext).catch((auditError) => {
+        logApiEvent("observability.audit_failed", requestContext, {
+          statusCode,
+          error: error.message,
+          auditError: auditError instanceof Error ? auditError.message : String(auditError),
+        });
+      });
+    }
     sendJson(
       response,
       {
@@ -1400,9 +1577,11 @@ async function handleAdminRequest(
   response: import("node:http").ServerResponse,
   url: URL,
   adminUser: CurrentUser,
+  requestContext: RequestContext,
 ) {
   if (url.pathname === "/api/admin/summary" && request.method === "GET") {
     const [authDb, adminDb, storage] = await Promise.all([readAuthDb(), readAdminDb(), readStorageStats()]);
+    await appendAudit(adminUser, "summary.read", "summary", "admin-summary", "查看后台总览", requestContext);
     sendT8(response, {
       users: authDb.users.length,
       enabledUsers: authDb.users.filter((user) => !user.disabled).length,
@@ -1422,6 +1601,7 @@ async function handleAdminRequest(
   if (url.pathname === "/api/admin/users") {
     const authDb = await readAuthDb();
     if (request.method === "GET") {
+      await appendAudit(adminUser, "users.read", "user", "users-list", "查看用户列表", requestContext);
       sendT8(response, authDb.users.map(toAdminUser));
       return true;
     }
@@ -1447,7 +1627,7 @@ async function handleAdminRequest(
       } else {
         await writeAuthDb({ ...authDb, users: [user, ...authDb.users] });
       }
-      await appendAudit(adminUser, "user.create", "user", user.id, `创建用户 ${user.email}`);
+      await appendAudit(adminUser, "user.create", "user", user.id, `创建用户 ${user.email}`, requestContext);
       sendT8(response, toAdminUser(user));
       return true;
     }
@@ -1456,6 +1636,7 @@ async function handleAdminRequest(
   if (url.pathname === "/api/admin/sessions" && request.method === "GET") {
     const currentSessionId = readCookie(request, SESSION_COOKIE_NAME);
     const sessions = await readAdminSessions(currentSessionId);
+    await appendAudit(adminUser, "sessions.read", "session", "sessions-list", "查看会话列表", requestContext);
     sendT8(response, sessions);
     return true;
   }
@@ -1476,7 +1657,7 @@ async function handleAdminRequest(
         sessions: authDb.sessions.map((session) => (session.id === sessionId ? { ...session, revokedAt } : session)),
       });
     }
-    await appendAudit(adminUser, "session.revoke", "session", sessionId, `撤销会话 ${target.userEmail}`);
+    await appendAudit(adminUser, "session.revoke", "session", sessionId, `撤销会话 ${target.userEmail}`, requestContext);
     sendT8(response, { ok: true, sessionId, revokedAt });
     return true;
   }
@@ -1521,7 +1702,7 @@ async function handleAdminRequest(
         sessions: authDb.sessions.map((session) => (session.userId === id ? { ...session, revokedAt } : session)),
       });
     }
-    await appendAudit(adminUser, "user.update", "user", id, `更新用户 ${updatedUser.email}`);
+    await appendAudit(adminUser, "user.update", "user", id, `更新用户 ${updatedUser.email}`, requestContext);
     sendT8(response, toAdminUser(updatedUser));
     return true;
   }
@@ -1529,6 +1710,7 @@ async function handleAdminRequest(
   if (url.pathname === "/api/admin/providers") {
     const db = await readAdminDb();
     if (request.method === "GET") {
+      await appendAudit(adminUser, "providers.read", "provider", "providers-list", "查看 Provider 列表", requestContext);
       sendT8(response, db.providers.map(toPublicProvider));
       return true;
     }
@@ -1556,7 +1738,7 @@ async function handleAdminRequest(
       } else {
         await writeAdminDb({ ...db, providers: [provider, ...db.providers] });
       }
-      await appendAudit(adminUser, "provider.create", "provider", provider.id, `创建 Provider ${provider.name}`);
+      await appendAudit(adminUser, "provider.create", "provider", provider.id, `创建 Provider ${provider.name}`, requestContext);
       sendT8(response, toPublicProvider(provider));
       return true;
     }
@@ -1584,7 +1766,7 @@ async function handleAdminRequest(
     const result = await probeProviderDraft({ ...provider, ...body });
     const now = Date.now();
     await updateProviderProbeResult(id, result, now);
-    await appendAudit(adminUser, "provider.probe", "provider", id, `验证 Provider ${provider.name}: ${result.ok ? "ok" : "error"}`);
+    await appendAudit(adminUser, "provider.probe", "provider", id, `验证 Provider ${provider.name}: ${result.ok ? "ok" : "error"}`, requestContext);
     sendT8(response, result);
     return true;
   }
@@ -1599,7 +1781,7 @@ async function handleAdminRequest(
     const result = await fetchProviderModelsDraft({ ...provider, ...body });
     const now = Date.now();
     await updateProviderLastFetchedAt(id, now);
-    await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`);
+    await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`, requestContext);
     sendT8(response, result);
     return true;
   }
@@ -1685,7 +1867,7 @@ async function handleAdminRequest(
     } else {
       await writeAdminDb({ ...db, models: nextModels });
     }
-    await appendAudit(adminUser, "model.import", "provider", providerId, `导入模型 ${imported} 个`);
+    await appendAudit(adminUser, "model.import", "provider", providerId, `导入模型 ${imported} 个`, requestContext);
     sendT8(response, { imported, models: nextModels.filter((model) => model.providerId === providerId) });
     return true;
   }
@@ -1728,7 +1910,7 @@ async function handleAdminRequest(
     } else {
       await writeAdminDb({ ...db, providers });
     }
-    await appendAudit(adminUser, "provider.update", "provider", id, `更新 Provider ${updated.name}`);
+    await appendAudit(adminUser, "provider.update", "provider", id, `更新 Provider ${updated.name}`, requestContext);
     sendT8(response, toPublicProvider(updated));
     return true;
   }
@@ -1753,7 +1935,7 @@ async function handleAdminRequest(
         ),
       });
     }
-    await appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`);
+    await appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`, requestContext);
     sendT8(response, null);
     return true;
   }
@@ -1761,6 +1943,7 @@ async function handleAdminRequest(
   if (url.pathname === "/api/admin/models") {
     const db = await readAdminDb();
     if (request.method === "GET") {
+      await appendAudit(adminUser, "models.read", "model", "models-list", "查看模型列表", requestContext);
       sendT8(response, db.models);
       return true;
     }
@@ -1796,7 +1979,7 @@ async function handleAdminRequest(
       } else {
         await writeAdminDb({ ...db, models: [normalizedModel, ...db.models] });
       }
-      await appendAudit(adminUser, "model.create", "model", normalizedModel.id, `创建模型 ${normalizedModel.displayName}`);
+      await appendAudit(adminUser, "model.create", "model", normalizedModel.id, `创建模型 ${normalizedModel.displayName}`, requestContext);
       sendT8(response, normalizedModel);
       return true;
     }
@@ -1836,7 +2019,7 @@ async function handleAdminRequest(
     } else {
       await writeAdminDb({ ...db, models });
     }
-    await appendAudit(adminUser, "model.test", "model", id, `测试模型 ${model.displayName}: ${result.test.ok ? "ok" : "error"}`);
+    await appendAudit(adminUser, "model.test", "model", id, `测试模型 ${model.displayName}: ${result.test.ok ? "ok" : "error"}`, requestContext);
     sendT8(response, result.test);
     return true;
   }
@@ -1889,7 +2072,7 @@ async function handleAdminRequest(
     } else {
       await writeAdminDb({ ...db, models });
     }
-    await appendAudit(adminUser, "model.update", "model", id, `更新模型 ${updated.displayName}`);
+    await appendAudit(adminUser, "model.update", "model", id, `更新模型 ${updated.displayName}`, requestContext);
     sendT8(response, updated);
     return true;
   }
@@ -1908,18 +2091,19 @@ async function handleAdminRequest(
         tasks: db.tasks.map((task) => (task.modelId === id ? { ...task, modelId: "" } : task)),
       });
     }
-    await appendAudit(adminUser, "model.delete", "model", id, `删除模型 ${model.displayName}`);
+    await appendAudit(adminUser, "model.delete", "model", id, `删除模型 ${model.displayName}`, requestContext);
     sendT8(response, null);
     return true;
   }
 
   if (url.pathname === "/api/admin/tasks") {
-    const db = await readAdminDb();
     if (request.method === "GET") {
-      sendT8(response, db.tasks);
+      await appendAudit(adminUser, "tasks.read", "task", "tasks-list", "查看任务列表", requestContext);
+      sendT8(response, await readAdminTaskPage(parseAdminTaskListQuery(url)));
       return true;
     }
     if (request.method === "POST") {
+      const db = await readAdminDb();
       const body = await readJsonBody<Partial<AdminTaskRecord>>(request);
       const now = Date.now();
       const task: AdminTaskRecord = {
@@ -1947,7 +2131,14 @@ async function handleAdminRequest(
         logs: [...task.logs, queueLog],
         updatedAt: Date.now(),
       };
-      await appendAudit(adminUser, "task.create", "task", task.id, `创建任务 ${task.title}`);
+      await appendAudit(adminUser, "task.create", "task", task.id, `创建任务 ${task.title}`, requestContext);
+      logApiEvent("task.created", requestContext, {
+        taskId: task.id,
+        userId: adminUser.id,
+        providerId: task.providerId,
+        modelId: task.modelId,
+        status: task.status,
+      });
       sendT8(response, queuedTask);
       return true;
     }
@@ -1974,7 +2165,7 @@ async function handleAdminRequest(
     await appendTaskLog(retriedTask.id, queueLog);
     retriedTask.logs = [...retriedTask.logs, queueLog];
     retriedTask.updatedAt = Date.now();
-    await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`);
+    await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`, requestContext);
     sendT8(response, retriedTask);
     return true;
   }
@@ -1985,9 +2176,10 @@ async function handleAdminRequest(
     const body = await readJsonBody<Partial<AdminTaskRecord> & { action?: string }>(request);
     let updated: AdminTaskRecord | null = null;
     if (body.action === "cancel") {
-      updated = await cancelTaskRecord(id, adminUser.email);
+      const cancelled = await cancelTaskWithStrategy(id, adminUser);
+      updated = cancelled?.task ?? null;
       if (!updated) throw new Error("任务不存在");
-      await appendAudit(adminUser, "task.cancel", "task", id, `取消任务 ${updated.title}`);
+      await appendAudit(adminUser, "task.cancel", "task", id, `取消任务 ${updated.title}`, requestContext);
       sendT8(response, updated);
       return true;
     }
@@ -2006,18 +2198,22 @@ async function handleAdminRequest(
     };
     await writeTaskRecord(updated);
     if (!updated) throw new Error("任务不存在");
-    await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`);
+    await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`, requestContext);
     sendT8(response, updated);
     return true;
   }
 
   if (url.pathname === "/api/admin/system" && request.method === "GET") {
     const taskQueueSettingsRecord = await readTaskQueueSettingsRecord();
+    await appendAudit(adminUser, "system.read", "system", "system-status", "查看系统状态", requestContext);
+    const database = await readDatabaseStatus();
+    const redis = await readRedisStatus(taskQueueSettingsRecord.taskQueueSettings);
     sendT8(response, {
       environment,
       dataDir,
-      database: await readDatabaseStatus(),
-      redis: await readRedisStatus(taskQueueSettingsRecord.taskQueueSettings),
+      database,
+      redis,
+      observability: await readSystemObservability(database, redis),
       taskQueueSettings: taskQueueSettingsRecord.taskQueueSettings,
       taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
       taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,
@@ -2041,7 +2237,7 @@ async function handleAdminRequest(
       normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
       adminSettingsRevisionFromPayload(body),
     );
-    await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置");
+    await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置", requestContext);
     sendT8(response, {
       ok: true,
       taskQueueSettings: saved.taskQueueSettings,
@@ -2066,6 +2262,7 @@ async function handleAdminRequest(
       "assistant",
       safeText(body.providerName || body.baseUrl || body.modelId, "provider-analysis"),
       `AI 助手分析 ${safeText(body.providerName || body.modelId || "未命名服务商")}`,
+      requestContext,
     );
     sendT8(response, result);
     return true;
@@ -2082,7 +2279,7 @@ async function handleAdminRequest(
       const db = await readAdminDb();
       const settings = normalizeAssistantSettings(body, db.assistantSettings || defaultAssistantSettings());
       const saved = await writeAssistantSettingsRecord(settings, adminSettingsRevisionFromPayload(body));
-      await appendAudit(adminUser, "assistant.settings.update", "assistant", "assistant-settings", "更新 AI 助手接入与显示设置");
+      await appendAudit(adminUser, "assistant.settings.update", "assistant", "assistant-settings", "更新 AI 助手接入与显示设置", requestContext);
       sendT8(response, maskAssistantEndpoint(saved));
       return true;
     }
@@ -2097,6 +2294,7 @@ async function handleAdminRequest(
       "assistant",
       safeText(body.scope || "admin", "assistant-chat"),
       `AI 助手对话 ${safeText((body.message || "").slice(0, 48) || "空消息")}`,
+      requestContext,
     );
     sendT8(response, result);
     return true;
@@ -2111,6 +2309,7 @@ async function handleAdminRequest(
       "assistant",
       "admin",
       `AI 助手对话 ${safeText((body.message || "").slice(0, 48) || "空消息")}`,
+      requestContext,
     );
     return true;
   }
@@ -3146,7 +3345,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
     ),
     pool.query("select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks order by created_at desc"),
     pool.query(
-      "select id, actor_id, actor_email, action, target_type, target_id, summary, created_at from xh_audit_logs order by created_at desc limit 500",
+      "select id, actor_id, actor_email, action, target_type, target_id, summary, request_id, ip, user_agent, created_at from xh_audit_logs order by created_at desc limit 500",
     ),
     pool.query("select id, frontend, backend, integration, revision, updated_at from xh_assistant_settings where id = 'default' limit 1"),
     pool.query("select id, task_queue_settings, revision, updated_at from xh_system_settings where id = 'default' limit 1"),
@@ -3212,6 +3411,9 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
       targetType: row.target_type,
       targetId: row.target_id,
       summary: row.summary,
+      requestId: safeText(row.request_id),
+      ip: safeText(row.ip),
+      userAgent: safeText(row.user_agent),
       createdAt: dateToMillis(row.created_at),
     })),
     assistantSettings: normalizeAssistantSettings(
@@ -3328,8 +3530,8 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
     }
     for (const audit of db.auditLogs || []) {
       await client.query(
-        `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, created_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, request_id, ip, user_agent, created_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           audit.id,
           audit.actorId || null,
@@ -3338,6 +3540,9 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
           audit.targetType,
           audit.targetId,
           audit.summary,
+          audit.requestId || null,
+          audit.ip || null,
+          audit.userAgent || null,
           millisToDate(audit.createdAt),
         ],
       );
@@ -4410,6 +4615,92 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
   return updatedTask;
 }
 
+function parseAdminTaskListQuery(url: URL): AdminTaskListQuery {
+  return {
+    page: clampInteger(url.searchParams.get("page"), 1, 100000, 1),
+    pageSize: clampInteger(url.searchParams.get("pageSize"), 1, 100, 20),
+    status: safeText(url.searchParams.get("status")),
+    providerId: safeText(url.searchParams.get("providerId")),
+    capability: safeText(url.searchParams.get("capability")).toLowerCase(),
+  };
+}
+
+async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskListPage> {
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const where: string[] = [];
+    const params: unknown[] = [];
+    if (query.status) {
+      params.push(query.status);
+      where.push(`status = $${params.length}`);
+    }
+    if (query.providerId) {
+      params.push(query.providerId);
+      where.push(`provider_id = $${params.length}`);
+    }
+    if (query.capability) {
+      params.push(query.capability);
+      where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
+    }
+    const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
+    const totalResult = await pool.query(`select count(*)::int as total from xh_tasks ${whereSql}`, params);
+    const total = Number(totalResult.rows?.[0]?.total || 0);
+    const offset = (query.page - 1) * query.pageSize;
+    const pageParams = [...params, query.pageSize, offset];
+    const itemsResult = await pool.query(
+      `select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at
+       from xh_tasks
+       ${whereSql}
+       order by created_at desc
+       limit $${pageParams.length - 1} offset $${pageParams.length}`,
+      pageParams,
+    );
+    const items = itemsResult.rows.map((row) => toAdminTaskRecord(row));
+    return {
+      items,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      hasMore: offset + items.length < total,
+      filters: {
+        status: query.status,
+        providerId: query.providerId,
+        capability: query.capability,
+      },
+    };
+  }
+
+  const db = await readAdminDb();
+  const filtered = db.tasks
+    .filter((task) => {
+      if (query.status && task.status !== query.status) return false;
+      if (query.providerId && task.providerId !== query.providerId) return false;
+      if (query.capability) {
+        const resultRow = plainObject(task.result);
+        const rawRow = plainObject(resultRow.raw);
+        const taskCapability = safeText(task.payload?.taskCapability || resultRow.capability || rawRow.capability).toLowerCase();
+        if (taskCapability !== query.capability) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const total = filtered.length;
+  const offset = (query.page - 1) * query.pageSize;
+  const items = filtered.slice(offset, offset + query.pageSize);
+  return {
+    items,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    hasMore: offset + items.length < total,
+    filters: {
+      status: query.status,
+      providerId: query.providerId,
+      capability: query.capability,
+    },
+  };
+}
+
 function defaultAdminDb(): AdminDb {
   const now = Date.now();
   return {
@@ -4861,6 +5152,41 @@ function requestIp(request: import("node:http").IncomingMessage) {
 
 function requestUserAgent(request: import("node:http").IncomingMessage) {
   return safeText(String(request.headers["user-agent"] || ""));
+}
+
+function createRequestId() {
+  return `req-${Date.now()}-${randomToken(6)}`;
+}
+
+function sanitizeRequestId(value: unknown) {
+  return safeText(value).replace(/[^a-zA-Z0-9._:-]/g, "").slice(0, 120);
+}
+
+function createRequestContext(request: import("node:http").IncomingMessage, url: URL): RequestContext {
+  return {
+    requestId: sanitizeRequestId(request.headers["x-request-id"]) || createRequestId(),
+    method: safeText(request.method, "GET").toUpperCase(),
+    path: safeText(url.pathname, "/"),
+    ip: requestIp(request),
+    userAgent: requestUserAgent(request),
+    startedAt: Date.now(),
+  };
+}
+
+function logApiEvent(event: string, context: RequestContext, payload: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({
+    service: "xinghuan-api",
+    environment,
+    event,
+    requestId: context.requestId,
+    userId: context.userId || "",
+    path: context.path,
+    method: context.method,
+    ip: context.ip,
+    userAgent: context.userAgent,
+    durationMs: Math.max(0, Date.now() - context.startedAt),
+    ...payload,
+  }));
 }
 
 function normalizeLoginAttemptIp(value: unknown) {
@@ -5764,6 +6090,7 @@ async function generateGrsaiImage(
   aspectRatio: string,
   size: string,
   images: string[],
+  advancedConfig: Record<string, unknown> = {},
 ) {
   const client = createGrsaiImageClient({
     apiKey,
@@ -5777,6 +6104,8 @@ async function generateGrsaiImage(
     ...(aspectRatio ? { aspectRatio } : {}),
     ...(size && size !== "auto" ? { size } : {}),
     ...(images.length > 0 ? { images } : {}),
+    submitPath: safeText(advancedConfig.submitPath),
+    pollPath: safeText(advancedConfig.pollPath || advancedConfig.pollPathTemplate),
   });
   return {
     urls: result.imageUrls,
@@ -6938,6 +7267,7 @@ async function appendAudit(
   targetType: string,
   targetId: string,
   summary: string,
+  context?: RequestContext,
 ) {
   const record: AdminAuditRecord = {
     id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -6947,13 +7277,20 @@ async function appendAudit(
     targetType,
     targetId,
     summary,
+    requestId: safeText(context?.requestId),
+    ip: safeText(context?.ip),
+    userAgent: safeText(context?.userAgent),
     createdAt: Date.now(),
   };
+  await appendAuditRecord(record);
+}
+
+async function appendAuditRecord(record: AdminAuditRecord) {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     await pool.query(
-      `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, request_id, ip, user_agent, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         record.id,
         record.actorId || null,
@@ -6962,15 +7299,56 @@ async function appendAudit(
         record.targetType,
         record.targetId,
         record.summary,
+        record.requestId || null,
+        record.ip || null,
+        record.userAgent || null,
         millisToDate(record.createdAt),
-      ],
-    );
+        ],
+      );
     return;
   }
   const db = await readAdminDb();
   await writeAdminDb({
     ...db,
     auditLogs: [record, ...(db.auditLogs || [])].slice(0, 1000),
+  });
+}
+
+const observabilityConflictActions = {
+  CANVAS_REVISION_CONFLICT: "conflict.canvas_revision",
+  RESOURCE_REVISION_CONFLICT: "conflict.resource_revision",
+  ADMIN_SETTINGS_REVISION_CONFLICT: "conflict.admin_settings_revision",
+} as const;
+
+async function appendObservabilityConflictAudit(error: HttpError, context: RequestContext) {
+  const action = observabilityConflictActions[error.message as keyof typeof observabilityConflictActions];
+  if (!action) return;
+  const payload = error.payload || {};
+  const targetType = action === "conflict.canvas_revision"
+    ? "canvas"
+    : action === "conflict.resource_revision"
+      ? safeText(payload.resourceKind, "resource")
+      : safeText(payload.settingsKey, "admin-settings");
+  const targetId = safeText(
+    payload.canvasId ?? payload.resourceId ?? payload.settingsKey ?? context.path,
+    context.path,
+  );
+  const actorEmail = safeText(
+    context.userEmail,
+    context.userId ? `${context.userId}@local` : "system@local",
+  );
+  await appendAuditRecord({
+    id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    actorId: safeText(context.userId),
+    actorEmail,
+    action,
+    targetType,
+    targetId,
+    summary: `${error.message} via ${context.method} ${context.path}`,
+    requestId: safeText(context.requestId),
+    ip: safeText(context.ip),
+    userAgent: safeText(context.userAgent),
+    createdAt: Date.now(),
   });
 }
 
@@ -7000,6 +7378,9 @@ async function readDatabaseStatus() {
       status: "not_configured",
       migrations: [] as string[],
       error: "",
+      currentDatabase: "",
+      expectedDatabase: expectedDatabaseName,
+      targetMatched: false,
     };
   }
   let pg: typeof import("pg");
@@ -7011,6 +7392,9 @@ async function readDatabaseStatus() {
       status: "driver_missing",
       migrations: [] as string[],
       error: error instanceof Error ? error.message : String(error),
+      currentDatabase: "",
+      expectedDatabase: expectedDatabaseName,
+      targetMatched: false,
     };
   }
   const client = new pg.Client({
@@ -7019,17 +7403,21 @@ async function readDatabaseStatus() {
   });
   try {
     await client.connect();
-    const now = await client.query("select now() as now");
+    const now = await client.query("select now() as now, current_database() as name");
     const migrations = await client
       .query("select id from xh_schema_migrations order by id")
       .then((result) => result.rows.map((row) => String(row.id)))
       .catch(() => []);
+    const currentDatabase = safeText(String(now.rows[0]?.name || ""));
     return {
       configured: true,
       status: "connected",
       serverTime: now.rows[0]?.now,
       migrations,
       error: "",
+      currentDatabase,
+      expectedDatabase: expectedDatabaseName,
+      targetMatched: expectedDatabaseName ? currentDatabase === expectedDatabaseName : false,
     };
   } catch (error) {
     return {
@@ -7037,6 +7425,9 @@ async function readDatabaseStatus() {
       status: "error",
       migrations: [] as string[],
       error: error instanceof Error ? error.message : String(error),
+      currentDatabase: "",
+      expectedDatabase: expectedDatabaseName,
+      targetMatched: false,
     };
   } finally {
     await client.end().catch(() => undefined);
@@ -7083,6 +7474,440 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+async function readSystemObservability(
+  database: {
+    configured: boolean;
+    status: string;
+    error: string;
+    currentDatabase?: string;
+    expectedDatabase?: string;
+    targetMatched?: boolean;
+  },
+  redis: {
+    configured: boolean;
+    status: string;
+    error: string;
+  },
+) {
+  const [tasks, audits] = await Promise.all([
+    readTaskObservabilitySummary(),
+    readAuditObservabilitySummary(),
+  ]);
+  return {
+    tasks,
+    audits,
+    alerts: buildObservabilityAlerts({ database, redis, tasks, audits }),
+  };
+}
+
+type ObservabilityHealthStatus = "healthy" | "warning" | "critical";
+type ObservabilityAlertSeverity = Exclude<ObservabilityHealthStatus, "healthy">;
+
+function toObservabilityHealth(
+  status: ObservabilityHealthStatus,
+  summary: string,
+) {
+  return { status, summary };
+}
+
+function toObservabilityAlert(
+  code: string,
+  severity: ObservabilityAlertSeverity,
+  source: string,
+  summary: string,
+  action: string,
+) {
+  return { code, severity, source, summary, action };
+}
+
+function toCoveragePercent(sampled: number, withRequestId: number) {
+  return sampled > 0 ? Math.round((withRequestId / sampled) * 100) : 0;
+}
+
+function buildObservabilityAlerts(input: {
+  database: {
+    configured: boolean;
+    status: string;
+    error: string;
+    currentDatabase?: string;
+    expectedDatabase?: string;
+    targetMatched?: boolean;
+  };
+  redis: {
+    configured: boolean;
+    status: string;
+    error: string;
+  };
+  tasks: {
+    health: {
+      status: ObservabilityHealthStatus;
+      summary: string;
+    };
+  };
+  audits: {
+    coverageHealth: {
+      status: ObservabilityHealthStatus;
+      summary: string;
+    };
+    conflicts: {
+      health: {
+        status: ObservabilityHealthStatus;
+        summary: string;
+      };
+    };
+  };
+}) {
+  const items: Array<ReturnType<typeof toObservabilityAlert>> = [];
+  if (input.database.configured && input.database.status !== "connected") {
+    items.push(
+      toObservabilityAlert(
+        "database_unavailable",
+        "critical",
+        "database",
+        input.database.error || `数据库状态异常：${input.database.status}`,
+        "检查数据库连接、驱动与目标库配置",
+      ),
+    );
+  } else if (
+    input.database.configured
+    && input.database.expectedDatabase
+    && input.database.targetMatched === false
+  ) {
+    items.push(
+      toObservabilityAlert(
+        "database_target_mismatch",
+        "critical",
+        "database",
+        `当前数据库 ${input.database.currentDatabase || "-"} 与目标 ${input.database.expectedDatabase} 不一致`,
+        "立即核对环境变量、release 指针和数据库目标",
+      ),
+    );
+  }
+  if (input.redis.configured && input.redis.status !== "connected") {
+    items.push(
+      toObservabilityAlert(
+        "redis_unavailable",
+        "critical",
+        "redis",
+        input.redis.error || `Redis 状态异常：${input.redis.status}`,
+        "检查 Redis 服务、队列配置与网络连通性",
+      ),
+    );
+  }
+  if (input.tasks.health.status !== "healthy") {
+    items.push(
+      toObservabilityAlert(
+        "task_failures",
+        input.tasks.health.status,
+        "tasks",
+        input.tasks.health.summary,
+        "检查失败任务日志、上游响应和队列积压情况",
+      ),
+    );
+  }
+  if (input.audits.coverageHealth.status !== "healthy") {
+    items.push(
+      toObservabilityAlert(
+        "request_id_coverage",
+        input.audits.coverageHealth.status,
+        "audits",
+        input.audits.coverageHealth.summary,
+        "补 requestId 透传链路，并复验后台关键写入/读链路",
+      ),
+    );
+  }
+  if (input.audits.conflicts.health.status !== "healthy") {
+    items.push(
+      toObservabilityAlert(
+        "revision_conflicts",
+        input.audits.conflicts.health.status,
+        "audits",
+        input.audits.conflicts.health.summary,
+        "检查 revision 冲突来源并确认前端基线版本是否过旧",
+      ),
+    );
+  }
+  return {
+    activeCount: items.length,
+    highestSeverity: items.some((item) => item.severity === "critical")
+      ? "critical"
+      : items.length > 0
+        ? "warning"
+        : "healthy",
+    items,
+  };
+}
+
+async function readTaskObservabilitySummary() {
+  const decorate = (summary: {
+    total: number;
+    queued: number;
+    running: number;
+    succeeded: number;
+    failed: number;
+    cancelled: number;
+    failedLast1h: number;
+    failedLast24h: number;
+    failedLast7d: number;
+    failedLast30d: number;
+  }) => {
+    const failed24hDailyAverageBaseline = Math.round(summary.failedLast7d / 7);
+    const failed30dDailyAverageBaseline = Math.round(summary.failedLast30d / 30);
+    const failed7dDailyAverage = Math.round(summary.failedLast7d / 7);
+    const failed24hVs7dDailyAverage = summary.failedLast24h - failed24hDailyAverageBaseline;
+    const failed24hVs30dDailyAverage = summary.failedLast24h - failed30dDailyAverageBaseline;
+    const failed7dVs30dDailyAverage = failed7dDailyAverage - failed30dDailyAverageBaseline;
+    const health = summary.failedLast24h === 0
+      ? toObservabilityHealth("healthy", "24h 失败任务为 0")
+      : summary.failedLast7d > summary.failedLast24h * 3
+        ? toObservabilityHealth("critical", "7d 失败累计显著高于 24h，需检查持续性问题")
+        : toObservabilityHealth("warning", "24h 内出现失败任务，建议继续观察")
+    ;
+    return {
+      ...summary,
+      health,
+      trend: {
+        failed24hDailyAverageBaseline,
+        failed30dDailyAverageBaseline,
+        failed24hVs7dDailyAverage,
+        failed24hVs30dDailyAverage,
+        failed7dDailyAverage,
+        failed7dVs30dDailyAverage,
+      },
+    };
+  };
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `select
+         count(*) as total,
+         count(*) filter (where status = 'queued') as queued,
+       count(*) filter (where status = 'running') as running,
+       count(*) filter (where status = 'succeeded') as succeeded,
+       count(*) filter (where status = 'failed') as failed,
+       count(*) filter (where status = 'cancelled') as cancelled,
+       count(*) filter (where status = 'failed' and updated_at >= now() - interval '1 hour') as failed_last_1h,
+       count(*) filter (where status = 'failed' and updated_at >= now() - interval '24 hour') as failed_last_24h
+       ,
+       count(*) filter (where status = 'failed' and updated_at >= now() - interval '7 day') as failed_last_7d,
+       count(*) filter (where status = 'failed' and updated_at >= now() - interval '30 day') as failed_last_30d
+      from xh_tasks`,
+    );
+    const row = result.rows[0] || {};
+    return decorate({
+      total: Number(row.total) || 0,
+      queued: Number(row.queued) || 0,
+      running: Number(row.running) || 0,
+      succeeded: Number(row.succeeded) || 0,
+      failed: Number(row.failed) || 0,
+      cancelled: Number(row.cancelled) || 0,
+      failedLast1h: Number(row.failed_last_1h) || 0,
+      failedLast24h: Number(row.failed_last_24h) || 0,
+      failedLast7d: Number(row.failed_last_7d) || 0,
+      failedLast30d: Number(row.failed_last_30d) || 0,
+    });
+  }
+  const db = await readAdminDb();
+  const tasks = Array.isArray(db.tasks) ? db.tasks : [];
+  const now = Date.now();
+  return decorate({
+    total: tasks.length,
+    queued: tasks.filter((task) => task.status === "queued").length,
+    running: tasks.filter((task) => task.status === "running").length,
+    succeeded: tasks.filter((task) => task.status === "succeeded").length,
+    failed: tasks.filter((task) => task.status === "failed").length,
+    cancelled: tasks.filter((task) => task.status === "cancelled").length,
+    failedLast1h: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 60 * 60 * 1000).length,
+    failedLast24h: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 24 * 60 * 60 * 1000).length,
+    failedLast7d: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 7 * 24 * 60 * 60 * 1000).length,
+    failedLast30d: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 30 * 24 * 60 * 60 * 1000).length,
+  });
+}
+
+async function readAuditObservabilitySummary() {
+  const decorate = (summary: {
+    total: number;
+    sampled: number;
+    withRequestId: number;
+    requestIdCoveragePercent: number;
+    sampledLast24h: number;
+    withRequestIdLast24h: number;
+    requestIdCoverageLast24hPercent: number;
+    sampledLast7d: number;
+    withRequestIdLast7d: number;
+    requestIdCoverageLast7dPercent: number;
+    conflicts: {
+      totalLast24h: number;
+      totalLast7d: number;
+      totalLast30d: number;
+      canvasRevisionLast24h: number;
+      resourceRevisionLast24h: number;
+      adminSettingsRevisionLast24h: number;
+    };
+    latestCreatedAt?: number;
+  }) => {
+    const coverageReferenceLabel = summary.sampledLast24h > 0 ? "近24h" : "最近样本";
+    const coverageReferencePercent = summary.sampledLast24h > 0
+      ? summary.requestIdCoverageLast24hPercent
+      : summary.requestIdCoveragePercent;
+    const coverageHealth = coverageReferencePercent >= 80
+      ? toObservabilityHealth("healthy", `${coverageReferenceLabel} requestId 覆盖率达到 80% 以上`)
+      : coverageReferencePercent >= 40
+        ? toObservabilityHealth("warning", `${coverageReferenceLabel} requestId 覆盖率低于目标，建议继续提升`)
+        : toObservabilityHealth("critical", `${coverageReferenceLabel} requestId 覆盖率偏低，需优先补链路`)
+    ;
+    const conflictHealth = summary.conflicts.totalLast24h === 0
+      ? toObservabilityHealth("healthy", "24h 内未观察到 revision conflict")
+      : summary.conflicts.totalLast24h <= 5
+        ? toObservabilityHealth("warning", "24h 内存在少量 revision conflict")
+        : toObservabilityHealth("critical", "24h 内 revision conflict 偏多，需排查并发写入")
+    ;
+    const total7dDailyAverageBaseline = Math.round(summary.conflicts.totalLast7d / 7);
+    const total30dDailyAverageBaseline = Math.round(summary.conflicts.totalLast30d / 30);
+    return {
+      ...summary,
+      coverageHealth,
+      coverageTrend: {
+        requestIdCoverageLast24hVsLatestSample: summary.requestIdCoverageLast24hPercent - summary.requestIdCoveragePercent,
+        requestIdCoverageLast7dVsLatestSample: summary.requestIdCoverageLast7dPercent - summary.requestIdCoveragePercent,
+      },
+      conflicts: {
+        ...summary.conflicts,
+        health: conflictHealth,
+        trend: {
+          total7dDailyAverageBaseline,
+          total30dDailyAverageBaseline,
+          total24hVs7dDailyAverage: summary.conflicts.totalLast24h - total7dDailyAverageBaseline,
+          total24hVs30dDailyAverage: summary.conflicts.totalLast24h - total30dDailyAverageBaseline,
+        },
+      },
+    };
+  };
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const [totalResult, sampleResult, recentCoverageResult, conflictResult] = await Promise.all([
+      pool.query("select count(*) as total from xh_audit_logs"),
+      pool.query(
+        `with sample as (
+           select request_id, created_at
+           from xh_audit_logs
+           order by created_at desc
+           limit 100
+         )
+         select
+           count(*) as sampled,
+           count(*) filter (where coalesce(request_id, '') <> '') as with_request_id,
+           max(created_at) as latest_created_at
+         from sample`,
+      ),
+      pool.query(
+        `select
+           count(*) filter (where created_at >= now() - interval '24 hour') as sampled_last_24h,
+           count(*) filter (where created_at >= now() - interval '24 hour' and coalesce(request_id, '') <> '') as with_request_id_last_24h,
+           count(*) filter (where created_at >= now() - interval '7 day') as sampled_last_7d,
+           count(*) filter (where created_at >= now() - interval '7 day' and coalesce(request_id, '') <> '') as with_request_id_last_7d
+         from xh_audit_logs`,
+      ),
+      pool.query(
+        `select
+           count(*) filter (
+             where action in ('conflict.canvas_revision', 'conflict.resource_revision', 'conflict.admin_settings_revision')
+               and created_at >= now() - interval '24 hour'
+           ) as total_last_24h,
+           count(*) filter (
+             where action in ('conflict.canvas_revision', 'conflict.resource_revision', 'conflict.admin_settings_revision')
+               and created_at >= now() - interval '7 day'
+           ) as total_last_7d,
+           count(*) filter (
+             where action in ('conflict.canvas_revision', 'conflict.resource_revision', 'conflict.admin_settings_revision')
+               and created_at >= now() - interval '30 day'
+           ) as total_last_30d,
+           count(*) filter (where action = 'conflict.canvas_revision' and created_at >= now() - interval '24 hour') as canvas_revision_last_24h,
+           count(*) filter (where action = 'conflict.resource_revision' and created_at >= now() - interval '24 hour') as resource_revision_last_24h,
+           count(*) filter (where action = 'conflict.admin_settings_revision' and created_at >= now() - interval '24 hour') as admin_settings_revision_last_24h
+         from xh_audit_logs`,
+      ),
+    ]);
+    const total = Number(totalResult.rows[0]?.total) || 0;
+    const sampled = Number(sampleResult.rows[0]?.sampled) || 0;
+    const withRequestId = Number(sampleResult.rows[0]?.with_request_id) || 0;
+    const sampledLast24h = Number(recentCoverageResult.rows[0]?.sampled_last_24h) || 0;
+    const withRequestIdLast24h = Number(recentCoverageResult.rows[0]?.with_request_id_last_24h) || 0;
+    const sampledLast7d = Number(recentCoverageResult.rows[0]?.sampled_last_7d) || 0;
+    const withRequestIdLast7d = Number(recentCoverageResult.rows[0]?.with_request_id_last_7d) || 0;
+    const totalLast24h = Number(conflictResult.rows[0]?.total_last_24h) || 0;
+    const totalLast7d = Number(conflictResult.rows[0]?.total_last_7d) || 0;
+    const totalLast30d = Number(conflictResult.rows[0]?.total_last_30d) || 0;
+    const canvasRevisionLast24h = Number(conflictResult.rows[0]?.canvas_revision_last_24h) || 0;
+    const resourceRevisionLast24h = Number(conflictResult.rows[0]?.resource_revision_last_24h) || 0;
+    const adminSettingsRevisionLast24h = Number(conflictResult.rows[0]?.admin_settings_revision_last_24h) || 0;
+    return decorate({
+      total,
+      sampled,
+      withRequestId,
+      requestIdCoveragePercent: toCoveragePercent(sampled, withRequestId),
+      sampledLast24h,
+      withRequestIdLast24h,
+      requestIdCoverageLast24hPercent: toCoveragePercent(sampledLast24h, withRequestIdLast24h),
+      sampledLast7d,
+      withRequestIdLast7d,
+      requestIdCoverageLast7dPercent: toCoveragePercent(sampledLast7d, withRequestIdLast7d),
+      conflicts: {
+        totalLast24h,
+        totalLast7d,
+        totalLast30d,
+        canvasRevisionLast24h,
+        resourceRevisionLast24h,
+        adminSettingsRevisionLast24h,
+      },
+      latestCreatedAt: sampleResult.rows[0]?.latest_created_at
+        ? dateToMillis(sampleResult.rows[0].latest_created_at)
+        : undefined,
+    });
+  }
+  const db = await readAdminDb();
+  const audits = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+  const sample = audits.slice(0, 100);
+  const withRequestId = sample.filter((item) => safeText(item.requestId).length > 0).length;
+  const now = Date.now();
+  const recent24h = audits.filter((item) => now - Number(item.createdAt || 0) <= 24 * 60 * 60 * 1000);
+  const recent7d = audits.filter((item) => now - Number(item.createdAt || 0) <= 7 * 24 * 60 * 60 * 1000);
+  const recent30d = audits.filter((item) => now - Number(item.createdAt || 0) <= 30 * 24 * 60 * 60 * 1000);
+  const withRequestIdLast24h = recent24h.filter((item) => safeText(item.requestId).length > 0).length;
+  const withRequestIdLast7d = recent7d.filter((item) => safeText(item.requestId).length > 0).length;
+  const isConflict = (item: AdminAuditRecord) =>
+    item.action === "conflict.canvas_revision"
+    || item.action === "conflict.resource_revision"
+    || item.action === "conflict.admin_settings_revision";
+  const recentConflicts24h = recent24h.filter(isConflict);
+  const recentConflicts7d = recent7d.filter(isConflict);
+  const recentConflicts30d = recent30d.filter(isConflict);
+  const canvasRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.canvas_revision").length;
+  const resourceRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.resource_revision").length;
+  const adminSettingsRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.admin_settings_revision").length;
+  return decorate({
+    total: audits.length,
+    sampled: sample.length,
+    withRequestId,
+    requestIdCoveragePercent: toCoveragePercent(sample.length, withRequestId),
+    sampledLast24h: recent24h.length,
+    withRequestIdLast24h,
+    requestIdCoverageLast24hPercent: toCoveragePercent(recent24h.length, withRequestIdLast24h),
+    sampledLast7d: recent7d.length,
+    withRequestIdLast7d,
+    requestIdCoverageLast7dPercent: toCoveragePercent(recent7d.length, withRequestIdLast7d),
+    conflicts: {
+      totalLast24h: recentConflicts24h.length,
+      totalLast7d: recentConflicts7d.length,
+      totalLast30d: recentConflicts30d.length,
+      canvasRevisionLast24h,
+      resourceRevisionLast24h,
+      adminSettingsRevisionLast24h,
+    },
+    latestCreatedAt: sample[0]?.createdAt,
+  });
 }
 
 async function readJsonFile<T>(path: string, fallback: T): Promise<T> {

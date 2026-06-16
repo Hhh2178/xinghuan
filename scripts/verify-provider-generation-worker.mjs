@@ -16,8 +16,13 @@ assert.match(workerSource, /return \["chat", "image", "video", "audio"\]\.includ
 assert.match(workerSource, /TASK_QUEUE_CAPABILITIES/);
 assert.match(workerSource, /slotIndex/);
 assert.match(workerSource, /buildTaskQueueRuntimeDescriptors/);
-assert.match(workerSource, /Promise\.allSettled\(workerLoops\)/);
+assert.match(workerSource, /const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 \? \[runStaleTaskReaperLoop\(\)\] : \[\]/);
+assert.match(workerSource, /Promise\.allSettled\(\[\.\.\.workerLoops, \.\.\.backgroundLoops\]\)/);
 assert.match(workerSource, /readTaskQueueSettings/);
+assert.match(workerSource, /async function touchTaskRuntime/);
+assert.match(workerSource, /heartbeatAt/);
+assert.match(workerSource, /async function runStaleTaskReaperLoop/);
+assert.match(workerSource, /worker_stalled_or_upstream_timeout/);
 
 assert.match(outputMaterialsSource, /const audioUrls = readStringList\(result\.audioUrls\)/);
 assert.match(outputMaterialsSource, /materializedAudioUrls/);

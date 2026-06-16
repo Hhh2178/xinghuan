@@ -1,4 +1,8 @@
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const sameOriginHeaders = {
+  origin: baseUrl,
+  referer: `${baseUrl}/`,
+};
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 
@@ -36,12 +40,13 @@ assert(Boolean(taskId), "task was not created");
 assert(created.data?.payload?.prompt === payload.prompt, "created task payload missing");
 assert(created.data?.result?.adapter === result.adapter, "created task result missing");
 
-const tasks = await fetchJson("/api/admin/tasks");
-const task = tasks.data?.find((item) => item.id === taskId);
+const tasks = await fetchJson("/api/admin/tasks?page=1&pageSize=50");
+const taskItems = Array.isArray(tasks.data?.items) ? tasks.data.items : [];
+const task = taskItems.find((item) => item.id === taskId);
 assert(task?.payload?.size === payload.size, "listed task payload missing");
 assert(task?.result?.imageUrls?.[0] === result.imageUrls[0], "listed task result missing");
 
-console.log(JSON.stringify({ ok: true, taskId, payload: task.payload, result: task.result }, null, 2));
+console.log(JSON.stringify({ ok: true, taskId, page: tasks.data?.page, total: tasks.data?.total, payload: task.payload, result: task.result }, null, 2));
 
 async function fetchJson(pathname, options) {
   const response = await fetch(toUrl(pathname), withCookie(options));
@@ -55,6 +60,7 @@ function withCookie(options = {}) {
   return {
     ...options,
     headers: {
+      ...sameOriginHeaders,
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
     },

@@ -9,6 +9,7 @@ const adminTypesPath = path.join(root, "apps/admin/src/admin-types.ts");
 const adminPanelPath = path.join(root, "apps/admin/src/admin-assistant-panel.tsx");
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const requestOrigin = new URL(baseUrl).origin;
 const adminEmail =
   process.env.XINGHUAN_VERIFY_EMAIL ??
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ??
@@ -117,7 +118,7 @@ async function runRuntimeSmoke() {
 
   const login = await fetchJson("/api/auth/admin-login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: adminEmail, password: adminPassword }),
   }, true);
   results.push([
@@ -176,7 +177,7 @@ async function runRuntimeSmoke() {
 
   await fetchJson("/api/auth/admin-login", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email: adminEmail, password: adminPassword }),
   }, true);
   const audit = await fetchJson("/api/admin/audit", undefined, false);
@@ -209,10 +210,12 @@ async function fetchJson(pathname, options, refreshCookie = false) {
 }
 
 function withCookie(options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
   return {
     ...options,
     headers: {
       ...(cookie ? { cookie } : {}),
+      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
       ...(options.headers || {}),
     },
   };

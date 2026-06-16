@@ -23,6 +23,9 @@ async function run() {
   assert.match(apiServer, /expiresAt:\s*existing \? existing\.expiresAt : expiresAt/, "duplicate generated assets must not extend the 3-day retention cap");
   assert.match(apiServer, /deleteGenerationLibraryLocalFile/, "expired or deleted local output files should be pruned by explicit item path");
   assert.match(apiServer, /url\.startsWith\("\/files\/output\/"\)/, "generation library cleanup must only delete explicit local output files");
+  assert.match(apiServer, /materialAccessService\.buildGenerationLibraryAccessDescriptor/, "generation library responses should expose access metadata via descriptor service");
+  assert.match(apiServer, /generationLibraryContentMatch = url\.pathname\.match/, "generation library content route should exist");
+  assert.match(apiServer, /\\\/api\\\/materials\\\/generation-library\\\//, "generation library content route should target generation-library material access");
 
   assert.match(webApi, /export type GenerationLibraryKind = 'image' \| 'video' \| 'audio';/, "web API should expose image/video/audio generation kinds");
   assert.match(webApi, /getGenerationLibraryItems/, "web API should expose generation library listing");
@@ -38,6 +41,9 @@ async function run() {
   assert.match(drawer, /data-drag-node-id="generation-library"/, "generated assets should support material drag from the drawer");
   assert.match(drawer, /formatRemaining\(item\.expiresAt\)/, "drawer should show remaining retention time");
   assert.match(drawer, /api\.deleteGenerationLibraryItem/, "drawer should support explicit deletion");
+  assert.match(drawer, /下载/, "generation library drawer should expose download action");
+  assert.match(drawer, /查看/, "generation library drawer should expose preview action");
+  assert.match(drawer, /GenerationLibraryPreviewOverlay/, "generation library drawer should wire the preview overlay");
 
   assert.match(canvas, /GENERATION_LIBRARY_NODE_TYPES/, "canvas should define generated-output node sources");
   assert.match(canvas, /api\.addGenerationLibraryItem/, "canvas should auto-register generated media");

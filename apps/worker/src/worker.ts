@@ -45,6 +45,8 @@ const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const queueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
 const pollTimeoutSeconds = Number.parseInt(process.env.XINGHUAN_WORKER_POLL_TIMEOUT_SECONDS || "5", 10);
 const workerId = process.env.XINGHUAN_WORKER_ID || `worker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUNNING_MS || `${30 * 60 * 1000}`, 10);
+const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
 
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
@@ -89,7 +91,8 @@ const workerLoops = queueDescriptors.flatMap((descriptor) =>
     runQueueLoop(descriptor.capability, descriptor.queue, slotIndex),
   ),
 );
-await Promise.allSettled(workerLoops);
+const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : [];
+await Promise.allSettled([...workerLoops, ...backgroundLoops]);
 
 await redis.quit().catch(() => undefined);
 await pool.end().catch(() => undefined);
@@ -152,30 +155,39 @@ async function readTaskQueueSettings(): Promise<TaskQueueSettings> {
 }
 
 async function processTask(taskId: string) {
-  console.log(`xinghuan-worker received ${taskId}`);
+  logWorkerEvent("task.received", { taskId });
   const task = await readTask(taskId);
   if (!task) {
     console.warn(`xinghuan-worker skipped missing task ${taskId}`);
     return;
   }
+  const trace = taskTraceContext(task);
   if (task.status !== "queued") {
-    console.log(`xinghuan-worker skipped ${taskId}: status=${task.status}`);
+    logWorkerEvent("task.skipped", { ...trace, taskId, status: task.status, message: `status=${task.status}` });
     return;
   }
 
   const claimResult = await updateTask(taskId, "running", [`${workerId} 已领取任务`]);
   if (claimResult === "cancelled") {
-    console.log(`xinghuan-worker skipped ${taskId}: cancelled before claim`);
+    logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancelled before claim" });
     return;
   }
   if (claimResult === "missing") {
     console.warn(`xinghuan-worker skipped missing task during claim ${taskId}`);
     return;
   }
+  logWorkerEvent("task.claimed", { ...trace, taskId, capability: task.capability });
+  await touchTaskRuntime(taskId, {
+    workerId,
+    startedAt: new Date().toISOString(),
+    heartbeatAt: new Date().toISOString(),
+    runtimeStage: "running",
+  });
   try {
     const result = await executeTask(task);
     if (await isTaskCancelled(taskId)) {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行结果`);
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "drop result after cancellation" });
       return;
     }
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
@@ -191,19 +203,33 @@ async function processTask(taskId: string) {
     });
     if (completionResult === "cancelled") {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "completion kept cancelled state" });
+      return;
     }
+    logWorkerEvent("task.succeeded", { ...trace, taskId, capability: task.capability, status: "succeeded" });
   } catch (error) {
     if (await isTaskCancelled(taskId)) {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行错误`);
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "drop error after cancellation" });
       return;
     }
     const failedResult = await updateTask(taskId, "failed", [`${workerId} 执行失败: ${error instanceof Error ? error.message : String(error)}`], {
       workerId,
       failedAt: new Date().toISOString(),
+      failureReason: error instanceof Error ? error.message : String(error),
     });
     if (failedResult === "cancelled") {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "failure kept cancelled state" });
+      return;
     }
+    logWorkerEvent("task.failed", {
+      ...trace,
+      taskId,
+      capability: task.capability,
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -308,6 +334,73 @@ async function appendTaskLog(taskId: string, line: string) {
   );
 }
 
+async function touchTaskRuntime(taskId: string, resultPatch: Record<string, unknown>) {
+  await pool.query(
+    `update xh_tasks
+     set result = coalesce(result, '{}'::jsonb) || $2::jsonb,
+         updated_at = now()
+     where id = $1 and status = 'running'`,
+    [taskId, JSON.stringify(resultPatch)],
+  );
+}
+
+async function runStaleTaskReaperLoop() {
+  while (!stopping) {
+    if (staleTaskReaperIntervalMs > 0) await wait(staleTaskReaperIntervalMs);
+    if (stopping) break;
+    await reapStaleRunningTasks().catch((error) => {
+      console.error(
+        "xinghuan-worker stale task reaper failed",
+        JSON.stringify({ workerId, error: error instanceof Error ? error.message : String(error) }),
+      );
+    });
+  }
+}
+
+async function reapStaleRunningTasks() {
+  if (staleRunningTaskMs <= 0) return;
+  const result = await pool.query(
+    `select id, updated_at
+     from xh_tasks
+     where status = 'running'
+       and updated_at < now() - ($1::bigint * interval '1 millisecond')
+     order by updated_at asc
+     limit 50`,
+    [staleRunningTaskMs],
+  );
+  for (const row of result.rows) {
+    const taskId = String(row.id || "").trim();
+    if (!taskId) continue;
+    const staleSince = row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || "");
+    const task = await readTask(taskId);
+    const reaped = await updateTask(
+      taskId,
+      "failed",
+      [`${workerId} reaper 检测到运行任务长时间无 heartbeat，按悬挂任务回收`],
+      {
+        workerId,
+        failedAt: new Date().toISOString(),
+        failureReason: "worker_stalled_or_upstream_timeout",
+        reaperReason: "worker_stalled_or_upstream_timeout",
+        reapedAt: new Date().toISOString(),
+        staleSince,
+      },
+    );
+    if (reaped === "updated") {
+      logWorkerEvent("task.reaped", {
+        ...(task ? taskTraceContext(task) : {}),
+        taskId,
+        staleSince,
+        staleRunningTaskMs,
+      });
+      console.warn(
+        "xinghuan-worker reaped stale task",
+        JSON.stringify({ workerId, taskId, staleSince, staleRunningTaskMs }),
+      );
+    }
+  }
+}
+
 async function isTaskCancelled(taskId: string) {
   const task = await readTask(taskId);
   return task?.status === "cancelled";
@@ -363,6 +456,13 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
           statusPath: safeText(task.payload.taskStatusPath, "data.0.status"),
         });
     if (!taskMeta.taskId) throw new Error("上游未返回可用图像");
+    await touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: taskMeta.taskId,
+      taskId: taskMeta.taskId,
+      upstreamStatus: safeText(taskMeta.status || "submitted"),
+      runtimeStage: "polling",
+    });
     const polled = isModelScope
       ? await pollModelScopeImageTask({
           baseUrl: task.providerBaseUrl,
@@ -372,6 +472,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
           pollPathTemplate: safeText(task.payload.pollPathTemplate, "tasks/{task_id}"),
           pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
           timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 360000, 5000, 1800000),
+          onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
         })
       : await pollApimartImageTask({
           baseUrl: task.providerBaseUrl,
@@ -380,6 +481,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
           statusPath: safeText(task.payload.pollStatusPath, "data.status"),
           pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
           timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
+          onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
         });
     if (polled.imageUrls.length === 0) throw new Error(isModelScope ? "ModelScope 未返回可用图像" : "APIMart 未返回可用图像");
     return {
@@ -458,6 +560,13 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       statusPath: safeText(task.payload.taskStatusPath, "data.0.status"),
     });
     if (!taskMeta.taskId) throw new Error("异步视频任务未返回 task_id/id");
+    await touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: taskMeta.taskId,
+      taskId: taskMeta.taskId,
+      upstreamStatus: safeText(taskMeta.status || "submitted"),
+      runtimeStage: "polling",
+    });
     const polled = await pollApimartVideoTask({
       baseUrl: task.providerBaseUrl,
       apiKey,
@@ -470,6 +579,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       finalResultVideoPath: safeText(task.payload.finalResultVideoPath),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
       timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
+      onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
     });
     if (polled.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
     return {
@@ -632,7 +742,14 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
     aspectRatio: safeText(task.payload.aspectRatio || task.payload.aspect_ratio),
     size: safeText(task.payload.size || task.payload.image_size),
     images: imageUrls,
+    submitPath: safeText(task.payload.submitPath),
+    pollPath: safeText(task.payload.pollPath || task.payload.pollPathTemplate),
+    onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
   });
+
+  if (result.imageUrls.length === 0) {
+    throw new Error(`GRSAI 图像任务未返回可用图片${result.taskId ? `: ${result.taskId}` : ""}`);
+  }
 
   return {
     adapter: "grsai-image",
@@ -729,6 +846,25 @@ interface TaskRow {
   logs: string[];
 }
 
+function logWorkerEvent(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    service: "xinghuan-worker",
+    environment,
+    workerId,
+    event,
+    ...payload,
+  }));
+}
+
+function taskTraceContext(task: TaskRow) {
+  return {
+    requestId: readString(task.result.requestId || task.payload.requestId),
+    userId: readString(task.result.userId || task.payload.userId || task.ownerId),
+    providerId: task.providerId,
+    modelId: task.providerModelId || task.modelRecordId,
+  };
+}
+
 interface GrsaiImageClientOptions {
   apiKey: string;
   baseUrl: string;
@@ -743,6 +879,9 @@ interface GrsaiImageGenerateInput {
   aspectRatio?: string;
   size?: string;
   images?: string[];
+  submitPath?: string;
+  pollPath?: string;
+  onHeartbeat?: (patch: Record<string, unknown>) => Promise<void>;
 }
 
 interface GrsaiImageGenerateResult {
@@ -758,7 +897,9 @@ function createGrsaiImageClient(options: GrsaiImageClientOptions) {
 
   return {
     async generate(input: GrsaiImageGenerateInput): Promise<GrsaiImageGenerateResult> {
-      const submit = await requestJson(fetcher, `${baseUrl}/v1/draw/completions`, options.apiKey, {
+      const submitPath = resolveGrsaiSubmitPath(input.submitPath, input.modelId);
+      const pollPath = resolveGrsaiPollPath(input.pollPath);
+      const submit = await requestJson(fetcher, `${baseUrl}${submitPath}`, options.apiKey, {
         model: input.modelId,
         prompt: input.prompt,
         webHook: "-1",
@@ -778,19 +919,23 @@ function createGrsaiImageClient(options: GrsaiImageClientOptions) {
       const submitState = normalizeGrsaiState(submit.payload);
       if (submitState.kind === "failed") throw new Error(submitState.errorMessage);
       if (submitState.kind === "success") {
-        return {
-          imageUrls: submitUrls,
-          taskId: submitState.taskId,
-        };
+        throw new Error(buildMissingGrsaiImageResultError(submit.payload, submitState));
       }
       if (!submitState.taskId) throw new Error("GRSAI 未返回任务 ID");
+      await input.onHeartbeat?.({
+        heartbeatAt: new Date().toISOString(),
+        upstreamTaskId: submitState.taskId,
+        taskId: submitState.taskId,
+        upstreamStatus: submitState.rawStatus || "submitted",
+        runtimeStage: "polling",
+      });
 
       const startedAt = Date.now();
       for (;;) {
         if (Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
         if (pollIntervalMs > 0) await wait(pollIntervalMs);
 
-        const polled = await pollGrsaiJson(fetcher, baseUrl, options.apiKey, submitState.taskId);
+        const polled = await pollGrsaiJson(fetcher, baseUrl, options.apiKey, submitState.taskId, pollPath);
         const imageUrls = extractGrsaiImageUrls(polled.payload);
         if (imageUrls.length > 0) {
           return {
@@ -799,12 +944,16 @@ function createGrsaiImageClient(options: GrsaiImageClientOptions) {
           };
         }
         const state = normalizeGrsaiState(polled.payload);
+        await input.onHeartbeat?.({
+          heartbeatAt: new Date().toISOString(),
+          upstreamTaskId: state.taskId || submitState.taskId,
+          taskId: state.taskId || submitState.taskId,
+          upstreamStatus: state.rawStatus || state.kind,
+          runtimeStage: "polling",
+        });
         if (state.kind === "failed") throw new Error(state.errorMessage);
         if (state.kind === "success") {
-          return {
-            imageUrls,
-            taskId: state.taskId || submitState.taskId,
-          };
+          throw new Error(buildMissingGrsaiImageResultError(polled.payload, state));
         }
       }
     },
@@ -822,12 +971,21 @@ async function requestJson(fetcher: typeof fetch, url: string, apiKey: string, b
   return { response, payload };
 }
 
-async function pollGrsaiJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string) {
-  const response = await fetcher(`${baseUrl}/v1/draw/result`, {
+async function pollGrsaiJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string, pollPath: string) {
+  const response = await fetcher(`${baseUrl}${pollPath}`, {
     method: "POST",
     headers: buildProviderJsonHeaders(apiKey),
     body: JSON.stringify({ taskId, id: taskId }),
   });
+  if (response.status === 405) {
+    const fallback = await fetcher(`${baseUrl}${pollPath}?taskId=${encodeURIComponent(taskId)}`, {
+      method: "GET",
+      headers: buildProviderJsonHeaders(apiKey),
+    });
+    const payload = await readJsonResponse(fallback);
+    if (!fallback.ok) throw new Error(extractGrsaiErrorMessage(payload) || `HTTP ${fallback.status}`);
+    return { response: fallback, payload };
+  }
   const payload = await readJsonResponse(response);
   if (!response.ok) throw new Error(extractGrsaiErrorMessage(payload) || `HTTP ${response.status}`);
   return { response, payload };
@@ -843,17 +1001,18 @@ function normalizeGrsaiState(payload: Record<string, unknown>) {
       ? envelope.code
       : undefined;
   const taskId = readString(readGrsaiTaskId(payload));
-  const status = readString(
+  const rawStatus = readString(
     envelope.status || envelope.state || envelope.progressState || payload.status || payload.state || payload.progressState,
-  ).toLowerCase();
+  );
+  const status = rawStatus.toLowerCase();
   const errorMessage = extractGrsaiErrorMessage(payload);
   const successSignal = ["success", "succeeded", "completed", "done", "ok"].includes(errorMessage.toLowerCase());
 
-  if (code !== undefined && code !== 0) return { kind: "failed" as const, errorMessage: errorMessage || `Provider request failed with code ${code}` };
-  if (["failed", "error", "cancelled", "canceled"].includes(status)) return { kind: "failed" as const, errorMessage: errorMessage || "Provider request failed" };
-  if (["succeeded", "success", "completed", "done"].includes(status)) return { kind: "success" as const, taskId };
-  if (errorMessage && !successSignal && !taskId) return { kind: "failed" as const, errorMessage };
-  return { kind: "pending" as const, taskId };
+  if (code !== undefined && code !== 0) return { kind: "failed" as const, errorMessage: errorMessage || `Provider request failed with code ${code}`, taskId, rawStatus };
+  if (["failed", "error", "cancelled", "canceled"].includes(status)) return { kind: "failed" as const, errorMessage: errorMessage || "Provider request failed", taskId, rawStatus };
+  if (["succeeded", "success", "completed", "done"].includes(status)) return { kind: "success" as const, taskId, rawStatus };
+  if (errorMessage && !successSignal && !taskId) return { kind: "failed" as const, errorMessage, taskId, rawStatus };
+  return { kind: "pending" as const, taskId, rawStatus };
 }
 
 function readGrsaiTaskId(payload: Record<string, unknown>) {
@@ -887,12 +1046,49 @@ function extractGrsaiErrorMessage(payload: Record<string, unknown>) {
     ? payload.data as Record<string, unknown>
     : payload;
   return readString(envelope.error)
+    || readString(envelope.reason)
+    || readString(envelope.detail)
+    || readString(envelope.description)
     || readString(envelope.failure_reason)
     || readString(envelope.message)
     || readString(payload.error)
+    || readString(payload.reason)
+    || readString(payload.detail)
+    || readString(payload.description)
     || readString(payload.failure_reason)
     || readString(payload.message)
     || readString(payload.msg);
+}
+
+function resolveGrsaiSubmitPath(path: string | undefined, modelId: string) {
+  const override = normalizeApiPath(path);
+  if (override) return override;
+  return /nano-banana/i.test(modelId) ? "/v1/draw/nano-banana" : "/v1/draw/completions";
+}
+
+function resolveGrsaiPollPath(path: string | undefined) {
+  return normalizeApiPath(path) || "/v1/draw/result";
+}
+
+function normalizeApiPath(path: string | undefined) {
+  const value = readString(path);
+  if (!value) return "";
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function buildMissingGrsaiImageResultError(
+  payload: Record<string, unknown>,
+  state: { taskId?: string; rawStatus?: string },
+) {
+  const status = readString(state.rawStatus) || "success";
+  const taskId = readString(state.taskId);
+  const providerMessage = extractGrsaiErrorMessage(payload);
+  const detail =
+    providerMessage && !["ok", "success", "succeeded", "completed", "done"].includes(providerMessage.toLowerCase())
+      ? `: ${providerMessage}`
+      : "";
+  const taskSuffix = taskId ? ` (taskId=${taskId})` : "";
+  return `GRSAI 任务状态 ${status} 但未返回图片${taskSuffix}${detail}`;
 }
 
 async function readJsonResponse(response: Response) {
@@ -914,6 +1110,7 @@ async function pollApimartVideoTask(options: {
   finalResultVideoPath: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  onHeartbeat?: (patch: Record<string, unknown>) => Promise<void>;
 }) {
   const startedAt = Date.now();
   for (;;) {
@@ -933,6 +1130,13 @@ async function pollApimartVideoTask(options: {
       resultVideoPath: options.resultVideoPath,
     });
     const status = safeText(result.status).toLowerCase();
+    await options.onHeartbeat?.({
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: options.taskId,
+      taskId: options.taskId,
+      upstreamStatus: status || "pending",
+      runtimeStage: "polling",
+    });
     if (result.videoUrls.length > 0 && (!status || ["completed", "succeeded", "success", "done"].includes(status))) return result;
     if (options.finalResultPathTemplate) {
       const finalTaskId = extractApimartFinalTaskId(raw, { taskIdPath: options.finalResultTaskIdPath });
@@ -988,6 +1192,7 @@ async function pollApimartImageTask(options: {
   statusPath: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  onHeartbeat?: (patch: Record<string, unknown>) => Promise<void>;
 }) {
   const startedAt = Date.now();
   let deadline = startedAt + options.timeoutMs;
@@ -1015,6 +1220,13 @@ async function pollApimartImageTask(options: {
     const extracted = extractImageOutputs(raw);
     const taskState = extractApimartTask(raw, { statusPath: options.statusPath || "data.status" });
     const status = safeText(taskState.status).toLowerCase();
+    await options.onHeartbeat?.({
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: options.taskId,
+      taskId: options.taskId,
+      upstreamStatus: status || "pending",
+      runtimeStage: "polling",
+    });
     if (extracted.imageUrls.length > 0) return extracted;
     if (["failed", "error", "cancelled", "canceled"].includes(status)) {
       throw new Error(`APIMart 图像任务失败: ${status || "unknown"}`);
@@ -1030,6 +1242,7 @@ async function pollModelScopeImageTask(options: {
   pollPathTemplate: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  onHeartbeat?: (patch: Record<string, unknown>) => Promise<void>;
 }) {
   const startedAt = Date.now();
   const pollPathTemplate = safeText(options.pollPathTemplate, "tasks/{task_id}");
@@ -1048,6 +1261,13 @@ async function pollModelScopeImageTask(options: {
     const extracted = extractImageOutputs(raw);
     const taskState = extractModelScopeImageTask(raw, { taskStatusPath: options.statusPath });
     const status = safeText(taskState.status).toLowerCase();
+    await options.onHeartbeat?.({
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: options.taskId,
+      taskId: options.taskId,
+      upstreamStatus: status || "pending",
+      runtimeStage: "polling",
+    });
     if (extracted.imageUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return extracted;
     if (isFailedAsyncStatus(status)) throw new Error(`ModelScope 图像任务失败: ${status || "unknown"}`);
   }

@@ -366,7 +366,14 @@ export async function cancelGenerationTask(req: {
   model?: string;
   providerId?: string;
   providerModel?: string;
-}): Promise<{ cancelled: boolean; upstream: boolean; message?: string }> {
+}): Promise<{
+  cancelled: boolean;
+  upstream: boolean;
+  cancelScope?: 'local_only' | 'upstream_confirmed' | 'upstream_attempt_failed' | string;
+  upstreamSupported?: boolean;
+  upstreamAttempted?: boolean;
+  message?: string;
+}> {
   const r = await fetch('/api/proxy/generation/cancel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

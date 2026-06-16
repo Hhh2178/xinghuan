@@ -896,7 +896,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       <div
         data-rh-duck-output-frame={isRhDuckOutput ? 'true' : undefined}
         data-yyh-portrait-hidden-output-frame={isYyhPortraitOutput ? 'true' : undefined}
-        className={`rounded-xl border-2 transition-colors ${size.h ? 'flex-1 min-h-0' : ''}`}
+        className={`rounded-xl border-2 transition-colors flex flex-col ${size.h ? 'flex-1 min-h-0' : ''}`}
         style={{
           background: isDark ? 'rgb(20,20,22)' : 'rgb(255,255,255)',
           overflow: 'visible',
@@ -937,7 +937,10 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       </div>
 
       {/* body */}
-      <div className="p-2.5 space-y-3" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className={`p-2.5 space-y-3 ${size.h ? 'overflow-hidden flex flex-col flex-1 min-h-0' : ''}`}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {total === 0 && (
           <div
             className={`rounded flex items-center justify-center text-[11px] py-3 px-2 text-center ${
@@ -952,7 +955,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
 
         {/* 文本区 */}
         {(collected.texts.length > 0 || isEdited) && (
-          <div className="space-y-1">
+          <div className={size.h ? 'space-y-1 flex flex-col flex-1 min-h-0 overflow-hidden' : 'space-y-1'}>
             <div className={`flex items-center gap-1.5 text-[10px] ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
               <TypeIcon size={11} />
               <span className="flex-1">文本{isEdited ? ' · 已编辑' : ''}</span>
@@ -980,15 +983,17 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
                 onDoubleClick={enterEdit}
                 onWheelCapture={(e) => e.stopPropagation()}
                 className={`nowheel whitespace-pre-wrap break-words text-[12px] leading-relaxed rounded px-2 py-1.5 cursor-text ${
+                  size.h ? 'flex-1 min-h-0 overflow-auto' : 'max-h-60 overflow-auto'
+                } ${
                   isDark ? 'bg-white/5 text-white/85' : 'bg-black/5 text-zinc-800'
                 }`}
-                style={{ maxHeight: 200, overflow: 'auto' }}
+                style={size.h ? { minHeight: 0 } : undefined}
                 title="双击编辑"
               >
                 {displayText || <span className="opacity-50">(空)</span>}
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className={size.h ? 'space-y-1 flex flex-col flex-1 min-h-0 overflow-hidden' : 'space-y-1'}>
                 <textarea
                   ref={taRef}
                   value={draft}
@@ -996,10 +1001,13 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
                   spellCheck={false}
                   rows={6}
                   className={`w-full rounded px-2 py-1.5 text-[12px] outline-none nodrag nowheel ${
+                    size.h ? 'flex-1 min-h-0 resize-none overflow-auto' : ''
+                  } ${
                     isDark
                       ? 'bg-black/40 text-white border border-teal-400/40'
                       : 'bg-white text-zinc-900 border border-teal-500/50'
                   }`}
+                  style={size.h ? { minHeight: 0 } : undefined}
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') cancelEdit();
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();

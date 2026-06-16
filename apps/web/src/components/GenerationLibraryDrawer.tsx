@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock3, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
+import { Clock3, Download, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
 import { useThemeStore } from '../stores/theme';
 import * as api from '../services/api';
 import type { GenerationLibraryItem, GenerationLibraryKind } from '../services/api';
 import LoopingVideo from './LoopingVideo';
+import GenerationLibraryPreviewOverlay from './GenerationLibraryPreviewOverlay';
 
 const KIND_META: Record<GenerationLibraryKind, { label: string; icon: typeof ImageIcon; accent: string }> = {
   image: { label: '图片', icon: ImageIcon, accent: '#fbbf24' },
@@ -44,6 +45,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   const [items, setItems] = useState<GenerationLibraryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!open) return;
@@ -81,6 +83,11 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   const activeMeta = KIND_META[kind];
   const ActiveIcon = activeMeta.icon;
   const totalText = useMemo(() => `${items.length} 个临时素材`, [items.length]);
+  const previewableItems = useMemo(
+    () => items.filter((item) => item.kind === 'image' || item.kind === 'video'),
+    [items],
+  );
+  const activePreviewItem = previewIndex === null ? null : previewableItems[previewIndex] || null;
   const panelCls = isPixel
     ? 'border-l-2 border-[var(--px-ink)] bg-[var(--px-bg)] text-[var(--px-ink)]'
     : isDark
@@ -98,10 +105,26 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
     await onInsertMaterial(item);
   };
 
+  const openPreview = (item: GenerationLibraryItem) => {
+    const index = previewableItems.findIndex((entry) => entry.id === item.id);
+    if (index >= 0) setPreviewIndex(index);
+  };
+
+  const closePreview = () => setPreviewIndex(null);
+  const showPrev = () => setPreviewIndex((current) => (current === null ? current : Math.max(0, current - 1)));
+  const showNext = () =>
+    setPreviewIndex((current) => (current === null ? current : Math.min(previewableItems.length - 1, current + 1)));
+
   const deleteItem = async (item: GenerationLibraryItem) => {
     const res = await api.deleteGenerationLibraryItem(item.id);
     if (res.success) {
       setItems((prev) => prev.filter((entry) => entry.id !== item.id));
+      setPreviewIndex((current) => {
+        if (current === null) return current;
+        const nextPreviewItems = previewableItems.filter((entry) => entry.id !== item.id);
+        if (nextPreviewItems.length === 0) return null;
+        return Math.min(current, nextPreviewItems.length - 1);
+      });
       window.dispatchEvent(new CustomEvent('penguin:generation-library-changed'));
     } else {
       setMsg(res.error || '删除失败');
@@ -171,17 +194,27 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
               data-drag-source
               data-drag-kind={item.kind}
               data-drag-url={item.fileUrl}
-              data-drag-preview={item.fileUrl}
+              data-drag-preview={item.previewUrl || item.fileUrl}
               data-drag-node-id="generation-library"
               title="Ctrl+拖拽到节点，或点击插入画布"
             >
-              <div className="relative h-28 overflow-hidden bg-black/80">
-                {item.kind === 'image' && <img src={item.fileUrl} alt={item.title} className="h-full w-full object-cover" draggable={false} />}
+              <div
+                className="relative h-28 overflow-hidden bg-black/80"
+                onClick={() => (item.kind === 'image' || item.kind === 'video') && openPreview(item)}
+              >
+                {item.kind === 'image' && (
+                  <img
+                    src={item.previewUrl || item.fileUrl}
+                    alt={item.title}
+                    className="h-full w-full cursor-zoom-in object-cover"
+                    draggable={false}
+                  />
+                )}
                 {item.kind === 'video' && (
                   <LoopingVideo
-                    src={item.fileUrl}
+                    src={item.previewUrl || item.fileUrl}
                     muted
-                    className="h-full w-full object-cover"
+                    className="h-full w-full cursor-zoom-in object-cover"
                     onMouseEnter={(event) => event.currentTarget.play().catch(() => {})}
                     onMouseLeave={(event) => {
                       event.currentTarget.pause();
@@ -203,7 +236,17 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
                 <div className="text-xs font-medium truncate" title={item.title}>{item.title}</div>
                 <div className={`text-[10px] truncate ${subtle}`}>{formatSize(item.size) || item.mime || item.kind}</div>
                 {item.kind === 'audio' && <audio src={item.fileUrl} controls className="h-8 w-full" />}
-                <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
+                  {(item.kind === 'image' || item.kind === 'video') && (
+                    <button onClick={() => openPreview(item)} className={`${itemBtn} flex items-center gap-1`} title="查看">
+                      查看
+                    </button>
+                  )}
+                  {item.downloadUrl && item.canDownload !== false && (
+                    <a href={item.downloadUrl} className={`${itemBtn} flex items-center gap-1`} title="下载">
+                      <Download size={13} /> 下载
+                    </a>
+                  )}
                   <button onClick={() => insertItem(item)} className={`${itemBtn} flex items-center gap-1`} title="插入画布">
                     <Plus size={13} /> 插入
                   </button>
@@ -216,6 +259,16 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
           ))}
         </div>
       </main>
+      {activePreviewItem && (
+        <GenerationLibraryPreviewOverlay
+          item={activePreviewItem}
+          hasPrev={previewIndex !== null && previewIndex > 0}
+          hasNext={previewIndex !== null && previewIndex < previewableItems.length - 1}
+          onPrev={showPrev}
+          onNext={showNext}
+          onClose={closePreview}
+        />
+      )}
     </div>
   );
 }

@@ -3,11 +3,13 @@ import { readlink } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
-const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
-const envLabel = process.env.XINGHUAN_ENV_LABEL ?? "unknown";
-const releaseCurrentLink = process.env.XINGHUAN_RELEASE_CURRENT_LINK ?? "";
-const apiServiceName = process.env.XINGHUAN_API_SERVICE_NAME ?? "";
-const workerServiceName = process.env.XINGHUAN_WORKER_SERVICE_NAME ?? "";
+const defaultHost = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
+const defaultPort = process.env.XINGHUAN_API_PORT ?? "18200";
+const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? `http://${defaultHost}:${defaultPort}`;
+const envLabel = process.env.XINGHUAN_ENV_LABEL ?? inferEnvLabel();
+const releaseCurrentLink = process.env.XINGHUAN_RELEASE_CURRENT_LINK ?? inferReleaseCurrentLink();
+const apiServiceName = process.env.XINGHUAN_API_SERVICE_NAME ?? inferServiceName("api");
+const workerServiceName = process.env.XINGHUAN_WORKER_SERVICE_NAME ?? inferServiceName("worker");
 const databaseUrl = process.env.XINGHUAN_DATABASE_URL ?? "";
 
 async function main() {
@@ -110,6 +112,44 @@ function toUrl(pathname) {
 
 function safeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function inferEnvLabel() {
+  const target = detectRuntimeTarget();
+  if (target === "production") return "production";
+  if (target === "gray") return "gray";
+  return "unknown";
+}
+
+function inferReleaseCurrentLink() {
+  const target = detectRuntimeTarget();
+  if (target === "production") return "/opt/apps/xinghuan-canvas/current";
+  if (target === "gray") return "/opt/apps/xinghuan-canvas-next/current";
+  return "";
+}
+
+function inferServiceName(kind) {
+  const target = detectRuntimeTarget();
+  if (target === "production") {
+    return kind === "worker" ? "xinghuan-canvas-worker.service" : "xinghuan-canvas.service";
+  }
+  if (target === "gray") {
+    return kind === "worker" ? "xinghuan-canvas-next-worker.service" : "xinghuan-canvas-next.service";
+  }
+  return "";
+}
+
+function detectRuntimeTarget() {
+  try {
+    const url = new URL(baseUrl);
+    const port = url.port || (url.protocol === "https:" ? "443" : "80");
+    const hostname = url.hostname.toLowerCase();
+    if (port === "18100" || hostname === "canvas.hhh2121.xyz") return "production";
+    if (port === "18200" || hostname === "canvas-next.hhh2121.xyz") return "gray";
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 main().catch((error) => {
