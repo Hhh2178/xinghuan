@@ -52,8 +52,24 @@
 - `psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"` 返回值与 `XINGHUAN_EXPECTED_DATABASE_NAME` 一致。
 - RunningHub 真实工作流能力本轮不作为生产切换前必验项。
 
+## 观测层
+
+- `curl -i -H "x-request-id: prod-gate-check" http://127.0.0.1:18100/api/status` 的响应头保留 `x-request-id`。
+- 管理员登录后 `/api/admin/system` 返回：
+  - `database.currentDatabase`
+  - `database.expectedDatabase`
+  - `database.targetMatched`
+  - `observability.tasks.total / queued / running / failedLast24h`
+  - `observability.audits.sampled / withRequestId / requestIdCoveragePercent`
+- 当前 release 内可执行：
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+- `ops/phase-e-observability-release-gate-2026-06-15.md` 已作为当前 Phase E gate 入口同步更新。
+
 ## 回滚验收
 
 - `current` 可指回上一 release。
 - 服务重启后 `/api/status` 和 `/` 恢复。
 - 域名回切或服务回滚后无持续 `502`。
+- 当前 `Phase E` production rollback 样本记录：
+  - `ops/phase-e-observability-production-rollback-2026-06-15.md`

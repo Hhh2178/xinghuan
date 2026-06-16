@@ -33,10 +33,6 @@ set -a
 source /opt/apps/xinghuan-canvas-next/shared/canvas-next.env
 set +a
 export XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz
-export XINGHUAN_ENV_LABEL=gray
-export XINGHUAN_RELEASE_CURRENT_LINK=/opt/apps/xinghuan-canvas-next/current
-export XINGHUAN_API_SERVICE_NAME=xinghuan-canvas-next.service
-export XINGHUAN_WORKER_SERVICE_NAME=xinghuan-canvas-next-worker.service
 npm run verify:release-preflight
 ```
 
@@ -48,10 +44,6 @@ set -a
 source /opt/apps/xinghuan-canvas/shared/canvas.env
 set +a
 export XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz
-export XINGHUAN_ENV_LABEL=production
-export XINGHUAN_RELEASE_CURRENT_LINK=/opt/apps/xinghuan-canvas/current
-export XINGHUAN_API_SERVICE_NAME=xinghuan-canvas.service
-export XINGHUAN_WORKER_SERVICE_NAME=xinghuan-canvas-worker.service
 npm run verify:release-preflight
 ```
 
@@ -65,4 +57,13 @@ npm run verify:release-preflight
 ## 当前建议
 
 - 灰度和正式都把这份快照作为每次发版的固定前置步骤。
+- `capture-release-preflight.mjs` 当前会基于 `XINGHUAN_VERIFY_BASE_URL` 自动推断 gray / production 的：
+  - 环境标签
+  - `current` 软链接路径
+  - API / Worker service 名称
+- 若需要覆盖默认推断，仍可手动导出：
+  - `XINGHUAN_ENV_LABEL`
+  - `XINGHUAN_RELEASE_CURRENT_LINK`
+  - `XINGHUAN_API_SERVICE_NAME`
+  - `XINGHUAN_WORKER_SERVICE_NAME`
 - 后续可以继续把快照结果自动落盘到 `ops/` 或服务器 release 目录下的 `acceptance/` 子目录。

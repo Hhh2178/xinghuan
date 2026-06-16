@@ -212,10 +212,107 @@
 - 长时间悬挂任务能自动复核。
 - 后台任务查询改为分页。
 
+当前状态（2026-06-15）:
+
+- 已完成本地代码收口、本地验收、灰度发布与正式发布：
+  - 统一任务取消服务
+  - `cancelScope` / `upstreamSupported` / `upstreamAttempted` 结构化结果
+  - worker heartbeat
+  - stale running task reaper
+  - 后台任务分页与筛选
+- 已补齐本地串行验收入口与 gray / production release package 契约：
+  - `npm run verify:phase-d`
+- 当前 gray active release：
+  - gray: `20260615-phase-d-runtime-gray-r3`
+- 当前 prod active release：
+  - prod: `20260615-phase-d-runtime-prod-r1`
+- 当前 gray / prod release 已确认包含：
+  - `014_task_runtime_phase_d.sql`
+  - `verify:release-preflight`
+  - `verify:phase-d`
+  - `verify:provider-generation-task-service`
+  - `verify:provider-generation-worker`
+- 仍待继续推进：
+  - 更完整的长任务补偿与上游取消样本验收
+  - 与 `Phase E` 一起做请求链路与系统观测补强
+
 ### Phase E 完成标准
 
 - 关键链路日志可串联到具体用户、任务和请求。
 - 灰度和正式都有固定上线门槛文档和回滚演练记录。
+
+补充结论（2026-06-15）:
+
+- gray rollback 样本已完成，并收口在：
+  - `ops/phase-e-observability-gray-release-2026-06-15.md`
+- production rollback 样本已完成，并收口在：
+  - `ops/phase-e-observability-production-rollback-2026-06-15.md`
+- 长期观测治理第一批已完成 gray / production 发布：
+  - `ops/phase-e-observability-governance-gray-release-2026-06-15.md`
+  - `ops/phase-e-observability-governance-production-release-2026-06-15.md`
+- 长期观测治理第二批已完成 gray / production 发布：
+  - `ops/phase-e-observability-governance-batch2-gray-release-2026-06-15.md`
+  - `ops/phase-e-observability-governance-batch2-production-release-2026-06-15.md`
+- 长期观测治理第三批已完成 gray / production 发布：
+  - `ops/phase-e-observability-governance-batch3-gray-release-2026-06-15.md`
+  - `ops/phase-e-observability-governance-batch3-production-release-2026-06-15.md`
+- 当前 `Phase E` 后续重点已从“补 rollout / rollback 样本”切换到“长期治理收口”：
+  - 外部通知闭环
+  - requestId 实际覆盖率提升
+  - 把当前系统页活动告警继续延伸到可执行通知链路
+- `2026-06-16` 当前本地补强进展：
+  - 高频后台读接口已纳入 requestId 审计补样：
+    - `auth.admin_me`
+    - `summary.read`
+    - `users.read`
+    - `sessions.read`
+    - `providers.read`
+    - `models.read`
+    - `tasks.read`
+    - `system.read`
+  - `verify:request-chain-observability` 已同步覆盖这些读动作
+  - 后续 requestId 覆盖率提升应优先沿真实高频读写链路继续补样，不再依赖一次性测试 Provider 补样
+
+当前状态（2026-06-15）:
+
+- 已完成第一阶段实现与灰度验证：
+  - API `x-request-id`
+  - 审计 `requestId / ip / userAgent`
+  - 后台审计页新增请求与来源展示
+  - Worker 关键生命周期结构化日志
+  - provider generation task 最小请求链路透传
+- 已新增标准文档：
+  - `docs/superpowers/specs/2026-06-15-phase-e-request-chain-observability-design.md`
+  - `docs/superpowers/plans/2026-06-15-phase-e-request-chain-observability.md`
+- 已通过的验证：
+  - 本地 `npm run verify:request-chain-observability`
+    - 基于新本地验证实例 `127.0.0.1:18210`
+  - gray `npm run verify:request-chain-observability`
+    - 本机入口与公网入口均通过
+  - `npm run verify:worker-observability-contract`
+  - `npm run verify:admin-readonly-panels-contract`
+- 已完成第二阶段实现与 gray 放行：
+  - `/api/admin/system` 新增数据库目标、任务概览和审计 `requestId` 覆盖率
+  - 后台系统页新增对应只读观测项
+  - 已新增：
+    - `docs/superpowers/specs/2026-06-15-phase-e-system-observability-and-release-gates.md`
+    - `docs/superpowers/plans/2026-06-15-phase-e-system-observability-and-release-gates.md`
+    - `ops/phase-e-observability-release-gate-2026-06-15.md`
+- 当前 gray active release：
+  - gray: `20260615-phase-e-observability-governance-batch3-gray-r2`
+- 当前 prod active release：
+  - prod: `20260615-phase-e-observability-governance-batch3-prod-r2`
+- 已通过 gray gate：
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+- 已通过 production gate：
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+- 仍待继续推进：
+  - 外部通知闭环
+  - requestId 实际覆盖率提升
 
 ## 风险提示
 

@@ -2,7 +2,32 @@
 
 ## 当前状态
 
-状态：Phase 2 节点与模型治理已完成灰度收口，当前进入 Phase 3 任务与素材闭环。`2026-06-06` 已先后将“Worker 输出素材落库 + 14 天保守自动清理”推上灰度 release `20260606-1515-phase3-output-prune-gray`，随后又将“素材空间读取闭环 + 取消 / 重试 + Worker 取消保护”推上灰度 release `20260606-2358-phase3-lifecycle-gray`；`2026-06-07` 已完成“画布 / 素材 PostgreSQL repository 灰度热修复”并发布 release `20260607-0115-phase3-canvas-pg-hotfix-gray`，随后继续完成“RunningHub 工作流字段映射与画布消费第一版”并发布 release `20260607-0218-phase3-runninghub-workflow-gray`。当前灰度运行态中，Worker 图像任务成功后会把输出结果 materialize 为用户目录下的 `/files/output/...` 文件，并写入 PostgreSQL 资源库；首次读取 `GET /api/canvas` 后，原有文件画布已成功导入 PostgreSQL，当前验收结果为 `xh_canvases=13`、`xh_assets=2`。同时，后台现在已经可以保存 RunningHub 工作流 `runTargetId`、工作流 JSON 和字段映射，并通过 `/api/runninghub/catalog` 向画布节点暴露预设目录；当前灰度接口验收通过，但因为尚未录入真实工作流卡片，目录结果暂为空列表。资源库抽屉在打开状态下会静默轮询并响应 `penguin:resources-changed` 事件，因此新生成素材会自动出现在素材空间里；后台任务取消不再是任意状态补丁，重试会创建新任务并保留原任务取消日志，Worker 也不会再把运行中已取消的任务覆写成成功或失败。灰度真实队列联调已通过，自动清理 timer 已接入并处于 `active (waiting)`。`2026-06-07` 用户已明确要求暂缓 RunningHub 真实工作流卡片录入、字段展开和预览运行类测试；当前生产域名 `canvas.hhh2121.xyz` 已切到生产服务。`2026-06-06` 生产进一步更新到 release `20260606-1810-provider-signed-refs-xinghuan-empty`，灰度同步更新到 release `20260606-1818-provider-signed-refs-xinghuan-empty-gray`：图像/视频/LLM 代理会把本地素材引用转换为短期 HMAC 签名的 `/api/provider-files/...` 供应商短链，避免外部上游因普通 `/files` 需要登录 cookie 而无法拉取参考图；进入工作区的权限校验页和无画布空态已替换为星幻画布设计。当前灰度与生产是两套 Nginx 入口、端口和 release，且已经拆分为独立 PostgreSQL 数据库。`2026-06-07` 本机已新增全节点验收矩阵和浏览器真实渲染烟测，46 个注册节点全部能在真实 ReactFlow 画布渲染；去 AI 水印节点的状态/处理 API 已改为结构化未配置兜底，不再因接口 404 破坏节点挂载；`npm run verify:local-acceptance-chain` 已在临时本地服务 `127.0.0.1:18333` 通过 20 项核心验收。随后灰度已发布 release `20260607-1545-node-acceptance-gray`，生产已发布 release `20260607-1610-node-acceptance-prod`，服务器核心验收和公网 46/46 节点浏览器烟测均通过。与此同时，本机、生产和灰度 `npm run verify:single-port` 已通过，历史 `POST /api/admin/providers` `401` 未再复现。`2026-06-07` 已按用户提供的 `stitch_ui_optimization_and_transitions` 设计文件完成最终入口页收口：登录页改为居中磨玻璃星云卡片，权限校验阶段改为量子同步过渡动画，并移除设计稿演示用 SSO/组织网络入口。该入口 UI 已发布到灰度 release `20260607-entrance-ui-gray`，本机与服务器 `npm run verify:xinghuan-entry-ui`、服务器 `npm run verify:single-port`、公网 `https://canvas-next.hhh2121.xyz/` 浏览器截图和 0 error 控制台检查均通过；生产暂未切换。`2026-06-07 23:51` 已重新接入用户提供的本地 UI 设计目录，并把其中可用部分沉淀到 `entry-ui-google-brief.md` 与决策 `D-008`：后续给 Google/Gemini 的前端生成应采用左侧轻量伪 3D 微缩星系星图、右侧磨玻璃登录卡片和短暂星云过渡动画，但不得逐像素照搬设计稿里的远程图片、白色输入框、中心 logo、占位入口、调试文字和白闪爆发。`2026-06-07` 本机已完成管理后台危险操作交互收口：Provider/模型删除改为站内确认面板，手动新增模型改为站内表单弹窗，并新增 `verify:admin-interaction-guards` 防止后台重新引入原生 `confirm()` / `prompt()`。`2026-06-08` 本机已完成 Provider 文件访问签名逻辑模块抽离：`/api/provider-files/...` 的签名、过期、篡改拒绝、用户 ID 归一化和本地素材路径解析迁入独立模块，并新增 `verify:provider-file-access-contract`；在临时单端口服务 `127.0.0.1:18347` 下，图片、LLM 和视频外部代理短链验收均通过。同日继续完成任务生命周期纯逻辑模块抽离：取消补丁、取消应用、重试任务构造和状态守卫迁入 `task-lifecycle.ts`，新增 `verify:task-lifecycle-contract`，并在临时单端口服务 `127.0.0.1:18348` 下复验后台取消/重试 API。随后完成 Provider 模型目录解析模块抽离：协议归一化、模型列表 URL/header、上游模型去重和图像/视频/聊天分类迁入 `provider-model-catalog.ts`，新增 `verify:provider-model-catalog-contract`，并在临时单端口服务 `127.0.0.1:18349` 下复验 `/api/models` 目录接口。`2026-06-12` 又继续完成了“后台发布模型统一任务化”第二阶段收口：图片、视频、音频三类后台发布模型现在统一朝“提交任务 -> Worker 执行 -> 前端轮询 -> 素材落库”的标准主线收敛，不再继续扩散为长请求直返或每类能力各自分叉的链路。前端图片/音频节点已经切换到 `taskId + polling`，视频节点此前的任务化改造继续保留并纳入同一规范；后台模型编辑器和 AI 协助配置则补齐了结构化 `executionMode`，用于明确区分 `sync_inline`、`async_poll`、`async_poll_then_final_lookup`、`worker_queue` 四类执行模式。当前默认策略已经固定为 `chat -> sync_inline`、`image/video/audio -> worker_queue`，并通过 `advancedConfig.executionMode` 做前后端桥接，以避免在未新增数据库字段前阻断迭代。相应的灰度/生产发布门禁和验收顺序已经沉淀到 `ops/provider-generation-task-rollout-checklist-2026-06-12.md`，后续新增生成类 Provider 时应优先沿用该标准。
+状态：`v0.1.0` 仍处于产品路线的 `Phase 3` 持续收口阶段，但已经不再是“刚进入 Phase 3”的状态。当前产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-16` 已进一步把高频后台读接口纳入 requestId 审计补样，当前下一步更集中在外部通知闭环，以及沿真实高频链路继续做选择性 requestId 覆盖率提升。
+
+当前与本版本最相关的最新状态：
+
+- 当前灰度 active release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 当前生产 active release：`20260615-phase-e-observability-governance-batch3-prod-r2`
+- 当前灰度最新热修复已额外补齐：
+  - `GRSAI` nano 路由与图像节点错误透传
+  - 高频后台读接口 requestId 审计补样后的 gray gate 复验
+- `Phase D` 当前已补齐：
+  - 统一任务取消服务
+  - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果
+  - worker heartbeat
+  - stale task reaper
+  - 后台任务分页与筛选
+  - 本地串行验收入口 `npm run verify:phase-d`
+  - gray release-preflight 打包与服务器执行闭环
+  - gray runtime 验收脚本随 release package 同步分发
+  - production release-preflight 打包与服务器执行闭环
+  - production runtime 验收通过
+- 当前仍未完成的下一阶段重点：
+  - 更完整的任务补偿、上游取消样本与外部通知闭环
+  - `requestId` 实际覆盖率继续提升
+  - 将生成库素材访问层继续复用到更多素材读取场景
+
+`2026-06-06` 至 `2026-06-12` 的产品能力推进仍保持有效：Worker 输出素材落库、素材空间读取闭环、取消 / 重试、Worker 取消保护、画布 / 素材 PostgreSQL repository 热修复、RunningHub 工作流字段映射第一版、Provider 文件签名短链、后台发布模型统一任务化、Provider 分类队列并发、视频/图像上游 JSON 容错等都已完成落地并保留在本文件下方的时间线中。该时间线继续作为版本内历史推进记录保留，但不再单独承担“当前状态”入口职责。
 
 `2026-06-09` 本机继续完成三组问题收口：后台 AI 助手设置页改为本地草稿态 + 明确保存/重置，不再每次输入都触发 PATCH；同时修复关闭态后台助手抽屉仍覆盖主内容点击区的回归，避免真实页面里的“保存 / 重置”按钮被遮挡失效。登录页已去掉默认预填管理员邮箱，前台画布 AI 助手补齐空媒体过滤、可缩放面板和开关后的会话保持；图像、视频、Seedance、音频等生成类节点则新增统一运行态卡片，显示状态、进度和耗时。本机已通过 `verify-admin-assistant-settings-save-contract`、`verify:admin-assistant-ui-contract`、`verify:canvas-assistant-ui-contract`、`verify-login-gate-security-contract`、`verify:admin-auth-passwords`、`verify-node-runtime-card-contract`、`verify:canvas-node-render-smoke` 和 `build:single-port`。浏览器现场已确认：登录页邮箱默认为空、后台 AI 助手设置输入不自动落盘且“重置 / 保存”真实可用、后台顶栏重复入口已移除、前台助手面板支持 `resize: both` 且开关后会话不丢；当前打开的本地验收画布仅含文本节点，因此运行态卡片的真实浏览器观感主要由节点烟测与代码契约覆盖。
 

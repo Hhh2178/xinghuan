@@ -18,13 +18,15 @@
 ## 快速入口
 
 - `AGENTS.md`
-  - 当前协作规则、工程边界和默认查看顺序。
+  - 当前协作规则、文档路由规则、更新义务和归档边界。
 - `MEMORY.md`
-  - 当前项目长期记忆、部署状态和关键决策。
+  - 当前项目长期记忆、部署状态、当前 release 和阶段结论。
 - `DEVLOG.md`
   - 最近推进、验证、部署与回滚台账。
 - `docs/prd/README.md`
-  - 当前 2.0 文档索引。
+  - 当前 2.0 产品文档索引与当前版本状态。
+- `docs/documentation-governance.md`
+  - 文档路由、更新触发条件、归档规则和入口维护规范。
 - `ops/README.md`
   - 运维、验收和归档材料入口。
 - `development/README.md`
@@ -35,8 +37,16 @@
 - 当前活跃版本：`v0.1.0`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
+- 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
+- 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
+- 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
+- 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
+- 当前灰度 release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
+- 当前生成库状态：图片/视频预览与下载已完成，本地素材访问已统一走生成库内容路由
+- 当前本地验收链状态：`npm run verify:local-acceptance-chain` 已恢复全绿
 
 ## 目录边界
 

@@ -13,6 +13,1533 @@
 - 本文件保留逐日推进细节，不承担“唯一入口摘要”职责。
 - 已经沉淀为长期规则的内容，应同步收口到 `MEMORY.md`、`docs/` 或 `ops/`，避免只存在于日志中。
 
+## 2026-06-16
+
+### 文档治理与运维归档入口继续收束
+
+目标:
+
+- 把当前 worktree 的文档治理和归档入口从“能看出历史”收束到“能快速判断当前状态”。
+- 让 `ops/README.md` 不再长期平铺已经被后续阶段覆盖的旧记录。
+- 为后续脏工作区分批和热点文件拆分先落一份正式计划。
+
+变更:
+
+- 新增正式计划：
+  - `docs/superpowers/plans/2026-06-16-worktree-cleanup-and-document-archive-closure.md`
+- 新增运维归档批次：
+  - `ops/archive/2026-06-assistant-and-ui-rollout/`
+  - `ops/archive/2026-06-provider-and-infra-rollout/`
+- 已把以下早期记录从 `ops/` 主入口逐个移入归档批次：
+  - `current-fix-cleanup-progress-2026-06-08.md`
+  - `assistant-hermes-gray-2026-06-08.md`
+  - `canvas-assistant-ui-gray-2026-06-09.md`
+  - `generation-count-release-2026-06-10.md`
+  - `video-json-guard-gray-2026-06-12.md`
+  - `provider-generation-task-gray-release-2026-06-12.md`
+  - `provider-task-queue-concurrency-gray-2026-06-12.md`
+  - `provider-task-queue-concurrency-production-2026-06-12.md`
+  - `modelscope-image-protocol-release-2026-06-12.md`
+  - `cloudflare-origin-lock-2026-06-12.md`
+  - `files-origin-seal-plan-2026-06-12.md`
+  - `files-origin-seal-execution-checklist-2026-06-12.md`
+  - `provider-files-files-domain-cutover-2026-06-12.md`
+- 更新：
+  - `ops/README.md`
+  - `ops/archive/README.md`
+  - `docs/documentation-governance.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+
+影响:
+
+- 当前运维主入口已经更接近“当前值守 / 当前放行 / 最新热修复”的真实使用方式。
+- 历史材料仍保留，但查看顺序已经从“在主入口里猜哪一份最新”改成“先看主入口，再按归档批次追历史”。
+- 后续每次出现新 release 或新阶段切换时，都必须在同轮推进内决定旧记录是否归档，否则文档治理视为未完成。
+
+补充:
+
+- 已继续把产品入口口径同步到 `README.md` / `docs/prd/README.md` / `docs/prd/v0.1.0/progress.md`。
+- 其中 `progress.md` 的当前灰度 active release 已从旧的 `20260615-phase-e-observability-governance-batch3-gray-r2` 校正为当前真实灰度 `20260616-grsai-nano-error-ux-gray-r1-ee04792`，避免入口之间继续出现 phase 已更新但 release 仍停在旧版本的情况。
+
+### 已将此前 GRSAI nano 修复批次推到灰度
+
+目标:
+
+- 把前面已经完成的 `GRSAI` `nano-banana` 路由修复、图像节点错误透传修复和输出文本流修复正式切到 gray current。
+
+发布:
+
+- gray release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- gray current：`/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 服务：
+  - `xinghuan-canvas-next.service` => `active`
+  - `xinghuan-canvas-next-worker.service` => `active`
+
+验证:
+
+- `npm run build:single-port`
+- `npm run verify:release-package-contract`
+- `npm run package:release -- 20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- gray 服务器：
+  - `npm run db:migrate`
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+
+影响:
+
+- 本次灰度已经把这批前置修复切到当前运行态。
+- 中间曾遇到一次 `db:migrate` 读取不到数据库配置的情况，原因是执行顺序里没有先 `source /opt/apps/xinghuan-canvas-next/shared/canvas-next.env`；补上环境加载后已恢复正常。
+- 当前灰度 `release-preflight` 和观测 gate 已完成验证，后续如再继续改动，可以直接在这个灰度 current 上追加。
+
+### Phase E 高频后台读取链路 requestId 审计补样收口
+
+目标:
+
+- 把 `Phase E` 的 `requestId` 覆盖率提升从“只覆盖写链路和少量系统读取”推进到“覆盖高频后台读接口”。
+- 让系统观测中的覆盖率不再主要依赖临时测试写入样本，而是能从日常后台读取流量中持续得到更真实的审计样本。
+
+变更:
+
+- `apps/api/src/server.ts`
+  - 为以下后台高频读接口补齐 `appendAudit(...)`，并继承当前请求的 `requestId`：
+    - `GET /api/auth/admin-me` -> `auth.admin_me`
+    - `GET /api/admin/summary` -> `summary.read`
+    - `GET /api/admin/users` -> `users.read`
+    - `GET /api/admin/sessions` -> `sessions.read`
+    - `GET /api/admin/providers` -> `providers.read`
+    - `GET /api/admin/models` -> `models.read`
+    - `GET /api/admin/tasks` -> `tasks.read`
+  - `GET /api/admin/system` 继续保留 `system.read`
+  - `admin-me` 读链路补齐 `requestContext.userId / userEmail`，保证审计样本可归属到当前后台用户
+- `scripts/verify-request-chain-observability.mjs`
+  - 从只验证写链路 requestId 审计，扩展为同时验证上述后台读接口审计动作
+  - 统一对读取链路附带同一个 `x-request-id`
+  - 在 `/api/admin/audit` 中核对读动作是否带回同一 `requestId`
+
+验证:
+
+- `npm run build -w @xinghuan/api`
+- fresh 本地实例：`127.0.0.1:18335`
+- `npm run verify:request-chain-observability`
+  - 当前结果：通过
+  - 读链路审计动作覆盖：
+    - `auth.admin_me`
+    - `summary.read`
+    - `users.read`
+    - `sessions.read`
+    - `providers.read`
+    - `models.read`
+    - `tasks.read`
+    - `system.read`
+- `npm run verify:system-observability`
+  - 当前结果：通过
+  - 当前样本下 `audits.requestIdCoverageLast24hPercent = 100`
+- `node scripts/verify-admin-readonly-panels-contract.mjs`
+- `npm run type-check -w @xinghuan/api`
+
+影响:
+
+- 后台常用只读接口现在也会稳定贡献 requestId 审计样本，系统页覆盖率读数更接近日常真实流量，而不是主要依赖脚本制造的写入样本。
+- `Phase E` 剩余项可以进一步收窄为“外部通知闭环”为主，`requestId` 覆盖率只需按新链路继续做选择性补强，而不是再做一轮大面积补样。
+
+### 生成库素材访问能力收口：图片/视频预览与下载
+
+目标:
+
+- 为生成库补齐图片与视频素材的查看和下载能力。
+- 把生成库从直接暴露裸 `fileUrl` 收口为统一的素材访问描述与内容路由。
+
+变更:
+
+- 新增 `apps/api/src/material-access-types.ts`
+- 新增 `apps/api/src/material-access-service.ts`
+- `apps/api/src/server.ts`
+  - 生成库列表响应改为返回访问描述字段
+  - 新增 `GET /api/materials/generation-library/:id/content`
+- `apps/web/src/services/api.ts`
+  - 补齐 `filename` / `previewUrl` / `downloadUrl` / `openUrl` / `canDownload` / `isExpired`
+- 新增 `apps/web/src/components/GenerationLibraryPreviewOverlay.tsx`
+- `apps/web/src/components/GenerationLibraryDrawer.tsx`
+  - 新增查看、下载动作
+  - 新增抽屉内预览层
+  - 缩略图区与预览逻辑优先走 `previewUrl`
+- 新增验证脚本：
+  - `scripts/verify-generation-library-material-access-contract.mjs`
+  - `scripts/verify-generation-library-preview-contract.mjs`
+- 扩展：
+  - `scripts/verify-generation-library-and-admin-assistant-layout.mjs`
+
+验证:
+
+- `node scripts/verify-generation-library-material-access-contract.mjs`
+- `node scripts/verify-generation-library-preview-contract.mjs`
+- `node scripts/verify-generation-library-and-admin-assistant-layout.mjs`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/web`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/web`
+- 本地单端口真实联调：
+  - `http://127.0.0.1:18200/`
+  - 管理员登录后实测：
+    - 生成库图片卡片已显示 `查看 / 下载 / 插入 / 删除`
+    - 图片预览弹层已打开，`img src` 走 `disposition=inline`
+    - 图片下载已返回 `200` + `Content-Disposition: attachment`
+    - 生成库视频卡片已显示 `查看 / 下载 / 插入 / 删除`
+    - 视频预览弹层已打开，`video src` 走 `disposition=inline`
+- 验收脚本补齐：
+  - `npm run verify:single-port`
+    - 已补同源 `Origin / Referer`
+    - 已补生成库图片/视频访问描述与内容路由验收
+    - 当前结果：通过
+  - `npm run verify:local-acceptance-chain`
+    - 当前 `verify:single-port` 子项已通过
+    - 整体仍被既有 `verify:node-acceptance-matrix` 3 条历史失败项阻塞：
+      - `Image proxy signs local provider references`
+      - `Video proxy signs local provider references`
+      - `LLM proxy signs local image references`
+
+影响:
+
+- 当前这套能力只接到 `generation-library`，没有扩散到资源库或其他素材来源。
+- 后续资源库、任务输出或统一素材中心接预览/下载时，应复用同一后端访问层，不再各自拼接下载地址。
+
+### 灰度发布 GRSAI nano 路由与图像节点错误透传热修复
+
+目标:
+
+- 将 `GRSAI` `nano-banana` 专用提交路由、图像节点错误透传、输出文本流修复推到灰度。
+- 确认当前灰度 release 切换完成，并补一轮与本次改动直接相关的最小验收。
+
+发布:
+
+- gray release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- gray current：`/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 服务：
+  - `xinghuan-canvas-next.service` => `active`
+  - `xinghuan-canvas-next-worker.service` => `active`
+
+变更:
+
+- `apps/api/src/grsai-image-adapter.ts`
+- `apps/api/src/external-proxy.ts`
+- `apps/worker/src/worker.ts`
+- `apps/web/src/components/nodes/ImageNode.tsx`
+- `scripts/verify-grsai-image-adapter.ts`
+- `scripts/verify-image-node-error-reporting.mjs`
+- `scripts/verify-output-text-flow-contract.mjs`
+
+验证:
+
+- 本地：
+  - `npm run verify:grsai-draw`
+  - `node scripts/verify-image-node-error-reporting.mjs`
+  - `node scripts/verify-output-text-flow-contract.mjs`
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/worker`
+  - `npm run type-check -w @xinghuan/web`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build:single-port`
+  - `npm run verify:release-package-contract`
+- gray:
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+  - `/api/proxy/external/image` + `GRSAI gpt-image-2` 同步实测成功
+  - `/api/proxy/external/image/task` + `GRSAI gpt-image-2` 异步实测成功，返回 `adapter=grsai-image`
+
+备注:
+
+- 当前灰度后台只有 `GRSAI gpt-image-2` 处于启用状态，`nano-banana-fast` / `nano-banana-2` 尚未在灰度数据中启用，因此这次灰度未做 nano 真实上游验收。
+- 异步图像任务首轮复验曾收到上游 `failed + generate image failed`，随后同链路复跑通过；当前更像上游波动，不是灰度发布后链路中断。
+
+### 修复 Phase E 观测验收脚本遗留测试 Provider 的问题
+
+目标:
+
+- 清掉 gray / production 后台中重新出现的 `Observability ...` / `System Observability ...` 测试服务商。
+- 修正 `Phase E` 验收脚本，避免后续每次跑观测验收都把假 Provider 留在线上。
+
+根因:
+
+- `scripts/verify-system-observability.mjs` 会直接创建 `system-obs-provider-*`，仅用于补 requestId 样本，但没有回收。
+- `scripts/verify-request-chain-observability.mjs` 会创建 `obs-provider-*` 验证 `provider.create` 审计，但也没有回收。
+- `2026-06-15` 在 gray / production 都执行过这些脚本后，线上重新积累了新的测试 Provider。
+
+变更:
+
+- 新增回归约束：
+  - `scripts/verify-observability-script-cleanup-contract.mjs`
+- 调整脚本：
+  - `scripts/verify-system-observability.mjs`
+    - 不再创建测试 Provider
+    - 改为对 `admin-login` 和 `GET /api/admin/system` 统一携带 `x-request-id`
+  - `scripts/verify-request-chain-observability.mjs`
+    - 保留 `provider.create` 审计验证
+    - 新增 `finally` 清理，自动删除本轮创建的测试 Provider
+- 线上当前 release 热补丁：
+  - gray `/opt/apps/xinghuan-canvas-next/current/scripts/`
+  - production `/opt/apps/xinghuan-canvas/current/scripts/`
+  - 本次仅替换验收脚本文件，不涉及服务进程重启
+
+数据清理:
+
+- gray 删除 `14` 条 `obs-provider-*` / `system-obs-provider-*`
+- production 删除 `12` 条 `obs-provider-*` / `system-obs-provider-*`
+- 过程中旧脚本再次试跑遗留 `2 + 2` 条，热补丁后已再次清掉，当前两边剩余 `0`
+
+验证:
+
+- 本地：
+  - `node scripts/verify-observability-script-cleanup-contract.mjs`
+- gray current：
+  - `node scripts/verify-system-observability.mjs`
+  - `npm run verify:request-chain-observability`
+  - 复核 `leakedProviders = 0`
+- production current：
+  - `node scripts/verify-system-observability.mjs`
+  - `npm run verify:request-chain-observability`
+  - 复核 `leakedProviders = 0`
+
+影响与说明:
+
+- 这次重新出现的并不是 `Agnes / Apimart / 魔搭 / mimo` 这类真实服务商回流，而是观测验收脚本本身制造的测试对象。
+- 后续再跑 `Phase E` 观测验收，灰度和正式都不应再留下新的 `Observability` / `System Observability` 假 Provider。
+
+## 2026-06-15
+
+### Phase E 长期观测治理第三批已完成灰度/生产发布，并修正 gate 脚本默认目标
+
+目标:
+
+- 把 `Phase E` 剩余的“更长时间窗口趋势 + 告警闭环 + requestId 覆盖率新鲜度”推进到真实 gray / production 运行态。
+- 修正 `verify:release-preflight`、`verify:request-chain-observability`、`verify:system-observability` 默认误打 `18200` 的 gate 脚本问题。
+
+变更:
+
+- 新增清单并执行完成：
+  - `docs/superpowers/plans/2026-06-15-phase-e-observability-governance-batch-3.md`
+- 后端：
+  - `observability.tasks.failedLast30d`
+  - `observability.tasks.trend.failed30dDailyAverageBaseline`
+  - `observability.tasks.trend.failed24hVs30dDailyAverage`
+  - `observability.tasks.trend.failed7dVs30dDailyAverage`
+  - `observability.audits.sampledLast24h / sampledLast7d`
+  - `observability.audits.requestIdCoverageLast24hPercent / requestIdCoverageLast7dPercent`
+  - `observability.audits.coverageTrend.*`
+  - `observability.audits.conflicts.totalLast7d / totalLast30d / trend`
+  - `observability.alerts`
+  - 新增 audit 补样：
+    - `auth.admin_login`
+    - `auth.admin_logout`
+    - `system.read`
+- 前端：
+  - 系统面板新增：
+    - `30d 失败任务`
+    - `24h 失败 vs 30d 日均`
+    - `7d 日均 vs 30d 日均`
+    - `近24h 请求ID覆盖率`
+    - `近7d 请求ID覆盖率`
+    - `7d 冲突总数`
+    - `30d 冲突总数`
+    - `24h 冲突 vs 30d 日均`
+    - `活动告警`
+- 验收脚本：
+  - `scripts/capture-release-preflight.mjs`
+  - `scripts/verify-request-chain-observability.mjs`
+  - `scripts/verify-system-observability.mjs`
+  - 现在默认跟随 `XINGHUAN_API_HOST / XINGHUAN_API_PORT`
+- 新增发布记录：
+  - `ops/phase-e-observability-governance-batch3-gray-release-2026-06-15.md`
+  - `ops/phase-e-observability-governance-batch3-production-release-2026-06-15.md`
+
+验证:
+
+- 本地：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/api`
+  - `npm run build -w @xinghuan/admin`
+  - `npm run build:single-port`
+  - `node scripts/verify-admin-readonly-panels-contract.mjs`
+  - 本地单端口实例 `127.0.0.1:18218`
+  - 串行：
+    - `node scripts/verify-request-chain-observability.mjs`
+    - `node scripts/verify-system-observability.mjs`
+    - `node scripts/capture-release-preflight.mjs`
+- gray release：
+  - `r1 = 20260615-phase-e-observability-governance-batch3-gray-r1`
+  - `r2 = 20260615-phase-e-observability-governance-batch3-gray-r2`
+  - `r2` 本机 SHA256：
+    - local `84530A2947442F5CB0AD17ECCA331C58BB798C8DA54D5765AD1E8FA0CF57222A`
+    - server `84530a2947442f5cb0ad17ecca331c58bb798c8da54d5765ad1e8fa0cf57222a`
+  - gray 本机 gate：
+    - `verify:release-preflight = ok`
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+  - gray 公网 gate：
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+    - `/api/status` header smoke = ok
+- production release：
+  - `r1 = 20260615-phase-e-observability-governance-batch3-prod-r1`
+  - `r2 = 20260615-phase-e-observability-governance-batch3-prod-r2`
+  - `r2` 本机 SHA256：
+    - local `9FC53582A914D52E18437A98CD3631F57DE89C01B657B6E838E6BC1857B29C98`
+    - server `9fc53582a914d52e18437a98cd3631f57de89c01b657b6e838e6bc1857b29c98`
+  - production 本机 gate：
+    - `verify:release-preflight = ok`
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+  - production 公网 gate：
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+    - `/api/status` header smoke = ok
+
+结果:
+
+- 当前灰度 `current`：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-e-observability-governance-batch3-gray-r2`
+- 当前生产 `current`：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-batch3-prod-r2`
+- gray 当前关键状态：
+  - `requestIdCoverageLast24hPercent = 64`
+  - `requestIdCoverageLast7dPercent = 15`
+  - `alerts.activeCount = 3`
+  - `alerts.highestSeverity = critical`
+- production 当前关键状态：
+  - `requestIdCoverageLast24hPercent = 67`
+  - `requestIdCoverageLast7dPercent = 14`
+  - `alerts.activeCount = 2`
+  - `alerts.highestSeverity = warning`
+- 新边界说明：
+  - 本地 file-mode 下会写 auth/admin 数据的验收脚本不能并行跑；应串行执行，否则可能出现假性 `AUTH_REQUIRED`
+
+结论:
+
+- `Phase E` 长期观测治理第三批已完成 gray / production 收口。
+- 当前剩余项不再是“把系统页字段做出来”，而是：
+  - 外部通知闭环
+  - `requestId` 实际覆盖率继续提升
+
+### 正式/灰度后台用户与 API 服务商已完成一次定向同步清理
+
+目标:
+
+- 清掉正式版与灰度后台中由验收脚本留下的测试 API 服务商。
+- 按“用户以数量更多的一侧为准、服务商以数量更多的一侧为准”的规则，对齐两边后台基础数据。
+- 把灰度中的 `mimo` 服务商与其模型配置补进正式环境。
+
+变更:
+
+- 线上数据整理：
+  - production 删除 `18` 条测试服务商记录
+  - gray 删除 `15` 条测试服务商记录
+  - 用户以 production 为源，向 gray 同步 `7` 个用户
+  - 服务商以 gray 为源，向 production 同步 `6` 个真实服务商
+  - 将 `mimo` 服务商 `custom-api-1781156773691` 及其 `5` 条模型写入 production
+- 同步后真实服务商清单统一为：
+  - `GRSAI`
+  - `ToAPIs`
+  - `Apimart`
+  - `Agnes`
+  - `魔搭`
+  - `mimo`
+
+验证:
+
+- 服务器事务前后计数：
+  - production:
+    - users: `7 -> 7`
+    - providers: `23 -> 6`
+    - realProviders: `5 -> 6`
+    - mimoModels: `0 -> 5`
+  - gray:
+    - users: `6 -> 7`
+    - providers: `21 -> 6`
+    - realProviders: `6 -> 6`
+    - mimoModels: `5 -> 5`
+- 同步后复核：
+  - production / gray 用户数都为 `7`
+  - production / gray 真实服务商数都为 `6`
+  - production / gray 均包含 `mimo`
+  - production `mimo` 模型为：
+    - `mimo-v2.5`
+    - `mimo-v2.5-pro`
+    - `mimo-v2.5-tts`
+    - `mimo-v2.5-tts-voiceclone`
+    - `mimo-v2.5-tts-voicedesign`
+
+影响与说明:
+
+- 这次是后台基础数据对齐，不涉及新的 release 切换。
+- 本次仅同步用户、真实服务商和 `mimo` 相关模型；未对其它现有模型目录做覆盖式替换。
+- 两边当前均已去掉 observability 验收遗留的测试服务商，后续如果再跑类似脚本，应继续避免把测试配置长期留在线上。
+
+### Phase E 长期观测治理第二批已完成灰度/生产发布
+
+目标:
+
+- 把 `Phase E` 长期观测从“只返回原始计数”推进到“可直接给出健康判断和短窗口趋势”。
+- 用当前已有 task/audit 数据，在不加新表的前提下补最小治理闭环。
+
+变更:
+
+- 新增清单并执行完成：
+  - `docs/superpowers/plans/2026-06-15-phase-e-observability-governance-batch-2.md`
+- 后端：
+  - `observability.tasks.health`
+  - `observability.tasks.trend.failed24hDailyAverageBaseline`
+  - `observability.tasks.trend.failed24hVs7dDailyAverage`
+  - `observability.audits.coverageHealth`
+  - `observability.audits.conflicts.health`
+- 前端：
+  - 系统面板新增：
+    - `任务健康`
+    - `24h 失败 vs 7d 日均`
+    - `请求ID健康`
+    - `冲突健康`
+- 新增灰度发布记录：
+  - `ops/phase-e-observability-governance-batch2-gray-release-2026-06-15.md`
+- 新增正式发布记录：
+  - `ops/phase-e-observability-governance-batch2-production-release-2026-06-15.md`
+
+验证:
+
+- 本地：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/api`
+  - `npm run build -w @xinghuan/admin`
+  - `node scripts/verify-admin-readonly-panels-contract.mjs`
+  - 本地单端口实例 `127.0.0.1:18216`
+  - `node scripts/verify-system-observability.mjs`
+- gray release：
+  - `20260615-phase-e-observability-governance-batch2-gray-r1`
+  - SHA256：
+    - local `725C0E31051FC21AF0481B578935F7273D582D3B942CA112EAE22D4EDF6BC4EE`
+    - server `725c0e31051fc21af0481b578935f7273d582d3b942ca112eae22d4edf6bc4ee`
+  - gray 本机：
+    - `verify:release-preflight = ok`
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+  - gray 公网：
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+- production release：
+  - `20260615-phase-e-observability-governance-batch2-prod-r1`
+  - SHA256：
+    - local `E96722B1AA84CDE32F38FD745334E258EFEA29B03140AF78666663226321322E`
+    - server `e96722b1aa84cde32f38fd745334e258efea29b03140af78666663226321322e`
+  - production 本机：
+    - `verify:release-preflight = ok`
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+  - production 公网：
+    - `verify-system-observability = ok`
+    - `verify:request-chain-observability = ok`
+
+结果:
+
+- 当前灰度 `current`：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-e-observability-governance-batch2-gray-r1`
+- 当前生产 `current`：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-batch2-prod-r1`
+- gray 新增治理结果：
+  - `tasks.health.status = warning`
+  - `tasks.trend.failed24hDailyAverageBaseline = 3`
+  - `tasks.trend.failed24hVs7dDailyAverage = 4`
+  - `audits.coverageHealth.status = critical`
+  - `audits.conflicts.health.status = critical`
+- production 新增治理结果：
+  - `tasks.health.status = warning`
+  - `tasks.trend.failed24hDailyAverageBaseline = 1`
+  - `tasks.trend.failed24hVs7dDailyAverage = 4`
+  - `audits.coverageHealth.status = critical`
+  - `audits.conflicts.health.status = healthy`
+- 当前更准确状态：
+  - `Phase E` 长期观测治理第二批已完成
+  - 剩余项转为告警闭环、更长时间窗口趋势与覆盖率提升
+
+### Phase E 长期观测治理第一批已完成灰度/生产发布
+
+目标:
+
+- 把 `Phase E` 剩余项从“只在本地补长期观测字段”推进到“gray / production 两套入口都已真实上线”。
+- 在 gray 上验证失败窗口与 revision conflict 统计不是空 schema，而是能真实累计数据。
+- 用同批 release 包完成 production 标准 gate 验收。
+
+变更:
+
+- 新增灰度发布记录：
+  - `ops/phase-e-observability-governance-gray-release-2026-06-15.md`
+- 新增正式发布记录：
+  - `ops/phase-e-observability-governance-production-release-2026-06-15.md`
+- 当前主入口已同步更新：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+  - `ops/README.md`
+  - `ops/phase-e-observability-release-gate-2026-06-15.md`
+
+验证:
+
+- 本地 fresh 打包与契约：
+  - `npm run build:single-port`
+  - `npm run verify:worker-observability-contract`
+  - `npm run verify:release-package-contract`
+- gray release：
+  - `20260615-phase-e-observability-governance-gray-r1`
+  - 本机 SHA256：
+    - `BD6CBCE9FA614EC16D27FE64360E4DD08E3540F1145152C60ED58BAFB3AB99A2`
+  - 服务器 SHA256：
+    - `bd6cbce9fa614ec16d27fe64360e4dd08e3540f1145152c60ed58bafb3ab99a2`
+  - gray 本机 gate：
+    - `verify:release-preflight = ok`
+    - `verify:request-chain-observability = ok`
+    - `verify:system-observability = ok`
+  - gray conflict 实打验证：
+    - `verify-admin-settings-revision-conflict = ok`
+    - `verify-canvas-revision-conflict = ok`
+    - `verify-resource-revision-conflict = ok`
+  - gray 公网 gate：
+    - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:request-chain-observability`
+    - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:system-observability`
+  - gray header smoke：
+    - `http://127.0.0.1:18200/api/status`
+    - `https://canvas-next.hhh2121.xyz/api/status`
+- production release：
+  - `20260615-phase-e-observability-governance-prod-r1`
+  - 本机 SHA256：
+    - `9729969139FA6DDC510C55CE6203618EA19667F84D0B8162C4014972300B2D24`
+  - 服务器 SHA256：
+    - `9729969139fa6ddc510c55ce6203618ea19667f84d0b8162c4014972300b2d24`
+  - production 本机 gate：
+    - `verify:release-preflight = ok`
+    - `verify:request-chain-observability = ok`
+    - `verify:system-observability = ok`
+  - production 公网 gate：
+    - `XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz npm run verify:request-chain-observability`
+    - `XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz npm run verify:system-observability`
+  - production header smoke：
+    - `http://127.0.0.1:18100/api/status`
+    - `https://canvas.hhh2121.xyz/api/status`
+
+结果:
+
+- 当前灰度 `current`：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-e-observability-governance-gray-r1`
+- 当前生产 `current`：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-prod-r1`
+- gray 真实观测结果：
+  - `currentDatabase = xinghuan_canvas_gray`
+  - `expectedDatabase = xinghuan_canvas_gray`
+  - `targetMatched = true`
+  - `failedLast1h = 0`
+  - `failedLast24h = 7`
+  - `failedLast7d = 21`
+  - `audits.requestIdCoveragePercent = 21`
+  - `conflicts.totalLast24h = 6`
+  - `canvasRevisionLast24h = 1`
+  - `resourceRevisionLast24h = 3`
+  - `adminSettingsRevisionLast24h = 2`
+- production 真实观测结果：
+  - `currentDatabase = xinghuan_canvas_next`
+  - `expectedDatabase = xinghuan_canvas_next`
+  - `targetMatched = true`
+  - `failedLast1h = 0`
+  - `failedLast24h = 5`
+  - `failedLast7d = 8`
+  - `audits.requestIdCoveragePercent = 15`
+  - `conflicts.totalLast24h = 0`
+- gray / production 内外网 header smoke 都已确认：
+  - `x-request-id` 保留正常
+- 当前更准确的状态应写为：
+  - `Phase E` rollback 样本已补齐
+  - `Phase E` 长期观测治理第一批已完成 gray / production 发布
+  - 后续剩余项转为趋势化展示、阈值/告警与覆盖率提升
+
+边界:
+
+- production 这轮只做标准 gate，没有额外在正式环境里制造 conflict 样本。
+- conflict 累计能力已经在本地与 gray 实打验证通过，因此 production 本轮以最小风险放行为准。
+
+### Phase E 补齐 production rollback 样本，并继续推进长期观测治理最小补强
+
+目标:
+
+- 为当前 production `prod-r2` 补齐真实 rollback 演练记录。
+- 将 `Phase E` 剩余项从“缺 rollback 样本”切换到“长期观测治理补强”。
+- 在当前本地代码基线上继续补系统页长期观测最小字段。
+
+变更:
+
+- 新增 production rollback 运维记录：
+  - `ops/phase-e-observability-production-rollback-2026-06-15.md`
+- 同步更新当前入口：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+  - `ops/README.md`
+  - `ops/phase-e-observability-production-release-2026-06-15.md`
+  - `ops/phase-e-observability-gray-release-2026-06-15.md`
+  - `ops/phase-e-observability-release-gate-2026-06-15.md`
+  - `ops/production-acceptance-checklist.md`
+- 本地继续推进 Phase E 长期观测最小补强：
+  - `/api/admin/system` 新增失败窗口与 revision conflict 统计
+  - `apps/api/src/server.ts`：409 revision conflict 自动沉淀 observability audit
+  - `apps/admin/src/admin-readonly-panels.tsx`：系统页新增失败窗口与 conflict 统计行
+  - `scripts/verify-system-observability.mjs`：新增 conflict 与失败窗口字段断言
+  - `scripts/verify-admin-readonly-panels-contract.mjs`：新增系统状态行契约
+
+验证:
+
+- production 真实 rollback 演练：
+  - `prod-r2 -> prod-r1 -> prod-r2`
+- `prod-r1`：
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+  - `npm run verify:release-preflight`
+  - `curl -i -H 'x-request-id: phase-e-prod-rollback-check' http://127.0.0.1:18100/api/status`
+- 恢复 `prod-r2` 后：
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+  - `curl -i -H 'x-request-id: phase-e-prod-rollback-public-check' https://canvas.hhh2121.xyz/api/status`
+- 本地长期观测补强验证：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/api`
+  - `npm run build -w @xinghuan/admin`
+  - `node scripts/verify-admin-readonly-panels-contract.mjs`
+  - 本地单端口实例 `127.0.0.1:18214`
+  - `node scripts/verify-request-chain-observability.mjs`
+  - `node scripts/verify-admin-settings-revision-conflict.mjs`
+  - `node scripts/verify-canvas-revision-conflict.mjs`
+  - `node scripts/verify-resource-revision-conflict.mjs`
+  - `node scripts/verify-system-observability.mjs`
+
+结果:
+
+- production rollback 样本已真实完成：
+  - `prod-r2 -> prod-r1 -> prod-r2`
+- `prod-r1` 核心链路可用，但 preflight 仍缺：
+  - `currentReleaseLink/currentReleaseTarget`
+  - `services.api/services.worker`
+- 恢复到 `prod-r2` 后，production 本机与公网 header smoke 均正常
+- 本地长期观测补强已验证：
+  - `verify-system-observability` 返回：
+    - `audits.conflicts.totalLast24h = 6`
+    - `canvasRevisionLast24h = 1`
+    - `resourceRevisionLast24h = 3`
+    - `adminSettingsRevisionLast24h = 2`
+  - 当前 file-mode 本地实例没有失败任务样本，因此：
+    - `failedLast1h = 0`
+    - `failedLast24h = 0`
+    - `failedLast7d = 0`
+- 当前 `Phase E` 更准确的剩余项变为：
+  - 长期失败趋势
+  - revision conflict 统计
+  - requestId 覆盖率提升
+
+### 仓库治理补充：CodeGraph hook 自动化与体积审计基线
+
+目标:
+
+- 把 CodeGraph 从“手工使用”提升为“仓库默认工程规范 + hook 自动维护”。
+- 为当前 worktree 建立体积审计基线，区分项目本体与运行产物/归档占用。
+
+变更:
+
+- 新增 CodeGraph hook 自动化：
+  - `.githooks/post-checkout`
+  - `.githooks/post-merge`
+  - `.githooks/post-rewrite`
+  - `.githooks/post-commit`
+  - `scripts/codegraph-hook.mjs`
+  - `scripts/setup-codegraph-hooks.mjs`
+- 更新协作与治理文档：
+  - `AGENTS.md` 新增 CodeGraph 使用规范、hook 安装边界和体积审计入口
+  - `docs/documentation-governance.md` 新增体积审计文档路由和运行产物体积触发检查规则
+  - `docs/size-audit-2026-06-15.md` 新增当前仓库体积审计清单
+- 更新脚本入口：
+  - `package.json` 新增 `codegraph:*` 与 `setup:codegraph-hooks`
+
+验证:
+
+- `codegraph status`
+- `npm run setup:codegraph-hooks`
+- `node scripts/codegraph-hook.mjs manual`
+
+结果:
+
+- 当前 CodeGraph 索引状态：`Index is up to date`
+- 当前体积基线：
+  - Git 跟踪文件：`497`
+  - Git 跟踪大小：`43,358,189 bytes`
+  - worktree 全量文件：`25,675`
+  - worktree 全量大小：`4,401,576,128 bytes`
+- 主要占用来源已明确记录到 `docs/size-audit-2026-06-15.md`
+
+### Phase E 正式发布完成：production gate 通过、请求链路/系统观测上线与阶段状态收口
+
+目标:
+
+- 把 `Phase E` 从“gray 已完成、production 待放行”推进到“gray / production 都已完成”。
+- 在 production 环境复用当前 gate，完成真实切换、验证和状态文档同步。
+
+变更:
+
+- 本机打包：
+  - `20260615-phase-e-observability-prod-r2`
+- 新增正式发布记录：
+  - `ops/phase-e-observability-production-release-2026-06-15.md`
+- 更新主入口与 gate 文档：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+  - `ops/README.md`
+  - `ops/phase-e-observability-release-gate-2026-06-15.md`
+
+验证:
+
+- 本地：
+  - `npm run package:release -- 20260615-phase-e-observability-prod-r2`
+- production 服务器：
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+  - `curl -i -H 'x-request-id: phase-e-prod-header-check' http://127.0.0.1:18100/api/status`
+- production 公网入口：
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz npm run verify:request-chain-observability`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas.hhh2121.xyz npm run verify:system-observability`
+  - `curl -i -H 'x-request-id: phase-e-prod-public-header-check' https://canvas.hhh2121.xyz/api/status`
+
+关键观察:
+
+- production current 已切到：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-prod-r2`
+- `request-chain` 与 `system-observability` 在 production 本机入口和公网入口都通过。
+- production 当前数据库目标返回：
+  - `currentDatabase = xinghuan_canvas_next`
+  - `expectedDatabase = xinghuan_canvas_next`
+  - `targetMatched = true`
+- `prod-r2` 已补齐 `verify:release-preflight` 的自动识别：
+  - `currentReleaseLink = /opt/apps/xinghuan-canvas/current`
+  - `currentReleaseTarget = /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-prod-r2`
+  - `services.api = active`
+  - `services.worker = active`
+
+结论:
+
+- `Phase E` 已完成正式发布。
+- 当前真实状态应更新为：
+  - gray: `20260615-phase-e-observability-gray-r2`
+  - production: `20260615-phase-e-observability-prod-r2`
+- `Phase A-E` 现在都已经完成 gray / production 收口。
+
+下一步:
+
+- 补回滚样本记录。
+- 继续提升审计 `requestId` 覆盖率。
+- 视需要补强 preflight 对 release 指针与 systemd 状态的自动抓取。
+
+### Phase E 灰度发布完成：系统观测、请求链路验收与 gray gate 实际放行
+
+目标:
+
+- 把 `Phase E` 从“本地实现已完成”推进到“gray 已完成真实放行”。
+- 用当前 gate 在灰度环境收口最小可复用发布样本，并同步回写主入口文档。
+
+变更:
+
+- 本机打包：
+  - `20260615-phase-e-observability-gray-r2`
+- 新增灰度发布记录：
+  - `ops/phase-e-observability-gray-release-2026-06-15.md`
+- 更新主入口与 gate 文档：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+  - `ops/README.md`
+  - `ops/phase-e-observability-release-gate-2026-06-15.md`
+
+验证:
+
+- 本地打包与契约：
+  - `npm run package:release -- 20260615-phase-e-observability-gray-r2`
+- gray 服务器：
+  - `npm run verify:release-preflight`
+  - `npm run verify:request-chain-observability`
+  - `npm run verify:system-observability`
+- gray 公网入口：
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:request-chain-observability`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:system-observability`
+  - `curl -i -H 'x-request-id: phase-e-gray-header-check' https://canvas-next.hhh2121.xyz/api/status`
+
+关键观察:
+
+- gray current 已切到：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-e-observability-gray-r2`
+- gray 当前数据库目标已返回：
+  - `currentDatabase = xinghuan_canvas_gray`
+  - `expectedDatabase = xinghuan_canvas_gray`
+  - `targetMatched = true`
+- requestId 覆盖率现在已能通过系统页直接观测，但当前公网灰度仅为：
+  - `requestIdCoveragePercent = 4`
+- 首轮重启后 preflight 曾短暂出现一次 `ECONNREFUSED 127.0.0.1:18200`，重试后恢复，通过结果应按重试后的稳定状态记载。
+
+结论:
+
+- `Phase E` 已完成 gray 放行。
+- 当前真实状态应更新为：
+  - gray: `20260615-phase-e-observability-gray-r2`
+  - production: `20260615-phase-d-runtime-prod-r1`
+- 现阶段不能写成 `Phase E` 已全部完成；production 仍待执行。
+
+下一步:
+
+- 打包并切换 production release。
+- 按同一 gate 执行 production 验证。
+- 补齐 production 发布记录与回滚样本。
+
+### Phase E 第一阶段完成：请求链路观测基线、本地端到端验证与实施文档落地
+
+目标:
+
+- 把 `Phase E` 从“准备做 requestId / observability”推进到“已经落下设计、计划、代码与本地验收基线”。
+- 优先打通最小链路：
+  - `requestId`
+  - 审计 `request_id / ip / user_agent`
+  - 后台审计页展示
+  - Worker 结构化生命周期日志
+
+变更:
+
+- 新增设计与计划文档：
+  - `docs/superpowers/specs/2026-06-15-phase-e-request-chain-observability-design.md`
+  - `docs/superpowers/plans/2026-06-15-phase-e-request-chain-observability.md`
+- `apps/api/src/server.ts`
+  - 为每个请求生成或接收 `x-request-id`
+  - 响应统一回写 `x-request-id`
+  - 新增 `RequestContext`
+  - `appendAudit(...)` 现在写入：
+    - `requestId`
+    - `ip`
+    - `userAgent`
+  - 后台关键写操作审计全部带入当前请求上下文
+  - 增加 API 结构化事件日志：
+    - `task.created`
+    - `task.cancelled`
+- `apps/api/src/provider-generation-task-service.ts`
+  - provider generation task 创建时把最小链路字段写入任务：
+    - `payload.requestId`
+    - `payload.userId`
+    - `result.requestId`
+    - `result.userId`
+- `apps/admin/src/admin-types.ts`
+  - `AuditRecord` 扩展：
+    - `requestId`
+    - `ip`
+    - `userAgent`
+- `apps/admin/src/admin-readonly-panels.tsx`
+  - 审计表新增：
+    - `请求`
+    - `来源`
+  - 现在可直接查看 `requestId / ip / userAgent`
+- `apps/worker/src/worker.ts`
+  - 新增统一结构化日志 helper
+  - 关键事件改为统一输出：
+    - `task.received`
+    - `task.claimed`
+    - `task.skipped`
+    - `task.succeeded`
+    - `task.failed`
+    - `task.cancelled_detected`
+    - `task.reaped`
+- 新增验证脚本：
+  - `scripts/verify-request-chain-observability.mjs`
+  - `scripts/verify-worker-observability-contract.mjs`
+- 更新验证契约：
+  - `scripts/verify-admin-readonly-panels-contract.mjs`
+- `package.json`
+  - 新增：
+    - `verify:request-chain-observability`
+    - `verify:worker-observability-contract`
+
+验证:
+
+- 类型检查：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run type-check -w @xinghuan/worker`
+- 构建：
+  - `npm run build -w @xinghuan/api`
+  - `npm run build -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/worker`
+  - `npm run build -w @xinghuan/web`
+- 契约与回归：
+  - `npm run verify:worker-observability-contract`
+  - `npm run verify:admin-readonly-panels-contract`
+  - `npm run verify:provider-generation-task-service`
+  - `npm run verify:provider-generation-worker`
+- 端到端链路：
+  - 先构建后启动新的本地验证实例：
+    - `XINGHUAN_API_PORT=18210`
+  - `GET http://127.0.0.1:18210/api/status`
+    - 已返回 `x-request-id`
+  - `XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18210 npm run verify:request-chain-observability`
+    - `ok = true`
+    - 审计记录中已确认：
+      - `requestId`
+      - `ip = 127.0.0.1`
+      - `userAgent`
+
+关键观察:
+
+- 直接对现有 `127.0.0.1:18200` 运行 `verify:request-chain-observability` 初次失败，原因不是代码错误，而是本地旧进程尚未加载新构建代码。
+- 重新在 `18210` 拉起新实例后，`x-request-id` 与审计字段链路立即通过。
+- 因此本轮本地端到端结论应以 `18210` 新实例为准，不能把旧常驻 `18200` 进程的失败误记成代码回归。
+
+结论:
+
+- `Phase E` 第一阶段已经不再只是规划：
+  - requestId 已经进入 API 请求链路
+  - 审计已落 `requestId / ip / userAgent`
+  - 后台审计页可直接查看这些字段
+  - Worker 已具备统一结构化生命周期日志
+- 当前已经形成最小可追踪链路基线，可继续推进：
+  - 系统观测面板
+  - 上线门槛清单
+  - 回滚演练记录
+
+下一步:
+
+- 把 `Phase E` 第二阶段聚焦到：
+  - 系统页观测项
+  - gray / prod 放行 gate 文档
+  - 回滚演练与验收模板
+- 视需要将 `verify:request-chain-observability` 接入 gray release 验收链
+
+### Phase E 第二阶段完成：系统观测项、放行 gate 文档与 release package 契约收口
+
+目标:
+
+- 把 `Phase E` 从“已有 requestId 链路”继续推进到“系统页已有最小运行观测，放行 gate 也有固定入口”。
+- 同时把当前阶段关键验证脚本纳入 release package，避免服务器 current release 缺脚本。
+
+变更:
+
+- 新增设计与计划文档：
+  - `docs/superpowers/specs/2026-06-15-phase-e-system-observability-and-release-gates.md`
+  - `docs/superpowers/plans/2026-06-15-phase-e-system-observability-and-release-gates.md`
+- `apps/api/src/server.ts`
+  - `/api/admin/system` 新增：
+    - `database.currentDatabase`
+    - `database.expectedDatabase`
+    - `database.targetMatched`
+    - `observability.tasks`
+    - `observability.audits`
+  - 任务观测汇总覆盖：
+    - `total`
+    - `queued`
+    - `running`
+    - `succeeded`
+    - `failed`
+    - `cancelled`
+    - `failedLast24h`
+  - 审计观测汇总覆盖：
+    - `total`
+    - `sampled`
+    - `withRequestId`
+    - `requestIdCoveragePercent`
+- `apps/admin/src/admin-types.ts`
+  - `SystemInfo` 扩展数据库目标与 `observability` 类型
+- `apps/admin/src/admin-readonly-panels.tsx`
+  - 系统页新增：
+    - 当前数据库
+    - 目标数据库
+    - 数据库目标校验
+    - 任务总数 / 排队任务 / 运行任务 / 24h 失败任务
+    - 最近审计样本 / 请求ID覆盖率
+- 新增验证脚本：
+  - `scripts/verify-system-observability.mjs`
+  - `scripts/verify-release-gate-docs-contract.mjs`
+- 更新验证脚本：
+  - `scripts/verify-admin-readonly-panels-contract.mjs`
+  - `scripts/verify-release-package-contract.mjs`
+- `package.json`
+  - 新增：
+    - `verify:system-observability`
+    - `verify:release-gate-docs-contract`
+    - `verify:release-package-contract`
+- `scripts/package-release.mjs`
+  - 当前 Phase E 关键验证脚本纳入 release package：
+    - `verify-request-chain-observability`
+    - `verify-system-observability`
+    - `verify-worker-observability-contract`
+- 新增运维 gate 文档：
+  - `ops/phase-e-observability-release-gate-2026-06-15.md`
+- 更新主入口与验收文档：
+  - `ops/production-acceptance-checklist.md`
+  - `ops/README.md`
+  - `AGENTS.md`
+  - `README.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+
+验证:
+
+- 静态契约与构建通过：
+  - `npm run verify:admin-readonly-panels-contract`
+  - `npm run verify:release-gate-docs-contract`
+  - `npm run verify:release-package-contract`
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run build -w @xinghuan/api`
+  - `npm run build -w @xinghuan/admin`
+  - `npm run verify:worker-observability-contract`
+- fresh 本地实例：
+  - `127.0.0.1:18211`
+  - 使用独立数据目录 `.codex-temp/phase-e-verify-18211-data`
+- fresh 实例运行态通过：
+  - `XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18211 npm run verify:request-chain-observability`
+  - `XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18211 npm run verify:system-observability`
+
+关键观察:
+
+- `verify:system-observability` 首次和 `verify:request-chain-observability` 并发打到同一个 file-mode 本地实例时，出现过一次 `AUTH_REQUIRED`。
+- 更合理的解释是 file-mode 本地会话 JSON 写入互相覆盖，而不是第二阶段观测字段缺失。
+- 改为串行复验后，两条脚本都在 `18211` fresh 实例稳定通过。
+
+结论:
+
+- `Phase E` 第二阶段本地实现与本地验证已完成：
+  - 系统页已有最小运行观测项
+  - gate 文档已有固定入口
+  - release package 已带当前阶段关键验证脚本
+- 当前还不能写成：
+  - `Phase E` gray 已完成
+  - `Phase E` production 已完成
+- 下一步应按新 gate 在 gray / production 执行真实放行与回滚样本记录。
+
+### Phase D 正式发布完成：生产切换、正式验收通过与阶段状态收口
+
+目标:
+
+- 将 `Phase D` 从“gray 已完成、production 待放行”推进到“gray / production 都已完成”。
+- 复用灰度已修正的 release package 契约，完成正式切换和正式验收。
+
+变更:
+
+- 修复 `scripts/verify-task-cancellation-phase-d.mjs`
+  - 将取消样本任务改成 `payload.taskCapability = "chat"`
+  - 避免 worker 常驻运行时样本被先消费到 `succeeded`
+  - 现在 `verify:phase-d` 不再需要临时停 worker
+- 本机打包：
+  - `20260615-phase-d-runtime-prod-r1`
+- 服务器生产切换：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-d-runtime-prod-r1`
+- 生产迁移：
+  - `014_task_runtime_phase_d.sql`
+- 新增正式发布记录：
+  - `ops/phase-d-production-release-2026-06-15.md`
+- 更新主入口与治理文档：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/production-multi-user-hardening-plan-2026-06-13.md`
+  - `ops/README.md`
+
+验证:
+
+- 本地：
+  - `npm run verify:phase-d`
+  - `node scripts/verify-release-package-contract.mjs`
+  - `npm run package:release -- 20260615-phase-d-runtime-prod-r1`
+- gray：
+  - worker 常驻时 `npm run verify:phase-d` 通过
+- production：
+  - 旧 current 执行 `npm run verify:release-preflight` 失败，复现旧包缺口
+  - `node scripts/db-migrate.mjs` => `applied=["014_task_runtime_phase_d.sql"]`
+  - `npm run verify:release-preflight` 通过
+  - `npm run verify:phase-d` 通过
+  - `npm run verify:provider-generation-task-service` 通过
+  - `npm run verify:provider-generation-worker` 通过
+  - `curl http://127.0.0.1:18100/api/status` => `environment=production`
+  - `curl https://canvas.hhh2121.xyz/api/status` => `environment=production`
+
+关键观察:
+
+- 本轮 production preflight 的真实返回是：
+  - `currentDatabase = xinghuan_canvas_next`
+- 同时生产环境文件中：
+  - `XINGHUAN_EXPECTED_DATABASE_NAME=xinghuan_canvas_next`
+- 这说明当前灰度 / production 虽然已经拆成独立域名、端口和 release 指针，但 PostgreSQL 目标仍未真正拆分成两套数据库。
+- 因此旧文档里“灰度与生产已经拆分为独立 PostgreSQL 数据库”的表述是失实的，已经在主入口里改正。
+
+结论:
+
+- `Phase D` 已完成正式发布。
+- 当前真实状态更新为：
+  - gray: `20260615-phase-d-runtime-gray-r3`
+  - production: `20260615-phase-d-runtime-prod-r1`
+- `Phase A-D` 现在都已经完成 gray / production 收口，后续可以正式进入 `Phase E`。
+
+下一步:
+
+- 进入 `Phase E`：
+  - `requestId` 贯通
+  - 系统观测面板
+  - 更完整的任务补偿与上游取消样本
+- 如要真正实现环境隔离，再单独推进灰度 / production PostgreSQL 数据库拆分。
+
+### Phase D 灰度发布完成：修复 release package 契约并完成 gray runtime 验收
+
+目标:
+
+- 把 `Phase D` 从“本地代码基线已完成”推进到“gray active release 已真实切换”。
+- 修复发布包与服务器验收脚本不一致的问题，避免 release 产物能跑服务但不能自我验收。
+
+变更:
+
+- 打包契约补强：
+  - `scripts/verify-release-package-contract.mjs`
+  - `scripts/package-release.mjs`
+- 首轮修复：
+  - 将 `scripts/capture-release-preflight.mjs` 纳入 release package
+- 第二轮修复：
+  - 将以下 gray runtime 验收脚本纳入 release package：
+    - `scripts/verify-task-cancellation-phase-d.mjs`
+    - `scripts/verify-admin-task-pagination.mjs`
+    - `scripts/verify-task-lifecycle.mjs`
+    - `scripts/verify-provider-generation-task-service.mjs`
+    - `scripts/verify-provider-generation-worker.mjs`
+  - 将这些脚本依赖的 `apps/api/src`、`apps/worker/src` 一并纳入 release package
+- 脚本修复：
+  - `scripts/verify-admin-task-pagination.mjs`
+  - 移除无效 `providerId` 测试数据，避免 PostgreSQL 外键约束误报
+- 灰度 release 演进：
+  - `r1`: `20260615-phase-d-runtime-gray-r1`
+  - `r2`: `20260615-phase-d-runtime-gray-r2`
+  - `r3`: `20260615-phase-d-runtime-gray-r3`
+- 服务器灰度最终 current：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-d-runtime-gray-r3`
+- 迁移：
+  - `014_task_runtime_phase_d.sql` 已进入 gray
+- 新增发布记录：
+  - `ops/phase-d-gray-release-2026-06-15.md`
+
+验证:
+
+- 本地：
+  - `node scripts/verify-release-package-contract.mjs`
+  - `npm run build:single-port`
+  - `npm run verify:phase-d`
+  - `npm run verify:provider-generation-task-service`
+  - `npm run verify:provider-generation-worker`
+  - `npm run package:release -- 20260615-phase-d-runtime-gray-r1`
+  - `npm run package:release -- 20260615-phase-d-runtime-gray-r2`
+  - `npm run package:release -- 20260615-phase-d-runtime-gray-r3`
+- 服务器 gray：
+  - 旧 `Phase C` current 执行 `npm run verify:release-preflight`，按预期失败并复现缺口：
+    - `Cannot find module .../scripts/capture-release-preflight.mjs`
+  - 发布 `r1` 后：
+    - `node scripts/db-migrate.mjs` => `applied=["014_task_runtime_phase_d.sql"]`
+    - `npm run verify:release-preflight` 通过
+  - 发布 `r3` 后：
+    - `npm run verify:release-preflight` 通过
+    - `npm run verify:phase-d` 通过
+    - `npm run verify:provider-generation-task-service` 通过
+    - `npm run verify:provider-generation-worker` 通过
+  - 运行态状态：
+    - `systemctl is-active xinghuan-canvas-next.service` => `active`
+    - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+    - `curl http://127.0.0.1:18200/api/status` => `environment=gray`
+    - `curl https://canvas-next.hhh2121.xyz/api/status` => `environment=gray`
+
+关键观察:
+
+- `verify:phase-d` 在 worker 正常运行时存在真实竞态：
+  - 测试取消任务可能先被 worker 跑成 `succeeded`
+  - 脚本随后取消会收到：
+    - `任务当前状态为 succeeded，不可取消`
+- 本轮 gray 验收采取的可复用方式是：
+  - 临时停止 `xinghuan-canvas-next-worker.service`
+  - 执行 `npm run verify:phase-d`
+  - 验证通过后立即恢复 worker
+- 这说明当前阻塞已不再是发布链路，而是取消样本脚本与真实 worker 竞争时序的问题。
+
+结论:
+
+- `Phase D` 已完成 gray 发布。
+- 当前真实状态更新为：
+  - gray: `20260615-phase-d-runtime-gray-r3`
+  - production: `20260615-phase-c-login-rate-limit-prod-r1`
+- 因此不能再写“Phase D 仅完成本地收口”，也不能写“Phase D 已正式发布”；正确口径应为：
+  - `Phase D` 已完成 gray 放行
+  - `Phase D` production 待放行
+
+下一步:
+
+- 继续准备 `Phase D` production release。
+- 将 `verify-task-cancellation-phase-d.mjs` 调整为在 worker 常驻运行时也更稳定的取消样本。
+- 进入 `Phase E` 时，把 requestId、系统观测和正式放行门槛一起收口。
+
+### 文档治理收口：入口状态统一、Phase 3 早期材料归档与长期规范落地
+
+目标:
+
+- 修复当前 worktree 中“项目真实状态已经推进，但入口文档仍保留旧阶段口径”的问题。
+- 建立长期有效的文档路由、更新义务和归档规范，避免后续再次出现久信息长期滞留主入口。
+- 清理 `ops/README.md` 中已被后续阶段覆盖、但仍占据当前入口的早期 Phase 3 材料。
+
+变更:
+
+- 新增 `docs/documentation-governance.md`
+  - 建立文档分层、主入口职责、更新触发条件和归档规则。
+  - 明确当前状态应以：
+    - `README.md`
+    - `AGENTS.md`
+    - `MEMORY.md`
+    - `docs/prd/README.md`
+    - `ops/README.md`
+    为主入口，不允许长期互相冲突。
+- 更新 `README.md`
+  - 补充当前多用户正式化阶段和当前灰度/生产 release。
+  - 把文档治理规范纳入快速入口。
+- 更新 `AGENTS.md`
+  - 新增文档与归档规则。
+  - 当前状态改为同时区分产品路线 `Phase 3` 与正式化治理 `Phase A-E` 两套口径。
+  - 明确 release、phase 变化时必须同步更新主入口。
+- 更新 `docs/prd/README.md`
+  - 当前活跃版本状态改为 `2026-06-15` 口径。
+  - 明确 `Phase 3` 仍在持续收口，同时 `Phase D` 已完成当前代码与本地验收收口。
+- 更新 `docs/prd/v0.1.0/progress.md`
+  - 顶部状态由“刚进入 Phase 3”改为“Phase 3 持续收口 + 正式化治理推进中”。
+  - 补充 `Phase D` 收口和 `Phase E` 下一步重点。
+- 更新 `MEMORY.md`
+  - 当前阶段和当前灰度/生产 release 更新为 `2026-06-15` 服务器实态。
+  - 移除“正式预留域名未启用”等已失效表述。
+- 更新 `ops/README.md`
+  - 当前状态补充当前灰度/生产 release。
+  - 当前运行态入口保留仍与当前放行和运行直接相关的材料。
+  - 增补 `phase-b-resource-revision-gray-2026-06-13.md` 索引。
+- 新增 `ops/archive/2026-06-phase3-rollout/README.md`
+  - 作为新的历史运维归档批次说明。
+- 更新 `ops/archive/README.md`
+  - 增加 `2026-06-phase3-rollout/` 批次索引。
+- 归档迁移以下早期 Phase 3 材料到 `ops/archive/2026-06-phase3-rollout/`
+  - `phase3-output-prune-gray-2026-06-06.md`
+  - `phase3-lifecycle-gray-2026-06-06.md`
+  - `phase3-canvas-resource-pg-hotfix-gray-2026-06-07.md`
+  - `phase3-runninghub-workflow-gray-2026-06-07.md`
+  - `phase3-node-acceptance-gray-2026-06-07.md`
+  - `phase3-node-acceptance-production-2026-06-07.md`
+  - `production-cutover-2026-06-06.md`
+  - `production-user-accounts-2026-06-06.md`
+  - `production-prep-2026-06-07.md`
+  - `entry-ui-gray-2026-06-07.md`
+  - `full-node-acceptance-audit-2026-06-07.md`
+
+验证:
+
+- `npm run verify:phase-d`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/worker`
+- `npm run type-check -w @xinghuan/admin`
+- `npm run type-check -w @xinghuan/web`
+- 服务器实态核对：
+  - 灰度 `current -> 20260615-phase-c-login-rate-limit-gray-r1`
+  - 生产 `current -> 20260615-phase-c-login-rate-limit-prod-r1`
+  - `xinghuan-canvas-next.service` / `worker` / `xinghuan-canvas.service` / `worker` 均为 `active`
+  - `127.0.0.1:18200/api/status` 返回 `environment=gray`
+  - `127.0.0.1:18100/api/status` 返回 `environment=production`
+
+结论:
+
+- 当前 worktree 的主入口状态已与实际代码和服务器运行态重新对齐。
+- 文档路由、更新义务和归档边界已形成正式规范，不再只依赖口头约定。
+- `ops/README.md` 不再把早期 Phase 3 发布记录混作当前运行态入口，后续恢复上下文的噪音明显降低。
+
+风险:
+
+- `docs/prd/v0.1.0/plan.md`、`release.md` 等版本内长文仍保留较多历史阶段表述，虽然不再作为唯一入口，但后续若要继续精简，仍需分轮收口。
+- 当前这轮主要清理的是入口和索引；历史材料内容本身未重写，只做归档移动与主入口调整。
+
+下一步:
+
+- 继续补 `Phase D` 灰度/正式运行态验收记录，避免当前只停留在本地收口。
+- 进入 `Phase E` 时，优先按新规范同步更新：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `ops/README.md`
+
+### Phase D 发布差距核实：确认当前仍未进入 gray / prod active release
+
+目标:
+
+- 确认 `Phase D` 当前到底是“已经发布但缺记录”，还是“本地完成但尚未发布”。
+- 避免把 `Phase D` 错写成已灰度/已正式放行。
+
+核实:
+
+- 当前服务器 `current`：
+  - gray -> `/opt/apps/xinghuan-canvas-next/releases/20260615-phase-c-login-rate-limit-gray-r1`
+  - prod -> `/opt/apps/xinghuan-canvas/releases/20260615-phase-c-login-rate-limit-prod-r1`
+- 当前 gray / prod 服务都为 `active`，状态接口正常：
+  - `127.0.0.1:18200/api/status -> environment=gray`
+  - `127.0.0.1:18100/api/status -> environment=production`
+- 当前服务器 `apps/api/db/` 目录只到：
+  - `013_login_rate_limit.sql`
+- 当前本地 `Phase D` 迁移和脚本：
+  - `apps/api/db/014_task_runtime_phase_d.sql`
+  - `scripts/verify-task-cancellation-phase-d.mjs`
+  - `scripts/verify-admin-task-pagination.mjs`
+- 当前服务器执行 `npm run verify:release-preflight` 失败：
+  - `Cannot find module .../scripts/capture-release-preflight.mjs`
+  - 说明 runbook 与当前服务器 release 产物之间仍有不一致
+
+结论:
+
+- 当前 `Phase D` 真实状态是：
+  - 本地代码与本地验收完成
+  - gray / prod active release 仍停留在 `Phase C`
+- 不能把 `Phase D` 继续写成“已灰度上线”或“已正式发布”。
+
+新增记录:
+
+- `ops/phase-d-release-gap-and-rollout-gate-2026-06-15.md`
+  - 用于记录当前发布缺口、放行阻塞项和后续 gray / prod 执行顺序
+
+下一步:
+
+- 先做 `Phase D` gray release
+- 先修正 `verify:release-preflight` 与服务器发布产物一致性
+- gray 验收通过后，再补正式发布与正式记录
+
+### Phase D 完成：任务状态机、取消语义与后台任务分页本地验收收口
+
+目标:
+
+- 完成 `Phase D` 的代码落地，不再让任务取消、悬挂运行和后台任务全量读取继续保持半成品状态。
+- 把本地验收结果、检测结论和后续边界补齐到正式台账中。
+
+变更:
+
+- `apps/api/src/task-cancellation-service.ts`
+  - 新增统一任务取消服务。
+  - 取消结果现在明确区分：
+    - `local_only`
+    - `upstream_confirmed`
+    - `upstream_attempt_failed`
+  - 同时回填：
+    - `upstreamSupported`
+    - `upstreamAttempted`
+    - `upstreamCancelledAt`
+    - `cancellationMessage`
+- `apps/api/src/server.ts`
+  - `/api/proxy/generation/cancel` 改为真实读取任务并执行统一取消服务，不再固定伪造 `upstream: false`。
+  - `/api/admin/tasks/:id` 的 `action=cancel` 复用同一条取消链路。
+  - `/api/admin/tasks` 改为分页返回：
+    - `items`
+    - `total`
+    - `page`
+    - `pageSize`
+    - `hasMore`
+    - `filters`
+  - 后台任务查询支持：
+    - `status`
+    - `providerId`
+    - `capability`
+- `apps/api/src/provider-generation-task-service.ts`
+  - 状态查询补齐：
+    - `cancelScope`
+    - `upstreamSupported`
+    - `upstreamAttempted`
+    - `heartbeatAt`
+    - `upstreamTaskId`
+    - `upstreamCancelledAt`
+    - 更稳定的失败原因回传
+- `apps/worker/src/worker.ts`
+  - 增加任务运行期 heartbeat 写入。
+  - 长轮询任务在 `APIMart image/video`、`ModelScope image`、`GRSAI image` 路径上回填运行态。
+  - 新增 stale task reaper：
+    - 自动扫描长时间 `running` 且无推进的任务
+    - 自动标记为 `failed`
+    - 写入 `worker_stalled_or_upstream_timeout`
+- `apps/admin/src/main.tsx`
+  - 后台任务状态改成服务端分页装载。
+- `apps/admin/src/admin-task-panel.tsx`
+  - 新增筛选、分页、每页数量控制。
+  - 取消状态文案不再笼统显示为“已终止上游”。
+- `apps/admin/src/admin-types.ts`
+  - 新增任务分页结构和取消元数据类型。
+- `apps/web/src/services/generation.ts`
+  - 取消接口结果结构升级，前端可区分本地取消与上游取消。
+- `apps/api/db/014_task_runtime_phase_d.sql`
+  - 新增任务分页与运行态相关索引。
+- 新增验证脚本：
+  - `scripts/verify-task-cancellation-phase-d.mjs`
+  - `scripts/verify-admin-task-pagination.mjs`
+  - `package.json` 新增 `verify:phase-d`
+
+验证:
+
+- 类型检查：
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/worker`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run type-check -w @xinghuan/web`
+- 构建：
+  - `npm run build:single-port`
+- 本地 Phase D 串行验收：
+  - `npm run verify:phase-d`
+- 单项脚本验证：
+  - `node scripts/verify-task-cancellation-phase-d.mjs`
+  - `node scripts/verify-admin-task-pagination.mjs`
+  - `node scripts/verify-task-lifecycle.mjs`
+
+结论:
+
+- `Phase D` 本地代码与验收链路已收口完成。
+- 后台任务页已经从全量读取切到分页读取。
+- 取消链路已经能明确标记“仅本地取消”与“上游确认取消”的差异。
+- Worker 已具备 heartbeat 与 stale reaper，长期悬挂任务不再只能靠人工观察。
+
+风险:
+
+- 本地 `file` 存储模式在多条会写鉴权/任务数据的验收脚本并行执行时仍会出现假性会话丢失，这不是生产 PostgreSQL 形态的直接等价问题，但说明本地 file-mode 不适合作为多用户稳定性结论来源。
+- 当前 `Phase D` 完成的是任务运行态闭环，不等于整个正式化治理完成；`Phase E` 的请求链路、统一 `requestId`、审计增强和系统观测面板仍需继续推进。
+
+下一步:
+
+- 进入 `Phase E`：
+  - 统一 `requestId / taskId / userId / providerId / modelId`
+  - 补后台系统观测
+  - 完成灰度/生产放行前的链路化验收
+- 正式多用户质量结论以：
+  - `docs/quality-audit-phase-d-2026-06-15.md`
+  - `ops/phase-d-local-validation-2026-06-15.md`
+  为当前基线
 ## 2026-06-13
 
 ### Phase A 第一批止血落地：画布 owner 收口与认证定向写入
@@ -6779,3 +8306,37 @@
       - CSRF 同源防护
       - 登录限流与失败计数
     - 多用户正式化方案可进入 Phase D
+- `2026-06-16` 生成库素材访问与本地验收链已完成收口：
+  - 生成功能收口：
+    - 后端新增生成库素材访问层，统一返回 `filename / previewUrl / downloadUrl / openUrl / canDownload / isExpired`
+    - 新增生成库内容路由：
+      - `GET /api/materials/generation-library/:id/content?disposition=inline`
+      - `GET /api/materials/generation-library/:id/content?disposition=attachment`
+    - 前端生成库抽屉补齐：
+      - 图片/视频预览大图
+      - 下载按钮
+      - 预览优先使用 `previewUrl`
+      - 下载走 `downloadUrl`
+  - 契约验证新增：
+    - `node scripts/verify-generation-library-material-access-contract.mjs`
+    - `node scripts/verify-generation-library-preview-contract.mjs`
+    - `node scripts/verify-generation-library-and-admin-assistant-layout.mjs`
+  - 本地浏览器实测：
+    - gray 本地入口 `http://127.0.0.1:18200/`
+    - 管理员登录正常
+    - 图片预览正常
+    - 视频预览正常
+    - 图片下载正常
+    - 视频下载正常
+  - 验收链收口：
+    - `npm run verify:single-port = ok`
+    - `npm run verify:node-acceptance-matrix = ok`
+    - `npm run verify:canvas-node-render-smoke = ok`
+    - `npm run verify:local-acceptance-chain = ok`
+  - 验收脚本治理：
+    - 一批旧脚本补齐 same-origin `Origin / Referer`，适配 Phase C 之后的 CSRF 规则
+    - `verify-task-payload-api` 已对齐当前 `/api/admin/tasks` 分页结构
+    - `verify-runninghub-workflow-contract` 已对齐当前后台组件拆分后的真实入口
+  - 结论：
+    - 生成库素材查看/下载链路已具备稳定验收闭环
+    - 本地单端口验收链当前已重新恢复全绿
