@@ -6,20 +6,24 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260617-environment-sync-gray-r2-795c1e5`。
-- 当前生产 release：`20260617-environment-sync-prod-r2-795c1e5`。
+- 当前灰度 release：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`。
+- 当前生产 release：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`。
 - 当前发布版本号：`v0.3.1`。
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
 - `2026-06-16` 已对当前 gray / production release 补做观测验收脚本热补丁，修复 `Observability` / `System Observability` 假 Provider 残留问题。
 - `2026-06-16` 灰度已发布 `GRSAI` nano 路由与图像节点错误透传热修复；当前灰度实测通过 `gpt-image-2` 同步和异步图像生成，nano 模型尚未在灰度后台启用。
-- `2026-06-17` 当前 gray current 已确认指向 `20260617-environment-sync-gray-r2-795c1e5`，并已补跑：
+- `2026-06-17` 当前 gray current 已确认指向 `20260617-environment-sync-layout-v031-gray-r1-dfd5f37`，并已补跑：
   - `verify:release-preflight`
   - `verify:request-chain-observability`
   - `verify:system-observability`
+- `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
+  - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
+  - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
+  - 两端 `/api/status` 当前均返回 `version = 0.3.1`
 - `2026-06-17` gray / production 已带上项目 atlas、文档治理收束、CodeGraph hook、生成库素材访问链路、柏拉图 multipart 视频接入和 release gate 闭环。
-- `2026-06-17` production 已切到 `20260617-environment-sync-prod-r2-795c1e5`，并已完成本机与公网 gate 复验。
+- `2026-06-17` production 已切到 `20260617-environment-sync-layout-v031-prod-r1-dfd5f37`，并已完成本机与公网 gate 复验。
 - `2026-06-17` 柏拉图真实验收已通过：
   - gray：`grok-1.5-video-6s` 成功返回本地视频落库
   - production：`grok-1.5-video-6s` 在一次上游繁忙重试后成功返回本地视频落库

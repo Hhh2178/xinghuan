@@ -17,13 +17,19 @@
 - gray release：
   - 初始发布：`20260617-environment-sync-gray-r1-f881c28-dirty`
   - clean rebuild 补发：`20260617-environment-sync-gray-r2-795c1e5`
+  - 布局与版本收口发布：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
 - production release：
   - 初始发布：`20260617-environment-sync-prod-r1-f881c28-dirty`
   - clean rebuild 补发：`20260617-environment-sync-prod-r2-795c1e5`
+  - 布局与版本收口发布：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
 - gray current：
   - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r2-795c1e5`
 - production current：
   - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r2-795c1e5`
+- gray current（本轮最终）：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
+- production current（本轮最终）：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
 - 本地工作树基线：
   - 初始发布：`f881c28`
   - clean rebuild 补发：`795c1e5`

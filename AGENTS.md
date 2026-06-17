@@ -162,8 +162,8 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260617-environment-sync-gray-r2-795c1e5`
-  - 当前生产 release：`20260617-environment-sync-prod-r2-795c1e5`
+  - 当前灰度 release：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
+  - 当前生产 release：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
     - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
     - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
