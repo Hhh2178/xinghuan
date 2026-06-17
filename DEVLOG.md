@@ -82,6 +82,39 @@
 
 - 如继续推进，可再补“后台数据模型导航页”或“Worker 执行链导航页”，进一步减少直接翻超长文件的成本。
 
+### 补后台数据模型导航页与 Worker 执行链导航页
+
+目标:
+
+- 把当前数据库迁移、主要表域和 Worker 执行链补成结构化导航，降低后续排障和增量开发的理解成本。
+- 避免 AI 每次都只能靠扫 `server.ts` 和 `worker.ts` 的超长实现来重建结构。
+
+变更:
+
+- 新增：
+  - `docs/project-atlas/data-model-navigation.md`
+  - `docs/project-atlas/worker-execution-chain.md`
+  - `docs/superpowers/plans/2026-06-17-data-model-and-worker-atlas.md`
+- 更新：
+  - `docs/project-atlas/README.md`
+  - `docs/documentation-governance.md`
+
+验证:
+
+- `rg -n "data-model-navigation|worker-execution-chain" docs/project-atlas/README.md docs/documentation-governance.md DEVLOG.md`
+- `npm run verify:release-gate-docs-contract`
+
+影响:
+
+- `project-atlas` 现在不只覆盖结构、环境、接口和排障，还补齐了：
+  - 数据模型导航
+  - Worker 执行链导航
+- 后续如果新增迁移、任务 capability、状态机语义或输出落库方式变化，除了改代码和发布记录，也要同步更新这两份文档。
+
+下一步:
+
+- 如继续推进，可以再补“前端节点系统导航页”或“后台面板导航页”。
+
 ### 文档治理收束与发布闭环批次已推到灰度
 
 目标:

@@ -43,6 +43,8 @@
 - `docs/project-atlas/runtime-and-env.md`
 - `docs/project-atlas/interfaces-and-dataflow.md`
 - `docs/project-atlas/api-navigation.md`
+- `docs/project-atlas/data-model-navigation.md`
+- `docs/project-atlas/worker-execution-chain.md`
 - `docs/project-atlas/debugging-playbook.md`
 - `docs/project-atlas/server-maintenance-and-healthchecks.md`
 - `docs/project-atlas/logbook-maintenance.md`

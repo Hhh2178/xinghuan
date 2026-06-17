@@ -30,6 +30,10 @@
   - 核心 API、后台接口、任务队列和主要数据流
 - `api-navigation.md`
   - 高层 API 分组导航，快速查接口入口、鉴权边界、实现文件和排障第一跳
+- `data-model-navigation.md`
+  - 后台主要数据域、表、迁移批次和排障第一跳
+- `worker-execution-chain.md`
+  - Worker 启动、队列拆分、任务状态推进、取消/失败/输出落库链路
 - `debugging-playbook.md`
   - 常见问题分类、优先检查项、定位命令和近期真实根因样本
 - `server-maintenance-and-healthchecks.md`
