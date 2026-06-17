@@ -601,12 +601,60 @@ button:disabled {
   border-radius: 14px;
 }
 
+.admin-assistant-message-blocks {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-assistant-message-heading {
+  color: #ccfbf1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .admin-assistant-message p {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.65;
+}
+
+.admin-assistant-message-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.admin-assistant-message-list li {
+  color: #dbeafe;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.assistant-message-code {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.56);
+}
+
+.assistant-message-code span {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.assistant-message-code pre {
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e2e8f0;
+  font: 12px/1.6 Consolas, "SFMono-Regular", monospace;
 }
 
 .assistant-process-block {

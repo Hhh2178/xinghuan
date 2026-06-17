@@ -2,16 +2,19 @@
 
 ## 当前状态
 
-状态：`v0.1.0` 仍处于产品路线的 `Phase 3` 持续收口阶段，但已经不再是“刚进入 Phase 3”的状态。当前产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-16` 已进一步把高频后台读接口纳入 requestId 审计补样，当前下一步更集中在外部通知闭环，以及沿真实高频链路继续做选择性 requestId 覆盖率提升。
+状态：`v0.1.0` 仍处于产品路线的 `Phase 3` 持续收口阶段，但已经不再是“刚进入 Phase 3”的状态。当前产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-17` 已进一步完成柏拉图 `grok-1.5-video-6s/10s/15s` multipart 视频接入、后台 API 接入助手结构化输出改造，以及 gray / production 真实 6 秒任务验收。当前下一步更集中在外部通知闭环，以及沿真实高频链路继续做选择性 requestId 覆盖率提升。
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260617-atlas-gray-r2-2f0a88f`
-- 当前生产 active release：`20260617-atlas-prod-r1-2f0a88f`
+- 当前灰度 active release：`20260617-plato-multipart-gray-r2-427237e-dirty`
+- 当前生产 active release：`20260617-plato-multipart-prod-r1-427237e-dirty`
 - 当前 gray / production 最新状态已额外补齐：
   - `GRSAI` nano 路由与图像节点错误透传
   - 高频后台读接口 requestId 审计补样后的 gray / production gate 复验
   - 项目 atlas、文档入口和 release 台账同步进入 gray / production
+  - 柏拉图 `grok-1.5-video-6s/10s/15s` 改为 `/v1/videos` + `multipart/form-data` + `input_reference` 文件上传
+  - 柏拉图 preview 模型继续保留 `/v2/videos/generations` JSON 提交
+  - 后台 API 接入助手与右侧 AI 助手已开始输出结构化接入方案，而不是只给散乱文本
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果

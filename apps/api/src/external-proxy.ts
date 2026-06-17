@@ -23,12 +23,17 @@ import {
   extractApimartFinalTaskId,
   extractApimartTask,
   extractApimartVideoResult,
+  resolveApimartVideoMultipartFieldNames,
   shouldUseApimartVideoAdapter,
 } from "./apimart-video-adapter.js";
 import {
   createOpenAiAudioChatPayload,
   extractAudioProviderResult,
 } from "./audio-provider-adapter.js";
+import {
+  buildProviderMultipartRequestBody,
+  isMultipartRequestBodyMode,
+} from "./provider-request-body.js";
 
 interface CurrentUserLike {
   id: string;
@@ -127,7 +132,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
   }
 
   function isFailedAsyncStatus(status: string) {
-    return ["failed", "error", "cancelled", "canceled", "fail"].includes(status);
+    return ["failed", "failure", "error", "cancelled", "canceled", "fail"].includes(status);
   }
 
   function summarizeUpstreamBody(text: string) {
@@ -172,6 +177,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const baseUrl = deps.safeText(baseUrlValue).replace(/\/+$/, "");
     if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
     const normalizedPathname = deps.safeText(pathname);
+    if (/^https?:\/\//i.test(normalizedPathname)) return normalizedPathname;
     if (normalizedPathname.startsWith("../") || normalizedPathname.startsWith("./")) {
       return new URL(normalizedPathname, `${baseUrl}/`).toString();
     }
@@ -264,7 +270,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         resultVideoPath: deps.safeText(input.advancedConfig.resultVideoPath, "data.result.videos"),
       });
       const normalizedStatus = String(result.status || "").trim().toLowerCase();
-      if (result.videoUrls.length > 0 && (!normalizedStatus || ["completed", "succeeded", "success", "done"].includes(normalizedStatus))) {
+      if (result.videoUrls.length > 0 && (!normalizedStatus || isCompletedAsyncStatus(normalizedStatus))) {
         return result;
       }
       const finalResultPathTemplate = deps.safeText(input.advancedConfig.finalResultPathTemplate);
@@ -281,16 +287,16 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
             taskId: finalTaskId,
           });
           const finalStatus = String(finalResult.status || "").trim().toLowerCase();
-          if (finalResult.videoUrls.length > 0 && (!finalStatus || ["completed", "succeeded", "success", "done"].includes(finalStatus))) {
+          if (finalResult.videoUrls.length > 0 && (!finalStatus || isCompletedAsyncStatus(finalStatus))) {
             return finalResult;
           }
-          if (["failed", "error", "cancelled", "canceled"].includes(finalStatus)) {
+          if (isFailedAsyncStatus(finalStatus)) {
             const reason = deps.safeText(finalResult.failureReason, finalResult.status || "failed");
             throw new Error(`视频任务失败: ${reason}`);
           }
         }
       }
-      if (["failed", "error", "cancelled", "canceled"].includes(normalizedStatus)) {
+      if (isFailedAsyncStatus(normalizedStatus)) {
         const reason = deps.safeText(result.failureReason, result.status || "failed");
         throw new Error(`视频任务失败: ${reason}`);
       }
@@ -609,6 +615,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const submitPath = deps.safeText(advancedConfig.submitPath, "videos/generations");
 
     if (useApimartAsyncVideo) {
+      const requestMapping = deps.stringMap(advancedConfig.requestMapping);
       const payload = createApimartVideoAdapterPayload({
         modelId: model.modelId,
         prompt,
@@ -618,14 +625,29 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         images,
         firstFrame: resolvedFirstFrame || undefined,
         lastFrame: resolvedLastFrame || undefined,
-        requestMapping: deps.stringMap(advancedConfig.requestMapping),
+        requestMapping,
         requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
+        requestValueTemplates: deps.stringMap(advancedConfig.requestValueTemplates),
         fixedBody: deps.plainObject(advancedConfig.fixedBody),
       });
+      const requestBodyMode = deps.safeText(advancedConfig.requestBodyMode || advancedConfig.requestContentType);
+      const submitBody = isMultipartRequestBodyMode(requestBodyMode)
+        ? await buildProviderMultipartRequestBody(
+            payload,
+            resolveApimartVideoMultipartFieldNames({
+              requestMapping,
+              requestFileFields: Array.isArray(advancedConfig.requestFileFields)
+                ? advancedConfig.requestFileFields.map((item) => deps.safeText(item)).filter(Boolean)
+                : [],
+            }),
+          )
+        : JSON.stringify(payload);
       const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, submitPath), {
         method: "POST",
-        headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: isMultipartRequestBodyMode(requestBodyMode)
+          ? deps.providerModelHeaders(apiKey, protocol)
+          : { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+        body: submitBody,
         signal: AbortSignal.timeout(180000),
       });
       const submitText = await submitResponse.text();

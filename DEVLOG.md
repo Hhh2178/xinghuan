@@ -44,6 +44,105 @@
 
 ## 2026-06-17
 
+### 柏拉图 multipart 视频接入与结构化 AI 助手已完成灰度和正式发布
+
+目标:
+
+- 将柏拉图 Provider 的视频接入从“OpenAI 风格 JSON 猜配置”收口到真实可执行协议。
+- 让后台 API 接入助手和右侧后台 AI 助手不再输出散乱文本，而是输出结构化接入方案。
+- 在 gray 和 production 都做真实 6 秒视频任务验收，确认不是只在本地契约层通过。
+
+变更:
+
+- 新增通用 Provider 请求体能力：
+  - `apps/api/src/provider-request-body.ts`
+  - `apps/worker/src/worker-provider-request-body.ts`
+- 更新 API / Worker 视频链路：
+  - `apps/api/src/apimart-video-adapter.ts`
+  - `apps/worker/src/worker-apimart-video-adapter.ts`
+  - `apps/api/src/external-proxy.ts`
+  - `apps/worker/src/worker.ts`
+  - `apps/api/src/server.ts`
+- 当前柏拉图模型分流规则已落地：
+  - `grok-1.5-video-6s/10s/15s`
+    - `/v1/videos`
+    - `multipart/form-data`
+    - `input_reference` 文件上传
+    - `size = {video_size}`
+  - `grok-imagine-video-1.5-preview`
+    - `/v2/videos/generations`
+    - JSON body
+- 后台接入助手结构化输出已补齐：
+  - `requestBodyMode`
+  - `requestContentType`
+  - `requestFileFields`
+  - `requestValueTemplates`
+  - 结构化卡片式展示与代码块格式保留
+- 新增/更新验证与运维脚本：
+  - `scripts/verify-apimart-video-adapter-contract.ts`
+  - `scripts/verify-assistant-provider-template-contract.mjs`
+  - `scripts/verify-admin-assistant-ui-contract.mjs`
+  - `scripts/verify-plato-gray-video-task.mjs`
+  - `scripts/sync-plato-provider-config.mjs`
+- 发布：
+  - gray：`20260617-plato-multipart-gray-r2-427237e-dirty`
+  - production：`20260617-plato-multipart-prod-r1-427237e-dirty`
+- 新增发布记录：
+  - `ops/plato-provider-rollout-2026-06-17.md`
+
+验证:
+
+- 本地：
+  - `codegraph status = Index is up to date`
+  - `npx tsx scripts/verify-apimart-video-adapter-contract.ts = ok`
+  - `node scripts/verify-assistant-provider-template-contract.mjs = ok`
+  - `node scripts/verify-admin-assistant-ui-contract.mjs = ok`
+  - `npm run build -w @xinghuan/api = ok`
+  - `npm run build -w @xinghuan/worker = ok`
+  - `npm run build -w @xinghuan/admin = ok`
+  - `npm run build:single-port = ok`
+  - `npm run verify:release-package-contract = ok`
+- gray：
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - `/opt/apps/xinghuan-canvas-next/releases/20260617-plato-multipart-gray-r2-427237e-dirty`
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `https://canvas-next.hhh2121.xyz/api/status = 200`
+  - 真实任务验收：
+    - 模型：`grok-1.5-video-6s`
+    - `status = succeeded`
+    - 已返回并落库本地视频
+- production：
+  - `readlink -f /opt/apps/xinghuan-canvas/current`
+    - `/opt/apps/xinghuan-canvas/releases/20260617-plato-multipart-prod-r1-427237e-dirty`
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `https://canvas.hhh2121.xyz/api/status = 200`
+  - 真实任务验收：
+    - 模型：`grok-1.5-video-6s`
+    - 首次因上游繁忙失败
+    - 重试后 `status = succeeded`
+    - 已返回并落库本地视频
+
+影响:
+
+- 柏拉图当前不再依赖错误的统一 JSON 视频协议假设。
+- 后续新增类似“同 Provider 下不同模型走不同提交端点 / 不同请求体格式 / 不同文件字段”的平台时，可以复用当前结构，而不是继续在节点或 adapter 内堆硬编码 if/else。
+- 后台 AI 助手从“猜配置”提升到“输出结构化接入方案”，后续接入别的平台时可直接复用这套展示和字段。
+
+风险:
+
+- 当前 gray / production 两个 release 都是基于已验证工作树打包，release 名里保留了 `dirty`，说明当时并不是从已提交 commit 直接发包。
+- 柏拉图上游仍可能返回“官方负载大，请尝试重新生成”，这属于上游容量波动，不等价于本地接入失败。
+- 真实验收对参考图尺寸仍有最低可用性要求，过小图片可能被上游拒绝。
+
+下一步:
+
+- 继续把结构化接入方案字段推广到更多 Provider 模板和助手输出路径。
+- 将当前工作树整理为可提交状态，并补齐这次发布与提交 SHA 的最终对齐关系。
+
 ### atlas 项目总纲批次已完成灰度与正式发布
 
 目标:

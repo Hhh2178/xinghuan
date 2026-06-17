@@ -5,6 +5,7 @@ import {
   extractApimartFailureReason,
   extractApimartTask,
   extractApimartVideoResult,
+  resolveApimartVideoMultipartFieldNames,
   shouldUseApimartVideoAdapter,
 } from "../apps/api/src/apimart-video-adapter.js";
 
@@ -33,6 +34,30 @@ const stringDurationPayload = createApimartVideoAdapterPayload({
 });
 
 assert.equal(stringDurationPayload.seconds, "10");
+
+const platoMultipartPayload = createApimartVideoAdapterPayload({
+  modelId: "grok-1.5-video-6s",
+  prompt: "让静态画面缓慢推进",
+  ratio: "16:9",
+  duration: 6,
+  resolution: "720p",
+  images: ["https://example.com/frame.png"],
+  requestMapping: { ratio: "", duration: "duration", resolution: "", images: "input_reference" },
+  requestValueTemplates: { size: "{video_size}" },
+});
+
+assert.equal(platoMultipartPayload.duration, 6);
+assert.equal(platoMultipartPayload.size, "1280x720");
+assert.deepEqual(platoMultipartPayload.input_reference, ["https://example.com/frame.png"]);
+assert.equal("quality" in platoMultipartPayload, false);
+assert.equal("aspect_ratio" in platoMultipartPayload, false);
+
+const multipartFields = resolveApimartVideoMultipartFieldNames({
+  requestMapping: { images: "input_reference", firstFrame: "first_frame" },
+  requestFileFields: ["images", "firstFrame"],
+});
+
+assert.deepEqual(multipartFields, ["input_reference", "first_frame"]);
 
 const task = extractApimartTask({
   code: 200,
@@ -116,6 +141,17 @@ const toapisStyleResult = extractApimartVideoResult({
 
 assert.equal(toapisStyleResult.status, "completed");
 assert.deepEqual(toapisStyleResult.videoUrls, ["https://example.com/toapis-result.mp4"]);
+
+const platoStyleResult = extractApimartVideoResult({
+  task_id: "task_plato_123",
+  status: "SUCCESS",
+  data: {
+    output: "https://example.com/plato-result.mp4",
+  },
+});
+
+assert.equal(platoStyleResult.status, "SUCCESS");
+assert.deepEqual(platoStyleResult.videoUrls, ["https://example.com/plato-result.mp4"]);
 
 const agnesTaskId = extractApimartFinalTaskId({
   id: "task_abc",

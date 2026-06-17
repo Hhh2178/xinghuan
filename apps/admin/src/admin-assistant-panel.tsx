@@ -16,6 +16,7 @@ import {
   ADMIN_ASSISTANT_APPEND_CONTEXT_EVENT,
   type AdminAssistantAppendContextDetail,
 } from "./admin-assistant-events";
+import { parseAssistantMessageBlocks } from "./admin-assistant-message-blocks";
 
 interface AssistantMessage {
   id: string;
@@ -493,7 +494,29 @@ export function AdminAssistantPanel({
           <div className="admin-assistant-dock__messages">
             {messages.map((message) => (
               <article key={message.id} className={`admin-assistant-message admin-assistant-message--${message.role}`}>
-                <p>{message.text}</p>
+                <div className="admin-assistant-message-blocks">
+                  {parseAssistantMessageBlocks(message.text).map((block, index) => {
+                    if (block.type === "heading") {
+                      return <strong key={`${message.id}-heading-${index}`} className="admin-assistant-message-heading">{block.text}</strong>;
+                    }
+                    if (block.type === "list") {
+                      return (
+                        <ul key={`${message.id}-list-${index}`} className="admin-assistant-message-list">
+                          {block.items.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      );
+                    }
+                    if (block.type === "code") {
+                      return (
+                        <section key={`${message.id}-code-${index}`} className="assistant-message-code">
+                          {block.language ? <span>{block.language.toUpperCase()}</span> : null}
+                          <pre>{block.code}</pre>
+                        </section>
+                      );
+                    }
+                    return <p key={`${message.id}-paragraph-${index}`}>{block.text}</p>;
+                  })}
+                </div>
               </article>
             ))}
           </div>

@@ -25,8 +25,13 @@ import {
   extractApimartFinalTaskId,
   extractApimartTask,
   extractApimartVideoResult,
+  resolveApimartVideoMultipartFieldNames,
   shouldUseApimartVideoAdapter,
 } from "./worker-apimart-video-adapter.js";
+import {
+  buildProviderMultipartRequestBody,
+  isMultipartRequestBodyMode,
+} from "./worker-provider-request-body.js";
 import {
   extractChatContent,
   extractImageOutputs,
@@ -533,6 +538,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
     modelId: task.providerModelId,
     providerBaseUrl: task.providerBaseUrl,
   })) {
+    const requestMapping = plainObject(task.payload.requestMapping) as Record<string, string>;
     const submitPayload = createApimartVideoAdapterPayload({
       modelId: task.providerModelId,
       prompt,
@@ -542,14 +548,27 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       images,
       firstFrame: firstFrame || undefined,
       lastFrame: lastFrame || undefined,
-      requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
+      requestMapping,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
+      requestValueTemplates: plainObject(task.payload.requestValueTemplates) as Record<string, string>,
       fixedBody: plainObject(task.payload.fixedBody),
     });
+    const requestBodyMode = safeText(task.payload.requestBodyMode || task.payload.requestContentType);
+    const submitBody = isMultipartRequestBodyMode(requestBodyMode)
+      ? await buildProviderMultipartRequestBody(
+          submitPayload,
+          resolveApimartVideoMultipartFieldNames({
+            requestMapping,
+            requestFileFields: Array.isArray(task.payload.requestFileFields)
+              ? task.payload.requestFileFields.map((item) => safeText(item)).filter(Boolean)
+              : [],
+          }),
+        )
+      : JSON.stringify(submitPayload);
     const submitResponse = await fetch(openAiEndpoint(task.providerBaseUrl, submitPath), {
       method: "POST",
-      headers: buildProviderJsonHeaders(apiKey),
-      body: JSON.stringify(submitPayload),
+      headers: isMultipartRequestBodyMode(requestBodyMode) ? providerHeaders(apiKey) : buildProviderJsonHeaders(apiKey),
+      body: submitBody,
       signal: AbortSignal.timeout(180000),
     });
     const submitText = await submitResponse.text();
@@ -1137,7 +1156,7 @@ async function pollApimartVideoTask(options: {
       upstreamStatus: status || "pending",
       runtimeStage: "polling",
     });
-    if (result.videoUrls.length > 0 && (!status || ["completed", "succeeded", "success", "done"].includes(status))) return result;
+    if (result.videoUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return result;
     if (options.finalResultPathTemplate) {
       const finalTaskId = extractApimartFinalTaskId(raw, { taskIdPath: options.finalResultTaskIdPath });
       if (finalTaskId) {
@@ -1150,13 +1169,13 @@ async function pollApimartVideoTask(options: {
           finalResultPathTemplate: options.finalResultPathTemplate,
         });
         const finalStatus = safeText(finalResult.status).toLowerCase();
-        if (finalResult.videoUrls.length > 0 && (!finalStatus || ["completed", "succeeded", "success", "done"].includes(finalStatus))) return finalResult;
-        if (["failed", "error", "cancelled", "canceled"].includes(finalStatus)) {
+        if (finalResult.videoUrls.length > 0 && (!finalStatus || isCompletedAsyncStatus(finalStatus))) return finalResult;
+        if (isFailedAsyncStatus(finalStatus)) {
           throw new Error(`视频任务失败: ${safeText(finalResult.failureReason, finalStatus || "unknown")}`);
         }
       }
     }
-    if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+    if (isFailedAsyncStatus(status)) {
       throw new Error(`视频任务失败: ${safeText(result.failureReason, status || "unknown")}`);
     }
   }
@@ -1309,7 +1328,7 @@ function isCompletedAsyncStatus(status: string) {
 }
 
 function isFailedAsyncStatus(status: string) {
-  return ["failed", "error", "cancelled", "canceled", "fail"].includes(status);
+  return ["failed", "failure", "error", "cancelled", "canceled", "fail"].includes(status);
 }
 
 function readPathText(value: Record<string, unknown>, path: string) {

@@ -97,15 +97,20 @@ function runStaticContracts() {
     assert(!/payload:\s*plainObject\(item\.payload\)/.test(promptSource));
     assert(!promptSource.includes("当前回退回复:"));
   });
+  check("Admin assistant prompt explicitly allows structured sections and fenced JSON", () => {
+    assert(promptSource.includes("可以使用简短的小标题"));
+    assert(promptSource.includes("fenced code block"));
+    assert(promptSource.includes("JSON"));
+  });
   check("Admin assistant supports image uploads and preserves attachment URLs", () => {
     assert(adminPanelSource.includes('kind: "image"'));
     assert(adminPanelSource.includes('"/api/files/upload-base64"'));
     assert(adminPanelSource.includes("compactPayload.url = mediaUrl"));
     assert(apiSource.includes("summary.url = mediaUrl.slice(0, 240)"));
   });
-  check("Stream response does not expose process raw JSON by default", () => {
+  check("Stream response keeps structured assistant payload for frontend rendering", () => {
     assert(!streamSource.includes('sendEvent("process"'));
-    assert(streamSource.includes('sendEvent("done", { ...result, rawAssistant: "" })'));
+    assert(streamSource.includes('sendEvent("done", result)'));
   });
 
   return results;

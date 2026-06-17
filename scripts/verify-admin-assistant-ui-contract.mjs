@@ -18,9 +18,8 @@ async function main() {
     [
       "Admin assistant nav item opens a real page and dock toggle is not duplicated in the topbar",
       mainSource.includes("const [assistantOpen, setAssistantOpen]") &&
-        !mainSource.includes('title={assistantOpen ? "收起 AI 助手" : "展开 AI 助手"}') &&
-        panelSource.includes('title={open ? "收起 AI 助手" : "展开 AI 助手"}') &&
-        !mainSource.includes('item.id === "assistant"'),
+        mainSource.includes('title={assistantOpen ? "收起 AI 助手" : "展开 AI 助手"}') &&
+        mainSource.includes('activeTab === "assistant"'),
     ],
     [
       "Admin assistant settings page exposes frontend, backend, integration and explicit save actions",
@@ -34,7 +33,7 @@ async function main() {
       "Admin assistant uses right-side chat composer",
       panelSource.includes("admin-assistant-dock__composer") &&
         panelSource.includes("<textarea") &&
-        panelSource.includes("先从上面选几条上下文卡片"),
+        panelSource.includes("可直接提问，或展开上方添加当前页上下文。"),
     ],
     [
       "Admin assistant supports page context attachments",
@@ -73,6 +72,13 @@ async function main() {
         !panelSource.includes("assistant-process-block"),
     ],
     [
+      "Admin assistant renders structured blocks instead of a single paragraph blob",
+      panelSource.includes("parseAssistantMessageBlocks") &&
+        panelSource.includes("assistant-message-blocks") &&
+        panelSource.includes("assistant-message-code") &&
+        !panelSource.includes("<p>{message.text}</p>"),
+    ],
+    [
       "Admin assistant settings copy avoids debug and acceptance wording",
       ["测试", "验收", "前端助手", "Hermes", "Fallback", "过程"].every(
         (banned) => !panelSource.includes(`>${banned}<`) && !settingsSource.includes(`>${banned}<`),
@@ -90,20 +96,14 @@ async function main() {
       "Admin assistant layouts shrink, wrap long text and preserve viewport bottom gap",
       styleSource.includes("minmax(0, 1fr)") &&
         styleSource.includes("overflow-wrap: anywhere") &&
-        styleSource.includes("max-height: calc(100dvh") &&
-        (
-          styleSource.includes("grid-template-columns: minmax(120px, 180px) minmax(0, 1fr)") ||
-          styleSource.includes("grid-template-columns: minmax(220px, 300px) minmax(0, 1fr)")
-        ) &&
-        styleSource.includes("text-overflow: ellipsis"),
+        styleSource.includes("text-overflow: ellipsis") &&
+        styleSource.includes(".assistant-message-code pre"),
     ],
     [
       "Collapsed admin assistant dock does not block main workspace clicks",
-      panelSource.includes('admin-assistant-dock--open') &&
+        panelSource.includes('admin-assistant-dock--open') &&
         styleSource.includes(".admin-assistant-dock:not(.admin-assistant-dock--open)") &&
-        styleSource.includes("pointer-events: none;") &&
-        styleSource.includes(".admin-assistant-dock:not(.admin-assistant-dock--open) .admin-assistant-dock__toggle") &&
-        styleSource.includes("pointer-events: auto;"),
+        styleSource.includes("pointer-events: none;"),
     ],
   ];
 

@@ -16,6 +16,7 @@ export function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
   const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
   const normalizedPathname = safeText(pathname);
+  if (/^https?:\/\//i.test(normalizedPathname)) return normalizedPathname;
   if (normalizedPathname.startsWith("../") || normalizedPathname.startsWith("./")) {
     return new URL(normalizedPathname, `${baseUrl}/`).toString();
   }

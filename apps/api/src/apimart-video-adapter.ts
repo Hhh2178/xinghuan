@@ -9,6 +9,7 @@ interface ApimartVideoAdapterPayloadInput {
   lastFrame?: string;
   requestMapping?: Record<string, string>;
   requestValueTypes?: Record<string, string>;
+  requestValueTemplates?: Record<string, string>;
   fixedBody?: Record<string, unknown>;
 }
 
@@ -58,7 +59,29 @@ export function createApimartVideoAdapterPayload(input: ApimartVideoAdapterPaylo
   assignMapped(payload, mapping.firstFrame, castMappedValue(input.firstFrame, valueTypes.firstFrame));
   assignMapped(payload, mapping.lastFrame, castMappedValue(input.lastFrame, valueTypes.lastFrame));
 
-  return { ...payload, ...plainObject(input.fixedBody) };
+  const mergedPayload = { ...payload, ...plainObject(input.fixedBody) };
+  applyValueTemplates(mergedPayload, plainObject(input.requestValueTemplates), input);
+  return mergedPayload;
+}
+
+export function resolveApimartVideoMultipartFieldNames(input: {
+  requestMapping?: Record<string, string>;
+  requestFileFields?: string[];
+}) {
+  const mapping = { ...DEFAULT_REQUEST_MAPPING, ...plainObject(input.requestMapping) } as Record<string, string>;
+  const requested = Array.isArray(input.requestFileFields) ? input.requestFileFields : [];
+  const out: string[] = [];
+  for (const raw of requested) {
+    const item = String(raw || "").trim();
+    if (!item) continue;
+    const resolved =
+      item === "images" ? mapping.images
+        : item === "firstFrame" ? mapping.firstFrame
+          : item === "lastFrame" ? mapping.lastFrame
+            : item;
+    if (resolved && !out.includes(resolved)) out.push(resolved);
+  }
+  return out;
 }
 
 export function extractApimartTask(raw: unknown, options: ExtractApimartTaskOptions = {}) {
@@ -88,6 +111,7 @@ export function extractApimartVideoResult(raw: unknown, options: ExtractApimartV
   const videoUrls = firstStringArrayAtPaths(raw, [
     options.resultVideoPath || "data.result.videos",
     "remixed_from_video_id",
+    "data.output",
     "data.result.video_urls",
     "data.result.videoUrls",
     "data.result.video_url",
@@ -112,6 +136,7 @@ export function extractApimartVideoResult(raw: unknown, options: ExtractApimartV
     "result.videoUrl",
     "result.data.0.url",
     "result.data.0.video_url",
+    "output",
     "output.videos",
     "output.video_urls",
     "output.video_url",
@@ -216,6 +241,53 @@ function castMappedValue(value: unknown, typeHint: string | undefined) {
     return Boolean(value);
   }
   return value;
+}
+
+function applyValueTemplates(
+  target: Record<string, unknown>,
+  templates: Record<string, unknown>,
+  input: ApimartVideoAdapterPayloadInput,
+) {
+  const videoSize = videoSizeFromRatioAndResolution(input.ratio, input.resolution);
+  const context: Record<string, string> = {
+    model: input.modelId,
+    prompt: input.prompt,
+    ratio: String(input.ratio || ""),
+    duration: typeof input.duration === "string" || typeof input.duration === "number" ? String(input.duration) : "",
+    resolution: String(input.resolution || ""),
+    first_frame: String(input.firstFrame || ""),
+    last_frame: String(input.lastFrame || ""),
+    first_image: Array.isArray(input.images) ? String(input.images[0] || "") : "",
+    image_count: String(Array.isArray(input.images) ? input.images.length : 0),
+    video_size: videoSize,
+  };
+  for (const [key, rawTemplate] of Object.entries(templates)) {
+    const template = String(rawTemplate || "").trim();
+    if (!key || !template) continue;
+    const rendered = template.replace(/\{([a-z0-9_]+)\}/gi, (_, token) => context[String(token || "").toLowerCase()] || "");
+    if (rendered.trim()) target[key] = rendered.trim();
+  }
+}
+
+function videoSizeFromRatioAndResolution(ratioValue: unknown, resolutionValue: unknown) {
+  const ratio = String(ratioValue || "").trim();
+  const resolution = String(resolutionValue || "").trim().toLowerCase();
+  const shortEdge = resolution === "1080p" ? 1080 : resolution === "720p" ? 720 : resolution === "480p" ? 480 : 0;
+  if (!shortEdge) return "";
+  const match = ratio.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+  if (!match) return "";
+  const a = Number(match[1]);
+  const b = Number(match[2]);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b <= 0) return "";
+  if (a >= b) {
+    return `${roundEven(shortEdge * a / b)}x${shortEdge}`;
+  }
+  return `${shortEdge}x${roundEven(shortEdge * b / a)}`;
+}
+
+function roundEven(value: number) {
+  const rounded = Math.max(2, Math.round(value));
+  return rounded % 2 === 0 ? rounded : rounded + 1;
 }
 
 function firstDataNode(value: unknown) {

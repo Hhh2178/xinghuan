@@ -128,6 +128,49 @@ function assistantAdvancedJsonValue(result: AssistantAnalysisResult | null, key:
   return JSON.stringify(value, null, 2);
 }
 
+function isAbsoluteEndpoint(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function assistantPlanRow(label: string, value: string) {
+  return { label, value: value.trim() || "未建议" };
+}
+
+function buildAssistantIntegrationPlan(result: AssistantAnalysisResult | null) {
+  if (!result) return [];
+  const submitPath = assistantAdvancedValue(result, "submitPath");
+  const pollPath = assistantAdvancedValue(result, "pollPathTemplate");
+  const finalPath = assistantAdvancedValue(result, "finalResultPathTemplate");
+  const requestMapping = result.drafts.model.advancedConfig?.requestMapping;
+  const requestFileFields = Array.isArray(result.drafts.model.advancedConfig?.requestFileFields)
+    ? result.drafts.model.advancedConfig?.requestFileFields?.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const requestValueTemplates = result.drafts.model.advancedConfig?.requestValueTemplates;
+  const inputCaps = result.drafts.model.inputCapabilities || {};
+  const requestContentType =
+    String(result.drafts.model.advancedConfig?.requestContentType || "").trim() || "application/json";
+  const imageRequirement =
+    inputCaps.imageReference || /image_reference|images/i.test(result.drafts.model.inputProfile || "")
+      ? "需要图片输入"
+      : "可纯文本提交";
+  const referenceMode =
+    typeof requestMapping === "object" && requestMapping && "images" in requestMapping
+      ? `字段 ${(requestMapping as Record<string, unknown>).images || "images"}`
+      : "未明确字段";
+  return [
+    assistantPlanRow("端点模式", isAbsoluteEndpoint(submitPath) || isAbsoluteEndpoint(pollPath) || isAbsoluteEndpoint(finalPath) ? "完整 URL" : "基于 Base URL 的相对路径"),
+    assistantPlanRow("请求格式", requestContentType),
+    assistantPlanRow("素材输入", `${imageRequirement} / ${referenceMode}${requestFileFields.length ? ` / 文件字段 ${requestFileFields.join(", ")}` : ""}`),
+    assistantPlanRow(
+      "派生字段",
+      requestValueTemplates && typeof requestValueTemplates === "object"
+        ? JSON.stringify(requestValueTemplates)
+        : "无",
+    ),
+    assistantPlanRow("结果解析", assistantAdvancedValue(result, "resultVideoPath")),
+  ];
+}
+
 function formatAssistantRawOutput(value: unknown) {
   if (typeof value === "string") {
     const text = value.trim();
@@ -224,6 +267,7 @@ export function ApiSettingsPanel({
     useState<AssistantAnalysisResult | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const assistantRawOutput = formatAssistantRawOutput((assistantResult as { rawAssistant?: unknown } | null)?.rawAssistant);
+  const assistantIntegrationPlan = buildAssistantIntegrationPlan(assistantResult);
 
   useEffect(() => {
     if (!selectedId && providers[0]) setSelectedId(providers[0].id);
@@ -973,6 +1017,17 @@ export function ApiSettingsPanel({
                     </dl>
                   </section>
                   <section className="assistant-draft-section">
+                    <strong>结构化接入方案</strong>
+                    <dl>
+                      {assistantIntegrationPlan.map((item) => (
+                        <div key={item.label}>
+                          <dt>{item.label}</dt>
+                          <dd>{item.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                  <section className="assistant-draft-section">
                     <strong>Provider 草案</strong>
                     <dl>
                       <div>
@@ -1059,6 +1114,26 @@ export function ApiSettingsPanel({
                         <dt>类型转换</dt>
                         <dd>
                           <pre>{assistantAdvancedJsonValue(assistantResult, "requestValueTypes")}</pre>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>请求体模式</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "requestBodyMode")}</dd>
+                      </div>
+                      <div>
+                        <dt>请求 Content-Type</dt>
+                        <dd>{assistantAdvancedValue(assistantResult, "requestContentType")}</dd>
+                      </div>
+                      <div>
+                        <dt>文件字段</dt>
+                        <dd>
+                          <pre>{assistantAdvancedJsonValue(assistantResult, "requestFileFields")}</pre>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>派生字段模板</dt>
+                        <dd>
+                          <pre>{assistantAdvancedJsonValue(assistantResult, "requestValueTemplates")}</pre>
                         </dd>
                       </div>
                       <div>

@@ -73,8 +73,35 @@
   - 当前更准确的阶段判断：
     - `requestId` 覆盖率补强已不再停留在“只靠测试写入补样”
     - `Phase E` 后续主剩余项更集中在外部通知闭环
+- `2026-06-17` 柏拉图视频 Provider 接入与 AI 助手结构化接入方案输出已完成 gray / production 收口：
+  - 当前沉淀出的可复用 Provider 请求体能力为：
+    - `requestBodyMode`
+    - `requestContentType`
+    - `requestFileFields`
+    - `requestValueTemplates`
+  - 当前柏拉图模型分流规则已确认：
+    - `grok-1.5-video-6s`
+    - `grok-1.5-video-10s`
+    - `grok-1.5-video-15s`
+      - 使用 `/v1/videos`
+      - 使用 `multipart/form-data`
+      - 参考图字段名为 `input_reference`
+      - `size` 由比例与分辨率派生生成
+    - `grok-imagine-video-1.5-preview`
+      - 继续使用 `/v2/videos/generations`
+      - 继续走 JSON body
+  - 后台 API 接入助手与右侧后台 AI 助手当前都要以“结构化接入方案”为目标输出：
+    - 明确端点模式
+    - 请求体模式
+    - 文件字段
+    - 派生字段模板
+    - 结果提取路径
+  - 当前真实验收结论：
+    - gray `grok-1.5-video-6s` 已成功生成并落本地视频
+    - production `grok-1.5-video-6s` 已成功生成并落本地视频
+    - 若出现“官方负载大，请尝试重新生成”，当前应判断为上游容量波动，而不是本地 multipart 接入继续失败
 - `2026-06-17` 当前灰度运行态已切到：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260617-atlas-gray-r2-2f0a88f`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260617-plato-multipart-gray-r2-427237e-dirty`
   - 本次切换后 gray gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
@@ -83,6 +110,8 @@
     - 文档治理与归档主入口同步
     - CodeGraph hook 与安装脚本
     - 生成库素材预览/下载访问层
+    - 柏拉图 multipart 视频接入
+    - 后台结构化接入方案输出
     - release gate / observability 验收脚本闭环
   - 灰度数据库目标复核：
     - `current = xinghuan_canvas_gray`
@@ -92,7 +121,7 @@
     - 灰度 release 目录执行 `db:migrate` 前，必须先加载 `shared/canvas-next.env`
     - 否则会出现假性 `DATABASE_NOT_CONFIGURED`
 - `2026-06-17` 当前生产运行态已切到：
-  - `/opt/apps/xinghuan-canvas/releases/20260617-atlas-prod-r1-2f0a88f`
+  - `/opt/apps/xinghuan-canvas/releases/20260617-plato-multipart-prod-r1-427237e-dirty`
   - 本次切换后 production gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
@@ -419,8 +448,8 @@
     - production 当前目标：`xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
-  - 当前灰度 release：`20260617-atlas-gray-r2-2f0a88f`
-  - 当前生产 release：`20260617-atlas-prod-r1-2f0a88f`
+  - 当前灰度 release：`20260617-plato-multipart-gray-r2-427237e-dirty`
+  - 当前生产 release：`20260617-plato-multipart-prod-r1-427237e-dirty`
   - `2026-06-15` 已完成一次后台基础数据对齐：
     - production / gray 用户当前都为 `7`
     - production / gray 真实 API 服务商当前都为 `6`
@@ -437,17 +466,19 @@
     - `verify-system-observability` 不再创建测试 Provider
     - `verify-request-chain-observability` 创建后自动清理
     - gray / production 当前都已复核 `Observability` / `System Observability` 残留 Provider 为 `0`
-  - `2026-06-17` 灰度已切到 `20260617-atlas-gray-r2-2f0a88f`：
+  - `2026-06-17` 灰度已切到 `20260617-plato-multipart-gray-r2-427237e-dirty`：
     - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向新 release
     - `xinghuan-canvas-next.service` / `xinghuan-canvas-next-worker.service` 均为 `active`
     - `npm run verify:release-preflight`、`npm run verify:request-chain-observability`、`npm run verify:system-observability` 通过
     - 生成库素材访问、预览与下载链路已随当前 release 进入 gray
     - 项目 atlas、文档治理收束、CodeGraph hook 和 release gate 闭环已随当前 release 进入 gray
-  - `2026-06-17` 生产已切到 `20260617-atlas-prod-r1-2f0a88f`：
+    - 柏拉图 `grok-1.5-video-6s/10s/15s` multipart 视频接入与后台结构化接入方案输出已随当前 release 进入 gray
+  - `2026-06-17` 生产已切到 `20260617-plato-multipart-prod-r1-427237e-dirty`：
     - `readlink -f /opt/apps/xinghuan-canvas/current` 已指向新 release
     - `xinghuan-canvas.service` / `xinghuan-canvas-worker.service` / `xinghuan-canvas-output-prune.timer` 均为 `active`
     - `npm run verify:release-preflight`、`npm run verify:request-chain-observability`、`npm run verify:system-observability` 通过
     - `https://canvas.hhh2121.xyz/api/status` 与 `https://canvas.hhh2121.xyz/` 均返回 `200`
+    - 柏拉图 `grok-1.5-video-6s` 真实 6 秒视频任务验收已在生产通过
 - 部署目录：`/opt/apps/xinghuan-canvas-next/`
   - `current` 符号链接指向当前 release
   - `shared/canvas-next.env` 存放环境变量（密钥，不入 Git）

@@ -4430,7 +4430,12 @@ async function pollAsyncImageTask(input: {
 function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
   const baseUrl = safeText(baseUrlValue).replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(baseUrl)) throw new Error("Provider 请求地址必须以 http:// 或 https:// 开头");
-  return baseUrl.endsWith("/v1") ? `${baseUrl}/${pathname}` : `${baseUrl}/v1/${pathname}`;
+  const normalizedPathname = safeText(pathname);
+  if (/^https?:\/\//i.test(normalizedPathname)) return normalizedPathname;
+  if (normalizedPathname.startsWith("../") || normalizedPathname.startsWith("./")) {
+    return new URL(normalizedPathname, `${baseUrl}/`).toString();
+  }
+  return baseUrl.endsWith("/v1") ? `${baseUrl}/${normalizedPathname}` : `${baseUrl}/v1/${normalizedPathname}`;
 }
 
 function openAiImageGenerationUrl(baseUrlValue: unknown) {
@@ -6421,7 +6426,7 @@ async function streamAssistantChatResponse(
   for (const chunk of chunks) {
     sendEvent("delta", { delta: chunk });
   }
-  sendEvent("done", { ...result, rawAssistant: "" });
+  sendEvent("done", result);
   response.end();
 }
 
@@ -6433,6 +6438,20 @@ function splitAssistantMessage(message: string) {
     chunks.push(text.slice(index, index + 24));
   }
   return chunks;
+}
+
+function providerOriginUrl(baseUrl: string) {
+  try {
+    const url = new URL(baseUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return "";
+  }
+}
+
+function preferredProviderEndpoint(baseUrl: string, pathname: string) {
+  const origin = providerOriginUrl(baseUrl);
+  return origin ? `${origin}${pathname.startsWith("/") ? pathname : `/${pathname}`}` : pathname;
 }
 
 async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): Promise<AssistantAnalysisResult> {
@@ -6453,7 +6472,11 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   const modelscopeDetected = /modelscope|api-inference\.modelscope\.cn/i.test(signals);
   const toapisDetected = /toapis|grok-video-1\.5-preview|videos\/generations\/\{task_id\}|POST\s+https:\/\/toapis\.com\/v1\/videos\/generations/i.test(signals);
   const agnesDetected = /agnes|agnes-ai\.com|agnes-video/i.test(signals);
+  const platoDetected = /柏拉图|apilio|api\.apilio\.ai|gpt-best\.apifox\.cn|grok-1\.5-video-(6s|10s|15s)|grok-imagine-video-1\.5-preview|\/v2\/videos\/generations/i.test(signals);
+  const platoGrok15Detected = /grok-1\.5-video-(6s|10s|15s)/i.test(modelId);
+  const platoPreviewDetected = /grok-imagine-video-1\.5-preview/i.test(modelId);
   const videoDetected =
+    platoDetected ||
     toapisDetected ||
     agnesDetected ||
     /video|i2v|t2v|grok-video|wanx|seedance|kling|veo|sora/i.test(`${signals}\n${modelId}`);
@@ -6473,6 +6496,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       : (
     grsaiDetected ||
     modelscopeDetected ||
+    platoDetected ||
     toapisDetected ||
     agnesDetected ||
     /request[_-]?id|\/videos\/\{request_id\}|\/videos\/[a-z0-9_-]+/i.test(sampleResponse) ||
@@ -6579,6 +6603,41 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       if (toapisDetected) advancedConfig.requestValueTypes = { duration: "string" };
     }
   }
+  if (platoDetected && capability === "video") {
+    chainTemplate = "async_task_poll_result";
+    advancedConfig.mode = "async_video_task";
+    advancedConfig.submitPath = platoGrok15Detected
+      ? preferredProviderEndpoint(baseUrl, "/v1/videos")
+      : preferredProviderEndpoint(baseUrl, "/v2/videos/generations");
+    advancedConfig.taskIdPath = "task_id";
+    advancedConfig.pollPathTemplate = preferredProviderEndpoint(baseUrl, "/v2/videos/generations/{task_id}");
+    advancedConfig.taskStatusPath = "status";
+    advancedConfig.resultVideoPath = "data.output";
+    advancedConfig.pollIntervalMs = 3000;
+    advancedConfig.pollTimeoutMs = 360000;
+    advancedConfig.requestMapping = platoGrok15Detected
+      ? {
+          ratio: "",
+          duration: "duration",
+          resolution: "",
+          images: "input_reference",
+        }
+      : {
+          ratio: "aspect_ratio",
+          duration: "duration",
+          resolution: "resolution",
+          images: "images",
+        };
+    if (platoGrok15Detected) {
+      advancedConfig.requestBodyMode = "multipart_form_data";
+      advancedConfig.requestContentType = "multipart/form-data";
+      advancedConfig.requestFileFields = ["images"];
+      advancedConfig.requestValueTemplates = { size: "{video_size}" };
+    }
+    if (platoPreviewDetected) {
+      inputCapabilities.imageReference = true;
+    }
+  }
   if (toapisDetected) {
     advancedConfig.baseUrlSuggestion = "https://toapis.com";
     advancedConfig.docStatusPath = "GET /v1/videos/generations/{task_id}";
@@ -6625,12 +6684,32 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     capability === "video" ? "视频模型需要明确首帧、尾帧、多参考图能力，避免前端错误展示输入口。" : "需要确认参数 schema 与上游字段映射是否一致。",
     probe.ok ? "基础域名探活通过，但不代表鉴权、配额和模型调用完全可用。" : "Base URL 探活未确认成功，上游地址或权限可能仍有问题。",
   ];
+  if (platoDetected && capability === "video") {
+    if (platoGrok15Detected) {
+      risks.unshift("柏拉图的 grok-1.5-video-6s/10s/15s 不是 JSON + URL 引用接口，而是 /v1/videos + multipart/form-data + input_reference 文件上传。");
+      risks.unshift("这组模型把比例和清晰度收敛成单个 size 字段；如果继续沿用 aspect_ratio + resolution，会在上游直接失败。");
+    } else {
+      risks.unshift("柏拉图这组 Grok 视频模型需要按 Grok v2 视频链路处理；继续沿用错误端点或错误结果路径会直接失败。");
+    }
+    if (platoPreviewDetected) {
+      risks.unshift("grok-imagine-video-1.5-preview 需要参考图输入，不支持纯文本直接生成视频。");
+    }
+  }
   const checklist = [
     "在后台确认 Provider 基本信息、协议类型和 Base URL。",
     "导入或新建模型草案，检查 capability、inputCapabilities、parameterSchema。",
     asyncTask ? "补齐 task_id、status、pollPathTemplate、结果路径等 adapter / advancedConfig 配置。" : "先用默认结构化配置打通，再决定是否补高级映射。",
     "在灰度环境使用真实密钥跑一次最小生成请求并检查任务日志。",
   ];
+  if (platoDetected && capability === "video") {
+    checklist.splice(
+      2,
+      0,
+      platoGrok15Detected
+        ? "将提交端点改为 /v1/videos，使用 multipart/form-data 上传 input_reference 文件，并把 size 由 ratio/resolution 派生。"
+        : "将提交/轮询端点改为 Grok v2 视频接口，并确认最终视频 URL 来自 data.output。",
+    );
+  }
   return {
     mode: "fallback",
     summary,
@@ -6649,6 +6728,10 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
         protocol,
         note: grsaiDetected
           ? `${summary} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。`
+          : platoDetected
+            ? platoGrok15Detected
+              ? `${summary} 柏拉图的 grok-1.5-video-6s/10s/15s 需要使用 /v1/videos、multipart/form-data 和 input_reference 文件上传，size 建议由 ratio/resolution 派生后填入。`
+              : `${summary} 柏拉图的 grok-imagine-video-1.5-preview 建议使用 Grok v2 视频端点，按 JSON body 提交 images 数组，并从 data.output 读取最终视频 URL。`
           : toapisDetected
             ? `${summary} 官方文档使用 https://toapis.com/v1/videos/generations 和 /v1/videos/generations/{task_id}。`
             : agnesDetected
@@ -6786,6 +6869,7 @@ function buildHermesAssistantPrompt(input: AssistantAnalyzeRequest, fallback: As
     'JSON schema: {"summary":"", "protocol":"", "recommendedLayer":"default|advanced|adapter", "asyncTask":true, "chainTemplate":"sync_inline_result|async_task_poll_result|async_task_poll_then_final_lookup|adapter_manual_model_catalog", "chainTemplateVersion":"video-provider-template/v1", "risks":[""], "checklist":[""], "drafts":{"provider":{"name":"","baseUrl":"","protocol":"","note":""},"model":{"modelId":"","displayName":"","capability":"chat|image|video","inputProfile":"","inputCapabilities":{"prompt":true,"imageReference":false,"multiImage":false,"firstFrame":false,"lastFrame":false,"mask":false,"audioReference":false},"parameterSchema":"{}", "advancedConfig":{}}}}',
     "如果是异步视频平台，必须优先判断属于哪一类模板：同步直返、单段轮询、二段最终结果查询。",
     "如果属于二段最终结果查询，advancedConfig 必须尽量给出 finalResultTaskIdPath、finalResultPathTemplate、finalResultVideoPath。",
+    "如果识别到柏拉图 / apilio / Grok 1.5 视频模型，优先建议 Grok v2 视频端点、JSON body 的 images 数组、以及 data.output 结果路径。",
     "只允许输出受控配置字段，不要输出 shell 命令、数据库写入语句或需要管理员复制执行的脚本。",
     "如果信息不足，也要尽量给出保守建议。",
     `输入能力: ${JSON.stringify({ ...input, docUrls, asyncTemplate: normalizeAssistantAsyncTemplate(input.asyncTemplate) })}`,
@@ -6799,7 +6883,9 @@ function buildHermesAssistantChatPrompt(input: AssistantChatRequest, actor: Curr
     "你是无限画布的内置 AI 助手。",
     "你会收到用户问题，以及若干来自画布或后台的上下文卡片。",
     "请结合这些上下文，用简洁、专业、可执行的中文直接回复。",
-    "不要输出 Markdown 代码块，不要假装你已经修改了配置或执行了操作。",
+    "可以使用简短的小标题、要点列表，以及 fenced code block 展示 JSON、请求体或配置草案。",
+    "不要假装你已经修改了配置或执行了操作。",
+    "如果是在后台管理场景，优先输出结构化接入方案：结论、原因、接入步骤、风险、可直接应用配置(JSON)。",
     "如果用户提供的是工作流、节点或媒体，请优先做分析、诊断、建议和下一步动作。",
     `当前作用域: ${input.scope === "admin" ? "后台管理" : "画布工作区"}`,
     `当前用户: ${actor.email} (${actor.role})`,
