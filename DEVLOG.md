@@ -44,6 +44,98 @@
 
 ## 2026-06-17
 
+### atlas 项目总纲批次已完成灰度与正式发布
+
+目标:
+
+- 把当前 HEAD 的项目总纲 atlas、文档入口收束、CodeGraph hook、生成库素材访问链路与 release gate 闭环同步推进到 production。
+- 先确认灰度已承接最新 HEAD，再基于同一提交完成正式发布。
+- 把 gray / production 的当前入口文档同步到真实线上状态，避免主入口继续停留在旧 release。
+
+变更:
+
+- 线上现状核对：
+  - gray current：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260617-atlas-gray-r2-2f0a88f`
+  - production current（发布前）：
+    - `/opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-batch3-prod-r2`
+- 本地执行：
+  - `codegraph status`
+  - `npm run build:single-port`
+  - `npm run verify:release-package-contract`
+  - `npm run package:release -- 20260617-atlas-prod-r1-2f0a88f`
+- 服务器执行：
+  - 上传 `dist-release/20260617-atlas-prod-r1-2f0a88f.tar.gz`
+  - 解包到 `/opt/apps/xinghuan-canvas/releases/20260617-atlas-prod-r1-2f0a88f`
+  - `npm ci`
+  - 加载 `shared/canvas.env` 后执行 `npm run db:migrate`
+  - 切换 `/opt/apps/xinghuan-canvas/current`
+  - 重启：
+    - `xinghuan-canvas.service`
+    - `xinghuan-canvas-worker.service`
+    - `xinghuan-canvas-output-prune.timer`
+- 新增发布记录：
+  - `ops/atlas-gray-release-2026-06-17.md`
+  - `ops/atlas-production-release-2026-06-17.md`
+- 同步更新：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `ops/README.md`
+  - `ops/server-connection.md`
+
+验证:
+
+- 本地：
+  - `codegraph status = Index is up to date`
+  - `npm run build:single-port = ok`
+  - `npm run verify:release-package-contract = ok`
+  - `npm run package:release -- 20260617-atlas-prod-r1-2f0a88f = ok`
+- production 服务器：
+  - `readlink -f /opt/apps/xinghuan-canvas/current`
+    - `/opt/apps/xinghuan-canvas/releases/20260617-atlas-prod-r1-2f0a88f`
+  - `systemctl is-active xinghuan-canvas`
+    - `active`
+  - `systemctl is-active xinghuan-canvas-worker`
+    - `active`
+  - `systemctl is-active xinghuan-canvas-output-prune.timer`
+    - `active`
+  - `curl http://127.0.0.1:18100/api/status`
+    - `environment = production`
+  - 加载 `shared/canvas.env` 后执行：
+    - `npm run verify:release-preflight = ok`
+    - `npm run verify:request-chain-observability = ok`
+    - `npm run verify:system-observability = ok`
+  - `curl -i -H "x-request-id: prod-gate-check" http://127.0.0.1:18100/api/status`
+    - 响应头保留 `x-request-id: prod-gate-check`
+- 公网：
+  - `https://canvas.hhh2121.xyz/api/status = 200`
+  - `https://canvas.hhh2121.xyz/ = 200`
+
+影响:
+
+- 当前 gray active release 已明确为：
+  - `20260617-atlas-gray-r2-2f0a88f`
+- 当前 production active release 已从 `20260615-phase-e-observability-governance-batch3-prod-r2` 切到：
+  - `20260617-atlas-prod-r1-2f0a88f`
+- atlas 项目总纲、文档路由收束、CodeGraph hook 和 release gate 闭环现在不只在 gray，而是已经进入 production current。
+- 当前主入口文档与线上 release 指针已重新对齐。
+
+风险:
+
+- `verify:system-observability` 当前仍报告：
+  - `tasks.health.status = warning`
+  - `audits.conflicts.health.status = critical`
+  这些是当前生产运行态观测结论，不是本次发布失败。
+- 当前 production gate 如果不先加载 `/opt/apps/xinghuan-canvas/shared/canvas.env`，脚本会默认回落到 `18200`，误打 gray。
+
+下一步:
+
+- 继续按当前阶段口径推进外部通知闭环与 requestId 覆盖率提升。
+- 后续如再发布 atlas/治理类变更，优先保持 `README / AGENTS / MEMORY / PRD / ops` 五个主入口与 release 同轮更新。
+
 ### 补项目接口清单与核心 API 导航页
 
 目标:

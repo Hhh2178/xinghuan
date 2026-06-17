@@ -6,11 +6,12 @@
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260617-doc-archive-governance-gray-r1-2737811`
-- 当前生产 active release：`20260615-phase-e-observability-governance-batch3-prod-r2`
-- 当前灰度最新热修复已额外补齐：
+- 当前灰度 active release：`20260617-atlas-gray-r2-2f0a88f`
+- 当前生产 active release：`20260617-atlas-prod-r1-2f0a88f`
+- 当前 gray / production 最新状态已额外补齐：
   - `GRSAI` nano 路由与图像节点错误透传
-  - 高频后台读接口 requestId 审计补样后的 gray gate 复验
+  - 高频后台读接口 requestId 审计补样后的 gray / production gate 复验
+  - 项目 atlas、文档入口和 release 台账同步进入 gray / production
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果

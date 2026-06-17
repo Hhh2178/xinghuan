@@ -154,5 +154,5 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260617-doc-archive-governance-gray-r1-2737811`
-  - 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`
+  - 当前灰度 release：`20260617-atlas-gray-r2-2f0a88f`
+  - 当前生产 release：`20260617-atlas-prod-r1-2f0a88f`

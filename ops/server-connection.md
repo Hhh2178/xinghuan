@@ -71,9 +71,9 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 ### 当前 gray / production release
 
 - gray current：
-  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-atlas-gray-r2-2f0a88f`
 - production current：
-  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-batch3-prod-r2`
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-atlas-prod-r1-2f0a88f`
 
 ### 服务清单
 

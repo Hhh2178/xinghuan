@@ -74,7 +74,7 @@
     - `requestId` 覆盖率补强已不再停留在“只靠测试写入补样”
     - `Phase E` 后续主剩余项更集中在外部通知闭环
 - `2026-06-17` 当前灰度运行态已切到：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260617-atlas-gray-r2-2f0a88f`
   - 本次切换后 gray gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
@@ -91,6 +91,19 @@
   - 发布过程额外记忆：
     - 灰度 release 目录执行 `db:migrate` 前，必须先加载 `shared/canvas-next.env`
     - 否则会出现假性 `DATABASE_NOT_CONFIGURED`
+- `2026-06-17` 当前生产运行态已切到：
+  - `/opt/apps/xinghuan-canvas/releases/20260617-atlas-prod-r1-2f0a88f`
+  - 本次切换后 production gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前生产数据库目标复核：
+    - `current = xinghuan_canvas_next`
+    - `expected = xinghuan_canvas_next`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - production release 目录执行 gate 前，必须先加载 `shared/canvas.env`
+    - 否则 `verify:release-preflight` / `verify:request-chain-observability` / `verify:system-observability` 会默认命中灰度 `18200`
 
 ## 运行产物与归档规则记忆
 
@@ -406,8 +419,8 @@
     - production 当前目标：`xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
-  - 当前灰度 release：`20260617-doc-archive-governance-gray-r1-2737811`
-  - 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`
+  - 当前灰度 release：`20260617-atlas-gray-r2-2f0a88f`
+  - 当前生产 release：`20260617-atlas-prod-r1-2f0a88f`
   - `2026-06-15` 已完成一次后台基础数据对齐：
     - production / gray 用户当前都为 `7`
     - production / gray 真实 API 服务商当前都为 `6`
@@ -424,12 +437,17 @@
     - `verify-system-observability` 不再创建测试 Provider
     - `verify-request-chain-observability` 创建后自动清理
     - gray / production 当前都已复核 `Observability` / `System Observability` 残留 Provider 为 `0`
-  - `2026-06-17` 灰度已切到 `20260617-doc-archive-governance-gray-r1-2737811`：
+  - `2026-06-17` 灰度已切到 `20260617-atlas-gray-r2-2f0a88f`：
     - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向新 release
     - `xinghuan-canvas-next.service` / `xinghuan-canvas-next-worker.service` 均为 `active`
     - `npm run verify:release-preflight`、`npm run verify:request-chain-observability`、`npm run verify:system-observability` 通过
     - 生成库素材访问、预览与下载链路已随当前 release 进入 gray
-    - 文档治理收束、CodeGraph hook 和 release gate 闭环已随当前 release 进入 gray
+    - 项目 atlas、文档治理收束、CodeGraph hook 和 release gate 闭环已随当前 release 进入 gray
+  - `2026-06-17` 生产已切到 `20260617-atlas-prod-r1-2f0a88f`：
+    - `readlink -f /opt/apps/xinghuan-canvas/current` 已指向新 release
+    - `xinghuan-canvas.service` / `xinghuan-canvas-worker.service` / `xinghuan-canvas-output-prune.timer` 均为 `active`
+    - `npm run verify:release-preflight`、`npm run verify:request-chain-observability`、`npm run verify:system-observability` 通过
+    - `https://canvas.hhh2121.xyz/api/status` 与 `https://canvas.hhh2121.xyz/` 均返回 `200`
 - 部署目录：`/opt/apps/xinghuan-canvas-next/`
   - `current` 符号链接指向当前 release
   - `shared/canvas-next.env` 存放环境变量（密钥，不入 Git）
