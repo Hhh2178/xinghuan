@@ -21,5 +21,8 @@ assert.match(serviceSource, /taskPayload\.taskCapability/);
 assert.match(serviceSource, /normalizeGenerationCapability/);
 assert.match(serviceSource, /enqueueTask\(task\.id,\s*input\.capability\)/);
 assert.match(serviceSource, /queueName/);
+assert.match(serviceSource, /safePromptText\(body\.prompt,\s*""\s*,\s*8000\)/);
+assert.match(serviceSource, /safePromptText\(body\.prompt,\s*""\s*,\s*16000\)/);
+assert.match(serviceSource, /safeLongText\(body\.text \|\| body\.prompt,\s*""\s*,\s*16000\)/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));

@@ -5,6 +5,8 @@ import {
   safeEmail,
   safeFilename,
   safeJsonText,
+  safeLongText,
+  safePromptText,
   safeSlug,
   safeText,
   safeUserId,
@@ -39,6 +41,18 @@ const checks = [
   {
     name: "safeText trims values and caps length",
     pass: safeText(longText).length === 240 && safeText(null, "fallback") === "fallback",
+  },
+  {
+    name: "safeLongText trims values and preserves long content within explicit limit",
+    pass:
+      safeLongText(longText, "", 500).length === 300 &&
+      safeLongText(`  ${"长".repeat(20000)}  `, "", 16000).length === 16000,
+  },
+  {
+    name: "safePromptText is dedicated to prompt-sized payloads instead of short-field cap",
+    pass:
+      safePromptText(`  ${"词".repeat(400)}  `, "", 16000).length === 400 &&
+      safePromptText(null, "fallback", 16000) === "fallback",
   },
   {
     name: "safeEmail validates and normalizes email",

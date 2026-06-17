@@ -73,6 +73,8 @@ interface ProviderGenerationTaskServiceDependencies {
     capability: GenerationCapability,
   ) => Promise<{ queued: boolean; reason: string; queueName: string }>;
   safeText: (value: unknown, fallback?: string) => string;
+  safeLongText: (value: unknown, fallback?: string, maxLength?: number) => string;
+  safePromptText: (value: unknown, fallback?: string, maxLength?: number) => string;
   safeSlug: (value: unknown, fallback?: string) => string;
   plainObject: (value: unknown) => Record<string, unknown>;
   now?: () => number;
@@ -200,7 +202,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       throw new Error("当前版本未启用图像后台任务执行链路");
     }
     const body = deps.plainObject(rawBody);
-    const prompt = deps.safeText(body.prompt, "").slice(0, 8000);
+    const prompt = deps.safePromptText(body.prompt, "", 8000);
     if (!prompt) throw new Error("缺少 prompt");
 
     const params = deps.plainObject(body.providerParams);
@@ -262,7 +264,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       throw new Error("当前版本未启用视频后台任务执行链路");
     }
     const body = deps.plainObject(rawBody);
-    const prompt = deps.safeText(body.prompt, "").slice(0, 16000);
+    const prompt = deps.safePromptText(body.prompt, "", 16000);
     if (!prompt) throw new Error("缺少 prompt");
 
     const params = deps.plainObject(body.providerParams);
@@ -338,7 +340,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       throw new Error("当前版本未启用音频后台任务执行链路");
     }
     const body = deps.plainObject(rawBody);
-    const text = deps.safeText(body.text || body.prompt, "").slice(0, 16000);
+    const text = deps.safeLongText(body.text || body.prompt, "", 16000);
     if (!text) throw new Error("缺少要合成的文本");
 
     const params = deps.plainObject(body.providerParams);
@@ -369,7 +371,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       prompt: text,
       text,
       mode,
-      stylePrompt: deps.safeText(body.stylePrompt || params.stylePrompt),
+      stylePrompt: deps.safeLongText(body.stylePrompt || params.stylePrompt, "", 8000),
       voice: deps.safeText(body.voice || params.voice || "mimo_default"),
       audioFormat: deps.safeText(body.audioFormat || params.audioFormat || advancedConfig.audioFormat || "wav"),
       sampleDataUrl: mode === "voice_clone"
@@ -387,7 +389,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       voice: deps.safeText(payload.voice),
       audioFormat: deps.safeText(payload.audioFormat),
       mode,
-      sampleDataUrl: deps.safeText(payload.sampleDataUrl),
+      sampleDataUrl: deps.safeLongText(payload.sampleDataUrl, "", 20_000_000),
     });
     return createQueuedTask({
       capability: "audio",

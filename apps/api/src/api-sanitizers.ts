@@ -4,6 +4,15 @@ export function safeText(value: unknown, fallback = "") {
   return String(value ?? fallback).trim().slice(0, 240);
 }
 
+export function safeLongText(value: unknown, fallback = "", maxLength = 16_000) {
+  const length = Number.isFinite(maxLength) ? Math.max(0, Math.floor(maxLength)) : 16_000;
+  return String(value ?? fallback).trim().slice(0, length);
+}
+
+export function safePromptText(value: unknown, fallback = "", maxLength = 16_000) {
+  return safeLongText(value, fallback, maxLength);
+}
+
 export function safeEmail(value: unknown) {
   const email = safeText(value).toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";

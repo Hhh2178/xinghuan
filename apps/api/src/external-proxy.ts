@@ -81,6 +81,8 @@ interface GenerateExternalProxyDependencies {
   secretKey: () => Buffer;
   safeSlug: (value: unknown, fallback?: string) => string;
   safeText: (value: unknown, fallback?: string) => string;
+  safeLongText: (value: unknown, fallback?: string, maxLength?: number) => string;
+  safePromptText: (value: unknown, fallback?: string, maxLength?: number) => string;
   plainObject: (value: unknown) => Record<string, unknown>;
   stringMap: (value: unknown) => Record<string, string>;
   looksLikeHtml: (value: string) => boolean;
@@ -456,7 +458,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
 
   async function generateExternalImageProxy(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
     const body = deps.plainObject(rawBody);
-    const prompt = deps.safeText(body.prompt, "").slice(0, 8000);
+    const prompt = deps.safePromptText(body.prompt, "", 8000);
     if (!prompt) throw new Error("缺少 prompt");
 
     const providerId = deps.safeSlug(body.providerId, "");
@@ -565,7 +567,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
 
   async function generateExternalVideoProxy(rawBody: unknown, user: CurrentUserLike, publicOrigin: string) {
     const body = deps.plainObject(rawBody);
-    const prompt = String(body.prompt || "").trim().slice(0, 16000);
+    const prompt = deps.safePromptText(body.prompt, "", 16000);
     if (!prompt) throw new Error("缺少 prompt");
     const params = deps.plainObject(body.providerParams);
     const { provider, model } = await findEnabledModel(
@@ -720,7 +722,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
 
   async function generateExternalAudioProxy(rawBody: unknown, user: CurrentUserLike) {
     const body = deps.plainObject(rawBody);
-    const text = deps.safeText(body.text || body.prompt, "").slice(0, 16000);
+    const text = deps.safeLongText(body.text || body.prompt, "", 16000);
     if (!text) throw new Error("缺少要合成的文本");
     const params = deps.plainObject(body.providerParams);
     const { provider, model } = await findEnabledModel(
@@ -749,7 +751,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const payload = createOpenAiAudioChatPayload({
       modelId: model.modelId,
       text,
-      stylePrompt: deps.safeText(body.stylePrompt || params.stylePrompt),
+      stylePrompt: deps.safeLongText(body.stylePrompt || params.stylePrompt, "", 8000),
       voice: deps.safeText(body.voice || params.voice || "mimo_default"),
       audioFormat: deps.safeText(body.audioFormat || params.audioFormat || advancedConfig.audioFormat || "wav"),
       mode,
