@@ -1959,6 +1959,8 @@ td {
 }
 
 .environment-sync-page {
+  min-height: 0;
+  height: 100%;
   gap: 16px;
 }
 
@@ -1970,6 +1972,10 @@ td {
 .environment-sync-hero__copy p,
 .environment-sync-summary p {
   margin: 0;
+}
+
+.environment-sync-hero {
+  min-width: 0;
 }
 
 .environment-sync-hero__metrics {
@@ -1991,22 +1997,155 @@ td {
   font-weight: 800;
 }
 
-.environment-sync-layout {
+.environment-sync-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, auto) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(10, 15, 23, 0.98), rgba(10, 15, 23, 0.94)),
+    rgba(10, 15, 23, 0.94);
 }
 
-.environment-sync-sidebar,
-.environment-sync-content {
+.environment-sync-toolbar__group {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   min-width: 0;
 }
 
-.environment-sync-summary__grid {
+.environment-sync-toolbar__group--actions {
+  grid-template-columns: repeat(3, auto);
+  justify-content: flex-start;
+  align-items: end;
+}
+
+.environment-sync-toolbar label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.environment-sync-toolbar button {
+  min-height: 38px;
+  padding: 0 12px;
   gap: 12px;
+  white-space: nowrap;
+}
+
+.environment-sync-toolbar button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.environment-sync-toolbar__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.environment-sync-toolbar__metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  border-radius: 999px;
+  color: #bffdf4;
+  background: rgba(8, 47, 73, 0.42);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.environment-sync-workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.environment-sync-rail,
+.environment-sync-table-area {
+  min-width: 0;
+  min-height: 0;
+}
+
+.environment-sync-rail {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.environment-sync-summary__stack {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.environment-sync-summary__stack strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #dffbff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.environment-sync-summary__stack p {
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.environment-sync-table-area {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.environment-sync-section-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(10, 15, 23, 0.9);
+}
+
+.environment-sync-section-tabs button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #93c5fd;
+  background: transparent;
+  font-weight: 800;
+}
+
+.environment-sync-section-tabs button.active {
+  border-color: rgba(45, 212, 191, 0.38);
+  color: #ecfeff;
+  background: rgba(8, 47, 73, 0.42);
+}
+
+.environment-sync-table-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .environment-sync-empty p {
@@ -2020,9 +2159,16 @@ td {
   flex-wrap: wrap;
 }
 
+.environment-sync-bulk-actions--stack {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
 .environment-sync-identity {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .environment-sync-identity span,
@@ -2031,10 +2177,32 @@ td {
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
-@media (max-width: 1200px) {
-  .environment-sync-layout {
+.environment-sync-table-area pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1380px) {
+  .environment-sync-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .environment-sync-toolbar__metrics {
+    justify-content: flex-start;
+  }
+
+  .environment-sync-workspace {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1180px) {
+  .environment-sync-workspace {
     grid-template-columns: 1fr;
   }
 }

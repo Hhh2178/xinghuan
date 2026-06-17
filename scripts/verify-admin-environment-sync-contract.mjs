@@ -9,6 +9,7 @@ const viewModel = readFileSync(join(root, "apps/admin/src/admin-view-model.ts"),
 const server = readFileSync(join(root, "apps/api/src/server.ts"), "utf8");
 const panel = readFileSync(join(root, "apps/admin/src/admin-environment-sync-panel.tsx"), "utf8");
 const shared = readFileSync(join(root, "packages/shared/src/environment-sync.ts"), "utf8");
+const styles = readFileSync(join(root, "apps/admin/src/styles.css"), "utf8");
 
 assert(types.includes("EnvironmentSyncTarget"));
 assert(types.includes("EnvironmentSyncPreviewResponse"));
@@ -25,5 +26,20 @@ assert(panel.includes("确认同步"));
 assert(panel.includes("服务商（含模型）"));
 assert(panel.includes("以左侧环境为准"));
 assert(panel.includes("保留右侧当前数据"));
+assert(panel.includes("environment-sync-toolbar"));
+assert(panel.includes("environment-sync-workspace"));
+assert(panel.includes("environment-sync-rail"));
+assert(panel.includes("environment-sync-table-area"));
+assert(panel.includes("environment-sync-table-scroll"));
+assert(panel.includes("environment-sync-section-tabs"));
+assert(!panel.includes("environment-sync-sidebar"));
+assert(main.includes("admin-workspace--with-assistant"));
+assert(main.includes('activeTab === "environment-sync"'));
+assert(styles.includes(".environment-sync-toolbar {"));
+assert(styles.includes(".environment-sync-workspace {"));
+assert(styles.includes(".environment-sync-rail {"));
+assert(styles.includes(".environment-sync-table-area {"));
+assert(styles.includes(".environment-sync-table-scroll {"));
+assert(styles.includes(".environment-sync-section-tabs {"));
 
 console.log(JSON.stringify({ ok: true }, null, 2));

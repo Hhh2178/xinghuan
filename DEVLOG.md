@@ -44,6 +44,70 @@
 
 ## 2026-06-17
 
+### 环境同步页布局重构与版本治理收口
+
+目标:
+
+- 修复后台“环境同步”页面在灰度和正式环境中的布局混乱、重叠与工作区不可控滚动问题。
+- 将项目对外版本从 `v0.1.0` 统一推进到 `v0.3.1`，并建立后续 gray / production 版本治理规则。
+
+变更:
+
+- 重构 `apps/admin/src/admin-environment-sync-panel.tsx`：
+  - 由旧的 `sidebar + content` 结构改为：
+    - 顶部固定 `environment-sync-toolbar`
+    - 左侧摘要 `environment-sync-rail`
+    - 右侧工作区 `environment-sync-table-area`
+  - 新增 `账号 / 服务商（含模型）` 分区切换，避免两张大表同时堆叠首屏。
+  - 保留右侧后台 AI 助手默认打开能力，并让环境同步页改造与助手面板共存。
+- 重构 `apps/admin/src/styles.css`：
+  - 新增 `environment-sync-toolbar / workspace / rail / table-area / table-scroll / section-tabs` 样式结构。
+  - 收紧本地滚动边界，避免对话区下方再出现不必要的横向滚动条。
+  - 让固定工具栏和剩余高度工作区与 `admin-main--fixed-panel` 配合生效。
+- 更新 `apps/admin/src/main.tsx`，让 `environment-sync` 页纳入固定面板布局。
+- 更新 `scripts/verify-admin-environment-sync-contract.mjs`，将新 DOM/CSS 结构和助手共存关系固化为静态契约。
+- 统一版本到 `v0.3.1`：
+  - 根 `package.json`
+  - `apps/*/package.json`
+  - `packages/*/package.json`
+  - `packages/shared/src/index.ts`
+  - `apps/web/vite.config.ts`
+  - `apps/api/src/server.ts`
+  - `package-lock.json`
+- 更新主入口与治理文档：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `ops/README.md`
+- 新增版本治理规则：
+  - 每次真实发布都必须推进 non-major 版本
+  - major 版本只能由用户明确指令推进
+  - 同一批 gray / production 必须保持相同对外版本号
+
+验证:
+
+- `node scripts/verify-admin-environment-sync-contract.mjs = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm install --package-lock-only = ok`
+
+影响:
+
+- 后台“环境同步”页现在具备更稳定的操作路径：顶部参数固定、左侧摘要集中、右侧独立滚动。
+- 版本号来源已从包清单、共享常量、Web 编译注入到 API 状态接口统一为 `v0.3.1`。
+- 后续 gray / production 放量时，版本展示不会再出现“代码已发布但环境显示旧版本”的分裂状态。
+
+风险:
+
+- 目前只完成了本地契约与 admin 构建验证，完整 monorepo 构建、gray/prod 打包与远端 gate 仍需继续执行。
+- `docs/prd/v0.1.0/` 仍是当前版本文档目录名，本轮未迁目录，只更新了对外活跃版本口径。
+
+下一步:
+
+- 跑完整验证链：助手契约、shared/api/admin/build:single-port、CodeGraph sync。
+- 生成新的 gray / production `v0.3.1` release 包并执行远端发布与 gate。
+- 将本轮 release 指针和版本号写入专门的发布记录。
+
 ### 环境同步灰度 clean rebuild 补发完成，并补齐干净发布缺失提交
 
 目标:

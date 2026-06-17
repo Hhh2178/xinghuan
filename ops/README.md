@@ -8,6 +8,8 @@
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
 - 当前灰度 release：`20260617-environment-sync-gray-r2-795c1e5`。
 - 当前生产 release：`20260617-environment-sync-prod-r2-795c1e5`。
+- 当前发布版本号：`v0.3.1`。
+- gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
 - `2026-06-16` 已对当前 gray / production release 补做观测验收脚本热补丁，修复 `Observability` / `System Observability` 假 Provider 残留问题。

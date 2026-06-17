@@ -387,7 +387,7 @@ function AdminApp() {
       </aside>
 
       <div className={`admin-workspace${assistantOpen ? " admin-workspace--with-assistant" : ""}`}>
-        <main className={`admin-main${activeTab === "providers" || activeTab === "assistant" ? " admin-main--fixed-panel" : ""}${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
+        <main className={`admin-main${activeTab === "providers" || activeTab === "assistant" || activeTab === "environment-sync" ? " admin-main--fixed-panel" : ""}${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
           <header className="admin-topbar">
             <div>
               <p>统一后台</p>

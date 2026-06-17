@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRightLeft, CheckSquare, RefreshCcw, ShieldAlert } from "lucide-react";
 import { api } from "./admin-api-client";
-import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
+import { AdminTable, StatusPill } from "./admin-common-components";
 import type {
   ConfirmAction,
   EnvironmentSyncApplyResponse,
@@ -78,16 +78,18 @@ export function AdminEnvironmentSyncPanel({
 }) {
   const [sourceEnvironment, setSourceEnvironment] = useState<EnvironmentSyncTarget>("gray");
   const [targetEnvironment, setTargetEnvironment] = useState<EnvironmentSyncTarget>("production");
+  const [activeSection, setActiveSection] = useState<"users" | "providers">("users");
   const [preview, setPreview] = useState<EnvironmentSyncPreviewResponse | null>(null);
   const [selection, setSelection] = useState<RowSelectionState>({});
   const [result, setResult] = useState<EnvironmentSyncApplyResponse | null>(null);
   const [status, setStatus] = useState("先选择左侧和右侧环境，再点击“先查看差异”。");
   const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
 
-  const allRows = useMemo(
-    () => [...(preview?.users || []), ...(preview?.providers || [])],
-    [preview],
-  );
+  const users = preview?.users || [];
+  const providers = preview?.providers || [];
+  const sectionRows = activeSection === "users" ? users : providers;
+  const sectionLabel = activeSection === "users" ? "账号" : "服务商（含模型）";
+  const allRows = useMemo(() => [...users, ...providers], [users, providers]);
 
   const selectedRows = useMemo(
     () =>
@@ -96,6 +98,15 @@ export function AdminEnvironmentSyncPanel({
         return current?.selected;
       }),
     [allRows, selection],
+  );
+
+  const selectedSectionRows = useMemo(
+    () =>
+      sectionRows.filter((row) => {
+        const current = selection[rowKey(row)];
+        return current?.selected;
+      }),
+    [sectionRows, selection],
   );
 
   async function run<T>(message: string, action: () => Promise<T>) {
@@ -220,50 +231,60 @@ export function AdminEnvironmentSyncPanel({
         </div>
         <div className="environment-sync-hero__metrics">
           <span>{selectedRows.length} 项已选</span>
-          <span>{preview?.users.length || 0} 个账号差异项</span>
-          <span>{preview?.providers.length || 0} 个服务商差异项</span>
+          <span>{users.length} 个账号差异项</span>
+          <span>{providers.length} 个服务商差异项</span>
         </div>
       </div>
 
-      <div className="environment-sync-layout">
-        <div className="environment-sync-sidebar">
-          <FormPanel title="同步设置" icon={ArrowRightLeft}>
-            <label>
-              从哪里复制
-              <select value={sourceEnvironment} onChange={(event) => setSourceEnvironment(event.target.value as EnvironmentSyncTarget)}>
-                <option value="gray">灰度环境</option>
-                <option value="production">正式环境</option>
-              </select>
-            </label>
-            <label>
-              同步到哪里
-              <select value={targetEnvironment} onChange={(event) => setTargetEnvironment(event.target.value as EnvironmentSyncTarget)}>
-                <option value="gray" disabled={sourceEnvironment === "gray"}>灰度环境</option>
-                <option value="production">正式环境</option>
-              </select>
-            </label>
-            <button type="button" onClick={() => {
-              setSourceEnvironment(targetEnvironment);
-              setTargetEnvironment(sourceEnvironment);
-            }}>
-              左右互换
-            </button>
-            <button type="button" onClick={() => void loadPreview()}>
-              <RefreshCcw aria-hidden="true" />
-              先查看差异
-            </button>
-            <button type="button" disabled={!selectedRows.length} onClick={requestApply}>
-              <CheckSquare aria-hidden="true" />
-              确认同步
-            </button>
-          </FormPanel>
+      <div className="environment-sync-toolbar">
+        <div className="environment-sync-toolbar__group">
+          <label>
+            从哪里复制
+            <select value={sourceEnvironment} onChange={(event) => setSourceEnvironment(event.target.value as EnvironmentSyncTarget)}>
+              <option value="gray">灰度环境</option>
+              <option value="production">正式环境</option>
+            </select>
+          </label>
+          <label>
+            同步到哪里
+            <select value={targetEnvironment} onChange={(event) => setTargetEnvironment(event.target.value as EnvironmentSyncTarget)}>
+              <option value="gray" disabled={sourceEnvironment === "gray"}>灰度环境</option>
+              <option value="production">正式环境</option>
+            </select>
+          </label>
+        </div>
+        <div className="environment-sync-toolbar__group environment-sync-toolbar__group--actions">
+          <button type="button" onClick={() => {
+            setSourceEnvironment(targetEnvironment);
+            setTargetEnvironment(sourceEnvironment);
+          }}>
+            <ArrowRightLeft aria-hidden="true" />
+            左右互换
+          </button>
+          <button type="button" onClick={() => void loadPreview()}>
+            <RefreshCcw aria-hidden="true" />
+            先查看差异
+          </button>
+          <button type="button" disabled={!selectedRows.length} onClick={requestApply}>
+            <CheckSquare aria-hidden="true" />
+            确认同步
+          </button>
+        </div>
+        <div className="environment-sync-toolbar__metrics">
+          <span>{environmentLabel(sourceEnvironment)} -&gt; {environmentLabel(targetEnvironment)}</span>
+          <span>{selectedRows.length} 项已选</span>
+          <span>{selectedRows.filter((row) => row.state === "conflict").length} 项冲突</span>
+        </div>
+      </div>
 
+      <div className="environment-sync-workspace">
+        <aside className="environment-sync-rail">
           <section className="form-panel environment-sync-summary">
             <header>
               <ShieldAlert aria-hidden="true" />
               <h2>本次操作摘要</h2>
             </header>
-            <div className="form-grid environment-sync-summary__grid">
+            <div className="environment-sync-summary__stack">
               <div>
                 <strong>当前进度</strong>
                 <p>{status}</p>
@@ -273,137 +294,175 @@ export function AdminEnvironmentSyncPanel({
                 <p>{environmentLabel(sourceEnvironment)} -&gt; {environmentLabel(targetEnvironment)}</p>
               </div>
               <div>
-                <strong>不一致项</strong>
-                <p>{selectedRows.filter((row) => row.state === "conflict").length}</p>
-              </div>
-              <div>
                 <strong>已勾选项</strong>
                 <p>{selectedRows.length}</p>
               </div>
+              <div>
+                <strong>当前分区已选</strong>
+                <p>{selectedSectionRows.length}</p>
+              </div>
             </div>
           </section>
-        </div>
 
-        <div className="environment-sync-content">
+          <section className="form-panel environment-sync-summary">
+            <header>
+              <ArrowRightLeft aria-hidden="true" />
+              <h2>分区操作</h2>
+            </header>
+            <div className="environment-sync-bulk-actions environment-sync-bulk-actions--stack">
+              <button type="button" onClick={() => setAll(activeSection === "users" ? "user" : "provider", true)}>
+                全选{sectionLabel}
+              </button>
+              <button type="button" onClick={() => setAll(activeSection === "users" ? "user" : "provider", false)}>
+                清空{sectionLabel}
+              </button>
+            </div>
+          </section>
+        </aside>
+
+        <section className="environment-sync-table-area">
+          <div className="environment-sync-section-tabs" role="tablist" aria-label="环境同步分区">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSection === "users"}
+              className={activeSection === "users" ? "active" : ""}
+              onClick={() => setActiveSection("users")}
+            >
+              账号
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSection === "providers"}
+              className={activeSection === "providers" ? "active" : ""}
+              onClick={() => setActiveSection("providers")}
+            >
+              服务商（含模型）
+            </button>
+          </div>
+
           {!preview ? (
             <section className="data-panel environment-sync-empty">
               <header><h2>差异列表</h2></header>
               <div className="table-wrap"><p>还没有差异结果。请选择左侧和右侧环境后点击“先查看差异”。</p></div>
             </section>
           ) : (
-            <>
-              <AdminTable title="账号">
-                <thead>
-                  <tr>
-                    <th>选择</th>
-                    <th>账号</th>
-                    <th>状态</th>
-                    <th>左侧环境</th>
-                    <th>右侧环境</th>
-                    <th>决策</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="environment-sync-bulk-row">
-                    <td colSpan={6}>
-                      <div className="environment-sync-bulk-actions">
-                        <button type="button" onClick={() => setAll("user", true)}>全选账号</button>
-                        <button type="button" onClick={() => setAll("user", false)}>清空账号</button>
-                      </div>
-                    </td>
-                  </tr>
-                  {preview.users.map((row) => {
-                    const current = selection[rowKey(row)];
-                    return (
-                      <tr key={rowKey(row)}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(current?.selected)}
-                            onChange={(event) => updateRow(row, { selected: event.target.checked })}
-                          />
-                        </td>
-                        <td>
-                          <div className="environment-sync-identity">
-                            <strong>{row.displayName}</strong>
-                            <span>{row.naturalKey}</span>
-                          </div>
-                        </td>
-                        <td><StatusPill tone={toneForState(row.state)}>{labelForState(row.state)}</StatusPill></td>
-                        <td><pre>{summaryText(row.sourceSummary) || "-"}</pre></td>
-                        <td><pre>{summaryText(row.targetSummary) || "-"}</pre></td>
-                        <td>
-                          <select
-                            value={current?.decision || row.defaultDecision}
-                            onChange={(event) => updateRow(row, { decision: event.target.value as EnvironmentSyncDecision })}
-                          >
-                            <option value="skip">跳过</option>
-                            <option value="use_source">以左侧环境为准</option>
-                            <option value="keep_target">保留右侧当前数据</option>
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </AdminTable>
-
-              <AdminTable title="服务商（含模型）">
-                <thead>
-                  <tr>
-                    <th>选择</th>
-                    <th>服务商</th>
-                    <th>状态</th>
-                    <th>左侧环境</th>
-                    <th>右侧环境</th>
-                    <th>决策</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="environment-sync-bulk-row">
-                    <td colSpan={6}>
-                      <div className="environment-sync-bulk-actions">
-                        <button type="button" onClick={() => setAll("provider", true)}>全选服务商</button>
-                        <button type="button" onClick={() => setAll("provider", false)}>清空服务商</button>
-                      </div>
-                    </td>
-                  </tr>
-                  {preview.providers.map((row) => {
-                    const current = selection[rowKey(row)];
-                    return (
-                      <tr key={rowKey(row)}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(current?.selected)}
-                            onChange={(event) => updateRow(row, { selected: event.target.checked })}
-                          />
-                        </td>
-                        <td>
-                          <div className="environment-sync-identity">
-                            <strong>{row.displayName}</strong>
-                            <span>{row.naturalKey}</span>
-                            {row.providerModelSummary ? <small>{providerModelSummaryText(row)}</small> : null}
-                          </div>
-                        </td>
-                        <td><StatusPill tone={toneForState(row.state)}>{labelForState(row.state)}</StatusPill></td>
-                        <td><pre>{providerSideSummary(row, "source") || "-"}</pre></td>
-                        <td><pre>{providerSideSummary(row, "target") || "-"}</pre></td>
-                        <td>
-                          <select
-                            value={current?.decision || row.defaultDecision}
-                            onChange={(event) => updateRow(row, { decision: event.target.value as EnvironmentSyncDecision })}
-                          >
-                            <option value="skip">跳过</option>
-                            <option value="use_source">以左侧环境为准</option>
-                            <option value="keep_target">保留右侧当前数据</option>
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </AdminTable>
+            <div className="environment-sync-table-scroll">
+              {activeSection === "users" ? (
+                <AdminTable title="账号">
+                  <thead>
+                    <tr>
+                      <th>选择</th>
+                      <th>账号</th>
+                      <th>状态</th>
+                      <th>左侧环境</th>
+                      <th>右侧环境</th>
+                      <th>决策</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="environment-sync-bulk-row">
+                      <td colSpan={6}>
+                        <div className="environment-sync-bulk-actions">
+                          <button type="button" onClick={() => setAll("user", true)}>全选账号</button>
+                          <button type="button" onClick={() => setAll("user", false)}>清空账号</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {users.map((row) => {
+                      const current = selection[rowKey(row)];
+                      return (
+                        <tr key={rowKey(row)}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(current?.selected)}
+                              onChange={(event) => updateRow(row, { selected: event.target.checked })}
+                            />
+                          </td>
+                          <td>
+                            <div className="environment-sync-identity">
+                              <strong>{row.displayName}</strong>
+                              <span>{row.naturalKey}</span>
+                            </div>
+                          </td>
+                          <td><StatusPill tone={toneForState(row.state)}>{labelForState(row.state)}</StatusPill></td>
+                          <td><pre>{summaryText(row.sourceSummary) || "-"}</pre></td>
+                          <td><pre>{summaryText(row.targetSummary) || "-"}</pre></td>
+                          <td>
+                            <select
+                              value={current?.decision || row.defaultDecision}
+                              onChange={(event) => updateRow(row, { decision: event.target.value as EnvironmentSyncDecision })}
+                            >
+                              <option value="skip">跳过</option>
+                              <option value="use_source">以左侧环境为准</option>
+                              <option value="keep_target">保留右侧当前数据</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </AdminTable>
+              ) : (
+                <AdminTable title="服务商（含模型）">
+                  <thead>
+                    <tr>
+                      <th>选择</th>
+                      <th>服务商</th>
+                      <th>状态</th>
+                      <th>左侧环境</th>
+                      <th>右侧环境</th>
+                      <th>决策</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="environment-sync-bulk-row">
+                      <td colSpan={6}>
+                        <div className="environment-sync-bulk-actions">
+                          <button type="button" onClick={() => setAll("provider", true)}>全选服务商</button>
+                          <button type="button" onClick={() => setAll("provider", false)}>清空服务商</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {providers.map((row) => {
+                      const current = selection[rowKey(row)];
+                      return (
+                        <tr key={rowKey(row)}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(current?.selected)}
+                              onChange={(event) => updateRow(row, { selected: event.target.checked })}
+                            />
+                          </td>
+                          <td>
+                            <div className="environment-sync-identity">
+                              <strong>{row.displayName}</strong>
+                              <span>{row.naturalKey}</span>
+                              {row.providerModelSummary ? <small>{providerModelSummaryText(row)}</small> : null}
+                            </div>
+                          </td>
+                          <td><StatusPill tone={toneForState(row.state)}>{labelForState(row.state)}</StatusPill></td>
+                          <td><pre>{providerSideSummary(row, "source") || "-"}</pre></td>
+                          <td><pre>{providerSideSummary(row, "target") || "-"}</pre></td>
+                          <td>
+                            <select
+                              value={current?.decision || row.defaultDecision}
+                              onChange={(event) => updateRow(row, { decision: event.target.value as EnvironmentSyncDecision })}
+                            >
+                              <option value="skip">跳过</option>
+                              <option value="use_source">以左侧环境为准</option>
+                              <option value="keep_target">保留右侧当前数据</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </AdminTable>
+              )}
 
               {result ? (
                 <AdminTable title="同步结果">
@@ -427,9 +486,9 @@ export function AdminEnvironmentSyncPanel({
                   </tbody>
                 </AdminTable>
               ) : null}
-            </>
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
       {pendingConfirmAction ? (

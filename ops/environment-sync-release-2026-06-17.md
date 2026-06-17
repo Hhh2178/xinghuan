@@ -8,6 +8,12 @@
 
 ## Release 信息
 
+- 对外版本号：
+  - `v0.3.1`
+- 本轮版本治理约束：
+  - 同一批 gray / production release 可以拥有不同目录名，但必须共享同一个对外应用版本号。
+  - 后续每次真实发布都必须推进 non-major 版本；major 版本仅在用户明确要求时升级。
+
 - gray release：
   - 初始发布：`20260617-environment-sync-gray-r1-f881c28-dirty`
   - clean rebuild 补发：`20260617-environment-sync-gray-r2-795c1e5`

@@ -93,6 +93,14 @@
 - 项目保存必须默认走云端服务器，不再以本地文件夹作为主存储。
 - 每一轮真实开发都要更新 `DEVLOG.md` 和当前版本 `progress.md` / `changelog.md`。
 
+## 版本治理规则
+
+- 当前活跃版本已推进为 `v0.3.1`。
+- 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
+- `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
+- 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
+- 当 gray 的一批改动被确认同步到 production 时，gray 端显示的版本号也必须与 production 保持一致。
+
 ## 文档与归档规则
 
 - 文档主路由和更新规范以 `docs/documentation-governance.md` 为准。
@@ -131,7 +139,7 @@
 
 ## 当前状态
 
-- 2.0 当前活跃版本仍为 `v0.1.0`。
+- 2.0 当前活跃版本已为 `v0.3.1`。
 - 产品路线口径：
   - `Phase 2` 节点与模型治理已完成灰度验收。
   - `Phase 3` 任务与素材闭环已完成主要能力落地，并继续以当前版本文档为主记录。
@@ -154,8 +162,8 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260617-environment-sync-gray-r1-f881c28-dirty`
-  - 当前生产 release：`20260617-environment-sync-prod-r1-f881c28-dirty`
+  - 当前灰度 release：`20260617-environment-sync-gray-r2-795c1e5`
+  - 当前生产 release：`20260617-environment-sync-prod-r2-795c1e5`
   - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
     - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
     - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
