@@ -21,6 +21,8 @@
   - 当前协作规则、文档路由规则、更新义务和归档边界。
 - `MEMORY.md`
   - 当前项目长期记忆、部署状态、当前 release 和阶段结论。
+- `docs/project-atlas/README.md`
+  - AI 与协作者的总纲入口，先看结构、环境、接口、排障和台账规则。
 - `DEVLOG.md`
   - 最近推进、验证、部署与回滚台账。
 - `docs/prd/README.md`
@@ -41,7 +43,7 @@
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 当前灰度 release：`20260617-doc-archive-governance-gray-r1-2737811`
 - 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理

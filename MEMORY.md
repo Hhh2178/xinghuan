@@ -15,6 +15,7 @@
 相关入口：
 
 - 根入口：`README.md`
+- 项目总纲：`docs/project-atlas/README.md`
 - 协作规则：`AGENTS.md`
 - 结构说明：`docs/repo-structure.md`
 - 运行产物：`docs/runtime-artifacts.md`
@@ -26,14 +27,16 @@
 如果只是要快速恢复当前状态，优先看：
 
 1. 本文件前部的“项目摘要 / 当前关键决策 / 当前阶段”
-2. `docs/repo-structure.md`
-3. `docs/runtime-artifacts.md`
-4. `ops/README.md`
-5. `DEVLOG.md` 顶部最近几天记录
+2. `docs/project-atlas/README.md`
+3. `docs/repo-structure.md`
+4. `docs/runtime-artifacts.md`
+5. `ops/README.md`
+6. `DEVLOG.md` 顶部最近几天记录
 
 使用边界：
 
 - 本文件保留长期有效的项目判断、部署状态、关键规则和阶段结论。
+- 结构、环境、接口、排障和台账维护入口，优先看 `docs/project-atlas/`。
 - 按天展开的详细推进与验证证据，优先看 `DEVLOG.md`。
 - 具体部署材料与历史验收记录，优先看 `ops/`。
 - 临时方案与开发草稿，优先看 `development/`。
@@ -70,12 +73,17 @@
   - 当前更准确的阶段判断：
     - `requestId` 覆盖率补强已不再停留在“只靠测试写入补样”
     - `Phase E` 后续主剩余项更集中在外部通知闭环
-- `2026-06-16` 当前灰度运行态已切到：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- `2026-06-17` 当前灰度运行态已切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
   - 本次切换后 gray gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
     - `verify:system-observability`
+  - 当前带入 gray 的收束项：
+    - 文档治理与归档主入口同步
+    - CodeGraph hook 与安装脚本
+    - 生成库素材预览/下载访问层
+    - release gate / observability 验收脚本闭环
   - 灰度数据库目标复核：
     - `current = xinghuan_canvas_gray`
     - `expected = xinghuan_canvas_gray`
@@ -398,7 +406,7 @@
     - production 当前目标：`xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
-  - 当前灰度 release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+  - 当前灰度 release：`20260617-doc-archive-governance-gray-r1-2737811`
   - 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`
   - `2026-06-15` 已完成一次后台基础数据对齐：
     - production / gray 用户当前都为 `7`
@@ -416,13 +424,12 @@
     - `verify-system-observability` 不再创建测试 Provider
     - `verify-request-chain-observability` 创建后自动清理
     - gray / production 当前都已复核 `Observability` / `System Observability` 残留 Provider 为 `0`
-  - `2026-06-16` 灰度已切到 `20260616-grsai-nano-error-ux-gray-r1-ee04792`：
+  - `2026-06-17` 灰度已切到 `20260617-doc-archive-governance-gray-r1-2737811`：
     - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向新 release
     - `xinghuan-canvas-next.service` / `xinghuan-canvas-next-worker.service` 均为 `active`
     - `npm run verify:release-preflight`、`npm run verify:request-chain-observability`、`npm run verify:system-observability` 通过
-    - GRSAI `gpt-image-2` 同步 `/api/proxy/external/image` 验收通过
-    - 真实异步 `/api/proxy/external/image/task` 验收通过，返回 `adapter=grsai-image`
-    - 当前 gray 后台仅启用 `gpt-image-2`，`nano-banana-fast` / `nano-banana-2` 尚未在当前灰度数据中启用，未做真实上游调用验收
+    - 生成库素材访问、预览与下载链路已随当前 release 进入 gray
+    - 文档治理收束、CodeGraph hook 和 release gate 闭环已随当前 release 进入 gray
 - 部署目录：`/opt/apps/xinghuan-canvas-next/`
   - `current` 符号链接指向当前 release
   - `shared/canvas-next.env` 存放环境变量（密钥，不入 Git）

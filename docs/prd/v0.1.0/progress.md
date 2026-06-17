@@ -6,7 +6,7 @@
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`
+- 当前灰度 active release：`20260617-doc-archive-governance-gray-r1-2737811`
 - 当前生产 active release：`20260615-phase-e-observability-governance-batch3-prod-r2`
 - 当前灰度最新热修复已额外补齐：
   - `GRSAI` nano 路由与图像节点错误透传

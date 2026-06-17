@@ -35,6 +35,18 @@
   - 允许写入：当前阶段、当前 release、关键部署状态、长期决策、长期风险结论。
   - 不允许写入：纯当天推进流水、短期调试细节、重复的发布流水。
 
+### 1.5 项目总纲层
+
+- `docs/project-atlas/README.md`
+  - 作用：作为 AI 与协作者的第一跳总纲入口，告诉读者结构、环境、接口、排障和台账规则分别看哪份。
+- `docs/project-atlas/architecture.md`
+- `docs/project-atlas/runtime-and-env.md`
+- `docs/project-atlas/interfaces-and-dataflow.md`
+- `docs/project-atlas/debugging-playbook.md`
+- `docs/project-atlas/logbook-maintenance.md`
+- `docs/project-atlas/document-routing-and-cleanliness.md`
+  - 这些文件只保留长期有效、高频复用的结构化知识，不承接逐日流水或单次发布命令记录。
+
 ### 2. 产品文档层
 
 - `docs/prd/README.md`
@@ -105,6 +117,10 @@
   - `MEMORY.md`
   - `docs/prd/README.md`
 
+- 当前项目结构、运行环境、接口、排障与台账规范：
+  - `docs/project-atlas/README.md`
+  - `docs/project-atlas/*.md`
+
 - 当前产品版本推进状态：
   - `docs/prd/v0.1.0/progress.md`
 
@@ -125,6 +141,9 @@
 
 - `DEVLOG.md`
 - 当前版本 `progress.md` 或 `changelog.md`
+- 如结构、环境、接口或排障路径变化，还要更新：
+  - `docs/project-atlas/README.md`
+  - 对应分域手册
 - 如阶段结论变化，还要更新：
   - `MEMORY.md`
   - `docs/prd/README.md`
@@ -183,7 +202,23 @@
 
 - `docs/runtime-artifacts.md`
 - `docs/size-audit-2026-06-15.md`
+- `docs/project-atlas/document-routing-and-cleanliness.md`
 - `ops/README.md` 或 `development/README.md`（若归档入口发生变化）
+
+### 台账维护方式变化
+
+例如：
+
+- `DEVLOG.md` 模板变化
+- gray / prod 发布记录收束方式变化
+- changelog 与 ops 的分工变化
+
+至少要同步：
+
+- `docs/project-atlas/logbook-maintenance.md`
+- `AGENTS.md`
+- `DEVLOG.md`
+- `ops/README.md`
 
 ## 归档规则
 
@@ -250,9 +285,10 @@
 
 1. `README.md`
 2. `AGENTS.md`
-3. `MEMORY.md`
-4. `docs/prd/README.md`
-5. `ops/README.md`
+3. `docs/project-atlas/README.md`
+4. `MEMORY.md`
+5. `docs/prd/README.md`
+6. `ops/README.md`
 
 ### 想知道“这一阶段为什么这么判断”
 

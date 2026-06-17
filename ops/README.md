@@ -6,18 +6,20 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260616-grsai-nano-error-ux-gray-r1-ee04792`。
+- 当前灰度 release：`20260617-doc-archive-governance-gray-r1-2737811`。
 - 当前生产 release：`20260615-phase-e-observability-governance-batch3-prod-r2`。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
 - `2026-06-16` 已对当前 gray / production release 补做观测验收脚本热补丁，修复 `Observability` / `System Observability` 假 Provider 残留问题。
 - `2026-06-16` 灰度已发布 `GRSAI` nano 路由与图像节点错误透传热修复；当前灰度实测通过 `gpt-image-2` 同步和异步图像生成，nano 模型尚未在灰度后台启用。
-- `2026-06-16` 当前 gray current 已确认指向 `20260616-grsai-nano-error-ux-gray-r1-ee04792`，并已补跑：
+- `2026-06-17` 当前 gray current 已确认指向 `20260617-doc-archive-governance-gray-r1-2737811`，并已补跑：
   - `verify:release-preflight`
   - `verify:request-chain-observability`
   - `verify:system-observability`
+- `2026-06-17` gray 已带上文档治理收束、CodeGraph hook、生成库素材访问链路与 release gate 闭环。
 - 灰度与生产是两套 Nginx 入口、端口和 release 目录，且各自维护独立 release 指针；但当前 PostgreSQL 数据库目标仍未彻底拆分。
 - 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
+- 项目总纲与 AI 阅读入口见 `../docs/project-atlas/README.md`。
 - 仓库结构和当前 worktree 说明见 `../docs/repo-structure.md`。
 - Provider 生成任务标准化灰度/生产切换清单见 `provider-generation-task-rollout-checklist-2026-06-12.md`。
 - 数据库目标防呆与防空画布误清理发布记录见 `database-target-guard-release-2026-06-13.md`。
@@ -82,6 +84,7 @@
 - `phase-e-observability-production-rollback-2026-06-15.md`
 - `phase-e-observability-script-cleanup-hotfix-2026-06-16.md`
 - `grsai-nano-error-ux-gray-release-2026-06-16.md`
+- `doc-archive-governance-gray-release-2026-06-17.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

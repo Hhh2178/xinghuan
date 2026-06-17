@@ -6,12 +6,110 @@
 - 每次真实推进都必须记录：目标、变更范围、验证证据、影响、风险、下一步。
 - 任何选型、部署、回滚、数据结构、节点规范和后台规范变化都要记录。
 - 禁止记录真实 API Key、Token、Cookie、SSH Key 和数据库密码。
+- `DEVLOG.md` 只负责逐日推进台账，不承担长期结构、长期环境和长期规范入口职责。
+- 三层台账维护规则见 `docs/project-atlas/logbook-maintenance.md`。
+
+## 标准记录模板
+
+```md
+## YYYY-MM-DD
+
+### 事项标题
+
+目标:
+- 
+
+变更:
+- 
+
+验证:
+- 
+
+影响:
+- 
+
+风险:
+- 
+
+下一步:
+- 
+```
 
 ## 使用建议
 
 - 如果只是要快速恢复当前项目状态，先看 `MEMORY.md` 和 `docs/prd/README.md`，再回来看本文件顶部最近几天记录。
+- 如果需要先理解整体结构、环境、接口和排障入口，先看 `docs/project-atlas/README.md`。
 - 本文件保留逐日推进细节，不承担“唯一入口摘要”职责。
 - 已经沉淀为长期规则的内容，应同步收口到 `MEMORY.md`、`docs/` 或 `ops/`，避免只存在于日志中。
+
+## 2026-06-17
+
+### 文档治理收束与发布闭环批次已推到灰度
+
+目标:
+
+- 将当前 worktree 已完成但尚未发布到 gray 的收束改动正式推到灰度。
+- 确认文档治理、CodeGraph hook、生成库素材访问链路和 release gate 脚本闭环都进入当前 gray release。
+- 同步更新主入口状态，避免 release 已切换但入口文档仍停在旧版本。
+
+变更:
+
+- 本地执行：
+  - `npm run build:single-port`
+  - `npm run verify:release-package-contract`
+  - `npm run package:release -- 20260617-doc-archive-governance-gray-r1-2737811`
+- 服务器执行：
+  - 上传 `dist-release/20260617-doc-archive-governance-gray-r1-2737811.tar.gz`
+  - 解包到 `/opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
+  - `npm ci`
+  - 加载 `shared/canvas-next.env` 后执行 `npm run db:migrate`
+  - 切换 `current`
+  - 重启：
+    - `xinghuan-canvas-next.service`
+    - `xinghuan-canvas-next-worker.service`
+- 新增灰度发布记录：
+  - `ops/doc-archive-governance-gray-release-2026-06-17.md`
+- 同步更新：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `ops/README.md`
+
+验证:
+
+- 本地：
+  - `npm run build:single-port = ok`
+  - `npm run verify:release-package-contract = ok`
+- gray 服务器：
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - `/opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `curl http://127.0.0.1:18200/api/status`
+    - `environment = gray`
+  - `https://canvas-next.hhh2121.xyz/api/status`
+    - `200`
+
+影响:
+
+- 当前 gray active release 已从 `20260616-grsai-nano-error-ux-gray-r1-ee04792` 切到 `20260617-doc-archive-governance-gray-r1-2737811`。
+- 文档治理和 release gate 脚本现在不再只是本地提交状态，而是已经进入 gray current。
+- 当前生产 release 仍保持：
+  - `20260615-phase-e-observability-governance-batch3-prod-r2`
+
+风险:
+
+- `verify:system-observability` 当前仍会报告历史 7d 失败累计偏高，这是运行态观测结论，不是本次发布阻塞。
+- gray / production 数据库目标仍未彻底拆分，这个风险口径没有因为本次 gray 发布而消失。
+
+下一步:
+
+- 补做“项目缩影/架构索引”方案，收束 AI 阅读入口。
+- 规整 `AGENTS.md` / `MEMORY.md` 的分层与索引模板。
+- 基于 gray 结果决定是否继续推进正式生产。
 
 ## 2026-06-16
 
