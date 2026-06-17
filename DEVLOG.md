@@ -44,6 +44,44 @@
 
 ## 2026-06-17
 
+### 补项目接口清单与核心 API 导航页
+
+目标:
+
+- 给 AI 和协作者补一份能快速查接口入口、鉴权边界和排障起点的高层 API 导航页。
+- 避免后续每次看接口都只能直接扎进 `apps/api/src/server.ts` 全文硬读。
+
+变更:
+
+- 新增：
+  - `docs/project-atlas/api-navigation.md`
+  - `docs/superpowers/plans/2026-06-17-api-navigation-atlas.md`
+- 更新：
+  - `docs/project-atlas/README.md`
+  - `docs/documentation-governance.md`
+
+验证:
+
+- `rg -n "api-navigation" docs/project-atlas/README.md docs/documentation-governance.md DEVLOG.md`
+- `npm run verify:release-gate-docs-contract`
+
+影响:
+
+- 当前 `project-atlas` 已补齐：
+  - 结构
+  - 环境
+  - 接口导航
+  - 数据流
+  - 排障
+  - 服务器维护
+  - 台账规则
+  - 仓库清洁规则
+- 后续接口新增或鉴权边界变化时，除了改代码和脚本，也需要同步更新 `api-navigation.md`
+
+下一步:
+
+- 如继续推进，可再补“后台数据模型导航页”或“Worker 执行链导航页”，进一步减少直接翻超长文件的成本。
+
 ### 文档治理收束与发布闭环批次已推到灰度
 
 目标:

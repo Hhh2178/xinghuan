@@ -28,6 +28,8 @@
   - 本地 / 灰度 / 生产的运行环境、域名、端口、部署目录和关键环境变量边界
 - `interfaces-and-dataflow.md`
   - 核心 API、后台接口、任务队列和主要数据流
+- `api-navigation.md`
+  - 高层 API 分组导航，快速查接口入口、鉴权边界、实现文件和排障第一跳
 - `debugging-playbook.md`
   - 常见问题分类、优先检查项、定位命令和近期真实根因样本
 - `server-maintenance-and-healthchecks.md`
