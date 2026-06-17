@@ -43,6 +43,7 @@
 - `docs/project-atlas/runtime-and-env.md`
 - `docs/project-atlas/interfaces-and-dataflow.md`
 - `docs/project-atlas/debugging-playbook.md`
+- `docs/project-atlas/server-maintenance-and-healthchecks.md`
 - `docs/project-atlas/logbook-maintenance.md`
 - `docs/project-atlas/document-routing-and-cleanliness.md`
   - 这些文件只保留长期有效、高频复用的结构化知识，不承接逐日流水或单次发布命令记录。

@@ -1,7 +1,7 @@
 # 服务器连接与基础设施信息
 
-> 本文件从 `D:\codex\服务器` 同步，记录无限画布 2.0 灰度服务器的连接方式和基础设施状态。
-> 最后更新：2026-06-05
+> 本文件记录无限画布 2.0 当前服务器连接方式、基础设施状态和关键运行边界。
+> 最后更新：2026-06-17
 
 ## SSH 连接
 
@@ -43,7 +43,7 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 | 域名 | 用途 | 后端端口 | 状态 |
 |------|------|---------|------|
 | `canvas-next.hhh2121.xyz` | 无限画布 2.0 灰度 | `127.0.0.1:18200` | ✅ 已启用 |
-| `canvas.hhh2121.xyz` | 无限画布 2.0 生产（预留） | `127.0.0.1:18100` | ⏳ 未启用 |
+| `canvas.hhh2121.xyz` | 无限画布 2.0 生产 | `127.0.0.1:18100` | ✅ 已启用 |
 | `hhh2121.xyz` | 主域名 | - | Cloudflare DNS |
 
 ### DNS 配置
@@ -58,7 +58,22 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 - 自动续期：已启用
 - 当前到期：`2026-08-31`
 
-## 无限画布 2.0 灰度基础设施
+## 无限画布 2.0 当前基础设施
+
+当前更推荐先看：
+
+- `docs/project-atlas/server-maintenance-and-healthchecks.md`
+- `docs/project-atlas/runtime-and-env.md`
+- `ops/README.md`
+
+本文件保留连接方式和当前部署位事实，不再承担完整运维手册职责。
+
+### 当前 gray / production release
+
+- gray current：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-doc-archive-governance-gray-r1-2737811`
+- production current：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-governance-batch3-prod-r2`
 
 ### 服务清单
 
@@ -66,39 +81,40 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 |------|---------|---------|------|
 | API 服务 | `xinghuan-canvas-next.service` | `127.0.0.1:18200` | active |
 | Worker 服务 | `xinghuan-canvas-next-worker.service` | - | active |
+| API 服务（生产） | `xinghuan-canvas.service` | `127.0.0.1:18100` | active |
+| Worker 服务（生产） | `xinghuan-canvas-worker.service` | - | active |
 | PostgreSQL | `postgresql.service` | `127.0.0.1:5432` | active |
 | Redis | `redis-server.service` | `127.0.0.1:6379` | active |
 | Nginx | `nginx.service` | `80/443` | active |
 
 ### 部署目录
 
-```
+```text
 /opt/apps/xinghuan-canvas-next/
-├── current -> releases/20260606-1217-output-preview-layout-gray/
-├── releases/
-│   ├── 20260605-0903-xinghuan-gray/
-│   ├── 20260605-1135-xinghuan-auth-gray/
-│   ├── 20260605-1215-xinghuan-admin-gray/
-│   ├── 20260605-1245-xinghuan-admin-sec-gray/
-│   ├── 20260605-1315-xinghuan-db-ready-gray/
-│   ├── 20260605-1410-xinghuan-pg-repo-gray/
-│   ├── 20260605-1505-xinghuan-worker-queue-gray/
-│   ├── 20260606-2140-grsai-draw-gray/
-│   ├── 20260606-2335-grsai-worker-gray/
-│   ├── 20260606-1150-admin-schema-gray/
-│   └── 20260606-1217-output-preview-layout-gray/
-└── shared/
-    └── canvas-next.env          # 环境变量（密钥，不入 Git）
+  current -> 当前 gray release
+  releases/<release-id>/
+  shared/
+    canvas-next.env
+    data/
+    logs/
+
+/opt/apps/xinghuan-canvas/
+  current -> 当前 production release
+  releases/<release-id>/
+  shared/
+    canvas.env
+    data/
+    logs/
 ```
 
 ### 数据库
 
 - PostgreSQL 16.14
-- 数据库名：`xinghuan_canvas_next`
-- 应用账号：`xinghuan_canvas_next`
+- gray 当前数据库：`xinghuan_canvas_gray`
+- production 当前数据库：`xinghuan_canvas_next`
 - 连接串环境变量：`XINGHUAN_DATABASE_URL`
 - Schema 迁移：`npm run db:migrate`
-- 已应用迁移：`001_admin_core.sql`
+- 当前迁移批次已至少推进到：`014_task_runtime_phase_d.sql`
 
 ### Redis
 
@@ -126,7 +142,8 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 
 ### 环境变量文件位置
 
-- 服务器：`/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+- 灰度：`/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+- 生产：`/opt/apps/xinghuan-canvas/shared/canvas.env`
 - 本机：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\.env.local`（已 Git 忽略）
 
 ## 其他服务（不影响无限画布）
@@ -143,24 +160,30 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 # 查看服务状态
 sudo systemctl status xinghuan-canvas-next
 sudo systemctl status xinghuan-canvas-next-worker
+sudo systemctl status xinghuan-canvas
+sudo systemctl status xinghuan-canvas-worker
 sudo systemctl status postgresql
 sudo systemctl status redis-server
 
 # 查看日志
 sudo journalctl -u xinghuan-canvas-next -f
 sudo journalctl -u xinghuan-canvas-next-worker -f
+sudo journalctl -u xinghuan-canvas -f
+sudo journalctl -u xinghuan-canvas-worker -f
 
-# 数据库迁移
+# 灰度数据库迁移
 cd /opt/apps/xinghuan-canvas-next/current
 npm run db:migrate
 
-# 自动验收
-npm run verify:single-port
-npm run verify:worker
+# 生产数据库迁移
+cd /opt/apps/xinghuan-canvas/current
+npm run db:migrate
+
+# Gray Gate
+npm run verify:release-preflight
+npm run verify:request-chain-observability
+npm run verify:system-observability
 
 # 查看 Redis 队列
 redis-cli -h 127.0.0.1 llen xinghuan:tasks
-
-# 查看 PostgreSQL
-psql -h 127.0.0.1 -U xinghuan_canvas_next -d xinghuan_canvas_next
 ```

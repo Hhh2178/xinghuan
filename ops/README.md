@@ -20,6 +20,7 @@
 - 灰度与生产是两套 Nginx 入口、端口和 release 目录，且各自维护独立 release 指针；但当前 PostgreSQL 数据库目标仍未彻底拆分。
 - 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
 - 项目总纲与 AI 阅读入口见 `../docs/project-atlas/README.md`。
+- 服务器维护与健康检查总手册见 `../docs/project-atlas/server-maintenance-and-healthchecks.md`。
 - 仓库结构和当前 worktree 说明见 `../docs/repo-structure.md`。
 - Provider 生成任务标准化灰度/生产切换清单见 `provider-generation-task-rollout-checklist-2026-06-12.md`。
 - 数据库目标防呆与防空画布误清理发布记录见 `database-target-guard-release-2026-06-13.md`。

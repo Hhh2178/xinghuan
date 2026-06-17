@@ -30,6 +30,8 @@
   - 核心 API、后台接口、任务队列和主要数据流
 - `debugging-playbook.md`
   - 常见问题分类、优先检查项、定位命令和近期真实根因样本
+- `server-maintenance-and-healthchecks.md`
+  - 服务器连接、服务检查、gray/prod 健康检查顺序、发布后复核和常见运行态异常入手
 - `logbook-maintenance.md`
   - `DEVLOG` / `ops` / `changelog` 三类台账如何维护
 - `document-routing-and-cleanliness.md`
