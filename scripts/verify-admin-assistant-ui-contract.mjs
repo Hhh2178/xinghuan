@@ -74,9 +74,24 @@ async function main() {
     [
       "Admin assistant renders structured blocks instead of a single paragraph blob",
       panelSource.includes("parseAssistantMessageBlocks") &&
+        panelSource.includes("message.blocks || parseAssistantMessageBlocks(message.text)") &&
         panelSource.includes("assistant-message-blocks") &&
         panelSource.includes("assistant-message-code") &&
         !panelSource.includes("<p>{message.text}</p>"),
+    ],
+    [
+      "Admin assistant groups structured output into real section cards",
+      panelSource.includes("groupAssistantMessageSections") &&
+        panelSource.includes("admin-assistant-message-card") &&
+        panelSource.includes("admin-assistant-message-card__body") &&
+        styleSource.includes(".admin-assistant-message-card {") &&
+        styleSource.includes(".admin-assistant-message-card__body {"),
+    ],
+    [
+      "Admin assistant supports clipboard image paste in the composer",
+      panelSource.includes("handleClipboardPaste") &&
+        panelSource.includes("event.clipboardData?.items") &&
+        panelSource.includes("onPaste={(event) => void handleClipboardPaste(event)}"),
     ],
     [
       "Admin assistant settings copy avoids debug and acceptance wording",

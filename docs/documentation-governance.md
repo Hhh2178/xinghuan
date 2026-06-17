@@ -42,6 +42,7 @@
 - `docs/project-atlas/architecture.md`
 - `docs/project-atlas/runtime-and-env.md`
 - `docs/project-atlas/interfaces-and-dataflow.md`
+- `docs/project-atlas/provider-protocol-and-request-body-design.md`
 - `docs/project-atlas/api-navigation.md`
 - `docs/project-atlas/data-model-navigation.md`
 - `docs/project-atlas/worker-execution-chain.md`
@@ -148,6 +149,9 @@
 - 如结构、环境、接口或排障路径变化，还要更新：
   - `docs/project-atlas/README.md`
   - 对应分域手册
+- 如 Provider 协议分层、请求体模式、文件字段或模型级端点分流变化，还要更新：
+  - `docs/project-atlas/provider-protocol-and-request-body-design.md`
+  - 必要时同步更新 `interfaces-and-dataflow.md` / `api-navigation.md`
 - 如阶段结论变化，还要更新：
   - `MEMORY.md`
   - `docs/prd/README.md`

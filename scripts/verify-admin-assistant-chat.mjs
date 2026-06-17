@@ -63,6 +63,10 @@ function runStaticContracts() {
     apiSource.indexOf("async function streamAssistantChatResponse"),
     apiSource.indexOf("function splitAssistantMessage"),
   );
+  const splitSource = apiSource.slice(
+    apiSource.indexOf("function splitAssistantMessage"),
+    apiSource.indexOf("function providerOriginUrl"),
+  );
 
   check("Admin AssistantChatRequest includes conversationId", () => {
     assert(adminTypesSource.includes("conversationId?: string"));
@@ -97,10 +101,20 @@ function runStaticContracts() {
     assert(!/payload:\s*plainObject\(item\.payload\)/.test(promptSource));
     assert(!promptSource.includes("当前回退回复:"));
   });
+  check("Assistant chat result includes structured blocks", () => {
+    assert(apiSource.includes("blocks: parseAssistantMessageBlocks(finalMessage)"));
+    assert(apiSource.includes("blocks: parseAssistantMessageBlocks(rawAssistant.trim())"));
+    assert(apiSource.includes("blocks: Array.isArray(hermes.blocks)"));
+  });
   check("Admin assistant prompt explicitly allows structured sections and fenced JSON", () => {
+    assert(promptSource.includes("请优先使用明确分段输出"));
+    assert(promptSource.includes("标题请独占一行"));
     assert(promptSource.includes("可以使用简短的小标题"));
     assert(promptSource.includes("fenced code block"));
     assert(promptSource.includes("JSON"));
+    assert(promptSource.includes("输出必须是稳定的结构化文档"));
+    assert(promptSource.includes("不要输出超长单行文本"));
+    assert(promptSource.includes("保持空行、缩进和代码块原样"));
   });
   check("Admin assistant supports image uploads and preserves attachment URLs", () => {
     assert(adminPanelSource.includes('kind: "image"'));
@@ -111,6 +125,8 @@ function runStaticContracts() {
   check("Stream response keeps structured assistant payload for frontend rendering", () => {
     assert(!streamSource.includes('sendEvent("process"'));
     assert(streamSource.includes('sendEvent("done", result)'));
+    assert(streamSource.includes("safeLongText(result.message"));
+    assert(splitSource.includes("safeLongText(message"));
   });
 
   return results;

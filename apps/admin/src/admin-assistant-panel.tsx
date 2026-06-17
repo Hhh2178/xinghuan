@@ -4,6 +4,7 @@ import type {
   AdminUser,
   AssistantChatAttachment,
   AssistantChatResult,
+  AssistantMessageBlock,
   AssistantProcessEntry,
   AssistantSettings,
   AuditRecord,
@@ -22,9 +23,15 @@ interface AssistantMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  blocks?: AssistantMessageBlock[];
   mode?: "hermes" | "fallback";
   streaming?: boolean;
   process?: AssistantProcessEntry[];
+}
+
+interface AssistantMessageSection {
+  title?: string;
+  blocks: AssistantMessageBlock[];
 }
 
 function getAttachmentKindLabel(kind?: string) {
@@ -48,6 +55,38 @@ function getAttachmentKindLabel(kind?: string) {
 
 function createAssistantConversationId(scope: "canvas" | "admin") {
   return `${scope}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function groupAssistantMessageSections(blocks: AssistantMessageBlock[]) {
+  const sections: AssistantMessageSection[] = [];
+  let current: AssistantMessageSection | null = null;
+
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      if (current && current.blocks.length > 0) sections.push(current);
+      current = { title: block.text, blocks: [] };
+      continue;
+    }
+
+    if (block.type === "kv" && !current && isLikelySectionTitle(block.label)) {
+      current = { title: block.label, blocks: [{ type: "paragraph", text: block.value }] };
+      continue;
+    }
+
+    if (!current) current = { blocks: [] };
+    current.blocks.push(block);
+  }
+
+  if (current && (current.title || current.blocks.length > 0)) {
+    sections.push(current);
+  }
+
+  return sections.length > 0 ? sections : [{ blocks }];
+}
+
+function isLikelySectionTitle(value: string) {
+  const text = String(value || "").trim();
+  return text.length > 0 && text.length <= 20;
 }
 
 async function fileToDataUrl(file: File) {
@@ -125,6 +164,7 @@ export function AdminAssistantPanel({
       id: "assistant-welcome",
       role: "assistant",
       text: "把当前后台页的 Provider、模型、任务或用户上下文挂进来，我会帮你做分析和配置建议。",
+      blocks: parseAssistantMessageBlocks("把当前后台页的 Provider、模型、任务或用户上下文挂进来，我会帮你做分析和配置建议。"),
       mode: "fallback",
     },
   ]);
@@ -273,6 +313,7 @@ export function AdminAssistantPanel({
         id: `user-${Date.now()}`,
         role: "user",
         text: text || `请分析这 ${outgoingAttachments.length} 个后台上下文卡片。`,
+        blocks: parseAssistantMessageBlocks(text || `请分析这 ${outgoingAttachments.length} 个后台上下文卡片。`),
       },
     ]);
     setDraft("");
@@ -341,6 +382,7 @@ export function AdminAssistantPanel({
                     ? {
                         ...message,
                         text: result.message,
+                        blocks: Array.isArray(result.blocks) ? result.blocks : parseAssistantMessageBlocks(result.message),
                         mode: result.mode,
                         streaming: false,
                       }
@@ -359,6 +401,7 @@ export function AdminAssistantPanel({
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
           text: error instanceof Error ? error.message : String(error),
+          blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
           mode: "fallback",
         },
       ]);
@@ -376,6 +419,7 @@ export function AdminAssistantPanel({
         id: `assistant-welcome-${Date.now()}`,
         role: "assistant",
         text: settings.hint,
+        blocks: parseAssistantMessageBlocks(settings.hint),
         mode: "fallback",
       },
     ]);
@@ -399,6 +443,34 @@ export function AdminAssistantPanel({
         sourceUrl: uploaded.url,
       },
     });
+  }
+
+  async function handleClipboardPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const files = Array.from(event.clipboardData?.items || [])
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file && file.size > 0));
+    if (files.length === 0) return;
+    event.preventDefault();
+    for (const [index, file] of files.entries()) {
+      const namedFile = file.name
+        ? file
+        : new File([file], `clipboard-image-${Date.now()}-${index + 1}.png`, { type: file.type || "image/png" });
+      try {
+        await handleUploadImage(namedFile);
+      } catch (error) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-paste-error-${Date.now()}-${index}`,
+            role: "assistant",
+            text: error instanceof Error ? error.message : String(error),
+            blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
+            mode: "fallback",
+          },
+        ]);
+      }
+    }
   }
 
   return (
@@ -495,27 +567,51 @@ export function AdminAssistantPanel({
             {messages.map((message) => (
               <article key={message.id} className={`admin-assistant-message admin-assistant-message--${message.role}`}>
                 <div className="admin-assistant-message-blocks">
-                  {parseAssistantMessageBlocks(message.text).map((block, index) => {
-                    if (block.type === "heading") {
-                      return <strong key={`${message.id}-heading-${index}`} className="admin-assistant-message-heading">{block.text}</strong>;
-                    }
-                    if (block.type === "list") {
-                      return (
-                        <ul key={`${message.id}-list-${index}`} className="admin-assistant-message-list">
-                          {block.items.map((item) => <li key={item}>{item}</li>)}
-                        </ul>
-                      );
-                    }
-                    if (block.type === "code") {
-                      return (
-                        <section key={`${message.id}-code-${index}`} className="assistant-message-code">
-                          {block.language ? <span>{block.language.toUpperCase()}</span> : null}
-                          <pre>{block.code}</pre>
-                        </section>
-                      );
-                    }
-                    return <p key={`${message.id}-paragraph-${index}`}>{block.text}</p>;
-                  })}
+                  {groupAssistantMessageSections(message.blocks || parseAssistantMessageBlocks(message.text)).map((section, sectionIndex) => (
+                    <section key={`${message.id}-section-${sectionIndex}`} className="admin-assistant-message-card">
+                      {section.title ? (
+                        <header className="admin-assistant-message-card__header">
+                          <strong className="admin-assistant-message-heading">{section.title}</strong>
+                        </header>
+                      ) : null}
+                      <div className="admin-assistant-message-card__body">
+                        {section.blocks.map((block, blockIndex) => {
+                          if (block.type === "list") {
+                            const ListTag = block.ordered ? "ol" : "ul";
+                            return (
+                              <ListTag key={`${message.id}-list-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-list">
+                                {block.items.map((item) => <li key={item}>{item}</li>)}
+                              </ListTag>
+                            );
+                          }
+                          if (block.type === "code") {
+                            return (
+                              <section key={`${message.id}-code-${sectionIndex}-${blockIndex}`} className="assistant-message-code">
+                                {block.language ? <span>{block.language.toUpperCase()}</span> : null}
+                                <pre>{block.code}</pre>
+                              </section>
+                            );
+                          }
+                          if (block.type === "quote") {
+                            return (
+                              <blockquote key={`${message.id}-quote-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-quote">
+                                {block.text}
+                              </blockquote>
+                            );
+                          }
+                          if (block.type === "kv") {
+                            return (
+                              <div key={`${message.id}-kv-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-kv">
+                                <strong>{block.label}</strong>
+                                <span>{block.value}</span>
+                              </div>
+                            );
+                          }
+                          return <p key={`${message.id}-paragraph-${sectionIndex}-${blockIndex}`}>{block.text}</p>;
+                        })}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               </article>
             ))}
@@ -538,6 +634,7 @@ export function AdminAssistantPanel({
                       id: `assistant-upload-error-${Date.now()}`,
                       role: "assistant",
                       text: error instanceof Error ? error.message : String(error),
+                      blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
                       mode: "fallback",
                     },
                   ]),
@@ -553,6 +650,7 @@ export function AdminAssistantPanel({
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onPaste={(event) => void handleClipboardPaste(event)}
               placeholder={settings.placeholder}
             />
             <button type="button" className="primary-action" onClick={() => void sendMessage()} disabled={busy || (!draft.trim() && attachments.length === 0)}>

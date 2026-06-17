@@ -28,6 +28,8 @@
   - 本地 / 灰度 / 生产的运行环境、域名、端口、部署目录和关键环境变量边界
 - `interfaces-and-dataflow.md`
   - 核心 API、后台接口、任务队列和主要数据流
+- `provider-protocol-and-request-body-design.md`
+  - Provider 协议分层、请求体模式、文件字段注入和后续平台接入边界
 - `api-navigation.md`
   - 高层 API 分组导航，快速查接口入口、鉴权边界、实现文件和排障第一跳
 - `data-model-navigation.md`
