@@ -6,8 +6,8 @@
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260617-plato-multipart-gray-r2-427237e-dirty`
-- 当前生产 active release：`20260617-plato-multipart-prod-r1-427237e-dirty`
+- 当前灰度 active release：`20260617-environment-sync-gray-r1-f881c28-dirty`
+- 当前生产 active release：`20260617-environment-sync-prod-r1-f881c28-dirty`
 - 当前 gray / production 最新状态已额外补齐：
   - `GRSAI` nano 路由与图像节点错误透传
   - 高频后台读接口 requestId 审计补样后的 gray / production gate 复验
@@ -15,6 +15,7 @@
   - 柏拉图 `grok-1.5-video-6s/10s/15s` 改为 `/v1/videos` + `multipart/form-data` + `input_reference` 文件上传
   - 柏拉图 preview 模型继续保留 `/v2/videos/generations` JSON 提交
   - 后台 API 接入助手与右侧 AI 助手已开始输出结构化接入方案，而不是只给散乱文本
+  - 后台“环境同步”页已进入 gray / production，当前能力已收口为账号 + 服务商（含关联模型）同步，并完成双向预览与真实写回 smoke
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果

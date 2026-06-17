@@ -154,9 +154,16 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260617-plato-multipart-gray-r2-427237e-dirty`
-  - 当前生产 release：`20260617-plato-multipart-prod-r1-427237e-dirty`
+  - 当前灰度 release：`20260617-environment-sync-gray-r1-f881c28-dirty`
+  - 当前生产 release：`20260617-environment-sync-prod-r1-f881c28-dirty`
   - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
     - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
     - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
     - 后台 API 接入助手与右侧 AI 助手都要以“结构化接入方案”为默认输出形态，而不是继续给纯散文式猜配置结果
+  - `2026-06-17` 已完成 gray / production 环境同步能力发布与联调：
+    - 后台新增“环境同步”页
+    - 支持用户 / 服务商（含关联模型）双向预览与逐项同步
+    - 服务器环境文件已补齐：
+      - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
+      - `XINGHUAN_GRAY_API_BASE_URL`
+      - `XINGHUAN_PRODUCTION_API_BASE_URL`

@@ -568,7 +568,9 @@ button:disabled {
   align-content: start;
   min-height: 0;
   padding: 12px 16px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .admin-assistant-dock__session-bar {
@@ -599,11 +601,35 @@ button:disabled {
   gap: 6px;
   padding: 12px 13px;
   border-radius: 14px;
+  min-width: 0;
 }
 
 .admin-assistant-message-blocks {
   display: grid;
   gap: 10px;
+  min-width: 0;
+}
+
+.admin-assistant-message-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.34);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-assistant-message-card__header {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-assistant-message-card__body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .admin-assistant-message-heading {
@@ -640,6 +666,8 @@ button:disabled {
   border: 1px solid rgba(56, 189, 248, 0.16);
   border-radius: 10px;
   background: rgba(2, 6, 23, 0.56);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .assistant-message-code span {
@@ -650,11 +678,41 @@ button:disabled {
 
 .assistant-message-code pre {
   margin: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   color: #e2e8f0;
   font: 12px/1.6 Consolas, "SFMono-Regular", monospace;
+  max-width: 100%;
+}
+
+.admin-assistant-message-quote {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid rgba(45, 212, 191, 0.55);
+  border-radius: 0 8px 8px 0;
+  color: #cbd5e1;
+  background: rgba(8, 47, 73, 0.24);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-assistant-message-kv {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.38);
+}
+
+.admin-assistant-message-kv strong,
+.admin-assistant-message-kv span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .assistant-process-block {
@@ -1898,6 +1956,87 @@ td {
 .assistant-analysis-field select,
 .assistant-analysis-field textarea {
   width: 100%;
+}
+
+.environment-sync-page {
+  gap: 16px;
+}
+
+.environment-sync-hero__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.environment-sync-hero__copy p,
+.environment-sync-summary p {
+  margin: 0;
+}
+
+.environment-sync-hero__metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.environment-sync-hero__metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.48);
+  color: #c8f7ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.environment-sync-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.environment-sync-sidebar,
+.environment-sync-content {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.environment-sync-summary__grid {
+  gap: 12px;
+}
+
+.environment-sync-empty p {
+  margin: 0;
+}
+
+.environment-sync-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.environment-sync-identity {
+  display: grid;
+  gap: 4px;
+}
+
+.environment-sync-identity span,
+.environment-sync-identity small {
+  color: #93c5fd;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+@media (max-width: 1200px) {
+  .environment-sync-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .assistant-analysis-chip-row {

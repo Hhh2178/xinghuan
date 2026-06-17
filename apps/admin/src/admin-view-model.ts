@@ -1,6 +1,7 @@
 import {
   Activity,
   Bot,
+  Combine,
   KeyRound,
   LayoutDashboard,
   ScrollText,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import type { TaskStatus } from "@xinghuan/shared";
 
-export type AdminTabId = "overview" | "users" | "providers" | "assistant" | "tasks" | "audit" | "system";
+export type AdminTabId = "overview" | "users" | "providers" | "assistant" | "tasks" | "audit" | "system" | "environment-sync";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 
@@ -22,6 +23,7 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
   { id: "tasks", label: "任务", icon: Activity },
   { id: "audit", label: "审计", icon: ScrollText },
   { id: "system", label: "系统", icon: ServerCog },
+  { id: "environment-sync", label: "环境同步", icon: Combine },
 ];
 
 export function titleFor(tab: string) {

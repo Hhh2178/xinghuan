@@ -45,6 +45,7 @@
     "verify:phase-d": "node scripts/verify-task-cancellation-phase-d.mjs && node scripts/verify-admin-task-pagination.mjs && node scripts/verify-task-lifecycle.mjs",
     "verify:request-chain-observability": "node scripts/verify-request-chain-observability.mjs",
     "verify:system-observability": "node scripts/verify-system-observability.mjs",
+    "verify:environment-sync-smoke": "node scripts/verify-environment-sync-smoke.mjs",
     "verify:worker-observability-contract": "node scripts/verify-worker-observability-contract.mjs",
     "verify:release-preflight-contract": "node scripts/verify-release-preflight-contract.mjs",
     "verify:release-gate-docs-contract": "node scripts/verify-release-gate-docs-contract.mjs",

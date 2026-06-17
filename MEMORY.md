@@ -101,7 +101,7 @@
     - production `grok-1.5-video-6s` 已成功生成并落本地视频
     - 若出现“官方负载大，请尝试重新生成”，当前应判断为上游容量波动，而不是本地 multipart 接入继续失败
 - `2026-06-17` 当前灰度运行态已切到：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260617-plato-multipart-gray-r2-427237e-dirty`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r1-f881c28-dirty`
   - 本次切换后 gray gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
@@ -121,7 +121,7 @@
     - 灰度 release 目录执行 `db:migrate` 前，必须先加载 `shared/canvas-next.env`
     - 否则会出现假性 `DATABASE_NOT_CONFIGURED`
 - `2026-06-17` 当前生产运行态已切到：
-  - `/opt/apps/xinghuan-canvas/releases/20260617-plato-multipart-prod-r1-427237e-dirty`
+  - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r1-f881c28-dirty`
   - 本次切换后 production gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
@@ -448,8 +448,8 @@
     - production 当前目标：`xinghuan_canvas_next`
   - Redis：`127.0.0.1:6379`，队列 `xinghuan:tasks`
   - 存储驱动：`postgres`
-  - 当前灰度 release：`20260617-plato-multipart-gray-r2-427237e-dirty`
-  - 当前生产 release：`20260617-plato-multipart-prod-r1-427237e-dirty`
+  - 当前灰度 release：`20260617-environment-sync-gray-r1-f881c28-dirty`
+  - 当前生产 release：`20260617-environment-sync-prod-r1-f881c28-dirty`
   - `2026-06-15` 已完成一次后台基础数据对齐：
     - production / gray 用户当前都为 `7`
     - production / gray 真实 API 服务商当前都为 `6`

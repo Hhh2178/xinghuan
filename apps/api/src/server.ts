@@ -1,6 +1,15 @@
 import {
+  parseAssistantMessageBlocks,
+  type AssistantChatResult,
   buildTaskQueueRuntimeDescriptors,
   createHealthPayload,
+  type EnvironmentSyncApplyItem,
+  type EnvironmentSyncApplyRequest,
+  type EnvironmentSyncApplyResponse,
+  type EnvironmentSyncApplyResultRow,
+  type EnvironmentSyncDecision,
+  type EnvironmentSyncPreviewResponse,
+  type EnvironmentSyncTarget,
   defaultTaskQueueSettings,
   normalizeTaskQueueSettings,
   taskQueueNameForCapability,
@@ -33,6 +42,8 @@ import {
   safeEmail,
   safeFilename,
   safeJsonText,
+  safeLongText,
+  safePromptText,
   safeSlug,
   safeText,
   safeUserId,
@@ -88,11 +99,17 @@ import { createTaskCancellationService } from "./task-cancellation-service.js";
 import { createExternalProxyHandlers } from "./external-proxy.js";
 import { createMaterialAccessService } from "./material-access-service.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
+import { createEnvironmentSyncService, type EnvironmentSyncSnapshot, type EnvironmentSyncWriteRequest } from "./environment-sync-service.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
+const environmentSyncToken = safeText(process.env.XINGHUAN_ENVIRONMENT_SYNC_TOKEN || "");
+const environmentSyncBaseUrls: Record<"gray" | "production", string> = {
+  gray: safeText(process.env.XINGHUAN_GRAY_API_BASE_URL || "http://127.0.0.1:18200"),
+  production: safeText(process.env.XINGHUAN_PRODUCTION_API_BASE_URL || "http://127.0.0.1:18100"),
+};
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
 const expectedDatabaseName = safeText(process.env.XINGHUAN_EXPECTED_DATABASE_NAME || "");
@@ -155,6 +172,8 @@ const {
   secretKey,
   safeSlug,
   safeText,
+  safeLongText,
+  safePromptText,
   plainObject,
   stringMap,
   looksLikeHtml,
@@ -179,6 +198,8 @@ const {
   appendTaskLog,
   enqueueTask,
   safeText,
+  safeLongText,
+  safePromptText,
   safeSlug,
   plainObject,
 });
@@ -193,6 +214,26 @@ const {
   normalizeProviderProtocol,
   safeText,
   plainObject,
+});
+
+const environmentSyncService = createEnvironmentSyncService({
+  currentEnvironment: environment === "gray" || environment === "production" ? environment : "local",
+  readLocalSnapshot: async (targetEnvironment) => {
+    ensureEnvironmentSyncEnabled(targetEnvironment);
+    return readEnvironmentSyncLocalSnapshot(targetEnvironment);
+  },
+  readRemoteSnapshot: async (targetEnvironment) => {
+    ensureEnvironmentSyncEnabled(targetEnvironment);
+    return readEnvironmentSyncRemoteSnapshot(targetEnvironment);
+  },
+  applyLocalSnapshot: async (request) => {
+    ensureEnvironmentSyncEnabled(request.targetEnvironment);
+    return applyEnvironmentSyncLocalSnapshot(request);
+  },
+  applyRemoteSnapshot: async (targetEnvironment, request) => {
+    ensureEnvironmentSyncEnabled(targetEnvironment);
+    return applyEnvironmentSyncRemoteSnapshot(targetEnvironment, request);
+  },
 });
 
 interface CanvasListItem {
@@ -625,12 +666,6 @@ interface AssistantAnalysisResult {
   rawAssistant: string;
 }
 
-interface AssistantChatResult {
-  mode: "hermes" | "fallback";
-  message: string;
-  rawAssistant: string;
-}
-
 interface AssistantProcessEntry {
   label: string;
   content: string;
@@ -806,15 +841,36 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (url.pathname === "/api/version") {
-    sendJson(response, createHealthPayload("xinghuan-api-version", environment));
-    return;
-  }
-
-  try {
-    if (requiresCsrfProtection(url.pathname, request.method || "GET")) {
-      assertSameOriginWriteRequest(request);
+    if (url.pathname === "/api/version") {
+      sendJson(response, createHealthPayload("xinghuan-api-version", environment));
+      return;
     }
+
+    try {
+      if (url.pathname === "/api/internal/environment-sync/snapshot" && request.method === "POST") {
+        assertInternalEnvironmentSyncRequest(request);
+        const body = await readJsonBody<{ environment?: EnvironmentSyncTarget }>(request);
+        sendT8(response, await readEnvironmentSyncLocalSnapshot(normalizeEnvironmentSyncTarget(body.environment)));
+        return;
+      }
+
+      if (url.pathname === "/api/internal/environment-sync/apply" && request.method === "POST") {
+        assertInternalEnvironmentSyncRequest(request);
+        const body = await readJsonBody<EnvironmentSyncWriteRequest>(request);
+        sendT8(response, await applyEnvironmentSyncLocalSnapshot({
+          sourceEnvironment: normalizeEnvironmentSyncTarget(body.sourceEnvironment),
+          targetEnvironment: normalizeEnvironmentSyncTarget(body.targetEnvironment),
+          actorEmail: safeText(body.actorEmail),
+          users: Array.isArray(body.users) ? body.users.map(normalizeEnvironmentSyncUserRecord).filter(Boolean) as EnvironmentSyncWriteRequest["users"] : [],
+          providers: Array.isArray(body.providers) ? body.providers.map(normalizeEnvironmentSyncProviderRecord).filter(Boolean) as EnvironmentSyncWriteRequest["providers"] : [],
+          models: Array.isArray(body.models) ? body.models.map(normalizeEnvironmentSyncModelRecord).filter(Boolean) as EnvironmentSyncWriteRequest["models"] : [],
+        }));
+        return;
+      }
+
+      if (requiresCsrfProtection(url.pathname, request.method || "GET")) {
+        assertSameOriginWriteRequest(request);
+      }
 
     if (url.pathname === "/api/auth/me" && request.method === "GET") {
       const user = await getCurrentUser(request);
@@ -1579,6 +1635,47 @@ async function handleAdminRequest(
   adminUser: CurrentUser,
   requestContext: RequestContext,
 ) {
+  if (url.pathname === "/api/admin/environment-sync/preview" && request.method === "POST") {
+    const body = await readJsonBody<{ sourceEnvironment?: EnvironmentSyncTarget; targetEnvironment?: EnvironmentSyncTarget }>(request);
+    const result = await environmentSyncService.previewEnvironmentSync({
+      sourceEnvironment: normalizeEnvironmentSyncTarget(body.sourceEnvironment),
+      targetEnvironment: normalizeEnvironmentSyncTarget(body.targetEnvironment),
+    });
+    await appendAudit(
+      adminUser,
+      "environment_sync.preview",
+      "environment-sync",
+      `${result.sourceEnvironment}->${result.targetEnvironment}`,
+      `预览环境同步 ${result.sourceEnvironment} -> ${result.targetEnvironment}`,
+      requestContext,
+    );
+    sendT8(response, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/environment-sync/apply" && request.method === "POST") {
+    const body = await readJsonBody<EnvironmentSyncApplyRequest>(request);
+    const result = await environmentSyncService.applyEnvironmentSync({
+      sourceEnvironment: normalizeEnvironmentSyncTarget(body.sourceEnvironment),
+      targetEnvironment: normalizeEnvironmentSyncTarget(body.targetEnvironment),
+      items: Array.isArray(body.items) ? body.items.map(normalizeEnvironmentSyncApplyItem).filter(Boolean) as EnvironmentSyncApplyItem[] : [],
+      actorEmail: adminUser.email,
+    });
+    const appliedCount = result.results.filter((item) => item.status === "applied").length;
+    const skippedCount = result.results.filter((item) => item.status === "skipped").length;
+    const failedCount = result.results.filter((item) => item.status === "failed").length;
+    await appendAudit(
+      adminUser,
+      "environment_sync.apply",
+      "environment-sync",
+      `${result.sourceEnvironment}->${result.targetEnvironment}`,
+      `执行环境同步 ${result.sourceEnvironment} -> ${result.targetEnvironment}，applied=${appliedCount} skipped=${skippedCount} failed=${failedCount}`,
+      requestContext,
+    );
+    sendT8(response, result);
+    return true;
+  }
+
   if (url.pathname === "/api/admin/summary" && request.method === "GET") {
     const [authDb, adminDb, storage] = await Promise.all([readAuthDb(), readAdminDb(), readStorageStats()]);
     await appendAudit(adminUser, "summary.read", "summary", "admin-summary", "查看后台总览", requestContext);
@@ -2340,6 +2437,468 @@ function sendT8(
   headers: Record<string, string> = {},
 ) {
   sendJson(response, { success: true, data }, statusCode, headers);
+}
+
+function normalizeEnvironmentSyncTarget(value: unknown): EnvironmentSyncTarget {
+  const target = safeText(value).toLowerCase();
+  if (target === "gray" || target === "production") return target;
+  throw new Error("环境参数无效，只支持 gray 或 production");
+}
+
+function normalizeEnvironmentSyncDecision(value: unknown): EnvironmentSyncDecision {
+  const decision = safeText(value).toLowerCase();
+  if (decision === "skip" || decision === "use_source" || decision === "keep_target") return decision;
+  return "skip";
+}
+
+function normalizeEnvironmentSyncApplyItem(value: unknown): EnvironmentSyncApplyItem | null {
+  const source = plainObject(value);
+  const kind = safeText(source.kind).toLowerCase();
+  if (kind !== "user" && kind !== "provider") return null;
+  const id = safeText(source.id);
+  if (!id) return null;
+  return {
+    id,
+    kind,
+    selected: Boolean(source.selected),
+    decision: normalizeEnvironmentSyncDecision(source.decision),
+  };
+}
+
+function ensureEnvironmentSyncEnabled(targetEnvironment: EnvironmentSyncTarget) {
+  if (environment !== "gray" && environment !== "production") {
+    throw new Error("当前环境未启用灰度/正式同步能力");
+  }
+  if (!environmentSyncToken) {
+    throw new Error("缺少 XINGHUAN_ENVIRONMENT_SYNC_TOKEN，无法执行跨环境同步");
+  }
+  const targetUrl = environmentSyncBaseUrls[targetEnvironment];
+  if (!targetUrl) {
+    throw new Error(`未配置 ${targetEnvironment} 环境的 API 地址`);
+  }
+}
+
+function assertInternalEnvironmentSyncRequest(request: import("node:http").IncomingMessage) {
+  if (!environmentSyncToken) throw new HttpError(503, "ENVIRONMENT_SYNC_DISABLED");
+  const headerToken = safeText(request.headers["x-environment-sync-token"]);
+  if (!headerToken || headerToken !== environmentSyncToken) {
+    throw new HttpError(403, "ENVIRONMENT_SYNC_FORBIDDEN");
+  }
+}
+
+async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSyncTarget): Promise<EnvironmentSyncSnapshot> {
+  const authDb = await readAuthDb();
+  const adminDb = await readAdminDb();
+  const providerNameById = new Map(adminDb.providers.map((provider) => [provider.id, provider.name]));
+  return {
+    environment: targetEnvironment,
+    users: authDb.users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      disabled: Boolean(user.disabled),
+      passwordHash: user.passwordHash,
+      passwordCipher: user.passwordCipher,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    })),
+    providers: adminDb.providers.map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      baseUrl: provider.baseUrl,
+      protocol: normalizeProviderProtocol(provider.protocol),
+      enabled: Boolean(provider.enabled),
+      apiKey: provider.apiKey,
+      apiKeyPreview: provider.apiKeyPreview || secretPreview(decryptSecret(provider.apiKey || "")),
+      note: provider.note || "",
+      createdAt: provider.createdAt,
+      updatedAt: provider.updatedAt,
+    })),
+    models: adminDb.models
+      .map((model) => ({
+        id: model.id,
+        providerId: model.providerId,
+        providerName: providerNameById.get(model.providerId) || "",
+        modelId: model.modelId,
+        displayName: model.displayName,
+        capability: normalizeCapability(model.capability),
+        enabled: Boolean(model.enabled),
+        executionMode: model.executionMode,
+        inputProfile: model.inputProfile,
+        inputCapabilities: { ...plainObject(model.inputCapabilities) },
+        capabilityTags: normalizeModelCapabilityTags(model.capabilityTags, model.capability, model.modelId),
+        testState: normalizeModelTestState(model.testState),
+        parameterSchema: safeJsonText(model.parameterSchema, "{}"),
+        advancedConfig: plainObject(model.advancedConfig),
+        protocolOverride: normalizeOptionalProtocol(model.protocolOverride),
+        createdAt: model.createdAt,
+        updatedAt: model.updatedAt,
+      }))
+      .filter((model) => Boolean(model.providerName)),
+  };
+}
+
+async function applyEnvironmentSyncLocalSnapshot(request: EnvironmentSyncWriteRequest): Promise<EnvironmentSyncApplyResultRow[]> {
+  const results: EnvironmentSyncApplyResultRow[] = [];
+  for (const rawUser of request.users) {
+    const user = normalizeEnvironmentSyncUserRecord(rawUser);
+    if (!user) {
+      results.push({
+        id: "",
+        kind: "user",
+        decision: "use_source",
+        status: "failed",
+        message: "用户数据无效",
+      });
+      continue;
+    }
+    try {
+      await upsertEnvironmentSyncUser(user);
+      results.push({
+        id: user.id,
+        kind: "user",
+        decision: "use_source",
+        status: "applied",
+      });
+    } catch (error) {
+      results.push({
+        id: user.id,
+        kind: "user",
+        decision: "use_source",
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  for (const rawProvider of request.providers) {
+    const provider = normalizeEnvironmentSyncProviderRecord(rawProvider);
+    if (!provider) {
+      results.push({
+        id: "",
+        kind: "provider",
+        decision: "use_source",
+        status: "failed",
+        message: "服务商数据无效",
+      });
+      continue;
+    }
+    try {
+      const syncedProvider = await upsertEnvironmentSyncProvider(provider);
+      const providerModels = request.models
+        .map(normalizeEnvironmentSyncModelRecord)
+        .filter((item): item is NonNullable<ReturnType<typeof normalizeEnvironmentSyncModelRecord>> =>
+          item !== null && item.providerName.trim().toLowerCase() === syncedProvider.name.trim().toLowerCase(),
+        );
+      for (const model of providerModels) {
+        await upsertEnvironmentSyncProviderModel({
+          ...model,
+          providerId: syncedProvider.id,
+          providerName: syncedProvider.name,
+        });
+      }
+      results.push({
+        id: syncedProvider.id,
+        kind: "provider",
+        decision: "use_source",
+        status: "applied",
+        message: `已同步服务商配置及 ${providerModels.length} 个模型`,
+      });
+    } catch (error) {
+      results.push({
+        id: provider.id,
+        kind: "provider",
+        decision: "use_source",
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (request.actorEmail) {
+    await appendAuditRecord({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      actorId: "",
+      actorEmail: request.actorEmail,
+      action: "environment_sync.apply.remote",
+      targetType: "environment-sync",
+      targetId: `${request.sourceEnvironment}->${request.targetEnvironment}`,
+      summary: `接收环境同步写入 users=${request.users.length} providers=${request.providers.length} models=${request.models.length}`,
+      createdAt: Date.now(),
+    });
+  }
+
+  return results;
+}
+
+async function readEnvironmentSyncRemoteSnapshot(targetEnvironment: EnvironmentSyncTarget): Promise<EnvironmentSyncSnapshot> {
+  const response = await fetch(joinEnvironmentSyncUrl(targetEnvironment, "/api/internal/environment-sync/snapshot"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-environment-sync-token": environmentSyncToken,
+    },
+    body: JSON.stringify({ environment: targetEnvironment }),
+  });
+  const payload = await parseEnvironmentSyncResponse<EnvironmentSyncSnapshot>(response);
+  return payload;
+}
+
+async function applyEnvironmentSyncRemoteSnapshot(
+  targetEnvironment: EnvironmentSyncTarget,
+  request: EnvironmentSyncWriteRequest,
+): Promise<EnvironmentSyncApplyResultRow[]> {
+  const response = await fetch(joinEnvironmentSyncUrl(targetEnvironment, "/api/internal/environment-sync/apply"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-environment-sync-token": environmentSyncToken,
+    },
+    body: JSON.stringify(request),
+  });
+  return parseEnvironmentSyncResponse<EnvironmentSyncApplyResultRow[]>(response);
+}
+
+function joinEnvironmentSyncUrl(targetEnvironment: EnvironmentSyncTarget, pathname: string) {
+  const baseUrl = environmentSyncBaseUrls[targetEnvironment].replace(/\/+$/, "");
+  return `${baseUrl}${pathname}`;
+}
+
+async function parseEnvironmentSyncResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  let payload: { success?: boolean; data?: T; error?: string } = {};
+  try {
+    payload = text ? JSON.parse(text) as { success?: boolean; data?: T; error?: string } : {};
+  } catch {
+    throw new Error(text || `环境同步接口返回了不可解析内容（HTTP ${response.status}）`);
+  }
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.error || `环境同步接口失败（HTTP ${response.status}）`);
+  }
+  return payload.data as T;
+}
+
+function normalizeEnvironmentSyncUserRecord(value: unknown) {
+  const source = plainObject(value);
+  const email = safeEmail(source.email);
+  if (!email) return null;
+  const passwordHash = safeText(source.passwordHash);
+  if (!passwordHash) return null;
+  const role: "admin" | "member" = source.role === "admin" ? "admin" : "member";
+  return {
+    id: safeText(source.id, `usr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    email,
+    name: safeText(source.name, email.split("@")[0]),
+    role,
+    disabled: Boolean(source.disabled),
+    passwordHash,
+    passwordCipher: safeText(source.passwordCipher),
+    createdAt: Number(source.createdAt) || Date.now(),
+    updatedAt: Number(source.updatedAt) || Date.now(),
+  };
+}
+
+function normalizeEnvironmentSyncProviderRecord(value: unknown) {
+  const source = plainObject(value);
+  const name = safeText(source.name);
+  if (!name) return null;
+  const apiKey = safeText(source.apiKey);
+  return {
+    id: safeSlug(source.id, `provider-${Date.now()}`),
+    name,
+    baseUrl: safeText(source.baseUrl),
+    protocol: normalizeProviderProtocol(source.protocol),
+    enabled: Boolean(source.enabled),
+    apiKey,
+    apiKeyPreview: safeText(source.apiKeyPreview, apiKey ? secretPreview(decryptSecret(apiKey) || apiKey) : ""),
+    note: safeText(source.note),
+    createdAt: Number(source.createdAt) || Date.now(),
+    updatedAt: Number(source.updatedAt) || Date.now(),
+  };
+}
+
+function normalizeEnvironmentSyncModelRecord(value: unknown) {
+  const source = plainObject(value);
+  const providerName = safeText(source.providerName);
+  const modelId = safeText(source.modelId);
+  if (!providerName || !modelId) return null;
+  const capability = normalizeCapability(source.capability);
+  const advancedConfig = parseAdvancedConfig(source.advancedConfig);
+  const executionMode = normalizeProviderGenerationExecutionMode(source.executionMode, advancedConfig, capability);
+  advancedConfig.executionMode = executionMode;
+  return {
+    id: safeSlug(source.id, `model-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    providerId: safeSlug(source.providerId, "provider"),
+    providerName,
+    modelId,
+    displayName: safeText(source.displayName, modelId),
+    capability,
+    enabled: Boolean(source.enabled),
+    executionMode,
+    inputProfile: safeText(source.inputProfile, "prompt"),
+    inputCapabilities: { ...parseInputCapabilities(source.inputCapabilities, capability) },
+    capabilityTags: normalizeModelCapabilityTags(source.capabilityTags, capability, modelId),
+    testState: normalizeModelTestState(source.testState),
+    parameterSchema: safeJsonText(source.parameterSchema, "{}"),
+    advancedConfig,
+    protocolOverride: normalizeOptionalProtocol(source.protocolOverride),
+    createdAt: Number(source.createdAt) || Date.now(),
+    updatedAt: Number(source.updatedAt) || Date.now(),
+  };
+}
+
+async function upsertEnvironmentSyncUser(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "member";
+  disabled: boolean;
+  passwordHash: string;
+  passwordCipher?: string;
+  createdAt: number;
+  updatedAt: number;
+}) {
+  if (usePostgresRepository()) {
+    const existing = await findAuthUserByEmailPostgres(user.email);
+    await upsertAuthUserPostgres({
+      id: existing?.id || user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      disabled: Boolean(user.disabled),
+      passwordHash: user.passwordHash,
+      passwordCipher: safeText(user.passwordCipher),
+      createdAt: existing?.createdAt || user.createdAt,
+      updatedAt: Date.now(),
+    });
+    if (existing?.id) {
+      await revokeUserSessionsPostgres(existing.id, Date.now());
+    }
+    return;
+  }
+  const authDb = await readAuthDb();
+  const existing = authDb.users.find((item) => item.email.toLowerCase() === user.email.toLowerCase());
+  const nextUser = {
+    id: existing?.id || user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    disabled: Boolean(user.disabled),
+    passwordHash: user.passwordHash,
+    passwordCipher: safeText(user.passwordCipher),
+    createdAt: existing?.createdAt || user.createdAt,
+    updatedAt: Date.now(),
+  };
+  const users = existing
+    ? authDb.users.map((item) => (item.id === existing.id ? nextUser : item))
+    : [nextUser, ...authDb.users];
+  await writeAuthDb({
+    ...authDb,
+    users,
+    sessions: authDb.sessions.map((session) => (
+      session.userId === (existing?.id || nextUser.id)
+        ? { ...session, revokedAt: Date.now() }
+        : session
+    )),
+  });
+}
+
+async function upsertEnvironmentSyncProvider(provider: {
+  id: string;
+  name: string;
+  baseUrl: string;
+  protocol: string;
+  enabled: boolean;
+  apiKey?: string;
+  apiKeyPreview?: string;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}) {
+  const existing = await findProviderRecordByNaturalKey(provider.name);
+  const nextProvider: AdminProviderRecord = {
+    id: existing?.id || provider.id,
+    name: provider.name,
+    baseUrl: provider.baseUrl,
+    protocol: normalizeProviderProtocol(provider.protocol),
+    enabled: Boolean(provider.enabled),
+    apiKey: safeText(provider.apiKey),
+    apiKeyPreview: safeText(provider.apiKeyPreview),
+    note: safeText(provider.note),
+    rhApps: existing?.rhApps || [],
+    rhWorkflows: existing?.rhWorkflows || [],
+    msLoras: existing?.msLoras || [],
+    lastProbeStatus: existing?.lastProbeStatus || "",
+    lastProbeMessage: existing?.lastProbeMessage || "",
+    lastFetchedAt: existing?.lastFetchedAt || 0,
+    createdAt: existing?.createdAt || provider.createdAt,
+    updatedAt: Date.now(),
+  };
+  if (usePostgresRepository()) {
+    await upsertProviderRecordPostgres(nextProvider);
+    return nextProvider;
+  }
+  const db = await readAdminDb();
+  const providers = existing
+    ? db.providers.map((item) => (item.id === existing.id ? nextProvider : item))
+    : [nextProvider, ...db.providers];
+  await writeAdminDb({ ...db, providers });
+  return nextProvider;
+}
+
+async function upsertEnvironmentSyncProviderModel(model: {
+  id: string;
+  providerId: string;
+  providerName: string;
+  modelId: string;
+  displayName: string;
+  capability: ModelCapability;
+  enabled: boolean;
+  executionMode?: ProviderGenerationExecutionMode;
+  inputProfile: string;
+  inputCapabilities?: Record<string, unknown>;
+  capabilityTags?: ModelCapabilityTag[];
+  testState?: ModelTestState;
+  parameterSchema: string;
+  advancedConfig?: Record<string, unknown>;
+  protocolOverride?: string;
+  createdAt: number;
+  updatedAt: number;
+}) {
+  const provider = await findProviderRecordByNaturalKey(model.providerName);
+  if (!provider) {
+    throw new Error(`目标环境缺少服务商 ${model.providerName}，无法写入模型`);
+  }
+  const existing = await findModelRecordByNaturalKey(provider.id, model.capability, model.modelId);
+  const normalizedModel = normalizeAdminModelRecord({
+    id: existing?.id || model.id,
+    providerId: provider.id,
+    modelId: model.modelId,
+    displayName: model.displayName,
+    capability: model.capability,
+    enabled: Boolean(model.enabled),
+    executionMode: model.executionMode,
+    inputProfile: model.inputProfile,
+    inputCapabilities: { ...plainObject(model.inputCapabilities) },
+    capabilityTags: normalizeModelCapabilityTags(model.capabilityTags, model.capability, model.modelId),
+    testState: normalizeModelTestState(model.testState),
+    parameterSchema: safeJsonText(model.parameterSchema, "{}"),
+    advancedConfig: parseAdvancedConfig(model.advancedConfig),
+    protocolOverride: normalizeOptionalProtocol(model.protocolOverride),
+    createdAt: existing?.createdAt || model.createdAt,
+    updatedAt: Date.now(),
+  });
+  if (usePostgresRepository()) {
+    await upsertModelRecordPostgres(normalizedModel);
+    return normalizedModel;
+  }
+  const db = await readAdminDb();
+  const models = existing
+    ? db.models.map((item) => (item.id === existing.id ? normalizedModel : item))
+    : [normalizedModel, ...db.models];
+  await writeAdminDb({ ...db, models });
+  return normalizedModel;
 }
 
 function isUnsafeHttpMethod(method: string) {
@@ -3200,6 +3759,30 @@ async function upsertAuthUserPostgres(user: UserRecord) {
   );
 }
 
+async function findAuthUserByEmailPostgres(email: string): Promise<UserRecord | null> {
+  const pool = await getPostgresPool();
+  const result = await pool.query(
+    `select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at
+     from xh_users
+     where lower(email) = lower($1)
+     limit 1`,
+    [email],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    id: safeText(row.id),
+    email: safeEmail(row.email),
+    name: safeText(row.name),
+    role: row.role === "admin" ? "admin" : "member",
+    passwordHash: safeText(row.password_hash),
+    passwordCipher: safeText(row.password_cipher),
+    disabled: Boolean(row.disabled),
+    createdAt: dateToMillis(row.created_at),
+    updatedAt: dateToMillis(row.updated_at),
+  };
+}
+
 async function createSessionRecordPostgres(session: SessionRecord) {
   const pool = await getPostgresPool();
   await pool.query(
@@ -3769,6 +4352,89 @@ async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
       millisToDate(normalized.updatedAt),
     ],
   );
+}
+
+async function findProviderRecordByNaturalKey(name: string): Promise<AdminProviderRecord | null> {
+  const normalizedName = safeText(name).toLowerCase();
+  if (!normalizedName) return null;
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at
+       from xh_providers
+       where lower(name) = lower($1)
+       limit 1`,
+      [name],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return normalizeProviderSecret({
+      id: safeText(row.id),
+      name: safeText(row.name),
+      baseUrl: safeText(row.base_url),
+      protocol: normalizeProviderProtocol(row.protocol),
+      enabled: Boolean(row.enabled),
+      apiKey: safeText(row.api_key_cipher),
+      apiKeyPreview: safeText(row.api_key_preview),
+      lastProbeStatus: safeText(row.last_probe_status),
+      lastProbeMessage: safeText(row.last_probe_message),
+      lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : 0,
+      rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
+      rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+      msLoras: normalizeModelScopeLoras(row.ms_loras),
+      note: safeText(row.note),
+      createdAt: dateToMillis(row.created_at),
+      updatedAt: dateToMillis(row.updated_at),
+    });
+  }
+  const db = await readAdminDb();
+  return db.providers.find((provider) => provider.name.trim().toLowerCase() === normalizedName) || null;
+}
+
+async function findModelRecordByNaturalKey(
+  providerId: string,
+  capability: ModelCapability,
+  modelId: string,
+): Promise<AdminModelRecord | null> {
+  const normalizedProviderId = safeText(providerId);
+  const normalizedCapability = normalizeCapability(capability);
+  const normalizedModelId = safeText(modelId).toLowerCase();
+  if (!normalizedProviderId || !normalizedModelId) return null;
+  if (usePostgresRepository()) {
+    const pool = await getPostgresPool();
+    const result = await pool.query(
+      `select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at
+       from xh_models
+       where provider_id = $1 and lower(capability) = lower($2) and lower(model_id) = lower($3)
+       limit 1`,
+      [normalizedProviderId, normalizedCapability, modelId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return normalizeAdminModelRecord({
+      id: safeText(row.id),
+      providerId: safeText(row.provider_id),
+      modelId: safeText(row.model_id),
+      displayName: safeText(row.display_name),
+      capability: normalizeCapability(row.capability),
+      enabled: Boolean(row.enabled),
+      executionMode: normalizeProviderGenerationExecutionMode(row?.advanced_config?.executionMode, plainObject(row.advanced_config), normalizeCapability(row.capability)),
+      inputProfile: safeText(row.input_profile, "prompt"),
+      inputCapabilities: plainObject(row.input_capabilities),
+      capabilityTags: normalizeModelCapabilityTags(row.capability_tags, normalizeCapability(row.capability), row.model_id),
+      testState: normalizeModelTestState(row.test_state),
+      parameterSchema: safeJsonText(JSON.stringify(row.parameter_schema || {}), "{}"),
+      advancedConfig: plainObject(row.advanced_config),
+      protocolOverride: normalizeOptionalProtocol(row.protocol_override),
+      createdAt: dateToMillis(row.created_at),
+      updatedAt: dateToMillis(row.updated_at),
+    });
+  }
+  const db = await readAdminDb();
+  return db.models.find((model) =>
+    model.providerId === normalizedProviderId &&
+    normalizeCapability(model.capability) === normalizedCapability &&
+    model.modelId.trim().toLowerCase() === normalizedModelId) || null;
 }
 
 async function deleteProviderRecordPostgres(providerId: string) {
@@ -6388,11 +7054,15 @@ async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser)
       mode: "hermes",
       message: hermes.message || fallback.message,
       rawAssistant: hermes.rawAssistant,
+      blocks: Array.isArray(hermes.blocks) && hermes.blocks.length > 0
+        ? hermes.blocks
+        : parseAssistantMessageBlocks(hermes.message || fallback.message),
     };
   } catch (error) {
     return {
       ...fallback,
       rawAssistant: `${fallback.rawAssistant}\n\n[Hermes 调用失败，已回退]\n${error instanceof Error ? error.message : String(error)}`,
+      blocks: parseAssistantMessageBlocks(fallback.message),
     };
   }
 }
@@ -6421,7 +7091,7 @@ async function streamAssistantChatResponse(
   sendEvent("status", { status: "building-context" });
   const result = await runAssistantChat(input, actor);
   sendEvent("status", { status: "generating" });
-  const message = safeText(result.message);
+  const message = safeLongText(result.message, "", 24000);
   const chunks = splitAssistantMessage(message);
   for (const chunk of chunks) {
     sendEvent("delta", { delta: chunk });
@@ -6431,7 +7101,7 @@ async function streamAssistantChatResponse(
 }
 
 function splitAssistantMessage(message: string) {
-  const text = safeText(message, "");
+  const text = safeLongText(message, "", 24000);
   if (!text) return [];
   const chunks: string[] = [];
   for (let index = 0; index < text.length; index += 24) {
@@ -6772,26 +7442,28 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
 }
 
 function buildFallbackAssistantChat(input: AssistantChatRequest, _actor: CurrentUser): AssistantChatResult {
-  const message = safeText(input.message);
+  const message = safeLongText(input.message, "", 4000);
   const attachments = Array.isArray(input.attachments) ? input.attachments : [];
   const attachmentSummary = attachments
     .map((item) => summarizeAssistantAttachment(item))
     .map((item) => `${safeText(item.kind || "context")}:${safeText(item.title || item.summary || item.kind)}`)
     .slice(0, 8);
+  const finalMessage = [
+    attachmentSummary.length
+      ? `已收到 ${attachments.length} 个上下文卡片：${attachmentSummary.join(" / ")}。`
+      : "当前没有上下文卡片。",
+    message
+      ? `问题：${message}`
+      : "请继续输入问题或要求。",
+    "可继续补充节点、工作流或媒体上下文。",
+  ]
+    .filter(Boolean)
+    .join("\n");
   return {
     mode: "fallback",
-    message: [
-      attachmentSummary.length
-        ? `已收到 ${attachments.length} 个上下文卡片：${attachmentSummary.join(" / ")}。`
-        : "当前没有上下文卡片。",
-      message
-        ? `问题：${message}`
-        : "请继续输入问题或要求。",
-      "可继续补充节点、工作流或媒体上下文。",
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    message: finalMessage,
     rawAssistant: "",
+    blocks: parseAssistantMessageBlocks(finalMessage),
   };
 }
 
@@ -6883,15 +7555,22 @@ function buildHermesAssistantChatPrompt(input: AssistantChatRequest, actor: Curr
     "你是无限画布的内置 AI 助手。",
     "你会收到用户问题，以及若干来自画布或后台的上下文卡片。",
     "请结合这些上下文，用简洁、专业、可执行的中文直接回复。",
+    "输出必须是稳定的结构化文档，不要把多类内容混在一个段落里。",
+    "请优先使用明确分段输出，每一段单独成块：标题、正文、列表、JSON/代码块分开写。",
+    "每个主题单独成段，优先组织为 3 到 6 个 section，每个 section 只表达一个主题。",
     "可以使用简短的小标题、要点列表，以及 fenced code block 展示 JSON、请求体或配置草案。",
     "不要假装你已经修改了配置或执行了操作。",
     "如果是在后台管理场景，优先输出结构化接入方案：结论、原因、接入步骤、风险、可直接应用配置(JSON)。",
+    "标题请独占一行，使用 ## 标题；列表请每项单独一行；JSON 必须放进 ```json 代码块。",
+    "不要输出超长单行文本；如果内容很长，拆成多个段落或列表项。",
+    "不要把 JSON、说明文字、步骤、风险写在同一块里。",
+    "保持空行、缩进和代码块原样，不要压扁格式。",
     "如果用户提供的是工作流、节点或媒体，请优先做分析、诊断、建议和下一步动作。",
     `当前作用域: ${input.scope === "admin" ? "后台管理" : "画布工作区"}`,
     `当前用户: ${actor.email} (${actor.role})`,
-    `用户问题: ${safeText(input.message) || "未提供问题"}`,
+    `用户问题: ${safeLongText(input.message, "", 4000) || "未提供问题"}`,
     `上下文卡片摘要: ${JSON.stringify(attachments.map((item) => summarizeAssistantAttachment(item)))}`,
-    `本地兜底回复摘要: ${safeText(fallback.message).slice(0, 500)}`,
+    `本地兜底回复摘要: ${safeLongText(fallback.message, "", 1200)}`,
   ].join("\n");
 }
 
@@ -7016,7 +7695,7 @@ async function runHermesAssistantAnalysis(input: {
     body: JSON.stringify(buildHermesChatPayload(sessionId, input.prompt, input.workspace, input.settings)),
   });
   const rawAssistant =
-    safeText(
+    safeLongText(
       chatResp.data?.answer ||
       chatResp.data?.assistant ||
       chatResp.data?.response ||
@@ -7024,6 +7703,8 @@ async function runHermesAssistantAnalysis(input: {
       chatResp.data?.text ||
       chatResp.data?.result ||
       "",
+      "",
+      24000,
     ) || JSON.stringify(chatResp.data ?? chatResp, null, 2);
   const parsed = tryParseAssistantJson(rawAssistant);
   return {
@@ -7092,6 +7773,7 @@ async function runHermesAssistantChat(input: {
   return {
     rawAssistant,
     message: rawAssistant.trim(),
+    blocks: parseAssistantMessageBlocks(rawAssistant.trim()),
   };
 }
 
@@ -7119,13 +7801,15 @@ async function readHermesAssistantStream(baseUrl: string, streamId: string, cook
   if (tokenText.trim()) return tokenText;
   const doneEvent = events.find((event) => event.event === "done");
   const donePayload = plainObject(doneEvent?.data);
-  const doneText = safeText(
+  const doneText = safeLongText(
     donePayload.answer ||
     donePayload.assistant ||
     donePayload.response ||
     donePayload.message ||
     donePayload.text ||
     donePayload.result,
+    "",
+    24000,
   );
   if (doneText.trim()) return doneText;
   const appError = events.find((event) => event.event === "apperror" || event.event === "error");

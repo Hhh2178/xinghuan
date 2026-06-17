@@ -7,6 +7,7 @@ import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
 import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
+import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
 import { Overview } from "./admin-overview-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
@@ -511,6 +512,12 @@ function AdminApp() {
                   setBusy(false);
                 }
               }}
+            />
+          ) : null}
+          {activeTab === "environment-sync" ? (
+            <AdminEnvironmentSyncPanel
+              onBusyChange={setBusy}
+              onError={setError}
             />
           ) : null}
         </main>

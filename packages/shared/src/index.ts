@@ -5,6 +5,9 @@ export const appVersion = "0.1.0";
 export type AppEnvironment = "local" | "gray" | "production";
 export * from "./provider-generation-task.js";
 export * from "./task-queue-settings.js";
+export * from "./assistant-message-blocks.js";
+export * from "./assistant-chat.js";
+export * from "./environment-sync.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

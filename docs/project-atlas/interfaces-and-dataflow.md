@@ -43,12 +43,14 @@
 - `/api/admin/tasks`
 - `/api/admin/system`
 - `/api/admin/users/*`
+- `/api/admin/environment-sync/*`
 
 用途：
 
 - Provider / 模型发布
 - 任务分页、筛选、取消、状态观察
 - 系统观测与 release gate
+- gray / production 的用户与服务商（含关联模型）差异预览、逐项勾选同步、冲突裁决
 
 ### 生成代理
 
@@ -63,6 +65,12 @@
 - 同步与异步生成代理
 - 通用节点面向后台目录消费，不面向单 Provider 硬编码
 
+补充边界：
+
+- Provider 协议、请求体模式、文件字段注入和模型级端点分流，当前统一按系统层设计处理
+- 相关长期规则见：
+  - `provider-protocol-and-request-body-design.md`
+
 ## 关键数据流
 
 ### 图像 / 视频生成
@@ -74,11 +82,41 @@
 5. 输出素材写入 `/files/output/...`
 6. 结果回写任务表与生成库
 
+### Provider 请求体构建
+
+1. 前端或后台只提交能力、模型和业务参数
+2. API 根据 Provider / 模型目录与高级配置判断：
+   - 默认 JSON
+   - `multipart/form-data`
+   - 文件字段注入
+   - 模板派生字段
+3. 如存在异步任务协议，Worker 按对应 adapter 提交与轮询
+4. 结果提取后统一回写任务和素材层
+
 ### 后台观测
 
 1. 后台读取 `/api/admin/system`
 2. API 汇总数据库、任务、审计、conflict 统计
 3. 页面展示 health / trend / coverage 状态
+
+### 灰度 / 正式环境同步
+
+1. 管理员在“环境同步”页选择 `sourceEnvironment` 和 `targetEnvironment`
+2. 管理端调用 `/api/admin/environment-sync/preview`
+3. 当前 API 实例按目标环境决定：
+   - 当前环境本地直接读取
+   - 对端环境通过 `/api/internal/environment-sync/snapshot` 拉取快照
+4. 服务端按：
+   - 用户 `email`
+   - 服务商 `name`
+   - 模型 `provider.name + capability + modelId`
+   做差异比较并返回逐项决策建议
+5. 管理员勾选项并提交 `/api/admin/environment-sync/apply`
+6. 服务端只把 `use_source` 的用户 / 服务商写入目标环境：
+   - 本地环境直写
+   - 对端环境通过 `/api/internal/environment-sync/apply` 受控写入
+   - 勾选服务商时，同时写入该服务商下的全部模型配置
+7. 管理端展示逐项结果，API 写入审计日志
 
 ### 生成库访问
 
@@ -92,3 +130,4 @@
 - file-mode 多脚本并行会互相覆盖本地会话和审计样本
 - 某些上游失败会返回 HTML 或非 JSON，必须在代理层做明确报错
 - 可写型验证脚本如果不自清理，会在线上残留假 Provider 或假数据
+- 环境同步依赖 `XINGHUAN_ENVIRONMENT_SYNC_TOKEN` 和 gray / production 的 API 基地址；缺配置时后台页会失败，不能默默回退成本地假同步

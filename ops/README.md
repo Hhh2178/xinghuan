@@ -6,21 +6,31 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260617-plato-multipart-gray-r2-427237e-dirty`。
-- 当前生产 release：`20260617-plato-multipart-prod-r1-427237e-dirty`。
+- 当前灰度 release：`20260617-environment-sync-gray-r1-f881c28-dirty`。
+- 当前生产 release：`20260617-environment-sync-prod-r1-f881c28-dirty`。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
 - `2026-06-16` 已对当前 gray / production release 补做观测验收脚本热补丁，修复 `Observability` / `System Observability` 假 Provider 残留问题。
 - `2026-06-16` 灰度已发布 `GRSAI` nano 路由与图像节点错误透传热修复；当前灰度实测通过 `gpt-image-2` 同步和异步图像生成，nano 模型尚未在灰度后台启用。
-- `2026-06-17` 当前 gray current 已确认指向 `20260617-plato-multipart-gray-r2-427237e-dirty`，并已补跑：
+- `2026-06-17` 当前 gray current 已确认指向 `20260617-environment-sync-gray-r1-f881c28-dirty`，并已补跑：
   - `verify:release-preflight`
   - `verify:request-chain-observability`
   - `verify:system-observability`
 - `2026-06-17` gray / production 已带上项目 atlas、文档治理收束、CodeGraph hook、生成库素材访问链路、柏拉图 multipart 视频接入和 release gate 闭环。
-- `2026-06-17` production 已切到 `20260617-plato-multipart-prod-r1-427237e-dirty`，并已完成本机与公网 gate 复验。
+- `2026-06-17` production 已切到 `20260617-environment-sync-prod-r1-f881c28-dirty`，并已完成本机与公网 gate 复验。
 - `2026-06-17` 柏拉图真实验收已通过：
   - gray：`grok-1.5-video-6s` 成功返回本地视频落库
   - production：`grok-1.5-video-6s` 在一次上游繁忙重试后成功返回本地视频落库
+- `2026-06-17` 已新增后台“环境同步”能力：
+  - 支持 `gray -> production` 与 `production -> gray`
+  - 支持用户 / 服务商差异预览、逐项勾选、全选、冲突裁决
+  - 当前 gray / production 均已完成真实双向联调
+  - 当前已补标准验收入口：
+    - `npm run verify:environment-sync-smoke`
+  - 依赖：
+    - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
+    - `XINGHUAN_GRAY_API_BASE_URL`
+    - `XINGHUAN_PRODUCTION_API_BASE_URL`
 - 灰度与生产是两套 Nginx 入口、端口和 release 目录，且各自维护独立 release 指针；但当前 PostgreSQL 数据库目标仍未彻底拆分。
 - 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
 - 项目总纲与 AI 阅读入口见 `../docs/project-atlas/README.md`。
@@ -92,6 +102,7 @@
 - `atlas-gray-release-2026-06-17.md`
 - `atlas-production-release-2026-06-17.md`
 - `plato-provider-rollout-2026-06-17.md`
+- `environment-sync-release-2026-06-17.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

@@ -20,6 +20,8 @@ assertArrayIncludes("requiredPaths", "scripts/verify-request-chain-observability
 assertArrayIncludes("includedPaths", "scripts/verify-request-chain-observability.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-system-observability.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-system-observability.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-environment-sync-smoke.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-environment-sync-smoke.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-worker-observability-contract.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-worker-observability-contract.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-task-service.mjs");
@@ -46,6 +48,7 @@ console.log(
         "scripts/verify-task-lifecycle.mjs",
         "scripts/verify-request-chain-observability.mjs",
         "scripts/verify-system-observability.mjs",
+        "scripts/verify-environment-sync-smoke.mjs",
         "scripts/verify-worker-observability-contract.mjs",
         "scripts/verify-provider-generation-task-service.mjs",
         "scripts/verify-provider-generation-worker.mjs",

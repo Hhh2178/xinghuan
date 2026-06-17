@@ -44,6 +44,330 @@
 
 ## 2026-06-17
 
+### 环境同步页文案收口，并将服务商同步升级为包含关联模型
+
+目标:
+
+- 解决环境同步页操作文案过于工程化、后台使用者不易理解的问题。
+- 解决“同步服务商只同步主配置、不同步关联模型”的功能缺口。
+- 保持当前 Provider/模型独立数据结构不被打乱，同时让环境同步在操作层表现为整包同步。
+
+变更:
+
+- 更新共享环境同步契约：
+  - `packages/shared/src/environment-sync.ts`
+  - 新增 `EnvironmentSyncProviderModelSummary`
+  - `EnvironmentSyncPreviewRow` 新增 `providerModelSummary`
+- 更新后端环境同步服务：
+  - `apps/api/src/environment-sync-service.ts`
+  - 环境快照从 `users + providers` 扩展为 `users + providers + models`
+  - 服务商预览差异现在同时比较服务商主配置和关联模型配置
+  - 模型自然键明确为 `provider.name + capability + modelId`
+- 更新 API 环境同步写入链路：
+  - `apps/api/src/server.ts`
+  - 内部同步接口新增 `models` 受控传输
+  - 勾选服务商同步时，目标环境会同步写入该服务商下的全部模型配置
+- 更新后台环境同步页：
+  - `apps/admin/src/admin-environment-sync-panel.tsx`
+  - 将“源环境 / 目标环境 / 生成预览 / 执行同步”等说法改为更直白的运营语义
+  - 服务商列表标题改为“服务商（含模型）”
+  - 行内显示左右模型总数、仅左侧、配置不同、完全一致、仅右侧摘要
+- 同步更新文档：
+  - `docs/superpowers/specs/2026-06-17-gray-production-sync-design.md`
+  - `docs/superpowers/plans/2026-06-17-gray-production-sync-plan.md`
+  - `docs/project-atlas/interfaces-and-dataflow.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `README.md`
+  - `AGENTS.md`
+
+验证:
+
+- `node scripts/verify-admin-environment-sync-contract.mjs`
+- `node scripts/verify-environment-sync-service.mjs`
+- `npm run build -w @xinghuan/shared`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/admin`
+
+影响:
+
+- 管理员在后台勾选服务商同步时，实际会同步服务商主配置与其全部关联模型配置。
+- 当前环境同步页的术语更接近后台运营场景，减少误判和误操作成本。
+
+风险:
+
+- 当前版本仍不执行目标环境多余服务商或模型的自动删除，只做新增和覆盖。
+- 这次只完成本地实现与验证，尚未做新的 gray / production 发布。
+
+下一步:
+
+- 将本地提交后的版本推送到灰度并做真实双环境联调，重点复验服务商+模型联动同步。
+- 如后续出现更细粒度操作诉求，再评估是否补“模型独立同步模式”作为高级入口。
+
+### gray / production 环境同步能力已完成发布、双向联调与台账收口
+
+目标:
+
+- 将后台“环境同步”能力真正发布到 gray / production，而不是只停留在本地实现。
+- 为两端补齐环境变量，打通内部受控同步接口。
+- 完成真实双向预览与写回 smoke，并把当前 release / 变量 / 验收状态同步回主入口文档。
+
+变更:
+
+- 服务器环境文件已补齐：
+  - gray：`/opt/apps/xinghuan-canvas-next/shared/canvas-next.env`
+  - production：`/opt/apps/xinghuan-canvas/shared/canvas.env`
+  - 新增：
+    - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
+    - `XINGHUAN_GRAY_API_BASE_URL=http://127.0.0.1:18200`
+    - `XINGHUAN_PRODUCTION_API_BASE_URL=http://127.0.0.1:18100`
+- 发布：
+  - gray release：`20260617-environment-sync-gray-r1-f881c28-dirty`
+  - production release：`20260617-environment-sync-prod-r1-f881c28-dirty`
+- 当前线上指针：
+  - gray current：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r1-f881c28-dirty`
+  - production current：
+    - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r1-f881c28-dirty`
+- 新增运维记录：
+  - `ops/environment-sync-release-2026-06-17.md`
+- 同步更新主入口：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `ops/README.md`
+  - `ops/server-connection.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+
+验证:
+
+- 本地：
+  - `node scripts/verify-admin-environment-sync-contract.mjs = ok`
+  - `node scripts/verify-environment-sync-service.mjs = ok`
+  - `node scripts/verify-environment-sync-smoke-contract.mjs = ok`
+  - `npm run build -w @xinghuan/shared = ok`
+  - `npm run build -w @xinghuan/api = ok`
+  - `npm run build -w @xinghuan/admin = ok`
+  - `npm run build:single-port = ok`
+  - `npm run verify:release-package-contract = ok`
+- gray：
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `https://canvas-next.hhh2121.xyz/api/status = 200`
+- production：
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `https://canvas.hhh2121.xyz/api/status = 200`
+- 双向真实联调：
+  - `gray -> production` 预览成功，使用真实 provider `柏拉图` 做 apply smoke，`status = applied`
+  - `production -> gray` 预览成功，使用真实 provider `柏拉图` 做 apply smoke，`status = applied`
+  - 两边后台审计均已写入 `environment_sync.apply`
+  - 后续标准脚本已补齐：
+    - `npm run verify:environment-sync-smoke`
+  - 实跑结果：
+    - gray 本机 `18200` = ok
+    - production 本机 `18100` = ok
+
+影响:
+
+- 当前 gray / production 都具备后台“环境同步”能力，不再需要靠人工比库或临时脚本同步用户 / 服务商。
+- 当前文档主入口已重新对齐真实线上状态，避免继续显示旧 release。
+- 当前环境同步能力已经有真实联调证据，不再只是“代码实现完了”的状态。
+- 当前环境同步现在也已有固定脚本入口，后续发版后不需要再手工拼联调命令。
+
+风险:
+
+- 当前用户 / 服务商自然键仍分别使用：
+  - 用户：`email`
+  - 服务商：`name`
+- 如果后续出现同名服务商但不同实际接入点，现有匹配策略需要升级。
+- 本轮发布过程中暴露出两个流程风险：
+  - `scp` 与远端解包并行容易出现 tar 先执行、包尚未到达 `/tmp`
+  - 远端多行命令若带 CRLF，`systemctl` / `npm run` 会把 `\\r` 当成命令名一部分
+
+下一步:
+
+- 若继续扩展该能力，应优先补“更安全的冲突识别键”和“更明确的同步对象范围约束”。
+- 后续可再补专门的联调脚本，把当前手工 smoke 固化成标准验收入口。
+
+### 灰度 / 正式环境同步后台能力已完成本地实现与构建验收
+
+目标:
+
+- 为 gray / production 后台补一套真正可执行的用户 / 服务商双向同步能力。
+- 避免后续再靠人工数据库比对或临时脚本做环境对齐。
+
+变更:
+
+- 共享契约新增：
+  - `packages/shared/src/environment-sync.ts`
+- 后台管理端新增：
+  - `apps/admin/src/admin-environment-sync-panel.tsx`
+  - `apps/admin/src/admin-view-model.ts`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/main.tsx`
+- API 新增：
+  - `apps/api/src/environment-sync-service.ts`
+  - `apps/api/src/server.ts`
+  - 管理端路由：
+    - `/api/admin/environment-sync/preview`
+    - `/api/admin/environment-sync/apply`
+  - 内部跨环境路由：
+    - `/api/internal/environment-sync/snapshot`
+    - `/api/internal/environment-sync/apply`
+- 验证脚本新增：
+  - `scripts/verify-admin-environment-sync-contract.mjs`
+  - `scripts/verify-environment-sync-service.mjs`
+- 环境模板补充：
+  - `config/canvas-next.env.example`
+  - `config/canvas-production.env.example`
+  - 新增：
+    - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
+    - `XINGHUAN_GRAY_API_BASE_URL`
+    - `XINGHUAN_PRODUCTION_API_BASE_URL`
+- atlas / ops 补充：
+  - `docs/project-atlas/interfaces-and-dataflow.md`
+  - `ops/README.md`
+
+验证:
+
+- `node scripts/verify-admin-environment-sync-contract.mjs = ok`
+- `node scripts/verify-environment-sync-service.mjs = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/api = ok`
+
+影响:
+
+- 后台现在已有独立“环境同步”页，支持灰度与正式之间的双向预览和选择性同步。
+- 用户以 `email` 为自然键，服务商以 `name` 为自然键做比对。
+- 敏感字段不会在预览中直接回显明文，但同步写入会保留密码 hash / cipher 和 Provider API key cipher。
+
+风险:
+
+- 当前仅完成本地实现与构建验收，尚未做真实 gray / production 联调与放行记录。
+- 该能力依赖两端环境同时配置相同的 `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`，否则跨环境调用会被拒绝。
+
+下一步:
+
+- 做一次真实 gray / production 联调验收。
+- 补灰度发布记录与必要的 acceptance checklist。
+
+### 后台 AI 助手结构化卡片、剪贴板图片上传与协议文档已推送灰度
+
+目标:
+
+- 把右侧后台 AI 助手的 section card 渲染和输入区剪贴板图片上传能力推到 gray。
+- 把 Provider 协议与请求体设计文档一起带入灰度，确保后续接新平台时有统一入口。
+
+变更:
+
+- 共享层新增：
+  - `packages/shared/src/assistant-message-blocks.ts`
+  - `packages/shared/src/assistant-chat.ts`
+- 后台 AI 助手改造：
+  - `apps/admin/src/admin-assistant-panel.tsx`
+  - `apps/admin/src/admin-assistant-message-blocks.ts`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/styles.css`
+- API 契约更新：
+  - `apps/api/src/server.ts`
+- 文档补齐：
+  - `docs/project-atlas/provider-protocol-and-request-body-design.md`
+  - `docs/project-atlas/README.md`
+  - `docs/project-atlas/interfaces-and-dataflow.md`
+  - `docs/documentation-governance.md`
+- 运维记录新增：
+  - `ops/admin-assistant-structure-gray-release-2026-06-17.md`
+
+验证:
+
+- `npm run build:single-port = ok`
+- `node scripts/verify-admin-assistant-ui-contract.mjs = ok`
+- `node scripts/verify-admin-assistant-chat.mjs = ok`
+- `npm run verify:release-package-contract = ok`
+- `npm run verify:release-preflight = ok`
+- `npm run verify:request-chain-observability = ok`
+- `npm run verify:system-observability = ok`
+
+发布:
+
+- gray release：`20260617-admin-assistant-structure-gray-r3-f881c28`
+- gray current：`/opt/apps/xinghuan-canvas-next/releases/20260617-admin-assistant-structure-gray-r3-f881c28`
+- gray API / Worker：均为 `active`
+- gray 公网：`https://canvas-next.hhh2121.xyz/api/status = 200`
+
+影响:
+
+- 后台 AI 助手现在是 section card 结构，不再只是文本块平铺。
+- 输入区现在可直接粘贴剪贴板图片，减少人工先存文件再上传的步骤。
+- 协议设计已进入 atlas，后续平台接入可以从系统层文档开始，而不是继续靠口头记忆。
+
+风险:
+
+- `verify:system-observability` 仍显示历史任务失败和少量 revision conflict 告警，这是运行态观测结论，不是本次部署失败。
+
+下一步:
+
+- 如果需要，我可以继续把 production 也同步到这版。
+
+### 后台 AI 助手结构化卡片渲染、剪贴板图片上传与协议设计文档路由补齐
+
+目标:
+
+- 把右侧后台 AI 助手从“文本块解析”进一步收口成真实的结构化 section card 渲染。
+- 让输入区支持直接粘贴剪贴板图片上传，而不只依赖本地文件选择。
+- 把 Provider 协议与请求体设计补进 atlas，总结成后续平台接入可复用的系统层文档。
+
+变更:
+
+- 共享层新增并统一导出：
+  - `packages/shared/src/assistant-message-blocks.ts`
+  - `packages/shared/src/assistant-chat.ts`
+- 后台 AI 助手改造：
+  - `apps/admin/src/admin-assistant-panel.tsx`
+  - `apps/admin/src/admin-assistant-message-blocks.ts`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/styles.css`
+- API 助手返回契约改造：
+  - `apps/api/src/server.ts`
+  - 后台聊天结果现在显式返回 `blocks`
+  - Hermes 提示词强化为“明确分段 + fenced code block + JSON 独立代码块”
+- 协议设计文档补齐：
+  - `docs/project-atlas/provider-protocol-and-request-body-design.md`
+  - `docs/project-atlas/README.md`
+  - `docs/project-atlas/interfaces-and-dataflow.md`
+  - `docs/documentation-governance.md`
+- 验证脚本补强：
+  - `scripts/verify-admin-assistant-ui-contract.mjs`
+  - `scripts/verify-admin-assistant-chat.mjs`
+
+验证:
+
+- `node scripts/verify-admin-assistant-ui-contract.mjs = ok`
+- `node scripts/verify-admin-assistant-chat.mjs = ok`
+- `npm run build -w @xinghuan/shared = ok`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `codegraph sync = ok`
+
+影响:
+
+- 右侧后台 AI 助手现在不再只是把解析后的块平铺出来，而是按 section 分组成真实卡片，标题、列表、代码块和正文边界更清晰。
+- 后台输入区现在支持直接粘贴截图或剪贴板图片，并复用现有上传链路挂到对话上下文。
+- Provider 接入方法不再只散落在发布记录和记忆文件里，atlas 现在有单独的协议与请求体设计入口，方便后续接入新平台时复用。
+
+风险:
+
+- `verify-admin-assistant-chat.mjs` 的运行态 smoke 因本地 `18200` 不可达而跳过了在线聊天请求，这轮主要证据仍以静态契约和构建通过为主。
+- 当前卡片化依赖标题分段；若上游助手输出完全不分段，仍会退回到单 section 卡片，但不会回退成一整块裸文本。
+
+下一步:
+
+- 如需继续推进，可补一次实际浏览器验收，确认右侧后台 AI 助手在真实长回答下的视觉层级与滚动体验。
+- 后续若再扩展后台助手 block 类型，例如表格或告警卡，需要同步扩展共享 block 模型和契约脚本。
+
 ### 柏拉图 multipart 视频接入与结构化 AI 助手已完成灰度和正式发布
 
 目标:

@@ -1,4 +1,17 @@
-import { type ProviderGenerationExecutionMode, type TaskQueueSettings, type TaskStatus } from "@xinghuan/shared";
+import { type AssistantChatResult as SharedAssistantChatResult, type AssistantMessageBlock, type ProviderGenerationExecutionMode, type TaskQueueSettings, type TaskStatus } from "@xinghuan/shared";
+import type {
+  EnvironmentSyncProviderModelSummary,
+  EnvironmentSyncApplyItem,
+  EnvironmentSyncApplyRequest,
+  EnvironmentSyncApplyResponse,
+  EnvironmentSyncApplyResultRow,
+  EnvironmentSyncDecision,
+  EnvironmentSyncDiffState,
+  EnvironmentSyncObjectKind,
+  EnvironmentSyncPreviewResponse,
+  EnvironmentSyncPreviewRow,
+  EnvironmentSyncTarget,
+} from "@xinghuan/shared";
 import type { AdminTabId } from "./admin-view-model";
 
 export type UserRole = "admin" | "member";
@@ -434,11 +447,9 @@ export interface AssistantChatRequest {
   conversationId?: string;
 }
 
-export interface AssistantChatResult {
-  mode: "hermes" | "fallback";
-  message: string;
-  rawAssistant: string;
-}
+export interface AssistantChatResult extends SharedAssistantChatResult {}
+
+export type { AssistantMessageBlock };
 
 export interface AssistantProcessEntry {
   label: string;
@@ -494,6 +505,20 @@ export interface PublicAssistantSettings {
   updatedAt: number;
   revision: number;
 }
+
+export type {
+  EnvironmentSyncProviderModelSummary,
+  EnvironmentSyncTarget,
+  EnvironmentSyncObjectKind,
+  EnvironmentSyncDiffState,
+  EnvironmentSyncDecision,
+  EnvironmentSyncPreviewRow,
+  EnvironmentSyncPreviewResponse,
+  EnvironmentSyncApplyItem,
+  EnvironmentSyncApplyRequest,
+  EnvironmentSyncApplyResultRow,
+  EnvironmentSyncApplyResponse,
+};
 
 export type ConfirmAction = {
   title: string;
