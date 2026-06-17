@@ -71,9 +71,9 @@ route -p add 101.33.75.38 mask 255.255.255.255 192.168.20.1 metric 1 if 7
 ### 当前 gray / production release
 
 - gray current：
-  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r1-f881c28-dirty`
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r2-795c1e5`
 - production current：
-  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r1-f881c28-dirty`
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r2-795c1e5`
 
 ### 服务清单
 

@@ -44,6 +44,120 @@
 
 ## 2026-06-17
 
+### 环境同步灰度 clean rebuild 补发完成，并补齐干净发布缺失提交
+
+目标:
+
+- 将环境同步这批改动从“本地通过、脏工作树可构建”收口到“干净 release worktree 可构建、可打包、可灰度发布”。
+- 避免继续从带未提交依赖的工作树发灰度包，补齐发布与提交 SHA 的一致性。
+
+变更:
+
+- 新增提交：
+  - `795c1e5`
+  - `fix: restore prompt sanitizer helpers for release builds`
+- 收口文件：
+  - `apps/api/src/api-sanitizers.ts`
+  - `apps/api/src/external-proxy.ts`
+  - `apps/api/src/provider-generation-task-service.ts`
+  - `scripts/verify-api-sanitizers-contract.ts`
+  - `scripts/verify-provider-generation-task-service.mjs`
+- 本次补齐的核心不是新功能，而是把此前已经被 `server.ts` 引用的：
+  - `safeLongText`
+  - `safePromptText`
+  - 以及对应依赖接口声明
+  从“仅存在于本地未提交状态”收口为真实提交内容。
+- 基于干净 detached worktree 重新打包并发布 gray：
+  - release：`20260617-environment-sync-gray-r2-795c1e5`
+  - gray current：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r2-795c1e5`
+
+验证:
+
+- 本地主 worktree：
+  - `node --import tsx scripts/verify-api-sanitizers-contract.ts = ok`
+  - `node scripts/verify-provider-generation-task-service.mjs = ok`
+  - `npm run build -w @xinghuan/api = ok`
+- 干净 release worktree：
+  - `npm ci = ok`
+  - `npm run build:single-port = ok`
+  - `node scripts/verify-admin-environment-sync-contract.mjs = ok`
+  - `node scripts/verify-environment-sync-service.mjs = ok`
+  - `node scripts/verify-release-package-contract.mjs = ok`
+  - `npm run package:release -- 20260617-environment-sync-gray-r2-795c1e5 = ok`
+- gray 服务器：
+  - `npm run db:migrate = ok`
+  - `systemctl is-active xinghuan-canvas-next.service = active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service = active`
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `http://127.0.0.1:18200/api/status = ok`
+
+影响:
+
+- 当前 gray 已不再依赖旧的 `dirty` 环境同步发布包，release 与提交 SHA 已重新对齐到可复现构建。
+- 提示词/长文本在 API 输入链路中的清洗 helper 已进入正式提交，后续再做 clean release build 不会因缺失导出而失败。
+
+风险:
+
+- `verify:system-observability` 仍提示历史任务失败趋势偏高，这是运行态存量告警，不是本次发版失败。
+- production 仍停留在：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r1-f881c28-dirty`
+  - 本轮未同步生产。
+
+下一步:
+
+- 若用户确认，可将同一 clean commit 再推 production，结束这批 environment sync 的发布债务。
+- 继续收口其余未提交的后台助手相关修改，避免再次出现“脏工作树可跑、干净发布不可复现”的状态。
+
+### 环境同步 clean release 已完成正式发布
+
+目标:
+
+- 将已经在 gray 验证通过的 clean commit `795c1e5` 推送到正式环境。
+- 结束 environment sync 这批改动“gray 是 clean release、production 仍是 dirty release”的分裂状态。
+
+变更:
+
+- production release：
+  - `20260617-environment-sync-prod-r2-795c1e5`
+- production current：
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r2-795c1e5`
+- 发布包来源：
+  - `D:\codex\无限画布2.0-worktrees\release-gray-795c1e5`
+  - `npm run package:release -- 20260617-environment-sync-prod-r2-795c1e5`
+
+验证:
+
+- production 服务器：
+  - `npm run db:migrate = ok`
+  - `systemctl is-active xinghuan-canvas.service = active`
+  - `systemctl is-active xinghuan-canvas-worker.service = active`
+  - `http://127.0.0.1:18100/api/status = ok`
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+  - `readlink -f /opt/apps/xinghuan-canvas/current`
+    - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r2-795c1e5`
+
+影响:
+
+- gray / production 现在都已切到 clean release：
+  - gray：`20260617-environment-sync-gray-r2-795c1e5`
+  - production：`20260617-environment-sync-prod-r2-795c1e5`
+- 这批 environment sync 的线上版本与提交 SHA 已重新对齐，不再依赖旧的 dirty 发布包。
+
+风险:
+
+- `verify:system-observability` 仍报告生产近 24h 内存在失败任务和少量 revision conflict，这属于运行态存量告警，不是本次部署失败。
+- 主 worktree 仍残留未提交的后台助手相关修改，后续仍需分批收口。
+
+下一步:
+
+- 继续清理主 worktree 中尚未收口的后台助手 / 文档变更，恢复主线可发布状态。
+- 后续新的 gray / production 发布应继续坚持从干净 release worktree 打包，避免再次出现 dirty 包。
+
 ### 环境同步页文案收口，并将服务商同步升级为包含关联模型
 
 目标:

@@ -9,15 +9,35 @@
 ## Release 信息
 
 - gray release：
-  - `20260617-environment-sync-gray-r1-f881c28-dirty`
+  - 初始发布：`20260617-environment-sync-gray-r1-f881c28-dirty`
+  - clean rebuild 补发：`20260617-environment-sync-gray-r2-795c1e5`
 - production release：
-  - `20260617-environment-sync-prod-r1-f881c28-dirty`
+  - 初始发布：`20260617-environment-sync-prod-r1-f881c28-dirty`
+  - clean rebuild 补发：`20260617-environment-sync-prod-r2-795c1e5`
 - gray current：
-  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r1-f881c28-dirty`
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-gray-r2-795c1e5`
 - production current：
-  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r1-f881c28-dirty`
+  - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260617-environment-sync-prod-r2-795c1e5`
 - 本地工作树基线：
-  - `f881c28`
+  - 初始发布：`f881c28`
+  - clean rebuild 补发：`795c1e5`
+
+## 2026-06-17 clean rebuild 补发说明
+
+- 这次 gray 补发不是功能范围扩张，而是发布一致性修复。
+- 原 `r1-f881c28-dirty` 暴露出一个发布流程问题：
+  - 提交后的 `server.ts` 已引用 `safeLongText` / `safePromptText`
+  - 但对应 helper 与依赖接口声明仍停留在本地未提交状态
+  - 结果是脏工作树可以继续打包，但干净 release worktree 无法完成 `npm run build:single-port`
+- 本次通过提交 `795c1e5` 收口：
+  - `apps/api/src/api-sanitizers.ts`
+  - `apps/api/src/external-proxy.ts`
+  - `apps/api/src/provider-generation-task-service.ts`
+  - 以及对应契约脚本
+- 补发后 gray 已切到 clean commit 对齐的 release：
+  - `20260617-environment-sync-gray-r2-795c1e5`
+- 随后 production 也已切到同一 clean commit 对齐的 release：
+  - `20260617-environment-sync-prod-r2-795c1e5`
 
 ## 配置变更
 
