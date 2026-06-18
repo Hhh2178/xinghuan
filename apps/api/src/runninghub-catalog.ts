@@ -27,12 +27,41 @@ export interface RunningHubCatalogEntry {
   runTargetId?: string;
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+  parameterSchema?: string;
+  outputSchema?: RunningHubOutputDefinition[];
+  executionRules?: RunningHubExecutionRules;
+  testPayload?: string;
 }
 
 export interface RunningHubProviderLike {
   id: string;
   name: string;
   baseUrl: string;
+}
+
+export interface RunningHubOutputDefinition {
+  key: string;
+  label: string;
+  kind: "image" | "video" | "audio" | "text" | "json";
+  path?: string;
+  multiple?: boolean;
+}
+
+export interface RunningHubExecutionRules {
+  submitMode: "direct";
+  targetType: "app" | "workflow";
+  method: "POST";
+  endpoint: string;
+  resultPath: string;
+  errorPath: string;
+  acceptsUploads: boolean;
+  acceptsRemoteUrls: boolean;
+  outputKind: "remote-url";
+  supportsMultipleOutputs: boolean;
+  pollingStrategy: "none" | "fixed-interval";
+  pollingIntervalMs: number;
+  pollingTimeoutMs: number;
+  retryable: boolean;
 }
 
 function safeText(value: unknown, fallback = "", maxLength = 4000) {
@@ -78,6 +107,57 @@ function normalizeOptionalJsonText(value: unknown) {
   }
 }
 
+function normalizeOutputKind(value: unknown): RunningHubOutputDefinition["kind"] {
+  const kind = safeText(value).toLowerCase();
+  if (kind === "video" || kind === "audio" || kind === "text" || kind === "json") return kind;
+  return "image";
+}
+
+function normalizeRunningHubOutputDefinitions(value: unknown): RunningHubOutputDefinition[] {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item) => {
+      const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      const key = safeText(row.key, "", 120);
+      const label = safeText(row.label, "", 120);
+      if (!key || !label) return null;
+      return {
+        key,
+        label,
+        kind: normalizeOutputKind(row.kind),
+        path: safeText(row.path, "", 500),
+        multiple: row.multiple === undefined ? true : Boolean(row.multiple),
+      } satisfies RunningHubOutputDefinition;
+    })
+    .filter(Boolean) as RunningHubOutputDefinition[];
+}
+
+function normalizeRunningHubExecutionRules(value: unknown, kind: "app" | "workflow", targetId: string): RunningHubExecutionRules | undefined {
+  const row = value && typeof value === "object" ? value as Record<string, unknown> : null;
+  if (!row) return undefined;
+  const pollingStrategy = safeText(row.pollingStrategy).toLowerCase() === "fixed-interval" ? "fixed-interval" : "none";
+  return {
+    submitMode: "direct",
+    targetType: kind,
+    method: "POST",
+    endpoint: safeText(
+      row.endpoint,
+      kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`,
+      1000,
+    ),
+    resultPath: safeText(row.resultPath, "data", 240),
+    errorPath: safeText(row.errorPath, "message", 240),
+    acceptsUploads: row.acceptsUploads === undefined ? true : Boolean(row.acceptsUploads),
+    acceptsRemoteUrls: row.acceptsRemoteUrls === undefined ? true : Boolean(row.acceptsRemoteUrls),
+    outputKind: "remote-url",
+    supportsMultipleOutputs: row.supportsMultipleOutputs === undefined ? true : Boolean(row.supportsMultipleOutputs),
+    pollingStrategy,
+    pollingIntervalMs: Number.isFinite(Number(row.pollingIntervalMs)) ? Math.max(0, Number(row.pollingIntervalMs)) : 0,
+    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) ? Math.max(0, Number(row.pollingTimeoutMs)) : 0,
+    retryable: Boolean(row.retryable),
+  };
+}
+
 export function parseRunningHubRef(value: unknown) {
   const text = safeText(value);
   const match = text.match(/\/run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
@@ -116,18 +196,23 @@ export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogIt
   const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || "");
   const id = safeText(parsed?.id || row.id || row.appId || row.workflowId);
   if (!id) return null;
+  const runTargetId = safeText(row.runTargetId || (kind === "app" ? row.appId : row.workflowId) || id);
   return {
     id,
     kind,
     appId: kind === "app" ? safeText(row.appId || id) : undefined,
     workflowId: kind === "workflow" ? safeText(row.workflowId || id) : undefined,
-    runTargetId: safeText(row.runTargetId || (kind === "app" ? row.appId : row.workflowId) || id),
+    runTargetId,
     title: safeText(row.title, kind === "app" ? `AI 应用 ${id.slice(-6)}` : `工作流 ${id.slice(-6)}`),
     note: safeText(row.note),
     thumbnail: safeText(row.thumbnail),
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
     workflowJson: normalizeOptionalJsonText(row.workflowJson),
     fields: normalizeRunningHubFieldDefinitions(row.fields),
+    parameterSchema: normalizeOptionalJsonText(row.parameterSchema) || "{}",
+    outputSchema: normalizeRunningHubOutputDefinitions(row.outputSchema),
+    executionRules: normalizeRunningHubExecutionRules(row.executionRules, kind, runTargetId),
+    testPayload: normalizeOptionalJsonText(row.testPayload) || "{}",
   };
 }
 
@@ -158,5 +243,9 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
     runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
     workflowJson: entry.workflowJson || "",
     fields,
+    parameterSchema: entry.parameterSchema || "{}",
+    outputSchema: normalizeRunningHubOutputDefinitions(entry.outputSchema),
+    executionRules: normalizeRunningHubExecutionRules(entry.executionRules, entry.kind || "workflow", entry.runTargetId || entry.id),
+    testPayload: entry.testPayload || "{}",
   };
 }

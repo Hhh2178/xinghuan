@@ -107,8 +107,10 @@ import {
   normalizeRunningHubFieldDefinitions,
   parseRunningHubRef,
   toPublicRunningHubCatalogItem,
+  type RunningHubExecutionRules,
   type RunningHubCatalogEntry as RunningHubEntry,
   type RunningHubFieldDefinition,
+  type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
@@ -1707,6 +1709,38 @@ async function handleAdminRequest(
     const items = await adminRunningHubCatalogItems();
     await appendAudit(adminUser, "runninghub.catalog.read", "runninghub", "catalog-items", "查看 RunningHub 条目目录", requestContext);
     sendT8(response, { items });
+    return true;
+  }
+
+  const runningHubItemMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)$/);
+  if (runningHubItemMatch && request.method === "PATCH") {
+    const catalogId = decodeURIComponent(runningHubItemMatch[1]);
+    const body = await readJsonBody<{
+      title?: string;
+      note?: string;
+      enabled?: boolean;
+      thumbnail?: string;
+      workflowJson?: string;
+      fields?: RunningHubFieldDefinition[];
+      runTargetId?: string;
+      parameterSchema?: string;
+      outputSchema?: RunningHubOutputDefinition[];
+      executionRules?: RunningHubExecutionRules;
+      testPayload?: string;
+    }>(request);
+    const updated = await updateAdminRunningHubCatalogItem(catalogId, body);
+    await appendAudit(adminUser, "runninghub.item.update", "runninghub", catalogId, `更新 RunningHub 条目 ${updated.title}`, requestContext);
+    sendT8(response, updated);
+    return true;
+  }
+
+  const runningHubItemTestMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)\/test$/);
+  if (runningHubItemTestMatch && request.method === "POST") {
+    const catalogId = decodeURIComponent(runningHubItemTestMatch[1]);
+    const body = await readJsonBody<{ testPayload?: string }>(request);
+    const result = await testAdminRunningHubCatalogItem(catalogId, body.testPayload);
+    await appendAudit(adminUser, "runninghub.item.test", "runninghub", catalogId, `测试 RunningHub 条目 ${catalogId}: ${result.ok ? "ok" : "error"}`, requestContext);
+    sendT8(response, result);
     return true;
   }
 
@@ -6683,6 +6717,164 @@ async function adminRunningHubCatalogItems() {
       );
       return [...workflows, ...apps];
     });
+}
+
+function safeRunningHubJsonText(value: unknown, fallback = "{}") {
+  const text = safeText(value);
+  if (!text) return fallback;
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    throw new Error("RunningHub JSON 字段必须是合法 JSON");
+  }
+}
+
+function normalizeRunningHubOutputDefinitionsForAdmin(value: unknown): RunningHubOutputDefinition[] {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item) => {
+      const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      const key = safeText(row.key);
+      const label = safeText(row.label);
+      if (!key || !label) return null;
+      const kind = safeText(row.kind).toLowerCase();
+      return {
+        key,
+        label,
+        kind: kind === "video" || kind === "audio" || kind === "text" || kind === "json" ? kind : "image",
+        path: safeText(row.path),
+        multiple: row.multiple === undefined ? true : Boolean(row.multiple),
+      } satisfies RunningHubOutputDefinition;
+    })
+    .filter(Boolean) as RunningHubOutputDefinition[];
+}
+
+function normalizeRunningHubExecutionRulesForAdmin(
+  value: unknown,
+  kind: "app" | "workflow",
+  targetId: string,
+): RunningHubExecutionRules {
+  const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const pollingStrategy = safeText(row.pollingStrategy).toLowerCase() === "fixed-interval" ? "fixed-interval" : "none";
+  return {
+    submitMode: "direct",
+    targetType: kind,
+    method: "POST",
+    endpoint: safeText(
+      row.endpoint,
+      kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`,
+    ),
+    resultPath: safeText(row.resultPath, "data"),
+    errorPath: safeText(row.errorPath, "message"),
+    acceptsUploads: row.acceptsUploads === undefined ? true : Boolean(row.acceptsUploads),
+    acceptsRemoteUrls: row.acceptsRemoteUrls === undefined ? true : Boolean(row.acceptsRemoteUrls),
+    outputKind: "remote-url",
+    supportsMultipleOutputs: row.supportsMultipleOutputs === undefined ? true : Boolean(row.supportsMultipleOutputs),
+    pollingStrategy,
+    pollingIntervalMs: Number.isFinite(Number(row.pollingIntervalMs)) ? Math.max(0, Number(row.pollingIntervalMs)) : 0,
+    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) ? Math.max(0, Number(row.pollingTimeoutMs)) : 0,
+    retryable: Boolean(row.retryable),
+  };
+}
+
+async function updateAdminRunningHubCatalogItem(
+  catalogId: string,
+  patch: {
+    title?: string;
+    note?: string;
+    enabled?: boolean;
+    thumbnail?: string;
+    workflowJson?: string;
+    fields?: RunningHubFieldDefinition[];
+    runTargetId?: string;
+    parameterSchema?: string;
+    outputSchema?: RunningHubOutputDefinition[];
+    executionRules?: RunningHubExecutionRules;
+    testPayload?: string;
+  },
+) {
+  const db = await readAdminDb();
+  const [providerId, kindText, itemId] = catalogId.split(":");
+  const kind = kindText === "app" ? "app" : "workflow";
+  if (!providerId || !itemId) throw new Error("RunningHub catalogId 无效");
+  let updatedProvider: AdminProviderRecord | null = null;
+  let updatedItem: RunningHubEntry | null = null;
+  const providers = db.providers.map((provider) => {
+    if (provider.id !== providerId) return provider;
+    const sourceList = kind === "app" ? normalizeRunningHubEntries(provider.rhApps, "app") : normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
+    const nextList = sourceList.map((entry) => {
+      if (entry.id !== itemId) return entry;
+      const targetId = safeText(patch.runTargetId, entry.runTargetId || entry.id);
+      const next: RunningHubEntry = {
+        ...entry,
+        title: patch.title === undefined ? entry.title : safeText(patch.title, entry.title),
+        note: patch.note === undefined ? entry.note : safeText(patch.note),
+        enabled: patch.enabled === undefined ? entry.enabled : Boolean(patch.enabled),
+        thumbnail: patch.thumbnail === undefined ? entry.thumbnail : safeText(patch.thumbnail),
+        workflowJson: patch.workflowJson === undefined ? entry.workflowJson : safeRunningHubJsonText(patch.workflowJson, ""),
+        fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(entry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
+        runTargetId: targetId,
+        parameterSchema: patch.parameterSchema === undefined ? safeRunningHubJsonText(entry.parameterSchema, "{}") : safeRunningHubJsonText(patch.parameterSchema, "{}"),
+        outputSchema: patch.outputSchema === undefined
+          ? normalizeRunningHubOutputDefinitionsForAdmin(entry.outputSchema)
+          : normalizeRunningHubOutputDefinitionsForAdmin(patch.outputSchema),
+        executionRules: patch.executionRules === undefined
+          ? normalizeRunningHubExecutionRulesForAdmin(entry.executionRules, kind, targetId)
+          : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, kind, targetId),
+        testPayload: patch.testPayload === undefined ? safeRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
+      };
+      updatedItem = next;
+      return next;
+    });
+    if (!updatedItem) throw new Error("RunningHub 条目不存在");
+    updatedProvider = {
+      ...provider,
+      rhApps: kind === "app" ? nextList : provider.rhApps,
+      rhWorkflows: kind === "workflow" ? nextList : provider.rhWorkflows,
+      updatedAt: Date.now(),
+    };
+    return updatedProvider;
+  });
+  if (!updatedProvider || !updatedItem) throw new Error("RunningHub Provider 不存在");
+  if (usePostgresRepository()) {
+    await upsertProviderRecordPostgres(updatedProvider);
+  } else {
+    await writeAdminDb({ ...db, providers });
+  }
+  return toPublicRunningHubCatalogItem(updatedProvider, normalizeRunningHubCatalogItem(updatedItem, kind) || updatedItem);
+}
+
+async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValue: unknown) {
+  const item = await publicRunningHubCatalogItemDetail(catalogId);
+  if (!item) throw new Error("RunningHub 条目不存在");
+  const testPayloadText = safeRunningHubJsonText(testPayloadValue ?? item.testPayload ?? "{}", "{}");
+  const testPayload = JSON.parse(testPayloadText) as Record<string, unknown>;
+  const requiredSlots = item.inputSlots.filter((slot) => slot.required);
+  const missing = requiredSlots
+    .filter((slot) => {
+      const direct = testPayload[slot.name];
+      const title = testPayload[slot.title];
+      return direct === undefined && title === undefined;
+    })
+    .map((slot) => slot.title || slot.name);
+  return {
+    ok: missing.length === 0,
+    message: missing.length ? `缺少必填输入槽: ${missing.join("、")}` : `已生成 ${item.execution?.submit?.endpoint || item.executionRules?.endpoint || ""} 的测试预览`,
+    checkedAt: Date.now(),
+    requestPreview: {
+      catalogId: item.catalogId,
+      targetId: item.runTargetId,
+      endpoint: item.execution?.submit?.endpoint || item.executionRules?.endpoint || "",
+      payload: testPayload,
+    },
+    responsePreview: missing.length
+      ? { missingRequiredSlots: missing }
+      : {
+          accepted: true,
+          outputSchema: item.outputSchema || [],
+          execution: item.executionRules || item.execution,
+        },
+  };
 }
 
 async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhCatalogItem | null> {

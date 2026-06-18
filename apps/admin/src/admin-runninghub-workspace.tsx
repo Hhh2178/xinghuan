@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Boxes, RefreshCw, Workflow } from "lucide-react";
 import { adminRunningHubApi } from "./admin-api-client";
 import { AdminRunningHubItemEditor } from "./admin-runninghub-item-editor";
-import type { RunningHubAdminItem } from "./admin-types";
+import type { RunningHubAdminItem, RunningHubAdminItemTestResult, RunningHubAdminItemUpdatePayload } from "./admin-types";
 
 type RunningHubWorkspaceTab = "workflow" | "app";
 
@@ -16,6 +16,9 @@ export function AdminRunningHubWorkspace({
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<RunningHubWorkspaceTab>("workflow");
   const [selectedCatalogId, setSelectedCatalogId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<RunningHubAdminItemTestResult | null>(null);
 
   async function loadItems() {
     setBusy(true);
@@ -58,9 +61,40 @@ export function AdminRunningHubWorkspace({
     }
   }, [filteredItems, selectedCatalogId]);
 
+  useEffect(() => {
+    setTestResult(null);
+  }, [selectedCatalogId]);
+
   const selectedItem = filteredItems.find((item) => item.catalogId === selectedCatalogId) || null;
   const workflowCount = items.filter((item) => item.kind === "workflow").length;
   const appCount = items.filter((item) => item.kind === "app").length;
+
+  async function handleSave(catalogId: string, payload: RunningHubAdminItemUpdatePayload) {
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await adminRunningHubApi.updateItem(catalogId, payload);
+      setItems((current) => current.map((item) => (item.catalogId === catalogId ? updated : item)));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleTest(catalogId: string, payload: { testPayload?: string }) {
+    setTesting(true);
+    setError("");
+    try {
+      const result = await adminRunningHubApi.testItem(catalogId, payload);
+      setTestResult(result);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      setTestResult(null);
+    } finally {
+      setTesting(false);
+    }
+  }
 
   return (
     <section className="admin-runninghub-workspace">
@@ -138,7 +172,14 @@ export function AdminRunningHubWorkspace({
           </div>
         </section>
 
-        <AdminRunningHubItemEditor item={selectedItem} />
+        <AdminRunningHubItemEditor
+          item={selectedItem}
+          saving={saving}
+          testing={testing}
+          testResult={testResult}
+          onSave={handleSave}
+          onTest={handleTest}
+        />
       </div>
     </section>
   );

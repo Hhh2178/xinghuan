@@ -91,6 +91,31 @@ export interface RhCatalogItem {
   workflowId: string;
   runTargetId: string;
   workflowJson: string;
+  parameterSchema?: string;
+  outputSchema?: Array<{
+    key: string;
+    label: string;
+    kind: "image" | "video" | "audio" | "text" | "json";
+    path?: string;
+    multiple?: boolean;
+  }>;
+  executionRules?: {
+    submitMode: "direct";
+    targetType: RhCatalogItemKind;
+    method: "POST";
+    endpoint: string;
+    resultPath: string;
+    errorPath: string;
+    acceptsUploads: boolean;
+    acceptsRemoteUrls: boolean;
+    outputKind: "remote-url";
+    supportsMultipleOutputs: boolean;
+    pollingStrategy: "none" | "fixed-interval";
+    pollingIntervalMs: number;
+    pollingTimeoutMs: number;
+    retryable: boolean;
+  };
+  testPayload?: string;
   fields: Array<{
     nodeId: string;
     fieldName: string;

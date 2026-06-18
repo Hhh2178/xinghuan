@@ -116,6 +116,10 @@ export interface RunningHubEntry {
   runTargetId?: string;
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+  parameterSchema?: string;
+  outputSchema?: RunningHubOutputDefinition[];
+  executionRules?: RunningHubExecutionRules;
+  testPayload?: string;
 }
 
 export interface RunningHubAdminItem extends RunningHubEntry {
@@ -136,12 +140,18 @@ export interface RunningHubAdminItemUpdatePayload {
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
   runTargetId?: string;
+  parameterSchema?: string;
+  outputSchema?: RunningHubOutputDefinition[];
+  executionRules?: RunningHubExecutionRules;
+  testPayload?: string;
 }
 
 export interface RunningHubAdminItemTestResult {
   ok: boolean;
   message: string;
   checkedAt: number;
+  requestPreview?: Record<string, unknown>;
+  responsePreview?: Record<string, unknown>;
 }
 
 export interface RunningHubFieldDefinition {
@@ -156,6 +166,31 @@ export interface RunningHubFieldDefinition {
   fieldValue?: string | number | boolean;
   defaultValue?: string | number | boolean;
   options?: Array<string | number>;
+}
+
+export interface RunningHubOutputDefinition {
+  key: string;
+  label: string;
+  kind: "image" | "video" | "audio" | "text" | "json";
+  path?: string;
+  multiple?: boolean;
+}
+
+export interface RunningHubExecutionRules {
+  submitMode: "direct";
+  targetType: "app" | "workflow";
+  method: "POST";
+  endpoint: string;
+  resultPath: string;
+  errorPath: string;
+  acceptsUploads: boolean;
+  acceptsRemoteUrls: boolean;
+  outputKind: "remote-url";
+  supportsMultipleOutputs: boolean;
+  pollingStrategy: "none" | "fixed-interval";
+  pollingIntervalMs: number;
+  pollingTimeoutMs: number;
+  retryable: boolean;
 }
 
 export interface ModelScopeLora {
