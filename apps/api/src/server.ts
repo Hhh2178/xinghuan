@@ -14,6 +14,7 @@ import {
   normalizeTaskQueueSettings,
   taskQueueNameForCapability,
   type AppEnvironment,
+  type RhCatalogItem,
   type ProviderGenerationExecutionMode,
   type TaskQueueCapability,
   type TaskQueueSettings,
@@ -100,6 +101,15 @@ import { createExternalProxyHandlers } from "./external-proxy.js";
 import { createMaterialAccessService } from "./material-access-service.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 import { createEnvironmentSyncService, type EnvironmentSyncSnapshot, type EnvironmentSyncWriteRequest } from "./environment-sync-service.js";
+import {
+  normalizeRunningHubCatalogItem,
+  normalizeRunningHubCatalogItems,
+  normalizeRunningHubFieldDefinitions,
+  parseRunningHubRef,
+  toPublicRunningHubCatalogItem,
+  type RunningHubCatalogEntry as RunningHubEntry,
+  type RunningHubFieldDefinition,
+} from "./runninghub-catalog.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -419,34 +429,6 @@ interface AdminProviderRecord {
   note?: string;
   createdAt: number;
   updatedAt: number;
-}
-
-interface RunningHubEntry {
-  id: string;
-  title: string;
-  note?: string;
-  thumbnail?: string;
-  enabled: boolean;
-  kind?: "app" | "workflow";
-  appId?: string;
-  workflowId?: string;
-  runTargetId?: string;
-  workflowJson?: string;
-  fields?: RunningHubFieldDefinition[];
-}
-
-interface RunningHubFieldDefinition {
-  nodeId: string;
-  fieldName: string;
-  label?: string;
-  description?: string;
-  fieldType?: string;
-  valueType?: string;
-  placeholder?: string;
-  required?: boolean;
-  fieldValue?: string | number | boolean;
-  defaultValue?: string | number | boolean;
-  options?: Array<string | number>;
 }
 
 interface ModelScopeLora {
@@ -1149,6 +1131,14 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname.startsWith("/api/runninghub/catalog/") && request.method === "GET") {
+      const catalogId = decodeURIComponent(url.pathname.slice("/api/runninghub/catalog/".length));
+      const item = await publicRunningHubCatalogItemDetail(catalogId);
+      if (!item) throw new HttpError(404, "RUNNINGHUB_CATALOG_ITEM_NOT_FOUND");
+      sendT8(response, item);
+      return;
+    }
+
     if (url.pathname === "/api/proxy/generation/cancel" && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
       const taskId = safeText(body.taskId);
@@ -1710,6 +1700,13 @@ async function handleAdminRequest(
       storage,
       environment,
     });
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/runninghub/items" && request.method === "GET") {
+    const items = await adminRunningHubCatalogItems();
+    await appendAudit(adminUser, "runninghub.catalog.read", "runninghub", "catalog-items", "查看 RunningHub 条目目录", requestContext);
+    sendT8(response, { items });
     return true;
   }
 
@@ -6650,12 +6647,12 @@ async function publicRunningHubCatalog() {
   const providers = db.providers
     .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
     .map((provider) => {
-      const workflows = normalizeRunningHubEntries(provider.rhWorkflows, "workflow")
+      const workflows = normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow")
         .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogEntry(provider, entry));
-      const apps = normalizeRunningHubEntries(provider.rhApps, "app")
+        .map((entry) => toPublicRunningHubCatalogItem(provider, entry));
+      const apps = normalizeRunningHubCatalogItems(provider.rhApps, "app")
         .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogEntry(provider, entry));
+        .map((entry) => toPublicRunningHubCatalogItem(provider, entry));
       return {
         id: provider.id,
         name: provider.name,
@@ -6664,11 +6661,38 @@ async function publicRunningHubCatalog() {
         apps,
       };
     });
+  const items = providers.flatMap((provider) => [...provider.workflows, ...provider.apps]);
   return {
     providers,
     workflows: providers.flatMap((provider) => provider.workflows),
     apps: providers.flatMap((provider) => provider.apps),
+    items,
   };
+}
+
+async function adminRunningHubCatalogItems() {
+  const db = await readAdminDb();
+  return db.providers
+    .filter((provider) => normalizeProviderProtocol(provider.protocol) === "runninghub")
+    .flatMap((provider) => {
+      const workflows = normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow").map((entry) =>
+        toPublicRunningHubCatalogItem(provider, entry),
+      );
+      const apps = normalizeRunningHubCatalogItems(provider.rhApps, "app").map((entry) =>
+        toPublicRunningHubCatalogItem(provider, entry),
+      );
+      return [...workflows, ...apps];
+    });
+}
+
+async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhCatalogItem | null> {
+  const catalog = await publicRunningHubCatalog();
+  const item = catalog.items.find((entry) => entry.catalogId === catalogId || entry.id === catalogId);
+  return item || null;
+}
+
+function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubEntry[] {
+  return normalizeRunningHubCatalogItems(value, kind);
 }
 
 function publicRequestOrigin(request: import("node:http").IncomingMessage) {
@@ -6690,56 +6714,6 @@ function providerFilePublicOrigin(request: import("node:http").IncomingMessage) 
 function normalizeResourceKind(value: unknown): ResourceKind | "" {
   const kind = String(value || "").toLowerCase();
   return ["image", "video", "audio", "set", "pose", "workflow"].includes(kind) ? (kind as ResourceKind) : "";
-}
-
-function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubEntry[] {
-  const list = Array.isArray(value) ? value : [];
-  return list
-    .map((item) => {
-      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-      const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || "");
-      const id = safeText(parsed?.id || row.id || row.appId || row.workflowId);
-      if (!id) return null;
-      return {
-        id,
-        kind,
-        appId: kind === "app" ? safeText(row.appId || id) : undefined,
-        workflowId: kind === "workflow" ? safeText(row.workflowId || id) : undefined,
-        runTargetId: safeText(row.runTargetId || (kind === "app" ? row.appId : row.workflowId) || id),
-        title: safeText(row.title, kind === "app" ? `AI 应用 ${id.slice(-6)}` : `工作流 ${id.slice(-6)}`),
-        note: safeText(row.note),
-        thumbnail: safeText(row.thumbnail),
-        enabled: row.enabled === undefined ? true : Boolean(row.enabled),
-        workflowJson: normalizeOptionalJsonText(row.workflowJson),
-        fields: normalizeRunningHubFieldDefinitions(row.fields),
-      } satisfies RunningHubEntry;
-    })
-    .filter(Boolean) as RunningHubEntry[];
-}
-
-function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubFieldDefinition[] {
-  const list = Array.isArray(value) ? value : [];
-  return list
-    .map((item) => {
-      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-      const nodeId = normalizeRunningHubFieldText(row.nodeId);
-      const fieldName = normalizeRunningHubFieldText(row.fieldName);
-      if (!nodeId || !fieldName) return null;
-      return {
-        nodeId,
-        fieldName,
-        label: normalizeRunningHubFieldText(row.label),
-        description: normalizeRunningHubFieldText(row.description, 2000),
-        fieldType: normalizeRunningHubFieldText(row.fieldType),
-        valueType: normalizeRunningHubFieldText(row.valueType),
-        placeholder: normalizeRunningHubFieldText(row.placeholder, 1000),
-        required: row.required === undefined ? undefined : Boolean(row.required),
-        fieldValue: normalizeRunningHubFieldPrimitive(row.fieldValue),
-        defaultValue: normalizeRunningHubFieldPrimitive(row.defaultValue),
-        options: normalizeRunningHubFieldOptions(row.options || row.fieldData || row.list || row.values),
-      } satisfies RunningHubFieldDefinition;
-    })
-    .filter(Boolean) as RunningHubFieldDefinition[];
 }
 
 function normalizeRunningHubFieldPrimitive(value: unknown) {
@@ -6781,33 +6755,6 @@ function normalizeOptionalJsonText(value: unknown) {
   } catch {
     return "";
   }
-}
-
-function parseRunningHubRef(value: unknown) {
-  const text = safeText(value);
-  const match = text.match(/\/run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
-  if (match) return { type: match[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: match[2] };
-  const plain = text.match(/^[0-9A-Za-z_-]{6,}$/);
-  return plain ? { type: "workflow", id: text } : null;
-}
-
-function toPublicRunningHubCatalogEntry(provider: AdminProviderRecord, entry: RunningHubEntry) {
-  return {
-    catalogId: `${provider.id}:${entry.kind || "workflow"}:${entry.id}`,
-    providerId: provider.id,
-    providerName: provider.name,
-    providerBaseUrl: provider.baseUrl,
-    id: entry.id,
-    kind: entry.kind || "workflow",
-    appId: entry.appId || "",
-    workflowId: entry.workflowId || "",
-    runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
-    title: entry.title,
-    note: entry.note || "",
-    thumbnail: entry.thumbnail || "",
-    workflowJson: entry.workflowJson || "",
-    fields: normalizeRunningHubFieldDefinitions(entry.fields),
-  };
 }
 
 function normalizeModelScopeLoras(value: unknown): ModelScopeLora[] {

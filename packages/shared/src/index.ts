@@ -8,6 +8,7 @@ export * from "./task-queue-settings.js";
 export * from "./assistant-message-blocks.js";
 export * from "./assistant-chat.js";
 export * from "./environment-sync.js";
+export * from "./runninghub.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 
