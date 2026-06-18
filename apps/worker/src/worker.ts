@@ -748,6 +748,8 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
   const client = createGrsaiImageClient({
     apiKey,
     baseUrl: task.providerBaseUrl,
+    pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 1500, 500, 30000),
+    timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 360000, 5000, 1800000),
   });
   const imageUrls = await prepareGrsaiReferenceImages({
     dataDir,

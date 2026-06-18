@@ -128,6 +128,17 @@ const clampGenerationCount = (value: unknown, fallback = 1) => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(4, Math.round(parsed)));
 };
+type TaskRunState = {
+  taskId?: string;
+  batchIndex: number;
+  kind: "image";
+  status: "queued" | "submitting" | "polling" | "running" | "success" | "error" | "cancelled";
+  progress: string;
+  error?: string;
+  outputCount: number;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+};
 const imageGenerationErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   if (error && typeof error === 'object') {
@@ -340,6 +351,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const progress: string = d?.progress || '';
   const taskId: string | undefined = d?.taskId;
   const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
+  const taskRuns: TaskRunState[] = Array.isArray(d?.taskRuns) ? d.taskRuns : [];
+  const taskRunsRef = useRef<TaskRunState[]>(taskRuns);
+  taskRunsRef.current = taskRuns;
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
   const finishedAt: number | undefined = typeof d?.finishedAt === 'number' ? d.finishedAt : undefined;
   const lastDurationMs: number | undefined = typeof d?.lastDurationMs === 'number' ? d.lastDurationMs : undefined;
@@ -441,8 +455,16 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           : null,
     });
   };
+  const patchTaskRun = (batchIndex: number, patch: Partial<TaskRunState>) => {
+    const current = taskRunsRef.current;
+    const next = current.map((item) =>
+      item.batchIndex === batchIndex ? { ...item, ...patch } : item
+    );
+    taskRunsRef.current = next;
+    update({ taskRuns: next });
+  };
 
-  const startExternalImageTaskPolling = (tid: string): Promise<{ imageUrls: string[]; remoteImageUrls: string[] }> => {
+  const startExternalImageTaskPolling = (tid: string, batchIndex?: number): Promise<{ imageUrls: string[]; remoteImageUrls: string[] }> => {
     return new Promise<{ imageUrls: string[]; remoteImageUrls: string[] }>((resolve, reject) => {
       let elapsed = 0;
       const timer = window.setInterval(async () => {
@@ -461,6 +483,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
             logBus.success(`后台图像任务完成 → ${imageUrls[0]}`, src);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'success', progress: '100%', outputCount: imageUrls.length, finishedAt: Date.now() });
+            }
             resolve({ imageUrls, remoteImageUrls });
             return;
           }
@@ -473,8 +498,14 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           if (r.status === 'failed' || r.status === 'cancelled') {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: r.status === 'cancelled' ? 'cancelled' : 'error', error: r.error || (r.status === 'cancelled' ? '任务已取消' : '后台图像任务失败'), finishedAt: Date.now() });
+            }
             reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台图像任务失败')));
             return;
+          }
+          if (typeof batchIndex === 'number') {
+            patchTaskRun(batchIndex, { status: 'polling', progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
           }
           update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
         } catch (e: any) {
@@ -670,6 +701,11 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
     const runSingleImageGeneration = async (batchIndex: number) => {
       const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
+      patchTaskRun(batchIndex, {
+        status: 'submitting',
+        progress: '0%',
+        startedAt: Date.now(),
+      });
 
       if (isBackendSelected && backendModel) {
         const backendSizeValue = backendImageShowsSizeControl
@@ -699,8 +735,14 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           },
         });
         if (!submit.taskId) throw new Error(`后台模型任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: submit.taskId,
+          progress: submit.progress || '5%',
+          startedAt: Date.now(),
+        });
         update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
-        const polled = await startExternalImageTaskPolling(submit.taskId);
+        const polled = await startExternalImageTaskPolling(submit.taskId, batchIndex);
         const urls = polled.imageUrls || [];
         if (!urls.length) throw new Error('后台模型完成但未返回图片');
         return {
@@ -763,8 +805,14 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           providerParams: externalProviderParams,
         });
         if (!submit.taskId) throw new Error(`扩展平台任务没有返回任务号：${providerSelection.provider.label || providerSelection.provider.id} / ${providerModel}`);
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: submit.taskId,
+          progress: submit.progress || '5%',
+          startedAt: Date.now(),
+        });
         update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
-        const polled = await startExternalImageTaskPolling(submit.taskId);
+        const polled = await startExternalImageTaskPolling(submit.taskId, batchIndex);
         const urls = polled.imageUrls || [];
         if (!urls.length) throw new Error('扩展平台完成但未返回图片');
         return {
@@ -978,6 +1026,15 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     };
 
     try {
+      const initialTaskRuns: TaskRunState[] = Array.from({ length: generationCount }, (_, batchIndex) => ({
+        batchIndex,
+        kind: "image",
+        status: "queued",
+        progress: "0%",
+        outputCount: 0,
+        startedAt: Date.now(),
+        finishedAt: null,
+      }));
       update({
         status: 'generating',
         error: null,
@@ -985,6 +1042,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         imageUrls: [],
         remoteImageUrls: [],
         progress: generationCount > 1 ? `1/${generationCount}` : '0%',
+        taskRuns: initialTaskRuns,
       });
       const aggregatedImageUrls: string[] = [];
       const aggregatedRemoteImageUrls: string[] = [];
@@ -992,7 +1050,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       let lastTaskId: string | undefined = undefined;
       let usedI2I = false;
 
-      const appendImageGenerationResult = (result: Awaited<ReturnType<typeof runSingleImageGeneration>>) => {
+      const appendImageGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleImageGeneration>>) => {
         for (const url of result.imageUrls) {
           if (url && !aggregatedImageUrls.includes(url)) aggregatedImageUrls.push(url);
         }
@@ -1004,6 +1062,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
         }
         usedI2I = usedI2I || result.usedI2I;
+        patchTaskRun(batchIndex, {
+          status: 'success',
+          taskId: result.taskId,
+          progress: '100%',
+          outputCount: result.imageUrls.length,
+          finishedAt: Date.now(),
+        });
         update({
           progress: generationCount > 1 ? `${aggregatedImageUrls.length}/${generationCount}` : '95%',
           imageUrl: aggregatedImageUrls[0],
@@ -1016,10 +1081,19 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
       const runConcurrentImageGenerations = async () => {
         const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
-          runSingleImageGeneration(batchIndex).then((result) => {
-            appendImageGenerationResult(result);
-            return result;
-          })
+          runSingleImageGeneration(batchIndex)
+            .then((result) => {
+              appendImageGenerationResult(batchIndex, result);
+              return result;
+            })
+            .catch((error) => {
+              patchTaskRun(batchIndex, {
+                status: 'error',
+                error: imageGenerationErrorMessage(error),
+                finishedAt: Date.now(),
+              });
+              throw error;
+            })
         );
         return Promise.allSettled(jobs);
       };
@@ -1041,6 +1115,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         usedI2I,
         taskId: lastTaskId || d?.taskId,
         taskIds,
+        taskRuns: taskRunsRef.current.length > 0 ? taskRunsRef.current : initialTaskRuns,
       });
       if (rejected.length > 0) {
         logBus.warn(`部分生成失败: ${rejected.map((item) => imageGenerationErrorMessage(item.reason)).join('；')}`, src);
@@ -1153,6 +1228,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         lastDurationMs={lastDurationMs}
         accent="#f59e0b"
         taskId={taskId}
+        taskRuns={taskRuns}
       />
 
       {/* 配置区 */}

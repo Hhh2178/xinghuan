@@ -9258,6 +9258,84 @@
     - 本地单端口验收链当前已重新恢复全绿
 ## 2026-06-18
 
+### 多任务生成状态、产物追加、GRSAI 超时统一与图像处理节点素材输入修复
+
+目标:
+
+- 修复图像/视频节点在“生成数量 > 1”时只能稳定看到单一任务状态、单一产物的问题。
+- 修复 GRSAI 图像任务超时不跟随任务配置、仍被局部内置超时截断的问题。
+- 修复部分图像处理节点已连接上游素材但运行时报 `NOT_FOUND` / 输入丢失的问题。
+
+变更:
+
+- 前端节点运行态：
+  - `apps/web/src/components/nodes/ImageNode.tsx`
+  - `apps/web/src/components/nodes/VideoNode.tsx`
+  - 新增 `taskRuns` 子任务运行态
+  - 多任务并发提交时按 `batchIndex` 跟踪每个子任务的：
+    - `taskId`
+    - `status`
+    - `progress`
+    - `outputCount`
+    - `error`
+    - `startedAt / finishedAt`
+- 前端产物聚合：
+  - 图像/视频节点成功子任务会把产物增量追加进 `imageUrls / videoUrls`
+  - 不再因后续子任务失败而清空已成功产物
+- 前端运行卡片：
+  - `apps/web/src/components/nodes/NodeRuntimeCard.tsx`
+  - 运行卡片新增子任务列表展示
+- 图像处理节点输入链路：
+  - `apps/web/src/components/nodes/ImageOpFrame.tsx`
+  - 改为使用统一 `useUpstreamMaterials` 聚合上游图像
+  - 统一解析首张可用上游图片，避免处理节点自己手搓采集逻辑造成漏图
+- Worker 超时统一：
+  - `apps/worker/src/worker.ts`
+  - GRSAI 图像 adapter 现在会读取：
+    - `task.payload.timeoutMs`
+    - `task.payload.maxPollMs`
+    - `task.payload.pollTimeoutMs`
+    - `task.payload.pollIntervalMs`
+  - 不再固定落到默认 `120000ms`
+- 新增本轮契约脚本：
+  - `scripts/verify-image-node-multi-task-contract.mjs`
+  - `scripts/verify-video-node-multi-task-contract.mjs`
+  - `scripts/verify-node-runtime-card-task-runs-contract.mjs`
+  - `scripts/verify-generation-timeout-unification.mjs`
+  - `scripts/verify-image-op-upstream-material-contract.mjs`
+
+验证:
+
+- `node scripts/verify-image-node-multi-task-contract.mjs = ok`
+- `node scripts/verify-video-node-multi-task-contract.mjs = ok`
+- `node scripts/verify-node-runtime-card-task-runs-contract.mjs = ok`
+- `node scripts/verify-generation-timeout-unification.mjs = ok`
+- `node scripts/verify-image-op-upstream-material-contract.mjs = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build -w @xinghuan/api = ok`
+
+影响:
+
+- 图像/视频节点现在具备多任务子状态展示基础，后续灰度可直接核对每个子任务的进行态与结束态。
+- 多任务成功返回的产物会以追加方式进入节点产物数组，为输出素材节点继续向下游聚合打通基础。
+- GRSAI 图像生成不会再优先被 worker 里的固定 120 秒超时截断。
+- 图像处理节点不再依赖自己单独扫描上游节点字段，素材输入链路与全局聚合 hook 对齐。
+
+风险:
+
+- 本轮当前完成的是本地实现与构建验证，还未完成灰度实链验收。
+- 子任务列表 UI 当前是轻量展示，若后续要做更强的视觉层级或批量取消能力，需要再补一轮交互设计。
+- 其他协议虽然已开始按统一规则审查，但灰度仍需重点复验视频类和 async image 类是否仍有遗漏硬编码 timeout。
+
+下一步:
+
+- 将本批改动提交，执行 `codegraph sync`，恢复干净工作树。
+- 推送灰度并做真实验收：
+  - 图像生成数量 > 1
+  - 视频生成数量 > 1
+  - GRSAI timeout 跟随配置
+  - 上传图像 -> 尺寸调整链路正常
+
 ### 后台账号分组、备注治理、账号删除与任务发起人可见性已完成本地收口
 
 目标:

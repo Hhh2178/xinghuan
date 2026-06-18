@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useHasAutoOutput } from './useHasAutoOutput';
+import { useUpstreamMaterials } from './useUpstreamMaterials';
 
 /**
  * ImageOpNode - 图像变换节点的通用外壳
@@ -38,7 +39,7 @@ interface ImageOpNodeProps {
 export function ImageOpFrame(props: ImageOpNodeProps) {
   const { id, data, selected, title, subtitle, icon, colorHex, bgRgba, shadowRgba, textHex, buttonClasses, renderSettings, runOp, inputImages, processAllInputs, needsMulti, width } = props;
   const update = useUpdateNodeData(id);
-  const { getEdges, getNodes } = useReactFlow();
+  useReactFlow();
   const [error, setError] = useState<string | null>(null);
   const d = data as any;
   const status: 'idle' | 'running' | 'success' | 'error' = d?.status || 'idle';
@@ -46,33 +47,17 @@ export function ImageOpFrame(props: ImageOpNodeProps) {
   const outUrls: string[] = d?.urls || [];
   // 下游已连 OutputNode：隐藏节点内预览，避免占双份垂直空间 + 避免重复展示
   const hasAutoOutput = useHasAutoOutput(id);
-
-  const collectUpstreamImages = (): string[] => {
-    const edges = getEdges();
-    const nodes = getNodes();
-    const upstreamIds = edges.filter((e) => e.target === id).map((e) => e.source);
-    const urls: string[] = [];
-    const pushImage = (u: any) => {
-      if (typeof u !== 'string' || !u) return;
-      if (/\.(mp4|webm|mov|m4v|mkv|mp3|wav|ogg|m4a|flac|aac)(\?.*)?$/i.test(u)) return;
-      if (!urls.includes(u)) urls.push(u);
-    };
-    for (const uid of upstreamIds) {
-      const n = nodes.find((x) => x.id === uid);
-      const d = (n?.data as any) || {};
-      pushImage(d.imageUrl);
-      if (Array.isArray(d.imageUrls)) d.imageUrls.forEach(pushImage);
-      if (Array.isArray(d.urls)) d.urls.forEach(pushImage);
-      if (Array.isArray(d.generatedImages)) d.generatedImages.forEach(pushImage);
-    }
-    return urls;
-  };
+  const upstream = useUpstreamMaterials(id);
 
   const handleRun = async () => {
     setError(null);
-    const imgs = inputImages && inputImages.length > 0 ? inputImages : collectUpstreamImages();
+    const upstreamFirstImage = upstream.images[0]?.url || '';
+    const imgs =
+      inputImages && inputImages.length > 0
+        ? inputImages
+        : [upstreamFirstImage, ...upstream.images.slice(1).map((item) => item.url)].filter(Boolean);
     if (imgs.length === 0) {
-      setError('未连接上游图像节点');
+      setError('UPSTREAM_IMAGE_NOT_FOUND');
       return;
     }
     update({ status: 'running', error: null });

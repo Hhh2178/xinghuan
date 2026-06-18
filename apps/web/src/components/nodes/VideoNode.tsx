@@ -106,6 +106,17 @@ const videoGenerationErrorMessage = (error: unknown) => {
   const text = String(error || '').trim();
   return text || '未知错误';
 };
+type TaskRunState = {
+  taskId?: string;
+  batchIndex: number;
+  kind: "video";
+  status: "queued" | "submitting" | "polling" | "running" | "success" | "error" | "cancelled";
+  progress: string;
+  error?: string;
+  outputCount: number;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+};
 
 const VideoNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
@@ -264,6 +275,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
   const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
+  const taskRuns: TaskRunState[] = Array.isArray(d?.taskRuns) ? d.taskRuns : [];
+  const taskRunsRef = useRef<TaskRunState[]>(taskRuns);
+  taskRunsRef.current = taskRuns;
   const videoUrl: string | undefined = d?.videoUrl;
   const progress: string = d?.progress || '';
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
@@ -342,6 +356,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           ? Math.max(0, nextFinishedAt - runtimeStartedAt)
           : null,
     });
+  };
+  const patchTaskRun = (batchIndex: number, patch: Partial<TaskRunState>) => {
+    const current = taskRunsRef.current;
+    const next = current.map((item) =>
+      item.batchIndex === batchIndex ? { ...item, ...patch } : item
+    );
+    taskRunsRef.current = next;
+    update({ taskRuns: next });
   };
 
   // === 本地拖入参考素材 (跨节点 Ctrl 拖拽) ===
@@ -550,7 +572,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     });
   };
 
-  const startExternalVideoTaskPolling = (tid: string): Promise<{ videoUrls: string[]; remoteVideoUrls: string[] }> => {
+  const startExternalVideoTaskPolling = (tid: string, batchIndex?: number): Promise<{ videoUrls: string[]; remoteVideoUrls: string[] }> => {
     return new Promise<{ videoUrls: string[]; remoteVideoUrls: string[] }>((resolve, reject) => {
       let elapsed = 0;
       const timer = window.setInterval(async () => {
@@ -569,6 +591,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
             logBus.success(`后台视频任务完成 → ${videoUrls[0]}`, src);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'success', progress: '100%', outputCount: videoUrls.length, finishedAt: Date.now() });
+            }
             resolve({ videoUrls, remoteVideoUrls });
             return;
           }
@@ -581,8 +606,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           if (r.status === 'failed' || r.status === 'cancelled') {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: r.status === 'cancelled' ? 'cancelled' : 'error', error: r.error || (r.status === 'cancelled' ? '任务已取消' : '后台视频任务失败'), finishedAt: Date.now() });
+            }
             reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台视频任务失败')));
             return;
+          }
+          if (typeof batchIndex === 'number') {
+            patchTaskRun(batchIndex, { status: 'polling', progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
           }
           update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
         } catch (e: any) {
@@ -649,6 +680,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
     const runSingleVideoGeneration = async (batchIndex: number) => {
       const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
+      patchTaskRun(batchIndex, {
+        status: 'submitting',
+        progress: '0%',
+        startedAt: Date.now(),
+      });
 
       if (isBackendSelected && backendModel) {
         const { refs, firstFrameUrl, lastFrameUrl } = resolveBackendVideoInputAssignment({
@@ -677,8 +713,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id, sourceNodeId: id },
         });
         if (!r.taskId) throw new Error(`后台视频任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: r.taskId,
+          progress: r.progress || '5%',
+          startedAt: Date.now(),
+        });
         update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: r.progress || '5%' });
-        const polled = await startExternalVideoTaskPolling(r.taskId);
+        const polled = await startExternalVideoTaskPolling(r.taskId, batchIndex);
         if (!polled.videoUrls[0]) throw new Error(`后台视频任务完成但没有返回视频：${backendModel.provider.name} / ${backendModel.modelId}`);
         return { videoUrls: polled.videoUrls, remoteVideoUrls: polled.remoteVideoUrls || [], taskId: r.taskId };
       }
@@ -812,20 +854,36 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.taskId };
     };
 
-    update({ status: 'submitting', error: null, videoUrl: null, videoUrls: [], taskId: null });
+    const initialTaskRuns: TaskRunState[] = Array.from({ length: generationCount }, (_, batchIndex) => ({
+      batchIndex,
+      kind: "video",
+      status: "queued",
+      progress: "0%",
+      outputCount: 0,
+      startedAt: Date.now(),
+      finishedAt: null,
+    }));
+    update({ status: 'submitting', error: null, videoUrl: null, videoUrls: [], taskId: null, taskRuns: initialTaskRuns });
     try {
       const aggregatedVideoUrls: string[] = [];
       const aggregatedRemoteVideoUrls: string[] = [];
       const taskIds: string[] = [];
       let lastTaskId: string | null = null;
 
-      const appendVideoGenerationResult = (result: Awaited<ReturnType<typeof runSingleVideoGeneration>>) => {
+      const appendVideoGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleVideoGeneration>>) => {
         for (const url of result.videoUrls) if (url && !aggregatedVideoUrls.includes(url)) aggregatedVideoUrls.push(url);
         for (const url of result.remoteVideoUrls) if (url && !aggregatedRemoteVideoUrls.includes(url)) aggregatedRemoteVideoUrls.push(url);
         if (result.taskId) {
           lastTaskId = result.taskId;
           if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
         }
+        patchTaskRun(batchIndex, {
+          status: 'success',
+          taskId: result.taskId || undefined,
+          progress: '100%',
+          outputCount: result.videoUrls.length,
+          finishedAt: Date.now(),
+        });
         update({
           status: 'polling',
           progress: generationCount > 1 ? `${aggregatedVideoUrls.length}/${generationCount}` : '95%',
@@ -839,10 +897,19 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
       const runConcurrentVideoGenerations = async () => {
         const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
-          runSingleVideoGeneration(batchIndex).then((result) => {
-            appendVideoGenerationResult(result);
-            return result;
-          })
+          runSingleVideoGeneration(batchIndex)
+            .then((result) => {
+              appendVideoGenerationResult(batchIndex, result);
+              return result;
+            })
+            .catch((error) => {
+              patchTaskRun(batchIndex, {
+                status: 'error',
+                error: videoGenerationErrorMessage(error),
+                finishedAt: Date.now(),
+              });
+              throw error;
+            })
         );
         return Promise.allSettled(jobs);
       };
@@ -864,6 +931,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         taskIds,
         lastPrompt: finalPrompt,
         progress: '100%',
+        taskRuns: taskRunsRef.current.length > 0 ? taskRunsRef.current : initialTaskRuns,
       });
       if (rejected.length > 0) {
         logBus.warn(`部分视频生成失败: ${rejected.map((item) => videoGenerationErrorMessage(item.reason)).join('；')}`, src);
@@ -993,6 +1061,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         lastDurationMs={lastDurationMs}
         accent="#f43f5e"
         taskId={taskId}
+        taskRuns={taskRuns}
       />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>

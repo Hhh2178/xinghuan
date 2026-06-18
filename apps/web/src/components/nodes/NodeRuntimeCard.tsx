@@ -8,6 +8,17 @@ interface NodeRuntimeCardProps {
   lastDurationMs?: number | null;
   accent?: string;
   taskId?: string | null;
+  taskRuns?: Array<{
+    taskId?: string;
+    batchIndex: number;
+    kind?: "image" | "video" | "audio";
+    status: string;
+    progress?: string;
+    error?: string;
+    outputCount?: number;
+    startedAt?: number | null;
+    finishedAt?: number | null;
+  }>;
 }
 
 const RUNNING_STATUSES = new Set(['generating', 'submitting', 'polling', 'running']);
@@ -60,6 +71,7 @@ export default function NodeRuntimeCard({
   lastDurationMs,
   accent = '#38bdf8',
   taskId,
+  taskRuns,
 }: NodeRuntimeCardProps) {
   const running = Boolean(status && RUNNING_STATUSES.has(status));
   const visible = running || status === 'success' || status === 'error' || Boolean(startedAt || finishedAt || lastDurationMs);
@@ -117,6 +129,22 @@ export default function NodeRuntimeCard({
         <small>{formatDuration(elapsedMs)}</small>
         {taskId ? <small className="node-runtime-card__task">{String(taskId).slice(0, 10)}…</small> : null}
       </div>
+      {Array.isArray(taskRuns) && taskRuns.length > 0 ? (
+        <div className="node-runtime-card__runs">
+          {taskRuns.map((run) => (
+            <div
+              key={`${run.batchIndex}-${run.taskId || 'pending'}`}
+              className="node-runtime-card__run"
+            >
+              <strong>#{run.batchIndex + 1}</strong>
+              <span>{run.status}</span>
+              <span>{run.progress || '-'}</span>
+              <span>{run.outputCount || 0} 项</span>
+              {run.error ? <small>{run.error}</small> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
