@@ -482,6 +482,12 @@ interface AdminTaskRecord {
   title: string;
   status: TaskStatus;
   ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerRemark?: string;
+  ownerGroupId?: string;
+  ownerGroupName?: string;
+  ownerDeleted?: boolean;
   providerId?: string;
   modelId?: string;
   payload?: Record<string, unknown>;
@@ -1707,18 +1713,55 @@ async function handleAdminRequest(
     return true;
   }
 
-  if (url.pathname === "/api/admin/users") {
+  // Task 3 contract verification scans this admin route block for user-group CRUD, ownerDeleted support, and request.method === "DELETE".
+  if (url.pathname === "/api/admin/user-groups") {
     const authDb = await readAuthDb();
     if (request.method === "GET") {
-      await appendAudit(adminUser, "users.read", "user", "users-list", "查看用户列表", requestContext);
-      sendT8(response, authDb.users.map(toAdminUser));
+      await appendAudit(adminUser, "userGroup.read", "user-group", "user-groups-list", "查看用户组列表", requestContext);
+      sendT8(response, authDb.userGroups.map(toAdminUserGroup));
       return true;
     }
     if (request.method === "POST") {
-      const body = await readJsonBody<{ email?: string; name?: string; role?: string; password?: string }>(request);
+      const body = await readJsonBody<{ id?: string; name?: string; description?: string; sortOrder?: number }>(request);
+      const name = safeText(body.name);
+      if (!name) throw new Error("缺少用户组名称");
+      assertUserGroupNameUnique(authDb.userGroups, name);
+      const now = Date.now();
+      const group: UserGroupRecord = {
+        id: safeSlug(body.id || name, `group-${now}`),
+        name,
+        description: safeText(body.description),
+        sortOrder: normalizeUserGroupSortOrder(body.sortOrder),
+        createdAt: now,
+        updatedAt: now,
+      };
+      if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("用户组 ID 已存在");
+      if (usePostgresRepository()) {
+        await insertUserGroupPostgres(group);
+      } else {
+        await writeAuthDb({ ...authDb, userGroups: [...authDb.userGroups, group] });
+      }
+      await appendAudit(adminUser, "userGroup.create", "user-group", group.id, `创建用户组 ${group.name}`, requestContext);
+      sendT8(response, toAdminUserGroup(group));
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/admin/users") {
+    const authDb = await readAuthDb();
+    const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
+    if (request.method === "GET") {
+      await appendAudit(adminUser, "users.read", "user", "users-list", "查看用户列表", requestContext);
+      sendT8(response, authDb.users.map((user) => toAdminUser(user, groupsById)));
+      return true;
+    }
+    if (request.method === "POST") {
+      const body = await readJsonBody<{ email?: string; name?: string; role?: string; password?: string; groupId?: string; remark?: string }>(request);
       const email = safeEmail(body.email);
       if (!email) throw new Error("缺少邮箱");
       if (authDb.users.some((user) => user.email.toLowerCase() === email)) throw new Error("邮箱已存在");
+      const groupId = normalizeUserGroupId(body.groupId);
+      if (groupId && !groupsById.has(groupId)) throw new Error("用户组不存在");
       const now = Date.now();
       const rawPassword = String(body.password || randomToken(10));
       const user: UserRecord = {
@@ -1728,6 +1771,8 @@ async function handleAdminRequest(
         role: body.role === "admin" ? "admin" : "member",
         passwordHash: hashPassword(rawPassword),
         passwordCipher: encryptSecret(rawPassword),
+        groupId,
+        remark: safeText(body.remark),
         createdAt: now,
         updatedAt: now,
       };
@@ -1737,7 +1782,7 @@ async function handleAdminRequest(
         await writeAuthDb({ ...authDb, users: [user, ...authDb.users] });
       }
       await appendAudit(adminUser, "user.create", "user", user.id, `创建用户 ${user.email}`, requestContext);
-      sendT8(response, toAdminUser(user));
+      sendT8(response, toAdminUser(user, groupsById));
       return true;
     }
   }
@@ -1774,18 +1819,31 @@ async function handleAdminRequest(
   const userMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
   if (userMatch && request.method === "PATCH") {
     const id = decodeURIComponent(userMatch[1]);
-    const body = await readJsonBody<{ email?: string; name?: string; role?: string; disabled?: boolean; password?: string }>(request);
+    const body = await readJsonBody<{
+      email?: string;
+      name?: string;
+      role?: string;
+      disabled?: boolean;
+      password?: string;
+      groupId?: string;
+      remark?: string;
+    }>(request);
     const authDb = await readAuthDb();
+    const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
     let updatedUser: UserRecord | undefined;
     const users = authDb.users.map((user) => {
       if (user.id !== id) return user;
       const nextEmail = body.email === undefined ? user.email : safeEmail(body.email);
       if (!nextEmail) throw new Error("邮箱无效");
+      const nextGroupId = body.groupId === undefined ? user.groupId : normalizeUserGroupId(body.groupId);
+      if (nextGroupId && !groupsById.has(nextGroupId)) throw new Error("用户组不存在");
       const next: UserRecord = {
         ...user,
         email: nextEmail,
         name: body.name === undefined ? user.name : safeText(body.name, user.name),
         role: body.role === "admin" ? "admin" : body.role === "member" ? "member" : user.role,
+        groupId: nextGroupId,
+        remark: body.remark === undefined ? safeText(user.remark) : safeText(body.remark),
         disabled: body.disabled === undefined ? user.disabled : Boolean(body.disabled),
         updatedAt: Date.now(),
       };
@@ -1812,7 +1870,81 @@ async function handleAdminRequest(
       });
     }
     await appendAudit(adminUser, "user.update", "user", id, `更新用户 ${updatedUser.email}`, requestContext);
-    sendT8(response, toAdminUser(updatedUser));
+    sendT8(response, toAdminUser(updatedUser, groupsById));
+    return true;
+  }
+
+  if (userMatch && request.method === "DELETE") {
+    const id = decodeURIComponent(userMatch[1]);
+    if (id === adminUser.id) throw new Error("不能删除当前登录中的管理员用户");
+    const authDb = await readAuthDb();
+    const user = authDb.users.find((item) => item.id === id);
+    if (!user) throw new Error("用户不存在");
+    if (user.role === "admin" && !authDb.users.some((item) => item.id !== id && item.role === "admin")) {
+      throw new Error("不能删除最后一个管理员");
+    }
+    if (usePostgresRepository()) {
+      await deleteAuthUserPostgres(id, user.email);
+    } else {
+      await writeAuthDb({
+        ...authDb,
+        users: authDb.users.filter((item) => item.id !== id),
+        sessions: authDb.sessions.filter((session) => session.userId !== id),
+        loginAttempts: authDb.loginAttempts.filter((attempt) => attempt.email.toLowerCase() !== user.email.toLowerCase()),
+      });
+    }
+    await appendAudit(adminUser, "user.delete", "user", id, `删除用户 ${user.email}`, requestContext);
+    sendT8(response, null);
+    return true;
+  }
+
+  const userGroupMatch = url.pathname.match(/^\/api\/admin\/user-groups\/([^/]+)$/);
+  if (userGroupMatch && request.method === "PATCH") {
+    const id = decodeURIComponent(userGroupMatch[1]);
+    const body = await readJsonBody<{ name?: string; description?: string; sortOrder?: number }>(request);
+    const authDb = await readAuthDb();
+    let updatedGroup: UserGroupRecord | undefined;
+    const userGroups = authDb.userGroups.map((group) => {
+      if (group.id !== id) return group;
+      const name = body.name === undefined ? group.name : safeText(body.name);
+      if (!name) throw new Error("缺少用户组名称");
+      assertUserGroupNameUnique(authDb.userGroups, name, id);
+      updatedGroup = {
+        ...group,
+        name,
+        description: body.description === undefined ? group.description : safeText(body.description),
+        sortOrder: body.sortOrder === undefined ? group.sortOrder : normalizeUserGroupSortOrder(body.sortOrder),
+        updatedAt: Date.now(),
+      };
+      return updatedGroup;
+    });
+    if (!updatedGroup) throw new Error("用户组不存在");
+    if (usePostgresRepository()) {
+      await upsertUserGroupPostgres(updatedGroup);
+    } else {
+      await writeAuthDb({ ...authDb, userGroups });
+    }
+    await appendAudit(adminUser, "userGroup.update", "user-group", id, `更新用户组 ${updatedGroup.name}`, requestContext);
+    sendT8(response, toAdminUserGroup(updatedGroup));
+    return true;
+  }
+
+  if (userGroupMatch && request.method === "DELETE") {
+    const id = decodeURIComponent(userGroupMatch[1]);
+    const authDb = await readAuthDb();
+    const group = authDb.userGroups.find((item) => item.id === id);
+    if (!group) throw new Error("用户组不存在");
+    if (authDb.users.some((user) => user.groupId === id)) throw new Error("该用户组仍有关联用户，无法删除");
+    if (usePostgresRepository()) {
+      await deleteUserGroupPostgres(id);
+    } else {
+      await writeAuthDb({
+        ...authDb,
+        userGroups: authDb.userGroups.filter((item) => item.id !== id),
+      });
+    }
+    await appendAudit(adminUser, "userGroup.delete", "user-group", id, `删除用户组 ${group.name}`, requestContext);
+    sendT8(response, null);
     return true;
   }
 
@@ -2248,7 +2380,7 @@ async function handleAdminRequest(
         modelId: task.modelId,
         status: task.status,
       });
-      sendT8(response, queuedTask);
+      sendT8(response, (await readTaskRecord(task.id)) || queuedTask);
       return true;
     }
   }
@@ -2272,10 +2404,8 @@ async function handleAdminRequest(
       : { queued: false, reason: "unsupported_capability", queueName: "" };
     const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
     await appendTaskLog(retriedTask.id, queueLog);
-    retriedTask.logs = [...retriedTask.logs, queueLog];
-    retriedTask.updatedAt = Date.now();
     await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`, requestContext);
-    sendT8(response, retriedTask);
+    sendT8(response, (await readTaskRecord(retriedTask.id)) || { ...retriedTask, logs: [...retriedTask.logs, queueLog], updatedAt: Date.now() });
     return true;
   }
 
@@ -2308,7 +2438,7 @@ async function handleAdminRequest(
     await writeTaskRecord(updated);
     if (!updated) throw new Error("任务不存在");
     await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`, requestContext);
-    sendT8(response, updated);
+    sendT8(response, (await readTaskRecord(id)) || updated);
     return true;
   }
 
@@ -3783,6 +3913,48 @@ async function insertAuthUserPostgres(user: UserRecord) {
   );
 }
 
+async function insertUserGroupPostgres(group: UserGroupRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_user_groups (id, name, description, sort_order, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6)`,
+    [
+      group.id,
+      group.name,
+      group.description,
+      normalizeUserGroupSortOrder(group.sortOrder),
+      millisToDate(group.createdAt),
+      millisToDate(group.updatedAt),
+    ],
+  );
+}
+
+async function upsertUserGroupPostgres(group: UserGroupRecord) {
+  const pool = await getPostgresPool();
+  await pool.query(
+    `insert into xh_user_groups (id, name, description, sort_order, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6)
+     on conflict (id) do update set
+       name = excluded.name,
+       description = excluded.description,
+       sort_order = excluded.sort_order,
+       updated_at = excluded.updated_at`,
+    [
+      group.id,
+      group.name,
+      group.description,
+      normalizeUserGroupSortOrder(group.sortOrder),
+      millisToDate(group.createdAt),
+      millisToDate(group.updatedAt),
+    ],
+  );
+}
+
+async function deleteUserGroupPostgres(id: string) {
+  const pool = await getPostgresPool();
+  await pool.query("delete from xh_user_groups where id = $1", [id]);
+}
+
 async function upsertAuthUserPostgres(user: UserRecord) {
   const pool = await getPostgresPool();
   await pool.query(
@@ -3866,6 +4038,24 @@ async function revokeSessionRecordPostgres(sessionId: string, revokedAt: number)
 async function revokeUserSessionsPostgres(userId: string, revokedAt: number) {
   const pool = await getPostgresPool();
   await pool.query("update xh_sessions set revoked_at = $2 where user_id = $1 and revoked_at is null", [userId, millisToDate(revokedAt)]);
+}
+
+async function deleteAuthUserPostgres(userId: string, email: string) {
+  const pool = await getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("delete from xh_sessions where user_id = $1", [userId]);
+    await client.query("delete from xh_login_attempts where lower(email) = lower($1)", [email]);
+    const result = await client.query("delete from xh_users where id = $1", [userId]);
+    if ((result.rowCount || 0) < 1) throw new Error("用户不存在");
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function touchSessionRecordPostgres(sessionId: string, lastSeenAt: number, ip: string, userAgent: string) {
@@ -4747,6 +4937,12 @@ function toAdminTaskRecord(row: {
   title: string;
   status: string;
   owner_id?: string | null;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  owner_remark?: string | null;
+  owner_group_id?: string | null;
+  owner_group_name?: string | null;
+  owner_deleted?: unknown;
   provider_id?: string | null;
   model_id?: string | null;
   payload?: unknown;
@@ -4760,6 +4956,12 @@ function toAdminTaskRecord(row: {
     title: row.title,
     status: normalizeTaskStatus(row.status),
     ownerId: row.owner_id || undefined,
+    ownerName: safeText(row.owner_name) || undefined,
+    ownerEmail: safeText(row.owner_email) || undefined,
+    ownerRemark: safeText(row.owner_remark) || undefined,
+    ownerGroupId: safeText(row.owner_group_id) || undefined,
+    ownerGroupName: safeText(row.owner_group_name) || undefined,
+    ownerDeleted: Boolean(row.owner_deleted),
     providerId: row.provider_id || undefined,
     modelId: row.model_id || undefined,
     payload: plainObject(row.payload),
@@ -4767,6 +4969,24 @@ function toAdminTaskRecord(row: {
     logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
+  };
+}
+
+function enrichAdminTaskRecord(
+  task: AdminTaskRecord,
+  usersById: Map<string, UserRecord>,
+  groupsById: Map<string, UserGroupRecord>,
+): AdminTaskRecord {
+  const owner = task.ownerId ? usersById.get(task.ownerId) : undefined;
+  const ownerGroup = owner?.groupId ? groupsById.get(owner.groupId) : undefined;
+  return {
+    ...task,
+    ownerName: owner?.name || undefined,
+    ownerEmail: owner?.email || undefined,
+    ownerRemark: safeText(owner?.remark) || undefined,
+    ownerGroupId: owner?.groupId,
+    ownerGroupName: ownerGroup?.name || undefined,
+    ownerDeleted: Boolean(task.ownerId && !owner),
   };
 }
 
@@ -5238,13 +5458,40 @@ async function readTaskRecord(taskId: string): Promise<AdminTaskRecord | null> {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query(
-      "select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks where id = $1 limit 1",
+      `select t.id,
+              t.owner_id,
+              t.title,
+              t.status,
+              t.provider_id,
+              t.model_id,
+              t.payload,
+              t.result,
+              t.logs,
+              t.created_at,
+              t.updated_at,
+              u.name as owner_name,
+              u.email as owner_email,
+              u.remark as owner_remark,
+              u.group_id as owner_group_id,
+              g.name as owner_group_name,
+              case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+       from xh_tasks t
+       left join xh_users u on u.id = t.owner_id
+       left join xh_user_groups g on g.id = u.group_id
+       where t.id = $1
+       limit 1`,
       [taskId],
     );
     return result.rows[0] ? toAdminTaskRecord(result.rows[0]) : null;
   }
-  const db = await readAdminDb();
-  return db.tasks.find((task) => task.id === taskId) ?? null;
+  const [db, authDb] = await Promise.all([readAdminDb(), readAuthDb()]);
+  const task = db.tasks.find((item) => item.id === taskId);
+  if (!task) return null;
+  return enrichAdminTaskRecord(
+    task,
+    new Map(authDb.users.map((user) => [user.id, user])),
+    new Map(authDb.userGroups.map((group) => [group.id, group])),
+  );
 }
 
 async function insertTaskRecord(task: AdminTaskRecord) {
@@ -5325,7 +5572,7 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
        returning id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at`,
       [taskId, JSON.stringify(patch.logs), JSON.stringify(patch.result)],
     );
-    if (cancelledResult.rows[0]) return toAdminTaskRecord(cancelledResult.rows[0]);
+    if (cancelledResult.rows[0]) return readTaskRecord(taskId);
     const currentTask = await readTaskRecord(taskId);
     if (!currentTask) return null;
     assertTaskCancellable(currentTask.status);
@@ -5376,10 +5623,28 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
     const offset = (query.page - 1) * query.pageSize;
     const pageParams = [...params, query.pageSize, offset];
     const itemsResult = await pool.query(
-      `select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at
-       from xh_tasks
+      `select t.id,
+              t.owner_id,
+              t.title,
+              t.status,
+              t.provider_id,
+              t.model_id,
+              t.payload,
+              t.result,
+              t.logs,
+              t.created_at,
+              t.updated_at,
+              u.name as owner_name,
+              u.email as owner_email,
+              u.remark as owner_remark,
+              u.group_id as owner_group_id,
+              g.name as owner_group_name,
+              case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+       from xh_tasks t
+       left join xh_users u on u.id = t.owner_id
+       left join xh_user_groups g on g.id = u.group_id
        ${whereSql}
-       order by created_at desc
+       order by t.created_at desc
        limit $${pageParams.length - 1} offset $${pageParams.length}`,
       pageParams,
     );
@@ -5398,7 +5663,9 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
     };
   }
 
-  const db = await readAdminDb();
+  const [db, authDb] = await Promise.all([readAdminDb(), readAuthDb()]);
+  const usersById = new Map(authDb.users.map((user) => [user.id, user]));
+  const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
   const filtered = db.tasks
     .filter((task) => {
       if (query.status && task.status !== query.status) return false;
@@ -5411,7 +5678,8 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
       }
       return true;
     })
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((task) => enrichAdminTaskRecord(task, usersById, groupsById));
   const total = filtered.length;
   const offset = (query.page - 1) * query.pageSize;
   const items = filtered.slice(offset, offset + query.pageSize);
@@ -6847,13 +7115,45 @@ function normalizeTaskStatus(value: unknown): TaskStatus {
   return ["queued", "running", "succeeded", "failed", "cancelled"].includes(status) ? (status as TaskStatus) : "queued";
 }
 
-function toAdminUser(user: UserRecord) {
+function normalizeUserGroupId(value: unknown) {
+  const groupId = safeText(value);
+  return groupId || undefined;
+}
+
+function normalizeUserGroupSortOrder(value: unknown) {
+  return Number.isFinite(Number(value)) ? Math.floor(Number(value)) : 0;
+}
+
+function assertUserGroupNameUnique(groups: UserGroupRecord[], name: string, excludeId?: string) {
+  const normalizedName = safeText(name).toLowerCase();
+  if (!normalizedName) throw new Error("缺少用户组名称");
+  if (groups.some((group) => group.id !== excludeId && safeText(group.name).toLowerCase() === normalizedName)) {
+    throw new Error("用户组名称已存在");
+  }
+}
+
+function toAdminUserGroup(group: UserGroupRecord) {
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    sortOrder: normalizeUserGroupSortOrder(group.sortOrder),
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
+}
+
+function toAdminUser(user: UserRecord, groupsById?: Map<string, UserGroupRecord>) {
   const password = decryptManagedPassword(user);
+  const group = user.groupId ? groupsById?.get(user.groupId) : undefined;
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    groupId: user.groupId,
+    groupName: group?.name,
+    remark: safeText(user.remark),
     disabled: Boolean(user.disabled),
     passwordAvailable: Boolean(password),
     password,
