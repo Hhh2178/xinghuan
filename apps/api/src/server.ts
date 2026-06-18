@@ -3963,16 +3963,29 @@ async function deleteUserGroupPostgres(id: string): Promise<{ id: string; name: 
     );
     const group = groupResult.rows[0];
     if (!group) throw new Error("用户组不存在");
-    const memberResult = await client.query(
-      "select 1 from xh_users where group_id = $1 limit 1",
+    const deleteResult = await client.query(
+      `delete from xh_user_groups g
+       where g.id = $1
+         and not exists (
+           select 1
+           from xh_users u
+           where u.group_id = g.id
+         )
+       returning g.id, g.name`,
       [id],
     );
-    if (memberResult.rows[0]) throw new Error("该用户组仍有关联用户，无法删除");
-    await client.query("delete from xh_user_groups where id = $1", [id]);
+    if (!deleteResult.rows[0]) {
+      const memberResult = await client.query(
+        "select 1 from xh_users where group_id = $1 limit 1",
+        [id],
+      );
+      if (memberResult.rows[0]) throw new Error("该用户组仍有关联用户，无法删除");
+      throw new Error("用户组不存在");
+    }
     await client.query("commit");
     return {
-      id: safeText(group.id),
-      name: safeText(group.name),
+      id: safeText(deleteResult.rows[0].id || group.id),
+      name: safeText(deleteResult.rows[0].name || group.name),
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
