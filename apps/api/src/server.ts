@@ -334,7 +334,18 @@ interface UserRecord {
   role: "admin" | "member";
   passwordHash: string;
   passwordCipher?: string;
+  groupId?: string;
+  remark?: string;
   disabled?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface UserGroupRecord {
+  id: string;
+  name: string;
+  description: string;
+  sortOrder: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -365,6 +376,7 @@ interface LoginAttemptRecord {
 }
 
 interface AuthDb {
+  userGroups: UserGroupRecord[];
   users: UserRecord[];
   sessions: SessionRecord[];
   loginAttempts: LoginAttemptRecord[];
@@ -3393,9 +3405,10 @@ async function readAuthDb(): Promise<AuthDb> {
   try {
     db = JSON.parse(await readFile(authDbPath, "utf-8")) as AuthDb;
   } catch {
-    db = { users: [], sessions: [], loginAttempts: [] };
+    db = { userGroups: [], users: [], sessions: [], loginAttempts: [] };
   }
   db = {
+    userGroups: Array.isArray(db.userGroups) ? db.userGroups : [],
     users: Array.isArray(db.users) ? db.users : [],
     sessions: Array.isArray(db.sessions) ? db.sessions.map(normalizeSessionRecord) : [],
     loginAttempts: Array.isArray(db.loginAttempts) ? db.loginAttempts.map(normalizeLoginAttemptRecord) : [],
@@ -3403,6 +3416,7 @@ async function readAuthDb(): Promise<AuthDb> {
   const bootstrapped = await ensureBootstrapUser(db);
   const now = Date.now();
   const cleaned = {
+    userGroups: bootstrapped.userGroups,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
@@ -3577,9 +3591,12 @@ async function ensureRuntimeDatabaseTarget(serviceName: string) {
 
 async function readAuthDbPostgres(): Promise<AuthDb> {
   const pool = await getPostgresPool();
-  const [usersResult, sessionsResult, attemptsResult] = await Promise.all([
+  const [userGroupsResult, usersResult, sessionsResult, attemptsResult] = await Promise.all([
     pool.query(
-      "select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at from xh_users order by created_at asc",
+      "select id, name, description, sort_order, created_at, updated_at from xh_user_groups order by sort_order asc, created_at asc",
+    ),
+    pool.query(
+      "select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at from xh_users order by created_at asc",
     ),
     pool.query("select id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at from xh_sessions order by created_at desc"),
     pool.query(
@@ -3587,6 +3604,14 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
     ),
   ]);
   const db: AuthDb = {
+    userGroups: userGroupsResult.rows.map((row) => ({
+      id: safeText(row.id),
+      name: safeText(row.name),
+      description: safeText(row.description),
+      sortOrder: Number.isFinite(Number(row.sort_order)) ? Math.floor(Number(row.sort_order)) : 0,
+      createdAt: dateToMillis(row.created_at),
+      updatedAt: dateToMillis(row.updated_at),
+    })),
     users: usersResult.rows.map((row) => ({
       id: row.id,
       email: row.email,
@@ -3594,6 +3619,8 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       role: row.role === "admin" ? "admin" : "member",
       passwordHash: row.password_hash,
       passwordCipher: row.password_cipher || undefined,
+      groupId: safeText(row.group_id) || undefined,
+      remark: safeText(row.remark),
       disabled: Boolean(row.disabled),
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
@@ -3625,6 +3652,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   const bootstrapped = await ensureBootstrapUser(db);
   const now = Date.now();
   const cleaned: AuthDb = {
+    userGroups: bootstrapped.userGroups,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
@@ -3654,10 +3682,25 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
     await client.query("delete from xh_login_attempts");
     await client.query("delete from xh_sessions");
     await client.query("delete from xh_users");
+    await client.query("delete from xh_user_groups");
+    for (const userGroup of db.userGroups) {
+      await client.query(
+        `insert into xh_user_groups (id, name, description, sort_order, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [
+          userGroup.id,
+          userGroup.name,
+          userGroup.description,
+          Number.isFinite(userGroup.sortOrder) ? Math.floor(userGroup.sortOrder) : 0,
+          millisToDate(userGroup.createdAt),
+          millisToDate(userGroup.updatedAt),
+        ],
+      );
+    }
     for (const user of db.users) {
       await client.query(
-        `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           user.id,
           user.email,
@@ -3665,6 +3708,8 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
           user.role,
           user.passwordHash,
           user.passwordCipher || null,
+          user.groupId || null,
+          safeText(user.remark),
           Boolean(user.disabled),
           millisToDate(user.createdAt),
           millisToDate(user.updatedAt),
@@ -3716,8 +3761,8 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
 async function insertAuthUserPostgres(user: UserRecord) {
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       user.id,
       user.email,
@@ -3725,6 +3770,8 @@ async function insertAuthUserPostgres(user: UserRecord) {
       user.role,
       user.passwordHash,
       user.passwordCipher || null,
+      user.groupId || null,
+      safeText(user.remark),
       Boolean(user.disabled),
       millisToDate(user.createdAt),
       millisToDate(user.updatedAt),
@@ -3735,14 +3782,16 @@ async function insertAuthUserPostgres(user: UserRecord) {
 async function upsertAuthUserPostgres(user: UserRecord) {
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_users (id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      on conflict (id) do update set
        email = excluded.email,
        name = excluded.name,
        role = excluded.role,
        password_hash = excluded.password_hash,
        password_cipher = excluded.password_cipher,
+       group_id = excluded.group_id,
+       remark = excluded.remark,
        disabled = excluded.disabled,
        updated_at = excluded.updated_at`,
     [
@@ -3752,6 +3801,8 @@ async function upsertAuthUserPostgres(user: UserRecord) {
       user.role,
       user.passwordHash,
       user.passwordCipher || null,
+      user.groupId || null,
+      safeText(user.remark),
       Boolean(user.disabled),
       millisToDate(user.createdAt),
       millisToDate(user.updatedAt),
@@ -3762,7 +3813,7 @@ async function upsertAuthUserPostgres(user: UserRecord) {
 async function findAuthUserByEmailPostgres(email: string): Promise<UserRecord | null> {
   const pool = await getPostgresPool();
   const result = await pool.query(
-    `select id, email, name, role, password_hash, password_cipher, disabled, created_at, updated_at
+    `select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
      from xh_users
      where lower(email) = lower($1)
      limit 1`,
@@ -3777,6 +3828,8 @@ async function findAuthUserByEmailPostgres(email: string): Promise<UserRecord | 
     role: row.role === "admin" ? "admin" : "member",
     passwordHash: safeText(row.password_hash),
     passwordCipher: safeText(row.password_cipher),
+    groupId: safeText(row.group_id) || undefined,
+    remark: safeText(row.remark),
     disabled: Boolean(row.disabled),
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
