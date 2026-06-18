@@ -106,10 +106,13 @@ import {
   normalizeRunningHubCatalogItems,
   normalizeRunningHubFieldDefinitions,
   parseRunningHubRef,
+  toAdminRunningHubCatalogItem,
   toPublicRunningHubCatalogItem,
+  type RunningHubAdminCatalogEntry,
   type RunningHubExecutionRules,
   type RunningHubCatalogEntry as RunningHubEntry,
   type RunningHubFieldDefinition,
+  type RunningHubAdminItem as AdminRunningHubCatalogItem,
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 
@@ -6710,13 +6713,29 @@ async function adminRunningHubCatalogItems() {
     .filter((provider) => normalizeProviderProtocol(provider.protocol) === "runninghub")
     .flatMap((provider) => {
       const workflows = normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow").map((entry) =>
-        toPublicRunningHubCatalogItem(provider, entry),
+        toAdminRunningHubCatalogItem(provider, entry),
       );
       const apps = normalizeRunningHubCatalogItems(provider.rhApps, "app").map((entry) =>
-        toPublicRunningHubCatalogItem(provider, entry),
+        toAdminRunningHubCatalogItem(provider, entry),
       );
       return [...workflows, ...apps];
     });
+}
+
+async function adminRunningHubCatalogItemDetail(catalogId: string): Promise<AdminRunningHubCatalogItem | null> {
+  const items = await adminRunningHubCatalogItems();
+  const canonicalMatch = items.find((entry) => entry.catalogId === catalogId);
+  if (canonicalMatch) return canonicalMatch;
+  const idMatches = items.filter((entry) => entry.id === catalogId);
+  return idMatches.length === 1 ? idMatches[0] : null;
+}
+
+function runningHubDefaultEndpoint(kind: "app" | "workflow", targetId: string) {
+  return kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`;
+}
+
+function isRunningHubDefaultEndpoint(kind: "app" | "workflow", targetId: string, endpoint: string) {
+  return endpoint.trim() === runningHubDefaultEndpoint(kind, targetId);
 }
 
 function safeRunningHubJsonText(value: unknown, fallback = "{}") {
@@ -6727,6 +6746,15 @@ function safeRunningHubJsonText(value: unknown, fallback = "{}") {
   } catch {
     throw new Error("RunningHub JSON 字段必须是合法 JSON");
   }
+}
+
+function safeRunningHubObjectJsonText(value: unknown, fallback = "{}") {
+  const text = safeRunningHubJsonText(value, fallback);
+  const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("参数 Schema 必须是 JSON 对象，不能是数组、字符串或数字");
+  }
+  return JSON.stringify(parsed, null, 2);
 }
 
 function normalizeRunningHubOutputDefinitionsForAdmin(value: unknown): RunningHubOutputDefinition[] {
@@ -6762,7 +6790,7 @@ function normalizeRunningHubExecutionRulesForAdmin(
     method: "POST",
     endpoint: safeText(
       row.endpoint,
-      kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`,
+      runningHubDefaultEndpoint(kind, targetId),
     ),
     resultPath: safeText(row.resultPath, "data"),
     errorPath: safeText(row.errorPath, "message"),
@@ -6792,20 +6820,27 @@ async function updateAdminRunningHubCatalogItem(
     executionRules?: RunningHubExecutionRules;
     testPayload?: string;
   },
-) {
+): Promise<AdminRunningHubCatalogItem> {
   const db = await readAdminDb();
   const [providerId, kindText, itemId] = catalogId.split(":");
   const kind = kindText === "app" ? "app" : "workflow";
   if (!providerId || !itemId) throw new Error("RunningHub catalogId 无效");
   let updatedProvider: AdminProviderRecord | null = null;
-  let updatedItem: RunningHubEntry | null = null;
+  let updatedItem: RunningHubAdminCatalogEntry | null = null;
   const providers = db.providers.map((provider) => {
     if (provider.id !== providerId) return provider;
     const sourceList = kind === "app" ? normalizeRunningHubEntries(provider.rhApps, "app") : normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
     const nextList = sourceList.map((entry) => {
       if (entry.id !== itemId) return entry;
+      const previousTargetId = entry.runTargetId || entry.id;
       const targetId = safeText(patch.runTargetId, entry.runTargetId || entry.id);
-      const next: RunningHubEntry = {
+      const baseExecutionRules = patch.executionRules === undefined
+        ? normalizeRunningHubExecutionRulesForAdmin(entry.executionRules, kind, previousTargetId)
+        : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, kind, previousTargetId);
+      const nextExecutionEndpoint = isRunningHubDefaultEndpoint(kind, previousTargetId, baseExecutionRules.endpoint)
+        ? runningHubDefaultEndpoint(kind, targetId)
+        : baseExecutionRules.endpoint;
+      const next: RunningHubAdminCatalogEntry = {
         ...entry,
         title: patch.title === undefined ? entry.title : safeText(patch.title, entry.title),
         note: patch.note === undefined ? entry.note : safeText(patch.note),
@@ -6814,13 +6849,15 @@ async function updateAdminRunningHubCatalogItem(
         workflowJson: patch.workflowJson === undefined ? entry.workflowJson : safeRunningHubJsonText(patch.workflowJson, ""),
         fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(entry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
         runTargetId: targetId,
-        parameterSchema: patch.parameterSchema === undefined ? safeRunningHubJsonText(entry.parameterSchema, "{}") : safeRunningHubJsonText(patch.parameterSchema, "{}"),
+        parameterSchema: patch.parameterSchema === undefined ? safeRunningHubObjectJsonText(entry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
         outputSchema: patch.outputSchema === undefined
           ? normalizeRunningHubOutputDefinitionsForAdmin(entry.outputSchema)
           : normalizeRunningHubOutputDefinitionsForAdmin(patch.outputSchema),
-        executionRules: patch.executionRules === undefined
-          ? normalizeRunningHubExecutionRulesForAdmin(entry.executionRules, kind, targetId)
-          : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, kind, targetId),
+        executionRules: {
+          ...baseExecutionRules,
+          endpoint: nextExecutionEndpoint,
+          targetType: kind,
+        },
         testPayload: patch.testPayload === undefined ? safeRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
       };
       updatedItem = next;
@@ -6841,11 +6878,11 @@ async function updateAdminRunningHubCatalogItem(
   } else {
     await writeAdminDb({ ...db, providers });
   }
-  return toPublicRunningHubCatalogItem(updatedProvider, normalizeRunningHubCatalogItem(updatedItem, kind) || updatedItem);
+  return toAdminRunningHubCatalogItem(updatedProvider, normalizeRunningHubCatalogItem(updatedItem, kind) || updatedItem);
 }
 
 async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValue: unknown) {
-  const item = await publicRunningHubCatalogItemDetail(catalogId);
+  const item = await adminRunningHubCatalogItemDetail(catalogId);
   if (!item) throw new Error("RunningHub 条目不存在");
   const testPayloadText = safeRunningHubJsonText(testPayloadValue ?? item.testPayload ?? "{}", "{}");
   const testPayload = JSON.parse(testPayloadText) as Record<string, unknown>;
@@ -6859,12 +6896,12 @@ async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValu
     .map((slot) => slot.title || slot.name);
   return {
     ok: missing.length === 0,
-    message: missing.length ? `缺少必填输入槽: ${missing.join("、")}` : `已生成 ${item.execution?.submit?.endpoint || item.executionRules?.endpoint || ""} 的测试预览`,
+    message: missing.length ? `缺少必填输入槽: ${missing.join("、")}` : `已生成 ${item.executionRules?.endpoint || item.execution.submit.endpoint} 的预览校验结果`,
     checkedAt: Date.now(),
     requestPreview: {
       catalogId: item.catalogId,
       targetId: item.runTargetId,
-      endpoint: item.execution?.submit?.endpoint || item.executionRules?.endpoint || "",
+      endpoint: item.executionRules?.endpoint || item.execution.submit.endpoint,
       payload: testPayload,
     },
     responsePreview: missing.length
@@ -6885,7 +6922,7 @@ async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhC
   return idMatches.length === 1 ? idMatches[0] : null;
 }
 
-function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubEntry[] {
+function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubAdminCatalogEntry[] {
   return normalizeRunningHubCatalogItems(value, kind);
 }
 

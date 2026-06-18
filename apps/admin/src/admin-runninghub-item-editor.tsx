@@ -9,7 +9,7 @@ import type {
   RunningHubOutputDefinition,
 } from "./admin-types";
 
-function safeJsonText(value: unknown, fallback = "{}") {
+function formatJsonText(value: unknown, fallback = "{}") {
   if (typeof value !== "string" || !value.trim()) return fallback;
   try {
     return JSON.stringify(JSON.parse(value), null, 2);
@@ -18,13 +18,32 @@ function safeJsonText(value: unknown, fallback = "{}") {
   }
 }
 
-function safeJsonObject(value: string) {
+function parseObjectJson(value: string) {
   try {
     const parsed = JSON.parse(value || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("参数 Schema 必须是 JSON 对象，不能是数组、字符串或数字。");
+    }
+    return parsed as Record<string, unknown>;
   } catch {
-    return {};
+    throw new Error("参数 Schema 必须是 JSON 对象，不能是数组、字符串或数字。");
   }
+}
+
+function parseAnyJson(value: string, errorMessage: string) {
+  try {
+    return JSON.stringify(JSON.parse(value || "{}"), null, 2);
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
+function buildDefaultExecutionEndpoint(kind: "app" | "workflow", targetId: string) {
+  return kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`;
+}
+
+function isDefaultExecutionEndpoint(kind: "app" | "workflow", targetId: string, endpoint: string) {
+  return endpoint.trim() === buildDefaultExecutionEndpoint(kind, targetId);
 }
 
 function inferOutputDefinitions(item: RunningHubAdminItem): RunningHubOutputDefinition[] {
@@ -47,7 +66,7 @@ function defaultExecutionRules(item: RunningHubAdminItem): RunningHubExecutionRu
     submitMode: "direct",
     targetType: kind,
     method: "POST",
-    endpoint: kind === "app" ? `/runninghub/app/${targetId}/run` : `/runninghub/workflow/${targetId}/run`,
+    endpoint: buildDefaultExecutionEndpoint(kind, targetId),
     resultPath: "data",
     errorPath: "message",
     acceptsUploads: true,
@@ -62,7 +81,7 @@ function defaultExecutionRules(item: RunningHubAdminItem): RunningHubExecutionRu
 }
 
 function defaultTestPayload(item: RunningHubAdminItem) {
-  if (typeof item.testPayload === "string" && item.testPayload.trim()) return safeJsonText(item.testPayload);
+  if (typeof item.testPayload === "string" && item.testPayload.trim()) return formatJsonText(item.testPayload);
   const slotPayload = (item.fields || []).reduce<Record<string, unknown>>((acc, field) => {
     const key = field.label?.trim() || field.fieldName;
     acc[key] = field.defaultValue ?? field.fieldValue ?? "";
@@ -72,7 +91,7 @@ function defaultTestPayload(item: RunningHubAdminItem) {
 }
 
 function defaultParameterSchema(item: RunningHubAdminItem) {
-  if (typeof item.parameterSchema === "string" && item.parameterSchema.trim()) return safeJsonText(item.parameterSchema);
+  if (typeof item.parameterSchema === "string" && item.parameterSchema.trim()) return formatJsonText(item.parameterSchema);
   const properties = (item.fields || []).reduce<Record<string, unknown>>((acc, field) => {
     acc[field.fieldName] = {
       type: field.valueType?.toLowerCase().includes("number")
@@ -301,37 +320,58 @@ export function AdminRunningHubItemEditor({
   }
 
   const currentItem = item;
+  const currentKind = currentItem.kind === "app" ? "app" : "workflow";
 
   async function handleSave() {
     try {
-      const parsedSchema = safeJsonObject(parameterSchema);
+      const parsedSchema = parseObjectJson(parameterSchema);
       const normalizedSchema = JSON.stringify(parsedSchema, null, 2);
+      const normalizedTestPayload = parseAnyJson(testPayload, "测试运行输入必须是有效 JSON。");
+      const nextRunTargetId = runTargetId.trim() || currentItem.runTargetId || currentItem.id;
+      const priorDefaultEndpoint = buildDefaultExecutionEndpoint(currentKind, currentItem.runTargetId || currentItem.appId || currentItem.workflowId || currentItem.id);
+      const nextDefaultEndpoint = buildDefaultExecutionEndpoint(currentKind, nextRunTargetId);
+      const baseExecutionRules = executionRules || defaultExecutionRules(currentItem);
+      const nextExecutionRules = {
+        ...baseExecutionRules,
+        endpoint: isDefaultExecutionEndpoint(currentKind, currentItem.runTargetId || currentItem.appId || currentItem.workflowId || currentItem.id, baseExecutionRules.endpoint)
+          || baseExecutionRules.endpoint.trim() === priorDefaultEndpoint
+          ? nextDefaultEndpoint
+          : baseExecutionRules.endpoint,
+        targetType: currentKind,
+      } satisfies RunningHubExecutionRules;
       setParameterSchema(normalizedSchema);
+      setTestPayload(normalizedTestPayload);
       setParameterSchemaError("");
+      setTestPayloadError("");
       await onSave(currentItem.catalogId, {
         title: title.trim() || currentItem.catalogId,
         note: note.trim(),
         enabled,
-        runTargetId: runTargetId.trim(),
+        runTargetId: nextRunTargetId,
         fields,
         parameterSchema: normalizedSchema,
         outputSchema: outputs,
-        executionRules: executionRules || defaultExecutionRules(currentItem),
-        testPayload: safeJsonText(testPayload),
+        executionRules: nextExecutionRules,
+        testPayload: normalizedTestPayload,
       });
-    } catch {
-      setParameterSchemaError("参数 Schema 必须是有效 JSON 对象。");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "参数 Schema 必须是 JSON 对象。";
+      if (/测试运行输入/.test(message)) {
+        setTestPayloadError(message);
+      } else {
+        setParameterSchemaError(message);
+      }
     }
   }
 
   async function handleTest() {
     try {
-      const normalizedPayload = JSON.stringify(JSON.parse(testPayload || "{}"), null, 2);
+      const normalizedPayload = parseAnyJson(testPayload, "测试运行输入必须是有效 JSON。");
       setTestPayload(normalizedPayload);
       setTestPayloadError("");
       await onTest(currentItem.catalogId, { testPayload: normalizedPayload });
-    } catch {
-      setTestPayloadError("测试运行输入必须是有效 JSON。");
+    } catch (error) {
+      setTestPayloadError(error instanceof Error ? error.message : "测试运行输入必须是有效 JSON。");
     }
   }
 
@@ -540,10 +580,10 @@ export function AdminRunningHubItemEditor({
         <div className="admin-runninghub-editor__section-head">
           <div>
             <strong>测试运行</strong>
-            <span>保存测试样例并执行基础 test-run 校验</span>
+            <span>保存测试样例并执行预览校验，不会触发真实上游运行</span>
           </div>
           <button type="button" className="ghost-action" onClick={() => void handleTest()} disabled={testing}>
-            <FlaskConical aria-hidden="true" /> {testing ? "测试中..." : "执行测试"}
+            <FlaskConical aria-hidden="true" /> {testing ? "预览校验中..." : "执行预览校验"}
           </button>
         </div>
         <textarea value={testPayload} onChange={(e) => setTestPayload(e.target.value)} rows={8} className="admin-runninghub-editor__code" />

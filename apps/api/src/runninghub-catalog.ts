@@ -27,17 +27,24 @@ export interface RunningHubCatalogEntry {
   runTargetId?: string;
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+}
+
+export interface RunningHubAdminEditorMetadata {
   parameterSchema?: string;
   outputSchema?: RunningHubOutputDefinition[];
   executionRules?: RunningHubExecutionRules;
   testPayload?: string;
 }
 
+export interface RunningHubAdminCatalogEntry extends RunningHubCatalogEntry, RunningHubAdminEditorMetadata {}
+
 export interface RunningHubProviderLike {
   id: string;
   name: string;
   baseUrl: string;
 }
+
+export interface RunningHubAdminItem extends RhCatalogItem, RunningHubAdminEditorMetadata {}
 
 export interface RunningHubOutputDefinition {
   key: string;
@@ -191,7 +198,7 @@ export function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubF
     .filter(Boolean) as RunningHubFieldDefinition[];
 }
 
-export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogItemKind): RunningHubCatalogEntry | null {
+export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogItemKind): RunningHubAdminCatalogEntry | null {
   const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || "");
   const id = safeText(parsed?.id || row.id || row.appId || row.workflowId);
@@ -216,11 +223,11 @@ export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogIt
   };
 }
 
-export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogItemKind): RunningHubCatalogEntry[] {
+export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogItemKind): RunningHubAdminCatalogEntry[] {
   const list = Array.isArray(value) ? value : [];
   return list
     .map((item) => normalizeRunningHubCatalogItem(item, kind))
-    .filter(Boolean) as RunningHubCatalogEntry[];
+    .filter(Boolean) as RunningHubAdminCatalogEntry[];
 }
 
 export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, entry: RunningHubCatalogEntry): RhCatalogItem {
@@ -243,6 +250,13 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
     runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
     workflowJson: entry.workflowJson || "",
     fields,
+  };
+}
+
+export function toAdminRunningHubCatalogItem(provider: RunningHubProviderLike, entry: RunningHubAdminCatalogEntry): RunningHubAdminItem {
+  const publicItem = toPublicRunningHubCatalogItem(provider, entry);
+  return {
+    ...publicItem,
     parameterSchema: entry.parameterSchema || "{}",
     outputSchema: normalizeRunningHubOutputDefinitions(entry.outputSchema),
     executionRules: normalizeRunningHubExecutionRules(entry.executionRules, entry.kind || "workflow", entry.runTargetId || entry.id),

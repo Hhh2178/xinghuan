@@ -116,13 +116,16 @@ export interface RunningHubEntry {
   runTargetId?: string;
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+}
+
+export interface RunningHubAdminEditorMetadata {
   parameterSchema?: string;
   outputSchema?: RunningHubOutputDefinition[];
   executionRules?: RunningHubExecutionRules;
   testPayload?: string;
 }
 
-export interface RunningHubAdminItem extends RunningHubEntry {
+export interface RunningHubAdminItem extends RunningHubEntry, RunningHubAdminEditorMetadata {
   providerId: string;
   providerName: string;
   catalogId: string;
@@ -132,7 +135,7 @@ export interface RunningHubAdminItemsResponse {
   items: RunningHubAdminItem[];
 }
 
-export interface RunningHubAdminItemUpdatePayload {
+export interface RunningHubAdminItemUpdatePayload extends RunningHubAdminEditorMetadata {
   title?: string;
   note?: string;
   enabled?: boolean;
@@ -140,10 +143,6 @@ export interface RunningHubAdminItemUpdatePayload {
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
   runTargetId?: string;
-  parameterSchema?: string;
-  outputSchema?: RunningHubOutputDefinition[];
-  executionRules?: RunningHubExecutionRules;
-  testPayload?: string;
 }
 
 export interface RunningHubAdminItemTestResult {
