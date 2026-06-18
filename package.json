@@ -50,6 +50,7 @@
     "verify:release-preflight-contract": "node scripts/verify-release-preflight-contract.mjs",
     "verify:release-gate-docs-contract": "node scripts/verify-release-gate-docs-contract.mjs",
     "verify:release-package-contract": "node scripts/verify-release-package-contract.mjs",
+    "verify:db-migrate-release-deps": "node scripts/verify-db-migrate-release-deps.mjs",
     "verify:admin-assistant-chat": "node scripts/verify-admin-assistant-chat.mjs",
     "verify:admin-assistant-ui-contract": "node scripts/verify-admin-assistant-ui-contract.mjs",
     "verify:admin-auth-passwords": "node scripts/verify-admin-auth-passwords.mjs",

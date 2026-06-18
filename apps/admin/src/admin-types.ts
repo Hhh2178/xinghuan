@@ -339,6 +339,7 @@ export interface SystemInfo {
       capability: "image" | "audio" | "video";
       queue: string;
       concurrency: number;
+      userConcurrency?: number;
       depth?: number;
     }>;
     error: string;

@@ -58,6 +58,7 @@ export function SystemPanel({
     ["Redis 队列", system?.redis?.queue || "-"],
     ["Redis 深度", String(system?.redis?.depth ?? 0)],
     ["按类别并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.concurrency}`).join(" / ") || "-"],
+    ["按用户并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.userConcurrency ?? "-"}`).join(" / ") || "-"],
     ["按类别深度", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
     ["Redis 错误", system?.redis?.error || "-"],
     ["任务总数", String(system?.observability?.tasks?.total ?? 0)],
@@ -143,7 +144,7 @@ export function SystemPanel({
       <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />
       <FormPanel title="任务并发设置" icon={Settings2}>
         <label>
-          图片并发
+          图片总并发
           <input
             type="number"
             min={1}
@@ -151,14 +152,45 @@ export function SystemPanel({
             value={values?.image.concurrency ?? 4}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
-                image: { concurrency: Number(event.target.value || 4) },
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                image: {
+                  ...(current?.image || system?.taskQueueSettings?.image || { concurrency: 4, userConcurrency: 4 }),
+                  concurrency: Number(event.target.value || 4),
+                },
               }))
             }
           />
         </label>
         <label>
-          音频并发
+          图片单用户并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.image.userConcurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                image: {
+                  ...(current?.image || system?.taskQueueSettings?.image || { concurrency: 4, userConcurrency: 4 }),
+                  userConcurrency: Number(event.target.value || 4),
+                },
+              }))
+            }
+          />
+        </label>
+        <label>
+          音频总并发
           <input
             type="number"
             min={1}
@@ -166,14 +198,45 @@ export function SystemPanel({
             value={values?.audio.concurrency ?? 4}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
-                audio: { concurrency: Number(event.target.value || 4) },
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                audio: {
+                  ...(current?.audio || system?.taskQueueSettings?.audio || { concurrency: 4, userConcurrency: 4 }),
+                  concurrency: Number(event.target.value || 4),
+                },
               }))
             }
           />
         </label>
         <label>
-          视频并发
+          音频单用户并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.audio.userConcurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                audio: {
+                  ...(current?.audio || system?.taskQueueSettings?.audio || { concurrency: 4, userConcurrency: 4 }),
+                  userConcurrency: Number(event.target.value || 4),
+                },
+              }))
+            }
+          />
+        </label>
+        <label>
+          视频总并发
           <input
             type="number"
             min={1}
@@ -181,12 +244,90 @@ export function SystemPanel({
             value={values?.video.concurrency ?? 4}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || { image: { concurrency: 4 }, audio: { concurrency: 4 }, video: { concurrency: 4 } }),
-                video: { concurrency: Number(event.target.value || 4) },
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                video: {
+                  ...(current?.video || system?.taskQueueSettings?.video || { concurrency: 4, userConcurrency: 4 }),
+                  concurrency: Number(event.target.value || 4),
+                },
               }))
             }
           />
         </label>
+        <label>
+          视频单用户并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.video.userConcurrency ?? 4}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                video: {
+                  ...(current?.video || system?.taskQueueSettings?.video || { concurrency: 4, userConcurrency: 4 }),
+                  userConcurrency: Number(event.target.value || 4),
+                },
+              }))
+            }
+          />
+        </label>
+        <label>
+          RunningHub 平台并发
+          <input
+            type="number"
+            min={1}
+            max={4}
+            value={values?.runninghub?.concurrency ?? 2}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                runninghub: {
+                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || { concurrency: 2, enabled: true }),
+                  concurrency: Number(event.target.value || 2),
+                },
+              }))
+            }
+          />
+        </label>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={values?.runninghub?.enabled !== false}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || {
+                  image: { concurrency: 4, userConcurrency: 4 },
+                  audio: { concurrency: 4, userConcurrency: 4 },
+                  video: { concurrency: 4, userConcurrency: 4 },
+                  runninghub: { concurrency: 2, enabled: true },
+                }),
+                runninghub: {
+                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || { concurrency: 2, enabled: true }),
+                  enabled: event.target.checked,
+                },
+              }))
+            }
+          />
+          启用 RunningHub 平台并发治理
+        </label>
+        <div className="field-note">
+          普通任务先受“类别总并发”限制，再受“单用户并发”限制。RunningHub 任务在此基础上，还会额外受 RH 平台并发窗口限制；超过窗口的 RH 任务会自动排队等待。
+        </div>
         <div className="inline-actions">
           <button
             type="button"

@@ -2,12 +2,19 @@ export type TaskQueueCapability = "image" | "audio" | "video";
 
 export interface TaskQueueCapabilityConfig {
   concurrency: number;
+  userConcurrency: number;
+}
+
+export interface RunningHubQueueSettings {
+  concurrency: number;
+  enabled: boolean;
 }
 
 export interface TaskQueueSettings {
   image: TaskQueueCapabilityConfig;
   audio: TaskQueueCapabilityConfig;
   video: TaskQueueCapabilityConfig;
+  runninghub: RunningHubQueueSettings;
 }
 
 export interface TaskQueueRuntimeDescriptor {
@@ -19,6 +26,7 @@ export interface TaskQueueRuntimeDescriptor {
 export const TASK_QUEUE_CAPABILITIES: TaskQueueCapability[] = ["image", "audio", "video"];
 export const TASK_QUEUE_MAX_CONCURRENCY = 4;
 export const TASK_QUEUE_MIN_CONCURRENCY = 1;
+export const TASK_QUEUE_MAX_USER_CONCURRENCY = 4;
 
 export function clampTaskQueueConcurrency(value: unknown, fallback = TASK_QUEUE_MAX_CONCURRENCY) {
   const numeric = Number(value);
@@ -27,11 +35,19 @@ export function clampTaskQueueConcurrency(value: unknown, fallback = TASK_QUEUE_
   return Math.min(TASK_QUEUE_MAX_CONCURRENCY, Math.max(TASK_QUEUE_MIN_CONCURRENCY, rounded));
 }
 
+export function clampTaskQueueUserConcurrency(value: unknown, fallback = TASK_QUEUE_MAX_USER_CONCURRENCY) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const rounded = Math.round(numeric);
+  return Math.min(TASK_QUEUE_MAX_USER_CONCURRENCY, Math.max(TASK_QUEUE_MIN_CONCURRENCY, rounded));
+}
+
 export function defaultTaskQueueSettings(): TaskQueueSettings {
   return {
-    image: { concurrency: TASK_QUEUE_MAX_CONCURRENCY },
-    audio: { concurrency: TASK_QUEUE_MAX_CONCURRENCY },
-    video: { concurrency: TASK_QUEUE_MAX_CONCURRENCY },
+    image: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
+    audio: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
+    video: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
+    runninghub: { concurrency: 2, enabled: true },
   };
 }
 
@@ -43,11 +59,19 @@ export function normalizeTaskQueueSettings(value: unknown, base: TaskQueueSettin
         isRecord(source.image) ? source.image.concurrency : undefined,
         base.image.concurrency,
       ),
+      userConcurrency: clampTaskQueueUserConcurrency(
+        isRecord(source.image) ? source.image.userConcurrency : undefined,
+        base.image.userConcurrency,
+      ),
     },
     audio: {
       concurrency: clampTaskQueueConcurrency(
         isRecord(source.audio) ? source.audio.concurrency : undefined,
         base.audio.concurrency,
+      ),
+      userConcurrency: clampTaskQueueUserConcurrency(
+        isRecord(source.audio) ? source.audio.userConcurrency : undefined,
+        base.audio.userConcurrency,
       ),
     },
     video: {
@@ -55,6 +79,17 @@ export function normalizeTaskQueueSettings(value: unknown, base: TaskQueueSettin
         isRecord(source.video) ? source.video.concurrency : undefined,
         base.video.concurrency,
       ),
+      userConcurrency: clampTaskQueueUserConcurrency(
+        isRecord(source.video) ? source.video.userConcurrency : undefined,
+        base.video.userConcurrency,
+      ),
+    },
+    runninghub: {
+      concurrency: clampTaskQueueConcurrency(
+        isRecord(source.runninghub) ? source.runninghub.concurrency : undefined,
+        base.runninghub.concurrency,
+      ),
+      enabled: isRecord(source.runninghub) ? source.runninghub.enabled !== false : base.runninghub.enabled,
     },
   };
 }

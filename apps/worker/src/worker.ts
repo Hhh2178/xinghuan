@@ -52,6 +52,7 @@ const pollTimeoutSeconds = Number.parseInt(process.env.XINGHUAN_WORKER_POLL_TIME
 const workerId = process.env.XINGHUAN_WORKER_ID || `worker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUNNING_MS || `${30 * 60 * 1000}`, 10);
 const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
+const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
 
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
@@ -172,12 +173,32 @@ async function processTask(taskId: string) {
     return;
   }
 
+  const taskQueueSettings = await readTaskQueueSettings();
+  const capabilitySettings = task.capability === "image" || task.capability === "audio" || task.capability === "video"
+    ? taskQueueSettings[task.capability]
+    : null;
+  const userWindow = capabilitySettings ? await acquireUserExecutionWindow(task, capabilitySettings.userConcurrency) : { acquired: true as const };
+  if (!userWindow.acquired) {
+    await deferTaskExecution(task, "waiting_user_window", userWindow.reason);
+    return;
+  }
+  const runningHubWindow = await acquireRunningHubExecutionWindow(task, taskQueueSettings);
+  if (!runningHubWindow.acquired) {
+    await releaseUserExecutionWindow(task);
+    await deferTaskExecution(task, "waiting_runninghub_window", runningHubWindow.reason);
+    return;
+  }
+
   const claimResult = await updateTask(taskId, "running", [`${workerId} 已领取任务`]);
   if (claimResult === "cancelled") {
+    await releaseRunningHubExecutionWindow(task);
+    await releaseUserExecutionWindow(task);
     logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancelled before claim" });
     return;
   }
   if (claimResult === "missing") {
+    await releaseRunningHubExecutionWindow(task);
+    await releaseUserExecutionWindow(task);
     console.warn(`xinghuan-worker skipped missing task during claim ${taskId}`);
     return;
   }
@@ -235,7 +256,84 @@ async function processTask(taskId: string) {
       status: "failed",
       error: error instanceof Error ? error.message : String(error),
     });
+  } finally {
+    await releaseRunningHubExecutionWindow(task);
+    await releaseUserExecutionWindow(task);
   }
+}
+
+async function deferTaskExecution(
+  task: TaskRow,
+  waitReason: "waiting_user_window" | "waiting_runninghub_window",
+  detail: string,
+) {
+  await touchQueuedTaskRuntime(task.id, {
+    waitReason,
+    waitDetail: detail,
+    waitUpdatedAt: new Date().toISOString(),
+    runtimeStage: "queued",
+  });
+  await appendTaskLog(task.id, `${workerId} 等待执行窗口: ${detail}`);
+  await wait(Math.max(200, taskDeferredRetryMs));
+  await requeueDeferredTask(task.id, task.capability);
+}
+
+async function requeueDeferredTask(taskId: string, capability: string) {
+  if (!["image", "audio", "video"].includes(capability)) return;
+  const queue = taskQueueNameForCapability(queueName, capability as TaskQueueCapability);
+  await redis.lPush(queue, taskId);
+}
+
+async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise<{ acquired: true } | { acquired: false; reason: string }> {
+  if (!task.ownerId || limit <= 0) return { acquired: true };
+  const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
+  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  if (current >= limit) {
+    return { acquired: false, reason: `用户 ${task.ownerId} 的 ${task.capability} 并发已满 (${current}/${limit})` };
+  }
+  const next = await redis.incr(key);
+  if (next === 1) await redis.expire(key, 60 * 60);
+  if (next > limit) {
+    await redis.decr(key).catch(() => undefined);
+    return { acquired: false, reason: `用户 ${task.ownerId} 的 ${task.capability} 并发已满 (${next - 1}/${limit})` };
+  }
+  return { acquired: true };
+}
+
+async function releaseUserExecutionWindow(task: TaskRow) {
+  if (!task.ownerId || !["image", "audio", "video"].includes(task.capability)) return;
+  const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
+  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  if (current <= 0) return;
+  const next = await redis.decr(key).catch(() => current - 1);
+  if (Number(next) <= 0) await redis.del(key).catch(() => undefined);
+}
+
+async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
+  if (normalizeProtocol(task.providerProtocol) !== "runninghub") return { acquired: true };
+  if (!settings.runninghub.enabled) return { acquired: true };
+  const limit = Math.max(1, Number(settings.runninghub.concurrency) || 1);
+  const key = "xinghuan:provider-window:runninghub";
+  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  if (current >= limit) {
+    return { acquired: false, reason: `RunningHub 平台并发已满 (${current}/${limit})` };
+  }
+  const next = await redis.incr(key);
+  if (next === 1) await redis.expire(key, 60 * 60);
+  if (next > limit) {
+    await redis.decr(key).catch(() => undefined);
+    return { acquired: false, reason: `RunningHub 平台并发已满 (${next - 1}/${limit})` };
+  }
+  return { acquired: true };
+}
+
+async function releaseRunningHubExecutionWindow(task: TaskRow) {
+  if (normalizeProtocol(task.providerProtocol) !== "runninghub") return;
+  const key = "xinghuan:provider-window:runninghub";
+  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  if (current <= 0) return;
+  const next = await redis.decr(key).catch(() => current - 1);
+  if (Number(next) <= 0) await redis.del(key).catch(() => undefined);
 }
 
 async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
@@ -295,8 +393,13 @@ async function readTask(taskId: string): Promise<TaskRow | null> {
     modelRecordId: row.model_record_id || row.task_model_id || "",
     providerModelId: row.provider_model_id || "",
     modelDisplayName: row.model_display_name || "",
-    capability: normalizeCapability(row.capability),
-    modelEnabled: row.model_enabled === null || row.model_enabled === undefined ? false : Boolean(row.model_enabled),
+    capability: normalizeCapability(row.capability || plainObject(row.payload).taskCapability || plainObject(row.result).capability),
+    modelEnabled:
+      normalizeProtocol(row.protocol_override || row.provider_protocol) === "runninghub"
+        ? true
+        : row.model_enabled === null || row.model_enabled === undefined
+          ? false
+          : Boolean(row.model_enabled),
     payload: plainObject(row.payload),
     result: plainObject(row.result),
     logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => String(line)).filter(Boolean) : [],
@@ -345,6 +448,16 @@ async function touchTaskRuntime(taskId: string, resultPatch: Record<string, unkn
      set result = coalesce(result, '{}'::jsonb) || $2::jsonb,
          updated_at = now()
      where id = $1 and status = 'running'`,
+    [taskId, JSON.stringify(resultPatch)],
+  );
+}
+
+async function touchQueuedTaskRuntime(taskId: string, resultPatch: Record<string, unknown>) {
+  await pool.query(
+    `update xh_tasks
+     set result = coalesce(result, '{}'::jsonb) || $2::jsonb,
+         updated_at = now()
+     where id = $1 and status = 'queued'`,
     [taskId, JSON.stringify(resultPatch)],
   );
 }
@@ -510,11 +623,14 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
 }
 
 async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (protocol === "runninghub") {
+    return executeRunningHubTask(task);
+  }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  const protocol = normalizeProtocol(task.providerProtocol);
   if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 视频 Adapter 暂不支持协议: ${protocol}`);
   }
@@ -639,6 +755,173 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
     remoteVideoUrls: videoUrls,
     videoCount: videoUrls.length,
   };
+}
+
+async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unknown>> {
+  if (!task.providerEnabled) throw new Error("RunningHub Provider 不存在或未启用");
+  if (!task.providerBaseUrl) throw new Error("RunningHub Provider 缺少 Base URL");
+  const apiKey = decryptSecret(task.apiKeyCipher);
+  if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key 或无法解密");
+
+  const webappId = safeText(task.payload.webappId || task.payload.runTargetId);
+  if (!webappId) throw new Error("RunningHub 任务缺少 webappId");
+  const nodeInfoList = Array.isArray(task.payload.nodeInfoList)
+    ? task.payload.nodeInfoList
+        .map((item) => (item && typeof item === "object" ? plainObject(item) : {}))
+        .filter((item) => safeText(item.nodeId) && safeText(item.fieldName))
+        .map((item) => ({
+          nodeId: safeText(item.nodeId),
+          fieldName: safeText(item.fieldName),
+          fieldValue: item.fieldValue,
+        }))
+    : [];
+  const instanceType = safeText(task.payload.instanceType, "plus");
+  const submitUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/ai-app/run`;
+  const queryUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/outputs`;
+
+  const submitResponse = await fetch(submitUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      apiKey,
+      webappId,
+      nodeInfoList,
+      instanceType,
+      taskType: "ASYNC",
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+  const submitText = await submitResponse.text();
+  if (!submitResponse.ok) {
+    throw new Error(`RunningHub 提交失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
+  }
+  const submitRaw = submitText ? JSON.parse(submitText) : {};
+  const submitData = plainObject(submitRaw.data);
+  const upstreamCode = Number(submitData.code);
+  const upstreamPayload = plainObject(submitData.data);
+  const upstreamTaskId = safeText(upstreamPayload.taskId || submitRaw.taskId);
+  if (upstreamCode !== 0 || !upstreamTaskId) {
+    const message = safeText(submitData.msg || submitRaw.message || submitRaw.msg, "RunningHub 未返回有效任务 ID");
+    throw new Error(message);
+  }
+
+  await touchTaskRuntime(task.id, {
+    heartbeatAt: new Date().toISOString(),
+    upstreamTaskId,
+    taskId: upstreamTaskId,
+    upstreamStatus: "submitted",
+    runtimeStage: "polling",
+  });
+
+  const pollIntervalMs = clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000);
+  const timeoutMs = clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 20 * 60 * 1000, 5000, 60 * 60 * 1000);
+  const startedAt = Date.now();
+
+  for (;;) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error(`RunningHub 轮询超时: ${upstreamTaskId}`);
+    }
+    await wait(pollIntervalMs);
+    const pollResponse = await fetch(queryUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        apiKey,
+        taskId: upstreamTaskId,
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    const pollText = await pollResponse.text();
+    if (!pollResponse.ok) {
+      throw new Error(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`);
+    }
+    const pollRaw = pollText ? JSON.parse(pollText) : {};
+    const pollData = plainObject(pollRaw.data);
+    const pollCode = Number(pollData.code);
+    const pollMessage = safeText(pollData.msg || pollRaw.message || pollRaw.msg);
+    await touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId,
+      taskId: upstreamTaskId,
+      upstreamStatus: String(Number.isFinite(pollCode) ? pollCode : ""),
+      runtimeStage: "polling",
+      upstreamMessage: pollMessage,
+    });
+    if (pollCode === 804 || pollCode === 813) continue;
+    if (pollCode === 805) {
+      throw new Error(pollMessage || `RunningHub 任务失败: ${upstreamTaskId}`);
+    }
+    if (pollCode !== 0) {
+      throw new Error(pollMessage || `RunningHub 返回未知状态: ${pollCode}`);
+    }
+    const urls = extractRunningHubOutputUrls(pollData.data);
+    if (urls.imageUrls.length === 0 && urls.videoUrls.length === 0 && urls.audioUrls.length === 0) {
+      throw new Error(pollMessage || "RunningHub 任务成功但未返回可用输出");
+    }
+    return {
+      adapter: "runninghub",
+      providerId: task.providerId,
+      taskId: upstreamTaskId,
+      upstreamTaskId,
+      raw: pollRaw,
+      videoUrls: urls.videoUrls,
+      imageUrls: urls.imageUrls,
+      audioUrls: urls.audioUrls,
+      remoteVideoUrls: urls.videoUrls,
+      remoteImageUrls: urls.imageUrls,
+      remoteAudioUrls: urls.audioUrls,
+      videoCount: urls.videoUrls.length,
+      imageCount: urls.imageUrls.length,
+      audioCount: urls.audioUrls.length,
+    };
+  }
+}
+
+function extractRunningHubOutputUrls(value: unknown) {
+  const urls = collectRunningHubUrls(value);
+  const imageUrls = urls.filter((url) => /\.(png|jpe?g|webp|gif|bmp|avif)(\?|$)/i.test(url));
+  const videoUrls = urls.filter((url) => /\.(mp4|webm|mov|m4v|mkv)(\?|$)/i.test(url));
+  const audioUrls = urls.filter((url) => /\.(mp3|wav|ogg|m4a|flac|aac)(\?|$)/i.test(url));
+  const uncategorized = urls.filter((url) => !imageUrls.includes(url) && !videoUrls.includes(url) && !audioUrls.includes(url));
+  if (videoUrls.length === 0 && imageUrls.length === 0 && audioUrls.length === 0 && uncategorized.length > 0) {
+    videoUrls.push(...uncategorized);
+  }
+  return { imageUrls, videoUrls, audioUrls };
+}
+
+function collectRunningHubUrls(value: unknown, seen = new Set<string>()): string[] {
+  if (!value) return [];
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (/^https?:\/\//i.test(text)) {
+      if (seen.has(text)) return [];
+      seen.add(text);
+      return [text];
+    }
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectRunningHubUrls(item, seen));
+  }
+  if (typeof value === "object") {
+    const row = value as Record<string, unknown>;
+    const direct = [row.fileUrl, row.url, row.downloadUrl, row.previewUrl, row.src];
+    const directUrls = direct.flatMap((item) => collectRunningHubUrls(item, seen));
+    return [
+      ...directUrls,
+      ...collectRunningHubUrls(row.outputs, seen),
+      ...collectRunningHubUrls(row.results, seen),
+      ...collectRunningHubUrls(row.files, seen),
+      ...collectRunningHubUrls(row.data, seen),
+      ...collectRunningHubUrls(row.result, seen),
+    ];
+  }
+  return [];
 }
 
 async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> {

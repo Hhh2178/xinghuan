@@ -20,8 +20,19 @@ try {
     const require = createRequire(import.meta.url);
     pg = require("pg");
   } catch {
-    console.error("PG_DRIVER_NOT_INSTALLED");
-    process.exit(3);
+    try {
+      const apiPackagePath = require.resolve("@xinghuan/api/package.json");
+      const apiRequire = createRequire(apiPackagePath);
+      pg = apiRequire("pg");
+    } catch {
+      try {
+        const fallbackRequire = createRequire(join(rootDir, "apps", "api", "package.json"));
+        pg = fallbackRequire("pg");
+      } catch {
+        console.error("PG_DRIVER_NOT_INSTALLED");
+        process.exit(3);
+      }
+    }
   }
 }
 

@@ -1234,6 +1234,198 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/proxy/runninghub/app-info" && request.method === "GET") {
+      const webappId = safeText(url.searchParams.get("webappId"));
+      if (!webappId) throw new Error("缺少 webappId");
+      const item = await publicRunningHubCatalogItemDetail(webappId);
+      if (item) {
+        sendT8(response, {
+          webappId,
+          title: item.title,
+          runTargetId: item.runTargetId,
+          nodeInfoList: Array.isArray(item.fields) ? item.fields : [],
+          inputSlots: item.inputSlots,
+          execution: item.execution,
+        });
+        return;
+      }
+      const provider = await resolveRunningHubProvider();
+      const apiKey = providerPlainApiKey(provider);
+      if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key");
+      const upstream = await fetch(
+        `${provider.baseUrl.replace(/\/+$/, "")}/api/webapp/apiCallDemo?apiKey=${encodeURIComponent(apiKey)}&webappId=${encodeURIComponent(webappId)}`,
+        {
+          headers: { host: "www.runninghub.cn" },
+          signal: AbortSignal.timeout(120000),
+        },
+      );
+      const text = await upstream.text();
+      if (!upstream.ok) throw new Error(`RunningHub 应用信息查询失败 ${upstream.status}: ${text.slice(0, 500)}`);
+      sendT8(response, parseUpstreamJson(text, "RunningHub 应用信息接口", upstream.headers.get("content-type") || ""));
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/runninghub/upload-asset" && request.method === "POST") {
+      const body = await readJsonBody<{ url?: string }>(request);
+      const sourceUrl = safeText(body.url);
+      if (!sourceUrl) throw new Error("缺少 url");
+      const provider = await resolveRunningHubProvider();
+      const apiKey = providerPlainApiKey(provider);
+      if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key");
+      const prepared = await prepareRunningHubUploadSource(sourceUrl, currentUser!, providerFilePublicOrigin(request));
+      const form = new FormData();
+      form.append("apiKey", apiKey);
+      form.append("fileType", "input");
+      form.append("file", new Blob([prepared.buffer], { type: prepared.mime }), prepared.filename);
+      const upstream = await fetch(`${provider.baseUrl.replace(/\/+$/, "")}/task/openapi/upload`, {
+        method: "POST",
+        body: form,
+        signal: AbortSignal.timeout(180000),
+      });
+      const text = await upstream.text();
+      if (!upstream.ok) throw new Error(`RunningHub 资源上传失败 ${upstream.status}: ${text.slice(0, 500)}`);
+      const raw = parseUpstreamJson(text, "RunningHub 资源上传接口", upstream.headers.get("content-type") || "");
+      const payload = plainObject(raw.data);
+      const fileName = safeText(payload.fileName || payload.filename || raw.fileName);
+      if (!fileName) throw new Error(safeText(payload.msg || raw.message || raw.msg, "RunningHub 上传成功但未返回 fileName"));
+      sendT8(response, {
+        fileName,
+        fileType: safeText(payload.fileType || prepared.kind, prepared.kind),
+        raw,
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/runninghub/submit" && request.method === "POST") {
+      const body = await readJsonBody<{
+        providerId?: string;
+        modelId?: string;
+        webappId?: string;
+        nodeInfoList?: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
+        instanceType?: string;
+        title?: string;
+      }>(request);
+      const provider = await resolveRunningHubProvider(safeText(body.providerId));
+      const task = await createRunningHubQueuedTask({
+        providerId: provider.id,
+        modelId: safeText(body.modelId),
+        webappId: safeText(body.webappId),
+        nodeInfoList: Array.isArray(body.nodeInfoList) ? body.nodeInfoList : [],
+        instanceType: safeText(body.instanceType),
+        title: safeText(body.title),
+        user: currentUser!,
+        requestContext,
+      });
+      sendT8(response, { taskId: task.id });
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/runninghub/query" && request.method === "GET") {
+      const taskId = safeText(url.searchParams.get("taskId"));
+      if (!taskId) throw new Error("缺少 taskId");
+      const status = await readProviderGenerationTaskStatus({
+        capability: "video",
+        taskId,
+        user: currentUser!,
+      }) as Record<string, unknown>;
+      const raw = plainObject(status.raw);
+      const videoUrls = Array.isArray(status.videoUrls)
+        ? (status.videoUrls as unknown[]).map((item) => safeText(item)).filter(Boolean)
+        : [];
+      const imageUrls = Array.isArray(status.imageUrls)
+        ? (status.imageUrls as unknown[]).map((item) => safeText(item)).filter(Boolean)
+        : [];
+      const audioUrls = Array.isArray(status.audioUrls)
+        ? (status.audioUrls as unknown[]).map((item) => safeText(item)).filter(Boolean)
+        : [];
+      const urls = [...imageUrls, ...videoUrls, ...audioUrls].filter(Boolean);
+      sendT8(response, {
+        status: mapRunningHubTaskStatus(safeText(status.status)),
+        urls,
+        failReason: safeText(status.error),
+        code: mapRunningHubTaskCode(safeText(status.status)),
+        raw: {
+          ...raw,
+          logs: Array.isArray(status.logs) ? status.logs : [],
+        },
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/proxy/runninghub/task" && request.method === "POST") {
+      const body = await readJsonBody<{
+        providerId?: string;
+        modelId?: string;
+        webappId?: string;
+        nodeInfoList?: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
+        instanceType?: string;
+        title?: string;
+      }>(request);
+      const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const payload: Record<string, unknown> = {
+        taskCapability: "video",
+        executionMode: "worker_queue",
+        webappId: safeText(body.webappId),
+        nodeInfoList: Array.isArray(body.nodeInfoList) ? body.nodeInfoList : [],
+        instanceType: safeText(body.instanceType),
+        requestId: requestContext.requestId,
+      };
+      const now = Date.now();
+      const task: AdminTaskRecord = {
+        id: taskId,
+        title: safeText(body.title, `RunningHub 任务 · ${safeText(body.webappId, "workflow")}`),
+        status: "queued",
+        ownerId: currentUser!.id,
+        providerId: safeText(body.providerId, "runninghub"),
+        modelId: safeText(body.modelId),
+        payload,
+        result: {
+          adapter: "runninghub",
+          protocol: "runninghub",
+          capability: "video",
+        },
+        logs: ["画布提交 RunningHub 后台任务"],
+        createdAt: now,
+        updatedAt: now,
+      };
+      await insertTaskRecord(task);
+      const queueResult = await enqueueTask(task.id, "video");
+      const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+      await appendTaskLog(task.id, queueLog);
+      if (!queueResult.queued) {
+        await writeTaskRecord({
+          ...task,
+          status: "failed",
+          result: { ...task.result, error: queueLog, failureReason: queueLog },
+          logs: [...task.logs, queueLog],
+          updatedAt: Date.now(),
+        });
+        throw new Error(`RunningHub 任务队列不可用：${queueResult.reason}`);
+      }
+      sendT8(response, {
+        taskId: task.id,
+        status: "queued",
+        progress: "0%",
+        raw: {
+          providerId: task.providerId,
+          adapter: "runninghub",
+          queued: true,
+        },
+      });
+      return;
+    }
+
+    const runningHubTaskMatch = url.pathname.match(/^\/api\/proxy\/runninghub\/task\/([^/]+)$/);
+    if (runningHubTaskMatch && request.method === "GET") {
+      const status = await readProviderGenerationTaskStatus({
+        capability: "video",
+        taskId: decodeURIComponent(runningHubTaskMatch[1]),
+        user: currentUser!,
+      });
+      sendT8(response, status);
+      return;
+    }
+
     if (url.pathname === "/api/settings/rh-tool-categories" || url.pathname === "/api/settings/rh-tool-apps") {
       sendT8(response, []);
       return;
@@ -6707,6 +6899,144 @@ async function publicRunningHubCatalog() {
   };
 }
 
+async function resolveRunningHubProvider(requestedProviderId = "") {
+  const db = await readAdminDb();
+  const enabledProviders = db.providers.filter(
+    (provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub",
+  );
+  const provider = requestedProviderId
+    ? enabledProviders.find((item) => item.id === requestedProviderId)
+    : enabledProviders[0];
+  if (!provider) throw new Error("未找到已启用的 RunningHub Provider");
+  return provider;
+}
+
+async function createRunningHubQueuedTask(input: {
+  providerId: string;
+  modelId: string;
+  webappId: string;
+  nodeInfoList: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
+  instanceType: string;
+  title: string;
+  user: CurrentUser;
+  requestContext: RequestContext;
+}) {
+  if (!input.webappId) throw new Error("缺少 webappId");
+  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const now = Date.now();
+  const task: AdminTaskRecord = {
+    id: taskId,
+    title: input.title || `RunningHub 任务 · ${input.webappId}`,
+    status: "queued",
+    ownerId: input.user.id,
+    providerId: input.providerId,
+    modelId: input.modelId,
+    payload: {
+      taskCapability: "video",
+      executionMode: "worker_queue",
+      webappId: input.webappId,
+      nodeInfoList: input.nodeInfoList,
+      instanceType: input.instanceType || "plus",
+      requestId: input.requestContext.requestId,
+      userId: input.user.id,
+    },
+    result: {
+      adapter: "runninghub",
+      protocol: "runninghub",
+      capability: "video",
+      requestId: input.requestContext.requestId,
+      userId: input.user.id,
+    },
+    logs: ["画布提交 RunningHub 后台任务"],
+    createdAt: now,
+    updatedAt: now,
+  };
+  await insertTaskRecord(task);
+  const queueResult = await enqueueTask(task.id, "video");
+  const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
+  await appendTaskLog(task.id, queueLog);
+  if (!queueResult.queued) {
+    await writeTaskRecord({
+      ...task,
+      status: "failed",
+      result: { ...plainObject(task.result), error: queueLog, failureReason: queueLog },
+      logs: [...task.logs, queueLog],
+      updatedAt: Date.now(),
+    });
+    throw new Error(`RunningHub 任务队列不可用：${queueResult.reason}`);
+  }
+  return task;
+}
+
+async function prepareRunningHubUploadSource(sourceUrl: string, user: CurrentUser, publicOrigin: string) {
+  const normalizedUrl = normalizeProviderReferenceUrlForAccess(sourceUrl, publicOrigin, user, { secret: secretKey(), scope: environment });
+  const resolvedUrl = normalizedUrl.startsWith("/")
+    ? `${publicOrigin.replace(/\/+$/, "")}${normalizedUrl}`
+    : normalizedUrl;
+  const response = await fetch(resolvedUrl, { signal: AbortSignal.timeout(180000) });
+  if (!response.ok) throw new Error(`读取上传资源失败 ${response.status}`);
+  const mime = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase() || "application/octet-stream";
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const filename = inferRunningHubUploadFilename(sourceUrl, mime);
+  return {
+    buffer,
+    mime,
+    filename,
+    kind: inferRunningHubAssetKind(mime, filename),
+  };
+}
+
+function inferRunningHubUploadFilename(sourceUrl: string, mime: string) {
+  const normalized = safeText(sourceUrl);
+  const directName = normalized
+    ? basename(
+        normalized.startsWith("http://") || normalized.startsWith("https://")
+          ? new URL(normalized).pathname
+          : normalized,
+      )
+    : "";
+  if (directName && /\.[A-Za-z0-9]{2,8}$/.test(directName)) return directName;
+  const ext = extname(`placeholder.${mimeToExtension(mime)}`).replace(/^\./, "") || "bin";
+  return `rh_input_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+}
+
+function mimeToExtension(mime: string) {
+  if (mime === "image/jpeg" || mime === "image/jpg") return "jpg";
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  if (mime === "image/gif") return "gif";
+  if (mime === "video/mp4") return "mp4";
+  if (mime === "video/webm") return "webm";
+  if (mime === "video/quicktime") return "mov";
+  if (mime === "audio/mpeg" || mime === "audio/mp3") return "mp3";
+  if (mime === "audio/wav" || mime === "audio/x-wav") return "wav";
+  if (mime === "audio/ogg") return "ogg";
+  return "bin";
+}
+
+function inferRunningHubAssetKind(mime: string, filename: string) {
+  const lowerMime = safeText(mime).toLowerCase();
+  const lowerName = safeText(filename).toLowerCase();
+  if (lowerMime.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/.test(lowerName)) return "image";
+  if (lowerMime.startsWith("video/") || /\.(mp4|webm|mov|m4v|mkv)$/.test(lowerName)) return "video";
+  if (lowerMime.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|flac|aac)$/.test(lowerName)) return "audio";
+  return "file";
+}
+
+function mapRunningHubTaskStatus(status: string) {
+  if (status === "succeeded") return "SUCCESS";
+  if (status === "failed" || status === "cancelled") return "FAILED";
+  if (status === "running") return "RUNNING";
+  return "QUEUED";
+}
+
+function mapRunningHubTaskCode(status: string) {
+  if (status === "succeeded") return 0;
+  if (status === "running") return 804;
+  if (status === "queued") return 813;
+  return 805;
+}
+
 async function adminRunningHubCatalogItems() {
   const db = await readAdminDb();
   return db.providers
@@ -8834,6 +9164,7 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
     const queueStates = await Promise.all(
       queues.map(async (item) => ({
         ...item,
+        userConcurrency: taskQueueSettings[item.capability].userConcurrency,
         depth: await client.lLen(item.queue),
       })),
     );
@@ -8845,6 +9176,7 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       depth,
       queues: queueStates,
       error: "",
+      runninghub: taskQueueSettings.runninghub,
     };
   } catch (error) {
     return {
@@ -8854,6 +9186,7 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       depth: 0,
       queues,
       error: error instanceof Error ? error.message : String(error),
+      runninghub: taskQueueSettings.runninghub,
     };
   }
 }
