@@ -6687,8 +6687,10 @@ async function adminRunningHubCatalogItems() {
 
 async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhCatalogItem | null> {
   const catalog = await publicRunningHubCatalog();
-  const item = catalog.items.find((entry) => entry.catalogId === catalogId || entry.id === catalogId);
-  return item || null;
+  const canonicalMatch = catalog.items.find((entry) => entry.catalogId === catalogId);
+  if (canonicalMatch) return canonicalMatch;
+  const idMatches = catalog.items.filter((entry) => entry.id === catalogId);
+  return idMatches.length === 1 ? idMatches[0] : null;
 }
 
 function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubEntry[] {
