@@ -35,11 +35,23 @@ const checks = [
       panelSource.includes('title="新增成员"') &&
       panelSource.includes('placeholder="邮箱"') &&
       panelSource.includes('placeholder="名称"') &&
+      panelSource.includes('placeholder="分组名称"') &&
+      panelSource.includes('placeholder="账号备注"') &&
       panelSource.includes('<option value="member">成员</option>') &&
       panelSource.includes('<option value="admin">管理员</option>') &&
       panelSource.includes('placeholder="初始密码"') &&
       panelSource.includes('mutate("/api/admin/users", form)') &&
       panelSource.includes("创建用户"),
+  },
+  {
+    name: "users panel preserves user group controls",
+    pass:
+      panelSource.includes("用户组管理") &&
+      panelSource.includes("所属组") &&
+      panelSource.includes("备注") &&
+      panelSource.includes("删除账号") &&
+      panelSource.includes('"/api/admin/user-groups"') &&
+      panelSource.includes("`/api/admin/users/${user.id}`"),
   },
   {
     name: "users panel preserves user table title and columns",

@@ -41,7 +41,17 @@ const checks = [
     name: "task panel preserves task table title and columns",
     pass:
       panelSource.includes('title="任务监控"') &&
+      panelSource.includes("<th>发起账号</th>") &&
       requiredColumns.every((column) => panelSource.includes(`<th>${column}</th>`)),
+  },
+  {
+    name: "task panel preserves owner display fields",
+    pass:
+      panelSource.includes("task.ownerRemark") &&
+      panelSource.includes("task.ownerName") &&
+      panelSource.includes("task.ownerEmail") &&
+      panelSource.includes("task.ownerGroupName") &&
+      panelSource.includes("已删除账号"),
   },
   {
     name: "task panel preserves status helpers and shared status pill",
