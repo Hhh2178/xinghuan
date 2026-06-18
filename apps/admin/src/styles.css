@@ -1141,6 +1141,218 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.admin-runninghub-workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-runninghub-workspace__hero,
+.runninghub-summary-card,
+.admin-runninghub-editor,
+.admin-runninghub-workspace__list {
+  padding: 16px;
+}
+
+.admin-runninghub-workspace__hero,
+.admin-runninghub-editor__head,
+.runninghub-summary-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-runninghub-workspace__hero-copy,
+.runninghub-summary-card__copy,
+.admin-runninghub-editor__copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-runninghub-workspace__hero-copy span,
+.runninghub-summary-card__copy span,
+.admin-runninghub-editor__copy span,
+.admin-runninghub-editor__meta span,
+.admin-runninghub-list-item span,
+.admin-runninghub-workspace__section-head span {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.admin-runninghub-workspace__hero-copy h2,
+.runninghub-summary-card__copy strong,
+.admin-runninghub-editor__copy strong {
+  margin: 0;
+  font-size: 24px;
+  color: #f0fdfa;
+}
+
+.admin-runninghub-workspace__hero-copy p,
+.runninghub-summary-card__copy p,
+.admin-runninghub-editor__copy p,
+.admin-runninghub-editor__placeholder {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.admin-runninghub-workspace__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-runninghub-workspace__stat-card {
+  display: grid;
+  gap: 8px;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(10, 15, 23, 0.9);
+}
+
+.admin-runninghub-workspace__stat-card svg {
+  width: 20px;
+  height: 20px;
+  color: #67e8f9;
+}
+
+.admin-runninghub-workspace__stat-card strong {
+  font-size: 28px;
+}
+
+.admin-runninghub-workspace__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-runninghub-workspace__tabs button {
+  min-height: 36px;
+  min-width: 104px;
+  padding: 0 14px;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 8px;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.admin-runninghub-workspace__tabs button.active {
+  border-color: rgba(45, 212, 191, 0.58);
+  color: #a7f3d0;
+  background: rgba(20, 184, 166, 0.18);
+}
+
+.admin-runninghub-workspace__layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 480px;
+}
+
+.admin-runninghub-workspace__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-runninghub-workspace__list-body {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-runninghub-list-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 8px;
+  color: #e5f7ff;
+  background: rgba(15, 23, 42, 0.72);
+  text-align: left;
+}
+
+.admin-runninghub-list-item.active {
+  border-color: rgba(45, 212, 191, 0.52);
+  background: rgba(8, 47, 73, 0.4);
+}
+
+.admin-runninghub-list-item strong,
+.admin-runninghub-editor__details dd {
+  color: #f8fafc;
+}
+
+.admin-runninghub-list-item div,
+.admin-runninghub-editor__meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-runninghub-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-runninghub-editor--empty {
+  min-height: 320px;
+  align-items: center;
+}
+
+.admin-runninghub-editor__meta {
+  justify-items: end;
+}
+
+.admin-runninghub-editor__details,
+.runninghub-summary-card__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.admin-runninghub-editor__details div,
+.runninghub-summary-card__stats div {
+  padding: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.54);
+}
+
+.admin-runninghub-editor__details dt,
+.runninghub-summary-card__stats dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.admin-runninghub-editor__details dd,
+.runninghub-summary-card__stats dd {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.runninghub-summary-card {
+  align-items: stretch;
+}
+
+.runninghub-summary-card__action {
+  align-self: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 1120px) {
+  .admin-runninghub-workspace__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -1215,6 +1427,12 @@ button:disabled {
 .metric-card,
 .data-panel,
 .form-panel {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(10, 15, 23, 0.9);
+}
+
+.api-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 8px;
   background: rgba(10, 15, 23, 0.9);

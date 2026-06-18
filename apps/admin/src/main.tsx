@@ -11,6 +11,7 @@ import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
 import { Overview } from "./admin-overview-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
+import { AdminRunningHubWorkspace } from "./admin-runninghub-workspace";
 import { TasksPanel } from "./admin-task-panel";
 import type {
   AdminUser as AdminUserShape,
@@ -463,7 +464,11 @@ function AdminApp() {
               providers={providers}
               models={models}
               refresh={loadAdminData}
+              onOpenRunningHubWorkspace={() => setActiveTab("runninghub-workspace")}
             />
+          ) : null}
+          {activeTab === "runninghub-workspace" ? (
+            <AdminRunningHubWorkspace />
           ) : null}
           {activeTab === "assistant" ? (
             <AdminAssistantSettingsPanel

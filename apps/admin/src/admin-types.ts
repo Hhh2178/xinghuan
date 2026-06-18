@@ -118,6 +118,32 @@ export interface RunningHubEntry {
   fields?: RunningHubFieldDefinition[];
 }
 
+export interface RunningHubAdminItem extends RunningHubEntry {
+  providerId: string;
+  providerName: string;
+  catalogId: string;
+}
+
+export interface RunningHubAdminItemsResponse {
+  items: RunningHubAdminItem[];
+}
+
+export interface RunningHubAdminItemUpdatePayload {
+  title?: string;
+  note?: string;
+  enabled?: boolean;
+  thumbnail?: string;
+  workflowJson?: string;
+  fields?: RunningHubFieldDefinition[];
+  runTargetId?: string;
+}
+
+export interface RunningHubAdminItemTestResult {
+  ok: boolean;
+  message: string;
+  checkedAt: number;
+}
+
 export interface RunningHubFieldDefinition {
   nodeId: string;
   fieldName: string;

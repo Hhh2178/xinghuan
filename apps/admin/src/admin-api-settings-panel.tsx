@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { ArrowRight, KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { api } from "./admin-api-client";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { ModelPicker } from "./admin-model-picker";
 import { ModelSection } from "./admin-model-editor";
 import { ModelScopeLoraPanel } from "./admin-lora-panel";
-import { RunningHubPanel } from "./admin-runninghub-panel";
 import { appendAdminAssistantContext } from "./admin-assistant-events";
 import type {
   Capability,
@@ -229,10 +228,12 @@ export function ApiSettingsPanel({
   providers,
   models,
   refresh,
+  onOpenRunningHubWorkspace,
 }: {
   providers: ProviderRecord[];
   models: ModelRecord[];
   refresh: () => Promise<void>;
+  onOpenRunningHubWorkspace: () => void;
 }) {
   const [selectedId, setSelectedId] = useState(providers[0]?.id || "");
   const selected =
@@ -690,6 +691,7 @@ export function ApiSettingsPanel({
 
   const rhVisible = selected ? isRunningHubProvider(draft) : false;
   const msVisible = selected ? isModelScopeProvider(draft) : false;
+  const rhItemCount = draft.rhApps.length + draft.rhWorkflows.length;
 
   return (
     <section className="api-settings-page">
@@ -1173,22 +1175,30 @@ export function ApiSettingsPanel({
           </div>
 
           {rhVisible ? (
-            <RunningHubPanel
-              title="RunningHub 应用"
-              entries={draft.rhApps}
-              onChange={(apps) =>
-                setDraft({ ...draft, rhApps: apps })
-              }
-            />
-          ) : null}
-          {rhVisible ? (
-            <RunningHubPanel
-              title="RunningHub 工作流"
-              entries={draft.rhWorkflows}
-              onChange={(workflows) =>
-                setDraft({ ...draft, rhWorkflows: workflows })
-              }
-            />
+            <section className="api-card runninghub-summary-card">
+              <div className="runninghub-summary-card__copy">
+                <span>RunningHub Provider</span>
+                <strong>RunningHub 条目已迁移到独立工作台</strong>
+                <p>Provider 页面只保留目录摘要和入口。工作流、AI 应用及后续结构化编辑在 RH 工作台内继续完成。</p>
+              </div>
+              <dl className="runninghub-summary-card__stats">
+                <div>
+                  <dt>工作流</dt>
+                  <dd>{draft.rhWorkflows.length}</dd>
+                </div>
+                <div>
+                  <dt>AI 应用</dt>
+                  <dd>{draft.rhApps.length}</dd>
+                </div>
+                <div>
+                  <dt>总条目</dt>
+                  <dd>{rhItemCount}</dd>
+                </div>
+              </dl>
+              <button type="button" className="ghost-action runninghub-summary-card__action" onClick={onOpenRunningHubWorkspace}>
+                <ArrowRight aria-hidden="true" /> 进入 RH 工作台
+              </button>
+            </section>
           ) : null}
           {msVisible ? (
             <ModelScopeLoraPanel
