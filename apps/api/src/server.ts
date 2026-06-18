@@ -1877,23 +1877,24 @@ async function handleAdminRequest(
   if (userMatch && request.method === "DELETE") {
     const id = decodeURIComponent(userMatch[1]);
     if (id === adminUser.id) throw new Error("不能删除当前登录中的管理员用户");
-    const authDb = await readAuthDb();
-    const user = authDb.users.find((item) => item.id === id);
-    if (!user) throw new Error("用户不存在");
-    if (user.role === "admin" && !authDb.users.some((item) => item.id !== id && item.role === "admin")) {
-      throw new Error("不能删除最后一个管理员");
-    }
     if (usePostgresRepository()) {
-      await deleteAuthUserPostgres(id, user.email);
+      const deletedUser = await deleteAuthUserPostgres(id);
+      await appendAudit(adminUser, "user.delete", "user", id, `删除用户 ${deletedUser.email}`, requestContext);
     } else {
+      const authDb = await readAuthDb();
+      const user = authDb.users.find((item) => item.id === id);
+      if (!user) throw new Error("用户不存在");
+      if (user.role === "admin" && !authDb.users.some((item) => item.id !== id && item.role === "admin")) {
+        throw new Error("不能删除最后一个管理员");
+      }
       await writeAuthDb({
         ...authDb,
         users: authDb.users.filter((item) => item.id !== id),
         sessions: authDb.sessions.filter((session) => session.userId !== id),
         loginAttempts: authDb.loginAttempts.filter((attempt) => attempt.email.toLowerCase() !== user.email.toLowerCase()),
       });
+      await appendAudit(adminUser, "user.delete", "user", id, `删除用户 ${user.email}`, requestContext);
     }
-    await appendAudit(adminUser, "user.delete", "user", id, `删除用户 ${user.email}`, requestContext);
     sendT8(response, null);
     return true;
   }
@@ -1931,19 +1932,20 @@ async function handleAdminRequest(
 
   if (userGroupMatch && request.method === "DELETE") {
     const id = decodeURIComponent(userGroupMatch[1]);
-    const authDb = await readAuthDb();
-    const group = authDb.userGroups.find((item) => item.id === id);
-    if (!group) throw new Error("用户组不存在");
-    if (authDb.users.some((user) => user.groupId === id)) throw new Error("该用户组仍有关联用户，无法删除");
     if (usePostgresRepository()) {
-      await deleteUserGroupPostgres(id);
+      const deletedGroup = await deleteUserGroupPostgres(id);
+      await appendAudit(adminUser, "userGroup.delete", "user-group", id, `删除用户组 ${deletedGroup.name}`, requestContext);
     } else {
+      const authDb = await readAuthDb();
+      const group = authDb.userGroups.find((item) => item.id === id);
+      if (!group) throw new Error("用户组不存在");
+      if (authDb.users.some((user) => user.groupId === id)) throw new Error("该用户组仍有关联用户，无法删除");
       await writeAuthDb({
         ...authDb,
         userGroups: authDb.userGroups.filter((item) => item.id !== id),
       });
+      await appendAudit(adminUser, "userGroup.delete", "user-group", id, `删除用户组 ${group.name}`, requestContext);
     }
-    await appendAudit(adminUser, "userGroup.delete", "user-group", id, `删除用户组 ${group.name}`, requestContext);
     sendT8(response, null);
     return true;
   }
@@ -3950,9 +3952,34 @@ async function upsertUserGroupPostgres(group: UserGroupRecord) {
   );
 }
 
-async function deleteUserGroupPostgres(id: string) {
+async function deleteUserGroupPostgres(id: string): Promise<{ id: string; name: string }> {
   const pool = await getPostgresPool();
-  await pool.query("delete from xh_user_groups where id = $1", [id]);
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const groupResult = await client.query(
+      "select id, name from xh_user_groups where id = $1 for update",
+      [id],
+    );
+    const group = groupResult.rows[0];
+    if (!group) throw new Error("用户组不存在");
+    const memberResult = await client.query(
+      "select 1 from xh_users where group_id = $1 limit 1",
+      [id],
+    );
+    if (memberResult.rows[0]) throw new Error("该用户组仍有关联用户，无法删除");
+    await client.query("delete from xh_user_groups where id = $1", [id]);
+    await client.query("commit");
+    return {
+      id: safeText(group.id),
+      name: safeText(group.name),
+    };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function upsertAuthUserPostgres(user: UserRecord) {
@@ -4040,16 +4067,33 @@ async function revokeUserSessionsPostgres(userId: string, revokedAt: number) {
   await pool.query("update xh_sessions set revoked_at = $2 where user_id = $1 and revoked_at is null", [userId, millisToDate(revokedAt)]);
 }
 
-async function deleteAuthUserPostgres(userId: string, email: string) {
+async function deleteAuthUserPostgres(userId: string): Promise<{ id: string; email: string; role: "admin" | "member" }> {
   const pool = await getPostgresPool();
   const client = await pool.connect();
   try {
     await client.query("begin");
+    const adminRowsResult = await client.query(
+      "select id from xh_users where role = 'admin' order by id for update",
+    );
+    const targetResult = await client.query(
+      "select id, email, role from xh_users where id = $1 for update",
+      [userId],
+    );
+    const target = targetResult.rows[0];
+    if (!target) throw new Error("用户不存在");
+    if (target.role === "admin" && adminRowsResult.rows.length <= 1) {
+      throw new Error("不能删除最后一个管理员");
+    }
     await client.query("delete from xh_sessions where user_id = $1", [userId]);
-    await client.query("delete from xh_login_attempts where lower(email) = lower($1)", [email]);
+    await client.query("delete from xh_login_attempts where lower(email) = lower($1)", [target.email]);
     const result = await client.query("delete from xh_users where id = $1", [userId]);
     if ((result.rowCount || 0) < 1) throw new Error("用户不存在");
     await client.query("commit");
+    return {
+      id: safeText(target.id),
+      email: safeEmail(target.email),
+      role: target.role === "admin" ? "admin" : "member",
+    };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
     throw error;
