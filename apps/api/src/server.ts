@@ -6890,21 +6890,25 @@ async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValu
   const slotNameCount = new Map<string, number>();
   const slotTitleCount = new Map<string, number>();
   for (const slot of item.inputSlots) {
-    slotNameCount.set(slot.name, (slotNameCount.get(slot.name) || 0) + 1);
-    slotTitleCount.set(slot.title, (slotTitleCount.get(slot.title) || 0) + 1);
+    if (slot.name) {
+      slotNameCount.set(slot.name, (slotNameCount.get(slot.name) || 0) + 1);
+    }
+    if (slot.title) {
+      slotTitleCount.set(slot.title, (slotTitleCount.get(slot.title) || 0) + 1);
+    }
   }
   const missing = requiredSlots
     .filter((slot) => {
       const byKey = testPayload[slot.key];
       const byPath = testPayload[slot.bindingTarget.path];
       if (byKey !== undefined || byPath !== undefined) return false;
-      const uniqueName = slotNameCount.get(slot.name) === 1 ? testPayload[slot.name] : undefined;
-      const uniqueTitle = slotTitleCount.get(slot.title) === 1 ? testPayload[slot.title] : undefined;
+      const uniqueName = slot.name && slotNameCount.get(slot.name) === 1 ? testPayload[slot.name] : undefined;
+      const uniqueTitle = slot.title && slotTitleCount.get(slot.title) === 1 ? testPayload[slot.title] : undefined;
       return uniqueName === undefined && uniqueTitle === undefined;
     })
     .map((slot) => {
-      const ambiguousName = (slotNameCount.get(slot.name) || 0) > 1;
-      const ambiguousTitle = (slotTitleCount.get(slot.title) || 0) > 1;
+      const ambiguousName = slot.name ? (slotNameCount.get(slot.name) || 0) > 1 : false;
+      const ambiguousTitle = slot.title ? (slotTitleCount.get(slot.title) || 0) > 1 : false;
       if (ambiguousName || ambiguousTitle) {
         return `${slot.title || slot.name}（请使用 ${slot.key} 或 ${slot.bindingTarget.path}）`;
       }

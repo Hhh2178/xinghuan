@@ -44,6 +44,7 @@
 - `/api/admin/system`
 - `/api/admin/users/*`
 - `/api/admin/environment-sync/*`
+- `/api/admin/runninghub/items`
 
 用途：
 
@@ -51,6 +52,21 @@
 - 任务分页、筛选、取消、状态观察
 - 系统观测与 release gate
 - gray / production 的用户与服务商（含关联模型）差异预览、逐项勾选同步、冲突裁决
+- RunningHub 工作台条目维护、结构化输入槽管理、预览校验
+
+### RunningHub
+
+- `/api/runninghub/catalog`
+- `/api/runninghub/catalog/:id`
+- `/api/proxy/runninghub/upload-asset`
+- `/api/proxy/runninghub/submit`
+- `/api/proxy/runninghub/query`
+
+用途：
+
+- RH catalog 公开读取
+- 单一 RH 节点按结构化 schema 消费条目
+- RH 素材上传、任务提交与轮询
 
 ### 生成代理
 
@@ -123,6 +139,21 @@
 1. 列表接口返回 `previewUrl` / `downloadUrl` / `openUrl`
 2. 前端预览/下载统一通过内容路由访问
 3. 素材访问层负责 disposition 和文件名语义
+
+### RunningHub 工作台 -> 单一 RH 节点
+
+1. 管理员在 `RH 工作台` 维护条目基础信息、输入槽、参数 schema、输出定义和执行描述
+2. 后台通过 `/api/admin/runninghub/items` 读取目录，通过 `PATCH /api/admin/runninghub/items/:id` 保存结构化编辑结果
+3. 画布通过 `/api/runninghub/catalog` 拉取公开 catalog，优先消费 `items`，兼容旧 `workflows/apps`
+4. `RunningHubNode` 用 `buildRunningHubNodeSchema()` 将 catalog 条目转成节点视图模型
+5. 节点保留固定 typed handles：
+   - `text-in`
+   - `image-in`
+   - `video-in`
+   - `audio-in`
+   - `json-in`
+6. 节点内部再根据 `inputSlots` 渲染具体字段与上游素材映射
+7. 运行时仍通过 `upload-asset -> submit -> query` 完成 RH 任务代理
 
 ## 当前高频风险点
 

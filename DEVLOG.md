@@ -46,6 +46,129 @@
 
 ## 2026-06-18
 
+### RunningHub 工作台与单一 RH 节点第一阶段灰度发布
+
+目标:
+
+- 将 RunningHub 第一阶段实现真正发布到 gray，并补齐服务器侧 release / gate 记录。
+- 把当前状态同步收口到主入口文档，避免继续停留在旧 gray release 口径。
+
+变更:
+
+- 发布 gray release：
+  - `20260618-runninghub-workspace-gray-r1-6b65dbc`
+- gray current 已切换到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-runninghub-workspace-gray-r1-6b65dbc`
+- 补充运维记录：
+  - `ops/runninghub-workspace-gray-release-2026-06-18.md`
+- 同步更新当前入口文档：
+  - `README.md`
+  - `MEMORY.md`
+  - `ops/README.md`
+  - `docs/prd/README.md`
+  - `AGENTS.md`
+
+验证:
+
+- `GET http://127.0.0.1:18200/api/status = ok`
+  - `environment = gray`
+  - `version = 0.3.2`
+- gray release 目录执行：
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+
+影响:
+
+- 当前 gray 已不再停留在 `v0.3.2` 的 UI fixes release，而是进入 RunningHub 第一阶段工作台与单一 RH 节点改造版本。
+- 项目主入口文档现在能直接反映当前 gray / production 分别处于哪一批 release，后续查状态不需要再倒推日志。
+
+风险:
+
+- 本轮 gray 不包含新的数据库 migration，因此发布可成立；但 release 目录执行 `db:migrate` 时仍暴露 `PG_DRIVER_NOT_INSTALLED`，说明后续若带 migration 发布，需要先修补 release 迁移依赖链。
+- 当前仍只完成 RH 第一阶段灰度收口，真实工作流录入、字段展开和运行验收还需要继续补。
+
+下一步:
+
+- 继续推进 RH 第二阶段实施与真实工作流验收。
+- 在后续带 migration 的发布前，先补 release 包数据库驱动依赖链验证。
+
+### RunningHub 工作台与单一 RH 节点第一阶段实现推进
+
+目标:
+
+- 将 RunningHub 从旧的 `workflows/apps + 节点内隐式映射` 逐步推进到“后台 RH 工作台 + 公开 catalog + 单一 RH 节点 schema 消费”。
+- 先完成第一阶段可发货切片：后端规范化、后台工作台、前台单节点契约切换。
+
+变更:
+
+- 后端与共享契约：
+  - 新增 `packages/shared/src/runninghub.ts`
+  - 新增 `apps/api/src/runninghub-catalog.ts`
+  - 新增 `apps/api/src/runninghub-execution-descriptor.ts`
+  - `server.ts` 新增：
+    - `GET /api/admin/runninghub/items`
+    - `PATCH /api/admin/runninghub/items/:id`
+    - `POST /api/admin/runninghub/items/:id/test`
+    - `GET /api/runninghub/catalog`
+    - `GET /api/runninghub/catalog/:id`
+- 后台：
+  - 新增 `apps/admin/src/admin-runninghub-workspace.tsx`
+  - 新增 `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - Provider 页内 RH 配置入口改为“进入 RH 工作台”
+  - RH 工作台补齐：
+    - 输入槽定义
+    - 参数 Schema
+    - 输出定义
+    - 执行描述
+    - 测试运行
+- 前台：
+  - 重写 `apps/web/src/services/runninghubCatalog.ts`
+    - 公开以 `items` 为主，兼容旧 `workflows/apps`
+  - 新增 `apps/web/src/utils/runninghubNodeSchema.ts`
+  - 更新 `apps/web/src/components/nodes/RunningHubNode.tsx`
+    - 接入新 catalog item
+    - 增加固定 typed handles：
+      - `text-in`
+      - `image-in`
+      - `video-in`
+      - `audio-in`
+      - `json-in`
+    - 增加 RH schema 摘要区
+    - 保留旧 `rhWorkflowPresetId / appInfo / webappId` 兼容链路
+- 契约与验证：
+  - 新增 `scripts/verify-runninghub-single-node-contract.mjs`
+  - 沿用：
+    - `scripts/verify-runninghub-catalog-normalization.mjs`
+    - `scripts/verify-admin-runninghub-workspace-contract.mjs`
+
+验证:
+
+- `node scripts/verify-runninghub-catalog-normalization.mjs = ok`
+- `node scripts/verify-admin-runninghub-workspace-contract.mjs = ok`
+- `node scripts/verify-runninghub-single-node-contract.mjs = ok`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/web = ok`
+
+影响:
+
+- RunningHub 第一阶段现在不再只是“后台能录卡片、前台能读旧字段”，而是已经具备：
+  - RH 工作台
+  - 结构化 catalog
+  - 单一 RH 节点固定输入口契约
+- 前台 RH 节点已具备继续往“动态输入槽 + 更稳定输入输出编排”推进的基座。
+
+风险:
+
+- 前台节点目前仍保留旧 `appInfo.nodeInfoList` 运行主链，只是在 catalog 和句柄层切到新契约；这属于有意的兼容式过渡。
+- 公开 `RhCatalogItem` 目前仍未直接暴露更完整的 `outputSchema / parameterSchema`，前台 schema helper 现阶段采用兼容推断，不是最终态。
+
+下一步:
+
+- 继续推进 RH 节点内部从旧 `nodeInfoList` 形态向更直接的 `inputSlots` 消费过渡。
+- 完成 CodeGraph sync、最终提交与后续 gray 验收准备。
+
 ### RunningHub 后台工作台与单一 RH 节点方案定稿
 
 目标:

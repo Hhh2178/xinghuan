@@ -6,7 +6,7 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260618-v032-ui-fixes-gray-r1`。
+- 当前灰度 release：`20260618-runninghub-workspace-gray-r1-6b65dbc`。
 - 当前生产 release：`20260618-v032-ui-fixes-prod-r1`。
 - 当前发布版本号：`v0.3.2`。
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
@@ -33,6 +33,14 @@
     - `verify:release-preflight`
     - `verify:request-chain-observability`
     - `verify:system-observability`
+- `2026-06-18` gray 已继续发布 RunningHub 第一阶段工作台与单一 RH 节点改造：
+  - gray：`20260618-runninghub-workspace-gray-r1-6b65dbc`
+  - `/api/status` 当前返回 `version = 0.3.2`
+  - gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 本轮未包含新的数据库 migration，但在 release 目录执行 `db:migrate` 时暴露出 `PG_DRIVER_NOT_INSTALLED`，后续需要单独修补 release 迁移依赖链
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -126,6 +134,7 @@
 - `environment-sync-release-2026-06-17.md`
 - `multi-generation-timeout-gray-release-2026-06-18.md`
 - `release-v032-gray-and-production-2026-06-18.md`
+- `runninghub-workspace-gray-release-2026-06-18.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

@@ -2,7 +2,8 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useNodeConnections, useNodesData, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Loader2, Workflow, Wallet, Sparkles, Square, Search, RefreshCw } from 'lucide-react';
 import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset } from '../../services/generation';
-import { buildRunningHubAppInfoFromCatalog, fetchRunningHubCatalog, type RunningHubCatalogWorkflow } from '../../services/runninghubCatalog';
+import { buildRunningHubAppInfoFromCatalog, fetchRunningHubCatalog, type RunningHubCatalogItem } from '../../services/runninghubCatalog';
+import { buildRunningHubNodeSchema } from '../../utils/runninghubNodeSchema';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
@@ -134,7 +135,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
-  const [workflowCatalog, setWorkflowCatalog] = useState<RunningHubCatalogWorkflow[]>([]);
+  const [workflowCatalog, setWorkflowCatalog] = useState<RunningHubCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState('');
 
@@ -166,6 +167,16 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     () => workflowCatalog.find((item) => item.catalogId === workflowPresetId) || null,
     [workflowCatalog, workflowPresetId],
   );
+  const selectedWorkflowSchema = useMemo(
+    () => (selectedWorkflowPreset ? buildRunningHubNodeSchema(selectedWorkflowPreset) : null),
+    [selectedWorkflowPreset],
+  );
+  const currentNodeInfoList = useMemo(() => {
+    const list = Array.isArray(appInfo?.nodeInfoList) ? appInfo.nodeInfoList : [];
+    if (list.length > 0) return list;
+    if (!selectedWorkflowPreset) return [];
+    return buildRunningHubAppInfoFromCatalog(selectedWorkflowPreset).nodeInfoList || [];
+  }, [appInfo?.nodeInfoList, selectedWorkflowPreset]);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +184,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     fetchRunningHubCatalog()
       .then((catalog) => {
         if (cancelled) return;
-        setWorkflowCatalog(Array.isArray(catalog.workflows) ? catalog.workflows : []);
+        setWorkflowCatalog(Array.isArray(catalog.items) && catalog.items.length > 0 ? catalog.items : Array.isArray(catalog.workflows) ? catalog.workflows : []);
         setCatalogError('');
       })
       .catch((err: any) => {
@@ -288,7 +299,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const fieldKindIndex = useMemo(() => {
     const m: Record<string, number> = {};
     const counters: Record<string, number> = { image: 0, video: 0, audio: 0 };
-    const list: any[] = appInfo?.nodeInfoList || [];
+    const list: any[] = currentNodeInfoList;
     for (const it of list) {
       const vt = inferValueType(it?.fieldType);
       if (vt === 'image' || vt === 'video' || vt === 'audio') {
@@ -323,7 +334,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   //   - sourceFromUpstream === false  → 用户主动取消过，不动
   // 分配策略：同 kind 下的多个字段按 list 顺序逐个取 orderedImages/Videos/Audios[i]，与 MaterialPreviewSection 的拖拽排序联动。
   useEffect(() => {
-    const list: any[] = appInfo?.nodeInfoList;
+    const list: any[] = currentNodeInfoList;
     if (!Array.isArray(list) || list.length === 0) return;
     let changed = false;
     const next = { ...paramValues };
@@ -406,7 +417,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     const seen = new Set<string>();
     const out: any[] = [];
     // 1. 节点内表单
-    const list: any[] = overrideList ?? appInfo?.nodeInfoList ?? [];
+    const list: any[] = overrideList ?? currentNodeInfoList ?? [];
     const values = overrideValues ?? paramValues;
     for (const it of list) {
       const k = paramKey(it.nodeId, it.fieldName);
@@ -658,7 +669,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     // 避免提交空 nodeInfoList 后 RH 黙默用了应用默认参数。
     let freshList: any[] | null = null;
     let freshValues: Record<string, RhParamValue> | null = null;
-    if (!appInfo?.nodeInfoList?.length) {
+    if (!currentNodeInfoList.length) {
       const hasUpstreamPayload = orderedTexts.length > 0 || !!(findUpstreamUrl('image') || findUpstreamUrl('video') || findUpstreamUrl('audio'));
       if (hasUpstreamPayload) {
         const r = await handleFetchInfo();
@@ -670,7 +681,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     }
     // 关键：无论 appInfo 是否已存在，进入 handleRun 都以当前 upstreamNodes 为准重算
     // 一次 paramValues，避免 React state 异步更新陷阱（刚连上游立刻运行，state 还没生效）。
-    const effectiveList = freshList ?? appInfo?.nodeInfoList ?? [];
+    const effectiveList = freshList ?? currentNodeInfoList ?? [];
     const effectiveValues = freshValues ?? computeFreshValuesNow(effectiveList);
     // 同步一份到 state，避免 UI 显示与提交不一致
     if (Object.keys(effectiveValues).length > 0) {
@@ -714,7 +725,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   };
 
   const isBusy = status === 'submitting' || status === 'polling';
-  const nodeInfoList: any[] = appInfo?.nodeInfoList || [];
+  const nodeInfoList: any[] = currentNodeInfoList;
 
   return (
     <div
@@ -728,7 +739,11 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         color: isPixel ? 'var(--px-ink)' : undefined,
       }}
     >
-      <Handle type="target" position={Position.Left} className={`${accent.handle} !border-0`} />
+      <Handle id="text-in" type="target" position={Position.Left} style={{ top: 96 }} className={`${accent.handle} !border-0`} />
+      <Handle id="image-in" type="target" position={Position.Left} style={{ top: 136 }} className={`${accent.handle} !border-0`} />
+      <Handle id="video-in" type="target" position={Position.Left} style={{ top: 176 }} className={`${accent.handle} !border-0`} />
+      <Handle id="audio-in" type="target" position={Position.Left} style={{ top: 216 }} className={`${accent.handle} !border-0`} />
+      <Handle id="json-in" type="target" position={Position.Left} style={{ top: 256 }} className={`${accent.handle} !border-0`} />
       <Handle type="source" position={Position.Right} className={`${accent.handle} !border-0`} />
 
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
@@ -800,6 +815,28 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           ) : null}
           {!selectedWorkflowPreset && catalogError ? <div className="text-[10px] text-rose-300/80 mt-1">{catalogError}</div> : null}
         </div>
+        {selectedWorkflowSchema ? (
+          <div className={`rounded border ${accent.subBg} px-2 py-1.5 space-y-1`}>
+            <div className={`text-[10px] ${accent.sub} flex items-center justify-between`}>
+              <span>{selectedWorkflowSchema.kind === 'app' ? 'AI 应用 Schema' : '工作流 Schema'}</span>
+              <span>{selectedWorkflowSchema.inputSlots.length} 输入</span>
+            </div>
+            <div className="space-y-1">
+              {selectedWorkflowSchema.inputSlots.slice(0, 6).map((slot) => (
+                <div key={slot.key} className="flex items-center justify-between gap-2 text-[10px] text-white/70">
+                  <span className="truncate">{slot.title}</span>
+                  <span className="text-white/35 shrink-0">{slot.dataType}</span>
+                </div>
+              ))}
+              {selectedWorkflowSchema.inputSlots.length > 6 ? (
+                <div className="text-[10px] text-white/35">还有 {selectedWorkflowSchema.inputSlots.length - 6} 个输入槽</div>
+              ) : null}
+            </div>
+            <div className="text-[10px] text-white/35">
+              输出: {selectedWorkflowSchema.outputs.map((output) => `${output.key}:${output.dataType}`).join(' / ')}
+            </div>
+          </div>
+        ) : null}
         <div>
           <label className="text-[10px] text-white/50 block mb-1">Webapp ID</label>
           <div className="flex gap-1">

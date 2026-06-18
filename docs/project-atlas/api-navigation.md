@@ -283,10 +283,14 @@
 - `GET /api/admin/tasks`
 - `GET/PATCH /api/admin/system`
 - `GET /api/admin/audit`
+- `GET /api/admin/runninghub/items`
+- `PATCH /api/admin/runninghub/items/:id`
+- `POST /api/admin/runninghub/items/:id/test`
 
 ### 用途
 
 - 用户、Provider、模型、任务、系统观测、审计管理
+- RunningHub 工作台条目读取、结构化编辑、预览校验
 
 ### 鉴权
 
@@ -300,10 +304,47 @@
 
 - 先确认是不是管理员会话
 - 是分页/筛选问题，还是数据本身没写进去
+- 如果是 RunningHub：
+  - 先看 `/api/admin/runninghub/items`
+  - 再看 `/api/runninghub/catalog`
+  - 最后看对应 Provider 下 `rhApps / rhWorkflows` 是否已规范化进 catalog
 - `system` 问题优先结合：
   - `verify:release-preflight`
   - `verify:request-chain-observability`
   - `verify:system-observability`
+
+## 9. RunningHub 公开目录与代理
+
+### 典型路径
+
+- `GET /api/runninghub/catalog`
+- `GET /api/runninghub/catalog/:id`
+- `POST /api/proxy/runninghub/upload-asset`
+- `POST /api/proxy/runninghub/submit`
+- `GET /api/proxy/runninghub/query`
+
+### 用途
+
+- 向画布公开 RH catalog 条目
+- 让单一 RH 节点读取已规范化条目并消费结构化输入槽
+- 保留 RH 资源上传、任务提交与轮询代理
+
+### 鉴权
+
+- catalog 读取需要登录用户
+- RH proxy 调用需要登录，并依赖已启用的 RH Provider 配置
+
+### 实现入口
+
+- `apps/api/src/server.ts`
+- `apps/api/src/runninghub-catalog.ts`
+- `apps/api/src/runninghub-execution-descriptor.ts`
+
+### 排障第一跳
+
+- 先看 catalog 是否已返回 `items`
+- 再看单条 `catalogId` 是否可读取
+- 如果目录正常但节点字段不对，再看 `inputSlots / fields / execution` 三段是否被正确规范化
 
 ## 9. 如何新增或修改接口
 

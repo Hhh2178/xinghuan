@@ -156,6 +156,25 @@
   - 数据库目标复核：
     - gray `targetMatched = true`
     - production `targetMatched = true`
+- `2026-06-18` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-runninghub-workspace-gray-r1-6b65dbc`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 范围：
+    - RH catalog 规范化
+    - 后台 RH 工作台
+    - 单一 RH 节点固定 typed handles
+    - 前台基于 `inputSlots` 的兼容消费过渡
+  - 灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - 本轮 release 不含新 migration，服务切换不受数据库变更阻塞
+    - 但在 gray release 目录执行 `npm run db:migrate` 时暴露 `PG_DRIVER_NOT_INSTALLED`
+    - 说明当前 release 包的迁移依赖链仍需单独修补，后续凡是带新 migration 的发布不能忽略这件事
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

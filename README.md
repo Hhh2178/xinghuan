@@ -43,13 +43,14 @@
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260618-v032-ui-fixes-gray-r1`
+- 当前灰度 release：`20260618-runninghub-workspace-gray-r1-6b65dbc`
 - 当前生产 release：`20260618-v032-ui-fixes-prod-r1`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
 - 当前生成库状态：图片/视频预览与下载已完成，本地素材访问已统一走生成库内容路由
 - 当前 Provider 热修复状态：柏拉图 `grok-1.5-video-6s/10s/15s` 的 multipart 视频接入与后台结构化接入方案输出已完成 gray / production 实装和真实 6 秒任务验收
 - 当前环境同步状态：gray / production 已上线后台“环境同步”页，并完成双向差异预览与真实服务商+模型写回 smoke
+- 当前 RunningHub 状态：RH 工作台与单一 RH 节点第一阶段已发布到 gray，前台已开始优先消费 `inputSlots`
 - 当前本地验收链状态：`npm run verify:local-acceptance-chain` 已恢复全绿
 
 ## 目录边界

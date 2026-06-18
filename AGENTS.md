@@ -162,8 +162,8 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
-  - 当前生产 release：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
+  - 当前灰度 release：`20260618-runninghub-workspace-gray-r1-6b65dbc`
+  - 当前生产 release：`20260618-v032-ui-fixes-prod-r1`
   - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
     - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
     - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
@@ -175,3 +175,14 @@
       - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
       - `XINGHUAN_GRAY_API_BASE_URL`
       - `XINGHUAN_PRODUCTION_API_BASE_URL`
+  - `2026-06-18` 已完成 RunningHub 第一阶段 gray 发布：
+    - RH catalog 规范化
+    - 后台 RH 工作台与结构化条目编辑器
+    - 前台单一 RH 节点固定 typed handles 与 `inputSlots` 优先消费过渡
+    - gray gate 已通过：
+      - `verify:release-preflight`
+      - `verify:request-chain-observability`
+      - `verify:system-observability`
+    - 当前已知补记：
+      - 本轮未包含新 migration
+      - gray release 目录执行 `db:migrate` 暴露 `PG_DRIVER_NOT_INSTALLED`，需后续单独修补 release 迁移依赖链
