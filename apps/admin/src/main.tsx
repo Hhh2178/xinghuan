@@ -14,6 +14,7 @@ import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
 import { TasksPanel } from "./admin-task-panel";
 import type {
   AdminUser as AdminUserShape,
+  AdminUserGroup as AdminUserGroupShape,
   AdminSessionRecord as AdminSessionRecordShape,
   AuditRecord as AuditRecordShape,
   AuthUser as AuthUserShape,
@@ -52,6 +53,9 @@ export interface AuthUser extends AuthUserShape {
 }
 
 export interface AdminUser extends AuthUser {
+  groupId?: string;
+  groupName?: string;
+  remark: string;
   disabled: boolean;
   passwordAvailable: boolean;
   password: string;
@@ -60,6 +64,7 @@ export interface AdminUser extends AuthUser {
 }
 
 export interface AdminSessionRecord extends AdminSessionRecordShape {}
+export interface AdminUserGroup extends AdminUserGroupShape {}
 
 export interface ProviderRecord {
   id: string;
@@ -125,9 +130,19 @@ export interface TaskRecord {
   id: string;
   title: string;
   status: TaskStatus;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerRemark?: string;
+  ownerGroupId?: string;
+  ownerGroupName?: string;
+  ownerDeleted?: boolean;
   providerId?: string;
   modelId?: string;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown>;
   logs: string[];
+  createdAt?: number;
   updatedAt: number;
 }
 
@@ -217,6 +232,7 @@ function AdminApp() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [assistantSettings, setAssistantSettings] = useState<AssistantSettings>(defaultAssistantSettings());
   const [users, setUsers] = useState<AdminUserShape[]>([]);
+  const [userGroups, setUserGroups] = useState<AdminUserGroupShape[]>([]);
   const [sessions, setSessions] = useState<AdminSessionRecordShape[]>([]);
   const [providers, setProviders] = useState<ProviderRecordShape[]>([]);
   const [models, setModels] = useState<ModelRecordShape[]>([]);
@@ -249,6 +265,7 @@ function AdminApp() {
         nextSummary,
         nextAssistantSettings,
         nextUsers,
+        nextUserGroups,
         nextSessions,
         nextProviders,
         nextModels,
@@ -258,6 +275,7 @@ function AdminApp() {
         api<Summary>("/api/admin/summary"),
         api<AssistantSettings>("/api/admin/assistant/settings"),
         api<AdminUserShape[]>("/api/admin/users"),
+        api<AdminUserGroupShape[]>("/api/admin/user-groups"),
         api<AdminSessionRecordShape[]>("/api/admin/sessions"),
         api<ProviderRecordShape[]>("/api/admin/providers"),
         api<ModelRecordShape[]>("/api/admin/models"),
@@ -267,6 +285,7 @@ function AdminApp() {
       setSummary(nextSummary);
       setAssistantSettings(nextAssistantSettings);
       setUsers(nextUsers);
+      setUserGroups(nextUserGroups);
       setSessions(nextSessions);
       setProviders(nextProviders);
       setModels(nextModels);
@@ -437,7 +456,7 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "users" ? (
-            <UsersPanel users={users} sessions={sessions} mutate={mutate} />
+            <UsersPanel users={users} userGroups={userGroups} sessions={sessions} mutate={mutate} />
           ) : null}
           {activeTab === "providers" ? (
             <ApiSettingsPanel

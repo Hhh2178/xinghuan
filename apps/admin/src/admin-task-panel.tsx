@@ -9,6 +9,11 @@ type AdminMutate = (path: string, payload: Record<string, unknown>, method?: str
 
 type TaskQuery = Pick<TaskListPage, "page" | "pageSize" | "filters">;
 
+function ownerPrimary(task: TaskRecord) {
+  if (task.ownerDeleted) return "已删除账号";
+  return task.ownerRemark || task.ownerName || task.ownerEmail || "未知账号";
+}
+
 export function TasksPanel(
   { taskPage, mutate, onQueryChange }: { taskPage: TaskListPage; mutate: AdminMutate; onQueryChange: (next: TaskQuery) => void },
 ) {
@@ -61,12 +66,22 @@ export function TasksPanel(
         </select>
       </FormPanel>
       <AdminTable title="任务监控">
-        <thead><tr><th>任务</th><th>状态</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>任务</th><th>状态</th><th>发起账号</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
         <tbody>
           {taskPage.items.map((task) => (
             <tr key={task.id}>
               <td>{task.title}</td>
               <td><StatusPill tone={taskTone(task.status)}>{statusText(task.status)}</StatusPill></td>
+              <td>
+                <div className="task-owner-meta">
+                  <strong>{ownerPrimary(task)}</strong>
+                  <span>
+                    {task.ownerDeleted
+                      ? (task.ownerEmail || "未知账号")
+                      : [task.ownerEmail, task.ownerGroupName].filter(Boolean).join(" · ") || "-"}
+                  </span>
+                </div>
+              </td>
               <td>{task.providerId || "-"}</td>
               <td>{task.modelId || "-"}</td>
               <td>

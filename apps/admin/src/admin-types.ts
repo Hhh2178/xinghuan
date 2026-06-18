@@ -51,7 +51,19 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export interface AdminUserGroup {
+  id: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AdminUser extends AuthUser {
+  groupId?: string;
+  groupName?: string;
+  remark: string;
   disabled: boolean;
   passwordAvailable: boolean;
   password: string;
@@ -197,6 +209,12 @@ export interface TaskRecord {
   title: string;
   status: TaskStatus;
   ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerRemark?: string;
+  ownerGroupId?: string;
+  ownerGroupName?: string;
+  ownerDeleted?: boolean;
   providerId?: string;
   modelId?: string;
   payload?: Record<string, unknown>;

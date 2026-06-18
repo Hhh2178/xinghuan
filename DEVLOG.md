@@ -9256,3 +9256,65 @@
   - 结论：
     - 生成库素材查看/下载链路已具备稳定验收闭环
     - 本地单端口验收链当前已重新恢复全绿
+## 2026-06-18
+
+### 后台账号分组、备注治理、账号删除与任务发起人可见性已完成本地收口
+
+目标:
+
+- 为后台账号体系补齐“分组、备注、安全删除、任务归属可见性”这一批基础治理能力。
+- 让环境同步后的账号数据不再丢失分组与备注信息。
+- 将本轮实现与验收结果落入正式台账，避免只停留在临时对话和未提交工作树。
+
+变更:
+
+- 新增数据库与鉴权域基础结构：
+  - `apps/api/db/015_user_groups_and_user_notes.sql`
+  - 新增 `xh_user_groups` 表
+  - 为 `xh_users` 增加 `group_id` 与 `remark` 字段
+- 后端管理接口扩展：
+  - `GET/POST/PATCH/DELETE /api/admin/user-groups`
+  - `POST/PATCH/DELETE /api/admin/users` 支持分组、备注与账号删除
+  - `/api/admin/tasks` 返回发起账号的备注、名称、邮箱、分组与删除态
+- 原子约束补强：
+  - 删除账号时在事务内校验最后一个管理员约束
+  - 删除用户组时在事务内阻止删除仍被用户引用的分组
+- 环境同步链路补强：
+  - `upsertEnvironmentSyncUser()` 保留 `groupId` / `remark`，避免跨环境同步后丢字段
+- 后台 UI 收口：
+  - 用户页新增“用户组管理”面板
+  - 支持新建/编辑/删除分组
+  - 支持为账号设置分组、编辑备注、删除账号
+  - 任务页新增“发起账号”列，展示备注优先、名称/邮箱回退、分组辅助信息
+- 新增/更新契约脚本：
+  - `scripts/verify-admin-user-groups-contract.mjs`
+  - `scripts/verify-admin-users-panel-contract.mjs`
+  - `scripts/verify-admin-task-panel-contract.mjs`
+
+验证:
+
+- `node scripts/verify-admin-user-groups-contract.mjs = ok`
+- `node scripts/verify-admin-users-panel-contract.mjs = ok`
+- `node scripts/verify-admin-task-panel-contract.mjs = ok`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `codegraph sync = ok`
+- `node scripts/db-migrate.mjs` 本地未执行成功，原因是当前 shell 缺少数据库配置：`DATABASE_NOT_CONFIGURED`
+
+影响:
+
+- 后台账号现在具备基础组织治理能力，可以按项目组做分组和备注管理。
+- 任务列表能够直接看到是谁发起了任务，便于排障、追责和运营沟通。
+- gray / production 之间做账号同步时，分组与备注不会再被同步链路静默丢弃。
+
+风险:
+
+- 当前账号删除仍沿用既有 schema 的外键语义：任务与审计保留为 `SET NULL`，部分用户拥有的数据仍按既有所有权关系级联清理。后续若要做“账号停用替代删除”或“软删除保留历史归属”，需要单独补设计。
+- 本地无法直接跑数据库迁移脚本，数据库层最终行为仍需在带环境变量的 gray / production 或联调环境复核。
+
+下一步:
+
+- 将本批改动提交入库，并在后续 gray 发布时补真实联调与放行记录。
+- 如需继续推进环境同步页面体验，可把“账号分组”和“任务归属筛选”继续纳入后台运营能力设计。
+
+## 2026-06-17
