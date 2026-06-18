@@ -46,6 +46,51 @@
 
 ## 2026-06-18
 
+### RunningHub 后台工作台与单一 RH 节点方案定稿
+
+目标:
+
+- 将 RunningHub 这条能力线从“Provider 表单中的 RH 附属配置”升级为完整可执行的设计方案。
+- 同时明确后台工作台、RH catalog 建模、execution descriptor 与前端单一 RH 节点的边界。
+
+变更:
+
+- 新增项目总纲分域设计文档：
+  - `docs/project-atlas/runninghub-integration-and-node-design.md`
+- 更新总纲入口：
+  - `docs/project-atlas/README.md`
+- 方案收口内容包括：
+  - Provider 基础连接层与 RH 工作台的职责拆分
+  - `RhCatalogItem / RhInputSlotDefinition / RhParamFieldDefinition / RhOutputDefinition / RhExecutionDescriptor` 数据模型草案
+  - RH 管理接口与公开 catalog / proxy 接口边界
+  - 后台 RH 工作台信息架构与结构化接入草案助手定位
+  - 前端单一 RH 节点的输入口 / 参数区 / 输出口 / 状态展示方案
+  - 旧 RH 节点到新模型的兼容迁移阶段
+
+验证:
+
+- 设计稿已与当前代码现状对齐：
+  - Provider 侧 `runninghub` 协议
+  - `rhApps / rhWorkflows` 现有雏形
+  - `/api/runninghub/catalog` 现有公开入口
+  - `RunningHubNode` 当前消费方式
+- 文档路由已挂入 `docs/project-atlas/README.md`
+
+影响:
+
+- RunningHub 后续实施不再依赖对话上下文，已有明确的项目内主方案文档。
+- 后续如果正式开始实施，可直接围绕这份方案拆 implementation plan，而不需要再重新对齐后端 / 后台 / 节点边界。
+
+风险:
+
+- 当前仍是设计定稿阶段，尚未开始代码实施。
+- `rhApps / rhWorkflows` 到新 catalog 模型的具体落库方式，仍需在实施计划里细化迁移步骤。
+
+下一步:
+
+- 由用户审阅 `docs/project-atlas/runninghub-integration-and-node-design.md`。
+- 审阅通过后，继续拆正式 implementation plan，再进入代码实施。
+
 ### 多生成任务状态与超时统一灰度发布
 
 目标:

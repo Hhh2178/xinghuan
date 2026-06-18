@@ -30,6 +30,8 @@
   - 核心 API、后台接口、任务队列和主要数据流
 - `provider-protocol-and-request-body-design.md`
   - Provider 协议分层、请求体模式、文件字段注入和后续平台接入边界
+- `runninghub-integration-and-node-design.md`
+  - RunningHub 的后台工作台、catalog 建模、execution descriptor 和单一 RH 节点方案
 - `api-navigation.md`
   - 高层 API 分组导航，快速查接口入口、鉴权边界、实现文件和排障第一跳
 - `data-model-navigation.md`
