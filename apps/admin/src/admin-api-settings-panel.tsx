@@ -233,7 +233,7 @@ export function ApiSettingsPanel({
   providers: ProviderRecord[];
   models: ModelRecord[];
   refresh: () => Promise<void>;
-  onOpenRunningHubWorkspace: () => void;
+  onOpenRunningHubWorkspace: (providerId: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState(providers[0]?.id || "");
   const selected =
@@ -1195,7 +1195,11 @@ export function ApiSettingsPanel({
                   <dd>{rhItemCount}</dd>
                 </div>
               </dl>
-              <button type="button" className="ghost-action runninghub-summary-card__action" onClick={onOpenRunningHubWorkspace}>
+              <button
+                type="button"
+                className="ghost-action runninghub-summary-card__action"
+                onClick={() => onOpenRunningHubWorkspace(selected?.id || draft.id || "runninghub")}
+              >
                 <ArrowRight aria-hidden="true" /> 进入 RH 工作台
               </button>
             </section>

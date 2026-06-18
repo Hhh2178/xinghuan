@@ -1197,6 +1197,11 @@ button:disabled {
   line-height: 1.6;
 }
 
+.admin-runninghub-workspace__provider-hint {
+  color: #99f6e4;
+  font-size: 12px;
+}
+
 .admin-runninghub-workspace__stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

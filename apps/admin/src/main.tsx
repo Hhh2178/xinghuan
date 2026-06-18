@@ -223,6 +223,7 @@ function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
   const [currentUser, setCurrentUser] = useState<AuthUserShape | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [runningHubWorkspaceProviderId, setRunningHubWorkspaceProviderId] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = window.localStorage.getItem(ADMIN_ASSISTANT_STORAGE_KEY);
@@ -464,11 +465,14 @@ function AdminApp() {
               providers={providers}
               models={models}
               refresh={loadAdminData}
-              onOpenRunningHubWorkspace={() => setActiveTab("runninghub-workspace")}
+              onOpenRunningHubWorkspace={(providerId) => {
+                setRunningHubWorkspaceProviderId(providerId);
+                setActiveTab("runninghub-workspace");
+              }}
             />
           ) : null}
           {activeTab === "runninghub-workspace" ? (
-            <AdminRunningHubWorkspace />
+            <AdminRunningHubWorkspace selectedProviderId={runningHubWorkspaceProviderId} />
           ) : null}
           {activeTab === "assistant" ? (
             <AdminAssistantSettingsPanel

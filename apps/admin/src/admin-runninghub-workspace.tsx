@@ -6,7 +6,11 @@ import type { RunningHubAdminItem } from "./admin-types";
 
 type RunningHubWorkspaceTab = "workflow" | "app";
 
-export function AdminRunningHubWorkspace() {
+export function AdminRunningHubWorkspace({
+  selectedProviderId = "",
+}: {
+  selectedProviderId?: string;
+}) {
   const [items, setItems] = useState<RunningHubAdminItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +24,11 @@ export function AdminRunningHubWorkspace() {
       const nextItems = await adminRunningHubApi.listItems();
       setItems(nextItems);
       if (!nextItems.some((item) => item.catalogId === selectedCatalogId)) {
-        const fallback = nextItems.find((item) => item.kind === (activeTab === "workflow" ? "workflow" : "app"));
+        const fallback = nextItems.find(
+          (item) =>
+            item.kind === (activeTab === "workflow" ? "workflow" : "app")
+            && (!selectedProviderId || item.providerId === selectedProviderId),
+        ) || nextItems.find((item) => item.kind === (activeTab === "workflow" ? "workflow" : "app"));
         setSelectedCatalogId(fallback?.catalogId || "");
       }
     } catch (nextError) {
@@ -32,11 +40,16 @@ export function AdminRunningHubWorkspace() {
 
   useEffect(() => {
     void loadItems();
-  }, []);
+  }, [selectedProviderId]);
 
   const filteredItems = useMemo(
-    () => items.filter((item) => item.kind === (activeTab === "workflow" ? "workflow" : "app")),
-    [activeTab, items],
+    () =>
+      items.filter(
+        (item) =>
+          item.kind === (activeTab === "workflow" ? "workflow" : "app")
+          && (!selectedProviderId || item.providerId === selectedProviderId),
+      ),
+    [activeTab, items, selectedProviderId],
   );
 
   useEffect(() => {
@@ -56,6 +69,9 @@ export function AdminRunningHubWorkspace() {
           <span>RunningHub Provider Workspace</span>
           <h2>RunningHub 工作台</h2>
           <p>将工作流和 AI 应用从 Provider 表单里拆出来，统一在这里查看目录、切换条目并进入后续结构化编辑。</p>
+          {selectedProviderId ? (
+            <small className="admin-runninghub-workspace__provider-hint">当前来自 Provider：{selectedProviderId}</small>
+          ) : null}
         </div>
         <button type="button" className="ghost-action" onClick={() => void loadItems()} disabled={busy}>
           <RefreshCw aria-hidden="true" className={busy ? "spin" : ""} /> 刷新目录
