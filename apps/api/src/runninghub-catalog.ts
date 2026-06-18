@@ -1,5 +1,5 @@
 import type { RhCatalogItem, RhCatalogItemKind } from "@xinghuan/shared";
-import { buildRunningHubExecutionDescriptor } from "./runninghub-execution-descriptor.js";
+import { buildRunningHubExecutionDescriptor, normalizeRunningHubInputSlots } from "./runninghub-execution-descriptor.js";
 
 export interface RunningHubFieldDefinition {
   nodeId: string;
@@ -138,15 +138,8 @@ export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogI
     .filter(Boolean) as RunningHubCatalogEntry[];
 }
 
-export function toPublicRunningHubCatalogItem(
-  provider: RunningHubProviderLike,
-  entry: RunningHubCatalogEntry,
-): RhCatalogItem & {
-  appIdAlias: string;
-  workflowIdAlias: string;
-  fieldsAlias: RunningHubFieldDefinition[];
-} {
-  const execution = buildRunningHubExecutionDescriptor(entry);
+export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, entry: RunningHubCatalogEntry): RhCatalogItem {
+  const fields = normalizeRunningHubFieldDefinitions(entry.fields);
   return {
     catalogId: `${provider.id}:${entry.kind || "workflow"}:${entry.id}`,
     providerId: provider.id,
@@ -158,14 +151,12 @@ export function toPublicRunningHubCatalogItem(
     note: entry.note || "",
     thumbnail: entry.thumbnail || "",
     enabled: entry.enabled,
-    appId: execution.appId,
-    workflowId: execution.workflowId,
-    runTargetId: execution.runTargetId,
-    fields: execution.inputSlots,
-    execution,
-    workflowJson: execution.workflowJson,
-    appIdAlias: execution.appId,
-    workflowIdAlias: execution.workflowId,
-    fieldsAlias: normalizeRunningHubFieldDefinitions(entry.fields),
+    inputSlots: normalizeRunningHubInputSlots(fields),
+    execution: buildRunningHubExecutionDescriptor(entry),
+    appId: entry.appId || "",
+    workflowId: entry.workflowId || "",
+    runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
+    workflowJson: entry.workflowJson || "",
+    fields,
   };
 }

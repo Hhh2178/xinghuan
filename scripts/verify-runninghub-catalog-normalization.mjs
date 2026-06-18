@@ -25,18 +25,39 @@ await expectFileContains(sharedIndexPath, [
 ]);
 
 await expectFileContains(sharedRunningHubPath, [
+  'export type RhSlotDataType = "text" | "image" | "video" | "audio" | "json";',
   "export interface RhInputSlotDefinition",
+  "dataType: RhSlotDataType;",
+  'cardinality: "single" | "multiple";',
+  "supportsConnection: boolean;",
+  "supportsManualInput: boolean;",
+  "supportsUpload: boolean;",
+  "bindingTarget:",
   "export interface RhExecutionDescriptor",
+  "submit:",
+  "assetHandling:",
+  "polling:",
+  "result:",
+  "errorHandling:",
   "export interface RhCatalogItem",
+  "inputSlots: RhInputSlotDefinition[];",
 ]);
 
 await expectFileContains(apiCatalogPath, [
   "export function normalizeRunningHubCatalogItem",
   "export function toPublicRunningHubCatalogItem",
+  "inputSlots:",
+  "execution:",
+  "fields:",
 ]);
 
 await expectFileContains(apiExecutionDescriptorPath, [
   "export function buildRunningHubExecutionDescriptor",
+  "submit:",
+  "assetHandling:",
+  "polling:",
+  "result:",
+  "errorHandling:",
 ]);
 
 await expectFileContains(serverPath, [

@@ -1,31 +1,77 @@
 export type RhCatalogItemKind = "app" | "workflow";
 
-export type RhInputValueType = "string" | "number" | "boolean" | "select" | "json" | "unknown";
+export type RhSlotDataType = "text" | "image" | "video" | "audio" | "json";
+
+export type RhSlotCardinality = "single" | "multiple";
+
+export interface RhSlotBindingTarget {
+  nodeId: string;
+  fieldName: string;
+  path: string;
+}
 
 export interface RhInputSlotDefinition {
   key: string;
-  nodeId: string;
-  fieldName: string;
-  label: string;
+  name: string;
+  title: string;
   description: string;
-  fieldType: string;
-  valueType: RhInputValueType;
-  placeholder: string;
+  dataType: RhSlotDataType;
+  cardinality: "single" | "multiple";
   required: boolean;
+  supportsConnection: boolean;
+  supportsManualInput: boolean;
+  supportsUpload: boolean;
+  bindingTarget: RhSlotBindingTarget;
+  placeholder?: string;
   defaultValue?: string | number | boolean;
-  fieldValue?: string | number | boolean;
+  manualValue?: string | number | boolean;
   options?: Array<string | number>;
 }
 
-export interface RhExecutionDescriptor {
-  kind: RhCatalogItemKind;
+export interface RhExecutionSubmitDescriptor {
+  mode: "direct";
   targetType: RhCatalogItemKind;
   targetId: string;
-  appId: string;
-  workflowId: string;
-  runTargetId: string;
-  workflowJson: string;
-  inputSlots: RhInputSlotDefinition[];
+  endpoint: string;
+  method: "POST";
+}
+
+export interface RhExecutionAssetHandlingDescriptor {
+  input: {
+    acceptsUploads: boolean;
+    acceptsRemoteUrls: boolean;
+    requiresPreSignedUrls: boolean;
+  };
+  output: {
+    resultKind: "remote-url";
+    supportsMultiple: boolean;
+  };
+}
+
+export interface RhExecutionPollingDescriptor {
+  strategy: "none" | "fixed-interval";
+  intervalMs: number;
+  timeoutMs: number;
+}
+
+export interface RhExecutionResultDescriptor {
+  mode: "inline";
+  payloadPath: string;
+  errorPath: string;
+}
+
+export interface RhExecutionErrorHandlingDescriptor {
+  surface: "provider-message";
+  retryable: boolean;
+  messagePath: string;
+}
+
+export interface RhExecutionDescriptor {
+  submit: RhExecutionSubmitDescriptor;
+  assetHandling: RhExecutionAssetHandlingDescriptor;
+  polling: RhExecutionPollingDescriptor;
+  result: RhExecutionResultDescriptor;
+  errorHandling: RhExecutionErrorHandlingDescriptor;
 }
 
 export interface RhCatalogItem {
@@ -39,10 +85,23 @@ export interface RhCatalogItem {
   providerId: string;
   providerName: string;
   providerBaseUrl: string;
+  inputSlots: RhInputSlotDefinition[];
+  execution: RhExecutionDescriptor;
   appId: string;
   workflowId: string;
   runTargetId: string;
-  fields: RhInputSlotDefinition[];
-  execution: RhExecutionDescriptor;
   workflowJson: string;
+  fields: Array<{
+    nodeId: string;
+    fieldName: string;
+    label?: string;
+    description?: string;
+    fieldType?: string;
+    valueType?: string;
+    placeholder?: string;
+    required?: boolean;
+    fieldValue?: string | number | boolean;
+    defaultValue?: string | number | boolean;
+    options?: Array<string | number>;
+  }>;
 }
