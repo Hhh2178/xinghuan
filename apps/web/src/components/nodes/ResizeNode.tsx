@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 import type { NodeProps } from '@xyflow/react';
 import { ImageOpFrame } from './ImageOpFrame';
@@ -8,8 +8,10 @@ import { opResize } from '../../services/imageOps';
 const ResizeNode = (p: NodeProps) => {
   const update = useUpdateNodeData(p.id);
   const d = p.data as any;
-  const width = d?.width || 1024;
-  const height = d?.height || 1024;
+  const width = Number.isFinite(d?.width) && d.width > 0 ? d.width : 1024;
+  const height = Number.isFinite(d?.height) && d.height > 0 ? d.height : 1024;
+  const [widthInput, setWidthInput] = useState(String(width));
+  const [heightInput, setHeightInput] = useState(String(height));
   // 默认 fit=cover：裁剪銘满到精确目标尺寸，符合“尺寸调整”的直觉语义。
   // 老存档中 d?.fit==='inside' 仍会保留以避免破坏序列化，用户可手动改。
   const fit = d?.fit || 'cover';
@@ -24,6 +26,34 @@ const ResizeNode = (p: NodeProps) => {
     { v: 'inside', label: 'inside · 不超尺寸（不裁剪）' },
     { v: 'fill', label: 'fill · 拉伸填充（可变形）' },
   ];
+
+  useEffect(() => {
+    setWidthInput(String(width));
+  }, [width]);
+
+  useEffect(() => {
+    setHeightInput(String(height));
+  }, [height]);
+
+  const commitDimension = (field: 'width' | 'height', rawValue: string) => {
+    const trimmed = rawValue.trim();
+    const fallback = field === 'width' ? width : height;
+    if (!trimmed) {
+      if (field === 'width') setWidthInput(String(fallback));
+      else setHeightInput(String(fallback));
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      if (field === 'width') setWidthInput(String(fallback));
+      else setHeightInput(String(fallback));
+      return;
+    }
+    update({ [field]: parsed });
+    if (field === 'width') setWidthInput(String(parsed));
+    else setHeightInput(String(parsed));
+  };
+
   return (
     <ImageOpFrame
       id={p.id}
@@ -43,8 +73,9 @@ const ResizeNode = (p: NodeProps) => {
             <label className="text-[10px] text-white/50 block mb-1">宽</label>
             <input
               type="number"
-              value={width}
-              onChange={(e) => update({ width: parseInt(e.target.value) || 0 })}
+              value={widthInput}
+              onChange={(e) => setWidthInput(e.target.value)}
+              onBlur={() => commitDimension('width', widthInput)}
               className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             />
           </div>
@@ -52,8 +83,9 @@ const ResizeNode = (p: NodeProps) => {
             <label className="text-[10px] text-white/50 block mb-1">高</label>
             <input
               type="number"
-              value={height}
-              onChange={(e) => update({ height: parseInt(e.target.value) || 0 })}
+              value={heightInput}
+              onChange={(e) => setHeightInput(e.target.value)}
+              onBlur={() => commitDimension('height', heightInput)}
               className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             />
           </div>

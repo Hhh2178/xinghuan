@@ -44,6 +44,109 @@
 
 ## 2026-06-17
 
+## 2026-06-18
+
+### 多生成任务状态与超时统一灰度发布
+
+目标:
+
+- 将多图 / 多视频拆单异步任务的状态展示、输出追加、超时统一与上游素材透传修复正式推到 gray。
+
+变更:
+
+- 基于 commit `b8534f2` 生成 gray release：
+  - `20260618-multi-generation-timeout-gray-r1-b8534f2`
+- 发布到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-multi-generation-timeout-gray-r1-b8534f2`
+- 切换：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260618-multi-generation-timeout-gray-r1-b8534f2`
+- 同步更新：
+  - `ops/README.md`
+  - `README.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `ops/multi-generation-timeout-gray-release-2026-06-18.md`
+
+验证:
+
+- `npm run build:single-port = ok`
+- `node scripts/verify-release-package-contract.mjs = ok`
+- `node scripts/verify-release-preflight-contract.mjs = ok`
+- `npm run package:release -- 20260618-multi-generation-timeout-gray-r1-b8534f2 = ok`
+- gray `npm run db:migrate = ok`
+- gray `verify:release-preflight = ok`
+- gray `verify:request-chain-observability = ok`
+- gray `verify:system-observability = ok`
+- gray `/api/status`：
+  - `environment = gray`
+  - `version = 0.3.1`
+
+影响:
+
+- gray 已进入新的多生成任务修复 release，后续可直接做真实链路验收。
+- 文档主入口已经指向最新 gray release，不会再停留在 6 月 17 日的旧指针上。
+
+风险:
+
+- 本轮只完成 gray 发布与 gate 复验，尚未同步 production。
+- `verify:system-observability` 虽通过，但当前环境历史失败统计仍为 `critical`，它反映的是近 7 天累计失败偏高，不代表本次发布失败。
+
+下一步:
+
+- 直接在 gray 做用户关心的真实链路验收：
+  - 多图输出追加到输出节点
+  - 多视频多任务状态展示
+  - `GRSAI` 超时跟随配置
+  - 上传素材 -> 图像处理链路不再丢输入
+
+### v0.3.2 版本推进与 gray / production 发布准备
+
+目标:
+
+- 将这轮 UI / 节点交互修复发布到 gray 和 production。
+- 将对外版本号统一推进到 `v0.3.2`。
+
+变更:
+
+- 统一更新 monorepo 对外版本源到 `0.3.2`：
+  - 根 `package.json`
+  - `apps/*/package.json`
+  - `packages/*/package.json`
+  - `packages/shared/src/index.ts`
+  - `apps/web/vite.config.ts`
+  - `apps/api/src/server.ts`
+- 修复：
+  - 尺寸调整节点上游取图和宽高输入行为
+  - 运行态卡片子任务摘要样式
+  - 工具栏导入 / 导出图标逻辑
+- 新增验证脚本：
+  - `verify-canvas-toolbar-import-export-contract.mjs`
+  - `verify-resize-node-input-behavior-contract.mjs`
+- 新增发布记录：
+  - `ops/release-v032-gray-and-production-2026-06-18.md`
+
+验证:
+
+- `npm install --package-lock-only = ok`
+- `node scripts/verify-image-op-upstream-material-contract.mjs = ok`
+- `node scripts/verify-node-runtime-card-task-runs-contract.mjs = ok`
+- `node scripts/verify-canvas-toolbar-import-export-contract.mjs = ok`
+- `node scripts/verify-resize-node-input-behavior-contract.mjs = ok`
+- `npm run build -w @xinghuan/web = ok`
+
+影响:
+
+- 版本号源已经统一，后续 gray / production 发布后 `/api/status` 和前端注入版本会同步显示 `0.3.2`。
+
+风险:
+
+- 当前还处于发布前状态，gray / production release 目录和 gate 结果尚未写回。
+
+下一步:
+
+- 跑 `build:single-port` 和 release 契约。
+- 先发 gray，再发 production，并把实际 release id 与 gate 结果写回主入口。
+
 ### 环境同步页布局重构与版本治理收口
 
 目标:

@@ -48,14 +48,12 @@ export function ImageOpFrame(props: ImageOpNodeProps) {
   // 下游已连 OutputNode：隐藏节点内预览，避免占双份垂直空间 + 避免重复展示
   const hasAutoOutput = useHasAutoOutput(id);
   const upstream = useUpstreamMaterials(id);
+  const explicitInputImages = Array.isArray(inputImages) ? inputImages.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
+  const upstreamImageUrls = upstream.images.map((item) => item.url).filter(Boolean);
 
   const handleRun = async () => {
     setError(null);
-    const upstreamFirstImage = upstream.images[0]?.url || '';
-    const imgs =
-      inputImages && inputImages.length > 0
-        ? inputImages
-        : [upstreamFirstImage, ...upstream.images.slice(1).map((item) => item.url)].filter(Boolean);
+    const imgs = explicitInputImages.length > 0 ? explicitInputImages : upstreamImageUrls;
     if (imgs.length === 0) {
       setError('UPSTREAM_IMAGE_NOT_FOUND');
       return;

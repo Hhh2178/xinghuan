@@ -120,6 +120,42 @@
   - 发布过程额外记忆：
     - 灰度 release 目录执行 `db:migrate` 前，必须先加载 `shared/canvas-next.env`
     - 否则会出现假性 `DATABASE_NOT_CONFIGURED`
+- `2026-06-18` 当前灰度运行态已切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-multi-generation-timeout-gray-r1-b8534f2`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的修复项：
+    - 多图 / 多视频子任务状态展示
+    - 多任务成功结果追加到输出链路
+    - `GRSAI` 图像轮询超时跟随节点配置
+    - 上传素材到图像处理链路的上游素材透传统一
+  - 灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - 当前服务器 SSH 仍需显式携带 `-i D:/codex/服务器/Tencent_Cloud_Server.pem`
+    - 首次漏带 key 时会直接被 `Permission denied (publickey)` 拒绝
+- `2026-06-18` 当前 gray / production 运行态已切到：
+  - gray：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260618-v032-ui-fixes-gray-r1`
+  - production：
+    - `/opt/apps/xinghuan-canvas/releases/20260618-v032-ui-fixes-prod-r1`
+  - 两端对外版本号当前都为：
+    - `v0.3.2`
+  - 本次切换后 gray / production gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入发布的修复项：
+    - 尺寸调整节点上游取图与宽高输入修复
+    - 生成节点多任务运行态摘要 UI 收口
+    - 工具栏导入 / 导出图标逻辑纠正
+  - 数据库目标复核：
+    - gray `targetMatched = true`
+    - production `targetMatched = true`
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：
@@ -491,7 +527,7 @@
 
 ## 当前阶段
 
-- 当前版本：`v0.3.1`
+- 当前版本：`v0.3.2`
 - 状态：产品路线仍处于 `Phase 3` 持续收口阶段；正式化治理路线已完成 `Phase A-E` 当前代码收口与发布
 - 多用户正式化治理阶段：
   - `Phase A` 已完成第一批 owner/仓储止血

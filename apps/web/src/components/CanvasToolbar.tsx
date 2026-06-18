@@ -449,10 +449,10 @@ export default function CanvasToolbar({
         <div className={sep} />
 
         {/* Import / Export */}
-        <button className={baseBtn} onClick={onImport} title="导入画布 JSON">
+        <button className={baseBtn} onClick={onExport} title="导出画布 JSON">
           <Upload size={16} />
         </button>
-        <button className={baseBtn} onClick={onExport} title="导出画布 JSON">
+        <button className={baseBtn} onClick={onImport} title="导入画布 JSON">
           <Download size={16} />
         </button>
 

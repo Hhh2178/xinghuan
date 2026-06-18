@@ -63,6 +63,21 @@ function labelForStatus(status?: string | null) {
   return '待执行';
 }
 
+function summarizeTaskRuns(taskRuns?: NodeRuntimeCardProps["taskRuns"]) {
+  const runs = Array.isArray(taskRuns) ? taskRuns : [];
+  let success = 0;
+  let failed = 0;
+  let running = 0;
+  let pending = 0;
+  for (const run of runs) {
+    if (run.status === 'success') success += 1;
+    else if (run.status === 'error') failed += 1;
+    else if (RUNNING_STATUSES.has(run.status)) running += 1;
+    else pending += 1;
+  }
+  return { total: runs.length, success, failed, running, pending };
+}
+
 export default function NodeRuntimeCard({
   status,
   progress,
@@ -112,6 +127,11 @@ export default function NodeRuntimeCard({
     '--node-runtime-accent': accent,
     '--node-runtime-progress': `${progressValue ?? 100}%`,
   } as CSSProperties;
+  const taskRunSummary = summarizeTaskRuns(taskRuns);
+  const childTaskSummary =
+    taskRunSummary.total > 0
+      ? `成功 ${taskRunSummary.success} · 失败 ${taskRunSummary.failed}${taskRunSummary.running > 0 ? ` · 运行中 ${taskRunSummary.running}` : ''}${taskRunSummary.pending > 0 ? ` · 排队 ${taskRunSummary.pending}` : ''}`
+      : '';
 
   return (
     <div
@@ -129,22 +149,7 @@ export default function NodeRuntimeCard({
         <small>{formatDuration(elapsedMs)}</small>
         {taskId ? <small className="node-runtime-card__task">{String(taskId).slice(0, 10)}…</small> : null}
       </div>
-      {Array.isArray(taskRuns) && taskRuns.length > 0 ? (
-        <div className="node-runtime-card__runs">
-          {taskRuns.map((run) => (
-            <div
-              key={`${run.batchIndex}-${run.taskId || 'pending'}`}
-              className="node-runtime-card__run"
-            >
-              <strong>#{run.batchIndex + 1}</strong>
-              <span>{run.status}</span>
-              <span>{run.progress || '-'}</span>
-              <span>{run.outputCount || 0} 项</span>
-              {run.error ? <small>{run.error}</small> : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {childTaskSummary ? <div className="node-runtime-card__summary">{childTaskSummary}</div> : null}
     </div>
   );
 }
