@@ -69,6 +69,17 @@ function inferFieldTypeFromValueType(valueType: RunningHubFieldDefinition["value
   return "TEXT";
 }
 
+const FIELD_TYPE_PRESET_OPTIONS = ["TEXT", "STRING", "NUMBER", "INTEGER", "FLOAT", "BOOLEAN", "IMAGE", "VIDEO", "AUDIO", "JSON", "LIST", "SELECT"];
+const OUTPUT_PATH_PRESET_OPTIONS = ["data", "data.outputs", "data.result", "result", "outputs"];
+const OUTPUT_KIND_PRESET_OPTIONS: RunningHubOutputDefinition["kind"][] = ["image", "video", "audio", "text", "json"];
+
+function mergePresetOptions(currentValue: string | undefined, presets: string[]) {
+  const next = [...presets];
+  const trimmed = String(currentValue || "").trim();
+  if (trimmed && !next.includes(trimmed)) next.push(trimmed);
+  return next;
+}
+
 function inferValueTypeFromFieldShape(fieldType: unknown, fallback: RunningHubFieldDefinition["valueType"] = "string") {
   const text = String(fieldType || "").trim().toLowerCase();
   if (!text) return fallback;
@@ -98,6 +109,7 @@ function buildFieldsFromParameterSchema(value: string, existingFields: RunningHu
         ...createField(),
         fieldName: normalizedFieldName,
         label: typeof definition?.title === "string" && definition.title.trim() ? definition.title : normalizedFieldName,
+        displayLabel: typeof definition?.title === "string" && definition.title.trim() ? definition.title : normalizedFieldName,
         description: typeof definition?.description === "string" ? definition.description : "",
         valueType,
         fieldType: inferFieldTypeFromValueType(valueType),
@@ -130,6 +142,14 @@ function buildFieldsFromRemoteNodeInfoList(value: unknown, existingFields: Runni
           nodeId,
           fieldName,
           label: typeof row.label === "string" && row.label.trim() ? row.label : fieldName,
+          displayLabel:
+            typeof row.displayLabel === "string" && row.displayLabel.trim()
+              ? row.displayLabel
+              : typeof row.title === "string" && row.title.trim()
+                ? row.title
+                : typeof row.label === "string" && row.label.trim()
+                  ? row.label
+                  : fieldName,
           description: typeof row.description === "string" ? row.description : "",
           valueType: remoteValueType,
           fieldType: typeof row.fieldType === "string" && row.fieldType.trim()
@@ -178,6 +198,7 @@ function buildFieldsFromRemoteNodeInfoList(value: unknown, existingFields: Runni
       nodeId: remoteField.nodeId,
       fieldName: remoteField.fieldName,
       label: current.label?.trim() || remoteField.label,
+      displayLabel: current.displayLabel?.trim() || remoteField.displayLabel || current.label?.trim() || remoteField.label,
       description: current.description?.trim() || remoteField.description,
       fieldType: current.fieldType?.trim() || remoteField.fieldType,
       valueType: current.valueType?.trim() || remoteField.valueType,
@@ -246,7 +267,7 @@ function defaultExecutionRules(item: RunningHubAdminItem): RunningHubExecutionRu
 function defaultTestPayload(item: RunningHubAdminItem) {
   if (typeof item.testPayload === "string" && item.testPayload.trim()) return formatJsonText(item.testPayload);
   const slotPayload = (item.fields || []).reduce<Record<string, unknown>>((acc, field) => {
-    const key = field.label?.trim() || field.fieldName;
+    const key = field.displayLabel?.trim() || field.label?.trim() || field.fieldName;
     acc[key] = field.defaultValue ?? field.fieldValue ?? "";
     return acc;
   }, {});
@@ -278,6 +299,7 @@ function createField(): RunningHubFieldDefinition {
     nodeId: "",
     fieldName: "",
     label: "",
+    displayLabel: "",
     description: "",
     fieldType: "TEXT",
     valueType: "string",
@@ -325,6 +347,10 @@ function FieldEditor({
           <input value={value.label || ""} onChange={(e) => onChange({ ...value, label: e.target.value })} />
         </label>
         <label>
+          <span>标注/显示名</span>
+          <input value={value.displayLabel || ""} onChange={(e) => onChange({ ...value, displayLabel: e.target.value })} />
+        </label>
+        <label>
           <span>值类型</span>
           <select value={value.valueType || "string"} onChange={(e) => onChange({ ...value, valueType: e.target.value })}>
             <option value="string">string</option>
@@ -337,8 +363,16 @@ function FieldEditor({
           </select>
         </label>
         <label>
-          <span>字段类型</span>
-          <input value={value.fieldType || ""} onChange={(e) => onChange({ ...value, fieldType: e.target.value })} />
+          <span>字段类型预设</span>
+          <select value={value.fieldType || "TEXT"} onChange={(e) => onChange({ ...value, fieldType: e.target.value })}>
+            {mergePresetOptions(value.fieldType, FIELD_TYPE_PRESET_OPTIONS).map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>字段类型自定义</span>
+          <input value={value.fieldType || ""} onChange={(e) => onChange({ ...value, fieldType: e.target.value })} placeholder="允许自定义覆盖" />
         </label>
         <label>
           <span>占位符</span>
@@ -398,14 +432,18 @@ function OutputEditor({
     <div className="admin-runninghub-editor__output-row">
       <input value={value.key} onChange={(e) => onChange({ ...value, key: e.target.value })} placeholder="key" />
       <input value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} placeholder="标签" />
+      <input value={value.kind} onChange={(e) => onChange({ ...value, kind: e.target.value as RunningHubOutputDefinition["kind"] })} placeholder="输出类型预设 / 允许自定义覆盖" />
       <select value={value.kind} onChange={(e) => onChange({ ...value, kind: e.target.value as RunningHubOutputDefinition["kind"] })}>
-        <option value="image">image</option>
-        <option value="video">video</option>
-        <option value="audio">audio</option>
-        <option value="text">text</option>
-        <option value="json">json</option>
+        {mergePresetOptions(value.kind, OUTPUT_KIND_PRESET_OPTIONS).map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
       </select>
-      <input value={value.path || ""} onChange={(e) => onChange({ ...value, path: e.target.value })} placeholder="结果路径" />
+      <select value={value.path || "data"} onChange={(e) => onChange({ ...value, path: e.target.value })}>
+        {mergePresetOptions(value.path, OUTPUT_PATH_PRESET_OPTIONS).map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+      <input value={value.path || ""} onChange={(e) => onChange({ ...value, path: e.target.value })} placeholder="结果路径预设 / 允许自定义覆盖" />
       <label className="admin-runninghub-editor__checkbox">
         <input type="checkbox" checked={Boolean(value.multiple)} onChange={(e) => onChange({ ...value, multiple: e.target.checked })} />
         <span>多结果</span>

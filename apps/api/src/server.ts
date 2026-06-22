@@ -841,7 +841,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.2",
+      version: "0.4.3",
       environment,
       dataDir,
     });
@@ -2801,7 +2801,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.2",
+      version: "0.4.3",
       storage: await readStorageStats(),
     });
     return true;
@@ -7945,11 +7945,11 @@ function normalizeRunningHubOutputDefinitionsForAdmin(value: unknown): RunningHu
       const key = safeText(row.key);
       const label = safeText(row.label);
       if (!key || !label) return null;
-      const kind = safeText(row.kind).toLowerCase();
+      const kind = safeText(row.kind, "image").toLowerCase();
       return {
         key,
         label,
-        kind: kind === "video" || kind === "audio" || kind === "text" || kind === "json" ? kind : "image",
+        kind: kind || "image",
         path: safeText(row.path),
         multiple: row.multiple === undefined ? true : Boolean(row.multiple),
       } satisfies RunningHubOutputDefinition;

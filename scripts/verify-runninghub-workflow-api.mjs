@@ -123,7 +123,7 @@ async function verifySourceContracts() {
   assertIncludes(nodeSource, "autoHydratedCatalogRef");
   assertIncludes(nodeSource, "presetFieldCount");
   assertNotIncludes(nodeSource, "Webapp ID");
-  assertIncludes(queueSource, "普通任务并发");
+  assertIncludes(queueSource, "普通任务先受“类别总并发”限制");
   assertIncludes(queueSource, "RunningHub 平台并发治理");
   assertIncludes(queueSource, "RH 平台总并发");
   assertIncludes(queueSource, "启用 RH 平台并发治理");

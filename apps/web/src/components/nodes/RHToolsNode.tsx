@@ -123,6 +123,14 @@ function extractDefaultValue(it: any): string {
   return typeof v === 'object' ? '' : String(v);
 }
 
+function fieldDisplayLabel(it: any) {
+  const displayLabel = String(it?.displayLabel || '').trim();
+  if (displayLabel) return displayLabel;
+  const label = String(it?.label || '').trim();
+  if (label) return label;
+  return String(it?.fieldName || '').trim();
+}
+
 const paramKey = rhParamKey;
 
 type RHToolsPollEntry = {
@@ -907,10 +915,11 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
                 const cur = paramValues[k] || { value: extractDefaultValue(it) };
                 const isMedia = vt === 'image' || vt === 'video' || vt === 'audio';
                 const fieldDataOptions = extractFieldOptions(it);
+                const currentFieldDisplayLabel = fieldDisplayLabel(it);
                 return (
                   <div key={i} className="space-y-1 pb-2 border-b last:border-0 last:pb-0" style={{ borderColor: border }}>
                     <div className="flex items-center gap-1 text-[10px] leading-tight">
-                      <span className="font-medium truncate" style={{ color: text }}>{it.fieldName}</span>
+                      <span className="font-medium truncate" style={{ color: text }}>{currentFieldDisplayLabel || it.fieldName}</span>
                       <span style={{ color: subText, opacity: 0.4 }}>|</span>
                       <span className="px-1 rounded" style={{ background: accentSoft, color: accent }}>
                         {fieldDataOptions ? `select(${fieldDataOptions.length})` : vt}

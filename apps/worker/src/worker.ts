@@ -435,9 +435,16 @@ async function deferTaskExecution(
 }
 
 async function requeueDeferredTask(taskId: string, capability: string) {
-  if (!["image", "audio", "video"].includes(capability)) return;
-  const queue = taskQueueNameForCapability(queueName, capability as TaskQueueCapability);
+  const queueCapability = capabilityToQueueCapability(capability);
+  if (!queueCapability) return;
+  const queue = taskQueueNameForCapability(queueName, queueCapability);
   await redisControl.lPush(queue, taskId);
+}
+
+function capabilityToQueueCapability(capability: string): TaskQueueCapability | null {
+  if (capability === "image" || capability === "audio" || capability === "video") return capability;
+  if (capability === "chat") return "video";
+  return null;
 }
 
 async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise<{ acquired: true } | { acquired: false; reason: string }> {
@@ -496,6 +503,8 @@ async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
   if (!task.providerId && !task.modelRecordId) {
     return { adapter: "noop", note: "未绑定 Provider/Model，按后台队列健康检查任务完成" };
   }
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (protocol === "runninghub") return executeRunningHubTask(task);
   if (task.capability === "image") return executeImageTask(task);
   if (task.capability === "video") return executeVideoTask(task);
   if (task.capability === "audio") return executeAudioTask(task);
@@ -681,11 +690,14 @@ async function isTaskCancelled(taskId: string) {
 }
 
 async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>> {
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (protocol === "runninghub") {
+    return executeRunningHubTask(task);
+  }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "grsai_draw") {
     return executeGrsaiImageTask(task);
   }
@@ -1129,11 +1141,14 @@ function collectRunningHubUrls(value: unknown, seen = new Set<string>()): string
 }
 
 async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> {
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (protocol === "runninghub") {
+    return executeRunningHubTask(task);
+  }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  const protocol = normalizeProtocol(task.providerProtocol);
   if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 语言模型 Adapter 暂不支持协议: ${protocol}`);
   }
@@ -1178,11 +1193,14 @@ async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> 
 }
 
 async function executeAudioTask(task: TaskRow): Promise<Record<string, unknown>> {
+  const protocol = normalizeProtocol(task.providerProtocol);
+  if (protocol === "runninghub") {
+    return executeRunningHubTask(task);
+  }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  const protocol = normalizeProtocol(task.providerProtocol);
   if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 音频 Adapter 暂不支持协议: ${protocol}`);
   }

@@ -6,11 +6,11 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`。
+- 当前灰度 release：`待本轮 v0.4.3 gray 发布后更新`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
-  - gray：`待本轮 v0.4.2 gray 发布后更新`
-  - gray：`v0.4.2`
+  - gray：`待本轮 v0.4.3 gray 发布后更新`
+  - 当前待发布候选：`v0.4.3`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。

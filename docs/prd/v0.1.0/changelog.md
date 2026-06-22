@@ -2,7 +2,7 @@
 
 ## 2026-06-22
 
-- Task queue 运行态并发一致性与 RunningHub 长 JSON 容错已完成本地 `v0.4.2` 收口，待 gray 发布：
+- Task queue 运行态并发一致性与 RunningHub 长 JSON 容错已完成本地 `v0.4.3` 收口，待 gray 发布：
   - `apps/worker/src/worker.ts`
     - 普通任务消费 loop 改为 `refreshQueueControllers()` 定时刷新，不再只在启动时按旧配置一次性展开。
     - worker 持续上报 `xinghuan:worker-runtime:<workerId>` 槽位信息，区分 `active/stopping` 状态。
@@ -31,8 +31,8 @@
     - `npm run type-check -w @xinghuan/api`
     - `npm run type-check -w @xinghuan/worker`
 
-- RunningHub 协议后台与画布节点重建已完成本地 `v0.4.2` 收口，待 gray 发布：
-  - 统一更新版本源到 `0.4.2`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+- RunningHub 协议后台与画布节点重建已完成本地 `v0.4.3` 收口，待 gray 发布：
+  - 统一更新版本源到 `0.4.3`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
   - 新增设计归档：
     - `docs/superpowers/specs/2026-06-22-runninghub-protocol-admin-and-canvas-node-rebuild-design.md`
   - `apps/admin/src/admin-runninghub-workspace.tsx`
@@ -47,13 +47,28 @@
     - 后端开始从 `requestExample.nodeInfoList` 解析字段并生成 `fields`
     - 修复 `runTargetId` 校验
     - 去掉 `instanceType = plus` 默认兜底
+  - `apps/worker/src/worker.ts`
+    - RunningHub 任务执行优先进入 RH 专用分支，不再误落普通 Provider 适配链
+    - RH defer/requeue 时统一按实际消费队列能力映射，补上 `chat` 型 RH 任务自动回队列
   - `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - `apps/web/src/components/nodes/RHToolsNode.tsx`
     - 节点继续按后台目录项和字段定义消费，不再依赖旧实例类型默认值
+    - 参数展示优先使用后台 `displayLabel`，无标注时回退字段名
+  - `apps/admin/src/admin-runninghub-item-editor.tsx`
+    - 输入槽编辑新增“标注/显示名”
+    - 字段类型、输出类型与结果路径新增“预设 + 自定义覆盖”
+  - `apps/api/src/runninghub-catalog.ts`
+  - `apps/api/src/runninghub-execution-descriptor.ts`
+  - `packages/shared/src/runninghub.ts`
+    - `fields` 新增 `displayLabel`
+    - `outputSchema.kind` 改为保留自定义值
   - 新增 / 更新验证脚本：
     - `scripts/verify-runninghub-analyze-contract.mjs`
     - `scripts/verify-runninghub-workflow-api.mjs`
+    - `scripts/verify-runninghub-worker-and-label-contract.mjs`
       - 本地未配置 RunningHub Provider API Key 时，显式返回 `hydrationSkippedReason`
   - 本地验证通过：
+    - `node scripts/verify-runninghub-worker-and-label-contract.mjs`
     - `npm run type-check`
     - `npm run verify:runninghub-analyze-contract`
     - `npm run verify:runninghub-workflow-contract`
@@ -63,7 +78,7 @@
     - `npm run verify:single-port`
     - `npm run verify:local-acceptance-chain`
   - 当前本地 `/api/status`：
-    - `version = 0.4.2`
+    - `version = 0.4.3`
     - `environment = local`
 
 ## 2026-06-19

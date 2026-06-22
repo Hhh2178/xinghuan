@@ -205,6 +205,7 @@ export interface RunningHubFieldDefinition {
   nodeId: string;
   fieldName: string;
   label?: string;
+  displayLabel?: string;
   description?: string;
   fieldType?: string;
   valueType?: string;
@@ -218,7 +219,7 @@ export interface RunningHubFieldDefinition {
 export interface RunningHubOutputDefinition {
   key: string;
   label: string;
-  kind: "image" | "video" | "audio" | "text" | "json";
+  kind: string;
   path?: string;
   multiple?: boolean;
 }

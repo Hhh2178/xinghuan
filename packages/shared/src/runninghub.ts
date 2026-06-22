@@ -103,7 +103,7 @@ export interface RhCatalogItem {
   outputSchema?: Array<{
     key: string;
     label: string;
-    kind: "image" | "video" | "audio" | "text" | "json";
+    kind: string;
     path?: string;
     multiple?: boolean;
   }>;
@@ -111,6 +111,7 @@ export interface RhCatalogItem {
     nodeId: string;
     fieldName: string;
     label?: string;
+    displayLabel?: string;
     description?: string;
     fieldType?: string;
     valueType?: string;

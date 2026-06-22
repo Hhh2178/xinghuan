@@ -36,14 +36,14 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.4.2`
+- 当前活跃版本：`v0.4.3`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`待本轮发布后更新`
+- 当前灰度 release：`待本轮 v0.4.3 gray 发布后更新`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理

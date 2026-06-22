@@ -124,6 +124,14 @@ function extractDefaultValue(it: any): string {
   return typeof v === 'object' ? '' : String(v);
 }
 
+function fieldDisplayLabel(it: any) {
+  const displayLabel = String(it?.displayLabel || '').trim();
+  if (displayLabel) return displayLabel;
+  const label = String(it?.label || '').trim();
+  if (label) return label;
+  return String(it?.fieldName || '').trim();
+}
+
 function countSchemaProperties(value: string | undefined) {
   if (!value?.trim()) return 0;
   try {
@@ -795,9 +803,6 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const nodeInfoList: any[] = currentNodeInfoList;
   const schemaInputCount = selectedWorkflowSchema?.inputSlots.length || 0;
   const schemaOutputCount = selectedWorkflowSchema?.outputs.length || 0;
-  const schemaOutputSummary = selectedWorkflowSchema?.outputs
-    .map((output) => `${output.key}:${output.dataType}${output.cardinality === 'multiple' ? '[]' : ''}`)
-    .join(' · ') || '';
   const visibleTargetHandleStyle = { top: 124 } as const;
   const hiddenLegacyHandleStyle = (top: number) => ({
     top,
@@ -893,9 +898,6 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
               <div className="mt-1 text-[10px] text-white/45">
                 {(selectedWorkflowPreset.taskCapability || 'video')} · 绑定 {schemaInputCount || selectedWorkflowPreset.fields.length} · Schema {selectedSchemaPropertyCount} · 输出 {schemaOutputCount}
               </div>
-              {schemaOutputSummary ? (
-                <div className="mt-1 text-[10px] text-white/35 line-clamp-2">输出映射 · {schemaOutputSummary}</div>
-              ) : null}
               {selectedWorkflowPreset.note ? (
                 <div className="mt-1 text-[10px] text-white/35 line-clamp-2">{selectedWorkflowPreset.note}</div>
               ) : null}
@@ -974,10 +976,11 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
               const cur = paramValues[k] || { value: extractDefaultValue(it) };
               const isMedia = vt === 'image' || vt === 'video' || vt === 'audio';
               const fieldDataOptions = extractFieldOptions(it);
+              const currentFieldDisplayLabel = fieldDisplayLabel(it);
               return (
                 <div key={i} className="space-y-1 pb-2 border-b border-white/5 last:border-0 last:pb-0">
                   <div className="flex items-center gap-1 text-[10px] leading-tight">
-                    <span className="text-white/80 font-medium truncate">{it.fieldName}</span>
+                    <span className="text-white/80 font-medium truncate">{currentFieldDisplayLabel || it.fieldName}</span>
                     <span className="text-white/20">|</span>
                     <span className="text-cyan-300/60 px-1 rounded bg-cyan-500/10">
                       {fieldDataOptions ? `select(${fieldDataOptions.length})` : vt}

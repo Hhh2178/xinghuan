@@ -5,6 +5,7 @@ export interface RunningHubFieldDefinition {
   nodeId: string;
   fieldName: string;
   label?: string;
+  displayLabel?: string;
   description?: string;
   fieldType?: string;
   valueType?: string;
@@ -51,7 +52,7 @@ export interface RunningHubAdminItem extends RhCatalogItem, RunningHubAdminEdito
 export interface RunningHubOutputDefinition {
   key: string;
   label: string;
-  kind: "image" | "video" | "audio" | "text" | "json";
+  kind: string;
   path?: string;
   multiple?: boolean;
 }
@@ -118,8 +119,7 @@ function normalizeOptionalJsonText(value: unknown) {
 
 function normalizeOutputKind(value: unknown): RunningHubOutputDefinition["kind"] {
   const kind = safeText(value).toLowerCase();
-  if (kind === "video" || kind === "audio" || kind === "text" || kind === "json") return kind;
-  return "image";
+  return kind || "image";
 }
 
 function normalizeRunningHubOutputDefinitions(value: unknown): RunningHubOutputDefinition[] {
@@ -187,6 +187,7 @@ export function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubF
         nodeId,
         fieldName,
         label: safeText(row.label, "", 240),
+        displayLabel: safeText(row.displayLabel || row.title, "", 240),
         description: safeText(row.description, "", 2000),
         fieldType: safeText(row.fieldType, "", 240),
         valueType: safeText(row.valueType, "", 240),

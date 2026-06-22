@@ -10,6 +10,7 @@ export interface RunningHubFieldDefinitionLike {
   nodeId?: string;
   fieldName?: string;
   label?: string;
+  displayLabel?: string;
   description?: string;
   fieldType?: string;
   valueType?: string;
@@ -80,7 +81,7 @@ export function normalizeRunningHubInputSlots(fields: RunningHubFieldDefinitionL
       return {
         key: `${nodeId}:${fieldName}`,
         name: fieldName,
-        title: safeText(field.label, fieldName),
+        title: safeText(field.displayLabel || field.label, fieldName),
         description: safeText(field.description),
         dataType,
         cardinality,

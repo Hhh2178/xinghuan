@@ -4,6 +4,7 @@ export interface RunningHubCatalogWorkflowField {
   nodeId: string;
   fieldName: string;
   label?: string;
+  displayLabel?: string;
   description?: string;
   fieldType?: string;
   valueType?: string;
@@ -84,6 +85,7 @@ function normalizeFields(fields: unknown): RunningHubCatalogWorkflowField[] {
             nodeId,
             fieldName,
             label: typeof row.label === "string" ? row.label : undefined,
+            displayLabel: typeof row.displayLabel === "string" ? row.displayLabel : typeof row.title === "string" ? row.title : undefined,
             description: typeof row.description === "string" ? row.description : undefined,
             fieldType: typeof row.fieldType === "string" ? row.fieldType : inferFieldType(typeof row.valueType === "string" ? row.valueType : undefined),
             valueType: typeof row.valueType === "string" ? row.valueType : undefined,
@@ -124,6 +126,7 @@ function buildFieldsFromInputSlots(inputSlots: RhInputSlotDefinition[] | undefin
         nodeId,
         fieldName,
         label: slot.title || fieldName,
+        displayLabel: slot.title || fieldName,
         description: slot.description || "",
         fieldType: slotDataTypeToFieldType(slot),
         valueType: slotDataTypeToValueType(slot),
@@ -265,6 +268,7 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
       nodeId: field.nodeId,
       fieldName: field.fieldName,
       label: field.label,
+      displayLabel: field.displayLabel || field.label,
       description: field.description,
       fieldType: field.fieldType || inferFieldType(field.valueType),
       fieldValue: field.fieldValue ?? field.defaultValue ?? "",

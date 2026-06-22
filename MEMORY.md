@@ -323,6 +323,17 @@
   - 当前额外记忆：
     - 首次 `r3` 上传曾出现“本地 scp 退出成功但远端 `/tmp` 未落盘”的异常，复传后恢复正常；不属于代码问题
     - worker 在 `100 x 3` 槽位规模下已复验一次 restart，可在约 `9s` 内优雅停止并重新拉起
+- `2026-06-22` 当前本地发布候选已继续推进到：
+  - `v0.4.3`
+  - 当前待发布范围：
+    - RH worker 路由优先直达 RunningHub 专用执行分支
+    - RH defer/requeue 统一按实际队列能力映射
+    - RH 字段定义新增 `displayLabel`，画布节点参数展示优先消费后台标注
+    - 输出定义 `kind` 保留自定义值，后台输出类型编辑支持预设 + 自定义
+  - 当前本地已追加通过：
+    - `node scripts/verify-runninghub-worker-and-label-contract.mjs`
+  - 当前边界：
+    - 该批次仍待 gray 发布、gate 和页面级复验后，才能回写 active release 指针
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

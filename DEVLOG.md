@@ -157,14 +157,14 @@
 - 在 gray 复验系统页“配置值 vs 实际生效值”是否从不一致恢复为一致，并补充 worker 新日志样本。
 - 结合 gray 真实 worker 复跑 `verify:system-observability` 和相关 release gate，确认三类能力都已按新并发运行。
 
-### RunningHub 容错分析与节点输出适配 v0.4.2 本地发布候选收口
+### RunningHub worker 路由与字段显示名适配 v0.4.3 本地发布候选收口
 
 目标:
-- 在继续推进 gray 之前，把 RunningHub 容错分析与画布节点输出适配整理成新的可发布小版本，并重新完成本地严格验证。
+- 在继续推进 gray 之前，把 RunningHub 容错分析、worker 路由和画布节点显示名适配整理成新的可发布小版本，并重新完成本地严格验证。
 
 变更:
 - 版本治理：
-  - 统一将版本从 `v0.4.1` 提升到 `v0.4.2`
+  - 统一将版本从 `v0.4.2` 提升到 `v0.4.3`
   - 更新根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts`、`apps/api/src/server.ts`
 - 后端：
   - `apps/api/src/server.ts`
@@ -173,48 +173,54 @@
     - `responseExample` 推断 `outputDraft / executionDraft`
   - `apps/api/src/runninghub-catalog.ts`
     - public RH catalog 透传 `outputSchema`
+    - 输出定义 `kind` 保留自定义值
+  - `apps/api/src/runninghub-execution-descriptor.ts`
+    - 输入槽标题优先使用 `displayLabel`
+  - `apps/worker/src/worker.ts`
+    - RunningHub 任务执行优先直达 RH 专用分支，不再误落普通 Provider
+    - RH defer/requeue 统一走实际队列能力映射，补齐 `chat` 型 RH 任务回队列
 - 前端：
+  - `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - `apps/admin/src/admin-types.ts`
   - `apps/web/src/services/runninghubCatalog.ts`
-  - `apps/web/src/utils/runninghubNodeSchema.ts`
   - `apps/web/src/components/nodes/RunningHubNode.tsx`
-  - `apps/web/src/config/portTypes.ts`
+  - `apps/web/src/components/nodes/RHToolsNode.tsx`
     - RH 节点优先消费后台 `outputSchema`
-    - 节点摘要补充输出映射信息
-    - RH 输出端口补上 `audio`
+    - 参数展示优先使用后台 `displayLabel`
+    - 节点摘要移除多余输出映射文案
 - shared 与验证：
   - `packages/shared/src/runninghub.ts`
+    - 字段定义新增 `displayLabel`
+    - 输出定义 `kind` 改为保留自定义值
   - `scripts/verify-runninghub-analyze-contract.mjs`
   - `scripts/verify-runninghub-workflow-contract.mjs`
+  - `scripts/verify-runninghub-workflow-api.mjs`
+  - `scripts/verify-runninghub-worker-and-label-contract.mjs`
 - 文档与运维入口：
-  - `README.md`
-  - `docs/prd/README.md`
   - `docs/prd/v0.1.0/progress.md`
   - `docs/prd/v0.1.0/changelog.md`
-  - `ops/README.md`
-  - 新增 `ops/runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
 
 验证:
+- `node scripts/verify-runninghub-worker-and-label-contract.mjs = ok`
 - `npm run verify:runninghub-analyze-contract = ok`
 - `npm run verify:runninghub-workflow-contract = ok`
 - `npm run type-check = ok`
 - `npm run build:single-port = ok`
 - `npm run verify:single-port = ok`
-- `npm run package:release -- 20260622-runninghub-tolerant-analyze-gray-r1-v042-local = ok`
-  - `dist-release/20260622-runninghub-tolerant-analyze-gray-r1-v042-local.tar.gz`
-  - `sizeMB = 5.47`
 
 影响:
 - 本轮 RH analyze 已从“只够处理纯 JSON 文本”推进到“能吃混合示例并推断输出草案”。
-- RH 节点开始真正消费后台 `outputSchema`，减少继续靠 `workflowJson` 关键词猜输出的误差。
+- RH 节点开始真正消费后台 `outputSchema` 与 `displayLabel`，减少继续靠 `workflowJson` 关键词猜输出或直接裸露字段名的误差。
+- RH `chat` 型任务不再因为误走普通 Provider 或回队列映射错误而卡死在错误分支。
 - 版本治理重新对齐到“每次 gray 真实发布推进一个非 major 版本”的仓库规则。
 
 风险:
-- 当前还未完成 gray 切换与服务器 gate，主入口里暂时保留“待本轮发布后更新”的过渡描述。
+- 当前还未完成 gray 切换与服务器 gate，运行态主入口仍需在发布完成后再回写。
 - `scripts/package-release.mjs` 仍是 runtime-only，服务器若要在 release 目录重建仍受依赖链缺口约束。
 
 下一步:
 - 先把本轮改动提交入库。
-- 基于 `20260622-runninghub-tolerant-analyze-gray-r1-v042-local` 包推进 gray 发布。
+- 基于新的 `v0.4.3` release 包推进 gray 发布。
 - 发布后补跑 gray gate、RH analyze 视觉实查和画布 RH 节点复验。
 
 ### RunningHub 协议后台与画布节点重建 v0.4.1 gray 发布与视觉验收
