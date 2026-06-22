@@ -334,6 +334,25 @@
     - `node scripts/verify-runninghub-worker-and-label-contract.mjs`
   - 当前边界：
     - 该批次仍待 gray 发布、gate 和页面级复验后，才能回写 active release 指针
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
+  - 当前 gray 对外版本号：
+    - `v0.4.3`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前页面级复查结论：
+    - RH 工作台已真实显示 `标注/显示名`
+    - 输出类型与结果路径编辑已支持“预设 + 自定义覆盖”
+    - 系统页已真实显示：
+      - `版本 0.4.3`
+      - `数据库目标校验 matched`
+      - `按类别并发 / 实际生效并发 / Worker 数 / Worker 槽位数 / RH 平台窗口`
+  - 当前灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

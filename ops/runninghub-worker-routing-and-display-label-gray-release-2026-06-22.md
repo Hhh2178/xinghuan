@@ -11,12 +11,12 @@
 
 - 环境：`gray`
 - 版本：`v0.4.3`
-- 待发布 release：
-  - `20260622-runninghub-worker-routing-gray-r1-v043-<commit>`
+- release：
+  - `20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
 - 上一灰度 release：
   - `20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
-- 当前发布前指针：
-  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+- 当前指针：
+  - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
 
 ## 本轮变更
 
@@ -63,7 +63,7 @@
 - `npm run verify:single-port`
 - `npm run verify:local-acceptance-chain`
 
-## 预期灰度验收
+## 灰度验收
 
 - gate：
   - `verify:release-preflight`
@@ -71,6 +71,10 @@
   - `verify:system-observability`
 - runtime：
   - `/api/status => version = 0.4.3, environment = gray`
+- database target：
+  - `current = xinghuan_canvas_gray`
+  - `expected = xinghuan_canvas_gray`
+  - `targetMatched = true`
 - 页面级复查：
   - 后台 RH 条目编辑器可见“标注/显示名”
   - 后台输出类型可用预设下拉并支持手填覆盖

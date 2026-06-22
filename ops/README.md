@@ -6,11 +6,10 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`待本轮 v0.4.3 gray 发布后更新`。
+- 当前灰度 release：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
-  - gray：`待本轮 v0.4.3 gray 发布后更新`
-  - 当前待发布候选：`v0.4.3`
+  - gray：`v0.4.3`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
@@ -134,6 +133,19 @@
     - 画布 RH 节点输出映射摘要与 `audio` 输出端口
   - 发布记录：
     - `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
+- `2026-06-22` RunningHub worker 路由与字段显示名适配已完成 gray 发布：
+  - gray：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
+  - `/api/status` 当前返回 `version = 0.4.3`
+  - gray gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 页面级复查已确认：
+    - RH 工作台可见 `标注/显示名`
+    - 输出类型与结果路径支持预设 + 自定义覆盖
+    - 系统页显示 `版本 0.4.3`、数据库目标 `matched`
+  - 发布记录：
+    - `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
