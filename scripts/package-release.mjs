@@ -105,6 +105,7 @@ const excludedLabels = [
 ];
 
 await assertRequiredPaths();
+await runNodeScript(["scripts/verify-release-version-alignment.mjs"]);
 await mkdir(outDir, { recursive: true });
 
 const stagingDir = await mkdtemp(join(tmpdir(), "xinghuan-release-"));
@@ -115,6 +116,7 @@ try {
   await writeManifest(stagingDir);
   await rm(archivePath, { force: true });
   await runTar(stagingDir, archivePath);
+  await runNodeScript(["scripts/verify-release-version-alignment.mjs", `--archive=${archivePath}`]);
   const archive = await stat(archivePath);
   console.log(JSON.stringify({
     ok: true,
@@ -179,6 +181,21 @@ async function runTar(cwd, target) {
     child.on("exit", (code) => {
       if (code === 0) resolvePromise();
       else rejectPromise(new Error(`tar exited with code ${code}`));
+    });
+    child.on("error", rejectPromise);
+  });
+}
+
+async function runNodeScript(args) {
+  await new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, args, {
+      cwd: rootDir,
+      stdio: "inherit",
+      shell: false,
+    });
+    child.on("exit", (code) => {
+      if (code === 0) resolvePromise();
+      else rejectPromise(new Error(`${args.join(" ")} exited with code ${code}`));
     });
     child.on("error", rejectPromise);
   });

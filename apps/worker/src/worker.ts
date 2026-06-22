@@ -7,6 +7,8 @@ import {
   taskQueueNameForCapability,
   type AppEnvironment,
   type TaskQueueCapability,
+  type TaskQueueRuntimeDescriptor,
+  type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
   type TaskStatus,
 } from "@xinghuan/shared";
@@ -53,6 +55,7 @@ const workerId = process.env.XINGHUAN_WORKER_ID || `worker-${Date.now()}-${Math.
 const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUNNING_MS || `${30 * 60 * 1000}`, 10);
 const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
 const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
+const taskQueueRefreshIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_QUEUE_REFRESH_INTERVAL_MS || "5000", 10);
 
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
@@ -85,21 +88,25 @@ process.on("SIGINT", () => {
   stopping = true;
 });
 
+interface QueueLoopController {
+  capability: TaskQueueCapability;
+  queue: string;
+  slotIndex: number;
+  shouldStop: boolean;
+  finished: Promise<void> | null;
+}
+
+const queueLoopControllers = new Map<TaskQueueCapability, QueueLoopController[]>();
+const queueRuntimeDescriptorState = new Map<TaskQueueCapability, TaskQueueRuntimeDescriptor>();
+let queueControllerRefreshTimer: NodeJS.Timeout | null = null;
+let queueControllerRefreshInFlight: Promise<TaskQueueRuntimeDescriptor[]> | null = null;
+
 await ensureRuntimeDatabaseTarget("xinghuan-worker");
 await redis.connect();
-const taskQueueSettings = await readTaskQueueSettings();
-const queueDescriptors = buildTaskQueueRuntimeDescriptors(queueName, taskQueueSettings);
 const queueNames = TASK_QUEUE_CAPABILITIES.map((capability) => taskQueueNameForCapability(queueName, capability));
-console.log(JSON.stringify({ ...createHealthPayload("xinghuan-worker", environment), workerId, queueName, queueNames, queues: queueDescriptors }));
-
-const workerLoops = queueDescriptors.flatMap((descriptor) =>
-  Array.from({ length: descriptor.concurrency }, (_, slotIndex) =>
-    runQueueLoop(descriptor.capability, descriptor.queue, slotIndex),
-  ),
-);
-const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : [];
-await Promise.allSettled([...workerLoops, ...backgroundLoops]);
-
+const initialQueueDescriptors = await refreshQueueControllers();
+console.log(JSON.stringify({ ...createHealthPayload("xinghuan-worker", environment), workerId, queueName, queueNames, queues: initialQueueDescriptors }));
+await runWorkerRuntime();
 await redis.quit().catch(() => undefined);
 await pool.end().catch(() => undefined);
 console.log("xinghuan-worker stopped");
@@ -132,23 +139,145 @@ async function ensureRuntimeDatabaseTarget(serviceName: string) {
   );
 }
 
-async function runQueueLoop(capability: TaskQueueCapability, queue: string, slotIndex: number) {
-  while (!stopping) {
-    const item = await redis.brPop(queue, pollTimeoutSeconds).catch((error) => {
+async function runQueueLoop(controller: QueueLoopController) {
+  while (!stopping && !controller.shouldStop) {
+    const item = await redis.brPop(controller.queue, pollTimeoutSeconds).catch((error) => {
       console.error(
         "xinghuan-worker queue read failed",
-        JSON.stringify({ capability, queue, slotIndex, error: error instanceof Error ? error.message : String(error) }),
+        JSON.stringify({
+          capability: controller.capability,
+          queue: controller.queue,
+          slotIndex: controller.slotIndex,
+          error: error instanceof Error ? error.message : String(error),
+        }),
       );
       return null;
     });
     if (!item) continue;
+    await persistRuntimeQueueSlots();
     await processTask(item.element).catch((error) => {
       console.error(
         "xinghuan-worker task processing crashed",
-        JSON.stringify({ capability, queue, slotIndex, taskId: item.element, error: error instanceof Error ? error.message : String(error) }),
+        JSON.stringify({
+          capability: controller.capability,
+          queue: controller.queue,
+          slotIndex: controller.slotIndex,
+          taskId: item.element,
+          error: error instanceof Error ? error.message : String(error),
+        }),
       );
     });
   }
+  await persistRuntimeQueueSlots();
+}
+
+async function refreshQueueControllers() {
+  if (queueControllerRefreshInFlight) return queueControllerRefreshInFlight;
+  queueControllerRefreshInFlight = (async () => {
+  const taskQueueSettings = await readTaskQueueSettings();
+  const descriptors = buildTaskQueueRuntimeDescriptors(queueName, taskQueueSettings);
+  for (const descriptor of descriptors) {
+    queueRuntimeDescriptorState.set(descriptor.capability, descriptor);
+    reconcileQueueControllers(descriptor);
+  }
+  await persistRuntimeQueueSlots();
+  return descriptors;
+  })();
+  try {
+    return await queueControllerRefreshInFlight;
+  } finally {
+    queueControllerRefreshInFlight = null;
+  }
+}
+
+function reconcileQueueControllers(descriptor: TaskQueueRuntimeDescriptor) {
+  const controllers = queueLoopControllers.get(descriptor.capability) ?? [];
+  queueLoopControllers.set(descriptor.capability, controllers);
+  while (controllers.filter((controller) => !controller.shouldStop).length < descriptor.concurrency) {
+    const slotIndex = controllers.length;
+    const controller: QueueLoopController = {
+      capability: descriptor.capability,
+      queue: descriptor.queue,
+      slotIndex,
+      shouldStop: false,
+      finished: null,
+    };
+    controller.finished = runQueueLoop(controller).finally(() => {
+      const current = queueLoopControllers.get(descriptor.capability);
+      if (!current) return;
+      const index = current.indexOf(controller);
+      if (index >= 0) current.splice(index, 1);
+      for (let nextIndex = 0; nextIndex < current.length; nextIndex += 1) {
+        current[nextIndex].slotIndex = nextIndex;
+      }
+      void persistRuntimeQueueSlots();
+    });
+    controllers.push(controller);
+  }
+  while (controllers.filter((controller) => !controller.shouldStop).length > descriptor.concurrency) {
+    const controller = [...controllers].reverse().find((item) => !item.shouldStop);
+    if (!controller) break;
+    controller.shouldStop = true;
+  }
+}
+
+async function persistRuntimeQueueSlots() {
+  const runtimeSlots: TaskQueueWorkerRuntimeSlot[] = [];
+  for (const capability of TASK_QUEUE_CAPABILITIES) {
+    const controllers = queueLoopControllers.get(capability) ?? [];
+    const descriptor = queueRuntimeDescriptorState.get(capability);
+    for (const controller of controllers) {
+      runtimeSlots.push({
+        workerId,
+        capability,
+        queue: descriptor?.queue || controller.queue,
+        slotIndex: controller.slotIndex,
+        state: controller.shouldStop ? "stopping" : "active",
+        updatedAt: Date.now(),
+      });
+    }
+  }
+  if (runtimeSlots.length === 0) {
+    await redis.del(`xinghuan:worker-runtime:${workerId}`).catch(() => undefined);
+    return;
+  }
+  await redis
+    .set(`xinghuan:worker-runtime:${workerId}`, JSON.stringify(runtimeSlots), {
+      expiration: {
+        type: "EX",
+        value: Math.max(10, Math.ceil(Math.max(1000, taskQueueRefreshIntervalMs) / 1000) * 3),
+      },
+    })
+    .catch(() => undefined);
+}
+
+async function runWorkerRuntime() {
+  queueControllerRefreshTimer = setInterval(() => {
+    void refreshQueueControllers().catch((error) => {
+      console.error(
+        "xinghuan-worker queue controller refresh failed",
+        JSON.stringify({ workerId, error: error instanceof Error ? error.message : String(error) }),
+      );
+    });
+  }, Math.max(1000, taskQueueRefreshIntervalMs));
+  const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : [];
+  while (!stopping) {
+    await wait(1000);
+  }
+  if (queueControllerRefreshTimer) {
+    clearInterval(queueControllerRefreshTimer);
+    queueControllerRefreshTimer = null;
+  }
+  for (const controllers of queueLoopControllers.values()) {
+    for (const controller of controllers) {
+      controller.shouldStop = true;
+    }
+  }
+  await persistRuntimeQueueSlots();
+  const workerLoops = Array.from(queueLoopControllers.values()).flatMap((controllers) =>
+    controllers.map((controller) => controller.finished).filter(Boolean) as Promise<void>[],
+  );
+  await Promise.allSettled([...workerLoops, ...backgroundLoops]);
 }
 
 async function readTaskQueueSettings(): Promise<TaskQueueSettings> {

@@ -3,6 +3,60 @@ import { useEffect, useMemo, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
 import type { AuditRecord, SystemInfo } from "./admin-types";
 
+const TASK_QUEUE_DEFAULTS = {
+  image: { concurrency: 100, userConcurrency: 8 },
+  audio: { concurrency: 100, userConcurrency: 8 },
+  video: { concurrency: 100, userConcurrency: 8 },
+  runninghub: { concurrency: 2, enabled: true },
+} satisfies NonNullable<SystemInfo["taskQueueSettings"]>;
+
+type RuntimeQueueState = NonNullable<SystemInfo["redis"]["queues"]>[number] & {
+  configuredConcurrency?: number;
+  configuredUserConcurrency?: number;
+  effectiveConcurrency?: number;
+  workerCount?: number;
+  slotCount?: number;
+};
+
+type RunninghubRuntimeState = NonNullable<SystemInfo["redis"]>["runninghub"] & {
+  activeWindowCount?: number;
+};
+
+function formatConfiguredQueueConcurrency(queues: RuntimeQueueState[]) {
+  if (!queues.length) return "-";
+  return queues
+    .map((item) => `${item.capability}:配置值 ${item.configuredConcurrency ?? item.concurrency}`)
+    .join(" / ");
+}
+
+function formatConfiguredUserConcurrency(queues: RuntimeQueueState[]) {
+  if (!queues.length) return "-";
+  return queues
+    .map((item) => `${item.capability}:配置值 ${item.configuredUserConcurrency ?? item.userConcurrency ?? "-"}`)
+    .join(" / ");
+}
+
+function formatEffectiveQueueConcurrency(queues: RuntimeQueueState[]) {
+  if (!queues.length) return "-";
+  return queues
+    .map((item) => `${item.capability}:${typeof item.effectiveConcurrency === "number" ? `实际生效值 ${item.effectiveConcurrency}` : "实际生效值未上报"}`)
+    .join(" / ");
+}
+
+function formatWorkerCount(queues: RuntimeQueueState[]) {
+  if (!queues.length) return "-";
+  return queues
+    .map((item) => `${item.capability}:${typeof item.workerCount === "number" ? item.workerCount : "未上报"}`)
+    .join(" / ");
+}
+
+function formatSlotCount(queues: RuntimeQueueState[]) {
+  if (!queues.length) return "-";
+  return queues
+    .map((item) => `${item.capability}:${typeof item.slotCount === "number" ? item.slotCount : "未上报"}`)
+    .join(" / ");
+}
+
 export function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
   return (
     <DataTable
@@ -43,6 +97,9 @@ export function SystemPanel({
     return system.database.targetMatched ? "matched" : "mismatched";
   }, [system]);
 
+  const runtimeQueues = ((system?.redis?.queues as RuntimeQueueState[] | undefined) ?? []);
+  const runninghubRuntime = system?.redis?.runninghub as RunninghubRuntimeState | undefined;
+
   const rows = useMemo(() => [
     ["环境", system?.environment || "-"],
     ["服务", system?.service || "-"],
@@ -57,9 +114,16 @@ export function SystemPanel({
     ["Redis 状态", system?.redis?.status || "-"],
     ["Redis 队列", system?.redis?.queue || "-"],
     ["Redis 深度", String(system?.redis?.depth ?? 0)],
-    ["按类别并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.concurrency}`).join(" / ") || "-"],
-    ["按用户并发", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.userConcurrency ?? "-"}`).join(" / ") || "-"],
-    ["按类别深度", (system?.redis?.queues || []).map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
+    ["按类别并发", formatConfiguredQueueConcurrency(runtimeQueues)],
+    ["实际生效并发", formatEffectiveQueueConcurrency(runtimeQueues)],
+    ["Worker 数", formatWorkerCount(runtimeQueues)],
+    ["Worker 槽位数", formatSlotCount(runtimeQueues)],
+    ["按用户并发", formatConfiguredUserConcurrency(runtimeQueues)],
+    ["按类别深度", runtimeQueues.map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
+    [
+      "RH 平台窗口",
+      `配置值 ${system?.taskQueueSettings?.runninghub?.concurrency ?? 0}${runninghubRuntime?.enabled === false ? " (disabled)" : ""} / ${typeof runninghubRuntime?.activeWindowCount === "number" ? `当前占用 ${runninghubRuntime.activeWindowCount}` : "当前占用未上报"}`,
+    ],
     ["Redis 错误", system?.redis?.error || "-"],
     ["任务总数", String(system?.observability?.tasks?.total ?? 0)],
     ["排队任务", String(system?.observability?.tasks?.queued ?? 0)],
@@ -135,32 +199,27 @@ export function SystemPanel({
     ["后台数据", system?.adminDbPath || "-"],
     ["画布数量", String(system?.storage?.canvases ?? 0)],
     ["资源数量", String(system?.storage?.resources ?? 0)],
-  ], [databaseTargetStatus, system]);
+  ], [databaseTargetStatus, runtimeQueues, runninghubRuntime, system]);
 
   const values = draft || system?.taskQueueSettings;
 
   return (
     <>
       <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />
-      <FormPanel title="普通任务并发" icon={Settings2}>
+      <FormPanel title="任务并发设置" icon={Settings2}>
         <label>
           图片总并发
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.image.concurrency ?? 4}
+            max={999}
+            value={values?.image.concurrency ?? TASK_QUEUE_DEFAULTS.image.concurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 image: {
-                  ...(current?.image || system?.taskQueueSettings?.image || { concurrency: 4, userConcurrency: 4 }),
-                  concurrency: Number(event.target.value || 4),
+                  ...(current?.image || system?.taskQueueSettings?.image || TASK_QUEUE_DEFAULTS.image),
+                  concurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.image.concurrency),
                 },
               }))
             }
@@ -171,19 +230,14 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.image.userConcurrency ?? 4}
+            max={999}
+            value={values?.image.userConcurrency ?? TASK_QUEUE_DEFAULTS.image.userConcurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 image: {
-                  ...(current?.image || system?.taskQueueSettings?.image || { concurrency: 4, userConcurrency: 4 }),
-                  userConcurrency: Number(event.target.value || 4),
+                  ...(current?.image || system?.taskQueueSettings?.image || TASK_QUEUE_DEFAULTS.image),
+                  userConcurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.image.userConcurrency),
                 },
               }))
             }
@@ -194,19 +248,14 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.audio.concurrency ?? 4}
+            max={999}
+            value={values?.audio.concurrency ?? TASK_QUEUE_DEFAULTS.audio.concurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 audio: {
-                  ...(current?.audio || system?.taskQueueSettings?.audio || { concurrency: 4, userConcurrency: 4 }),
-                  concurrency: Number(event.target.value || 4),
+                  ...(current?.audio || system?.taskQueueSettings?.audio || TASK_QUEUE_DEFAULTS.audio),
+                  concurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.audio.concurrency),
                 },
               }))
             }
@@ -217,19 +266,14 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.audio.userConcurrency ?? 4}
+            max={999}
+            value={values?.audio.userConcurrency ?? TASK_QUEUE_DEFAULTS.audio.userConcurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 audio: {
-                  ...(current?.audio || system?.taskQueueSettings?.audio || { concurrency: 4, userConcurrency: 4 }),
-                  userConcurrency: Number(event.target.value || 4),
+                  ...(current?.audio || system?.taskQueueSettings?.audio || TASK_QUEUE_DEFAULTS.audio),
+                  userConcurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.audio.userConcurrency),
                 },
               }))
             }
@@ -240,19 +284,14 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.video.concurrency ?? 4}
+            max={999}
+            value={values?.video.concurrency ?? TASK_QUEUE_DEFAULTS.video.concurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 video: {
-                  ...(current?.video || system?.taskQueueSettings?.video || { concurrency: 4, userConcurrency: 4 }),
-                  concurrency: Number(event.target.value || 4),
+                  ...(current?.video || system?.taskQueueSettings?.video || TASK_QUEUE_DEFAULTS.video),
+                  concurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.video.concurrency),
                 },
               }))
             }
@@ -263,19 +302,14 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
-            value={values?.video.userConcurrency ?? 4}
+            max={999}
+            value={values?.video.userConcurrency ?? TASK_QUEUE_DEFAULTS.video.userConcurrency}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 video: {
-                  ...(current?.video || system?.taskQueueSettings?.video || { concurrency: 4, userConcurrency: 4 }),
-                  userConcurrency: Number(event.target.value || 4),
+                  ...(current?.video || system?.taskQueueSettings?.video || TASK_QUEUE_DEFAULTS.video),
+                  userConcurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.video.userConcurrency),
                 },
               }))
             }
@@ -287,18 +321,13 @@ export function SystemPanel({
           <input
             type="number"
             min={1}
-            max={4}
+            max={999}
             value={values?.runninghub?.concurrency ?? 2}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 runninghub: {
-                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || { concurrency: 2, enabled: true }),
+                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || TASK_QUEUE_DEFAULTS.runninghub),
                   concurrency: Number(event.target.value || 2),
                 },
               }))
@@ -311,14 +340,9 @@ export function SystemPanel({
             checked={values?.runninghub?.enabled !== false}
             onChange={(event) =>
               setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || {
-                  image: { concurrency: 4, userConcurrency: 4 },
-                  audio: { concurrency: 4, userConcurrency: 4 },
-                  video: { concurrency: 4, userConcurrency: 4 },
-                  runninghub: { concurrency: 2, enabled: true },
-                }),
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
                 runninghub: {
-                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || { concurrency: 2, enabled: true }),
+                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || TASK_QUEUE_DEFAULTS.runninghub),
                   enabled: event.target.checked,
                 },
               }))
@@ -328,6 +352,9 @@ export function SystemPanel({
         </label>
         <div className="field-note">
           普通任务先受“类别总并发”限制，再受“单用户并发”限制。RunningHub 任务在此基础上，还会额外受 RH 平台并发窗口限制；超过窗口的 RH 任务会自动排队等待。
+        </div>
+        <div className="field-note">
+          系统状态里的“按类别并发”是后台配置值；“实际生效并发”统计 active 槽位，“Worker 数”统计 distinct workerId，“Worker 槽位数”统计当前上报的槽位总数，可用于识别“配置=100，实际只生效=1”这类问题。
         </div>
         <div className="inline-actions">
           <button

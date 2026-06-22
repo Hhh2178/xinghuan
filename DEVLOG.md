@@ -41,6 +41,60 @@
 
 ## 2026-06-22
 
+### Task Queue 运行态并发与后台配置一致性收口
+
+目标:
+- 修复普通任务 `image/audio/video` 三类队列“后台系统配置值已更新，但 worker 实际生效值仍停留在旧并发”的运行态不一致问题。
+- 将 RunningHub 长 JSON 分析应用容错、后台并发观测与 worker 运行态槽位上报一起收口，便于后续 gray 验证。
+
+变更:
+- `apps/worker/src/worker.ts`
+  - 将普通任务消费 loop 从“启动时一次性按并发展开”改为 `refreshQueueControllers()` 定时刷新模式。
+  - 新增按 `capability` 管理的 queue controller，支持在运行中按最新 `taskQueueSettings` 增减 worker 槽位。
+  - 新增 `xinghuan:worker-runtime:<workerId>` Redis 运行态上报，持续写出 `image/audio/video` 当前 active/stopping 槽位信息。
+- `apps/api/src/server.ts`
+  - `/api/admin/system` 的 Redis 队列状态新增 `effectiveConcurrency`、`workerCount` 和 RH 平台窗口实际生效值聚合。
+  - 新增 worker runtime slot 读取与标准化，系统页现在可以直接对比“配置值”和“worker 实际值”。
+  - 同轮补齐 RunningHub 长 JSON 容错：`safeRunningHubJsonText()` 改为长文本读取，并对未修改字段走 preserve 容错链。
+- `apps/admin/src/admin-readonly-panels.tsx`
+  - 系统状态新增“实际生效并发”“Worker 槽位数”“RH 平台窗口”显示。
+  - 并发设置说明新增“配置值 vs 实际生效值”提示，便于直接识别配置保存成功但 worker 未跟进的异常。
+- `apps/admin/src/admin-types.ts`
+  - 同步扩展 `SystemInfo.redis.queues` 与 `runninghub` 运行态字段。
+- `packages/shared/src/task-queue-settings.ts`
+  - 固化普通任务默认总并发 `100`、默认单用户并发 `8`、上限 `999` 的共享约束。
+- `apps/admin/src/admin-runninghub-workspace.tsx`
+  - RunningHub 分析草案应用时，空白 base 字段不再覆盖现有值；`apply all` 改为合并后一次保存。
+
+验证:
+- 修复前证据已确认：
+  - 灰度 `/api/admin/system` 当前返回 `image/audio/video concurrency=100, userConcurrency=8`
+  - 但灰度 worker 启动日志在 `2026-06-22 16:00:49 CST` 仍打印 `queues:[image:4,audio:4,video:4]`
+  - 说明线上问题已坐实为“配置值与 worker 实际生效值不一致”，且是 `image/audio/video` 三类共性问题
+- 本地契约/类型验证通过：
+  - `node scripts/verify-task-queue-defaults-contract.mjs`
+  - `node scripts/verify-runninghub-admin-update-tolerance-contract.mjs`
+  - `node scripts/verify-worker-runtime-concurrency-contract.mjs`
+  - `node scripts/verify-admin-runninghub-workspace-contract.mjs`
+  - `node scripts/verify-admin-settings-revision-conflict.mjs`
+  - `node scripts/verify-admin-readonly-panels-contract.mjs`
+  - `npm run type-check -w @xinghuan/admin`
+  - `npm run type-check -w @xinghuan/api`
+  - `npm run type-check -w @xinghuan/worker`
+
+影响:
+- 后台系统页现在不仅显示任务并发配置值，还能看到当前 worker 实际上报的并发槽位，便于直接识别 gray / production 是否真正吃到了新配置。
+- `image/audio/video` 的总并发不再只能靠重启前的一次性展开决定，后续保存系统并发设置后，worker 可在运行中逐步对齐。
+- RunningHub 分析回填时，对大 JSON 和空白 base 字段的容错更稳，降低后台条目录入时的误覆盖与截断失败。
+
+风险:
+- 本轮尚未在本机执行真实 Redis/worker 端到端队列联调；`npm run verify:worker` 仍依赖可用 Redis 和运行中的本地服务。
+- worker runtime 采用 Redis key 扫描聚合，若后续 worker 数量显著增加，需要继续观察系统页轮询成本。
+
+下一步:
+- 在 gray 复验系统页“配置值 vs 实际生效值”是否从不一致恢复为一致，并补充 worker 新日志样本。
+- 结合 gray 真实 worker 复跑 `verify:system-observability` 和相关 release gate，确认三类能力都已按新并发运行。
+
 ### RunningHub 容错分析与节点输出适配 v0.4.2 本地发布候选收口
 
 目标:

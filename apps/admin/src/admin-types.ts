@@ -389,7 +389,15 @@ export interface SystemInfo {
       concurrency: number;
       userConcurrency?: number;
       depth?: number;
+      effectiveConcurrency?: number;
+      workerCount?: number;
+      slotCount?: number;
     }>;
+    runninghub?: {
+      concurrency: number;
+      enabled: boolean;
+      activeWindowCount?: number;
+    };
     error: string;
   };
   observability: {

@@ -2,6 +2,35 @@
 
 ## 2026-06-22
 
+- Task queue 运行态并发一致性与 RunningHub 长 JSON 容错已完成本地 `v0.4.2` 收口，待 gray 发布：
+  - `apps/worker/src/worker.ts`
+    - 普通任务消费 loop 改为 `refreshQueueControllers()` 定时刷新，不再只在启动时按旧配置一次性展开。
+    - worker 持续上报 `xinghuan:worker-runtime:<workerId>` 槽位信息，区分 `active/stopping` 状态。
+  - `apps/api/src/server.ts`
+    - `/api/admin/system` 的 Redis 队列状态新增 `effectiveConcurrency`、`workerCount` 和 RH 平台窗口实际生效值。
+    - RunningHub 长 JSON 读取改用长文本容错；未修改字段时走 preserve 链，避免历史长内容被截断或误拒绝。
+  - `apps/admin/src/admin-readonly-panels.tsx`
+    - 系统状态新增“实际生效并发”“Worker 槽位数”“RH 平台窗口”显示。
+    - 明确区分后台配置值与 worker 真实运行值，便于直接识别配置保存成功但运行态未同步的问题。
+  - `apps/admin/src/admin-types.ts`
+    - 同步扩展系统页 Redis 运行态字段。
+  - `packages/shared/src/task-queue-settings.ts`
+    - 普通任务默认总并发固定为 `100`，默认单用户并发固定为 `8`，上限统一为 `999`。
+  - 修复前 gray 证据已确认：
+    - `/api/admin/system` 返回 `image/audio/video concurrency=100, userConcurrency=8`
+    - 但 gray worker 在 `2026-06-22 16:00:49 CST` 启动日志仍打印 `queues:[image:4,audio:4,video:4]`
+    - 已确认是 `image/audio/video` 三类共性的“配置值与 worker 实际生效值不一致”
+  - 本地验证通过：
+    - `node scripts/verify-task-queue-defaults-contract.mjs`
+    - `node scripts/verify-runninghub-admin-update-tolerance-contract.mjs`
+    - `node scripts/verify-worker-runtime-concurrency-contract.mjs`
+    - `node scripts/verify-admin-runninghub-workspace-contract.mjs`
+    - `node scripts/verify-admin-settings-revision-conflict.mjs`
+    - `node scripts/verify-admin-readonly-panels-contract.mjs`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/worker`
+
 - RunningHub 协议后台与画布节点重建已完成本地 `v0.4.2` 收口，待 gray 发布：
   - 统一更新版本源到 `0.4.2`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
   - 新增设计归档：

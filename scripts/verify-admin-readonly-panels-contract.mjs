@@ -93,6 +93,15 @@ const checks = [
       requiredSystemRows.every((label) => panelSource.includes(`"${label}"`)),
   },
   {
+    name: "system panel clarifies configured concurrency versus runtime effectiveness",
+    pass:
+      panelSource.includes("实际生效值") &&
+      panelSource.includes("effectiveConcurrency") &&
+      panelSource.includes("workerCount") &&
+      panelSource.includes("slotCount") &&
+      panelSource.includes("当前占用"),
+  },
+  {
     name: "readonly panels use shared DataTable",
     pass: panelSource.includes('from "./admin-common-components"') && panelSource.includes("<DataTable"),
   },

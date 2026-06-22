@@ -23,19 +23,37 @@ export interface TaskQueueRuntimeDescriptor {
   concurrency: number;
 }
 
-export const TASK_QUEUE_CAPABILITIES: TaskQueueCapability[] = ["image", "audio", "video"];
-export const TASK_QUEUE_MAX_CONCURRENCY = 4;
-export const TASK_QUEUE_MIN_CONCURRENCY = 1;
-export const TASK_QUEUE_MAX_USER_CONCURRENCY = 4;
+export interface TaskQueueWorkerRuntimeSlot {
+  workerId: string;
+  capability: TaskQueueCapability;
+  queue: string;
+  slotIndex: number;
+  state: "active" | "stopping";
+  updatedAt: number;
+}
 
-export function clampTaskQueueConcurrency(value: unknown, fallback = TASK_QUEUE_MAX_CONCURRENCY) {
+export interface TaskQueueRuntimeQueueStatus extends TaskQueueRuntimeDescriptor {
+  userConcurrency?: number;
+  depth?: number;
+  effectiveConcurrency?: number;
+  workerCount?: number;
+}
+
+export const TASK_QUEUE_CAPABILITIES: TaskQueueCapability[] = ["image", "audio", "video"];
+export const TASK_QUEUE_DEFAULT_CONCURRENCY = 100;
+export const TASK_QUEUE_MAX_CONCURRENCY = 999;
+export const TASK_QUEUE_MIN_CONCURRENCY = 1;
+export const TASK_QUEUE_DEFAULT_USER_CONCURRENCY = 8;
+export const TASK_QUEUE_MAX_USER_CONCURRENCY = 999;
+
+export function clampTaskQueueConcurrency(value: unknown, fallback = TASK_QUEUE_DEFAULT_CONCURRENCY) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   const rounded = Math.round(numeric);
   return Math.min(TASK_QUEUE_MAX_CONCURRENCY, Math.max(TASK_QUEUE_MIN_CONCURRENCY, rounded));
 }
 
-export function clampTaskQueueUserConcurrency(value: unknown, fallback = TASK_QUEUE_MAX_USER_CONCURRENCY) {
+export function clampTaskQueueUserConcurrency(value: unknown, fallback = TASK_QUEUE_DEFAULT_USER_CONCURRENCY) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   const rounded = Math.round(numeric);
@@ -44,9 +62,9 @@ export function clampTaskQueueUserConcurrency(value: unknown, fallback = TASK_QU
 
 export function defaultTaskQueueSettings(): TaskQueueSettings {
   return {
-    image: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
-    audio: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
-    video: { concurrency: TASK_QUEUE_MAX_CONCURRENCY, userConcurrency: TASK_QUEUE_MAX_CONCURRENCY },
+    image: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
+    audio: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
+    video: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
     runninghub: { concurrency: 2, enabled: true },
   };
 }

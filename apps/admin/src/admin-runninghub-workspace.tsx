@@ -28,6 +28,11 @@ function buildCreateTitle(kind: RunningHubWorkspaceTab) {
   return kind === "workflow" ? "新建工作流" : "新建 AI 应用";
 }
 
+function readMeaningfulDraftText(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  return value.trim() ? value : undefined;
+}
+
 function buildCreatePayloadFromDraft(
   providerId: string,
   kind: RunningHubWorkspaceTab,
@@ -40,10 +45,10 @@ function buildCreatePayloadFromDraft(
   };
   if (!section) return payload;
   if (section.key === "base") {
-    payload.title = typeof section.payload.title === "string" ? section.payload.title : payload.title;
-    payload.note = typeof section.payload.note === "string" ? section.payload.note : payload.note;
-    payload.pageId = typeof section.payload.pageId === "string" ? section.payload.pageId : payload.pageId;
-    payload.runTargetId = typeof section.payload.runTargetId === "string" ? section.payload.runTargetId : payload.runTargetId;
+    payload.title = readMeaningfulDraftText(section.payload.title) ?? payload.title;
+    payload.note = readMeaningfulDraftText(section.payload.note) ?? payload.note;
+    payload.pageId = readMeaningfulDraftText(section.payload.pageId) ?? payload.pageId;
+    payload.runTargetId = readMeaningfulDraftText(section.payload.runTargetId) ?? payload.runTargetId;
     payload.taskCapability = ["image", "video", "audio", "chat"].includes(String(section.payload.taskCapability))
       ? section.payload.taskCapability as RunningHubAdminItemCreatePayload["taskCapability"]
       : payload.taskCapability;
@@ -67,6 +72,42 @@ function mergeDraftSectionsToCreatePayload(
   return sections.reduce<RunningHubAdminItemCreatePayload>(
     (acc, section) => ({ ...acc, ...buildCreatePayloadFromDraft(providerId, kind, section) }),
     { providerId, kind, title: buildCreateTitle(kind) },
+  );
+}
+
+function buildUpdatePayloadFromDraft(
+  selectedItem: RunningHubAdminItem,
+  section?: RunningHubAnalyzeDraftSection | null,
+): RunningHubAdminItemUpdatePayload {
+  const payload: RunningHubAdminItemUpdatePayload = {};
+  if (!section) return payload;
+  if (section.key === "base") {
+    payload.title = readMeaningfulDraftText(section.payload.title) ?? selectedItem.title;
+    payload.note = readMeaningfulDraftText(section.payload.note) ?? selectedItem.note;
+    payload.pageId = readMeaningfulDraftText(section.payload.pageId) ?? selectedItem.pageId;
+    payload.runTargetId = readMeaningfulDraftText(section.payload.runTargetId) ?? selectedItem.runTargetId;
+    payload.taskCapability = ["image", "video", "audio", "chat"].includes(String(section.payload.taskCapability))
+      ? section.payload.taskCapability as RunningHubAdminItemUpdatePayload["taskCapability"]
+      : selectedItem.taskCapability;
+  } else if (section.key === "inputs") {
+    payload.fields = Array.isArray(section.payload.fields) ? section.payload.fields as RunningHubAdminItemUpdatePayload["fields"] : [];
+  } else if (section.key === "params") {
+    payload.parameterSchema = JSON.stringify(section.payload, null, 2);
+  } else if (section.key === "outputs") {
+    payload.outputSchema = Array.isArray(section.payload.outputs) ? section.payload.outputs as RunningHubAdminItemUpdatePayload["outputSchema"] : [];
+  } else if (section.key === "execution") {
+    payload.executionRules = section.payload as unknown as RunningHubAdminItemUpdatePayload["executionRules"];
+  }
+  return payload;
+}
+
+function mergeDraftSectionsToUpdatePayload(
+  selectedItem: RunningHubAdminItem,
+  sections: RunningHubAnalyzeDraftSection[],
+) {
+  return sections.reduce<RunningHubAdminItemUpdatePayload>(
+    (acc, section) => ({ ...acc, ...buildUpdatePayloadFromDraft(selectedItem, section) }),
+    {},
   );
 }
 
@@ -358,22 +399,7 @@ export function AdminRunningHubWorkspace({
       setError("请先在左侧选择一个 RunningHub 条目，再应用草案卡片。");
       return;
     }
-    const payload: RunningHubAdminItemUpdatePayload = {};
-    if (section.key === "base") {
-      payload.title = typeof section.payload.title === "string" ? section.payload.title : selectedItem.title;
-      payload.note = typeof section.payload.note === "string" ? section.payload.note : selectedItem.note;
-      payload.pageId = typeof section.payload.pageId === "string" ? section.payload.pageId : selectedItem.pageId;
-      payload.runTargetId = typeof section.payload.runTargetId === "string" ? section.payload.runTargetId : selectedItem.runTargetId;
-      payload.taskCapability = ["image", "video", "audio", "chat"].includes(String(section.payload.taskCapability))
-        ? section.payload.taskCapability as RunningHubAdminItemUpdatePayload["taskCapability"]
-        : selectedItem.taskCapability;
-    } else if (section.key === "params") {
-      payload.parameterSchema = JSON.stringify(section.payload, null, 2);
-    } else if (section.key === "outputs") {
-      payload.outputSchema = Array.isArray(section.payload.outputs) ? section.payload.outputs as RunningHubAdminItemUpdatePayload["outputSchema"] : [];
-    } else if (section.key === "execution") {
-      payload.executionRules = section.payload as unknown as RunningHubAdminItemUpdatePayload["executionRules"];
-    }
+    const payload = buildUpdatePayloadFromDraft(selectedItem, section);
     await handleSave(selectedItem.catalogId, payload);
   }
 
@@ -382,9 +408,8 @@ export function AdminRunningHubWorkspace({
       setError("请先选择条目并生成 RH 草案，再应用全部。");
       return;
     }
-    for (const section of analyzeDraft.sections) {
-      await applyAnalyzeSection(section);
-    }
+    const payload = mergeDraftSectionsToUpdatePayload(selectedItem, analyzeDraft.sections);
+    await handleSave(selectedItem.catalogId, payload);
   }
 
   return (

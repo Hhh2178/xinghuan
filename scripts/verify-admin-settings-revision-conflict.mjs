@@ -71,7 +71,10 @@ async function main() {
   assert(originalSystem.data?.taskQueueSettings, "system settings missing");
   const originalSystemRevision = Number(originalSystem.data.taskQueueSettingsRevision) || 1;
   const originalImageConcurrency = Number(originalSystem.data.taskQueueSettings.image?.concurrency) || 4;
+  const originalImageUserConcurrency = Number(originalSystem.data.taskQueueSettings.image?.userConcurrency) || 4;
+  const originalRunningHubEnabled = originalSystem.data.taskQueueSettings.runninghub?.enabled !== false;
   const temporaryImageConcurrency = originalImageConcurrency >= 4 ? 3 : originalImageConcurrency + 1;
+  const temporaryImageUserConcurrency = originalImageUserConcurrency >= 4 ? 3 : originalImageUserConcurrency + 1;
 
   const updatedSystem = await fetchJson("/api/admin/system", {
     method: "PATCH",
@@ -79,12 +82,28 @@ async function main() {
     body: JSON.stringify({
       taskQueueSettings: {
         ...originalSystem.data.taskQueueSettings,
-        image: { concurrency: temporaryImageConcurrency },
+        image: {
+          ...originalSystem.data.taskQueueSettings.image,
+          concurrency: temporaryImageConcurrency,
+          userConcurrency: temporaryImageUserConcurrency,
+        },
+        runninghub: {
+          ...originalSystem.data.taskQueueSettings.runninghub,
+          enabled: !originalRunningHubEnabled,
+        },
       },
       revision: originalSystemRevision,
     }),
   });
   assert(Number(updatedSystem.data?.revision) === originalSystemRevision + 1, "system revision did not increment");
+  assert(
+    Number(updatedSystem.data?.taskQueueSettings?.image?.userConcurrency) === temporaryImageUserConcurrency,
+    "system image userConcurrency did not persist",
+  );
+  assert(
+    Boolean(updatedSystem.data?.taskQueueSettings?.runninghub?.enabled) === !originalRunningHubEnabled,
+    "system runninghub enabled flag did not persist",
+  );
 
   const staleSystemWrite = await fetchJson(
     "/api/admin/system",
@@ -111,7 +130,15 @@ async function main() {
     body: JSON.stringify({
       taskQueueSettings: {
         ...originalSystem.data.taskQueueSettings,
-        image: { concurrency: originalImageConcurrency },
+        image: {
+          ...originalSystem.data.taskQueueSettings.image,
+          concurrency: originalImageConcurrency,
+          userConcurrency: originalImageUserConcurrency,
+        },
+        runninghub: {
+          ...originalSystem.data.taskQueueSettings.runninghub,
+          enabled: originalRunningHubEnabled,
+        },
       },
       revision: Number(updatedSystem.data.revision),
     }),
@@ -119,6 +146,14 @@ async function main() {
   assert(
     Number(restoredSystem.data?.taskQueueSettings?.image?.concurrency) === originalImageConcurrency,
     "system settings restore failed",
+  );
+  assert(
+    Number(restoredSystem.data?.taskQueueSettings?.image?.userConcurrency) === originalImageUserConcurrency,
+    "system image userConcurrency restore failed",
+  );
+  assert(
+    Boolean(restoredSystem.data?.taskQueueSettings?.runninghub?.enabled) === originalRunningHubEnabled,
+    "system runninghub enabled restore failed",
   );
 
   console.log(

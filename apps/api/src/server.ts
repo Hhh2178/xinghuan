@@ -1,6 +1,7 @@
 import {
   parseAssistantMessageBlocks,
   type AssistantChatResult,
+  TASK_QUEUE_CAPABILITIES,
   buildTaskQueueRuntimeDescriptors,
   createHealthPayload,
   type EnvironmentSyncApplyItem,
@@ -17,6 +18,7 @@ import {
   type RhCatalogItem,
   type ProviderGenerationExecutionMode,
   type TaskQueueCapability,
+  type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
   type TaskStatus,
 } from "@xinghuan/shared";
@@ -2807,7 +2809,12 @@ async function handleAdminRequest(
 
   if (url.pathname === "/api/admin/system" && request.method === "PATCH") {
     const body = await readJsonBody<{
-      taskQueueSettings?: Partial<Record<TaskQueueCapability, { concurrency?: number }>>;
+      taskQueueSettings?: Partial<{
+        image: { concurrency?: number; userConcurrency?: number };
+        audio: { concurrency?: number; userConcurrency?: number };
+        video: { concurrency?: number; userConcurrency?: number };
+        runninghub: { concurrency?: number; enabled?: boolean };
+      }>;
       revision?: number;
     }>(request);
     const current = await readTaskQueueSettingsRecord();
@@ -7517,7 +7524,7 @@ function isRunningHubDefaultEndpoint(kind: "app" | "workflow", targetId: string,
 }
 
 function safeRunningHubJsonText(value: unknown, fallback = "{}") {
-  const text = safeText(value);
+  const text = safeLongText(value, "", 200000);
   if (!text) return fallback;
   try {
     return JSON.stringify(JSON.parse(text), null, 2);
@@ -7533,6 +7540,22 @@ function safeRunningHubObjectJsonText(value: unknown, fallback = "{}") {
     throw new Error("参数 Schema 必须是 JSON 对象，不能是数组、字符串或数字");
   }
   return JSON.stringify(parsed, null, 2);
+}
+
+function preserveRunningHubJsonText(value: unknown, fallback = "{}") {
+  try {
+    return safeRunningHubJsonText(value, fallback);
+  } catch {
+    return safeText(value, fallback);
+  }
+}
+
+function preserveRunningHubObjectJsonText(value: unknown, fallback = "{}") {
+  try {
+    return safeRunningHubObjectJsonText(value, fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 function tryParseRunningHubExampleObject(text: string): Record<string, unknown> | null {
@@ -8022,11 +8045,11 @@ async function updateAdminRunningHubCatalogItem(
         pageId,
         appId,
         workflowId,
-        workflowJson: patch.workflowJson === undefined ? entry.workflowJson : safeRunningHubJsonText(patch.workflowJson, ""),
+        workflowJson: patch.workflowJson === undefined ? preserveRunningHubJsonText(entry.workflowJson, "") : safeRunningHubJsonText(patch.workflowJson, ""),
         fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(entry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
         runTargetId: targetId,
         taskCapability,
-        parameterSchema: patch.parameterSchema === undefined ? safeRunningHubObjectJsonText(entry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
+        parameterSchema: patch.parameterSchema === undefined ? preserveRunningHubObjectJsonText(entry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
         outputSchema: patch.outputSchema === undefined
           ? normalizeRunningHubOutputDefinitionsForAdmin(entry.outputSchema)
           : normalizeRunningHubOutputDefinitionsForAdmin(patch.outputSchema),
@@ -8035,7 +8058,7 @@ async function updateAdminRunningHubCatalogItem(
           endpoint: nextExecutionEndpoint,
           targetType: kind,
         },
-        testPayload: patch.testPayload === undefined ? safeRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
+        testPayload: patch.testPayload === undefined ? preserveRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
       };
       assertRunningHubEntryCanBeEnabled({
         ...next,
@@ -10005,19 +10028,38 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       status: "not_configured",
       queue: taskQueueName,
       depth: 0,
-      queues,
+      queues: queues.map((item) => ({
+        ...item,
+        userConcurrency: taskQueueSettings[item.capability].userConcurrency,
+        effectiveConcurrency: undefined,
+        workerCount: undefined,
+        slotCount: undefined,
+      })),
       error: "",
+      runninghub: {
+        ...taskQueueSettings.runninghub,
+        activeWindowCount: undefined,
+      },
     };
   }
   try {
     const client = await getRedisClient();
     const pong = await client.ping();
+    const runtimeSlots = await readWorkerRuntimeSlots(client);
+    const runninghubWindowRaw = await client.get("xinghuan:provider-window:runninghub").catch(() => null);
+    const runninghubActiveWindowCount = Math.max(0, Number(runninghubWindowRaw) || 0);
     const queueStates = await Promise.all(
-      queues.map(async (item) => ({
-        ...item,
-        userConcurrency: taskQueueSettings[item.capability].userConcurrency,
-        depth: await client.lLen(item.queue),
-      })),
+      queues.map(async (item) => {
+        const capabilityRuntimeSlots = runtimeSlots.filter((slot) => slot.capability === item.capability);
+        return {
+          ...item,
+          userConcurrency: taskQueueSettings[item.capability].userConcurrency,
+          depth: await client.lLen(item.queue),
+          effectiveConcurrency: capabilityRuntimeSlots.filter((slot) => slot.state === "active").length,
+          workerCount: new Set(capabilityRuntimeSlots.map((slot) => slot.workerId).filter(Boolean)).size,
+          slotCount: capabilityRuntimeSlots.length,
+        };
+      }),
     );
     const depth = queueStates.reduce((sum, item) => sum + item.depth, 0);
     return {
@@ -10027,7 +10069,10 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       depth,
       queues: queueStates,
       error: "",
-      runninghub: taskQueueSettings.runninghub,
+      runninghub: {
+        ...taskQueueSettings.runninghub,
+        activeWindowCount: runninghubActiveWindowCount,
+      },
     };
   } catch (error) {
     return {
@@ -10035,11 +10080,55 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
       status: "error",
       queue: taskQueueName,
       depth: 0,
-      queues,
+      queues: queues.map((item) => ({
+        ...item,
+        userConcurrency: taskQueueSettings[item.capability].userConcurrency,
+        effectiveConcurrency: undefined,
+        workerCount: undefined,
+        slotCount: undefined,
+      })),
       error: error instanceof Error ? error.message : String(error),
-      runninghub: taskQueueSettings.runninghub,
+      runninghub: {
+        ...taskQueueSettings.runninghub,
+        activeWindowCount: undefined,
+      },
     };
   }
+}
+
+async function readWorkerRuntimeSlots(client: Awaited<ReturnType<typeof getRedisClient>>): Promise<TaskQueueWorkerRuntimeSlot[]> {
+  const keys = await client.keys("xinghuan:worker-runtime:*").catch(() => []);
+  if (!Array.isArray(keys) || keys.length === 0) return [];
+  const rawValues = await Promise.all(keys.map((key) => client.get(key).catch(() => null)));
+  const slots: TaskQueueWorkerRuntimeSlot[] = [];
+  for (const rawValue of rawValues) {
+    if (!rawValue) continue;
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (!Array.isArray(parsed)) continue;
+      for (const item of parsed) {
+        const slot = normalizeWorkerRuntimeSlot(item);
+        if (slot) slots.push(slot);
+      }
+    } catch {
+      continue;
+    }
+  }
+  return slots;
+}
+
+function normalizeWorkerRuntimeSlot(value: unknown): TaskQueueWorkerRuntimeSlot | null {
+  const source = plainObject(value);
+  const capability = safeText(source.capability) as TaskQueueCapability;
+  if (!TASK_QUEUE_CAPABILITIES.includes(capability)) return null;
+  return {
+    workerId: safeText(source.workerId),
+    capability,
+    queue: safeText(source.queue, taskQueueNameForCapability(taskQueueName, capability)),
+    slotIndex: Math.max(0, Number(source.slotIndex) || 0),
+    state: safeText(source.state) === "stopping" ? "stopping" : "active",
+    updatedAt: Number(source.updatedAt) || Date.now(),
+  };
 }
 
 async function readSystemObservability(
