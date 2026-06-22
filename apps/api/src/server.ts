@@ -841,7 +841,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.3",
+      version: "0.4.4",
       environment,
       dataDir,
     });
@@ -2801,7 +2801,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.3",
+      version: "0.4.4",
       storage: await readStorageStats(),
     });
     return true;
@@ -7198,6 +7198,17 @@ interface RunningHubAnalyzeDraft {
   summary: string;
   sections: RunningHubAnalyzeDraftSection[];
   warnings: string[];
+  detectedKind?: "app" | "workflow";
+  detectedTargetId?: string;
+  autoSwitchMessage?: string;
+}
+
+interface RunningHubDetectedTarget {
+  kind?: "app" | "workflow";
+  targetId: string;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+  shouldSwitch: boolean;
 }
 
 function createRunningHubCatalogEntryId(kind: "app" | "workflow") {
@@ -7380,11 +7391,19 @@ async function analyzeRunningHubCatalogDraft(input: {
   responseExample?: string;
   notes?: string;
 }): Promise<RunningHubAnalyzeDraft> {
-  const kind = input.kind === "app" ? "app" : "workflow";
+  const requestedKind = input.kind === "app" ? "app" : "workflow";
   const requestExampleObject = parseRunningHubExampleObject(input.requestExample);
   const responseExampleObject = parseRunningHubExampleObject(input.responseExample);
-  const referenceRef = parseRunningHubRef(input.docUrl || input.sourceUrl || "");
-  const referenceTargetId = safeText(referenceRef?.id);
+  const detectedTarget = detectRunningHubTarget({
+    docUrl: safeText(input.docUrl),
+    sourceUrl: safeText(input.sourceUrl),
+    runTargetId: safeText(input.runTargetId),
+    pageId: safeText(input.pageId),
+    requestExample: requestExampleObject,
+    requestedKind,
+  });
+  const kind = detectedTarget.kind === "app" ? "app" : requestedKind;
+  const referenceTargetId = safeText(detectedTarget.targetId);
   const requestExampleRunTargetId = extractRunningHubRunTargetIdFromExample(kind, requestExampleObject);
   const pageId = safeText(
     input.pageId
@@ -7392,7 +7411,7 @@ async function analyzeRunningHubCatalogDraft(input: {
       || referenceTargetId,
   );
   const runTargetId = safeText(
-    input.runTargetId || requestExampleRunTargetId || referenceTargetId,
+    input.runTargetId || requestExampleRunTargetId || referenceTargetId || detectedTarget.targetId,
     pageId || createRunningHubCatalogEntryId(kind),
   );
   const capabilityText = [input.docUrl, input.sourceUrl, input.notes, input.requestExample, input.responseExample]
@@ -7479,8 +7498,16 @@ async function analyzeRunningHubCatalogDraft(input: {
   if (requestExampleObject && requestExampleFields.length <= 0) {
     warnings.push("requestExample 已解析，但没有识别到可用的 nodeInfoList 字段。");
   }
+  const autoSwitchMessage = detectedTarget.shouldSwitch
+    ? kind === "app"
+      ? "检测到这是 AI App，已自动切换到 AI 应用区域"
+      : "检测到这是工作流，已自动切换到工作流区域"
+    : "";
   return {
     summary: `已根据 ${kind === "app" ? "AI 应用" : "工作流"} 线索生成结构化 RH 草案，请重点核对运行目标、输入槽和执行规则。`,
+    detectedKind: detectedTarget.kind,
+    detectedTargetId: runTargetId || detectedTarget.targetId,
+    autoSwitchMessage,
     sections: [
       { key: "base", title: "基础信息草案", description: "条目标题、备注和运行目标。", payload: baseDraft },
       { key: "inputs", title: "输入槽草案", description: "建议补齐输入槽结构，而不是直接手写 JSON。", payload: inputDraft },
@@ -7644,6 +7671,67 @@ function extractRunningHubRunTargetIdFromExample(
 function extractRunningHubPageIdFromExample(example: Record<string, unknown> | null) {
   if (!example) return "";
   return safeText(example.pageId);
+}
+
+function detectRunningHubTarget(input: {
+  docUrl?: string;
+  sourceUrl?: string;
+  runTargetId?: string;
+  pageId?: string;
+  requestExample?: Record<string, unknown> | null;
+  requestedKind?: "app" | "workflow";
+}): RunningHubDetectedTarget {
+  const docUrl = safeText(input.docUrl || input.sourceUrl);
+  const requestExample = input.requestExample || null;
+  const requestedKind = input.requestedKind === "app" ? "app" : "workflow";
+  // Example AI App doc pattern: call-api/api-detail/1978404642654670849?apiType=4
+  const referenceRef = parseRunningHubRef(docUrl);
+  if (referenceRef?.id) {
+    return {
+      kind: referenceRef.type,
+      targetId: referenceRef.id,
+      confidence: "high",
+      reason: referenceRef.type === "app" ? "文档链接命中 AI App 路径" : "文档链接命中 Workflow 路径",
+      shouldSwitch: referenceRef.type !== requestedKind,
+    };
+  }
+  const apiDetailAppMatch = docUrl.match(/call-api\/api-detail\/([0-9A-Za-z_-]+)\?apiType=4/i);
+  if (apiDetailAppMatch) {
+    return {
+      kind: "app",
+      targetId: apiDetailAppMatch[1],
+      confidence: "high",
+      reason: "文档链接命中 call-api AI App 文档",
+      shouldSwitch: requestedKind !== "app",
+    };
+  }
+  const workflowId = safeText(requestExample?.workflowId || input.runTargetId);
+  if (/^workflow-[0-9A-Za-z_-]+$/i.test(workflowId)) {
+    return {
+      kind: "workflow",
+      targetId: workflowId,
+      confidence: "high",
+      reason: "命中 workflow 风格 ID",
+      shouldSwitch: requestedKind !== "workflow",
+    };
+  }
+  const appId = safeText(requestExample?.webappId || requestExample?.runTargetId || input.runTargetId);
+  if (appId && /\/(?:openapi\/v2\/)?run\/ai-app\//i.test(docUrl)) {
+    return {
+      kind: "app",
+      targetId: appId,
+      confidence: "high",
+      reason: "文档与示例共同指向 AI App",
+      shouldSwitch: requestedKind !== "app",
+    };
+  }
+  return {
+    kind: undefined,
+    targetId: safeText(input.runTargetId || workflowId || appId || input.pageId),
+    confidence: "low",
+    reason: "仅识别到 targetId，类型待确认",
+    shouldSwitch: false,
+  };
 }
 
 function inferRunningHubFieldValueTypeFromExample(fieldName: string, fieldValue: unknown) {

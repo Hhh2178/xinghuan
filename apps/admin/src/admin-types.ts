@@ -187,6 +187,9 @@ export interface RunningHubAnalyzeDraft {
   summary: string;
   sections: RunningHubAnalyzeDraftSection[];
   warnings: string[];
+  detectedKind?: "app" | "workflow";
+  detectedTargetId?: string;
+  autoSwitchMessage?: string;
 }
 
 export interface RunningHubAnalyzePayload {

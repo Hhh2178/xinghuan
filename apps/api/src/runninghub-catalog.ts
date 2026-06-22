@@ -169,10 +169,14 @@ function normalizeRunningHubExecutionRules(value: unknown, kind: "app" | "workfl
 
 export function parseRunningHubRef(value: unknown) {
   const text = safeText(value);
+  const apiDetailAppMatch = text.match(/call-api\/api-detail\/([0-9A-Za-z_-]+)\?apiType=4/i);
+  if (apiDetailAppMatch) return { type: "app" as const, id: apiDetailAppMatch[1] };
+  const openapiMatch = text.match(/\/(?:openapi\/v2\/)?run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
+  if (openapiMatch) return { type: openapiMatch[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: openapiMatch[2] };
   const match = text.match(/\/run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
   if (match) return { type: match[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: match[2] };
-  const plain = text.match(/^[0-9A-Za-z_-]{6,}$/);
-  return plain ? { type: "workflow" as const, id: text } : null;
+  if (/^workflow-[0-9A-Za-z_-]+$/i.test(text)) return { type: "workflow" as const, id: text };
+  return null;
 }
 
 export function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubFieldDefinition[] {
