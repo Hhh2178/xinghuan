@@ -9,7 +9,7 @@ const checks = [
   ],
   [
     "Enabled-entry guard no longer hard-blocks all fieldless RunningHub entries",
-    /if \(hasRunningHubFieldDefinitions\(entry\.fields\)\) return;[\s\S]*if \(hasRunningHubExplicitEmptyNodeInfoList\(entry\.testPayload\)\) return;/i.test(server),
+    /if \(hasRunningHubFieldDefinitions\(entry\.fields\)\) return;[\s\S]*if \(allowsRunningHubEntryWithoutFields\(entry\.testPayload\)\) return;/i.test(server),
   ],
 ];
 

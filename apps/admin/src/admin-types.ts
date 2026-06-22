@@ -115,6 +115,7 @@ export interface RunningHubEntry {
   appId?: string;
   workflowId?: string;
   runTargetId?: string;
+  allowsEmptyInputs?: boolean;
   taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];

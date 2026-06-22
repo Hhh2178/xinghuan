@@ -551,13 +551,21 @@ export function AdminRunningHubItemEditor({
 
   const currentItem = item;
   const currentKind = currentItem.kind === "app" ? "app" : "workflow";
+  const allowsEmptyInputs = currentItem.allowsEmptyInputs === true;
+  const enablementState = enabled
+    ? validFieldCount > 0
+      ? "已满足"
+      : allowsEmptyInputs
+        ? "无入参可直接启用"
+        : "缺少输入槽"
+    : "草稿可保存";
 
   async function handleSave() {
     try {
       const parsedSchema = parseObjectJson(parameterSchema);
       const normalizedSchema = JSON.stringify(parsedSchema, null, 2);
       const normalizedTestPayload = parseAnyJson(testPayload, "测试运行输入必须是有效 JSON。");
-      if (enabled && validFieldCount <= 0) {
+      if (enabled && validFieldCount <= 0 && !allowsEmptyInputs) {
         throw new Error("当前 RH 条目仍缺少输入槽定义，不能启用。请至少补齐一个包含 nodeId 和 fieldName 的输入槽，或先保存为停用草稿。");
       }
       const nextRunTargetId = runTargetId.trim() || currentItem.runTargetId || currentItem.id;
@@ -749,7 +757,11 @@ export function AdminRunningHubItemEditor({
                   </button>
                 </div>
               </div>
-              <div className="admin-runninghub-editor__empty-note">如果当前已经整理好了参数 Schema，可以先生成输入槽草稿，再逐条补齐 nodeId。没有 nodeId 的草稿还不能执行。</div>
+              <div className="admin-runninghub-editor__empty-note">
+                {allowsEmptyInputs
+                  ? "当前条目已被标记为显式无入参工作流。输入槽区为空属于正常现象，可以直接启用并执行；如果后续拿到真实 nodeInfoList，也可以再补充绑定。"
+                  : "如果当前已经整理好了参数 Schema，可以先生成输入槽草稿，再逐条补齐 nodeId。没有 nodeId 的草稿还不能执行。"}
+              </div>
               {fields.length ? (
                 <div className="admin-runninghub-editor__slot-list">
                   {fields.map((field, index) => (
@@ -762,7 +774,9 @@ export function AdminRunningHubItemEditor({
                   ))}
                 </div>
               ) : (
-                <div className="admin-runninghub-editor__empty-note">当前未配置输入槽。至少补齐 nodeId 和 fieldName 后再保存。</div>
+                <div className="admin-runninghub-editor__empty-note">
+                  {allowsEmptyInputs ? "当前未配置输入槽。该条目属于显式无入参工作流，这里为空是正常状态。" : "当前未配置输入槽。至少补齐 nodeId 和 fieldName 后再保存。"}
+                </div>
               )}
               {slotError ? <div className="probe-note">失败: {slotError}</div> : null}
               {slotSummary.length ? (
@@ -785,7 +799,9 @@ export function AdminRunningHubItemEditor({
               </div>
               {schemaPropertyCount > 0 ? (
                 <div className="admin-runninghub-editor__empty-note">
-                  当前 Schema 识别到 {schemaPropertyCount} 个结构化参数。只有补齐对应的 RH 绑定字段后，画布节点才会把它们作为可执行参数区展开。
+                  {allowsEmptyInputs
+                    ? `当前 Schema 识别到 ${schemaPropertyCount} 个结构化参数。由于该条目被标记为显式无入参工作流，只有在后续补齐真实 RH 绑定字段时，这些参数才会展开为可执行输入区。`
+                    : `当前 Schema 识别到 ${schemaPropertyCount} 个结构化参数。只有补齐对应的 RH 绑定字段后，画布节点才会把它们作为可执行参数区展开。`}
                 </div>
               ) : null}
               <textarea value={parameterSchema} onChange={(e) => setParameterSchema(e.target.value)} rows={10} className="admin-runninghub-editor__code" />
@@ -927,7 +943,7 @@ export function AdminRunningHubItemEditor({
                 </div>
                 <div>
                   <dt>启用条件</dt>
-                  <dd>{enabled ? (validFieldCount > 0 ? "已满足" : "缺少输入槽") : "草稿可保存"}</dd>
+                  <dd>{enablementState}</dd>
                 </div>
               </dl>
             </section>

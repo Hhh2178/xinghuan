@@ -515,6 +515,7 @@ export function AdminRunningHubWorkspace({
                   onClick={() => setSelectedCatalogId(item.catalogId)}
                 >
                   {(() => {
+                    const allowsEmptyInputs = item.allowsEmptyInputs === true;
                     const validFieldCount = Array.isArray(item.fields)
                       ? item.fields.filter((field) => String(field.nodeId || "").trim() && String(field.fieldName || "").trim()).length
                       : 0;
@@ -529,7 +530,7 @@ export function AdminRunningHubWorkspace({
                     <span>{item.note?.trim() || "未补充备注"}</span>
                     <small>{item.kind === "workflow" ? "工作流" : "AI 应用"} · {item.taskCapability || "video"} · 绑定 {validFieldCount} · Schema {schemaPropertyCount}</small>
                     {validFieldCount <= 0
-                      ? <small className="text-amber-300">{schemaPropertyCount > 0 ? "已有结构化参数草案，但仍待补 RH 绑定字段" : "待补输入槽，启用后节点不会展开参数区"}</small>
+                      ? <small className="text-amber-300">{allowsEmptyInputs ? "显式无入参工作流，可直接启用并运行" : schemaPropertyCount > 0 ? "已有结构化参数草案，但仍待补 RH 绑定字段" : "待补输入槽，启用后节点不会展开参数区"}</small>
                       : null}
                   </div>
                   <div className="admin-runninghub-list-item__meta">
