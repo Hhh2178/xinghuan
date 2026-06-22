@@ -27,6 +27,21 @@ assert.match(
 );
 assert.match(
   workerSource,
+  /duplicate\(\)/,
+  "worker must dedicate separate redis connections to blocking queue reads",
+);
+assert.match(
+  workerSource,
+  /controller\.redis\.\s*brPop\(/,
+  "worker queue loop must read from a dedicated controller redis client",
+);
+assert.doesNotMatch(
+  workerSource,
+  /await\s+redis\.\s*brPop\(/,
+  "worker must not use the control redis client for blocking queue reads",
+);
+assert.match(
+  workerSource,
   /setInterval\(\s*(?:\(\)\s*=>\s*)?(?:void\s+)?(?:refreshQueueControllers|reconcileQueueControllers|syncQueueControllers)|await\s+(?:refreshQueueControllers|reconcileQueueControllers|syncQueueControllers)\(/,
   "worker must periodically refresh queue controllers or invoke an equivalent runtime sync",
 );

@@ -15,7 +15,7 @@ import {
 import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
 import { Pool } from "pg";
-import { createClient } from "redis";
+import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import { materializeTaskOutputs } from "./output-materials.js";
 import {
@@ -75,8 +75,8 @@ const pool = new Pool({
 
 let currentDatabaseNamePromise: Promise<string> | null = null;
 
-const redis = createClient({ url: redisUrl });
-redis.on("error", (error) => {
+const redisControl = createClient({ url: redisUrl });
+redisControl.on("error", (error) => {
   console.error("xinghuan-worker redis error", error instanceof Error ? error.message : String(error));
 });
 
@@ -93,6 +93,8 @@ interface QueueLoopController {
   queue: string;
   slotIndex: number;
   shouldStop: boolean;
+  connected: boolean;
+  redis: RedisClientType;
   finished: Promise<void> | null;
 }
 
@@ -102,12 +104,12 @@ let queueControllerRefreshTimer: NodeJS.Timeout | null = null;
 let queueControllerRefreshInFlight: Promise<TaskQueueRuntimeDescriptor[]> | null = null;
 
 await ensureRuntimeDatabaseTarget("xinghuan-worker");
-await redis.connect();
+await redisControl.connect();
 const queueNames = TASK_QUEUE_CAPABILITIES.map((capability) => taskQueueNameForCapability(queueName, capability));
 const initialQueueDescriptors = await refreshQueueControllers();
 console.log(JSON.stringify({ ...createHealthPayload("xinghuan-worker", environment), workerId, queueName, queueNames, queues: initialQueueDescriptors }));
 await runWorkerRuntime();
-await redis.quit().catch(() => undefined);
+await redisControl.quit().catch(() => undefined);
 await pool.end().catch(() => undefined);
 console.log("xinghuan-worker stopped");
 
@@ -141,7 +143,7 @@ async function ensureRuntimeDatabaseTarget(serviceName: string) {
 
 async function runQueueLoop(controller: QueueLoopController) {
   while (!stopping && !controller.shouldStop) {
-    const item = await redis.brPop(controller.queue, pollTimeoutSeconds).catch((error) => {
+    const item = await controller.redis.brPop(controller.queue, pollTimeoutSeconds).catch((error) => {
       console.error(
         "xinghuan-worker queue read failed",
         JSON.stringify({
@@ -169,6 +171,28 @@ async function runQueueLoop(controller: QueueLoopController) {
     });
   }
   await persistRuntimeQueueSlots();
+}
+
+async function startQueueLoop(controller: QueueLoopController) {
+  try {
+    await controller.redis.connect();
+    controller.connected = true;
+    await persistRuntimeQueueSlots();
+    await runQueueLoop(controller);
+  } catch (error) {
+    console.error(
+      "xinghuan-worker queue loop init failed",
+      JSON.stringify({
+        capability: controller.capability,
+        queue: controller.queue,
+        slotIndex: controller.slotIndex,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  } finally {
+    controller.connected = false;
+    await controller.redis.quit().catch(() => undefined);
+  }
 }
 
 async function refreshQueueControllers() {
@@ -200,9 +224,11 @@ function reconcileQueueControllers(descriptor: TaskQueueRuntimeDescriptor) {
       queue: descriptor.queue,
       slotIndex,
       shouldStop: false,
+      connected: false,
+      redis: redisControl.duplicate(),
       finished: null,
     };
-    controller.finished = runQueueLoop(controller).finally(() => {
+    controller.finished = startQueueLoop(controller).finally(() => {
       const current = queueLoopControllers.get(descriptor.capability);
       if (!current) return;
       const index = current.indexOf(controller);
@@ -227,6 +253,7 @@ async function persistRuntimeQueueSlots() {
     const controllers = queueLoopControllers.get(capability) ?? [];
     const descriptor = queueRuntimeDescriptorState.get(capability);
     for (const controller of controllers) {
+      if (!controller.connected) continue;
       runtimeSlots.push({
         workerId,
         capability,
@@ -238,10 +265,10 @@ async function persistRuntimeQueueSlots() {
     }
   }
   if (runtimeSlots.length === 0) {
-    await redis.del(`xinghuan:worker-runtime:${workerId}`).catch(() => undefined);
+    await redisControl.del(`xinghuan:worker-runtime:${workerId}`).catch(() => undefined);
     return;
   }
-  await redis
+  await redisControl
     .set(`xinghuan:worker-runtime:${workerId}`, JSON.stringify(runtimeSlots), {
       expiration: {
         type: "EX",
@@ -410,20 +437,20 @@ async function deferTaskExecution(
 async function requeueDeferredTask(taskId: string, capability: string) {
   if (!["image", "audio", "video"].includes(capability)) return;
   const queue = taskQueueNameForCapability(queueName, capability as TaskQueueCapability);
-  await redis.lPush(queue, taskId);
+  await redisControl.lPush(queue, taskId);
 }
 
 async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise<{ acquired: true } | { acquired: false; reason: string }> {
   if (!task.ownerId || limit <= 0) return { acquired: true };
   const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
-  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current >= limit) {
     return { acquired: false, reason: `用户 ${task.ownerId} 的 ${task.capability} 并发已满 (${current}/${limit})` };
   }
-  const next = await redis.incr(key);
-  if (next === 1) await redis.expire(key, 60 * 60);
+  const next = await redisControl.incr(key);
+  if (next === 1) await redisControl.expire(key, 60 * 60);
   if (next > limit) {
-    await redis.decr(key).catch(() => undefined);
+    await redisControl.decr(key).catch(() => undefined);
     return { acquired: false, reason: `用户 ${task.ownerId} 的 ${task.capability} 并发已满 (${next - 1}/${limit})` };
   }
   return { acquired: true };
@@ -432,10 +459,10 @@ async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise
 async function releaseUserExecutionWindow(task: TaskRow) {
   if (!task.ownerId || !["image", "audio", "video"].includes(task.capability)) return;
   const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
-  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current <= 0) return;
-  const next = await redis.decr(key).catch(() => current - 1);
-  if (Number(next) <= 0) await redis.del(key).catch(() => undefined);
+  const next = await redisControl.decr(key).catch(() => current - 1);
+  if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
 }
 
 async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
@@ -443,14 +470,14 @@ async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQue
   if (!settings.runninghub.enabled) return { acquired: true };
   const limit = Math.max(1, Number(settings.runninghub.concurrency) || 1);
   const key = "xinghuan:provider-window:runninghub";
-  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current >= limit) {
     return { acquired: false, reason: `RunningHub 平台并发已满 (${current}/${limit})` };
   }
-  const next = await redis.incr(key);
-  if (next === 1) await redis.expire(key, 60 * 60);
+  const next = await redisControl.incr(key);
+  if (next === 1) await redisControl.expire(key, 60 * 60);
   if (next > limit) {
-    await redis.decr(key).catch(() => undefined);
+    await redisControl.decr(key).catch(() => undefined);
     return { acquired: false, reason: `RunningHub 平台并发已满 (${next - 1}/${limit})` };
   }
   return { acquired: true };
@@ -459,10 +486,10 @@ async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQue
 async function releaseRunningHubExecutionWindow(task: TaskRow) {
   if (normalizeProtocol(task.providerProtocol) !== "runninghub") return;
   const key = "xinghuan:provider-window:runninghub";
-  const current = Number(await redis.get(key).catch(() => "0")) || 0;
+  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current <= 0) return;
-  const next = await redis.decr(key).catch(() => current - 1);
-  if (Number(next) <= 0) await redis.del(key).catch(() => undefined);
+  const next = await redisControl.decr(key).catch(() => current - 1);
+  if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
 }
 
 async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
