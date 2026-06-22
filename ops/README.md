@@ -2,6 +2,18 @@
 
 本目录用于记录服务器、域名、部署、服务、日志、回滚和验收。
 
+## 当前入口说明
+
+`ops/README.md` 继续作为当前运行态与放行材料的兼容入口。
+
+从本轮文档治理重构开始，新的文档导航为：
+
+- 总索引：`../docs/INDEX.md`
+- 系统知识：`../docs/systems/README.md`
+- 台账与证据目录：`../docs/logbooks/README.md`
+
+本目录仍保留“当前运行态 / 当前放行入口”的职责，但后续新的发布与验证记录应优先同步进入 `docs/logbooks/releases/` 与 `docs/logbooks/validations/`。
+
 ## 当前状态
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。

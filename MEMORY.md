@@ -1,5 +1,22 @@
 # MEMORY.md - 无限画布 2.0 项目记忆
 
+## 记忆分层说明
+
+从本轮文档治理重构开始：
+
+- `MEMORY.md` 继续保留为长期记忆兼容入口
+- 新的主题化长期记忆目录为 `docs/memory/`
+- 系统细节优先沉淀到 `docs/systems/`
+- 逐日推进与发布证据优先沉淀到 `docs/logbooks/`
+
+推荐恢复顺序：
+
+1. `AGENTS.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `MEMORY.md`
+5. `ops/README.md`
+
 ## 项目摘要
 
 无限画布 2.0 是公司内部节点式 AIGC 创作平台的新项目。核心目标是让成员在无限画布中通过节点工作流、素材空间和 Agent 辅助创作图片、视频、音频和文本；所有生成能力通过外部 API 调用；管理员在独立后台统一管理用户、项目、Provider、模型、参数、任务、素材、日志、配额和审计。
@@ -15,7 +32,10 @@
 相关入口：
 
 - 根入口：`README.md`
-- 项目总纲：`docs/project-atlas/README.md`
+- 总索引：`docs/INDEX.md`
+- 系统知识：`docs/systems/README.md`
+- 长期记忆目录：`docs/memory/README.md`
+- 项目总纲兼容层：`docs/project-atlas/README.md`
 - 协作规则：`AGENTS.md`
 - 结构说明：`docs/repo-structure.md`
 - 运行产物：`docs/runtime-artifacts.md`
@@ -27,16 +47,17 @@
 如果只是要快速恢复当前状态，优先看：
 
 1. 本文件前部的“项目摘要 / 当前关键决策 / 当前阶段”
-2. `docs/project-atlas/README.md`
-3. `docs/repo-structure.md`
-4. `docs/runtime-artifacts.md`
-5. `ops/README.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `ops/README.md`
+5. `docs/project-atlas/README.md`
 6. `DEVLOG.md` 顶部最近几天记录
 
 使用边界：
 
 - 本文件保留长期有效的项目判断、部署状态、关键规则和阶段结论。
-- 结构、环境、接口、排障和台账维护入口，优先看 `docs/project-atlas/`。
+- 系统结构、协议、接口和执行链路，优先看 `docs/systems/`。
+- 结构、环境、排障和旧总纲正文，优先看 `docs/project-atlas/`。
 - 按天展开的详细推进与验证证据，优先看 `DEVLOG.md`。
 - 具体部署材料与历史验收记录，优先看 `ops/`。
 - 临时方案与开发草稿，优先看 `development/`。

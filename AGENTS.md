@@ -6,16 +6,64 @@
 
 本项目目标是从一开始建立可扩展节点系统、独立后台、模型与服务商管理、云端项目存储、用户隔离、素材空间和任务执行链路，避免在节点基础薄弱的项目上继续补丁式改造。
 
+## 项目总纲入口
+
+从 Phase 1 文档治理重构开始，当前推荐阅读顺序改为：
+
+1. `AGENTS.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `README.md`
+5. `MEMORY.md`
+6. `ops/README.md`
+7. `DEVLOG.md`
+
+## 系统地图
+
+当任务涉及具体系统时，优先进入：
+
+- RunningHub：`docs/systems/runninghub/`
+- 后台 Admin：`docs/systems/admin/`
+- API：`docs/systems/api/`
+- Worker：`docs/systems/worker/`
+
+## 协作方式
+
+- 先通过 `docs/INDEX.md` 判断要找的是治理规则、系统知识、长期记忆、台账证据，还是历史方案。
+- 先读系统知识再读代码，避免直接在 `MEMORY.md`、`DEVLOG.md`、`ops/README.md` 里全文乱找。
+- 做完真实改动后，同步检查主入口与对应系统文档，而不是只补一条日志。
+
+## 文件治理与归档规则
+
+- 治理规则看 `docs/governance/`
+- 系统知识看 `docs/systems/`
+- 长期记忆看 `docs/memory/`
+- 逐日台账与发布证据看 `docs/logbooks/`
+- 设计与演进记录看 `docs/records/`
+
+旧入口文件目前继续保留，但职责已经改成“摘要 + 跳转入口”：
+
+- `README.md`
+- `MEMORY.md`
+- `DEVLOG.md`
+- `ops/README.md`
+
 ## 当前目录约定
 
 - `AGENTS.md`：本文件，记录协作和工程规则。
+- `docs/INDEX.md`：新的第一跳总索引。
+- `docs/governance/`：协作方式、CodeGraph 规则、归档政策。
+- `docs/systems/`：按系统组织的知识入口。
+- `docs/memory/`：长期记忆主题目录。
+- `docs/logbooks/`：日常推进、发布、验证、事故记录目录。
+- `docs/records/`：设计方案与演进记录目录。
 - `MEMORY.md`：长期项目记忆、关键决策、服务器和部署状态。
 - `DEVLOG.md`：开发日志台账，按日期记录真实推进、测试和部署。
 - `README.md`：当前工作根入口和高层状态摘要。
-- `docs/project-atlas/README.md`：AI 与协作者的总纲入口，统一索引结构、环境、接口、排障和台账规则。
+- `docs/project-atlas/README.md`：兼容层总纲入口，保留旧的结构化导航正文。
 - `docs/repo-structure.md`：当前 worktree、主仓库、过程目录和运行产物目录说明。
 - `docs/runtime-artifacts.md`：运行产物目录和清理边界说明。
-- `docs/documentation-governance.md`：文档路由、更新触发条件和归档规范。
+- `docs/documentation-governance.md`：旧治理正文，后续逐步被 `docs/governance/` 接管。
 - `docs/size-audit-2026-06-15.md`：当前仓库体积基线、主要占用来源和后续瘦身顺序。
 - `docs/prd/README.md`：PRD 版本索引。
 - `docs/prd/v0.1.0/`：当前 2.0 初始规划版本文档。
@@ -29,15 +77,15 @@
 当需要快速恢复上下文时，优先顺序：
 
 1. `AGENTS.md`
-2. `README.md`
-3. `docs/project-atlas/README.md`
-4. `MEMORY.md`
-5. `docs/documentation-governance.md`
-6. `docs/repo-structure.md`
-7. `docs/runtime-artifacts.md`
-8. `docs/prd/README.md`
-9. `ops/README.md`
-10. `DEVLOG.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `README.md`
+5. `MEMORY.md`
+6. `ops/README.md`
+7. `DEVLOG.md`
+8. `docs/project-atlas/README.md`
+9. `docs/repo-structure.md`
+10. `docs/runtime-artifacts.md`
 
 ## 入口优先级
 
@@ -48,6 +96,7 @@
 使用原则：
 
 - 当前开发、部署、验收、结构整理，优先看本目录下的 `AGENTS.md`、`docs/project-atlas/README.md`、`MEMORY.md`、`DEVLOG.md`、`docs/`、`ops/`
+- 当前默认导航先走 `docs/INDEX.md -> docs/systems/<system>/ -> 代码`
 - 当前状态先看 `README.md`、`MEMORY.md`、`docs/prd/README.md`、`ops/README.md`，不要只看旧日志顶部或历史灰度记录判断状态
 - `D:/codex/无限画布2.0` 是主仓库，不是当前默认工作现场
 - `D:/codex/服务器/无限画布/` 只作为旧主干/旧文档参考入口，不作为当前 2.0 的主说明来源
@@ -103,9 +152,10 @@
 
 ## 文档与归档规则
 
-- 文档主路由和更新规范以 `docs/documentation-governance.md` 为准。
-- AI 与协作者的结构化总纲入口以 `docs/project-atlas/README.md` 为准。
-- 结构、环境、接口、排障路径和台账规范，优先收口到 `docs/project-atlas/`，不要继续零散只写进 `MEMORY.md` 或一次性方案文档。
+- 文档总入口以 `docs/INDEX.md` 为准。
+- 治理规则与更新规范优先看 `docs/governance/`。
+- `docs/project-atlas/README.md` 与 `docs/documentation-governance.md` 继续保留为兼容正文，不再作为唯一第一跳入口。
+- 系统结构、协议、接口与执行链路优先收口到 `docs/systems/`，不要继续零散只写进 `MEMORY.md` 或一次性方案文档。
 - 当前状态只允许在少数主入口中维护：
   - `README.md`
   - `MEMORY.md`

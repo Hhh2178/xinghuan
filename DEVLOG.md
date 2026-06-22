@@ -1,5 +1,15 @@
 # DEVLOG.md - 无限画布 2.0 开发日志台账
 
+## 兼容入口说明
+
+`DEVLOG.md` 当前继续保留，但从本轮文档治理重构开始：
+
+- 新的总索引位于 `docs/INDEX.md`
+- 新的日常台账目录位于 `docs/logbooks/daily/`
+- 新的发布与验证证据目录位于 `docs/logbooks/releases/` 和 `docs/logbooks/validations/`
+
+本文件在 Phase 1 继续作为兼容台账入口，同时保留模板与最近记录索引。
+
 ## 2026-06-22
 
 ### RH 空入参工作流 gray 热修与版本推进到 v0.4.7
@@ -58,6 +68,7 @@
 - 禁止记录真实 API Key、Token、Cookie、SSH Key 和数据库密码。
 - `DEVLOG.md` 只负责逐日推进台账，不承担长期结构、长期环境和长期规范入口职责。
 - 三层台账维护规则见 `docs/project-atlas/logbook-maintenance.md`。
+- 新结构下的日常台账落点见 `docs/logbooks/README.md`。
 
 ## 标准记录模板
 

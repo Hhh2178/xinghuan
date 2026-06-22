@@ -2,6 +2,35 @@
 
 公司内部节点式 AIGC 创作平台当前活跃工作目录。
 
+## 当前推荐入口
+
+从本轮文档治理重构开始，建议按下面顺序恢复上下文：
+
+1. `AGENTS.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `README.md`
+5. `MEMORY.md`
+6. `ops/README.md`
+
+## 文档导航
+
+- 总索引：`docs/INDEX.md`
+- 协作与归档规则：`docs/governance/`
+- 系统知识：`docs/systems/`
+- 长期记忆：`docs/memory/`
+- 台账与发布证据：`docs/logbooks/`
+- 设计与演进记录：`docs/records/`
+
+## 当前状态摘要
+
+- 当前活跃版本：`v0.4.7`
+- 当前灰度：`canvas-next.hhh2121.xyz`
+- 当前生产：`canvas.hhh2121.xyz`
+- 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+- 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+- 当前重点系统：RunningHub、后台 Admin、API、Worker
+
 ## 当前工作根
 
 当前默认开发入口：
@@ -18,17 +47,19 @@
 ## 快速入口
 
 - `AGENTS.md`
-  - 当前协作规则、文档路由规则、更新义务和归档边界。
+  - 当前协作规则、项目总纲和阅读顺序。
+- `docs/INDEX.md`
+  - 新的第一跳总索引。
+- `docs/systems/README.md`
+  - 当前系统地图。
 - `MEMORY.md`
-  - 当前项目长期记忆、部署状态、当前 release 和阶段结论。
+  - 当前项目长期记忆兼容入口。
 - `docs/project-atlas/README.md`
-  - AI 与协作者的总纲入口，先看结构、环境、接口、排障和台账规则。
+  - 兼容层总纲入口，保留旧的结构化导航正文。
 - `DEVLOG.md`
-  - 最近推进、验证、部署与回滚台账。
+  - 旧开发台账兼容入口。
 - `docs/prd/README.md`
   - 当前 2.0 产品文档索引与当前版本状态。
-- `docs/documentation-governance.md`
-  - 文档路由、更新触发条件、归档规则和入口维护规范。
 - `ops/README.md`
   - 运维、验收和归档材料入口。
 - `development/README.md`
