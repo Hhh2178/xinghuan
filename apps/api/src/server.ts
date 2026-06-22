@@ -7524,7 +7524,7 @@ function safeRunningHubObjectJsonText(value: unknown, fallback = "{}") {
 }
 
 function parseRunningHubExampleObject(value: unknown): Record<string, unknown> | null {
-  const text = safeText(value);
+  const text = safeLongText(value, "", 16000);
   if (!text) return null;
   try {
     const parsed = JSON.parse(text);

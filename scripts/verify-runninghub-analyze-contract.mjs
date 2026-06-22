@@ -13,6 +13,7 @@ assert.match(workspace, /请求示例/);
 assert.match(workspace, /响应示例/);
 
 assert.match(server, /function parseRunningHubExampleObject\(/);
+assert.match(server, /function parseRunningHubExampleObject[\s\S]*safeLongText\(value,\s*""\s*,\s*16000\)/);
 assert.match(server, /function buildRunningHubFieldsFromRequestExample\(/);
 assert.match(server, /const requestExampleObject = parseRunningHubExampleObject\(input\.requestExample\);/);
 assert.match(server, /const requestExampleFields = buildRunningHubFieldsFromRequestExample\(requestExampleObject\);/);
