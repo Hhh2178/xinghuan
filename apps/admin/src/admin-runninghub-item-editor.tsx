@@ -582,8 +582,8 @@ export function AdminRunningHubItemEditor({
         note: note.trim(),
         enabled,
         pageId: pageId.trim(),
-        appId: appId.trim(),
-        workflowId: workflowId.trim(),
+        appId: currentKind === "app" ? appId.trim() || nextRunTargetId : "",
+        workflowId: currentKind === "workflow" ? workflowId.trim() || nextRunTargetId : "",
         runTargetId: nextRunTargetId,
         taskCapability,
         fields,
@@ -900,6 +900,10 @@ export function AdminRunningHubItemEditor({
                 <div>
                   <dt>catalogId</dt>
                   <dd>{currentItem.catalogId}</dd>
+                </div>
+                <div>
+                  <dt>条目类型</dt>
+                  <dd>{currentKind === "app" ? "AI 应用" : "工作流"}</dd>
                 </div>
                 <div>
                   <dt>运行目标</dt>

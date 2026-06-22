@@ -229,6 +229,7 @@ export function AdminRunningHubWorkspace({
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<RunningHubStatusFilter>("all");
   const [analyzeDraft, setAnalyzeDraft] = useState<RunningHubAnalyzeDraft | null>(null);
+  const [analyzeHint, setAnalyzeHint] = useState("");
   const [analyzePageId, setAnalyzePageId] = useState("");
   const [analyzeRunTargetId, setAnalyzeRunTargetId] = useState("");
   const [analyzeDocUrl, setAnalyzeDocUrl] = useState("");
@@ -385,10 +386,20 @@ export function AdminRunningHubWorkspace({
         responseExample: analyzeResponseExample,
         notes: analyzeNotes,
       });
+      const autoSwitchHint = draft.detectedKind && draft.detectedKind !== activeTab
+        ? draft.detectedKind === "app"
+          ? "检测到这是 AI App，已自动切换到 AI 应用区域"
+          : "检测到这是工作流，已自动切换到工作流区域"
+        : "";
+      if (draft.detectedKind && draft.detectedKind !== activeTab) {
+        setActiveTab(draft.detectedKind);
+      }
+      setAnalyzeHint(autoSwitchHint || draft.autoSwitchMessage || draft.summary);
       setAnalyzeDraft(draft);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
       setAnalyzeDraft(null);
+      setAnalyzeHint("");
     } finally {
       setAnalyzing(false);
     }
@@ -603,6 +614,7 @@ export function AdminRunningHubWorkspace({
                 </div>
               </aside>
             </div>
+            {analyzeHint ? <div className="admin-runninghub-analyze-panel__hint">{analyzeHint}</div> : null}
             {analyzeDraft ? (
               <div className="admin-runninghub-analyze-panel__cards">
                 <div className="admin-runninghub-analyze-panel__summary">{analyzeDraft.summary}</div>
