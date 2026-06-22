@@ -4,6 +4,7 @@ const api = await readFile(new URL("../apps/api/src/server.ts", import.meta.url)
 const adminSettings = await readFile(new URL("../apps/admin/src/admin-api-settings-panel.tsx", import.meta.url), "utf-8");
 const adminWorkspace = await readFile(new URL("../apps/admin/src/admin-runninghub-workspace.tsx", import.meta.url), "utf-8");
 const adminEditor = await readFile(new URL("../apps/admin/src/admin-runninghub-item-editor.tsx", import.meta.url), "utf-8");
+const adminTypes = await readFile(new URL("../apps/admin/src/admin-types.ts", import.meta.url), "utf-8");
 const adminMain = await readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf-8");
 const adminApiClient = await readFile(new URL("../apps/admin/src/admin-api-client.ts", import.meta.url), "utf-8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf-8");
@@ -33,6 +34,18 @@ const checks = [
     /onOpenRunningHubWorkspace/.test(adminSettings) &&
       /setRunningHubWorkspaceProviderId/.test(adminMain) &&
       /selectedProviderId/.test(adminWorkspace),
+  ],
+  [
+    "Admin workspace auto-switches tab when analyze detects another RH kind",
+    /setActiveTab\(draft\.detectedKind/.test(adminWorkspace) &&
+      /已自动切换到 AI 应用区域/.test(adminWorkspace) &&
+      /已自动切换到工作流区域/.test(adminWorkspace),
+  ],
+  [
+    "Admin types expose detect metadata for RH analyze draft",
+    /detectedKind\?: "app" \| "workflow"/.test(adminTypes) &&
+      /detectedTargetId\?: string;/.test(adminTypes) &&
+      /autoSwitchMessage\?: string;/.test(adminTypes),
   ],
   ["Web has runninghub catalog service", /fetchRunningHubCatalog/.test(catalogService) && /buildRunningHubAppInfoFromCatalog/.test(catalogService)],
   [
