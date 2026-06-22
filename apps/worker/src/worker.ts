@@ -396,6 +396,7 @@ async function processTask(taskId: string) {
       return;
     }
     const failedResult = await updateTask(taskId, "failed", [`${workerId} 执行失败: ${error instanceof Error ? error.message : String(error)}`], {
+      ...readWorkerTaskResultPatch(error),
       workerId,
       failedAt: new Date().toISOString(),
       failureReason: error instanceof Error ? error.message : String(error),
@@ -950,11 +951,23 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     : [];
   const instanceType = safeText(task.payload.instanceType);
   const submitUrl = targetType === "app"
-    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/ai-app/run`
+    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/run/ai-app/${encodeURIComponent(webappId || runTargetId)}`
     : `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/run/workflow/${encodeURIComponent(workflowId || runTargetId)}`;
-  const queryUrl = targetType === "app"
-    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/outputs`
-    : `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/query`;
+  const queryUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/query`;
+  const submitRequestBody =
+    targetType === "app"
+      ? {
+          nodeInfoList,
+          ...(instanceType ? { instanceType } : {}),
+          usePersonalQueue: "false",
+        }
+      : {
+          apiKey: apiKey,
+          workflowId: workflowId || runTargetId,
+          nodeInfoList,
+          ...(instanceType ? { instanceType } : {}),
+        };
+  const submitRequestBodyForLog = sanitizeRunningHubSubmitRequestBody(submitRequestBody);
 
   const submitResponse = await fetch(submitUrl, {
     method: "POST",
@@ -962,28 +975,41 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(
-      targetType === "app"
-        ? {
-            apiKey,
-            webappId: webappId || runTargetId,
-            nodeInfoList,
-            ...(instanceType ? { instanceType } : {}),
-            taskType: "ASYNC",
-          }
-        : {
-            apiKeyOnly: apiKey,
-            nodeInfoList,
-            ...(instanceType ? { instanceType } : {}),
-          },
-    ),
+    body: JSON.stringify(submitRequestBody),
     signal: AbortSignal.timeout(120000),
   });
   const submitText = await submitResponse.text();
   if (!submitResponse.ok) {
-    throw new Error(`RunningHub 提交失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
+    throw createWorkerTaskError(
+      `RunningHub 提交失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`,
+      buildRunningHubSubmitFailurePatch({
+        submitUrl,
+        targetType,
+        runTargetId,
+        workflowId,
+        submitRequestBody: submitRequestBodyForLog,
+        submitResponseStatus: submitResponse.status,
+        submitResponseText: submitText,
+      }),
+    );
   }
-  const submitRaw = submitText ? JSON.parse(submitText) : {};
+  let submitRaw: Record<string, unknown> = {};
+  try {
+    submitRaw = submitText ? JSON.parse(submitText) : {};
+  } catch {
+    throw createWorkerTaskError(
+      "RunningHub 提交返回非法 JSON",
+      buildRunningHubSubmitFailurePatch({
+        submitUrl,
+        targetType,
+        runTargetId,
+        workflowId,
+        submitRequestBody: submitRequestBodyForLog,
+        submitResponseStatus: submitResponse.status,
+        submitResponseText: submitText,
+      }),
+    );
+  }
   const submitEnvelope = plainObject(submitRaw.data);
   const submitData = targetType === "app" ? submitEnvelope : submitRaw;
   const upstreamCode = Number(targetType === "app" ? submitData.code : submitRaw.code);
@@ -1002,7 +1028,18 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       || submitRaw.msg,
       "RunningHub 未返回有效任务 ID",
     );
-    throw new Error(message);
+    throw createWorkerTaskError(
+      message,
+      buildRunningHubSubmitFailurePatch({
+        submitUrl,
+        targetType,
+        runTargetId,
+        workflowId,
+        submitRequestBody: submitRequestBodyForLog,
+        submitResponseStatus: submitResponse.status,
+        submitResponseText: submitText,
+      }),
+    );
   }
 
   await touchTaskRuntime(task.id, {
@@ -1028,10 +1065,9 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(targetType === "workflow" ? { authorization: `Bearer ${apiKey}` } : {}),
+        authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        ...(targetType === "app" ? { apiKey } : {}),
         taskId: upstreamTaskId,
       }),
       signal: AbortSignal.timeout(120000),
@@ -1041,10 +1077,12 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       throw new Error(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`);
     }
     const pollRaw = pollText ? JSON.parse(pollText) : {};
-    const pollData = targetType === "app" ? plainObject(pollRaw.data) : pollRaw;
-    const pollCode = Number(targetType === "app" ? pollData.code : pollRaw.code);
+    const pollData = targetType === "app" ? pollRaw : pollRaw;
+    const pollCode = Number(targetType === "app" ? pollRaw.code : pollRaw.code);
     const pollMessage = safeText(
-      pollData.msg
+      pollData.errorMessage
+      || pollData.msg
+      || pollData.message
       || pollRaw.errorMessage
       || pollRaw.message
       || pollRaw.msg,
@@ -1059,12 +1097,15 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       rhTargetType: targetType,
       rhRunTargetId: runTargetId,
     });
-    if (targetType === "app" && (pollCode === 804 || pollCode === 813)) continue;
-    if (targetType === "app" && pollCode === 805) {
-      throw new Error(pollMessage || `RunningHub 任务失败: ${upstreamTaskId}`);
-    }
-    if (targetType === "app" && pollCode !== 0) {
-      throw new Error(pollMessage || `RunningHub 返回未知状态: ${pollCode}`);
+    if (targetType === "app") {
+      const appStatus = safeText(pollRaw.status).toUpperCase();
+      if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(appStatus)) continue;
+      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(appStatus) || safeText(pollRaw.errorCode)) {
+        throw new Error(pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`);
+      }
+      if (Number.isFinite(pollCode) && pollCode !== 0 && !["SUCCESS"].includes(appStatus)) {
+        throw new Error(pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`);
+      }
     }
     if (targetType === "workflow") {
       const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || pollRaw.data?.status).toUpperCase();
@@ -1073,7 +1114,7 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
         throw new Error(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`);
       }
     }
-    const urls = extractRunningHubOutputUrls(targetType === "app" ? pollData.data : pollRaw.data || pollRaw);
+    const urls = extractRunningHubOutputUrls(targetType === "app" ? pollRaw.results || pollRaw.data || pollRaw : pollRaw.data || pollRaw);
     if (urls.imageUrls.length === 0 && urls.videoUrls.length === 0 && urls.audioUrls.length === 0) {
       throw new Error(pollMessage || "RunningHub 任务成功但未返回可用输出");
     }
@@ -1096,6 +1137,49 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       audioCount: urls.audioUrls.length,
     };
   }
+}
+
+function sanitizeRunningHubSubmitRequestBody(body: Record<string, unknown>) {
+  const next = plainObject(body);
+  if (safeText(next.apiKey)) next.apiKey = "[redacted]";
+  if (safeText(next.apiKeyOnly)) next.apiKeyOnly = "[redacted]";
+  return next;
+}
+
+function createWorkerTaskError(message: string, resultPatch: Record<string, unknown> = {}) {
+  const error = new Error(message) as Error & { resultPatch?: Record<string, unknown> };
+  error.name = "WorkerTaskError";
+  error.resultPatch = resultPatch;
+  return error;
+}
+
+function readWorkerTaskResultPatch(error: unknown) {
+  if (!error || typeof error !== "object") return {};
+  const resultPatch = (error as { resultPatch?: unknown }).resultPatch;
+  return resultPatch && typeof resultPatch === "object" && !Array.isArray(resultPatch)
+    ? plainObject(resultPatch)
+    : {};
+}
+
+function buildRunningHubSubmitFailurePatch(input: {
+  submitUrl: string;
+  targetType: "app" | "workflow";
+  runTargetId: string;
+  workflowId: string;
+  submitRequestBody: Record<string, unknown>;
+  submitResponseStatus: number;
+  submitResponseText: string;
+}) {
+  return {
+    rhFailureStage: "submit",
+    rhSubmitUrl: input.submitUrl,
+    rhSubmitTargetType: input.targetType,
+    rhRunTargetId: input.runTargetId,
+    rhWorkflowId: input.workflowId,
+    rhSubmitRequest: input.submitRequestBody,
+    rhSubmitResponseStatus: input.submitResponseStatus,
+    rhSubmitResponseText: input.submitResponseText.slice(0, 2000),
+  };
 }
 
 function extractRunningHubOutputUrls(value: unknown) {

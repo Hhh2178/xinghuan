@@ -5,7 +5,7 @@ const worker = await readFile(new URL("../apps/worker/src/worker.ts", import.met
 const checks = [
   [
     "Workflow submit body carries apiKey instead of apiKeyOnly",
-    /targetType === "app"[\s\S]*apiKey,\s*[\s\S]*:\s*\{[\s\S]*apiKey:\s*apiKey[\s\S]*workflowId:\s*workflowId \|\| runTargetId[\s\S]*nodeInfoList/i.test(worker),
+    /targetType === "app"[\s\S]*:\s*\{[\s\S]*\}\s*:\s*\{[\s\S]*apiKey:\s*apiKey[\s\S]*workflowId:\s*workflowId \|\| runTargetId[\s\S]*nodeInfoList/i.test(worker),
   ],
   [
     "Worker no longer uses apiKeyOnly in RunningHub workflow submit body",

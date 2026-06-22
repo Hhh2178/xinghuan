@@ -1053,7 +1053,7 @@ export interface RhSubmitRequest {
   runTargetId?: string;
   targetType?: 'app' | 'workflow';
   taskCapability?: 'image' | 'video' | 'audio' | 'chat';
-  nodeInfoList?: Array<{ nodeId: string; fieldName: string; fieldValue: any }>;
+  nodeInfoList?: Array<{ nodeId: string; fieldName: string; fieldValue: unknown }>;
   instanceType?: string;
 }
 

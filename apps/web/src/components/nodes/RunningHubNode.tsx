@@ -186,7 +186,20 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     () => workflowCatalog.find((item) => item.catalogId === workflowPresetId) || null,
     [workflowCatalog, workflowPresetId],
   );
-  const resolvedRunTargetId = selectedWorkflowPreset?.runTargetId || webappId;
+  const presetMixedStateError = useMemo(() => {
+    if (!selectedWorkflowPreset) return '';
+    if (selectedWorkflowPreset.kind === 'app' && selectedWorkflowPreset.workflowId) {
+      return '当前 RunningHub 条目是 AI 应用，但仍残留 workflowId，请先在后台重新保存该条目';
+    }
+    if (selectedWorkflowPreset.kind === 'workflow' && selectedWorkflowPreset.appId) {
+      return '当前 RunningHub 条目是工作流，但仍残留 appId，请先在后台重新保存该条目';
+    }
+    return '';
+  }, [selectedWorkflowPreset]);
+  const resolvedTargetType: 'app' | 'workflow' = selectedWorkflowPreset?.kind === 'app' ? 'app' : 'workflow';
+  const resolvedRunTargetId = selectedWorkflowPreset?.runTargetId
+    || (resolvedTargetType === 'app' ? selectedWorkflowPreset?.appId : selectedWorkflowPreset?.workflowId)
+    || webappId;
   const selectedWorkflowSchema = useMemo(
     () => (selectedWorkflowPreset ? buildRunningHubNodeSchema(selectedWorkflowPreset) : null),
     [selectedWorkflowPreset],
@@ -203,8 +216,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const presetFieldCount = Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList.length : 0;
   const selectedSchemaPropertyCount = countSchemaProperties(selectedWorkflowPreset?.parameterSchema);
   const selectedPresetHasNoResolvedFields = Boolean(selectedWorkflowPreset) && presetFieldCount <= 0 && currentNodeInfoList.length <= 0;
-  const resolvedTargetType: 'app' | 'workflow' = selectedWorkflowPreset?.kind === 'app' ? 'app' : 'workflow';
   const resolvedPageId = selectedWorkflowPreset?.pageId || selectedWorkflowPreset?.id || resolvedRunTargetId;
+  const resolvedWebappId = resolvedTargetType === 'app'
+    ? (selectedWorkflowPreset?.appId || resolvedRunTargetId)
+    : '';
   const resolvedWorkflowId = resolvedTargetType === 'workflow'
     ? (selectedWorkflowPreset?.workflowId || resolvedRunTargetId)
     : '';
@@ -240,7 +255,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     if (!selectedWorkflowPreset) return;
     if (appInfo?.presetCatalogId === selectedWorkflowPreset.catalogId) return;
     update({
-      webappId: selectedWorkflowPreset.runTargetId,
+      webappId: selectedWorkflowPreset.runTargetId || (selectedWorkflowPreset.kind === 'app' ? selectedWorkflowPreset.appId : selectedWorkflowPreset.workflowId),
       appInfo: localPresetAppInfo,
       paramValues: {},
       paramMentions: {},
@@ -640,6 +655,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     paramValues: Record<string, RhParamValue>;
   } | null> => {
     setError(null);
+    if (presetMixedStateError) {
+      setError(presetMixedStateError);
+      return null;
+    }
     if (!resolvedRunTargetId) {
       setError('请先选择后台条目，或展开高级方式填写运行目标');
       return null;
@@ -679,8 +698,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           appName: info?.appName || info?.title || localPresetAppInfo?.appName || appInfo?.appName || '',
           name: info?.name || info?.title || localPresetAppInfo?.name || appInfo?.name || '',
           pageId: info?.pageId || resolvedPageId,
-          webappId: info?.webappId || resolvedRunTargetId,
-          workflowId: info?.workflowId || resolvedWorkflowId,
+          runTargetId: info?.runTargetId || resolvedRunTargetId,
+          targetType: resolvedTargetType,
+          webappId: resolvedTargetType === 'app' ? (info?.webappId || resolvedWebappId || resolvedRunTargetId) : '',
+          workflowId: resolvedTargetType === 'workflow' ? (info?.workflowId || resolvedWorkflowId) : '',
           nodeInfoList: list,
         },
         paramValues: withTextBindings,
@@ -728,6 +749,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
 
   const handleRun = async () => {
     setError(null);
+    if (presetMixedStateError) {
+      setError(presetMixedStateError);
+      return;
+    }
     if (!resolvedRunTargetId) {
       setError('请先选择后台条目，或展开高级方式填写运行目标');
       return;
@@ -762,7 +787,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       console.log('[RH/submit] runTargetId=', resolvedRunTargetId, 'nodeInfoList=', JSON.parse(JSON.stringify(nodeInfoList)));
       logBus.info(`提交任务 · runTargetId=${resolvedRunTargetId} · ${nodeInfoList.length} 个字段${useWallet ? ' · 钱包模式' : ''}`, src);
       const r = await submitRh({
-        webappId: resolvedRunTargetId,
+        webappId: resolvedWebappId,
         pageId: resolvedPageId,
         workflowId: resolvedWorkflowId || undefined,
         runTargetId: resolvedRunTargetId,
@@ -908,6 +933,11 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
               {selectedSchemaPropertyCount > 0
                 ? `当前 RH 条目已定义 ${selectedSchemaPropertyCount} 个结构化参数，但还没有可执行的 RH 绑定字段。节点不会直接生成可提交表单，请先到后台 RH 工作台补齐 nodeId 和 fieldName。`
                 : '当前 RH 条目还没有可用的输入槽定义。节点无法自动展开参数区，请先到后台 RH 工作台补齐至少一个包含 nodeId 和 fieldName 的输入槽。'}
+            </div>
+          ) : null}
+          {presetMixedStateError ? (
+            <div className="mt-1 rounded border border-rose-400/30 bg-rose-500/10 px-2 py-1.5 text-[10px] leading-4 text-rose-100/90">
+              {presetMixedStateError}
             </div>
           ) : null}
           {!selectedWorkflowPreset && catalogError ? <div className="text-[10px] text-rose-300/80 mt-1">{catalogError}</div> : null}

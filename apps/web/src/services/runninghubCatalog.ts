@@ -146,10 +146,15 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
   const catalogId = String(row.catalogId || "").trim();
   const id = String(row.id || "").trim();
   if (!catalogId || !id) return null;
+  const kind = row.kind === "app" ? "app" : "workflow";
+  const pageId = typeof row.pageId === "string" ? row.pageId : "";
+  const runTargetId = typeof row.runTargetId === "string" ? row.runTargetId : "";
+  const rawAppId = typeof row.appId === "string" ? row.appId : "";
+  const rawWorkflowId = typeof row.workflowId === "string" ? row.workflowId : "";
   return {
     catalogId,
     id,
-    kind: row.kind === "app" ? "app" : "workflow",
+    kind,
     title: typeof row.title === "string" ? row.title : id,
     note: typeof row.note === "string" ? row.note : "",
     thumbnail: typeof row.thumbnail === "string" ? row.thumbnail : "",
@@ -159,10 +164,10 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
     providerBaseUrl: typeof row.providerBaseUrl === "string" ? row.providerBaseUrl : "",
     inputSlots: Array.isArray(row.inputSlots) ? (row.inputSlots as RunningHubCatalogItem["inputSlots"]) : [],
     execution: (row.execution || {}) as RunningHubCatalogItem["execution"],
-    pageId: typeof row.pageId === "string" ? row.pageId : "",
-    appId: typeof row.appId === "string" ? row.appId : "",
-    workflowId: typeof row.workflowId === "string" ? row.workflowId : "",
-    runTargetId: typeof row.runTargetId === "string" ? row.runTargetId : "",
+    pageId,
+    appId: kind === "app" ? rawAppId || runTargetId || pageId || id : "",
+    workflowId: kind === "workflow" ? rawWorkflowId || runTargetId || pageId || id : "",
+    runTargetId: runTargetId || (kind === "app" ? rawAppId : rawWorkflowId) || pageId || id,
     taskCapability:
       row.taskCapability === "image" || row.taskCapability === "video" || row.taskCapability === "audio" || row.taskCapability === "chat"
         ? row.taskCapability
@@ -253,13 +258,16 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
   const fields = Array.isArray(item.fields) && item.fields.length > 0
     ? item.fields
     : buildFieldsFromInputSlots(Array.isArray(item.inputSlots) ? item.inputSlots : []);
+  const runTargetId = item.runTargetId || (item.kind === "app" ? item.appId : item.workflowId) || item.pageId || item.id;
   return {
     presetCatalogId: item.catalogId,
     appName: item.title,
     name: item.title,
     pageId: item.pageId || item.id,
-    webappId: item.runTargetId,
-    workflowId: item.workflowId || item.id,
+    runTargetId,
+    targetType: item.kind,
+    webappId: item.kind === "app" ? (item.appId || runTargetId) : "",
+    workflowId: item.kind === "workflow" ? (item.workflowId || runTargetId) : "",
     providerId: item.providerId,
     providerName: item.providerName,
     outputSchema: Array.isArray(item.outputSchema) ? item.outputSchema : [],

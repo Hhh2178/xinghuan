@@ -41,6 +41,7 @@ const commands = [
   ["verify:output-node-preview-layout", ["npm", ["run", "verify:output-node-preview-layout"], {}]],
   ["verify:runninghub-workflow-contract", ["npm", ["run", "verify:runninghub-workflow-contract"], {}]],
   ["verify:runninghub-workflow-api", ["npm", ["run", "verify:runninghub-workflow-api"], { env: verifyEnv }]],
+  ["verify:runninghub-worker-submit-contract", ["node", ["scripts/verify-runninghub-worker-submit-contract.mjs"], {}]],
   ["verify:worker-adapter-contract", ["npm", ["run", "verify:worker-adapter-contract"], {}]],
   ["verify:worker-grsai-contract", ["npm", ["run", "verify:worker-grsai-contract"], {}]],
   ["verify:worker-output-materializer", ["npm", ["run", "verify:worker-output-materializer"], {}]],
@@ -59,8 +60,8 @@ try {
   });
   await waitForHealth(baseUrl);
 
-  for (const [label, [, args, options]] of commands.slice(1)) {
-    await run(label, "npm", args, options);
+  for (const [label, [command, args, options]] of commands.slice(1)) {
+    await run(label, command, args, options);
   }
 
   console.log(JSON.stringify({

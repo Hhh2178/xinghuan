@@ -56,6 +56,16 @@ const checks = [
       /runTargetId=/.test(node),
   ],
   [
+    "RunningHub node fails fast on mixed app/workflow preset state",
+    /selectedWorkflowPreset\?\.kind === 'app'[\s\S]*selectedWorkflowPreset\.workflowId/.test(node) &&
+      /当前 RunningHub 条目是 AI 应用，但仍残留 workflowId，请先在后台重新保存该条目/.test(node),
+  ],
+  [
+    "RunningHub node resolves workflowId only for normalized workflow presets",
+    /const resolvedTargetType: 'app' \| 'workflow' = selectedWorkflowPreset\?\.kind === 'app' \? 'app' : 'workflow';/.test(node) &&
+      /const resolvedWorkflowId = resolvedTargetType === 'workflow'/.test(node),
+  ],
+  [
     "RunningHub node can auto-hydrate remote parameter fields",
     /handleFetchInfo/.test(node) &&
       /autoHydratedCatalogRef/.test(node) &&
@@ -82,6 +92,18 @@ const checks = [
     "RunningHub catalog preserves outputSchema for node runtime adaptation",
     /outputSchema\?: Array<\{/.test(sharedRunninghub) &&
       /outputSchema: Array\.isArray\(row\.outputSchema\)/.test(catalogService),
+  ],
+  [
+    "RunningHub catalog runtime keeps kind-owned IDs normalized",
+    /const kind = row\.kind === "app" \? "app" : "workflow";/.test(catalogService) &&
+      /appId: kind === "app"/.test(catalogService) &&
+      /workflowId: kind === "workflow"/.test(catalogService) &&
+      /runTargetId: runTargetId/.test(catalogService),
+  ],
+  [
+    "RunningHub catalog app info uses kind-specific targets",
+    /webappId: item\.kind === "app"/.test(catalogService) &&
+      /workflowId: item\.kind === "workflow"/.test(catalogService),
   ],
   [
     "RunningHub node schema prefers backend outputSchema over workflowJson guessing",

@@ -173,9 +173,15 @@ export function parseRunningHubRef(value: unknown) {
   const apiDetailAppMatch = text.match(/call-api\/api-detail\/([0-9A-Za-z_-]+)\?apiType=4/i);
   if (apiDetailAppMatch) return { type: "app" as const, id: apiDetailAppMatch[1] };
   const openapiMatch = text.match(/\/(?:openapi\/v2\/)?run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
-  if (openapiMatch) return { type: openapiMatch[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: openapiMatch[2] };
+  if (openapiMatch) {
+    const type = openapiMatch[1].toLowerCase() === "ai-app" ? "app" as const : "workflow" as const;
+    return { type, id: openapiMatch[2] };
+  }
   const match = text.match(/\/run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);
-  if (match) return { type: match[1].toLowerCase() === "ai-app" ? "app" : "workflow", id: match[2] };
+  if (match) {
+    const type = match[1].toLowerCase() === "ai-app" ? "app" as const : "workflow" as const;
+    return { type, id: match[2] };
+  }
   if (/^workflow-[0-9A-Za-z_-]+$/i.test(text)) return { type: "workflow" as const, id: text };
   return null;
 }
