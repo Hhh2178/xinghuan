@@ -6,10 +6,10 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`。
+- 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
-  - gray：`v0.4.4`
+  - gray：`v0.4.7`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
@@ -161,6 +161,22 @@
       - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
   - 发布记录：
     - `runninghub-app-v2-gray-release-2026-06-22.md`
+- `2026-06-22` RH 显式无入参工作流管理端热修已完成 gray 发布：
+  - gray：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - `/api/status` 当前返回 `version = 0.4.7`
+  - gray gate 已补跑：
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前额外结论：
+    - RH 工作台对 `allowsEmptyInputs=true` 的 workflow 已改为正向提示
+    - gray 目标条目 `runninghub-main:workflow:2064255815862800385` 已确认：
+      - `pageId/workflowId/runTargetId = 2064255815862800385`
+      - `allowsEmptyInputs = true`
+      - `fields = 0`
+      - `testPayload.nodeInfoList = []`
+    - 灰度画布若仍看到旧参数区或 `默认 plus`，需要先确认节点当前选中的是否仍是历史条目 `cd3add`
+  - 发布记录：
+    - `runninghub-admin-empty-input-gray-release-2026-06-22.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -263,6 +279,7 @@
 - `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
 - `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
 - `runninghub-app-v2-gray-release-2026-06-22.md`
+- `runninghub-admin-empty-input-gray-release-2026-06-22.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

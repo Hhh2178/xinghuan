@@ -1,5 +1,55 @@
 # DEVLOG.md - 无限画布 2.0 开发日志台账
 
+## 2026-06-22
+
+### RH 空入参工作流 gray 热修与版本推进到 v0.4.7
+
+变更:
+- 管理端 RH 工作台与条目编辑器对 `allowsEmptyInputs=true` 的 workflow 改为正向识别：
+  - 左侧目录卡片不再显示“待补输入槽”
+  - 条目摘要不再显示“缺少输入槽”
+  - 启用/保存时不再误拦截 `nodeInfoList=[]` 的合法 workflow
+- 新增管理端回归脚本：
+  - `scripts/verify-runninghub-admin-empty-input-contract.mjs`
+- 既有空入参 workflow 契约脚本已同步到 `allowsRunningHubEntryWithoutFields(...)`
+- 单仓版本统一推进到 `v0.4.7`
+- gray 发布完成：
+  - `20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+
+验证:
+- 本地构建与契约：
+  - `node scripts/verify-runninghub-admin-empty-input-contract.mjs`
+  - `node scripts/verify-runninghub-empty-input-workflow-contract.mjs`
+  - `node scripts/verify-runninghub-empty-input-ui-contract.mjs`
+  - `npm run build:single-port`
+  - `node scripts/verify-release-version-alignment.mjs`
+  - `npm run verify:single-port`
+- gray 服务与 gate：
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - `systemctl is-active xinghuan-canvas-next.service = active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service = active`
+  - `GET http://127.0.0.1:18200/api/status`
+    - `version = 0.4.7`
+    - `environment = gray`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:request-chain-observability = ok`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:system-observability = ok`
+- gray 数据面与页面级复查：
+  - `runninghub-main:workflow:2064255815862800385` 已确认：
+    - `pageId/workflowId/runTargetId = 2064255815862800385`
+    - `allowsEmptyInputs = true`
+    - `fields = 0`
+    - `outputSchema[0].path = results`
+    - `testPayload.nodeInfoList = []`
+  - RH 工作台条目卡片已真实显示：
+    - `显式无入参工作流，可直接启用并运行`
+  - RH 工作台基础信息区已真实显示：
+    - `2064255815862800385`
+  - 灰度画布中现存 RH 节点若仍显示旧参数区或 `默认 plus`，根因是它当前选中的仍是历史条目 `cd3add`，不是 `2064255815862800385`
+
+备注:
+- `scripts/verify-runninghub-workflow-api.mjs` 仍针对旧的“字段补水”场景断言，不适合作为本次空入参 workflow 热修的 gray gate。
+
 ## 日志规则
 
 - 最新记录放在最上方。

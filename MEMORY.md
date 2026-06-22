@@ -378,6 +378,37 @@
   - 当前额外记忆：
     - 本轮 release 仍是 runtime-only 包；服务器 release 目录不要假定可以独立重建完整前端依赖链
     - 当前更适合继续在 gray 做真实 RH App / Workflow 条目与任务实链验收，再决定 production 推进
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - 当前 gray 对外版本号：
+    - `v0.4.7`
+  - 本次切换后 gray gate 已通过：
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 收口项：
+    - 管理端 RH 工作台开始正确识别 `allowsEmptyInputs=true` 的显式无入参 workflow
+    - 左侧目录卡片不再把这类条目标记为“待补输入槽”
+    - 条目编辑器不再以“缺少输入槽”阻止启用/保存
+    - 版本号已统一推进到 `0.4.7`
+  - 当前灰度运行态复核：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.7`
+      - `environment = gray`
+    - `xinghuan-canvas-next.service = active`
+    - `xinghuan-canvas-next-worker.service = active`
+    - gray 条目 `runninghub-main:workflow:2064255815862800385` 已确认：
+      - `pageId/workflowId/runTargetId = 2064255815862800385`
+      - `allowsEmptyInputs = true`
+      - `fields = 0`
+      - `outputSchema[0].path = results`
+      - `testPayload.nodeInfoList = []`
+  - 当前页面级复查结论：
+    - RH 工作台条目卡片已真实显示：
+      - `显式无入参工作流，可直接启用并运行`
+    - 目标 workflow 基础信息页已真实显示 `2064255815862800385`
+    - 灰度画布里现存 RH 节点若仍显示旧参数区，通常是因为选中的还是历史条目 `cd3add`，不是 `2064255815862800385`
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

@@ -36,14 +36,14 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.4.4`
+- 当前活跃版本：`v0.4.7`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+- 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
@@ -62,6 +62,14 @@
     - 后台条目与前台运行时开始按 `kind` 持有各自归属的 `appId / workflowId / runTargetId`
     - 画布 RH 节点会阻止 `app + workflowId` 或 `workflow + appId` 的混合态条目直接运行
     - 命中混合态时会给出显式提示，要求先回后台重新保存条目
+  - `2026-06-22` 已补 RH 显式无入参工作流的 gray 热修：
+    - 后台 RH 工作台会把 `allowsEmptyInputs=true` 的 workflow 明确显示为“可直接启用并运行”
+    - 管理端不再把这类条目误判成“缺少输入槽”并阻止保存
+    - gray 目标条目 `runninghub-main:workflow:2064255815862800385` 已确认：
+      - `pageId/workflowId/runTargetId = 2064255815862800385`
+      - `allowsEmptyInputs = true`
+      - `fields = 0`
+      - `testPayload.nodeInfoList = []`
   - `2026-06-19` 已补 RH 工作台“从运行目标同步输入槽”能力：
     - 后台条目可直接读取运行目标返回的真实 `nodeInfoList`
     - 生成或补齐 `nodeId / fieldName / fieldType / options`

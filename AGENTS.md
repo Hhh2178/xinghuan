@@ -95,7 +95,7 @@
 
 ## 版本治理规则
 
-- 当前活跃版本已推进为 `v0.4.4`。
+- 当前活跃版本已推进为 `v0.4.7`。
 - 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
 - `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
 - 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
@@ -139,7 +139,7 @@
 
 ## 当前状态
 
-- 2.0 当前活跃版本已为 `v0.4.4`。
+- 2.0 当前活跃版本已为 `v0.4.7`。
 - 产品路线口径：
   - `Phase 2` 节点与模型治理已完成灰度验收。
   - `Phase 3` 任务与素材闭环已完成主要能力落地，并继续以当前版本文档为主记录。
@@ -162,8 +162,15 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
   - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+  - `2026-06-22` 已完成 RH 显式无入参工作流 gray 热修：
+    - 后台 RH 工作台对 `allowsEmptyInputs=true` 的 workflow 不再显示“缺少输入槽”
+    - 管理端保存/启用时不再误拦截 `nodeInfoList=[]` 的合法 workflow
+    - gray 目标条目 `2064255815862800385` 已确认保持：
+      - `allowsEmptyInputs = true`
+      - `fields = 0`
+      - `outputSchema[0].path = results`
   - `2026-06-22` 已完成 RunningHub App / Workflow 运行态归一化与 AI App v2 gray 发布：
     - RH public catalog 与节点运行态开始按 `kind` 纠正 `appId / workflowId / runTargetId` 归属
     - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
