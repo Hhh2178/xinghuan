@@ -142,7 +142,7 @@ export function SystemPanel({
   return (
     <>
       <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />
-      <FormPanel title="任务并发设置" icon={Settings2}>
+      <FormPanel title="普通任务并发" icon={Settings2}>
         <label>
           图片总并发
           <input
@@ -281,8 +281,9 @@ export function SystemPanel({
             }
           />
         </label>
+        <div className="field-note">RunningHub 平台并发治理</div>
         <label>
-          RunningHub 平台并发
+          RH 平台总并发
           <input
             type="number"
             min={1}
@@ -323,7 +324,7 @@ export function SystemPanel({
               }))
             }
           />
-          启用 RunningHub 平台并发治理
+          启用 RH 平台并发治理
         </label>
         <div className="field-note">
           普通任务先受“类别总并发”限制，再受“单用户并发”限制。RunningHub 任务在此基础上，还会额外受 RH 平台并发窗口限制；超过窗口的 RH 任务会自动排队等待。

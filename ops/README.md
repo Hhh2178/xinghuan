@@ -6,9 +6,9 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260618-runninghub-workspace-gray-r1-6b65dbc`。
-- 当前生产 release：`20260618-v032-ui-fixes-prod-r1`。
-- 当前发布版本号：`v0.3.2`。
+- 当前灰度 release：`20260619-runninghub-slot-sync-gray-r1-v040-local`。
+- 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
+- 当前发布版本号：`v0.4.0`。
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
@@ -33,14 +33,57 @@
     - `verify:release-preflight`
     - `verify:request-chain-observability`
     - `verify:system-observability`
-- `2026-06-18` gray 已继续发布 RunningHub 第一阶段工作台与单一 RH 节点改造：
-  - gray：`20260618-runninghub-workspace-gray-r1-6b65dbc`
-  - `/api/status` 当前返回 `version = 0.3.2`
-  - gray gate 已通过：
+- `2026-06-18` RunningHub 运行时与队列治理已完成 gray / production 发布：
+  - gray：`20260618-runninghub-runtime-queue-gray-r6-v034-d9b653c`
+  - production：`20260618-runninghub-runtime-queue-prod-r1-v034-d9b653c`
+  - 两端 `/api/status` 当前均返回 `version = 0.3.4`
+  - gate 已通过：
     - `verify:release-preflight`
     - `verify:request-chain-observability`
     - `verify:system-observability`
-  - 本轮未包含新的数据库 migration，但在 release 目录执行 `db:migrate` 时暴露出 `PG_DRIVER_NOT_INSTALLED`，后续需要单独修补 release 迁移依赖链
+  - gray 真实验证已确认：
+    - 普通 Provider 队列存在 `waiting_user_window`
+    - 同用户排队、跨用户独立推进成立
+    - RH 批量任务存在 `waiting_runninghub_window`
+    - RH 平台并发窗口 `2` 生效，等待任务可自动递进
+  - 本轮未包含新的数据库 migration，但在 release 目录执行 `db:migrate` 时仍暴露 `PG_DRIVER_NOT_INSTALLED`，后续带 migration 的发布前必须先修补 release 迁移依赖链
+- `2026-06-19` RunningHub 工作台 sticky / 编辑器结构 / 分析工作台 UI 收口已发布 gray：
+  - gray：`20260619-runninghub-sticky-gray-r6-v034-d9b653c`
+  - `/api/status` 当前返回 `version = 0.3.4`
+  - gray gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 发布记录见：
+    - `runninghub-sticky-gray-release-2026-06-19.md`
+- `2026-06-19` RunningHub 节点运行目标补链与空字段自动补参已发布 gray：
+  - gray：`20260619-runninghub-node-hydrate-gray-r1-v034-d9b653c`
+  - `/api/status` 当前返回 `version = 0.3.4`
+  - gray gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前额外结论：
+    - RH 节点提交流程已不再因为缺少 `workflowId/runTargetId` 失败
+    - 当前样例 workflow `runninghub-main:workflow:2004516402230509570` 仍没有参数表单来源
+    - 本地条目 `fields / inputSlots / parameterSchema / testPayload` 为空，远端 `app-info.nodeInfoList` 也为空
+  - 发布记录见：
+    - `runninghub-node-hydrate-gray-release-2026-06-19.md`
+- `2026-06-19` RunningHub 条目真实输入槽同步已完成 gray / production 发布：
+  - gray：`20260619-runninghub-slot-sync-gray-r1-v040-local`
+  - production：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+  - 两端 `/api/status` 当前均返回 `version = 0.4.0`
+  - 两端 gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前额外结论：
+    - 后台 RH 工作台已支持从运行目标同步真实 `nodeInfoList`
+    - 同步后可直接补齐条目的 `nodeId / fieldName / fieldType / options`
+    - 保存条目后，画布 RH 节点会按后台条目自动展开可执行参数区
+    - 若上游运行目标不返回 `nodeInfoList`，当前仍需后台人工补录字段
+  - 发布记录见：
+    - `runninghub-slot-sync-release-2026-06-19.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -135,6 +178,10 @@
 - `multi-generation-timeout-gray-release-2026-06-18.md`
 - `release-v032-gray-and-production-2026-06-18.md`
 - `runninghub-workspace-gray-release-2026-06-18.md`
+- `runninghub-runtime-queue-governance-release-2026-06-18.md`
+- `runninghub-sticky-gray-release-2026-06-19.md`
+- `runninghub-node-hydrate-gray-release-2026-06-19.md`
+- `runninghub-slot-sync-release-2026-06-19.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

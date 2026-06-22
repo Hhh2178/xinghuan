@@ -32,6 +32,12 @@ export interface RhExecutionSubmitDescriptor {
   mode: "direct";
   targetType: RhCatalogItemKind;
   targetId: string;
+  pageId?: string;
+  appId?: string;
+  workflowId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
+  submitMode?: "ai-app" | "openapi-v2-workflow";
+  queryMode?: "outputs" | "openapi-v2-query";
   endpoint: string;
   method: "POST";
 }
@@ -87,10 +93,13 @@ export interface RhCatalogItem {
   providerBaseUrl: string;
   inputSlots: RhInputSlotDefinition[];
   execution: RhExecutionDescriptor;
+  pageId: string;
   appId: string;
   workflowId: string;
   runTargetId: string;
+  taskCapability: "image" | "video" | "audio" | "chat";
   workflowJson: string;
+  parameterSchema?: string;
   fields: Array<{
     nodeId: string;
     fieldName: string;

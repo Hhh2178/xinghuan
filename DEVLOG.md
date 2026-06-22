@@ -38,13 +38,480 @@
 ## 使用建议
 
 - 如果只是要快速恢复当前项目状态，先看 `MEMORY.md` 和 `docs/prd/README.md`，再回来看本文件顶部最近几天记录。
+
+## 2026-06-22
+
+### RunningHub 协议后台与画布节点重建 v0.4.1 本地收口
+
+目标:
+- 把 RunningHub 协议后台与画布节点这轮重建改动整理成可发布版本，先完成工作树清理、版本提升、契约补强和本地重验证，再进入 gray 发布。
+
+变更:
+- 设计与归档：
+  - 新增 `docs/superpowers/specs/2026-06-22-runninghub-protocol-admin-and-canvas-node-rebuild-design.md`
+  - 补齐本轮 RunningHub 方案、计划与灰度记录草稿归档
+- 后台 RH 分析工作台：
+  - `apps/admin/src/admin-runninghub-workspace.tsx`
+  - `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/admin-api-client.ts`
+  - `apps/admin/src/admin-readonly-panels.tsx`
+  - 分析面板补齐 `requestExample / responseExample`
+  - 后台条目编辑与分析区继续收口为工作台结构
+- 后端 RH 目录与协议重建：
+  - `apps/api/src/server.ts`
+  - `apps/api/src/runninghub-catalog.ts`
+  - `apps/api/src/runninghub-execution-descriptor.ts`
+  - 从 `requestExample.nodeInfoList` 解析字段草稿并生成 `fields`
+  - 修复 `runTargetId` 校验，避免错误条目继续伪装成可执行配置
+  - 去掉 `instanceType = plus` 默认兜底，避免协议被静默污染
+- 画布 RH 节点：
+  - `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - `apps/web/src/services/runninghubCatalog.ts`
+  - `apps/web/src/services/generation.ts`
+  - 节点继续按后台 catalog 与真实字段定义消费，不再默认依赖旧兜底实例类型
+- 验证与版本治理：
+  - 新增 `scripts/verify-runninghub-analyze-contract.mjs`
+  - 调整 `scripts/verify-runninghub-workflow-api.mjs`
+    - 当本地未配置 RunningHub Provider API Key 时，跳过远端 hydration 实查并显式返回 `hydrationSkippedReason`
+  - 统一版本提升到：
+    - `v0.4.1`
+
+验证:
+- 静态与契约：
+  - `npm run type-check = ok`
+  - `npm run verify:runninghub-analyze-contract = ok`
+  - `npm run verify:runninghub-workflow-contract = ok`
+  - `npm run verify:runninghub-queue-governance-contract = ok`
+  - `npm run verify:runninghub-workflow-api = ok`
+- 构建与本地运行：
+  - `npm run build:single-port = ok`
+  - `npm run verify:single-port = ok`
+  - `http://127.0.0.1:18200/api/status => version=0.4.1 environment=local`
+- 重型本地验收链：
+  - `npm run verify:local-acceptance-chain = ok`
+  - 覆盖：
+    - `verify:single-port`
+    - `verify:node-acceptance-matrix`
+    - `verify:canvas-node-render-smoke`
+    - `verify:generic-node-catalog`
+    - `verify:model-catalog`
+    - `verify:external-image-proxy`
+    - `verify:external-video-proxy`
+    - `verify:external-chat-proxy`
+    - `verify:task-payload-api`
+    - `verify:task-lifecycle`
+    - `verify:runninghub-workflow-contract`
+    - `verify:runninghub-workflow-api`
+    - `verify:worker-adapter-contract`
+    - `verify:worker-output-materializer`
+    - `verify:output-material-prune`
+
+影响:
+- RH 后台条目现在可以把分析输入样例、协议样例与字段草稿放到同一条治理链里，避免“分析结果有了，但字段定义仍停在手工补录”的断层。
+- RH 节点对 `runTargetId / instanceType` 的消费边界更清楚，减少静默兜底导致的假成功配置。
+- 版本、验证脚本和归档材料已经整理到可发布形态，后续 gray 发布可以直接基于当前 worktree 继续。
+
+风险:
+- 当前本地 `verify-runninghub-workflow-api` 返回 `workflowCount = 0 / appCount = 0`，说明本地数据集仍没有真实 RH 条目样本；这不影响契约通过，但 gray 仍需要做真实后台条目与视觉实查。
+- 本地缺少 RunningHub Provider API Key 时，远端 hydration 仅能走“跳过并显式记录原因”的分支；真实远端补槽仍需到 gray 或配置完整的环境里验证。
+
+下一步:
+- 先完成本轮代码与文档提交，随后推送 gray。
+- gray 上补做版本、功能、视觉和细节对比验收，并把实际 release 指针、截图证据和结论补入 `ops/` 台账。
+
+## 2026-06-19
+
+### RH 条目真实输入槽同步与 v0.4.0 gray / production 发布
+
+目标:
+- 让 RH 后台条目不再停留在 Schema 草稿或空字段状态，而是能直接从运行目标同步真实 `nodeInfoList`，随后让画布 RH 节点自动展开可执行参数区。
+
+变更:
+- `apps/admin/src/admin-api-client.ts`
+  - 新增 `fetchRemoteAppInfo(runTargetId)`，复用后端 RH `app-info` 代理。
+- `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - 新增 `buildFieldsFromRemoteNodeInfoList`
+  - 新增“从运行目标同步输入槽”按钮
+  - 支持把运行目标返回的真实 `nodeId / fieldName / fieldType / options` 合并回条目字段定义
+- 统一版本升级到：
+  - `v0.4.0`
+- 发布结果：
+  - gray：`20260619-runninghub-slot-sync-gray-r1-v040-local`
+  - production：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+
+验证:
+- 本地：
+  - `node scripts/verify-runninghub-workflow-contract.mjs = ok`
+  - `npm run build -w @xinghuan/admin = ok`
+  - `npm run build -w @xinghuan/web = ok`
+  - `npm run build -w @xinghuan/api = ok`
+  - `npm run build:single-port = ok`
+- gray：
+  - `/api/status => version=0.4.0 environment=gray`
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+- production：
+  - `/api/status => version=0.4.0 environment=production`
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+
+影响:
+- RH 后台条目现在可以直接吸收运行目标返回的真实字段定义，避免字段长期停在“只有 Schema、没有可执行绑定”的半成品状态。
+- 条目保存后，画布 RH 节点会按后台条目自动展开参数区，不再要求用户理解或手工维护 `workflowId / runTargetId / nodeId` 这些后台治理字段。
+
+风险:
+- 如果某个 RH 运行目标本身不返回 `nodeInfoList`，当前同步能力仍无源可用，这类条目依然需要后台人工补录字段。
+- 本轮发布仍不包含 migration，`db:migrate` 的 release 依赖链缺口仍需后续单独修补。
+
+下一步:
+- 用真实 RH workflow / app 继续补几组“同步输入槽 -> 保存条目 -> 节点展开参数区 -> 提交任务”的联调样本。
+- 继续收 RH 工作台对空返回 `nodeInfoList` 的提示和人工补录辅助能力。
+
+### RH 从 Schema 生成输入槽草稿
+
+目标:
+- 让 RH 工作台里的 Schema 草案可以继续推进成可编辑输入槽草稿，而不是停留在说明层。
+
+变更:
+- `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - 新增 `buildFieldsFromParameterSchema`
+  - 新增“从 Schema 生成输入槽草稿”按钮
+  - 根据 `properties / required / title / description / default / enum` 自动生成字段草稿
+  - 生成后明确提示：仍需补齐 `nodeId`
+- `scripts/verify-runninghub-workflow-contract.mjs`
+  - 增加 RH admin 可从 Schema 生成输入槽草稿的契约校验
+
+验证:
+- `node scripts/verify-runninghub-workflow-contract.mjs = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build -w @xinghuan/api = ok`
+
+影响:
+- RH 条目现在从“有 Schema 草案”推进到“有可编辑字段草稿”只差一步。
+- 后台管理员无需手动从零逐条录入 `fieldName / label / valueType`。
+
+风险:
+- 自动生成的是字段草稿，不是最终可执行绑定；`nodeId` 仍必须人工确认。
+
+下一步:
+- 推灰度后实际验证一轮 RH 工作台补槽流程。
+- 如果效果稳定，再继续补“逐条绑定完成度”状态和批量检查提示。
+
+### RH Schema 状态透出与灰度发布
+
+目标:
+- 让 RH 条目明确区分“结构化参数草案”与“可执行 RH 绑定字段”。
+- 避免用户在画布节点中把 Schema 草案误认为可直接提交的执行表单。
+
+变更:
+- `packages/shared/src/runninghub.ts`
+  - RH 公共目录项补充 `parameterSchema` 字段。
+- `apps/api/src/runninghub-catalog.ts`
+  - RH public catalog 输出透传 `parameterSchema`。
+- `apps/web/src/services/runninghubCatalog.ts`
+  - 前端 RH 目录服务保留 `parameterSchema`。
+- `apps/admin/src/admin-runninghub-workspace.tsx`
+  - 条目列表改为同时显示“绑定数 / Schema 数”。
+  - 对“只有 Schema 草案、没有 RH 绑定”的条目给出明确提示。
+- `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - 参数 Schema 区和摘要区增加 Schema 参数数说明。
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - 节点卡片显示“绑定 / Schema / 输出”状态。
+  - 对“有 Schema、无 RH 绑定”的条目给出更精确提示，不再暗示它可以直接提交。
+- `scripts/verify-runninghub-workflow-contract.mjs`
+  - 增加 `parameterSchema` 穿透到目录层的契约检查。
+- 灰度发布：
+  - `20260619-runninghub-schema-state-gray-r1-v034-d9b653c`
+
+验证:
+- `node scripts/verify-runninghub-workflow-contract.mjs = ok`
+- `npm run build -w @xinghuan/shared = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build:single-port = ok`
+- `codegraph sync = ok`
+- gray:
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+
+影响:
+- RH workflow / app 条目现在能更清楚地表达三种状态：
+  - 既有 RH 绑定，也可执行
+  - 只有 Schema 草案，仍不可执行
+  - 连 Schema 草案都没有，属于空壳条目
+
+风险:
+- 这一步仍然没有替代真实 RH 字段绑定；它解决的是状态透明度，不是自动生成可执行字段映射。
+
+下一步:
+- 如果要真正做到“选中条目后自动出现可执行输入区”，需要补充真实 RH 绑定信息来源：
+  - 远端可拉取 `nodeInfoList`
+  - 或后台手工补齐 `nodeId + fieldName`
+  - 或后续为特定协议定义安全的参数映射规则
+
+### RH 空壳条目治理与节点提示补强
+
+目标:
+- 避免没有输入槽定义的 RH 条目继续被启用并流入画布节点。
+- 让后台管理员和画布用户都能明确识别“当前条目为什么不会展开参数区”。
+
+变更:
+- `apps/api/src/server.ts`
+  - 新增 RH 条目启用前校验：如果没有任何有效输入槽定义，则禁止启用，只允许作为停用草稿保存。
+- `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - 保存前增加输入槽治理校验。
+  - 右侧摘要增加“启用条件”状态。
+- `apps/admin/src/admin-runninghub-workspace.tsx`
+  - RH 条目列表增加“待补输入槽”提示，明确说明这类条目启用后节点不会展开参数区。
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - 节点选择到空壳 RH 条目时，直接显示缺少输入槽定义的说明，不再让用户误判为前端渲染异常。
+- `scripts/verify-runninghub-workflow-contract.mjs`
+  - 补充空壳条目治理与节点提示契约检查。
+
+验证:
+- `node scripts/verify-runninghub-workflow-contract.mjs = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build -w @xinghuan/api = ok`
+
+影响:
+- RH 条目现在必须先补齐输入槽，才能作为启用条目进入画布。
+- 现有空壳样例条目会被明确识别为“后台配置未完成”，而不是“节点功能异常”。
+
+风险:
+- 当前治理默认将“无输入槽定义”视为不可启用，这会把极少数真正零输入的 RH 条目也归为草稿态。
+- 如果后续确认存在真实零输入工作流，需要补一个显式标记，而不是重新放开空壳启用。
+
+下一步:
+- 推灰度验证后台提示与节点提示是否符合实际使用感受。
+- 如果要支持真实零输入 RH 条目，需单独补“允许零输入”的显式配置，不与空壳条目混用。
+
+### RunningHub 节点补链与空字段条目核查
+
+目标:
+- 修复 RH 节点选择 workflow 条目后提交失败的问题。
+- 修复 RH 节点在后台条目本地无字段时，自动尝试补拉远端字段定义。
+- 查清当前样例 workflow 为什么仍然没有参数输入区。
+
+变更:
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - RH 节点提交时显式携带 `pageId / workflowId / runTargetId / targetType / taskCapability`
+  - 新增空字段条目自动补拉远端 `app-info` 的 hydration 链路
+- `apps/web/src/services/generation.ts`
+  - 扩展 `RhSubmitRequest`，补齐 RH 运行目标元数据
+- `apps/api/src/server.ts`
+  - `app-info` 代理改为：本地条目为空字段时回退拉取远端 `apiCallDemo`
+- `scripts/verify-runninghub-workflow-contract.mjs`
+- `scripts/verify-runninghub-workflow-api.mjs`
+  - 补齐 RH 节点提交流程与自动补参链路的源码契约
+- 灰度发布：
+  - `20260619-runninghub-node-hydrate-gray-r1-v034-d9b653c`
+
+验证:
+- `node scripts/verify-runninghub-workflow-contract.mjs = ok`
+- `node scripts/verify-runninghub-workflow-api.mjs = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build:single-port = ok`
+- `codegraph sync = ok`
+- gray:
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+- gray 实查：
+  - `runninghub-main:workflow:2004516402230509570`
+    - `localFieldCount = 0`
+    - `parameterSchema = {}`
+    - `testPayload = {}`
+    - `remoteNodeInfoCount = 0`
+
+影响:
+- RH 节点 workflow 提交流程不再因为缺少 `workflowId / runTargetId` 直接失败。
+- RH 条目为空字段时，系统已经具备自动补拉远端字段的机制。
+- 当前样例 workflow 仍然不会自动出现参数区，但根因已明确收束为“条目没有任何字段定义来源”，不是前端渲染缺陷。
+
+风险:
+- 当前 release 包默认仍不携带 `node_modules`，本次灰度通过复用上一 release 的 `node_modules` 完成启动。
+- 如果后续 gray / production 再走 release 切换而不修补打包/部署链路，仍可能再次遇到 workspace 依赖缺失。
+
+下一步:
+- 为 RH workflow / app 条目建立“输入槽定义必填”或“可分析后生成输入槽草案”的治理约束。
+- 单独修补 release 打包/部署链路，消除对旧 release `node_modules` 的手工复用。
 - 如果需要先理解整体结构、环境、接口和排障入口，先看 `docs/project-atlas/README.md`。
 - 本文件保留逐日推进细节，不承担“唯一入口摘要”职责。
 - 已经沉淀为长期规则的内容，应同步收口到 `MEMORY.md`、`docs/` 或 `ops/`，避免只存在于日志中。
 
 ## 2026-06-17
 
+## 2026-06-19
+
+### RH 工作台 sticky 重叠修复与 gray 发布完成
+
+目标:
+
+- 修复 RH 工作台滚动时后台顶栏、筛选条和编辑器头部之间的重叠问题。
+- 继续收口 RH 编辑器长表单结构和 AI 分析区的工作台化布局。
+- 将修复推送到 gray，并补齐 release 台账。
+
+变更:
+
+- `apps/admin/src/admin-runninghub-workspace.tsx`
+  - 搜索 / 分类 / 状态筛选改为 `admin-runninghub-workspace__sticky-shell` 吸顶控制层。
+  - `AI 分析并填写` 区块改为 `workbench` 结构，增加输入来源 / 输出结果 / 应用方式说明卡。
+- `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - 编辑器头部改为 `admin-runninghub-editor__shell-head` 独立吸顶。
+  - 增加区块 chips，强化“基础信息 / 输入槽 / Schema / 输出 / 执行规则”的阅读分段。
+  - 右侧摘要 / 测试面板保留结构，但去掉双重 sticky 叠层。
+- `apps/admin/src/styles.css`
+  - 调整 RH 工作台吸顶层、编辑器头部、侧栏和 AI 分析区布局样式。
+- `scripts/verify-runninghub-workflow-api.mjs`
+  - 补充 RH 工作台新结构源代码契约：`sticky-shell`、`shell-head`、`analyze workbench`。
+- 新增发布记录：
+  - `ops/runninghub-sticky-gray-release-2026-06-19.md`
+
+验证:
+
+- `node scripts/verify-runninghub-workflow-api.mjs = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `codegraph sync = ok`
+- `npm run build:single-port = ok`
+- gray release `20260619-runninghub-sticky-gray-r6-v034-d9b653c` 已部署
+- gray gate:
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+
+结果:
+
+- RH 工作台现在采用“后台总顶栏 + RH 筛选吸顶层 + 编辑器头部吸顶层”的单向层级，不再出现多层 sticky 相互压住正文。
+- RH 分析区已具备更清晰的工作台结构，后续继续扩展结构化草案不会再把说明和输入挤成一块。
+- gray 当前已切到 `20260619-runninghub-sticky-gray-r6-v034-d9b653c`，对外版本仍为 `v0.3.4`。
+
 ## 2026-06-18
+
+### RunningHub 工作台与节点第二轮结构收口
+
+完成:
+
+- 后台 RH 工作台补齐管理动作第一版：
+  - `POST /api/admin/runninghub/items`
+  - `DELETE /api/admin/runninghub/items/:catalogId`
+  - `POST /api/admin/runninghub/analyze`
+- RH 工作台页面已改成更接近 API 设置页的结构：
+  - 顶部操作条：`刷新目录 / 新建工作流 / 新建 AI 应用 / AI 分析并填写`
+  - 左侧目录：搜索、工作流/AI 应用切换、`全部 / 启用 / 停用` 状态筛选
+  - 右侧编辑：显式 `保存 / 另存为 / 删除 / 启停 / 测试与调试`
+- RH AI 分析已切到结构化卡片输出第一版：
+  - `基础信息草案`
+  - `输入槽草案`
+  - `参数 Schema 草案`
+  - `输出定义草案`
+  - `执行规则草案`
+- RH 节点 UI 第一轮收口：
+  - 增加“输入摘要”
+  - 增加小字状态摘要：`进行中 / 成功 / 失败`
+  - 移除节点界面里的 `Webapp ID` 文案，收口为“运行目标”
+- 系统页并发文案第一轮收口：
+  - `任务并发设置` 标题拆成 `普通任务并发`
+  - RunningHub 区域补齐 `RunningHub 平台并发治理` 与 `RH 平台总并发`
+
+验证:
+
+- `node scripts/verify-runninghub-workflow-api.mjs`
+  - 源码契约检查已通过
+  - 当前本地未起 `127.0.0.1:18200`，所以 live API 段会报 `ECONNREFUSED`
+- `npm run build -w @xinghuan/api = ok`
+- `npm run build -w @xinghuan/admin = ok`
+- `npm run build -w @xinghuan/web = ok`
+- `npm run build:single-port = ok`
+
+说明:
+
+- 这一轮先把 RH 工作台和节点从“能用但很乱”推进到“结构清晰、接口完整、可继续联调”的状态。
+- AI 分析卡片和条目应用目前是第一版，后续仍需要继续把“应用全部 / 局部应用”的实际交互做得更稳。
+
+### RunningHub 运行时结果保留、队列治理与 v0.3.4 gray / production 发布
+
+目标:
+
+- 完成 RunningHub 运行时读结果修复、RH queued task 外键修复，以及普通 Provider / RH 队列治理的真实验证与发布收口。
+- 把 gray / production 的实际 release、版本号和验证证据同步落入文档和运维记录。
+
+变更:
+
+- 修复 RH query 结果读取：
+  - `apps/api/src/provider-generation-task-service.ts`
+  - 读取任务状态时统一保留：
+    - `imageUrls`
+    - `remoteImageUrls`
+    - `videoUrls`
+    - `remoteVideoUrls`
+    - `audioUrls`
+    - `remoteAudioUrls`
+- 修复 RH queued task 入库外键误用：
+  - `apps/api/src/server.ts`
+  - 创建 RH 队列任务时 `modelId` 改为空字符串，不再复用 workflow/page id
+- 统一版本号推进到：
+  - `v0.3.4`
+- gray 发布：
+  - `20260618-runninghub-runtime-queue-gray-r6-v034-d9b653c`
+- production 发布：
+  - `20260618-runninghub-runtime-queue-prod-r1-v034-d9b653c`
+- 新增运维发布记录：
+  - `ops/runninghub-runtime-queue-governance-release-2026-06-18.md`
+
+验证:
+
+- 本地：
+  - `npm run build -w @xinghuan/api = ok`
+  - `node scripts/verify-runninghub-queue-governance-contract.mjs = ok`
+  - `node scripts/verify-user-queue-governance-contract.mjs = ok`
+  - `npm install --package-lock-only = ok`
+  - `npm run build:single-port = ok`
+- gray gate：
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+- production gate：
+  - `verify:release-preflight = ok`
+  - `verify:request-chain-observability = ok`
+  - `verify:system-observability = ok`
+- gray 实链验证：
+  - 普通 Provider 用户窗口：
+    - `task-1781787483910-nxtenx`
+    - `task-1781787484073-900frn`
+    - `task-1781787484217-1vdo6q`
+    - 已观察到 `waitReason = waiting_user_window`
+  - RH 单任务成功：
+    - `task-1781788410710-ndki99`
+  - RH 三任务批量成功：
+    - `task-1781789036588-mqrk4c`
+    - `task-1781789036735-jvltj3`
+    - `task-1781789036892-eglgtt`
+    - 已观察到 `waitReason = waiting_runninghub_window`
+
+影响:
+
+- RH 即使在视频能力链路中返回图像输出，也不会再因为结果暴露分支错误而被前台读成空结果。
+- RH workflow/page id 不再污染普通模型外键。
+- 普通 Provider 与 RunningHub 的等待语义、自动递进和并发窗口现在都有真实验证证据，不再只停留在脚本或设计口径。
+- gray / production 当前对外版本已经统一到 `v0.3.4`。
+
+风险:
+
+- 本轮 release 不含 migration，因此 `PG_DRIVER_NOT_INSTALLED` 不影响本次发布成立。
+- 但 release 目录的迁移依赖链仍未修补，后续带 migration 的 release 必须先解决，否则发布链仍有隐患。
+
+下一步:
+
+- 修补 release 包 `db:migrate` 的驱动依赖链。
+- 继续推进 RH 后续能力扩展时，保持普通 Provider 队列与 RH 平台窗口的隔离治理。
 
 ### RunningHub 工作台与单一 RH 节点第一阶段灰度发布
 

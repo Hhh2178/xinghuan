@@ -22,9 +22,11 @@ export interface RunningHubFieldDefinitionLike {
 
 export interface RunningHubCatalogSourceLike {
   kind?: RhCatalogItemKind;
+  pageId?: string;
   appId?: string;
   workflowId?: string;
   runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinitionLike[];
 }
@@ -102,14 +104,24 @@ export function normalizeRunningHubInputSlots(fields: RunningHubFieldDefinitionL
 
 export function buildRunningHubExecutionDescriptor(item: RunningHubCatalogSourceLike): RhExecutionDescriptor {
   const kind = item.kind === "app" ? "app" : "workflow";
-  const appId = kind === "app" ? safeText(item.appId || item.runTargetId) : safeText(item.appId);
-  const workflowId = kind === "workflow" ? safeText(item.workflowId || item.runTargetId) : safeText(item.workflowId);
+  const pageId = safeText(item.pageId || item.appId || item.workflowId || item.runTargetId);
+  const appId = kind === "app" ? safeText(item.appId || item.runTargetId || item.pageId) : safeText(item.appId);
+  const workflowId = kind === "workflow" ? safeText(item.workflowId || item.runTargetId || item.pageId) : safeText(item.workflowId);
   const runTargetId = safeText(item.runTargetId || (kind === "app" ? appId : workflowId));
+  const taskCapability = item.taskCapability === "image" || item.taskCapability === "audio" || item.taskCapability === "chat"
+    ? item.taskCapability
+    : "video";
   return {
     submit: {
       mode: "direct",
       targetType: kind,
       targetId: runTargetId,
+      pageId: pageId || undefined,
+      appId: appId || undefined,
+      workflowId: workflowId || undefined,
+      taskCapability,
+      submitMode: kind === "app" ? "ai-app" : "openapi-v2-workflow",
+      queryMode: kind === "app" ? "outputs" : "openapi-v2-query",
       endpoint: kind === "app" ? `/runninghub/app/${runTargetId}/run` : `/runninghub/workflow/${runTargetId}/run`,
       method: "POST",
     },
@@ -125,9 +137,9 @@ export function buildRunningHubExecutionDescriptor(item: RunningHubCatalogSource
       },
     },
     polling: {
-      strategy: "none",
-      intervalMs: 0,
-      timeoutMs: 0,
+      strategy: "fixed-interval",
+      intervalMs: 5000,
+      timeoutMs: 20 * 60 * 1000,
     },
     result: {
       mode: "inline",

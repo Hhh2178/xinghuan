@@ -22,5 +22,9 @@ assert(source.includes("providerModels"));
 assert(shared.includes("providerModelSummary"));
 assert(server.includes("normalizeEnvironmentSyncModelRecord"));
 assert(server.includes("upsertEnvironmentSyncProviderModel"));
+assert(server.includes("normalizeRunningHubEntries(source.rhApps, \"app\")"));
+assert(server.includes("normalizeRunningHubEntries(source.rhWorkflows, \"workflow\")"));
+assert(source.includes("rhApps"));
+assert(source.includes("rhWorkflows"));
 
 console.log(JSON.stringify({ ok: true }, null, 2));

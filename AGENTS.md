@@ -95,7 +95,7 @@
 
 ## 版本治理规则
 
-- 当前活跃版本已推进为 `v0.3.2`。
+- 当前活跃版本已推进为 `v0.4.0`。
 - 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
 - `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
 - 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
@@ -139,7 +139,7 @@
 
 ## 当前状态
 
-- 2.0 当前活跃版本已为 `v0.3.2`。
+- 2.0 当前活跃版本已为 `v0.4.0`。
 - 产品路线口径：
   - `Phase 2` 节点与模型治理已完成灰度验收。
   - `Phase 3` 任务与素材闭环已完成主要能力落地，并继续以当前版本文档为主记录。
@@ -162,8 +162,8 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260618-runninghub-workspace-gray-r1-6b65dbc`
-  - 当前生产 release：`20260618-v032-ui-fixes-prod-r1`
+  - 当前灰度 release：`20260619-runninghub-slot-sync-gray-r1-v040-local`
+  - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
   - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
     - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
     - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
@@ -175,14 +175,22 @@
       - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
       - `XINGHUAN_GRAY_API_BASE_URL`
       - `XINGHUAN_PRODUCTION_API_BASE_URL`
-  - `2026-06-18` 已完成 RunningHub 第一阶段 gray 发布：
+  - `2026-06-18` 已完成 RunningHub 运行时与队列治理 gray / production 发布：
     - RH catalog 规范化
     - 后台 RH 工作台与结构化条目编辑器
     - 前台单一 RH 节点固定 typed handles 与 `inputSlots` 优先消费过渡
-    - gray gate 已通过：
+    - RH query 结果读取已改为统一保留 `image/video/audio` 输出数组，避免按 capability 分支丢结果
+    - RH queued task 入库已不再误把 workflow/page id 写入 `xh_tasks.model_id`
+    - 普通 Provider 任务已验证用户级并发窗口与自动递进
+    - RunningHub 任务已验证平台级并发窗口 `2` 与自动递进
+    - gray / production gate 已通过：
       - `verify:release-preflight`
       - `verify:request-chain-observability`
       - `verify:system-observability`
-    - 当前已知补记：
+    - 当前补记：
       - 本轮未包含新 migration
-      - gray release 目录执行 `db:migrate` 暴露 `PG_DRIVER_NOT_INSTALLED`，需后续单独修补 release 迁移依赖链
+      - release 目录执行 `db:migrate` 仍暴露 `PG_DRIVER_NOT_INSTALLED`，后续凡是带 migration 的发布都必须先修补 release 迁移依赖链
+  - `2026-06-19` 已完成 RH 条目真实输入槽同步并发布 gray / production：
+    - 后台 RH 工作台新增“从运行目标同步输入槽”
+    - 当 RH 运行目标能返回 `nodeInfoList` 时，后台条目可直接补齐真实 `nodeId / fieldName`
+    - 画布 RH 节点随后按后台条目自动展开参数区，不再停留在 Schema 草稿态

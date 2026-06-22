@@ -16,6 +16,7 @@ export interface RunningHubCatalogWorkflowField {
 
 export interface RunningHubCatalogItem extends RhCatalogItem {
   fields: RunningHubCatalogWorkflowField[];
+  parameterSchema?: string;
 }
 
 export interface LegacyRunningHubCatalogWorkflow {
@@ -155,10 +156,16 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
     providerBaseUrl: typeof row.providerBaseUrl === "string" ? row.providerBaseUrl : "",
     inputSlots: Array.isArray(row.inputSlots) ? (row.inputSlots as RunningHubCatalogItem["inputSlots"]) : [],
     execution: (row.execution || {}) as RunningHubCatalogItem["execution"],
+    pageId: typeof row.pageId === "string" ? row.pageId : "",
     appId: typeof row.appId === "string" ? row.appId : "",
     workflowId: typeof row.workflowId === "string" ? row.workflowId : "",
     runTargetId: typeof row.runTargetId === "string" ? row.runTargetId : "",
+    taskCapability:
+      row.taskCapability === "image" || row.taskCapability === "video" || row.taskCapability === "audio" || row.taskCapability === "chat"
+        ? row.taskCapability
+        : "video",
     workflowJson: typeof row.workflowJson === "string" ? row.workflowJson : "",
+    parameterSchema: typeof row.parameterSchema === "string" ? row.parameterSchema : "{}",
     fields: (() => {
       const normalizedFields = normalizeFields(row.fields);
       if (normalizedFields.length > 0) return normalizedFields;
@@ -246,6 +253,7 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
     presetCatalogId: item.catalogId,
     appName: item.title,
     name: item.title,
+    pageId: item.pageId || item.id,
     webappId: item.runTargetId,
     workflowId: item.workflowId || item.id,
     providerId: item.providerId,

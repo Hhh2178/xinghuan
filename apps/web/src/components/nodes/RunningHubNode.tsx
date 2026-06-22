@@ -33,7 +33,7 @@ import {
 
 /**
  * RunningHubNode - 主工作流节点
- * 输入: webappId(必填) + 点搜索拉取 nodeInfoList 在节点内展开为表单
+ * 输入: 优先选择后台 RH 条目，运行目标仅作为高级兼容入口
  * 可选: 上游 RhConfig / image / video / audio / upload 节点补充参数
  * 流程: submit → 5s 轮询 outputs → 转存到 /output → 显示
  */
@@ -124,6 +124,16 @@ function extractDefaultValue(it: any): string {
   return typeof v === 'object' ? '' : String(v);
 }
 
+function countSchemaProperties(value: string | undefined) {
+  if (!value?.trim()) return 0;
+  try {
+    const parsed = JSON.parse(value) as { properties?: Record<string, unknown> };
+    return parsed.properties && typeof parsed.properties === 'object' ? Object.keys(parsed.properties).length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 // 上游媒体聚合现在由项目统一的 useUpstreamMaterials hook 处理（详见 ./useUpstreamMaterials.ts），
 // 本文件不再手写 extractUpstreamUrl，避免与项目其他节点的 url 提取逻辑产生不一致。
 
@@ -153,6 +163,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const d = data as any;
   const webappId: string = d?.webappId || '';
   const workflowPresetId: string = d?.rhWorkflowPresetId || '';
+  const showManualRunTarget: boolean = d?.rhShowManualRunTarget === true;
   const instanceType: string = d?.instanceType || '';
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
@@ -167,16 +178,34 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     () => workflowCatalog.find((item) => item.catalogId === workflowPresetId) || null,
     [workflowCatalog, workflowPresetId],
   );
+  const resolvedRunTargetId = selectedWorkflowPreset?.runTargetId || webappId;
   const selectedWorkflowSchema = useMemo(
     () => (selectedWorkflowPreset ? buildRunningHubNodeSchema(selectedWorkflowPreset) : null),
+    [selectedWorkflowPreset],
+  );
+  const localPresetAppInfo = useMemo(
+    () => (selectedWorkflowPreset ? buildRunningHubAppInfoFromCatalog(selectedWorkflowPreset) : null),
     [selectedWorkflowPreset],
   );
   const currentNodeInfoList = useMemo(() => {
     const list = Array.isArray(appInfo?.nodeInfoList) ? appInfo.nodeInfoList : [];
     if (list.length > 0) return list;
-    if (!selectedWorkflowPreset) return [];
-    return buildRunningHubAppInfoFromCatalog(selectedWorkflowPreset).nodeInfoList || [];
-  }, [appInfo?.nodeInfoList, selectedWorkflowPreset]);
+    return Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList : [];
+  }, [appInfo?.nodeInfoList, localPresetAppInfo]);
+  const presetFieldCount = Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList.length : 0;
+  const selectedSchemaPropertyCount = countSchemaProperties(selectedWorkflowPreset?.parameterSchema);
+  const selectedPresetHasNoResolvedFields = Boolean(selectedWorkflowPreset) && presetFieldCount <= 0 && currentNodeInfoList.length <= 0;
+  const resolvedTargetType: 'app' | 'workflow' = selectedWorkflowPreset?.kind === 'app' ? 'app' : 'workflow';
+  const resolvedPageId = selectedWorkflowPreset?.pageId || selectedWorkflowPreset?.id || resolvedRunTargetId;
+  const resolvedWorkflowId = resolvedTargetType === 'workflow'
+    ? (selectedWorkflowPreset?.workflowId || resolvedRunTargetId)
+    : '';
+  const resolvedTaskCapability: 'image' | 'video' | 'audio' | 'chat' =
+    selectedWorkflowPreset?.taskCapability === 'image'
+      || selectedWorkflowPreset?.taskCapability === 'audio'
+      || selectedWorkflowPreset?.taskCapability === 'chat'
+      ? selectedWorkflowPreset.taskCapability
+      : 'video';
 
   useEffect(() => {
     let cancelled = false;
@@ -204,12 +233,12 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     if (appInfo?.presetCatalogId === selectedWorkflowPreset.catalogId) return;
     update({
       webappId: selectedWorkflowPreset.runTargetId,
-      appInfo: buildRunningHubAppInfoFromCatalog(selectedWorkflowPreset),
+      appInfo: localPresetAppInfo,
       paramValues: {},
       paramMentions: {},
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWorkflowPreset?.catalogId]);
+  }, [selectedWorkflowPreset?.catalogId, localPresetAppInfo]);
 
   const stopPoll = () => {
     if (pollTimer.current) {
@@ -603,19 +632,19 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     paramValues: Record<string, RhParamValue>;
   } | null> => {
     setError(null);
-    if (!webappId) {
-      setError('请先填写 webappId');
+    if (!resolvedRunTargetId) {
+      setError('请先选择后台条目，或展开高级方式填写运行目标');
       return null;
     }
     setFetchingInfo(true);
     try {
-      const info = await fetchRhAppInfo(webappId);
+      const info = await fetchRhAppInfo(resolvedRunTargetId);
       const list: any[] = info?.nodeInfoList || [];
       // 调试日志：打印原始 nodeInfoList 结构，方便后续按实际字段名/fieldType 扩充 LIST 词典
       try {
-        console.log('[RH/fetchInfo] webappId=', webappId, 'nodeInfoList=', JSON.parse(JSON.stringify(list)));
+        console.log('[RH/fetchInfo] runTargetId=', resolvedRunTargetId, 'nodeInfoList=', JSON.parse(JSON.stringify(list)));
       } catch {}
-      logBus.info(`拉取应用信息 · webappId=${webappId} · ${list.length} 个字段`, src);
+      logBus.info(`拉取应用信息 · runTargetId=${resolvedRunTargetId} · ${list.length} 个字段`, src);
       const next: Record<string, RhParamValue> = { ...paramValues };
       for (const it of list) {
         const k = paramKey(it.nodeId, it.fieldName);
@@ -633,7 +662,21 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         next[k] = { value: extractDefaultValue(it) };
       }
       const withTextBindings = applyRhTextBindings(list, orderedTexts, next);
-      update({ appInfo: info, paramValues: withTextBindings });
+      update({
+        appInfo: {
+          ...(localPresetAppInfo || {}),
+          ...(appInfo || {}),
+          ...(info || {}),
+          presetCatalogId: selectedWorkflowPreset?.catalogId || appInfo?.presetCatalogId || '',
+          appName: info?.appName || info?.title || localPresetAppInfo?.appName || appInfo?.appName || '',
+          name: info?.name || info?.title || localPresetAppInfo?.name || appInfo?.name || '',
+          pageId: info?.pageId || resolvedPageId,
+          webappId: info?.webappId || resolvedRunTargetId,
+          workflowId: info?.workflowId || resolvedWorkflowId,
+          nodeInfoList: list,
+        },
+        paramValues: withTextBindings,
+      });
       return { list, paramValues: withTextBindings };
     } catch (e: any) {
       setError(e?.message || '查询失败');
@@ -644,12 +687,13 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     }
   };
 
-  // 自动拉取：第一次 webappId 有值且上游有可用素材（文本/媒体）且还未拉取过任何 appInfo 时，
+  // 自动拉取：第一次已有运行目标且上游有可用素材（文本/媒体）且还未拉取过任何 appInfo 时，
   // 静默拉一次，避免用户漏点搜索按钮导致提交空 nodeInfoList 后 RH 用了应用默认参数。
   const autoFetchedRef = useRef(false);
+  const autoHydratedCatalogRef = useRef('');
   useEffect(() => {
     if (autoFetchedRef.current) return;
-    if (!webappId) return;
+    if (!resolvedRunTargetId) return;
     if (appInfo) return;
     if (fetchingInfo) return;
     const hasUpstreamPayload = orderedTexts.length > 0 || !!(findUpstreamUrl('image') || findUpstreamUrl('video') || findUpstreamUrl('audio'));
@@ -657,12 +701,27 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     autoFetchedRef.current = true;
     void handleFetchInfo();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webappId, upstreamNodes, appInfo]);
+  }, [resolvedRunTargetId, upstreamNodes, appInfo]);
+
+  useEffect(() => {
+    if (!selectedWorkflowPreset) {
+      autoHydratedCatalogRef.current = '';
+      return;
+    }
+    if (presetFieldCount > 0) return;
+    if (!resolvedRunTargetId) return;
+    if (fetchingInfo) return;
+    const hydrateKey = `${selectedWorkflowPreset.catalogId}:${resolvedRunTargetId}`;
+    if (autoHydratedCatalogRef.current === hydrateKey) return;
+    autoHydratedCatalogRef.current = hydrateKey;
+    void handleFetchInfo();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkflowPreset?.catalogId, presetFieldCount, resolvedRunTargetId, fetchingInfo]);
 
   const handleRun = async () => {
     setError(null);
-    if (!webappId) {
-      setError('请先填写 webappId');
+    if (!resolvedRunTargetId) {
+      setError('请先选择后台条目，或展开高级方式填写运行目标');
       return;
     }
     // 兑底：如果还没拉过 appInfo 且上游接了媒体节点，先同步拉一次，
@@ -692,10 +751,15 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
       // 提交前：把媒体类 url 转成 RH 内部 fileName
       const nodeInfoList = await resolveNodeInfoList(rawList);
-      console.log('[RH/submit] webappId=', webappId, 'nodeInfoList=', JSON.parse(JSON.stringify(nodeInfoList)));
-      logBus.info(`提交任务 · webappId=${webappId} · ${nodeInfoList.length} 个字段${useWallet ? ' · 钱包模式' : ''}`, src);
+      console.log('[RH/submit] runTargetId=', resolvedRunTargetId, 'nodeInfoList=', JSON.parse(JSON.stringify(nodeInfoList)));
+      logBus.info(`提交任务 · runTargetId=${resolvedRunTargetId} · ${nodeInfoList.length} 个字段${useWallet ? ' · 钱包模式' : ''}`, src);
       const r = await submitRh({
-        webappId,
+        webappId: resolvedRunTargetId,
+        pageId: resolvedPageId,
+        workflowId: resolvedWorkflowId || undefined,
+        runTargetId: resolvedRunTargetId,
+        targetType: resolvedTargetType,
+        taskCapability: resolvedTaskCapability,
         nodeInfoList,
         instanceType: instanceType || undefined,
       });
@@ -725,11 +789,22 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   };
 
   const isBusy = status === 'submitting' || status === 'polling';
+  const runningCount = isBusy ? 1 : 0;
+  const successCount = status === 'success' ? 1 : 0;
+  const failureCount = status === 'error' ? 1 : 0;
   const nodeInfoList: any[] = currentNodeInfoList;
+  const schemaInputCount = selectedWorkflowSchema?.inputSlots.length || 0;
+  const schemaOutputCount = selectedWorkflowSchema?.outputs.length || 0;
+  const visibleTargetHandleStyle = { top: 124 } as const;
+  const hiddenLegacyHandleStyle = (top: number) => ({
+    top,
+    opacity: 0,
+    pointerEvents: 'none' as const,
+  });
 
   return (
     <div
-      className={`relative rounded-xl border-2 transition-all w-[340px] ${
+      className={`relative rounded-xl border-2 transition-all w-[324px] ${
         selected ? `${accent.ring} shadow-2xl ${accent.shadow}` : 'border-white/15 hover:border-white/30'
       }`}
       style={{
@@ -739,11 +814,12 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         color: isPixel ? 'var(--px-ink)' : undefined,
       }}
     >
-      <Handle id="text-in" type="target" position={Position.Left} style={{ top: 96 }} className={`${accent.handle} !border-0`} />
-      <Handle id="image-in" type="target" position={Position.Left} style={{ top: 136 }} className={`${accent.handle} !border-0`} />
-      <Handle id="video-in" type="target" position={Position.Left} style={{ top: 176 }} className={`${accent.handle} !border-0`} />
-      <Handle id="audio-in" type="target" position={Position.Left} style={{ top: 216 }} className={`${accent.handle} !border-0`} />
-      <Handle id="json-in" type="target" position={Position.Left} style={{ top: 256 }} className={`${accent.handle} !border-0`} />
+      <Handle type="target" position={Position.Left} style={visibleTargetHandleStyle} className={`${accent.handle} !border-0`} />
+      <Handle id="text-in" type="target" position={Position.Left} style={hiddenLegacyHandleStyle(96)} className={`${accent.handle} !border-0`} />
+      <Handle id="image-in" type="target" position={Position.Left} style={hiddenLegacyHandleStyle(136)} className={`${accent.handle} !border-0`} />
+      <Handle id="video-in" type="target" position={Position.Left} style={hiddenLegacyHandleStyle(176)} className={`${accent.handle} !border-0`} />
+      <Handle id="audio-in" type="target" position={Position.Left} style={hiddenLegacyHandleStyle(216)} className={`${accent.handle} !border-0`} />
+      <Handle id="json-in" type="target" position={Position.Left} style={hiddenLegacyHandleStyle(256)} className={`${accent.handle} !border-0`} />
       <Handle type="source" position={Position.Right} className={`${accent.handle} !border-0`} />
 
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
@@ -775,17 +851,17 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             isDark={isDark}
             isPixel={isPixel}
             groups={['text', 'image', 'video', 'audio']}
-            title="上游素材 · 拖拽可调整顺序"
+            title="通用输入 · 拖拽可调整顺序"
           />
         )}
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">工作流预设</label>
+          <label className="text-[10px] text-white/50 block mb-1">后台条目</label>
           <select
             value={workflowPresetId}
             onChange={(e) => {
               const nextId = e.target.value;
               if (!nextId) {
-                update({ rhWorkflowPresetId: '', appInfo: null });
+                update({ rhWorkflowPresetId: '', appInfo: null, webappId: '' });
                 return;
               }
               const preset = workflowCatalog.find((item) => item.catalogId === nextId);
@@ -801,7 +877,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             }}
             className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
           >
-            <option value="">{catalogLoading ? '正在读取后台工作流...' : '手动填写 webappId / 或选择后台工作流'}</option>
+            <option value="">{catalogLoading ? '正在读取后台条目...' : '请选择后台已配置的 RH 条目'}</option>
             {workflowCatalog.map((workflow) => (
               <option key={workflow.catalogId} value={workflow.catalogId}>
                 {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
@@ -809,54 +885,71 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             ))}
           </select>
           {selectedWorkflowPreset ? (
-            <div className="text-[10px] text-white/40 mt-1">
-              {selectedWorkflowPreset.note || `已注入 ${selectedWorkflowPreset.fields.length} 个字段映射`}
+            <div className="mt-1 rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
+              <div className="text-[10px] text-white/75 truncate">{selectedWorkflowPreset.title}</div>
+              <div className="mt-1 text-[10px] text-white/45">
+                {(selectedWorkflowPreset.taskCapability || 'video')} · 绑定 {schemaInputCount || selectedWorkflowPreset.fields.length} · Schema {selectedSchemaPropertyCount} · 输出 {schemaOutputCount}
+              </div>
+              {selectedWorkflowPreset.note ? (
+                <div className="mt-1 text-[10px] text-white/35 line-clamp-2">{selectedWorkflowPreset.note}</div>
+              ) : null}
+            </div>
+          ) : null}
+          {selectedPresetHasNoResolvedFields ? (
+            <div className="mt-1 rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-4 text-amber-100/90">
+              {selectedSchemaPropertyCount > 0
+                ? `当前 RH 条目已定义 ${selectedSchemaPropertyCount} 个结构化参数，但还没有可执行的 RH 绑定字段。节点不会直接生成可提交表单，请先到后台 RH 工作台补齐 nodeId 和 fieldName。`
+                : '当前 RH 条目还没有可用的输入槽定义。节点无法自动展开参数区，请先到后台 RH 工作台补齐至少一个包含 nodeId 和 fieldName 的输入槽。'}
             </div>
           ) : null}
           {!selectedWorkflowPreset && catalogError ? <div className="text-[10px] text-rose-300/80 mt-1">{catalogError}</div> : null}
         </div>
-        {selectedWorkflowSchema ? (
-          <div className={`rounded border ${accent.subBg} px-2 py-1.5 space-y-1`}>
-            <div className={`text-[10px] ${accent.sub} flex items-center justify-between`}>
-              <span>{selectedWorkflowSchema.kind === 'app' ? 'AI 应用 Schema' : '工作流 Schema'}</span>
-              <span>{selectedWorkflowSchema.inputSlots.length} 输入</span>
-            </div>
-            <div className="space-y-1">
-              {selectedWorkflowSchema.inputSlots.slice(0, 6).map((slot) => (
-                <div key={slot.key} className="flex items-center justify-between gap-2 text-[10px] text-white/70">
-                  <span className="truncate">{slot.title}</span>
-                  <span className="text-white/35 shrink-0">{slot.dataType}</span>
-                </div>
-              ))}
-              {selectedWorkflowSchema.inputSlots.length > 6 ? (
-                <div className="text-[10px] text-white/35">还有 {selectedWorkflowSchema.inputSlots.length - 6} 个输入槽</div>
-              ) : null}
-            </div>
-            <div className="text-[10px] text-white/35">
-              输出: {selectedWorkflowSchema.outputs.map((output) => `${output.key}:${output.dataType}`).join(' / ')}
-            </div>
+        <div className="rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2 text-[10px] text-white/70">
+            <span>通用输入</span>
+            <span>{orderedTexts.length + orderedImages.length + orderedVideos.length + orderedAudios.length} 项</span>
           </div>
-        ) : null}
+          <div className="mt-1 text-[10px] leading-4 text-white/40">
+            文本、图片、视频、音频统一从左侧一个输入口进入，再按后台条目的字段规则自动分配。
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-[10px] text-white/45">
+          <span>
+            文本 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'text').length}
+            {' '}· 图片 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'image').length}
+            {' '}· 视频 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'video').length}
+            {' '}· 音频 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'audio').length}
+          </span>
+          <button
+            type="button"
+            onClick={() => update({ rhShowManualRunTarget: !showManualRunTarget })}
+            className="text-[10px] text-cyan-200/80 hover:text-cyan-100 shrink-0"
+          >
+            {showManualRunTarget ? '收起高级' : '高级方式'}
+          </button>
+        </div>
+        {showManualRunTarget ? (
         <div>
-          <label className="text-[10px] text-white/50 block mb-1">Webapp ID</label>
+          <label className="text-[10px] text-white/50 block mb-1">手动运行目标</label>
           <div className="flex gap-1">
             <input
               type="text"
               value={webappId}
               onChange={(e) => update({ webappId: e.target.value, rhWorkflowPresetId: '' })}
-              placeholder="1234567890"
+              placeholder="仅在后台目录尚未配置时使用"
               className="flex-1 rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
             />
             <button
               onClick={handleFetchInfo}
               disabled={fetchingInfo}
-              title="拉取应用信息"
+              title="拉取运行目标信息"
               className="px-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 disabled:opacity-50"
             >
               {fetchingInfo ? <Loader2 size={11} className="animate-spin" /> : <Search size={11} />}
             </button>
           </div>
         </div>
+        ) : null}
 
         {/* 参数表单：拉取 nodeInfoList 后逐条展开 */}
         {/* nowheel: 阻止 xyflow 把滚轮事件接管成画布缩放，让节点内列表可滚动；nodrag: 鼠标按下不触发节点拖动 */}
@@ -1098,8 +1191,14 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         {isBusy && (
           <div className={`flex items-center gap-1 text-[10px] ${accent.spin}`}>
             <Loader2 size={11} className="animate-spin" />
-            {status === 'submitting' ? '提交任务...' : '轮询中'}
+            {status === 'submitting' ? '进行中 1' : '轮询中'}
             {taskId && <span className="ml-auto text-white/30">{String(taskId).slice(0, 10)}…</span>}
+          </div>
+        )}
+
+        {!isBusy && (
+          <div className="text-[10px] text-white/45">
+            进行中 {runningCount} · 成功 {successCount} · 失败 {failureCount}
           </div>
         )}
 

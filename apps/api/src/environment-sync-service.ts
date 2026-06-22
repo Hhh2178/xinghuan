@@ -34,6 +34,9 @@ export interface EnvironmentSyncProviderRecord {
   apiKey?: string;
   apiKeyPreview?: string;
   note?: string;
+  rhApps?: unknown[];
+  rhWorkflows?: unknown[];
+  msLoras?: unknown[];
   createdAt: number;
   updatedAt: number;
 }
@@ -429,6 +432,9 @@ function providerComparableSignature(provider: EnvironmentSyncProviderRecord) {
     apiKey: provider.apiKey || "",
     apiKeyPreview: provider.apiKeyPreview || "",
     note: provider.note || "",
+    rhApps: Array.isArray(provider.rhApps) ? provider.rhApps : [],
+    rhWorkflows: Array.isArray(provider.rhWorkflows) ? provider.rhWorkflows : [],
+    msLoras: Array.isArray(provider.msLoras) ? provider.msLoras : [],
   });
 }
 
@@ -533,6 +539,8 @@ function userSummary(user: EnvironmentSyncUserRecord) {
 }
 
 function providerSummary(provider: EnvironmentSyncProviderRecord, modelCount: number) {
+  const rhApps = Array.isArray(provider.rhApps) ? provider.rhApps.length : 0;
+  const rhWorkflows = Array.isArray(provider.rhWorkflows) ? provider.rhWorkflows.length : 0;
   return {
     name: provider.name,
     baseUrl: provider.baseUrl,
@@ -542,6 +550,8 @@ function providerSummary(provider: EnvironmentSyncProviderRecord, modelCount: nu
     apiKeyPreview: provider.apiKeyPreview || "",
     note: provider.note || "",
     modelCount,
+    rhAppCount: rhApps,
+    rhWorkflowCount: rhWorkflows,
   };
 }
 

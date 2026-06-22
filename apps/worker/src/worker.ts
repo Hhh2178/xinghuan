@@ -763,8 +763,13 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
   const apiKey = decryptSecret(task.apiKeyCipher);
   if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key 或无法解密");
 
-  const webappId = safeText(task.payload.webappId || task.payload.runTargetId);
-  if (!webappId) throw new Error("RunningHub 任务缺少 webappId");
+  const targetType = safeText(task.payload.targetType).toLowerCase() === "app" ? "app" : "workflow";
+  const runTargetId = safeText(task.payload.runTargetId || (targetType === "app" ? task.payload.webappId : task.payload.workflowId));
+  const webappId = safeText(task.payload.webappId || (targetType === "app" ? runTargetId : ""));
+  const workflowId = safeText(task.payload.workflowId || (targetType === "workflow" ? runTargetId : ""));
+  if (!runTargetId) {
+    throw new Error(targetType === "app" ? "RunningHub 任务缺少 webappId/runTargetId" : "RunningHub 任务缺少 workflowId/runTargetId");
+  }
   const nodeInfoList = Array.isArray(task.payload.nodeInfoList)
     ? task.payload.nodeInfoList
         .map((item) => (item && typeof item === "object" ? plainObject(item) : {}))
@@ -775,9 +780,13 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
           fieldValue: item.fieldValue,
         }))
     : [];
-  const instanceType = safeText(task.payload.instanceType, "plus");
-  const submitUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/ai-app/run`;
-  const queryUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/outputs`;
+  const instanceType = safeText(task.payload.instanceType);
+  const submitUrl = targetType === "app"
+    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/ai-app/run`
+    : `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/run/workflow/${encodeURIComponent(workflowId || runTargetId)}`;
+  const queryUrl = targetType === "app"
+    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/task/openapi/outputs`
+    : `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/query`;
 
   const submitResponse = await fetch(submitUrl, {
     method: "POST",
@@ -785,13 +794,21 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      apiKey,
-      webappId,
-      nodeInfoList,
-      instanceType,
-      taskType: "ASYNC",
-    }),
+    body: JSON.stringify(
+      targetType === "app"
+        ? {
+            apiKey,
+            webappId: webappId || runTargetId,
+            nodeInfoList,
+            ...(instanceType ? { instanceType } : {}),
+            taskType: "ASYNC",
+          }
+        : {
+            apiKeyOnly: apiKey,
+            nodeInfoList,
+            ...(instanceType ? { instanceType } : {}),
+          },
+    ),
     signal: AbortSignal.timeout(120000),
   });
   const submitText = await submitResponse.text();
@@ -799,12 +816,24 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     throw new Error(`RunningHub 提交失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
   }
   const submitRaw = submitText ? JSON.parse(submitText) : {};
-  const submitData = plainObject(submitRaw.data);
-  const upstreamCode = Number(submitData.code);
-  const upstreamPayload = plainObject(submitData.data);
-  const upstreamTaskId = safeText(upstreamPayload.taskId || submitRaw.taskId);
-  if (upstreamCode !== 0 || !upstreamTaskId) {
-    const message = safeText(submitData.msg || submitRaw.message || submitRaw.msg, "RunningHub 未返回有效任务 ID");
+  const submitEnvelope = plainObject(submitRaw.data);
+  const submitData = targetType === "app" ? submitEnvelope : submitRaw;
+  const upstreamCode = Number(targetType === "app" ? submitData.code : submitRaw.code);
+  const upstreamPayload = plainObject(targetType === "app" ? submitData.data : submitRaw.data);
+  const upstreamTaskId = safeText(
+    upstreamPayload.taskId
+      || upstreamPayload.id
+      || submitRaw.taskId
+      || submitRaw.id,
+  );
+  if ((Number.isFinite(upstreamCode) && upstreamCode !== 0) || !upstreamTaskId) {
+    const message = safeText(
+      submitData.msg
+      || submitRaw.errorMessage
+      || submitRaw.message
+      || submitRaw.msg,
+      "RunningHub 未返回有效任务 ID",
+    );
     throw new Error(message);
   }
 
@@ -814,6 +843,8 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     taskId: upstreamTaskId,
     upstreamStatus: "submitted",
     runtimeStage: "polling",
+    rhTargetType: targetType,
+    rhRunTargetId: runTargetId,
   });
 
   const pollIntervalMs = clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000);
@@ -829,9 +860,10 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       method: "POST",
       headers: {
         "content-type": "application/json",
+        ...(targetType === "workflow" ? { authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
-        apiKey,
+        ...(targetType === "app" ? { apiKey } : {}),
         taskId: upstreamTaskId,
       }),
       signal: AbortSignal.timeout(120000),
@@ -841,25 +873,39 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       throw new Error(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`);
     }
     const pollRaw = pollText ? JSON.parse(pollText) : {};
-    const pollData = plainObject(pollRaw.data);
-    const pollCode = Number(pollData.code);
-    const pollMessage = safeText(pollData.msg || pollRaw.message || pollRaw.msg);
+    const pollData = targetType === "app" ? plainObject(pollRaw.data) : pollRaw;
+    const pollCode = Number(targetType === "app" ? pollData.code : pollRaw.code);
+    const pollMessage = safeText(
+      pollData.msg
+      || pollRaw.errorMessage
+      || pollRaw.message
+      || pollRaw.msg,
+    );
     await touchTaskRuntime(task.id, {
       heartbeatAt: new Date().toISOString(),
       upstreamTaskId,
       taskId: upstreamTaskId,
-      upstreamStatus: String(Number.isFinite(pollCode) ? pollCode : ""),
+      upstreamStatus: String(Number.isFinite(pollCode) ? pollCode : safeText(pollRaw.status)),
       runtimeStage: "polling",
       upstreamMessage: pollMessage,
+      rhTargetType: targetType,
+      rhRunTargetId: runTargetId,
     });
-    if (pollCode === 804 || pollCode === 813) continue;
-    if (pollCode === 805) {
+    if (targetType === "app" && (pollCode === 804 || pollCode === 813)) continue;
+    if (targetType === "app" && pollCode === 805) {
       throw new Error(pollMessage || `RunningHub 任务失败: ${upstreamTaskId}`);
     }
-    if (pollCode !== 0) {
+    if (targetType === "app" && pollCode !== 0) {
       throw new Error(pollMessage || `RunningHub 返回未知状态: ${pollCode}`);
     }
-    const urls = extractRunningHubOutputUrls(pollData.data);
+    if (targetType === "workflow") {
+      const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || pollRaw.data?.status).toUpperCase();
+      if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(workflowStatus)) continue;
+      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(workflowStatus) || safeText(pollRaw.errorCode)) {
+        throw new Error(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`);
+      }
+    }
+    const urls = extractRunningHubOutputUrls(targetType === "app" ? pollData.data : pollRaw.data || pollRaw);
     if (urls.imageUrls.length === 0 && urls.videoUrls.length === 0 && urls.audioUrls.length === 0) {
       throw new Error(pollMessage || "RunningHub 任务成功但未返回可用输出");
     }
@@ -868,6 +914,8 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       providerId: task.providerId,
       taskId: upstreamTaskId,
       upstreamTaskId,
+      rhTargetType: targetType,
+      rhRunTargetId: runTargetId,
       raw: pollRaw,
       videoUrls: urls.videoUrls,
       imageUrls: urls.imageUrls,

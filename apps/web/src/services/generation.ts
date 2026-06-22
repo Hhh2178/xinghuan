@@ -1048,6 +1048,11 @@ export async function uploadAudioForSuno(
 // ========================================================================
 export interface RhSubmitRequest {
   webappId: string;
+  pageId?: string;
+  workflowId?: string;
+  runTargetId?: string;
+  targetType?: 'app' | 'workflow';
+  taskCapability?: 'image' | 'video' | 'audio' | 'chat';
   nodeInfoList?: Array<{ nodeId: string; fieldName: string; fieldValue: any }>;
   instanceType?: string;
 }

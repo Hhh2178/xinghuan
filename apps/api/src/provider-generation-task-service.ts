@@ -125,6 +125,18 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const storedCapability = normalizeGenerationCapability(taskPayload.taskCapability);
     const effectiveCapability = storedCapability || input.capability;
     const result = deps.plainObject(task.result);
+    const imageUrls = readStringArray(result.materializedImageUrls).length > 0
+      ? readStringArray(result.materializedImageUrls)
+      : readStringArray(result.imageUrls);
+    const remoteImageUrls = readStringArray(result.remoteImageUrls);
+    const videoUrls = readStringArray(result.materializedVideoUrls).length > 0
+      ? readStringArray(result.materializedVideoUrls)
+      : readStringArray(result.videoUrls);
+    const remoteVideoUrls = readStringArray(result.remoteVideoUrls);
+    const audioUrls = readStringArray(result.materializedAudioUrls).length > 0
+      ? readStringArray(result.materializedAudioUrls)
+      : readStringArray(result.audioUrls);
+    const remoteAudioUrls = readStringArray(result.remoteAudioUrls);
     const error = deps.safeText(result.error || result.failureReason || result.failReason)
       || (task.status === "failed" ? lastTaskFailureLog(task.logs) : "");
     const cancellationMessage = deps.safeText(result.cancellationMessage);
@@ -148,13 +160,15 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
         upstreamTaskId: deps.safeText(result.upstreamTaskId || result.taskId),
         upstreamCancelledAt: deps.safeText(result.upstreamCancelledAt),
       },
+      imageUrls,
+      remoteImageUrls,
+      videoUrls,
+      remoteVideoUrls,
+      audioUrls,
+      remoteAudioUrls,
     };
 
     if (effectiveCapability === "image") {
-      const imageUrls = readStringArray(result.materializedImageUrls).length > 0
-        ? readStringArray(result.materializedImageUrls)
-        : readStringArray(result.imageUrls);
-      const remoteImageUrls = readStringArray(result.remoteImageUrls);
       return {
         ...response,
         imageUrls,
@@ -167,10 +181,6 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     }
 
     if (effectiveCapability === "video") {
-      const videoUrls = readStringArray(result.materializedVideoUrls).length > 0
-        ? readStringArray(result.materializedVideoUrls)
-        : readStringArray(result.videoUrls);
-      const remoteVideoUrls = readStringArray(result.remoteVideoUrls);
       return {
         ...response,
         videoUrls,
@@ -182,10 +192,6 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       };
     }
 
-    const audioUrls = readStringArray(result.materializedAudioUrls).length > 0
-      ? readStringArray(result.materializedAudioUrls)
-      : readStringArray(result.audioUrls);
-    const remoteAudioUrls = readStringArray(result.remoteAudioUrls);
     return {
       ...response,
       audioUrls,

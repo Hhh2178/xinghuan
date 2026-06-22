@@ -33,11 +33,21 @@ export async function api<T = unknown>(pathname: string, options?: RequestInit):
 export const adminRunningHubApi = {
   listItems: () =>
     api<{ items: import("./admin-types").RunningHubAdminItem[] }>("/api/admin/runninghub/items").then((result) => result.items),
+  createItem: (payload: import("./admin-types").RunningHubAdminItemCreatePayload) =>
+    api<import("./admin-types").RunningHubAdminItem>("/api/admin/runninghub/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
   updateItem: (catalogId: string, payload: import("./admin-types").RunningHubAdminItemUpdatePayload) =>
     api<import("./admin-types").RunningHubAdminItem>(`/api/admin/runninghub/items/${encodeURIComponent(catalogId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    }),
+  deleteItem: (catalogId: string) =>
+    api<{ deleted: boolean; catalogId: string }>(`/api/admin/runninghub/items/${encodeURIComponent(catalogId)}`, {
+      method: "DELETE",
     }),
   testItem: (catalogId: string, payload: { testPayload?: string }) =>
     api<import("./admin-types").RunningHubAdminItemTestResult>(`/api/admin/runninghub/items/${encodeURIComponent(catalogId)}/test`, {
@@ -45,4 +55,12 @@ export const adminRunningHubApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  analyzeItemDraft: (payload: import("./admin-types").RunningHubAnalyzePayload) =>
+    api<import("./admin-types").RunningHubAnalyzeDraft>("/api/admin/runninghub/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  fetchRemoteAppInfo: (runTargetId: string) =>
+    api<Record<string, unknown>>(`/api/proxy/runninghub/app-info?webappId=${encodeURIComponent(runTargetId)}`),
 };

@@ -22,9 +22,11 @@ export interface RunningHubCatalogEntry {
   thumbnail?: string;
   enabled: boolean;
   kind?: RhCatalogItemKind;
+  pageId?: string;
   appId?: string;
   workflowId?: string;
   runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
 }
@@ -200,16 +202,24 @@ export function normalizeRunningHubFieldDefinitions(value: unknown): RunningHubF
 
 export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogItemKind): RunningHubAdminCatalogEntry | null {
   const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || "");
-  const id = safeText(parsed?.id || row.id || row.appId || row.workflowId);
+  const parsed = parseRunningHubRef(row.id || row.appId || row.workflowId || row.runTargetId || "");
+  const id = safeText(parsed?.id || row.id || row.appId || row.workflowId || row.runTargetId);
   if (!id) return null;
+  const pageId = safeText(row.pageId || row.id || (kind === "app" ? row.appId : row.workflowId) || id);
   const runTargetId = safeText(row.runTargetId || (kind === "app" ? row.appId : row.workflowId) || id);
+  const taskCapabilityText = safeText(row.taskCapability).toLowerCase();
+  const taskCapability =
+    taskCapabilityText === "image" || taskCapabilityText === "audio" || taskCapabilityText === "chat"
+      ? taskCapabilityText as "image" | "audio" | "chat"
+      : "video";
   return {
     id,
     kind,
-    appId: kind === "app" ? safeText(row.appId || id) : undefined,
-    workflowId: kind === "workflow" ? safeText(row.workflowId || id) : undefined,
+    pageId,
+    appId: kind === "app" ? safeText(row.appId || runTargetId || id) : safeText(row.appId),
+    workflowId: kind === "workflow" ? safeText(row.workflowId || runTargetId || id) : safeText(row.workflowId),
     runTargetId,
+    taskCapability,
     title: safeText(row.title, kind === "app" ? `AI 应用 ${id.slice(-6)}` : `工作流 ${id.slice(-6)}`),
     note: safeText(row.note),
     thumbnail: safeText(row.thumbnail),
@@ -245,10 +255,15 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
     enabled: entry.enabled,
     inputSlots: normalizeRunningHubInputSlots(fields),
     execution: buildRunningHubExecutionDescriptor(entry),
+    pageId: entry.pageId || entry.id,
     appId: entry.appId || "",
     workflowId: entry.workflowId || "",
     runTargetId: entry.runTargetId || entry.workflowId || entry.appId || entry.id,
+    taskCapability: entry.taskCapability === "image" || entry.taskCapability === "audio" || entry.taskCapability === "chat"
+      ? entry.taskCapability
+      : "video",
     workflowJson: entry.workflowJson || "",
+    parameterSchema: normalizeOptionalJsonText((entry as RunningHubAdminCatalogEntry).parameterSchema) || "{}",
     fields,
   };
 }

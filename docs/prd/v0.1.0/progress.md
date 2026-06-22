@@ -2,12 +2,22 @@
 
 ## 当前状态
 
-状态：`v0.1.0` 仍处于产品路线的 `Phase 3` 持续收口阶段，但已经不再是“刚进入 Phase 3”的状态。当前产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-17` 已进一步完成柏拉图 `grok-1.5-video-6s/10s/15s` multipart 视频接入、后台 API 接入助手结构化输出改造，以及 gray / production 真实 6 秒任务验收。当前下一步更集中在外部通知闭环，以及沿真实高频链路继续做选择性 requestId 覆盖率提升。
+状态：当前对外已发布版本仍为 `v0.4.0`，本地发布候选已推进到 `v0.4.1` 并完成严格验证，待 gray 发布。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`runTargetId` 校验修复，以及 `instanceType` 默认值治理。当前下一步更集中在 gray 真实条目录入与视觉验收、外部通知闭环、release 迁移依赖链修补，以及后续 RH 能力扩展。
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260617-environment-sync-gray-r1-f881c28-dirty`
-- 当前生产 active release：`20260617-environment-sync-prod-r1-f881c28-dirty`
+- 当前灰度 active release：`20260619-runninghub-slot-sync-gray-r1-v040-local`
+- 当前生产 active release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+- 当前本地待发布版本：`v0.4.1`
+- 当前本地严格验收已通过：
+  - `npm run type-check`
+  - `npm run verify:runninghub-analyze-contract`
+  - `npm run verify:runninghub-workflow-contract`
+  - `npm run verify:runninghub-queue-governance-contract`
+  - `npm run verify:runninghub-workflow-api`
+  - `npm run build:single-port`
+  - `npm run verify:single-port`
+  - `npm run verify:local-acceptance-chain`
 - 当前 gray / production 最新状态已额外补齐：
   - `GRSAI` nano 路由与图像节点错误透传
   - 高频后台读接口 requestId 审计补样后的 gray / production gate 复验
@@ -16,6 +26,10 @@
   - 柏拉图 preview 模型继续保留 `/v2/videos/generations` JSON 提交
   - 后台 API 接入助手与右侧 AI 助手已开始输出结构化接入方案，而不是只给散乱文本
   - 后台“环境同步”页已进入 gray / production，当前能力已收口为账号 + 服务商（含关联模型）同步，并完成双向预览与真实写回 smoke
+  - RH catalog / 工作台 / 单一 RH 节点第一阶段已继续推进到 RH 运行时治理版本
+  - 普通 Provider 队列已验证按 `capability + owner` 独立并发与自动递进
+  - RunningHub 已验证平台窗口 `2` 下的等待与自动递进
+  - RH 工作台已支持从运行目标同步真实输入槽；当后台条目保存后，画布 RH 节点会按条目自动展开可执行参数区
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果
@@ -31,6 +45,7 @@
   - 更完整的任务补偿、上游取消样本与外部通知闭环
   - `requestId` 实际覆盖率继续提升
   - 将生成库素材访问层继续复用到更多素材读取场景
+  - 修补 release 目录 `db:migrate` 的 `PG_DRIVER_NOT_INSTALLED` 依赖链缺口
 
 `2026-06-06` 至 `2026-06-12` 的产品能力推进仍保持有效：Worker 输出素材落库、素材空间读取闭环、取消 / 重试、Worker 取消保护、画布 / 素材 PostgreSQL repository 热修复、RunningHub 工作流字段映射第一版、Provider 文件签名短链、后台发布模型统一任务化、Provider 分类队列并发、视频/图像上游 JSON 容错等都已完成落地并保留在本文件下方的时间线中。该时间线继续作为版本内历史推进记录保留，但不再单独承担“当前状态”入口职责。
 

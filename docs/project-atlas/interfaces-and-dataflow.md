@@ -68,6 +68,14 @@
 - 单一 RH 节点按结构化 schema 消费条目
 - RH 素材上传、任务提交与轮询
 
+补充边界：
+
+- RH page/workflow 展示 id 与真实运行时 `workflowId` 分离：
+  - page/sku id 用于后台录入与人工识别
+  - 真实提交走 `/openapi/v2/run/workflow/{workflowId}`
+  - 真实查询走 `/openapi/v2/query`
+- RH task 入库时不再强行复用普通模型外键；`xh_tasks.model_id` 保持空字符串，避免把 RH page id 误写成模型 id
+
 ### 生成代理
 
 - `/api/proxy/external/image`
@@ -143,17 +151,39 @@
 ### RunningHub 工作台 -> 单一 RH 节点
 
 1. 管理员在 `RH 工作台` 维护条目基础信息、输入槽、参数 schema、输出定义和执行描述
-2. 后台通过 `/api/admin/runninghub/items` 读取目录，通过 `PATCH /api/admin/runninghub/items/:id` 保存结构化编辑结果
-3. 画布通过 `/api/runninghub/catalog` 拉取公开 catalog，优先消费 `items`，兼容旧 `workflows/apps`
-4. `RunningHubNode` 用 `buildRunningHubNodeSchema()` 将 catalog 条目转成节点视图模型
-5. 节点保留固定 typed handles：
+2. 后台通过 `/api/admin/runninghub/items` 读取目录，通过 `POST /api/admin/runninghub/items` 新建条目，通过 `PATCH /api/admin/runninghub/items/:id` 保存结构化编辑结果，通过 `DELETE /api/admin/runninghub/items/:id` 删除条目
+3. RH 工作台还提供 `/api/admin/runninghub/analyze`，输出 `基础信息 / 输入槽 / 参数 Schema / 输出定义 / 执行规则` 五类结构化草案卡片
+4. 画布通过 `/api/runninghub/catalog` 拉取公开 catalog，优先消费 `items`，兼容旧 `workflows/apps`
+5. `RunningHubNode` 用 `buildRunningHubNodeSchema()` 将 catalog 条目转成节点视图模型
+6. 节点保留固定 typed handles：
    - `text-in`
    - `image-in`
    - `video-in`
    - `audio-in`
    - `json-in`
-6. 节点内部再根据 `inputSlots` 渲染具体字段与上游素材映射
-7. 运行时仍通过 `upload-asset -> submit -> query` 完成 RH 任务代理
+7. 节点内部再根据 `inputSlots` 渲染具体字段与上游素材映射，并以“输入摘要 + 参数区 + 小字状态摘要”呈现
+8. 节点界面不再继续暴露 `Webapp ID` 文案，而是由后台目录与执行描述统一掌管底层运行标识
+9. 运行时仍通过 `upload-asset -> submit -> query` 完成 RH 任务代理
+
+### 普通 Provider 队列治理
+
+1. API 写入 provider generation task 时保留 capability、ownerId、超时配置和 provider/model 上下文
+2. Worker 读取系统并发设置后，先按 capability 进入分类队列
+3. 真正执行前再判断用户窗口：
+   - 同一 `ownerId + capability` 达到并发上限时，任务保持 queued
+   - 写入 `waitReason = waiting_user_window`
+4. 当正在执行的同用户任务结束后，等待任务自动推进
+5. 跨用户任务不共享同一用户窗口，可并行推进
+
+### RunningHub 平台并发治理
+
+1. RH 任务进入专用执行判断链，读取 RH 平台并发窗口上限
+2. 若 RH 在跑任务数已满，则新任务保持 queued
+3. 任务写入：
+   - `waitReason = waiting_runninghub_window`
+   - `waitDetail = RunningHub 平台并发已满 (used/limit)`
+4. 有 RH 任务结束后，等待任务自动递进
+5. 该窗口只约束 RH，不影响普通 Provider worker 队列
 
 ## 当前高频风险点
 

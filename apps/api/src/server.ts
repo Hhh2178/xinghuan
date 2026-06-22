@@ -839,7 +839,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.3.2",
+      version: "0.4.1",
       environment,
       dataDir,
     });
@@ -1238,13 +1238,17 @@ const server = createServer(async (request, response) => {
       const webappId = safeText(url.searchParams.get("webappId"));
       if (!webappId) throw new Error("缺少 webappId");
       const item = await publicRunningHubCatalogItemDetail(webappId);
-      if (item) {
+      const localFields = Array.isArray(item?.fields) ? item.fields : [];
+      const localInputSlots = Array.isArray(item?.inputSlots) ? item.inputSlots : [];
+      if (item && (localFields.length > 0 || localInputSlots.length > 0)) {
         sendT8(response, {
           webappId,
           title: item.title,
           runTargetId: item.runTargetId,
-          nodeInfoList: Array.isArray(item.fields) ? item.fields : [],
-          inputSlots: item.inputSlots,
+          pageId: item.pageId,
+          workflowId: item.workflowId,
+          nodeInfoList: localFields,
+          inputSlots: localInputSlots,
           execution: item.execution,
         });
         return;
@@ -1252,8 +1256,9 @@ const server = createServer(async (request, response) => {
       const provider = await resolveRunningHubProvider();
       const apiKey = providerPlainApiKey(provider);
       if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key");
+      const remoteTargetId = safeText(item?.runTargetId || webappId, webappId);
       const upstream = await fetch(
-        `${provider.baseUrl.replace(/\/+$/, "")}/api/webapp/apiCallDemo?apiKey=${encodeURIComponent(apiKey)}&webappId=${encodeURIComponent(webappId)}`,
+        `${provider.baseUrl.replace(/\/+$/, "")}/api/webapp/apiCallDemo?apiKey=${encodeURIComponent(apiKey)}&webappId=${encodeURIComponent(remoteTargetId)}`,
         {
           headers: { host: "www.runninghub.cn" },
           signal: AbortSignal.timeout(120000),
@@ -1261,7 +1266,24 @@ const server = createServer(async (request, response) => {
       );
       const text = await upstream.text();
       if (!upstream.ok) throw new Error(`RunningHub 应用信息查询失败 ${upstream.status}: ${text.slice(0, 500)}`);
-      sendT8(response, parseUpstreamJson(text, "RunningHub 应用信息接口", upstream.headers.get("content-type") || ""));
+      const raw = parseUpstreamJson(text, "RunningHub 应用信息接口", upstream.headers.get("content-type") || "");
+      const payload = plainObject(raw.data);
+      const remoteNodeInfoList = Array.isArray(payload.nodeInfoList)
+        ? payload.nodeInfoList
+        : Array.isArray(raw.nodeInfoList)
+          ? raw.nodeInfoList
+          : [];
+      sendT8(response, {
+        ...raw,
+        webappId: remoteTargetId,
+        title: safeText(item?.title || payload.title || raw.title),
+        runTargetId: safeText(item?.runTargetId || payload.runTargetId || remoteTargetId, remoteTargetId),
+        pageId: safeText(item?.pageId || payload.pageId || raw.pageId),
+        workflowId: safeText(item?.workflowId || payload.workflowId || raw.workflowId),
+        nodeInfoList: remoteNodeInfoList,
+        inputSlots: localInputSlots,
+        execution: item?.execution,
+      });
       return;
     }
 
@@ -1300,7 +1322,12 @@ const server = createServer(async (request, response) => {
       const body = await readJsonBody<{
         providerId?: string;
         modelId?: string;
+        pageId?: string;
         webappId?: string;
+        workflowId?: string;
+        runTargetId?: string;
+        targetType?: "app" | "workflow";
+        taskCapability?: "image" | "video" | "audio" | "chat";
         nodeInfoList?: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
         instanceType?: string;
         title?: string;
@@ -1309,7 +1336,14 @@ const server = createServer(async (request, response) => {
       const task = await createRunningHubQueuedTask({
         providerId: provider.id,
         modelId: safeText(body.modelId),
+        pageId: safeText(body.pageId),
         webappId: safeText(body.webappId),
+        workflowId: safeText(body.workflowId),
+        runTargetId: safeText(body.runTargetId),
+        targetType: body.targetType === "app" ? "app" : "workflow",
+        taskCapability: body.taskCapability === "image" || body.taskCapability === "audio" || body.taskCapability === "chat"
+          ? body.taskCapability
+          : "video",
         nodeInfoList: Array.isArray(body.nodeInfoList) ? body.nodeInfoList : [],
         instanceType: safeText(body.instanceType),
         title: safeText(body.title),
@@ -1356,16 +1390,30 @@ const server = createServer(async (request, response) => {
       const body = await readJsonBody<{
         providerId?: string;
         modelId?: string;
+        pageId?: string;
         webappId?: string;
+        workflowId?: string;
+        runTargetId?: string;
+        targetType?: "app" | "workflow";
+        taskCapability?: "image" | "video" | "audio" | "chat";
         nodeInfoList?: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
         instanceType?: string;
         title?: string;
       }>(request);
+      const targetType = body.targetType === "app" ? "app" : "workflow";
+      const taskCapability = body.taskCapability === "image" || body.taskCapability === "audio" || body.taskCapability === "chat"
+        ? body.taskCapability
+        : "video";
+      const runTargetId = safeText(body.runTargetId || (targetType === "app" ? body.webappId : body.workflowId));
       const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const payload: Record<string, unknown> = {
-        taskCapability: "video",
+        taskCapability,
         executionMode: "worker_queue",
+        targetType,
+        pageId: safeText(body.pageId),
         webappId: safeText(body.webappId),
+        workflowId: safeText(body.workflowId),
+        runTargetId,
         nodeInfoList: Array.isArray(body.nodeInfoList) ? body.nodeInfoList : [],
         instanceType: safeText(body.instanceType),
         requestId: requestContext.requestId,
@@ -1373,7 +1421,7 @@ const server = createServer(async (request, response) => {
       const now = Date.now();
       const task: AdminTaskRecord = {
         id: taskId,
-        title: safeText(body.title, `RunningHub 任务 · ${safeText(body.webappId, "workflow")}`),
+        title: safeText(body.title, `RunningHub 任务 · ${runTargetId || safeText(body.webappId || body.workflowId, "workflow")}`),
         status: "queued",
         ownerId: currentUser!.id,
         providerId: safeText(body.providerId, "runninghub"),
@@ -1382,14 +1430,20 @@ const server = createServer(async (request, response) => {
         result: {
           adapter: "runninghub",
           protocol: "runninghub",
-          capability: "video",
+          capability: taskCapability,
+          rhTargetType: targetType,
+          rhRunTargetId: runTargetId,
+          pageId: safeText(body.pageId),
+          webappId: safeText(body.webappId),
+          workflowId: safeText(body.workflowId),
         },
         logs: ["画布提交 RunningHub 后台任务"],
         createdAt: now,
         updatedAt: now,
       };
       await insertTaskRecord(task);
-      const queueResult = await enqueueTask(task.id, "video");
+      const queueCapability = taskCapability === "image" || taskCapability === "audio" ? taskCapability : "video";
+      const queueResult = await enqueueTask(task.id, queueCapability);
       const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
       await appendTaskLog(task.id, queueLog);
       if (!queueResult.queued) {
@@ -1907,6 +1961,33 @@ async function handleAdminRequest(
     return true;
   }
 
+  if (url.pathname === "/api/admin/runninghub/items" && request.method === "POST") {
+    const body = await readJsonBody<{
+      providerId?: string;
+      kind?: "app" | "workflow";
+      title?: string;
+      note?: string;
+      sourceCatalogId?: string;
+      enabled?: boolean;
+      thumbnail?: string;
+      workflowJson?: string;
+      fields?: RunningHubFieldDefinition[];
+      pageId?: string;
+      appId?: string;
+      workflowId?: string;
+      runTargetId?: string;
+      taskCapability?: "image" | "video" | "audio" | "chat";
+      parameterSchema?: string;
+      outputSchema?: RunningHubOutputDefinition[];
+      executionRules?: RunningHubExecutionRules;
+      testPayload?: string;
+    }>(request);
+    const created = await createAdminRunningHubCatalogItem(body);
+    await appendAudit(adminUser, "runninghub.item.create", "runninghub", created.catalogId, `新建 RunningHub 条目 ${created.title}`, requestContext);
+    sendT8(response, created, 201);
+    return true;
+  }
+
   const runningHubItemMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)$/);
   if (runningHubItemMatch && request.method === "PATCH") {
     const catalogId = decodeURIComponent(runningHubItemMatch[1]);
@@ -1917,7 +1998,11 @@ async function handleAdminRequest(
       thumbnail?: string;
       workflowJson?: string;
       fields?: RunningHubFieldDefinition[];
+      pageId?: string;
+      appId?: string;
+      workflowId?: string;
       runTargetId?: string;
+      taskCapability?: "image" | "video" | "audio" | "chat";
       parameterSchema?: string;
       outputSchema?: RunningHubOutputDefinition[];
       executionRules?: RunningHubExecutionRules;
@@ -1929,6 +2014,14 @@ async function handleAdminRequest(
     return true;
   }
 
+  if (runningHubItemMatch && request.method === "DELETE") {
+    const catalogId = decodeURIComponent(runningHubItemMatch[1]);
+    const deleted = await deleteAdminRunningHubCatalogItem(catalogId);
+    await appendAudit(adminUser, "runninghub.item.delete", "runninghub", catalogId, `删除 RunningHub 条目 ${deleted.title}`, requestContext);
+    sendT8(response, { deleted: true, catalogId });
+    return true;
+  }
+
   const runningHubItemTestMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)\/test$/);
   if (runningHubItemTestMatch && request.method === "POST") {
     const catalogId = decodeURIComponent(runningHubItemTestMatch[1]);
@@ -1936,6 +2029,24 @@ async function handleAdminRequest(
     const result = await testAdminRunningHubCatalogItem(catalogId, body.testPayload);
     await appendAudit(adminUser, "runninghub.item.test", "runninghub", catalogId, `测试 RunningHub 条目 ${catalogId}: ${result.ok ? "ok" : "error"}`, requestContext);
     sendT8(response, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/runninghub/analyze" && request.method === "POST") {
+    const body = await readJsonBody<{
+      providerId?: string;
+      kind?: "app" | "workflow";
+      sourceUrl?: string;
+      pageId?: string;
+      runTargetId?: string;
+      docUrl?: string;
+      requestExample?: string;
+      responseExample?: string;
+      notes?: string;
+    }>(request);
+    const draft = await analyzeRunningHubCatalogDraft(body);
+    await appendAudit(adminUser, "runninghub.item.analyze", "runninghub", safeText(body.providerId || "runninghub"), `分析 RunningHub ${safeText(body.kind || "workflow")} 条目草案`, requestContext);
+    sendT8(response, draft);
     return true;
   }
 
@@ -2688,7 +2799,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.3.2",
+      version: "0.4.1",
       storage: await readStorageStats(),
     });
     return true;
@@ -2882,6 +2993,9 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
       apiKey: provider.apiKey,
       apiKeyPreview: provider.apiKeyPreview || secretPreview(decryptSecret(provider.apiKey || "")),
       note: provider.note || "",
+      rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
+      rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+      msLoras: normalizeModelScopeLoras(provider.msLoras),
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
     })),
@@ -3083,6 +3197,9 @@ function normalizeEnvironmentSyncProviderRecord(value: unknown) {
     apiKey,
     apiKeyPreview: safeText(source.apiKeyPreview, apiKey ? secretPreview(decryptSecret(apiKey) || apiKey) : ""),
     note: safeText(source.note),
+    rhApps: normalizeRunningHubEntries(source.rhApps, "app"),
+    rhWorkflows: normalizeRunningHubEntries(source.rhWorkflows, "workflow"),
+    msLoras: normalizeModelScopeLoras(source.msLoras),
     createdAt: Number(source.createdAt) || Date.now(),
     updatedAt: Number(source.updatedAt) || Date.now(),
   };
@@ -3187,6 +3304,9 @@ async function upsertEnvironmentSyncProvider(provider: {
   apiKey?: string;
   apiKeyPreview?: string;
   note?: string;
+  rhApps?: RunningHubEntry[];
+  rhWorkflows?: RunningHubEntry[];
+  msLoras?: ModelScopeLora[];
   createdAt: number;
   updatedAt: number;
 }) {
@@ -3200,9 +3320,9 @@ async function upsertEnvironmentSyncProvider(provider: {
     apiKey: safeText(provider.apiKey),
     apiKeyPreview: safeText(provider.apiKeyPreview),
     note: safeText(provider.note),
-    rhApps: existing?.rhApps || [],
-    rhWorkflows: existing?.rhWorkflows || [],
-    msLoras: existing?.msLoras || [],
+    rhApps: normalizeRunningHubEntries(provider.rhApps === undefined ? existing?.rhApps : provider.rhApps, "app"),
+    rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows === undefined ? existing?.rhWorkflows : provider.rhWorkflows, "workflow"),
+    msLoras: normalizeModelScopeLoras(provider.msLoras === undefined ? existing?.msLoras : provider.msLoras),
     lastProbeStatus: existing?.lastProbeStatus || "",
     lastProbeMessage: existing?.lastProbeMessage || "",
     lastFetchedAt: existing?.lastFetchedAt || 0,
@@ -6914,36 +7034,58 @@ async function resolveRunningHubProvider(requestedProviderId = "") {
 async function createRunningHubQueuedTask(input: {
   providerId: string;
   modelId: string;
-  webappId: string;
+  pageId?: string;
+  webappId?: string;
+  workflowId?: string;
+  runTargetId?: string;
+  targetType?: "app" | "workflow";
+  taskCapability?: "image" | "video" | "audio" | "chat";
   nodeInfoList: Array<{ nodeId?: string; fieldName?: string; fieldValue?: unknown }>;
-  instanceType: string;
+  instanceType?: string;
   title: string;
   user: CurrentUser;
   requestContext: RequestContext;
 }) {
-  if (!input.webappId) throw new Error("缺少 webappId");
+  const targetType = input.targetType === "app" ? "app" : "workflow";
+  const webappId = safeText(input.webappId);
+  const workflowId = safeText(input.workflowId);
+  const runTargetId = safeText(input.runTargetId || (targetType === "app" ? webappId : workflowId));
+  const pageId = safeText(input.pageId || (targetType === "app" ? webappId : workflowId));
+  const taskCapability = input.taskCapability === "image" || input.taskCapability === "audio" || input.taskCapability === "chat"
+    ? input.taskCapability
+    : "video";
+  if (!runTargetId) throw new Error(targetType === "app" ? "缺少 webappId/runTargetId" : "缺少 workflowId/runTargetId");
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = Date.now();
   const task: AdminTaskRecord = {
     id: taskId,
-    title: input.title || `RunningHub 任务 · ${input.webappId}`,
+    title: input.title || `RunningHub 任务 · ${runTargetId}`,
     status: "queued",
     ownerId: input.user.id,
     providerId: input.providerId,
-    modelId: input.modelId,
+    modelId: "",
     payload: {
-      taskCapability: "video",
+      taskCapability,
       executionMode: "worker_queue",
-      webappId: input.webappId,
+      targetType,
+      pageId,
+      webappId,
+      workflowId,
+      runTargetId,
       nodeInfoList: input.nodeInfoList,
-      instanceType: input.instanceType || "plus",
+      ...(input.instanceType ? { instanceType: input.instanceType } : {}),
       requestId: input.requestContext.requestId,
       userId: input.user.id,
     },
     result: {
       adapter: "runninghub",
       protocol: "runninghub",
-      capability: "video",
+      capability: taskCapability,
+      rhTargetType: targetType,
+      rhRunTargetId: runTargetId,
+      pageId,
+      webappId,
+      workflowId,
       requestId: input.requestContext.requestId,
       userId: input.user.id,
     },
@@ -6952,7 +7094,8 @@ async function createRunningHubQueuedTask(input: {
     updatedAt: now,
   };
   await insertTaskRecord(task);
-  const queueResult = await enqueueTask(task.id, "video");
+  const queueCapability = taskCapability === "image" || taskCapability === "audio" ? taskCapability : "video";
+  const queueResult = await enqueueTask(task.id, queueCapability);
   const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
   await appendTaskLog(task.id, queueLog);
   if (!queueResult.queued) {
@@ -7037,6 +7180,299 @@ function mapRunningHubTaskCode(status: string) {
   return 805;
 }
 
+interface RunningHubAnalyzeDraftSection {
+  key: string;
+  title: string;
+  description: string;
+  payload: Record<string, unknown>;
+}
+
+interface RunningHubAnalyzeDraft {
+  summary: string;
+  sections: RunningHubAnalyzeDraftSection[];
+  warnings: string[];
+}
+
+function createRunningHubCatalogEntryId(kind: "app" | "workflow") {
+  const suffix = randomBytes(4).toString("hex");
+  return `${kind}-${Date.now().toString(36)}-${suffix}`;
+}
+
+function createBlankRunningHubCatalogEntry(kind: "app" | "workflow", titleText: string): RunningHubAdminCatalogEntry {
+  const id = createRunningHubCatalogEntryId(kind);
+  return {
+    id,
+    kind,
+    title: titleText,
+    note: "",
+    thumbnail: "",
+    enabled: true,
+    pageId: id,
+    appId: kind === "app" ? id : "",
+    workflowId: kind === "workflow" ? id : "",
+    runTargetId: id,
+    taskCapability: kind === "app" ? "image" : "video",
+    workflowJson: "",
+    fields: [],
+    parameterSchema: "{}",
+    outputSchema: [],
+    executionRules: normalizeRunningHubExecutionRulesForAdmin(undefined, kind, id),
+    testPayload: "{}",
+  };
+}
+
+function hasRunningHubFieldDefinitions(fields: unknown) {
+  return normalizeRunningHubFieldDefinitions(fields).length > 0;
+}
+
+function assertRunningHubEntryCanBeEnabled(entry: {
+  enabled: boolean;
+  kind?: "app" | "workflow";
+  title?: string;
+  catalogId?: string;
+  fields?: RunningHubFieldDefinition[];
+}) {
+  if (!entry.enabled) return;
+  if (hasRunningHubFieldDefinitions(entry.fields)) return;
+  const itemLabel = safeText(entry.title || entry.catalogId, entry.kind === "app" ? "RunningHub AI 应用" : "RunningHub 工作流");
+  throw new Error(`${itemLabel} 仍缺少输入槽定义，不能启用。请至少补齐一个包含 nodeId 和 fieldName 的输入槽，或先保存为停用草稿。`);
+}
+
+async function persistRunningHubProviderRecord(
+  db: AdminDb,
+  providerId: string,
+  transform: (provider: AdminProviderRecord) => AdminProviderRecord,
+) {
+  let nextProvider: AdminProviderRecord | null = null;
+  const providers = db.providers.map((provider) => {
+    if (provider.id !== providerId) return provider;
+    nextProvider = transform(provider);
+    return nextProvider;
+  });
+  if (!nextProvider) throw new Error("RunningHub Provider 不存在");
+  if (usePostgresRepository()) {
+    await upsertProviderRecordPostgres(nextProvider);
+  } else {
+    await writeAdminDb({ ...db, providers });
+  }
+  return nextProvider;
+}
+
+async function createAdminRunningHubCatalogItem(input: {
+  providerId?: string;
+  kind?: "app" | "workflow";
+  title?: string;
+  note?: string;
+  sourceCatalogId?: string;
+  enabled?: boolean;
+  thumbnail?: string;
+  workflowJson?: string;
+  fields?: RunningHubFieldDefinition[];
+  pageId?: string;
+  appId?: string;
+  workflowId?: string;
+  runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
+  parameterSchema?: string;
+  outputSchema?: RunningHubOutputDefinition[];
+  executionRules?: RunningHubExecutionRules;
+  testPayload?: string;
+}): Promise<AdminRunningHubCatalogItem> {
+  const providerId = safeText(input.providerId);
+  if (!providerId) throw new Error("缺少 RunningHub Provider");
+  const kind = input.kind === "app" ? "app" : "workflow";
+  const db = await readAdminDb();
+  const source = input.sourceCatalogId ? await adminRunningHubCatalogItemDetail(safeText(input.sourceCatalogId)) : null;
+  const nextTitle = safeText(
+    input.title,
+    source ? `${source.title} 副本` : kind === "app" ? "新建 AI 应用" : "新建工作流",
+  );
+  const nextEntry = source
+    ? {
+        ...normalizeRunningHubCatalogItem(source, kind),
+        id: createRunningHubCatalogEntryId(kind),
+        kind,
+        title: nextTitle,
+        note: safeText(input.note, source.note || ""),
+        enabled: true,
+      } satisfies RunningHubAdminCatalogEntry
+    : createBlankRunningHubCatalogEntry(kind, nextTitle);
+  nextEntry.enabled = input.enabled === undefined ? nextEntry.enabled : Boolean(input.enabled);
+  nextEntry.note = input.note === undefined ? nextEntry.note : safeText(input.note);
+  nextEntry.thumbnail = input.thumbnail === undefined ? nextEntry.thumbnail : safeText(input.thumbnail);
+  nextEntry.workflowJson = input.workflowJson === undefined ? nextEntry.workflowJson : safeRunningHubJsonText(input.workflowJson, "");
+  nextEntry.fields = input.fields === undefined ? normalizeRunningHubFieldDefinitions(nextEntry.fields) : normalizeRunningHubFieldDefinitions(input.fields);
+  nextEntry.pageId = input.pageId === undefined ? safeText(nextEntry.pageId, nextEntry.id) : safeText(input.pageId, nextEntry.id);
+  nextEntry.runTargetId = input.runTargetId === undefined ? safeText(nextEntry.runTargetId, nextEntry.id) : safeText(input.runTargetId, nextEntry.id);
+  nextEntry.taskCapability = input.taskCapability === "image" || input.taskCapability === "audio" || input.taskCapability === "chat"
+    ? input.taskCapability
+    : input.taskCapability === "video"
+      ? "video"
+      : nextEntry.taskCapability;
+  nextEntry.pageId = safeText(nextEntry.pageId, nextEntry.id);
+  nextEntry.runTargetId = safeText(nextEntry.runTargetId, nextEntry.id);
+  if (kind === "app") {
+    nextEntry.appId = input.appId === undefined ? safeText(nextEntry.appId, nextEntry.runTargetId) : safeText(input.appId, nextEntry.runTargetId);
+    nextEntry.workflowId = input.workflowId === undefined ? safeText(nextEntry.workflowId) : safeText(input.workflowId);
+  } else {
+    nextEntry.workflowId = input.workflowId === undefined ? safeText(nextEntry.workflowId, nextEntry.runTargetId) : safeText(input.workflowId, nextEntry.runTargetId);
+    nextEntry.appId = input.appId === undefined ? safeText(nextEntry.appId) : safeText(input.appId);
+  }
+  nextEntry.parameterSchema = input.parameterSchema === undefined ? safeRunningHubObjectJsonText(nextEntry.parameterSchema, "{}") : safeRunningHubObjectJsonText(input.parameterSchema, "{}");
+  nextEntry.outputSchema = input.outputSchema === undefined ? normalizeRunningHubOutputDefinitionsForAdmin(nextEntry.outputSchema) : normalizeRunningHubOutputDefinitionsForAdmin(input.outputSchema);
+  nextEntry.executionRules = input.executionRules === undefined
+    ? normalizeRunningHubExecutionRulesForAdmin(nextEntry.executionRules, kind, nextEntry.runTargetId)
+    : normalizeRunningHubExecutionRulesForAdmin(input.executionRules, kind, nextEntry.runTargetId);
+  nextEntry.testPayload = input.testPayload === undefined ? safeRunningHubJsonText(nextEntry.testPayload, "{}") : safeRunningHubJsonText(input.testPayload, "{}");
+  assertRunningHubEntryCanBeEnabled(nextEntry);
+  const updatedProvider = await persistRunningHubProviderRecord(db, providerId, (provider) => {
+    const list = kind === "app"
+      ? normalizeRunningHubEntries(provider.rhApps, "app")
+      : normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
+    const merged = [...list, nextEntry];
+    return {
+      ...provider,
+      rhApps: kind === "app" ? merged : provider.rhApps,
+      rhWorkflows: kind === "workflow" ? merged : provider.rhWorkflows,
+      updatedAt: Date.now(),
+    };
+  });
+  return toAdminRunningHubCatalogItem(updatedProvider, nextEntry);
+}
+
+async function deleteAdminRunningHubCatalogItem(catalogId: string): Promise<AdminRunningHubCatalogItem> {
+  const db = await readAdminDb();
+  const item = await adminRunningHubCatalogItemDetail(catalogId);
+  if (!item) throw new Error("RunningHub 条目不存在");
+  const [providerId, kindText, itemId] = catalogId.split(":");
+  const kind = kindText === "app" ? "app" : "workflow";
+  if (!providerId || !itemId) throw new Error("RunningHub catalogId 无效");
+  await persistRunningHubProviderRecord(db, providerId, (provider) => {
+    const sourceList = kind === "app"
+      ? normalizeRunningHubEntries(provider.rhApps, "app")
+      : normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
+    const nextList = sourceList.filter((entry) => entry.id !== itemId);
+    return {
+      ...provider,
+      rhApps: kind === "app" ? nextList : provider.rhApps,
+      rhWorkflows: kind === "workflow" ? nextList : provider.rhWorkflows,
+      updatedAt: Date.now(),
+    };
+  });
+  return item;
+}
+
+async function analyzeRunningHubCatalogDraft(input: {
+  providerId?: string;
+  kind?: "app" | "workflow";
+  sourceUrl?: string;
+  pageId?: string;
+  runTargetId?: string;
+  docUrl?: string;
+  requestExample?: string;
+  responseExample?: string;
+  notes?: string;
+}): Promise<RunningHubAnalyzeDraft> {
+  const kind = input.kind === "app" ? "app" : "workflow";
+  const requestExampleObject = parseRunningHubExampleObject(input.requestExample);
+  const responseExampleObject = parseRunningHubExampleObject(input.responseExample);
+  const requestExampleRunTargetId = extractRunningHubRunTargetIdFromExample(kind, requestExampleObject);
+  const pageId = safeText(
+    input.pageId
+      || extractRunningHubPageIdFromExample(requestExampleObject)
+      || parseRunningHubRef(input.sourceUrl || "")?.id,
+  );
+  const runTargetId = safeText(input.runTargetId || requestExampleRunTargetId, pageId || createRunningHubCatalogEntryId(kind));
+  const capabilityText = [input.sourceUrl, input.notes, input.requestExample, input.responseExample].map((item) => safeText(item).toLowerCase()).join("\n");
+  const requestExampleFields = buildRunningHubFieldsFromRequestExample(requestExampleObject);
+  const taskCapability = /audio/.test(capabilityText)
+    ? "audio"
+    : /chat|text/.test(capabilityText)
+      ? "chat"
+      : /image|png|jpg|jpeg|webp/.test(capabilityText)
+        ? "image"
+        : "video";
+  const title = safeText(
+    input.notes,
+    kind === "app" ? `RunningHub AI 应用 ${pageId || runTargetId}` : `RunningHub Workflow ${pageId || runTargetId}`,
+  ).slice(0, 80);
+  const baseDraft = {
+    title,
+    note: safeText(input.notes, "待管理员确认条目标题、备注与运行目标。"),
+    pageId,
+    runTargetId,
+    taskCapability,
+  };
+  const inputDraft = {
+    fields: requestExampleFields,
+    guidance: requestExampleFields.length > 0
+      ? "已从 requestExample.nodeInfoList 生成输入槽草案，请重点核对 nodeId、fieldName 与 required。"
+      : "从文档或示例请求中补齐输入槽定义，至少包含 nodeId、fieldName、valueType、required。",
+  };
+  const parameterDraft = requestExampleFields.length > 0
+    ? buildRunningHubParameterDraftFromFields(requestExampleFields)
+    : {
+        type: "object",
+        properties: {},
+        required: [],
+      };
+  const outputDraft = {
+    outputs: [
+      {
+        key: taskCapability === "audio" ? "audio" : taskCapability === "image" ? "image" : taskCapability === "chat" ? "text" : "video",
+        label: taskCapability === "audio" ? "输出音频" : taskCapability === "image" ? "输出图像" : taskCapability === "chat" ? "输出文本" : "输出视频",
+        kind: taskCapability === "chat" ? "text" : taskCapability,
+        path: "data",
+        multiple: true,
+      },
+    ],
+  };
+  const executionDraft = {
+    submitMode: "direct",
+    targetType: kind,
+    method: "POST",
+    endpoint: runningHubDefaultEndpoint(kind, runTargetId),
+    resultPath: "data",
+    errorPath: "message",
+    acceptsUploads: true,
+    acceptsRemoteUrls: true,
+    outputKind: "remote-url",
+    supportsMultipleOutputs: true,
+    pollingStrategy: "none",
+    pollingIntervalMs: 0,
+    pollingTimeoutMs: 0,
+    retryable: false,
+  };
+  const warnings = [
+    "AI 草案不会直接覆盖现有条目，应用前仍需人工确认。",
+    "pageId / runTargetId 仅作为后台目录字段保存，不会继续下放到画布节点让用户手工维护。",
+  ];
+  const requestedRunTargetId = safeText(input.runTargetId);
+  if (requestedRunTargetId && requestExampleRunTargetId && requestedRunTargetId !== requestExampleRunTargetId) {
+    warnings.push("requestExample 里的 runTargetId 与表单填写的运行目标 ID 不一致，请人工确认最终提交目标。");
+  }
+  if (safeText(input.requestExample) && !requestExampleObject) {
+    warnings.push("requestExample 不是合法 JSON 对象，本轮无法自动解析 nodeInfoList。");
+  }
+  if (safeText(input.responseExample) && !responseExampleObject) {
+    warnings.push("responseExample 不是合法 JSON 对象，本轮只把它作为能力线索参与分析。");
+  }
+  if (requestExampleObject && requestExampleFields.length <= 0) {
+    warnings.push("requestExample 已解析，但没有识别到可用的 nodeInfoList 字段。");
+  }
+  return {
+    summary: `已根据 ${kind === "app" ? "AI 应用" : "工作流"} 线索生成结构化 RH 草案，请重点核对运行目标、输入槽和执行规则。`,
+    sections: [
+      { key: "base", title: "基础信息草案", description: "条目标题、备注和运行目标。", payload: baseDraft },
+      { key: "inputs", title: "输入槽草案", description: "建议补齐输入槽结构，而不是直接手写 JSON。", payload: inputDraft },
+      { key: "params", title: "参数 Schema 草案", description: "面向节点参数渲染的结构化参数草案。", payload: parameterDraft },
+      { key: "outputs", title: "输出定义草案", description: "后端结果提取后的输出定义。", payload: outputDraft },
+      { key: "execution", title: "执行规则草案", description: "提交、结果提取和错误提取规则。", payload: executionDraft },
+    ],
+    warnings,
+  };
+}
+
 async function adminRunningHubCatalogItems() {
   const db = await readAdminDb();
   return db.providers
@@ -7085,6 +7521,136 @@ function safeRunningHubObjectJsonText(value: unknown, fallback = "{}") {
     throw new Error("参数 Schema 必须是 JSON 对象，不能是数组、字符串或数字");
   }
   return JSON.stringify(parsed, null, 2);
+}
+
+function parseRunningHubExampleObject(value: unknown): Record<string, unknown> | null {
+  const text = safeText(value);
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function extractRunningHubRunTargetIdFromExample(
+  kind: "app" | "workflow",
+  example: Record<string, unknown> | null,
+) {
+  if (!example) return "";
+  return safeText(
+    example.runTargetId
+      || (kind === "app" ? example.webappId : example.workflowId)
+      || example.webappId
+      || example.workflowId,
+  );
+}
+
+function extractRunningHubPageIdFromExample(example: Record<string, unknown> | null) {
+  if (!example) return "";
+  return safeText(example.pageId);
+}
+
+function inferRunningHubFieldValueTypeFromExample(fieldName: string, fieldValue: unknown) {
+  const normalizedName = safeText(fieldName).toLowerCase();
+  if (typeof fieldValue === "boolean") return "boolean";
+  if (typeof fieldValue === "number" && Number.isFinite(fieldValue)) return "number";
+  if (Array.isArray(fieldValue)) return "array";
+  if (fieldValue && typeof fieldValue === "object") return "json";
+  if (/image|img|picture/.test(normalizedName)) return "image";
+  if (/video/.test(normalizedName)) return "video";
+  if (/audio|voice|sound/.test(normalizedName)) return "audio";
+  return "string";
+}
+
+function normalizeRunningHubFieldExampleValue(fieldValue: unknown) {
+  if (typeof fieldValue === "boolean") return fieldValue;
+  if (typeof fieldValue === "number" && Number.isFinite(fieldValue)) return fieldValue;
+  if (Array.isArray(fieldValue) || (fieldValue && typeof fieldValue === "object")) {
+    try {
+      return JSON.stringify(fieldValue);
+    } catch {
+      return safeText(fieldValue);
+    }
+  }
+  return safeText(fieldValue);
+}
+
+function buildRunningHubFieldLabel(fieldName: string) {
+  return safeText(fieldName)
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim() || "未命名输入槽";
+}
+
+function buildRunningHubFieldsFromRequestExample(example: Record<string, unknown> | null): RunningHubFieldDefinition[] {
+  const rawList = Array.isArray(example?.nodeInfoList) ? example.nodeInfoList : [];
+  const fields = new Map<string, RunningHubFieldDefinition>();
+  for (const item of rawList) {
+    const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const nodeId = safeText(row.nodeId);
+    const fieldName = safeText(row.fieldName);
+    if (!nodeId || !fieldName) continue;
+    const fieldValue = row.fieldValue;
+    const key = `${nodeId}:${fieldName}`;
+    if (fields.has(key)) continue;
+    const valueType = inferRunningHubFieldValueTypeFromExample(fieldName, fieldValue);
+    const normalizedValue = normalizeRunningHubFieldExampleValue(fieldValue);
+    fields.set(key, {
+      nodeId,
+      fieldName,
+      label: buildRunningHubFieldLabel(fieldName),
+      description: `来自 requestExample.nodeInfoList 的 ${nodeId}.${fieldName}`,
+      fieldType: valueType,
+      valueType,
+      required: normalizedValue !== "",
+      fieldValue: normalizedValue === "" ? undefined : normalizedValue,
+      defaultValue: normalizedValue === "" ? undefined : normalizedValue,
+    });
+  }
+  return Array.from(fields.values());
+}
+
+function mapRunningHubFieldValueTypeToSchemaType(valueType: string) {
+  const normalized = safeText(valueType).toLowerCase();
+  if (normalized === "boolean") return "boolean";
+  if (normalized === "number") return "number";
+  if (normalized === "array") return "array";
+  if (normalized === "json") return "object";
+  return "string";
+}
+
+function buildRunningHubParameterDraftFromFields(fields: RunningHubFieldDefinition[]) {
+  const properties: Record<string, Record<string, unknown>> = {};
+  const required: string[] = [];
+  const keyCount = new Map<string, number>();
+  for (const field of fields) {
+    const baseKey = safeText(field.fieldName, "field");
+    const nextCount = (keyCount.get(baseKey) || 0) + 1;
+    keyCount.set(baseKey, nextCount);
+    const schemaKey = nextCount > 1 ? `${baseKey}_${safeText(field.nodeId, "node")}` : baseKey;
+    properties[schemaKey] = {
+      type: mapRunningHubFieldValueTypeToSchemaType(field.valueType || field.fieldType || "string"),
+      title: safeText(field.label, field.fieldName),
+      description: safeText(field.description, `映射到 ${field.nodeId}.${field.fieldName}`),
+    };
+    if (field.defaultValue !== undefined && field.defaultValue !== "") {
+      properties[schemaKey].default = field.defaultValue;
+    }
+    if (Array.isArray(field.options) && field.options.length > 0) {
+      properties[schemaKey].enum = field.options;
+    }
+    if (field.required) {
+      required.push(schemaKey);
+    }
+  }
+  return {
+    type: "object",
+    properties,
+    required,
+  };
 }
 
 function normalizeRunningHubOutputDefinitionsForAdmin(value: unknown): RunningHubOutputDefinition[] {
@@ -7144,7 +7710,11 @@ async function updateAdminRunningHubCatalogItem(
     thumbnail?: string;
     workflowJson?: string;
     fields?: RunningHubFieldDefinition[];
+    pageId?: string;
+    appId?: string;
+    workflowId?: string;
     runTargetId?: string;
+    taskCapability?: "image" | "video" | "audio" | "chat";
     parameterSchema?: string;
     outputSchema?: RunningHubOutputDefinition[];
     executionRules?: RunningHubExecutionRules;
@@ -7164,6 +7734,18 @@ async function updateAdminRunningHubCatalogItem(
       if (entry.id !== itemId) return entry;
       const previousTargetId = entry.runTargetId || entry.id;
       const targetId = safeText(patch.runTargetId, entry.runTargetId || entry.id);
+      const pageId = safeText(patch.pageId, entry.pageId || entry.id);
+      const appId = kind === "app"
+        ? safeText(patch.appId, entry.appId || targetId || entry.id)
+        : safeText(patch.appId, entry.appId || "");
+      const workflowId = kind === "workflow"
+        ? safeText(patch.workflowId, entry.workflowId || targetId || entry.id)
+        : safeText(patch.workflowId, entry.workflowId || "");
+      const taskCapability = patch.taskCapability === "image" || patch.taskCapability === "audio" || patch.taskCapability === "chat"
+        ? patch.taskCapability
+        : entry.taskCapability === "image" || entry.taskCapability === "audio" || entry.taskCapability === "chat"
+          ? entry.taskCapability
+          : "video";
       const baseExecutionRules = patch.executionRules === undefined
         ? normalizeRunningHubExecutionRulesForAdmin(entry.executionRules, kind, previousTargetId)
         : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, kind, previousTargetId);
@@ -7176,9 +7758,13 @@ async function updateAdminRunningHubCatalogItem(
         note: patch.note === undefined ? entry.note : safeText(patch.note),
         enabled: patch.enabled === undefined ? entry.enabled : Boolean(patch.enabled),
         thumbnail: patch.thumbnail === undefined ? entry.thumbnail : safeText(patch.thumbnail),
+        pageId,
+        appId,
+        workflowId,
         workflowJson: patch.workflowJson === undefined ? entry.workflowJson : safeRunningHubJsonText(patch.workflowJson, ""),
         fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(entry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
         runTargetId: targetId,
+        taskCapability,
         parameterSchema: patch.parameterSchema === undefined ? safeRunningHubObjectJsonText(entry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
         outputSchema: patch.outputSchema === undefined
           ? normalizeRunningHubOutputDefinitionsForAdmin(entry.outputSchema)
@@ -7190,6 +7776,10 @@ async function updateAdminRunningHubCatalogItem(
         },
         testPayload: patch.testPayload === undefined ? safeRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
       };
+      assertRunningHubEntryCanBeEnabled({
+        ...next,
+        catalogId,
+      });
       updatedItem = next;
       return next;
     });

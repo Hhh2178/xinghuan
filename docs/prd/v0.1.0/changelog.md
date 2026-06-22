@@ -1,5 +1,120 @@
 # v0.1.0 Changelog
 
+## 2026-06-22
+
+- RunningHub 协议后台与画布节点重建已完成本地 `v0.4.1` 收口，待 gray 发布：
+  - 统一更新版本源到 `0.4.1`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+  - 新增设计归档：
+    - `docs/superpowers/specs/2026-06-22-runninghub-protocol-admin-and-canvas-node-rebuild-design.md`
+  - `apps/admin/src/admin-runninghub-workspace.tsx`
+  - `apps/admin/src/admin-runninghub-item-editor.tsx`
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/admin-api-client.ts`
+    - RH 分析面板补齐 `requestExample / responseExample`
+    - RH 工作台与条目编辑器继续收口为分析 workbench
+  - `apps/api/src/server.ts`
+  - `apps/api/src/runninghub-catalog.ts`
+  - `apps/api/src/runninghub-execution-descriptor.ts`
+    - 后端开始从 `requestExample.nodeInfoList` 解析字段并生成 `fields`
+    - 修复 `runTargetId` 校验
+    - 去掉 `instanceType = plus` 默认兜底
+  - `apps/web/src/components/nodes/RunningHubNode.tsx`
+    - 节点继续按后台目录项和字段定义消费，不再依赖旧实例类型默认值
+  - 新增 / 更新验证脚本：
+    - `scripts/verify-runninghub-analyze-contract.mjs`
+    - `scripts/verify-runninghub-workflow-api.mjs`
+      - 本地未配置 RunningHub Provider API Key 时，显式返回 `hydrationSkippedReason`
+  - 本地验证通过：
+    - `npm run type-check`
+    - `npm run verify:runninghub-analyze-contract`
+    - `npm run verify:runninghub-workflow-contract`
+    - `npm run verify:runninghub-queue-governance-contract`
+    - `npm run verify:runninghub-workflow-api`
+    - `npm run build:single-port`
+    - `npm run verify:single-port`
+    - `npm run verify:local-acceptance-chain`
+  - 当前本地 `/api/status`：
+    - `version = 0.4.1`
+    - `environment = local`
+
+## 2026-06-19
+
+- RunningHub 条目真实输入槽同步完成，并完成 gray / production `v0.4.0` 发布：
+  - 统一更新版本源到 `0.4.0`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+  - `apps/admin/src/admin-api-client.ts`
+    - 新增 `fetchRemoteAppInfo(runTargetId)`，复用后端 RH `app-info` 代理读取运行目标返回的真实 `nodeInfoList`。
+  - `apps/admin/src/admin-runninghub-item-editor.tsx`
+    - 新增 `buildFieldsFromRemoteNodeInfoList`
+    - 新增“从运行目标同步输入槽”按钮
+    - 可把运行目标返回的真实 `nodeId / fieldName / fieldType / options` 合并回后台条目字段定义
+    - 生成或补齐可执行 RH 绑定后，画布 RH 节点会按后台条目自动展开参数区
+  - 本地验证通过：
+    - `node scripts/verify-runninghub-workflow-contract.mjs`
+    - `npm run build -w @xinghuan/admin`
+    - `npm run build -w @xinghuan/web`
+    - `npm run build -w @xinghuan/api`
+    - `npm run build:single-port`
+  - gray 发布：
+    - `20260619-runninghub-slot-sync-gray-r1-v040-local`
+  - production 发布：
+    - `20260619-runninghub-slot-sync-prod-r1-v040-local`
+  - 两端 gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+
+## 2026-06-18
+
+- RunningHub 工作台后台 UI 第二轮收口并发布 gray：
+  - gray release 更新为：
+    - `20260619-runninghub-sticky-gray-r6-v034-d9b653c`
+  - 继续沿用版本号：
+    - `v0.3.4`
+  - 本轮主要修复：
+    - RH 搜索 / 分类 / 状态筛选区独立吸顶，避免与后台总顶栏滚动重叠
+    - RH 编辑器顶部摘要卡独立吸顶，右侧摘要与测试侧栏取消双重 sticky
+    - RH 编辑区增加区块 chips，降低长表单阅读负担
+    - `AI 分析并填写` 改为 workbench 结构，补充输入来源 / 输出结果 / 应用方式提示
+  - 验证：
+    - `node scripts/verify-runninghub-workflow-api.mjs`
+    - `npm run build -w @xinghuan/admin`
+    - `npm run build:single-port`
+    - gray `verify:release-preflight`
+    - gray `verify:request-chain-observability`
+    - gray `verify:system-observability`
+
+- RunningHub 运行时结果读取与队列治理收口，并完成 gray / production `v0.3.4` 发布：
+  - 统一更新版本源到 `0.3.4`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+  - `apps/api/src/provider-generation-task-service.ts` 修复 RH 结果映射：读取任务状态时统一保留 `imageUrls / remoteImageUrls / videoUrls / remoteVideoUrls / audioUrls / remoteAudioUrls`，避免 RH 即使落在视频能力链路中也把真实图像输出暴露为空数组。
+  - `apps/api/src/server.ts` 修复 RH queued task 入库外键误用：创建 RH 队列任务时不再把 workflow/page id 写入 `xh_tasks.model_id`，改为保存空字符串，避免触发普通模型外键约束。
+  - 本地验证通过：
+    - `npm run build -w @xinghuan/api`
+    - `node scripts/verify-runninghub-queue-governance-contract.mjs`
+    - `node scripts/verify-user-queue-governance-contract.mjs`
+    - `npm install --package-lock-only`
+    - `npm run build:single-port`
+  - gray 发布：
+    - `20260618-runninghub-runtime-queue-gray-r6-v034-d9b653c`
+  - production 发布：
+    - `20260618-runninghub-runtime-queue-prod-r1-v034-d9b653c`
+  - 两端 gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - gray 真实验证补记：
+    - 普通 Provider `GRSAI gpt-image-2` 已观察到 `waiting_user_window`
+    - 同用户任务等待、跨用户任务独立推进成立
+    - RH 单任务成功：`task-1781788410710-ndki99`
+    - RH 三任务批量验证成功：
+      - `task-1781789036588-mqrk4c`
+      - `task-1781789036735-jvltj3`
+      - `task-1781789036892-eglgtt`
+    - 第三个 RH 任务已观察到：
+      - `waitReason = waiting_runninghub_window`
+      - `waitDetail = RunningHub 平台并发已满 (2/2)`
+  - 当前补记：
+    - 本轮不含 migration
+    - release 目录执行 `db:migrate` 仍暴露 `PG_DRIVER_NOT_INSTALLED`，后续带 migration 的 release 前必须先补依赖链
 ## 2026-06-09
 
 - 画布助手 UI 自适应修复与可见测试文案清理已发布到灰度：

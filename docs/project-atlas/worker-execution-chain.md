@@ -55,6 +55,11 @@
 - audio
 - video
 
+此外还有一层执行窗口治理：
+
+- 普通 Provider：按 `capability + ownerId` 做用户级并发窗口
+- RunningHub：按 RH 平台共享窗口做并发治理
+
 队列名由：
 
 - `taskQueueNameForCapability(queueName, capability)`
@@ -66,6 +71,8 @@
 - `xh_system_settings.task_queue_settings`
 
 如果没有数据库配置，则回退默认值。
+
+RunningHub 平台窗口当前同样来自系统设置；窗口占满时，任务不会失败，而是保持 queued 并等待自动递进。
 
 ## 3. 单任务执行链
 
@@ -108,6 +115,7 @@ Worker loop 从 Redis `brPop` 读取 task id。
 - GRSAI 图像适配
 - APIMart 视频适配
 - 音频 provider 适配
+- RunningHub workflow 提交 / 查询适配
 
 这里最关键的判断维度是：
 
@@ -115,6 +123,8 @@ Worker loop 从 Redis `brPop` 读取 task id。
 - execution mode
 - capability
 - advanced config
+- owner 级并发窗口
+- RH 平台并发窗口
 
 ### D. 输出落库
 
@@ -150,6 +160,12 @@ Worker 侧需要识别任务是否已被取消，并避免继续推进错误状�
 - Provider / 模型配置问题
 - 上游返回 HTML / 非 JSON / 失败状态
 - 输出素材落库失败
+
+RunningHub 特别补记：
+
+- RH 的实际结果可能是图像 URL，即使 capability 被标记在视频链路中
+- 读取任务状态时必须统一保留 `imageUrls / videoUrls / audioUrls`，不能只按单一 capability 分支暴露结果
+- RH queued task 不应把 workflow/page id 写入普通 `model_id` 外键
 
 ### 重试
 
@@ -187,6 +203,7 @@ Worker 还会周期性检查长时间处于 running 的任务：
 1. 上游是否异步轮询未完成
 2. Worker 日志是否在重复失败
 3. 是否已经落入 stale task reaper 范围
+4. 是否其实仍在等待用户窗口或 RH 平台窗口，而不是已经真正执行
 
 ### 症状：后台显示成功，但没有素材
 
@@ -195,6 +212,7 @@ Worker 还会周期性检查长时间处于 running 的任务：
 1. 上游是真成功还是占位成功
 2. `materializeTaskOutputs` 是否执行
 3. 输出文件是否写入 `/files/output/...`
+4. RH/异步任务结果是否被错误丢在未暴露的 `imageUrls` 或 `videoUrls` 分支里
 
 ### 症状：取消没生效
 

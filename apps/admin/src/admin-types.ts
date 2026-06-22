@@ -111,9 +111,11 @@ export interface RunningHubEntry {
   thumbnail?: string;
   enabled: boolean;
   kind?: "app" | "workflow";
+  pageId?: string;
   appId?: string;
   workflowId?: string;
   runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
 }
@@ -135,6 +137,23 @@ export interface RunningHubAdminItemsResponse {
   items: RunningHubAdminItem[];
 }
 
+export interface RunningHubAdminItemCreatePayload extends RunningHubAdminEditorMetadata {
+  providerId: string;
+  kind: "app" | "workflow";
+  title?: string;
+  note?: string;
+  sourceCatalogId?: string;
+  enabled?: boolean;
+  thumbnail?: string;
+  workflowJson?: string;
+  fields?: RunningHubFieldDefinition[];
+  pageId?: string;
+  appId?: string;
+  workflowId?: string;
+  runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
+}
+
 export interface RunningHubAdminItemUpdatePayload extends RunningHubAdminEditorMetadata {
   title?: string;
   note?: string;
@@ -142,7 +161,11 @@ export interface RunningHubAdminItemUpdatePayload extends RunningHubAdminEditorM
   thumbnail?: string;
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+  pageId?: string;
+  appId?: string;
+  workflowId?: string;
   runTargetId?: string;
+  taskCapability?: "image" | "video" | "audio" | "chat";
 }
 
 export interface RunningHubAdminItemTestResult {
@@ -151,6 +174,31 @@ export interface RunningHubAdminItemTestResult {
   checkedAt: number;
   requestPreview?: Record<string, unknown>;
   responsePreview?: Record<string, unknown>;
+}
+
+export interface RunningHubAnalyzeDraftSection {
+  key: string;
+  title: string;
+  description: string;
+  payload: Record<string, unknown>;
+}
+
+export interface RunningHubAnalyzeDraft {
+  summary: string;
+  sections: RunningHubAnalyzeDraftSection[];
+  warnings: string[];
+}
+
+export interface RunningHubAnalyzePayload {
+  providerId: string;
+  kind: "app" | "workflow";
+  sourceUrl?: string;
+  pageId?: string;
+  runTargetId?: string;
+  docUrl?: string;
+  requestExample?: string;
+  responseExample?: string;
+  notes?: string;
 }
 
 export interface RunningHubFieldDefinition {
