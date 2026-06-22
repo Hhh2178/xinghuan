@@ -2,6 +2,45 @@
 
 ## 2026-06-22
 
+- RunningHub App / Workflow 运行态归一化与 AI App v2 协议已完成 gray `v0.4.4` 发布：
+  - 统一更新版本源到 `0.4.4`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+  - gray release：
+    - `20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - `apps/web/src/services/runninghubCatalog.ts`
+    - RH catalog 运行态字段按 `kind` 归一化，分别持有正确归属的 `appId / workflowId / runTargetId`。
+    - `buildRunningHubAppInfoFromCatalog()` 输出统一对齐 `targetType / runTargetId / webappId / workflowId`。
+  - `apps/web/src/components/nodes/RunningHubNode.tsx`
+    - 新增 RH 混合态条目保护：`app + workflowId`、`workflow + appId` 会在提交前直接阻断并给出显式提示。
+    - 节点提交参数统一使用归一化后的 `resolvedWebappId / resolvedWorkflowId / resolvedRunTargetId / resolvedTargetType`。
+  - `apps/web/src/services/generation.ts`
+    - RH submit 的 `nodeInfoList[].fieldValue` 改为 `unknown`，避免继续用宽泛 `any` 掩盖协议边界。
+  - `apps/api/src/runninghub-catalog.ts`
+    - `parseRunningHubRef()` 显式收窄到 `"app" | "workflow"`，同时保持 public catalog 的 kind 归属一致。
+  - `apps/worker/src/worker.ts`
+    - AI App submit 切到 `/openapi/v2/run/ai-app/{id}`。
+    - AI App query 切到 `/openapi/v2/query`。
+    - 旧 AI App `taskType = "ASYNC"` 提交体已移除。
+    - 继续保留 `rhFailureStage / rhSubmitUrl / rhSubmitTargetType / rhRunTargetId / rhWorkflowId / rhSubmitRequest / rhSubmitResponseStatus / rhSubmitResponseText` 结构化诊断字段。
+  - 新增 / 更新验证脚本：
+    - `scripts/verify-runninghub-workflow-contract.mjs`
+    - `scripts/verify-runninghub-worker-submit-contract.mjs`
+    - `scripts/verify-local-acceptance-chain.mjs`
+  - 本地验证通过：
+    - `npm run verify:runninghub-analyze-contract`
+    - `npm run verify:runninghub-workflow-contract`
+    - `npm run verify:runninghub-queue-governance-contract`
+    - `node scripts/verify-runninghub-worker-submit-contract.mjs`
+    - `node scripts/verify-runninghub-single-node-contract.mjs`
+    - `npm run build -w @xinghuan/worker`
+    - `npm run build:single-port`
+    - `node scripts/verify-local-acceptance-chain.mjs`
+  - gray gate 通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - gray 运行态：
+    - `/api/status => version = 0.4.4, environment = gray`
+
 - Task queue 运行态并发一致性与 RunningHub 长 JSON 容错已完成本地 `v0.4.3` 收口，待 gray 发布：
   - `apps/worker/src/worker.ts`
     - 普通任务消费 loop 改为 `refreshQueueControllers()` 定时刷新，不再只在启动时按旧配置一次性展开。

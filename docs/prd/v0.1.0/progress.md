@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-状态：当前对外生产版本仍为 `v0.4.0`，灰度已推进到 `v0.4.3` 并完成严格验证、gray gate 和页面级复查。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复、`instanceType` 默认值治理，以及 RH worker 路由修复、字段显示名透传和输出类型自定义值保留。当前下一步更集中在用户对 gray 的真实条目录入与视觉验收、外部通知闭环、release 迁移依赖链修补，以及后续 RH 能力扩展。
+状态：当前对外生产版本仍为 `v0.4.0`，灰度已推进到 `v0.4.4` 并完成严格验证与 gray gate。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又继续完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复、`instanceType` 默认值治理、RH worker 路由修复、字段显示名透传和输出类型自定义值保留，并进一步完成 RH App / Workflow 运行态字段归一化、混合态条目阻断与 worker AI App v2 submit/query 协议切换。当前下一步更集中在用户对 gray 的真实条目录入与视觉验收、外部通知闭环、release 迁移依赖链修补，以及后续 RH 能力扩展。
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
+- 当前灰度 active release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
 - 当前生产 active release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
-- 当前灰度版本：`v0.4.3`
+- 当前灰度版本：`v0.4.4`
 - 当前本地严格验收已通过：
   - `npm run type-check`
   - `npm run verify:runninghub-analyze-contract`
@@ -23,6 +23,10 @@
   - 普通任务默认单用户并发固定为 `8`
   - 后台系统页已显示 `配置值 / 实际生效值 / worker 槽位数`
   - worker 已支持按最新 `taskQueueSettings` 运行时刷新 `image/audio/video` 槽位
+- 当前灰度已进一步完成：
+  - RH App / Workflow 提交参数已按 `kind` 归一化
+  - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
+  - worker AI App 已切到 `/openapi/v2/run/ai-app/{id}` 与 `/openapi/v2/query`
 - 当前已确认的 gray 修复前证据：
   - `/api/admin/system` 返回 `image/audio/video concurrency=100, userConcurrency=8`
   - 但 gray worker 在 `2026-06-22 16:00:49 CST` 启动日志仍打印 `queues:[image:4,audio:4,video:4]`

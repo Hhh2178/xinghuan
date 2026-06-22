@@ -36,14 +36,14 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.4.3`
+- 当前活跃版本：`v0.4.4`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
+- 当前灰度 release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
@@ -58,6 +58,10 @@
   - RH 节点当前已收口为“条目选择 + 输入摘要 + 参数区 + 状态摘要”，不再对用户展示 `Webapp ID` 文案
   - `2026-06-19` 已补 RH 节点运行目标提交流程：节点提交会显式携带 `pageId / workflowId / runTargetId / targetType / taskCapability`
   - `2026-06-19` 已补 RH 条目空字段自动补参链路：当本地条目未定义字段时，会自动尝试拉取远端 `app-info`
+  - `2026-06-22` 已补 RH App / Workflow 运行态归一化：
+    - 后台条目与前台运行时开始按 `kind` 持有各自归属的 `appId / workflowId / runTargetId`
+    - 画布 RH 节点会阻止 `app + workflowId` 或 `workflow + appId` 的混合态条目直接运行
+    - 命中混合态时会给出显式提示，要求先回后台重新保存条目
   - `2026-06-19` 已补 RH 工作台“从运行目标同步输入槽”能力：
     - 后台条目可直接读取运行目标返回的真实 `nodeInfoList`
     - 生成或补齐 `nodeId / fieldName / fieldType / options`
@@ -67,6 +71,11 @@
   - 普通 Provider 队列已按 `capability + user` 做独立并发与排队
   - RunningHub 已按平台窗口做独立并发与排队
   - gray 已用真实 `GRSAI gpt-image-2` 和真实 RH workflow 完成实链验证
+- 当前 RH AI App 协议状态：
+  - worker 已切到 RunningHub 官方 AI App v2 提交/查询协议
+  - AI App submit 使用 `/openapi/v2/run/ai-app/{id}`
+  - AI App query 使用 `/openapi/v2/query`
+  - 旧的 `taskType=ASYNC` AI App 提交体已移除
 - 当前本地验收链状态：`npm run verify:local-acceptance-chain` 已恢复全绿
 
 ## 目录边界

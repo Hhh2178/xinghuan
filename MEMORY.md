@@ -353,6 +353,31 @@
     - `current = xinghuan_canvas_gray`
     - `expected = xinghuan_canvas_gray`
     - `targetMatched = true`
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - 当前 gray 对外版本号：
+    - `v0.4.4`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 收口项：
+    - RH public catalog 与节点运行态字段已按 `kind` 归一化
+    - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
+    - RunningHub AI App submit 已切到 `/openapi/v2/run/ai-app/{id}`
+    - RunningHub AI App query 已切到 `/openapi/v2/query`
+    - 旧 AI App `taskType = "ASYNC"` 提交体已移除
+  - 当前灰度运行态复核：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.4`
+      - `environment = gray`
+    - `xinghuan-canvas-next.service = active`
+    - `xinghuan-canvas-next-worker.service = active`
+  - 当前额外记忆：
+    - 本轮 release 仍是 runtime-only 包；服务器 release 目录不要假定可以独立重建完整前端依赖链
+    - 当前更适合继续在 gray 做真实 RH App / Workflow 条目与任务实链验收，再决定 production 推进
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

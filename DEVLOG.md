@@ -41,6 +41,86 @@
 
 ## 2026-06-22
 
+### RunningHub App v2 gray 发布、页面复查与主入口文档同步
+
+目标:
+- 将 RunningHub App / Workflow 运行态归一化与 AI App v2 协议切换的 gray 发布状态补成可复核证据。
+- 同步 `README / AGENTS / MEMORY / docs/prd / ops` 主入口，避免版本与 release 指针继续分叉。
+- 补做后台 RH 工作台、系统页与画布 RH 节点的页面级复查。
+
+变更:
+- 文档主入口同步到当前 gray：
+  - `README.md`
+  - `AGENTS.md`
+  - `MEMORY.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/prd/v0.1.0/changelog.md`
+  - `ops/README.md`
+- 运维记录新增：
+  - `ops/runninghub-app-v2-gray-release-2026-06-22.md`
+- 本轮记录补充的灰度事实：
+  - 当前 gray release：
+    - `20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - 当前对外版本：
+    - `v0.4.4`
+  - RH 运行态：
+    - 节点按 `kind` 归一化 `appId / workflowId / runTargetId`
+    - 混合态 RH 条目会在提交前直接阻断
+    - AI App worker submit/query 已切到官方 v2 协议
+
+验证:
+- fresh 本地契约：
+  - `node scripts/verify-runninghub-worker-submit-contract.mjs`
+  - `npm run verify:runninghub-workflow-contract`
+- fresh 服务器 / gray gate：
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+    - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - `systemctl is-active xinghuan-canvas-next.service = active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service = active`
+  - `GET http://127.0.0.1:18200/api/status`
+    - `version = 0.4.4`
+    - `environment = gray`
+  - `npm run verify:release-preflight = ok`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:request-chain-observability = ok`
+  - `XINGHUAN_VERIFY_BASE_URL=https://canvas-next.hhh2121.xyz npm run verify:system-observability = ok`
+- 页面级复查：
+  - 后台 RH 工作台已真实显示：
+    - `请求示例`
+    - `响应示例`
+    - `标注/显示名`
+    - 输出类型 / 结果路径的“预设 + 自定义覆盖”
+  - 后台 RH 工作台当前统计：
+    - `1` 个工作流
+    - `0` 个 AI 应用
+  - 后台系统页已真实显示：
+    - `版本 0.4.4`
+    - `数据库目标校验 matched`
+    - `按类别并发 / 实际生效并发 / Worker 数 / Worker 槽位数 / RH 平台窗口`
+  - 画布页顶栏与左下角都已真实显示 `v0.4.4`
+  - 现有 RunningHub 节点已真实显示后台条目 `工作流 cd3add`
+  - 节点参数区已真实展开 `3` 个参数
+  - 旧“输出映射”摘要文案未再出现
+- 当前截图存档：
+  - `C:/Users/Administrator/AppData/Local/Temp/xinghuan-gray-runninghub-workspace-v044.png`
+  - `C:/Users/Administrator/AppData/Local/Temp/xinghuan-gray-system-v044.png`
+  - `C:/Users/Administrator/AppData/Local/Temp/xinghuan-gray-canvas-v044.png`
+
+影响:
+- 用户当前可以直接在 gray 上按 `v0.4.4` 做 RH 工作台、系统页和画布节点的人工复验，不再需要猜测当前究竟停在哪个 release。
+- RH App / Workflow 运行态归属、AI App v2 协议切换和页面实际展示，已经能从“文档入口 + gate + 页面”三条线互相印证。
+
+风险:
+- 当前 gray RH 目录只有 `1` 个 workflow、`0` 个 AI app，所以本轮页面级复查还不能在真实目录数据上直接跑一遍 AI App v2 任务。
+- 当前没有保留故意的混合态脏条目，因此“混合态告警”本轮主要由前台契约和源码保护验证，没有在线制造脏数据做演示。
+- `scripts/package-release.mjs` 仍是 runtime-only 打包，release 目录内缺少 `scripts/verify-runninghub-workflow-api.mjs`；这类脚本不能直接作为服务器 release 内验收项。
+- 本机用默认管理员账号跑远端 `verify-runninghub-workflow-api.mjs` 会返回 `401 INVALID_CREDENTIALS`，说明当前 gray 已不是默认后台口令。
+
+下一步:
+- 由用户在 gray 继续做真实 RH 条目与任务实链验证。
+- 若需要补 AI App v2 的页面级实跑，需要先在 gray 目录中录入至少一个真实 AI App 条目。
+- 若后续要把这批能力推进到 production，先沿用本轮 gray 的 gate、页面清单和截图证据补做正式环境复查。
+
 ### Task Queue 运行态并发 gray 发布与视觉验收完成
 
 目标:

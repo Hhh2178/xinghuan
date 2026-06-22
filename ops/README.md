@@ -6,10 +6,10 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`。
+- 当前灰度 release：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
-  - gray：`v0.4.3`
+  - gray：`v0.4.4`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
@@ -146,6 +146,21 @@
     - 系统页显示 `版本 0.4.3`、数据库目标 `matched`
   - 发布记录：
     - `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
+- `2026-06-22` RunningHub App / Workflow 运行态归一化与 AI App v2 协议已完成 gray 发布：
+  - gray：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - `/api/status` 当前返回 `version = 0.4.4`
+  - gray gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前额外结论：
+    - RH public catalog 与节点运行态已按 `kind` 纠正 `appId / workflowId / runTargetId` 归属
+    - RH 节点已阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
+    - RunningHub AI App worker submit/query 已切到官方 v2 协议
+    - 当前 gray release 目录：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - 发布记录：
+    - `runninghub-app-v2-gray-release-2026-06-22.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -246,6 +261,8 @@
 - `runninghub-slot-sync-release-2026-06-19.md`
 - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
 - `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
+- `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
+- `runninghub-app-v2-gray-release-2026-06-22.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 
