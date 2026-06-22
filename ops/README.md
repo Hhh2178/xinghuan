@@ -6,9 +6,11 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260619-runninghub-slot-sync-gray-r1-v040-local`。
+- 当前灰度 release：`20260622-runninghub-rebuild-gray-r2-v041-8faaadf`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
-- 当前发布版本号：`v0.4.0`。
+- 当前发布版本号：
+  - gray：`v0.4.1`
+  - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
 - `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
@@ -84,6 +86,21 @@
     - 若上游运行目标不返回 `nodeInfoList`，当前仍需后台人工补录字段
   - 发布记录见：
     - `runninghub-slot-sync-release-2026-06-19.md`
+- `2026-06-22` RunningHub 协议后台与画布节点重建已完成 gray 发布与二次热修：
+  - gray：`20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
+  - `/api/status` 当前返回 `version = 0.4.1`
+  - gray gate 已补跑：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前额外结论：
+    - RH 分析面板已补齐 `请求示例 / 响应示例`
+    - `/api/admin/runninghub/analyze` 已可从 `requestExample.nodeInfoList` 生成 `prompt / negative prompt / seed` 字段草案
+    - gray 页面点击“AI 分析并填写”后已真实渲染结构化草案卡片，不再停留在空提示态
+    - `r1` 暴露的长 `requestExample` 截断问题已由 `8faaadf` 热修收口
+    - 当前 release 包仍是 runtime-only，后续若要在服务器重建或带 migration 发布，必须先补打包依赖链缺口
+  - 发布记录见：
+    - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -182,6 +199,7 @@
 - `runninghub-sticky-gray-release-2026-06-19.md`
 - `runninghub-node-hydrate-gray-release-2026-06-19.md`
 - `runninghub-slot-sync-release-2026-06-19.md`
+- `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

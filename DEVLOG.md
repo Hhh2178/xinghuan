@@ -41,6 +41,74 @@
 
 ## 2026-06-22
 
+### RunningHub 协议后台与画布节点重建 v0.4.1 gray 发布与视觉验收
+
+目标:
+- 把本轮 RunningHub 重建改动正式推到 gray，并把功能、接口、视觉和发布指针都收成可复核证据。
+
+变更:
+- 灰度发布：
+  - 首次发布：
+    - `20260622-runninghub-rebuild-gray-r1-v041-9e1f2fe`
+  - 热修后当前灰度：
+    - `20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
+- 热修内容：
+  - `apps/api/src/server.ts`
+    - `parseRunningHubExampleObject` 从 `safeText(..., 240)` 改为 `safeLongText(..., 16000)`
+  - `scripts/verify-runninghub-analyze-contract.mjs`
+    - 增加长 `requestExample` 保留能力的回归校验
+- 运维归档：
+  - 新增 `ops/runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
+  - 更新 `ops/README.md`
+  - 更新 `MEMORY.md`
+
+验证:
+- gray gate：
+  - `npm run verify:release-preflight = ok`
+  - `npm run verify:request-chain-observability = ok`
+  - `npm run verify:system-observability = ok`
+- gray 运行态：
+  - `/api/status => version=0.4.1 environment=gray`
+  - current symlink =>
+    - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
+  - 数据库目标 =>
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+- gray 接口实查：
+  - 直接调用 `POST /api/admin/runninghub/analyze` 已返回 `inputs.payload.fields`
+  - 字段包含：
+    - `12.prompt`
+    - `15.negative_prompt`
+    - `18.seed`
+- gray UI 实查：
+  - 真实登录后台页面后，RH 工作台分析面板已显示：
+    - `请求示例`
+    - `响应示例`
+  - 点击“AI 分析并填写”后，已真实渲染：
+    - `基础信息草案`
+    - `输入槽草案`
+    - `参数 Schema 草案`
+    - `输出定义草案`
+    - `执行规则草案`
+  - 输入槽卡片与 Schema 草案中已出现：
+    - `prompt`
+    - `negative prompt`
+    - `seed`
+  - 本轮 UI 验证使用 Playwright + Edge 自动化点击与前后截图对比完成，不再只看接口返回
+
+影响:
+- RH 分析工作台现在已经不是“接口能返回但页面不落地”的半成品，gray 页面可以直接看到结构化草案卡片。
+- `requestExample.nodeInfoList` 已真正进入后台条目治理链，字段草案与参数 Schema 草案都能从真实样例推导出来。
+
+风险:
+- 当前 release 包仍是 runtime-only；如果后续发布要求在服务器 release 目录重新执行 `build:single-port`，现有 runbook 还不够，需要先补依赖链。
+- 当前只完成 gray 放行，production 仍停在 `v0.4.0`。
+
+下一步:
+- 如需继续推进 production，先沿用本轮 gray 的接口样例和 UI 自动化脚本思路补做正式环境验收。
+- 如果后续有 migration 或服务器重建诉求，先修补 release 打包与构建 runbook。
+
 ### RunningHub 协议后台与画布节点重建 v0.4.1 本地收口
 
 目标:

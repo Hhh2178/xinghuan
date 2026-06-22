@@ -257,6 +257,40 @@
   - 当前数据库目标复核：
     - gray `current = xinghuan_canvas_gray` / `expected = xinghuan_canvas_gray` / `targetMatched = true`
     - production `current = xinghuan_canvas_next` / `expected = xinghuan_canvas_next` / `targetMatched = true`
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
+  - 当前 gray 对外版本号：
+    - `v0.4.1`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RunningHub 收口项：
+    - RH 分析面板补齐 `requestExample / responseExample`
+    - `/api/admin/runninghub/analyze` 已从 `requestExample.nodeInfoList` 生成字段草案与参数 Schema 草案
+    - `runTargetId` 校验已补强
+    - `instanceType = plus` 默认兜底已移除
+    - 画布 RH 节点继续按后台 catalog 与真实字段定义消费
+  - 当前 gray 真实验收结论：
+    - 直接调用分析接口时，样例字段已能稳定产出：
+      - `12.prompt`
+      - `15.negative_prompt`
+      - `18.seed`
+    - gray 后台页面点击“AI 分析并填写”后，已真实渲染：
+      - 基础信息草案
+      - 输入槽草案
+      - 参数 Schema 草案
+      - 输出定义草案
+      - 执行规则草案
+    - 之前 `r1` 暴露的长 `requestExample` 截断问题已由 `8faaadf` 热修收口
+  - 当前灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - `scripts/package-release.mjs` 当前仍是 runtime-only 打包
+    - 该包不足以支持服务器 release 目录重新执行 `npm run build:single-port`
+    - 后续凡是要求服务器重建或包含 migration 的发布，必须先补 release 打包依赖链缺口
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：
