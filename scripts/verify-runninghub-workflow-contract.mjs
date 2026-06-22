@@ -7,6 +7,7 @@ const adminEditor = await readFile(new URL("../apps/admin/src/admin-runninghub-i
 const adminMain = await readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf-8");
 const adminApiClient = await readFile(new URL("../apps/admin/src/admin-api-client.ts", import.meta.url), "utf-8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf-8");
+const nodeSchema = await readFile(new URL("../apps/web/src/utils/runninghubNodeSchema.ts", import.meta.url), "utf-8");
 const catalogService = await readFile(new URL("../apps/web/src/services/runninghubCatalog.ts", import.meta.url), "utf-8");
 const sharedRunninghub = await readFile(new URL("../packages/shared/src/runninghub.ts", import.meta.url), "utf-8");
 
@@ -63,6 +64,18 @@ const checks = [
     "RunningHub catalog preserves parameterSchema for non-binding schema drafts",
     /parameterSchema\?: string;/.test(sharedRunninghub) &&
       /parameterSchema: typeof row\.parameterSchema === "string"/.test(catalogService),
+  ],
+  [
+    "RunningHub catalog preserves outputSchema for node runtime adaptation",
+    /outputSchema\?: Array<\{/.test(sharedRunninghub) &&
+      /outputSchema: Array\.isArray\(row\.outputSchema\)/.test(catalogService),
+  ],
+  [
+    "RunningHub node schema prefers backend outputSchema over workflowJson guessing",
+    /item\.outputSchema/.test(catalogService) &&
+      /outputSchema/.test(sharedRunninghub) &&
+      /inferOutputs\(item\)/.test(node) === false &&
+      /item\.outputSchema/.test(nodeSchema),
   ],
   [
     "RunningHub admin can scaffold input-slot drafts from parameterSchema",

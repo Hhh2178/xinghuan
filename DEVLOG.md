@@ -41,6 +41,66 @@
 
 ## 2026-06-22
 
+### RunningHub 容错分析与节点输出适配 v0.4.2 本地发布候选收口
+
+目标:
+- 在继续推进 gray 之前，把 RunningHub 容错分析与画布节点输出适配整理成新的可发布小版本，并重新完成本地严格验证。
+
+变更:
+- 版本治理：
+  - 统一将版本从 `v0.4.1` 提升到 `v0.4.2`
+  - 更新根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts`、`apps/api/src/server.ts`
+- 后端：
+  - `apps/api/src/server.ts`
+    - 增加 mixed text / fenced JSON / balanced object 的容错解析
+    - `docUrl` 参与 RH analyze 推断
+    - `responseExample` 推断 `outputDraft / executionDraft`
+  - `apps/api/src/runninghub-catalog.ts`
+    - public RH catalog 透传 `outputSchema`
+- 前端：
+  - `apps/web/src/services/runninghubCatalog.ts`
+  - `apps/web/src/utils/runninghubNodeSchema.ts`
+  - `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - `apps/web/src/config/portTypes.ts`
+    - RH 节点优先消费后台 `outputSchema`
+    - 节点摘要补充输出映射信息
+    - RH 输出端口补上 `audio`
+- shared 与验证：
+  - `packages/shared/src/runninghub.ts`
+  - `scripts/verify-runninghub-analyze-contract.mjs`
+  - `scripts/verify-runninghub-workflow-contract.mjs`
+- 文档与运维入口：
+  - `README.md`
+  - `docs/prd/README.md`
+  - `docs/prd/v0.1.0/progress.md`
+  - `docs/prd/v0.1.0/changelog.md`
+  - `ops/README.md`
+  - 新增 `ops/runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
+
+验证:
+- `npm run verify:runninghub-analyze-contract = ok`
+- `npm run verify:runninghub-workflow-contract = ok`
+- `npm run type-check = ok`
+- `npm run build:single-port = ok`
+- `npm run verify:single-port = ok`
+- `npm run package:release -- 20260622-runninghub-tolerant-analyze-gray-r1-v042-local = ok`
+  - `dist-release/20260622-runninghub-tolerant-analyze-gray-r1-v042-local.tar.gz`
+  - `sizeMB = 5.47`
+
+影响:
+- 本轮 RH analyze 已从“只够处理纯 JSON 文本”推进到“能吃混合示例并推断输出草案”。
+- RH 节点开始真正消费后台 `outputSchema`，减少继续靠 `workflowJson` 关键词猜输出的误差。
+- 版本治理重新对齐到“每次 gray 真实发布推进一个非 major 版本”的仓库规则。
+
+风险:
+- 当前还未完成 gray 切换与服务器 gate，主入口里暂时保留“待本轮发布后更新”的过渡描述。
+- `scripts/package-release.mjs` 仍是 runtime-only，服务器若要在 release 目录重建仍受依赖链缺口约束。
+
+下一步:
+- 先把本轮改动提交入库。
+- 基于 `20260622-runninghub-tolerant-analyze-gray-r1-v042-local` 包推进 gray 发布。
+- 发布后补跑 gray gate、RH analyze 视觉实查和画布 RH 节点复验。
+
 ### RunningHub 协议后台与画布节点重建 v0.4.1 gray 发布与视觉验收
 
 目标:

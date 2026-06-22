@@ -264,6 +264,7 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
       : "video",
     workflowJson: entry.workflowJson || "",
     parameterSchema: normalizeOptionalJsonText((entry as RunningHubAdminCatalogEntry).parameterSchema) || "{}",
+    outputSchema: normalizeRunningHubOutputDefinitions((entry as RunningHubAdminCatalogEntry).outputSchema),
     fields,
   };
 }

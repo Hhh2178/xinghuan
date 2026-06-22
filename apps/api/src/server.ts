@@ -839,7 +839,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.1",
+      version: "0.4.2",
       environment,
       dataDir,
     });
@@ -2799,7 +2799,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.1",
+      version: "0.4.2",
       storage: await readStorageStats(),
     });
     return true;
@@ -7376,14 +7376,21 @@ async function analyzeRunningHubCatalogDraft(input: {
   const kind = input.kind === "app" ? "app" : "workflow";
   const requestExampleObject = parseRunningHubExampleObject(input.requestExample);
   const responseExampleObject = parseRunningHubExampleObject(input.responseExample);
+  const referenceRef = parseRunningHubRef(input.docUrl || input.sourceUrl || "");
+  const referenceTargetId = safeText(referenceRef?.id);
   const requestExampleRunTargetId = extractRunningHubRunTargetIdFromExample(kind, requestExampleObject);
   const pageId = safeText(
     input.pageId
       || extractRunningHubPageIdFromExample(requestExampleObject)
-      || parseRunningHubRef(input.sourceUrl || "")?.id,
+      || referenceTargetId,
   );
-  const runTargetId = safeText(input.runTargetId || requestExampleRunTargetId, pageId || createRunningHubCatalogEntryId(kind));
-  const capabilityText = [input.sourceUrl, input.notes, input.requestExample, input.responseExample].map((item) => safeText(item).toLowerCase()).join("\n");
+  const runTargetId = safeText(
+    input.runTargetId || requestExampleRunTargetId || referenceTargetId,
+    pageId || createRunningHubCatalogEntryId(kind),
+  );
+  const capabilityText = [input.docUrl, input.sourceUrl, input.notes, input.requestExample, input.responseExample]
+    .map((item) => safeText(item).toLowerCase())
+    .join("\n");
   const requestExampleFields = buildRunningHubFieldsFromRequestExample(requestExampleObject);
   const taskCapability = /audio/.test(capabilityText)
     ? "audio"
@@ -7416,7 +7423,7 @@ async function analyzeRunningHubCatalogDraft(input: {
         properties: {},
         required: [],
       };
-  const outputDraft = {
+  const fallbackOutputDraft: { outputs: RunningHubOutputDefinition[] } = {
     outputs: [
       {
         key: taskCapability === "audio" ? "audio" : taskCapability === "image" ? "image" : taskCapability === "chat" ? "text" : "video",
@@ -7427,7 +7434,7 @@ async function analyzeRunningHubCatalogDraft(input: {
       },
     ],
   };
-  const executionDraft = {
+  const fallbackExecutionDraft: RunningHubExecutionRules = {
     submitMode: "direct",
     targetType: kind,
     method: "POST",
@@ -7443,11 +7450,16 @@ async function analyzeRunningHubCatalogDraft(input: {
     pollingTimeoutMs: 0,
     retryable: false,
   };
+  const outputDraft = buildRunningHubOutputDraftFromResponseExample(responseExampleObject, taskCapability, fallbackOutputDraft);
+  const executionDraft = buildRunningHubExecutionDraft(kind, runTargetId, responseExampleObject, outputDraft, fallbackExecutionDraft);
   const warnings = [
     "AI 草案不会直接覆盖现有条目，应用前仍需人工确认。",
     "pageId / runTargetId 仅作为后台目录字段保存，不会继续下放到画布节点让用户手工维护。",
   ];
   const requestedRunTargetId = safeText(input.runTargetId);
+  if (requestedRunTargetId && referenceTargetId && requestedRunTargetId !== referenceTargetId) {
+    warnings.push("文档链接里的 runTargetId 与表单填写值不一致，请人工确认最终提交目标。");
+  }
   if (requestedRunTargetId && requestExampleRunTargetId && requestedRunTargetId !== requestExampleRunTargetId) {
     warnings.push("requestExample 里的 runTargetId 与表单填写的运行目标 ID 不一致，请人工确认最终提交目标。");
   }
@@ -7467,7 +7479,7 @@ async function analyzeRunningHubCatalogDraft(input: {
       { key: "inputs", title: "输入槽草案", description: "建议补齐输入槽结构，而不是直接手写 JSON。", payload: inputDraft },
       { key: "params", title: "参数 Schema 草案", description: "面向节点参数渲染的结构化参数草案。", payload: parameterDraft },
       { key: "outputs", title: "输出定义草案", description: "后端结果提取后的输出定义。", payload: outputDraft },
-      { key: "execution", title: "执行规则草案", description: "提交、结果提取和错误提取规则。", payload: executionDraft },
+      { key: "execution", title: "执行规则草案", description: "提交、结果提取和错误提取规则。", payload: executionDraft as unknown as Record<string, unknown> },
     ],
     warnings,
   };
@@ -7523,9 +7535,7 @@ function safeRunningHubObjectJsonText(value: unknown, fallback = "{}") {
   return JSON.stringify(parsed, null, 2);
 }
 
-function parseRunningHubExampleObject(value: unknown): Record<string, unknown> | null {
-  const text = safeLongText(value, "", 16000);
-  if (!text) return null;
+function tryParseRunningHubExampleObject(text: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
@@ -7533,6 +7543,66 @@ function parseRunningHubExampleObject(value: unknown): Record<string, unknown> |
   } catch {
     return null;
   }
+}
+
+function extractFirstBalancedRunningHubObjectSnippet(text: string) {
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "\"") inString = false;
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      if (depth === 0) start = index;
+      depth += 1;
+      continue;
+    }
+    if (char !== "}" || depth <= 0) continue;
+    depth -= 1;
+    if (depth !== 0 || start < 0) continue;
+    const candidate = text.slice(start, index + 1).trim();
+    if (tryParseRunningHubExampleObject(candidate)) return candidate;
+    start = -1;
+  }
+  return "";
+}
+
+function extractRunningHubJsonObjectSnippet(text: string) {
+  const fencedPattern = /```(?:json|javascript|js)?\s*([\s\S]*?)```/gi;
+  for (const match of text.matchAll(fencedPattern)) {
+    const fencedText = safeLongText(match[1], "", 16000);
+    if (!fencedText) continue;
+    if (tryParseRunningHubExampleObject(fencedText)) return fencedText;
+    const nestedSnippet = extractFirstBalancedRunningHubObjectSnippet(fencedText);
+    if (nestedSnippet) return nestedSnippet;
+  }
+  return extractFirstBalancedRunningHubObjectSnippet(text);
+}
+
+function parseRunningHubExampleObject(value: unknown): Record<string, unknown> | null {
+  const text = safeLongText(value, "", 16000);
+  if (!text) return null;
+  const directObject = tryParseRunningHubExampleObject(text);
+  if (directObject) return directObject;
+  const snippet = extractRunningHubJsonObjectSnippet(text);
+  if (!snippet) return null;
+  return tryParseRunningHubExampleObject(snippet);
 }
 
 function extractRunningHubRunTargetIdFromExample(
@@ -7611,6 +7681,197 @@ function buildRunningHubFieldsFromRequestExample(example: Record<string, unknown
     });
   }
   return Array.from(fields.values());
+}
+
+function inferRunningHubOutputKindFromUrl(url: string): RunningHubOutputDefinition["kind"] | "" {
+  if (/\.(png|jpe?g|webp|gif|bmp|avif)(\?|$)/i.test(url)) return "image";
+  if (/\.(mp4|webm|mov|m4v|mkv)(\?|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|ogg|m4a|flac|aac)(\?|$)/i.test(url)) return "audio";
+  return "";
+}
+
+function collectRunningHubExampleUrls(value: unknown, seen = new Set<string>()): string[] {
+  if (!value) return [];
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!/^https?:\/\//i.test(text)) return [];
+    if (seen.has(text)) return [];
+    seen.add(text);
+    return [text];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectRunningHubExampleUrls(item, seen));
+  }
+  if (typeof value === "object") {
+    const row = value as Record<string, unknown>;
+    return [
+      ...collectRunningHubExampleUrls(row.url, seen),
+      ...collectRunningHubExampleUrls(row.fileUrl, seen),
+      ...collectRunningHubExampleUrls(row.downloadUrl, seen),
+      ...collectRunningHubExampleUrls(row.previewUrl, seen),
+      ...collectRunningHubExampleUrls(row.src, seen),
+      ...collectRunningHubExampleUrls(row.outputs, seen),
+      ...collectRunningHubExampleUrls(row.results, seen),
+      ...collectRunningHubExampleUrls(row.files, seen),
+      ...collectRunningHubExampleUrls(row.data, seen),
+      ...collectRunningHubExampleUrls(row.result, seen),
+    ];
+  }
+  return [];
+}
+
+function pickRunningHubResponseContainer(example: Record<string, unknown> | null) {
+  const candidates: Array<{ path: string; value: unknown }> = example
+    ? [
+        { path: "data.outputs", value: (example.data as Record<string, unknown> | undefined)?.outputs },
+        { path: "data.results", value: (example.data as Record<string, unknown> | undefined)?.results },
+        { path: "data.files", value: (example.data as Record<string, unknown> | undefined)?.files },
+        { path: "data.result", value: (example.data as Record<string, unknown> | undefined)?.result },
+        { path: "data", value: example.data },
+        { path: "result", value: example.result },
+        { path: "outputs", value: example.outputs },
+        { path: "results", value: example.results },
+        { path: "files", value: example.files },
+      ]
+    : [];
+  for (const candidate of candidates) {
+    if (!candidate.value) continue;
+    if (collectRunningHubExampleUrls(candidate.value).length > 0) return candidate;
+    if (typeof candidate.value === "string" && candidate.value.trim()) return candidate;
+    if (Array.isArray(candidate.value) && candidate.value.length > 0) return candidate;
+    if (candidate.value && typeof candidate.value === "object" && Object.keys(candidate.value as Record<string, unknown>).length > 0) {
+      return candidate;
+    }
+  }
+  return { path: "data", value: example?.data ?? example ?? null };
+}
+
+function pickRunningHubTextOutputPath(value: unknown, basePath: string): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return basePath || "data";
+  const row = value as Record<string, unknown>;
+  for (const key of ["text", "content", "message", "msg", "caption", "prompt"]) {
+    if (typeof row[key] === "string" && safeText(row[key])) {
+      return basePath ? `${basePath}.${key}` : key;
+    }
+  }
+  return basePath || "data";
+}
+
+function buildFallbackRunningHubOutputDefinition(taskCapability: "image" | "video" | "audio" | "chat"): RunningHubOutputDefinition {
+  const kind = taskCapability === "chat" ? "text" : taskCapability;
+  return {
+    key: kind,
+    label: kind === "audio" ? "输出音频" : kind === "image" ? "输出图像" : kind === "text" ? "输出文本" : "输出视频",
+    kind,
+    path: "data",
+    multiple: kind !== "text",
+  };
+}
+
+function buildRunningHubOutputDraftFromResponseExample(
+  example: Record<string, unknown> | null,
+  taskCapability: "image" | "video" | "audio" | "chat",
+  fallback?: { outputs?: RunningHubOutputDefinition[] },
+): { outputs: RunningHubOutputDefinition[] } {
+  const fallbackOutput = normalizeRunningHubOutputDefinitionsForAdmin(fallback?.outputs)[0] || buildFallbackRunningHubOutputDefinition(taskCapability);
+  if (!example) return { outputs: [fallbackOutput] };
+  const container = pickRunningHubResponseContainer(example);
+  const containerPath = safeText(container.path, fallbackOutput.path || "data");
+  const urls = collectRunningHubExampleUrls(container.value);
+  const grouped = new Map<RunningHubOutputDefinition["kind"], string[]>();
+  for (const url of urls) {
+    const kind = inferRunningHubOutputKindFromUrl(url);
+    if (!kind) continue;
+    grouped.set(kind, [...(grouped.get(kind) || []), url]);
+  }
+  const outputs: RunningHubOutputDefinition[] = [];
+  for (const kind of ["image", "video", "audio"] as const) {
+    const list = grouped.get(kind);
+    if (!list?.length) continue;
+    outputs.push({
+      key: kind,
+      label: kind === "image" ? "输出图像" : kind === "video" ? "输出视频" : "输出音频",
+      kind,
+      path: containerPath,
+      multiple: list.length !== 1,
+    });
+  }
+  if (outputs.length > 0) return { outputs };
+  const textPath = pickRunningHubTextOutputPath(container.value, containerPath);
+  if (taskCapability === "chat" || typeof container.value === "string" || Array.isArray(container.value)) {
+    return {
+      outputs: [
+        {
+          key: "text",
+          label: "输出文本",
+          kind: "text",
+          path: textPath,
+          multiple: Array.isArray(container.value),
+        },
+      ],
+    };
+  }
+  return {
+    outputs: [
+      {
+        ...fallbackOutput,
+        path: containerPath || fallbackOutput.path || "data",
+      },
+    ],
+  };
+}
+
+function hasRunningHubAsyncTaskSignal(example: Record<string, unknown> | null) {
+  if (!example) return false;
+  const data = example.data && typeof example.data === "object" && !Array.isArray(example.data)
+    ? example.data as Record<string, unknown>
+    : {};
+  return Boolean(
+    safeText(example.taskId)
+    || safeText(example.task_id)
+    || safeText(data.taskId)
+    || safeText(data.task_id)
+    || safeText(example.status)
+    || safeText(data.status),
+  );
+}
+
+function inferRunningHubErrorPath(example: Record<string, unknown> | null) {
+  if (!example) return "message";
+  const candidates = ["message", "msg", "errorMessage", "error", "detail"];
+  for (const key of candidates) {
+    if (safeText(example[key])) return key;
+  }
+  const data = example.data && typeof example.data === "object" && !Array.isArray(example.data)
+    ? example.data as Record<string, unknown>
+    : {};
+  for (const key of candidates) {
+    if (safeText(data[key])) return `data.${key}`;
+  }
+  return "message";
+}
+
+function buildRunningHubExecutionDraft(
+  kind: "app" | "workflow",
+  runTargetId: string,
+  responseExampleObject: Record<string, unknown> | null,
+  outputDraft: { outputs?: RunningHubOutputDefinition[] },
+  fallback?: RunningHubExecutionRules,
+): RunningHubExecutionRules {
+  const fallbackRules = fallback || normalizeRunningHubExecutionRulesForAdmin(undefined, kind, runTargetId);
+  const outputs = normalizeRunningHubOutputDefinitionsForAdmin(outputDraft.outputs);
+  const primaryOutput = outputs[0];
+  const asyncTask = hasRunningHubAsyncTaskSignal(responseExampleObject) && collectRunningHubExampleUrls(responseExampleObject).length === 0;
+  return {
+    ...fallbackRules,
+    endpoint: runningHubDefaultEndpoint(kind, runTargetId),
+    resultPath: safeText(primaryOutput?.path, fallbackRules.resultPath || "data"),
+    errorPath: inferRunningHubErrorPath(responseExampleObject),
+    supportsMultipleOutputs: outputs.some((item) => item.multiple !== false) || fallbackRules.supportsMultipleOutputs,
+    pollingStrategy: asyncTask ? "fixed-interval" : "none",
+    pollingIntervalMs: asyncTask ? 5000 : 0,
+    pollingTimeoutMs: asyncTask ? 300000 : 0,
+  };
 }
 
 function mapRunningHubFieldValueTypeToSchemaType(valueType: string) {

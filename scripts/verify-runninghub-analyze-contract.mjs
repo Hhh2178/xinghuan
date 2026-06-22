@@ -14,9 +14,14 @@ assert.match(workspace, /响应示例/);
 
 assert.match(server, /function parseRunningHubExampleObject\(/);
 assert.match(server, /function parseRunningHubExampleObject[\s\S]*safeLongText\(value,\s*""\s*,\s*16000\)/);
+assert.match(server, /function extractRunningHubJsonObjectSnippet\(/);
+assert.match(server, /function parseRunningHubExampleObject[\s\S]*extractRunningHubJsonObjectSnippet\(text\)/);
 assert.match(server, /function buildRunningHubFieldsFromRequestExample\(/);
 assert.match(server, /const requestExampleObject = parseRunningHubExampleObject\(input\.requestExample\);/);
 assert.match(server, /const requestExampleFields = buildRunningHubFieldsFromRequestExample\(requestExampleObject\);/);
+assert.match(server, /input\.docUrl/);
+assert.match(server, /function buildRunningHubOutputDraftFromResponseExample\(/);
+assert.match(server, /function buildRunningHubExecutionDraft\(/);
 assert.match(server, /requestExample .*runTargetId .*不一致/);
 assert.match(server, /fields: requestExampleFields,/);
 

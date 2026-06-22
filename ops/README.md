@@ -6,10 +6,10 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260622-runninghub-rebuild-gray-r2-v041-8faaadf`。
+- 当前灰度 release：`待本轮 v0.4.2 gray 发布后更新`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
-  - gray：`v0.4.1`
+  - gray：`待本轮 v0.4.2 gray 发布后更新`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
@@ -101,6 +101,16 @@
     - 当前 release 包仍是 runtime-only，后续若要在服务器重建或带 migration 发布，必须先补打包依赖链缺口
   - 发布记录见：
     - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
+- `2026-06-22` RunningHub 容错分析与节点输出适配已完成本地收口，待 gray 发布：
+  - 目标版本：
+    - `v0.4.2`
+  - 预计带入：
+    - RH analyze 混合文本 JSON 容错解析
+    - `responseExample -> outputSchema / executionRules` 推断
+    - public RH catalog 透传 `outputSchema`
+    - 画布 RH 节点输出映射摘要与 `audio` 输出端口
+  - 发布记录：
+    - `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
 - `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
   - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
   - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
@@ -200,6 +210,7 @@
 - `runninghub-node-hydrate-gray-release-2026-06-19.md`
 - `runninghub-slot-sync-release-2026-06-19.md`
 - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
+- `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
 
 当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
 

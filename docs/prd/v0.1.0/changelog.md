@@ -2,8 +2,8 @@
 
 ## 2026-06-22
 
-- RunningHub 协议后台与画布节点重建已完成本地 `v0.4.1` 收口，待 gray 发布：
-  - 统一更新版本源到 `0.4.1`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
+- RunningHub 协议后台与画布节点重建已完成本地 `v0.4.2` 收口，待 gray 发布：
+  - 统一更新版本源到 `0.4.2`，覆盖根 `package.json`、各 workspace `package.json`、`packages/shared/src/index.ts`、`apps/web/vite.config.ts` 与 `apps/api/src/server.ts`。
   - 新增设计归档：
     - `docs/superpowers/specs/2026-06-22-runninghub-protocol-admin-and-canvas-node-rebuild-design.md`
   - `apps/admin/src/admin-runninghub-workspace.tsx`
@@ -34,7 +34,7 @@
     - `npm run verify:single-port`
     - `npm run verify:local-acceptance-chain`
   - 当前本地 `/api/status`：
-    - `version = 0.4.1`
+    - `version = 0.4.2`
     - `environment = local`
 
 ## 2026-06-19

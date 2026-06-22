@@ -100,6 +100,13 @@ export interface RhCatalogItem {
   taskCapability: "image" | "video" | "audio" | "chat";
   workflowJson: string;
   parameterSchema?: string;
+  outputSchema?: Array<{
+    key: string;
+    label: string;
+    kind: "image" | "video" | "audio" | "text" | "json";
+    path?: string;
+    multiple?: boolean;
+  }>;
   fields: Array<{
     nodeId: string;
     fieldName: string;

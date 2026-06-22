@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-状态：当前对外已发布版本仍为 `v0.4.0`，本地发布候选已推进到 `v0.4.1` 并完成严格验证，待 gray 发布。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`runTargetId` 校验修复，以及 `instanceType` 默认值治理。当前下一步更集中在 gray 真实条目录入与视觉验收、外部通知闭环、release 迁移依赖链修补，以及后续 RH 能力扩展。
+状态：当前对外已发布版本仍为 `v0.4.0`，本地发布候选已推进到 `v0.4.2` 并完成严格验证，待 gray 发布。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复，以及 `instanceType` 默认值治理。当前下一步更集中在 gray 真实条目录入与视觉验收、外部通知闭环、release 迁移依赖链修补，以及后续 RH 能力扩展。
 
 当前与本版本最相关的最新状态：
 
 - 当前灰度 active release：`20260619-runninghub-slot-sync-gray-r1-v040-local`
 - 当前生产 active release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
-- 当前本地待发布版本：`v0.4.1`
+- 当前本地待发布版本：`v0.4.2`
 - 当前本地严格验收已通过：
   - `npm run type-check`
   - `npm run verify:runninghub-analyze-contract`

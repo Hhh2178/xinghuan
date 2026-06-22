@@ -166,6 +166,7 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
         : "video",
     workflowJson: typeof row.workflowJson === "string" ? row.workflowJson : "",
     parameterSchema: typeof row.parameterSchema === "string" ? row.parameterSchema : "{}",
+    outputSchema: Array.isArray(row.outputSchema) ? row.outputSchema as RunningHubCatalogItem["outputSchema"] : [],
     fields: (() => {
       const normalizedFields = normalizeFields(row.fields);
       if (normalizedFields.length > 0) return normalizedFields;
@@ -258,6 +259,7 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
     workflowId: item.workflowId || item.id,
     providerId: item.providerId,
     providerName: item.providerName,
+    outputSchema: Array.isArray(item.outputSchema) ? item.outputSchema : [],
     workflowJson: parseWorkflowJson(item.workflowJson),
     nodeInfoList: fields.map((field) => ({
       nodeId: field.nodeId,

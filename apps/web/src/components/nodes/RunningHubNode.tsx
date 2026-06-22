@@ -795,6 +795,9 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const nodeInfoList: any[] = currentNodeInfoList;
   const schemaInputCount = selectedWorkflowSchema?.inputSlots.length || 0;
   const schemaOutputCount = selectedWorkflowSchema?.outputs.length || 0;
+  const schemaOutputSummary = selectedWorkflowSchema?.outputs
+    .map((output) => `${output.key}:${output.dataType}${output.cardinality === 'multiple' ? '[]' : ''}`)
+    .join(' · ') || '';
   const visibleTargetHandleStyle = { top: 124 } as const;
   const hiddenLegacyHandleStyle = (top: number) => ({
     top,
@@ -890,6 +893,9 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
               <div className="mt-1 text-[10px] text-white/45">
                 {(selectedWorkflowPreset.taskCapability || 'video')} · 绑定 {schemaInputCount || selectedWorkflowPreset.fields.length} · Schema {selectedSchemaPropertyCount} · 输出 {schemaOutputCount}
               </div>
+              {schemaOutputSummary ? (
+                <div className="mt-1 text-[10px] text-white/35 line-clamp-2">输出映射 · {schemaOutputSummary}</div>
+              ) : null}
               {selectedWorkflowPreset.note ? (
                 <div className="mt-1 text-[10px] text-white/35 line-clamp-2">{selectedWorkflowPreset.note}</div>
               ) : null}
