@@ -5,7 +5,7 @@
 - environment: `gray`
 - version: `v0.4.2`
 - release id:
-  - `待发布`
+  - `20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
 - based on:
   - `v0.4.1 gray`
   - `20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
@@ -37,6 +37,8 @@
   - `npm run verify:release-preflight`
   - `npm run verify:request-chain-observability`
   - `npm run verify:system-observability`
+  - `GET https://canvas-next.hhh2121.xyz/api/admin/system`
+  - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'`
 
 ## Acceptance Targets
 
@@ -64,3 +66,16 @@
 - 本轮发布是对 `v0.4.1` RH 工作台能力的继续收口，不是 Hermes 接入。
 - RH analyze 仍是本地规则引擎，不依赖外部 Hermes 分析服务。
 - `scripts/package-release.mjs` 仍是 runtime-only 包；若后续需要服务器端重建或带 migration 发布，仍需补打包依赖链。
+- 本轮 gray 实际同时带入了普通任务运行态并发修复：
+  - worker Redis 阻塞消费连接已与控制/上报连接分离
+  - 灰度 `xinghuan:worker-runtime:canvas-next-worker-1` 已真实出现
+  - `/api/admin/system` 当前返回：
+    - `image/audio/video effectiveConcurrency = 100`
+    - `workerCount = 1`
+    - `slotCount = 100`
+- 页面级验收已确认后台“系统”页真实显示：
+  - `按类别并发`
+  - `实际生效并发`
+  - `Worker 数`
+  - `Worker 槽位数`
+  - `RH 平台窗口`

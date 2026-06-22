@@ -6,10 +6,11 @@
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
 - 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`待本轮 v0.4.2 gray 发布后更新`。
+- 当前灰度 release：`20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`。
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
 - 当前发布版本号：
   - gray：`待本轮 v0.4.2 gray 发布后更新`
+  - gray：`v0.4.2`
   - production：`v0.4.0`
 - gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
 - `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
@@ -102,6 +103,28 @@
   - 发布记录见：
     - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
 - `2026-06-22` RunningHub 容错分析与节点输出适配已完成本地收口，待 gray 发布：
+- `2026-06-22` `v0.4.2` 已完成 gray 发布并补齐普通任务运行态并发收口：
+  - gray：`20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+  - `/api/status` 当前返回 `version = 0.4.2`
+  - gray gate 与实态复核：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向 `r3`
+    - `xinghuan-canvas-next.service` / `xinghuan-canvas-next-worker.service` 均为 `active`
+    - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'` 已出现 `xinghuan:worker-runtime:canvas-next-worker-1`
+    - `/api/admin/system` 当前返回：
+      - `image/audio/video effectiveConcurrency = 100`
+      - `workerCount = 1`
+      - `slotCount = 100`
+    - 后台系统页已真实显示：
+      - `按类别并发`
+      - `实际生效并发`
+      - `Worker 数`
+      - `Worker 槽位数`
+      - `RH 平台窗口`
+  - 当前额外结论：
+    - worker Redis 阻塞消费与控制命令已经拆分，普通任务“配置已改但运行态仍排队”的核心断点已打通
+    - 首次切换到 `r3` 前出现过一次上传未真实落盘的传输异常，已通过重新上传校正，不属于代码回归
+    - worker 在 `100 x 3` 槽位下二次重启已验证可在约 `9s` 内优雅停止并重新拉起
+- `2026-06-22` RunningHub 容错分析与节点输出适配已完成本地收口，并已随 `v0.4.2` gray 一并发布：
   - 目标版本：
     - `v0.4.2`
   - 预计带入：

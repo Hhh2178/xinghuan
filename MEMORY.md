@@ -291,6 +291,38 @@
     - `scripts/package-release.mjs` 当前仍是 runtime-only 打包
     - 该包不足以支持服务器 release 目录重新执行 `npm run build:single-port`
     - 后续凡是要求服务器重建或包含 migration 的发布，必须先补 release 打包依赖链缺口
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+  - 当前 gray 对外版本号：
+    - `v0.4.2`
+  - 当前带入 gray 的收口项：
+    - RH analyze mixed text / fenced JSON / balanced object 容错解析
+    - `responseExample -> outputSchema / executionRules` 推断
+    - public RH catalog 透传 `outputSchema`
+    - RH 节点输出映射摘要与 `audio` 输出端口
+    - 普通任务 worker Redis 阻塞消费连接与控制连接拆分
+    - `image/audio/video` 运行态槽位重新上报 Redis
+  - 当前 gray 真实验收结论：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向 `r3`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.2`
+      - `environment = gray`
+    - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'` 已返回：
+      - `xinghuan:worker-runtime:canvas-next-worker-1`
+    - `GET https://canvas-next.hhh2121.xyz/api/admin/system` 当前返回：
+      - `image/audio/video effectiveConcurrency = 100`
+      - `workerCount = 1`
+      - `slotCount = 100`
+      - `runninghub.activeWindowCount = 0`
+    - 后台“系统”页已真实显示：
+      - `按类别并发`
+      - `实际生效并发`
+      - `Worker 数`
+      - `Worker 槽位数`
+      - `RH 平台窗口`
+  - 当前额外记忆：
+    - 首次 `r3` 上传曾出现“本地 scp 退出成功但远端 `/tmp` 未落盘”的异常，复传后恢复正常；不属于代码问题
+    - worker 在 `100 x 3` 槽位规模下已复验一次 restart，可在约 `9s` 内优雅停止并重新拉起
 - `2026-06-17` 当前生产运行态已切到：
   - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
   - 本次切换后 production gate 已通过：

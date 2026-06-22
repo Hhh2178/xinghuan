@@ -41,6 +41,68 @@
 
 ## 2026-06-22
 
+### Task Queue 运行态并发 gray 发布与视觉验收完成
+
+目标:
+- 将普通任务运行态并发修复真实推送到 gray，并核实不是“接口改了但 worker 仍未生效”。
+- 补齐页面级视觉验收与主入口文档同步，避免状态只停留在命令行。
+
+变更:
+- `apps/worker/src/worker.ts`
+  - 将 worker Redis 使用方式拆成“控制连接 + 每个槽位独立阻塞消费连接”。
+  - `persistRuntimeQueueSlots()` 保持走控制连接，避免 `brPop` 阻塞吞掉运行态上报。
+- `scripts/verify-worker-runtime-concurrency-contract.mjs`
+  - 新增契约，要求：
+    - worker 必须存在 `duplicate()`
+    - `brPop` 必须走 `controller.redis`
+    - 不允许继续 `await redis.brPop(...)`
+- gray 发布:
+  - 本地提交：`fee46da`
+  - gray release：`20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+  - 服务器 `current`：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+
+验证:
+- 先做最小红绿验证：
+  - 修改前 `node scripts/verify-worker-runtime-concurrency-contract.mjs` 失败，明确指出缺少独立 blocking redis client
+  - 修改后通过
+- 本地验证通过：
+  - `npm run type-check -w @xinghuan/worker`
+  - `npm run verify:provider-generation-worker`
+  - `node scripts/verify-runninghub-queue-governance-contract.mjs`
+  - `node scripts/verify-user-queue-governance-contract.mjs`
+  - `npm run build:single-port`
+  - `codegraph sync`
+- gray 服务器验证通过：
+  - `systemctl is-active xinghuan-canvas-next.service` => `active`
+  - `systemctl is-active xinghuan-canvas-next-worker.service` => `active`
+  - `GET http://127.0.0.1:18200/api/status` => `version=0.4.2`, `environment=gray`
+  - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'` => `xinghuan:worker-runtime:canvas-next-worker-1`
+  - `GET https://canvas-next.hhh2121.xyz/api/admin/system` =>
+    - `image/audio/video effectiveConcurrency = 100`
+    - `workerCount = 1`
+    - `slotCount = 100`
+- 页面级视觉验收：
+  - gray 后台“系统”页已真实显示：
+    - `按类别并发`
+    - `实际生效并发`
+    - `Worker 数`
+    - `Worker 槽位数`
+    - `RH 平台窗口`
+
+影响:
+- 普通任务“后台配置已保存但任务仍不按新并发生效”的核心断点已经在 gray 被真实打通。
+- 后台系统页现在可以直接看见配置值与运行态值是否一致，不再只能靠猜 worker 有没有吃到新配置。
+- RunningHub `v0.4.2` 容错分析与普通任务运行态并发修复已经落在同一个 gray 可验收版本里。
+
+风险:
+- 当前 `100 x 3` 槽位会带来较高 Redis `blocked_clients` 数量，这是设计结果，不是本轮回归；若后续继续放大默认并发，需要再评估连接规模与 stop 时延。
+- 本轮首个 worker 重启样本曾出现历史遗留进程导致的 stop timeout；在 `r3` 当前运行态下再次重启已可在约 `9s` 内优雅停止并重启成功。
+
+下一步:
+- 由用户继续在 gray 上用真实任务验证“高并发设置下是否不再出现不必要排队”。
+- 若后续要继续扩展默认并发或多 worker 并行，需再评估 worker 槽位模型是否要从“1 槽位 = 1 阻塞连接”演进为更轻量的消费策略。
+
 ### Task Queue 运行态并发与后台配置一致性收口
 
 目标:
