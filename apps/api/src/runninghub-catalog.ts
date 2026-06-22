@@ -169,6 +169,7 @@ function normalizeRunningHubExecutionRules(value: unknown, kind: "app" | "workfl
 
 export function parseRunningHubRef(value: unknown) {
   const text = safeText(value);
+  // Example AI App doc pattern: call-api/api-detail/1978404642654670849?apiType=4
   const apiDetailAppMatch = text.match(/call-api\/api-detail\/([0-9A-Za-z_-]+)\?apiType=4/i);
   if (apiDetailAppMatch) return { type: "app" as const, id: apiDetailAppMatch[1] };
   const openapiMatch = text.match(/\/(?:openapi\/v2\/)?run\/(ai-app|workflow)\/([0-9A-Za-z_-]+)/i);

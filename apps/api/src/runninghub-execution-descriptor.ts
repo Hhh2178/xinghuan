@@ -106,8 +106,8 @@ export function normalizeRunningHubInputSlots(fields: RunningHubFieldDefinitionL
 export function buildRunningHubExecutionDescriptor(item: RunningHubCatalogSourceLike): RhExecutionDescriptor {
   const kind = item.kind === "app" ? "app" : "workflow";
   const pageId = safeText(item.pageId || item.appId || item.workflowId || item.runTargetId);
-  const appId = kind === "app" ? safeText(item.appId || item.runTargetId || item.pageId) : safeText(item.appId);
-  const workflowId = kind === "workflow" ? safeText(item.workflowId || item.runTargetId || item.pageId) : safeText(item.workflowId);
+  const appId = kind === "app" ? safeText(item.appId || item.runTargetId || item.pageId) : "";
+  const workflowId = kind === "workflow" ? safeText(item.workflowId || item.runTargetId || item.pageId) : "";
   const runTargetId = safeText(item.runTargetId || (kind === "app" ? appId : workflowId));
   const taskCapability = item.taskCapability === "image" || item.taskCapability === "audio" || item.taskCapability === "chat"
     ? item.taskCapability

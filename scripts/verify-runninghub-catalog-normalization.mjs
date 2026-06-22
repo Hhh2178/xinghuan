@@ -50,10 +50,13 @@ await expectFileContains(apiCatalogPath, [
   "inputSlots:",
   "execution:",
   "fields:",
+  'call-api/api-detail/',
 ]);
 
 await expectFileContains(apiExecutionDescriptorPath, [
   "export function buildRunningHubExecutionDescriptor",
+  'const appId = kind === "app"',
+  'const workflowId = kind === "workflow"',
   "submit:",
   "assetHandling:",
   "polling:",
@@ -65,6 +68,9 @@ await expectFileContains(serverPath, [
   'url.pathname === "/api/admin/runninghub/items"',
   'url.pathname === "/api/runninghub/catalog"',
   'url.pathname.startsWith("/api/runninghub/catalog/")',
+  "function assertRunningHubTargetConsistency",
+  "当前条目已识别为 AI 应用，不能继续保留 workflowId",
+  "当前条目已识别为工作流，不能继续保留 appId",
 ]);
 
 const { normalizeRunningHubCatalogItem, toPublicRunningHubCatalogItem } = await import(pathToFileURL(apiCatalogDistPath).href);

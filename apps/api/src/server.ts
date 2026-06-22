@@ -7256,6 +7256,23 @@ function assertRunningHubEntryCanBeEnabled(entry: {
   throw new Error(`${itemLabel} 仍缺少输入槽定义，不能启用。请至少补齐一个包含 nodeId 和 fieldName 的输入槽，或先保存为停用草稿。`);
 }
 
+function assertRunningHubTargetConsistency(kind: "app" | "workflow", row: {
+  runTargetId?: string;
+  appId?: string;
+  workflowId?: string;
+}) {
+  const runTargetId = safeText(row.runTargetId);
+  const appId = safeText(row.appId);
+  const workflowId = safeText(row.workflowId);
+  if (kind === "app") {
+    if (workflowId) throw new Error("当前条目已识别为 AI 应用，不能继续保留 workflowId");
+    if (!runTargetId && !appId) throw new Error("AI 应用缺少 runTargetId/appId");
+    return;
+  }
+  if (!runTargetId && !workflowId) throw new Error("工作流缺少 runTargetId/workflowId");
+  if (appId && !workflowId) throw new Error("当前条目已识别为工作流，不能继续保留 appId");
+}
+
 async function persistRunningHubProviderRecord(
   db: AdminDb,
   providerId: string,
@@ -7331,10 +7348,10 @@ async function createAdminRunningHubCatalogItem(input: {
   nextEntry.runTargetId = safeText(nextEntry.runTargetId, nextEntry.id);
   if (kind === "app") {
     nextEntry.appId = input.appId === undefined ? safeText(nextEntry.appId, nextEntry.runTargetId) : safeText(input.appId, nextEntry.runTargetId);
-    nextEntry.workflowId = input.workflowId === undefined ? safeText(nextEntry.workflowId) : safeText(input.workflowId);
+    nextEntry.workflowId = "";
   } else {
     nextEntry.workflowId = input.workflowId === undefined ? safeText(nextEntry.workflowId, nextEntry.runTargetId) : safeText(input.workflowId, nextEntry.runTargetId);
-    nextEntry.appId = input.appId === undefined ? safeText(nextEntry.appId) : safeText(input.appId);
+    nextEntry.appId = "";
   }
   nextEntry.parameterSchema = input.parameterSchema === undefined ? safeRunningHubObjectJsonText(nextEntry.parameterSchema, "{}") : safeRunningHubObjectJsonText(input.parameterSchema, "{}");
   nextEntry.outputSchema = input.outputSchema === undefined ? normalizeRunningHubOutputDefinitionsForAdmin(nextEntry.outputSchema) : normalizeRunningHubOutputDefinitionsForAdmin(input.outputSchema);
@@ -7342,6 +7359,7 @@ async function createAdminRunningHubCatalogItem(input: {
     ? normalizeRunningHubExecutionRulesForAdmin(nextEntry.executionRules, kind, nextEntry.runTargetId)
     : normalizeRunningHubExecutionRulesForAdmin(input.executionRules, kind, nextEntry.runTargetId);
   nextEntry.testPayload = input.testPayload === undefined ? safeRunningHubJsonText(nextEntry.testPayload, "{}") : safeRunningHubJsonText(input.testPayload, "{}");
+  assertRunningHubTargetConsistency(kind, nextEntry);
   assertRunningHubEntryCanBeEnabled(nextEntry);
   const updatedProvider = await persistRunningHubProviderRecord(db, providerId, (provider) => {
     const list = kind === "app"
@@ -8148,6 +8166,7 @@ async function updateAdminRunningHubCatalogItem(
         },
         testPayload: patch.testPayload === undefined ? preserveRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
       };
+      assertRunningHubTargetConsistency(kind, next);
       assertRunningHubEntryCanBeEnabled({
         ...next,
         catalogId,
