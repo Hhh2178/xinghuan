@@ -30,6 +30,7 @@ export interface RunningHubCatalogEntry {
   taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+  allowsEmptyInputs?: boolean;
 }
 
 export interface RunningHubAdminEditorMetadata {
@@ -238,6 +239,7 @@ export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogIt
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
     workflowJson: normalizeOptionalJsonText(row.workflowJson),
     fields: normalizeRunningHubFieldDefinitions(row.fields),
+    allowsEmptyInputs: row.allowsEmptyInputs === true,
     parameterSchema: normalizeOptionalJsonText(row.parameterSchema) || "{}",
     outputSchema: normalizeRunningHubOutputDefinitions(row.outputSchema),
     executionRules: normalizeRunningHubExecutionRules(row.executionRules, kind, runTargetId),
@@ -275,6 +277,7 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
       ? entry.taskCapability
       : "video",
     workflowJson: entry.workflowJson || "",
+    allowsEmptyInputs: entry.allowsEmptyInputs === true,
     parameterSchema: normalizeOptionalJsonText((entry as RunningHubAdminCatalogEntry).parameterSchema) || "{}",
     outputSchema: normalizeRunningHubOutputDefinitions((entry as RunningHubAdminCatalogEntry).outputSchema),
     fields,

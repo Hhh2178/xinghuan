@@ -142,6 +142,62 @@ function countSchemaProperties(value: string | undefined) {
   }
 }
 
+function normalizeRemoteNodeInfoList(value: unknown, existingList: any[]) {
+  const existingMap = new Map<string, any>();
+  for (const item of Array.isArray(existingList) ? existingList : []) {
+    const nodeId = String(item?.nodeId || '').trim();
+    const fieldName = String(item?.fieldName || '').trim();
+    if (!nodeId || !fieldName) continue;
+    existingMap.set(`${nodeId}::${fieldName}`, item);
+  }
+  return (Array.isArray(value) ? value : [])
+    .flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const row = item as Record<string, unknown>;
+      const nodeId = String(row.nodeId || '').trim();
+      const fieldName = String(row.fieldName || '').trim();
+      if (!nodeId || !fieldName) return [];
+      const existing = existingMap.get(`${nodeId}::${fieldName}`);
+      let parsedFieldData: unknown = row.fieldData;
+      if (typeof parsedFieldData === 'string') {
+        const trimmedFieldData = parsedFieldData.trim();
+        if (trimmedFieldData.startsWith('[') || trimmedFieldData.startsWith('{')) {
+          try {
+            parsedFieldData = JSON.parse(trimmedFieldData);
+          } catch {
+            parsedFieldData = row.fieldData;
+          }
+        }
+      }
+      const parsedDisplayLabel = String(
+        row.displayLabel
+          || row.title
+          || row.label
+          || row.description
+          || fieldName,
+      ).trim() || fieldName;
+      const parsedLabel = String(row.label || row.title || fieldName).trim() || fieldName;
+      return [{
+        ...row,
+        nodeId,
+        fieldName,
+        fieldData: parsedFieldData,
+        options: Array.isArray(row.options)
+          ? row.options
+          : Array.isArray(parsedFieldData)
+            ? parsedFieldData
+            : existing?.options,
+        label: existing?.label || parsedLabel,
+        displayLabel: existing?.displayLabel || parsedDisplayLabel,
+        description: String(existing?.description || row.description || row.descriptionCn || row.descriptionEn || '').trim(),
+        placeholder: String(existing?.placeholder || row.placeholder || '').trim(),
+        required: typeof existing?.required === 'boolean' ? existing.required : row.required === true,
+        fieldType: String(row.fieldType || existing?.fieldType || '').trim(),
+        fieldValue: row.fieldValue ?? existing?.fieldValue ?? '',
+      }];
+    });
+}
+
 // 上游媒体聚合现在由项目统一的 useUpstreamMaterials hook 处理（详见 ./useUpstreamMaterials.ts），
 // 本文件不再手写 extractUpstreamUrl，避免与项目其他节点的 url 提取逻辑产生不一致。
 
@@ -214,8 +270,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     return Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList : [];
   }, [appInfo?.nodeInfoList, localPresetAppInfo]);
   const presetFieldCount = Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList.length : 0;
+  const shouldHydrateAuthoritativeAppInfo = selectedWorkflowPreset?.kind === 'app';
   const selectedSchemaPropertyCount = countSchemaProperties(selectedWorkflowPreset?.parameterSchema);
-  const selectedPresetHasNoResolvedFields = Boolean(selectedWorkflowPreset) && presetFieldCount <= 0 && currentNodeInfoList.length <= 0;
+  const selectedPresetAllowsEmptyInputs = selectedWorkflowPreset?.allowsEmptyInputs === true;
+  const selectedPresetHasNoResolvedFields = Boolean(selectedWorkflowPreset) && !selectedPresetAllowsEmptyInputs && presetFieldCount <= 0 && currentNodeInfoList.length <= 0;
   const resolvedPageId = selectedWorkflowPreset?.pageId || selectedWorkflowPreset?.id || resolvedRunTargetId;
   const resolvedWebappId = resolvedTargetType === 'app'
     ? (selectedWorkflowPreset?.appId || resolvedRunTargetId)
@@ -666,7 +724,14 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     setFetchingInfo(true);
     try {
       const info = await fetchRhAppInfo(resolvedRunTargetId);
-      const list: any[] = info?.nodeInfoList || [];
+      const list = normalizeRemoteNodeInfoList(
+        info?.nodeInfoList || [],
+        Array.isArray(appInfo?.nodeInfoList) && appInfo.nodeInfoList.length > 0
+          ? appInfo.nodeInfoList
+          : Array.isArray(localPresetAppInfo?.nodeInfoList)
+            ? localPresetAppInfo.nodeInfoList
+            : [],
+      );
       // 调试日志：打印原始 nodeInfoList 结构，方便后续按实际字段名/fieldType 扩充 LIST 词典
       try {
         console.log('[RH/fetchInfo] runTargetId=', resolvedRunTargetId, 'nodeInfoList=', JSON.parse(JSON.stringify(list)));
@@ -737,15 +802,15 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       autoHydratedCatalogRef.current = '';
       return;
     }
-    if (presetFieldCount > 0) return;
     if (!resolvedRunTargetId) return;
     if (fetchingInfo) return;
-    const hydrateKey = `${selectedWorkflowPreset.catalogId}:${resolvedRunTargetId}`;
+    if (!shouldHydrateAuthoritativeAppInfo && presetFieldCount > 0) return;
+    const hydrateKey = `${selectedWorkflowPreset.catalogId}:${resolvedRunTargetId}:${shouldHydrateAuthoritativeAppInfo ? 'app-authoritative' : 'workflow-empty'}`;
     if (autoHydratedCatalogRef.current === hydrateKey) return;
     autoHydratedCatalogRef.current = hydrateKey;
     void handleFetchInfo();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWorkflowPreset?.catalogId, presetFieldCount, resolvedRunTargetId, fetchingInfo]);
+  }, [selectedWorkflowPreset?.catalogId, presetFieldCount, resolvedRunTargetId, fetchingInfo, shouldHydrateAuthoritativeAppInfo]);
 
   const handleRun = async () => {
     setError(null);
@@ -933,6 +998,11 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
               {selectedSchemaPropertyCount > 0
                 ? `当前 RH 条目已定义 ${selectedSchemaPropertyCount} 个结构化参数，但还没有可执行的 RH 绑定字段。节点不会直接生成可提交表单，请先到后台 RH 工作台补齐 nodeId 和 fieldName。`
                 : '当前 RH 条目还没有可用的输入槽定义。节点无法自动展开参数区，请先到后台 RH 工作台补齐至少一个包含 nodeId 和 fieldName 的输入槽。'}
+            </div>
+          ) : null}
+          {selectedWorkflowPreset && selectedPresetAllowsEmptyInputs ? (
+            <div className="mt-1 rounded border border-emerald-400/30 bg-emerald-500/10 px-2 py-1.5 text-[10px] leading-4 text-emerald-100/90">
+              当前 RH 条目被标记为无入参工作流。参数区为空属于正常现象，可以直接运行。
             </div>
           ) : null}
           {presetMixedStateError ? (

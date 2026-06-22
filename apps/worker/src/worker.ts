@@ -365,6 +365,7 @@ async function processTask(taskId: string) {
     heartbeatAt: new Date().toISOString(),
     runtimeStage: "running",
   });
+  let shouldRequeueAfterRelease = false;
   try {
     const result = await executeTask(task);
     if (await isTaskCancelled(taskId)) {
@@ -395,6 +396,26 @@ async function processTask(taskId: string) {
       logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "drop error after cancellation" });
       return;
     }
+    if (isRetryableRunningHubQueueLimitError(error)) {
+      const retryDetail = buildRunningHubQueueLimitRetryDetail(error);
+      const queuedResult = await requeueRunningTask(task, retryDetail, readWorkerTaskResultPatch(error));
+      if (queuedResult === "cancelled") {
+        await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
+        logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "retry kept cancelled state" });
+        return;
+      }
+      shouldRequeueAfterRelease = queuedResult === "updated";
+      if (shouldRequeueAfterRelease) {
+        logWorkerEvent("task.requeued", {
+          ...trace,
+          taskId,
+          capability: task.capability,
+          status: "queued",
+          reason: retryDetail,
+        });
+      }
+      return;
+    }
     const failedResult = await updateTask(taskId, "failed", [`${workerId} 执行失败: ${error instanceof Error ? error.message : String(error)}`], {
       ...readWorkerTaskResultPatch(error),
       workerId,
@@ -416,6 +437,10 @@ async function processTask(taskId: string) {
   } finally {
     await releaseRunningHubExecutionWindow(task);
     await releaseUserExecutionWindow(task);
+    if (shouldRequeueAfterRelease) {
+      await wait(Math.max(500, taskDeferredRetryMs));
+      await requeueDeferredTask(task.id, task.capability);
+    }
   }
 }
 
@@ -440,6 +465,19 @@ async function requeueDeferredTask(taskId: string, capability: string) {
   if (!queueCapability) return;
   const queue = taskQueueNameForCapability(queueName, queueCapability);
   await redisControl.lPush(queue, taskId);
+}
+
+async function requeueRunningTask(task: TaskRow, detail: string, resultPatch: Record<string, unknown> = {}) {
+  return updateTask(task.id, "queued", [`${workerId} RunningHub 上游并发已满，任务回退到队列等待重试: ${detail}`], {
+    ...resultPatch,
+    workerId,
+    status: "queued",
+    runtimeStage: "queued",
+    waitReason: "waiting_runninghub_window",
+    waitDetail: detail,
+    waitUpdatedAt: new Date().toISOString(),
+    requeuedAt: new Date().toISOString(),
+  });
 }
 
 function capabilityToQueueCapability(capability: string): TaskQueueCapability | null {
@@ -1021,13 +1059,13 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       || submitRaw.id,
   );
   if ((Number.isFinite(upstreamCode) && upstreamCode !== 0) || !upstreamTaskId) {
-    const message = safeText(
+    const message = humanizeRunningHubUpstreamError(safeText(
       submitData.msg
       || submitRaw.errorMessage
       || submitRaw.message
       || submitRaw.msg,
       "RunningHub 未返回有效任务 ID",
-    );
+    ), targetType);
     throw createWorkerTaskError(
       message,
       buildRunningHubSubmitFailurePatch({
@@ -1146,6 +1184,22 @@ function sanitizeRunningHubSubmitRequestBody(body: Record<string, unknown>) {
   return next;
 }
 
+function humanizeRunningHubUpstreamError(message: string, targetType: "app" | "workflow") {
+  const text = safeText(message);
+  const mismatch = text.match(/NODE_INFO_MISMATCH\(nodeId=([^,]+),\s*fieldName=([^,]+),\s*reason=([^)]+)\)/i);
+  if (!mismatch) return text;
+  const [, rawNodeId, rawFieldName, rawReason] = mismatch;
+  const nodeId = safeText(rawNodeId);
+  const fieldName = safeText(rawFieldName);
+  const reason = safeText(rawReason).toLowerCase();
+  if (reason === "node_not_found_in_workflow") {
+    return targetType === "app"
+      ? `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 在上游当前工作流中不存在。该 AI 应用公开文档或 apiCallDemo 中的输入定义可能已过期，请先在 RunningHub 页面重新核对真实可提交字段。原始错误：${text}`
+      : `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 在上游当前工作流中不存在。请重新核对 workflowId、nodeId 和 fieldName。原始错误：${text}`;
+  }
+  return `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 校验失败（${reason || "unknown_reason"}）。原始错误：${text}`;
+}
+
 function createWorkerTaskError(message: string, resultPatch: Record<string, unknown> = {}) {
   const error = new Error(message) as Error & { resultPatch?: Record<string, unknown> };
   error.name = "WorkerTaskError";
@@ -1159,6 +1213,30 @@ function readWorkerTaskResultPatch(error: unknown) {
   return resultPatch && typeof resultPatch === "object" && !Array.isArray(resultPatch)
     ? plainObject(resultPatch)
     : {};
+}
+
+function isRetryableRunningHubQueueLimitError(error: unknown) {
+  const patch = readWorkerTaskResultPatch(error);
+  const rawSubmitText = safeText(patch.rhSubmitResponseText);
+  const rawFailureReason = safeText(patch.failureReason);
+  const message = error instanceof Error ? safeText(error.message) : safeText(error);
+  const haystack = `${message}\n${rawFailureReason}\n${rawSubmitText}`.toLowerCase();
+  return /(?:^|[^0-9])421(?:[^0-9]|$)/.test(haystack)
+    && (
+      haystack.includes("api queue limit reached")
+      || haystack.includes("api 并发数已达上线")
+    );
+}
+
+function buildRunningHubQueueLimitRetryDetail(error: unknown) {
+  const patch = readWorkerTaskResultPatch(error);
+  const patchFailureReason = safeText(patch.failureReason);
+  if (patchFailureReason) return patchFailureReason;
+  if (error instanceof Error) {
+    const message = safeText(error.message);
+    if (message) return message;
+  }
+  return "RunningHub 上游返回 421，当前平台并发已满，稍后自动重试";
 }
 
 function buildRunningHubSubmitFailurePatch(input: {

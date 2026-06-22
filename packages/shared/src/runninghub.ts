@@ -99,6 +99,7 @@ export interface RhCatalogItem {
   runTargetId: string;
   taskCapability: "image" | "video" | "audio" | "chat";
   workflowJson: string;
+  allowsEmptyInputs?: boolean;
   parameterSchema?: string;
   outputSchema?: Array<{
     key: string;

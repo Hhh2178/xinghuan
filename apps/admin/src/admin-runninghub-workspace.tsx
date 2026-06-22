@@ -77,15 +77,26 @@ function mergeDraftSectionsToCreatePayload(
 
 function buildUpdatePayloadFromDraft(
   selectedItem: RunningHubAdminItem,
+  targetKind: RunningHubWorkspaceTab,
   section?: RunningHubAnalyzeDraftSection | null,
 ): RunningHubAdminItemUpdatePayload {
-  const payload: RunningHubAdminItemUpdatePayload = {};
+  const payload: RunningHubAdminItemUpdatePayload = {
+    kind: targetKind,
+  };
   if (!section) return payload;
   if (section.key === "base") {
+    const nextRunTargetId = readMeaningfulDraftText(section.payload.runTargetId)
+      ?? selectedItem.runTargetId
+      ?? selectedItem.appId
+      ?? selectedItem.workflowId
+      ?? selectedItem.pageId
+      ?? selectedItem.id;
     payload.title = readMeaningfulDraftText(section.payload.title) ?? selectedItem.title;
     payload.note = readMeaningfulDraftText(section.payload.note) ?? selectedItem.note;
     payload.pageId = readMeaningfulDraftText(section.payload.pageId) ?? selectedItem.pageId;
-    payload.runTargetId = readMeaningfulDraftText(section.payload.runTargetId) ?? selectedItem.runTargetId;
+    payload.runTargetId = nextRunTargetId;
+    payload.appId = targetKind === "app" ? nextRunTargetId : "";
+    payload.workflowId = targetKind === "workflow" ? nextRunTargetId : "";
     payload.taskCapability = ["image", "video", "audio", "chat"].includes(String(section.payload.taskCapability))
       ? section.payload.taskCapability as RunningHubAdminItemUpdatePayload["taskCapability"]
       : selectedItem.taskCapability;
@@ -103,10 +114,11 @@ function buildUpdatePayloadFromDraft(
 
 function mergeDraftSectionsToUpdatePayload(
   selectedItem: RunningHubAdminItem,
+  targetKind: RunningHubWorkspaceTab,
   sections: RunningHubAnalyzeDraftSection[],
 ) {
   return sections.reduce<RunningHubAdminItemUpdatePayload>(
-    (acc, section) => ({ ...acc, ...buildUpdatePayloadFromDraft(selectedItem, section) }),
+    (acc, section) => ({ ...acc, ...buildUpdatePayloadFromDraft(selectedItem, targetKind, section) }),
     {},
   );
 }
@@ -301,6 +313,11 @@ export function AdminRunningHubWorkspace({
   const selectedItem = scopedItems.find((item) => item.catalogId === selectedCatalogId) || null;
   const workflowCount = items.filter((item) => item.kind === "workflow").length;
   const appCount = items.filter((item) => item.kind === "app").length;
+  const analyzeTargetKind = analyzeDraft?.detectedKind === "app"
+    ? "app"
+    : analyzeDraft?.detectedKind === "workflow"
+      ? "workflow"
+      : activeTab;
 
   async function handleCreate(kind: RunningHubWorkspaceTab, sourceCatalogId?: string, preset?: RunningHubAdminItemCreatePayload) {
     const providerId = selectedProviderId || items.find((item) => item.providerId)?.providerId || "runninghub";
@@ -330,7 +347,12 @@ export function AdminRunningHubWorkspace({
     setError("");
     try {
       const updated = await adminRunningHubApi.updateItem(catalogId, payload);
-      setItems((current) => current.map((item) => (item.catalogId === catalogId ? updated : item)));
+      setItems((current) => {
+        const next = current.filter((item) => item.catalogId !== catalogId && item.catalogId !== updated.catalogId);
+        return [...next, updated];
+      });
+      setSelectedCatalogId(updated.catalogId);
+      setActiveTab(updated.kind === "app" ? "app" : "workflow");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -388,12 +410,9 @@ export function AdminRunningHubWorkspace({
       });
       const autoSwitchHint = draft.detectedKind && draft.detectedKind !== activeTab
         ? draft.detectedKind === "app"
-          ? "检测到这是 AI App，已自动切换到 AI 应用区域"
-          : "检测到这是工作流，已自动切换到工作流区域"
+          ? "检测到这是 AI App，应用草案时会自动迁移到 AI 应用目录"
+          : "检测到这是工作流，应用草案时会自动迁移到工作流目录"
         : "";
-      if (draft.detectedKind && draft.detectedKind !== activeTab) {
-        setActiveTab(draft.detectedKind);
-      }
       setAnalyzeHint(autoSwitchHint || draft.autoSwitchMessage || draft.summary);
       setAnalyzeDraft(draft);
     } catch (nextError) {
@@ -410,7 +429,7 @@ export function AdminRunningHubWorkspace({
       setError("请先在左侧选择一个 RunningHub 条目，再应用草案卡片。");
       return;
     }
-    const payload = buildUpdatePayloadFromDraft(selectedItem, section);
+    const payload = buildUpdatePayloadFromDraft(selectedItem, analyzeTargetKind, section);
     await handleSave(selectedItem.catalogId, payload);
   }
 
@@ -419,7 +438,7 @@ export function AdminRunningHubWorkspace({
       setError("请先选择条目并生成 RH 草案，再应用全部。");
       return;
     }
-    const payload = mergeDraftSectionsToUpdatePayload(selectedItem, analyzeDraft.sections);
+    const payload = mergeDraftSectionsToUpdatePayload(selectedItem, analyzeTargetKind, analyzeDraft.sections);
     await handleSave(selectedItem.catalogId, payload);
   }
 
@@ -630,7 +649,7 @@ export function AdminRunningHubWorkspace({
                         <button
                           type="button"
                           className="ghost-action"
-                          onClick={() => void handleCreate(activeTab, undefined, buildCreatePayloadFromDraft(selectedProviderId || selectedItem?.providerId || "runninghub", activeTab, section))}
+                          onClick={() => void handleCreate(analyzeTargetKind, undefined, buildCreatePayloadFromDraft(selectedProviderId || selectedItem?.providerId || "runninghub", analyzeTargetKind, section))}
                         >
                           插入为新条目
                         </button>
@@ -645,7 +664,7 @@ export function AdminRunningHubWorkspace({
                   <button
                     type="button"
                     className="ghost-action"
-                    onClick={() => void handleCreate(activeTab, undefined, mergeDraftSectionsToCreatePayload(selectedProviderId || selectedItem?.providerId || "runninghub", activeTab, analyzeDraft.sections))}
+                    onClick={() => void handleCreate(analyzeTargetKind, undefined, mergeDraftSectionsToCreatePayload(selectedProviderId || selectedItem?.providerId || "runninghub", analyzeTargetKind, analyzeDraft.sections))}
                   >
                     用草案新建条目
                   </button>

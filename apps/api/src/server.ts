@@ -841,7 +841,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.4",
+      version: "0.4.6",
       environment,
       dataDir,
     });
@@ -1994,6 +1994,7 @@ async function handleAdminRequest(
   if (runningHubItemMatch && request.method === "PATCH") {
     const catalogId = decodeURIComponent(runningHubItemMatch[1]);
     const body = await readJsonBody<{
+      kind?: "app" | "workflow";
       title?: string;
       note?: string;
       enabled?: boolean;
@@ -2801,7 +2802,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.4",
+      version: "0.4.6",
       storage: await readStorageStats(),
     });
     return true;
@@ -7232,6 +7233,7 @@ function createBlankRunningHubCatalogEntry(kind: "app" | "workflow", titleText: 
     taskCapability: kind === "app" ? "image" : "video",
     workflowJson: "",
     fields: [],
+    allowsEmptyInputs: false,
     parameterSchema: "{}",
     outputSchema: [],
     executionRules: normalizeRunningHubExecutionRulesForAdmin(undefined, kind, id),
@@ -7243,15 +7245,32 @@ function hasRunningHubFieldDefinitions(fields: unknown) {
   return normalizeRunningHubFieldDefinitions(fields).length > 0;
 }
 
+function hasRunningHubExplicitEmptyNodeInfoList(testPayload: unknown) {
+  const text = safeText(testPayload);
+  if (!text) return false;
+  try {
+    const payload = JSON.parse(text) as { nodeInfoList?: unknown };
+    return Array.isArray(payload.nodeInfoList) && payload.nodeInfoList.length <= 0;
+  } catch {
+    return false;
+  }
+}
+
+function allowsRunningHubEntryWithoutFields(testPayload: unknown) {
+  return hasRunningHubExplicitEmptyNodeInfoList(testPayload);
+}
+
 function assertRunningHubEntryCanBeEnabled(entry: {
   enabled: boolean;
   kind?: "app" | "workflow";
   title?: string;
   catalogId?: string;
   fields?: RunningHubFieldDefinition[];
+  testPayload?: string;
 }) {
   if (!entry.enabled) return;
   if (hasRunningHubFieldDefinitions(entry.fields)) return;
+  if (allowsRunningHubEntryWithoutFields(entry.testPayload)) return;
   const itemLabel = safeText(entry.title || entry.catalogId, entry.kind === "app" ? "RunningHub AI 应用" : "RunningHub 工作流");
   throw new Error(`${itemLabel} 仍缺少输入槽定义，不能启用。请至少补齐一个包含 nodeId 和 fieldName 的输入槽，或先保存为停用草稿。`);
 }
@@ -7354,6 +7373,7 @@ async function createAdminRunningHubCatalogItem(input: {
     nextEntry.appId = "";
   }
   nextEntry.parameterSchema = input.parameterSchema === undefined ? safeRunningHubObjectJsonText(nextEntry.parameterSchema, "{}") : safeRunningHubObjectJsonText(input.parameterSchema, "{}");
+  nextEntry.allowsEmptyInputs = allowsRunningHubEntryWithoutFields(input.testPayload === undefined ? nextEntry.testPayload : input.testPayload);
   nextEntry.outputSchema = input.outputSchema === undefined ? normalizeRunningHubOutputDefinitionsForAdmin(nextEntry.outputSchema) : normalizeRunningHubOutputDefinitionsForAdmin(input.outputSchema);
   nextEntry.executionRules = input.executionRules === undefined
     ? normalizeRunningHubExecutionRulesForAdmin(nextEntry.executionRules, kind, nextEntry.runTargetId)
@@ -7429,7 +7449,7 @@ async function analyzeRunningHubCatalogDraft(input: {
       || referenceTargetId,
   );
   const runTargetId = safeText(
-    input.runTargetId || requestExampleRunTargetId || referenceTargetId || detectedTarget.targetId,
+    referenceTargetId || input.runTargetId || requestExampleRunTargetId || detectedTarget.targetId,
     pageId || createRunningHubCatalogEntryId(kind),
   );
   const capabilityText = [input.docUrl, input.sourceUrl, input.notes, input.requestExample, input.responseExample]
@@ -8094,6 +8114,7 @@ function normalizeRunningHubExecutionRulesForAdmin(
 async function updateAdminRunningHubCatalogItem(
   catalogId: string,
   patch: {
+    kind?: "app" | "workflow";
     title?: string;
     note?: string;
     enabled?: boolean;
@@ -8117,68 +8138,80 @@ async function updateAdminRunningHubCatalogItem(
   if (!providerId || !itemId) throw new Error("RunningHub catalogId 无效");
   let updatedProvider: AdminProviderRecord | null = null;
   let updatedItem: RunningHubAdminCatalogEntry | null = null;
+  let updatedKind: "app" | "workflow" = kind;
   const providers = db.providers.map((provider) => {
     if (provider.id !== providerId) return provider;
-    const sourceList = kind === "app" ? normalizeRunningHubEntries(provider.rhApps, "app") : normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
-    const nextList = sourceList.map((entry) => {
-      if (entry.id !== itemId) return entry;
-      const previousTargetId = entry.runTargetId || entry.id;
-      const targetId = safeText(patch.runTargetId, entry.runTargetId || entry.id);
-      const pageId = safeText(patch.pageId, entry.pageId || entry.id);
-      const appId = kind === "app"
-        ? safeText(patch.appId, entry.appId || targetId || entry.id)
-        : safeText(patch.appId, entry.appId || "");
-      const workflowId = kind === "workflow"
-        ? safeText(patch.workflowId, entry.workflowId || targetId || entry.id)
-        : safeText(patch.workflowId, entry.workflowId || "");
-      const taskCapability = patch.taskCapability === "image" || patch.taskCapability === "audio" || patch.taskCapability === "chat"
-        ? patch.taskCapability
-        : entry.taskCapability === "image" || entry.taskCapability === "audio" || entry.taskCapability === "chat"
-          ? entry.taskCapability
-          : "video";
-      const baseExecutionRules = patch.executionRules === undefined
-        ? normalizeRunningHubExecutionRulesForAdmin(entry.executionRules, kind, previousTargetId)
-        : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, kind, previousTargetId);
-      const nextExecutionEndpoint = isRunningHubDefaultEndpoint(kind, previousTargetId, baseExecutionRules.endpoint)
-        ? runningHubDefaultEndpoint(kind, targetId)
-        : baseExecutionRules.endpoint;
-      const next: RunningHubAdminCatalogEntry = {
-        ...entry,
-        title: patch.title === undefined ? entry.title : safeText(patch.title, entry.title),
-        note: patch.note === undefined ? entry.note : safeText(patch.note),
-        enabled: patch.enabled === undefined ? entry.enabled : Boolean(patch.enabled),
-        thumbnail: patch.thumbnail === undefined ? entry.thumbnail : safeText(patch.thumbnail),
-        pageId,
-        appId,
-        workflowId,
-        workflowJson: patch.workflowJson === undefined ? preserveRunningHubJsonText(entry.workflowJson, "") : safeRunningHubJsonText(patch.workflowJson, ""),
-        fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(entry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
-        runTargetId: targetId,
-        taskCapability,
-        parameterSchema: patch.parameterSchema === undefined ? preserveRunningHubObjectJsonText(entry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
-        outputSchema: patch.outputSchema === undefined
-          ? normalizeRunningHubOutputDefinitionsForAdmin(entry.outputSchema)
-          : normalizeRunningHubOutputDefinitionsForAdmin(patch.outputSchema),
-        executionRules: {
-          ...baseExecutionRules,
-          endpoint: nextExecutionEndpoint,
-          targetType: kind,
-        },
-        testPayload: patch.testPayload === undefined ? preserveRunningHubJsonText(entry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
-      };
-      assertRunningHubTargetConsistency(kind, next);
-      assertRunningHubEntryCanBeEnabled({
-        ...next,
-        catalogId,
-      });
-      updatedItem = next;
-      return next;
+    const sourceAppList = normalizeRunningHubEntries(provider.rhApps, "app");
+    const sourceWorkflowList = normalizeRunningHubEntries(provider.rhWorkflows, "workflow");
+    const sourceList = kind === "app" ? sourceAppList : sourceWorkflowList;
+    const sourceEntry = sourceList.find((entry) => entry.id === itemId);
+    if (!sourceEntry) throw new Error("RunningHub 条目不存在");
+    const nextKind = patch.kind === "app" ? "app" : patch.kind === "workflow" ? "workflow" : kind;
+    const previousTargetId = sourceEntry.runTargetId || sourceEntry.id;
+    const targetId = safeText(patch.runTargetId, sourceEntry.runTargetId || sourceEntry.id);
+    const pageId = safeText(patch.pageId, sourceEntry.pageId || sourceEntry.id);
+    const appId = nextKind === "app"
+      ? safeText(patch.appId, sourceEntry.appId || targetId || sourceEntry.id)
+      : "";
+    const workflowId = nextKind === "workflow"
+      ? safeText(patch.workflowId, sourceEntry.workflowId || targetId || sourceEntry.id)
+      : "";
+    const taskCapability = patch.taskCapability === "image" || patch.taskCapability === "audio" || patch.taskCapability === "chat"
+      ? patch.taskCapability
+      : sourceEntry.taskCapability === "image" || sourceEntry.taskCapability === "audio" || sourceEntry.taskCapability === "chat"
+        ? sourceEntry.taskCapability
+        : "video";
+    const baseExecutionRules = patch.executionRules === undefined
+      ? normalizeRunningHubExecutionRulesForAdmin(sourceEntry.executionRules, nextKind, previousTargetId)
+      : normalizeRunningHubExecutionRulesForAdmin(patch.executionRules, nextKind, previousTargetId);
+    const shouldReplaceDefaultEndpoint = isRunningHubDefaultEndpoint(kind, previousTargetId, baseExecutionRules.endpoint)
+      || isRunningHubDefaultEndpoint(nextKind, previousTargetId, baseExecutionRules.endpoint);
+    const nextExecutionEndpoint = shouldReplaceDefaultEndpoint
+      ? runningHubDefaultEndpoint(nextKind, targetId)
+      : baseExecutionRules.endpoint;
+    const next: RunningHubAdminCatalogEntry = {
+      ...sourceEntry,
+      title: patch.title === undefined ? sourceEntry.title : safeText(patch.title, sourceEntry.title),
+      note: patch.note === undefined ? sourceEntry.note : safeText(patch.note),
+      enabled: patch.enabled === undefined ? sourceEntry.enabled : Boolean(patch.enabled),
+      thumbnail: patch.thumbnail === undefined ? sourceEntry.thumbnail : safeText(patch.thumbnail),
+      pageId,
+      appId,
+      workflowId,
+      workflowJson: patch.workflowJson === undefined ? preserveRunningHubJsonText(sourceEntry.workflowJson, "") : safeRunningHubJsonText(patch.workflowJson, ""),
+      fields: patch.fields === undefined ? normalizeRunningHubFieldDefinitions(sourceEntry.fields) : normalizeRunningHubFieldDefinitions(patch.fields),
+      allowsEmptyInputs: allowsRunningHubEntryWithoutFields(patch.testPayload === undefined ? sourceEntry.testPayload : patch.testPayload),
+      runTargetId: targetId,
+      taskCapability,
+      parameterSchema: patch.parameterSchema === undefined ? preserveRunningHubObjectJsonText(sourceEntry.parameterSchema, "{}") : safeRunningHubObjectJsonText(patch.parameterSchema, "{}"),
+      outputSchema: patch.outputSchema === undefined
+        ? normalizeRunningHubOutputDefinitionsForAdmin(sourceEntry.outputSchema)
+        : normalizeRunningHubOutputDefinitionsForAdmin(patch.outputSchema),
+      executionRules: {
+        ...baseExecutionRules,
+        endpoint: nextExecutionEndpoint,
+        targetType: nextKind,
+      },
+      testPayload: patch.testPayload === undefined ? preserveRunningHubJsonText(sourceEntry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
+    };
+    assertRunningHubTargetConsistency(nextKind, next);
+    assertRunningHubEntryCanBeEnabled({
+      ...next,
+      catalogId: `${providerId}:${nextKind}:${itemId}`,
     });
+    const nextApps = nextKind === "app"
+      ? [...sourceAppList.filter((entry) => entry.id !== itemId), next]
+      : sourceAppList.filter((entry) => entry.id !== itemId);
+    const nextWorkflows = nextKind === "workflow"
+      ? [...sourceWorkflowList.filter((entry) => entry.id !== itemId), next]
+      : sourceWorkflowList.filter((entry) => entry.id !== itemId);
+    updatedItem = next;
+    updatedKind = nextKind;
     if (!updatedItem) throw new Error("RunningHub 条目不存在");
     updatedProvider = {
       ...provider,
-      rhApps: kind === "app" ? nextList : provider.rhApps,
-      rhWorkflows: kind === "workflow" ? nextList : provider.rhWorkflows,
+      rhApps: nextApps,
+      rhWorkflows: nextWorkflows,
       updatedAt: Date.now(),
     };
     return updatedProvider;
@@ -8189,7 +8222,7 @@ async function updateAdminRunningHubCatalogItem(
   } else {
     await writeAdminDb({ ...db, providers });
   }
-  return toAdminRunningHubCatalogItem(updatedProvider, normalizeRunningHubCatalogItem(updatedItem, kind) || updatedItem);
+  return toAdminRunningHubCatalogItem(updatedProvider, normalizeRunningHubCatalogItem(updatedItem, updatedKind) || updatedItem);
 }
 
 async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValue: unknown) {

@@ -155,6 +155,7 @@ export interface RunningHubAdminItemCreatePayload extends RunningHubAdminEditorM
 }
 
 export interface RunningHubAdminItemUpdatePayload extends RunningHubAdminEditorMetadata {
+  kind?: "app" | "workflow";
   title?: string;
   note?: string;
   enabled?: boolean;

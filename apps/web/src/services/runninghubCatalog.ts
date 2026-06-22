@@ -18,6 +18,7 @@ export interface RunningHubCatalogWorkflowField {
 export interface RunningHubCatalogItem extends RhCatalogItem {
   fields: RunningHubCatalogWorkflowField[];
   parameterSchema?: string;
+  allowsEmptyInputs?: boolean;
 }
 
 export interface LegacyRunningHubCatalogWorkflow {
@@ -173,6 +174,7 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
         ? row.taskCapability
         : "video",
     workflowJson: typeof row.workflowJson === "string" ? row.workflowJson : "",
+    allowsEmptyInputs: row.allowsEmptyInputs === true,
     parameterSchema: typeof row.parameterSchema === "string" ? row.parameterSchema : "{}",
     outputSchema: Array.isArray(row.outputSchema) ? row.outputSchema as RunningHubCatalogItem["outputSchema"] : [],
     fields: (() => {
@@ -271,6 +273,7 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
     providerId: item.providerId,
     providerName: item.providerName,
     outputSchema: Array.isArray(item.outputSchema) ? item.outputSchema : [],
+    allowsEmptyInputs: item.allowsEmptyInputs === true,
     workflowJson: parseWorkflowJson(item.workflowJson),
     nodeInfoList: fields.map((field) => ({
       nodeId: field.nodeId,
