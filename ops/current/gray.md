@@ -8,6 +8,7 @@
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
+  - `../runninghub-grsai-worker-key-pool-gray-release-2026-06-23.md`
   - `../runninghub-poll-resume-gray-release-2026-06-23.md`
   - `../runninghub-default-key-migrate-gray-release-2026-06-23.md`
   - `../runninghub-key-pool-progress-gray-release-2026-06-23.md`
