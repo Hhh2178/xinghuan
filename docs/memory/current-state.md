@@ -2,9 +2,9 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.4.10`
-- 当前灰度 release：`20260623-runninghub-key-pool-progress-gray-r1-v0410`
-- 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+- 当前活跃版本：`v0.4.13`
+- 当前灰度 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+- 当前生产 release：`20260623-runninghub-poll-resume-prod-r1-v0412`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
 - 当前多用户正式化治理口径：
@@ -15,6 +15,7 @@
 - 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
 - 灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
 - 生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
+- 当前 production 数据库目标：`xinghuan_canvas_next`
 
 ## 当前高频系统关注点
 

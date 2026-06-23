@@ -1,5 +1,53 @@
 # v0.1.0 Changelog
 
+## 2026-06-23
+
+- RunningHub GRSAI worker 收口与动态 Key 池已完成 gray `v0.4.13` 发布：
+  - gray release：
+    - `20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+  - 关键实现：
+    - `apps/worker/src/worker-grsai-image-client.ts`
+      - 从 worker 主文件中抽出 GRSAI 图像 client
+      - 保留 `502/503/504/fetch failed` 短退避重试
+      - 非 JSON 网关页继续保留 `status/bodySnippet`
+    - `apps/api/src/server.ts`
+      - RunningHub 入队改为只写 `preferredRhKeyId`
+    - `apps/worker/src/worker.ts`
+      - 新增 `selectExecutableRunningHubKey`
+      - worker 执行前按“preferred -> default -> other enabled”实时选 Key
+      - 实际使用 Key 再回写 `assignedRhKeyId`
+    - 新增 / 更新验证脚本：
+      - `scripts/verify-worker-grsai-image-adapter.ts`
+      - `scripts/verify-worker-grsai-contract.mjs`
+      - `scripts/verify-runninghub-dynamic-key-selection-contract.mjs`
+      - `scripts/verify-release-version-alignment.mjs`
+  - gray 运行态验证：
+    - `http://127.0.0.1:18200/api/status => version = 0.4.13, environment = gray`
+    - `https://canvas-next.hhh2121.xyz/api/status => version = 0.4.13, environment = gray`
+  - 当前补记：
+    - gray 已切到 `20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+    - production 暂仍停留在 `v0.4.12`
+
+- RunningHub 节点恢复轮询已完成 production `v0.4.12` 发布：
+  - production release：
+    - `20260623-runninghub-poll-resume-prod-r1-v0412`
+  - 生产运行态验证：
+    - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260623-runninghub-poll-resume-prod-r1-v0412`
+    - `xinghuan-canvas.service = active`
+    - `xinghuan-canvas-worker.service = active`
+    - `http://127.0.0.1:18100/api/status => version = 0.4.12, environment = production`
+    - `https://canvas.hhh2121.xyz/api/status => version = 0.4.12, environment = production`
+    - `node scripts/capture-release-preflight.mjs` 生产快照已确认：
+      - `database.name = xinghuan_canvas_next`
+      - `users = 8`
+      - `canvases = 8`
+      - `assets = 129`
+      - `tasks = 410`
+      - `sessions = 26`
+  - 当前补记：
+    - production `canvas.env` 仍指向 `xinghuan_canvas_next`
+    - 这说明正式环境当前仍复用历史共享库口径，尚未切换到独立命名的正式数据库
+
 ## 2026-06-22
 
 - RunningHub App / Workflow 运行态归一化与 AI App v2 协议已完成 gray `v0.4.4` 发布：

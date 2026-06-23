@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.4.10`
-- 当前 release：`20260623-runninghub-key-pool-progress-gray-r1-v0410`
+- 当前版本：`v0.4.13`
+- 当前 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
+  - `../runninghub-poll-resume-gray-release-2026-06-23.md`
+  - `../runninghub-default-key-migrate-gray-release-2026-06-23.md`
   - `../runninghub-key-pool-progress-gray-release-2026-06-23.md`
   - `../runninghub-draft-output-reset-gray-release-2026-06-23.md`
 

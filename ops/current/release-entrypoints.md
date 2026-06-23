@@ -9,6 +9,10 @@
 
 ## 近期仍常回看的 release 记录
 
+- `../runninghub-grsai-worker-key-pool-gray-release-2026-06-23.md`
+- `../../docs/logbooks/releases/production/2026-06-23-runninghub-poll-resume-production.md`
+- `../runninghub-poll-resume-gray-release-2026-06-23.md`
+- `../runninghub-default-key-migrate-gray-release-2026-06-23.md`
 - `../runninghub-key-pool-progress-gray-release-2026-06-23.md`
 - `../runninghub-draft-output-reset-gray-release-2026-06-23.md`
 - `../documentation-governance-standard-gray-release-2026-06-23.md`

@@ -3,11 +3,11 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.4.10`
-  - release：`20260623-runninghub-key-pool-progress-gray-r1-v0410`
+  - 版本：`v0.4.13`
+  - release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
 - production：
-  - 版本：`v0.4.0`
-  - release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
+  - 版本：`v0.4.12`
+  - release：`20260623-runninghub-poll-resume-prod-r1-v0412`
 
 ## 当前高频入口
 
