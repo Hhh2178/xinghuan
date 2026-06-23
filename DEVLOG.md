@@ -11,6 +11,17 @@
 
 本文件在 Phase 1 继续作为兼容台账入口，同时保留模板与最近记录索引。
 
+## 最近高频入口
+
+- 当前月份高频事项：`docs/logbooks/daily/2026/2026-06/recent-highlights.md`
+- 当前发布索引：`docs/logbooks/releases/current-release-index.md`
+- 当前验证索引：`docs/logbooks/validations/`
+
+## 历史索引说明
+
+- 本文件后部仍保留历史兼容正文。
+- 后续新的逐日推进优先写入 `docs/logbooks/daily/`。
+
 ## 2026-06-22
 
 ### RH 空入参工作流 gray 热修与版本推进到 v0.4.7

@@ -16,7 +16,9 @@
 - 从本轮开始，新的逐日台账应优先进入 `daily/`
 - 当前已建立：
   - `daily/2026/`
+  - `daily/2026/2026-06/recent-highlights.md`
   - `releases/README.md`
+  - `releases/current-release-index.md`
   - RunningHub gray / production 索引样例
   - 本轮治理验证记录
 

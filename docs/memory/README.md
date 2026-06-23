@@ -30,6 +30,7 @@
 
 1. `current-state.md`
 2. `deployment-state.md`
-3. `architecture-decisions.md`
-4. `runninghub-memory.md`
-5. `provider-memory.md`
+3. `recent-release-index.md`
+4. `architecture-decisions.md`
+5. `runninghub-memory.md`
+6. `provider-memory.md`

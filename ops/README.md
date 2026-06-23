@@ -15,6 +15,15 @@
 
 本目录仍保留“当前运行态 / 当前放行入口”的职责，但后续新的发布与验证记录应优先同步进入 `docs/logbooks/releases/` 与 `docs/logbooks/validations/`。
 
+## 当前 release 第一跳
+
+- `../docs/logbooks/releases/current-release-index.md`
+
+## 历史索引说明
+
+- 本文件后部仍保留旧运行态材料与历史兼容入口。
+- 当前值守优先先看新的 current release 索引，再回到旧 `ops/*.md`。
+
 ## 当前状态
 
 - 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。

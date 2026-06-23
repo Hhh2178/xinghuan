@@ -15,8 +15,9 @@
 2. `docs/INDEX.md`
 3. `docs/systems/README.md`
 4. `docs/memory/current-state.md`
-5. `MEMORY.md`
-6. `ops/README.md`
+5. `docs/memory/recent-release-index.md`
+6. `MEMORY.md`
+7. `ops/README.md`
 
 ## 项目摘要
 
@@ -55,10 +56,11 @@
 
 1. `docs/memory/current-state.md`
 2. `docs/memory/deployment-state.md`
-3. `docs/INDEX.md`
-4. `docs/systems/README.md`
-5. `ops/README.md`
-6. `DEVLOG.md` 顶部最近几天记录
+3. `docs/memory/recent-release-index.md`
+4. `docs/INDEX.md`
+5. `docs/systems/README.md`
+6. `ops/README.md`
+7. `docs/logbooks/daily/2026/2026-06/recent-highlights.md`
 
 使用边界：
 
@@ -75,6 +77,20 @@
 - 按天展开的详细推进与验证证据，优先看 `DEVLOG.md`。
 - 具体部署材料与历史验收记录，优先看 `ops/`。
 - 临时方案与开发草稿，优先看 `development/`。
+
+## 最近入口
+
+- 当前状态：`docs/memory/current-state.md`
+- 部署状态：`docs/memory/deployment-state.md`
+- 最近运行态索引：`docs/memory/recent-release-index.md`
+- 当前发布索引：`docs/logbooks/releases/current-release-index.md`
+- 最近日常高频事项：`docs/logbooks/daily/2026/2026-06/recent-highlights.md`
+
+## 历史索引说明
+
+- 本文件后半仍保留历史兼容正文与长期阶段性记录。
+- 后续新的长期主题优先进入 `docs/memory/`。
+- 新的发布与验证证据优先进入 `docs/logbooks/`。
 
 ## 当前结构记忆
 
