@@ -140,11 +140,22 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const error = deps.safeText(result.error || result.failureReason || result.failReason)
       || (task.status === "failed" ? lastTaskFailureLog(task.logs) : "");
     const cancellationMessage = deps.safeText(result.cancellationMessage);
+    const runtimeDiagnostic = {
+      failureCategory: deps.safeText(result.failureCategory),
+      providerDiagnostic: deps.safeText(result.providerDiagnostic),
+      upstreamHttpStatus: toOptionalNumber(result.upstreamHttpStatus),
+      upstreamResponseSnippet: deps.safeText(result.upstreamResponseSnippet),
+      submitDiagnostic: deps.safeText(result.submitDiagnostic),
+      pollDiagnostic: deps.safeText(result.pollDiagnostic),
+      cancelState: deps.safeText(result.cancelState),
+    };
     const response = {
       taskId: task.id,
       status: task.status,
       progress: progressText(task.status),
       error,
+      failureReason: deps.safeText(result.failureReason),
+      ...runtimeDiagnostic,
       message: task.status === "cancelled" ? cancellationMessage : "",
       logs: task.logs.slice(-8),
       cancelScope: deps.safeText(result.cancelScope),
@@ -517,6 +528,11 @@ function lastTaskFailureLog(logs: string[]) {
 function normalizeGenerationCapability(value: unknown): GenerationCapability | "" {
   const capability = String(value || "").trim().toLowerCase();
   return ["image", "video", "audio"].includes(capability) ? (capability as GenerationCapability) : "";
+}
+
+function toOptionalNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
 }
 
 function readAudioSampleDataUrl(...values: unknown[]) {

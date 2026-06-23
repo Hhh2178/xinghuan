@@ -520,6 +520,35 @@ interface AdminTaskListPage {
   };
 }
 
+function toOptionalNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function withUnifiedRuntimeDiagnostic(task: AdminTaskRecord): AdminTaskRecord & {
+  failureReason?: string;
+  failureCategory?: string;
+  providerDiagnostic?: string;
+  upstreamHttpStatus?: number;
+  upstreamResponseSnippet?: string;
+  submitDiagnostic?: string;
+  pollDiagnostic?: string;
+  cancelState?: string;
+} {
+  const result = plainObject(task.result);
+  return {
+    ...task,
+    failureReason: safeText(result.failureReason) || undefined,
+    failureCategory: safeText(result.failureCategory) || undefined,
+    providerDiagnostic: safeText(result.providerDiagnostic) || undefined,
+    upstreamHttpStatus: toOptionalNumber(result.upstreamHttpStatus),
+    upstreamResponseSnippet: safeText(result.upstreamResponseSnippet) || undefined,
+    submitDiagnostic: safeText(result.submitDiagnostic) || undefined,
+    pollDiagnostic: safeText(result.pollDiagnostic) || undefined,
+    cancelState: safeText(result.cancelState) || undefined,
+  };
+}
+
 interface AdminDb {
   providers: AdminProviderRecord[];
   models: AdminModelRecord[];
@@ -2817,7 +2846,7 @@ async function handleAdminRequest(
         modelId: task.modelId,
         status: task.status,
       });
-      sendT8(response, (await readTaskRecord(task.id)) || queuedTask);
+      sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(task.id)) || queuedTask));
       return true;
     }
   }
@@ -2842,7 +2871,10 @@ async function handleAdminRequest(
     const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
     await appendTaskLog(retriedTask.id, queueLog);
     await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`, requestContext);
-    sendT8(response, (await readTaskRecord(retriedTask.id)) || { ...retriedTask, logs: [...retriedTask.logs, queueLog], updatedAt: Date.now() });
+    sendT8(
+      response,
+      withUnifiedRuntimeDiagnostic((await readTaskRecord(retriedTask.id)) || { ...retriedTask, logs: [...retriedTask.logs, queueLog], updatedAt: Date.now() }),
+    );
     return true;
   }
 
@@ -2856,7 +2888,7 @@ async function handleAdminRequest(
       updated = cancelled?.task ?? null;
       if (!updated) throw new Error("任务不存在");
       await appendAudit(adminUser, "task.cancel", "task", id, `取消任务 ${updated.title}`, requestContext);
-      sendT8(response, updated);
+      sendT8(response, withUnifiedRuntimeDiagnostic(updated));
       return true;
     }
     if (body.status !== undefined) {
@@ -2875,7 +2907,7 @@ async function handleAdminRequest(
     await writeTaskRecord(updated);
     if (!updated) throw new Error("任务不存在");
     await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`, requestContext);
-    sendT8(response, (await readTaskRecord(id)) || updated);
+    sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(id)) || updated));
     return true;
   }
 
@@ -6167,7 +6199,7 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
        limit $${pageParams.length - 1} offset $${pageParams.length}`,
       pageParams,
     );
-    const items = itemsResult.rows.map((row) => toAdminTaskRecord(row));
+    const items = itemsResult.rows.map((row) => withUnifiedRuntimeDiagnostic(toAdminTaskRecord(row)));
     return {
       items,
       total,
@@ -6198,7 +6230,7 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
       return true;
     })
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-    .map((task) => enrichAdminTaskRecord(task, usersById, groupsById));
+    .map((task) => withUnifiedRuntimeDiagnostic(enrichAdminTaskRecord(task, usersById, groupsById)));
   const total = filtered.length;
   const offset = (query.page - 1) * query.pageSize;
   const items = filtered.slice(offset, offset + query.pageSize);
