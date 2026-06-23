@@ -67,9 +67,25 @@
 
 默认会执行：
 
+- `node scripts/verify-no-runtime-artifacts-staged.mjs`
 - `node scripts/verify-file-hotspot-budgets.mjs`
 - `node scripts/verify-hotspot-watchlist-contract.mjs`
 - `node scripts/verify-hotspot-doc-sync-staged.mjs`
+
+其中 `verify-no-runtime-artifacts-staged` 会直接阻断 staged 以下运行产物或构建缓存路径：
+
+- `output/`
+- `logs/`
+- `runtime/`
+- `tmp/` / `.tmp/`
+- `dist-release/`
+- 根级 `releases/`
+- `.codegraph/`
+- `.playwright-cli/`
+- `apps/api/data/`
+- 任意 `dist/`、`build/`、`node_modules/` 目录段
+
+这样可以避免把本机构建结果、排查日志、运行缓存、临时导出素材直接混进提交。
 
 其中 `verify-hotspot-doc-sync-staged` 的规则是：
 
@@ -115,6 +131,7 @@
 - `npm run verify:file-hotspot-budgets`
 - `npm run verify:hotspot-watchlist-contract`
 - `npm run verify:hotspot-doc-sync-staged`
+- `npm run verify:no-runtime-artifacts-staged`
 - `npm run verify:release-worktree-clean`
 - `npm run verify:engineering-governance-contract`
 - `npm run release:gray:prepare`

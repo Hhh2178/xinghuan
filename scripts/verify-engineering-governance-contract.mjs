@@ -17,6 +17,7 @@ const recordsReadme = await readFile(new URL("../docs/records/README.md", import
 assert.match(packageJson, /"verify:file-hotspot-budgets": "node scripts\/verify-file-hotspot-budgets\.mjs"/);
 assert.match(packageJson, /"verify:hotspot-watchlist-contract": "node scripts\/verify-hotspot-watchlist-contract\.mjs"/);
 assert.match(packageJson, /"verify:hotspot-doc-sync-staged": "node scripts\/verify-hotspot-doc-sync-staged\.mjs"/);
+assert.match(packageJson, /"verify:no-runtime-artifacts-staged": "node scripts\/verify-no-runtime-artifacts-staged\.mjs"/);
 assert.match(packageJson, /"verify:release-worktree-clean": "node scripts\/verify-release-worktree-clean\.mjs"/);
 assert.match(packageJson, /"verify:engineering-governance-contract": "node scripts\/verify-engineering-governance-contract\.mjs"/);
 assert.match(grayPresets, /verify:file-hotspot-budgets/);
@@ -27,6 +28,7 @@ assert.match(preCommitHook, /node scripts\/pre-commit-governance\.mjs/);
 assert.match(agents, /verify:file-hotspot-budgets/);
 assert.match(agents, /verify:hotspot-watchlist-contract/);
 assert.match(agents, /verify:hotspot-doc-sync-staged/);
+assert.match(agents, /verify:no-runtime-artifacts-staged/);
 assert.match(agents, /pre-commit/i);
 assert.match(agents, /1200\+/);
 assert.match(agents, /verify:release-worktree-clean/);
@@ -35,6 +37,7 @@ assert.match(governanceStandard, /工程文件治理规则/);
 assert.match(governanceStandard, /verify:file-hotspot-budgets/);
 assert.match(governanceStandard, /verify:hotspot-watchlist-contract/);
 assert.match(governanceStandard, /verify:hotspot-doc-sync-staged/);
+assert.match(governanceStandard, /verify:no-runtime-artifacts-staged/);
 assert.match(governanceStandard, /pre-commit/i);
 assert.match(governanceStandard, /1200\+/);
 assert.match(governanceStandard, /verify:release-worktree-clean/);
@@ -45,6 +48,7 @@ assert.match(engineeringGuardrails, /apps\/api\/src\/server\.ts/);
 assert.match(engineeringGuardrails, /apps\/worker\/src\/worker\.ts/);
 assert.match(engineeringGuardrails, /verify:hotspot-watchlist-contract/);
 assert.match(engineeringGuardrails, /verify:hotspot-doc-sync-staged/);
+assert.match(engineeringGuardrails, /verify:no-runtime-artifacts-staged/);
 assert.match(engineeringGuardrails, /pre-commit/i);
 assert.match(engineeringGuardrails, /1200\+/);
 assert.match(gitignore, /^releases\/$/m);
@@ -64,6 +68,7 @@ console.log(JSON.stringify({
     "scripts/release/deploy-gray-release.mjs",
     "scripts/verify-hotspot-watchlist-contract.mjs",
     "scripts/verify-hotspot-doc-sync-staged.mjs",
+    "scripts/verify-no-runtime-artifacts-staged.mjs",
     "scripts/pre-commit-governance.mjs",
     "AGENTS.md",
     "docs/governance/README.md",

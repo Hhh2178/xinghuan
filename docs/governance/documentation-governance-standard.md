@@ -116,7 +116,9 @@
   - 没有入册、没有下一步拆分方向的 `1200+` 文件，不允许默默留在仓库里继续增长
 - 当前还新增了一层提交前快检：
   - `.githooks/pre-commit`
+  - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:hotspot-doc-sync-staged`
+- 运行产物、本机构建结果、缓存目录不得 staged 进仓库；若需要长期保留结论，必须转写到 `docs/` 或 `ops/`
 - 只要 staged 改动触碰了硬预算热点或 `1200+` watchlist 文件，同一次提交里就必须同步 staged 对应台账 / 计划 / 发布记录之一，不能只改过载文件不留任何结构说明
 
 ### 2. 模块落点优先级

@@ -3,6 +3,10 @@ import { spawnSync } from "node:child_process";
 const rootDir = fileUrlPath(new URL("../", import.meta.url));
 const steps = [
   {
+    label: "verify-no-runtime-artifacts-staged",
+    args: ["scripts/verify-no-runtime-artifacts-staged.mjs"],
+  },
+  {
     label: "verify-file-hotspot-budgets",
     args: ["scripts/verify-file-hotspot-budgets.mjs"],
   },

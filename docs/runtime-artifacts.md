@@ -43,6 +43,9 @@
 - 这些目录中的文件可以作为本机排查证据保留，但不应在方案文档里被描述成“长期主结构”。
 - 若其中内容需要长期保留，优先把结论沉淀到 `docs/`、`ops/`、`DEVLOG.md` 或 `MEMORY.md`，不要把原始运行产物直接当知识库。
 - 若确认某个运行产物单文件已无价值，可以后续按单个明确路径进行清理；禁止批量删除。
+- 当前 `pre-commit` 已新增运行产物拦截：
+  - `npm run verify:no-runtime-artifacts-staged`
+  - 会阻断把 `output/`、`logs/`、`dist-release/`、`releases/`、`.codegraph/`、构建 `dist/` / `build/` 等路径直接 staged 进仓库
 
 ## 当前整理策略
 

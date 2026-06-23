@@ -57,6 +57,7 @@
     "verify:file-hotspot-budgets": "node scripts/verify-file-hotspot-budgets.mjs",
     "verify:hotspot-watchlist-contract": "node scripts/verify-hotspot-watchlist-contract.mjs",
     "verify:hotspot-doc-sync-staged": "node scripts/verify-hotspot-doc-sync-staged.mjs",
+    "verify:no-runtime-artifacts-staged": "node scripts/verify-no-runtime-artifacts-staged.mjs",
     "verify:release-worktree-clean": "node scripts/verify-release-worktree-clean.mjs",
     "verify:engineering-governance-contract": "node scripts/verify-engineering-governance-contract.mjs",
     "verify:release-preflight-contract": "node scripts/verify-release-preflight-contract.mjs",
