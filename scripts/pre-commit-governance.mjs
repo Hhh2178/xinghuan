@@ -26,6 +26,10 @@ const steps = [
     label: "verify-release-logbook-sync-staged",
     args: ["scripts/verify-release-logbook-sync-staged.mjs"],
   },
+  {
+    label: "verify-current-release-entry-consistency",
+    args: ["scripts/verify-current-release-entry-consistency.mjs"],
+  },
 ];
 
 for (const step of steps) {

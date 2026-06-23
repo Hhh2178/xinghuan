@@ -131,6 +131,16 @@
   - `ops/current/gray.md` 或 `ops/current/production.md`
 - 这样可以阻断“发布记录写了，但当前值守入口仍停在旧 release”的状态漂移。
 
+其中 `verify-current-release-entry-consistency` 的规则是：
+
+- 当前 release 入口文件之间必须保持一致：
+  - `docs/logbooks/releases/current-release-index.md`
+  - `ops/README.md`
+  - `ops/current/gray.md`
+  - `ops/current/production.md`
+- 当前会比对 gray / production 的 release 标识是否一致。
+- 这样即使没有新增发布记录，只要有人把某一个入口改歪了，也会被治理链直接拦下。
+
 ## 发布前工作树清洁
 
 真实 gray / production 发布前，工作树必须是干净的。
@@ -162,6 +172,7 @@
 - `npm run verify:hotspot-watchlist-contract`
 - `npm run verify:hotspot-doc-sync-staged`
 - `npm run verify:release-logbook-sync-staged`
+- `npm run verify:current-release-entry-consistency`
 - `npm run verify:no-runtime-artifacts-staged`
 - `npm run verify:staged-source-size-guard`
 - `npm run verify:release-worktree-clean`

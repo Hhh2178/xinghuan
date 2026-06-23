@@ -29,6 +29,7 @@
 - 当前发布状态先看 `releases/current-release-index.md`
 - 旧兼容入口只在需要追溯老路径时回看 `DEVLOG.md` 和 `ops/README.md`
 - 若新增真实 gray / production 发布记录，同一次提交还应同步 `ops/README.md` 与 `ops/current/*.md`
+- 即使没有新 release 记录，`releases/current-release-index.md` 与 `ops/current/*.md` 也应保持一致
 
 ## 新增记录命名
 

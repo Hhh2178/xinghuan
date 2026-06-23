@@ -65,6 +65,7 @@
     "verify:staged-source-size-guard": "node scripts/verify-staged-source-size-guard.mjs",
     "verify:release-worktree-clean": "node scripts/verify-release-worktree-clean.mjs",
     "verify:engineering-governance-contract": "node scripts/verify-engineering-governance-contract.mjs",
+    "verify:current-release-entry-consistency": "node scripts/verify-current-release-entry-consistency.mjs",
     "verify:release-logbook-sync-contract": "node scripts/verify-release-logbook-sync-contract.mjs",
     "verify:release-preflight-contract": "node scripts/verify-release-preflight-contract.mjs",
     "verify:release-gate-docs-contract": "node scripts/verify-release-gate-docs-contract.mjs",

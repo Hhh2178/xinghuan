@@ -156,6 +156,12 @@
   - `ops/README.md`
   - 对应的 `ops/current/gray.md` 或 `ops/current/production.md`
   - 当前脚本：`npm run verify:release-logbook-sync-staged`
+- 即使没有新增发布记录，当前 release 入口也必须保持自洽：
+  - `docs/logbooks/releases/current-release-index.md`
+  - `ops/README.md`
+  - `ops/current/gray.md`
+  - `ops/current/production.md`
+  - 当前脚本：`npm run verify:current-release-entry-consistency`
 
 ### 4. 文档先行收口
 

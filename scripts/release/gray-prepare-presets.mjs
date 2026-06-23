@@ -8,6 +8,7 @@ const PRESET_DEFINITIONS = {
       "npm run verify:file-hotspot-budgets",
       "npm run verify:hotspot-watchlist-contract",
       "npm run verify:engineering-governance-contract",
+      "npm run verify:current-release-entry-consistency",
       "npm run build:single-port",
       "node scripts/verify-release-version-alignment.mjs",
       "npm run verify:release-package-contract",

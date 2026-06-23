@@ -55,6 +55,7 @@
 - 发布记录与当前值守入口必须同步 staged 的规则也在：`engineering-guardrails.md`
 - 对应脚本：
   - `npm run verify:release-logbook-sync-staged`
+  - `npm run verify:current-release-entry-consistency`
   - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:staged-source-size-guard`
   - `npm run verify:file-hotspot-budgets`

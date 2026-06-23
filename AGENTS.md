@@ -174,6 +174,7 @@
   - `npm run verify:hotspot-watchlist-contract`
   - `npm run verify:hotspot-doc-sync-staged`
   - `npm run verify:release-logbook-sync-staged`
+  - `npm run verify:current-release-entry-consistency`
   - `pre-commit`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
@@ -190,6 +191,8 @@
   - `ops/README.md`
   - 对应的 `ops/current/gray.md` 或 `ops/current/production.md`
   - 这条同步义务现在应通过提交前脚本执行，而不是只靠人工记忆
+- 即使没有新发布记录，只要 `docs/logbooks/releases/current-release-index.md`、`ops/README.md`、`ops/current/gray.md`、`ops/current/production.md` 之间出现当前 release 漂移，也应被治理脚本直接判为不一致：
+  - `npm run verify:current-release-entry-consistency`
 
 ## 超级文件后续规则
 
