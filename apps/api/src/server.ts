@@ -119,6 +119,7 @@ import {
   type RunningHubAdminItem as AdminRunningHubCatalogItem,
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
+import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -918,7 +919,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.15",
+      version: "0.4.16",
       environment,
       dataDir,
     });
@@ -2041,100 +2042,23 @@ async function handleAdminRequest(
     return true;
   }
 
-  if (url.pathname === "/api/admin/runninghub/items" && request.method === "GET") {
-    const items = await adminRunningHubCatalogItems();
-    await appendAudit(adminUser, "runninghub.catalog.read", "runninghub", "catalog-items", "查看 RunningHub 条目目录", requestContext);
-    sendT8(response, { items });
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/runninghub/items" && request.method === "POST") {
-    const body = await readJsonBody<{
-      providerId?: string;
-      kind?: "app" | "workflow";
-      title?: string;
-      note?: string;
-      sourceCatalogId?: string;
-      enabled?: boolean;
-      thumbnail?: string;
-      workflowJson?: string;
-      fields?: RunningHubFieldDefinition[];
-      pageId?: string;
-      appId?: string;
-      workflowId?: string;
-      runTargetId?: string;
-      taskCapability?: "image" | "video" | "audio" | "chat";
-      parameterSchema?: string;
-      outputSchema?: RunningHubOutputDefinition[];
-      executionRules?: RunningHubExecutionRules;
-      testPayload?: string;
-    }>(request);
-    const created = await createAdminRunningHubCatalogItem(body);
-    await appendAudit(adminUser, "runninghub.item.create", "runninghub", created.catalogId, `新建 RunningHub 条目 ${created.title}`, requestContext);
-    sendT8(response, created, 201);
-    return true;
-  }
-
-  const runningHubItemMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)$/);
-  if (runningHubItemMatch && request.method === "PATCH") {
-    const catalogId = decodeURIComponent(runningHubItemMatch[1]);
-    const body = await readJsonBody<{
-      kind?: "app" | "workflow";
-      title?: string;
-      note?: string;
-      enabled?: boolean;
-      thumbnail?: string;
-      workflowJson?: string;
-      fields?: RunningHubFieldDefinition[];
-      pageId?: string;
-      appId?: string;
-      workflowId?: string;
-      runTargetId?: string;
-      taskCapability?: "image" | "video" | "audio" | "chat";
-      parameterSchema?: string;
-      outputSchema?: RunningHubOutputDefinition[];
-      executionRules?: RunningHubExecutionRules;
-      testPayload?: string;
-    }>(request);
-    const updated = await updateAdminRunningHubCatalogItem(catalogId, body);
-    await appendAudit(adminUser, "runninghub.item.update", "runninghub", catalogId, `更新 RunningHub 条目 ${updated.title}`, requestContext);
-    sendT8(response, updated);
-    return true;
-  }
-
-  if (runningHubItemMatch && request.method === "DELETE") {
-    const catalogId = decodeURIComponent(runningHubItemMatch[1]);
-    const deleted = await deleteAdminRunningHubCatalogItem(catalogId);
-    await appendAudit(adminUser, "runninghub.item.delete", "runninghub", catalogId, `删除 RunningHub 条目 ${deleted.title}`, requestContext);
-    sendT8(response, { deleted: true, catalogId });
-    return true;
-  }
-
-  const runningHubItemTestMatch = url.pathname.match(/^\/api\/admin\/runninghub\/items\/([^/]+)\/test$/);
-  if (runningHubItemTestMatch && request.method === "POST") {
-    const catalogId = decodeURIComponent(runningHubItemTestMatch[1]);
-    const body = await readJsonBody<{ testPayload?: string }>(request);
-    const result = await testAdminRunningHubCatalogItem(catalogId, body.testPayload);
-    await appendAudit(adminUser, "runninghub.item.test", "runninghub", catalogId, `测试 RunningHub 条目 ${catalogId}: ${result.ok ? "ok" : "error"}`, requestContext);
-    sendT8(response, result);
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/runninghub/analyze" && request.method === "POST") {
-    const body = await readJsonBody<{
-      providerId?: string;
-      kind?: "app" | "workflow";
-      sourceUrl?: string;
-      pageId?: string;
-      runTargetId?: string;
-      docUrl?: string;
-      requestExample?: string;
-      responseExample?: string;
-      notes?: string;
-    }>(request);
-    const draft = await analyzeRunningHubCatalogDraft(body);
-    await appendAudit(adminUser, "runninghub.item.analyze", "runninghub", safeText(body.providerId || "runninghub"), `分析 RunningHub ${safeText(body.kind || "workflow")} 条目草案`, requestContext);
-    sendT8(response, draft);
+  if (await handleAdminRunningHubRoutes({
+    request,
+    response,
+    url,
+    adminUser,
+    requestContext,
+    deps: {
+      sendT8,
+      appendAudit,
+      adminRunningHubCatalogItems,
+      createAdminRunningHubCatalogItem,
+      updateAdminRunningHubCatalogItem,
+      deleteAdminRunningHubCatalogItem,
+      testAdminRunningHubCatalogItem,
+      analyzeRunningHubCatalogDraft,
+    },
+  })) {
     return true;
   }
 
@@ -2971,7 +2895,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-        version: "0.4.15",
+    version: "0.4.16",
       storage: await readStorageStats(),
     });
     return true;

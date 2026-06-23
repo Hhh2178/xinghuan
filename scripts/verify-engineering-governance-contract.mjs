@@ -33,7 +33,7 @@ assert.match(engineeringGuardrails, /apps\/worker\/src\/worker\.ts/);
 assert.match(gitignore, /^releases\/$/m);
 assert.match(gitignore, /^!docs\/logbooks\/releases\/$/m);
 assert.match(gitignore, /^!docs\/logbooks\/releases\/\*\*\/\*\.md$/m);
-assert.match(releaseIndex, /20260624-engineering-governance-guardrails-gray-r1-v0415/);
+assert.match(releaseIndex, /20260624-hotspot-decomposition-gray-r1-v0416/);
 assert.match(recordsReadme, /architecture\//);
 
 console.log(JSON.stringify({

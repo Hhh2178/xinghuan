@@ -50,6 +50,12 @@ import {
   readWorkerTaskResultPatch,
   toOptionalHttpStatus,
 } from "./worker-runtime-diagnostics.js";
+import {
+  acquireRunningHubExecutionWindow,
+  releaseRunningHubExecutionWindow,
+  selectExecutableRunningHubKey,
+  type RunningHubKeyPoolItem,
+} from "./worker-runninghub-dispatch.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
@@ -103,17 +109,6 @@ interface QueueLoopController {
   connected: boolean;
   redis: RedisClientType;
   finished: Promise<void> | null;
-}
-
-interface RunningHubKeyPoolItem {
-  id: string;
-  note: string;
-  apiKey?: string;
-  apiKeyPreview?: string;
-  maxConcurrency: number;
-  enabled: boolean;
-  isDefault: boolean;
-  currentInFlight?: number;
 }
 
 const queueLoopControllers = new Map<TaskQueueCapability, QueueLoopController[]>();
@@ -356,7 +351,7 @@ async function processTask(taskId: string) {
     await deferTaskExecution(task, "waiting_user_window", userWindow.reason);
     return;
   }
-  const runningHubWindow = await acquireRunningHubExecutionWindow(task, taskQueueSettings);
+  const runningHubWindow = await acquireRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
   if (!runningHubWindow.acquired) {
     await releaseUserExecutionWindow(task);
     await deferTaskExecution(task, "waiting_runninghub_window", runningHubWindow.reason);
@@ -365,13 +360,13 @@ async function processTask(taskId: string) {
 
   const claimResult = await updateTask(taskId, "running", [`${workerId} 已领取任务`]);
   if (claimResult === "cancelled") {
-    await releaseRunningHubExecutionWindow(task);
+    await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
     await releaseUserExecutionWindow(task);
     logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancel_requested before claim" });
     return;
   }
   if (claimResult === "missing") {
-    await releaseRunningHubExecutionWindow(task);
+    await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
     await releaseUserExecutionWindow(task);
     console.warn(`xinghuan-worker skipped missing task during claim ${taskId}`);
     return;
@@ -458,7 +453,7 @@ async function processTask(taskId: string) {
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {
-    await releaseRunningHubExecutionWindow(task);
+      await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
     await releaseUserExecutionWindow(task);
     if (shouldRequeueAfterRelease) {
       await wait(Math.max(500, taskDeferredRetryMs));
@@ -532,106 +527,6 @@ async function releaseUserExecutionWindow(task: TaskRow) {
   if (current <= 0) return;
   const next = await redisControl.decr(key).catch(() => current - 1);
   if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
-}
-
-async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
-  if (normalizeProtocol(task.providerProtocol) !== "runninghub") return { acquired: true };
-  if (!settings.runninghub.enabled) return { acquired: true };
-  const selectedRhKey = await acquireExecutableRunningHubKey(task, settings);
-  if (!selectedRhKey) {
-    return { acquired: false, reason: "RunningHub 所有 Key 并发已满 (all_keys_busy)" };
-  }
-  await touchTaskRuntime(task.id, {
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  });
-  task.result = {
-    ...task.result,
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  };
-  task.payload = {
-    ...task.payload,
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  };
-  return { acquired: true };
-}
-
-async function releaseRunningHubExecutionWindow(task: TaskRow) {
-  if (normalizeProtocol(task.providerProtocol) !== "runninghub") return;
-  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
-  const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
-  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
-  if (current <= 0) return;
-  const next = await redisControl.decr(key).catch(() => current - 1);
-  if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
-}
-
-async function selectExecutableRunningHubKey(task: TaskRow, settings: TaskQueueSettings) {
-  const ordered = resolveOrderedRunningHubKeys(task, settings);
-  for (const item of ordered) {
-    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
-    const key = runningHubRedisWindowKey(task.providerId, item.id);
-    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
-    if (current < limit) {
-      return item;
-    }
-  }
-  return null;
-}
-
-async function acquireExecutableRunningHubKey(task: TaskRow, settings: TaskQueueSettings) {
-  const ordered = resolveOrderedRunningHubKeys(task, settings);
-  for (const item of ordered) {
-    const assignedRhKeyId = item.id;
-    const assignedRhKeyNote = safeText(item.note);
-    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
-    const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
-    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
-    if (current >= limit) {
-      continue;
-    }
-    const next = await redisControl.incr(key);
-    if (next === 1) await redisControl.expire(key, 60 * 60);
-    if (next > limit) {
-      await redisControl.decr(key).catch(() => undefined);
-      continue;
-    }
-    return {
-      ...item,
-      note: assignedRhKeyNote,
-    };
-  }
-  return null;
-}
-
-function resolveOrderedRunningHubKeys(task: TaskRow, settings: TaskQueueSettings) {
-  const preferredRhKeyId = safeText(task.payload.preferredRhKeyId || task.result.preferredRhKeyId);
-  const pool = task.rhKeyPool.length > 0
-    ? task.rhKeyPool.filter((item) => item.enabled && safeText(item.apiKey))
-    : [{
-        id: "legacy-default",
-        note: "兼容单 Key",
-        apiKey: decryptSecret(task.apiKeyCipher) || task.apiKeyCipher,
-        apiKeyPreview: "",
-        maxConcurrency: Math.max(1, Number(settings.runninghub.concurrency) || 1),
-        enabled: true,
-        isDefault: true,
-        currentInFlight: 0,
-      } satisfies RunningHubKeyPoolItem];
-  if (pool.length === 0) return [];
-  return [
-    ...pool.filter((item) => item.id === preferredRhKeyId),
-    ...pool.filter((item) => item.id !== preferredRhKeyId && item.isDefault),
-    ...pool.filter((item) => item.id !== preferredRhKeyId && !item.isDefault),
-  ];
 }
 
 async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
@@ -1423,6 +1318,19 @@ function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItem[] {
     ...item,
     isDefault: firstDefaultIndex >= 0 ? index === firstDefaultIndex : false,
   }));
+}
+
+function buildRunningHubDispatchDeps(task: TaskRow, settings: TaskQueueSettings) {
+  return {
+    redis: redisControl,
+    settings,
+    task,
+    touchTaskRuntime,
+    normalizeProtocol,
+    safeText,
+    decryptSecret,
+    runningHubRedisWindowKey,
+  };
 }
 
 function findAssignedRunningHubKey(pool: RunningHubKeyPoolItem[], assignedRhKeyId: string) {

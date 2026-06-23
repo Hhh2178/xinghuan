@@ -1,31 +1,36 @@
 import { readFile } from "node:fs/promises";
 
 const worker = await readFile(new URL("../apps/worker/src/worker.ts", import.meta.url), "utf8");
+const client = await readFile(new URL("../apps/worker/src/worker-runninghub-client.ts", import.meta.url), "utf8");
 
 const checks = [
   [
     "Workflow submit body carries apiKey instead of apiKeyOnly",
-    /targetType === "app"[\s\S]*:\s*\{[\s\S]*\}\s*:\s*\{[\s\S]*apiKey:\s*apiKey[\s\S]*workflowId:\s*workflowId \|\| runTargetId[\s\S]*nodeInfoList/i.test(worker),
+    /apiKey:\s*options\.apiKey[\s\S]*workflowId:\s*workflowId \|\| runTargetId[\s\S]*nodeInfoList/i.test(client),
   ],
   [
     "Worker no longer uses apiKeyOnly in RunningHub workflow submit body",
-    !/apiKeyOnly\s*:/.test(worker),
+    !/apiKeyOnly\s*:/.test(client),
   ],
   [
     "RunningHub submit failures persist structured upstream diagnostics",
-    /rhFailureStage[\s\S]*rhSubmitUrl[\s\S]*rhSubmitRequest[\s\S]*rhSubmitResponseStatus[\s\S]*rhSubmitResponseText/i.test(worker),
+    /rhFailureStage[\s\S]*rhSubmitUrl[\s\S]*rhSubmitRequest[\s\S]*rhSubmitResponseStatus[\s\S]*rhSubmitResponseText/i.test(client),
   ],
   [
     "AI App submit uses official v2 route",
-    /targetType === "app"[\s\S]*\/openapi\/v2\/run\/ai-app\//.test(worker),
+    /targetType === "app"[\s\S]*\/openapi\/v2\/run\/ai-app\//.test(client),
   ],
   [
     "AI App query uses v2 query route",
-    /targetType === "app"[\s\S]*\/openapi\/v2\/query/.test(worker),
+    /\/openapi\/v2\/query/.test(client),
   ],
   [
     "AI App submit body no longer sends taskType ASYNC old-form payload",
-    !/taskType:\s*"ASYNC"/.test(worker),
+    !/taskType:\s*"ASYNC"/.test(client),
+  ],
+  [
+    "Worker routes RunningHub execution through dedicated client module",
+    /createRunningHubClient/.test(worker) && /worker-runninghub-client/.test(worker),
   ],
 ];
 

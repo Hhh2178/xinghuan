@@ -36,10 +36,11 @@ const checks = [
       /selectedProviderId/.test(adminWorkspace),
   ],
   [
-    "Admin workspace auto-switches tab when analyze detects another RH kind",
-    /setActiveTab\(draft\.detectedKind/.test(adminWorkspace) &&
-      /已自动切换到 AI 应用区域/.test(adminWorkspace) &&
-      /已自动切换到工作流区域/.test(adminWorkspace),
+    "Admin workspace preserves detected RH kind drift and migration hints",
+    /const analyzeTargetKind = analyzeDraft\?\.detectedKind === "app"/.test(adminWorkspace) &&
+      /setAnalyzeHint\(autoSwitchHint \|\| draft\.autoSwitchMessage \|\| draft\.summary\)/.test(adminWorkspace) &&
+      /检测到这是 AI App，应用草案时会自动迁移到 AI 应用目录/.test(adminWorkspace) &&
+      /检测到这是工作流，应用草案时会自动迁移到工作流目录/.test(adminWorkspace),
   ],
   [
     "Admin types expose detect metadata for RH analyze draft",

@@ -73,20 +73,22 @@ async function main() {
 }
 
 async function verifySourceContracts() {
-  const [serverSource, workspaceSource, editorSource, nodeSource, queueSource] = await Promise.all([
+  const [serverSource, routeSource, workspaceSource, editorSource, nodeSource, queueSource] = await Promise.all([
     readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/admin-runninghub-routes.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-runninghub-workspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-runninghub-item-editor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-readonly-panels.tsx", import.meta.url), "utf8"),
   ]);
-  assertIncludes(serverSource, "/api/admin/runninghub/items");
-  assertIncludes(serverSource, "request.method === \"POST\"");
-  assertIncludes(serverSource, "request.method === \"DELETE\"");
-  assertIncludes(serverSource, "/api/admin/runninghub/analyze");
-  assertIncludes(serverSource, "runninghub.item.create");
-  assertIncludes(serverSource, "runninghub.item.delete");
-  assertIncludes(serverSource, "runninghub.item.analyze");
+  assertIncludes(serverSource, "handleAdminRunningHubRoutes");
+  assertIncludes(routeSource, "/api/admin/runninghub/items");
+  assertIncludes(routeSource, "request.method === \"POST\"");
+  assertIncludes(routeSource, "request.method === \"DELETE\"");
+  assertIncludes(routeSource, "/api/admin/runninghub/analyze");
+  assertIncludes(routeSource, "runninghub.item.create");
+  assertIncludes(routeSource, "runninghub.item.delete");
+  assertIncludes(routeSource, "runninghub.item.analyze");
   assertIncludes(workspaceSource, "新建工作流");
   assertIncludes(workspaceSource, "新建 AI 应用");
   assertIncludes(workspaceSource, "AI 分析并填写");

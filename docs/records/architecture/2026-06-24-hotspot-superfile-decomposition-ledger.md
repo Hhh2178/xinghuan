@@ -15,16 +15,20 @@
 - 已有下沉：
   - provider generation task service
   - 部分 sanitizer / session / lifecycle helper
+  - `admin-runninghub-routes.ts`
 - 下一步优先拆分：
-  - RunningHub 相关 handler
   - system settings / queue settings 相关 handler
   - 更细的 request-response adapter
 - 目标形态：
   - `server.ts` 只保留入口装配与高层编排
 - 当前护栏：
   - `scripts/verify-file-hotspot-budgets.mjs`
+  - `scripts/verify-api-admin-runninghub-route-split-contract.mjs`
 - 当前风险：
   - 新协议接入容易继续把解析、校验、运行态拼接堆回入口文件
+- 当前进度：
+  - `2026-06-24` 已将后台 RunningHub 条目管理路由分发层下沉到 `admin-runninghub-routes.ts`
+  - 主文件继续保留入口装配、权限分流和底层 catalog/service 业务函数
 
 ### `apps/worker/src/worker.ts`
 
@@ -35,8 +39,8 @@
 - 已有下沉：
   - `worker-grsai-image-client.ts`
   - `worker-runninghub-client.ts`
+  - `worker-runninghub-dispatch.ts`
 - 下一步优先拆分：
-  - RunningHub dispatch / key selection glue
   - cancel-sync helper
   - unified diagnostics / failure normalization helper
 - 目标形态：
@@ -44,8 +48,12 @@
 - 当前护栏：
   - `scripts/verify-file-hotspot-budgets.mjs`
   - `scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs`
+  - `scripts/verify-worker-runninghub-dispatch-split-contract.mjs`
 - 当前风险：
   - 新 provider 适配和异常口径很容易再次把协议细节堆回 worker 主文件
+- 当前进度：
+  - `2026-06-24` 已将 RunningHub key 优先级排序、实时可执行探测、redis 占位与释放逻辑下沉到 `worker-runninghub-dispatch.ts`
+  - 主文件继续保留任务领取、执行、状态回写与 deferred/requeue 编排
 
 ### `apps/web/src/components/nodes/RunningHubNode.tsx`
 

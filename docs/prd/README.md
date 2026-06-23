@@ -2,8 +2,8 @@
 
 ## 当前版本
 
-- `v0.4.15`｜🟡 Phase 3 持续收口 + RunningHub worker second-stage 第一批已进入 gray 准备发布｜2026-06-23｜当前活跃版本
-  - 摘要：无限画布 2.0 当前产品能力基线继续沿 RunningHub、后台治理、队列并发、环境同步与多用户正式化治理推进。本轮在 `v0.4.14` 的 runtime guardrails 基础上，继续完成 RunningHub worker second-stage 第一批收口，将 submit / poll / 输出提取从 `worker.ts` 下沉到独立 client，并同步把“避免继续制造超级文件”和“发布前主动收紧工作树”的工程规则固化到仓库治理中。当前目标是将这些结构边界收口与工程规则以 `v0.4.15` 推进到 gray，再交由用户执行真实业务体验验收。
+- `v0.4.16`｜🟡 Phase 3 持续收口 + 热点超级文件第二批真实拆分进入 gray｜2026-06-24｜当前活跃版本
+  - 摘要：无限画布 2.0 当前产品能力基线继续沿 RunningHub、后台治理、队列并发、环境同步与多用户正式化治理推进。本轮在 `v0.4.15` 的工程治理护栏基础上，继续对热点超级文件做第二批真实拆分：`worker.ts` 下沉 RunningHub dispatch / key 调度 glue，`server.ts` 下沉后台 RunningHub 管理路由分发层，并同步补齐 split contract、热点台账、daily 台账与 gray 发布证据。当前目标是将这些结构收口以 `v0.4.16` 推进到 gray，再交由用户执行真实业务体验验收。
   - 文档：[`prd.md`](./v0.1.0/prd.md) / [`spec.md`](./v0.1.0/spec.md) / [`design.md`](./v0.1.0/design.md) / [`entry-ui-google-brief.md`](./v0.1.0/entry-ui-google-brief.md) / [`plan.md`](./v0.1.0/plan.md) / [`provider-model-framework.md`](./v0.1.0/provider-model-framework.md) / [`assistant-hermes-plan.md`](./v0.1.0/assistant-hermes-plan.md) / [`assistant-hermes-implementation-plan.md`](./v0.1.0/assistant-hermes-implementation-plan.md) / [`progress.md`](./v0.1.0/progress.md) / [`decisions.md`](./v0.1.0/decisions.md) / [`release.md`](./v0.1.0/release.md) / [`changelog.md`](./v0.1.0/changelog.md)
 
 ## 推荐阅读顺序
