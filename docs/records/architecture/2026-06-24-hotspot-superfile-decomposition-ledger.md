@@ -76,6 +76,7 @@
   - 协议编辑、key 管理、分析面板、表单汇总
   - 部分保存/校验交互
 - 已有下沉：
+  - `apps/admin/src/admin-runninghub-workspace-helpers.tsx`
   - 部分 contract 脚本
   - 工作台的部分 section 化整理
 - 下一步优先拆分：
@@ -87,10 +88,14 @@
   - 工作台文件保留布局、数据装配与 section 组合
 - 当前护栏：
   - `scripts/verify-file-hotspot-budgets.mjs`
+  - `scripts/verify-admin-runninghub-workspace-helper-split-contract.mjs`
   - `scripts/verify-runninghub-admin-empty-input-contract.mjs`
   - `scripts/verify-runninghub-key-pool-contract.mjs`
 - 当前风险：
   - 后台功能继续扩展时，工作台会重新变回“所有 RH 能力都堆在一个页面文件里”
+- 当前进度：
+  - `2026-06-24` 已将草案 payload merge、key 池摘要/默认逻辑、分析预览与 drift summary 从主文件下沉到 `admin-runninghub-workspace-helpers.tsx`
+  - 主文件行数已降到 `647`
 
 ## 使用规则
 
