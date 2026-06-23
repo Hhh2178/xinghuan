@@ -2,340 +2,48 @@
 
 本目录用于记录服务器、域名、部署、服务、日志、回滚和验收。
 
-## 当前入口说明
+## 兼容入口说明
 
-`ops/README.md` 继续作为当前运行态与放行材料的兼容入口。
+`ops/README.md` 继续保留为运维兼容入口，但“当前运行态”和“历史材料”已经拆成更清晰的两层：
 
-从本轮文档治理重构开始，新的文档导航为：
+- 当前值守入口：`current/`
+- 历史归档入口：`archive/`
+- 当前发布索引：`../docs/logbooks/releases/current-release-index.md`
 
-- 总索引：`../docs/INDEX.md`
-- 系统知识：`../docs/systems/README.md`
-- 台账与证据目录：`../docs/logbooks/README.md`
-- 新的发布记录索引：`../docs/logbooks/releases/README.md`
+## 当前第一跳
 
-本目录仍保留“当前运行态 / 当前放行入口”的职责，但后续新的发布与验证记录应优先同步进入 `docs/logbooks/releases/` 与 `docs/logbooks/validations/`。
+1. `../docs/logbooks/releases/current-release-index.md`
+2. `current/README.md`
+3. `current/gray.md`
+4. `current/production.md`
+5. `current/release-entrypoints.md`
 
-## 当前 release 第一跳
+## 当前运行态摘要
 
-- `../docs/logbooks/releases/current-release-index.md`
+- Gray：
+  - 域名：`canvas-next.hhh2121.xyz`
+  - 端口：`127.0.0.1:18200`
+  - 版本：`v0.4.7`
+  - release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+- Production：
+  - 域名：`canvas.hhh2121.xyz`
+  - 端口：`127.0.0.1:18100`
+  - 版本：`v0.4.0`
+  - release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 
-## 历史索引说明
+## current / archive 分工
 
-- 本文件后部仍保留旧运行态材料与历史兼容入口。
-- 当前值守优先先看新的 current release 索引，再回到旧 `ops/*.md`。
+- `current/` 只保留仍直接用于当前部署、放行、回滚判断和 release 追溯的入口。
+- `archive/` 存放已经脱离当前值守职责、但仍需保留为审计证据的批次化历史材料。
+- 更细的发布证据与验收记录优先写入 `../docs/logbooks/releases/` 与 `../docs/logbooks/validations/`。
 
-## 当前状态
+## 常用入口
 
-- 灰度入口：`canvas-next.hhh2121.xyz`，服务端口 `127.0.0.1:18200`。
-- 生产入口：`canvas.hhh2121.xyz`，服务端口 `127.0.0.1:18100`。
-- 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`。
-- 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`。
-- 当前发布版本号：
-  - gray：`v0.4.7`
-  - production：`v0.4.0`
-- gray / production 可以在发布窗口内短暂指向不同 release 目录，但同一批次对外暴露的应用版本号必须保持一致。
-- `Phase E` 已完成 gray / production 放行：请求链路观测、系统观测页和放行 gate 已在两套入口完成真实验收。
-- `Phase E` 已补齐 gray / production rollback 样本，且长期观测治理第三批已完成灰度/正式发布。
-- `2026-06-16` 已对当前 gray / production release 补做观测验收脚本热补丁，修复 `Observability` / `System Observability` 假 Provider 残留问题。
-- `2026-06-16` 灰度已发布 `GRSAI` nano 路由与图像节点错误透传热修复；当前灰度实测通过 `gpt-image-2` 同步和异步图像生成，nano 模型尚未在灰度后台启用。
-- `2026-06-17` 当前 gray current 已确认指向 `20260617-environment-sync-layout-v031-gray-r1-dfd5f37`，并已补跑：
-  - `verify:release-preflight`
-  - `verify:request-chain-observability`
-  - `verify:system-observability`
-- `2026-06-18` gray 已发布多生成任务状态与超时统一修复：
-  - gray：`20260618-multi-generation-timeout-gray-r1-b8534f2`
-  - `/api/status` 当前返回 `version = 0.3.1`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-- `2026-06-18` `v0.3.2` 已完成 gray / production 发布：
-  - gray：`20260618-v032-ui-fixes-gray-r1`
-  - production：`20260618-v032-ui-fixes-prod-r1`
-  - 两端 `/api/status` 当前均返回 `version = 0.3.2`
-  - 两端 gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-- `2026-06-18` RunningHub 运行时与队列治理已完成 gray / production 发布：
-  - gray：`20260618-runninghub-runtime-queue-gray-r6-v034-d9b653c`
-  - production：`20260618-runninghub-runtime-queue-prod-r1-v034-d9b653c`
-  - 两端 `/api/status` 当前均返回 `version = 0.3.4`
-  - gate 已通过：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - gray 真实验证已确认：
-    - 普通 Provider 队列存在 `waiting_user_window`
-    - 同用户排队、跨用户独立推进成立
-    - RH 批量任务存在 `waiting_runninghub_window`
-    - RH 平台并发窗口 `2` 生效，等待任务可自动递进
-  - 本轮未包含新的数据库 migration，但在 release 目录执行 `db:migrate` 时仍暴露 `PG_DRIVER_NOT_INSTALLED`，后续带 migration 的发布前必须先修补 release 迁移依赖链
-- `2026-06-19` RunningHub 工作台 sticky / 编辑器结构 / 分析工作台 UI 收口已发布 gray：
-  - gray：`20260619-runninghub-sticky-gray-r6-v034-d9b653c`
-  - `/api/status` 当前返回 `version = 0.3.4`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 发布记录见：
-    - `runninghub-sticky-gray-release-2026-06-19.md`
-- `2026-06-19` RunningHub 节点运行目标补链与空字段自动补参已发布 gray：
-  - gray：`20260619-runninghub-node-hydrate-gray-r1-v034-d9b653c`
-  - `/api/status` 当前返回 `version = 0.3.4`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 当前额外结论：
-    - RH 节点提交流程已不再因为缺少 `workflowId/runTargetId` 失败
-    - 当前样例 workflow `runninghub-main:workflow:2004516402230509570` 仍没有参数表单来源
-    - 本地条目 `fields / inputSlots / parameterSchema / testPayload` 为空，远端 `app-info.nodeInfoList` 也为空
-  - 发布记录见：
-    - `runninghub-node-hydrate-gray-release-2026-06-19.md`
-- `2026-06-19` RunningHub 条目真实输入槽同步已完成 gray / production 发布：
-  - gray：`20260619-runninghub-slot-sync-gray-r1-v040-local`
-  - production：`20260619-runninghub-slot-sync-prod-r1-v040-local`
-  - 两端 `/api/status` 当前均返回 `version = 0.4.0`
-  - 两端 gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 当前额外结论：
-    - 后台 RH 工作台已支持从运行目标同步真实 `nodeInfoList`
-    - 同步后可直接补齐条目的 `nodeId / fieldName / fieldType / options`
-    - 保存条目后，画布 RH 节点会按后台条目自动展开可执行参数区
-    - 若上游运行目标不返回 `nodeInfoList`，当前仍需后台人工补录字段
-  - 发布记录见：
-    - `runninghub-slot-sync-release-2026-06-19.md`
-- `2026-06-22` RunningHub 协议后台与画布节点重建已完成 gray 发布与二次热修：
-  - gray：`20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
-  - `/api/status` 当前返回 `version = 0.4.1`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 当前额外结论：
-    - RH 分析面板已补齐 `请求示例 / 响应示例`
-    - `/api/admin/runninghub/analyze` 已可从 `requestExample.nodeInfoList` 生成 `prompt / negative prompt / seed` 字段草案
-    - gray 页面点击“AI 分析并填写”后已真实渲染结构化草案卡片，不再停留在空提示态
-    - `r1` 暴露的长 `requestExample` 截断问题已由 `8faaadf` 热修收口
-    - 当前 release 包仍是 runtime-only，后续若要在服务器重建或带 migration 发布，必须先补打包依赖链缺口
-  - 发布记录见：
-    - `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
-- `2026-06-22` RunningHub 容错分析与节点输出适配已完成本地收口，待 gray 发布：
-- `2026-06-22` `v0.4.2` 已完成 gray 发布并补齐普通任务运行态并发收口：
-  - gray：`20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
-  - `/api/status` 当前返回 `version = 0.4.2`
-  - gray gate 与实态复核：
-    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向 `r3`
-    - `xinghuan-canvas-next.service` / `xinghuan-canvas-next-worker.service` 均为 `active`
-    - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'` 已出现 `xinghuan:worker-runtime:canvas-next-worker-1`
-    - `/api/admin/system` 当前返回：
-      - `image/audio/video effectiveConcurrency = 100`
-      - `workerCount = 1`
-      - `slotCount = 100`
-    - 后台系统页已真实显示：
-      - `按类别并发`
-      - `实际生效并发`
-      - `Worker 数`
-      - `Worker 槽位数`
-      - `RH 平台窗口`
-  - 当前额外结论：
-    - worker Redis 阻塞消费与控制命令已经拆分，普通任务“配置已改但运行态仍排队”的核心断点已打通
-    - 首次切换到 `r3` 前出现过一次上传未真实落盘的传输异常，已通过重新上传校正，不属于代码回归
-    - worker 在 `100 x 3` 槽位下二次重启已验证可在约 `9s` 内优雅停止并重新拉起
-- `2026-06-22` RunningHub 容错分析与节点输出适配已完成本地收口，并已随 `v0.4.2` gray 一并发布：
-  - 目标版本：
-    - `v0.4.2`
-  - 预计带入：
-    - RH analyze 混合文本 JSON 容错解析
-    - `responseExample -> outputSchema / executionRules` 推断
-    - public RH catalog 透传 `outputSchema`
-    - 画布 RH 节点输出映射摘要与 `audio` 输出端口
-  - 发布记录：
-    - `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
-- `2026-06-22` RunningHub worker 路由与字段显示名适配已完成 gray 发布：
-  - gray：`20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
-  - `/api/status` 当前返回 `version = 0.4.3`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 页面级复查已确认：
-    - RH 工作台可见 `标注/显示名`
-    - 输出类型与结果路径支持预设 + 自定义覆盖
-    - 系统页显示 `版本 0.4.3`、数据库目标 `matched`
-  - 发布记录：
-    - `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
-- `2026-06-22` RunningHub App / Workflow 运行态归一化与 AI App v2 协议已完成 gray 发布：
-  - gray：`20260622-runninghub-app-v2-gray-r1-v044-36415e9`
-  - `/api/status` 当前返回 `version = 0.4.4`
-  - gray gate 已补跑：
-    - `verify:release-preflight`
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 当前额外结论：
-    - RH public catalog 与节点运行态已按 `kind` 纠正 `appId / workflowId / runTargetId` 归属
-    - RH 节点已阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
-    - RunningHub AI App worker submit/query 已切到官方 v2 协议
-    - 当前 gray release 目录：
-      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
-  - 发布记录：
-    - `runninghub-app-v2-gray-release-2026-06-22.md`
-- `2026-06-22` RH 显式无入参工作流管理端热修已完成 gray 发布：
-  - gray：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
-  - `/api/status` 当前返回 `version = 0.4.7`
-  - gray gate 已补跑：
-    - `verify:request-chain-observability`
-    - `verify:system-observability`
-  - 当前额外结论：
-    - RH 工作台对 `allowsEmptyInputs=true` 的 workflow 已改为正向提示
-    - gray 目标条目 `runninghub-main:workflow:2064255815862800385` 已确认：
-      - `pageId/workflowId/runTargetId = 2064255815862800385`
-      - `allowsEmptyInputs = true`
-      - `fields = 0`
-      - `testPayload.nodeInfoList = []`
-    - 灰度画布若仍看到旧参数区或 `默认 plus`，需要先确认节点当前选中的是否仍是历史条目 `cd3add`
-  - 发布记录：
-    - `runninghub-admin-empty-input-gray-release-2026-06-22.md`
-- `2026-06-17` 已将环境同步页固定工具栏布局与版本治理收口发布到 gray / production：
-  - gray：`20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
-  - production：`20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
-  - 两端 `/api/status` 当前均返回 `version = 0.3.1`
-- `2026-06-17` gray / production 已带上项目 atlas、文档治理收束、CodeGraph hook、生成库素材访问链路、柏拉图 multipart 视频接入和 release gate 闭环。
-- `2026-06-17` production 已切到 `20260617-environment-sync-layout-v031-prod-r1-dfd5f37`，并已完成本机与公网 gate 复验。
-- `2026-06-17` 柏拉图真实验收已通过：
-  - gray：`grok-1.5-video-6s` 成功返回本地视频落库
-  - production：`grok-1.5-video-6s` 在一次上游繁忙重试后成功返回本地视频落库
-- `2026-06-17` 已新增后台“环境同步”能力：
-  - 支持 `gray -> production` 与 `production -> gray`
-  - 支持用户 / 服务商差异预览、逐项勾选、全选、冲突裁决
-  - 当前 gray / production 均已完成真实双向联调
-  - 当前已补标准验收入口：
-    - `npm run verify:environment-sync-smoke`
-  - 依赖：
-    - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
-    - `XINGHUAN_GRAY_API_BASE_URL`
-    - `XINGHUAN_PRODUCTION_API_BASE_URL`
-- 灰度与生产是两套 Nginx 入口、端口和 release 目录，且各自维护独立 release 指针；但当前 PostgreSQL 数据库目标仍未彻底拆分。
-- 异步视频 Provider 模板规范主文档见 `../docs/prd/v0.1.0/provider-async-video-template-spec.md`。
-- 项目总纲与 AI 阅读入口见 `../docs/project-atlas/README.md`。
-- 服务器维护与健康检查总手册见 `../docs/project-atlas/server-maintenance-and-healthchecks.md`。
-- 仓库结构和当前 worktree 说明见 `../docs/repo-structure.md`。
-- Provider 生成任务标准化灰度/生产切换清单见 `provider-generation-task-rollout-checklist-2026-06-12.md`。
-- 数据库目标防呆与防空画布误清理发布记录见 `database-target-guard-release-2026-06-13.md`。
-- 多用户正式化加固验收方案见 `production-multi-user-acceptance-plan-2026-06-13.md`。
-- 多用户正式化实施主方案见 `../docs/production-multi-user-hardening-plan-2026-06-13.md`。
-- Phase A 灰度多用户隔离真实验收记录见 `phase-a-gray-multi-user-acceptance-2026-06-13.md`。
-- 发布前快照与回滚基线 Runbook 见 `release-preflight-snapshot-runbook-2026-06-13.md`。
-- Phase B 画布 Revision 冲突防护灰度发布记录见 `phase-b-canvas-revision-gray-2026-06-13.md`。
-- Phase B 资源库 Revision 冲突防护灰度发布记录见 `phase-b-resource-revision-gray-2026-06-13.md`。
-- Phase B 后台关键设置 Revision 冲突防护灰度发布记录见 `phase-b-admin-settings-revision-gray-2026-06-13.md`。
-- Phase C 第一批会话治理灰度/生产发布记录见 `phase-c-session-governance-release-2026-06-15.md`。
-- Phase C 第二批 CSRF 同源防护灰度/生产发布记录见 `phase-c-csrf-origin-release-2026-06-15.md`。
-- Phase C 第三批登录限流本地验收记录见 `phase-c-login-rate-limit-local-validation-2026-06-15.md`。
-- Phase C 第三批登录限流灰度发布记录见 `phase-c-login-rate-limit-gray-2026-06-15.md`。
-- Phase C 第三批登录限流灰度/生产发布记录见 `phase-c-login-rate-limit-release-2026-06-15.md`。
-- Phase D 本地任务状态机与分页验收记录见 `phase-d-local-validation-2026-06-15.md`。
-- Phase D 发布缺口与放行门槛记录见 `phase-d-release-gap-and-rollout-gate-2026-06-15.md`。
-- Phase D 灰度发布记录见 `phase-d-gray-release-2026-06-15.md`。
-- Phase D 正式发布记录见 `phase-d-production-release-2026-06-15.md`。
-- Phase E 灰度发布记录见 `phase-e-observability-gray-release-2026-06-15.md`。
-- Phase E 正式发布记录见 `phase-e-observability-production-release-2026-06-15.md`。
-- Phase E 长期观测治理第一批灰度发布记录见 `phase-e-observability-governance-gray-release-2026-06-15.md`。
-- Phase E 长期观测治理第一批正式发布记录见 `phase-e-observability-governance-production-release-2026-06-15.md`。
-- Phase E 长期观测治理第二批灰度发布记录见 `phase-e-observability-governance-batch2-gray-release-2026-06-15.md`。
-- Phase E 长期观测治理第二批正式发布记录见 `phase-e-observability-governance-batch2-production-release-2026-06-15.md`。
-- Phase E 长期观测治理第三批灰度发布记录见 `phase-e-observability-governance-batch3-gray-release-2026-06-15.md`。
-- Phase E 长期观测治理第三批正式发布记录见 `phase-e-observability-governance-batch3-production-release-2026-06-15.md`。
-- Phase E 当前放行 gate 入口见 `phase-e-observability-release-gate-2026-06-15.md`。
-- Phase E 正式环境 rollback 演练记录见 `phase-e-observability-production-rollback-2026-06-15.md`。
-- Phase E 观测验收脚本测试 Provider 清理热补丁记录见 `phase-e-observability-script-cleanup-hotfix-2026-06-16.md`。
-- `GRSAI` nano 路由与图像节点错误透传灰度发布记录见 `grsai-nano-error-ux-gray-release-2026-06-16.md`。
-
-## 当前运行态 / 当前放行入口
-
-- `server-connection.md`
-- `provider-generation-task-rollout-checklist-2026-06-12.md`
-- `database-target-guard-release-2026-06-13.md`
-- `production-multi-user-acceptance-plan-2026-06-13.md`
-- `phase-a-gray-multi-user-acceptance-2026-06-13.md`
-- `release-preflight-snapshot-runbook-2026-06-13.md`
-- `phase-b-canvas-revision-gray-2026-06-13.md`
-- `phase-b-resource-revision-gray-2026-06-13.md`
-- `phase-b-admin-settings-revision-gray-2026-06-13.md`
-- `phase-c-session-governance-release-2026-06-15.md`
-- `phase-c-csrf-origin-release-2026-06-15.md`
-- `phase-c-login-rate-limit-local-validation-2026-06-15.md`
-- `phase-c-login-rate-limit-gray-2026-06-15.md`
-- `phase-c-login-rate-limit-release-2026-06-15.md`
-- `phase-d-local-validation-2026-06-15.md`
-- `phase-d-release-gap-and-rollout-gate-2026-06-15.md`
-- `phase-d-gray-release-2026-06-15.md`
-- `phase-d-production-release-2026-06-15.md`
-- `phase-e-observability-gray-release-2026-06-15.md`
-- `phase-e-observability-production-release-2026-06-15.md`
-- `phase-e-observability-governance-gray-release-2026-06-15.md`
-- `phase-e-observability-governance-production-release-2026-06-15.md`
-- `phase-e-observability-governance-batch2-gray-release-2026-06-15.md`
-- `phase-e-observability-governance-batch2-production-release-2026-06-15.md`
-- `phase-e-observability-governance-batch3-gray-release-2026-06-15.md`
-- `phase-e-observability-governance-batch3-production-release-2026-06-15.md`
-- `phase-e-observability-release-gate-2026-06-15.md`
-- `phase-e-observability-production-rollback-2026-06-15.md`
-- `phase-e-observability-script-cleanup-hotfix-2026-06-16.md`
-- `grsai-nano-error-ux-gray-release-2026-06-16.md`
-- `atlas-gray-release-2026-06-17.md`
-- `atlas-production-release-2026-06-17.md`
-- `plato-provider-rollout-2026-06-17.md`
-- `environment-sync-release-2026-06-17.md`
-- `multi-generation-timeout-gray-release-2026-06-18.md`
-- `release-v032-gray-and-production-2026-06-18.md`
-- `runninghub-workspace-gray-release-2026-06-18.md`
-- `runninghub-runtime-queue-governance-release-2026-06-18.md`
-- `runninghub-sticky-gray-release-2026-06-19.md`
-- `runninghub-node-hydrate-gray-release-2026-06-19.md`
-- `runninghub-slot-sync-release-2026-06-19.md`
-- `runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
-- `runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
-- `runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
-- `runninghub-app-v2-gray-release-2026-06-22.md`
-- `runninghub-admin-empty-input-gray-release-2026-06-22.md`
-
-当前入口只保留仍直接用于当前值守、放行判断、回滚判断或最新 release 追溯的材料。早期 UI / 助手 / Provider / 基础设施阶段记录一律从这里移出，转入 `archive/` 批次索引。
-
-## 当前灰度材料
-
-- `gray-deploy-runbook.md`
-- `nginx/canvas-next.hhh2121.xyz.conf.example`
-- `systemd/xinghuan-canvas-next.service.example`
-- `systemd/xinghuan-canvas-next-worker.service.example`
-- `systemd/xinghuan-canvas-next-output-prune.service.example`
-- `systemd/xinghuan-canvas-next-output-prune.timer.example`
-
-## 当前生产材料
-
-- `production-deploy-runbook.md`
-- `production-acceptance-checklist.md`
-- `nginx/canvas.hhh2121.xyz.conf.example`
-- `systemd/xinghuan-canvas.service.example`
-- `systemd/xinghuan-canvas-worker.service.example`
-- `systemd/xinghuan-canvas-output-prune.service.example`
-- `systemd/xinghuan-canvas-output-prune.timer.example`
-
-## 历史发布记录
-
-以下材料已归档到 `archive/`，保留为历史审计证据，不再作为当前运行态入口：
-
-- `archive/2026-06-initial-rollout/`
-  - 初始灰度、认证、后台、安全、数据库切换、旧画布清理和第一轮运行态落地材料
-- `archive/2026-06-assistant-and-ui-rollout/`
-  - 2026-06-08 到 2026-06-10 的本机清理、Hermes 联调、助手 UI 和生成数量早期闭环记录
-- `archive/2026-06-provider-and-infra-rollout/`
-  - 2026-06-12 的 Provider 任务化、并发治理、ModelScope 协议、Cloudflare 与 files 域名阶段性记录
-- `archive/2026-06-phase3-rollout/`
-  - Phase 3 初期灰度、生产切换、节点验收、入口 UI 和首轮产品闭环发布材料
+- 服务器连接：`server-connection.md`
+- Gray 部署：`gray-deploy-runbook.md`
+- Production 部署：`production-deploy-runbook.md`
+- Production 验收：`production-acceptance-checklist.md`
+- 历史归档总索引：`archive/README.md`
 
 ## 清理规则
 

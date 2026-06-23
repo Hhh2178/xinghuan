@@ -16,11 +16,18 @@
 - 从本轮开始，新的逐日台账应优先进入 `daily/`
 - 当前已建立：
   - `daily/2026/`
+  - `daily/2026/2026-06/README.md`
   - `daily/2026/2026-06/recent-highlights.md`
   - `releases/README.md`
   - `releases/current-release-index.md`
   - RunningHub gray / production 索引样例
   - 本轮治理验证记录
+
+## 当前值守建议
+
+- 日常推进先看 `daily/2026/2026-06/recent-highlights.md`
+- 当前发布状态先看 `releases/current-release-index.md`
+- 旧兼容入口只在需要追溯老路径时回看 `DEVLOG.md` 和 `ops/README.md`
 
 ## 新增记录命名
 

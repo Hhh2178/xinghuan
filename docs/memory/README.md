@@ -20,6 +20,13 @@
   - `deployment-state.md`
   - `runninghub-memory.md`
   - `provider-memory.md`
+  - `recent-release-index.md`
+  - `worktree-and-runtime-history.md`
+  - `runtime-artifacts-and-archive-rules.md`
+  - `project-origin-and-core-requirements.md`
+  - `decision-history.md`
+  - `base-evaluation-criteria.md`
+  - `server-and-stage-history.md`
 
 ## 现在怎么用
 
@@ -34,3 +41,5 @@
 4. `architecture-decisions.md`
 5. `runninghub-memory.md`
 6. `provider-memory.md`
+7. `worktree-and-runtime-history.md`
+8. `server-and-stage-history.md`

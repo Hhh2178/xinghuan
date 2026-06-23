@@ -1,0 +1,174 @@
+# 关键决策历史
+
+> 从 MEMORY.md 拆出的历史主题正文，保留原始长期记忆内容，后续相关更新优先写入更细的主题文件或对应系统目录。
+
+## 当前关键决策
+
+- 2.0 是新项目，不在 `node-banana-enterprise` 上继续堆功能。
+- 候选基底必须先经过 POC，不允许因为界面像画布就直接采用。
+- 不采用“一个服务商一个节点”的模型；采用“通用节点 + 模型目录 + schema 驱动参数和端口”。
+- 正式多用户环境的 PostgreSQL 仓储不允许继续新增“整表删除后重写”模式；`AuthDb`、`AdminDb`、画布、资源和任务都必须逐步收口到实体级增量写入。
+- 正式多用户环境下，客户端传入的业务 `id` 不能直接改变资源归属；画布、素材、任务等核心对象都必须由服务端按 `owner_id` / 版本号校验后写入。
+- 后续正式化治理以 `docs/production-multi-user-hardening-plan-2026-06-13.md` 为主方案，以 `ops/production-multi-user-acceptance-plan-2026-06-13.md` 为放行门槛。
+- `2026-06-13` 已经开始进入 `Phase A` 的第一批真实改造：
+  - 本地回退检查点：
+    - commit `9f2e134`
+    - tag `phase-a-start-checkpoint-2026-06-13`
+  - 画布 PostgreSQL 写入已不再允许 `on conflict (id)` 改写 `owner_id`
+  - PostgreSQL 画布创建 / 重命名 / 删除已改成定向写入，不再默认依赖全量列表替换
+  - `readAuthDbPostgres` 已去掉“读取即整表重写”的高频路径；登录 / 登出 / 后台用户创建 / 后台用户更新改为定向会话或用户写入
+  - 仍未完成的 `Phase A` 部分：
+    - `writeAdminDbPostgres(...)`
+    - 资源库 / 生成库 PostgreSQL 全量替换逻辑
+- `2026-06-15` `Phase D` 已在当前 worktree 完成本地收口：
+  - 统一任务取消服务已经接入 API 与后台取消动作
+  - 取消语义明确区分：
+    - `local_only`
+    - `upstream_confirmed`
+    - `upstream_attempt_failed`
+  - Worker 已补 heartbeat 与 stale task reaper
+  - 后台任务页已经从全量读取改成服务端分页与筛选
+  - 本地标准验收入口：
+    - `npm run verify:phase-d`
+  - 但本地 `file-mode` 不适合作为多用户并发稳定性的最终依据，正式质量判断仍应以 PostgreSQL 灰度/生产为准
+- `2026-06-15` 已完成 `Phase D` 灰度发布：
+  - gray current: `20260615-phase-d-runtime-gray-r3`
+  - gray migration 已包含：`014_task_runtime_phase_d.sql`
+  - gray preflight 已恢复可执行：`npm run verify:release-preflight`
+  - gray runtime 验收已通过：
+      - `npm run verify:phase-d`
+      - `npm run verify:provider-generation-task-service`
+      - `npm run verify:provider-generation-worker`
+  - `2026-06-15` 已完成 `Phase D` 正式发布：
+    - prod current: `20260615-phase-d-runtime-prod-r1`
+    - prod migration 已包含：`014_task_runtime_phase_d.sql`
+    - prod preflight 已恢复可执行：`npm run verify:release-preflight`
+    - prod runtime 验收已通过：
+      - `npm run verify:phase-d`
+      - `npm run verify:provider-generation-task-service`
+      - `npm run verify:provider-generation-worker`
+  - 当前更准确的结论是：
+    - `Phase D` 已完成本地代码基线
+    - `Phase D` 已完成 gray 放行
+    - `Phase D` 已完成 production 放行
+- `2026-06-15` `Phase E` 第一阶段已完成实现，并已纳入 gray 放行验证：
+  - 已落文档：
+    - `docs/superpowers/specs/2026-06-15-phase-e-request-chain-observability-design.md`
+    - `docs/superpowers/plans/2026-06-15-phase-e-request-chain-observability.md`
+  - API 已统一回写 `x-request-id`
+  - 审计日志已写入：
+    - `requestId`
+    - `ip`
+    - `userAgent`
+  - 后台审计页已直接展示这些字段
+  - Worker 已统一关键生命周期结构化日志字段
+  - provider generation task 已透传最小来源链路：
+    - `requestId`
+    - `userId`
+  - 当前已验证通过：
+    - `type-check -w @xinghuan/api`
+    - `type-check -w @xinghuan/admin`
+    - `type-check -w @xinghuan/worker`
+    - `verify:worker-observability-contract`
+    - `verify:admin-readonly-panels-contract`
+    - `verify:provider-generation-task-service`
+    - `verify:provider-generation-worker`
+  - 本地端到端 request-chain 验证在新实例 `127.0.0.1:18210` 通过：
+    - `verify:request-chain-observability = ok`
+  - 这意味着 `Phase E` 已进入“请求链路观测基线已落地”的状态，而不是仍停留在计划阶段
+- `2026-06-15` `Phase E` 第二阶段已完成实现，并已进入 gray：
+  - 已落文档：
+    - `docs/superpowers/specs/2026-06-15-phase-e-system-observability-and-release-gates.md`
+    - `docs/superpowers/plans/2026-06-15-phase-e-system-observability-and-release-gates.md`
+    - `ops/phase-e-observability-release-gate-2026-06-15.md`
+  - `/api/admin/system` 已新增：
+    - `database.currentDatabase`
+    - `database.expectedDatabase`
+    - `database.targetMatched`
+    - `observability.tasks`
+    - `observability.audits`
+  - 后台系统页已展示这些观测项
+  - release package 已保证随包带上：
+    - `verify-request-chain-observability`
+    - `verify-system-observability`
+    - `verify-worker-observability-contract`
+  - 当前已验证通过：
+    - `verify:admin-readonly-panels-contract`
+    - `verify:release-gate-docs-contract`
+    - `verify:release-package-contract`
+    - `type-check -w @xinghuan/api`
+    - `type-check -w @xinghuan/admin`
+    - `build -w @xinghuan/api`
+    - `build -w @xinghuan/admin`
+    - `verify:worker-observability-contract`
+  - fresh 本地实例 `127.0.0.1:18211` 上：
+    - `verify:request-chain-observability = ok`
+    - `verify:system-observability = ok`
+  - gray release：
+    - `20260615-phase-e-observability-gray-r2`
+  - gray current：
+    - `/opt/apps/xinghuan-canvas-next/current -> /opt/apps/xinghuan-canvas-next/releases/20260615-phase-e-observability-gray-r2`
+  - gray gate 已通过：
+    - `npm run verify:release-preflight`
+    - `npm run verify:request-chain-observability`
+    - `npm run verify:system-observability`
+  - prod release：
+    - `20260615-phase-e-observability-prod-r2`
+  - prod current：
+    - `/opt/apps/xinghuan-canvas/current -> /opt/apps/xinghuan-canvas/releases/20260615-phase-e-observability-prod-r2`
+  - prod gate 已通过：
+    - `npm run verify:release-preflight`
+    - `npm run verify:request-chain-observability`
+    - `npm run verify:system-observability`
+  - gray 公网入口 header smoke 已确认：
+    - `x-request-id` 回写正常
+  - prod 公网入口 header smoke 已确认：
+    - `x-request-id` 回写正常
+  - gray 当前关键观测：
+    - `currentDatabase = xinghuan_canvas_gray`
+    - `expectedDatabase = xinghuan_canvas_gray`
+    - `targetMatched = true`
+    - `audits.requestIdCoveragePercent = 4`
+  - prod 当前关键观测：
+    - `currentDatabase = xinghuan_canvas_next`
+    - `expectedDatabase = xinghuan_canvas_next`
+    - `targetMatched = true`
+    - `audits.requestIdCoveragePercent = 4`
+  - 需要额外记住：
+    - 两条脚本并发打到同一个 file-mode 本地实例时，可能因为本地会话 JSON 写入互相覆盖导致一次 `AUTH_REQUIRED`
+    - 串行运行可稳定通过
+  - 当前更准确的阶段结论：
+    - `Phase E` 已完成 gray 放行
+    - `Phase E` 已完成 production 放行
+  - `2026-06-16` 本地补强进展：
+    - 高频后台读接口已纳入 requestId 审计补样
+    - `verify:request-chain-observability` 已覆盖 `admin-me / summary / users / sessions / providers / models / tasks / system`
+    - 后续 requestId 覆盖率提升应优先沿真实高频读取与关键写链路继续选择性补样，而不是再依赖一次性测试 Provider
+- 后台发布模型的图片、视频、音频默认走任务化标准链路，而不是长请求直返。
+- Provider 生成任务标准执行模式固定为：
+  - `sync_inline`
+  - `async_poll`
+  - `async_poll_then_final_lookup`
+  - `worker_queue`
+- Provider 生成 Worker 并发治理规则固定为：
+  - 生成类任务按能力拆分独立队列：
+    - `image`
+    - `audio`
+    - `video`
+  - 队列名前缀基于 `XINGHUAN_TASK_QUEUE`，当前运行态会展开为：
+    - `xinghuan:tasks:image`
+    - `xinghuan:tasks:audio`
+    - `xinghuan:tasks:video`
+  - 后台系统页允许管理员按类别调节并发
+  - 当前产品约束是每类并发 `1..4`
+  - 默认值为每类 `4`
+- 当前默认执行策略固定为：
+  - `chat -> sync_inline`
+  - `image/video/audio -> worker_queue`
+- `executionMode` 是后台、AI 协助配置、画布节点和任务验收的统一语义字段；`advancedConfig.mode` 仍只用于具体 Provider adapter 行为，不再混用。
+- Provider 接入采用“结构化默认配置 + 受控高级配置 + 专用 adapter”三层方案；GRSAI 保留为已接入样本，APIMart 异步视频和异步图像类模型都走 adapter / task polling 路径。
+- 后台必须独立为 `/admin` 或独立后台应用，不挂在画布侧栏。
+- 项目默认云端保存，本地文件夹只作为导入/导出备份能力。
+- 所有密钥进入加密存储或环境变量，不能进入文档和 Git。
+- 视觉基底采用科技黑，强调色以青绿/荧光绿为主，保持内部生产工具质感。
+- 首批测试服务商信息已记录在 `config/provider-test-matrix.md`：GRSAI `gpt-image-2` 为 P0 图像验收，ToAPIs Grok Video 为 P1 低频视频验收。真实 Key 不写入文档，只进入 `.env.local`、服务器环境变量、后台加密字段或密钥管理系统。

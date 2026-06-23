@@ -1,0 +1,385 @@
+# Worktree 与运行上下文历史
+
+> 从 MEMORY.md 拆出的历史主题正文，保留原始长期记忆内容，后续相关更新优先写入更细的主题文件或对应系统目录。
+
+## 当前结构记忆
+
+- 当前 2.0 默认工作根已经固定为：
+  - `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- 该目录是主仓库 `D:/codex/无限画布2.0` 的 Git worktree，不是另一份独立项目副本。
+- 当前 worktree 的根入口文件已经补齐为 `README.md`，用于快速说明：
+  - 为什么当前工作在 worktree 中
+  - 当前应查看哪些入口文件
+  - 哪些目录是正式源码
+  - 哪些目录只是运行产物
+- `D:/codex/服务器/无限画布/` 已明确降级为旧主干 / 历史参考入口，不再作为当前 2.0 主入口。
+- 若旧目录文档与当前 worktree 文档冲突，以当前 worktree 为准。
+- `2026-06-16` 生成库素材访问能力已从“前端直接使用裸 `fileUrl`”升级为“访问描述 + 统一内容路由”：
+  - 当前生成库列表已返回 `previewUrl` / `downloadUrl` / `openUrl` / `filename`
+  - 当前统一内容路由已支持 `generation-library`
+  - 图片与视频预览、下载动作当前已在 `GenerationLibraryDrawer` 接通
+  - 后续资源库与其他素材来源需要复用同一访问能力，不再各自拼接预览或下载逻辑
+- `2026-06-16` `Phase E` 高频后台读接口 requestId 审计补样已完成本地收口：
+  - 当前已补齐审计样本的高频后台读取链路：
+    - `auth.admin_me`
+    - `summary.read`
+    - `users.read`
+    - `sessions.read`
+    - `providers.read`
+    - `models.read`
+    - `tasks.read`
+    - `system.read`
+  - `verify-request-chain-observability` 已同步升级为校验上述读动作的 `requestId` 透传
+  - 在 fresh 本地验证实例上，`verify:system-observability` 当前已可观察到 `requestIdCoverageLast24hPercent = 100`
+  - 当前更准确的阶段判断：
+    - `requestId` 覆盖率补强已不再停留在“只靠测试写入补样”
+    - `Phase E` 后续主剩余项更集中在外部通知闭环
+- `2026-06-17` 柏拉图视频 Provider 接入与 AI 助手结构化接入方案输出已完成 gray / production 收口：
+  - 当前沉淀出的可复用 Provider 请求体能力为：
+    - `requestBodyMode`
+    - `requestContentType`
+    - `requestFileFields`
+    - `requestValueTemplates`
+  - 当前柏拉图模型分流规则已确认：
+    - `grok-1.5-video-6s`
+    - `grok-1.5-video-10s`
+    - `grok-1.5-video-15s`
+      - 使用 `/v1/videos`
+      - 使用 `multipart/form-data`
+      - 参考图字段名为 `input_reference`
+      - `size` 由比例与分辨率派生生成
+    - `grok-imagine-video-1.5-preview`
+      - 继续使用 `/v2/videos/generations`
+      - 继续走 JSON body
+  - 后台 API 接入助手与右侧后台 AI 助手当前都要以“结构化接入方案”为目标输出：
+    - 明确端点模式
+    - 请求体模式
+    - 文件字段
+    - 派生字段模板
+    - 结果提取路径
+  - 当前真实验收结论：
+    - gray `grok-1.5-video-6s` 已成功生成并落本地视频
+    - production `grok-1.5-video-6s` 已成功生成并落本地视频
+    - 若出现“官方负载大，请尝试重新生成”，当前应判断为上游容量波动，而不是本地 multipart 接入继续失败
+- `2026-06-17` 当前灰度运行态已切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260617-environment-sync-layout-v031-gray-r1-dfd5f37`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的收束项：
+    - 文档治理与归档主入口同步
+    - CodeGraph hook 与安装脚本
+    - 生成库素材预览/下载访问层
+    - 柏拉图 multipart 视频接入
+    - 后台结构化接入方案输出
+    - release gate / observability 验收脚本闭环
+  - 灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - 灰度 release 目录执行 `db:migrate` 前，必须先加载 `shared/canvas-next.env`
+    - 否则会出现假性 `DATABASE_NOT_CONFIGURED`
+- `2026-06-18` 当前灰度运行态已切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-multi-generation-timeout-gray-r1-b8534f2`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的修复项：
+    - 多图 / 多视频子任务状态展示
+    - 多任务成功结果追加到输出链路
+    - `GRSAI` 图像轮询超时跟随节点配置
+    - 上传素材到图像处理链路的上游素材透传统一
+  - 灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - 当前服务器 SSH 仍需显式携带 `-i D:/codex/服务器/Tencent_Cloud_Server.pem`
+    - 首次漏带 key 时会直接被 `Permission denied (publickey)` 拒绝
+- `2026-06-18` 当前 gray / production 运行态已切到：
+  - gray：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260618-v032-ui-fixes-gray-r1`
+  - production：
+    - `/opt/apps/xinghuan-canvas/releases/20260618-v032-ui-fixes-prod-r1`
+  - 两端对外版本号当前都为：
+    - `v0.3.2`
+  - 本次切换后 gray / production gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入发布的修复项：
+    - 尺寸调整节点上游取图与宽高输入修复
+    - 生成节点多任务运行态摘要 UI 收口
+    - 工具栏导入 / 导出图标逻辑纠正
+  - 数据库目标复核：
+    - gray `targetMatched = true`
+    - production `targetMatched = true`
+- `2026-06-18` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260618-runninghub-workspace-gray-r1-6b65dbc`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 范围：
+    - RH catalog 规范化
+    - 后台 RH 工作台
+    - 单一 RH 节点固定 typed handles
+    - 前台基于 `inputSlots` 的兼容消费过渡
+  - `2026-06-19` 本地继续推进 RH 工作台与节点第二轮收口：
+    - 后台 RH 工作台新增 `POST/DELETE /api/admin/runninghub/items`
+    - 新增 `/api/admin/runninghub/analyze` 结构化草案接口
+    - RH 工作台前端补齐 `新建 / 删除 / 另存为 / 启停 / 测试 / AI 分析并填写`
+    - RH 节点 UI 已去掉 `Webapp ID` 文案，改成“运行目标 + 输入摘要 + 小字状态汇总”
+  - 灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - 本轮 release 不含新 migration，服务切换不受数据库变更阻塞
+    - 但在 gray release 目录执行 `npm run db:migrate` 时暴露 `PG_DRIVER_NOT_INSTALLED`
+    - 说明当前 release 包的迁移依赖链仍需单独修补，后续凡是带新 migration 的发布不能忽略这件事
+- `2026-06-18` 当前 gray / production 运行态已继续切到：
+  - gray：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260618-runninghub-runtime-queue-gray-r6-v034-d9b653c`
+  - production：
+    - `/opt/apps/xinghuan-canvas/releases/20260618-runninghub-runtime-queue-prod-r1-v034-d9b653c`
+  - 两端对外版本号当前都为：
+    - `v0.3.4`
+  - 本次切换后 gray / production gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入发布的 RH / 队列治理修复项：
+    - RH query 结果读取统一保留 `image/video/audio` 输出数组
+    - RH queued task 入库不再误写普通模型外键
+    - 普通 Provider 任务已按 `capability + ownerId` 进入用户级并发窗口治理
+    - RunningHub 任务已按平台级并发窗口治理
+  - gray 真实验收结论：
+    - 普通 Provider `GRSAI gpt-image-2` 已直接观察到 `waiting_user_window`
+    - 同用户等待、跨用户独立推进、前序任务结束后自动递进都已成立
+    - RH 单任务成功：
+      - `task-1781788410710-ndki99`
+    - RH 三任务批量成功：
+      - `task-1781789036588-mqrk4c`
+      - `task-1781789036735-jvltj3`
+      - `task-1781789036892-eglgtt`
+    - 第三个 RH 任务已直接观察到：
+      - `waitReason = waiting_runninghub_window`
+      - `waitDetail = RunningHub 平台并发已满 (2/2)`
+  - 发布过程额外记忆：
+    - 本轮 release 不含新 migration
+    - release 目录执行 `db:migrate` 仍暴露 `PG_DRIVER_NOT_INSTALLED`
+    - 这不影响当前无 migration 发布，但后续带 migration 的 release 不能再忽略该依赖链缺口
+- `2026-06-19` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260619-runninghub-node-hydrate-gray-r1-v034-d9b653c`
+  - 对外版本号仍为：
+    - `v0.3.4`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 节点 / 条目链路收口项：
+    - RH 节点提交任务时已显式带上 `pageId / workflowId / runTargetId / targetType / taskCapability`
+    - RH 节点选择空字段条目后会自动尝试拉取远端 `app-info` 做字段补水
+    - RH `app-info` 代理已改为：
+      - 本地条目已有 `fields / inputSlots` 时直接回本地结构
+      - 本地条目为空时回退拉取远端 RH `apiCallDemo`
+    - 当前 gray 样例 workflow `runninghub-main:workflow:2004516402230509570` 已确认仍无自动参数区，根因不是前端渲染：
+      - 本地 `fields = 0`
+      - `parameterSchema = {}`
+      - `testPayload = {}`
+      - 远端 `app-info.nodeInfoList = 0`
+      - 后续若要让该 workflow 在画布中自动出参数区，必须先在后台条目补齐输入槽/字段定义来源
+  - 当前灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+- `2026-06-19` 当前 gray / production 运行态已继续切到：
+  - gray：
+    - `/opt/apps/xinghuan-canvas-next/releases/20260619-runninghub-slot-sync-gray-r1-v040-local`
+  - production：
+    - `/opt/apps/xinghuan-canvas/releases/20260619-runninghub-slot-sync-prod-r1-v040-local`
+  - 两端对外版本号当前都为：
+    - `v0.4.0`
+  - 本次切换后 gray / production gate 都已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入发布的 RH 条目治理收口项：
+    - 后台 RH 工作台新增“从运行目标同步输入槽”
+    - 可直接读取运行目标返回的真实 `nodeInfoList`
+    - 可回填并补齐条目的 `nodeId / fieldName / fieldType / options`
+    - 条目保存后，画布 RH 节点会按后台条目自动展开可执行参数区
+  - 当前边界：
+    - 如果 RH 运行目标本身不返回 `nodeInfoList`，当前同步能力没有可用源，仍需要后台人工补录字段
+  - 当前数据库目标复核：
+    - gray `current = xinghuan_canvas_gray` / `expected = xinghuan_canvas_gray` / `targetMatched = true`
+    - production `current = xinghuan_canvas_next` / `expected = xinghuan_canvas_next` / `targetMatched = true`
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-rebuild-gray-r2-v041-8faaadf`
+  - 当前 gray 对外版本号：
+    - `v0.4.1`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RunningHub 收口项：
+    - RH 分析面板补齐 `requestExample / responseExample`
+    - `/api/admin/runninghub/analyze` 已从 `requestExample.nodeInfoList` 生成字段草案与参数 Schema 草案
+    - `runTargetId` 校验已补强
+    - `instanceType = plus` 默认兜底已移除
+    - 画布 RH 节点继续按后台 catalog 与真实字段定义消费
+  - 当前 gray 真实验收结论：
+    - 直接调用分析接口时，样例字段已能稳定产出：
+      - `12.prompt`
+      - `15.negative_prompt`
+      - `18.seed`
+    - gray 后台页面点击“AI 分析并填写”后，已真实渲染：
+      - 基础信息草案
+      - 输入槽草案
+      - 参数 Schema 草案
+      - 输出定义草案
+      - 执行规则草案
+    - 之前 `r1` 暴露的长 `requestExample` 截断问题已由 `8faaadf` 热修收口
+  - 当前灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - `scripts/package-release.mjs` 当前仍是 runtime-only 打包
+    - 该包不足以支持服务器 release 目录重新执行 `npm run build:single-port`
+    - 后续凡是要求服务器重建或包含 migration 的发布，必须先补 release 打包依赖链缺口
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runtime-queue-concurrency-gray-r3-v042-fee46da`
+  - 当前 gray 对外版本号：
+    - `v0.4.2`
+  - 当前带入 gray 的收口项：
+    - RH analyze mixed text / fenced JSON / balanced object 容错解析
+    - `responseExample -> outputSchema / executionRules` 推断
+    - public RH catalog 透传 `outputSchema`
+    - RH 节点输出映射摘要与 `audio` 输出端口
+    - 普通任务 worker Redis 阻塞消费连接与控制连接拆分
+    - `image/audio/video` 运行态槽位重新上报 Redis
+  - 当前 gray 真实验收结论：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向 `r3`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.2`
+      - `environment = gray`
+    - `redis-cli --scan --pattern 'xinghuan:worker-runtime:*'` 已返回：
+      - `xinghuan:worker-runtime:canvas-next-worker-1`
+    - `GET https://canvas-next.hhh2121.xyz/api/admin/system` 当前返回：
+      - `image/audio/video effectiveConcurrency = 100`
+      - `workerCount = 1`
+      - `slotCount = 100`
+      - `runninghub.activeWindowCount = 0`
+    - 后台“系统”页已真实显示：
+      - `按类别并发`
+      - `实际生效并发`
+      - `Worker 数`
+      - `Worker 槽位数`
+      - `RH 平台窗口`
+  - 当前额外记忆：
+    - 首次 `r3` 上传曾出现“本地 scp 退出成功但远端 `/tmp` 未落盘”的异常，复传后恢复正常；不属于代码问题
+    - worker 在 `100 x 3` 槽位规模下已复验一次 restart，可在约 `9s` 内优雅停止并重新拉起
+- `2026-06-22` 当前本地发布候选已继续推进到：
+  - `v0.4.3`
+  - 当前待发布范围：
+    - RH worker 路由优先直达 RunningHub 专用执行分支
+    - RH defer/requeue 统一按实际队列能力映射
+    - RH 字段定义新增 `displayLabel`，画布节点参数展示优先消费后台标注
+    - 输出定义 `kind` 保留自定义值，后台输出类型编辑支持预设 + 自定义
+  - 当前本地已追加通过：
+    - `node scripts/verify-runninghub-worker-and-label-contract.mjs`
+  - 当前边界：
+    - 该批次仍待 gray 发布、gate 和页面级复验后，才能回写 active release 指针
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-worker-routing-gray-r1-v043-d253c57`
+  - 当前 gray 对外版本号：
+    - `v0.4.3`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前页面级复查结论：
+    - RH 工作台已真实显示 `标注/显示名`
+    - 输出类型与结果路径编辑已支持“预设 + 自定义覆盖”
+    - 系统页已真实显示：
+      - `版本 0.4.3`
+      - `数据库目标校验 matched`
+      - `按类别并发 / 实际生效并发 / Worker 数 / Worker 槽位数 / RH 平台窗口`
+  - 当前灰度数据库目标复核：
+    - `current = xinghuan_canvas_gray`
+    - `expected = xinghuan_canvas_gray`
+    - `targetMatched = true`
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+  - 当前 gray 对外版本号：
+    - `v0.4.4`
+  - 本次切换后 gray gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 收口项：
+    - RH public catalog 与节点运行态字段已按 `kind` 归一化
+    - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
+    - RunningHub AI App submit 已切到 `/openapi/v2/run/ai-app/{id}`
+    - RunningHub AI App query 已切到 `/openapi/v2/query`
+    - 旧 AI App `taskType = "ASYNC"` 提交体已移除
+  - 当前灰度运行态复核：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-app-v2-gray-r1-v044-36415e9`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.4`
+      - `environment = gray`
+    - `xinghuan-canvas-next.service = active`
+    - `xinghuan-canvas-next-worker.service = active`
+  - 当前额外记忆：
+    - 本轮 release 仍是 runtime-only 包；服务器 release 目录不要假定可以独立重建完整前端依赖链
+    - 当前更适合继续在 gray 做真实 RH App / Workflow 条目与任务实链验收，再决定 production 推进
+- `2026-06-22` 当前灰度运行态已继续切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - 当前 gray 对外版本号：
+    - `v0.4.7`
+  - 本次切换后 gray gate 已通过：
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前带入 gray 的 RH 收口项：
+    - 管理端 RH 工作台开始正确识别 `allowsEmptyInputs=true` 的显式无入参 workflow
+    - 左侧目录卡片不再把这类条目标记为“待补输入槽”
+    - 条目编辑器不再以“缺少输入槽”阻止启用/保存
+    - 版本号已统一推进到 `0.4.7`
+  - 当前灰度运行态复核：
+    - `readlink -f /opt/apps/xinghuan-canvas-next/current` 已指向：
+      - `/opt/apps/xinghuan-canvas-next/releases/20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+    - `GET http://127.0.0.1:18200/api/status` 返回：
+      - `version = 0.4.7`
+      - `environment = gray`
+    - `xinghuan-canvas-next.service = active`
+    - `xinghuan-canvas-next-worker.service = active`
+    - gray 条目 `runninghub-main:workflow:2064255815862800385` 已确认：
+      - `pageId/workflowId/runTargetId = 2064255815862800385`
+      - `allowsEmptyInputs = true`
+      - `fields = 0`
+      - `outputSchema[0].path = results`
+      - `testPayload.nodeInfoList = []`
+  - 当前页面级复查结论：
+    - RH 工作台条目卡片已真实显示：
+      - `显式无入参工作流，可直接启用并运行`
+    - 目标 workflow 基础信息页已真实显示 `2064255815862800385`
+    - 灰度画布里现存 RH 节点若仍显示旧参数区，通常是因为选中的还是历史条目 `cd3add`，不是 `2064255815862800385`
+- `2026-06-17` 当前生产运行态已切到：
+  - `/opt/apps/xinghuan-canvas/releases/20260617-environment-sync-layout-v031-prod-r1-dfd5f37`
+  - 本次切换后 production gate 已通过：
+    - `verify:release-preflight`
+    - `verify:request-chain-observability`
+    - `verify:system-observability`
+  - 当前生产数据库目标复核：
+    - `current = xinghuan_canvas_next`
+    - `expected = xinghuan_canvas_next`
+    - `targetMatched = true`
+  - 发布过程额外记忆：
+    - production release 目录执行 gate 前，必须先加载 `shared/canvas.env`
+    - 否则 `verify:release-preflight` / `verify:request-chain-observability` / `verify:system-observability` 会默认命中灰度 `18200`
