@@ -24,7 +24,7 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.4.15`
-  - release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
+  - release：`20260624-engineering-governance-guardrails-gray-r1-v0415`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
