@@ -14,6 +14,11 @@
 - 后台分析出的 `requestExample / responseExample / outputDraft / executionDraft` 与前端真实执行链路仍有断层
 - 统一运行态诊断字段已经进入后端，但前端消费仍偏薄
 
+当前实施计划：
+
+- `docs/superpowers/plans/2026-06-23-runninghub-worker-admin-canvas-governance.md`
+- `docs/superpowers/plans/2026-06-23-worker-runninghub-runtime-second-stage.md`
+
 这意味着当前最需要的不是继续堆功能，而是做一次有顺序、有边界、可灰度、可回滚的治理工程。
 
 ## 目标

@@ -21,6 +21,7 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - 画布节点：`apps/web/src/components/nodes/RunningHubNode.tsx`
 - 共享类型：`packages/shared/src/runninghub.ts`
 - worker 执行：`apps/worker/src/worker.ts`
+- worker poll 响应护栏：`apps/worker/src/worker-runninghub-response.ts`
 
 ## 当前重点边界
 
@@ -32,6 +33,10 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
   - 后台 Provider 可维护多 Key
   - RH 总并发自动汇总所有启用 Key 的 `maxConcurrency`
   - 任务入队时会绑定具体 RH Key，Worker 优先使用该 Key 执行
+- Worker 第二阶段收口方向：
+  - `worker.ts` 逐步退回 orchestration glue
+  - RunningHub 协议解析继续下沉到独立 helper / client
+  - Key 池调度、取消同步、统一诊断会继续按模块拆分
 - RH 节点阶段进度统一口径：
   - 提交中或排队中：`5%`
   - 已开始生成：`45%`

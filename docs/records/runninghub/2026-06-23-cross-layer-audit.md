@@ -6,6 +6,11 @@
 - 从“画布前端 → API → Worker → 后台 Admin → RunningHub 配置”的协作链继续检查跨层问题。
 - 给出可执行的修正优先级，避免后续继续边跑边补。
 
+## 对应实施计划
+
+- `docs/superpowers/plans/2026-06-23-runninghub-worker-admin-canvas-governance.md`
+- `docs/superpowers/plans/2026-06-23-worker-runninghub-runtime-second-stage.md`
+
 ## 审查范围
 
 - 前端画布：

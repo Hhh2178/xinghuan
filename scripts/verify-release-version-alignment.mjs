@@ -16,7 +16,12 @@ const localChecks = [
   {
     label: "packages/shared/dist/index.js",
     path: "packages/shared/dist/index.js",
-    includesAny: [[`appVersion = "${expectedVersion}"`, `appVersion = '${expectedVersion}'`], [`export const appVersion = "${expectedVersion}"`, `export const appVersion = '${expectedVersion}'`]],
+    includesAny: [[
+      `appVersion = "${expectedVersion}"`,
+      `appVersion = '${expectedVersion}'`,
+      `export const appVersion = "${expectedVersion}"`,
+      `export const appVersion = '${expectedVersion}'`,
+    ]],
   },
   {
     label: "apps/api/dist/server.js",
