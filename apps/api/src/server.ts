@@ -841,7 +841,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.8",
+      version: "0.4.9",
       environment,
       dataDir,
     });
@@ -2802,7 +2802,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.8",
+      version: "0.4.9",
       storage: await readStorageStats(),
     });
     return true;
@@ -7225,7 +7225,7 @@ function createBlankRunningHubCatalogEntry(kind: "app" | "workflow", titleText: 
     title: titleText,
     note: "",
     thumbnail: "",
-    enabled: true,
+    enabled: false,
     pageId: id,
     appId: kind === "app" ? id : "",
     workflowId: kind === "workflow" ? id : "",

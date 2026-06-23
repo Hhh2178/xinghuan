@@ -23,8 +23,8 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.4.8`
-  - release：`20260623-documentation-governance-standard-gray-r1-v048`
+  - 版本：`v0.4.9`
+  - release：`20260623-runninghub-draft-output-reset-gray-r1-v049`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

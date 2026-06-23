@@ -132,6 +132,41 @@ function fieldDisplayLabel(it: any) {
   return String(it?.fieldName || '').trim();
 }
 
+function emptyRhOutputState() {
+  return {
+    urls: [] as string[],
+    imageUrl: '',
+    imageUrls: [] as string[],
+    videoUrl: '',
+    videoUrls: [] as string[],
+    audioUrl: '',
+    audioUrls: [] as string[],
+  };
+}
+
+function buildRhOutputStateFromUrls(list: string[]) {
+  const clean = Array.isArray(list)
+    ? list.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const isImg = (u: string) => /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(u);
+  const isVid = (u: string) => /\.(mp4|webm|mov|m4v|mkv)$/i.test(u);
+  const isAud = (u: string) => /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u);
+  const imageUrls = clean.filter(isImg);
+  const videoUrls = clean.filter(isVid);
+  const audioUrls = clean.filter(isAud);
+  const fallbackImageUrls = !imageUrls.length && !videoUrls.length && !audioUrls.length && clean[0] ? [clean[0]] : [];
+  return {
+    ...emptyRhOutputState(),
+    urls: clean,
+    imageUrl: imageUrls[0] || fallbackImageUrls[0] || '',
+    imageUrls: imageUrls.length > 0 ? imageUrls : fallbackImageUrls,
+    videoUrl: videoUrls[0] || '',
+    videoUrls,
+    audioUrl: audioUrls[0] || '',
+    audioUrls,
+  };
+}
+
 function countSchemaProperties(value: string | undefined) {
   if (!value?.trim()) return 0;
   try {
@@ -140,6 +175,70 @@ function countSchemaProperties(value: string | undefined) {
   } catch {
     return 0;
   }
+}
+
+function mergeNodeInfoListWithPresetMetadata(primaryList: unknown, presetList: unknown) {
+  const presetMap = new Map<string, any>();
+  for (const item of Array.isArray(presetList) ? presetList : []) {
+    const nodeId = String(item?.nodeId || '').trim();
+    const fieldName = String(item?.fieldName || '').trim();
+    if (!nodeId || !fieldName) continue;
+    presetMap.set(`${nodeId}::${fieldName}`, item);
+  }
+  const merged: any[] = [];
+  const seen = new Set<string>();
+  const appendItem = (item: any, preset?: any) => {
+    const nodeId = String(item?.nodeId || '').trim();
+    const fieldName = String(item?.fieldName || '').trim();
+    if (!nodeId || !fieldName) return;
+    const key = `${nodeId}::${fieldName}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push({
+      ...item,
+      nodeId,
+      fieldName,
+      label: String(preset?.label || item?.label || item?.title || fieldName).trim() || fieldName,
+      displayLabel: String(
+        preset?.displayLabel
+          || preset?.label
+          || item?.displayLabel
+          || item?.label
+          || item?.title
+          || fieldName,
+      ).trim() || fieldName,
+      description: String(
+        preset?.description
+          || item?.description
+          || item?.descriptionCn
+          || item?.descriptionEn
+          || '',
+      ).trim(),
+      placeholder: String(preset?.placeholder || item?.placeholder || '').trim(),
+      required: typeof preset?.required === 'boolean' ? preset.required : item?.required === true,
+      fieldType: String(item?.fieldType || preset?.fieldType || '').trim(),
+      fieldValue: item?.fieldValue ?? preset?.fieldValue ?? '',
+      fieldData: item?.fieldData ?? preset?.fieldData ?? (Array.isArray(preset?.options) ? preset.options : undefined),
+      options: Array.isArray(item?.options)
+        ? item.options
+        : Array.isArray(item?.fieldData)
+          ? item.fieldData
+          : Array.isArray(preset?.options)
+            ? preset.options
+            : Array.isArray(preset?.fieldData)
+              ? preset.fieldData
+              : undefined,
+    });
+  };
+  for (const item of Array.isArray(primaryList) ? primaryList : []) {
+    const nodeId = String(item?.nodeId || '').trim();
+    const fieldName = String(item?.fieldName || '').trim();
+    appendItem(item, presetMap.get(`${nodeId}::${fieldName}`));
+  }
+  for (const item of Array.isArray(presetList) ? presetList : []) {
+    appendItem(item, item);
+  }
+  return merged;
 }
 
 function normalizeRemoteNodeInfoList(value: unknown, existingList: any[]) {
@@ -265,10 +364,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     [selectedWorkflowPreset],
   );
   const currentNodeInfoList = useMemo(() => {
-    const list = Array.isArray(appInfo?.nodeInfoList) ? appInfo.nodeInfoList : [];
-    if (list.length > 0) return list;
-    return Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList : [];
-  }, [appInfo?.nodeInfoList, localPresetAppInfo]);
+    return mergeNodeInfoListWithPresetMetadata(appInfo?.nodeInfoList, localPresetAppInfo?.nodeInfoList);
+  }, [appInfo?.nodeInfoList, localPresetAppInfo?.nodeInfoList]);
   const presetFieldCount = Array.isArray(localPresetAppInfo?.nodeInfoList) ? localPresetAppInfo.nodeInfoList.length : 0;
   const shouldHydrateAuthoritativeAppInfo = selectedWorkflowPreset?.kind === 'app';
   const selectedSchemaPropertyCount = countSchemaProperties(selectedWorkflowPreset?.parameterSchema);
@@ -655,21 +752,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           }
           if (r.status === 'SUCCESS') {
             stopPoll();
-            // 按后缀分流到 imageUrl/videoUrl/audioUrl，避免视频 url 被填到 imageUrl 导致
-            // OutputNode 当图片渲染而空白。
             const list: string[] = Array.isArray(r.urls) ? r.urls : [];
-            const isImg = (u: string) => /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(u);
-            const isVid = (u: string) => /\.(mp4|webm|mov|m4v|mkv)$/i.test(u);
-            const isAud = (u: string) => /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u);
-            const firstImg = list.find(isImg);
-            const firstVid = list.find(isVid);
-            const firstAud = list.find(isAud);
-            const patch: any = { status: 'success', urls: list };
-            if (firstImg) patch.imageUrl = firstImg;
-            if (firstVid) patch.videoUrl = firstVid;
-            if (firstAud) patch.audioUrl = firstAud;
-            // 都不匹配时退回原逻辑（首个当 imageUrl）以保证向后兼容
-            if (!firstImg && !firstVid && !firstAud && list[0]) patch.imageUrl = list[0];
+            const patch: any = { status: 'success', ...buildRhOutputStateFromUrls(list) };
             console.log('[RH/done] taskId=', tid, 'urls=', list);
             logBus.success(`任务完成 · ${list.length} 个输出 → ${list[0] || ''}`, src);
             update(patch);
@@ -723,14 +807,11 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     }
     setFetchingInfo(true);
     try {
+      const existingNodeInfoList = mergeNodeInfoListWithPresetMetadata(appInfo?.nodeInfoList, localPresetAppInfo?.nodeInfoList);
       const info = await fetchRhAppInfo(resolvedRunTargetId);
       const list = normalizeRemoteNodeInfoList(
         info?.nodeInfoList || [],
-        Array.isArray(appInfo?.nodeInfoList) && appInfo.nodeInfoList.length > 0
-          ? appInfo.nodeInfoList
-          : Array.isArray(localPresetAppInfo?.nodeInfoList)
-            ? localPresetAppInfo.nodeInfoList
-            : [],
+        existingNodeInfoList,
       );
       // 调试日志：打印原始 nodeInfoList 结构，方便后续按实际字段名/fieldType 扩充 LIST 词典
       try {
@@ -844,7 +925,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     if (Object.keys(effectiveValues).length > 0) {
       update({ paramValues: effectiveValues });
     }
-    update({ status: 'submitting', error: null, urls: [], taskId: null });
+    update({ status: 'submitting', error: null, taskId: null, ...emptyRhOutputState() });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
       // 提交前：把媒体类 url 转成 RH 内部 fileName
@@ -983,13 +1064,16 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             ))}
           </select>
           {selectedWorkflowPreset ? (
-            <div className="mt-1 rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
-              <div className="text-[10px] text-white/75 truncate">{selectedWorkflowPreset.title}</div>
-              <div className="mt-1 text-[10px] text-white/45">
+            <div className={`mt-1 rounded border ${accent.subBg} px-2 py-1.5`}>
+              <div className="text-[11px] font-medium text-white/90 truncate">{selectedWorkflowPreset.title}</div>
+              <div className="mt-1 text-[10px] text-white/70">
                 {(selectedWorkflowPreset.taskCapability || 'video')} · 绑定 {schemaInputCount || selectedWorkflowPreset.fields.length} · Schema {selectedSchemaPropertyCount} · 输出 {schemaOutputCount}
               </div>
               {selectedWorkflowPreset.note ? (
-                <div className="mt-1 text-[10px] text-white/35 line-clamp-2">{selectedWorkflowPreset.note}</div>
+                <div className="mt-1 rounded border border-white/10 bg-black/20 px-2 py-1.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">备注</span>
+                  <div className="mt-1 text-[10px] leading-4 text-white/85 line-clamp-3">{selectedWorkflowPreset.note}</div>
+                </div>
               ) : null}
             </div>
           ) : null}

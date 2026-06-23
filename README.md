@@ -24,10 +24,10 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.4.8`
+- 当前活跃版本：`v0.4.9`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260623-documentation-governance-standard-gray-r1-v048`
+- 当前灰度 release：`20260623-runninghub-draft-output-reset-gray-r1-v049`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前重点系统：RunningHub、后台 Admin、API、Worker
 
@@ -69,14 +69,14 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.4.8`
+- 当前活跃版本：`v0.4.9`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260623-documentation-governance-standard-gray-r1-v048`
+- 当前灰度 release：`20260623-runninghub-draft-output-reset-gray-r1-v049`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
@@ -103,6 +103,11 @@
       - `allowsEmptyInputs = true`
       - `fields = 0`
       - `testPayload.nodeInfoList = []`
+  - `2026-06-23` 已补 RH 工作台空白草稿与画布输出残留热修：
+    - 后台新建空白 `AI 应用 / 工作流` 默认改为停用态，不再因“缺少输入槽”在新建时直接报错
+    - RH 工作台条目摘要卡的备注区改成更显眼的强调块
+    - 画布 RH / RH Tools 节点提交前会清空历史输出，并在本次成功后按新结果整组覆盖
+    - 画布 RH 节点字段名称已优先显示后台 `displayLabel`
   - `2026-06-19` 已补 RH 工作台“从运行目标同步输入槽”能力：
     - 后台条目可直接读取运行目标返回的真实 `nodeInfoList`
     - 生成或补齐 `nodeId / fieldName / fieldType / options`

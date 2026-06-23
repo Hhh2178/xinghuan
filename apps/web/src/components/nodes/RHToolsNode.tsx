@@ -131,6 +131,41 @@ function fieldDisplayLabel(it: any) {
   return String(it?.fieldName || '').trim();
 }
 
+function emptyRhOutputState() {
+  return {
+    urls: [] as string[],
+    imageUrl: '',
+    imageUrls: [] as string[],
+    videoUrl: '',
+    videoUrls: [] as string[],
+    audioUrl: '',
+    audioUrls: [] as string[],
+  };
+}
+
+function buildRhOutputStateFromUrls(list: string[]) {
+  const clean = Array.isArray(list)
+    ? list.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const isImg = (u: string) => /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(u);
+  const isVid = (u: string) => /\.(mp4|webm|mov|m4v|mkv)$/i.test(u);
+  const isAud = (u: string) => /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u);
+  const imageUrls = clean.filter(isImg);
+  const videoUrls = clean.filter(isVid);
+  const audioUrls = clean.filter(isAud);
+  const fallbackImageUrls = !imageUrls.length && !videoUrls.length && !audioUrls.length && clean[0] ? [clean[0]] : [];
+  return {
+    ...emptyRhOutputState(),
+    urls: clean,
+    imageUrl: imageUrls[0] || fallbackImageUrls[0] || '',
+    imageUrls: imageUrls.length > 0 ? imageUrls : fallbackImageUrls,
+    videoUrl: videoUrls[0] || '',
+    videoUrls,
+    audioUrl: audioUrls[0] || '',
+    audioUrls,
+  };
+}
+
 const paramKey = rhParamKey;
 
 type RHToolsPollEntry = {
@@ -568,17 +603,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
           }
           if (r.status === 'SUCCESS') {
             const list: string[] = Array.isArray(r.urls) ? r.urls : [];
-            const isImg = (u: string) => /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(u);
-            const isVid = (u: string) => /\.(mp4|webm|mov|m4v|mkv)$/i.test(u);
-            const isAud = (u: string) => /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u);
-            const firstImg = list.find(isImg);
-            const firstVid = list.find(isVid);
-            const firstAud = list.find(isAud);
-            const patch: any = { status: 'success', urls: list };
-            if (firstImg) patch.imageUrl = firstImg;
-            if (firstVid) patch.videoUrl = firstVid;
-            if (firstAud) patch.audioUrl = firstAud;
-            if (!firstImg && !firstVid && !firstAud && list[0]) patch.imageUrl = list[0];
+            const patch: any = { status: 'success', ...buildRhOutputStateFromUrls(list) };
             logBus.success(`任务完成 · ${list.length} 个输出 → ${list[0] || ''}`, src);
             update(patch);
             finish(true);
@@ -699,7 +724,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     if (Object.keys(effectiveValues).length > 0) {
       update({ paramValues: effectiveValues });
     }
-    update({ status: 'submitting', error: null, urls: [], taskId: null });
+    update({ status: 'submitting', error: null, taskId: null, ...emptyRhOutputState() });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
       const nodeInfoList = await resolveNodeInfoList(rawList);

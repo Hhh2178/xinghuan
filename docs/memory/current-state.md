@@ -2,8 +2,8 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.4.7`
-- 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+- 当前活跃版本：`v0.4.9`
+- 当前灰度 release：`20260623-runninghub-draft-output-reset-gray-r1-v049`
 - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
@@ -18,7 +18,7 @@
 
 ## 当前高频系统关注点
 
-- RunningHub：条目建模、Workflow/App 区分、无入参 workflow、AI App v2
+- RunningHub：条目建模、Workflow/App 区分、无入参 workflow、AI App v2、空白草稿创建、输出重置
 - Admin：系统并发治理、RH 工作台、环境同步
 - API：任务接口、系统只读聚合、RunningHub 分析
 - Worker：普通任务并发与 RH 平台窗口治理
