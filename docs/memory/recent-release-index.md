@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.4.7`
-  - release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - 版本：`v0.4.8`
+  - release：`20260623-documentation-governance-standard-gray-r1-v048`
 - production：
   - 版本：`v0.4.0`
   - release：`20260619-runninghub-slot-sync-prod-r1-v040-local`

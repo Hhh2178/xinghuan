@@ -53,6 +53,7 @@
 - `AGENTS.md`：本文件，记录协作和工程规则。
 - `docs/INDEX.md`：新的第一跳总索引。
 - `docs/governance/`：协作方式、CodeGraph 规则、归档政策。
+- `docs/governance/documentation-governance-standard.md`：当前正式文档治理规范。
 - `docs/systems/`：按系统组织的知识入口。
 - `docs/memory/`：长期记忆主题目录。
 - `docs/logbooks/`：日常推进、发布、验证、事故记录目录。
@@ -64,7 +65,7 @@
 - `docs/project-atlas/*.md`：兼容层主题正文，新的主入口以 `docs/systems/`、`docs/governance/`、`docs/logbooks/` 为准。
 - `docs/repo-structure.md`：当前 worktree、主仓库、过程目录和运行产物目录说明。
 - `docs/runtime-artifacts.md`：运行产物目录和清理边界说明。
-- `docs/documentation-governance.md`：旧治理正文，后续逐步被 `docs/governance/` 接管。
+- `docs/documentation-governance.md`：旧治理入口兼容层，正式规范已迁到 `docs/governance/documentation-governance-standard.md`。
 - `docs/size-audit-2026-06-15.md`：当前仓库体积基线、主要占用来源和后续瘦身顺序。
 - `docs/prd/README.md`：PRD 版本索引。
 - `docs/prd/v0.1.0/`：当前 2.0 初始规划版本文档。
@@ -145,7 +146,7 @@
 
 ## 版本治理规则
 
-- 当前活跃版本已推进为 `v0.4.7`。
+- 当前活跃版本已推进为 `v0.4.8`。
 - 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
 - `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
 - 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
@@ -155,6 +156,7 @@
 
 - 文档总入口以 `docs/INDEX.md` 为准。
 - 治理规则与更新规范优先看 `docs/governance/`。
+- 文档治理正式规范以 `docs/governance/documentation-governance-standard.md` 为准。
 - `docs/project-atlas/README.md` 与 `docs/documentation-governance.md` 继续保留为兼容正文，不再作为唯一第一跳入口。
 - 系统结构、协议、接口与执行链路优先收口到 `docs/systems/`，不要继续零散只写进 `MEMORY.md` 或一次性方案文档。
 - 当前状态只允许在少数主入口中维护：
@@ -190,7 +192,7 @@
 
 ## 当前状态
 
-- 2.0 当前活跃版本已为 `v0.4.7`。
+- 2.0 当前活跃版本已为 `v0.4.8`。
 - 产品路线口径：
   - `Phase 2` 节点与模型治理已完成灰度验收。
   - `Phase 3` 任务与素材闭环已完成主要能力落地，并继续以当前版本文档为主记录。
@@ -213,7 +215,7 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-  - 当前灰度 release：`20260622-runninghub-admin-empty-input-gray-r1-v047-dec3f87`
+  - 当前灰度 release：`20260623-documentation-governance-standard-gray-r1-v048`
   - 当前生产 release：`20260619-runninghub-slot-sync-prod-r1-v040-local`
   - `2026-06-22` 已完成 RH 显式无入参工作流 gray 热修：
     - 后台 RH 工作台对 `allowsEmptyInputs=true` 的 workflow 不再显示“缺少输入槽”

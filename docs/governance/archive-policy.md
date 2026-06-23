@@ -5,6 +5,7 @@
 - 不直接删除历史证据
 - 优先做“主入口瘦身 + 新入口跳转”
 - 仍直接用于值守、放行、回滚的材料不要归档
+- 具体执行规则以 `documentation-governance-standard.md` 为准
 
 ## 需要归档的典型内容
 
@@ -16,7 +17,7 @@
 
 - 保留 `README.md`、`AGENTS.md`、`MEMORY.md`、`DEVLOG.md`、`ops/README.md`
 - 这些文件转型为“摘要 + 跳转入口”
-- 旧正文暂不大规模迁走，只在顶部明确新的总入口和新目录职责
+- 旧正文逐步迁到 `docs/memory/`、`docs/logbooks/`、`ops/archive/`
 
 ## 新增文档的落点规则
 

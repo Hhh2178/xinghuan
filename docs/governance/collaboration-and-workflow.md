@@ -4,9 +4,10 @@
 
 1. 先读 `AGENTS.md`
 2. 再读 `docs/INDEX.md`
-3. 根据问题进入 `docs/systems/<system>/`
-4. 需要长期背景时读 `MEMORY.md` 或 `docs/memory/README.md`
-5. 需要发布、验收或排障证据时读 `ops/README.md` 与 `docs/logbooks/`
+3. 先看 `docs/governance/documentation-governance-standard.md`
+4. 根据问题进入 `docs/systems/<system>/`
+5. 需要长期背景时读 `MEMORY.md` 或 `docs/memory/README.md`
+6. 需要发布、验收或排障证据时读 `ops/README.md` 与 `docs/logbooks/`
 
 ## 开工前先判断文档类别
 
@@ -53,3 +54,4 @@
 - `MEMORY.md`：长期记忆兼容入口
 - `DEVLOG.md`：旧开发台账兼容入口
 - `ops/README.md`：运行态与放行入口
+- `docs/governance/documentation-governance-standard.md`：当前正式文档治理规范

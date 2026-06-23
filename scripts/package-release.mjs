@@ -68,6 +68,8 @@ const includedPaths = [
   "config",
   "ops/systemd",
   "ops/nginx",
+  "docs/INDEX.md",
+  "docs/governance",
   "apps/api/package.json",
   "apps/api/dist",
   "apps/api/db",

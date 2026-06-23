@@ -18,14 +18,16 @@
 
 ## 推荐阅读顺序
 
-1. `collaboration-and-workflow.md`
-2. `codegraph-and-repo-navigation.md`
-3. `archive-policy.md`
-4. `templates/README.md`
+1. `documentation-governance-standard.md`
+2. `collaboration-and-workflow.md`
+3. `codegraph-and-repo-navigation.md`
+4. `archive-policy.md`
+5. `templates/README.md`
 
-## 兼容关系
+## 正式规范与兼容关系
 
-- 旧规范 `docs/documentation-governance.md` 仍保留，作为历史兼容正文
+- 当前正式规范：`documentation-governance-standard.md`
+- 旧规范 `docs/documentation-governance.md` 继续保留，但只作为兼容跳转层
 - 新入口以 `docs/INDEX.md` 和本目录为准
 
 ## 兼容正文来源

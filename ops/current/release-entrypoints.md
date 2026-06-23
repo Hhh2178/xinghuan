@@ -9,6 +9,7 @@
 
 ## 近期仍常回看的 release 记录
 
+- `../documentation-governance-standard-gray-release-2026-06-23.md`
 - `../runninghub-protocol-admin-and-canvas-node-rebuild-gray-release-2026-06-22.md`
 - `../runninghub-tolerant-analyze-and-node-adaptation-gray-release-2026-06-22.md`
 - `../runninghub-worker-routing-and-display-label-gray-release-2026-06-22.md`
