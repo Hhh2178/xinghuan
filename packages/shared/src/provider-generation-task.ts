@@ -69,7 +69,7 @@ export interface ProviderGenerationTaskPayloadSummary {
   referenceAssetCount?: number;
 }
 
-export interface ProviderGenerationTaskResult {
+export interface ProviderGenerationTaskResult extends UnifiedRuntimeDiagnostic {
   resourceItemIds: string[];
   resourceCount: number;
   materializedImageUrls: string[];

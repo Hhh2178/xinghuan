@@ -36,6 +36,7 @@ const remoteRoot = String(firstArg(args["remote-root"]) || defaults.remoteRoot);
 const remoteTmpDir = String(firstArg(args["remote-tmp"]) || "/tmp");
 const serviceName = String(firstArg(args.service) || defaults.serviceName);
 const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
+const sharedEnvFile = `${remoteRoot}/shared/canvas-next.env`;
 const dryRun = flagEnabled(args["dry-run"]);
 
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
@@ -50,6 +51,7 @@ const remoteScript = [
   `tar -xzf ${shellQuote(remoteArchive)} -C ${shellQuote(releaseDir)}`,
   `cd ${shellQuote(releaseDir)}`,
   "npm ci",
+  `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run db:migrate`,
   `ln -sfn ${shellQuote(releaseDir)} ${shellQuote(`${remoteRoot}/current`)}`,
   `sudo systemctl restart ${shellQuote(serviceName)}`,
   `sudo systemctl restart ${shellQuote(workerServiceName)}`,

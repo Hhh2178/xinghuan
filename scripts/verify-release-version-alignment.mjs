@@ -16,24 +16,24 @@ const localChecks = [
   {
     label: "packages/shared/dist/index.js",
     path: "packages/shared/dist/index.js",
-    includes: [`appVersion = "${expectedVersion}"`],
+    includesAny: [[`appVersion = "${expectedVersion}"`, `appVersion = '${expectedVersion}'`], [`export const appVersion = "${expectedVersion}"`, `export const appVersion = '${expectedVersion}'`]],
   },
   {
     label: "apps/api/dist/server.js",
     path: "apps/api/dist/server.js",
-    includes: [`version: "${expectedVersion}"`],
+    includesAny: [[`version: "${expectedVersion}"`, `version:"${expectedVersion}"`, `version = "${expectedVersion}"`]],
   },
 ];
 
 for (const check of localChecks) {
   const text = await readFile(resolve(rootDir, check.path), "utf8");
-  assertIncludes(text, check.includes, check.label, expectedVersion);
+  assertIncludes(text, check.includesAny, check.label, expectedVersion);
 }
 
 if (archivePath) {
   for (const check of localChecks) {
     const text = await readArchiveEntry(archivePath, check.path);
-    assertIncludes(text, check.includes, `${archivePath}:${check.path}`, expectedVersion);
+    assertIncludes(text, check.includesAny, `${archivePath}:${check.path}`, expectedVersion);
   }
 }
 
@@ -55,10 +55,11 @@ function readArchiveArg(args) {
   return matched ? matched.slice("--archive=".length).trim() : "";
 }
 
-function assertIncludes(text, patterns, label, version) {
-  const missing = patterns.filter((item) => !text.includes(item));
-  if (missing.length > 0) {
-    throw new Error(`${label} does not expose expected version ${version}. Missing: ${missing.join(", ")}`);
+function assertIncludes(text, patternGroups, label, version) {
+  const missingGroups = patternGroups.filter((group) => !group.some((item) => text.includes(item)));
+  if (missingGroups.length > 0) {
+    const rendered = missingGroups.map((group) => group.join(" | "));
+    throw new Error(`${label} does not expose expected version ${version}. Missing: ${rendered.join(", ")}`);
   }
 }
 

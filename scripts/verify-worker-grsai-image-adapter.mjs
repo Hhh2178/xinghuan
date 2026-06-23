@@ -11,27 +11,111 @@ let submitRequest = null;
 let pollRequest = null;
 
 async function main() {
-  const upstream = await startMockGrsaiServer();
-  const providerId = `verify-worker-grsai-${Date.now()}`;
-  const modelId = "verify-worker-grsai-model";
-  try {
-    const login = await fetchJson("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-    });
-    assert(login.data?.authenticated === true, "login failed");
+  const login = await fetchJson("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+  });
+  assert(login.data?.authenticated === true, "login failed");
 
-    const system = await fetchJson("/api/admin/system");
-    assert(system.data?.redis?.status === "connected", "redis is not connected");
-    assert(system.data?.database?.status === "connected", "database is not connected");
+  const system = await fetchJson("/api/admin/system");
+  assert(system.data?.redis?.status === "connected", "redis is not connected");
+  assert(system.data?.database?.status === "connected", "database is not connected");
+
+  await verifyWorkerGrsaiSuccessScenario();
+  await verifyWorkerGrsaiRetriesNonJsonGatewayFailure();
+  await verifyWorkerGrsaiStopsAfterGatewayRetryExhaustion();
+}
+
+async function verifyWorkerGrsaiSuccessScenario() {
+  const upstream = await startMockGrsaiServer({ kind: "success" });
+  const result = await runWorkerScenario({
+    providerId: `verify-worker-grsai-${Date.now()}`,
+    providerName: "Verify Worker GRSAI Provider",
+    modelId: "verify-worker-grsai-model",
+    modelDisplayName: "Verify Worker GRSAI Model",
+    prompt: "worker grsai image adapter prompt",
+    expectedFinalStatus: "succeeded",
+  }, upstream);
+
+  assert(result.task?.result?.adapter === "grsai-image", "worker did not use grsai image adapter");
+  assert(result.task?.result?.modelId === "verify-worker-grsai-model", "worker result model mismatch");
+  assert(Array.isArray(result.task?.result?.imageUrls) && result.task.result.imageUrls[0] === "https://cdn.example.test/grsai-worker-image.png", "worker image result missing");
+  assert(result.task?.result?.taskId === "task-worker-grsai-1", "worker task id mismatch");
+  assert(result.submitRequest?.body?.model === "verify-worker-grsai-model", "submit model mismatch");
+  assert(result.submitRequest?.body?.prompt === "worker grsai image adapter prompt", "submit prompt mismatch");
+  assert(result.submitRequest?.body?.aspectRatio === "3:4", "submit aspect ratio mismatch");
+  assert(result.submitRequest?.body?.size === "1024x1024", "submit size mismatch");
+  assert(Array.isArray(result.submitRequest?.body?.urls) && /^data:image\/png;base64,/.test(result.submitRequest.body.urls[0] || ""), "submit local reference was not inlined");
+  assert(result.submitRequest?.authorization === "Bearer verify-worker-grsai-key", "submit auth mismatch");
+  assert(result.pollRequest?.body?.taskId === "task-worker-grsai-1", "poll task id mismatch");
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        taskId: result.taskId,
+        status: result.task.status,
+        adapter: result.task.result.adapter,
+        imageCount: result.task.result.imageCount,
+        upstream: {
+          submitModel: result.submitRequest.body.model,
+          pollTaskId: result.pollRequest.body.taskId,
+          authorization: result.submitRequest.authorization ? "present" : "missing",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+async function verifyWorkerGrsaiRetriesNonJsonGatewayFailure() {
+  const upstream = await startMockGrsaiServer({ kind: "non_json_retry_then_success" });
+  const result = await runWorkerScenario({
+    providerId: `verify-worker-grsai-retry-${Date.now()}`,
+    providerName: "Verify Worker GRSAI Retry Provider",
+    modelId: "verify-worker-grsai-retry-model",
+    modelDisplayName: "Verify Worker GRSAI Retry Model",
+    prompt: "worker grsai retry non-json gateway",
+    expectedFinalStatus: "succeeded",
+  }, upstream);
+
+  assert(result.upstreamState.pollAttempts === 3, `expected 3 poll attempts, got ${result.upstreamState.pollAttempts}`);
+  assert(Array.isArray(result.task?.result?.imageUrls) && result.task.result.imageUrls[0] === "https://cdn.example.test/grsai-worker-retry-image.png", "worker retry image result missing");
+  console.log("PASS worker grsai image adapter retries non-JSON gateway poll failures");
+}
+
+async function verifyWorkerGrsaiStopsAfterGatewayRetryExhaustion() {
+  const upstream = await startMockGrsaiServer({ kind: "non_json_retry_exhaust" });
+  const result = await runWorkerScenario({
+    providerId: `verify-worker-grsai-exhaust-${Date.now()}`,
+    providerName: "Verify Worker GRSAI Exhaust Provider",
+    modelId: "verify-worker-grsai-exhaust-model",
+    modelDisplayName: "Verify Worker GRSAI Exhaust Model",
+    prompt: "worker grsai retry exhaustion",
+    expectedFinalStatus: "failed",
+  }, upstream);
+
+  assert(result.upstreamState.pollAttempts === 5, `expected 5 poll attempts before exhaustion, got ${result.upstreamState.pollAttempts}`);
+  assert(/temporarily unavailable/i.test(String(result.task?.result?.failureReason || "")), "failure reason should preserve gateway body text");
+  assert(Number(result.task?.result?.upstreamHttpStatus) === 502, "upstream http status should be preserved on worker failure");
+  console.log("PASS worker grsai image adapter stops retrying after gateway exhaustion");
+}
+
+async function runWorkerScenario(config, upstream) {
+  const providerId = config.providerId;
+  let taskId = "";
+  try {
+    submitRequest = null;
+    pollRequest = null;
 
     const provider = await fetchJson("/api/admin/providers", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         id: providerId,
-        name: "Verify Worker GRSAI Provider",
+        name: config.providerName,
         baseUrl: upstream.url,
         protocol: "grsai_draw",
         enabled: true,
@@ -46,15 +130,15 @@ async function main() {
       body: JSON.stringify({
         models: [
           {
-            modelId,
+            modelId: config.modelId,
             capability: "image",
-            displayName: "Verify Worker GRSAI Model",
+            displayName: config.modelDisplayName,
             protocolOverride: "grsai_draw",
           },
         ],
       }),
     });
-    const modelRecord = imported.data?.models?.find((model) => model.modelId === modelId);
+    const modelRecord = imported.data?.models?.find((model) => model.modelId === config.modelId);
     assert(Boolean(modelRecord?.id), "model was not imported");
 
     const uploadForm = new FormData();
@@ -63,18 +147,17 @@ async function main() {
     const referenceUrl = uploadedReference.data?.url || "";
     assert(referenceUrl.startsWith("/files/input/"), "reference image was not uploaded");
 
-    const prompt = "worker grsai image adapter prompt";
     const created = await fetchJson("/api/admin/tasks", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        title: `worker grsai image adapter ${Date.now()}`,
+        title: `${config.providerName} ${Date.now()}`,
         status: "queued",
         providerId,
         modelId: modelRecord.id,
         payload: {
           kind: "image",
-          prompt,
+          prompt: config.prompt,
           size: "1024x1024",
           aspectRatio: "3:4",
           n: 1,
@@ -82,49 +165,22 @@ async function main() {
         },
       }),
     });
-    const taskId = created.data?.id;
-    assert(Boolean(taskId), "task was not created");
+    taskId = created.data?.id || "";
+    assert(taskId, "task was not created");
 
     let task = null;
-    for (let attempt = 0; attempt < 45; attempt += 1) {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
       await sleep(1000);
       const tasks = await fetchJson("/api/admin/tasks");
       task = tasks.data?.find((item) => item.id === taskId);
-      if (task?.status === "succeeded") break;
-      if (task?.status === "failed") throw new Error(`task failed: ${(task.logs || []).join(" | ")}`);
+      if (task?.status === config.expectedFinalStatus) break;
+      if (config.expectedFinalStatus === "succeeded" && task?.status === "failed") {
+        throw new Error(`task failed unexpectedly: ${(task.logs || []).join(" | ")}`);
+      }
     }
 
-    assert(task?.status === "succeeded", `task did not succeed, current status=${task?.status || "missing"}`);
-    assert(task?.result?.adapter === "grsai-image", "worker did not use grsai image adapter");
-    assert(task?.result?.modelId === modelId, "worker result model mismatch");
-    assert(Array.isArray(task?.result?.imageUrls) && task.result.imageUrls[0] === "https://cdn.example.test/grsai-worker-image.png", "worker image result missing");
-    assert(task?.result?.taskId === "task-worker-grsai-1", "worker task id mismatch");
-    assert(submitRequest?.body?.model === modelId, "submit model mismatch");
-    assert(submitRequest?.body?.prompt === prompt, "submit prompt mismatch");
-    assert(submitRequest?.body?.aspectRatio === "3:4", "submit aspect ratio mismatch");
-    assert(submitRequest?.body?.size === "1024x1024", "submit size mismatch");
-    assert(Array.isArray(submitRequest?.body?.urls) && /^data:image\/png;base64,/.test(submitRequest.body.urls[0] || ""), "submit local reference was not inlined");
-    assert(submitRequest?.authorization === "Bearer verify-worker-grsai-key", "submit auth mismatch");
-    assert(pollRequest?.body?.taskId === "task-worker-grsai-1", "poll task id mismatch");
-
-    console.log(
-      JSON.stringify(
-        {
-          ok: true,
-          taskId,
-          status: task.status,
-          adapter: task.result.adapter,
-          imageCount: task.result.imageCount,
-          upstream: {
-            submitModel: submitRequest.body.model,
-            pollTaskId: pollRequest.body.taskId,
-            authorization: submitRequest.authorization ? "present" : "missing",
-          },
-        },
-        null,
-        2,
-      ),
-    );
+    assert(task?.status === config.expectedFinalStatus, `task did not reach expected status=${config.expectedFinalStatus}, current=${task?.status || "missing"}`);
+    return { taskId, task, submitRequest, pollRequest, upstreamState: upstream.state };
   } finally {
     if (cookie) {
       await fetchText(`/api/admin/providers/${providerId}`, { method: "DELETE" }).catch(() => undefined);
@@ -133,8 +189,9 @@ async function main() {
   }
 }
 
-function startMockGrsaiServer() {
+function startMockGrsaiServer(scenario) {
   return new Promise((resolve) => {
+    const state = { pollAttempts: 0 };
     const server = createServer((request, response) => {
       let text = "";
       request.on("data", (chunk) => {
@@ -160,12 +217,35 @@ function startMockGrsaiServer() {
           return;
         }
         if (request.url === "/v1/draw/result") {
+          state.pollAttempts += 1;
           pollRequest = {
             method: request.method,
             url: request.url,
             authorization: request.headers.authorization,
             body,
           };
+          if (scenario.kind === "non_json_retry_then_success") {
+            if (state.pollAttempts <= 2) {
+              response.writeHead(502, { "content-type": "text/html" });
+              response.end("<html><body>temporarily unavailable</body></html>");
+              return;
+            }
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(JSON.stringify({
+              code: 0,
+              data: {
+                id: "task-worker-grsai-1",
+                status: "succeeded",
+                results: [{ url: "https://cdn.example.test/grsai-worker-retry-image.png" }],
+              },
+            }));
+            return;
+          }
+          if (scenario.kind === "non_json_retry_exhaust") {
+            response.writeHead(502, { "content-type": "text/html" });
+            response.end("<html><body>temporarily unavailable</body></html>");
+            return;
+          }
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({
             code: 0,
@@ -183,7 +263,7 @@ function startMockGrsaiServer() {
     });
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      resolve({ server, url: `http://127.0.0.1:${address.port}` });
+      resolve({ server, url: `http://127.0.0.1:${address.port}`, state });
     });
   });
 }
@@ -206,6 +286,8 @@ function withCookie(options = {}) {
   return {
     ...options,
     headers: {
+      origin: baseUrl,
+      referer: `${baseUrl}/`,
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
     },

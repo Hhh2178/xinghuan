@@ -38,6 +38,18 @@ interface GrsaiEnvelope {
   results?: unknown;
 }
 
+interface GrsaiHttpError extends Error {
+  status?: number;
+  responseStatus?: number;
+  response?: { status: number };
+  bodySnippet?: string;
+}
+
+interface GrsaiResponseBody {
+  payload: Record<string, unknown>;
+  bodySnippet: string;
+}
+
 export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
@@ -80,11 +92,24 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
       if (!submitState.taskId) throw new Error("GRSAI 未返回任务 ID");
 
       const startedAt = Date.now();
+      let gatewayRetryCount = 0;
+      const maxGatewayRetries = 4;
       for (;;) {
         if (Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
         if (pollIntervalMs > 0) await sleep(pollIntervalMs);
 
-        const polled = await pollJson(fetcher, baseUrl, options.apiKey, submitState.taskId, pollPath);
+        let polled: Awaited<ReturnType<typeof pollJson>>;
+        try {
+          polled = await pollJson(fetcher, baseUrl, options.apiKey, submitState.taskId, pollPath);
+          gatewayRetryCount = 0;
+        } catch (error) {
+          if (isRetryablePollGatewayFailure(error) && gatewayRetryCount < maxGatewayRetries) {
+            gatewayRetryCount += 1;
+            await sleep(1200 * gatewayRetryCount);
+            continue;
+          }
+          throw error;
+        }
         const imageUrls = extractImageUrls(polled.payload);
         if (imageUrls.length > 0) {
           return {
@@ -115,9 +140,9 @@ async function requestJson(fetcher: typeof fetch, url: string, apiKey: string, b
     headers: jsonHeaders(apiKey),
     body: JSON.stringify(body),
   });
-  const payload = await readJson(response);
-  if (!response.ok) throw new Error(extractErrorMessage(payload) || `HTTP ${response.status}`);
-  return { response, payload };
+  const parsed = await readJson(response);
+  if (!response.ok) throw createGrsaiHttpError(response.status, parsed);
+  return { response, payload: parsed.payload };
 }
 
 async function pollJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string, pollPath: string) {
@@ -131,13 +156,13 @@ async function pollJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, 
       method: "GET",
       headers: jsonHeaders(apiKey),
     });
-    const payload = await readJson(fallback);
-    if (!fallback.ok) throw new Error(extractErrorMessage(payload) || `HTTP ${fallback.status}`);
-    return { response: fallback, payload };
+    const parsed = await readJson(fallback);
+    if (!fallback.ok) throw createGrsaiHttpError(fallback.status, parsed);
+    return { response: fallback, payload: parsed.payload };
   }
-  const payload = await readJson(postResponse);
-  if (!postResponse.ok) throw new Error(extractErrorMessage(payload) || `HTTP ${postResponse.status}`);
-  return { response: postResponse, payload };
+  const parsed = await readJson(postResponse);
+  if (!postResponse.ok) throw createGrsaiHttpError(postResponse.status, parsed);
+  return { response: postResponse, payload: parsed.payload };
 }
 
 function normalizeState(payload: Record<string, unknown>) {
@@ -170,6 +195,35 @@ function normalizeState(payload: Record<string, unknown>) {
     return { kind: "failed" as const, errorMessage, taskId, rawStatus };
   }
   return { kind: "pending" as const, taskId, rawStatus };
+}
+
+function isRetryablePollGatewayFailure(error: unknown) {
+  const status = readErrorHttpStatus(error);
+  if (status === 502 || status === 503 || status === 504) return true;
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /502|503|504|bad gateway|fetch failed/i.test(message);
+}
+
+function createGrsaiHttpError(status: number, responseBody: GrsaiResponseBody) {
+  const message = extractErrorMessage(responseBody.payload) || responseBody.bodySnippet || `HTTP ${status}`;
+  const error = new Error(message) as GrsaiHttpError;
+  error.name = "GrsaiHttpError";
+  error.status = status;
+  error.responseStatus = status;
+  error.response = { status };
+  error.bodySnippet = responseBody.bodySnippet;
+  return error;
+}
+
+function readErrorHttpStatus(error: unknown) {
+  if (!error || typeof error !== "object") return undefined;
+  const directStatus = Number((error as { status?: unknown }).status);
+  if (Number.isInteger(directStatus) && directStatus >= 100 && directStatus <= 599) return directStatus;
+  const responseStatus = Number((error as { responseStatus?: unknown }).responseStatus);
+  if (Number.isInteger(responseStatus) && responseStatus >= 100 && responseStatus <= 599) return responseStatus;
+  const nestedResponseStatus = Number((error as { response?: { status?: unknown } }).response?.status);
+  if (Number.isInteger(nestedResponseStatus) && nestedResponseStatus >= 100 && nestedResponseStatus <= 599) return nestedResponseStatus;
+  return undefined;
 }
 
 function readTaskId(payload: Record<string, unknown>) {
@@ -248,11 +302,22 @@ function buildMissingImageResultError(
   return `GRSAI 任务状态 ${status} 但未返回图片${taskSuffix}${detail}`;
 }
 
-async function readJson(response: Response) {
+async function readJson(response: Response): Promise<GrsaiResponseBody> {
   const text = await response.text();
-  if (!text) return {} as Record<string, unknown>;
+  if (!text) return { payload: {}, bodySnippet: "" };
   const normalized = text.startsWith("data: ") ? text.slice(6) : text;
-  return JSON.parse(normalized) as Record<string, unknown>;
+  const bodySnippet = normalized.slice(0, 500);
+  try {
+    return {
+      payload: JSON.parse(normalized) as Record<string, unknown>,
+      bodySnippet,
+    };
+  } catch {
+    return {
+      payload: { message: bodySnippet, rawBody: bodySnippet },
+      bodySnippet,
+    };
+  }
 }
 
 function jsonHeaders(apiKey: string) {

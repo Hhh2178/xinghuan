@@ -163,6 +163,14 @@ function buildRhOutputStateFromUrls(list: string[]) {
   };
 }
 
+type RunningHubPollEntry = {
+  timer: number;
+  promise: Promise<void>;
+};
+
+const activeRunningHubPolls = new Map<string, RunningHubPollEntry>();
+const runningHubPollKey = (nodeId: string, taskId: string) => `${nodeId}::${taskId}`;
+
 function countSchemaProperties(value: string | undefined) {
   if (!value?.trim()) return 0;
   try {
@@ -302,7 +310,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const [error, setError] = useState<string | null>(null);
-  const pollTimer = useRef<number | null>(null);
+  const currentPollKeyRef = useRef<string | null>(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
   const [workflowCatalog, setWorkflowCatalog] = useState<RunningHubCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -416,10 +424,18 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWorkflowPreset?.catalogId, localPresetAppInfo]);
 
-  const stopPoll = () => {
-    if (pollTimer.current) {
-      window.clearInterval(pollTimer.current);
-      pollTimer.current = null;
+  const stopPoll = (tid?: string) => {
+    const key = tid
+      ? runningHubPollKey(id, tid)
+      : currentPollKeyRef.current || (taskId ? runningHubPollKey(id, taskId) : null);
+    if (!key) return;
+    const entry = activeRunningHubPolls.get(key);
+    if (entry) {
+      window.clearInterval(entry.timer);
+      activeRunningHubPolls.delete(key);
+    }
+    if (currentPollKeyRef.current === key) {
+      currentPollKeyRef.current = null;
     }
   };
   useEffect(() => () => stopPoll(), []);
@@ -727,18 +743,38 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   //   修复: 轮询完成才 resolve，handleRun await 它，markDone 时机=任务真正结束。
   //   同样适用于 RH 钱包应用节点 (runninghubWallet)，同一个组件复用。
   const startPolling = (tid: string): Promise<void> => {
+    const key = runningHubPollKey(id, tid);
+    const existing = activeRunningHubPolls.get(key);
+    if (existing) {
+      currentPollKeyRef.current = key;
+      return existing.promise;
+    }
     stopPoll();
-    return new Promise<void>((resolve, reject) => {
+    currentPollKeyRef.current = key;
+    let timer: number | null = null;
+    const promise = new Promise<void>((resolve, reject) => {
       let elapsed = 0;
       const POLL_INT = 5000;
       const MAX = 480;
-      pollTimer.current = window.setInterval(async () => {
+      const finish = (ok: boolean, error?: Error) => {
+        if (timer != null) {
+          window.clearInterval(timer);
+        }
+        if (activeRunningHubPolls.get(key)?.timer === timer) {
+          activeRunningHubPolls.delete(key);
+        }
+        if (currentPollKeyRef.current === key) {
+          currentPollKeyRef.current = null;
+        }
+        if (ok) resolve();
+        else reject(error || new Error('RH 轮询失败'));
+      };
+      timer = window.setInterval(async () => {
         elapsed += 1;
         if (elapsed > MAX) {
-          stopPoll();
           update({ status: 'error', error: '轮询超时' });
           setError('轮询超时');
-          reject(new Error('轮询超时'));
+          finish(false, new Error('轮询超时'));
           return;
         }
         try {
@@ -749,15 +785,13 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             logBus.debug(`[${elapsed * 5}s] status=${r.status} code=${r.code} urls=${r.urls?.length || 0}`, src);
           }
           if (r.status === 'SUCCESS') {
-            stopPoll();
             const list: string[] = Array.isArray(r.urls) ? r.urls : [];
             const patch: any = { status: 'success', ...buildRhOutputStateFromUrls(list) };
             console.log('[RH/done] taskId=', tid, 'urls=', list);
             logBus.success(`任务完成 · ${list.length} 个输出 → ${list[0] || ''}`, src);
             update(patch);
-            resolve();
+            finish(true);
           } else if (r.status === 'FAILED') {
-            stopPoll();
             // failReason 可能是 ComfyUI 报错对象(含 traceback/exception_type 等)，
             // 需序列化为字符串避免 React JSX 直接渲染 object 崩溃
             let reason: string;
@@ -776,7 +810,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             update({ status: 'error', error: reason });
             setError(reason);
             logBus.error(`生成失败: ${reason}`, src);
-            reject(new Error(reason));
+            finish(false, new Error(reason));
           } else {
             update({
               status: 'polling',
@@ -791,6 +825,10 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         }
       }, POLL_INT);
     });
+    if (timer != null) {
+      activeRunningHubPolls.set(key, { timer, promise });
+    }
+    return promise;
   };
 
   // 返回本次拉取与计算后的可用 list + paramValues，供 handleRun 同步路径直接使用
@@ -895,6 +933,13 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     void handleFetchInfo();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWorkflowPreset?.catalogId, presetFieldCount, resolvedRunTargetId, fetchingInfo, shouldHydrateAuthoritativeAppInfo]);
+
+  useEffect(() => {
+    if (status !== 'polling' || !taskId || !resolvedRunTargetId) return;
+    void startPolling(taskId).catch(() => undefined);
+    // startPolling 本身由节点当前 data 派生，内部有全局去重；这里故意只跟随持久化运行态恢复轮询。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, taskId, resolvedRunTargetId]);
 
   const handleRun = async () => {
     setError(null);

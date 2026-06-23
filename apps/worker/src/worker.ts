@@ -11,6 +11,7 @@ import {
   type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
   type TaskStatus,
+  type UnifiedFailureCategory,
 } from "@xinghuan/shared";
 import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
@@ -18,6 +19,7 @@ import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
 import { materializeTaskOutputs } from "./output-materials.js";
+import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
 import {
   createOpenAiAudioChatPayload,
   extractAudioProviderResult,
@@ -105,6 +107,7 @@ interface RunningHubKeyPoolItem {
   apiKeyPreview?: string;
   maxConcurrency: number;
   enabled: boolean;
+  isDefault: boolean;
   currentInFlight?: number;
 }
 
@@ -359,7 +362,7 @@ async function processTask(taskId: string) {
   if (claimResult === "cancelled") {
     await releaseRunningHubExecutionWindow(task);
     await releaseUserExecutionWindow(task);
-    logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancelled before claim" });
+    logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancel_requested before claim" });
     return;
   }
   if (claimResult === "missing") {
@@ -380,7 +383,7 @@ async function processTask(taskId: string) {
     const result = await executeTask(task);
     if (await isTaskCancelled(taskId)) {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行结果`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "drop result after cancellation" });
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "cancel_requested drop result after cancellation" });
       return;
     }
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
@@ -403,7 +406,7 @@ async function processTask(taskId: string) {
   } catch (error) {
     if (await isTaskCancelled(taskId)) {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行错误`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "drop error after cancellation" });
+      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "cancel_requested drop error after cancellation" });
       return;
     }
     if (isRetryableRunningHubQueueLimitError(error)) {
@@ -426,11 +429,16 @@ async function processTask(taskId: string) {
       }
       return;
     }
+    const normalized = normalizeUnifiedFailure(error);
     const failedResult = await updateTask(taskId, "failed", [`${workerId} 执行失败: ${error instanceof Error ? error.message : String(error)}`], {
       ...readWorkerTaskResultPatch(error),
       workerId,
       failedAt: new Date().toISOString(),
-      failureReason: error instanceof Error ? error.message : String(error),
+      failureReason: normalized.failureReason,
+      failureCategory: normalized.failureCategory,
+      providerDiagnostic: normalized.providerDiagnostic,
+      upstreamHttpStatus: normalized.upstreamHttpStatus,
+      upstreamResponseSnippet: normalized.upstreamResponseSnippet,
     });
     if (failedResult === "cancelled") {
       await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
@@ -524,9 +532,13 @@ async function releaseUserExecutionWindow(task: TaskRow) {
 async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
   if (normalizeProtocol(task.providerProtocol) !== "runninghub") return { acquired: true };
   if (!settings.runninghub.enabled) return { acquired: true };
-  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
-  const assignedRhKeyNote = safeText(task.payload.assignedRhKeyNoteSnapshot || task.result.assignedRhKeyNoteSnapshot);
-  const limit = Math.max(1, Number(task.payload.assignedRhKeyMaxConcurrency || task.result.assignedRhKeyMaxConcurrency || settings.runninghub.concurrency) || 1);
+  const selectedRhKey = await selectExecutableRunningHubKey(task, settings);
+  if (!selectedRhKey) {
+    return { acquired: false, reason: "RunningHub 所有 Key 并发已满 (all_keys_busy)" };
+  }
+  const assignedRhKeyId = selectedRhKey.id;
+  const assignedRhKeyNote = safeText(selectedRhKey.note);
+  const limit = Math.max(1, Number(selectedRhKey.maxConcurrency || settings.runninghub.concurrency) || 1);
   const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
   const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current >= limit) {
@@ -538,6 +550,26 @@ async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQue
     await redisControl.decr(key).catch(() => undefined);
     return { acquired: false, reason: `RunningHub Key ${assignedRhKeyNote || assignedRhKeyId} 并发已满 (${next - 1}/${limit})` };
   }
+  await touchTaskRuntime(task.id, {
+    assignedRhKeyId: selectedRhKey.id,
+    assignedRhKeyNoteSnapshot: selectedRhKey.note,
+    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+    rhQueueReason: "",
+  });
+  task.result = {
+    ...task.result,
+    assignedRhKeyId: selectedRhKey.id,
+    assignedRhKeyNoteSnapshot: selectedRhKey.note,
+    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+    rhQueueReason: "",
+  };
+  task.payload = {
+    ...task.payload,
+    assignedRhKeyId: selectedRhKey.id,
+    assignedRhKeyNoteSnapshot: selectedRhKey.note,
+    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+    rhQueueReason: "",
+  };
   return { acquired: true };
 }
 
@@ -549,6 +581,37 @@ async function releaseRunningHubExecutionWindow(task: TaskRow) {
   if (current <= 0) return;
   const next = await redisControl.decr(key).catch(() => current - 1);
   if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
+}
+
+async function selectExecutableRunningHubKey(task: TaskRow, settings: TaskQueueSettings) {
+  const preferredRhKeyId = safeText(task.payload.preferredRhKeyId || task.result.preferredRhKeyId);
+  const pool = task.rhKeyPool.length > 0
+    ? task.rhKeyPool.filter((item) => item.enabled && safeText(item.apiKey))
+    : [{
+        id: "legacy-default",
+        note: "兼容单 Key",
+        apiKey: decryptSecret(task.apiKeyCipher) || task.apiKeyCipher,
+        apiKeyPreview: "",
+        maxConcurrency: Math.max(1, Number(settings.runninghub.concurrency) || 1),
+        enabled: true,
+        isDefault: true,
+        currentInFlight: 0,
+      } satisfies RunningHubKeyPoolItem];
+  if (pool.length === 0) return null;
+  const ordered = [
+    ...pool.filter((item) => item.id === preferredRhKeyId),
+    ...pool.filter((item) => item.id !== preferredRhKeyId && item.isDefault),
+    ...pool.filter((item) => item.id !== preferredRhKeyId && !item.isDefault),
+  ];
+  for (const item of ordered) {
+    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
+    const key = runningHubRedisWindowKey(task.providerId, item.id);
+    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
+    if (current < limit) {
+      return item;
+    }
+  }
+  return null;
 }
 
 async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
@@ -982,7 +1045,12 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
 async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unknown>> {
   if (!task.providerEnabled) throw new Error("RunningHub Provider 不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("RunningHub Provider 缺少 Base URL");
-  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId);
+  const assignedRhKeyId = safeText(
+    task.payload.assignedRhKeyId
+      || task.result.assignedRhKeyId
+      || task.payload.preferredRhKeyId
+      || task.result.preferredRhKeyId,
+  );
   const assignedRhKey = findAssignedRunningHubKey(task.rhKeyPool, assignedRhKeyId);
   const apiKey = decryptSecret(assignedRhKey?.apiKey || task.apiKeyCipher);
   if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key 或无法解密");
@@ -1085,15 +1153,21 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     ), targetType);
     throw createWorkerTaskError(
       message,
-      buildRunningHubSubmitFailurePatch({
-        submitUrl,
-        targetType,
-        runTargetId,
-        workflowId,
-        submitRequestBody: submitRequestBodyForLog,
-        submitResponseStatus: submitResponse.status,
-        submitResponseText: submitText,
-      }),
+      {
+        ...buildRunningHubSubmitFailurePatch({
+          submitUrl,
+          targetType,
+          runTargetId,
+          workflowId,
+          submitRequestBody: submitRequestBodyForLog,
+          submitResponseStatus: submitResponse.status,
+          submitResponseText: submitText,
+        }),
+        failureCategory: "upstream_business_failed",
+        providerDiagnostic: message,
+        upstreamHttpStatus: submitResponse.status,
+        upstreamResponseSnippet: submitText.slice(0, 500),
+      },
     );
   }
 
@@ -1117,7 +1191,10 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
 
   for (;;) {
     if (Date.now() - startedAt > timeoutMs) {
-      throw new Error(`RunningHub 轮询超时: ${upstreamTaskId}`);
+      throw createWorkerTaskError(`RunningHub 轮询超时: ${upstreamTaskId}`, {
+        failureCategory: "upstream_poll_timeout",
+        providerDiagnostic: `RunningHub 轮询超时: ${upstreamTaskId}`,
+      });
     }
     await wait(pollIntervalMs);
     const pollResponse = await fetch(queryUrl, {
@@ -1133,7 +1210,12 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     });
     const pollText = await pollResponse.text();
     if (!pollResponse.ok) {
-      throw new Error(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`);
+      throw createWorkerTaskError(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`, {
+        failureCategory: "upstream_poll_gateway_failed",
+        providerDiagnostic: `RunningHub 轮询失败 ${pollResponse.status}`,
+        upstreamHttpStatus: pollResponse.status,
+        upstreamResponseSnippet: pollText.slice(0, 500),
+      });
     }
     const pollRaw = pollText ? JSON.parse(pollText) : {};
     const pollData = targetType === "app" ? pollRaw : pollRaw;
@@ -1164,22 +1246,38 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       const appStatus = safeText(pollRaw.status).toUpperCase();
       if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(appStatus)) continue;
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(appStatus) || safeText(pollRaw.errorCode)) {
-        throw new Error(pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`);
+        throw createWorkerTaskError(pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`, {
+          failureCategory: "upstream_business_failed",
+          providerDiagnostic: pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`,
+          upstreamResponseSnippet: pollText.slice(0, 500),
+        });
       }
       if (Number.isFinite(pollCode) && pollCode !== 0 && !["SUCCESS"].includes(appStatus)) {
-        throw new Error(pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`);
+        throw createWorkerTaskError(pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`, {
+          failureCategory: "upstream_business_failed",
+          providerDiagnostic: pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`,
+          upstreamResponseSnippet: pollText.slice(0, 500),
+        });
       }
     }
     if (targetType === "workflow") {
       const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || pollRaw.data?.status).toUpperCase();
       if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(workflowStatus)) continue;
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(workflowStatus) || safeText(pollRaw.errorCode)) {
-        throw new Error(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`);
+        throw createWorkerTaskError(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`, {
+          failureCategory: "upstream_business_failed",
+          providerDiagnostic: pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`,
+          upstreamResponseSnippet: pollText.slice(0, 500),
+        });
       }
     }
     const urls = extractRunningHubOutputUrls(targetType === "app" ? pollRaw.results || pollRaw.data || pollRaw : pollRaw.data || pollRaw);
     if (urls.imageUrls.length === 0 && urls.videoUrls.length === 0 && urls.audioUrls.length === 0) {
-      throw new Error(pollMessage || "RunningHub 任务成功但未返回可用输出");
+      throw createWorkerTaskError(pollMessage || "RunningHub 任务成功但未返回可用输出", {
+        failureCategory: "upstream_business_failed",
+        providerDiagnostic: pollMessage || "RunningHub 任务成功但未返回可用输出",
+        upstreamResponseSnippet: pollText.slice(0, 500),
+      });
     }
     return {
       adapter: "runninghub",
@@ -1232,6 +1330,77 @@ function createWorkerTaskError(message: string, resultPatch: Record<string, unkn
   return error;
 }
 
+function toOptionalHttpStatus(error: unknown) {
+  if (!error || typeof error !== "object") return undefined;
+  const directStatus = Number((error as { status?: unknown }).status);
+  if (Number.isInteger(directStatus) && directStatus >= 100 && directStatus <= 599) return directStatus;
+  const resultPatch = readWorkerTaskResultPatch(error);
+  const patchStatus = Number(
+    resultPatch.upstreamHttpStatus
+      || resultPatch.submitResponseStatus
+      || resultPatch.rhSubmitResponseStatus,
+  );
+  if (Number.isInteger(patchStatus) && patchStatus >= 100 && patchStatus <= 599) return patchStatus;
+  const responseStatus = Number((error as { response?: { status?: unknown } }).response?.status);
+  if (Number.isInteger(responseStatus) && responseStatus >= 100 && responseStatus <= 599) return responseStatus;
+  return undefined;
+}
+
+function toOptionalResponseSnippet(error: unknown) {
+  const resultPatch = readWorkerTaskResultPatch(error);
+  const snippet = safeText(
+    resultPatch.upstreamResponseSnippet
+      || resultPatch.rhSubmitResponseText
+      || resultPatch.submitResponseText
+      || resultPatch.providerDiagnostic,
+  );
+  if (snippet) return snippet.slice(0, 500);
+  const message = error instanceof Error ? safeText(error.message) : safeText(error);
+  const matched = message.match(/:\s*([\s\S]{1,500})$/);
+  return matched ? matched[1].slice(0, 500) : undefined;
+}
+
+function normalizeUnifiedFailure(error: unknown): {
+  failureReason: string;
+  failureCategory: UnifiedFailureCategory;
+  providerDiagnostic: string;
+  upstreamHttpStatus?: number;
+  upstreamResponseSnippet?: string;
+} {
+  const resultPatch = readWorkerTaskResultPatch(error);
+  const message = error instanceof Error ? error.message : String(error || "unknown error");
+  const httpStatus = toOptionalHttpStatus(error);
+  const responseSnippet = toOptionalResponseSnippet(error);
+  const patchCategory = safeText(resultPatch.failureCategory) as UnifiedFailureCategory;
+  const patchDiagnostic = safeText(resultPatch.providerDiagnostic);
+
+  if (patchCategory) {
+    return {
+      failureReason: message,
+      failureCategory: patchCategory,
+      providerDiagnostic: patchDiagnostic || message,
+      upstreamHttpStatus: httpStatus,
+      upstreamResponseSnippet: responseSnippet,
+    };
+  }
+  if (/apikey|unauthorized|forbidden|auth/i.test(message)) {
+    return { failureReason: message, failureCategory: "auth", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  if (/credits|quota|balance|consume/i.test(message)) {
+    return { failureReason: message, failureCategory: "quota_or_credits", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  if (/model not found|workflow not found|app not found|invalid/i.test(message)) {
+    return { failureReason: message, failureCategory: "model_config", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  if (/timeout|超时/i.test(message)) {
+    return { failureReason: message, failureCategory: "upstream_poll_timeout", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  if (/502|503|504|bad gateway|fetch failed/i.test(message)) {
+    return { failureReason: message, failureCategory: "upstream_poll_gateway_failed", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  return { failureReason: message, failureCategory: "unknown", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+}
+
 function readWorkerTaskResultPatch(error: unknown) {
   if (!error || typeof error !== "object") return {};
   const resultPatch = (error as { resultPatch?: unknown }).resultPatch;
@@ -1251,6 +1420,13 @@ function isRetryableRunningHubQueueLimitError(error: unknown) {
       haystack.includes("api queue limit reached")
       || haystack.includes("api 并发数已达上线")
     );
+}
+
+function isRetryablePollGatewayFailure(error: unknown) {
+  const status = toOptionalHttpStatus(error);
+  if (status === 502 || status === 503 || status === 504) return true;
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /502|503|504|bad gateway|fetch failed/i.test(message);
 }
 
 function buildRunningHubQueueLimitRetryDetail(error: unknown) {
@@ -1461,7 +1637,12 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
   });
 
   if (result.imageUrls.length === 0) {
-    throw new Error(`GRSAI 图像任务未返回可用图片${result.taskId ? `: ${result.taskId}` : ""}`);
+    const message = `GRSAI 图像任务未返回可用图片${result.taskId ? `: ${result.taskId}` : ""}`;
+    throw createWorkerTaskError(message, {
+      failureCategory: "upstream_business_failed",
+      providerDiagnostic: message,
+      upstreamResponseSnippet: message.slice(0, 500),
+    });
   }
 
   return {
@@ -1500,7 +1681,7 @@ function safeText(value: unknown, fallback = "") {
 }
 
 function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItem[] {
-  return (Array.isArray(value) ? value : [])
+  const normalized = (Array.isArray(value) ? value : [])
     .flatMap((item) => {
       const row = plainObject(item);
       const id = safeText(row.id);
@@ -1512,9 +1693,15 @@ function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItem[] {
         apiKeyPreview: safeText(row.apiKeyPreview),
         maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
         enabled: row.enabled !== false,
+        isDefault: row.isDefault === true,
         currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
       }];
     });
+  const firstDefaultIndex = normalized.findIndex((item) => item.isDefault);
+  return normalized.map((item, index) => ({
+    ...item,
+    isDefault: firstDefaultIndex >= 0 ? index === firstDefaultIndex : false,
+  }));
 }
 
 function findAssignedRunningHubKey(pool: RunningHubKeyPoolItem[], assignedRhKeyId: string) {
@@ -1606,239 +1793,6 @@ function taskTraceContext(task: TaskRow) {
   };
 }
 
-interface GrsaiImageClientOptions {
-  apiKey: string;
-  baseUrl: string;
-  fetcher?: typeof fetch;
-  pollIntervalMs?: number;
-  timeoutMs?: number;
-}
-
-interface GrsaiImageGenerateInput {
-  modelId: string;
-  prompt: string;
-  aspectRatio?: string;
-  size?: string;
-  images?: string[];
-  submitPath?: string;
-  pollPath?: string;
-  onHeartbeat?: (patch: Record<string, unknown>) => Promise<void>;
-}
-
-interface GrsaiImageGenerateResult {
-  imageUrls: string[];
-  taskId?: string;
-}
-
-function createGrsaiImageClient(options: GrsaiImageClientOptions) {
-  const fetcher = options.fetcher ?? fetch;
-  const baseUrl = options.baseUrl.replace(/\/+$/, "");
-  const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 1500);
-  const timeoutMs = Math.max(1000, options.timeoutMs ?? 120000);
-
-  return {
-    async generate(input: GrsaiImageGenerateInput): Promise<GrsaiImageGenerateResult> {
-      const submitPath = resolveGrsaiSubmitPath(input.submitPath, input.modelId);
-      const pollPath = resolveGrsaiPollPath(input.pollPath);
-      const submit = await requestJson(fetcher, `${baseUrl}${submitPath}`, options.apiKey, {
-        model: input.modelId,
-        prompt: input.prompt,
-        webHook: "-1",
-        ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
-        ...(input.size ? { size: input.size } : {}),
-        ...(input.images && input.images.length > 0 ? { urls: input.images } : {}),
-      });
-
-      const submitUrls = extractGrsaiImageUrls(submit.payload);
-      if (submitUrls.length > 0) {
-        return {
-          imageUrls: submitUrls,
-          taskId: readString(readGrsaiTaskId(submit.payload)),
-        };
-      }
-
-      const submitState = normalizeGrsaiState(submit.payload);
-      if (submitState.kind === "failed") throw new Error(submitState.errorMessage);
-      if (submitState.kind === "success") {
-        throw new Error(buildMissingGrsaiImageResultError(submit.payload, submitState));
-      }
-      if (!submitState.taskId) throw new Error("GRSAI 未返回任务 ID");
-      await input.onHeartbeat?.({
-        heartbeatAt: new Date().toISOString(),
-        upstreamTaskId: submitState.taskId,
-        taskId: submitState.taskId,
-        upstreamStatus: submitState.rawStatus || "submitted",
-        runtimeStage: "polling",
-      });
-
-      const startedAt = Date.now();
-      for (;;) {
-        if (Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
-        if (pollIntervalMs > 0) await wait(pollIntervalMs);
-
-        const polled = await pollGrsaiJson(fetcher, baseUrl, options.apiKey, submitState.taskId, pollPath);
-        const imageUrls = extractGrsaiImageUrls(polled.payload);
-        if (imageUrls.length > 0) {
-          return {
-            imageUrls,
-            taskId: submitState.taskId,
-          };
-        }
-        const state = normalizeGrsaiState(polled.payload);
-        await input.onHeartbeat?.({
-          heartbeatAt: new Date().toISOString(),
-          upstreamTaskId: state.taskId || submitState.taskId,
-          taskId: state.taskId || submitState.taskId,
-          upstreamStatus: state.rawStatus || state.kind,
-          runtimeStage: "polling",
-        });
-        if (state.kind === "failed") throw new Error(state.errorMessage);
-        if (state.kind === "success") {
-          throw new Error(buildMissingGrsaiImageResultError(polled.payload, state));
-        }
-      }
-    },
-  };
-}
-
-async function requestJson(fetcher: typeof fetch, url: string, apiKey: string, body: Record<string, unknown>) {
-  const response = await fetcher(url, {
-    method: "POST",
-    headers: buildProviderJsonHeaders(apiKey),
-    body: JSON.stringify(body),
-  });
-  const payload = await readJsonResponse(response);
-  if (!response.ok) throw new Error(extractGrsaiErrorMessage(payload) || `HTTP ${response.status}`);
-  return { response, payload };
-}
-
-async function pollGrsaiJson(fetcher: typeof fetch, baseUrl: string, apiKey: string, taskId: string, pollPath: string) {
-  const response = await fetcher(`${baseUrl}${pollPath}`, {
-    method: "POST",
-    headers: buildProviderJsonHeaders(apiKey),
-    body: JSON.stringify({ taskId, id: taskId }),
-  });
-  if (response.status === 405) {
-    const fallback = await fetcher(`${baseUrl}${pollPath}?taskId=${encodeURIComponent(taskId)}`, {
-      method: "GET",
-      headers: buildProviderJsonHeaders(apiKey),
-    });
-    const payload = await readJsonResponse(fallback);
-    if (!fallback.ok) throw new Error(extractGrsaiErrorMessage(payload) || `HTTP ${fallback.status}`);
-    return { response: fallback, payload };
-  }
-  const payload = await readJsonResponse(response);
-  if (!response.ok) throw new Error(extractGrsaiErrorMessage(payload) || `HTTP ${response.status}`);
-  return { response, payload };
-}
-
-function normalizeGrsaiState(payload: Record<string, unknown>) {
-  const envelope = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
-    ? payload.data as Record<string, unknown>
-    : payload;
-  const code = typeof payload.code === "number"
-    ? payload.code
-    : typeof envelope.code === "number"
-      ? envelope.code
-      : undefined;
-  const taskId = readString(readGrsaiTaskId(payload));
-  const rawStatus = readString(
-    envelope.status || envelope.state || envelope.progressState || payload.status || payload.state || payload.progressState,
-  );
-  const status = rawStatus.toLowerCase();
-  const errorMessage = extractGrsaiErrorMessage(payload);
-  const successSignal = ["success", "succeeded", "completed", "done", "ok"].includes(errorMessage.toLowerCase());
-
-  if (code !== undefined && code !== 0) return { kind: "failed" as const, errorMessage: errorMessage || `Provider request failed with code ${code}`, taskId, rawStatus };
-  if (["failed", "error", "cancelled", "canceled"].includes(status)) return { kind: "failed" as const, errorMessage: errorMessage || "Provider request failed", taskId, rawStatus };
-  if (["succeeded", "success", "completed", "done"].includes(status)) return { kind: "success" as const, taskId, rawStatus };
-  if (errorMessage && !successSignal && !taskId) return { kind: "failed" as const, errorMessage, taskId, rawStatus };
-  return { kind: "pending" as const, taskId, rawStatus };
-}
-
-function readGrsaiTaskId(payload: Record<string, unknown>) {
-  const envelope = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
-    ? payload.data as Record<string, unknown>
-    : payload;
-  return envelope.id || envelope.taskId || envelope.task_id || payload.id || payload.taskId || payload.task_id;
-}
-
-function extractGrsaiImageUrls(payload: Record<string, unknown>) {
-  const pool = [
-    payload,
-    payload.data && typeof payload.data === "object" && !Array.isArray(payload.data) ? payload.data as Record<string, unknown> : null,
-  ].filter(Boolean) as Record<string, unknown>[];
-  const urls: string[] = [];
-  for (const source of pool) {
-    const items = Array.isArray(source.results) ? source.results : Array.isArray(source.data) ? source.data : [];
-    for (const item of items) {
-      if (!item || typeof item !== "object") continue;
-      const url = readString((item as Record<string, unknown>).url || (item as Record<string, unknown>).imageUrl);
-      if (url && !urls.includes(url)) urls.push(url);
-    }
-    const single = readString(source.url || source.imageUrl);
-    if (single && !urls.includes(single)) urls.push(single);
-  }
-  return urls;
-}
-
-function extractGrsaiErrorMessage(payload: Record<string, unknown>) {
-  const envelope = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
-    ? payload.data as Record<string, unknown>
-    : payload;
-  return readString(envelope.error)
-    || readString(envelope.reason)
-    || readString(envelope.detail)
-    || readString(envelope.description)
-    || readString(envelope.failure_reason)
-    || readString(envelope.message)
-    || readString(payload.error)
-    || readString(payload.reason)
-    || readString(payload.detail)
-    || readString(payload.description)
-    || readString(payload.failure_reason)
-    || readString(payload.message)
-    || readString(payload.msg);
-}
-
-function resolveGrsaiSubmitPath(path: string | undefined, modelId: string) {
-  const override = normalizeApiPath(path);
-  if (override) return override;
-  return /nano-banana/i.test(modelId) ? "/v1/draw/nano-banana" : "/v1/draw/completions";
-}
-
-function resolveGrsaiPollPath(path: string | undefined) {
-  return normalizeApiPath(path) || "/v1/draw/result";
-}
-
-function normalizeApiPath(path: string | undefined) {
-  const value = readString(path);
-  if (!value) return "";
-  return value.startsWith("/") ? value : `/${value}`;
-}
-
-function buildMissingGrsaiImageResultError(
-  payload: Record<string, unknown>,
-  state: { taskId?: string; rawStatus?: string },
-) {
-  const status = readString(state.rawStatus) || "success";
-  const taskId = readString(state.taskId);
-  const providerMessage = extractGrsaiErrorMessage(payload);
-  const detail =
-    providerMessage && !["ok", "success", "succeeded", "completed", "done"].includes(providerMessage.toLowerCase())
-      ? `: ${providerMessage}`
-      : "";
-  const taskSuffix = taskId ? ` (taskId=${taskId})` : "";
-  return `GRSAI 任务状态 ${status} 但未返回图片${taskSuffix}${detail}`;
-}
-
-async function readJsonResponse(response: Response) {
-  const text = await response.text();
-  if (!text) return {} as Record<string, unknown>;
-  const normalized = text.startsWith("data: ") ? text.slice(6) : text;
-  return JSON.parse(normalized) as Record<string, unknown>;
-}
-
 async function pollApimartVideoTask(options: {
   baseUrl: string;
   apiKey: string;
@@ -1893,12 +1847,20 @@ async function pollApimartVideoTask(options: {
         const finalStatus = safeText(finalResult.status).toLowerCase();
         if (finalResult.videoUrls.length > 0 && (!finalStatus || isCompletedAsyncStatus(finalStatus))) return finalResult;
         if (isFailedAsyncStatus(finalStatus)) {
-          throw new Error(`视频任务失败: ${safeText(finalResult.failureReason, finalStatus || "unknown")}`);
+          throw createWorkerTaskError(`视频任务失败: ${safeText(finalResult.failureReason, finalStatus || "unknown")}`, {
+            failureCategory: "upstream_business_failed",
+            providerDiagnostic: safeText(finalResult.failureReason, finalStatus || "unknown"),
+            upstreamResponseSnippet: safeText(finalResult.failureReason, finalStatus || "unknown").slice(0, 500),
+          });
         }
       }
     }
     if (isFailedAsyncStatus(status)) {
-      throw new Error(`视频任务失败: ${safeText(result.failureReason, status || "unknown")}`);
+      throw createWorkerTaskError(`视频任务失败: ${safeText(result.failureReason, status || "unknown")}`, {
+        failureCategory: "upstream_business_failed",
+        providerDiagnostic: safeText(result.failureReason, status || "unknown"),
+        upstreamResponseSnippet: safeText(result.failureReason, status || "unknown").slice(0, 500),
+      });
     }
   }
 }
@@ -1970,7 +1932,11 @@ async function pollApimartImageTask(options: {
     });
     if (extracted.imageUrls.length > 0) return extracted;
     if (["failed", "error", "cancelled", "canceled"].includes(status)) {
-      throw new Error(`APIMart 图像任务失败: ${status || "unknown"}`);
+      throw createWorkerTaskError(`APIMart 图像任务失败: ${status || "unknown"}`, {
+        failureCategory: "upstream_business_failed",
+        providerDiagnostic: status || "unknown",
+        upstreamResponseSnippet: text.slice(0, 500),
+      });
     }
   }
 }
@@ -2010,7 +1976,13 @@ async function pollModelScopeImageTask(options: {
       runtimeStage: "polling",
     });
     if (extracted.imageUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return extracted;
-    if (isFailedAsyncStatus(status)) throw new Error(`ModelScope 图像任务失败: ${status || "unknown"}`);
+    if (isFailedAsyncStatus(status)) {
+      throw createWorkerTaskError(`ModelScope 图像任务失败: ${status || "unknown"}`, {
+        failureCategory: "upstream_business_failed",
+        providerDiagnostic: status || "unknown",
+        upstreamResponseSnippet: text.slice(0, 500),
+      });
+    }
   }
 }
 

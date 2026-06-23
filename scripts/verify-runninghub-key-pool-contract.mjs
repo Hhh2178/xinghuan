@@ -6,10 +6,16 @@ const adminTypes = await readFile(new URL("../apps/admin/src/admin-types.ts", im
 const workspace = await readFile(new URL("../apps/admin/src/admin-runninghub-workspace.tsx", import.meta.url), "utf8");
 
 assert.match(adminTypes, /export interface RunningHubKeyPoolItem \{/);
+assert.match(adminTypes, /isDefault:\s*boolean;/);
 assert.match(adminTypes, /rhKeyPool\?: RunningHubKeyPoolItem\[\];/);
 assert.match(server, /function normalizeRunningHubKeyPool\(/);
 assert.match(server, /function summarizeRunningHubKeyPool\(/);
+assert.match(server, /selectedDefault/);
+assert.match(server, /isDefault === true/);
+assert.match(server, /selected = selectedDefault \|\| selectedFallback \|\| null/);
 assert.match(workspace, /RH Key 池管理/);
 assert.match(workspace, /新增 Key/);
+assert.match(workspace, /默认 Key/);
+assert.match(workspace, /设为默认/);
 
 console.log("PASS runninghub key pool contract");

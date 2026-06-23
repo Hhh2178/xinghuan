@@ -448,6 +448,7 @@ interface RunningHubKeyPoolItemRecord {
   apiKeyPreview?: string;
   maxConcurrency: number;
   enabled: boolean;
+  isDefault: boolean;
   currentInFlight?: number;
   createdAt: number;
   updatedAt: number;
@@ -917,7 +918,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.10",
+      version: "0.4.13",
       environment,
       dataDir,
     });
@@ -2482,9 +2483,14 @@ async function handleAdminRequest(
           updatedAt: Date.now(),
         };
       });
+      const defaultKeyId = nextPool.find((item) => item.isDefault === true)?.id || "";
+      const normalizedDefaultPool = nextPool.map((item, index) => ({
+        ...item,
+        isDefault: defaultKeyId ? item.id === defaultKeyId : index === 0,
+      }));
       updated = {
         ...provider,
-        rhKeyPool: nextPool,
+        rhKeyPool: normalizedDefaultPool,
         updatedAt: Date.now(),
       };
       return updated;
@@ -2965,7 +2971,7 @@ async function handleAdminRequest(
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.10",
+        version: "0.4.13",
       storage: await readStorageStats(),
     });
     return true;
@@ -7246,8 +7252,8 @@ async function createRunningHubQueuedTask(input: {
   if (!runningHubKeyAvailability.pool.length) {
     throw new Error("RunningHub 未配置可用 Key");
   }
-  const assignedRhKey = runningHubKeyAvailability.selected || runningHubKeyAvailability.pool[0] || null;
-  const rhQueueReason = runningHubKeyAvailability.selected ? "" : runningHubKeyAvailability.allBusy ? "all_keys_busy" : "";
+  const preferredRhKey = runningHubKeyAvailability.selected || runningHubKeyAvailability.pool[0] || null;
+  const rhQueueReason = runningHubKeyAvailability.allBusy ? "all_keys_busy" : "";
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = Date.now();
   const task: AdminTaskRecord = {
@@ -7267,10 +7273,10 @@ async function createRunningHubQueuedTask(input: {
       runTargetId,
       nodeInfoList: input.nodeInfoList,
       ...(input.instanceType ? { instanceType: input.instanceType } : {}),
-      ...(assignedRhKey ? {
-        assignedRhKeyId: assignedRhKey.id,
-        assignedRhKeyNoteSnapshot: assignedRhKey.note,
-        assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
+      ...(preferredRhKey ? {
+        preferredRhKeyId: preferredRhKey.id,
+        preferredRhKeyNoteSnapshot: preferredRhKey.note,
+        preferredRhKeyMaxConcurrency: preferredRhKey.maxConcurrency,
       } : {}),
       ...(rhQueueReason ? { rhQueueReason } : {}),
       requestId: input.requestContext.requestId,
@@ -7285,10 +7291,10 @@ async function createRunningHubQueuedTask(input: {
       pageId,
       webappId,
       workflowId,
-      ...(assignedRhKey ? {
-        assignedRhKeyId: assignedRhKey.id,
-        assignedRhKeyNoteSnapshot: assignedRhKey.note,
-        assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
+      ...(preferredRhKey ? {
+        preferredRhKeyId: preferredRhKey.id,
+        preferredRhKeyNoteSnapshot: preferredRhKey.note,
+        preferredRhKeyMaxConcurrency: preferredRhKey.maxConcurrency,
       } : {}),
       ...(rhQueueReason ? { rhQueueReason } : {}),
       requestId: input.requestContext.requestId,
@@ -9026,7 +9032,7 @@ function normalizeProviderSecret(provider: AdminProviderRecord) {
 }
 
 function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord[] {
-  return (Array.isArray(value) ? value : [])
+  const normalized = (Array.isArray(value) ? value : [])
     .flatMap((item) => {
       const row = item && typeof item === "object" ? item as Record<string, unknown> : null;
       if (!row) return [];
@@ -9041,11 +9047,17 @@ function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord
         apiKeyPreview: safeText(row.apiKeyPreview, previewSource ? secretPreview(previewSource) : ""),
         maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
         enabled: row.enabled !== false,
+        isDefault: row.isDefault === true,
         currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
         createdAt: Math.max(0, Number(row.createdAt) || 0),
         updatedAt: Math.max(0, Number(row.updatedAt) || 0),
       }];
     });
+  const firstDefaultIndex = normalized.findIndex((item) => item.isDefault);
+  return normalized.map((item, index) => ({
+    ...item,
+    isDefault: firstDefaultIndex >= 0 ? index === firstDefaultIndex : false,
+  }));
 }
 
 function normalizeProviderSecretKeyPool(value: unknown): RunningHubKeyPoolItemRecord[] {
@@ -9070,6 +9082,7 @@ function toPublicRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord[
     apiKeyPreview: item.apiKeyPreview,
     maxConcurrency: item.maxConcurrency,
     enabled: item.enabled,
+    isDefault: item.isDefault === true,
     currentInFlight: item.currentInFlight,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -9101,6 +9114,7 @@ function buildEffectiveRunningHubKeyPool(provider: AdminProviderRecord, legacyFa
     apiKeyPreview: provider.apiKeyPreview || secretPreview(previewSource),
     maxConcurrency: Math.max(1, Number(legacyFallbackConcurrency) || 1),
     enabled: true,
+    isDefault: true,
     currentInFlight: 0,
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,
@@ -9130,7 +9144,8 @@ async function inspectRunningHubKeyPoolAvailability(provider: AdminProviderRecor
   }
   try {
     const client = await getRedisClient();
-    let selected: RunningHubKeyPoolItemRecord | null = null;
+    let selectedDefault: RunningHubKeyPoolItemRecord | null = null;
+    let selectedFallback: RunningHubKeyPoolItemRecord | null = null;
     let activeInFlight = 0;
     const withRuntime: RunningHubKeyPoolItemRecord[] = [];
     for (const item of pool) {
@@ -9141,10 +9156,15 @@ async function inspectRunningHubKeyPoolAvailability(provider: AdminProviderRecor
       activeInFlight += currentInFlight;
       const nextItem = { ...item, currentInFlight };
       withRuntime.push(nextItem);
-      if (!selected && currentInFlight < Math.max(1, Number(item.maxConcurrency) || 1)) {
-        selected = nextItem;
+      if (currentInFlight < Math.max(1, Number(item.maxConcurrency) || 1)) {
+        if (nextItem.isDefault === true && !selectedDefault) {
+          selectedDefault = nextItem;
+        } else if (!selectedFallback) {
+          selectedFallback = nextItem;
+        }
       }
     }
+    const selected = selectedDefault || selectedFallback || null;
     return {
       pool: withRuntime,
       selected,
@@ -9153,9 +9173,10 @@ async function inspectRunningHubKeyPoolAvailability(provider: AdminProviderRecor
       activeInFlight,
     };
   } catch {
+    const selectedDefault = pool.find((item) => item.isDefault === true) || null;
     return {
       pool,
-      selected: pool[0] || null,
+      selected: selectedDefault || pool[0] || null,
       allBusy: false,
       totalConcurrency: summary.totalConcurrency,
       activeInFlight: 0,

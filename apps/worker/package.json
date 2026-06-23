@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/worker",
-  "version": "0.4.10",
+  "version": "0.4.13",
   "private": true,
   "type": "module",
   "main": "./dist/worker.js",
@@ -11,7 +11,7 @@
     "start": "node dist/worker.js"
   },
   "dependencies": {
-    "@xinghuan/shared": "0.4.10",
+    "@xinghuan/shared": "0.4.13",
     "pg": "^8.21.0",
     "redis": "^6.0.0"
   },

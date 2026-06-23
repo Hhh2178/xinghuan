@@ -10,5 +10,8 @@ assert.match(generation, /queueHint\?: string;/);
 assert.match(runninghubNode, /任务队列排队中/);
 assert.match(runninghubNode, /45%/);
 assert.match(runninghubNode, /5%/);
+assert.match(runninghubNode, /activeRunningHubPolls/);
+assert.match(runninghubNode, /if \(status !== 'polling' \|\| !taskId \|\| !resolvedRunTargetId\) return;/);
+assert.match(runninghubNode, /void startPolling\(taskId\)\.catch\(\(\) => undefined\);/);
 
 console.log("PASS runninghub node progress contract");

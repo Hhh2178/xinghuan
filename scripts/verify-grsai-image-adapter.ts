@@ -6,6 +6,10 @@ async function main() {
   await verifyImmediateSuccess();
   await verifyNanoBananaUsesDedicatedEndpoint();
   await verifyCompletedWithoutImagesFails();
+  await verifyRetryableGatewayPollFailuresAreRetried();
+  await verifyStatusBasedGatewayPollFailuresAreRetried();
+  await verifyNonJsonGatewayPollFailuresAreRetried();
+  await verifyRetryableGatewayPollFailuresEventuallyExhaust();
 }
 
 async function verifyPendingThenPoll() {
@@ -180,10 +184,210 @@ async function verifyCompletedWithoutImagesFails() {
   console.log("PASS grsai empty completed payloads are treated as failures");
 }
 
+async function verifyRetryableGatewayPollFailuresAreRetried() {
+  let pollAttempts = 0;
+  const fetcher: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/v1/draw/completions")) {
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-retry-1",
+          status: "pending",
+        },
+      });
+    }
+    if (url.endsWith("/v1/draw/result")) {
+      pollAttempts += 1;
+      if (pollAttempts <= 2) {
+        return jsonResponse(502, {
+          code: 502,
+          message: "Bad Gateway",
+        });
+      }
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-retry-1",
+          status: "succeeded",
+          results: [{ url: "https://cdn.example.test/grsai-retry-image.png" }],
+        },
+      });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  const client = createGrsaiImageClient({
+    apiKey: "grsai-test-key",
+    baseUrl: "https://api.grsai.com",
+    fetcher,
+    pollIntervalMs: 0,
+    timeoutMs: 5000,
+  });
+
+  const result = await client.generate({
+    modelId: "gpt-image-2",
+    prompt: "retry gateway jitter",
+  });
+
+  assert.deepEqual(result.imageUrls, ["https://cdn.example.test/grsai-retry-image.png"]);
+  assert.equal(pollAttempts, 3);
+  console.log("PASS grsai image adapter retries retryable gateway poll failures");
+}
+
+async function verifyStatusBasedGatewayPollFailuresAreRetried() {
+  let pollAttempts = 0;
+  const fetcher: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/v1/draw/completions")) {
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-status-retry-1",
+          status: "pending",
+        },
+      });
+    }
+    if (url.endsWith("/v1/draw/result")) {
+      pollAttempts += 1;
+      if (pollAttempts <= 2) {
+        return jsonResponse(502, {
+          code: 502,
+          message: "temporarily unavailable",
+        });
+      }
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-status-retry-1",
+          status: "succeeded",
+          results: [{ url: "https://cdn.example.test/grsai-status-retry-image.png" }],
+        },
+      });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  const client = createGrsaiImageClient({
+    apiKey: "grsai-test-key",
+    baseUrl: "https://api.grsai.com",
+    fetcher,
+    pollIntervalMs: 0,
+    timeoutMs: 5000,
+  });
+
+  const result = await client.generate({
+    modelId: "gpt-image-2",
+    prompt: "retry custom gateway message",
+  });
+
+  assert.deepEqual(result.imageUrls, ["https://cdn.example.test/grsai-status-retry-image.png"]);
+  assert.equal(pollAttempts, 3);
+  console.log("PASS grsai image adapter retries gateway poll failures by HTTP status");
+}
+
+async function verifyRetryableGatewayPollFailuresEventuallyExhaust() {
+  let pollAttempts = 0;
+  const fetcher: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/v1/draw/completions")) {
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-status-retry-exhaust-1",
+          status: "pending",
+        },
+      });
+    }
+    if (url.endsWith("/v1/draw/result")) {
+      pollAttempts += 1;
+      return jsonResponse(503, {
+        code: 503,
+        message: "temporarily unavailable",
+      });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  const client = createGrsaiImageClient({
+    apiKey: "grsai-test-key",
+    baseUrl: "https://api.grsai.com",
+    fetcher,
+    pollIntervalMs: 0,
+    timeoutMs: 30000,
+  });
+
+  await assert.rejects(
+    () =>
+      client.generate({
+        modelId: "gpt-image-2",
+        prompt: "retry exhaustion",
+      }),
+    /temporarily unavailable/i,
+  );
+  assert.equal(pollAttempts, 5);
+  console.log("PASS grsai image adapter stops retrying after retryable gateway exhaustion");
+}
+
+async function verifyNonJsonGatewayPollFailuresAreRetried() {
+  let pollAttempts = 0;
+  const fetcher: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/v1/draw/completions")) {
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-non-json-retry-1",
+          status: "pending",
+        },
+      });
+    }
+    if (url.endsWith("/v1/draw/result")) {
+      pollAttempts += 1;
+      if (pollAttempts <= 2) {
+        return textResponse(502, "<html><body>temporarily unavailable</body></html>", "text/html");
+      }
+      return jsonResponse(200, {
+        code: 0,
+        data: {
+          id: "task-grsai-non-json-retry-1",
+          status: "succeeded",
+          results: [{ url: "https://cdn.example.test/grsai-non-json-retry-image.png" }],
+        },
+      });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  const client = createGrsaiImageClient({
+    apiKey: "grsai-test-key",
+    baseUrl: "https://api.grsai.com",
+    fetcher,
+    pollIntervalMs: 0,
+    timeoutMs: 5000,
+  });
+
+  const result = await client.generate({
+    modelId: "gpt-image-2",
+    prompt: "retry html gateway body",
+  });
+
+  assert.deepEqual(result.imageUrls, ["https://cdn.example.test/grsai-non-json-retry-image.png"]);
+  assert.equal(pollAttempts, 3);
+  console.log("PASS grsai image adapter retries non-JSON gateway poll failures by HTTP status");
+}
+
 function jsonResponse(status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), {
     status,
     headers: { "content-type": "application/json" },
+  });
+}
+
+function textResponse(status: number, body: string, contentType = "text/plain") {
+  return new Response(body, {
+    status,
+    headers: { "content-type": contentType },
   });
 }
 
