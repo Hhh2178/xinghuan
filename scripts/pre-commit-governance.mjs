@@ -22,6 +22,10 @@ const steps = [
     label: "verify-hotspot-doc-sync-staged",
     args: ["scripts/verify-hotspot-doc-sync-staged.mjs"],
   },
+  {
+    label: "verify-release-logbook-sync-staged",
+    args: ["scripts/verify-release-logbook-sync-staged.mjs"],
+  },
 ];
 
 for (const step of steps) {

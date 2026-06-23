@@ -119,6 +119,18 @@
 
 这层规则的目的不是把每次提交都变成“重文档流程”，而是确保只要继续动已经过载的文件，就不能完全不留下结构说明与后续拆分线索。
 
+其中 `verify-release-logbook-sync-staged` 的规则是：
+
+- 如果 staged 改动里包含真实发布记录：
+  - `docs/logbooks/releases/gray/*.md`
+  - `docs/logbooks/releases/production/*.md`
+  - 但不包含对应目录下的 `README.md`
+- 那么同一次提交里必须同时 staged：
+  - `docs/logbooks/releases/current-release-index.md`
+  - `ops/README.md`
+  - `ops/current/gray.md` 或 `ops/current/production.md`
+- 这样可以阻断“发布记录写了，但当前值守入口仍停在旧 release”的状态漂移。
+
 ## 发布前工作树清洁
 
 真实 gray / production 发布前，工作树必须是干净的。
@@ -136,6 +148,7 @@
   - `docs/logbooks/releases/current-release-index.md`
   - 对应 gray / production 发布记录
   - 当前运行态摘要入口
+  - `ops/current/gray.md` 或 `ops/current/production.md`
 
 调试场景下如果只想检查“是否仍有 unstaged 污染”，可以手动使用：
 
@@ -148,6 +161,7 @@
 - `npm run verify:file-hotspot-budgets`
 - `npm run verify:hotspot-watchlist-contract`
 - `npm run verify:hotspot-doc-sync-staged`
+- `npm run verify:release-logbook-sync-staged`
 - `npm run verify:no-runtime-artifacts-staged`
 - `npm run verify:staged-source-size-guard`
 - `npm run verify:release-worktree-clean`

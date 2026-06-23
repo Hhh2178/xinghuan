@@ -28,6 +28,7 @@
 - 日常推进先看 `daily/2026/2026-06/recent-highlights.md`
 - 当前发布状态先看 `releases/current-release-index.md`
 - 旧兼容入口只在需要追溯老路径时回看 `DEVLOG.md` 和 `ops/README.md`
+- 若新增真实 gray / production 发布记录，同一次提交还应同步 `ops/README.md` 与 `ops/current/*.md`
 
 ## 新增记录命名
 

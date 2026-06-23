@@ -147,9 +147,15 @@
   - `docs/logbooks/releases/current-release-index.md`
   - 对应批次的 `docs/logbooks/releases/gray/` 或 `production/` 记录
   - `ops/README.md` 中当前运行态摘要
+  - `ops/current/gray.md` 或 `ops/current/production.md`
 - 运行产物目录与发布文档目录不能混淆：
   - 根目录 `releases/` 属于忽略的运行产物目录
   - `docs/logbooks/releases/` 属于可提交的证据目录
+- 只要 staged 改动里出现真实 gray / production 发布记录，就必须同一次提交里同步包含：
+  - `docs/logbooks/releases/current-release-index.md`
+  - `ops/README.md`
+  - 对应的 `ops/current/gray.md` 或 `ops/current/production.md`
+  - 当前脚本：`npm run verify:release-logbook-sync-staged`
 
 ### 4. 文档先行收口
 

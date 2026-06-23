@@ -52,7 +52,9 @@
 ## 工程护栏
 
 - 热点大文件预算与发布前工作树清洁规则：`engineering-guardrails.md`
+- 发布记录与当前值守入口必须同步 staged 的规则也在：`engineering-guardrails.md`
 - 对应脚本：
+  - `npm run verify:release-logbook-sync-staged`
   - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:staged-source-size-guard`
   - `npm run verify:file-hotspot-budgets`

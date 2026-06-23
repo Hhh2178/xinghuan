@@ -17,6 +17,9 @@
 - current 指针：
 - `/api/status`：
 - 关键服务状态：
+- `docs/logbooks/releases/current-release-index.md`：
+- `ops/README.md`：
+- `ops/current/gray.md` 或 `ops/current/production.md`：
 
 ## 影响
 

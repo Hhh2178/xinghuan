@@ -173,6 +173,7 @@
   - `npm run verify:file-hotspot-budgets`
   - `npm run verify:hotspot-watchlist-contract`
   - `npm run verify:hotspot-doc-sync-staged`
+  - `npm run verify:release-logbook-sync-staged`
   - `pre-commit`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
@@ -183,6 +184,12 @@
   - `docs/logbooks/releases/current-release-index.md`
   - 对应批次发布记录
   - `ops/README.md` 的当前运行态摘要
+  - 对应的 `ops/current/gray.md` 或 `ops/current/production.md`
+- 如果一次提交新增或修改了 `docs/logbooks/releases/gray/` 或 `docs/logbooks/releases/production/` 下的真实发布记录，那么同一次提交里必须同时包含：
+  - `docs/logbooks/releases/current-release-index.md`
+  - `ops/README.md`
+  - 对应的 `ops/current/gray.md` 或 `ops/current/production.md`
+  - 这条同步义务现在应通过提交前脚本执行，而不是只靠人工记忆
 
 ## 超级文件后续规则
 
@@ -298,7 +305,7 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-- 当前灰度 release：`20260624-hotspot-decomposition-gray-r1-v0416`
+- 当前灰度 release：`20260624-api-settings-decomposition-gray-r1-v0416`
   - `2026-06-23` 已完成 RH 画布节点恢复轮询 gray 热修：
     - 普通 RH 节点补齐 `taskId + polling` 持久化运行态恢复轮询
     - 当 RH 任务已在后台成功，但节点组件重挂载或画布状态重建后，不再永久卡在 `45%`
