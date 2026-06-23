@@ -68,6 +68,7 @@
 默认会执行：
 
 - `node scripts/verify-no-runtime-artifacts-staged.mjs`
+- `node scripts/verify-staged-source-size-guard.mjs`
 - `node scripts/verify-file-hotspot-budgets.mjs`
 - `node scripts/verify-hotspot-watchlist-contract.mjs`
 - `node scripts/verify-hotspot-doc-sync-staged.mjs`
@@ -86,6 +87,22 @@
 - 任意 `dist/`、`build/`、`node_modules/` 目录段
 
 这样可以避免把本机构建结果、排查日志、运行缓存、临时导出素材直接混进提交。
+
+其中 `verify-staged-source-size-guard` 会更早阻断新的 giant file：
+
+- 新增 source 文件：
+  - 超过 `800` 行直接阻断提交
+- 已存在 source 文件：
+  - 如果本次 staged 让它第一次跨过 `1000` 行，也直接阻断提交
+
+适用范围：
+
+- `apps/`
+- `packages/`
+- `scripts/`
+- 扩展名：`.ts`、`.tsx`、`.js`、`.mjs`
+
+这层规则是为了把“不要再创造新的超级文件”前移到比 `1200+ watchlist` 更早的阶段。
 
 其中 `verify-hotspot-doc-sync-staged` 的规则是：
 
@@ -132,6 +149,7 @@
 - `npm run verify:hotspot-watchlist-contract`
 - `npm run verify:hotspot-doc-sync-staged`
 - `npm run verify:no-runtime-artifacts-staged`
+- `npm run verify:staged-source-size-guard`
 - `npm run verify:release-worktree-clean`
 - `npm run verify:engineering-governance-contract`
 - `npm run release:gray:prepare`

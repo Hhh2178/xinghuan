@@ -117,8 +117,12 @@
 - 当前还新增了一层提交前快检：
   - `.githooks/pre-commit`
   - `npm run verify:no-runtime-artifacts-staged`
+  - `npm run verify:staged-source-size-guard`
   - `npm run verify:hotspot-doc-sync-staged`
 - 运行产物、本机构建结果、缓存目录不得 staged 进仓库；若需要长期保留结论，必须转写到 `docs/` 或 `ops/`
+- 新的 source 文件不应在一开始就长成大块；提交前软上限为：
+  - 新文件 `<= 800` 行
+  - 已存在文件不得在本次提交中首次跨过 `1000` 行
 - 只要 staged 改动触碰了硬预算热点或 `1200+` watchlist 文件，同一次提交里就必须同步 staged 对应台账 / 计划 / 发布记录之一，不能只改过载文件不留任何结构说明
 
 ### 2. 模块落点优先级

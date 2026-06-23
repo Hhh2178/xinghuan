@@ -169,6 +169,7 @@
 - 如果当前工作树很脏，但本轮只处理其中一部分，必须在台账或发布记录里明确“本轮实际归属改动范围”。
 - 当前已落成可执行护栏：
   - `npm run verify:no-runtime-artifacts-staged`
+  - `npm run verify:staged-source-size-guard`
   - `npm run verify:file-hotspot-budgets`
   - `npm run verify:hotspot-watchlist-contract`
   - `npm run verify:hotspot-doc-sync-staged`
@@ -198,6 +199,8 @@
   - `npm run verify:hotspot-doc-sync-staged`
 - 运行产物、本机构建结果、缓存目录提交前也会被拦截：
   - `npm run verify:no-runtime-artifacts-staged`
+- 新的 source 文件在提交前还有软上限保护：
+  - `npm run verify:staged-source-size-guard`
 - 这条提交前拦截由 `.githooks/pre-commit` 执行。
 - 如果本轮没有拆分热点文件，但对其继续做了功能改动，必须在：
   - 对应发布记录

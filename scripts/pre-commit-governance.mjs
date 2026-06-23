@@ -7,6 +7,10 @@ const steps = [
     args: ["scripts/verify-no-runtime-artifacts-staged.mjs"],
   },
   {
+    label: "verify-staged-source-size-guard",
+    args: ["scripts/verify-staged-source-size-guard.mjs"],
+  },
+  {
     label: "verify-file-hotspot-budgets",
     args: ["scripts/verify-file-hotspot-budgets.mjs"],
   },
