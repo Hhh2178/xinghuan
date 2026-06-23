@@ -20,3 +20,8 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - `../api/`
 - `../worker/`
 - `../storage-and-data/`
+
+## 当前重点
+
+- 继续把前台热点超级文件拆成 `sections / helpers / runtime hooks`
+- `ApiSettings.tsx` 已开始按 `Key sections / local paths / footer actions` 继续 section 化收口

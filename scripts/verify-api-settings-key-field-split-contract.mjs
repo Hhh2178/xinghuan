@@ -5,6 +5,10 @@ const apiSettings = await readFile(
   new URL("../apps/web/src/components/ApiSettings.tsx", import.meta.url),
   "utf8",
 );
+const keySectionsSource = await readFile(
+  new URL("../apps/web/src/components/ApiSettingsKeySections.tsx", import.meta.url),
+  "utf8",
+);
 const keyFieldComponent = await readFile(
   new URL("../apps/web/src/components/ApiSettingsKeyField.tsx", import.meta.url),
   "utf8",
@@ -12,8 +16,14 @@ const keyFieldComponent = await readFile(
 
 assert.match(
   apiSettings,
+  /from ['"]\.\/ApiSettingsKeySections['"]/,
+  "ApiSettings should import the extracted key sections component",
+);
+
+assert.match(
+  keySectionsSource,
   /from ['"]\.\/ApiSettingsKeyField['"]/,
-  "ApiSettings should import the extracted key field component",
+  "ApiSettingsKeySections should import the extracted key field component",
 );
 
 assert.match(
@@ -23,15 +33,15 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  apiSettings,
+  keySectionsSource,
   /const renderKey = \(/,
-  "ApiSettings should not keep the inline renderKey helper after the split",
+  "ApiSettingsKeySections should not keep the old inline renderKey helper after the split",
 );
 
 assert.doesNotMatch(
-  apiSettings,
+  keySectionsSource,
   /const renderGetKeyButtons = \(/,
-  "ApiSettings should not keep inline key action button rendering after the split",
+  "ApiSettingsKeySections should not keep inline key action button rendering after the split",
 );
 
 console.log("PASS api settings key field split contract");

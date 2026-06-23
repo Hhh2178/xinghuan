@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, CloudUpload, Download, ExternalLink, FileUp, Info, KeyRound, Loader2, Lock, Plus, Save, Settings2, TestTube2, Trash2, X, FolderOpen, ServerCog } from 'lucide-react';
+import { ChevronDown, ChevronRight, CloudUpload, ExternalLink, FileUp, Info, KeyRound, Plus, TestTube2, Trash2, X, ServerCog } from 'lucide-react';
 import { useApiKeysStore, FIXED_ZHENZHEN_BASE, RH_BASE } from '../stores/apiKeys';
 import { useThemeStore } from '../stores/theme';
 import type { AdvancedProviderConfig, ApiSettings, CloudUploadTargetConfig } from '../types/canvas';
@@ -24,8 +24,6 @@ import {
   ADVANCED_PROVIDER_LABELS,
   ALL_FIELDS,
   buildSettingsBackupPayload,
-  CLASSIFIED_KEYS,
-  COMMON_KEYS,
   CLOUD_UPLOAD_GUIDES,
   CLOUD_UPLOAD_LABELS,
   JIMENG_CLI_INSTALL_COMMAND,
@@ -37,7 +35,9 @@ import {
   tryParseJsonObject,
   type KeyField,
 } from './apiSettingsHelpers';
-import ApiSettingsKeyField from './ApiSettingsKeyField';
+import ApiSettingsFooterActions from './ApiSettingsFooterActions';
+import ApiSettingsKeySections from './ApiSettingsKeySections';
+import ApiSettingsLocalPathsSection from './ApiSettingsLocalPathsSection';
 
 interface ApiSettingsModalProps {
   open: boolean;
@@ -105,7 +105,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
   const [cloudUploadDirty, setCloudUploadDirty] = useState(false);
   const [cloudTestStatus, setCloudTestStatus] = useState<Record<string, { loading?: boolean; ok?: boolean; message?: string }>>({});
   const [backupMessage, setBackupMessage] = useState<string>('');
-  const backupFileInputRef = useRef<HTMLInputElement | null>(null);
   // 眼睛预览拉取的明文（仅缓存，不提交）
   const revealedRef = useRef<Partial<Record<KeyField, string>>>({});
 
@@ -255,7 +254,7 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     } catch (e: any) {
       setBackupMessage(e?.message || '导入设置失败，请确认 JSON 文件格式。');
     } finally {
-      if (backupFileInputRef.current) backupFileInputRef.current.value = '';
+      // file input now lives inside ApiSettingsFooterActions
     }
   };
 
@@ -1653,125 +1652,26 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
 
         {/* 表单 */}
         <div className="t8-api-settings-body p-5 space-y-5 overflow-y-auto">
-          {/* 三套通用 Key */}
-          <ApiSettingsKeyField
-            spec={COMMON_KEYS[0]}
-            savedValue={(settings as any)[COMMON_KEYS[0].field] as string | undefined}
-            inputValue={inputs[COMMON_KEYS[0].field]}
-            shown={shows[COMMON_KEYS[0].field]}
+          <ApiSettingsKeySections
+            settings={ALL_FIELDS.reduce((acc, field) => {
+              acc[field] = (settings as any)?.[field] as string | undefined;
+              return acc;
+            }, {} as Partial<Record<KeyField, string | undefined>>)}
+            inputs={inputs}
+            shows={shows}
+            classifiedOpen={classifiedOpen}
+            isPixel={isPixel}
             labelClassName={labelCls}
             hintClassName={hintCls}
             inputClassName={inputCls}
             eyeButtonClassName={eyeBtnCls}
             linkButtonClassName={linkBtnCls}
             altLinkButtonClassName={linkBtnAltCls}
-            baseUrlNote={`Base URL 锁定: ${FIXED_ZHENZHEN_BASE}`}
-            onChange={(value) => setInputAt(COMMON_KEYS[0].field, value)}
+            onChange={setInputAt}
             onToggleShow={handleToggleShow}
             onOpenExternal={openExternal}
+            onToggleClassified={() => setClassifiedOpen((v) => !v)}
           />
-          <ApiSettingsKeyField
-            spec={COMMON_KEYS[1]}
-            savedValue={(settings as any)[COMMON_KEYS[1].field] as string | undefined}
-            inputValue={inputs[COMMON_KEYS[1].field]}
-            shown={shows[COMMON_KEYS[1].field]}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            inputClassName={inputCls}
-            eyeButtonClassName={eyeBtnCls}
-            linkButtonClassName={linkBtnCls}
-            altLinkButtonClassName={linkBtnAltCls}
-            baseUrlNote={`Base URL: ${RH_BASE}`}
-            onChange={(value) => setInputAt(COMMON_KEYS[1].field, value)}
-            onToggleShow={handleToggleShow}
-            onOpenExternal={openExternal}
-          />
-          <ApiSettingsKeyField
-            spec={COMMON_KEYS[2]}
-            savedValue={(settings as any)[COMMON_KEYS[2].field] as string | undefined}
-            inputValue={inputs[COMMON_KEYS[2].field]}
-            shown={shows[COMMON_KEYS[2].field]}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            inputClassName={inputCls}
-            eyeButtonClassName={eyeBtnCls}
-            linkButtonClassName={linkBtnCls}
-            altLinkButtonClassName={linkBtnAltCls}
-            baseUrlNote={`Base URL 锁定: ${FIXED_ZHENZHEN_BASE} (与贞贞同地址, Key 独立)`}
-            onChange={(value) => setInputAt(COMMON_KEYS[2].field, value)}
-            onToggleShow={handleToggleShow}
-            onOpenExternal={openExternal}
-          />
-
-          {/* 分类独立 Key（默认折叠，点击展开 —— 新手友好） */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            {(() => {
-              const configuredCount = CLASSIFIED_KEYS.filter((spec) => {
-                const v = (settings as any)?.[spec.field];
-                return typeof v === 'string' && v.trim().length > 0;
-              }).length;
-              const totalCount = CLASSIFIED_KEYS.length;
-              return (
-                <button
-                  type="button"
-                  onClick={() => setClassifiedOpen((v) => !v)}
-                  aria-expanded={classifiedOpen}
-                  data-open={classifiedOpen}
-                  className={
-                    isPixel
-                      ? 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 px-btn'
-                      : 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition'
-                  }
-                >
-                  <Settings2 size={14} className="t8-api-settings-icon" />
-                  <span className="text-xs font-bold">分类独立 API Key【可选】</span>
-                  <span
-                    className="t8-api-settings-badge ml-1 px-1.5 py-0.5 text-[10px] rounded border"
-                    data-tone={configuredCount > 0 ? 'success' : 'muted'}
-                  >
-                    已配置 {configuredCount}/{totalCount}
-                  </span>
-                  <span className={`ml-auto flex items-center gap-1 text-[11px] ${hintCls}`}>
-                    {classifiedOpen ? '收起' : '展开'}
-                    {classifiedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                </button>
-              );
-            })()}
-            {!classifiedOpen && (
-              <div className={`text-[11px] mt-2 ${hintCls}`}>
-                不必担心：<b>未填项会自动 fallback 到贞贞工坊通用 Key</b>，新手可直接保存忽略此区块。
-              </div>
-            )}
-            {classifiedOpen && (
-              <div className="mt-3">
-                <div className={`text-[11px] ${hintCls} mb-3`}>
-                  为不同模型系列单独配置 Key；<b>未填则自动 fallback 到贞贞工坊通用 Key</b>。后端会根据调用的模型名/路由自动选择。
-                </div>
-                <div className="space-y-4">
-                  {CLASSIFIED_KEYS.map((spec) => (
-                    <ApiSettingsKeyField
-                      key={spec.field}
-                      spec={spec}
-                      savedValue={(settings as any)[spec.field] as string | undefined}
-                      inputValue={inputs[spec.field]}
-                      shown={shows[spec.field]}
-                      labelClassName={labelCls}
-                      hintClassName={hintCls}
-                      inputClassName={inputCls}
-                      eyeButtonClassName={eyeBtnCls}
-                      linkButtonClassName={linkBtnCls}
-                      altLinkButtonClassName={linkBtnAltCls}
-                      fallbackHint
-                      onChange={(value) => setInputAt(spec.field, value)}
-                      onToggleShow={handleToggleShow}
-                      onOpenExternal={openExternal}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* v1.8.x: 扩展 API 平台，高级可选 */}
           <div className="t8-api-settings-divider pt-3 border-t">
@@ -1936,225 +1836,36 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
             )}
           </div>
 
-          {/* v1.2.10.2: 文件自动保存路径 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-              <FolderOpen size={14} className="t8-api-settings-icon" />
-              文件自动保存路径
-              <span className={`text-[11px] font-normal ${hintCls}`}>· 所有可执行节点生成的图像/视频/音频均会自动复制一份到此路径</span>
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                value={fileSavePathInput}
-                onChange={(e) => setFileSavePathInput(e.target.value)}
-                placeholder="例：D:\\zhenzhen 或 ~/zhenzhen · 路径不存在时会自动创建"
-                className={inputCls}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap text-[11px] mt-1.5 ${hintCls}`}>
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> 仅保存在本地机, 不上传上游。同名文件不覆盖。
-              </span>
-            </div>
-          </div>
-
-          {/* v1.3.1: 画布自动保存路径 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-              <FolderOpen size={14} className="t8-api-settings-icon" />
-              画布自动保存路径
-              <span className={`text-[11px] font-normal ${hintCls}`}>· 当前画布变更后自动导出 JSON，方便更换版本后导入</span>
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                value={canvasAutoSavePathInput}
-                onChange={(e) => setCanvasAutoSavePathInput(e.target.value)}
-                placeholder="例：D:\\zhenzhen 或 ~/zhenzhen · 实际保存到此路径下的 T8-penguin-canvas\\canvases"
-                className={inputCls}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap text-[11px] mt-1.5 ${hintCls}`}>
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> 默认路径由后端按平台返回：Windows 为 D:\zhenzhen，macOS/Linux 为用户目录下的 zhenzhen。
-              </span>
-            </div>
-          </div>
-
-          {/* v1.3.4: 资源库路径 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-              <FolderOpen size={14} className="t8-api-settings-icon" />
-              资源库路径
-              <span className={`text-[11px] font-normal ${hintCls}`}>· 资源文件与分类索引都保存在此路径，更换版本后可继续读取</span>
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                value={resourceLibraryPathInput}
-                onChange={(e) => setResourceLibraryPathInput(e.target.value)}
-                placeholder="例：D:\\zhenzhen\\resources 或 ~/zhenzhen/resources · 路径不存在时会自动创建"
-                className={inputCls}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap text-[11px] mt-1.5 ${hintCls}`}>
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> 加入资源库会复制一份到此目录，删除资源只删除资源库副本。
-              </span>
-            </div>
-          </div>
-
-          {/* v1.3.6: 主题模板路径 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-              <FolderOpen size={14} className="t8-api-settings-icon" />
-              主题模板路径
-              <span className={`text-[11px] font-normal ${hintCls}`}>· 导入或编辑后的主题 JSON 保存在此路径</span>
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                value={themeTemplatePathInput}
-                onChange={(e) => setThemeTemplatePathInput(e.target.value)}
-                placeholder="例：D:\\zhenzhen\\theme-templates 或 ~/zhenzhen/theme-templates · 路径不存在时会自动创建"
-                className={inputCls}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap text-[11px] mt-1.5 ${hintCls}`}>
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> 内置主题不可删除；自定义主题可导入、导出、编辑和删除。
-              </span>
-            </div>
-          </div>
-
-          {/* 本地 Eagle API */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-              <ExternalLink size={14} className="t8-api-settings-icon" />
-              Eagle 本地接口
-              <span className={`text-[11px] font-normal ${hintCls}`}>· 发送素材到本机 Eagle 时使用</span>
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                value={eagleApiBaseInput}
-                onChange={(e) => setEagleApiBaseInput(e.target.value)}
-                placeholder="http://127.0.0.1:41595"
-                className={inputCls}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap text-[11px] mt-1.5 ${hintCls}`}>
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> 后端只允许 127.0.0.1 / localhost，避免把本地素材发送到远端代理。
-              </span>
-            </div>
-          </div>
-
-          {error && (
-            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-md px-3 py-2">
-              ❌ {error}
-            </div>
-          )}
-          {backupMessage && (
-            <div
-              className={
-                isPixel
-                  ? 'text-xs px-3 py-2 border border-[var(--px-ink)] bg-[var(--px-yellow)] text-[var(--px-ink)]'
-                  : `text-xs rounded-md px-3 py-2 border ${
-                      backupMessage.includes('失败') || backupMessage.includes('不正确')
-                        ? 'text-red-300 bg-red-500/10 border-red-500/25'
-                        : isDark
-                          ? 'text-amber-100 bg-amber-500/10 border-amber-500/25'
-                          : 'text-amber-800 bg-amber-50 border-amber-200'
-                    }`
-              }
-            >
-              {backupMessage}
-            </div>
-          )}
-        </div>
-
-        {/* 底部按钮 */}
-        <div
-          className={`t8-api-settings-footer flex items-center justify-end gap-2 px-5 py-3 border-t shrink-0 ${
-            isPixel
-              ? 'border-[var(--px-ink)]'
-              : ''
-          }`}
-        >
-          <input
-            ref={backupFileInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
+          <ApiSettingsLocalPathsSection
+            fileSavePathInput={fileSavePathInput}
+            canvasAutoSavePathInput={canvasAutoSavePathInput}
+            resourceLibraryPathInput={resourceLibraryPathInput}
+            themeTemplatePathInput={themeTemplatePathInput}
+            eagleApiBaseInput={eagleApiBaseInput}
+            labelClassName={labelCls}
+            hintClassName={hintCls}
+            inputClassName={inputCls}
+            isDark={isDark}
+            isPixel={isPixel}
+            error={error || undefined}
+            backupMessage={backupMessage || undefined}
+            onFileSavePathChange={setFileSavePathInput}
+            onCanvasAutoSavePathChange={setCanvasAutoSavePathInput}
+            onResourceLibraryPathChange={setResourceLibraryPathInput}
+            onThemeTemplatePathChange={setThemeTemplatePathInput}
+            onEagleApiBaseChange={setEagleApiBaseInput}
           />
-          <button
-            type="button"
-            onClick={() => backupFileInputRef.current?.click()}
-            className={
-              isPixel
-                ? 't8-api-settings-secondary-btn px-btn flex items-center gap-2'
-                : 't8-api-settings-secondary-btn px-3 py-2 text-sm rounded-md border flex items-center gap-2'
-            }
-            title="导入设置备份，回填后需点击保存生效"
-          >
-            <FileUp size={14} />
-            导入设置
-          </button>
-          <button
-            type="button"
-            onClick={handleExportSettings}
-            className={
-              isPixel
-                ? 't8-api-settings-secondary-btn px-btn flex items-center gap-2'
-                : 't8-api-settings-secondary-btn px-3 py-2 text-sm rounded-md border flex items-center gap-2'
-            }
-            title="导出包含明文 API Key 的私密备份"
-          >
-            <Download size={14} />
-            导出设置
-          </button>
-          <button
-            onClick={onClose}
-            className={
-              isPixel
-                ? 't8-api-settings-secondary-btn px-btn'
-                : 't8-api-settings-secondary-btn px-4 py-2 text-sm rounded-md border'
-            }
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className={
-              isPixel
-                ? 't8-api-settings-primary-btn px-btn px-btn--mint disabled:opacity-50 flex items-center gap-2'
-                : 't8-api-settings-primary-btn px-4 py-2 text-sm rounded-md flex items-center gap-2 disabled:opacity-50'
-            }
-          >
-            {loading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : saved ? (
-              <span>✓ 已保存</span>
-            ) : (
-              <Save size={14} />
-            )}
-            {!loading && !saved && '保存'}
-          </button>
         </div>
+
+        <ApiSettingsFooterActions
+          loading={loading}
+          saved={saved}
+          isPixel={isPixel}
+          onImportFile={handleImportFile}
+          onExportSettings={handleExportSettings}
+          onClose={onClose}
+          onSave={handleSave}
+        />
       </div>
     </div>
   );
