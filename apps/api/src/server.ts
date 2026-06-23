@@ -17,6 +17,8 @@ import {
   type AppEnvironment,
   type RhCatalogItem,
   type ProviderGenerationExecutionMode,
+  type UnifiedCancelState,
+  type UnifiedFailureCategory,
   type TaskQueueCapability,
   type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
@@ -527,27 +529,59 @@ function toOptionalNumber(value: unknown) {
 
 function withUnifiedRuntimeDiagnostic(task: AdminTaskRecord): AdminTaskRecord & {
   failureReason?: string;
-  failureCategory?: string;
+  failureCategory?: UnifiedFailureCategory;
   providerDiagnostic?: string;
   upstreamHttpStatus?: number;
   upstreamResponseSnippet?: string;
   submitDiagnostic?: string;
   pollDiagnostic?: string;
-  cancelState?: string;
+  cancelState?: UnifiedCancelState;
 } {
   const result = plainObject(task.result);
   return {
     ...task,
     failureReason: safeText(result.failureReason) || undefined,
-    failureCategory: safeText(result.failureCategory) || undefined,
+    failureCategory: toUnifiedFailureCategory(result.failureCategory),
     providerDiagnostic: safeText(result.providerDiagnostic) || undefined,
     upstreamHttpStatus: toOptionalNumber(result.upstreamHttpStatus),
     upstreamResponseSnippet: safeText(result.upstreamResponseSnippet) || undefined,
     submitDiagnostic: safeText(result.submitDiagnostic) || undefined,
     pollDiagnostic: safeText(result.pollDiagnostic) || undefined,
-    cancelState: safeText(result.cancelState) || undefined,
+    cancelState: toUnifiedCancelState(result.cancelState),
   };
 }
+
+function toUnifiedFailureCategory(value: unknown): UnifiedFailureCategory | undefined {
+  const text = safeText(value);
+  return unifiedFailureCategories.has(text as UnifiedFailureCategory)
+    ? (text as UnifiedFailureCategory)
+    : undefined;
+}
+
+function toUnifiedCancelState(value: unknown): UnifiedCancelState | undefined {
+  const text = safeText(value);
+  return unifiedCancelStates.has(text as UnifiedCancelState)
+    ? (text as UnifiedCancelState)
+    : undefined;
+}
+
+const unifiedFailureCategories = new Set<UnifiedFailureCategory>([
+  "auth",
+  "quota_or_credits",
+  "model_config",
+  "upstream_business_failed",
+  "upstream_poll_gateway_failed",
+  "upstream_poll_timeout",
+  "local_cancelled",
+  "remote_cancel_failed",
+  "unknown",
+]);
+
+const unifiedCancelStates = new Set<UnifiedCancelState>([
+  "cancelled",
+  "cancelled_local_only",
+  "cancel_failed_remote_but_closed_local",
+]);
 
 interface AdminDb {
   providers: AdminProviderRecord[];

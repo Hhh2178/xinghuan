@@ -29,6 +29,32 @@ export const PROVIDER_GENERATION_CAPABILITIES = [
 export type ProviderGenerationCapability =
   (typeof PROVIDER_GENERATION_CAPABILITIES)[number];
 
+export type UnifiedFailureCategory =
+  | "auth"
+  | "quota_or_credits"
+  | "model_config"
+  | "upstream_business_failed"
+  | "upstream_poll_gateway_failed"
+  | "upstream_poll_timeout"
+  | "local_cancelled"
+  | "remote_cancel_failed"
+  | "unknown";
+
+export type UnifiedCancelState =
+  | "cancelled"
+  | "cancelled_local_only"
+  | "cancel_failed_remote_but_closed_local";
+
+export interface UnifiedRuntimeDiagnostic {
+  failureCategory?: UnifiedFailureCategory;
+  providerDiagnostic?: string;
+  upstreamHttpStatus?: number;
+  upstreamResponseSnippet?: string;
+  submitDiagnostic?: string;
+  pollDiagnostic?: string;
+  cancelState?: UnifiedCancelState;
+}
+
 export interface ProviderGenerationTaskPayloadSummary {
   prompt?: string;
   negativePrompt?: string;
