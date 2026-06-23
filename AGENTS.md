@@ -165,6 +165,13 @@
   - 再看本轮 `git diff --stat`
   - 无关改动、临时验证残留、重复脚本和半成品文档不得混入发布批次
 - 如果当前工作树很脏，但本轮只处理其中一部分，必须在台账或发布记录里明确“本轮实际归属改动范围”。
+- 当前已落成可执行护栏：
+  - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:release-worktree-clean`
+  - `npm run verify:engineering-governance-contract`
+- gray 发布流程当前会自动执行：
+  - prepare 阶段：热点预算与工程治理 contract
+  - deploy 阶段：工作树清洁检查
 
 ## 版本治理规则
 

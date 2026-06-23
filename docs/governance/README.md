@@ -19,10 +19,11 @@
 ## 推荐阅读顺序
 
 1. `documentation-governance-standard.md`
-2. `collaboration-and-workflow.md`
-3. `codegraph-and-repo-navigation.md`
-4. `archive-policy.md`
-5. `templates/README.md`
+2. `engineering-guardrails.md`
+3. `collaboration-and-workflow.md`
+4. `codegraph-and-repo-navigation.md`
+5. `archive-policy.md`
+6. `templates/README.md`
 
 ## 正式规范与兼容关系
 
@@ -47,3 +48,11 @@
 - `templates/release-record-template.md`
 - `templates/validation-record-template.md`
 - `templates/system-readme-template.md`
+
+## 工程护栏
+
+- 热点大文件预算与发布前工作树清洁规则：`engineering-guardrails.md`
+- 对应脚本：
+  - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:release-worktree-clean`
+  - `npm run verify:engineering-governance-contract`

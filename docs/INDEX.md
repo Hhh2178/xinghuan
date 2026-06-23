@@ -19,6 +19,7 @@
 看 `docs/governance/`：
 
 - `docs/governance/README.md`
+- `docs/governance/engineering-guardrails.md`
 - `docs/governance/collaboration-and-workflow.md`
 - `docs/governance/codegraph-and-repo-navigation.md`
 - `docs/governance/archive-policy.md`

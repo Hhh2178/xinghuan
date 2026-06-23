@@ -5,6 +5,8 @@ const PRESET_DEFINITIONS = {
     description: "通用灰度发布基础校验链",
     commands: [
       "npm install --package-lock-only",
+      "npm run verify:file-hotspot-budgets",
+      "npm run verify:engineering-governance-contract",
       "npm run build:single-port",
       "node scripts/verify-release-version-alignment.mjs",
       "npm run verify:release-package-contract",

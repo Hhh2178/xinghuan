@@ -59,6 +59,13 @@ const remoteScript = [
 
 const steps = [
   {
+    name: "verify-worktree-clean",
+    command: process.platform === "win32" ? "cmd" : "sh",
+    args: process.platform === "win32"
+      ? ["/d", "/s", "/c", "npm run verify:release-worktree-clean"]
+      : ["-lc", "npm run verify:release-worktree-clean"],
+  },
+  {
     name: "upload-archive",
     command: "scp",
     args: ["-i", sshKeyPath, "-P", port, archivePath, `${target}:${remoteArchive}`],

@@ -1,0 +1,41 @@
+import { readFile } from "node:fs/promises";
+import { strict as assert } from "node:assert";
+
+const packageJson = await readFile(new URL("../package.json", import.meta.url), "utf8");
+const grayPresets = await readFile(new URL("./release/gray-prepare-presets.mjs", import.meta.url), "utf8");
+const grayDeploy = await readFile(new URL("./release/deploy-gray-release.mjs", import.meta.url), "utf8");
+const agents = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
+const governanceReadme = await readFile(new URL("../docs/governance/README.md", import.meta.url), "utf8");
+const governanceStandard = await readFile(new URL("../docs/governance/documentation-governance-standard.md", import.meta.url), "utf8");
+const docsIndex = await readFile(new URL("../docs/INDEX.md", import.meta.url), "utf8");
+const engineeringGuardrails = await readFile(new URL("../docs/governance/engineering-guardrails.md", import.meta.url), "utf8");
+
+assert.match(packageJson, /"verify:file-hotspot-budgets": "node scripts\/verify-file-hotspot-budgets\.mjs"/);
+assert.match(packageJson, /"verify:release-worktree-clean": "node scripts\/verify-release-worktree-clean\.mjs"/);
+assert.match(packageJson, /"verify:engineering-governance-contract": "node scripts\/verify-engineering-governance-contract\.mjs"/);
+assert.match(grayPresets, /verify:file-hotspot-budgets/);
+assert.match(grayPresets, /verify:engineering-governance-contract/);
+assert.match(grayDeploy, /verify:release-worktree-clean/);
+assert.match(agents, /verify:file-hotspot-budgets/);
+assert.match(agents, /verify:release-worktree-clean/);
+assert.match(governanceReadme, /engineering-guardrails\.md/);
+assert.match(governanceStandard, /工程文件治理规则/);
+assert.match(governanceStandard, /verify:file-hotspot-budgets/);
+assert.match(governanceStandard, /verify:release-worktree-clean/);
+assert.match(docsIndex, /engineering-guardrails\.md/);
+assert.match(engineeringGuardrails, /apps\/api\/src\/server\.ts/);
+assert.match(engineeringGuardrails, /apps\/worker\/src\/worker\.ts/);
+
+console.log(JSON.stringify({
+  ok: true,
+  files: [
+    "package.json",
+    "scripts/release/gray-prepare-presets.mjs",
+    "scripts/release/deploy-gray-release.mjs",
+    "AGENTS.md",
+    "docs/governance/README.md",
+    "docs/governance/documentation-governance-standard.md",
+    "docs/governance/engineering-guardrails.md",
+    "docs/INDEX.md",
+  ],
+}, null, 2));
