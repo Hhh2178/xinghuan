@@ -11,7 +11,6 @@ import {
   type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
   type TaskStatus,
-  type UnifiedFailureCategory,
 } from "@xinghuan/shared";
 import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
@@ -45,6 +44,12 @@ import {
   providerHeaders,
   providerJsonHeaders as buildProviderJsonHeaders,
 } from "./worker-provider-utils.js";
+import {
+  normalizeUnifiedFailure,
+  readWorkerTaskResultPatch,
+  toOptionalHttpStatus,
+} from "./worker-runtime-diagnostics.js";
+import { parseRunningHubPollJsonResponse } from "./worker-runninghub-response.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
@@ -1232,7 +1237,11 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
         upstreamResponseSnippet: pollText.slice(0, 500),
       });
     }
-    const pollRaw = pollText ? JSON.parse(pollText) : {};
+    const parsedPoll = parseRunningHubPollJsonResponse(pollText, pollResponse.status);
+    if (!parsedPoll.ok) {
+      throw createWorkerTaskError(parsedPoll.errorMessage, parsedPoll.resultPatch);
+    }
+    const pollRaw = parsedPoll.raw;
     const pollData = targetType === "app" ? pollRaw : pollRaw;
     const pollCode = Number(targetType === "app" ? pollRaw.code : pollRaw.code);
     const pollMessage = safeText(
@@ -1276,7 +1285,8 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       }
     }
     if (targetType === "workflow") {
-      const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || pollRaw.data?.status).toUpperCase();
+      const workflowPayload = plainObject(pollRaw.data);
+      const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || workflowPayload.status).toUpperCase();
       if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(workflowStatus)) continue;
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(workflowStatus) || safeText(pollRaw.errorCode)) {
         throw createWorkerTaskError(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`, {
@@ -1343,85 +1353,6 @@ function createWorkerTaskError(message: string, resultPatch: Record<string, unkn
   error.name = "WorkerTaskError";
   error.resultPatch = resultPatch;
   return error;
-}
-
-function toOptionalHttpStatus(error: unknown) {
-  if (!error || typeof error !== "object") return undefined;
-  const directStatus = Number((error as { status?: unknown }).status);
-  if (Number.isInteger(directStatus) && directStatus >= 100 && directStatus <= 599) return directStatus;
-  const resultPatch = readWorkerTaskResultPatch(error);
-  const patchStatus = Number(
-    resultPatch.upstreamHttpStatus
-      || resultPatch.submitResponseStatus
-      || resultPatch.rhSubmitResponseStatus,
-  );
-  if (Number.isInteger(patchStatus) && patchStatus >= 100 && patchStatus <= 599) return patchStatus;
-  const responseStatus = Number((error as { response?: { status?: unknown } }).response?.status);
-  if (Number.isInteger(responseStatus) && responseStatus >= 100 && responseStatus <= 599) return responseStatus;
-  return undefined;
-}
-
-function toOptionalResponseSnippet(error: unknown) {
-  const resultPatch = readWorkerTaskResultPatch(error);
-  const snippet = safeText(
-    resultPatch.upstreamResponseSnippet
-      || resultPatch.rhSubmitResponseText
-      || resultPatch.submitResponseText
-      || resultPatch.providerDiagnostic,
-  );
-  if (snippet) return snippet.slice(0, 500);
-  const message = error instanceof Error ? safeText(error.message) : safeText(error);
-  const matched = message.match(/:\s*([\s\S]{1,500})$/);
-  return matched ? matched[1].slice(0, 500) : undefined;
-}
-
-function normalizeUnifiedFailure(error: unknown): {
-  failureReason: string;
-  failureCategory: UnifiedFailureCategory;
-  providerDiagnostic: string;
-  upstreamHttpStatus?: number;
-  upstreamResponseSnippet?: string;
-} {
-  const resultPatch = readWorkerTaskResultPatch(error);
-  const message = error instanceof Error ? error.message : String(error || "unknown error");
-  const httpStatus = toOptionalHttpStatus(error);
-  const responseSnippet = toOptionalResponseSnippet(error);
-  const patchCategory = safeText(resultPatch.failureCategory) as UnifiedFailureCategory;
-  const patchDiagnostic = safeText(resultPatch.providerDiagnostic);
-
-  if (patchCategory) {
-    return {
-      failureReason: message,
-      failureCategory: patchCategory,
-      providerDiagnostic: patchDiagnostic || message,
-      upstreamHttpStatus: httpStatus,
-      upstreamResponseSnippet: responseSnippet,
-    };
-  }
-  if (/apikey|unauthorized|forbidden|auth/i.test(message)) {
-    return { failureReason: message, failureCategory: "auth", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-  }
-  if (/credits|quota|balance|consume/i.test(message)) {
-    return { failureReason: message, failureCategory: "quota_or_credits", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-  }
-  if (/model not found|workflow not found|app not found|invalid/i.test(message)) {
-    return { failureReason: message, failureCategory: "model_config", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-  }
-  if (/timeout|超时/i.test(message)) {
-    return { failureReason: message, failureCategory: "upstream_poll_timeout", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-  }
-  if (/502|503|504|bad gateway|fetch failed/i.test(message)) {
-    return { failureReason: message, failureCategory: "upstream_poll_gateway_failed", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-  }
-  return { failureReason: message, failureCategory: "unknown", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
-}
-
-function readWorkerTaskResultPatch(error: unknown) {
-  if (!error || typeof error !== "object") return {};
-  const resultPatch = (error as { resultPatch?: unknown }).resultPatch;
-  return resultPatch && typeof resultPatch === "object" && !Array.isArray(resultPatch)
-    ? plainObject(resultPatch)
-    : {};
 }
 
 function isRetryableRunningHubQueueLimitError(error: unknown) {
