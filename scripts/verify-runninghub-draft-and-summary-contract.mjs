@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 
 const server = await readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf8");
+const nodeHelpers = await readFile(new URL("../apps/web/src/components/nodes/runninghubNodeHelpers.ts", import.meta.url), "utf8");
 
 assert.match(
   server,
@@ -11,8 +12,8 @@ assert.match(
 );
 
 assert.match(
-  node,
-  /function mergeNodeInfoListWithPresetMetadata\(primaryList: unknown, presetList: unknown\)/,
+  nodeHelpers,
+  /export function mergeNodeInfoListWithPresetMetadata\(primaryList: unknown, presetList: unknown\)/,
   "RunningHub node should merge runtime nodeInfoList with preset metadata",
 );
 
