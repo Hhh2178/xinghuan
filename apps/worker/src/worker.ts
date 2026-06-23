@@ -44,12 +44,12 @@ import {
   providerHeaders,
   providerJsonHeaders as buildProviderJsonHeaders,
 } from "./worker-provider-utils.js";
+import { createRunningHubClient } from "./worker-runninghub-client.js";
 import {
   normalizeUnifiedFailure,
   readWorkerTaskResultPatch,
   toOptionalHttpStatus,
 } from "./worker-runtime-diagnostics.js";
-import { parseRunningHubPollJsonResponse } from "./worker-runninghub-response.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
@@ -1092,260 +1092,35 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
           fieldValue: item.fieldValue,
         }))
     : [];
-  const instanceType = safeText(task.payload.instanceType);
-  const submitUrl = targetType === "app"
-    ? `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/run/ai-app/${encodeURIComponent(webappId || runTargetId)}`
-    : `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/run/workflow/${encodeURIComponent(workflowId || runTargetId)}`;
-  const queryUrl = `${task.providerBaseUrl.replace(/\/+$/, "")}/openapi/v2/query`;
-  const submitRequestBody =
-    targetType === "app"
-      ? {
-          nodeInfoList,
-          ...(instanceType ? { instanceType } : {}),
-          usePersonalQueue: "false",
-        }
-      : {
-          apiKey: apiKey,
-          workflowId: workflowId || runTargetId,
-          nodeInfoList,
-          ...(instanceType ? { instanceType } : {}),
-        };
-  const submitRequestBodyForLog = sanitizeRunningHubSubmitRequestBody(submitRequestBody);
-
-  const submitResponse = await fetch(submitUrl, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
+  const runningHubClient = createRunningHubClient({
+    apiKey,
+    baseUrl: task.providerBaseUrl,
+    wait,
+  });
+  const result = await runningHubClient.runTask({
+    targetType,
+    runTargetId,
+    webappId,
+    workflowId,
+    nodeInfoList,
+    instanceType: safeText(task.payload.instanceType),
+    pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000),
+    timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 20 * 60 * 1000, 5000, 60 * 60 * 1000),
+    onHeartbeat: async (patch) => {
+      await touchTaskRuntime(task.id, {
+        heartbeatAt: new Date().toISOString(),
+        ...patch,
+        ...(assignedRhKey ? {
+          assignedRhKeyId: assignedRhKey.id,
+          assignedRhKeyNoteSnapshot: assignedRhKey.note,
+        } : {}),
+      });
     },
-    body: JSON.stringify(submitRequestBody),
-    signal: AbortSignal.timeout(120000),
   });
-  const submitText = await submitResponse.text();
-  if (!submitResponse.ok) {
-    throw createWorkerTaskError(
-      `RunningHub 提交失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`,
-      buildRunningHubSubmitFailurePatch({
-        submitUrl,
-        targetType,
-        runTargetId,
-        workflowId,
-        submitRequestBody: submitRequestBodyForLog,
-        submitResponseStatus: submitResponse.status,
-        submitResponseText: submitText,
-      }),
-    );
-  }
-  let submitRaw: Record<string, unknown> = {};
-  try {
-    submitRaw = submitText ? JSON.parse(submitText) : {};
-  } catch {
-    throw createWorkerTaskError(
-      "RunningHub 提交返回非法 JSON",
-      buildRunningHubSubmitFailurePatch({
-        submitUrl,
-        targetType,
-        runTargetId,
-        workflowId,
-        submitRequestBody: submitRequestBodyForLog,
-        submitResponseStatus: submitResponse.status,
-        submitResponseText: submitText,
-      }),
-    );
-  }
-  const submitEnvelope = plainObject(submitRaw.data);
-  const submitData = targetType === "app" ? submitEnvelope : submitRaw;
-  const upstreamCode = Number(targetType === "app" ? submitData.code : submitRaw.code);
-  const upstreamPayload = plainObject(targetType === "app" ? submitData.data : submitRaw.data);
-  const upstreamTaskId = safeText(
-    upstreamPayload.taskId
-      || upstreamPayload.id
-      || submitRaw.taskId
-      || submitRaw.id,
-  );
-  if ((Number.isFinite(upstreamCode) && upstreamCode !== 0) || !upstreamTaskId) {
-    const message = humanizeRunningHubUpstreamError(safeText(
-      submitData.msg
-      || submitRaw.errorMessage
-      || submitRaw.message
-      || submitRaw.msg,
-      "RunningHub 未返回有效任务 ID",
-    ), targetType);
-    throw createWorkerTaskError(
-      message,
-      {
-        ...buildRunningHubSubmitFailurePatch({
-          submitUrl,
-          targetType,
-          runTargetId,
-          workflowId,
-          submitRequestBody: submitRequestBodyForLog,
-          submitResponseStatus: submitResponse.status,
-          submitResponseText: submitText,
-        }),
-        failureCategory: "upstream_business_failed",
-        providerDiagnostic: message,
-        upstreamHttpStatus: submitResponse.status,
-        upstreamResponseSnippet: submitText.slice(0, 500),
-      },
-    );
-  }
-
-  await touchTaskRuntime(task.id, {
-    heartbeatAt: new Date().toISOString(),
-    upstreamTaskId,
-    taskId: upstreamTaskId,
-    upstreamStatus: "submitted",
-    runtimeStage: "polling",
-    rhTargetType: targetType,
-    rhRunTargetId: runTargetId,
-    ...(assignedRhKey ? {
-      assignedRhKeyId: assignedRhKey.id,
-      assignedRhKeyNoteSnapshot: assignedRhKey.note,
-    } : {}),
-  });
-
-  const pollIntervalMs = clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000);
-  const timeoutMs = clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 20 * 60 * 1000, 5000, 60 * 60 * 1000);
-  const startedAt = Date.now();
-
-  for (;;) {
-    if (Date.now() - startedAt > timeoutMs) {
-      throw createWorkerTaskError(`RunningHub 轮询超时: ${upstreamTaskId}`, {
-        failureCategory: "upstream_poll_timeout",
-        providerDiagnostic: `RunningHub 轮询超时: ${upstreamTaskId}`,
-      });
-    }
-    await wait(pollIntervalMs);
-    const pollResponse = await fetch(queryUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        taskId: upstreamTaskId,
-      }),
-      signal: AbortSignal.timeout(120000),
-    });
-    const pollText = await pollResponse.text();
-    if (!pollResponse.ok) {
-      throw createWorkerTaskError(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`, {
-        failureCategory: "upstream_poll_gateway_failed",
-        providerDiagnostic: `RunningHub 轮询失败 ${pollResponse.status}`,
-        upstreamHttpStatus: pollResponse.status,
-        upstreamResponseSnippet: pollText.slice(0, 500),
-      });
-    }
-    const parsedPoll = parseRunningHubPollJsonResponse(pollText, pollResponse.status);
-    if (!parsedPoll.ok) {
-      throw createWorkerTaskError(parsedPoll.errorMessage, parsedPoll.resultPatch);
-    }
-    const pollRaw = parsedPoll.raw;
-    const pollData = targetType === "app" ? pollRaw : pollRaw;
-    const pollCode = Number(targetType === "app" ? pollRaw.code : pollRaw.code);
-    const pollMessage = safeText(
-      pollData.errorMessage
-      || pollData.msg
-      || pollData.message
-      || pollRaw.errorMessage
-      || pollRaw.message
-      || pollRaw.msg,
-    );
-    await touchTaskRuntime(task.id, {
-      heartbeatAt: new Date().toISOString(),
-      upstreamTaskId,
-      taskId: upstreamTaskId,
-      upstreamStatus: String(Number.isFinite(pollCode) ? pollCode : safeText(pollRaw.status)),
-      runtimeStage: "polling",
-      upstreamMessage: pollMessage,
-      rhTargetType: targetType,
-      rhRunTargetId: runTargetId,
-      ...(assignedRhKey ? {
-        assignedRhKeyId: assignedRhKey.id,
-        assignedRhKeyNoteSnapshot: assignedRhKey.note,
-      } : {}),
-    });
-    if (targetType === "app") {
-      const appStatus = safeText(pollRaw.status).toUpperCase();
-      if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(appStatus)) continue;
-      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(appStatus) || safeText(pollRaw.errorCode)) {
-        throw createWorkerTaskError(pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`, {
-          failureCategory: "upstream_business_failed",
-          providerDiagnostic: pollMessage || `RunningHub AI 应用任务失败: ${upstreamTaskId}`,
-          upstreamResponseSnippet: pollText.slice(0, 500),
-        });
-      }
-      if (Number.isFinite(pollCode) && pollCode !== 0 && !["SUCCESS"].includes(appStatus)) {
-        throw createWorkerTaskError(pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`, {
-          failureCategory: "upstream_business_failed",
-          providerDiagnostic: pollMessage || `RunningHub AI 应用返回未知状态: ${pollCode}`,
-          upstreamResponseSnippet: pollText.slice(0, 500),
-        });
-      }
-    }
-    if (targetType === "workflow") {
-      const workflowPayload = plainObject(pollRaw.data);
-      const workflowStatus = safeText(pollRaw.status || pollRaw.taskStatus || workflowPayload.status).toUpperCase();
-      if (["RUNNING", "PENDING", "QUEUED", "WAITING"].includes(workflowStatus)) continue;
-      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(workflowStatus) || safeText(pollRaw.errorCode)) {
-        throw createWorkerTaskError(pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`, {
-          failureCategory: "upstream_business_failed",
-          providerDiagnostic: pollMessage || `RunningHub 工作流任务失败: ${upstreamTaskId}`,
-          upstreamResponseSnippet: pollText.slice(0, 500),
-        });
-      }
-    }
-    const urls = extractRunningHubOutputUrls(targetType === "app" ? pollRaw.results || pollRaw.data || pollRaw : pollRaw.data || pollRaw);
-    if (urls.imageUrls.length === 0 && urls.videoUrls.length === 0 && urls.audioUrls.length === 0) {
-      throw createWorkerTaskError(pollMessage || "RunningHub 任务成功但未返回可用输出", {
-        failureCategory: "upstream_business_failed",
-        providerDiagnostic: pollMessage || "RunningHub 任务成功但未返回可用输出",
-        upstreamResponseSnippet: pollText.slice(0, 500),
-      });
-    }
-    return {
-      adapter: "runninghub",
-      providerId: task.providerId,
-      taskId: upstreamTaskId,
-      upstreamTaskId,
-      rhTargetType: targetType,
-      rhRunTargetId: runTargetId,
-      raw: pollRaw,
-      videoUrls: urls.videoUrls,
-      imageUrls: urls.imageUrls,
-      audioUrls: urls.audioUrls,
-      remoteVideoUrls: urls.videoUrls,
-      remoteImageUrls: urls.imageUrls,
-      remoteAudioUrls: urls.audioUrls,
-      videoCount: urls.videoUrls.length,
-      imageCount: urls.imageUrls.length,
-      audioCount: urls.audioUrls.length,
-    };
-  }
-}
-
-function sanitizeRunningHubSubmitRequestBody(body: Record<string, unknown>) {
-  const next = plainObject(body);
-  if (safeText(next.apiKey)) next.apiKey = "[redacted]";
-  if (safeText(next.apiKeyOnly)) next.apiKeyOnly = "[redacted]";
-  return next;
-}
-
-function humanizeRunningHubUpstreamError(message: string, targetType: "app" | "workflow") {
-  const text = safeText(message);
-  const mismatch = text.match(/NODE_INFO_MISMATCH\(nodeId=([^,]+),\s*fieldName=([^,]+),\s*reason=([^)]+)\)/i);
-  if (!mismatch) return text;
-  const [, rawNodeId, rawFieldName, rawReason] = mismatch;
-  const nodeId = safeText(rawNodeId);
-  const fieldName = safeText(rawFieldName);
-  const reason = safeText(rawReason).toLowerCase();
-  if (reason === "node_not_found_in_workflow") {
-    return targetType === "app"
-      ? `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 在上游当前工作流中不存在。该 AI 应用公开文档或 apiCallDemo 中的输入定义可能已过期，请先在 RunningHub 页面重新核对真实可提交字段。原始错误：${text}`
-      : `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 在上游当前工作流中不存在。请重新核对 workflowId、nodeId 和 fieldName。原始错误：${text}`;
-  }
-  return `字段与 RunningHub 当前工作流不一致：${nodeId}.${fieldName} 校验失败（${reason || "unknown_reason"}）。原始错误：${text}`;
+  return {
+    ...result,
+    providerId: task.providerId,
+  };
 }
 
 function createWorkerTaskError(message: string, resultPatch: Record<string, unknown> = {}) {
@@ -1984,6 +1759,6 @@ function readPathText(value: Record<string, unknown>, path: string) {
   return safeText(current);
 }
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function wait(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

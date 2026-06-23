@@ -21,6 +21,7 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - 画布节点：`apps/web/src/components/nodes/RunningHubNode.tsx`
 - 共享类型：`packages/shared/src/runninghub.ts`
 - worker 执行：`apps/worker/src/worker.ts`
+- worker 协议 client：`apps/worker/src/worker-runninghub-client.ts`
 - worker poll 响应护栏：`apps/worker/src/worker-runninghub-response.ts`
 
 ## 当前重点边界
@@ -32,16 +33,24 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - RH Key 池是 RunningHub 的真实并发来源：
   - 后台 Provider 可维护多 Key
   - RH 总并发自动汇总所有启用 Key 的 `maxConcurrency`
-  - 任务入队时会绑定具体 RH Key，Worker 优先使用该 Key 执行
+  - API 入队只固定 `preferredRhKeyId`
+  - Worker 执行前才实时抢占并写入 `assignedRhKeyId`
+  - 只有全部 Key 满载时才进入 `all_keys_busy`
 - Worker 第二阶段收口方向：
   - `worker.ts` 逐步退回 orchestration glue
-  - RunningHub 协议解析继续下沉到独立 helper / client
+  - RunningHub 协议解析已开始下沉到独立 helper / client
   - Key 池调度、取消同步、统一诊断会继续按模块拆分
 - RH 节点阶段进度统一口径：
   - 提交中或排队中：`5%`
   - 已开始生成：`45%`
   - 成功完成：`100%`
   - 排队文案：`任务队列排队中`
+
+## 工程治理要求
+
+- RunningHub 新增能力时，后台条目、API descriptor、worker 协议执行、前端节点运行态必须按层落点，禁止继续在单一文件里跨层堆逻辑。
+- 后台分析草案、真实执行 descriptor、画布运行时状态，必须优先复用共享类型和已有 helper，不允许再复制一套本地私有协议。
+- RH / RH Tools 的共享运行时逻辑，后续优先抽 hook / helper，避免双实现继续漂移。
 
 ## 兼容正文来源
 

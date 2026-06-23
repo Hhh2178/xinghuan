@@ -36,6 +36,7 @@
 ### 1. RunningHub 多 Key 抢占仍存在竞争缺口
 
 - 严重度：`P1`
+- 当前状态：`2026-06-23 已完成第一阶段修复，保留为已识别热点`
 - 位置：
   - [worker.ts](D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/apps/worker/src/worker.ts:535)
   - [worker.ts](D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/apps/worker/src/worker.ts:545)
@@ -49,6 +50,7 @@
 - 建议：
   - 把“选 Key + 占位”做成同一模块里的可重试流程。
   - 单个 Key 抢占失败后继续尝试下一个可用 Key，直到所有 Key 都确实满载。
+  - 后续继续把这段能力从 `worker.ts` 下沉到独立 dispatch 模块。
 
 ### 2. Production 仍与 gray 共库
 
@@ -68,6 +70,7 @@
 ### 3. RunningHub 轮询成功分支缺少 JSON 容错归一化
 
 - 严重度：`P2`
+- 当前状态：`2026-06-23 已完成第一阶段修复，保留为已识别热点`
 - 位置：
   - [worker.ts](D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/apps/worker/src/worker.ts:1220)
 - 现状：
@@ -79,6 +82,7 @@
 - 建议：
   - 对 poll 分支补和 submit 一致的 JSON 保护。
   - 非 JSON success / gateway 页面也要继续映射到统一失败分类。
+  - 后续继续把这部分责任收口到独立 RunningHub client / response helper。
 
 ### 4. RunningHub Key 池归一化规则分散在三层
 
@@ -112,6 +116,7 @@
   - Worker 继续做第二阶段拆分。
   - API 把 RunningHub、任务、系统页拆成模块化 handler。
   - RH 节点和 RH 工作台进一步拆子 hooks / 子 section。
+  - 将“禁止继续往超级文件堆逻辑”的约束固化到 `AGENTS.md` 与治理规范。
 
 ## 高概率跨层协作风险
 

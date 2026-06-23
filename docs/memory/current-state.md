@@ -2,8 +2,8 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.4.14`
-- 当前灰度 release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
+- 当前活跃版本：`v0.4.15`
+- 当前灰度 release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
 - 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
@@ -23,7 +23,12 @@
 - Admin：系统并发治理、RH 工作台、环境同步
 - API：任务接口、系统只读聚合、RunningHub 分析
 - Worker：普通任务并发与 RH 平台窗口治理
-- Worker 下一步：`worker.ts` 第二阶段收口，继续拆分 RunningHub client / dispatch、统一运行态诊断与取消同步
+- Worker 下一步：`worker.ts` 第二阶段收口继续推进
+  - 已抽出 RunningHub client 与 poll 解析护栏
+  - 下一步继续拆分 dispatch、统一取消同步与更多共享运行态 helper
+- 当前工程治理重点：
+  - 避免继续制造 `server.ts / worker.ts / RunningHubNode.tsx` 这类超级文件
+  - 发布前必须收紧工作树，只保留本轮预期改动
 
 ## 相关入口
 
