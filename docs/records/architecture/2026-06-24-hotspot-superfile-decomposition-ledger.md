@@ -131,6 +131,10 @@
 - `apps/web/src/components/ApiSettings.tsx`
   - 状态：系统设置页职责堆叠
   - 下一步：拆 `provider sections / settings forms / save helpers`
+  - 当前进度：
+    - `2026-06-24` 已将 key 常量、导入导出备份 helper、云上传摘要与 JSON 解析下沉到 `apiSettingsHelpers.ts`
+    - `2026-06-24` 已将通用/分类 API Key 字段卡片与外链按钮下沉到 `ApiSettingsKeyField.tsx`
+    - 主文件行数已从约 `2435` 降到 `2162`
 - `apps/web/src/components/nodes/DrawingBoardNode.tsx`
   - 状态：绘制节点内部状态与渲染堆叠
   - 下一步：拆 `board interactions / toolbar sections / persistence helpers`

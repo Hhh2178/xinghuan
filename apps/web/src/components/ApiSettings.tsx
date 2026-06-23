@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, CloudUpload, Download, ExternalLink, Eye, EyeOff, FileUp, Info, KeyRound, Loader2, Lock, Plus, Save, Settings2, TestTube2, Trash2, X, FolderOpen, ServerCog } from 'lucide-react';
+import { ChevronDown, ChevronRight, CloudUpload, Download, ExternalLink, FileUp, Info, KeyRound, Loader2, Lock, Plus, Save, Settings2, TestTube2, Trash2, X, FolderOpen, ServerCog } from 'lucide-react';
 import { useApiKeysStore, FIXED_ZHENZHEN_BASE, RH_BASE } from '../stores/apiKeys';
 import { useThemeStore } from '../stores/theme';
-import type { AdvancedProviderConfig, AdvancedProviderProtocol, ApiSettings, CloudUploadProvider, CloudUploadTargetConfig } from '../types/canvas';
+import type { AdvancedProviderConfig, ApiSettings, CloudUploadTargetConfig } from '../types/canvas';
 import { getRawSettings, testAdvancedProvider, testCloudUploadTarget } from '../services/api';
 import {
   advancedProviderSummary as summarizeAdvancedProviderForm,
@@ -19,199 +19,29 @@ import {
   parseComfyFieldExcludeRules,
   type ComfyFieldMapping,
 } from '../utils/comfyuiWorkflow';
+import {
+  ADVANCED_PROVIDER_GUIDES,
+  ADVANCED_PROVIDER_LABELS,
+  ALL_FIELDS,
+  buildSettingsBackupPayload,
+  CLASSIFIED_KEYS,
+  COMMON_KEYS,
+  CLOUD_UPLOAD_GUIDES,
+  CLOUD_UPLOAD_LABELS,
+  JIMENG_CLI_INSTALL_COMMAND,
+  MODELSCOPE_TOKEN_URLS,
+  normalizeImportedSettings,
+  emptyMap,
+  emptyShow,
+  summarizeCloudUploadForm,
+  tryParseJsonObject,
+  type KeyField,
+} from './apiSettingsHelpers';
+import ApiSettingsKeyField from './ApiSettingsKeyField';
 
 interface ApiSettingsModalProps {
   open: boolean;
   onClose: () => void;
-}
-
-// 主 Key 字段名类型
-type KeyField =
-  | 'zhenzhenApiKey'
-  | 'rhApiKey'
-  | 'llmApiKey'
-  | 'gptImageApiKey'
-  | 'nanoBananaApiKey'
-  | 'mjApiKey'
-  | 'veoApiKey'
-  | 'grokApiKey'
-  | 'seedanceApiKey'
-  | 'sunoApiKey';
-
-interface KeySpec {
-  field: KeyField;
-  label: string;
-  desc: string;
-  bullet: string; // tailwind bg color class
-}
-
-const COMMON_KEYS: KeySpec[] = [
-  { field: 'zhenzhenApiKey', label: '贞贞工坊 API Key', desc: '· 通用后备 · 用于图像/视频/音频生成', bullet: 'bg-amber-400' },
-  { field: 'rhApiKey', label: 'RunningHub API Key', desc: '· RunningHub 节点与 RH 钱包应用节点共用', bullet: 'bg-cyan-400' },
-  { field: 'llmApiKey', label: 'LLM 独立 API Key', desc: '· 额度隔离 · 用于 LLM/Vision', bullet: 'bg-emerald-400' },
-];
-
-const CLASSIFIED_KEYS: KeySpec[] = [
-  { field: 'gptImageApiKey', label: 'gpt-image 系列', desc: 'GPT2 / gpt-image-1 等图像任务专用', bullet: 'bg-pink-400' },
-  { field: 'nanoBananaApiKey', label: 'nano-banana 系列', desc: 'nano-banana / nano-banana-pro 专用', bullet: 'bg-yellow-400' },
-  { field: 'mjApiKey', label: 'mj 系列', desc: 'Midjourney (turbo/fast/relax) 专用', bullet: 'bg-purple-400' },
-  { field: 'veoApiKey', label: 'veo / sora 系列', desc: 'Veo / Veo3.1 / Sora2 视频专用', bullet: 'bg-blue-400' },
-  { field: 'grokApiKey', label: 'grok 系列', desc: 'Grok Image / Grok Imagine Video 专用', bullet: 'bg-orange-400' },
-  { field: 'seedanceApiKey', label: 'seedance 系列', desc: 'Seedance 视频专用', bullet: 'bg-teal-400' },
-  { field: 'sunoApiKey', label: 'suno 系列', desc: 'Suno 音乐专用', bullet: 'bg-rose-400' },
-];
-
-const ALL_FIELDS: KeyField[] = [
-  ...COMMON_KEYS.map((k) => k.field),
-  ...CLASSIFIED_KEYS.map((k) => k.field),
-];
-
-const PATH_FIELDS = [
-  'fileSavePath',
-  'canvasAutoSavePath',
-  'resourceLibraryPath',
-  'themeTemplatePath',
-  'eagleApiBase',
-] as const;
-
-const SETTINGS_BACKUP_SCHEMA = 't8-penguin-canvas-settings';
-const SETTINGS_BACKUP_VERSION = 1;
-
-const ADVANCED_PROVIDER_LABELS: Record<AdvancedProviderProtocol, string> = {
-  'openai-compatible': 'OpenAI 兼容',
-  modelscope: 'ModelScope',
-  volcengine: '火山引擎',
-  comfyui: '本地 ComfyUI',
-  'jimeng-cli': '即梦 CLI',
-};
-
-const ADVANCED_PROVIDER_GUIDES: Record<AdvancedProviderProtocol, {
-  subtitle: string;
-  description: string;
-  nodeScopes: string[];
-  connectionHint: string;
-  modelHint: string;
-  baseUrlPlaceholder?: string;
-  keyLabel?: string;
-}> = {
-  'openai-compatible': {
-    subtitle: '接入兼容 OpenAI 格式的图像 / 视频 / LLM 服务',
-    description: '适合接入你自己的中转站、One API、New API 或其他兼容 /v1/chat/completions、/v1/images/generations、/v1/videos/generations 的服务。',
-    nodeScopes: ['图像节点', '视频节点', 'LLM 节点'],
-    connectionHint: 'Base URL 填到 /v1 这一层，例如 https://api.example.com/v1；Key 留空会保留后端已保存的密钥。',
-    modelHint: '每行一个模型名。只填你确实要在节点里选择的模型，空白时会使用内置兜底示例。',
-    baseUrlPlaceholder: 'https://api.example.com/v1',
-    keyLabel: 'API Key / Token',
-  },
-  modelscope: {
-    subtitle: '接入 ModelScope 的异步图像任务与兼容聊天接口',
-    description: '适合把 ModelScope 上的图像模型加入图像节点，也可以给 LLM 节点填入可用的聊天模型。',
-    nodeScopes: ['图像节点', 'LLM 节点'],
-    connectionHint: 'Base URL 通常使用 ModelScope API 地址；Token 填 ModelScope 访问令牌。',
-    modelHint: '图像模型建议填写 ModelScope 模型 ID，例如 owner/model-name；聊天模型按平台实际模型名填写。',
-    baseUrlPlaceholder: 'https://api-inference.modelscope.cn/v1',
-    keyLabel: 'ModelScope Token',
-  },
-  volcengine: {
-    subtitle: '接入火山方舟 / Seedream / Seedance',
-    description: '适合用火山引擎做 Seedream 图像、Seedance 视频或方舟聊天模型。只在节点里选择高级来源时才会走这里。',
-    nodeScopes: ['图像节点', '视频节点', 'LLM 节点'],
-    connectionHint: 'Base URL 填火山方舟 API 地址；常规生成使用 API Key，素材上传能力可补充 AK/SK。',
-    modelHint: '图像、视频、聊天模型分别按火山控制台里的模型接入点填写，每行一个。',
-    baseUrlPlaceholder: 'https://ark.cn-beijing.volces.com/api/v3',
-    keyLabel: '火山 API Key',
-  },
-  comfyui: {
-    subtitle: '接入本机 ComfyUI 工作流',
-    description: '适合把本机 ComfyUI 的 API Workflow 接到图像节点。为安全起见这里只允许本机地址。',
-    nodeScopes: ['图像节点'],
-    connectionHint: '实例地址填本机 ComfyUI，例如 http://127.0.0.1:8188。多个实例可一行一个。',
-    modelHint: '图像节点里选择的是工作流 ID/名称，不需要填写模型列表。',
-    baseUrlPlaceholder: 'http://127.0.0.1:8188',
-  },
-  'jimeng-cli': {
-    subtitle: '通过本地 dreamina / 即梦 CLI 调用图像和视频',
-    description: '适合已经在本机配置好即梦 CLI 的用户。它不走 API Key，而是调用本地命令并轮询任务结果。',
-    nodeScopes: ['图像节点', '视频节点', 'SD2.0 节点'],
-    connectionHint: '填写 dreamina 可执行文件路径；如果 CLI 装在 WSL 里，再打开 WSL 并填写发行版名称。',
-    modelHint: '模型名按 CLI 支持的命令参数填写，例如 seedance2.0fast_vip。每行一个。',
-  },
-};
-
-const MODELSCOPE_TOKEN_URLS = {
-  cn: 'https://www.modelscope.cn/my/access/token',
-  intl: 'https://www.modelscope.ai/my/access/token',
-} as const;
-
-const JIMENG_CLI_INSTALL_COMMAND = 'curl -s https://jimeng.jianying.com/cli | bash';
-
-const CLOUD_UPLOAD_LABELS: Record<CloudUploadProvider, string> = {
-  'tencent-cos': '腾讯云 COS',
-  'aliyun-oss': '阿里云 OSS',
-  'baidu-netdisk': '百度网盘',
-  'quark-netdisk': '夸克网盘',
-};
-
-const CLOUD_UPLOAD_GUIDES: Record<CloudUploadProvider, {
-  subtitle: string;
-  description: string;
-  status: string;
-}> = {
-  'tencent-cos': {
-    subtitle: '适合把生成素材归档到腾讯云对象存储，支持真实上传。',
-    description: '填写 Bucket、Region、SecretId 和 SecretKey；公共域名可选，留空时返回 COS 默认对象 URL。',
-    status: '已支持上传',
-  },
-  'aliyun-oss': {
-    subtitle: '适合把生成素材归档到阿里云对象存储，支持真实上传。',
-    description: '填写 Bucket、Endpoint、AccessKeyId 和 AccessKeySecret；公共域名可选，留空时返回 OSS 默认对象 URL。',
-    status: '已支持上传',
-  },
-  'baidu-netdisk': {
-    subtitle: '保留百度网盘配置位，等待稳定 OAuth / PCS 上传方案接入。',
-    description: '后续会优先接入正式授权流程，避免让用户手填不稳定 Cookie 或抓包字段。',
-    status: '规划中',
-  },
-  'quark-netdisk': {
-    subtitle: '保留夸克网盘配置位，等待稳定 CLI / 授权方案接入。',
-    description: '后续若接入外部 CLI，会在这里填写命令路径并统一走同一个右键上传入口。',
-    status: '实验位',
-  },
-};
-
-function summarizeCloudUploadForm(targets: CloudUploadTargetConfig[]) {
-  const normalized = Array.isArray(targets) ? targets : [];
-  const configuredCount = normalized.filter((target) => {
-    if (target.provider === 'tencent-cos') {
-      return !!(target.tencentCos?.bucket && target.tencentCos?.region && (target.tencentCos?.secretId || target.tencentCos?.hasSecretId) && (target.tencentCos?.secretKey || target.tencentCos?.hasSecretKey));
-    }
-    if (target.provider === 'aliyun-oss') {
-      return !!(target.aliyunOss?.bucket && target.aliyunOss?.endpoint && (target.aliyunOss?.accessKeyId || target.aliyunOss?.hasAccessKeyId) && (target.aliyunOss?.accessKeySecret || target.aliyunOss?.hasAccessKeySecret));
-    }
-    if (target.provider === 'baidu-netdisk') {
-      return !!(target.baiduNetdisk?.accessToken || target.baiduNetdisk?.hasAccessToken || target.baiduNetdisk?.refreshToken || target.baiduNetdisk?.hasRefreshToken);
-    }
-    if (target.provider === 'quark-netdisk') {
-      return !!(target.quarkNetdisk?.commandPath || target.quarkNetdisk?.cookie || target.quarkNetdisk?.hasCookie);
-    }
-    return false;
-  }).length;
-  const defaultTarget = normalized.find((target) => target.isDefault) || normalized.find((target) => target.enabled) || null;
-  return {
-    totalCount: normalized.length,
-    enabledCount: normalized.filter((target) => target.enabled).length,
-    configuredCount,
-    defaultLabel: defaultTarget?.label || '',
-  };
-}
-
-function tryParseJsonObject(raw: string): Record<string, any> | null {
-  try {
-    const parsed = JSON.parse(raw || '{}');
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 interface AdvancedProviderFormBlockProps {
@@ -241,17 +71,6 @@ function AdvancedProviderFormBlock({
     </section>
   );
 }
-
-const emptyMap = (): Record<KeyField, string> => ({
-  zhenzhenApiKey: '', rhApiKey: '', llmApiKey: '',
-  gptImageApiKey: '', nanoBananaApiKey: '', mjApiKey: '', veoApiKey: '',
-  grokApiKey: '', seedanceApiKey: '', sunoApiKey: '',
-});
-const emptyShow = (): Record<KeyField, boolean> => ({
-  zhenzhenApiKey: false, rhApiKey: false, llmApiKey: false,
-  gptImageApiKey: false, nanoBananaApiKey: false, mjApiKey: false, veoApiKey: false,
-  grokApiKey: false, seedanceApiKey: false, sunoApiKey: false,
-});
 
 export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProps) {
   const { theme, style } = useThemeStore();
@@ -355,45 +174,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     ...(cloudUploadDirty ? { cloudUploadTargets: cloudUploadTargetsInput } : {}),
   });
 
-  const isMaskedKeyValue = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return /^\*{2,}/.test(value.trim());
-  };
-
-  const normalizeImportedSettings = (raw: unknown): Partial<ApiSettings> => {
-    const source = raw && typeof raw === 'object' && 'settings' in raw
-      ? (raw as any).settings
-      : raw;
-    if (!source || typeof source !== 'object') {
-      throw new Error('设置备份格式不正确');
-    }
-    const next: Partial<ApiSettings> = {};
-    for (const field of ALL_FIELDS) {
-      const value = (source as any)[field];
-      if (typeof value !== 'string') continue;
-      const trimmed = value.trim();
-      if (!trimmed || isMaskedKeyValue(trimmed)) continue;
-      (next as any)[field] = trimmed;
-    }
-    for (const field of PATH_FIELDS) {
-      const value = (source as any)[field];
-      if (typeof value !== 'string') continue;
-      const trimmed = value.trim();
-      if (!trimmed) continue;
-      (next as any)[field] = trimmed;
-    }
-    if ((source as any).preferences && typeof (source as any).preferences === 'object') {
-      next.preferences = { ...(source as any).preferences };
-    }
-    if (Array.isArray((source as any).advancedProviders)) {
-      next.advancedProviders = (source as any).advancedProviders;
-    }
-    if (Array.isArray((source as any).cloudUploadTargets)) {
-      next.cloudUploadTargets = (source as any).cloudUploadTargets;
-    }
-    return next;
-  };
-
   const downloadJson = (filename: string, data: unknown) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -414,24 +194,12 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
       } catch {
         raw = null;
       }
-      const editable = getCurrentEditableSettings();
-      const exportSettings = {
-        ...(raw || {}),
-        ...Object.fromEntries(
-          Object.entries(editable).filter(([, value]) => typeof value === 'string' && value.trim())
-        ),
-        zhenzhenBaseUrl: FIXED_ZHENZHEN_BASE,
-        llmBaseUrl: FIXED_ZHENZHEN_BASE,
-        rhBaseUrl: RH_BASE,
-      };
-      const payload = {
-        schema: SETTINGS_BACKUP_SCHEMA,
-        version: SETTINGS_BACKUP_VERSION,
-        exportedAt: new Date().toISOString(),
-        containsSecrets: true,
-        note: '此文件包含明文 API Key，请勿上传到 GitHub 或公开分享。',
-        settings: exportSettings,
-      };
+      const payload = buildSettingsBackupPayload({
+        raw,
+        editable: getCurrentEditableSettings(),
+        fixedZhenzhenBaseUrl: FIXED_ZHENZHEN_BASE,
+        runningHubBaseUrl: RH_BASE,
+      });
       const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       downloadJson(`t8-settings-backup-${date}.json`, payload);
       setBackupMessage('已导出设置备份。注意：文件包含明文 API Key，请妥善保管。');
@@ -574,17 +342,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     ? 't8-api-settings-icon-btn px-btn px-btn--icon px-btn--ghost'
     : 't8-api-settings-icon-btn p-2 rounded-md';
 
-  // 防御性脱敏：始终只显示尾4位（与之前 `****9zVR` 一致），
-  // 即使后端意外返回明文也不会暴露完整 Key
-  const toMaskedDisplay = (v?: string): string => {
-    if (!v) return '';
-    const s = String(v);
-    // 后端已脱敏（****xxxx 形式）直接原样
-    if (/^\*{2,}/.test(s)) return s;
-    if (s.length <= 4) return '****';
-    return '****' + s.slice(-4);
-  };
-
   // 获取 APIKey 外部链接按钮样式（双主题）
   const linkBtnCls = isPixel
     ? 't8-api-settings-action-btn px-btn px-btn--mint flex items-center gap-1 text-[11px] px-2 py-1'
@@ -599,45 +356,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     } catch {
       // 志忘
     }
-  };
-
-  // 每个字段费应的「获取 APIKey」按钮配置
-  const renderGetKeyButtons = (field: KeyField) => {
-    if (field === 'zhenzhenApiKey') {
-      return (
-        <button
-          type="button"
-          onClick={() => openExternal('https://ai.t8star.org/register?aff=dP7j')}
-          className={linkBtnCls}
-          title="前往贞贞工坊注册获取 APIKEY"
-        >
-          <ExternalLink size={11} /> 获取 APIKey
-        </button>
-      );
-    }
-    if (field === 'rhApiKey') {
-      return (
-        <>
-          <button
-            type="button"
-            onClick={() => openExternal('https://www.runninghub.cn/user-center/1819214514410942465/webapp?inviteCode=rh-v1121')}
-            className={linkBtnCls}
-            title="国内用户·前往 runninghub.cn 获取 APIKEY"
-          >
-            <ExternalLink size={11} /> 获取 APIKey：国内用户
-          </button>
-          <button
-            type="button"
-            onClick={() => openExternal('https://www.runninghub.ai/user-center/1819214514410942465/webapp?inviteCode=rh-v1121')}
-            className={linkBtnAltCls}
-            title="国外用户·前往 runninghub.ai 获取 APIKEY"
-          >
-            <ExternalLink size={11} /> 国外用户
-          </button>
-        </>
-      );
-    }
-    return null;
   };
 
   const advancedSummary = summarizeAdvancedProviderForm(advancedProvidersInput);
@@ -1886,60 +1604,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     );
   };
 
-  // 渲染单个 Key 表项
-  const renderKey = (spec: KeySpec, opts: { fallbackHint?: boolean; baseUrlNote?: string }) => {
-    const f = spec.field;
-    const rawVal = (settings as any)[f] as string | undefined;
-    const hasSaved = !!rawVal;
-    const maskedDisplay = toMaskedDisplay(rawVal);
-    return (
-      <div key={f} className="space-y-2">
-        <label className={`text-sm font-medium flex items-center gap-2 flex-wrap ${labelCls}`}>
-          <span className={`w-2 h-2 rounded-full ${spec.bullet}`} />
-          {spec.label}
-          <span className={`text-[11px] font-normal ${hintCls}`}>{spec.desc}</span>
-          {hasSaved && (
-            <span className="t8-api-settings-badge text-[10px] font-bold px-1.5 py-0.5 rounded border" data-tone="success">
-              ✓ 已保存 {maskedDisplay}
-            </span>
-          )}
-          {opts.fallbackHint && !hasSaved && (
-            <span className="t8-api-settings-badge text-[10px] font-normal px-1.5 py-0.5 rounded border" data-tone="muted">
-              未设置 · 使用通用 Key
-            </span>
-          )}
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            type={shows[f] ? 'text' : 'password'}
-            value={inputs[f]}
-            onChange={(e) => setInputAt(f, e.target.value)}
-            placeholder={hasSaved ? '留空保持不变 / 输入新值覆盖' : (opts.fallbackHint ? '留空则使用通用 Key / 输入独立 Key' : '请输入 sk-...')}
-            className={inputCls}
-            autoComplete="off"
-          />
-          <button
-            onClick={() => handleToggleShow(f)}
-            className={eyeBtnCls}
-            title={shows[f] ? '隐藏' : '显示明文'}
-          >
-            {shows[f] ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
-        {(opts.baseUrlNote || renderGetKeyButtons(spec.field)) && (
-          <div className={`flex items-center gap-2 flex-wrap text-[11px] ${hintCls}`}>
-            {opts.baseUrlNote && (
-              <span className="flex items-center gap-1.5">
-                <Lock size={11} /> {opts.baseUrlNote}
-              </span>
-            )}
-            {renderGetKeyButtons(spec.field)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm ${
@@ -1990,9 +1654,54 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
         {/* 表单 */}
         <div className="t8-api-settings-body p-5 space-y-5 overflow-y-auto">
           {/* 三套通用 Key */}
-          {renderKey(COMMON_KEYS[0], { baseUrlNote: `Base URL 锁定: ${FIXED_ZHENZHEN_BASE}` })}
-          {renderKey(COMMON_KEYS[1], { baseUrlNote: `Base URL: ${RH_BASE}` })}
-          {renderKey(COMMON_KEYS[2], { baseUrlNote: `Base URL 锁定: ${FIXED_ZHENZHEN_BASE} (与贞贞同地址, Key 独立)` })}
+          <ApiSettingsKeyField
+            spec={COMMON_KEYS[0]}
+            savedValue={(settings as any)[COMMON_KEYS[0].field] as string | undefined}
+            inputValue={inputs[COMMON_KEYS[0].field]}
+            shown={shows[COMMON_KEYS[0].field]}
+            labelClassName={labelCls}
+            hintClassName={hintCls}
+            inputClassName={inputCls}
+            eyeButtonClassName={eyeBtnCls}
+            linkButtonClassName={linkBtnCls}
+            altLinkButtonClassName={linkBtnAltCls}
+            baseUrlNote={`Base URL 锁定: ${FIXED_ZHENZHEN_BASE}`}
+            onChange={(value) => setInputAt(COMMON_KEYS[0].field, value)}
+            onToggleShow={handleToggleShow}
+            onOpenExternal={openExternal}
+          />
+          <ApiSettingsKeyField
+            spec={COMMON_KEYS[1]}
+            savedValue={(settings as any)[COMMON_KEYS[1].field] as string | undefined}
+            inputValue={inputs[COMMON_KEYS[1].field]}
+            shown={shows[COMMON_KEYS[1].field]}
+            labelClassName={labelCls}
+            hintClassName={hintCls}
+            inputClassName={inputCls}
+            eyeButtonClassName={eyeBtnCls}
+            linkButtonClassName={linkBtnCls}
+            altLinkButtonClassName={linkBtnAltCls}
+            baseUrlNote={`Base URL: ${RH_BASE}`}
+            onChange={(value) => setInputAt(COMMON_KEYS[1].field, value)}
+            onToggleShow={handleToggleShow}
+            onOpenExternal={openExternal}
+          />
+          <ApiSettingsKeyField
+            spec={COMMON_KEYS[2]}
+            savedValue={(settings as any)[COMMON_KEYS[2].field] as string | undefined}
+            inputValue={inputs[COMMON_KEYS[2].field]}
+            shown={shows[COMMON_KEYS[2].field]}
+            labelClassName={labelCls}
+            hintClassName={hintCls}
+            inputClassName={inputCls}
+            eyeButtonClassName={eyeBtnCls}
+            linkButtonClassName={linkBtnCls}
+            altLinkButtonClassName={linkBtnAltCls}
+            baseUrlNote={`Base URL 锁定: ${FIXED_ZHENZHEN_BASE} (与贞贞同地址, Key 独立)`}
+            onChange={(value) => setInputAt(COMMON_KEYS[2].field, value)}
+            onToggleShow={handleToggleShow}
+            onOpenExternal={openExternal}
+          />
 
           {/* 分类独立 Key（默认折叠，点击展开 —— 新手友好） */}
           <div className="t8-api-settings-divider pt-3 border-t">
@@ -2040,7 +1749,25 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
                   为不同模型系列单独配置 Key；<b>未填则自动 fallback 到贞贞工坊通用 Key</b>。后端会根据调用的模型名/路由自动选择。
                 </div>
                 <div className="space-y-4">
-                  {CLASSIFIED_KEYS.map((spec) => renderKey(spec, { fallbackHint: true }))}
+                  {CLASSIFIED_KEYS.map((spec) => (
+                    <ApiSettingsKeyField
+                      key={spec.field}
+                      spec={spec}
+                      savedValue={(settings as any)[spec.field] as string | undefined}
+                      inputValue={inputs[spec.field]}
+                      shown={shows[spec.field]}
+                      labelClassName={labelCls}
+                      hintClassName={hintCls}
+                      inputClassName={inputCls}
+                      eyeButtonClassName={eyeBtnCls}
+                      linkButtonClassName={linkBtnCls}
+                      altLinkButtonClassName={linkBtnAltCls}
+                      fallbackHint
+                      onChange={(value) => setInputAt(spec.field, value)}
+                      onToggleShow={handleToggleShow}
+                      onOpenExternal={openExternal}
+                    />
+                  ))}
                 </div>
               </div>
             )}
