@@ -41,3 +41,33 @@
 
 - 本轮不引入新 migration。
 - 本轮重点是“治理规范随包落盘”，不是功能行为调整。
+
+## 实际结果
+
+- gray current 已切到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260623-documentation-governance-standard-gray-r1-v048`
+- 服务状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- `/api/status` 已确认：
+  - `version = 0.4.8`
+  - `environment = gray`
+- `capture-release-preflight` 已确认：
+  - `database = xinghuan_canvas_gray`
+  - `users = 7`
+  - `canvases = 7`
+  - `assets = 79`
+  - `tasks = 264`
+  - `sessions = 187`
+- release 包内容已确认：
+  - `docs/INDEX.md` 存在
+  - `docs/governance/documentation-governance-standard.md` 存在
+- 公网入口复查：
+  - `GET / = 200`
+  - `GET /admin = 200`
+  - `GET /api/status = 200`
+- 额外说明：
+  - `verify:request-chain-observability`
+  - `verify:system-observability`
+  - 当前用默认管理员口令执行时都返回 `401 INVALID_CREDENTIALS`
+  - 这说明 gray 后台口令已不是默认值，不构成服务异常
