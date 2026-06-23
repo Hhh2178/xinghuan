@@ -14,10 +14,10 @@
 
 ### Production
 
-- 版本：`v0.4.12`
-- release：`20260623-runninghub-poll-resume-prod-r1-v0412`
+- 版本：`v0.4.13`
+- release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 旧运行态材料：
-  - `production/2026-06-23-runninghub-poll-resume-production.md`
+  - `production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`
 
 ## 当前值守建议
 

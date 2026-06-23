@@ -28,7 +28,7 @@
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前灰度 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
-- 当前生产 release：`20260623-runninghub-poll-resume-prod-r1-v0412`
+- 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前重点系统：RunningHub、后台 Admin、API、Worker
 
 ## 当前工作根
@@ -79,6 +79,7 @@
 - 当前灰度 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
 - 当前生产 release：`20260623-runninghub-poll-resume-prod-r1-v0412`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
+- 当前 worker 治理下一步：继续推进 `worker.ts` 第二阶段收口，拆分 RunningHub client / dispatch / runtime diagnostics / cancel sync
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
 - 当前生成库状态：图片/视频预览与下载已完成，本地素材访问已统一走生成库内容路由
 - 当前 Provider 热修复状态：柏拉图 `grok-1.5-video-6s/10s/15s` 的 multipart 视频接入与后台结构化接入方案输出已完成 gray / production 实装和真实 6 秒任务验收

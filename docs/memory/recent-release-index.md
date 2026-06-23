@@ -6,8 +6,8 @@
   - 版本：`v0.4.13`
   - release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
 - production：
-  - 版本：`v0.4.12`
-  - release：`20260623-runninghub-poll-resume-prod-r1-v0412`
+  - 版本：`v0.4.13`
+  - release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 
 ## 当前高频入口
 

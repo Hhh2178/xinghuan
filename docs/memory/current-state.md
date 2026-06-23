@@ -4,7 +4,7 @@
 
 - 当前活跃版本：`v0.4.13`
 - 当前灰度 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
-- 当前生产 release：`20260623-runninghub-poll-resume-prod-r1-v0412`
+- 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
 - 当前多用户正式化治理口径：
@@ -23,6 +23,7 @@
 - Admin：系统并发治理、RH 工作台、环境同步
 - API：任务接口、系统只读聚合、RunningHub 分析
 - Worker：普通任务并发与 RH 平台窗口治理
+- Worker 下一步：`worker.ts` 第二阶段收口，继续拆分 RunningHub client / dispatch、统一运行态诊断与取消同步
 
 ## 相关入口
 
