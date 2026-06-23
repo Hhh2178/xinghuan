@@ -17,6 +17,8 @@ const PRESET_DEFINITIONS = {
       "node scripts/verify-runninghub-output-reset-contract.mjs",
       "node scripts/verify-runninghub-worker-and-label-contract.mjs",
       "node scripts/verify-runninghub-admin-empty-input-contract.mjs",
+      "node scripts/verify-runninghub-key-pool-contract.mjs",
+      "node scripts/verify-runninghub-node-progress-contract.mjs",
     ],
   },
 };

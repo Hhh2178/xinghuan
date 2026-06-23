@@ -1073,6 +1073,8 @@ export interface RhQueryResult {
   urls: string[];
   failReason?: string | null;
   code?: number;
+  progress?: string;
+  queueHint?: string;
 }
 
 export async function queryRh(taskId: string): Promise<RhQueryResult> {

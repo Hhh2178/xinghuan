@@ -28,6 +28,15 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - `runTargetId` 必须与 `kind` 对应
 - `allowsEmptyInputs=true` 的 workflow 允许 `fields=0`
 - 节点参数区优先消费后台条目定义，而不是继续在前端猜
+- RH Key 池是 RunningHub 的真实并发来源：
+  - 后台 Provider 可维护多 Key
+  - RH 总并发自动汇总所有启用 Key 的 `maxConcurrency`
+  - 任务入队时会绑定具体 RH Key，Worker 优先使用该 Key 执行
+- RH 节点阶段进度统一口径：
+  - 提交中或排队中：`5%`
+  - 已开始生成：`45%`
+  - 成功完成：`100%`
+  - 排队文案：`任务队列排队中`
 
 ## 兼容正文来源
 

@@ -33,6 +33,23 @@ export async function api<T = unknown>(pathname: string, options?: RequestInit):
 export const adminRunningHubApi = {
   listItems: () =>
     api<{ items: import("./admin-types").RunningHubAdminItem[] }>("/api/admin/runninghub/items").then((result) => result.items),
+  listKeyPool: (providerId: string) =>
+    api<import("./admin-types").RunningHubKeyPoolItem[]>(`/api/admin/providers/${encodeURIComponent(providerId)}/runninghub/key-pool`),
+  saveKeyPool: (
+    providerId: string,
+    payload: {
+      rhKeyPool: Array<import("./admin-types").RunningHubKeyPoolItem & { apiKey?: string }>;
+    },
+  ) =>
+    api<import("./admin-types").RunningHubKeyPoolItem[]>(`/api/admin/providers/${encodeURIComponent(providerId)}/runninghub/key-pool`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteKeyPoolItem: (providerId: string, keyId: string) =>
+    api<import("./admin-types").RunningHubKeyPoolItem[]>(`/api/admin/providers/${encodeURIComponent(providerId)}/runninghub/key-pool/${encodeURIComponent(keyId)}`, {
+      method: "DELETE",
+    }),
   createItem: (payload: import("./admin-types").RunningHubAdminItemCreatePayload) =>
     api<import("./admin-types").RunningHubAdminItem>("/api/admin/runninghub/items", {
       method: "POST",

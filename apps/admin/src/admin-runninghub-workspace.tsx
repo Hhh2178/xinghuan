@@ -9,10 +9,12 @@ import type {
   RunningHubAdminItemUpdatePayload,
   RunningHubAnalyzeDraft,
   RunningHubAnalyzeDraftSection,
+  RunningHubKeyPoolItem,
 } from "./admin-types";
 
 type RunningHubWorkspaceTab = "workflow" | "app";
 type RunningHubStatusFilter = "all" | "enabled" | "disabled";
+type RunningHubKeyPoolDraftItem = RunningHubKeyPoolItem & { apiKey?: string };
 
 function countSchemaProperties(parameterSchema: string | undefined) {
   if (!parameterSchema?.trim()) return 0;
@@ -31,6 +33,29 @@ function buildCreateTitle(kind: RunningHubWorkspaceTab) {
 function readMeaningfulDraftText(value: unknown) {
   if (typeof value !== "string") return undefined;
   return value.trim() ? value : undefined;
+}
+
+function createEmptyRunningHubKeyPoolDraftItem(): RunningHubKeyPoolDraftItem {
+  const now = Date.now();
+  return {
+    id: `rh-key-${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    note: "",
+    apiKey: "",
+    apiKeyPreview: "",
+    maxConcurrency: 1,
+    enabled: true,
+    currentInFlight: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function summarizeRunningHubKeyPoolDraft(items: RunningHubKeyPoolDraftItem[]) {
+  const enabledItems = items.filter((item) => item.enabled);
+  return {
+    enabledCount: enabledItems.length,
+    totalConcurrency: enabledItems.reduce((sum, item) => sum + Math.max(1, Number(item.maxConcurrency) || 1), 0),
+  };
 }
 
 function buildCreatePayloadFromDraft(
@@ -248,6 +273,11 @@ export function AdminRunningHubWorkspace({
   const [analyzeRequestExample, setAnalyzeRequestExample] = useState("");
   const [analyzeResponseExample, setAnalyzeResponseExample] = useState("");
   const [analyzeNotes, setAnalyzeNotes] = useState("");
+  const [keyPoolOpen, setKeyPoolOpen] = useState(false);
+  const [keyPoolSaving, setKeyPoolSaving] = useState(false);
+  const [keyPoolDraft, setKeyPoolDraft] = useState<RunningHubKeyPoolDraftItem[]>([]);
+
+  const resolvedProviderId = selectedProviderId || items.find((item) => item.catalogId === selectedCatalogId)?.providerId || items[0]?.providerId || "";
 
   async function loadItems() {
     setBusy(true);
@@ -273,6 +303,26 @@ export function AdminRunningHubWorkspace({
   useEffect(() => {
     void loadItems();
   }, [selectedProviderId]);
+
+  useEffect(() => {
+    if (!resolvedProviderId) {
+      setKeyPoolDraft([]);
+      return;
+    }
+    let cancelled = false;
+    void adminRunningHubApi.listKeyPool(resolvedProviderId)
+      .then((list) => {
+        if (cancelled) return;
+        setKeyPoolDraft(list.map((item) => ({ ...item, apiKey: "" })));
+      })
+      .catch((nextError) => {
+        if (cancelled) return;
+        setError(nextError instanceof Error ? nextError.message : String(nextError));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedProviderId]);
 
   const scopedItems = useMemo(
     () =>
@@ -442,6 +492,47 @@ export function AdminRunningHubWorkspace({
     await handleSave(selectedItem.catalogId, payload);
   }
 
+  async function handleSaveKeyPool() {
+    if (!resolvedProviderId) {
+      setError("当前没有可用的 RunningHub Provider，无法保存 RH Key 池。");
+      return;
+    }
+    setKeyPoolSaving(true);
+    setError("");
+    try {
+      const saved = await adminRunningHubApi.saveKeyPool(resolvedProviderId, {
+        rhKeyPool: keyPoolDraft.map((item) => ({
+          ...item,
+          apiKey: item.apiKey?.trim() || undefined,
+        })),
+      });
+      setKeyPoolDraft(saved.map((item) => ({ ...item, apiKey: "" })));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setKeyPoolSaving(false);
+    }
+  }
+
+  async function handleDeleteKeyPoolItem(keyId: string) {
+    if (!resolvedProviderId) {
+      setError("当前没有可用的 RunningHub Provider，无法删除 RH Key。");
+      return;
+    }
+    setKeyPoolSaving(true);
+    setError("");
+    try {
+      const nextList = await adminRunningHubApi.deleteKeyPoolItem(resolvedProviderId, keyId);
+      setKeyPoolDraft(nextList.map((item) => ({ ...item, apiKey: "" })));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setKeyPoolSaving(false);
+    }
+  }
+
+  const keyPoolSummary = useMemo(() => summarizeRunningHubKeyPoolDraft(keyPoolDraft), [keyPoolDraft]);
+
   return (
     <section className="admin-runninghub-workspace">
       <div className="admin-runninghub-workspace__hero">
@@ -568,6 +659,81 @@ export function AdminRunningHubWorkspace({
             onDuplicate={(catalogId) => handleCreate(activeTab, catalogId)}
             onToggleEnabled={handleToggleEnabled}
           />
+
+          <section className="api-card admin-runninghub-key-pool-panel">
+            <div className="admin-runninghub-workspace__section-head">
+              <div>
+                <strong>RH Key 池管理</strong>
+                <span>{keyPoolSummary.enabledCount} 个启用 / 总并发 {keyPoolSummary.totalConcurrency}</span>
+              </div>
+              <div className="admin-runninghub-analyze-card__actions">
+                <button type="button" className="ghost-action" onClick={() => setKeyPoolOpen((current) => !current)}>
+                  {keyPoolOpen ? "收起" : "展开"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-action"
+                  onClick={() => setKeyPoolDraft((current) => [...current, createEmptyRunningHubKeyPoolDraftItem()])}
+                  disabled={!resolvedProviderId}
+                >
+                  <Plus aria-hidden="true" /> 新增 Key
+                </button>
+                <button type="button" className="ghost-action" onClick={() => void handleSaveKeyPool()} disabled={keyPoolSaving || !resolvedProviderId}>
+                  {keyPoolSaving ? "保存中..." : "保存 Key 池"}
+                </button>
+              </div>
+            </div>
+            {keyPoolOpen ? (
+              <div className="admin-runninghub-analyze-panel__form">
+                {keyPoolDraft.length ? keyPoolDraft.map((item) => (
+                  <div key={item.id} className="admin-runninghub-analyze-card">
+                    <div className="admin-runninghub-workspace__section-head">
+                      <div>
+                        <strong>{item.note.trim() || item.apiKeyPreview || item.id}</strong>
+                        <span>{item.apiKeyPreview || "新 Key 尚未保存"}</span>
+                      </div>
+                      <div className="admin-runninghub-analyze-card__actions">
+                        <button
+                          type="button"
+                          className="ghost-action"
+                          onClick={() => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, enabled: !row.enabled } : row))}
+                        >
+                          {item.enabled ? "停用" : "启用"}
+                        </button>
+                        <button type="button" className="ghost-action" onClick={() => void handleDeleteKeyPoolItem(item.id)}>删除</button>
+                      </div>
+                    </div>
+                    <div className="admin-runninghub-analyze-panel__form">
+                      <label>
+                        <span>备注</span>
+                        <input value={item.note} onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, note: event.target.value } : row))} />
+                      </label>
+                      <label>
+                        <span>最大并发</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={999}
+                          value={item.maxConcurrency}
+                          onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, maxConcurrency: Math.max(1, Number(event.target.value || 1)) } : row))}
+                        />
+                      </label>
+                      <label className="admin-runninghub-analyze-panel__full-row">
+                        <span>API Key</span>
+                        <input
+                          value={item.apiKey || ""}
+                          onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, apiKey: event.target.value } : row))}
+                          placeholder={item.apiKeyPreview ? `已保存 (${item.apiKeyPreview})，留空表示不覆盖` : "请输入 API Key"}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )) : <div className="admin-runninghub-editor__empty-note">当前还没有 RH Key。点击“新增 Key”开始配置号池。</div>}
+              </div>
+            ) : (
+              <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、启用、停用和删除单个 RH Key。</div>
+            )}
+          </section>
 
           <section className="api-card admin-runninghub-analyze-panel">
             <div className="admin-runninghub-workspace__section-head">

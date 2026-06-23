@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.4.9`
-  - release：`20260623-runninghub-draft-output-reset-gray-r1-v049`
+  - 版本：`v0.4.10`
+  - release：`20260623-runninghub-key-pool-progress-gray-r1-v0410`
 - production：
   - 版本：`v0.4.0`
   - release：`20260619-runninghub-slot-sync-prod-r1-v040-local`

@@ -99,8 +99,20 @@ export interface ProviderRecord {
   lastFetchedAt: number;
   rhApps: RunningHubEntry[];
   rhWorkflows: RunningHubEntry[];
+  rhKeyPool?: RunningHubKeyPoolItem[];
   msLoras: ModelScopeLora[];
   note: string;
+  updatedAt: number;
+}
+
+export interface RunningHubKeyPoolItem {
+  id: string;
+  note: string;
+  apiKeyPreview: string;
+  maxConcurrency: number;
+  enabled: boolean;
+  currentInFlight?: number;
+  createdAt: number;
   updatedAt: number;
 }
 

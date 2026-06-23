@@ -24,10 +24,12 @@ assert.match(adminEditor, /结果路径预设 \/ 允许自定义覆盖/);
 assert.match(adminEditor, /允许自定义覆盖/);
 
 assert.doesNotMatch(runninghubNode, /输出映射 ·/);
+assert.doesNotMatch(runninghubNode, /来自 requestExample\.nodeInfoList 的/);
 assert.match(runninghubNode, /function fieldDisplayLabel\(it: any\)/);
-assert.match(runninghubNode, /currentFieldDisplayLabel \|\| it\.fieldName/);
+assert.match(runninghubNode, /displayLabel\s*\|\|\s*it\??\.label\s*\|\|\s*it\??\.fieldName/);
 
+assert.doesNotMatch(rhToolsNode, /来自 requestExample\.nodeInfoList 的/);
 assert.match(rhToolsNode, /function fieldDisplayLabel\(it: any\)/);
-assert.match(rhToolsNode, /currentFieldDisplayLabel \|\| it\.fieldName/);
+assert.match(rhToolsNode, /displayLabel\s*\|\|\s*it\??\.label\s*\|\|\s*it\??\.fieldName/);
 
 console.log("PASS runninghub worker and label contract");

@@ -124,11 +124,7 @@ function extractDefaultValue(it: any): string {
 }
 
 function fieldDisplayLabel(it: any) {
-  const displayLabel = String(it?.displayLabel || '').trim();
-  if (displayLabel) return displayLabel;
-  const label = String(it?.label || '').trim();
-  if (label) return label;
-  return String(it?.fieldName || '').trim();
+  return String(it?.displayLabel || it?.label || it?.fieldName || '').trim();
 }
 
 function emptyRhOutputState() {
@@ -200,6 +196,8 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
   const instanceType: string = d?.instanceType || '';
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
+  const rhProgress: string = d?.rhProgress || '';
+  const rhQueueHint: string = d?.rhQueueHint || '';
   const urls: string[] = d?.urls || [];
   const appInfo: any = d?.appInfo;
   const paramValues: Record<string, RhParamValue> = d?.paramValues || {};
@@ -626,7 +624,12 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
             logBus.error(`生成失败: ${reason}`, src);
             finish(false, new Error(reason));
           } else {
-            update({ status: 'polling', rhCode: r.code });
+            update({
+              status: 'polling',
+              rhCode: r.code,
+              rhProgress: r.progress || (r.status === 'QUEUED' ? '5%' : '45%'),
+              rhQueueHint: r.queueHint || (r.status === 'QUEUED' ? '任务队列排队中' : '任务已提交，正在生成'),
+            });
           }
         } catch (e: any) {
           logBus.warn(`轮询出错: ${e?.message || e}`, src);
@@ -724,7 +727,14 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     if (Object.keys(effectiveValues).length > 0) {
       update({ paramValues: effectiveValues });
     }
-    update({ status: 'submitting', error: null, taskId: null, ...emptyRhOutputState() });
+    update({
+      status: 'submitting',
+      error: null,
+      taskId: null,
+      rhProgress: '5%',
+      rhQueueHint: '任务提交中',
+      ...emptyRhOutputState(),
+    });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
       const nodeInfoList = await resolveNodeInfoList(rawList);
@@ -735,7 +745,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
         instanceType: instanceType || undefined,
       });
       logBus.success(`异步任务已提交 taskId=${r.taskId} 进入轮询…`, src);
-      update({ status: 'polling', taskId: r.taskId });
+      update({ status: 'polling', taskId: r.taskId, rhProgress: '5%', rhQueueHint: '任务队列排队中' });
       await startPolling(r.taskId);
     } catch (e: any) {
       logBus.error(`提交失败: ${e?.message || e}`, src);
@@ -869,6 +879,20 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
             </div>
           </div>
         </div>
+        {isBusy ? (
+          <div className="px-3 pt-2 shrink-0">
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: border }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: rhProgress || (status === 'submitting' ? '5%' : '45%'), background: accent }}
+              />
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[10px]" style={{ color: accent }}>
+              <span>{rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}</span>
+              <span>{rhProgress || (status === 'submitting' ? '5%' : '45%')}</span>
+            </div>
+          </div>
+        ) : null}
 
         {/* 滚动内容区（包含上游素材 + 参数表 + 实例类型 + 运行按钮）*/}
         <div
@@ -952,9 +976,6 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
                       <span style={{ color: subText, opacity: 0.4 }}>|</span>
                       <span style={{ color: subText }}>#{it.nodeId}</span>
                     </div>
-                    {it?.description && (
-                      <div className="text-[9px] leading-tight" style={{ color: subText }}>{it.description}</div>
-                    )}
                     {isMedia ? (
                       <>
                         <div className="flex items-center justify-between text-[10px]">
@@ -1179,7 +1200,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
           {isBusy && (
             <div className="flex items-center gap-1 text-[10px]" style={{ color: accent }}>
               <Loader2 size={11} className="animate-spin" />
-              {status === 'submitting' ? '提交任务...' : '轮询中'}
+              {rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}
               {taskId && <span className="ml-auto" style={{ color: subText }}>{String(taskId).slice(0, 10)}…</span>}
             </div>
           )}

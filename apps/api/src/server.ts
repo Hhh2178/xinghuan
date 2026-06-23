@@ -432,8 +432,21 @@ interface AdminProviderRecord {
   lastFetchedAt?: number;
   rhApps?: RunningHubEntry[];
   rhWorkflows?: RunningHubEntry[];
+  rhKeyPool?: RunningHubKeyPoolItemRecord[];
   msLoras?: ModelScopeLora[];
   note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface RunningHubKeyPoolItemRecord {
+  id: string;
+  note: string;
+  apiKey?: string;
+  apiKeyPreview?: string;
+  maxConcurrency: number;
+  enabled: boolean;
+  currentInFlight?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -841,7 +854,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.4.9",
+      version: "0.4.10",
       environment,
       dataDir,
     });
@@ -1336,7 +1349,7 @@ const server = createServer(async (request, response) => {
       }>(request);
       const provider = await resolveRunningHubProvider(safeText(body.providerId));
       const task = await createRunningHubQueuedTask({
-        providerId: provider.id,
+        provider,
         modelId: safeText(body.modelId),
         pageId: safeText(body.pageId),
         webappId: safeText(body.webappId),
@@ -1380,6 +1393,14 @@ const server = createServer(async (request, response) => {
         urls,
         failReason: safeText(status.error),
         code: mapRunningHubTaskCode(safeText(status.status)),
+        progress: safeText(status.progress),
+        queueHint: safeText(
+          safeText(status.status) === "queued"
+            ? "任务队列排队中"
+            : safeText(status.status) === "running"
+              ? "任务已提交，正在生成"
+              : "",
+        ),
         raw: {
           ...raw,
           logs: Array.isArray(status.logs) ? status.logs : [],
@@ -2310,6 +2331,7 @@ async function handleAdminRequest(
         apiKeyPreview: secretPreview(safeText(body.apiKey)),
         rhApps: normalizeRunningHubEntries(body.rhApps, "app"),
         rhWorkflows: normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
+        rhKeyPool: normalizeRunningHubKeyPool(body.rhKeyPool),
         msLoras: normalizeModelScopeLoras(body.msLoras),
         note: safeText(body.note),
         createdAt: now,
@@ -2366,6 +2388,78 @@ async function handleAdminRequest(
     await updateProviderLastFetchedAt(id, now);
     await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`, requestContext);
     sendT8(response, result);
+    return true;
+  }
+
+  const providerRunningHubKeyPoolMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/runninghub\/key-pool$/);
+  if (providerRunningHubKeyPoolMatch && request.method === "GET") {
+    const id = decodeURIComponent(providerRunningHubKeyPoolMatch[1]);
+    const db = await readAdminDb();
+    const provider = db.providers.find((item) => item.id === id);
+    if (!provider) throw new Error("Provider 不存在");
+    sendT8(response, toPublicRunningHubKeyPool(provider.rhKeyPool));
+    return true;
+  }
+  if (providerRunningHubKeyPoolMatch && request.method === "PUT") {
+    const id = decodeURIComponent(providerRunningHubKeyPoolMatch[1]);
+    const body = await readJsonBody<{ rhKeyPool?: unknown }>(request);
+    const db = await readAdminDb();
+    let updated: AdminProviderRecord | undefined;
+    const providers = db.providers.map((provider) => {
+      if (provider.id !== id) return provider;
+      const existingPool = normalizeRunningHubKeyPool(provider.rhKeyPool);
+      const existingById = new Map(existingPool.map((item) => [item.id, item]));
+      const nextPool = normalizeRunningHubKeyPool(body.rhKeyPool).map((item) => {
+        const existingItem = existingById.get(item.id);
+        return {
+          ...item,
+          apiKey: item.apiKey || existingItem?.apiKey,
+          apiKeyPreview: item.apiKeyPreview || existingItem?.apiKeyPreview,
+          createdAt: item.createdAt || existingItem?.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        };
+      });
+      updated = {
+        ...provider,
+        rhKeyPool: nextPool,
+        updatedAt: Date.now(),
+      };
+      return updated;
+    });
+    if (!updated) throw new Error("Provider 不存在");
+    if (usePostgresRepository()) {
+      await upsertProviderRecordPostgres(updated);
+    } else {
+      await writeAdminDb({ ...db, providers });
+    }
+    await appendAudit(adminUser, "provider.runninghub.keyPool.update", "provider", id, `更新 Provider ${updated.name} RH Key 池`, requestContext);
+    sendT8(response, toPublicRunningHubKeyPool(updated.rhKeyPool));
+    return true;
+  }
+
+  const providerRunningHubKeyPoolItemMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/runninghub\/key-pool\/([^/]+)$/);
+  if (providerRunningHubKeyPoolItemMatch && request.method === "DELETE") {
+    const id = decodeURIComponent(providerRunningHubKeyPoolItemMatch[1]);
+    const keyId = decodeURIComponent(providerRunningHubKeyPoolItemMatch[2]);
+    const db = await readAdminDb();
+    let updated: AdminProviderRecord | undefined;
+    const providers = db.providers.map((provider) => {
+      if (provider.id !== id) return provider;
+      updated = {
+        ...provider,
+        rhKeyPool: normalizeRunningHubKeyPool(provider.rhKeyPool).filter((item) => item.id !== keyId),
+        updatedAt: Date.now(),
+      };
+      return updated;
+    });
+    if (!updated) throw new Error("Provider 不存在");
+    if (usePostgresRepository()) {
+      await upsertProviderRecordPostgres(updated);
+    } else {
+      await writeAdminDb({ ...db, providers });
+    }
+    await appendAudit(adminUser, "provider.runninghub.keyPool.delete", "provider", id, `删除 Provider ${updated.name} RH Key ${keyId}`, requestContext);
+    sendT8(response, toPublicRunningHubKeyPool(updated.rhKeyPool));
     return true;
   }
 
@@ -2471,6 +2565,7 @@ async function handleAdminRequest(
         enabled: body.enabled === undefined ? provider.enabled : Boolean(body.enabled),
         rhApps: body.rhApps === undefined ? provider.rhApps : normalizeRunningHubEntries(body.rhApps, "app"),
         rhWorkflows: body.rhWorkflows === undefined ? provider.rhWorkflows : normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
+        rhKeyPool: body.rhKeyPool === undefined ? provider.rhKeyPool : normalizeRunningHubKeyPool(body.rhKeyPool),
         msLoras: body.msLoras === undefined ? provider.msLoras : normalizeModelScopeLoras(body.msLoras),
         note: body.note === undefined ? provider.note : safeText(body.note),
         updatedAt: Date.now(),
@@ -2786,23 +2881,25 @@ async function handleAdminRequest(
 
   if (url.pathname === "/api/admin/system" && request.method === "GET") {
     const taskQueueSettingsRecord = await readTaskQueueSettingsRecord();
+    const adminDb = await readAdminDb();
+    const effectiveTaskQueueSettings = withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, adminDb.providers);
     await appendAudit(adminUser, "system.read", "system", "system-status", "查看系统状态", requestContext);
     const database = await readDatabaseStatus();
-    const redis = await readRedisStatus(taskQueueSettingsRecord.taskQueueSettings);
+    const redis = await readRedisStatus(effectiveTaskQueueSettings);
     sendT8(response, {
       environment,
       dataDir,
       database,
       redis,
       observability: await readSystemObservability(database, redis),
-      taskQueueSettings: taskQueueSettingsRecord.taskQueueSettings,
+      taskQueueSettings: effectiveTaskQueueSettings,
       taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
       taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,
       storageDriver,
       authDbPath,
       adminDbPath,
       service: "xinghuan-api",
-      version: "0.4.9",
+      version: "0.4.10",
       storage: await readStorageStats(),
     });
     return true;
@@ -2823,10 +2920,12 @@ async function handleAdminRequest(
       normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
       adminSettingsRevisionFromPayload(body),
     );
+    const adminDb = await readAdminDb();
+    const effectiveTaskQueueSettings = withEffectiveRunningHubConcurrency(saved.taskQueueSettings, adminDb.providers);
     await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置", requestContext);
     sendT8(response, {
       ok: true,
-      taskQueueSettings: saved.taskQueueSettings,
+      taskQueueSettings: effectiveTaskQueueSettings,
       revision: saved.revision,
       updatedAt: saved.updatedAt,
     });
@@ -3003,6 +3102,7 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
       note: provider.note || "",
       rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
       rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+      rhKeyPool: normalizeRunningHubKeyPool(provider.rhKeyPool),
       msLoras: normalizeModelScopeLoras(provider.msLoras),
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
@@ -3314,6 +3414,7 @@ async function upsertEnvironmentSyncProvider(provider: {
   note?: string;
   rhApps?: RunningHubEntry[];
   rhWorkflows?: RunningHubEntry[];
+  rhKeyPool?: RunningHubKeyPoolItemRecord[];
   msLoras?: ModelScopeLora[];
   createdAt: number;
   updatedAt: number;
@@ -3330,6 +3431,7 @@ async function upsertEnvironmentSyncProvider(provider: {
     note: safeText(provider.note),
     rhApps: normalizeRunningHubEntries(provider.rhApps === undefined ? existing?.rhApps : provider.rhApps, "app"),
     rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows === undefined ? existing?.rhWorkflows : provider.rhWorkflows, "workflow"),
+    rhKeyPool: normalizeRunningHubKeyPool(provider.rhKeyPool === undefined ? existing?.rhKeyPool : provider.rhKeyPool),
     msLoras: normalizeModelScopeLoras(provider.msLoras === undefined ? existing?.msLoras : provider.msLoras),
     lastProbeStatus: existing?.lastProbeStatus || "",
     lastProbeMessage: existing?.lastProbeMessage || "",
@@ -4580,7 +4682,7 @@ async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRec
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
   const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult, systemSettingsResult] = await Promise.all([
-    pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
+    pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
     pool.query(
       "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
     ),
@@ -4606,6 +4708,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : undefined,
         rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
         rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+        rhKeyPool: normalizeRunningHubKeyPool(row.rh_key_pool),
         msLoras: normalizeModelScopeLoras(row.ms_loras),
         note: row.note || "",
         createdAt: dateToMillis(row.created_at),
@@ -4704,8 +4807,8 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
     await client.query("delete from xh_providers");
     for (const provider of db.providers.map(normalizeProviderSecret)) {
       await client.query(
-        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
+        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)`,
         [
           provider.id,
           provider.name,
@@ -4719,6 +4822,7 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
           provider.lastFetchedAt ? millisToDate(provider.lastFetchedAt) : null,
           JSON.stringify(normalizeRunningHubEntries(provider.rhApps, "app")),
           JSON.stringify(normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
+          JSON.stringify(normalizeRunningHubKeyPool(provider.rhKeyPool)),
           JSON.stringify(normalizeModelScopeLoras(provider.msLoras)),
           provider.note || null,
           millisToDate(provider.createdAt),
@@ -4947,8 +5051,8 @@ async function insertProviderRecordPostgres(provider: AdminProviderRecord) {
   const normalized = normalizeProviderSecret(provider);
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
+    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)`,
     [
       normalized.id,
       normalized.name,
@@ -4962,6 +5066,7 @@ async function insertProviderRecordPostgres(provider: AdminProviderRecord) {
       normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
       JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
       JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
+      JSON.stringify(normalizeRunningHubKeyPool(normalized.rhKeyPool)),
       JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
       normalized.note || null,
       millisToDate(normalized.createdAt),
@@ -4974,8 +5079,8 @@ async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
   const normalized = normalizeProviderSecret(provider);
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)
+    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)
      on conflict (id) do update set
        name = excluded.name,
        base_url = excluded.base_url,
@@ -4988,6 +5093,7 @@ async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
        last_fetched_at = excluded.last_fetched_at,
        rh_apps = excluded.rh_apps,
        rh_workflows = excluded.rh_workflows,
+       rh_key_pool = excluded.rh_key_pool,
        ms_loras = excluded.ms_loras,
        note = excluded.note,
        updated_at = excluded.updated_at`,
@@ -5004,6 +5110,7 @@ async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
       normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
       JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
       JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
+      JSON.stringify(normalizeRunningHubKeyPool(normalized.rhKeyPool)),
       JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
       normalized.note || null,
       millisToDate(normalized.createdAt),
@@ -5018,7 +5125,7 @@ async function findProviderRecordByNaturalKey(name: string): Promise<AdminProvid
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query(
-      `select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at
+      `select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at
        from xh_providers
        where lower(name) = lower($1)
        limit 1`,
@@ -5039,6 +5146,7 @@ async function findProviderRecordByNaturalKey(name: string): Promise<AdminProvid
       lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : 0,
       rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
       rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+      rhKeyPool: normalizeRunningHubKeyPool(row.rh_key_pool),
       msLoras: normalizeModelScopeLoras(row.ms_loras),
       note: safeText(row.note),
       createdAt: dateToMillis(row.created_at),
@@ -7040,7 +7148,7 @@ async function resolveRunningHubProvider(requestedProviderId = "") {
 }
 
 async function createRunningHubQueuedTask(input: {
-  providerId: string;
+  provider: AdminProviderRecord;
   modelId: string;
   pageId?: string;
   webappId?: string;
@@ -7063,6 +7171,17 @@ async function createRunningHubQueuedTask(input: {
     ? input.taskCapability
     : "video";
   if (!runTargetId) throw new Error(targetType === "app" ? "缺少 webappId/runTargetId" : "缺少 workflowId/runTargetId");
+  const taskQueueSettingsRecord = await readTaskQueueSettingsRecord().catch(() => null);
+  const legacyFallbackConcurrency = Math.max(
+    1,
+    Number(taskQueueSettingsRecord?.taskQueueSettings?.runninghub?.concurrency) || 1,
+  );
+  const runningHubKeyAvailability = await inspectRunningHubKeyPoolAvailability(input.provider, legacyFallbackConcurrency);
+  if (!runningHubKeyAvailability.pool.length) {
+    throw new Error("RunningHub 未配置可用 Key");
+  }
+  const assignedRhKey = runningHubKeyAvailability.selected || runningHubKeyAvailability.pool[0] || null;
+  const rhQueueReason = runningHubKeyAvailability.selected ? "" : runningHubKeyAvailability.allBusy ? "all_keys_busy" : "";
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = Date.now();
   const task: AdminTaskRecord = {
@@ -7070,7 +7189,7 @@ async function createRunningHubQueuedTask(input: {
     title: input.title || `RunningHub 任务 · ${runTargetId}`,
     status: "queued",
     ownerId: input.user.id,
-    providerId: input.providerId,
+    providerId: input.provider.id,
     modelId: "",
     payload: {
       taskCapability,
@@ -7082,6 +7201,12 @@ async function createRunningHubQueuedTask(input: {
       runTargetId,
       nodeInfoList: input.nodeInfoList,
       ...(input.instanceType ? { instanceType: input.instanceType } : {}),
+      ...(assignedRhKey ? {
+        assignedRhKeyId: assignedRhKey.id,
+        assignedRhKeyNoteSnapshot: assignedRhKey.note,
+        assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
+      } : {}),
+      ...(rhQueueReason ? { rhQueueReason } : {}),
       requestId: input.requestContext.requestId,
       userId: input.user.id,
     },
@@ -7094,6 +7219,12 @@ async function createRunningHubQueuedTask(input: {
       pageId,
       webappId,
       workflowId,
+      ...(assignedRhKey ? {
+        assignedRhKeyId: assignedRhKey.id,
+        assignedRhKeyNoteSnapshot: assignedRhKey.note,
+        assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
+      } : {}),
+      ...(rhQueueReason ? { rhQueueReason } : {}),
       requestId: input.requestContext.requestId,
       userId: input.user.id,
     },
@@ -8787,6 +8918,8 @@ function decryptManagedPassword(user: UserRecord) {
 }
 
 function toPublicProvider(provider: AdminProviderRecord) {
+  const rhKeyPool = toPublicRunningHubKeyPool(provider.rhKeyPool);
+  const rhKeyPoolSummary = summarizeRunningHubKeyPool(rhKeyPool);
   return {
     id: provider.id,
     name: provider.name,
@@ -8800,6 +8933,8 @@ function toPublicProvider(provider: AdminProviderRecord) {
     lastFetchedAt: provider.lastFetchedAt || 0,
     rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
     rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+    rhKeyPool,
+    rhKeyPoolSummary,
     msLoras: normalizeModelScopeLoras(provider.msLoras),
     note: provider.note || "",
     createdAt: provider.createdAt,
@@ -8808,15 +8943,169 @@ function toPublicProvider(provider: AdminProviderRecord) {
 }
 
 function normalizeProviderSecret(provider: AdminProviderRecord) {
-  if (!provider.apiKey) return provider;
+  const rhKeyPool = normalizeProviderSecretKeyPool(provider.rhKeyPool);
+  if (!provider.apiKey) return { ...provider, rhKeyPool };
   if (provider.apiKey.startsWith("enc:v1:")) {
-    return provider.apiKeyPreview ? provider : { ...provider, apiKeyPreview: secretPreview(decryptSecret(provider.apiKey)) };
+    return provider.apiKeyPreview
+      ? { ...provider, rhKeyPool }
+      : { ...provider, rhKeyPool, apiKeyPreview: secretPreview(decryptSecret(provider.apiKey)) };
   }
   const raw = provider.apiKey;
   return {
     ...provider,
+    rhKeyPool,
     apiKey: encryptSecret(raw),
     apiKeyPreview: secretPreview(raw),
+  };
+}
+
+function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord[] {
+  return (Array.isArray(value) ? value : [])
+    .flatMap((item) => {
+      const row = item && typeof item === "object" ? item as Record<string, unknown> : null;
+      if (!row) return [];
+      const id = safeSlug(row.id, "");
+      if (!id) return [];
+      const apiKey = safeText(row.apiKey);
+      const previewSource = decryptSecret(apiKey) || apiKey;
+      return [{
+        id,
+        note: safeText(row.note),
+        apiKey: apiKey || undefined,
+        apiKeyPreview: safeText(row.apiKeyPreview, previewSource ? secretPreview(previewSource) : ""),
+        maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
+        enabled: row.enabled !== false,
+        currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
+        createdAt: Math.max(0, Number(row.createdAt) || 0),
+        updatedAt: Math.max(0, Number(row.updatedAt) || 0),
+      }];
+    });
+}
+
+function normalizeProviderSecretKeyPool(value: unknown): RunningHubKeyPoolItemRecord[] {
+  return normalizeRunningHubKeyPool(value).map((item) => {
+    const rawApiKey = safeText(item.apiKey);
+    if (!rawApiKey) return item;
+    if (rawApiKey.startsWith("enc:v1:")) {
+      return item.apiKeyPreview ? item : { ...item, apiKeyPreview: secretPreview(decryptSecret(rawApiKey)) };
+    }
+    return {
+      ...item,
+      apiKey: encryptSecret(rawApiKey),
+      apiKeyPreview: secretPreview(rawApiKey),
+    };
+  });
+}
+
+function toPublicRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord[] {
+  return normalizeRunningHubKeyPool(value).map((item) => ({
+    id: item.id,
+    note: item.note,
+    apiKeyPreview: item.apiKeyPreview,
+    maxConcurrency: item.maxConcurrency,
+    enabled: item.enabled,
+    currentInFlight: item.currentInFlight,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  }));
+}
+
+function summarizeRunningHubKeyPool(items: RunningHubKeyPoolItemRecord[]) {
+  const enabledItems = items.filter((item) => item.enabled);
+  return {
+    totalKeyCount: items.length,
+    enabledKeyCount: enabledItems.length,
+    totalConcurrency: enabledItems.reduce((sum, item) => sum + Math.max(1, Number(item.maxConcurrency) || 1), 0),
+    activeInFlight: enabledItems.reduce((sum, item) => sum + Math.max(0, Number(item.currentInFlight) || 0), 0),
+  };
+}
+
+function buildEffectiveRunningHubKeyPool(provider: AdminProviderRecord, legacyFallbackConcurrency = 1) {
+  const normalizedPool = normalizeRunningHubKeyPool(provider.rhKeyPool)
+    .filter((item) => item.enabled && safeText(item.apiKey));
+  if (normalizedPool.length > 0) return normalizedPool;
+  const legacyApiKey = safeText(provider.apiKey);
+  if (!legacyApiKey) return [];
+  const previewSource = decryptSecret(legacyApiKey) || legacyApiKey;
+  const now = Date.now();
+  return [{
+    id: "legacy-default",
+    note: "兼容单 Key",
+    apiKey: legacyApiKey,
+    apiKeyPreview: provider.apiKeyPreview || secretPreview(previewSource),
+    maxConcurrency: Math.max(1, Number(legacyFallbackConcurrency) || 1),
+    enabled: true,
+    currentInFlight: 0,
+    createdAt: provider.createdAt || now,
+    updatedAt: provider.updatedAt || now,
+  }];
+}
+
+function summarizeEffectiveRunningHubProviderPools(providers: AdminProviderRecord[], legacyFallbackConcurrency = 1) {
+  const allItems = providers.flatMap((provider) => buildEffectiveRunningHubKeyPool(provider, legacyFallbackConcurrency));
+  return summarizeRunningHubKeyPool(allItems);
+}
+
+function runningHubRedisWindowKey(providerId: string, keyId: string) {
+  return `xinghuan:provider-window:runninghub:${safeSlug(providerId || "runninghub", "runninghub")}:${safeSlug(keyId || "default", "default")}`;
+}
+
+async function inspectRunningHubKeyPoolAvailability(provider: AdminProviderRecord, legacyFallbackConcurrency = 1) {
+  const pool = buildEffectiveRunningHubKeyPool(provider, legacyFallbackConcurrency);
+  const summary = summarizeRunningHubKeyPool(pool);
+  if (!pool.length) {
+    return {
+      pool,
+      selected: null as RunningHubKeyPoolItemRecord | null,
+      allBusy: false,
+      totalConcurrency: 0,
+      activeInFlight: 0,
+    };
+  }
+  try {
+    const client = await getRedisClient();
+    let selected: RunningHubKeyPoolItemRecord | null = null;
+    let activeInFlight = 0;
+    const withRuntime: RunningHubKeyPoolItemRecord[] = [];
+    for (const item of pool) {
+      const currentInFlight = Math.max(
+        0,
+        Number(await client.get(runningHubRedisWindowKey(provider.id, item.id)).catch(() => "0")) || 0,
+      );
+      activeInFlight += currentInFlight;
+      const nextItem = { ...item, currentInFlight };
+      withRuntime.push(nextItem);
+      if (!selected && currentInFlight < Math.max(1, Number(item.maxConcurrency) || 1)) {
+        selected = nextItem;
+      }
+    }
+    return {
+      pool: withRuntime,
+      selected,
+      allBusy: !selected && summary.totalConcurrency > 0,
+      totalConcurrency: summary.totalConcurrency,
+      activeInFlight,
+    };
+  } catch {
+    return {
+      pool,
+      selected: pool[0] || null,
+      allBusy: false,
+      totalConcurrency: summary.totalConcurrency,
+      activeInFlight: 0,
+    };
+  }
+}
+
+function withEffectiveRunningHubConcurrency(taskQueueSettings: TaskQueueSettings, providers: AdminProviderRecord[]) {
+  const fallbackConcurrency = Math.max(1, Number(taskQueueSettings.runninghub.concurrency) || 1);
+  const summary = summarizeEffectiveRunningHubProviderPools(providers, fallbackConcurrency);
+  return {
+    ...taskQueueSettings,
+    runninghub: {
+      ...taskQueueSettings.runninghub,
+      concurrency: summary.totalConcurrency > 0 ? summary.totalConcurrency : fallbackConcurrency,
+    },
   };
 }
 
@@ -10186,8 +10475,20 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
     const client = await getRedisClient();
     const pong = await client.ping();
     const runtimeSlots = await readWorkerRuntimeSlots(client);
-    const runninghubWindowRaw = await client.get("xinghuan:provider-window:runninghub").catch(() => null);
-    const runninghubActiveWindowCount = Math.max(0, Number(runninghubWindowRaw) || 0);
+    const adminDb = await readAdminDb();
+    const runninghubPoolKeys = adminDb.providers
+      .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
+      .flatMap((provider) =>
+        buildEffectiveRunningHubKeyPool(provider, Math.max(1, Number(taskQueueSettings.runninghub.concurrency) || 1))
+          .map((item) => runningHubRedisWindowKey(provider.id, item.id)),
+      );
+    const runninghubWindowValues = await Promise.all(
+      runninghubPoolKeys.map((key) => client.get(key).catch(() => "0")),
+    );
+    const runninghubActiveWindowCount = runninghubWindowValues.reduce(
+      (sum, value) => sum + Math.max(0, Number(value) || 0),
+      0,
+    );
     const queueStates = await Promise.all(
       queues.map(async (item) => {
         const capabilityRuntimeSlots = runtimeSlots.filter((slot) => slot.capability === item.capability);

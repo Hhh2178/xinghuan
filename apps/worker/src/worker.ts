@@ -98,6 +98,16 @@ interface QueueLoopController {
   finished: Promise<void> | null;
 }
 
+interface RunningHubKeyPoolItem {
+  id: string;
+  note: string;
+  apiKey?: string;
+  apiKeyPreview?: string;
+  maxConcurrency: number;
+  enabled: boolean;
+  currentInFlight?: number;
+}
+
 const queueLoopControllers = new Map<TaskQueueCapability, QueueLoopController[]>();
 const queueRuntimeDescriptorState = new Map<TaskQueueCapability, TaskQueueRuntimeDescriptor>();
 let queueControllerRefreshTimer: NodeJS.Timeout | null = null;
@@ -514,24 +524,27 @@ async function releaseUserExecutionWindow(task: TaskRow) {
 async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
   if (normalizeProtocol(task.providerProtocol) !== "runninghub") return { acquired: true };
   if (!settings.runninghub.enabled) return { acquired: true };
-  const limit = Math.max(1, Number(settings.runninghub.concurrency) || 1);
-  const key = "xinghuan:provider-window:runninghub";
+  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
+  const assignedRhKeyNote = safeText(task.payload.assignedRhKeyNoteSnapshot || task.result.assignedRhKeyNoteSnapshot);
+  const limit = Math.max(1, Number(task.payload.assignedRhKeyMaxConcurrency || task.result.assignedRhKeyMaxConcurrency || settings.runninghub.concurrency) || 1);
+  const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
   const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current >= limit) {
-    return { acquired: false, reason: `RunningHub 平台并发已满 (${current}/${limit})` };
+    return { acquired: false, reason: `RunningHub Key ${assignedRhKeyNote || assignedRhKeyId} 并发已满 (${current}/${limit})` };
   }
   const next = await redisControl.incr(key);
   if (next === 1) await redisControl.expire(key, 60 * 60);
   if (next > limit) {
     await redisControl.decr(key).catch(() => undefined);
-    return { acquired: false, reason: `RunningHub 平台并发已满 (${next - 1}/${limit})` };
+    return { acquired: false, reason: `RunningHub Key ${assignedRhKeyNote || assignedRhKeyId} 并发已满 (${next - 1}/${limit})` };
   }
   return { acquired: true };
 }
 
 async function releaseRunningHubExecutionWindow(task: TaskRow) {
   if (normalizeProtocol(task.providerProtocol) !== "runninghub") return;
-  const key = "xinghuan:provider-window:runninghub";
+  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
+  const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
   const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current <= 0) return;
   const next = await redisControl.decr(key).catch(() => current - 1);
@@ -569,6 +582,7 @@ async function readTask(taskId: string): Promise<TaskRow | null> {
        p.protocol as provider_protocol,
        p.enabled as provider_enabled,
        p.api_key_cipher,
+       p.rh_key_pool,
        m.id as model_record_id,
        m.model_id as provider_model_id,
        m.display_name as model_display_name,
@@ -594,6 +608,7 @@ async function readTask(taskId: string): Promise<TaskRow | null> {
     providerProtocol: normalizeProtocol(row.protocol_override || row.provider_protocol),
     providerEnabled: row.provider_enabled === null || row.provider_enabled === undefined ? false : Boolean(row.provider_enabled),
     apiKeyCipher: row.api_key_cipher || "",
+    rhKeyPool: normalizeRunningHubKeyPool(row.rh_key_pool),
     modelRecordId: row.model_record_id || row.task_model_id || "",
     providerModelId: row.provider_model_id || "",
     modelDisplayName: row.model_display_name || "",
@@ -967,7 +982,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
 async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unknown>> {
   if (!task.providerEnabled) throw new Error("RunningHub Provider 不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("RunningHub Provider 缺少 Base URL");
-  const apiKey = decryptSecret(task.apiKeyCipher);
+  const assignedRhKeyId = safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId);
+  const assignedRhKey = findAssignedRunningHubKey(task.rhKeyPool, assignedRhKeyId);
+  const apiKey = decryptSecret(assignedRhKey?.apiKey || task.apiKeyCipher);
   if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key 或无法解密");
 
   const targetType = safeText(task.payload.targetType).toLowerCase() === "app" ? "app" : "workflow";
@@ -1088,6 +1105,10 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     runtimeStage: "polling",
     rhTargetType: targetType,
     rhRunTargetId: runTargetId,
+    ...(assignedRhKey ? {
+      assignedRhKeyId: assignedRhKey.id,
+      assignedRhKeyNoteSnapshot: assignedRhKey.note,
+    } : {}),
   });
 
   const pollIntervalMs = clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000);
@@ -1134,6 +1155,10 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
       upstreamMessage: pollMessage,
       rhTargetType: targetType,
       rhRunTargetId: runTargetId,
+      ...(assignedRhKey ? {
+        assignedRhKeyId: assignedRhKey.id,
+        assignedRhKeyNoteSnapshot: assignedRhKey.note,
+      } : {}),
     });
     if (targetType === "app") {
       const appStatus = safeText(pollRaw.status).toUpperCase();
@@ -1474,6 +1499,33 @@ function safeText(value: unknown, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
+function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItem[] {
+  return (Array.isArray(value) ? value : [])
+    .flatMap((item) => {
+      const row = plainObject(item);
+      const id = safeText(row.id);
+      if (!id) return [];
+      return [{
+        id,
+        note: safeText(row.note),
+        apiKey: safeText(row.apiKey),
+        apiKeyPreview: safeText(row.apiKeyPreview),
+        maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
+        enabled: row.enabled !== false,
+        currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
+      }];
+    });
+}
+
+function findAssignedRunningHubKey(pool: RunningHubKeyPoolItem[], assignedRhKeyId: string) {
+  if (!assignedRhKeyId) return null;
+  return pool.find((item) => item.id === assignedRhKeyId && item.enabled && safeText(item.apiKey)) || null;
+}
+
+function runningHubRedisWindowKey(providerId: string, keyId: string) {
+  return `xinghuan:provider-window:runninghub:${safeText(providerId, "runninghub")}:${safeText(keyId, "default")}`;
+}
+
 function applyImageReferencePayload(requestBody: Record<string, unknown>, imageUrls: string[], isModelScope: boolean) {
   if (imageUrls.length === 0) return;
   requestBody.image = isModelScope && imageUrls.length === 1 ? imageUrls[0] : imageUrls;
@@ -1524,6 +1576,7 @@ interface TaskRow {
   providerProtocol: string;
   providerEnabled: boolean;
   apiKeyCipher: string;
+  rhKeyPool: RunningHubKeyPoolItem[];
   modelRecordId: string;
   providerModelId: string;
   modelDisplayName: string;

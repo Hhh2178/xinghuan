@@ -36,6 +36,7 @@ export interface EnvironmentSyncProviderRecord {
   note?: string;
   rhApps?: unknown[];
   rhWorkflows?: unknown[];
+  rhKeyPool?: unknown[];
   msLoras?: unknown[];
   createdAt: number;
   updatedAt: number;
@@ -434,6 +435,7 @@ function providerComparableSignature(provider: EnvironmentSyncProviderRecord) {
     note: provider.note || "",
     rhApps: Array.isArray(provider.rhApps) ? provider.rhApps : [],
     rhWorkflows: Array.isArray(provider.rhWorkflows) ? provider.rhWorkflows : [],
+    rhKeyPool: Array.isArray(provider.rhKeyPool) ? provider.rhKeyPool : [],
     msLoras: Array.isArray(provider.msLoras) ? provider.msLoras : [],
   });
 }
@@ -552,6 +554,7 @@ function providerSummary(provider: EnvironmentSyncProviderRecord, modelCount: nu
     modelCount,
     rhAppCount: rhApps,
     rhWorkflowCount: rhWorkflows,
+    rhKeyPoolCount: Array.isArray(provider.rhKeyPool) ? provider.rhKeyPool.length : 0,
   };
 }
 

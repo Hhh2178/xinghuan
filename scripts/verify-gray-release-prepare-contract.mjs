@@ -27,6 +27,16 @@ assertIncludes(
   "node scripts/verify-runninghub-admin-empty-input-contract.mjs",
   "runninghub preset should include empty input contract",
 );
+assertIncludes(
+  runninghub.commands,
+  "node scripts/verify-runninghub-key-pool-contract.mjs",
+  "runninghub preset should include key pool contract",
+);
+assertIncludes(
+  runninghub.commands,
+  "node scripts/verify-runninghub-node-progress-contract.mjs",
+  "runninghub preset should include node progress contract",
+);
 
 const merged = resolveGrayPrepareCommands({
   presets: ["runninghub"],

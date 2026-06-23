@@ -22,7 +22,7 @@ for (const [name, source] of [
 
   assert.match(
     source,
-    /update\(\{ status: 'submitting', error: null, taskId: null, \.\.\.emptyRhOutputState\(\) \}\);/,
+    /update\(\{\s*status: 'submitting',[\s\S]*?error: null,[\s\S]*?taskId: null,[\s\S]*?\.\.\.emptyRhOutputState\(\),?[\s\S]*?\}\);/,
     `${name} should clear all previous output fields before a new RH run starts`,
   );
 

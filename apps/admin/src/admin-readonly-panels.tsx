@@ -22,6 +22,12 @@ type RunninghubRuntimeState = NonNullable<SystemInfo["redis"]>["runninghub"] & {
   activeWindowCount?: number;
 };
 
+function formatRunningHubWindow(system: SystemInfo | null, runninghubRuntime: RunninghubRuntimeState | undefined) {
+  const configured = system?.taskQueueSettings?.runninghub?.concurrency ?? 0;
+  const active = typeof runninghubRuntime?.activeWindowCount === "number" ? `当前占用 ${runninghubRuntime.activeWindowCount}` : "当前占用未上报";
+  return `自动汇总 ${configured}${runninghubRuntime?.enabled === false ? " (disabled)" : ""} / ${active}`;
+}
+
 function formatConfiguredQueueConcurrency(queues: RuntimeQueueState[]) {
   if (!queues.length) return "-";
   return queues
@@ -122,7 +128,7 @@ export function SystemPanel({
     ["按类别深度", runtimeQueues.map((item) => `${item.capability}:${item.depth ?? 0}`).join(" / ") || "-"],
     [
       "RH 平台窗口",
-      `配置值 ${system?.taskQueueSettings?.runninghub?.concurrency ?? 0}${runninghubRuntime?.enabled === false ? " (disabled)" : ""} / ${typeof runninghubRuntime?.activeWindowCount === "number" ? `当前占用 ${runninghubRuntime.activeWindowCount}` : "当前占用未上报"}`,
+      formatRunningHubWindow(system, runninghubRuntime),
     ],
     ["Redis 错误", system?.redis?.error || "-"],
     ["任务总数", String(system?.observability?.tasks?.total ?? 0)],
@@ -318,21 +324,7 @@ export function SystemPanel({
         <div className="field-note">RunningHub 平台并发治理</div>
         <label>
           RH 平台总并发
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={values?.runninghub?.concurrency ?? 2}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
-                runninghub: {
-                  ...(current?.runninghub || system?.taskQueueSettings?.runninghub || TASK_QUEUE_DEFAULTS.runninghub),
-                  concurrency: Number(event.target.value || 2),
-                },
-              }))
-            }
-          />
+          <input type="text" value={`自动汇总 ${values?.runninghub?.concurrency ?? 0}`} readOnly />
         </label>
         <label className="checkbox-field">
           <input
@@ -351,7 +343,7 @@ export function SystemPanel({
           启用 RH 平台并发治理
         </label>
         <div className="field-note">
-          普通任务先受“类别总并发”限制，再受“单用户并发”限制。RunningHub 任务在此基础上，还会额外受 RH 平台并发窗口限制；超过窗口的 RH 任务会自动排队等待。
+          RH 平台总并发不再手工填写，而是自动等于所有启用 RH Key 的最大并发之和。普通任务先受“类别总并发”限制，再受“单用户并发”限制。RunningHub 任务在此基础上，还会额外受 RH Key 池窗口限制；超过窗口的 RH 任务会自动排队等待。
         </div>
         <div className="field-note">
           系统状态里的“按类别并发”是后台配置值；“实际生效并发”统计 active 槽位，“Worker 数”统计 distinct workerId，“Worker 槽位数”统计当前上报的槽位总数，可用于识别“配置=100，实际只生效=1”这类问题。

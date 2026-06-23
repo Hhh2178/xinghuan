@@ -125,11 +125,7 @@ function extractDefaultValue(it: any): string {
 }
 
 function fieldDisplayLabel(it: any) {
-  const displayLabel = String(it?.displayLabel || '').trim();
-  if (displayLabel) return displayLabel;
-  const label = String(it?.label || '').trim();
-  if (label) return label;
-  return String(it?.fieldName || '').trim();
+  return String(it?.displayLabel || it?.label || it?.fieldName || '').trim();
 }
 
 function emptyRhOutputState() {
@@ -330,6 +326,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const instanceType: string = d?.instanceType || '';
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
+  const rhProgress: string = d?.rhProgress || '';
+  const rhQueueHint: string = d?.rhQueueHint || '';
   const urls: string[] = d?.urls || [];
   const appInfo: any = d?.appInfo;
   // paramValues: 在节点内为每个 nodeInfoList 条目保存的当前编辑值
@@ -780,7 +778,12 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             logBus.error(`生成失败: ${reason}`, src);
             reject(new Error(reason));
           } else {
-            update({ status: 'polling', rhCode: r.code });
+            update({
+              status: 'polling',
+              rhCode: r.code,
+              rhProgress: r.progress || (r.status === 'QUEUED' ? '5%' : '45%'),
+              rhQueueHint: r.queueHint || (r.status === 'QUEUED' ? '任务队列排队中' : '任务已提交，正在生成'),
+            });
           }
         } catch (e: any) {
           console.warn('RH 轮询出错', e?.message);
@@ -925,7 +928,14 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     if (Object.keys(effectiveValues).length > 0) {
       update({ paramValues: effectiveValues });
     }
-    update({ status: 'submitting', error: null, taskId: null, ...emptyRhOutputState() });
+    update({
+      status: 'submitting',
+      error: null,
+      taskId: null,
+      rhProgress: '5%',
+      rhQueueHint: '任务提交中',
+      ...emptyRhOutputState(),
+    });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
       // 提交前：把媒体类 url 转成 RH 内部 fileName
@@ -944,7 +954,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       });
       console.log('[RH/submit] taskId=', r.taskId);
       logBus.success(`异步任务已提交 taskId=${r.taskId} 进入轮询…`, src);
-      update({ status: 'polling', taskId: r.taskId });
+      update({ status: 'polling', taskId: r.taskId, rhProgress: '5%', rhQueueHint: '任务队列排队中' });
       // v1.2.9.12: await 让 useRunTrigger 等到任务真正完成才 markDone，循环器才能拿到 urls
       await startPolling(r.taskId);
     } catch (e: any) {
@@ -1013,6 +1023,20 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           <div className="text-[10px] text-white/40 truncate">{appInfo?.appName || appInfo?.name || (useWallet ? 'RH 钱包应用 (共享 APIKEY)' : 'AI 工作流')}</div>
         </div>
       </div>
+      {isBusy ? (
+        <div className="px-3 pt-2">
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-cyan-400 transition-all"
+              style={{ width: rhProgress || (status === 'submitting' ? '5%' : '45%') }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[10px] text-cyan-200/80">
+            <span>{rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}</span>
+            <span>{rhProgress || (status === 'submitting' ? '5%' : '45%')}</span>
+          </div>
+        </div>
+      ) : null}
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         {/* 上游素材聚合预览区：文本 RH# 会联动下方 RH 参数，媒体仍按类型顺序自动分配。 */}
@@ -1172,9 +1196,6 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
                     <span className="text-white/20">|</span>
                     <span className="text-white/30">#{it.nodeId}</span>
                   </div>
-                  {it?.description && (
-                    <div className="text-[9px] text-white/40 leading-tight">{it.description}</div>
-                  )}
                   {isMedia ? (
                     <>
                       <div className="flex items-center justify-between text-[10px]">
@@ -1384,7 +1405,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         {isBusy && (
           <div className={`flex items-center gap-1 text-[10px] ${accent.spin}`}>
             <Loader2 size={11} className="animate-spin" />
-            {status === 'submitting' ? '进行中 1' : '轮询中'}
+            {rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}
             {taskId && <span className="ml-auto text-white/30">{String(taskId).slice(0, 10)}…</span>}
           </div>
         )}
