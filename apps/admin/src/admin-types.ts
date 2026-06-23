@@ -111,6 +111,7 @@ export interface RunningHubKeyPoolItem {
   apiKeyPreview: string;
   maxConcurrency: number;
   enabled: boolean;
+  isDefault: boolean;
   currentInFlight?: number;
   createdAt: number;
   updatedAt: number;

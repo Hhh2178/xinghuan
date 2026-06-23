@@ -44,6 +44,7 @@ function createEmptyRunningHubKeyPoolDraftItem(): RunningHubKeyPoolDraftItem {
     apiKeyPreview: "",
     maxConcurrency: 1,
     enabled: true,
+    isDefault: false,
     currentInFlight: 0,
     createdAt: now,
     updatedAt: now,
@@ -52,10 +53,20 @@ function createEmptyRunningHubKeyPoolDraftItem(): RunningHubKeyPoolDraftItem {
 
 function summarizeRunningHubKeyPoolDraft(items: RunningHubKeyPoolDraftItem[]) {
   const enabledItems = items.filter((item) => item.enabled);
+  const defaultItem = items.find((item) => item.isDefault);
   return {
     enabledCount: enabledItems.length,
     totalConcurrency: enabledItems.reduce((sum, item) => sum + Math.max(1, Number(item.maxConcurrency) || 1), 0),
+    defaultLabel: defaultItem?.note?.trim() || defaultItem?.apiKeyPreview || "",
   };
+}
+
+function normalizeDefaultRunningHubKeyPoolDraft(items: RunningHubKeyPoolDraftItem[], preferredKeyId = "") {
+  const targetId = preferredKeyId || items.find((item) => item.isDefault)?.id || items[0]?.id || "";
+  return items.map((item) => ({
+    ...item,
+    isDefault: Boolean(targetId) && item.id === targetId,
+  }));
 }
 
 function buildCreatePayloadFromDraft(
@@ -313,7 +324,7 @@ export function AdminRunningHubWorkspace({
     void adminRunningHubApi.listKeyPool(resolvedProviderId)
       .then((list) => {
         if (cancelled) return;
-        setKeyPoolDraft(list.map((item) => ({ ...item, apiKey: "" })));
+        setKeyPoolDraft(normalizeDefaultRunningHubKeyPoolDraft(list.map((item) => ({ ...item, apiKey: "" }))));
       })
       .catch((nextError) => {
         if (cancelled) return;
@@ -501,12 +512,12 @@ export function AdminRunningHubWorkspace({
     setError("");
     try {
       const saved = await adminRunningHubApi.saveKeyPool(resolvedProviderId, {
-        rhKeyPool: keyPoolDraft.map((item) => ({
+        rhKeyPool: normalizeDefaultRunningHubKeyPoolDraft(keyPoolDraft).map((item) => ({
           ...item,
           apiKey: item.apiKey?.trim() || undefined,
         })),
       });
-      setKeyPoolDraft(saved.map((item) => ({ ...item, apiKey: "" })));
+      setKeyPoolDraft(normalizeDefaultRunningHubKeyPoolDraft(saved.map((item) => ({ ...item, apiKey: "" }))));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -523,7 +534,7 @@ export function AdminRunningHubWorkspace({
     setError("");
     try {
       const nextList = await adminRunningHubApi.deleteKeyPoolItem(resolvedProviderId, keyId);
-      setKeyPoolDraft(nextList.map((item) => ({ ...item, apiKey: "" })));
+      setKeyPoolDraft(normalizeDefaultRunningHubKeyPoolDraft(nextList.map((item) => ({ ...item, apiKey: "" }))));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -673,7 +684,7 @@ export function AdminRunningHubWorkspace({
                 <button
                   type="button"
                   className="ghost-action"
-                  onClick={() => setKeyPoolDraft((current) => [...current, createEmptyRunningHubKeyPoolDraftItem()])}
+                  onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft([...current, createEmptyRunningHubKeyPoolDraftItem()]))}
                   disabled={!resolvedProviderId}
                 >
                   <Plus aria-hidden="true" /> 新增 Key
@@ -690,9 +701,16 @@ export function AdminRunningHubWorkspace({
                     <div className="admin-runninghub-workspace__section-head">
                       <div>
                         <strong>{item.note.trim() || item.apiKeyPreview || item.id}</strong>
-                        <span>{item.apiKeyPreview || "新 Key 尚未保存"}</span>
+                        <span>{item.isDefault ? `默认 Key · ${item.apiKeyPreview || "新 Key 尚未保存"}` : item.apiKeyPreview || "新 Key 尚未保存"}</span>
                       </div>
                       <div className="admin-runninghub-analyze-card__actions">
+                        <button
+                          type="button"
+                          className="ghost-action"
+                          onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft(current, item.id))}
+                        >
+                          {item.isDefault ? "默认 Key" : "设为默认"}
+                        </button>
                         <button
                           type="button"
                           className="ghost-action"
@@ -731,7 +749,7 @@ export function AdminRunningHubWorkspace({
                 )) : <div className="admin-runninghub-editor__empty-note">当前还没有 RH Key。点击“新增 Key”开始配置号池。</div>}
               </div>
             ) : (
-              <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、启用、停用和删除单个 RH Key。</div>
+              <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、设为默认、启用、停用和删除单个 RH Key。该 Key 池同时作用于当前 RunningHub Provider 下的工作流与 AI 应用。</div>
             )}
           </section>
 
