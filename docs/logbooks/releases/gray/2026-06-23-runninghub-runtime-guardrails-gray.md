@@ -58,6 +58,27 @@
   - `apps/worker/src/worker.ts`
   - `scripts/verify-runninghub-poll-non-json-contract.ts`
 
+### 远端部署与运行态
+
+- gray 打包：
+  - `npm run release:gray:prepare:runninghub -- --release=20260623-runninghub-runtime-guardrails-gray-r1-v0414 --verify="npx tsx scripts/verify-runninghub-poll-non-json-contract.ts" --verify="node scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs"`
+  - 产物：
+    - `dist-release/20260623-runninghub-runtime-guardrails-gray-r1-v0414.tar.gz`
+    - `size = 5.35 MB`
+- gray 部署：
+  - `npm run release:gray:deploy -- --release=20260623-runninghub-runtime-guardrails-gray-r1-v0414 --archive=dist-release/20260623-runninghub-runtime-guardrails-gray-r1-v0414.tar.gz --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem`
+- gray 运行态验证：
+  - `npm run release:gray:verify -- --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem --expected-version=0.4.14 --expected-environment=gray`
+  - `currentRelease = /opt/apps/xinghuan-canvas-next/releases/20260623-runninghub-runtime-guardrails-gray-r1-v0414`
+  - `appService = active`
+  - `workerService = active`
+  - `http://127.0.0.1:18200/api/status`
+    - `version = 0.4.14`
+    - `environment = gray`
+  - `https://canvas-next.hhh2121.xyz/api/status`
+    - `version = 0.4.14`
+    - `environment = gray`
+
 ## 待用户验收
 
 ### 视觉验收
