@@ -42,6 +42,7 @@
 - RunningHub：`docs/memory/runninghub-memory.md`
 - Provider：`docs/memory/provider-memory.md`
 - 项目总纲兼容层：`docs/project-atlas/README.md`
+- 兼容主题正文：`docs/project-atlas/*.md`
 - 协作规则：`AGENTS.md`
 - 结构说明：`docs/repo-structure.md`
 - 运行产物：`docs/runtime-artifacts.md`

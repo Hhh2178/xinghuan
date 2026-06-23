@@ -20,3 +20,12 @@ Providers 系统负责外部模型平台的协议接入、模型目录、请求�
 
 - `../api/`
 - `../worker/`
+
+## 兼容正文来源
+
+- `docs/project-atlas/provider-protocol-and-request-body-design.md`
+
+## 更新规则
+
+- 新的 Provider 正文优先写当前系统目录
+- atlas 文件只保留兼容层设计正文

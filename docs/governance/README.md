@@ -21,8 +21,27 @@
 1. `collaboration-and-workflow.md`
 2. `codegraph-and-repo-navigation.md`
 3. `archive-policy.md`
+4. `templates/README.md`
 
 ## 兼容关系
 
 - 旧规范 `docs/documentation-governance.md` 仍保留，作为历史兼容正文
 - 新入口以 `docs/INDEX.md` 和本目录为准
+
+## 兼容正文来源
+
+- `docs/documentation-governance.md`
+- `docs/project-atlas/document-routing-and-cleanliness.md`
+- `docs/project-atlas/logbook-maintenance.md`
+
+## 更新规则
+
+- 新的治理规则、模板和归档政策优先写当前目录
+- 旧治理正文与 atlas 文件只保留兼容层内容
+
+## 模板目录
+
+- `templates/daily-log-template.md`
+- `templates/release-record-template.md`
+- `templates/validation-record-template.md`
+- `templates/system-readme-template.md`

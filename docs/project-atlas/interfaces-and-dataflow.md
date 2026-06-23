@@ -1,5 +1,7 @@
 # 核心接口与数据流
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/api/interface-map.md`、`docs/systems/api/request-response-flow.md`、`docs/systems/runninghub/`。
+
 ## 主要接口分组
 
 ### 认证与会话

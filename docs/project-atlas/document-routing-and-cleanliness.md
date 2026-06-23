@@ -1,5 +1,7 @@
 # 文档路由与仓库清洁规则
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/governance/README.md`、`docs/governance/archive-policy.md`、`docs/logbooks/README.md`。
+
 ## 主入口只保留什么
 
 - `README.md`

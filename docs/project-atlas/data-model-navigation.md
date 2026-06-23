@@ -1,5 +1,7 @@
 # 后台数据模型导航页
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/storage-and-data/README.md`、`docs/systems/storage-and-data/postgres-and-redis-boundaries.md`、`docs/systems/auth-and-users/revision-and-ownership-guard.md`。
+
 这份文档的目标不是逐字段 DDL 手册，而是回答三个问题：
 
 1. 当前主要数据对象分成哪几域

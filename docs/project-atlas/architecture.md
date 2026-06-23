@@ -1,5 +1,7 @@
 # 项目结构与架构总览
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/canvas/README.md`、`docs/systems/api/architecture.md`、`docs/systems/worker/execution-chain.md`、`docs/memory/architecture-decisions.md`。
+
 ## Monorepo 结构
 
 - `apps/web`

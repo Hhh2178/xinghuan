@@ -1,5 +1,7 @@
 # 排障手册
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/observability-and-ops/README.md`、`docs/logbooks/validations/`、`docs/governance/collaboration-and-workflow.md`。
+
 ## 先做分类
 
 先判断问题属于哪一类：

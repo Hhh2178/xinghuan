@@ -1,5 +1,7 @@
 # Provider 协议与请求体设计
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/providers/protocol-layering.md` 与 `docs/systems/providers/request-body-and-file-strategy.md`。
+
 这份文档用于说明无限画布 2.0 当前是如何处理不同 Provider 的协议差异、请求体差异和文件上传差异的。
 
 目标不是记录某一个平台的临时适配技巧，而是沉淀一套后续接入新平台时可以复用的系统层设计。

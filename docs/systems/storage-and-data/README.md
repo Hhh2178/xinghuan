@@ -14,3 +14,12 @@ Storage 与 Data 系统负责 PostgreSQL、Redis、文件输出目录、生成�
 - `../api/`
 - `../worker/`
 - `../canvas/`
+
+## 兼容正文来源
+
+- `docs/project-atlas/data-model-navigation.md`
+
+## 更新规则
+
+- 新的 Storage/Data 正文优先写当前系统目录
+- atlas 文件只保留兼容层导航正文

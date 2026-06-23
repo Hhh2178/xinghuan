@@ -14,3 +14,13 @@ Observability 与 Ops 系统负责 release gate、请求链路观测、系统观
 - `../api/`
 - `../worker/`
 - `../../ops/README.md`
+
+## 兼容正文来源
+
+- `docs/project-atlas/debugging-playbook.md`
+- `docs/project-atlas/server-maintenance-and-healthchecks.md`
+
+## 更新规则
+
+- 新的观测与运维正文优先写当前系统目录
+- atlas 文件只保留兼容层排障与维护正文

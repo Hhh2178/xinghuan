@@ -56,6 +56,8 @@
   - 当前项目长期记忆兼容入口。
 - `docs/project-atlas/README.md`
   - 兼容层总纲入口，保留旧的结构化导航正文。
+- `docs/project-atlas/*.md`
+  - 兼容层主题正文，新内容优先写入 `docs/systems/`、`docs/governance/`、`docs/logbooks/`。
 - `DEVLOG.md`
   - 旧开发台账兼容入口。
 - `docs/prd/README.md`

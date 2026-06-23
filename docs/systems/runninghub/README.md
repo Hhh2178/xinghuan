@@ -28,3 +28,12 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - `runTargetId` 必须与 `kind` 对应
 - `allowsEmptyInputs=true` 的 workflow 允许 `fields=0`
 - 节点参数区优先消费后台条目定义，而不是继续在前端猜
+
+## 兼容正文来源
+
+- `docs/project-atlas/runninghub-integration-and-node-design.md`
+
+## 更新规则
+
+- 新的 RunningHub 正文优先写当前系统目录
+- atlas 文件只保留兼容层方案正文

@@ -22,3 +22,12 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 普通 Provider 与 RunningHub 任务必须分开处理
 - 配置并发与实际生效并发必须能对齐
 - 输出不能只停留在外链，要进入本地结果体系
+
+## 兼容正文来源
+
+- `docs/project-atlas/worker-execution-chain.md`
+
+## 更新规则
+
+- 新的 Worker 正文优先写当前系统目录
+- atlas 文件只保留兼容层导航正文

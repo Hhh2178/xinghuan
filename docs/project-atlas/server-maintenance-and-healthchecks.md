@@ -1,5 +1,7 @@
 # 服务器维护与健康检查手册
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/observability-and-ops/gray-and-production-operations.md`、`docs/memory/deployment-state.md`、`ops/README.md`。
+
 ## 适用范围
 
 本手册用于当前无限画布 2.0 的服务器维护、日常检测、发布后复核和常见故障入手。

@@ -61,6 +61,7 @@
 - `DEVLOG.md`：开发日志台账，按日期记录真实推进、测试和部署。
 - `README.md`：当前工作根入口和高层状态摘要。
 - `docs/project-atlas/README.md`：兼容层总纲入口，保留旧的结构化导航正文。
+- `docs/project-atlas/*.md`：兼容层主题正文，新的主入口以 `docs/systems/`、`docs/governance/`、`docs/logbooks/` 为准。
 - `docs/repo-structure.md`：当前 worktree、主仓库、过程目录和运行产物目录说明。
 - `docs/runtime-artifacts.md`：运行产物目录和清理边界说明。
 - `docs/documentation-governance.md`：旧治理正文，后续逐步被 `docs/governance/` 接管。

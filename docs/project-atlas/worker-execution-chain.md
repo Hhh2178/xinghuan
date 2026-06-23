@@ -1,5 +1,7 @@
 # Worker 执行链导航页
 
+> 兼容说明：本页继续保留为旧正文，新的主入口优先看 `docs/systems/worker/README.md`、`docs/systems/worker/execution-chain.md`、`docs/systems/worker/queue-and-concurrency.md`。
+
 这份文档用于帮助协作者快速理解：
 
 - Worker 怎么启动
