@@ -109,6 +109,11 @@
 - 第一批热点预算现在已经有对应脚本：
   - `npm run verify:file-hotspot-budgets`
   - 预算正文见 `docs/governance/engineering-guardrails.md`
+- 除了硬预算热点外，`apps/`、`packages/`、`scripts/` 下任何达到 `1200+` 行的 source 文件，都必须进入超级文件拆分台账：
+  - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+  - 对应脚本：
+    - `npm run verify:hotspot-watchlist-contract`
+  - 没有入册、没有下一步拆分方向的 `1200+` 文件，不允许默默留在仓库里继续增长
 
 ### 2. 模块落点优先级
 

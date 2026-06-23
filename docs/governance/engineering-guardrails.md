@@ -34,6 +34,30 @@
 2. 再让热点文件降回预算内
 3. 只有在确有新的结构设计并同步更新治理文件时，才允许调整预算
 
+## 1200+ 超大文件 watchlist
+
+除了四个硬预算热点外，当前仓库再增加一层“超大文件必须入册”的治理：
+
+- `apps/`、`packages/`、`scripts/` 下的 source 文件
+- 扩展名：`.ts`、`.tsx`、`.js`、`.mjs`
+- 行数达到 `1200+`
+
+默认要求：
+
+- 这些文件不一定立刻进入硬预算，但必须进入
+  - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+- 台账里至少要写清楚：
+  - 当前职责
+  - 当前风险
+  - 下一步拆分方向
+- 如果新出现一个 `1200+` 文件，却没有入册，本轮工程治理检查必须失败
+
+对应脚本：
+
+- `node scripts/verify-hotspot-watchlist-contract.mjs`
+
+这层护栏的目的不是“一刀切禁止所有大文件存在”，而是防止新的超级文件悄悄长出来却没有被记录、解释和纳入后续拆分计划。
+
 ## 发布前工作树清洁
 
 真实 gray / production 发布前，工作树必须是干净的。
@@ -61,16 +85,22 @@
 ## 已接入的执行入口
 
 - `npm run verify:file-hotspot-budgets`
+- `npm run verify:hotspot-watchlist-contract`
 - `npm run verify:release-worktree-clean`
 - `npm run verify:engineering-governance-contract`
 - `npm run release:gray:prepare`
-  - 当前会执行热点预算与工程治理 contract
+  - 当前会执行热点预算、1200+ watchlist 与工程治理 contract
 - `npm run release:gray:deploy`
   - 当前会先执行工作树清洁检查，再允许部署
 
 ## 维护规则
 
 - 新增热点文件时，必须同时把预算、原因、拆分方向和脚本同步更新。
+- 新出现 `1200+` source 文件时，至少要同步更新：
+  - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+  - 本文件
+  - `AGENTS.md`
+  - `docs/governance/documentation-governance-standard.md`
 - 如果热点预算发生变化，必须同轮更新：
   - `AGENTS.md`
   - `docs/governance/documentation-governance-standard.md`

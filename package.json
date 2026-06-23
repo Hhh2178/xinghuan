@@ -55,6 +55,7 @@
     "verify:environment-sync-smoke": "node scripts/verify-environment-sync-smoke.mjs",
     "verify:worker-observability-contract": "node scripts/verify-worker-observability-contract.mjs",
     "verify:file-hotspot-budgets": "node scripts/verify-file-hotspot-budgets.mjs",
+    "verify:hotspot-watchlist-contract": "node scripts/verify-hotspot-watchlist-contract.mjs",
     "verify:release-worktree-clean": "node scripts/verify-release-worktree-clean.mjs",
     "verify:engineering-governance-contract": "node scripts/verify-engineering-governance-contract.mjs",
     "verify:release-preflight-contract": "node scripts/verify-release-preflight-contract.mjs",

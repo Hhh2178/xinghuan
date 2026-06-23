@@ -6,6 +6,7 @@ const PRESET_DEFINITIONS = {
     commands: [
       "npm install --package-lock-only",
       "npm run verify:file-hotspot-budgets",
+      "npm run verify:hotspot-watchlist-contract",
       "npm run verify:engineering-governance-contract",
       "npm run build:single-port",
       "node scripts/verify-release-version-alignment.mjs",

@@ -14,6 +14,7 @@
 - `docs/superpowers/specs/`
 - `docs/superpowers/plans/`
 - `architecture/`
+- `architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
 
 ## 当前领域入口
 

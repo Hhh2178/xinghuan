@@ -110,6 +110,66 @@
   - `2026-06-24` 已将草案 payload merge、key 池摘要/默认逻辑、分析预览与 drift summary 从主文件下沉到 `admin-runninghub-workspace-helpers.tsx`
   - 主文件行数已降到 `647`
 
+## 1200+ source 文件 watchlist
+
+这份 watchlist 用于覆盖“还没进入硬预算，但已经明显过大”的 source 文件。只要文件位于 `apps/`、`packages/`、`scripts/`，且达到 `1200+` 行，就必须出现在这里。
+
+### 当前 watchlist
+
+- `apps/web/src/components/Canvas.tsx`
+  - 状态：超大组合层
+  - 下一步：拆 `canvas runtime hooks / interaction sections / overlay panels`
+- `apps/web/src/components/nodes/PoseMasterNode.tsx`
+  - 状态：超大节点组件
+  - 下一步：拆 `field schema / preview sections / runtime actions`
+- `apps/web/src/components/nodes/ToolboxParamNode.tsx`
+  - 状态：参数型节点壳与表单耦合过重
+  - 下一步：拆 `param sections / material bindings / preview helpers`
+- `apps/web/src/components/nodes/ImageEditModal.tsx`
+  - 状态：模态 UI、编辑状态和动作耦合
+  - 下一步：拆 `tool sections / modal state hooks / action services`
+- `apps/web/src/components/ApiSettings.tsx`
+  - 状态：系统设置页职责堆叠
+  - 下一步：拆 `provider sections / settings forms / save helpers`
+- `apps/web/src/components/nodes/DrawingBoardNode.tsx`
+  - 状态：绘制节点内部状态与渲染堆叠
+  - 下一步：拆 `board interactions / toolbar sections / persistence helpers`
+- `apps/web/src/components/nodes/ImageNode.tsx`
+  - 状态：图片节点预览、上传、编辑入口混合
+  - 下一步：拆 `upload section / preview section / action helpers`
+- `apps/web/src/components/nodes/PortraitMasterNode.tsx`
+  - 状态：节点 UI 与配置逻辑过重
+  - 下一步：拆 `preset sections / form helpers / output display`
+- `apps/web/src/components/nodes/VideoNode.tsx`
+  - 状态：视频节点运行态、预览与参数逻辑混合
+  - 下一步：拆 `runtime panel / param sections / output helpers`
+- `apps/web/src/components/nodes/RHToolsNode.tsx`
+  - 状态：已接近硬预算级别
+  - 下一步：参考 `RunningHubNode`，拆 `helper / runtime display / param sections`
+- `apps/web/src/components/nodes/LLMNode.tsx`
+  - 状态：文本节点交互与运行态耦合
+  - 下一步：拆 `prompt sections / runtime card / output display`
+- `apps/web/src/components/nodes/OutputNode.tsx`
+  - 状态：输出聚合、预览、导出逻辑集中
+  - 下一步：拆 `preview sections / export helpers / runtime summary`
+- `apps/admin/src/admin-api-settings-panel.tsx`
+  - 状态：后台设置面板正在变大
+  - 下一步：拆 `provider groups / sections / save helpers`
+- `apps/web/src/data/portraitMasterOptions.ts`
+  - 状态：超大静态数据文件
+  - 下一步：按主题或能力拆分成多个 options registry 文件
+
+### 已在硬预算中的 1200+ 文件
+
+- `apps/api/src/server.ts`
+- `apps/worker/src/worker.ts`
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+
+说明：
+
+- 这些文件已经在上方“热点文件总表”中单独治理，所以这里不重复写完整正文。
+- 如果后续新的 `1200+` source 文件出现，本轮必须同步把它补进 watchlist；否则 `npm run verify:hotspot-watchlist-contract` 会失败。
+
 ## 使用规则
 
 - 当热点预算发生变化时，必须同步更新这份台账。

@@ -169,10 +169,11 @@
 - 如果当前工作树很脏，但本轮只处理其中一部分，必须在台账或发布记录里明确“本轮实际归属改动范围”。
 - 当前已落成可执行护栏：
   - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:hotspot-watchlist-contract`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
 - gray 发布流程当前会自动执行：
-  - prepare 阶段：热点预算与工程治理 contract
+  - prepare 阶段：热点预算、`1200+` source watchlist 与工程治理 contract
   - deploy 阶段：工作树清洁检查
 - gray / production 发布完成后，必须同步更新：
   - `docs/logbooks/releases/current-release-index.md`
@@ -182,6 +183,14 @@
 ## 超级文件后续规则
 
 - 热点预算不是终点，只是止血线；进入预算清单的文件必须在后续计划中写出拆分目标和落点。
+- 任何 `apps/`、`packages/`、`scripts/` 下达到 `1200+` 行的 `.ts` / `.tsx` / `.js` / `.mjs` source 文件，都必须进入：
+  - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+- 对这类 `1200+` 文件，至少要记录：
+  - 当前职责
+  - 当前风险
+  - 下一步拆分目标
+- 这条规则当前已有可执行校验：
+  - `npm run verify:hotspot-watchlist-contract`
 - 如果本轮没有拆分热点文件，但对其继续做了功能改动，必须在：
   - 对应发布记录
   - 或 `docs/superpowers/plans/`

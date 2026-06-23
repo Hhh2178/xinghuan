@@ -54,5 +54,6 @@
 - 热点大文件预算与发布前工作树清洁规则：`engineering-guardrails.md`
 - 对应脚本：
   - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:hotspot-watchlist-contract`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
