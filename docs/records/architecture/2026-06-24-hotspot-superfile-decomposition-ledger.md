@@ -54,6 +54,7 @@
   - 参数区、进度、结果、错误文案
   - 节点运行态相关交互
 - 已有下沉：
+  - `apps/web/src/components/nodes/runninghubNodeHelpers.ts`
   - 部分 shared node helper
   - 节点相关 contract 脚本
 - 下一步优先拆分：
@@ -64,10 +65,14 @@
   - 节点组件保留页面壳和组合层
 - 当前护栏：
   - `scripts/verify-file-hotspot-budgets.mjs`
+  - `scripts/verify-runninghub-node-helper-split-contract.mjs`
   - `scripts/verify-runninghub-node-progress-contract.mjs`
   - `scripts/verify-runninghub-worker-and-label-contract.mjs`
 - 当前风险：
   - 新的 RH 交互需求继续叠加时，UI、状态、请求辅助逻辑会再次粘成单块
+- 当前进度：
+  - `2026-06-24` 已将字段类型推断、options/defaultValue/displayLabel 提取、输出状态归一化、schema 计数、preset merge 与 remote nodeInfoList normalize 从主文件下沉到 `runninghubNodeHelpers.ts`
+  - 主文件行数已降到 `1282`
 
 ### `apps/admin/src/admin-runninghub-workspace.tsx`
 
