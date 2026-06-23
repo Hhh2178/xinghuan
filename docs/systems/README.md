@@ -8,6 +8,11 @@
 - `admin/`
 - `api/`
 - `worker/`
+- `canvas/`
+- `providers/`
+- `auth-and-users/`
+- `storage-and-data/`
+- `observability-and-ops/`
 
 ## 推荐阅读顺序
 
@@ -39,3 +44,23 @@
 ### Worker
 
 - 关注：消费模型、并发控制、结果落库、输出物料化
+
+### Canvas
+
+- 关注：节点体系、项目读写、素材与生成结果消费
+
+### Providers
+
+- 关注：协议分层、请求体与文件策略、模型级端点分流
+
+### Auth 与 Users
+
+- 关注：会话、CSRF、ownership、revision、多用户治理
+
+### Storage 与 Data
+
+- 关注：PostgreSQL / Redis 分工、输出落库、生成库访问
+
+### Observability 与 Ops
+
+- 关注：release gate、gray/prod 运维、系统观测页

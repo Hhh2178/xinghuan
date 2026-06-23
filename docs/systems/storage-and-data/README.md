@@ -1,0 +1,16 @@
+# Storage 与 Data 系统
+
+## 这个系统负责什么
+
+Storage 与 Data 系统负责 PostgreSQL、Redis、文件输出目录、生成库素材访问和数据落库边界。
+
+## 建议阅读顺序
+
+1. `postgres-and-redis-boundaries.md`
+2. `material-and-output-storage.md`
+
+## 相关系统
+
+- `../api/`
+- `../worker/`
+- `../canvas/`

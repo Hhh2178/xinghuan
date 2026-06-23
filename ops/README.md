@@ -11,6 +11,7 @@
 - 总索引：`../docs/INDEX.md`
 - 系统知识：`../docs/systems/README.md`
 - 台账与证据目录：`../docs/logbooks/README.md`
+- 新的发布记录索引：`../docs/logbooks/releases/README.md`
 
 本目录仍保留“当前运行态 / 当前放行入口”的职责，但后续新的发布与验证记录应优先同步进入 `docs/logbooks/releases/` 与 `docs/logbooks/validations/`。
 

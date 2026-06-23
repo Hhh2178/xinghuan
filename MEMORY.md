@@ -14,8 +14,9 @@
 1. `AGENTS.md`
 2. `docs/INDEX.md`
 3. `docs/systems/README.md`
-4. `MEMORY.md`
-5. `ops/README.md`
+4. `docs/memory/current-state.md`
+5. `MEMORY.md`
+6. `ops/README.md`
 
 ## 项目摘要
 
@@ -35,6 +36,11 @@
 - 总索引：`docs/INDEX.md`
 - 系统知识：`docs/systems/README.md`
 - 长期记忆目录：`docs/memory/README.md`
+- 当前状态：`docs/memory/current-state.md`
+- 部署状态：`docs/memory/deployment-state.md`
+- 架构决策：`docs/memory/architecture-decisions.md`
+- RunningHub：`docs/memory/runninghub-memory.md`
+- Provider：`docs/memory/provider-memory.md`
 - 项目总纲兼容层：`docs/project-atlas/README.md`
 - 协作规则：`AGENTS.md`
 - 结构说明：`docs/repo-structure.md`
@@ -46,16 +52,23 @@
 
 如果只是要快速恢复当前状态，优先看：
 
-1. 本文件前部的“项目摘要 / 当前关键决策 / 当前阶段”
-2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `ops/README.md`
-5. `docs/project-atlas/README.md`
+1. `docs/memory/current-state.md`
+2. `docs/memory/deployment-state.md`
+3. `docs/INDEX.md`
+4. `docs/systems/README.md`
+5. `ops/README.md`
 6. `DEVLOG.md` 顶部最近几天记录
 
 使用边界：
 
 - 本文件保留长期有效的项目判断、部署状态、关键规则和阶段结论。
+- 长期主题正文优先写入：
+  - `docs/memory/current-state.md`
+  - `docs/memory/product-and-scope.md`
+  - `docs/memory/architecture-decisions.md`
+  - `docs/memory/deployment-state.md`
+  - `docs/memory/runninghub-memory.md`
+  - `docs/memory/provider-memory.md`
 - 系统结构、协议、接口和执行链路，优先看 `docs/systems/`。
 - 结构、环境、排障和旧总纲正文，优先看 `docs/project-atlas/`。
 - 按天展开的详细推进与验证证据，优先看 `DEVLOG.md`。

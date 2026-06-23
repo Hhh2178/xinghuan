@@ -14,6 +14,11 @@
 
 - `DEVLOG.md` 与 `ops/README.md` 仍保留为兼容入口
 - 从本轮开始，新的逐日台账应优先进入 `daily/`
+- 当前已建立：
+  - `daily/2026/`
+  - `releases/README.md`
+  - RunningHub gray / production 索引样例
+  - 本轮治理验证记录
 
 ## 新增记录命名
 

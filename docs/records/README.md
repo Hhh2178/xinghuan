@@ -14,6 +14,16 @@
 - `docs/superpowers/specs/`
 - `docs/superpowers/plans/`
 
+## 当前领域入口
+
+- `runninghub/`
+- `admin/`
+- `canvas/`
+- `worker/`
+- `providers/`
+- `auth/`
+- `observability/`
+
 ## 与 `docs/systems/` 的区别
 
 - `docs/systems/`：系统现在如何工作

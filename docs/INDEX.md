@@ -31,6 +31,11 @@
 - `docs/systems/admin/`
 - `docs/systems/api/`
 - `docs/systems/worker/`
+- `docs/systems/canvas/`
+- `docs/systems/providers/`
+- `docs/systems/auth-and-users/`
+- `docs/systems/storage-and-data/`
+- `docs/systems/observability-and-ops/`
 
 ### 长期有效的项目记忆
 
@@ -71,6 +76,31 @@
 
 - 执行链：`docs/systems/worker/execution-chain.md`
 - 队列与并发：`docs/systems/worker/queue-and-concurrency.md`
+
+### Canvas
+
+- 节点与数据模型：`docs/systems/canvas/node-and-data-model.md`
+- 项目与素材链路：`docs/systems/canvas/project-and-material-flow.md`
+
+### Providers
+
+- 协议分层：`docs/systems/providers/protocol-layering.md`
+- 请求体与文件策略：`docs/systems/providers/request-body-and-file-strategy.md`
+
+### Auth 与 Users
+
+- 会话与 CSRF：`docs/systems/auth-and-users/session-and-csrf.md`
+- revision 与 ownership：`docs/systems/auth-and-users/revision-and-ownership-guard.md`
+
+### Storage 与 Data
+
+- Postgres / Redis 边界：`docs/systems/storage-and-data/postgres-and-redis-boundaries.md`
+- 素材与输出落库：`docs/systems/storage-and-data/material-and-output-storage.md`
+
+### Observability 与 Ops
+
+- release gate：`docs/systems/observability-and-ops/release-gates.md`
+- gray / production 运维：`docs/systems/observability-and-ops/gray-and-production-operations.md`
 
 ## 与旧入口的关系
 

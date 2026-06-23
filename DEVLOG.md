@@ -7,6 +7,7 @@
 - 新的总索引位于 `docs/INDEX.md`
 - 新的日常台账目录位于 `docs/logbooks/daily/`
 - 新的发布与验证证据目录位于 `docs/logbooks/releases/` 和 `docs/logbooks/validations/`
+- `docs/logbooks/daily/2026/` 已启用为 2026 年的新台账入口
 
 本文件在 Phase 1 继续作为兼容台账入口，同时保留模板与最近记录索引。
 
