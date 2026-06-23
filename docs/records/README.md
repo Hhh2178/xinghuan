@@ -23,6 +23,7 @@
 - `providers/`
 - `auth/`
 - `observability/`
+- `2026-06-23-full-stack-collaboration-audit.md`
 
 ## 与 `docs/systems/` 的区别
 
