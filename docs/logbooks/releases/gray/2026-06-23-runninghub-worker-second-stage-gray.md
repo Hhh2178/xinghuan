@@ -68,6 +68,27 @@
 - `server.ts`、`RunningHubNode.tsx`、后台 RH 工作台仍是热点大文件，后续还要继续拆。
 - gray 发布后的视觉层与真实业务体验仍由用户验收，不由 Agent 代替。
 
+## 实际部署结果
+
+- gray 打包：
+  - `npm run release:gray:prepare:runninghub -- --release=20260623-runninghub-worker-second-stage-gray-r1-v0415 --verify="npx tsx scripts/verify-worker-runninghub-client.ts" --verify="node scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs"`
+  - 产物：
+    - `dist-release/20260623-runninghub-worker-second-stage-gray-r1-v0415.tar.gz`
+    - `size = 5.36 MB`
+- gray 部署：
+  - `npm run release:gray:deploy -- --release=20260623-runninghub-worker-second-stage-gray-r1-v0415 --archive=dist-release/20260623-runninghub-worker-second-stage-gray-r1-v0415.tar.gz --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem`
+- gray 运行态验证：
+  - `npm run release:gray:verify -- --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem --expected-version=0.4.15 --expected-environment=gray`
+  - `currentRelease = /opt/apps/xinghuan-canvas-next/releases/20260623-runninghub-worker-second-stage-gray-r1-v0415`
+  - `appService = active`
+  - `workerService = active`
+  - `http://127.0.0.1:18200/api/status`
+    - `version = 0.4.15`
+    - `environment = gray`
+  - `https://canvas-next.hhh2121.xyz/api/status`
+    - `version = 0.4.15`
+    - `environment = gray`
+
 ## 回滚信息
 
 - `current` 回滚目标：
