@@ -170,6 +170,8 @@
 - 当前已落成可执行护栏：
   - `npm run verify:file-hotspot-budgets`
   - `npm run verify:hotspot-watchlist-contract`
+  - `npm run verify:hotspot-doc-sync-staged`
+  - `pre-commit`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
 - gray 发布流程当前会自动执行：
@@ -191,6 +193,9 @@
   - 下一步拆分目标
 - 这条规则当前已有可执行校验：
   - `npm run verify:hotspot-watchlist-contract`
+- 如果本轮 staged 改动触碰了热点文件或 watchlist 文件，提交前还必须留下对应台账 / 日志 / 计划材料：
+  - `npm run verify:hotspot-doc-sync-staged`
+- 这条提交前拦截由 `.githooks/pre-commit` 执行。
 - 如果本轮没有拆分热点文件，但对其继续做了功能改动，必须在：
   - 对应发布记录
   - 或 `docs/superpowers/plans/`

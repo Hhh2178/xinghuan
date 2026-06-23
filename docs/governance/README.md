@@ -55,5 +55,6 @@
 - 对应脚本：
   - `npm run verify:file-hotspot-budgets`
   - `npm run verify:hotspot-watchlist-contract`
+  - `npm run verify:hotspot-doc-sync-staged`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`

@@ -108,12 +108,16 @@
 - 当文件已进入明显过载区时，本轮真实改动必须同步写明“新增逻辑落在哪个子模块”，不能继续只补在主文件上。
 - 第一批热点预算现在已经有对应脚本：
   - `npm run verify:file-hotspot-budgets`
-  - 预算正文见 `docs/governance/engineering-guardrails.md`
+- 预算正文见 `docs/governance/engineering-guardrails.md`
 - 除了硬预算热点外，`apps/`、`packages/`、`scripts/` 下任何达到 `1200+` 行的 source 文件，都必须进入超级文件拆分台账：
   - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
   - 对应脚本：
     - `npm run verify:hotspot-watchlist-contract`
   - 没有入册、没有下一步拆分方向的 `1200+` 文件，不允许默默留在仓库里继续增长
+- 当前还新增了一层提交前快检：
+  - `.githooks/pre-commit`
+  - `npm run verify:hotspot-doc-sync-staged`
+- 只要 staged 改动触碰了硬预算热点或 `1200+` watchlist 文件，同一次提交里就必须同步 staged 对应台账 / 计划 / 发布记录之一，不能只改过载文件不留任何结构说明
 
 ### 2. 模块落点优先级
 

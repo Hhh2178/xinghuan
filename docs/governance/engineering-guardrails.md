@@ -58,6 +58,34 @@
 
 这层护栏的目的不是“一刀切禁止所有大文件存在”，而是防止新的超级文件悄悄长出来却没有被记录、解释和纳入后续拆分计划。
 
+## 提交前热点留痕同步
+
+为了避免“热点文件改了，但没有留下任何拆分记录或台账”的情况，当前仓库新增一层 `pre-commit` 快速校验：
+
+- `.githooks/pre-commit`
+- `node scripts/pre-commit-governance.mjs`
+
+默认会执行：
+
+- `node scripts/verify-file-hotspot-budgets.mjs`
+- `node scripts/verify-hotspot-watchlist-contract.mjs`
+- `node scripts/verify-hotspot-doc-sync-staged.mjs`
+
+其中 `verify-hotspot-doc-sync-staged` 的规则是：
+
+- 如果 staged 改动里包含：
+  - 硬预算热点文件
+  - 或当前 `1200+` watchlist 文件
+- 那么同一次提交里必须至少 staged 一份对应的记录材料，范围包括：
+  - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+  - `docs/logbooks/daily/`
+  - `docs/logbooks/releases/`
+  - `docs/logbooks/validations/`
+  - `docs/superpowers/plans/`
+  - `docs/superpowers/specs/`
+
+这层规则的目的不是把每次提交都变成“重文档流程”，而是确保只要继续动已经过载的文件，就不能完全不留下结构说明与后续拆分线索。
+
 ## 发布前工作树清洁
 
 真实 gray / production 发布前，工作树必须是干净的。
@@ -86,6 +114,7 @@
 
 - `npm run verify:file-hotspot-budgets`
 - `npm run verify:hotspot-watchlist-contract`
+- `npm run verify:hotspot-doc-sync-staged`
 - `npm run verify:release-worktree-clean`
 - `npm run verify:engineering-governance-contract`
 - `npm run release:gray:prepare`
