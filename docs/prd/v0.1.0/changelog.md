@@ -2,6 +2,39 @@
 
 ## 2026-06-23
 
+- RunningHub runtime guardrails 准备进入 gray `v0.4.14`：
+  - 目标 gray release：
+    - `20260623-runninghub-runtime-guardrails-gray-r1-v0414`
+  - 关键实现：
+    - `apps/worker/src/worker-runninghub-response.ts`
+      - RunningHub poll 非 JSON / 空响应 / 纯文本响应统一归一化
+    - `apps/worker/src/worker-runtime-diagnostics.ts`
+      - 统一失败诊断逻辑从 `worker.ts` 中独立出来
+    - `apps/worker/src/worker.ts`
+      - poll 分支改为通过独立解析 helper 进入统一失败口径
+    - 新增 / 更新验证脚本：
+      - `scripts/verify-runninghub-governance-phase-a-contract.mjs`
+      - `scripts/verify-runninghub-governance-phase-c-contract.mjs`
+      - `scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs`
+      - `scripts/verify-runninghub-poll-non-json-contract.ts`
+      - `scripts/verify-release-version-alignment.mjs`
+  - 本地验证通过：
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/worker`
+    - `npm run type-check -w @xinghuan/web`
+    - `npm run type-check -w @xinghuan/admin`
+    - `node scripts/verify-runninghub-governance-phase-a-contract.mjs`
+    - `node scripts/verify-runninghub-governance-phase-c-contract.mjs`
+    - `node scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs`
+    - `npx tsx scripts/verify-runninghub-poll-non-json-contract.ts`
+    - `node scripts/verify-runninghub-dynamic-key-selection-contract.mjs`
+    - `node scripts/verify-runninghub-key-pool-contract.mjs`
+    - `node scripts/verify-runninghub-node-progress-contract.mjs`
+    - `node scripts/verify-unified-protocol-runtime-contract.mjs`
+    - `npm run verify:provider-generation-worker`
+    - `npm run verify:worker-grsai-contract`
+    - `node scripts/verify-release-version-alignment.mjs`
+
 - RunningHub GRSAI worker 收口与动态 Key 池已完成 gray `v0.4.13` 发布：
   - gray release：
     - `20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`

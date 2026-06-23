@@ -2,8 +2,8 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.4.13`
-- 当前灰度 release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+- 当前活跃版本：`v0.4.14`
+- 当前灰度 release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
 - 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口

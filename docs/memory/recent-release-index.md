@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.4.13`
-  - release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+  - 版本：`v0.4.14`
+  - release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
 - production：
   - 版本：`v0.4.13`
   - release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`

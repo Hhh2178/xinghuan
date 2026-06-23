@@ -23,13 +23,13 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.4.13`
-  - release：`20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
+  - 版本：`v0.4.14`
+  - release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.4.12`
-  - release：`20260623-runninghub-poll-resume-prod-r1-v0412`
+  - 版本：`v0.4.13`
+  - release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 
 ## current / archive 分工
 
