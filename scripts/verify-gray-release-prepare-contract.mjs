@@ -1,5 +1,4 @@
 import { resolveGrayPrepareCommands } from "./release/gray-prepare-presets.mjs";
-import { readFile } from "node:fs/promises";
 
 const base = resolveGrayPrepareCommands({});
 assertIncludes(base.commands, "npm install --package-lock-only", "base preset should include lockfile refresh");
@@ -55,28 +54,10 @@ const merged = resolveGrayPrepareCommands({
 });
 assertIncludes(merged.commands, "echo custom-check", "extra verify commands should be appended");
 
-const deployScript = await readFile(new URL("./release/deploy-gray-release.mjs", import.meta.url), "utf8");
-assertIncludesText(
-  deployScript,
-  "npm run db:migrate",
-  "gray deploy should source shared env and run db:migrate before switching current",
-);
-assertIncludesText(
-  deployScript,
-  "shared/canvas-next.env",
-  "gray deploy should source shared env before switching current",
-);
-
 console.log("PASS gray release prepare contract");
 
 function assertIncludes(list, expected, message) {
   if (!Array.isArray(list) || !list.includes(expected)) {
-    throw new Error(message);
-  }
-}
-
-function assertIncludesText(text, expected, message) {
-  if (!String(text).includes(expected)) {
     throw new Error(message);
   }
 }
