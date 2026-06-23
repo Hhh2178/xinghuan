@@ -532,23 +532,9 @@ async function releaseUserExecutionWindow(task: TaskRow) {
 async function acquireRunningHubExecutionWindow(task: TaskRow, settings: TaskQueueSettings): Promise<{ acquired: true } | { acquired: false; reason: string }> {
   if (normalizeProtocol(task.providerProtocol) !== "runninghub") return { acquired: true };
   if (!settings.runninghub.enabled) return { acquired: true };
-  const selectedRhKey = await selectExecutableRunningHubKey(task, settings);
+  const selectedRhKey = await acquireExecutableRunningHubKey(task, settings);
   if (!selectedRhKey) {
     return { acquired: false, reason: "RunningHub 所有 Key 并发已满 (all_keys_busy)" };
-  }
-  const assignedRhKeyId = selectedRhKey.id;
-  const assignedRhKeyNote = safeText(selectedRhKey.note);
-  const limit = Math.max(1, Number(selectedRhKey.maxConcurrency || settings.runninghub.concurrency) || 1);
-  const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
-  const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
-  if (current >= limit) {
-    return { acquired: false, reason: `RunningHub Key ${assignedRhKeyNote || assignedRhKeyId} 并发已满 (${current}/${limit})` };
-  }
-  const next = await redisControl.incr(key);
-  if (next === 1) await redisControl.expire(key, 60 * 60);
-  if (next > limit) {
-    await redisControl.decr(key).catch(() => undefined);
-    return { acquired: false, reason: `RunningHub Key ${assignedRhKeyNote || assignedRhKeyId} 并发已满 (${next - 1}/${limit})` };
   }
   await touchTaskRuntime(task.id, {
     assignedRhKeyId: selectedRhKey.id,
@@ -584,6 +570,44 @@ async function releaseRunningHubExecutionWindow(task: TaskRow) {
 }
 
 async function selectExecutableRunningHubKey(task: TaskRow, settings: TaskQueueSettings) {
+  const ordered = resolveOrderedRunningHubKeys(task, settings);
+  for (const item of ordered) {
+    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
+    const key = runningHubRedisWindowKey(task.providerId, item.id);
+    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
+    if (current < limit) {
+      return item;
+    }
+  }
+  return null;
+}
+
+async function acquireExecutableRunningHubKey(task: TaskRow, settings: TaskQueueSettings) {
+  const ordered = resolveOrderedRunningHubKeys(task, settings);
+  for (const item of ordered) {
+    const assignedRhKeyId = item.id;
+    const assignedRhKeyNote = safeText(item.note);
+    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
+    const key = runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
+    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
+    if (current >= limit) {
+      continue;
+    }
+    const next = await redisControl.incr(key);
+    if (next === 1) await redisControl.expire(key, 60 * 60);
+    if (next > limit) {
+      await redisControl.decr(key).catch(() => undefined);
+      continue;
+    }
+    return {
+      ...item,
+      note: assignedRhKeyNote,
+    };
+  }
+  return null;
+}
+
+function resolveOrderedRunningHubKeys(task: TaskRow, settings: TaskQueueSettings) {
   const preferredRhKeyId = safeText(task.payload.preferredRhKeyId || task.result.preferredRhKeyId);
   const pool = task.rhKeyPool.length > 0
     ? task.rhKeyPool.filter((item) => item.enabled && safeText(item.apiKey))
@@ -597,21 +621,12 @@ async function selectExecutableRunningHubKey(task: TaskRow, settings: TaskQueueS
         isDefault: true,
         currentInFlight: 0,
       } satisfies RunningHubKeyPoolItem];
-  if (pool.length === 0) return null;
-  const ordered = [
+  if (pool.length === 0) return [];
+  return [
     ...pool.filter((item) => item.id === preferredRhKeyId),
     ...pool.filter((item) => item.id !== preferredRhKeyId && item.isDefault),
     ...pool.filter((item) => item.id !== preferredRhKeyId && !item.isDefault),
   ];
-  for (const item of ordered) {
-    const limit = Math.max(1, Number(item.maxConcurrency || settings.runninghub.concurrency) || 1);
-    const key = runningHubRedisWindowKey(task.providerId, item.id);
-    const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
-    if (current < limit) {
-      return item;
-    }
-  }
-  return null;
 }
 
 async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
