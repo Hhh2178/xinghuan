@@ -13,6 +13,7 @@
 
 - `docs/superpowers/specs/`
 - `docs/superpowers/plans/`
+- `architecture/`
 
 ## 当前领域入口
 
@@ -23,6 +24,7 @@
 - `providers/`
 - `auth/`
 - `observability/`
+- `architecture/README.md`
 - `2026-06-23-full-stack-collaboration-audit.md`
 
 ## 与 `docs/systems/` 的区别

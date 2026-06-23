@@ -41,6 +41,7 @@
 - 长期记忆看 `docs/memory/`
 - 逐日台账与发布证据看 `docs/logbooks/`
 - 设计与演进记录看 `docs/records/`
+- 发布记录正文、gray/prod 批次证据统一写入 `docs/logbooks/releases/`，不要再散落到临时目录或仅保存在 `ops/` 草稿里。
 
 旧入口文件目前继续保留，但职责已经改成“摘要 + 跳转入口”：
 
@@ -104,6 +105,7 @@
 - `D:/codex/无限画布2.0` 是主仓库，不是当前默认工作现场
 - `D:/codex/服务器/无限画布/` 只作为旧主干/旧文档参考入口，不作为当前 2.0 的主说明来源
 - `output/`、`releases/`、`dist-release/`、`logs/` 等目录不作为需求和设计入口，说明统一看 `docs/runtime-artifacts.md`
+- 根目录 `releases/` 属于运行产物忽略目录；`docs/logbooks/releases/` 属于文档证据目录，必须可提交、可索引、可追踪，不能与运行产物目录混淆。
 
 ## 安全规则
 
@@ -172,6 +174,20 @@
 - gray 发布流程当前会自动执行：
   - prepare 阶段：热点预算与工程治理 contract
   - deploy 阶段：工作树清洁检查
+- gray / production 发布完成后，必须同步更新：
+  - `docs/logbooks/releases/current-release-index.md`
+  - 对应批次发布记录
+  - `ops/README.md` 的当前运行态摘要
+
+## 超级文件后续规则
+
+- 热点预算不是终点，只是止血线；进入预算清单的文件必须在后续计划中写出拆分目标和落点。
+- 如果本轮没有拆分热点文件，但对其继续做了功能改动，必须在：
+  - 对应发布记录
+  - 或 `docs/superpowers/plans/`
+  - 或 `docs/records/`
+  里写明下一步拆分路线。
+- 不允许长期依赖“只更新预算，不推进拆分”的方式维持工程健康。
 
 ## 版本治理规则
 

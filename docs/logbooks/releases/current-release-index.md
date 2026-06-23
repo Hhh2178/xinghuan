@@ -5,10 +5,14 @@
 ### Gray
 
 - 版本：`v0.4.15`
-- release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
-- 旧运行态材料：
+- release：`20260624-engineering-governance-guardrails-gray-r1-v0415`
+- 当前批次记录：
+  - `gray/2026-06-24-engineering-governance-guardrails-gray.md`
+- 历史运行态材料：
+  - `gray/2026-06-24-engineering-governance-guardrails-gray.md`
   - `gray/2026-06-23-runninghub-worker-second-stage-gray.md`
   - `gray/2026-06-23-runninghub-runtime-guardrails-gray.md`
+  - `gray/2026-06-22-runninghub-release-index.md`
   - `../../../ops/runninghub-grsai-worker-key-pool-gray-release-2026-06-23.md`
   - `../../../ops/runninghub-poll-resume-gray-release-2026-06-23.md`
   - `../../../ops/runninghub-default-key-migrate-gray-release-2026-06-23.md`
@@ -18,8 +22,11 @@
 
 - 版本：`v0.4.13`
 - release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
-- 旧运行态材料：
+- 当前批次记录：
   - `production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`
+- 历史运行态材料：
+  - `production/2026-06-23-runninghub-poll-resume-production.md`
+  - `production/2026-06-19-runninghub-release-index.md`
 
 ## 当前值守建议
 

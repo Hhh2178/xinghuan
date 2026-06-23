@@ -55,6 +55,8 @@
 
 看 `docs/records/README.md`，以及已有的 `docs/superpowers/specs/`、`docs/superpowers/plans/`。
 
+- 超级文件拆分台账：`docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+
 ## 当前核心系统导航
 
 ### RunningHub

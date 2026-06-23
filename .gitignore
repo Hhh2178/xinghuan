@@ -13,6 +13,8 @@ tmp/
 .codex-temp/
 output/
 releases/
+!docs/logbooks/releases/
+!docs/logbooks/releases/**/*.md
 dist-release/
 .codegraph/
 .playwright-cli/

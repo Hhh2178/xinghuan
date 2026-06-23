@@ -47,6 +47,10 @@
 - 不允许未提交的 tracked 改动
 - 不允许未记录的 untracked 文件
 - 部署脚本会在真正开始远端动作前先执行这条检查
+- 发布完成后还必须补齐：
+  - `docs/logbooks/releases/current-release-index.md`
+  - 对应 gray / production 发布记录
+  - 当前运行态摘要入口
 
 调试场景下如果只想检查“是否仍有 unstaged 污染”，可以手动使用：
 
@@ -71,4 +75,7 @@
   - `AGENTS.md`
   - `docs/governance/documentation-governance-standard.md`
   - 本文件
+- 运行产物目录与文档证据目录必须保持边界清晰：
+  - 根目录 `releases/`、`dist-release/` 继续作为忽略的运行产物
+  - `docs/logbooks/releases/` 必须保留为可提交的文档目录
 - 如果部署脚本或发布流程变化，必须确认这些护栏仍然真实被调用，而不是只留在文档里。

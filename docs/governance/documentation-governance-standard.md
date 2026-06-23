@@ -128,6 +128,13 @@
 - gray 部署脚本当前已经接入：
   - `npm run verify:release-worktree-clean`
 - 这条检查未通过时，不允许继续进入远端部署动作。
+- 发布完成后，必须同步补齐值守索引和发布证据：
+  - `docs/logbooks/releases/current-release-index.md`
+  - 对应批次的 `docs/logbooks/releases/gray/` 或 `production/` 记录
+  - `ops/README.md` 中当前运行态摘要
+- 运行产物目录与发布文档目录不能混淆：
+  - 根目录 `releases/` 属于忽略的运行产物目录
+  - `docs/logbooks/releases/` 属于可提交的证据目录
 
 ### 4. 文档先行收口
 
