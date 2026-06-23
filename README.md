@@ -24,10 +24,10 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.4.14`
+- 当前活跃版本：`v0.4.15`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
+- 当前灰度 release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
 - 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前重点系统：RunningHub、后台 Admin、API、Worker
 
@@ -69,17 +69,17 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.4.14`
+- 当前活跃版本：`v0.4.15`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
+- 当前灰度 release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
 - 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
-- 当前 worker 治理下一步：继续推进 `worker.ts` 第二阶段收口，拆分 RunningHub client / dispatch / runtime diagnostics / cancel sync
+- 当前 worker 治理状态：已完成 RunningHub client 第一批下沉，下一步继续拆分 dispatch / runtime diagnostics / cancel sync
 - 当前生成能力：统一通过外部 API 接入，不在 VPS 跑本地 GPU 推理
 - 当前生成库状态：图片/视频预览与下载已完成，本地素材访问已统一走生成库内容路由
 - 当前 Provider 热修复状态：柏拉图 `grok-1.5-video-6s/10s/15s` 的 multipart 视频接入与后台结构化接入方案输出已完成 gray / production 实装和真实 6 秒任务验收

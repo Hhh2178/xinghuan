@@ -9,6 +9,7 @@
 
 ## 近期仍常回看的 release 记录
 
+- `../../docs/logbooks/releases/gray/2026-06-23-runninghub-worker-second-stage-gray.md`
 - `../runninghub-grsai-worker-key-pool-gray-release-2026-06-23.md`
 - `../../docs/logbooks/releases/production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`
 - `../runninghub-poll-resume-gray-release-2026-06-23.md`
