@@ -1,4 +1,4 @@
-import type { RhCatalogItem, RhInputSlotDefinition } from "@xinghuan/shared";
+import type { RhCatalogItem, RhExecutionDescriptor, RhInputSlotDefinition } from "@xinghuan/shared";
 
 export interface RunningHubCatalogWorkflowField {
   nodeId: string;
@@ -19,6 +19,7 @@ export interface RunningHubCatalogItem extends RhCatalogItem {
   fields: RunningHubCatalogWorkflowField[];
   parameterSchema?: string;
   allowsEmptyInputs?: boolean;
+  execution: RhExecutionDescriptor;
 }
 
 export interface LegacyRunningHubCatalogWorkflow {
@@ -272,6 +273,7 @@ export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {
     workflowId: item.kind === "workflow" ? (item.workflowId || runTargetId) : "",
     providerId: item.providerId,
     providerName: item.providerName,
+    execution: item.execution || {},
     outputSchema: Array.isArray(item.outputSchema) ? item.outputSchema : [],
     allowsEmptyInputs: item.allowsEmptyInputs === true,
     workflowJson: parseWorkflowJson(item.workflowJson),

@@ -259,6 +259,43 @@ function renderAnalyzeSectionPreview(section: RunningHubAnalyzeDraftSection): Re
   return <pre>{JSON.stringify(section.payload, null, 2)}</pre>;
 }
 
+function summarizeAnalyzeDraftDrift(
+  selectedItem: RunningHubAdminItem | null,
+  draft: RunningHubAnalyzeDraft | null,
+  targetKind: RunningHubWorkspaceTab,
+) {
+  if (!selectedItem || !draft) return [];
+  const drift: string[] = [];
+  if (selectedItem.kind !== targetKind) {
+    drift.push(`当前条目类型是 ${selectedItem.kind === "app" ? "AI 应用" : "工作流"}，草案目标类型是 ${targetKind === "app" ? "AI 应用" : "工作流"}。`);
+  }
+  const baseSection = draft.sections.find((section) => section.key === "base");
+  const inputSection = draft.sections.find((section) => section.key === "inputs");
+  const outputSection = draft.sections.find((section) => section.key === "outputs");
+  const executionSection = draft.sections.find((section) => section.key === "execution");
+  const draftRunTargetId = typeof baseSection?.payload.runTargetId === "string" ? baseSection.payload.runTargetId.trim() : "";
+  const currentRunTargetId = String(selectedItem.runTargetId || selectedItem.appId || selectedItem.workflowId || "").trim();
+  if (draftRunTargetId && currentRunTargetId && draftRunTargetId !== currentRunTargetId) {
+    drift.push(`草案运行目标 ID 为 ${draftRunTargetId}，当前条目为 ${currentRunTargetId}。`);
+  }
+  const draftFieldCount = Array.isArray(inputSection?.payload.fields) ? inputSection.payload.fields.length : 0;
+  const currentFieldCount = Array.isArray(selectedItem.fields) ? selectedItem.fields.length : 0;
+  if (draftFieldCount !== currentFieldCount) {
+    drift.push(`草案输入槽 ${draftFieldCount} 个，当前条目输入槽 ${currentFieldCount} 个。`);
+  }
+  const draftOutputCount = Array.isArray(outputSection?.payload.outputs) ? outputSection.payload.outputs.length : 0;
+  const currentOutputCount = Array.isArray(selectedItem.outputSchema) ? selectedItem.outputSchema.length : 0;
+  if (draftOutputCount !== currentOutputCount) {
+    drift.push(`草案输出定义 ${draftOutputCount} 个，当前条目输出定义 ${currentOutputCount} 个。`);
+  }
+  const draftExecutionEndpoint = typeof executionSection?.payload.endpoint === "string" ? executionSection.payload.endpoint.trim() : "";
+  const currentExecutionEndpoint = String(selectedItem.executionRules?.endpoint || "").trim();
+  if (draftExecutionEndpoint && currentExecutionEndpoint && draftExecutionEndpoint !== currentExecutionEndpoint) {
+    drift.push(`草案执行 endpoint 为 ${draftExecutionEndpoint}，当前条目为 ${currentExecutionEndpoint}。`);
+  }
+  return drift;
+}
+
 export function AdminRunningHubWorkspace({
   selectedProviderId = "",
 }: {
@@ -379,6 +416,10 @@ export function AdminRunningHubWorkspace({
     : analyzeDraft?.detectedKind === "workflow"
       ? "workflow"
       : activeTab;
+  const analyzeDraftDrift = useMemo(
+    () => summarizeAnalyzeDraftDrift(selectedItem, analyzeDraft, analyzeTargetKind),
+    [selectedItem, analyzeDraft, analyzeTargetKind],
+  );
 
   async function handleCreate(kind: RunningHubWorkspaceTab, sourceCatalogId?: string, preset?: RunningHubAdminItemCreatePayload) {
     const providerId = selectedProviderId || items.find((item) => item.providerId)?.providerId || "runninghub";
@@ -822,6 +863,11 @@ export function AdminRunningHubWorkspace({
             {analyzeDraft ? (
               <div className="admin-runninghub-analyze-panel__cards">
                 <div className="admin-runninghub-analyze-panel__summary">{analyzeDraft.summary}</div>
+                {analyzeDraftDrift.length ? (
+                  <div className="admin-runninghub-analyze-panel__warnings">
+                    {analyzeDraftDrift.map((warning, index) => <span key={`drift-${warning}-${index}`}>漂移提示: {warning}</span>)}
+                  </div>
+                ) : null}
                 {analyzeDraft.sections.map((section) => (
                   <article key={section.key} className="admin-runninghub-analyze-card">
                     <div className="admin-runninghub-workspace__section-head">

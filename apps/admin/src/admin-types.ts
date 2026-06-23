@@ -205,6 +205,7 @@ export interface RunningHubAnalyzeDraft {
   detectedKind?: "app" | "workflow";
   detectedTargetId?: string;
   autoSwitchMessage?: string;
+  driftSummary?: string[];
 }
 
 export interface RunningHubAnalyzePayload {
