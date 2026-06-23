@@ -42,6 +42,8 @@ const commands = [
   ["verify:runninghub-workflow-contract", ["npm", ["run", "verify:runninghub-workflow-contract"], {}]],
   ["verify:runninghub-workflow-api", ["npm", ["run", "verify:runninghub-workflow-api"], { env: verifyEnv }]],
   ["verify:runninghub-worker-submit-contract", ["node", ["scripts/verify-runninghub-worker-submit-contract.mjs"], {}]],
+  ["verify:unified-protocol-runtime-contract", ["node", ["scripts/verify-unified-protocol-runtime-contract.mjs"], {}]],
+  ["verify:runninghub-dynamic-key-selection-contract", ["node", ["scripts/verify-runninghub-dynamic-key-selection-contract.mjs"], {}]],
   ["verify:worker-adapter-contract", ["npm", ["run", "verify:worker-adapter-contract"], {}]],
   ["verify:worker-grsai-contract", ["npm", ["run", "verify:worker-grsai-contract"], {}]],
   ["verify:worker-output-materializer", ["npm", ["run", "verify:worker-output-materializer"], {}]],
