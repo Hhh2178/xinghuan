@@ -16,6 +16,7 @@ const recordsReadme = await readFile(new URL("../docs/records/README.md", import
 const preCommitGovernance = await readFile(new URL("./pre-commit-governance.mjs", import.meta.url), "utf8");
 const opsReadme = await readFile(new URL("../ops/README.md", import.meta.url), "utf8");
 const opsCurrentGray = await readFile(new URL("../ops/current/gray.md", import.meta.url), "utf8");
+const adminSystemReadme = await readFile(new URL("../docs/systems/admin/README.md", import.meta.url), "utf8");
 
 assert.match(packageJson, /"verify:file-hotspot-budgets": "node scripts\/verify-file-hotspot-budgets\.mjs"/);
 assert.match(packageJson, /"verify:hotspot-watchlist-contract": "node scripts\/verify-hotspot-watchlist-contract\.mjs"/);
@@ -80,6 +81,8 @@ assert.match(opsReadme, /20260624-api-settings-decomposition-gray-r1-v0416/);
 assert.match(opsCurrentGray, /20260624-api-settings-decomposition-gray-r1-v0416/);
 assert.match(recordsReadme, /architecture\//);
 assert.match(recordsReadme, /hotspot-superfile-decomposition-ledger\.md/);
+assert.match(adminSystemReadme, /admin-api-settings-panel-helpers\.ts/);
+assert.match(adminSystemReadme, /helper \//i);
 
 console.log(JSON.stringify({
   ok: true,
@@ -104,6 +107,7 @@ console.log(JSON.stringify({
     "docs/logbooks/releases/current-release-index.md",
     "ops/README.md",
     "ops/current/gray.md",
+    "docs/systems/admin/README.md",
     "docs/records/README.md",
   ],
 }, null, 2));

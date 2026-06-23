@@ -36,6 +36,8 @@
     "verify:admin-task-panel-contract": "node scripts/verify-admin-task-panel-contract.mjs",
     "verify:admin-users-panel-contract": "node scripts/verify-admin-users-panel-contract.mjs",
     "verify:admin-api-layout-contract": "node scripts/verify-admin-api-layout-contract.mjs",
+    "verify:admin-api-settings-panel-helper-split-contract": "node scripts/verify-admin-api-settings-panel-helper-split-contract.mjs",
+    "verify:admin-api-settings-panel-helper-behavior": "npx tsx scripts/verify-admin-api-settings-panel-helper-behavior.ts",
     "verify:admin-runninghub-workspace-helper-split-contract": "node scripts/verify-admin-runninghub-workspace-helper-split-contract.mjs",
     "verify:api-admin-runninghub-route-split-contract": "node scripts/verify-api-admin-runninghub-route-split-contract.mjs",
     "verify:api-settings-helper-split-contract": "node scripts/verify-api-settings-helper-split-contract.mjs",

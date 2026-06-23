@@ -156,12 +156,16 @@
 - `apps/web/src/components/nodes/OutputNode.tsx`
   - 状态：输出聚合、预览、导出逻辑集中
   - 下一步：拆 `preview sections / export helpers / runtime summary`
-- `apps/admin/src/admin-api-settings-panel.tsx`
-  - 状态：后台设置面板正在变大
-  - 下一步：拆 `provider groups / sections / save helpers`
 - `apps/web/src/data/portraitMasterOptions.ts`
   - 状态：超大静态数据文件
   - 下一步：按主题或能力拆分成多个 options registry 文件
+
+### 最近已退出 watchlist
+
+- `apps/admin/src/admin-api-settings-panel.tsx`
+  - `2026-06-24` 已将 provider draft / assistant plan / input capability 等纯 helper 下沉到 `admin-api-settings-panel-helpers.ts`
+  - 主文件行数：`1289 -> 1103`
+  - 当前已退出 `1200+` watchlist，但后续仍建议继续拆 `provider groups / sections / save helpers`
 
 ### 已在硬预算中的 1200+ 文件
 

@@ -15,6 +15,8 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - 后台 API 客户端：`apps/admin/src/admin-api-client.ts`
 - RunningHub 工作台：`apps/admin/src/admin-runninghub-workspace.tsx`
 - RunningHub 编辑器：`apps/admin/src/admin-runninghub-item-editor.tsx`
+- API 设置面板：`apps/admin/src/admin-api-settings-panel.tsx`
+- API 设置 helper：`apps/admin/src/admin-api-settings-panel-helpers.ts`
 - 只读系统面板：`apps/admin/src/admin-readonly-panels.tsx`
 - 服务端后台接口：`apps/api/src/server.ts`
 
@@ -23,3 +25,4 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - 后台不是画布附属抽屉，而是独立 Web 能力
 - RunningHub 工作台已成为 RH 条目录入和分析的主入口
 - 系统页需要同时展示“配置值”和“实际生效值”
+- API 设置面板已开始按 `helper / form sections / save actions` 分层，避免继续堆成单个超大后台文件
