@@ -23,6 +23,26 @@
 
 ## 本机准备
 
+推荐优先走新的半自动化脚本链：
+
+```powershell
+npm run release:gray:prepare -- --release=<release-id>
+npm run release:gray:deploy -- --release=<release-id> --archive=dist-release/<release-id>.tar.gz --ssh-key=<path-to-key>
+npm run release:gray:verify -- --ssh-key=<path-to-key> --expected-version=<version> --expected-environment=gray
+```
+
+如果是 RunningHub 相关专题发布，推荐直接使用带 preset 的准备命令：
+
+```powershell
+npm run release:gray:prepare -- --release=<release-id> --preset=runninghub
+```
+
+说明：
+
+- 这三步只覆盖代码层、架构层和运行态层验证。
+- gray 页面视觉验收和真实业务体验验收默认由用户负责。
+- 若需要手工发布，仍可继续使用下方原始步骤。
+
 1. 在 worktree 执行构建：
 
 ```powershell
@@ -131,7 +151,12 @@ psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"
 
 ## 验收
 
-按照 `ops/gray-acceptance-checklist.md` 执行。
+按照 `ops/gray-release-standard-checklist.md` 和 `ops/gray-acceptance-checklist.md` 执行。
+
+其中：
+
+- Agent 默认执行服务层、域名层、运行态与安全边界检查。
+- 用户默认执行视觉层和真实业务体验验收。
 
 ## 回滚
 

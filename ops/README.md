@@ -41,6 +41,8 @@
 
 - 服务器连接：`server-connection.md`
 - Gray 部署：`gray-deploy-runbook.md`
+- Gray 标准清单：`gray-release-standard-checklist.md`
+- Gray 记录模板：`templates/gray-release-record-template.md`
 - Production 部署：`production-deploy-runbook.md`
 - Production 验收：`production-acceptance-checklist.md`
 - 历史归档总索引：`archive/README.md`
