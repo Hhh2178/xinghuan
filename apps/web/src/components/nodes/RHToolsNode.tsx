@@ -27,7 +27,7 @@ import {
   Sparkles, Search, Plus, Pencil, AlertCircle, Loader2,
   Square, RefreshCw, ArrowLeft, Download, Upload,
 } from 'lucide-react';
-import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset } from '../../services/generation';
+import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset, cancelGenerationTask } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
@@ -194,7 +194,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
   const webappId: string = activeApp?.webappId || '';
   // 运行态（与 RunningHubNode 字段对齐）
   const instanceType: string = d?.instanceType || '';
-  const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
+  const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' | 'cancelled' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
   const rhProgress: string = d?.rhProgress || '';
   const rhQueueHint: string = d?.rhQueueHint || '';
@@ -235,6 +235,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
   // ===================== 运行器侧 hooks (始终调用以保证 hooks 顺序稳定) =====================
   const hasAutoOutput = useHasAutoOutput(id);
   const [error, setError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const mountedRef = useRef(true);
   const currentPollKeyRef = useRef<string | null>(taskId ? rhToolsPollKey(id, taskId) : null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
@@ -761,13 +762,46 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     await handleRun();
   });
 
-  const handleStop = () => {
-    stopPoll();
-    update({ status: 'idle' });
-    logBus.warn('用户主动停止', src);
+  const handleStop = async () => {
+    if (isCancelling) return;
+    if (!taskId) {
+      stopPoll();
+      update({ status: 'idle', rhQueueHint: '已停止本地观察' });
+      logBus.warn('用户停止本地观察', src);
+      return;
+    }
+    setIsCancelling(true);
+    try {
+      const cancelled = await cancelGenerationTask({
+        taskId,
+        kind: 'external',
+        providerId: 'runninghub',
+        providerModel: webappId,
+      });
+      stopPoll(taskId);
+      update({
+        status: 'cancelled',
+        error: null,
+        rhProgress: '100%',
+        rhQueueHint: cancelled.message || '任务已取消',
+        urls: [],
+        imageUrl: '',
+        imageUrls: [],
+        videoUrl: '',
+        videoUrls: [],
+        audioUrl: '',
+        audioUrls: [],
+      });
+      logBus.warn(cancelled.message || '用户已取消任务', src);
+    } catch (e: any) {
+      setVisibleError(e?.message || '取消任务失败');
+      logBus.error(`取消失败: ${e?.message || e}`, src);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
-  const isBusy = status === 'submitting' || status === 'polling';
+  const isBusy = status === 'submitting' || status === 'polling' || isCancelling;
   const nodeInfoList: any[] = appInfo?.nodeInfoList || [];
 
   // 启动器：过滤后的工具列表
@@ -1193,17 +1227,25 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium nodrag"
               style={{ background: surface, color: text, border: `1px solid ${border}` }}
             >
-              <Square size={11} /> 停止
+              <Square size={11} /> {taskId ? '取消任务' : '停止观察'}
             </button>
           )}
 
           {isBusy && (
             <div className="flex items-center gap-1 text-[10px]" style={{ color: accent }}>
               <Loader2 size={11} className="animate-spin" />
-              {rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}
+              {isCancelling
+                ? '正在取消任务'
+                : (rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成'))}
               {taskId && <span className="ml-auto" style={{ color: subText }}>{String(taskId).slice(0, 10)}…</span>}
             </div>
           )}
+
+          {status === 'cancelled' && !isBusy ? (
+            <div className="text-[10px]" style={{ color: isLight ? '#92400e' : '#fde68a' }}>
+              {rhQueueHint || '任务已取消'}
+            </div>
+          ) : null}
 
           {error && (
             <div className="flex items-start gap-1 text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">

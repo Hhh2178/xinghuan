@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useNodeConnections, useNodesData, type NodeProps } from '@xyflow/react';
 import { AlertCircle, Loader2, Workflow, Wallet, Sparkles, Square, Search, RefreshCw } from 'lucide-react';
-import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset } from '../../services/generation';
+import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset, cancelGenerationTask } from '../../services/generation';
 import { buildRunningHubAppInfoFromCatalog, fetchRunningHubCatalog, type RunningHubCatalogItem } from '../../services/runninghubCatalog';
 import { buildRunningHubNodeSchema } from '../../utils/runninghubNodeSchema';
 import { useUpdateNodeData } from './useUpdateNodeData';
@@ -310,6 +310,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const hasAutoOutput = useHasAutoOutput(id);
   const [error, setError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const currentPollKeyRef = useRef<string | null>(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
   const [workflowCatalog, setWorkflowCatalog] = useState<RunningHubCatalogItem[]>([]);
@@ -332,7 +333,7 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const workflowPresetId: string = d?.rhWorkflowPresetId || '';
   const showManualRunTarget: boolean = d?.rhShowManualRunTarget === true;
   const instanceType: string = d?.instanceType || '';
-  const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
+  const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' | 'cancelled' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
   const rhProgress: string = d?.rhProgress || '';
   const rhQueueHint: string = d?.rhQueueHint || '';
@@ -1016,13 +1017,40 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     await handleRun();
   });
 
-  const handleStop = () => {
-    stopPoll();
-    update({ status: 'idle' });
-    logBus.warn('用户主动停止', src);
+  const handleStop = async () => {
+    if (isCancelling) return;
+    if (!taskId) {
+      stopPoll();
+      update({ status: 'idle', rhQueueHint: '已停止本地观察' });
+      logBus.warn('用户停止本地观察', src);
+      return;
+    }
+    setIsCancelling(true);
+    try {
+      const cancelled = await cancelGenerationTask({
+        taskId,
+        kind: 'external',
+        providerId: selectedWorkflowPreset?.providerId || 'runninghub',
+        providerModel: resolvedRunTargetId,
+      });
+      stopPoll(taskId);
+      update({
+        status: 'cancelled',
+        error: null,
+        rhProgress: '100%',
+        rhQueueHint: cancelled.message || '任务已取消',
+        ...emptyRhOutputState(),
+      });
+      logBus.warn(cancelled.message || '用户已取消任务', src);
+    } catch (e: any) {
+      setError(e?.message || '取消任务失败');
+      logBus.error(`取消失败: ${e?.message || e}`, src);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
-  const isBusy = status === 'submitting' || status === 'polling';
+  const isBusy = status === 'submitting' || status === 'polling' || isCancelling;
   const runningCount = isBusy ? 1 : 0;
   const successCount = status === 'success' ? 1 : 0;
   const failureCount = status === 'error' ? 1 : 0;
@@ -1443,17 +1471,25 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
             onClick={handleStop}
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-200 text-xs font-medium transition-colors"
           >
-            <Square size={11} /> 停止
+            <Square size={11} /> {taskId ? '取消任务' : '停止观察'}
           </button>
         )}
 
         {isBusy && (
           <div className={`flex items-center gap-1 text-[10px] ${accent.spin}`}>
             <Loader2 size={11} className="animate-spin" />
-            {rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}
+            {isCancelling
+              ? '正在取消任务'
+              : (rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成'))}
             {taskId && <span className="ml-auto text-white/30">{String(taskId).slice(0, 10)}…</span>}
           </div>
         )}
+
+        {status === 'cancelled' && !isBusy ? (
+          <div className="text-[10px] text-amber-200/85">
+            {rhQueueHint || '任务已取消'}
+          </div>
+        ) : null}
 
         {!isBusy && (
           <div className="text-[10px] text-white/45">
