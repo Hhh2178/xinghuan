@@ -3,7 +3,7 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.1`
-- 当前 release：`20260624-announcement-center-and-runninghub-queue-repair-gray-r1-v051`
+- 当前 release：`20260624-task-runtime-kernel-governance-gray-r1-v051`
 - 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
