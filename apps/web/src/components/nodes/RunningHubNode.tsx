@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, useNodeConnections, useNodesData, type NodeProps } from '@xyflow/react';
-import { AlertCircle, Loader2, Workflow, Wallet, Sparkles, Square, Search, RefreshCw } from 'lucide-react';
+import { AlertCircle, Loader2, Workflow, Wallet, Sparkles, Square } from 'lucide-react';
 import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset, cancelGenerationTask } from '../../services/generation';
 import { buildRunningHubAppInfoFromCatalog, fetchRunningHubCatalog, type RunningHubCatalogItem } from '../../services/runninghubCatalog';
 import { buildRunningHubNodeSchema } from '../../utils/runninghubNodeSchema';
@@ -9,10 +9,10 @@ import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
-import MaterialPreviewSection from './MaterialPreviewSection';
-import MentionPromptInput from './MentionPromptInput';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
+import RunningHubNodeConfigSection from './RunningHubNodeConfigSection';
+import RunningHubNodeParamSection from './RunningHubNodeParamSection';
 import {
   buildRhOutputStateFromUrls,
   countSchemaProperties,
@@ -32,15 +32,7 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
-import {
-  areRhParamValuesEqual,
-  applyRhTextBindings,
-  findMaterialById,
-  findRhTextMaterialForField,
-  normalizeRhNodeId,
-  rhParamKey,
-  type RhParamValue,
-} from '../../utils/rhTextBinding';
+import { areRhParamValuesEqual, applyRhTextBindings, rhParamKey, type RhParamValue } from '../../utils/rhTextBinding';
 
 /**
  * RunningHubNode - 主工作流节点
@@ -303,6 +295,23 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       paramValues: { ...paramValues, [k]: { ...cur, value, sourceFromUpstream: false, sourceMaterialId: '', sourceRhNodeId: '' } },
       paramMentions: { ...paramMentions, [k]: mentions },
     });
+  };
+
+  const handleSelectWorkflowPreset = (nextId: string) => {
+    if (!nextId) {
+      update({ rhWorkflowPresetId: '', appInfo: null, webappId: '' });
+      return;
+    }
+    const preset = workflowCatalog.find((item) => item.catalogId === nextId);
+    if (!preset) return;
+    update({
+      rhWorkflowPresetId: nextId,
+      webappId: preset.runTargetId,
+      appInfo: buildRunningHubAppInfoFromCatalog(preset),
+      paramValues: {},
+      paramMentions: {},
+    });
+    setError(null);
   };
 
   // 对于媒体类字段，随上游节点 url 变化同步回填：
@@ -868,340 +877,56 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       ) : null}
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
-        {/* 上游素材聚合预览区：文本 RH# 会联动下方 RH 参数，媒体仍按类型顺序自动分配。 */}
-        {(orderedTexts.length + orderedImages.length + orderedVideos.length + orderedAudios.length + excludedUpstreamCount) > 0 && (
-          <MaterialPreviewSection
-            texts={orderedTexts}
-            images={orderedImages}
-            videos={orderedVideos}
-            audios={orderedAudios}
-            order={materialOrder}
-            onReorder={setMaterialOrder}
-            onExcludeUpstream={handleExcludeUpstreamMaterial}
-            excludedCount={excludedUpstreamCount}
-            onRestoreExcluded={handleRestoreExcludedMaterials}
-            isDark={isDark}
-            isPixel={isPixel}
-            groups={['text', 'image', 'video', 'audio']}
-            title="通用输入 · 拖拽可调整顺序"
-          />
-        )}
-        <div>
-          <label className="text-[10px] text-white/50 block mb-1">后台条目</label>
-          <select
-            value={workflowPresetId}
-            onChange={(e) => {
-              const nextId = e.target.value;
-              if (!nextId) {
-                update({ rhWorkflowPresetId: '', appInfo: null, webappId: '' });
-                return;
-              }
-              const preset = workflowCatalog.find((item) => item.catalogId === nextId);
-              if (!preset) return;
-              update({
-                rhWorkflowPresetId: nextId,
-                webappId: preset.runTargetId,
-                appInfo: buildRunningHubAppInfoFromCatalog(preset),
-                paramValues: {},
-                paramMentions: {},
-              });
-              setError(null);
-            }}
-            className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-          >
-            <option value="">{catalogLoading ? '正在读取后台条目...' : '请选择后台已配置的 RH 条目'}</option>
-            {workflowCatalog.map((workflow) => (
-              <option key={workflow.catalogId} value={workflow.catalogId}>
-                {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
-              </option>
-            ))}
-          </select>
-          {selectedWorkflowPreset ? (
-            <div className={`mt-1 rounded border ${accent.subBg} px-2 py-1.5`}>
-              <div className="text-[11px] font-medium text-white/90 truncate">{selectedWorkflowPreset.title}</div>
-              <div className="mt-1 text-[10px] text-white/70">
-                {(selectedWorkflowPreset.taskCapability || 'video')} · 绑定 {schemaInputCount || selectedWorkflowPreset.fields.length} · Schema {selectedSchemaPropertyCount} · 输出 {schemaOutputCount}
-              </div>
-              {selectedWorkflowPreset.note ? (
-                <div className="mt-1 rounded border border-white/10 bg-black/20 px-2 py-1.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">备注</span>
-                  <div className="mt-1 text-[10px] leading-4 text-white/85 line-clamp-3">{selectedWorkflowPreset.note}</div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {selectedPresetHasNoResolvedFields ? (
-            <div className="mt-1 rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-4 text-amber-100/90">
-              {selectedSchemaPropertyCount > 0
-                ? `当前 RH 条目已定义 ${selectedSchemaPropertyCount} 个结构化参数，但还没有可执行的 RH 绑定字段。节点不会直接生成可提交表单，请先到后台 RH 工作台补齐 nodeId 和 fieldName。`
-                : '当前 RH 条目还没有可用的输入槽定义。节点无法自动展开参数区，请先到后台 RH 工作台补齐至少一个包含 nodeId 和 fieldName 的输入槽。'}
-            </div>
-          ) : null}
-          {selectedWorkflowPreset && selectedPresetAllowsEmptyInputs ? (
-            <div className="mt-1 rounded border border-emerald-400/30 bg-emerald-500/10 px-2 py-1.5 text-[10px] leading-4 text-emerald-100/90">
-              当前 RH 条目被标记为无入参工作流。参数区为空属于正常现象，可以直接运行。
-            </div>
-          ) : null}
-          {presetMixedStateError ? (
-            <div className="mt-1 rounded border border-rose-400/30 bg-rose-500/10 px-2 py-1.5 text-[10px] leading-4 text-rose-100/90">
-              {presetMixedStateError}
-            </div>
-          ) : null}
-          {!selectedWorkflowPreset && catalogError ? <div className="text-[10px] text-rose-300/80 mt-1">{catalogError}</div> : null}
-        </div>
-        <div className="rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
-          <div className="flex items-center justify-between gap-2 text-[10px] text-white/70">
-            <span>通用输入</span>
-            <span>{orderedTexts.length + orderedImages.length + orderedVideos.length + orderedAudios.length} 项</span>
-          </div>
-          <div className="mt-1 text-[10px] leading-4 text-white/40">
-            文本、图片、视频、音频统一从左侧一个输入口进入，再按后台条目的字段规则自动分配。
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 text-[10px] text-white/45">
-          <span>
-            文本 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'text').length}
-            {' '}· 图片 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'image').length}
-            {' '}· 视频 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'video').length}
-            {' '}· 音频 {currentNodeInfoList.filter((it: any) => inferValueType(it?.fieldType) === 'audio').length}
-          </span>
-          <button
-            type="button"
-            onClick={() => update({ rhShowManualRunTarget: !showManualRunTarget })}
-            className="text-[10px] text-cyan-200/80 hover:text-cyan-100 shrink-0"
-          >
-            {showManualRunTarget ? '收起高级' : '高级方式'}
-          </button>
-        </div>
-        {showManualRunTarget ? (
-        <div>
-          <label className="text-[10px] text-white/50 block mb-1">手动运行目标</label>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              value={webappId}
-              onChange={(e) => update({ webappId: e.target.value, rhWorkflowPresetId: '' })}
-              placeholder="仅在后台目录尚未配置时使用"
-              className="flex-1 rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30"
-            />
-            <button
-              onClick={handleFetchInfo}
-              disabled={fetchingInfo}
-              title="拉取运行目标信息"
-              className="px-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 disabled:opacity-50"
-            >
-              {fetchingInfo ? <Loader2 size={11} className="animate-spin" /> : <Search size={11} />}
-            </button>
-          </div>
-        </div>
-        ) : null}
+        <RunningHubNodeConfigSection
+          accent={accent}
+          isDark={isDark}
+          isPixel={isPixel}
+          workflowPresetId={workflowPresetId}
+          workflowCatalog={workflowCatalog}
+          catalogLoading={catalogLoading}
+          catalogError={catalogError}
+          selectedWorkflowPreset={selectedWorkflowPreset}
+          selectedSchemaPropertyCount={selectedSchemaPropertyCount}
+          schemaInputCount={schemaInputCount}
+          schemaOutputCount={schemaOutputCount}
+          selectedPresetHasNoResolvedFields={selectedPresetHasNoResolvedFields}
+          selectedPresetAllowsEmptyInputs={selectedPresetAllowsEmptyInputs}
+          presetMixedStateError={presetMixedStateError}
+          currentNodeInfoList={currentNodeInfoList}
+          orderedTexts={orderedTexts}
+          orderedImages={orderedImages}
+          orderedVideos={orderedVideos}
+          orderedAudios={orderedAudios}
+          excludedUpstreamCount={excludedUpstreamCount}
+          materialOrder={materialOrder}
+          showManualRunTarget={showManualRunTarget}
+          webappId={webappId}
+          fetchingInfo={fetchingInfo}
+          onReorderMaterials={setMaterialOrder}
+          onExcludeUpstreamMaterial={handleExcludeUpstreamMaterial}
+          onRestoreExcludedMaterials={handleRestoreExcludedMaterials}
+          onSelectWorkflowPreset={handleSelectWorkflowPreset}
+          onToggleManualRunTarget={() => update({ rhShowManualRunTarget: !showManualRunTarget })}
+          onChangeWebappId={(value) => update({ webappId: value, rhWorkflowPresetId: '' })}
+          onFetchInfo={() => {
+            void handleFetchInfo();
+          }}
+        />
 
-        {/* 参数表单：拉取 nodeInfoList 后逐条展开 */}
-        {/* nowheel: 阻止 xyflow 把滚轮事件接管成画布缩放，让节点内列表可滚动；nodrag: 鼠标按下不触发节点拖动 */}
-        {nodeInfoList.length > 0 && (
-          <div
-            className={`nowheel nodrag rounded border ${accent.subBg} p-2 space-y-2 max-h-[420px] overflow-auto overscroll-contain`}
-            onWheelCapture={(e) => e.stopPropagation()}
-          >
-            <div className={`text-[10px] ${accent.sub} flex items-center justify-between`}>
-              <span>参数 ({nodeInfoList.length})</span>
-              <span className="text-white/30">点击字段可编辑</span>
-            </div>
-            {nodeInfoList.map((it: any, i: number) => {
-              const vt = inferValueType(it?.fieldType);
-              const k = paramKey(it.nodeId, it.fieldName);
-              const cur = paramValues[k] || { value: extractDefaultValue(it) };
-              const isMedia = vt === 'image' || vt === 'video' || vt === 'audio';
-              const fieldDataOptions = extractFieldOptions(it);
-              const currentFieldDisplayLabel = fieldDisplayLabel(it);
-              return (
-                <div key={i} className="space-y-1 pb-2 border-b border-white/5 last:border-0 last:pb-0">
-                  <div className="flex items-center gap-1 text-[10px] leading-tight">
-                    <span className="text-white/80 font-medium truncate">{currentFieldDisplayLabel || it.fieldName}</span>
-                    <span className="text-white/20">|</span>
-                    <span className="text-cyan-300/60 px-1 rounded bg-cyan-500/10">
-                      {fieldDataOptions ? `select(${fieldDataOptions.length})` : vt}
-                    </span>
-                    <span className="text-white/20">|</span>
-                    <span className="text-white/30">#{it.nodeId}</span>
-                  </div>
-                  {isMedia ? (
-                    <>
-                      <div className="flex items-center justify-between text-[10px]">
-                        <label className="flex items-center gap-1 text-cyan-200/80 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!cur.sourceFromUpstream}
-                            onChange={(e) => setParam(k, { sourceFromUpstream: e.target.checked })}
-                            className="accent-cyan-400"
-                          />
-                          从上游自动获取
-                        </label>
-                        {cur.sourceFromUpstream && (
-                          <button
-                            onClick={() => {
-                              const u = findUpstreamUrl(vt, fieldKindIndex[k] ?? 0);
-                              if (u) setParam(k, { value: u });
-                            }}
-                            className="flex items-center gap-1 text-cyan-200/80 hover:text-cyan-100"
-                            title="重新同步上游 url"
-                          >
-                            <RefreshCw size={9} /> 同步
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={cur.value}
-                        onChange={(e) => setParam(k, { value: e.target.value })}
-                        placeholder={cur.sourceFromUpstream ? '(从上游自动填入)' : `${vt} url 或 fileName`}
-                        readOnly={!!cur.sourceFromUpstream}
-                        className={`w-full rounded border px-2 py-1 text-[11px] text-white outline-none placeholder:text-white/30 ${
-                          cur.sourceFromUpstream
-                            ? 'bg-cyan-500/10 border-cyan-500/30 cursor-not-allowed'
-                            : 'bg-white/5 border-white/10 focus:border-white/30'
-                        }`}
-                      />
-                      {/* 字段内联预览已迁到顶部 MaterialPreviewSection 统一展示（与 Image/Video/Audio 节点样式一致，支持多图 + 拖拽排序），
-                          这里不再重复渲染缩略图，仅保留输入框 + 从上游勾选按钮，避免与顶部预览区重复。 */}
-                    </>
-                  ) : fieldDataOptions ? (
-                    <select
-                      value={cur.value}
-                      onChange={(e) => setParam(k, { value: e.target.value })}
-                      className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-white/30"
-                    >
-                      {/* 当前值不在 options 里（用户手填/定制值）→ 保留一个“(当前) value”项避免丢失选中 */}
-                      {cur.value && !fieldDataOptions.some((o) => String(o) === String(cur.value)) && (
-                        <option value={String(cur.value)}>(当前) {String(cur.value)}</option>
-                      )}
-                      {!cur.value && <option value="">(选择)</option>}
-                      {fieldDataOptions.map((opt, oi) => (
-                        <option key={oi} value={String(opt)}>{String(opt)}</option>
-                      ))}
-                    </select>
-                  ) : vt === 'number' ? (
-                    <input
-                      type="number"
-                      value={cur.value}
-                      onChange={(e) => setParam(k, { value: e.target.value })}
-                      placeholder={extractDefaultValue(it)}
-                      className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-white/30 placeholder:text-white/30"
-                    />
-                  ) : (
-                    (() => {
-                      const selectedTextMaterial = findMaterialById(orderedTexts, cur.sourceMaterialId);
-                      const autoTextMatch = findRhTextMaterialForField(it, orderedTexts);
-                      const linkedTextMaterial = selectedTextMaterial || (autoTextMatch.status === 'matched' ? autoTextMatch.material || null : null);
-                      const isLinked = !!cur.sourceFromUpstream && !!linkedTextMaterial;
-                      const bindHint =
-                        autoTextMatch.status === 'conflict'
-                          ? `多个上游文本都填写了 RH#${normalizeRhNodeId(it.nodeId)}，请改成唯一 RH# 或手动选择。`
-                          : autoTextMatch.status === 'no-match'
-                            ? `给文本节点填写 RH#${normalizeRhNodeId(it.nodeId)} 后可自动绑定。`
-                            : isLinked
-                              ? `已绑定 ${linkedTextMaterial?.rhNodeId ? `RH#${linkedTextMaterial.rhNodeId}` : '手动选择的文本'}`
-                              : '可按文本节点 RH# 自动绑定，也可手动选择上游文本。';
-                      return (
-                        <>
-                          {orderedTexts.length > 0 && (
-                            <div className="rounded border border-white/10 bg-white/[0.03] px-2 py-1.5 space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-[10px]">
-                                <label className="flex items-center gap-1 text-cyan-200/80 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={!!cur.sourceFromUpstream}
-                                    onChange={(e) => {
-                                      if (!e.target.checked) {
-                                        setParam(k, { sourceFromUpstream: false, sourceMaterialId: '', sourceRhNodeId: '' });
-                                        return;
-                                      }
-                                      const fallback = linkedTextMaterial || (orderedTexts.length === 1 ? orderedTexts[0] : null);
-                                      if (fallback) {
-                                        setParam(k, {
-                                          value: fallback.url,
-                                          sourceFromUpstream: true,
-                                          sourceMaterialId: fallback.id,
-                                          sourceRhNodeId: normalizeRhNodeId(fallback.rhNodeId),
-                                        });
-                                      } else {
-                                        setParam(k, { sourceFromUpstream: true });
-                                      }
-                                    }}
-                                    className="accent-cyan-400"
-                                  />
-                                  从上游文本获取
-                                </label>
-                                {linkedTextMaterial && (
-                                  <button
-                                    onClick={() => setParam(k, {
-                                      value: linkedTextMaterial.url,
-                                      sourceFromUpstream: true,
-                                      sourceMaterialId: linkedTextMaterial.id,
-                                      sourceRhNodeId: normalizeRhNodeId(linkedTextMaterial.rhNodeId),
-                                    })}
-                                    className="flex items-center gap-1 text-cyan-200/80 hover:text-cyan-100"
-                                    title="重新同步上游文本"
-                                  >
-                                    <RefreshCw size={9} /> 同步
-                                  </button>
-                                )}
-                              </div>
-                              <select
-                                value={cur.sourceMaterialId || ''}
-                                onChange={(e) => {
-                                  const material = findMaterialById(orderedTexts, e.target.value);
-                                  if (!material) {
-                                    setParam(k, { sourceMaterialId: '', sourceRhNodeId: '', sourceFromUpstream: true });
-                                    return;
-                                  }
-                                  setParam(k, {
-                                    value: material.url,
-                                    sourceFromUpstream: true,
-                                    sourceMaterialId: material.id,
-                                    sourceRhNodeId: normalizeRhNodeId(material.rhNodeId),
-                                  });
-                                }}
-                                className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-[10px] text-white outline-none focus:border-white/30"
-                              >
-                                <option value="">按 RH# 自动匹配</option>
-                                {orderedTexts.map((material) => (
-                                  <option key={material.id} value={material.id}>
-                                    {material.rhNodeId ? `RH#${material.rhNodeId}` : '未填 RH#'} · {material.label || material.url.slice(0, 24)}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="text-[9px] text-white/35 leading-tight">{bindHint}</div>
-                            </div>
-                          )}
-                          {isLinked ? (
-                            <textarea
-                              value={cur.value}
-                              readOnly
-                              className="w-full min-h-14 resize-none rounded bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-[11px] text-white outline-none cursor-not-allowed"
-                              title="已从上游文本同步；取消勾选后可手动编辑"
-                            />
-                          ) : (
-                            <MentionPromptInput
-                              value={cur.value}
-                              mentions={getParamMentions(k)}
-                              materials={mentionMaterials}
-                              onChange={(value, mentions) => setTextParam(k, value, mentions)}
-                              placeholder={extractDefaultValue(it)}
-                              isDark={isDark}
-                              isPixel={isPixel}
-                              className="w-full min-h-14 resize-none rounded bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-white/30 placeholder:text-white/30"
-                            />
-                          )}
-                        </>
-                      );
-                    })()
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <RunningHubNodeParamSection
+          nodeInfoList={nodeInfoList}
+          accent={accent}
+          paramValues={paramValues}
+          orderedTexts={orderedTexts}
+          mentionMaterials={mentionMaterials}
+          fieldKindIndex={fieldKindIndex}
+          isDark={isDark}
+          isPixel={isPixel}
+          findUpstreamUrl={findUpstreamUrl}
+          setParam={setParam}
+          getParamMentions={getParamMentions}
+          setTextParam={setTextParam}
+        />
 
         <div>
           <label className="text-[10px] text-white/50 block mb-1">实例类型(可选)</label>
@@ -1279,3 +1004,4 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
 };
 
 export default memo(RunningHubNode);
+

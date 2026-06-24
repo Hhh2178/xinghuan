@@ -80,7 +80,11 @@
   - 新的 RH 交互需求继续叠加时，UI、状态、请求辅助逻辑会再次粘成单块
 - 当前进度：
   - `2026-06-24` 已将字段类型推断、options/defaultValue/displayLabel 提取、输出状态归一化、schema 计数、preset merge 与 remote nodeInfoList normalize 从主文件下沉到 `runninghubNodeHelpers.ts`
-  - 主文件行数已降到 `1282`
+  - `2026-06-24` 已将条目/配置区与参数区继续下沉到：
+    - `apps/web/src/components/nodes/RunningHubNodeConfigSection.tsx`
+    - `apps/web/src/components/nodes/RunningHubNodeParamSection.tsx`
+  - 已补齐 contract：`scripts/verify-runninghub-node-section-split-contract.mjs`
+  - 主文件行数已降到 `1282 -> 1008`
 
 ### `apps/admin/src/admin-runninghub-workspace.tsx`
 
@@ -206,6 +210,17 @@
     - `scripts/verify-api-settings-advanced-provider-panel-split-contract.mjs`
   - 主文件行数：`2435 -> 1736 -> 1440 -> 590`
   - 当前已退出 `1200+` watchlist，下一步建议继续拆 `save helpers / backup actions / revealed key flow`
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+  - `2026-06-24` 已按 `helpers -> config section -> param section` 三层继续下沉到：
+    - `runninghubNodeHelpers.ts`
+    - `RunningHubNodeConfigSection.tsx`
+    - `RunningHubNodeParamSection.tsx`
+  - 已补齐 contract：
+    - `scripts/verify-runninghub-node-helper-split-contract.mjs`
+    - `scripts/verify-runninghub-node-section-split-contract.mjs`
+    - `scripts/verify-runninghub-node-progress-contract.mjs`
+  - 主文件行数：`1526 -> 1282 -> 1008`
+  - 当前已退出 `1200+` watchlist，下一步建议继续拆 `runtime display / submit-poll service glue`
 
 ### 已在硬预算中的 1200+ 文件
 

@@ -137,6 +137,7 @@
     "verify:runninghub-analyze-contract": "node scripts/verify-runninghub-analyze-contract.mjs",
     "verify:runninghub-workflow-api": "node scripts/verify-runninghub-workflow-api.mjs",
     "verify:runninghub-node-helper-split-contract": "node scripts/verify-runninghub-node-helper-split-contract.mjs",
+    "verify:runninghub-node-section-split-contract": "node scripts/verify-runninghub-node-section-split-contract.mjs",
     "verify:rhtools-node-helper-split-contract": "node scripts/verify-rhtools-node-helper-split-contract.mjs",
     "verify:rhtools-node-section-split-contract": "node scripts/verify-rhtools-node-section-split-contract.mjs",
     "verify:rhtools-node-view-split-contract": "node scripts/verify-rhtools-node-view-split-contract.mjs",
