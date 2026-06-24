@@ -24,8 +24,8 @@
 import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Handle, Position, useNodeConnections, useNodesData, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
 import {
-  Sparkles, Search, Plus, Pencil, AlertCircle, Loader2,
-  Square, RefreshCw, ArrowLeft, Download, Upload,
+  Sparkles, Search, Plus, Pencil, Loader2,
+  Square, ArrowLeft, Download, Upload,
 } from 'lucide-react';
 import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset, cancelGenerationTask } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
@@ -34,8 +34,6 @@ import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
-import MentionPromptInput from './MentionPromptInput';
-import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useRHToolsSafe } from '../../providers/RHToolsProvider';
 import { useThemeStore } from '../../stores/theme';
@@ -50,9 +48,6 @@ import {
 import {
   areRhParamValuesEqual,
   applyRhTextBindings,
-  findMaterialById,
-  findRhTextMaterialForField,
-  normalizeRhNodeId,
   rhParamKey,
   type RhParamValue,
 } from '../../utils/rhTextBinding';
@@ -60,12 +55,12 @@ import {
   buildRhToolsOutputStateFromUrls,
   emptyRhToolsOutputState,
   extractRhToolsDefaultValue,
-  extractRhToolsFieldOptions,
   inferRhToolsValueType,
-  rhToolsFieldDisplayLabel,
 } from './rhToolsNodeHelpers';
 import ResizableCorners from './ResizableCorners';
 import RHToolEditorModal from './RHToolEditorModal';
+import RHToolsNodeParamSection from './RHToolsNodeParamSection';
+import RHToolsNodeRuntimeSection from './RHToolsNodeRuntimeSection';
 import type { RHTool, RHToolsBackup } from '../../services/api';
 
 const ALL = 'all';
@@ -822,20 +817,21 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
             </div>
           </div>
         </div>
-        {isBusy ? (
-          <div className="px-3 pt-2 shrink-0">
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: border }}>
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: rhProgress || (status === 'submitting' ? '5%' : '45%'), background: accent }}
-              />
-            </div>
-            <div className="mt-1 flex items-center justify-between text-[10px]" style={{ color: accent }}>
-              <span>{rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成')}</span>
-              <span>{rhProgress || (status === 'submitting' ? '5%' : '45%')}</span>
-            </div>
-          </div>
-        ) : null}
+        <RHToolsNodeRuntimeSection
+          isBusy={isBusy}
+          status={status}
+          rhProgress={rhProgress}
+          rhQueueHint={rhQueueHint}
+          taskId={taskId}
+          isCancelling={isCancelling}
+          error={error}
+          urls={urls}
+          hasAutoOutput={hasAutoOutput}
+          border={border}
+          accent={accent}
+          subText={subText}
+          isLight={isLight}
+        />
 
         {/* 滚动内容区（包含上游素材 + 参数表 + 实例类型 + 运行按钮）*/}
         <div
@@ -888,220 +884,27 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
           </div>
 
           {/* 参数表 */}
-          {nodeInfoList.length > 0 && (
-            <div
-              className="rounded p-2 space-y-2"
-              style={{
-                // 像素风下不填黄底, 让糖果调 surface 透出来, 与 RunningHubNode 体验一致
-                background: isPixel ? 'var(--px-muted)' : accentSoft,
-                border: `1px solid ${ringColor}`,
-              }}
-            >
-              <div className="text-[10px] flex items-center justify-between" style={{ color: accent }}>
-                <span>参数 ({nodeInfoList.length})</span>
-                <span style={{ color: subText }}>点击字段可编辑</span>
-              </div>
-              {nodeInfoList.map((it: any, i: number) => {
-                const vt = inferRhToolsValueType(it?.fieldType);
-                const k = paramKey(it.nodeId, it.fieldName);
-                const cur = paramValues[k] || { value: extractRhToolsDefaultValue(it) };
-                const isMedia = vt === 'image' || vt === 'video' || vt === 'audio';
-                const fieldDataOptions = extractRhToolsFieldOptions(it);
-                const currentFieldDisplayLabel = rhToolsFieldDisplayLabel(it);
-                return (
-                  <div key={i} className="space-y-1 pb-2 border-b last:border-0 last:pb-0" style={{ borderColor: border }}>
-                    <div className="flex items-center gap-1 text-[10px] leading-tight">
-                      <span className="font-medium truncate" style={{ color: text }}>{currentFieldDisplayLabel || it.fieldName}</span>
-                      <span style={{ color: subText, opacity: 0.4 }}>|</span>
-                      <span className="px-1 rounded" style={{ background: accentSoft, color: accent }}>
-                        {fieldDataOptions ? `select(${fieldDataOptions.length})` : vt}
-                      </span>
-                      <span style={{ color: subText, opacity: 0.4 }}>|</span>
-                      <span style={{ color: subText }}>#{it.nodeId}</span>
-                    </div>
-                    {isMedia ? (
-                      <>
-                        <div className="flex items-center justify-between text-[10px]">
-                          <label className="flex items-center gap-1 cursor-pointer" style={{ color: accent }}>
-                            <input
-                              type="checkbox"
-                              checked={!!cur.sourceFromUpstream}
-                              onChange={(e) => setParam(k, { sourceFromUpstream: e.target.checked })}
-                              style={{ accentColor: accent }}
-                            />
-                            从上游自动获取
-                          </label>
-                          {cur.sourceFromUpstream && (
-                            <button
-                              onClick={() => {
-                                const u = findUpstreamUrl(vt, fieldKindIndex[k] ?? 0);
-                                if (u) setParam(k, { value: u });
-                              }}
-                              className="flex items-center gap-1"
-                              style={{ color: accent }}
-                              title="重新同步上游 url"
-                            >
-                              <RefreshCw size={9} /> 同步
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="text"
-                          value={cur.value}
-                          onChange={(e) => setParam(k, { value: e.target.value })}
-                          placeholder={cur.sourceFromUpstream ? '(从上游自动填入)' : `${vt} url 或 fileName`}
-                          readOnly={!!cur.sourceFromUpstream}
-                          className="w-full rounded px-2 py-1 text-[11px] outline-none"
-                          style={{
-                            background: cur.sourceFromUpstream ? accentSoft : surface,
-                            color: text,
-                            border: `1px solid ${cur.sourceFromUpstream ? ringColor : border}`,
-                            cursor: cur.sourceFromUpstream ? 'not-allowed' : 'text',
-                          }}
-                        />
-                      </>
-                    ) : fieldDataOptions ? (
-                      <select
-                        value={cur.value}
-                        onChange={(e) => setParam(k, { value: e.target.value })}
-                        className="w-full rounded px-2 py-1 text-[11px] outline-none"
-                        style={{ background: surface, color: text, border: `1px solid ${border}` }}
-                      >
-                        {cur.value && !fieldDataOptions.some((o) => String(o) === String(cur.value)) && (
-                          <option value={String(cur.value)}>(当前) {String(cur.value)}</option>
-                        )}
-                        {!cur.value && <option value="">(选择)</option>}
-                        {fieldDataOptions.map((opt, oi) => (
-                          <option key={oi} value={String(opt)}>{String(opt)}</option>
-                        ))}
-                      </select>
-                    ) : vt === 'number' ? (
-                      <input
-                        type="number"
-                        value={cur.value}
-                        onChange={(e) => setParam(k, { value: e.target.value })}
-                        placeholder={extractRhToolsDefaultValue(it)}
-                        className="w-full rounded px-2 py-1 text-[11px] outline-none"
-                        style={{ background: surface, color: text, border: `1px solid ${border}` }}
-                      />
-                    ) : (
-                      (() => {
-                        const selectedTextMaterial = findMaterialById(orderedTexts, cur.sourceMaterialId);
-                        const autoTextMatch = findRhTextMaterialForField(it, orderedTexts);
-                        const linkedTextMaterial = selectedTextMaterial || (autoTextMatch.status === 'matched' ? autoTextMatch.material || null : null);
-                        const isLinked = !!cur.sourceFromUpstream && !!linkedTextMaterial;
-                        const bindHint =
-                          autoTextMatch.status === 'conflict'
-                            ? `多个上游文本都填写了 RH#${normalizeRhNodeId(it.nodeId)}，请改成唯一 RH# 或手动选择。`
-                            : autoTextMatch.status === 'no-match'
-                              ? `给文本节点填写 RH#${normalizeRhNodeId(it.nodeId)} 后可自动绑定。`
-                              : isLinked
-                                ? `已绑定 ${linkedTextMaterial?.rhNodeId ? `RH#${linkedTextMaterial.rhNodeId}` : '手动选择的文本'}`
-                                : '可按文本节点 RH# 自动绑定，也可手动选择上游文本。';
-                        return (
-                          <>
-                            {orderedTexts.length > 0 && (
-                              <div className="rounded px-2 py-1.5 space-y-1" style={{ background: surface, border: `1px solid ${border}` }}>
-                                <div className="flex items-center justify-between gap-2 text-[10px]">
-                                  <label className="flex items-center gap-1 cursor-pointer" style={{ color: accent }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={!!cur.sourceFromUpstream}
-                                      onChange={(e) => {
-                                        if (!e.target.checked) {
-                                          setParam(k, { sourceFromUpstream: false, sourceMaterialId: '', sourceRhNodeId: '' });
-                                          return;
-                                        }
-                                        const fallback = linkedTextMaterial || (orderedTexts.length === 1 ? orderedTexts[0] : null);
-                                        if (fallback) {
-                                          setParam(k, {
-                                            value: fallback.url,
-                                            sourceFromUpstream: true,
-                                            sourceMaterialId: fallback.id,
-                                            sourceRhNodeId: normalizeRhNodeId(fallback.rhNodeId),
-                                          });
-                                        } else {
-                                          setParam(k, { sourceFromUpstream: true });
-                                        }
-                                      }}
-                                      style={{ accentColor: accent }}
-                                    />
-                                    从上游文本获取
-                                  </label>
-                                  {linkedTextMaterial && (
-                                    <button
-                                      onClick={() => setParam(k, {
-                                        value: linkedTextMaterial.url,
-                                        sourceFromUpstream: true,
-                                        sourceMaterialId: linkedTextMaterial.id,
-                                        sourceRhNodeId: normalizeRhNodeId(linkedTextMaterial.rhNodeId),
-                                      })}
-                                      className="flex items-center gap-1"
-                                      style={{ color: accent }}
-                                      title="重新同步上游文本"
-                                    >
-                                      <RefreshCw size={9} /> 同步
-                                    </button>
-                                  )}
-                                </div>
-                                <select
-                                  value={cur.sourceMaterialId || ''}
-                                  onChange={(e) => {
-                                    const material = findMaterialById(orderedTexts, e.target.value);
-                                    if (!material) {
-                                      setParam(k, { sourceMaterialId: '', sourceRhNodeId: '', sourceFromUpstream: true });
-                                      return;
-                                    }
-                                    setParam(k, {
-                                      value: material.url,
-                                      sourceFromUpstream: true,
-                                      sourceMaterialId: material.id,
-                                      sourceRhNodeId: normalizeRhNodeId(material.rhNodeId),
-                                    });
-                                  }}
-                                  className="w-full rounded px-2 py-1 text-[10px] outline-none"
-                                  style={{ background: bg, color: text, border: `1px solid ${border}` }}
-                                >
-                                  <option value="">按 RH# 自动匹配</option>
-                                  {orderedTexts.map((material) => (
-                                    <option key={material.id} value={material.id}>
-                                      {material.rhNodeId ? `RH#${material.rhNodeId}` : '未填 RH#'} · {material.label || material.url.slice(0, 24)}
-                                    </option>
-                                  ))}
-                                </select>
-                                <div className="text-[9px] leading-tight" style={{ color: subText }}>{bindHint}</div>
-                              </div>
-                            )}
-                            {isLinked ? (
-                              <textarea
-                                value={cur.value}
-                                readOnly
-                                className="w-full min-h-14 resize-none rounded px-2 py-1 text-[11px] outline-none"
-                                style={{ background: accentSoft, color: text, border: `1px solid ${ringColor}`, cursor: 'not-allowed' }}
-                                title="已从上游文本同步；取消勾选后可手动编辑"
-                              />
-                            ) : (
-                              <MentionPromptInput
-                                value={cur.value}
-                                mentions={getParamMentions(k)}
-                                materials={mentionMaterials}
-                                onChange={(value, mentions) => setTextParam(k, value, mentions)}
-                                placeholder={extractRhToolsDefaultValue(it)}
-                                isDark={isDark}
-                                isPixel={isPixel}
-                                className="w-full min-h-14 resize-none rounded px-2 py-1 text-[11px] outline-none"
-                                style={{ background: surface, color: text, border: `1px solid ${border}` }}
-                              />
-                            )}
-                          </>
-                        );
-                      })()
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <RHToolsNodeParamSection
+            nodeInfoList={nodeInfoList}
+            paramValues={paramValues}
+            orderedTexts={orderedTexts}
+            mentionMaterials={mentionMaterials}
+            fieldKindIndex={fieldKindIndex}
+            accent={accent}
+            accentSoft={accentSoft}
+            border={border}
+            ringColor={ringColor}
+            surface={surface}
+            bg={bg}
+            text={text}
+            subText={subText}
+            isDark={isDark}
+            isPixel={isPixel}
+            findUpstreamUrl={findUpstreamUrl}
+            getParamMentions={getParamMentions}
+            setParam={setParam}
+            setTextParam={setTextParam}
+          />
 
           {/* 实例类型 select（与 RunningHubNode 一致） */}
           <div>
@@ -1140,43 +943,21 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
             </button>
           )}
 
-          {isBusy && (
-            <div className="flex items-center gap-1 text-[10px]" style={{ color: accent }}>
-              <Loader2 size={11} className="animate-spin" />
-              {isCancelling
-                ? '正在取消任务'
-                : (rhQueueHint || (status === 'submitting' ? '任务提交中' : '任务已提交，正在生成'))}
-              {taskId && <span className="ml-auto" style={{ color: subText }}>{String(taskId).slice(0, 10)}…</span>}
-            </div>
-          )}
-
-          {status === 'cancelled' && !isBusy ? (
-            <div className="text-[10px]" style={{ color: isLight ? '#92400e' : '#fde68a' }}>
-              {rhQueueHint || '任务已取消'}
-            </div>
-          ) : null}
-
-          {error && (
-            <div className="flex items-start gap-1 text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
-              <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />
-              <span className="break-all">{error}</span>
-            </div>
-          )}
-
-          {/* 节点内输出预览（仅在没有下游 OutputNode 时展示）*/}
-          {urls.length > 0 && !hasAutoOutput && (
-            <div className="space-y-1 pt-1" style={{ borderTop: `1px solid ${border}` }}>
-              {urls.map((u, i) => {
-                if (/\.(mp4|webm|mov|m4v|mkv)$/i.test(u)) {
-                  return <LoopingVideo key={i} src={u} controls className="w-full rounded" />;
-                }
-                if (/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u)) {
-                  return <audio key={i} src={u} controls className="w-full h-8" />;
-                }
-                return <img key={i} src={u} alt={`输出 ${i}`} className="w-full rounded object-cover" />;
-              })}
-            </div>
-          )}
+          <RHToolsNodeRuntimeSection
+            isBusy={isBusy}
+            status={status}
+            rhProgress={rhProgress}
+            rhQueueHint={rhQueueHint}
+            taskId={taskId}
+            isCancelling={isCancelling}
+            error={error}
+            urls={urls}
+            hasAutoOutput={hasAutoOutput}
+            border={border}
+            accent={accent}
+            subText={subText}
+            isLight={isLight}
+          />
         </div>
       </div>
     );

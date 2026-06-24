@@ -25,4 +25,4 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 
 - 继续把前台热点超级文件拆成 `sections / helpers / runtime hooks`
 - `ApiSettings.tsx` 已开始按 `Key sections / local paths / footer actions` 继续 section 化收口
-- `RHToolsNode.tsx` 已开始按 `field/output helpers -> runtime display -> param sections` 的顺序收口
+- `RHToolsNode.tsx` 已完成 `field/output helpers -> runtime display -> param sections` 两层收口，下一步继续考虑 `launcher shell / submit-poll service`
