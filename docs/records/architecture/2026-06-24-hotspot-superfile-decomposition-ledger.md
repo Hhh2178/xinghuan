@@ -159,21 +159,6 @@
 - `apps/web/src/components/nodes/VideoNode.tsx`
   - 状态：视频节点运行态、预览与参数逻辑混合
   - 下一步：拆 `runtime panel / param sections / output helpers`
-- `apps/web/src/components/nodes/RHToolsNode.tsx`
-  - 状态：已接近硬预算级别
-  - 下一步：参考 `RunningHubNode`，拆 `helper / runtime display / param sections`
-  - 当前进度：
-    - `2026-06-24` 已将字段类型推断、字段 options/defaultValue/displayLabel、输出状态归一化下沉到 `apps/web/src/components/nodes/rhToolsNodeHelpers.ts`
-    - 已补齐 contract：`scripts/verify-rhtools-node-helper-split-contract.mjs`
-    - `2026-06-24` 已将运行态显示区与参数编辑区继续下沉到：
-      - `apps/web/src/components/nodes/RHToolsNodeRuntimeSection.tsx`
-      - `apps/web/src/components/nodes/RHToolsNodeParamSection.tsx`
-    - 已补齐 contract：`scripts/verify-rhtools-node-section-split-contract.mjs`
-    - 主文件继续保留：
-      - 提交 / 轮询 / 取消运行链路
-      - 启动器 / 运行器双视图 UI
-      - webapp 信息刷新、实例类型与运行按钮编排
-    - 主文件行数已从 `1456` 继续降到 `1236`
 - `apps/web/src/components/nodes/LLMNode.tsx`
   - 状态：文本节点交互与运行态耦合
   - 下一步：拆 `prompt sections / runtime card / output display`
@@ -190,6 +175,19 @@
   - `2026-06-24` 已将 provider draft / assistant plan / input capability 等纯 helper 下沉到 `admin-api-settings-panel-helpers.ts`
   - 主文件行数：`1289 -> 1103`
   - 当前已退出 `1200+` watchlist，但后续仍建议继续拆 `provider groups / sections / save helpers`
+- `apps/web/src/components/nodes/RHToolsNode.tsx`
+  - `2026-06-24` 已按 `helpers -> sections -> view shells` 三层继续下沉到：
+    - `rhToolsNodeHelpers.ts`
+    - `RHToolsNodeParamSection.tsx`
+    - `RHToolsNodeRuntimeSection.tsx`
+    - `RHToolsNodeRunnerView.tsx`
+    - `RHToolsNodeLauncherView.tsx`
+  - 已补齐 contract：
+    - `scripts/verify-rhtools-node-helper-split-contract.mjs`
+    - `scripts/verify-rhtools-node-section-split-contract.mjs`
+    - `scripts/verify-rhtools-node-view-split-contract.mjs`
+  - 主文件行数：`1547 -> 1456 -> 1236 -> 870`
+  - 当前已退出 `1200+` watchlist，下一步建议继续拆 `submit/poll service` 与 `launcher interaction hooks`
 
 ### 已在硬预算中的 1200+ 文件
 

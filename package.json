@@ -137,6 +137,7 @@
     "verify:runninghub-node-helper-split-contract": "node scripts/verify-runninghub-node-helper-split-contract.mjs",
     "verify:rhtools-node-helper-split-contract": "node scripts/verify-rhtools-node-helper-split-contract.mjs",
     "verify:rhtools-node-section-split-contract": "node scripts/verify-rhtools-node-section-split-contract.mjs",
+    "verify:rhtools-node-view-split-contract": "node scripts/verify-rhtools-node-view-split-contract.mjs",
     "verify:runninghub-queue-governance-contract": "node scripts/verify-runninghub-queue-governance-contract.mjs",
     "verify:node-acceptance-matrix": "node scripts/verify-node-acceptance-matrix.mjs",
     "verify:postgres-canvas-resource-contract": "node scripts/verify-postgres-canvas-resource-contract.mjs",

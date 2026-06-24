@@ -22,19 +22,16 @@
  * 主题：useThemeStore（theme=dark/light + style=pixel/tech）
  */
 import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Handle, Position, useNodeConnections, useNodesData, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import {
-  Sparkles, Search, Plus, Pencil, Loader2,
-  Square, ArrowLeft, Download, Upload,
-} from 'lucide-react';
+import { useNodeConnections, useNodesData, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
 import { submitRh, queryRh, fetchRhAppInfo, uploadRhAsset, cancelGenerationTask } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
-import MaterialPreviewSection from './MaterialPreviewSection';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
+import RHToolsNodeLauncherView from './RHToolsNodeLauncherView';
+import RHToolsNodeRunnerView from './RHToolsNodeRunnerView';
 import { useRHToolsSafe } from '../../providers/RHToolsProvider';
 import { useThemeStore } from '../../stores/theme';
 import { logBus } from '../../stores/logs';
@@ -57,10 +54,6 @@ import {
   extractRhToolsDefaultValue,
   inferRhToolsValueType,
 } from './rhToolsNodeHelpers';
-import ResizableCorners from './ResizableCorners';
-import RHToolEditorModal from './RHToolEditorModal';
-import RHToolsNodeParamSection from './RHToolsNodeParamSection';
-import RHToolsNodeRuntimeSection from './RHToolsNodeRuntimeSection';
 import type { RHTool, RHToolsBackup } from '../../services/api';
 
 const ALL = 'all';
@@ -740,496 +733,136 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     return () => window.cancelAnimationFrame(raf);
   }, [id, updateNodeInternals, activeAppId, size.w, size.h, selected, status, searchVisible, appInfoFieldCount]);
 
-  // ===================== 渲染 =====================
-  // Handle 双侧（始终渲染，z-index 提升），通过绝对定位放在容器边缘，避免被内部 UI 遮挡。
-  const handleStyle = { zIndex: 10 } as const;
-
-  // ===== 运行器视图 =====
-  if (activeApp) {
-    return (
-      <div
-        className="t8-rh-tools-node relative rounded-xl shadow-lg flex flex-col"
-        style={{
-          background: bg,
-          color: text,
-          width: size.w,
-          height: size.h,
-          minWidth: 280,
-          minHeight: 360,
-          boxSizing: 'border-box',
-          border: `2px solid ${selected ? accent : ringColor}`,
-          // 允许 Handle 浮出容器边缘
-          overflow: 'visible',
-        }}
-      >
-        {/* Handle 必须在最外层、最先渲染，加 zIndex 保证悬浮在最上层 */}
-        <Handle type="target" position={Position.Left} className="!bg-cyan-400 !border-0" style={handleStyle} />
-        <Handle type="source" position={Position.Right} className="!bg-cyan-400 !border-0" style={handleStyle} />
-
-        <ResizableCorners
-          selected={selected}
-          minWidth={280}
-          minHeight={360}
-          accent={accent}
-          onResize={handleResize}
-        />
-
-        {/* 头部：返回 + 应用名 */}
-        <div className="flex items-center gap-2 px-3 py-2 shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
-          <button
-            onClick={() => {
-              stopPoll();
-              update({
-                rhToolsActiveAppId: '',
-                appInfo: null,
-                paramValues: {},
-                materialOrder: [],
-                instanceType: '',
-                status: 'idle',
-                taskId: '',
-                urls: [],
-                error: '',
-                rhCode: 0,
-                imageUrl: '',
-                videoUrl: '',
-                audioUrl: '',
-              });
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="p-1 rounded hover:opacity-80 nodrag"
-            title="返回应用列表"
-            style={{ color: subText }}
-          >
-            <ArrowLeft size={14} />
-          </button>
-          <div
-            className="flex items-center justify-center"
-            style={{ width: 24, height: 24, borderRadius: 6, background: accentSoft, color: accent }}
-          >
-            <Sparkles size={13} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold leading-tight truncate" style={{ color: text }}>
-              {activeApp.title}
-            </div>
-            <div className="text-[10px] truncate" style={{ color: subText }}>
-              {activeApp.description || `webappId: ${webappId}`}
-            </div>
-          </div>
-        </div>
-        <RHToolsNodeRuntimeSection
-          isBusy={isBusy}
-          status={status}
-          rhProgress={rhProgress}
-          rhQueueHint={rhQueueHint}
-          taskId={taskId}
-          isCancelling={isCancelling}
-          error={error}
-          urls={urls}
-          hasAutoOutput={hasAutoOutput}
-          border={border}
-          accent={accent}
-          subText={subText}
-          isLight={isLight}
-        />
-
-        {/* 滚动内容区（包含上游素材 + 参数表 + 实例类型 + 运行按钮）*/}
-        <div
-          className="flex-1 overflow-y-auto px-2.5 py-2 space-y-2 nowheel nodrag"
-          style={{ minHeight: 0 }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onWheelCapture={(e) => e.stopPropagation()}
-        >
-          {/* 上游素材聚合预览 */}
-          {(orderedTexts.length + orderedImages.length + orderedVideos.length + orderedAudios.length + excludedUpstreamCount) > 0 && (
-            <MaterialPreviewSection
-              texts={orderedTexts}
-              images={orderedImages}
-              videos={orderedVideos}
-              audios={orderedAudios}
-              order={materialOrder}
-              onReorder={setMaterialOrder}
-              onExcludeUpstream={handleExcludeUpstreamMaterial}
-              excludedCount={excludedUpstreamCount}
-              onRestoreExcluded={handleRestoreExcludedMaterials}
-              isDark={isDark}
-              isPixel={isPixel}
-              groups={['text', 'image', 'video', 'audio']}
-              title="上游素材 · 拖拽可调整顺序"
-            />
-          )}
-
-          {/* webappId 显示 + 重新拉取 */}
-          <div>
-            <label className="text-[10px] block mb-1" style={{ color: subText }}>Webapp ID</label>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={webappId}
-                readOnly
-                className="flex-1 rounded px-2 py-1 text-xs outline-none cursor-not-allowed"
-                style={{ background: surface, color: text, border: `1px solid ${border}` }}
-              />
-              <button
-                onClick={handleFetchInfo}
-                disabled={fetchingInfo}
-                title="重新拉取应用信息"
-                onMouseDown={(e) => e.stopPropagation()}
-                className="px-2 rounded disabled:opacity-50 nodrag"
-                style={{ background: surface, color: subText, border: `1px solid ${border}` }}
-              >
-                {fetchingInfo ? <Loader2 size={11} className="animate-spin" /> : <Search size={11} />}
-              </button>
-            </div>
-          </div>
-
-          {/* 参数表 */}
-          <RHToolsNodeParamSection
-            nodeInfoList={nodeInfoList}
-            paramValues={paramValues}
-            orderedTexts={orderedTexts}
-            mentionMaterials={mentionMaterials}
-            fieldKindIndex={fieldKindIndex}
-            accent={accent}
-            accentSoft={accentSoft}
-            border={border}
-            ringColor={ringColor}
-            surface={surface}
-            bg={bg}
-            text={text}
-            subText={subText}
-            isDark={isDark}
-            isPixel={isPixel}
-            findUpstreamUrl={findUpstreamUrl}
-            getParamMentions={getParamMentions}
-            setParam={setParam}
-            setTextParam={setTextParam}
-          />
-
-          {/* 实例类型 select（与 RunningHubNode 一致） */}
-          <div>
-            <label className="text-[10px] block mb-1" style={{ color: subText }}>实例类型(可选)</label>
-            <select
-              value={instanceType || ''}
-              onChange={(e) => update({ instanceType: e.target.value })}
-              className="w-full rounded px-2 py-1 text-xs outline-none"
-              style={{ background: surface, color: text, border: `1px solid ${border}` }}
-            >
-              <option value="">默认</option>
-              <option value="plus">plus</option>
-              <option value="pro">pro</option>
-            </select>
-          </div>
-
-          {!isBusy ? (
-            <button
-              onClick={handleRun}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium nodrag"
-              style={{ background: accentSoft, color: accent, border: `1px solid ${ringColor}` }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = isPixel ? 'var(--px-yellow)' : (isLight ? 'rgba(8,145,178,0.20)' : 'rgba(34,211,238,0.25)'))}
-              onMouseLeave={(e) => (e.currentTarget.style.background = accentSoft)}
-            >
-              <Sparkles size={12} /> 运行应用
-            </button>
-          ) : (
-            <button
-              onClick={handleStop}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium nodrag"
-              style={{ background: surface, color: text, border: `1px solid ${border}` }}
-            >
-              <Square size={11} /> {taskId ? '取消任务' : '停止观察'}
-            </button>
-          )}
-
-          <RHToolsNodeRuntimeSection
-            isBusy={isBusy}
-            status={status}
-            rhProgress={rhProgress}
-            rhQueueHint={rhQueueHint}
-            taskId={taskId}
-            isCancelling={isCancelling}
-            error={error}
-            urls={urls}
-            hasAutoOutput={hasAutoOutput}
-            border={border}
-            accent={accent}
-            subText={subText}
-            isLight={isLight}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // ===== 启动器视图 =====
-  return (
-    <div
-      className="t8-rh-tools-node relative rounded-xl flex flex-col shadow-lg"
-      style={{
-        background: bg,
-        color: text,
-        width: size.w,
-        height: size.h,
-        minWidth: 280,
-        minHeight: 320,
-        boxSizing: 'border-box',
-        border: `2px solid ${selected ? accent : ringColor}`,
-        // overflow visible 让 Handle 悬浮于边缘之外
-        overflow: 'visible',
+  return activeApp ? (
+    <RHToolsNodeRunnerView
+      activeApp={activeApp}
+      webappId={webappId}
+      selected={selected}
+      size={size}
+      accent={accent}
+      accentSoft={accentSoft}
+      ringColor={ringColor}
+      bg={bg}
+      surface={surface}
+      text={text}
+      subText={subText}
+      border={border}
+      isLight={isLight}
+      isDark={isDark}
+      isPixel={isPixel}
+      fetchingInfo={fetchingInfo}
+      instanceType={instanceType}
+      status={status}
+      taskId={taskId}
+      rhProgress={rhProgress}
+      rhQueueHint={rhQueueHint}
+      urls={urls}
+      error={error}
+      isBusy={isBusy}
+      isCancelling={isCancelling}
+      hasAutoOutput={hasAutoOutput}
+      nodeInfoList={nodeInfoList}
+      paramValues={paramValues}
+      fieldKindIndex={fieldKindIndex}
+      orderedTexts={orderedTexts}
+      orderedImages={orderedImages}
+      orderedVideos={orderedVideos}
+      orderedAudios={orderedAudios}
+      mentionMaterials={mentionMaterials}
+      excludedUpstreamCount={excludedUpstreamCount}
+      materialOrder={materialOrder}
+      onResize={handleResize}
+      onBack={() => {
+        stopPoll();
+        update({
+          rhToolsActiveAppId: '',
+          appInfo: null,
+          paramValues: {},
+          materialOrder: [],
+          instanceType: '',
+          status: 'idle',
+          taskId: '',
+          urls: [],
+          error: '',
+          rhCode: 0,
+          imageUrl: '',
+          videoUrl: '',
+          audioUrl: '',
+        });
       }}
-    >
-      {/* Handle 在最外层最前面，提供高 z-index */}
-      <Handle type="target" position={Position.Left} className="!bg-cyan-400 !border-0" style={handleStyle} />
-      <Handle type="source" position={Position.Right} className="!bg-cyan-400 !border-0" style={handleStyle} />
-
-      <ResizableCorners
-        selected={selected}
-        minWidth={280}
-        minHeight={320}
-        accent={accent}
-        onResize={handleResize}
-      />
-
-      {/* 内层裁切：把启动器内部圆角裁切而不影响 Handle */}
-      <div className="flex-1 flex flex-col rounded-xl overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Header */}
-        <div className="flex items-center gap-2 px-3 py-2 shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
-          <div
-            className="flex items-center justify-center"
-            style={{ width: 24, height: 24, borderRadius: 6, background: accentSoft, color: accent }}
-          >
-            <Sparkles size={13} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold leading-tight truncate">RH 超市</div>
-            <div className="text-[10px] truncate" style={{ color: subText }}>RunningHub 应用启动器</div>
-          </div>
-          <button
-            onClick={() => {
-              setSearchVisible((v) => {
-                const nv = !v;
-                if (nv) setTimeout(() => searchInputRef.current?.focus(), 0);
-                else update({ rhToolsSearchQuery: '' });
-                return nv;
-              });
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="p-1 rounded hover:opacity-80 nodrag"
-            title="搜索"
-            style={{ color: searchVisible ? accent : subText }}
-          >
-            <Search size={14} />
-          </button>
-        </div>
-
-        {searchVisible && (
-          <div className="px-3 py-2 shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
-            <input
-              ref={searchInputRef}
-              className="nodrag nowheel"
-              placeholder="搜索（支持中文/拼音首字母，如 hy）"
-              value={searchQuery}
-              onChange={(e) => update({ rhToolsSearchQuery: e.target.value })}
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                background: surface,
-                color: text,
-                border: `1px solid ${border}`,
-                borderRadius: 6,
-                padding: '4px 8px',
-                fontSize: 11,
-                outline: 'none',
-              }}
-            />
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-1.5 px-3 pt-2 shrink-0">
-          <button
-            onClick={() => setShowEditor(true)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 py-1.5 rounded text-xs nodrag flex items-center justify-center gap-1"
-            style={{ background: surface, color: text, border: `1px solid ${border}` }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = surfaceHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = surface)}
-          >
-            <Plus size={11} /> 增加
-          </button>
-          <button
-            onClick={() => setShowEditor(true)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 py-1.5 rounded text-xs nodrag flex items-center justify-center gap-1"
-            style={{ background: surface, color: text, border: `1px solid ${border}` }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = surfaceHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = surface)}
-          >
-            <Pencil size={11} /> 编辑
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5 px-3 py-2 shrink-0">
-          <button
-            onClick={handleExportBackup}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 py-1.5 rounded text-xs nodrag flex items-center justify-center gap-1"
-            style={{ background: surface, color: text, border: `1px solid ${border}` }}
-            title="导出 RH 超市 JSON"
-            onMouseEnter={(e) => (e.currentTarget.style.background = surfaceHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = surface)}
-          >
-            <Download size={11} /> 导出
-          </button>
-          <button
-            onClick={() => importInputRef.current?.click()}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 py-1.5 rounded text-xs nodrag flex items-center justify-center gap-1"
-            style={{ background: accent, color: '#fff', border: `1px solid ${accent}` }}
-            title="导入 RH 超市 JSON，会先提示确认"
-          >
-            <Upload size={11} /> 导入
-          </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={handleImportBackup}
-          />
-        </div>
-
-        {transferMsg && (
-          <div className="px-3 pb-2 shrink-0">
-            <div
-              className="text-[10px] px-2 py-1 rounded truncate"
-              title={transferMsg}
-              style={{
-                background: surface,
-                color: transferMsg.includes('失败') ? '#ef4444' : accent,
-                border: `1px solid ${border}`,
-              }}
-            >
-              {transferMsg}
-            </div>
-          </div>
-        )}
-
-        <div
-          className="flex gap-1 px-3 pb-2 overflow-x-auto shrink-0 nodrag nowheel"
-          style={{ scrollbarWidth: 'thin' }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {[{ id: ALL, name: '全部' }, { id: UNCATEGORIZED, name: '未分类' }, ...categories.map((c) => ({ id: c.id, name: c.name }))].map(
-            (c) => {
-              const active = activeCategoryId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => update({ rhToolsActiveCategoryId: c.id })}
-                  className="px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap nodrag"
-                  style={{
-                    background: active ? accent : surface,
-                    color: active ? '#fff' : subText,
-                    border: `1px solid ${active ? accent : border}`,
-                  }}
-                >
-                  {c.name}
-                </button>
-              );
-            },
-          )}
-        </div>
-
-        <div
-          className="flex-1 overflow-y-auto px-3 pb-2 nodrag nowheel"
-          style={{ minHeight: 0 }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {tools.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-[11px] text-center" style={{ color: subText }}>
-              暂无应用
-              <br />
-              点击「+ 增加」开始添加
-            </div>
-          ) : filteredTools.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-[11px]" style={{ color: subText }}>
-              无匹配结果
-            </div>
-          ) : (
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {filteredTools.map((t) => {
-                const isHover = hoveredId === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      // 选中应用：重置运行状态，等待自动拉取 nodeInfoList
-                      update({
-                        rhToolsActiveAppId: t.id,
-                        appInfo: null,
-                        paramValues: {},
-                        materialOrder: [],
-                        instanceType: '',
-                        status: 'idle',
-                        taskId: '',
-                        urls: [],
-                        error: '',
-                        rhCode: 0,
-                        imageUrl: '',
-                        videoUrl: '',
-                        audioUrl: '',
-                      });
-                    }}
-                    onMouseEnter={() => setHoveredId(t.id)}
-                    onMouseLeave={() => setHoveredId((prev) => (prev === t.id ? null : prev))}
-                    title={t.description || t.title}
-                    className="rounded text-xs px-2 py-1.5 text-center truncate nodrag"
-                    style={{
-                      background: isHover ? accent : surface,
-                      color: isHover ? '#fff' : text,
-                      border: `1px solid ${isHover ? accent : border}`,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    {t.title}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div
-          className="px-3 py-2 shrink-0"
-          style={{ borderTop: `1px solid ${border}`, minHeight: 44, background: surface }}
-        >
-          {previewApp ? (
-            <div>
-              <div className="text-[11px] font-medium truncate" style={{ color: accent }}>
-                ⚡ {previewApp.title}
-              </div>
-              <div className="text-[10px] mt-0.5 line-clamp-2" style={{ color: subText, lineHeight: 1.3 }}>
-                {previewApp.description || `webappId: ${previewApp.webappId}`}
-              </div>
-            </div>
-          ) : (
-            <div className="text-[10px]" style={{ color: subText }}>
-              悬停应用查看简介，点击启动 · 共 {tools.length} 个应用 / {categories.length} 个分类
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Editor Modal */}
-      <RHToolEditorModal
-        isOpen={showEditor}
-        onClose={() => setShowEditor(false)}
-        isLight={isLight}
-        defaultCategoryId={activeCategoryId}
-      />
-    </div>
+      onFetchInfo={handleFetchInfo}
+      onRun={handleRun}
+      onStop={handleStop}
+      onMaterialOrderChange={setMaterialOrder}
+      onExcludeUpstreamMaterial={handleExcludeUpstreamMaterial}
+      onRestoreExcludedMaterials={handleRestoreExcludedMaterials}
+      onInstanceTypeChange={(value) => update({ instanceType: value })}
+      findUpstreamUrl={findUpstreamUrl}
+      getParamMentions={getParamMentions}
+      setParam={setParam}
+      setTextParam={setTextParam}
+    />
+  ) : (
+    <RHToolsNodeLauncherView
+      selected={selected}
+      size={size}
+      accent={accent}
+      accentSoft={accentSoft}
+      ringColor={ringColor}
+      bg={bg}
+      surface={surface}
+      surfaceHover={surfaceHover}
+      text={text}
+      subText={subText}
+      border={border}
+      isLight={isLight}
+      activeCategoryId={activeCategoryId}
+      searchQuery={searchQuery}
+      searchVisible={searchVisible}
+      transferMsg={transferMsg}
+      categories={[{ id: ALL, name: '全部' }, { id: UNCATEGORIZED, name: '未分类' }, ...categories.map((category) => ({ id: category.id, name: category.name }))]}
+      tools={tools}
+      filteredTools={filteredTools}
+      hoveredId={hoveredId}
+      previewApp={previewApp}
+      showEditor={showEditor}
+      searchInputRef={searchInputRef}
+      importInputRef={importInputRef}
+      onResize={handleResize}
+      onToggleSearch={() => {
+        setSearchVisible((visible) => {
+          const next = !visible;
+          if (next) setTimeout(() => searchInputRef.current?.focus(), 0);
+          else update({ rhToolsSearchQuery: '' });
+          return next;
+        });
+      }}
+      onSearchChange={(value) => update({ rhToolsSearchQuery: value })}
+      onOpenEditor={() => setShowEditor(true)}
+      onExportBackup={handleExportBackup}
+      onTriggerImport={() => importInputRef.current?.click()}
+      onImportBackup={handleImportBackup}
+      onSelectCategory={(categoryId) => update({ rhToolsActiveCategoryId: categoryId })}
+      onSelectTool={(toolId) => {
+        update({
+          rhToolsActiveAppId: toolId,
+          appInfo: null,
+          paramValues: {},
+          materialOrder: [],
+          instanceType: '',
+          status: 'idle',
+          taskId: '',
+          urls: [],
+          error: '',
+          rhCode: 0,
+          imageUrl: '',
+          videoUrl: '',
+          audioUrl: '',
+        });
+      }}
+      onHoverTool={(toolId) => setHoveredId(toolId)}
+      onCloseEditor={() => setShowEditor(false)}
+    />
   );
 };
 
