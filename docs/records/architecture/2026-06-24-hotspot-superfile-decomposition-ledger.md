@@ -145,12 +145,16 @@
       - `ApiSettingsCloudTargetDetailPanel.tsx`
       - `ApiSettingsFormBlock.tsx`
     - 已补齐 contract：`scripts/verify-api-settings-detail-panel-split-contract.mjs`
+    - `2026-06-24` 已将 advanced provider detail panel 继续下沉到：
+      - `ApiSettingsAdvancedProviderDetailPanel.tsx`
+      - `ApiSettingsComfyWorkflowPanel.tsx`
+      - `ApiSettingsModelscopeLoraPanel.tsx`
+    - 已补齐 contract：`scripts/verify-api-settings-advanced-provider-panel-split-contract.mjs`
     - 主文件继续保留：
-      - `renderAdvancedProviderForm`
-      - `renderCloudTargetForm` 包装层
+      - `renderAdvancedProviderForm` / `renderCloudTargetForm` 包装层
       - 保存 / 导入 / 明文拉取等核心编排
     - 已补齐新的 section split contract：`scripts/verify-api-settings-section-split-contract.mjs`
-    - 主文件行数已从约 `2435` 降到 `1736 -> 1440`
+    - 主文件行数已从约 `2435` 降到 `1736 -> 1440 -> 590`
 - `apps/web/src/components/nodes/DrawingBoardNode.tsx`
   - 状态：绘制节点内部状态与渲染堆叠
   - 下一步：拆 `board interactions / toolbar sections / persistence helpers`
@@ -192,6 +196,16 @@
     - `scripts/verify-rhtools-node-view-split-contract.mjs`
   - 主文件行数：`1547 -> 1456 -> 1236 -> 870`
   - 当前已退出 `1200+` watchlist，下一步建议继续拆 `submit/poll service` 与 `launcher interaction hooks`
+- `apps/web/src/components/ApiSettings.tsx`
+  - `2026-06-24` 已按 `key sections -> outer sections -> cloud detail panel -> advanced provider detail panel` 四层继续下沉到：
+    - `ApiSettingsAdvancedProviderDetailPanel.tsx`
+    - `ApiSettingsComfyWorkflowPanel.tsx`
+    - `ApiSettingsModelscopeLoraPanel.tsx`
+  - 已补齐 contract：
+    - `scripts/verify-api-settings-detail-panel-split-contract.mjs`
+    - `scripts/verify-api-settings-advanced-provider-panel-split-contract.mjs`
+  - 主文件行数：`2435 -> 1736 -> 1440 -> 590`
+  - 当前已退出 `1200+` watchlist，下一步建议继续拆 `save helpers / backup actions / revealed key flow`
 
 ### 已在硬预算中的 1200+ 文件
 

@@ -24,9 +24,8 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 ## 当前重点
 
 - 继续把前台热点超级文件拆成 `sections / helpers / runtime hooks`
-- `ApiSettings.tsx` 已完成 `Key sections / local paths / footer actions / cloud target detail panel` 四层收口，下一步继续拆 `advanced provider detail form`
+- `ApiSettings.tsx` 已完成 `Key sections / local paths / footer actions / cloud target detail panel / advanced provider detail panel` 五层收口，并已退出 `1200+` watchlist
 - `RHToolsNode.tsx` 已完成 `helpers -> param/runtime sections -> runner/launcher view shells` 三层收口，并已退出 `1200+` watchlist
 - 下一批前台热点建议继续优先处理：
-  - `ApiSettings.tsx` 的 advanced provider detail form
   - `RunningHubNode.tsx` 的参数区 / 输出区
   - `Canvas.tsx` 的 runtime hooks / overlay panels

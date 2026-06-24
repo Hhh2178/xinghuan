@@ -124,6 +124,12 @@ export const MODELSCOPE_TOKEN_URLS = {
 
 export const JIMENG_CLI_INSTALL_COMMAND = 'curl -s https://jimeng.jianying.com/cli | bash';
 
+export interface AdvancedProviderComfyDraft {
+  workflowJson?: string;
+  fields?: string;
+  excludeRules?: string;
+}
+
 export const CLOUD_UPLOAD_LABELS: Record<CloudUploadProvider, string> = {
   'tencent-cos': '腾讯云 COS',
   'aliyun-oss': '阿里云 OSS',
