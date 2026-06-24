@@ -4,6 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.4.17`
 - 当前 release：`20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`

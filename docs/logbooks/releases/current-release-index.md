@@ -6,6 +6,7 @@
 
 - 版本：`v0.4.17`
 - release：`20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`
 - 历史运行态材料：

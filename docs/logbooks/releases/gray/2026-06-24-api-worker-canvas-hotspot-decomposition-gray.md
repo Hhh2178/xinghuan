@@ -59,11 +59,35 @@
 ## 本次实际放行证据
 
 - prepare：
-  - `待灰度执行后回填`
+  - `npm run release:gray:prepare:runninghub -- --release=20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+  - 归档包：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417.tar.gz`
+  - 包大小：`5.39 MB`
+  - 临时 staging：`C:\Users\Administrator\AppData\Local\Temp\xinghuan-release-lvEdEA`
 - deploy：
-  - `待灰度执行后回填`
+  - `npm run release:gray:deploy -- --release=20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417 --archive="D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417.tar.gz" --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem"`
 - verify：
-  - `待灰度执行后回填`
+  - `npm run release:gray:verify -- --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem" --expected-version=0.4.17 --expected-environment=gray`
+- 远端 current release：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+- 远端服务状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- 远端状态接口：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `http://127.0.0.1:18200/api/status`
+  - 两者均返回：
+    - `version = 0.4.17`
+    - `environment = gray`
+    - `dataDir = /opt/apps/xinghuan-canvas-next/shared/data`
+
+## 本轮额外说明
+
+- 第一次 gray prepare 不是构建失败，而是 release preset 里的两条 RH 契约脚本还在盯拆分前的文件边界：
+  - `scripts/verify-runninghub-draft-and-summary-contract.mjs`
+  - `scripts/verify-runninghub-output-reset-contract.mjs`
+- 已将两条契约同步到拆分后的真实落点，并单独提交：
+  - `3a5c1c6` `test: align runninghub release contracts after node split`
+- 当前结论：这次阻塞来自校验脚本漂移，不是 RunningHub 业务链路回退。
 
 ## 待用户验收
 

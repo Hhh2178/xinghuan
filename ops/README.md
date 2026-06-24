@@ -25,6 +25,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.4.17`
   - release：`20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+  - 状态：`2026-06-24 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
