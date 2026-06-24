@@ -13,6 +13,14 @@ const localPathsSource = await readFile(
   new URL("../apps/web/src/components/ApiSettingsLocalPathsSection.tsx", import.meta.url),
   "utf8",
 );
+const advancedProvidersSectionSource = await readFile(
+  new URL("../apps/web/src/components/ApiSettingsAdvancedProvidersSection.tsx", import.meta.url),
+  "utf8",
+);
+const cloudUploadSectionSource = await readFile(
+  new URL("../apps/web/src/components/ApiSettingsCloudUploadSection.tsx", import.meta.url),
+  "utf8",
+);
 const footerActionsSource = await readFile(
   new URL("../apps/web/src/components/ApiSettingsFooterActions.tsx", import.meta.url),
   "utf8",
@@ -33,6 +41,16 @@ assert.match(
   /from ['"]\.\/ApiSettingsFooterActions['"]/,
   "ApiSettings should import the extracted footer actions component",
 );
+assert.match(
+  apiSettingsSource,
+  /from ['"]\.\/ApiSettingsAdvancedProvidersSection['"]/,
+  "ApiSettings should import the extracted advanced providers section component",
+);
+assert.match(
+  apiSettingsSource,
+  /from ['"]\.\/ApiSettingsCloudUploadSection['"]/,
+  "ApiSettings should import the extracted cloud upload section component",
+);
 
 assert.match(
   keySectionsSource,
@@ -48,6 +66,16 @@ assert.match(
   footerActionsSource,
   /export default function ApiSettingsFooterActions\(/,
   "ApiSettingsFooterActions should export the split footer actions",
+);
+assert.match(
+  advancedProvidersSectionSource,
+  /export default function ApiSettingsAdvancedProvidersSection\(/,
+  "ApiSettingsAdvancedProvidersSection should export the split advanced providers section",
+);
+assert.match(
+  cloudUploadSectionSource,
+  /export default function ApiSettingsCloudUploadSection\(/,
+  "ApiSettingsCloudUploadSection should export the split cloud upload section",
 );
 
 assert.doesNotMatch(

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, CloudUpload, ExternalLink, FileUp, Info, KeyRound, Plus, TestTube2, Trash2, X, ServerCog } from 'lucide-react';
+import { ExternalLink, FileUp, Info, KeyRound, Plus, TestTube2, Trash2, X } from 'lucide-react';
 import { useApiKeysStore, FIXED_ZHENZHEN_BASE, RH_BASE } from '../stores/apiKeys';
 import { useThemeStore } from '../stores/theme';
 import type { AdvancedProviderConfig, ApiSettings, CloudUploadTargetConfig } from '../types/canvas';
@@ -35,6 +35,8 @@ import {
   tryParseJsonObject,
   type KeyField,
 } from './apiSettingsHelpers';
+import ApiSettingsAdvancedProvidersSection from './ApiSettingsAdvancedProvidersSection';
+import ApiSettingsCloudUploadSection from './ApiSettingsCloudUploadSection';
 import ApiSettingsFooterActions from './ApiSettingsFooterActions';
 import ApiSettingsKeySections from './ApiSettingsKeySections';
 import ApiSettingsLocalPathsSection from './ApiSettingsLocalPathsSection';
@@ -1673,168 +1675,29 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
             onToggleClassified={() => setClassifiedOpen((v) => !v)}
           />
 
-          {/* v1.8.x: 扩展 API 平台，高级可选 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              aria-expanded={advancedOpen}
-              data-open={advancedOpen}
-              className={
-                isPixel
-                  ? 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 px-btn'
-                  : 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition'
-              }
-            >
-              <ServerCog size={14} className="t8-api-settings-icon" />
-              <span className="text-xs font-bold shrink-0">扩展 API 平台【高级/可选】</span>
-              <span className={`hidden sm:inline text-[11px] ${hintCls}`}>给高级用户接入第三方平台，默认不影响主流程</span>
-              <span className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
-                <span
-                  className="t8-api-settings-badge px-1.5 py-0.5 text-[10px] rounded border"
-                  data-tone={advancedSummary.enabledCount > 0 ? 'success' : 'muted'}
-                >
-                  已启用 {advancedSummary.enabledCount}/{advancedProvidersInput.length || 5}
-                </span>
-                <span className={`text-[10px] ${hintCls}`}>密钥 {advancedSummary.configuredKeyCount}</span>
-              </span>
-              <span className={`flex items-center gap-1 text-[11px] ${hintCls}`}>
-                {advancedOpen ? '收起' : '展开'}
-                {advancedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-            </button>
-            {!advancedOpen && (
-              <div className={`text-[11px] mt-2 ${hintCls}`}>
-                未配置或未启用时不会影响贞贞工坊、RunningHub、LLM 独立 Key 等主流程。
-              </div>
-            )}
-            {advancedOpen && (
-              <div className="mt-3 space-y-3">
-                <div className={`text-[11px] leading-relaxed ${hintCls}`}>
-                  这里不是必填项。它只用于 ModelScope、火山引擎、本地 ComfyUI、即梦 CLI 和 OpenAI 兼容接口；平台开启后，还需要在具体节点的“高级来源”里选择它才会生效。
-                  当前状态：已启用 {advancedSummary.enabledCount} 个，已配置密钥 {advancedSummary.configuredKeyCount} 个，ComfyUI {advancedSummary.comfyuiConfigured ? '已填写地址' : '未填写地址'}，即梦 CLI {advancedSummary.jimengConfigured ? '已填写路径' : '未填写路径'}。
-                </div>
-                {advancedProvidersInput.length === 0 ? (
-                  <div className={`text-xs ${hintCls}`}>后端尚未返回扩展平台卡片，请先保存或刷新设置。</div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-3 items-start">
-                    <div className={`space-y-2 min-w-0 ${isPixel ? '' : 'lg:sticky lg:top-0'}`}>
-                      {advancedProvidersInput.map((provider) => (
-                        <button
-                          key={provider.id}
-                          type="button"
-                          onClick={() => setActiveAdvancedProviderId(provider.id)}
-                          data-active={activeAdvancedProvider?.id === provider.id}
-                          data-enabled={!!provider.enabled}
-                          className={
-                            isPixel
-                              ? 't8-api-settings-provider-card w-full !block text-left px-2 py-2 px-btn'
-                              : 't8-api-settings-provider-card w-full block text-left px-2 py-2 rounded-md border text-xs transition'
-                          }
-                        >
-                          <div className="flex items-center gap-2 min-w-0 w-full">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${provider.enabled ? 'bg-emerald-400' : 'bg-zinc-400'}`} />
-                            <span className="font-bold min-w-0 truncate">{ADVANCED_PROVIDER_LABELS[provider.protocol] || provider.label || provider.id}</span>
-                            <span className={`ml-auto text-[10px] shrink-0 ${provider.enabled ? 'text-emerald-500' : hintCls}`}>
-                              {provider.enabled ? '已启用' : '未启用'}
-                            </span>
-                          </div>
-                          <div className={`mt-1 text-[10px] leading-snug ${hintCls}`}>
-                            {ADVANCED_PROVIDER_GUIDES[provider.protocol]?.nodeScopes.join(' / ') || provider.protocol}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="min-w-0">
-                      {activeAdvancedProvider && renderAdvancedProviderForm(activeAdvancedProvider)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ApiSettingsAdvancedProvidersSection
+            open={advancedOpen}
+            isPixel={isPixel}
+            hintClassName={hintCls}
+            providers={advancedProvidersInput}
+            activeProviderId={activeAdvancedProvider?.id}
+            summary={advancedSummary}
+            detailPanel={activeAdvancedProvider ? renderAdvancedProviderForm(activeAdvancedProvider) : null}
+            onToggle={() => setAdvancedOpen((v) => !v)}
+            onSelectProvider={setActiveAdvancedProviderId}
+          />
 
-          {/* 云端上传目标：素材右键上传到 OSS/COS/网盘 */}
-          <div className="t8-api-settings-divider pt-3 border-t">
-            <button
-              type="button"
-              onClick={() => setCloudUploadOpen((v) => !v)}
-              aria-expanded={cloudUploadOpen}
-              data-open={cloudUploadOpen}
-              className={
-                isPixel
-                  ? 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 px-btn'
-                  : 't8-api-settings-toggle w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition'
-              }
-            >
-              <CloudUpload size={14} className="t8-api-settings-icon" />
-              <span className="text-xs font-bold shrink-0">云端上传目标【可选】</span>
-              <span className={`hidden sm:inline text-[11px] ${hintCls}`}>素材右键上传到对象存储或网盘，不影响主流程</span>
-              <span className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
-                <span
-                  className="t8-api-settings-badge px-1.5 py-0.5 text-[10px] rounded border"
-                  data-tone={cloudSummary.enabledCount > 0 ? 'success' : 'muted'}
-                >
-                  已启用 {cloudSummary.enabledCount}/{cloudSummary.totalCount || 4}
-                </span>
-                <span className={`text-[10px] ${hintCls}`}>已配置 {cloudSummary.configuredCount}</span>
-              </span>
-              <span className={`flex items-center gap-1 text-[11px] ${hintCls}`}>
-                {cloudUploadOpen ? '收起' : '展开'}
-                {cloudUploadOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-            </button>
-            {!cloudUploadOpen && (
-              <div className={`text-[11px] mt-2 ${hintCls}`}>
-                未启用时右键菜单不会出现云端上传目标；已启用后可把图像 / 视频 / 音频复制到外部存储。
-              </div>
-            )}
-            {cloudUploadOpen && (
-              <div className="mt-3 space-y-3">
-                <div className={`text-[11px] leading-relaxed ${hintCls}`}>
-                  这里用于外部归档与分享。第一版腾讯云 COS 和阿里云 OSS 支持真实上传；百度网盘和夸克网盘先保留配置位，等稳定授权或 CLI 方案接入后会复用同一个入口。
-                  {cloudSummary.defaultLabel ? ` 当前默认目标：${cloudSummary.defaultLabel}。` : ''}
-                </div>
-                {cloudUploadTargetsInput.length === 0 ? (
-                  <div className={`text-xs ${hintCls}`}>后端尚未返回云端上传目标，请先保存或刷新设置。</div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-3 items-start">
-                    <div className={`space-y-2 min-w-0 ${isPixel ? '' : 'lg:sticky lg:top-0'}`}>
-                      {cloudUploadTargetsInput.map((target) => (
-                        <button
-                          key={target.id}
-                          type="button"
-                          onClick={() => setActiveCloudTargetId(target.id)}
-                          data-active={activeCloudTarget?.id === target.id}
-                          data-enabled={!!target.enabled}
-                          className={
-                            isPixel
-                              ? 't8-api-settings-provider-card w-full !block text-left px-2 py-2 px-btn'
-                              : 't8-api-settings-provider-card w-full block text-left px-2 py-2 rounded-md border text-xs transition'
-                          }
-                        >
-                          <div className="flex items-center gap-2 min-w-0 w-full">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${target.enabled ? 'bg-emerald-400' : 'bg-zinc-400'}`} />
-                            <span className="font-bold min-w-0 truncate">{target.label || CLOUD_UPLOAD_LABELS[target.provider] || target.id}</span>
-                            <span className={`ml-auto text-[10px] shrink-0 ${target.enabled ? 'text-emerald-500' : hintCls}`}>
-                              {target.enabled ? '已启用' : '未启用'}
-                            </span>
-                          </div>
-                          <div className={`mt-1 text-[10px] leading-snug ${hintCls}`}>
-                            {CLOUD_UPLOAD_LABELS[target.provider] || target.provider}
-                            {target.isDefault ? ' · 默认' : ''}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="min-w-0">
-                      {activeCloudTarget && renderCloudTargetForm(activeCloudTarget)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ApiSettingsCloudUploadSection
+            open={cloudUploadOpen}
+            isPixel={isPixel}
+            hintClassName={hintCls}
+            targets={cloudUploadTargetsInput}
+            activeTargetId={activeCloudTarget?.id}
+            summary={cloudSummary}
+            detailPanel={activeCloudTarget ? renderCloudTargetForm(activeCloudTarget) : null}
+            onToggle={() => setCloudUploadOpen((v) => !v)}
+            onSelectTarget={setActiveCloudTargetId}
+          />
 
           <ApiSettingsLocalPathsSection
             fileSavePathInput={fileSavePathInput}

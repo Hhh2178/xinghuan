@@ -138,8 +138,15 @@
       - `ApiSettingsKeySections.tsx`
       - `ApiSettingsLocalPathsSection.tsx`
       - `ApiSettingsFooterActions.tsx`
+    - `2026-06-24` 已将高级平台区与云上传区的外层 section 壳继续下沉到：
+      - `ApiSettingsAdvancedProvidersSection.tsx`
+      - `ApiSettingsCloudUploadSection.tsx`
+    - 主文件继续保留：
+      - `renderAdvancedProviderForm`
+      - `renderCloudTargetForm`
+      - 保存 / 导入 / 明文拉取等核心编排
     - 已补齐新的 section split contract：`scripts/verify-api-settings-section-split-contract.mjs`
-    - 主文件行数已从约 `2435` 降到 `1873`
+    - 主文件行数已从约 `2435` 降到 `1736`
 - `apps/web/src/components/nodes/DrawingBoardNode.tsx`
   - 状态：绘制节点内部状态与渲染堆叠
   - 下一步：拆 `board interactions / toolbar sections / persistence helpers`

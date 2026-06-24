@@ -161,11 +161,18 @@
   - 新增并发或调度优先拆 `dispatch / queue`
   - 新增统一错误、取消、运行态逻辑优先拆 `diagnostics / cancel-sync`
   - 新增大型前端状态机优先拆 `hooks / sections / services`
+  - 大型前端页面或节点默认优先按这个顺序拆：
+    - `section shell`
+    - `detail panel`
+    - `helper / hook`
+    - `save / submit service`
+  - 如果当前任务已经落在 `1200+` watchlist 文件上，本轮默认至少要完成一层真实下沉，不能只补台账或只改预算
 - 当单文件已经同时承载三类以上职责时，本轮任务必须同步拆分或明确记录拆分计划，不能只继续追加实现。
 - 每轮准备提交或发布前，必须主动收口工作树：
   - 先看 `git status`
   - 再看本轮 `git diff --stat`
   - 无关改动、临时验证残留、重复脚本和半成品文档不得混入发布批次
+  - 如果 staged / unstaged 混杂且无法在本轮解释清楚归属，必须先拆分提交或暂停发布，不能带着“顺手混进去”的状态继续推进
 - 如果当前工作树很脏，但本轮只处理其中一部分，必须在台账或发布记录里明确“本轮实际归属改动范围”。
 - 当前已落成可执行护栏：
   - `npm run verify:no-runtime-artifacts-staged`
@@ -217,6 +224,10 @@
   - 或 `docs/superpowers/plans/`
   - 或 `docs/records/`
   里写明下一步拆分路线。
+- 对前端热点文件，下一步拆分路线不能只写抽象名词，至少要明确：
+  - 先拆哪一个 section
+  - 哪些逻辑继续留在主文件
+  - 下一层准备下沉到 `component / hook / helper / service` 的哪一种
 - 不允许长期依赖“只更新预算，不推进拆分”的方式维持工程健康。
 
 ## 版本治理规则
