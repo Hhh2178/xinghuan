@@ -4,8 +4,8 @@
 
 - 环境：`gray`
 - 版本：`v0.5.1`
-- 候选 release：`待定`
-- 当前状态：`本地验证完成，待清理工作树 + 分组提交 + gray deploy`
+- release：`20260624-announcement-center-and-runninghub-queue-repair-gray-r1-v051`
+- 当前状态：`已完成 gray deploy + runtime verify`
 
 ## 候选发布目标
 
@@ -92,7 +92,5 @@
 
 ## 下一步
 
-1. 清理工作树并分组提交
-2. `codegraph sync`
-3. 生成 gray release 名称并执行 gray deploy
-4. 用户做灰度人工验收
+1. 用户做灰度人工验收
+2. 根据灰度结果决定是否推进 production

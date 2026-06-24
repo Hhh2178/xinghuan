@@ -3,14 +3,13 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.1`
-- 当前 release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
-- 当前状态：`2026-06-24 待本轮 deploy + runtime verify`
-- 待发候选批次：
-  - `../../docs/logbooks/releases/gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
+- 当前 release：`20260624-announcement-center-and-runninghub-queue-repair-gray-r1-v051`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
+  - `../../docs/logbooks/releases/gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-api-settings-decomposition-gray.md`

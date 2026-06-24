@@ -5,11 +5,9 @@
 ### Gray
 
 - 版本：`v0.5.1`
-- release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
-- 当前状态：`2026-06-24 待本轮 deploy + runtime verify`
+- release：`20260624-announcement-center-and-runninghub-queue-repair-gray-r1-v051`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
-- 待下一次 gray 放行候选批次：
   - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
 - 历史运行态材料：
   - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
