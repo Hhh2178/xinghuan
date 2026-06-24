@@ -38,6 +38,7 @@
 
 - 治理规则看 `docs/governance/`
 - 热点文件怎么拆、每批怎么收口，看 `docs/governance/hotspot-decomposition-workflow.md`
+- 热点优先级与风险评分，看 `docs/governance/hotspot-risk-scorecard.md`
 - 系统知识看 `docs/systems/`
 - 长期记忆看 `docs/memory/`
 - 逐日台账与发布证据看 `docs/logbooks/`
@@ -58,6 +59,7 @@
 - `docs/governance/`：协作方式、CodeGraph 规则、归档政策。
 - `docs/governance/documentation-governance-standard.md`：当前正式文档治理规范。
 - `docs/governance/hotspot-decomposition-workflow.md`：热点文件拆分与工作树收口执行手册。
+- `docs/governance/hotspot-risk-scorecard.md`：热点优先级评分卡与双轨治理标准。
 - `docs/systems/`：按系统组织的知识入口。
 - `docs/memory/`：长期记忆主题目录。
 - `docs/logbooks/`：日常推进、发布、验证、事故记录目录。
@@ -168,6 +170,13 @@
     - `detail panel`
     - `helper / hook`
     - `save / submit service`
+  - `1200+` watchlist 现在只是报警线和入册线，不再单独决定拆分优先级
+  - 真实拆分顺序改按以下五个维度综合判断：
+    - 职责密度
+    - 变更耦合度
+    - 运行态风险
+    - 性能与渲染敏感度
+    - 可拆分成熟度
   - 如果当前任务已经落在 `1200+` watchlist 文件上，本轮默认至少要完成一层真实下沉，不能只补台账或只改预算
   - 热点拆分批次默认要满足四件事同时成立：
     - 一层真实代码下沉
@@ -227,6 +236,7 @@
 ## 超级文件后续规则
 
 - 热点预算不是终点，只是止血线；进入预算清单的文件必须在后续计划中写出拆分目标和落点。
+- 热点文件的真正优先级，不按纯行数排序，而按 `docs/governance/hotspot-risk-scorecard.md` 的综合评分排序。
 - 任何 `apps/`、`packages/`、`scripts/` 下达到 `1200+` 行的 `.ts` / `.tsx` / `.js` / `.mjs` source 文件，都必须进入：
   - `docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
 - 对这类 `1200+` 文件，至少要记录：
@@ -252,6 +262,7 @@
   - 哪些逻辑继续留在主文件
   - 下一层准备下沉到 `component / hook / helper / service` 的哪一种
 - 不允许长期依赖“只更新预算，不推进拆分”的方式维持工程健康。
+- 当前已完成主要收口的热点文件，默认不因为新评分规则出台而回头做大规模重拆；新规则主要用于剩余热点的后续排期和批次顺序。
 
 ## 版本治理规则
 

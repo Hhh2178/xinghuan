@@ -4,6 +4,8 @@
 
 这份台账用于记录当前仓库四个热点超级文件的职责、已拆分结果、下一步拆分方向与对应护栏，避免后续协作只看到“预算不能再涨”，却不知道应该把逻辑往哪里拆。
 
+从 `2026-06-24` 起，这份台账继续承担 `1200+` watchlist 的入册职责；但后续真正的拆分顺序，不再只按行数排序，而按 `docs/governance/hotspot-risk-scorecard.md` 的多维评分排序。
+
 ## 热点文件总表
 
 ### `apps/api/src/server.ts`
@@ -245,3 +247,142 @@
   - 哪些职责仍留在主文件
   - 下一步拆分目标是什么
 - 不允许长期只抬预算、不推进拆分。
+
+## 剩余热点优先级评分卡
+
+评分维度：
+
+- 职责密度
+- 变更耦合度
+- 运行态风险
+- 性能与渲染敏感度
+- 可拆分成熟度
+
+分值范围：`1-5`
+
+### 当前剩余热点排序
+
+1. `apps/worker/src/worker.ts`
+   - 分类：编排入口型
+   - 评分：
+     - 职责密度 `5`
+     - 变更耦合度 `5`
+     - 运行态风险 `5`
+     - 性能与渲染敏感度 `2`
+     - 可拆分成熟度 `5`
+   - 总分：`22`
+   - 下一步：`cancel-sync helper / diagnostics glue`
+
+2. `apps/api/src/server.ts`
+   - 分类：编排入口型
+   - 评分：
+     - 职责密度 `5`
+     - 变更耦合度 `5`
+     - 运行态风险 `5`
+     - 性能与渲染敏感度 `1`
+     - 可拆分成熟度 `5`
+   - 总分：`21`
+   - 下一步：`system settings / queue settings handlers / request-response adapter`
+
+3. `apps/web/src/components/Canvas.tsx`
+   - 分类：交互画布型
+   - 评分：
+     - 职责密度 `5`
+     - 变更耦合度 `4`
+     - 运行态风险 `4`
+     - 性能与渲染敏感度 `5`
+     - 可拆分成熟度 `3`
+   - 总分：`21`
+   - 下一步：`runtime hooks / interaction sections / overlay panels`
+
+4. `apps/web/src/components/nodes/PoseMasterNode.tsx`
+   - 分类：运行态节点型
+   - 评分：
+     - 职责密度 `5`
+     - 变更耦合度 `4`
+     - 运行态风险 `3`
+     - 性能与渲染敏感度 `4`
+     - 可拆分成熟度 `4`
+   - 总分：`20`
+   - 下一步：`field schema / preview sections / runtime actions`
+
+5. `apps/web/src/components/nodes/ToolboxParamNode.tsx`
+   - 分类：运行态节点型
+   - 评分：
+     - 职责密度 `5`
+     - 变更耦合度 `4`
+     - 运行态风险 `3`
+     - 性能与渲染敏感度 `4`
+     - 可拆分成熟度 `4`
+   - 总分：`20`
+   - 下一步：`param sections / material bindings / preview helpers`
+
+6. `apps/web/src/components/nodes/ImageEditModal.tsx`
+   - 分类：运行态节点型
+   - 总分：`17`
+   - 下一步：`tool sections / modal state hooks / action services`
+
+7. `apps/web/src/components/nodes/DrawingBoardNode.tsx`
+   - 分类：运行态节点型
+   - 总分：`17`
+   - 下一步：`board interactions / toolbar sections / persistence helpers`
+
+8. `apps/web/src/components/nodes/ImageNode.tsx`
+   - 分类：运行态节点型
+   - 总分：`16`
+   - 下一步：`upload section / preview section / action helpers`
+
+9. `apps/web/src/components/nodes/PortraitMasterNode.tsx`
+   - 分类：运行态节点型
+   - 总分：`16`
+   - 下一步：`preset sections / form helpers / output display`
+
+10. `apps/web/src/components/nodes/VideoNode.tsx`
+    - 分类：运行态节点型
+    - 总分：`16`
+    - 下一步：`runtime panel / param sections / output helpers`
+
+11. `apps/web/src/components/nodes/LLMNode.tsx`
+    - 分类：运行态节点型
+    - 总分：`15`
+    - 下一步：`prompt sections / runtime card / output display`
+
+12. `apps/web/src/components/nodes/OutputNode.tsx`
+    - 分类：运行态节点型
+    - 总分：`15`
+    - 下一步：`preview sections / export helpers / runtime summary`
+
+13. `apps/web/src/data/portraitMasterOptions.ts`
+    - 分类：静态数据型
+    - 总分：`11`
+    - 下一步：`theme / capability / registry split`
+
+### 当前后续批次顺序
+
+- 第一批：
+  - `apps/worker/src/worker.ts`
+  - `apps/api/src/server.ts`
+- 第二批：
+  - `apps/web/src/components/Canvas.tsx`
+  - `apps/web/src/components/nodes/PoseMasterNode.tsx`
+  - `apps/web/src/components/nodes/ToolboxParamNode.tsx`
+- 第三批：
+  - `apps/web/src/components/nodes/ImageEditModal.tsx`
+  - `apps/web/src/components/nodes/DrawingBoardNode.tsx`
+  - `apps/web/src/components/nodes/ImageNode.tsx`
+  - `apps/web/src/components/nodes/PortraitMasterNode.tsx`
+- 第四批：
+  - `apps/web/src/components/nodes/VideoNode.tsx`
+  - `apps/web/src/components/nodes/LLMNode.tsx`
+  - `apps/web/src/components/nodes/OutputNode.tsx`
+  - `apps/web/src/data/portraitMasterOptions.ts`
+
+### 暂不回头大改的已完成热点
+
+以下文件已完成主要收口，当前不因为新评分规则出台而回头做大规模重拆：
+
+- `apps/web/src/components/nodes/RunningHubNode.tsx`
+- `apps/web/src/components/nodes/RHToolsNode.tsx`
+- `apps/web/src/components/ApiSettings.tsx`
+- `apps/admin/src/admin-runninghub-workspace.tsx`
+- `apps/admin/src/admin-api-settings-panel.tsx`

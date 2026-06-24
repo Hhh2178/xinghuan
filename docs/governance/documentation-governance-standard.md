@@ -114,6 +114,15 @@
   - 对应脚本：
     - `npm run verify:hotspot-watchlist-contract`
   - 没有入册、没有下一步拆分方向的 `1200+` 文件，不允许默默留在仓库里继续增长
+- 从 `2026-06-24` 起，`1200+` 只作为报警线和入册线，不再单独决定拆分先后顺序。
+- 真正的拆分优先级改按以下五个维度综合判断：
+  - 职责密度
+  - 变更耦合度
+  - 运行态风险
+  - 性能与渲染敏感度
+  - 可拆分成熟度
+- 评分标准与分类治理见：
+  - `docs/governance/hotspot-risk-scorecard.md`
 - 当前还新增了一层提交前快检：
   - `.githooks/pre-commit`
   - `npm run verify:no-runtime-artifacts-staged`
@@ -145,6 +154,13 @@
   - `adapter / client`
   - `dispatch / queue`
   - `diagnostics / cancel-sync / runtime helper`
+- 对交互画布型热点，默认优先拆：
+  - `runtime hooks`
+  - `interaction sections`
+  - `overlay panels`
+  - `task/runtime subscriptions`
+- 对静态数据型热点，默认优先拆：
+  - `theme / capability / registry`
 - 如果本轮已经触碰 `1200+` watchlist 文件，默认至少完成一层真实下沉，不能只补说明不动代码。
 - 如果本轮已经完成真实下沉，台账或系统文档里必须写出：
   - 主文件剩余职责
@@ -153,6 +169,7 @@
 - 热点拆分的固定执行顺序、批次模板和 clean commit 口径，以：
   - `docs/governance/hotspot-decomposition-workflow.md`
   - 为当前配套执行手册
+- 已完成主要收口的热点文件，默认不因规则升级而回头做大规模重拆；新规则主要用于剩余热点的后续排期。
 
 ### 3. 工作树整洁规则
 

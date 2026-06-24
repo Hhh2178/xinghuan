@@ -20,6 +20,7 @@
 
 - `docs/governance/README.md`
 - `docs/governance/engineering-guardrails.md`
+- `docs/governance/hotspot-risk-scorecard.md`
 - `docs/governance/hotspot-decomposition-workflow.md`
 - `docs/governance/collaboration-and-workflow.md`
 - `docs/governance/codegraph-and-repo-navigation.md`

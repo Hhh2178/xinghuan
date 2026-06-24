@@ -6,6 +6,10 @@
 
 - `docs/governance/hotspot-decomposition-workflow.md`
 
+如果要看“哪些热点应优先拆、为什么不是只按行数拆”，配套评分规则见：
+
+- `docs/governance/hotspot-risk-scorecard.md`
+
 ## 当前热点预算
 
 以下文件被视为当前第一批热点入口，后续默认不允许继续增长：
@@ -61,6 +65,16 @@
 - `node scripts/verify-hotspot-watchlist-contract.mjs`
 
 这层护栏的目的不是“一刀切禁止所有大文件存在”，而是防止新的超级文件悄悄长出来却没有被记录、解释和纳入后续拆分计划。
+
+补充说明：
+
+- `1200+` 仍然是当前仓库的重要治理阈值
+- 但它现在只承担：
+  - 报警
+  - 入册
+  - 触发治理动作
+- 它不再单独决定热点的实际拆分顺序
+- 实际优先级由 `hotspot-risk-scorecard.md` 的多维评分决定
 
 对于前端热点文件，当前默认拆分顺序再明确一层：
 
