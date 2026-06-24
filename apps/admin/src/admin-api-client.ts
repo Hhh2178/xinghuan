@@ -81,3 +81,36 @@ export const adminRunningHubApi = {
   fetchRemoteAppInfo: (runTargetId: string) =>
     api<Record<string, unknown>>(`/api/proxy/runninghub/app-info?webappId=${encodeURIComponent(runTargetId)}`),
 };
+
+export const adminAnnouncementApi = {
+  listAnnouncements: () => api<import("./admin-types").AdminAnnouncementRecord[]>("/api/admin/announcements"),
+  createAnnouncement: (payload: import("./admin-types").AdminAnnouncementUpsertPayload) =>
+    api<import("./admin-types").AdminAnnouncementRecord>("/api/admin/announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateAnnouncement: (id: string, payload: import("./admin-types").AdminAnnouncementUpsertPayload) =>
+    api<import("./admin-types").AdminAnnouncementRecord>(`/api/admin/announcements/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  publishAnnouncement: (
+    id: string,
+    payload: { confirmTitle: string; confirmStrongReminder: boolean; confirmPinned: boolean },
+  ) =>
+    api<import("./admin-types").AdminAnnouncementRecord>(`/api/admin/announcements/${encodeURIComponent(id)}/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  archiveAnnouncement: (id: string) =>
+    api<import("./admin-types").AdminAnnouncementRecord>(`/api/admin/announcements/${encodeURIComponent(id)}/archive`, {
+      method: "POST",
+    }),
+  deleteAnnouncement: (id: string) =>
+    api<{ deleted: true; id: string }>(`/api/admin/announcements/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+};

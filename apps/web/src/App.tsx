@@ -4,6 +4,8 @@ import { useThemeStore } from './stores/theme';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
 import { useShortcutStore } from './stores/shortcuts';
+import { AnnouncementCenterDrawer } from './components/AnnouncementCenterDrawer';
+import { AnnouncementStrongReminderModal } from './components/AnnouncementStrongReminderModal';
 import LoginGate from './components/LoginGate';
 import StellarCursorAura from './components/StellarCursorAura';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -13,6 +15,7 @@ import * as api from './services/api';
 import brandStellarGlitchLogo from './assets/brand-stellar-glitch-logo.png';
 import type { NodeType } from './types/canvas';
 import type { AuthUser, GenerationLibraryItem, ResourceItem } from './services/api';
+import { useAnnouncements } from './hooks/useAnnouncements';
 import { applyThemeTemplate } from './theme/applyTheme';
 import { resolveThemeTemplate } from './theme/defaultTemplates';
 import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } from './utils/materialSet';
@@ -205,6 +208,7 @@ function App() {
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const previewMode = getDevPreviewMode();
+  const announcements = useAnnouncements(Boolean(currentUser));
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
   const addNodeRef = useRef<AddNodeFn | null>(null);
   const insertWorkflowRef = useRef<InsertWorkflowFn | null>(null);
@@ -217,6 +221,8 @@ function App() {
       if (!(target instanceof HTMLElement)) return;
       if (
         target.closest('.t8-topbar') ||
+        target.closest('.xh-announcement-drawer') ||
+        target.closest('.xh-announcement-modal') ||
         target.closest('.resource-library-drawer') ||
         target.closest('.generation-library-drawer') ||
         target.closest('[data-canvas-floating-ui]') ||
@@ -519,6 +525,14 @@ function App() {
             {currentUser.name}
           </span>
           <button
+            type="button"
+            onClick={announcements.openDrawer}
+            className="xh-announcement-trigger"
+            title="公告中心"
+          >
+            <BellBadge unreadCount={announcements.unreadCount} />
+          </button>
+          <button
             className="t8-icon-button"
             title="退出登录"
             type="button"
@@ -616,10 +630,39 @@ function App() {
         onClose={() => setGenerationLibraryOpen(false)}
         onInsertMaterial={handleInsertGeneration}
       />
+      <AnnouncementCenterDrawer
+        open={announcements.drawerOpen}
+        items={announcements.items}
+        unreadCount={announcements.unreadCount}
+        loading={announcements.loading}
+        error={announcements.error}
+        onClose={announcements.closeDrawer}
+        onMarkRead={async (id) => {
+          await announcements.markRead(id);
+        }}
+      />
+      <AnnouncementStrongReminderModal
+        announcement={announcements.strongReminder}
+        onAcknowledge={announcements.dismissStrongReminder}
+        onClose={announcements.dismissStrongReminder}
+        onViewDetail={async (id) => {
+          await announcements.dismissStrongReminder(id);
+          announcements.openDrawer();
+        }}
+      />
       <MaterialContextMenu />
     </div>
     </RHToolsProvider>
     </Suspense>
+  );
+}
+
+function BellBadge({ unreadCount }: { unreadCount: number }) {
+  return (
+    <>
+      <span className="xh-announcement-trigger__label">公告</span>
+      {unreadCount > 0 ? <span className="xh-announcement-badge">{unreadCount}</span> : null}
+    </>
   );
 }
 

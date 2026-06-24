@@ -2,7 +2,8 @@ import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-rea
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
-import { AdminApiError, api } from "./admin-api-client";
+import { adminAnnouncementApi, AdminApiError, api } from "./admin-api-client";
+import { AdminAnnouncementPanel } from "./admin-announcement-panel";
 import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
 import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
@@ -27,6 +28,7 @@ import type {
   ProviderRecord as ProviderRecordShape,
   RunningHubEntry,
   AssistantSettings as AssistantSettingsShape,
+  AdminAnnouncementRecord as AdminAnnouncementRecordShape,
   Summary as SummaryShape,
   SystemInfo as SystemInfoShape,
   TabId,
@@ -150,6 +152,7 @@ export interface TaskRecord {
 export interface TaskListPage extends TaskListPageShape {}
 
 export interface AssistantSettings extends AssistantSettingsShape {}
+export interface AdminAnnouncementRecord extends AdminAnnouncementRecordShape {}
 
 type AuditRecord = AuditRecordShape;
 type SystemInfo = SystemInfoShape;
@@ -233,6 +236,7 @@ function AdminApp() {
   });
   const [summary, setSummary] = useState<Summary | null>(null);
   const [assistantSettings, setAssistantSettings] = useState<AssistantSettings>(defaultAssistantSettings());
+  const [announcements, setAnnouncements] = useState<AdminAnnouncementRecordShape[]>([]);
   const [users, setUsers] = useState<AdminUserShape[]>([]);
   const [userGroups, setUserGroups] = useState<AdminUserGroupShape[]>([]);
   const [sessions, setSessions] = useState<AdminSessionRecordShape[]>([]);
@@ -300,6 +304,12 @@ function AdminApp() {
     }
   }
 
+  async function loadAnnouncements() {
+    if (!isAdmin) return;
+    const nextAnnouncements = await adminAnnouncementApi.listAnnouncements();
+    setAnnouncements(nextAnnouncements);
+  }
+
   async function loadTaskPage(page = taskPage.page, pageSize = taskPage.pageSize, filters = taskPage.filters) {
     if (!isAdmin) return;
     const nextTaskPage = await api<TaskListPage>(taskPagePath(page, pageSize, filters));
@@ -310,6 +320,7 @@ function AdminApp() {
     if (!isAdmin) return;
     void loadAdminData();
     void loadTaskPage();
+    void loadAnnouncements();
   }, [isAdmin]);
 
   useEffect(() => {
@@ -496,6 +507,74 @@ function AdminApp() {
                   } else {
                     setError(nextError instanceof Error ? nextError.message : String(nextError));
                   }
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          ) : null}
+          {activeTab === "announcement" ? (
+            <AdminAnnouncementPanel
+              items={announcements}
+              loading={busy && !announcements.length}
+              busy={busy}
+              onReload={loadAnnouncements}
+              onCreate={async (payload) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await adminAnnouncementApi.createAnnouncement(payload);
+                  await loadAnnouncements();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onUpdate={async (id, payload) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await adminAnnouncementApi.updateAnnouncement(id, payload);
+                  await loadAnnouncements();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onPublish={async (id, payload) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await adminAnnouncementApi.publishAnnouncement(id, payload);
+                  await loadAnnouncements();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onArchive={async (id) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await adminAnnouncementApi.archiveAnnouncement(id);
+                  await loadAnnouncements();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onDelete={async (id) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await adminAnnouncementApi.deleteAnnouncement(id);
+                  await loadAnnouncements();
+                } catch (nextError) {
+                  setError(nextError instanceof Error ? nextError.message : String(nextError));
                 } finally {
                   setBusy(false);
                 }

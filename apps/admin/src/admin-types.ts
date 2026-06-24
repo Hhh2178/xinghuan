@@ -1,5 +1,10 @@
 import { type AssistantChatResult as SharedAssistantChatResult, type AssistantMessageBlock, type ProviderGenerationExecutionMode, type TaskQueueSettings, type TaskStatus } from "@xinghuan/shared";
 import type {
+  AnnouncementPriority,
+  AnnouncementRecord,
+  AnnouncementScope,
+  AnnouncementStatus,
+  AnnouncementType,
   EnvironmentSyncProviderModelSummary,
   EnvironmentSyncApplyItem,
   EnvironmentSyncApplyRequest,
@@ -13,6 +18,13 @@ import type {
   EnvironmentSyncTarget,
 } from "@xinghuan/shared";
 import type { AdminTabId } from "./admin-view-model";
+
+export type {
+  AnnouncementPriority,
+  AnnouncementScope,
+  AnnouncementStatus,
+  AnnouncementType,
+};
 
 export type UserRole = "admin" | "member";
 export type Capability = "chat" | "image" | "video" | "audio";
@@ -116,6 +128,24 @@ export interface RunningHubKeyPoolItem {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface AdminAnnouncementUpsertPayload {
+  title: string;
+  summary: string;
+  content: string;
+  type: AnnouncementType;
+  priority: AnnouncementPriority;
+  status?: AnnouncementStatus;
+  scope: AnnouncementScope;
+  pinned: boolean;
+  strongReminder: boolean;
+  popupEnabled: boolean;
+  versionTag?: string;
+  publishedAt?: number;
+  expireAt?: number;
+}
+
+export interface AdminAnnouncementRecord extends AnnouncementRecord {}
 
 export interface RunningHubEntry {
   id: string;

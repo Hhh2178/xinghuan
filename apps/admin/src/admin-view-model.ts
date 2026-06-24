@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bell,
   Bot,
   Combine,
   KeyRound,
@@ -18,6 +19,7 @@ export type AdminTabId =
   | "providers"
   | "runninghub-workspace"
   | "assistant"
+  | "announcement"
   | "tasks"
   | "audit"
   | "system"
@@ -31,6 +33,7 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
   { id: "providers", label: "API 设置", icon: KeyRound },
   { id: "runninghub-workspace", label: "RH 工作台", icon: PanelsTopLeft },
   { id: "assistant", label: "AI 助手", icon: Bot },
+  { id: "announcement", label: "公告", icon: Bell },
   { id: "tasks", label: "任务", icon: Activity },
   { id: "audit", label: "审计", icon: ScrollText },
   { id: "system", label: "系统", icon: ServerCog },

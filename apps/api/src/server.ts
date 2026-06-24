@@ -1,6 +1,7 @@
 import {
   parseAssistantMessageBlocks,
   type AssistantChatResult,
+  type AnnouncementRecord,
   TASK_QUEUE_CAPABILITIES,
   buildTaskQueueRuntimeDescriptors,
   createHealthPayload,
@@ -120,8 +121,12 @@ import {
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
+import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
+import { createAnnouncementStore } from "./announcement-store.js";
+import { broadcastAnnouncement } from "./announcement-sse.js";
+import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -591,6 +596,7 @@ interface AdminDb {
   providers: AdminProviderRecord[];
   models: AdminModelRecord[];
   tasks: AdminTaskRecord[];
+  announcements?: import("@xinghuan/shared").AnnouncementRecord[];
   auditLogs?: AdminAuditRecord[];
   assistantSettings?: AssistantSettingsRecord;
   taskQueueSettings?: TaskQueueSettings;
@@ -848,6 +854,14 @@ function sanitizeCanvasNodes(nodes: unknown[]): unknown[] {
 
 function sanitizeAdminDbVisibleText(db: AdminDb): { db: AdminDb; changed: boolean } {
   let changed = false;
+  const announcements = (db.announcements || []).map((announcement) => {
+    const title = sanitizeVisibleSeedText(announcement.title);
+    const summary = sanitizeVisibleSeedText(announcement.summary);
+    const content = sanitizeVisibleSeedText(announcement.content);
+    if (title === announcement.title && summary === announcement.summary && content === announcement.content) return announcement;
+    changed = true;
+    return { ...announcement, title, summary, content };
+  });
   const providers = db.providers.map((provider) => {
     const name = sanitizeVisibleSeedText(provider.name);
     const note = provider.note ? sanitizeVisibleSeedText(provider.note) : provider.note;
@@ -874,7 +888,7 @@ function sanitizeAdminDbVisibleText(db: AdminDb): { db: AdminDb; changed: boolea
     return { ...record, summary };
   });
   return {
-    db: changed ? { ...db, providers, models, tasks, auditLogs } : db,
+    db: changed ? { ...db, announcements, providers, models, tasks, auditLogs } : db,
     changed,
   };
 }
@@ -893,6 +907,33 @@ const materialAccessService = createMaterialAccessService({
   requestPublicOrigin,
   userDataDirs: (user) => userDataDirsForId(user.id),
 });
+
+async function readAnnouncementRecords() {
+  const db = await readAdminDb();
+  return Array.isArray(db.announcements) ? db.announcements : [];
+}
+
+async function writeAnnouncementRecords(announcements: AnnouncementRecord[]) {
+  const db = await readAdminDb();
+  await writeAdminDb({
+    ...db,
+    announcements,
+  }, {
+    allowPostgresFullReplace: true,
+    reason: "announcement.write",
+  });
+}
+
+const announcementStore = createAnnouncementStore({
+  usePostgresRepository,
+  getPostgresPool,
+  readAnnouncements: readAnnouncementRecords,
+  writeAnnouncements: writeAnnouncementRecords,
+  safeText,
+  millisToDate,
+  dateToMillis,
+});
+const announcementPublicStreamPath = "/api/announcements/stream";
 
 await ensureRuntimeDatabaseTarget("xinghuan-api");
 
@@ -1089,6 +1130,19 @@ version: "0.5.1",
     if (url.pathname === "/api/assistant/settings" && request.method === "GET") {
       const adminDb = await readAdminDb();
       sendT8(response, toPublicAssistantSettings(adminDb.assistantSettings || defaultAssistantSettings()));
+      return;
+    }
+
+    if (currentUser && announcementPublicStreamPath && await handlePublicAnnouncementRoutes({
+      request,
+      response,
+      url,
+      currentUser,
+      deps: {
+        sendT8,
+        announcementStore,
+      },
+    })) {
       return;
     }
 
@@ -2059,6 +2113,22 @@ async function handleAdminRequest(
       deleteAdminRunningHubCatalogItem,
       testAdminRunningHubCatalogItem,
       analyzeRunningHubCatalogDraft,
+    },
+  })) {
+    return true;
+  }
+
+  if (await handleAdminAnnouncementRoutes({
+    request,
+    response,
+    url,
+    adminUser,
+    requestContext,
+    deps: {
+      sendT8,
+      appendAudit,
+      announcementStore,
+      broadcastAnnouncement,
     },
   })) {
     return true;
@@ -3916,6 +3986,7 @@ async function readAdminDb(): Promise<AdminDb> {
       })
     : [];
   const normalizedDb = {
+    announcements: Array.isArray(db.announcements) ? db.announcements : [],
     providers,
     models: Array.isArray(db.models) ? db.models.map((model) => normalizeAdminModelRecord(model)) : [],
     tasks: Array.isArray(db.tasks) ? db.tasks : [],
@@ -6078,6 +6149,7 @@ async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskLi
 function defaultAdminDb(): AdminDb {
   const now = Date.now();
   return {
+    announcements: [],
     providers: [
       {
         id: "modelscope",
