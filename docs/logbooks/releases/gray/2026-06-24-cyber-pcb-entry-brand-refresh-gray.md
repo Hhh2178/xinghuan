@@ -4,14 +4,14 @@
 
 - 将无限画布 2.0 的登录页、启动过渡页、空画布等待页和工作区左上品牌区统一切换到新的 Cyber PCB 视觉语言。
 - 保持现有登录、鉴权、创建画布和工作区加载链路不变，只替换前端视觉壳层、共享样式和品牌资源。
-- 以新版本 `v0.4.18` 完成一轮 gray 放行，交由用户执行真实页面观感与交互体验验收。
+- 以新版本 `v0.5.1` 完成一轮 gray 放行，交由用户执行真实页面观感与交互体验验收。
 
 ## 发布信息
 
 - 环境：`gray`
-- 版本：`v0.4.18`
-- release：`20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
-- 上一灰度 release：`20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+- 版本：`v0.5.1`
+- release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
+- 上一灰度 release：`20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
 
 ## Agent 已验证
 
@@ -41,16 +41,16 @@
 ## 本次实际放行证据
 
 - prepare：
-  - `npm run release:gray:prepare:runninghub -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
-  - 归档包：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418.tar.gz`
+  - `npm run release:gray:prepare:runninghub -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
+  - 归档包：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051.tar.gz`
   - 包大小：`5.49 MB`
   - 临时 staging：`C:\Users\Administrator\AppData\Local\Temp\xinghuan-release-mJ1W6k`
 - deploy：
-  - `npm run release:gray:deploy -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418 --archive="D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418.tar.gz" --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem"`
+  - `npm run release:gray:deploy -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051 --archive="D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051.tar.gz" --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem"`
 - verify：
-  - `npm run release:gray:verify -- --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem" --expected-version=0.4.18 --expected-environment=gray`
+  - `npm run release:gray:verify -- --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem" --expected-version=0.5.1 --expected-environment=gray`
 - 远端 current release：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
 - 远端服务状态：
   - `xinghuan-canvas-next.service = active`
   - `xinghuan-canvas-next-worker.service = active`
@@ -58,7 +58,7 @@
   - `https://canvas-next.hhh2121.xyz/api/status`
   - `http://127.0.0.1:18200/api/status`
   - 两者均返回：
-    - `version = 0.4.18`
+    - `version = 0.5.1`
     - `environment = gray`
     - `dataDir = /opt/apps/xinghuan-canvas-next/shared/data`
 
@@ -85,7 +85,7 @@
 ## 回滚信息
 
 - `current` 回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
 - 需要重启的服务：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

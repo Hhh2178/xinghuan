@@ -7,6 +7,8 @@ import { useShortcutStore } from './stores/shortcuts';
 import LoginGate from './components/LoginGate';
 import StellarCursorAura from './components/StellarCursorAura';
 import ErrorBoundary from './components/ErrorBoundary';
+import CyberTransitionStage from './components/CyberTransitionStage';
+import EmptyCanvasPreviewShell from './components/EmptyCanvasPreviewShell';
 import * as api from './services/api';
 import brandStellarGlitchLogo from './assets/brand-stellar-glitch-logo.png';
 import type { NodeType } from './types/canvas';
@@ -57,6 +59,12 @@ function isShortcutTypingTarget(target: EventTarget | null): boolean {
 
 function safePortraitLanguage(value: unknown): PortraitLanguage {
   return value === 'zh' ? 'zh' : 'en';
+}
+
+function getDevPreviewMode(): 'login' | 'transition' | 'empty-canvas' | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('preview');
+  return raw === 'login' || raw === 'transition' || raw === 'empty-canvas' ? raw : null;
 }
 
 function WorkspaceShellFallback() {
@@ -185,6 +193,7 @@ function App() {
   const { load: loadSettings } = useApiKeysStore();
   const { load: loadModelCatalog } = useModelCatalogStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
+  const [bootSplashVisible, setBootSplashVisible] = useState(true);
   const currentTemplate = useMemo(
     () => resolveThemeTemplate(templateId, customTemplates),
     [templateId, customTemplates],
@@ -195,6 +204,7 @@ function App() {
   const [resourceOpen, setResourceOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
+  const previewMode = getDevPreviewMode();
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
   const addNodeRef = useRef<AddNodeFn | null>(null);
   const insertWorkflowRef = useRef<InsertWorkflowFn | null>(null);
@@ -290,6 +300,7 @@ function App() {
 
   useEffect(() => {
     let alive = true;
+    const startedAt = Date.now();
     api.getCurrentUser()
       .then((user) => {
         if (alive) setCurrentUser(user);
@@ -298,7 +309,14 @@ function App() {
         if (alive) setCurrentUser(null);
       })
       .finally(() => {
-        if (alive) setAuthStatus('ready');
+        const remain = Math.max(0, 850 - (Date.now() - startedAt));
+        window.setTimeout(() => {
+          if (!alive) return;
+          setAuthStatus('ready');
+          window.setTimeout(() => {
+            if (alive) setBootSplashVisible(false);
+          }, 140);
+        }, remain);
       });
     return () => {
       alive = false;
@@ -412,44 +430,20 @@ function App() {
     setCurrentUser(null);
   };
 
-  if (authStatus === 'checking') {
-    return (
-      <div className="xh-entry-shell xh-quantum-transition xh-cyber-transition-shell flex h-screen items-center justify-center overflow-hidden text-cyan-100">
-        <StellarCursorAura />
-        <div className="xh-cyber-grid" aria-hidden="true" />
-        <div className="xh-cyber-scanlines" aria-hidden="true" />
-        <div className="xh-cyber-noise" aria-hidden="true" />
-        <main className="relative z-10 flex h-full w-full items-center justify-center px-6">
-          <section className="xh-cyber-transition-panel" aria-label="星幻画布启动同步中">
-            <div className="xh-cyber-transition-logo-wrap">
-              <span className="xh-cyber-transition-logo-halo" aria-hidden="true" />
-              <img className="xh-cyber-transition-logo" src={brandStellarGlitchLogo} alt="星幻画布启动中" />
-            </div>
-            <div className="xh-cyber-transition-copy">
-              <p className="xh-cyber-transition-kicker">SYSTEM BOOTSTRAP // XINGHUAN FABRIC</p>
-              <h2 className="xh-cyber-transition-title">正在接通创作主板</h2>
-              <p className="xh-cyber-transition-subtitle">校验权限、同步节点目录、恢复你的工作区链路。</p>
-            </div>
-            <div className="xh-cyber-transition-progress" aria-hidden="true">
-              <div className="xh-cyber-transition-progress__segments">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="xh-cyber-transition-progress__line">
-                <span />
-              </div>
-              <div className="xh-cyber-transition-progress__meta">
-                <span>AUTH CHECK: PASSING</span>
-                <span>CANVAS BUS: SYNCING</span>
-              </div>
-            </div>
-          </section>
-        </main>
-      </div>
-    );
+  if (previewMode === 'transition') {
+    return <CyberTransitionStage />;
+  }
+
+  if (previewMode === 'login') {
+    return <LoginGate onLogin={() => undefined} />;
+  }
+
+  if (previewMode === 'empty-canvas') {
+    return <EmptyCanvasPreviewShell backendStatus={backendStatus} />;
+  }
+
+  if (authStatus === 'checking' || bootSplashVisible) {
+    return <CyberTransitionStage />;
   }
 
   if (!currentUser) {
@@ -476,20 +470,7 @@ function App() {
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="xh-cyber-brand-lockup">
-            <div className="xh-cyber-brand-lockup__logo-wrap">
-              <img className="xh-cyber-brand-lockup__logo" src={brandStellarGlitchLogo} alt="星幻画布" />
-            </div>
-            <div className="xh-cyber-brand-lockup__copy min-w-0">
-              <h1 className="xh-cyber-brand-lockup__title">星幻无限画布</h1>
-              <div className="xh-cyber-brand-lockup__sub">
-                XINGHUAN CANVAS {isRh ? '// RUNNINGHUB' : isPixel ? '// PIXEL MODE' : '// CONTROL DECK'}
-              </div>
-            </div>
-            <span className="xh-cyber-brand-lockup__badge" aria-hidden="true">
-              NODE BUS ONLINE
-            </span>
-          </div>
+          <img className="xh-cyber-topbar-logo xh-cyber-topbar-logo--large" src={brandStellarGlitchLogo} alt="星幻画布" />
           <span
             className={
               isPixel

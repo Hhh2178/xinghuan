@@ -8,6 +8,8 @@ const files = {
   app: path.join(rootDir, 'apps/web/src/App.tsx'),
   canvas: path.join(rootDir, 'apps/web/src/components/Canvas.tsx'),
   loginGate: path.join(rootDir, 'apps/web/src/components/LoginGate.tsx'),
+  transition: path.join(rootDir, 'apps/web/src/components/CyberTransitionStage.tsx'),
+  emptyCanvas: path.join(rootDir, 'apps/web/src/components/EmptyCanvasSplash.tsx'),
   styles: path.join(rootDir, 'apps/web/src/styles/index.css'),
 };
 
@@ -15,31 +17,40 @@ const expectations = [
   {
     file: 'loginGate',
     label: 'LoginGate cyber shell',
-    patterns: ['xh-cyber-login-shell', 'xh-cyber-login-layout', 'xh-cyber-console', 'brand-stellar-glitch-logo.png'],
+    patterns: ['xh-cyber-login-shell', 'xh-cyber-login-layout', 'xh-cyber-console', 'xh-cyber-console__status', 'brand-stellar-glitch-logo.png'],
+    forbidden: ['xh-cyber-visual-copy', 'xh-cyber-status-strip', 'XINGHUAN CANVAS // CYBER PCB ENTRY'],
+  },
+  {
+    file: 'transition',
+    label: 'App transition shell',
+    patterns: ['xh-cyber-transition-shell', 'xh-cyber-transition-stack', 'xh-cyber-transition-orbit', 'brand-stellar-glitch-logo.png'],
   },
   {
     file: 'app',
-    label: 'App transition shell',
-    patterns: ['xh-cyber-transition-shell', 'xh-cyber-transition-panel', 'xh-cyber-brand-lockup', 'brand-stellar-glitch-logo.png'],
+    label: 'App topbar shell',
+    patterns: ['xh-cyber-topbar-logo', 'CyberTransitionStage', 'brand-stellar-glitch-logo.png'],
+    forbidden: ['xh-cyber-brand-lockup'],
+  },
+  {
+    file: 'emptyCanvas',
+    label: 'Canvas cyber empty shell',
+    patterns: ['xh-cyber-empty-shell', 'xh-cyber-empty-grid', 'xh-cyber-empty-footer'],
   },
   {
     file: 'canvas',
-    label: 'Canvas cyber empty shell',
-    patterns: ['xh-cyber-empty-shell', 'xh-cyber-empty-card', 'xh-cyber-empty-status'],
+    label: 'Canvas wiring',
+    patterns: ['EmptyCanvasSplash', 'background={`linear-gradient'],
   },
   {
     file: 'styles',
     label: 'Shared cyber styles',
     patterns: [
       '.xh-cyber-login-shell',
-      '.xh-cyber-login-layout',
-      '.xh-cyber-brand-logo',
-      '.xh-cyber-console',
-      '.xh-cyber-input',
-      '.xh-cyber-button',
-      '.xh-cyber-transition-shell',
-      '.xh-cyber-brand-lockup',
-      '.xh-cyber-empty-shell .xh-cyber-empty-card',
+      '.xh-cyber-console__status',
+      '.xh-cyber-transition-orbit',
+      '.xh-cyber-topbar-logo',
+      '.xh-cyber-empty-grid',
+      '.xh-cyber-empty-footer',
     ],
   },
 ];
@@ -58,6 +69,11 @@ async function main() {
     for (const pattern of expectation.patterns) {
       if (!content.includes(pattern)) {
         failures.push(`${expectation.label}: missing "${pattern}"`);
+      }
+    }
+    for (const pattern of expectation.forbidden || []) {
+      if (content.includes(pattern)) {
+        failures.push(`${expectation.label}: should not contain "${pattern}"`);
       }
     }
   }

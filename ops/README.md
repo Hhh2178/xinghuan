@@ -23,9 +23,9 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.4.18`
-  - release：`20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
-  - 状态：`2026-06-24 已完成 deploy + runtime verify`
+  - 版本：`v0.5.1`
+  - release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
+  - 状态：`2026-06-24 待本轮 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

@@ -3,7 +3,6 @@ import { ArrowRight, AtSign, KeyRound, Loader2 } from 'lucide-react';
 import * as api from '../services/api';
 import type { AuthUser } from '../services/api';
 import brandStellarGlitchLogo from '../assets/brand-stellar-glitch-logo.png';
-import StellarCursorAura from './StellarCursorAura';
 
 interface LoginGateProps {
   onLogin: (user: AuthUser) => void;
@@ -83,11 +82,7 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
         } as CSSProperties
       }
     >
-      <StellarCursorAura />
       <div className="xh-cyber-grid" aria-hidden="true" />
-      <div className="xh-cyber-scanlines" aria-hidden="true" />
-      <div className="xh-cyber-noise" aria-hidden="true" />
-      <div className="xh-cyber-login-shell__frame" aria-hidden="true" />
 
       <main className="relative z-10 min-h-[100dvh] px-4 py-4 sm:px-8 sm:py-8">
         <section className="xh-cyber-login-layout mx-auto grid min-h-[calc(100dvh-2rem)] w-full max-w-[1560px] items-stretch gap-6">
@@ -98,32 +93,13 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
                 <span className="xh-cyber-logo-ring xh-cyber-logo-ring--outer" />
                 <span className="xh-cyber-logo-ring xh-cyber-logo-ring--mid" />
                 <span className="xh-cyber-logo-ring xh-cyber-logo-ring--inner" />
-              </div>
-              <div className="xh-cyber-logo-traces" aria-hidden="true">
-                <span className="xh-cyber-logo-trace xh-cyber-logo-trace--top" />
-                <span className="xh-cyber-logo-trace xh-cyber-logo-trace--right" />
-                <span className="xh-cyber-logo-trace xh-cyber-logo-trace--bottom" />
-                <span className="xh-cyber-logo-trace xh-cyber-logo-trace--left" />
+                <span className="xh-cyber-logo-scan" />
               </div>
               <img
                 className="xh-cyber-brand-logo"
                 src={brandStellarGlitchLogo}
                 alt="星幻画布品牌 logo"
               />
-            </div>
-
-            <div className="xh-cyber-visual-copy">
-              <p className="xh-cyber-kicker">XINGHUAN CANVAS // CYBER PCB ENTRY</p>
-              <h1 className="xh-cyber-title">星幻画布</h1>
-              <p className="xh-cyber-copy">
-                左侧主视觉切成品牌电路核心，右侧保持控制台式登录入口，进入后仍沿用现有认证链路与工作区状态。
-              </p>
-            </div>
-
-            <div className="xh-cyber-status-strip" aria-hidden="true">
-              <span>PCB BUS: READY</span>
-              <span>AUTH GATE: SECURE</span>
-              <span>NODE FABRIC: ONLINE</span>
             </div>
           </section>
 
@@ -137,9 +113,9 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
               </div>
 
               <div className="xh-cyber-console__head">
-                <p className="xh-cyber-console__eyebrow">SECURE SESSION HANDSHAKE</p>
-                <h2 className="xh-cyber-console__title">登录到星幻控制台</h2>
-                <p className="xh-cyber-console__sub">保持现有账号体系，仅替换为硬边 Cyber PCB 视觉壳层。</p>
+                <p className="xh-cyber-console__eyebrow">系统访问</p>
+                <h2 className="xh-cyber-console__title">登录到星幻画布</h2>
+                <p className="xh-cyber-console__subtle">使用现有账号链路进入你的创作工作区</p>
               </div>
 
               <form className="space-y-5" onSubmit={handleSubmit}>
@@ -152,7 +128,7 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       autoComplete="username"
-                      placeholder="operator@xinghuan.ai"
+                      placeholder="请输入邮箱地址"
                       type="email"
                     />
                   </span>
@@ -167,7 +143,7 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       autoComplete="current-password"
-                      placeholder="••••••••"
+                      placeholder="请输入密码"
                       type="password"
                       autoFocus
                     />
@@ -176,19 +152,19 @@ export default function LoginGate({ onLogin }: LoginGateProps) {
 
                 {error && <div className="xh-cyber-error">{error}</div>}
 
-                <div className="xh-cyber-console__meta">
-                  <span>LOGIN LOGIC: CURRENT</span>
-                  <span>API CONTRACT: LOCKED</span>
-                </div>
-
                 <button
                   className="xh-cyber-button flex h-14 w-full items-center justify-center gap-3 px-4 text-[15px] font-semibold text-[#03110e] transition disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={submitting || !email || !password}
                   type="submit"
                 >
-                  <span>进入星幻工作区</span>
+                  <span>登录</span>
                   {submitting ? <Loader2 className="animate-spin" size={18} /> : <ArrowRight className="xh-cyber-button__arrow" size={18} />}
                 </button>
+
+                <div className="xh-cyber-console__status">
+                  <span className="xh-cyber-console__status-dot" aria-hidden="true" />
+                  节点就绪
+                </div>
               </form>
             </section>
           </div>
