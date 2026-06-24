@@ -106,6 +106,7 @@ import { createExternalProxyHandlers } from "./external-proxy.js";
 import { createMaterialAccessService } from "./material-access-service.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 import { createEnvironmentSyncService, type EnvironmentSyncSnapshot, type EnvironmentSyncWriteRequest } from "./environment-sync-service.js";
+import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
 import {
   normalizeRunningHubCatalogItem,
   normalizeRunningHubCatalogItems,
@@ -120,6 +121,7 @@ import {
   type RunningHubAdminItem as AdminRunningHubCatalogItem,
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
+import { createTaskRuntimeEventStore } from "./task-runtime-events.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
@@ -261,6 +263,14 @@ const environmentSyncService = createEnvironmentSyncService({
     ensureEnvironmentSyncEnabled(targetEnvironment);
     return applyEnvironmentSyncRemoteSnapshot(targetEnvironment, request);
   },
+});
+
+const {
+  appendTaskRuntimeEventBestEffort,
+} = createTaskRuntimeEventStore({
+  usePostgresRepository,
+  getPostgresPool,
+  filePath: join(dataDir, "admin", "task-runtime-events.ndjson"),
 });
 
 interface CanvasListItem {
@@ -508,6 +518,11 @@ interface AdminTaskRecord {
   logs: string[];
   createdAt: number;
   updatedAt: number;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: "muted" | "warning" | "success" | "danger";
+  runtimeStage?: string;
+  providerState?: string;
 }
 
 interface AdminTaskListQuery {
@@ -547,8 +562,25 @@ function withUnifiedRuntimeDiagnostic(task: AdminTaskRecord): AdminTaskRecord & 
   cancelState?: UnifiedCancelState;
 } {
   const result = plainObject(task.result);
+  const projection = projectTaskRuntimeDisplayState({
+    status: task.status,
+    waitReason: safeText(result.waitReason),
+    waitDetail: safeText(result.waitDetail),
+    queueHint: safeText(result.queueHint),
+    runtimeStage: safeText(result.runtimeStage),
+    providerState: safeText(result.providerState || result.upstreamStatus || result.status),
+    failureReason: safeText(result.failureReason),
+    error: safeText(result.error),
+    cancellationMessage: safeText(result.cancellationMessage),
+    logs: task.logs,
+  });
   return {
     ...task,
+    displayStatus: projection.displayStatus,
+    displayMessage: projection.displayMessage,
+    displayTone: projection.displayTone,
+    runtimeStage: projection.runtimeStage,
+    providerState: projection.providerState,
     failureReason: safeText(result.failureReason) || undefined,
     failureCategory: toUnifiedFailureCategory(result.failureCategory),
     providerDiagnostic: safeText(result.providerDiagnostic) || undefined,
@@ -1515,13 +1547,12 @@ version: "0.5.1",
         failReason: safeText(status.error),
         code: mapRunningHubTaskCode(safeText(status.status)),
         progress: safeText(status.progress),
-        queueHint: safeText(
-          safeText(status.status) === "queued"
-            ? "任务队列排队中"
-            : safeText(status.status) === "running"
-              ? "任务已提交，正在生成"
-              : "",
-        ),
+        queueHint: safeText(status.queueHint || status.displayMessage),
+        displayStatus: safeText(status.displayStatus),
+        displayMessage: safeText(status.displayMessage),
+        displayTone: safeText(status.displayTone),
+        runtimeStage: safeText(status.runtimeStage),
+        providerState: safeText(status.providerState),
         raw: {
           ...raw,
           logs: Array.isArray(status.logs) ? status.logs : [],
@@ -5876,6 +5907,11 @@ async function enqueueTask(
   try {
     const client = await getRedisClient();
     await client.lPush(queueName, taskId);
+    await appendTaskRuntimeEventBestEffort({
+      taskId,
+      eventType: "task_queued",
+      payload: { queueName, capability },
+    });
     return { queued: true, reason: "queued", queueName };
   } catch (error) {
     return { queued: false, reason: error instanceof Error ? error.message : String(error), queueName };
@@ -5963,10 +5999,28 @@ async function insertTaskRecord(task: AdminTaskRecord) {
         millisToDate(task.updatedAt),
       ],
     );
+    await appendTaskRuntimeEventBestEffort({
+      taskId: task.id,
+      eventType: "task_created",
+      payload: {
+        status: task.status,
+        providerId: task.providerId,
+        modelId: task.modelId,
+      },
+    });
     return;
   }
   const db = await readAdminDb();
   await writeAdminDb({ ...db, tasks: [task, ...db.tasks] });
+  await appendTaskRuntimeEventBestEffort({
+    taskId: task.id,
+    eventType: "task_created",
+    payload: {
+      status: task.status,
+      providerId: task.providerId,
+      modelId: task.modelId,
+    },
+  });
 }
 
 async function writeTaskRecord(task: AdminTaskRecord) {
@@ -6021,7 +6075,14 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
        returning id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at`,
       [taskId, JSON.stringify(patch.logs), JSON.stringify(patch.result)],
     );
-    if (cancelledResult.rows[0]) return readTaskRecord(taskId);
+    if (cancelledResult.rows[0]) {
+      await appendTaskRuntimeEventBestEffort({
+        taskId,
+        eventType: "task_cancelled",
+        payload: { actorEmail },
+      });
+      return readTaskRecord(taskId);
+    }
     const currentTask = await readTaskRecord(taskId);
     if (!currentTask) return null;
     assertTaskCancellable(currentTask.status);
@@ -6036,6 +6097,11 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
   });
   if (!updatedTask) return null;
   await writeAdminDb({ ...db, tasks });
+  await appendTaskRuntimeEventBestEffort({
+    taskId,
+    eventType: "task_cancelled",
+    payload: { actorEmail },
+  });
   return updatedTask;
 }
 
@@ -7102,6 +7168,7 @@ async function createRunningHubQueuedTask(input: {
     ? input.taskCapability
     : "video";
   if (!runTargetId) throw new Error(targetType === "app" ? "缺少 webappId/runTargetId" : "缺少 workflowId/runTargetId");
+  const matchedCatalogItem = findRunningHubCatalogItemByTarget(input.provider, targetType, runTargetId);
   const taskQueueSettingsRecord = await readTaskQueueSettingsRecord().catch(() => null);
   const legacyFallbackConcurrency = Math.max(
     1,
@@ -7131,6 +7198,9 @@ async function createRunningHubQueuedTask(input: {
       workflowId,
       runTargetId,
       nodeInfoList: input.nodeInfoList,
+      executionRules: matchedCatalogItem?.executionRules,
+      pollIntervalMs: matchedCatalogItem?.executionRules?.pollingIntervalMs,
+      pollTimeoutMs: matchedCatalogItem?.executionRules?.pollingTimeoutMs,
       ...(input.instanceType ? { instanceType: input.instanceType } : {}),
       ...(preferredRhKey ? {
         preferredRhKeyId: preferredRhKey.id,
@@ -7150,6 +7220,9 @@ async function createRunningHubQueuedTask(input: {
       pageId,
       webappId,
       workflowId,
+      executionRules: matchedCatalogItem?.executionRules,
+      pollIntervalMs: matchedCatalogItem?.executionRules?.pollingIntervalMs,
+      pollTimeoutMs: matchedCatalogItem?.executionRules?.pollingTimeoutMs,
       ...(preferredRhKey ? {
         preferredRhKeyId: preferredRhKey.id,
         preferredRhKeyNoteSnapshot: preferredRhKey.note,
@@ -8346,6 +8419,27 @@ async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhC
   if (canonicalMatch) return canonicalMatch;
   const idMatches = catalog.items.filter((entry) => entry.id === catalogId);
   return idMatches.length === 1 ? idMatches[0] : null;
+}
+
+function findRunningHubCatalogItemByTarget(
+  provider: AdminProviderRecord,
+  targetType: "app" | "workflow",
+  runTargetId: string,
+) {
+  const list = targetType === "app"
+    ? normalizeRunningHubCatalogItems(provider.rhApps, "app")
+    : normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow");
+  const normalizedTargetId = safeText(runTargetId);
+  if (!normalizedTargetId) return null;
+  return list.find((entry) => {
+    if (!entry.enabled) return false;
+    const entryTargetId = safeText(
+      entry.runTargetId
+        || (targetType === "app" ? entry.appId : entry.workflowId)
+        || entry.id,
+    );
+    return entryTargetId === normalizedTargetId;
+  }) || null;
 }
 
 function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubAdminCatalogEntry[] {

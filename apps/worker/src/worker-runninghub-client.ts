@@ -162,9 +162,10 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
       upstreamTaskId,
       taskId: upstreamTaskId,
       upstreamStatus: "submitted",
+      providerState: "SUBMITTED",
       progress: "5%",
       queueHint: "任务提交中",
-      runtimeStage: "polling",
+      runtimeStage: "submitted",
       rhTargetType: targetType,
       rhRunTargetId: runTargetId,
     });
@@ -175,6 +176,9 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
         throw createWorkerTaskError(`RunningHub 轮询超时: ${upstreamTaskId}`, {
           failureCategory: "upstream_poll_timeout",
           providerDiagnostic: `RunningHub 轮询超时: ${upstreamTaskId}`,
+          upstreamTaskId,
+          runtimeStage: "failed",
+          providerState: "FAILED",
         });
       }
 
@@ -218,6 +222,7 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
         upstreamTaskId,
         taskId: upstreamTaskId,
         upstreamStatus: safeText(pollRaw.status, String(Number.isFinite(pollCode) ? pollCode : "")),
+        providerState: safeText(pollRaw.status, String(Number.isFinite(pollCode) ? pollCode : "")) || "UNKNOWN",
         runtimeStage: "polling",
         upstreamMessage: pollMessage,
         progress: isRunningHubQueuedStatus(pollRaw.status) ? "5%" : "45%",

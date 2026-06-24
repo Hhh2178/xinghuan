@@ -19,6 +19,30 @@ export const PROVIDER_GENERATION_TASK_STATUSES = [
 export type ProviderGenerationTaskStatus =
   (typeof PROVIDER_GENERATION_TASK_STATUSES)[number];
 
+export const TASK_DISPLAY_TONES = [
+  "muted",
+  "warning",
+  "success",
+  "danger",
+] as const;
+
+export type TaskDisplayTone =
+  (typeof TASK_DISPLAY_TONES)[number];
+
+export const TASK_RUNTIME_STAGES = [
+  "queued",
+  "submitted",
+  "running",
+  "polling",
+  "materializing",
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const;
+
+export type TaskRuntimeStage =
+  (typeof TASK_RUNTIME_STAGES)[number];
+
 export const PROVIDER_GENERATION_CAPABILITIES = [
   "image",
   "video",
@@ -81,6 +105,14 @@ export interface ProviderGenerationTaskResult extends UnifiedRuntimeDiagnostic {
   failureReason: string;
   workerId: string;
   adapter: string;
+  waitReason?: string;
+  waitDetail?: string;
+  queueHint?: string;
+  runtimeStage?: TaskRuntimeStage;
+  providerState?: string;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: TaskDisplayTone;
 }
 
 export interface ProviderGenerationTaskRecord {

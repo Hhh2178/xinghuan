@@ -377,6 +377,11 @@ export interface TaskRecord {
   modelId?: string;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: "muted" | "warning" | "success" | "danger";
+  runtimeStage?: string;
+  providerState?: string;
   logs: string[];
   createdAt?: number;
   updatedAt: number;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PlayCircle } from "lucide-react";
 import { canCancelTask, canRetryTask } from "@xinghuan/shared";
 import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
-import { statusText, taskTone } from "./admin-view-model";
+import { taskDisplayTone, taskStatusText } from "./admin-view-model";
 import type { TaskListPage, TaskRecord } from "./admin-types";
 
 type AdminMutate = (path: string, payload: Record<string, unknown>, method?: string) => void;
@@ -71,7 +71,7 @@ export function TasksPanel(
           {taskPage.items.map((task) => (
             <tr key={task.id}>
               <td>{task.title}</td>
-              <td><StatusPill tone={taskTone(task.status)}>{statusText(task.status)}</StatusPill></td>
+              <td><StatusPill tone={taskDisplayTone(task)}>{taskStatusText(task)}</StatusPill></td>
               <td>
                 <div className="task-owner-meta">
                   <strong>{ownerPrimary(task)}</strong>
@@ -85,7 +85,9 @@ export function TasksPanel(
               <td>{task.providerId || "-"}</td>
               <td>{task.modelId || "-"}</td>
               <td>
-                {task.status === "failed" ? (
+                {task.displayMessage ? (
+                  <span>{task.displayMessage}</span>
+                ) : task.status === "failed" ? (
                   <span>{String(task.result?.failureReason || task.result?.error || task.logs?.slice(-1)[0] || "未知失败")}</span>
                 ) : task.status === "cancelled" ? (
                   <span>{String(task.result?.cancellationMessage || task.logs?.slice(-1)[0] || "任务已取消")}</span>

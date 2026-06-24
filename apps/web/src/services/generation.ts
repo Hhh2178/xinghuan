@@ -184,6 +184,11 @@ export interface ExternalImageTaskStatusResult {
   imageUrls?: string[];
   remoteImageUrls?: string[];
   error?: string;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: string;
+  runtimeStage?: string;
+  providerState?: string;
   raw?: any;
   logs?: string[];
 }
@@ -223,6 +228,11 @@ export interface ExternalVideoTaskStatusResult {
   videoUrls?: string[];
   remoteVideoUrls?: string[];
   error?: string;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: string;
+  runtimeStage?: string;
+  providerState?: string;
   raw?: any;
   logs?: string[];
 }
@@ -305,6 +315,11 @@ export interface ExternalAudioTaskStatusResult {
   audioUrls?: string[];
   remoteAudioUrls?: string[];
   error?: string;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: string;
+  runtimeStage?: string;
+  providerState?: string;
   raw?: any;
   logs?: string[];
 }

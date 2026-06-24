@@ -144,6 +144,11 @@ export interface TaskRecord {
   modelId?: string;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: "muted" | "warning" | "success" | "danger";
+  runtimeStage?: string;
+  providerState?: string;
   logs: string[];
   createdAt?: number;
   updatedAt: number;
@@ -322,6 +327,16 @@ function AdminApp() {
     void loadTaskPage();
     void loadAnnouncements();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const hasActiveTasks = taskPage.items.some((task) => task.status === "queued" || task.status === "running");
+    if (activeTab !== "tasks" && !hasActiveTasks) return;
+    const timer = window.setInterval(() => {
+      void loadTaskPage();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [activeTab, isAdmin, taskPage.items, taskPage.page, taskPage.pageSize, taskPage.filters.status, taskPage.filters.providerId, taskPage.filters.capability]);
 
   useEffect(() => {
     setAssistantOpen(assistantSettings.backend.defaultOpen);

@@ -92,16 +92,18 @@ export function createWorkerTaskStore(pool: Pool) {
     status: TaskStatus,
     newLogs: string[],
     resultPatch?: Record<string, unknown>,
+    options?: { replaceResult: boolean },
   ): Promise<"updated" | "cancelled" | "missing"> {
     const task = await readTask(taskId);
     if (!task) return "missing";
     if (task.status === "cancelled" && status !== "cancelled") return "cancelled";
     const logs = [...task.logs, ...newLogs];
+    const replaceResult = options?.replaceResult === true;
     const result = await pool.query(
       `update xh_tasks
        set status = $2,
            logs = $3::jsonb,
-           result = coalesce(result, '{}'::jsonb) || $4::jsonb,
+           result = ${replaceResult ? "$4::jsonb" : "coalesce(result, '{}'::jsonb) || $4::jsonb"},
            updated_at = now()
        where id = $1
          and status <> 'cancelled'`,

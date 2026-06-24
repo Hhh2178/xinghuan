@@ -57,8 +57,8 @@ const checks = [
     name: "task panel preserves status helpers and shared status pill",
     pass:
       panelSource.includes('from "./admin-view-model"') &&
-      panelSource.includes("taskTone(task.status)") &&
-      panelSource.includes("statusText(task.status)") &&
+      (panelSource.includes("taskTone(task.status)") || panelSource.includes("taskDisplayTone(task)")) &&
+      (panelSource.includes("statusText(task.status)") || panelSource.includes("taskStatusText(task)")) &&
       panelSource.includes("<StatusPill"),
   },
   {

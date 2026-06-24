@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { TaskStatus } from "@xinghuan/shared";
+import type { TaskRecord } from "./admin-types";
 
 export type AdminTabId =
   | "overview"
@@ -53,6 +54,17 @@ export function taskTone(status: TaskStatus): StatusTone {
   if (status === "failed" || status === "cancelled") return "danger";
   if (status === "running") return "warning";
   return "muted";
+}
+
+export function taskStatusText(task: Pick<TaskRecord, "status" | "displayStatus">) {
+  return String(task.displayStatus || "").trim() || statusText(task.status);
+}
+
+export function taskDisplayTone(task: Pick<TaskRecord, "status" | "displayTone">): StatusTone {
+  const tone = String(task.displayTone || "").trim();
+  return tone === "success" || tone === "danger" || tone === "warning" || tone === "muted"
+    ? tone
+    : taskTone(task.status);
 }
 
 export function capabilityLabel(capability: ModelCapability) {

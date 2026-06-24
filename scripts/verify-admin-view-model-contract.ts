@@ -35,8 +35,8 @@ const checks = [
   {
     name: "navigation order and labels stay stable",
     pass:
-      navIds === "overview,users,providers,tasks,audit,system" &&
-      navLabels === "总览,用户,API 设置,任务,审计,系统",
+      navIds === "overview,users,providers,runninghub-workspace,assistant,announcement,tasks,audit,system,environment-sync" &&
+      navLabels === "总览,用户,API 设置,RH 工作台,AI 助手,公告,任务,审计,系统,环境同步",
   },
   {
     name: "titleFor returns label and fallback",

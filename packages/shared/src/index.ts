@@ -5,6 +5,8 @@ export const appVersion = "0.5.1";
 export type AppEnvironment = "local" | "gray" | "production";
 export * from "./provider-generation-task.js";
 export type {
+  TaskDisplayTone,
+  TaskRuntimeStage,
   UnifiedCancelState,
   UnifiedFailureCategory,
   UnifiedRuntimeDiagnostic,

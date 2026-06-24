@@ -70,6 +70,7 @@ import {
   selectExecutableRunningHubKey,
   type RunningHubKeyPoolItem,
 } from "./worker-runninghub-dispatch.js";
+import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
@@ -109,11 +110,15 @@ const {
   touchQueuedTaskRuntime,
   isTaskCancelled,
 } = createWorkerTaskStore(pool);
+const {
+  appendTaskRuntimeEventBestEffort,
+} = createWorkerRuntimeEventWriter({ pool });
 const workerTaskLifecycle = createWorkerTaskLifecycle({
   workerId,
   appendTaskLog,
   updateTask,
   logWorkerEvent,
+  appendTaskRuntimeEventBestEffort,
 });
 const workerCancelSync = createWorkerCancelSync({
   isTaskCancelled,
@@ -130,6 +135,7 @@ const workerDeferredRequeue = createWorkerDeferredRequeue({
   appendTaskLog,
   touchQueuedTaskRuntime,
   updateTask,
+  appendTaskRuntimeEventBestEffort,
 });
 
 let currentDatabaseNamePromise: Promise<string> | null = null;
@@ -160,6 +166,15 @@ const queueLoopControllers = new Map<TaskQueueCapability, QueueLoopController[]>
 const queueRuntimeDescriptorState = new Map<TaskQueueCapability, TaskQueueRuntimeDescriptor>();
 let queueControllerRefreshTimer: NodeJS.Timeout | null = null;
 let queueControllerRefreshInFlight: Promise<TaskQueueRuntimeDescriptor[]> | null = null;
+
+const transientRuntimeFields = [
+  "waitReason",
+  "waitDetail",
+  "waitUpdatedAt",
+  "queueHint",
+  "rhQueueReason",
+  "upstreamMessage",
+];
 
 await ensureRuntimeDatabaseTarget("xinghuan-worker");
 await redisControl.connect();
@@ -376,6 +391,11 @@ async function readTaskQueueSettings(): Promise<TaskQueueSettings> {
 
 async function processTask(taskId: string) {
   logWorkerEvent("task.received", { taskId });
+  await appendTaskRuntimeEventBestEffort({
+    taskId,
+    eventType: "task_claim_attempted",
+    payload: { workerId },
+  });
   const task = await readTask(taskId);
   if (!task) {
     console.warn(`xinghuan-worker skipped missing task ${taskId}`);
@@ -394,6 +414,11 @@ async function processTask(taskId: string) {
   const runningHubDispatchDeps = buildRunningHubDispatchDeps(task, taskQueueSettings);
   const userWindow = capabilitySettings ? await acquireUserExecutionWindow(task, capabilitySettings.userConcurrency) : { acquired: true as const };
   if (!userWindow.acquired) {
+    await appendTaskRuntimeEventBestEffort({
+      taskId,
+      eventType: "local_user_window_blocked",
+      payload: { reason: userWindow.reason, capability: task.capability },
+    });
     await workerDeferredRequeue.deferTaskExecution(task, "waiting_user_window", userWindow.reason);
     return;
   }
@@ -410,10 +435,16 @@ async function processTask(taskId: string) {
         workerId,
         error,
       }),
+      replaceResult: normalizeProtocol(task.providerProtocol) === "runninghub",
     });
     return;
   }
   if (!runningHubWindow.acquired) {
+    await appendTaskRuntimeEventBestEffort({
+      taskId,
+      eventType: "provider_window_blocked",
+      payload: { reason: runningHubWindow.reason, capability: task.capability },
+    });
     await releaseUserExecutionWindow(task);
     await workerDeferredRequeue.deferTaskExecution(task, "waiting_runninghub_window", runningHubWindow.reason);
     return;
@@ -439,6 +470,11 @@ async function processTask(taskId: string) {
     return;
   }
   logWorkerEvent("task.claimed", { ...trace, taskId, capability: task.capability });
+  await appendTaskRuntimeEventBestEffort({
+    taskId,
+    eventType: "task_claimed",
+    payload: { workerId, capability: task.capability },
+  });
   await touchTaskRuntime(taskId, {
     workerId,
     startedAt: new Date().toISOString(),
@@ -463,10 +499,16 @@ async function processTask(taskId: string) {
         ? [`${workerId} 执行完成`, `${workerId} 已写入 ${materialized.resourceItems.length} 条输出素材`]
         : [`${workerId} 执行完成`];
     const completionResult = await updateTask(taskId, "succeeded", completionLogs, {
+      ...clearTransientRuntimeFields(task.result),
       ...result,
       ...materialized.resultPatch,
       workerId,
       completedAt: new Date().toISOString(),
+      runtimeStage: "succeeded",
+      providerState: normalizeProtocol(task.providerProtocol) === "runninghub" ? "SUCCESS" : safeText(result.providerState || result.upstreamStatus || "SUCCESS"),
+      progress: "100%",
+    }, {
+      replaceResult: normalizeProtocol(task.providerProtocol) === "runninghub",
     });
     if (await workerCancelSync.keepCompletionCancelledState({
       taskId,
@@ -476,6 +518,11 @@ async function processTask(taskId: string) {
     })) {
       return;
     }
+    await appendTaskRuntimeEventBestEffort({
+      taskId,
+      eventType: "task_succeeded",
+      payload: { workerId, capability: task.capability },
+    });
     logWorkerEvent("task.succeeded", { ...trace, taskId, capability: task.capability, status: "succeeded" });
   } catch (error) {
     if (await workerCancelSync.dropErrorIfCancelled({
@@ -498,6 +545,11 @@ async function processTask(taskId: string) {
       }
       requeueAfterRelease = shouldRequeueAfterRelease(queuedResult);
       if (requeueAfterRelease) {
+        await appendTaskRuntimeEventBestEffort({
+          taskId,
+          eventType: "provider_queue_limited",
+          payload: { detail: retryDetail, capability: task.capability },
+        });
         logWorkerEvent("task.requeued", {
           ...trace,
           taskId,
@@ -515,7 +567,9 @@ async function processTask(taskId: string) {
       baseResultPatch: buildWorkerFailureWritebackPatch({
         workerId,
         error,
+        ...(normalizeProtocol(task.providerProtocol) === "runninghub" ? clearTransientRuntimeFields(task.result) : {}),
       }),
+      replaceResult: normalizeProtocol(task.providerProtocol) === "runninghub",
     });
     return;
   } finally {
@@ -900,8 +954,8 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     workflowId,
     nodeInfoList,
     instanceType: safeText(task.payload.instanceType),
-    pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 5000, 500, 30000),
-    timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 20 * 60 * 1000, 5000, 60 * 60 * 1000),
+    pollIntervalMs: resolveRunningHubPollIntervalMs(task),
+    timeoutMs: resolveRunningHubPollTimeoutMs(task),
     onHeartbeat: async (patch) => {
       await touchTaskRuntime(task.id, {
         heartbeatAt: new Date().toISOString(),
@@ -918,6 +972,48 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     ...result,
     providerId: task.providerId,
   };
+}
+
+function resolveRunningHubPollIntervalMs(task: TaskRow) {
+  const executionRules = plainObject(task.payload.executionRules);
+  return clampNumber(
+    task.payload.pollIntervalMs
+      || executionRules.pollingIntervalMs,
+    5000,
+    500,
+    30000,
+  );
+}
+
+function resolveRunningHubPollTimeoutMs(task: TaskRow) {
+  const executionRules = plainObject(task.payload.executionRules);
+  const explicitTimeoutMs = task.payload.timeoutMs
+    || task.payload.maxPollMs
+    || task.payload.pollTimeoutMs
+    || executionRules.pollingTimeoutMs;
+  const defaultTimeoutMs = inferRunningHubDefaultTimeoutMs(task);
+  return clampNumber(explicitTimeoutMs, defaultTimeoutMs, 5000, 60 * 60 * 1000);
+}
+
+function inferRunningHubDefaultTimeoutMs(task: TaskRow) {
+  if (task.capability === "video") return 60 * 60 * 1000;
+  const title = safeText(task.title).toLowerCase();
+  const runTargetId = safeText(task.payload.runTargetId).toLowerCase();
+  const workflowId = safeText(task.payload.workflowId).toLowerCase();
+  const webappId = safeText(task.payload.webappId).toLowerCase();
+  const targetText = `${title} ${runTargetId} ${workflowId} ${webappId}`;
+  if (/lip[\s-]?sync|talking\s*head|avatar|数字人|对口型/i.test(targetText)) {
+    return 60 * 60 * 1000;
+  }
+  return 20 * 60 * 1000;
+}
+
+function clearTransientRuntimeFields(result: Record<string, unknown>) {
+  const next = { ...plainObject(result) };
+  for (const field of transientRuntimeFields) {
+    delete next[field];
+  }
+  return next;
 }
 
 function isRetryableRunningHubQueueLimitError(error: unknown) {

@@ -25,8 +25,14 @@ interface CreateWorkerTaskLifecycleOptions {
     status: TaskStatus,
     newLogs: string[],
     resultPatch?: Record<string, unknown>,
+    options?: { replaceResult: boolean },
   ) => Promise<"updated" | "cancelled" | "missing">;
   logWorkerEvent: (event: string, payload: Record<string, unknown>) => void;
+  appendTaskRuntimeEventBestEffort: (input: {
+    taskId: string;
+    eventType: string;
+    payload?: Record<string, unknown>;
+  }) => Promise<void>;
 }
 
 export function createWorkerTaskLifecycle(options: CreateWorkerTaskLifecycleOptions) {
@@ -61,6 +67,7 @@ export function createWorkerTaskLifecycle(options: CreateWorkerTaskLifecycleOpti
     trace: Record<string, unknown>;
     error: unknown;
     baseResultPatch?: Record<string, unknown>;
+    replaceResult?: boolean;
   }) {
     const normalized = normalizeUnifiedFailure(input.error);
     const failedResult = await options.updateTask(
@@ -77,7 +84,10 @@ export function createWorkerTaskLifecycle(options: CreateWorkerTaskLifecycleOpti
         providerDiagnostic: normalized.providerDiagnostic,
         upstreamHttpStatus: normalized.upstreamHttpStatus,
         upstreamResponseSnippet: normalized.upstreamResponseSnippet,
+        runtimeStage: "failed",
+        providerState: "FAILED",
       },
+      { replaceResult: input.replaceResult === true },
     );
     if (failedResult === "cancelled") {
       await keepCancelledState({
@@ -95,6 +105,15 @@ export function createWorkerTaskLifecycle(options: CreateWorkerTaskLifecycleOpti
       capability: input.task.capability,
       status: "failed",
       error: input.error instanceof Error ? input.error.message : String(input.error),
+    });
+    await options.appendTaskRuntimeEventBestEffort({
+      taskId: input.task.id,
+      eventType: "task_failed",
+      payload: {
+        capability: input.task.capability,
+        failureReason: normalized.failureReason,
+        failureCategory: normalized.failureCategory,
+      },
     });
     return failedResult;
   }

@@ -21,6 +21,11 @@ interface CreateWorkerDeferredRequeueOptions {
     newLogs: string[],
     resultPatch?: Record<string, unknown>,
   ) => Promise<WorkerTaskUpdateOutcome>;
+  appendTaskRuntimeEventBestEffort: (input: {
+    taskId: string;
+    eventType: string;
+    payload?: Record<string, unknown>;
+  }) => Promise<void>;
 }
 
 export function createWorkerDeferredRequeue(options: CreateWorkerDeferredRequeueOptions) {
@@ -35,6 +40,11 @@ export function createWorkerDeferredRequeue(options: CreateWorkerDeferredRequeue
       waitUpdatedAt: new Date().toISOString(),
       runtimeStage: "queued",
     });
+    await options.appendTaskRuntimeEventBestEffort({
+      taskId: task.id,
+      eventType: waitReason === "waiting_user_window" ? "local_user_window_blocked" : "provider_window_blocked",
+      payload: { detail, capability: task.capability },
+    });
     await options.appendTaskLog(task.id, `${options.workerId} 等待执行窗口: ${detail}`);
     await options.wait(Math.max(200, options.taskDeferredRetryMs));
     await requeueDeferredTask(task.id, task.capability);
@@ -46,6 +56,11 @@ export function createWorkerDeferredRequeue(options: CreateWorkerDeferredRequeue
   }
 
   async function requeueRunningTask(task: TaskRow, detail: string, resultPatch: Record<string, unknown> = {}) {
+    await options.appendTaskRuntimeEventBestEffort({
+      taskId: task.id,
+      eventType: "provider_queue_limited",
+      payload: { detail, capability: task.capability },
+    });
     return options.updateTask(task.id, "queued", [`${options.workerId} RunningHub 上游并发已满，任务回退到队列等待重试: ${detail}`], {
       ...resultPatch,
       workerId: options.workerId,

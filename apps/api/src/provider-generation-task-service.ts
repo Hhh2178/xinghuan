@@ -7,6 +7,7 @@ import {
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
 import { createOpenAiAudioChatPayload } from "./audio-provider-adapter.js";
+import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
 
 type GenerationCapability = "image" | "video" | "audio";
 
@@ -140,6 +141,23 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const error = deps.safeText(result.error || result.failureReason || result.failReason)
       || (task.status === "failed" ? lastTaskFailureLog(task.logs) : "");
     const cancellationMessage = deps.safeText(result.cancellationMessage);
+    const waitReason = deps.safeText(result.waitReason);
+    const waitDetail = deps.safeText(result.waitDetail);
+    const queueHint = deps.safeText(result.queueHint);
+    const runtimeStage = deps.safeText(result.runtimeStage);
+    const providerState = deps.safeText(result.providerState || result.upstreamStatus || result.status);
+    const displayState = projectTaskRuntimeDisplayState({
+      status: task.status,
+      waitReason,
+      waitDetail,
+      queueHint,
+      runtimeStage,
+      providerState,
+      failureReason: deps.safeText(result.failureReason),
+      error,
+      cancellationMessage,
+      logs: task.logs,
+    });
     const runtimeDiagnostic = {
       failureCategory: deps.safeText(result.failureCategory),
       providerDiagnostic: deps.safeText(result.providerDiagnostic),
@@ -155,6 +173,14 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       progress: progressText(task.status),
       error,
       failureReason: deps.safeText(result.failureReason),
+      waitReason,
+      waitDetail,
+      queueHint,
+      runtimeStage: displayState.runtimeStage,
+      providerState: displayState.providerState,
+      displayStatus: displayState.displayStatus,
+      displayMessage: displayState.displayMessage,
+      displayTone: displayState.displayTone,
       ...runtimeDiagnostic,
       message: task.status === "cancelled" ? cancellationMessage : "",
       logs: task.logs.slice(-8),
