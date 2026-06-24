@@ -877,7 +877,7 @@ export function AdminRunningHubItemEditor({
                         const raw = e.target.value.trim();
                         setExecutionRules({
                           ...executionRules,
-                          pollingTimeoutMs: raw ? Math.max(0, Number(raw) || 0) : undefined,
+                          pollingTimeoutMs: raw && Number(raw) > 0 ? Math.max(0, Number(raw) || 0) : undefined,
                         });
                       }}
                     />

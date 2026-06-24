@@ -40,6 +40,11 @@ const ThemeTemplateManager = lazy(() => import('./components/ThemeTemplateManage
 const RHToolsProvider = lazy(() =>
   import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
 );
+const preloadWorkspaceShell = Promise.all([
+  import('./components/Sidebar'),
+  import('./components/Canvas'),
+  import('./providers/RHToolsProvider'),
+]);
 
 type AddNodeFn = import('./components/Canvas').AddNodeFn;
 type InsertWorkflowFn = import('./components/Canvas').InsertWorkflowFn;
@@ -179,6 +184,7 @@ function App() {
   const { load: loadModelCatalog } = useModelCatalogStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
+  const [workspaceShellReady, setWorkspaceShellReady] = useState(false);
   const currentTemplate = useMemo(
     () => resolveThemeTemplate(templateId, customTemplates),
     [templateId, customTemplates],
@@ -319,6 +325,27 @@ function App() {
     loadCustomTemplates();
   }, [currentUser, loadSettings, loadModelCatalog, loadCustomTemplates]);
 
+  useEffect(() => {
+    let alive = true;
+    if (!currentUser) {
+      setWorkspaceShellReady(false);
+      return () => {
+        alive = false;
+      };
+    }
+    setWorkspaceShellReady(false);
+    preloadWorkspaceShell
+      .then(() => {
+        if (alive) setWorkspaceShellReady(true);
+      })
+      .catch(() => {
+        if (alive) setWorkspaceShellReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [currentUser]);
+
   // 资源库快捷键：未选中任何节点时打开 / 关闭资源库。输入框内不拦截，避免打断提示词编辑。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -442,7 +469,7 @@ function App() {
     return <EmptyCanvasPreviewShell backendStatus={backendStatus} />;
   }
 
-  if (authStatus === 'checking' || bootSplashVisible) {
+  if (authStatus === 'checking' || bootSplashVisible || (Boolean(currentUser) && !workspaceShellReady)) {
     return <CyberTransitionStage />;
   }
 
@@ -451,7 +478,7 @@ function App() {
   }
 
   return (
-    <Suspense fallback={<CyberTransitionStage />}>
+    <Suspense fallback={null}>
     <RHToolsProvider>
     <div
       className={`t8-app-shell h-screen flex flex-col overflow-hidden ${

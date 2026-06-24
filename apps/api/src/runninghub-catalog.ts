@@ -163,7 +163,9 @@ function normalizeRunningHubExecutionRules(value: unknown, kind: "app" | "workfl
     supportsMultipleOutputs: row.supportsMultipleOutputs === undefined ? true : Boolean(row.supportsMultipleOutputs),
     pollingStrategy,
     pollingIntervalMs: Number.isFinite(Number(row.pollingIntervalMs)) ? Math.max(0, Number(row.pollingIntervalMs)) : 0,
-    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) ? Math.max(0, Number(row.pollingTimeoutMs)) : 0,
+    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) && Number(row.pollingTimeoutMs) > 0
+      ? Math.max(0, Number(row.pollingTimeoutMs))
+      : undefined,
     retryable: Boolean(row.retryable),
   };
 }

@@ -16,7 +16,7 @@ assert.match(adminModelEditor, /delete advancedConfig\.pollTimeoutMs;/, "admin m
 assert.doesNotMatch(adminModelEditor, /默认 360 秒/, "admin model editor should no longer advertise a default poll timeout");
 
 assert.match(adminRunninghubEditor, /pollingTimeoutMs: undefined/, "RunningHub editor should initialize empty timeout");
-assert.match(adminRunninghubEditor, /pollingTimeoutMs: raw \? Math\.max\(0, Number\(raw\) \|\| 0\) : undefined/, "RunningHub editor should keep timeout undefined when input is empty");
+assert.match(adminRunninghubEditor, /pollingTimeoutMs: raw && Number\(raw\) > 0 \? Math\.max\(0, Number\(raw\) \|\| 0\) : undefined/, "RunningHub editor should normalize 0 to empty timeout");
 
 assert.doesNotMatch(apiServer, /advancedConfig\.pollTimeoutMs = 360000;/, "AI analysis should not auto-fill 360000ms timeout");
 assert.doesNotMatch(apiServer, /advancedConfig\.pollTimeoutMs = 600000;/, "AI analysis should not auto-fill 600000ms timeout");
