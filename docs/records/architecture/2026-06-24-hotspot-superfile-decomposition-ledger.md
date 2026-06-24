@@ -162,6 +162,14 @@
 - `apps/web/src/components/nodes/RHToolsNode.tsx`
   - 状态：已接近硬预算级别
   - 下一步：参考 `RunningHubNode`，拆 `helper / runtime display / param sections`
+  - 当前进度：
+    - `2026-06-24` 已将字段类型推断、字段 options/defaultValue/displayLabel、输出状态归一化下沉到 `apps/web/src/components/nodes/rhToolsNodeHelpers.ts`
+    - 已补齐 contract：`scripts/verify-rhtools-node-helper-split-contract.mjs`
+    - 主文件继续保留：
+      - 提交 / 轮询 / 取消运行链路
+      - 启动器 / 运行器双视图 UI
+      - 参数区与 runtime card 组合层
+    - 主文件行数已降到 `1456`
 - `apps/web/src/components/nodes/LLMNode.tsx`
   - 状态：文本节点交互与运行态耦合
   - 下一步：拆 `prompt sections / runtime card / output display`

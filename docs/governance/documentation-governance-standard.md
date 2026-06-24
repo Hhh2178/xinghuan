@@ -131,6 +131,12 @@
 - 调度与并发优先落到 `dispatch` / `queue` 模块。
 - 统一错误、取消、运行态归一化优先落到 `diagnostics` / `cancel-sync` helper。
 - 大型前端节点或后台页优先拆 `hooks`、`sections`、`services`，不要把 UI、请求和状态机继续堆在单组件里。
+- 对大型前端页面 / 节点，默认拆分顺序进一步明确为：
+  - `section shell`
+  - `detail panel`
+  - `helper / hook`
+  - `save / submit / runtime service`
+- 如果本轮已经触碰 `1200+` watchlist 文件，默认至少完成一层真实下沉，不能只补说明不动代码。
 
 ### 3. 工作树整洁规则
 
@@ -140,6 +146,7 @@
   - 明确标记为后续继续处理的增量
 - 不允许把无关探索、临时脚本、半成品测试、重复文档长期遗留在工作树里。
 - 发布、灰度、正式切换前，必须再次核对 `git status` 与 `git diff --stat`，确认没有把无关改动一起带入。
+- 如果 staged / unstaged 混杂，且无法明确区分哪部分属于本轮发布，默认不允许继续走发布流程。
 - gray 部署脚本当前已经接入：
   - `npm run verify:release-worktree-clean`
 - 这条检查未通过时，不允许继续进入远端部署动作。

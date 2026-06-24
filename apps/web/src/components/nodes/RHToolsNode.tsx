@@ -56,111 +56,20 @@ import {
   rhParamKey,
   type RhParamValue,
 } from '../../utils/rhTextBinding';
+import {
+  buildRhToolsOutputStateFromUrls,
+  emptyRhToolsOutputState,
+  extractRhToolsDefaultValue,
+  extractRhToolsFieldOptions,
+  inferRhToolsValueType,
+  rhToolsFieldDisplayLabel,
+} from './rhToolsNodeHelpers';
 import ResizableCorners from './ResizableCorners';
 import RHToolEditorModal from './RHToolEditorModal';
 import type { RHTool, RHToolsBackup } from '../../services/api';
 
 const ALL = 'all';
 const UNCATEGORIZED = 'uncategorized';
-
-// ========== fieldType → valueType 映射（直接搬运 RunningHubNode）==========
-function inferValueType(fieldType: string | undefined): 'text' | 'number' | 'image' | 'video' | 'audio' {
-  const t = String(fieldType || '').toUpperCase();
-  if (t === 'IMAGE') return 'image';
-  if (t === 'VIDEO') return 'video';
-  if (t === 'AUDIO') return 'audio';
-  if (t === 'NUMBER' || t === 'FLOAT' || t === 'INTEGER' || t === 'INT') return 'number';
-  return 'text';
-}
-
-const KNOWN_FIELD_OPTIONS: Record<string, Array<string | number>> = {
-  aspectRatio: ['1:1', '16:9', '9:16', '4:3', '3:4', '4:5', '5:4', '3:2', '2:3', '21:9', '9:21', '1:4', '4:1', '1:8', '8:1'],
-  aspect_ratio: ['1:1', '16:9', '9:16', '4:3', '3:4', '4:5', '5:4', '3:2', '2:3', '21:9', '9:21'],
-  ratio: ['1:1', '16:9', '9:16', '4:3', '3:4', '4:5', '5:4', '3:2', '2:3'],
-  resolution: ['1k', '2k', '4k', '8k'],
-  size: ['512', '768', '1024', '1280', '1536', '2048'],
-  mode: ['text2img', 'img2img'],
-  quality: ['low', 'medium', 'high', 'best'],
-  instanceType: ['default', 'plus', 'pro'],
-  instance_type: ['default', 'plus', 'pro'],
-  precision: ['fp16', 'fp32', 'bf16'],
-  scheduler: ['normal', 'karras', 'exponential', 'sgm_uniform', 'simple', 'ddim_uniform'],
-  sampler: ['euler', 'euler_ancestral', 'heun', 'dpm_2', 'dpm_2_ancestral', 'lms', 'dpmpp_2m', 'dpmpp_sde', 'ddim', 'uni_pc'],
-};
-
-function extractFieldOptions(it: any): Array<string | number> | null {
-  const candidates = [it?.fieldData, it?.options, it?.list, it?.values, it?.enum, it?.choices, it?.items, it?.selectOptions, it?.dropdown];
-  for (const c of candidates) {
-    if (!Array.isArray(c) || c.length === 0) continue;
-    if (c.every((x) => typeof x === 'string' || typeof x === 'number')) return c as Array<string | number>;
-    if (c.every((x) => x && typeof x === 'object' && ('value' in x || 'label' in x || 'name' in x))) {
-      return c.map((x: any) => (x.value ?? x.label ?? x.name)).filter((v: any) => v != null);
-    }
-  }
-  const t = String(it?.fieldType || '').toUpperCase();
-  if ((t === 'LIST' || t === 'SELECT' || t === 'DROPDOWN' || t === 'COMBO' || t === 'ENUM') && Array.isArray(it?.fieldValue)) {
-    const arr = it.fieldValue;
-    if (arr.length > 0 && arr.every((x: any) => typeof x === 'string' || typeof x === 'number')) {
-      return arr as Array<string | number>;
-    }
-  }
-  const fname = String(it?.fieldName || '').trim();
-  if (fname) {
-    const direct = KNOWN_FIELD_OPTIONS[fname];
-    if (direct) return direct;
-    const lower = fname.toLowerCase();
-    for (const k in KNOWN_FIELD_OPTIONS) {
-      if (k.toLowerCase() === lower) return KNOWN_FIELD_OPTIONS[k];
-    }
-  }
-  return null;
-}
-
-function extractDefaultValue(it: any): string {
-  let v = it?.fieldValue;
-  if (Array.isArray(v)) v = v[0];
-  if (v == null) return '';
-  return typeof v === 'object' ? '' : String(v);
-}
-
-function fieldDisplayLabel(it: any) {
-  return String(it?.displayLabel || it?.label || it?.fieldName || '').trim();
-}
-
-function emptyRhOutputState() {
-  return {
-    urls: [] as string[],
-    imageUrl: '',
-    imageUrls: [] as string[],
-    videoUrl: '',
-    videoUrls: [] as string[],
-    audioUrl: '',
-    audioUrls: [] as string[],
-  };
-}
-
-function buildRhOutputStateFromUrls(list: string[]) {
-  const clean = Array.isArray(list)
-    ? list.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
-  const isImg = (u: string) => /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(u);
-  const isVid = (u: string) => /\.(mp4|webm|mov|m4v|mkv)$/i.test(u);
-  const isAud = (u: string) => /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(u);
-  const imageUrls = clean.filter(isImg);
-  const videoUrls = clean.filter(isVid);
-  const audioUrls = clean.filter(isAud);
-  const fallbackImageUrls = !imageUrls.length && !videoUrls.length && !audioUrls.length && clean[0] ? [clean[0]] : [];
-  return {
-    ...emptyRhOutputState(),
-    urls: clean,
-    imageUrl: imageUrls[0] || fallbackImageUrls[0] || '',
-    imageUrls: imageUrls.length > 0 ? imageUrls : fallbackImageUrls,
-    videoUrl: videoUrls[0] || '',
-    videoUrls,
-    audioUrl: audioUrls[0] || '',
-    audioUrls,
-  };
-}
 
 const paramKey = rhParamKey;
 
@@ -334,7 +243,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     const counters: Record<string, number> = { image: 0, video: 0, audio: 0 };
     const list: any[] = appInfo?.nodeInfoList || [];
     for (const it of list) {
-      const vt = inferValueType(it?.fieldType);
+      const vt = inferRhToolsValueType(it?.fieldType);
       if (vt === 'image' || vt === 'video' || vt === 'audio') {
         m[paramKey(it.nodeId, it.fieldName)] = counters[vt]++;
       }
@@ -367,7 +276,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     const next = { ...paramValues };
     const counters: Record<string, number> = { image: 0, video: 0, audio: 0 };
     for (const it of list) {
-      const vt = inferValueType(it?.fieldType);
+      const vt = inferRhToolsValueType(it?.fieldType);
       if (vt !== 'image' && vt !== 'video' && vt !== 'audio') continue;
       const k = paramKey(it.nodeId, it.fieldName);
       const cur = next[k];
@@ -400,7 +309,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     if (!Array.isArray(list)) return next;
     const counters: Record<string, number> = { image: 0, video: 0, audio: 0 };
     for (const it of list) {
-      const vt = inferValueType(it?.fieldType);
+      const vt = inferRhToolsValueType(it?.fieldType);
       if (vt !== 'image' && vt !== 'video' && vt !== 'audio') continue;
       const k = paramKey(it.nodeId, it.fieldName);
       const cur = next[k];
@@ -433,9 +342,9 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
     const values = overrideValues ?? paramValues;
     for (const it of list) {
       const k = paramKey(it.nodeId, it.fieldName);
-      const vt = inferValueType(it?.fieldType);
+      const vt = inferRhToolsValueType(it?.fieldType);
       const v = values[k]?.value;
-      const finalVal = v != null && v !== '' ? v : extractDefaultValue(it);
+      const finalVal = v != null && v !== '' ? v : extractRhToolsDefaultValue(it);
       const submitVal =
         vt === 'text'
           ? resolveMediaMentions(String(finalVal), getParamMentions(k), mentionMaterials)
@@ -602,7 +511,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
           }
           if (r.status === 'SUCCESS') {
             const list: string[] = Array.isArray(r.urls) ? r.urls : [];
-            const patch: any = { status: 'success', ...buildRhOutputStateFromUrls(list) };
+            const patch: any = { status: 'success', ...buildRhToolsOutputStateFromUrls(list) };
             logBus.success(`任务完成 · ${list.length} 个输出 → ${list[0] || ''}`, src);
             update(patch);
             finish(true);
@@ -660,14 +569,14 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
       const next: Record<string, RhParamValue> = { ...paramValues };
       for (const it of list) {
         const k = paramKey(it.nodeId, it.fieldName);
-        const vt = inferValueType(it?.fieldType);
+        const vt = inferRhToolsValueType(it?.fieldType);
         if (k in next) continue;
         if (vt === 'image' || vt === 'video' || vt === 'audio') {
           const upUrl = findUpstreamUrl(vt);
           next[k] = { value: upUrl || '', sourceFromUpstream: true };
           continue;
         }
-        next[k] = { value: extractDefaultValue(it) };
+        next[k] = { value: extractRhToolsDefaultValue(it) };
       }
       const withTextBindings = applyRhTextBindings(list, orderedTexts, next);
       update({ appInfo: info, paramValues: withTextBindings });
@@ -734,7 +643,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
       taskId: null,
       rhProgress: '5%',
       rhQueueHint: '任务提交中',
-      ...emptyRhOutputState(),
+      ...emptyRhToolsOutputState(),
     });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);
@@ -993,12 +902,12 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
                 <span style={{ color: subText }}>点击字段可编辑</span>
               </div>
               {nodeInfoList.map((it: any, i: number) => {
-                const vt = inferValueType(it?.fieldType);
+                const vt = inferRhToolsValueType(it?.fieldType);
                 const k = paramKey(it.nodeId, it.fieldName);
-                const cur = paramValues[k] || { value: extractDefaultValue(it) };
+                const cur = paramValues[k] || { value: extractRhToolsDefaultValue(it) };
                 const isMedia = vt === 'image' || vt === 'video' || vt === 'audio';
-                const fieldDataOptions = extractFieldOptions(it);
-                const currentFieldDisplayLabel = fieldDisplayLabel(it);
+                const fieldDataOptions = extractRhToolsFieldOptions(it);
+                const currentFieldDisplayLabel = rhToolsFieldDisplayLabel(it);
                 return (
                   <div key={i} className="space-y-1 pb-2 border-b last:border-0 last:pb-0" style={{ borderColor: border }}>
                     <div className="flex items-center gap-1 text-[10px] leading-tight">
@@ -1071,7 +980,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
                         type="number"
                         value={cur.value}
                         onChange={(e) => setParam(k, { value: e.target.value })}
-                        placeholder={extractDefaultValue(it)}
+                        placeholder={extractRhToolsDefaultValue(it)}
                         className="w-full rounded px-2 py-1 text-[11px] outline-none"
                         style={{ background: surface, color: text, border: `1px solid ${border}` }}
                       />
@@ -1177,7 +1086,7 @@ const RHToolsNode = ({ id, data, selected }: NodeProps) => {
                                 mentions={getParamMentions(k)}
                                 materials={mentionMaterials}
                                 onChange={(value, mentions) => setTextParam(k, value, mentions)}
-                                placeholder={extractDefaultValue(it)}
+                                placeholder={extractRhToolsDefaultValue(it)}
                                 isDark={isDark}
                                 isPixel={isPixel}
                                 className="w-full min-h-14 resize-none rounded px-2 py-1 text-[11px] outline-none"
