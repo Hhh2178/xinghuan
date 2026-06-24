@@ -3,12 +3,13 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.1`
-- 当前 release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
+- 当前 release：`20260624-timeout-zero-and-app-shell-loading-gray-r2-v051`
 - 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
+  - `../../docs/logbooks/releases/gray/2026-06-24-timeout-zero-and-app-shell-loading-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-runninghub-timeout-empty-default-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
@@ -24,7 +25,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260624-task-runtime-kernel-governance-gray-r1-v051`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260624-runninghub-timeout-empty-default-gray-r1-v051`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
