@@ -24,8 +24,6 @@ import {
   ADVANCED_PROVIDER_LABELS,
   ALL_FIELDS,
   buildSettingsBackupPayload,
-  CLOUD_UPLOAD_GUIDES,
-  CLOUD_UPLOAD_LABELS,
   JIMENG_CLI_INSTALL_COMMAND,
   MODELSCOPE_TOKEN_URLS,
   normalizeImportedSettings,
@@ -36,6 +34,7 @@ import {
   type KeyField,
 } from './apiSettingsHelpers';
 import ApiSettingsAdvancedProvidersSection from './ApiSettingsAdvancedProvidersSection';
+import ApiSettingsCloudTargetDetailPanel from './ApiSettingsCloudTargetDetailPanel';
 import ApiSettingsCloudUploadSection from './ApiSettingsCloudUploadSection';
 import ApiSettingsFooterActions from './ApiSettingsFooterActions';
 import ApiSettingsKeySections from './ApiSettingsKeySections';
@@ -454,314 +453,19 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
   };
 
   const renderCloudTargetForm = (target: CloudUploadTargetConfig) => {
-    const providerLabel = CLOUD_UPLOAD_LABELS[target.provider] || target.provider;
-    const guide = CLOUD_UPLOAD_GUIDES[target.provider];
-    const sectionCls = isPixel
-      ? 't8-api-settings-provider-panel border p-3 space-y-4 min-w-0'
-      : 't8-api-settings-provider-panel border rounded-xl p-3 sm:p-4 space-y-4 min-w-0';
-    const formBlockCls = isPixel
-      ? 't8-api-settings-section border p-3 space-y-3'
-      : 't8-api-settings-section rounded-lg border p-3 space-y-3';
-    const fieldInputCls = `${inputCls.replace('flex-1 ', '')} w-full min-w-0`;
-    const guideBoxCls = isPixel
-      ? 't8-api-settings-guide border p-3 text-[11px] leading-relaxed'
-      : 't8-api-settings-guide rounded-lg border p-3 text-[11px] leading-relaxed';
-    const smallPillCls = isPixel
-      ? 't8-api-settings-pill inline-flex items-center px-1.5 py-0.5 border text-[10px] font-bold'
-      : 't8-api-settings-pill inline-flex items-center rounded px-1.5 py-0.5 border text-[10px] font-semibold';
-    const supported = target.provider === 'tencent-cos' || target.provider === 'aliyun-oss';
-    const test = cloudTestStatus[target.id];
     return (
-      <div className={sectionCls}>
-        <div className="flex items-start gap-3 flex-wrap">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-sm font-black ${labelCls}`}>{target.label || providerLabel}</span>
-              <span className={smallPillCls}>{providerLabel}</span>
-              <span className={target.enabled ? 'text-[11px] font-bold text-emerald-500' : `text-[11px] font-bold ${hintCls}`}>
-                {target.enabled ? '已启用' : '未启用'}
-              </span>
-              <span className={supported ? 'text-[11px] font-bold text-emerald-500' : `text-[11px] font-bold ${hintCls}`}>
-                {guide?.status}
-              </span>
-            </div>
-            <p className={`mt-1 text-[11px] leading-relaxed ${hintCls}`}>{guide?.subtitle}</p>
-          </div>
-          <label className={`flex items-center gap-2 text-xs font-bold shrink-0 ${labelCls}`}>
-            <input
-              type="checkbox"
-              checked={!!target.enabled}
-              onChange={(e) => updateCloudTarget(target.id, { enabled: e.target.checked })}
-            />
-            右键菜单显示
-          </label>
-          <label className={`flex items-center gap-2 text-xs font-bold shrink-0 ${labelCls}`}>
-            <input
-              type="radio"
-              checked={!!target.isDefault}
-              onChange={() => markCloudDefault(target.id)}
-            />
-            默认目标
-          </label>
-          <button
-            type="button"
-            onClick={() => handleTestCloudTarget(target)}
-            disabled={!!test?.loading}
-            className={
-              isPixel
-                ? 't8-api-settings-secondary-btn px-btn text-[11px] px-2 py-1 shrink-0'
-                : 't8-api-settings-secondary-btn px-2 py-1 text-[11px] rounded border shrink-0 inline-flex items-center gap-1'
-            }
-          >
-            <TestTube2 size={12} />
-            {test?.loading ? '检查中...' : '配置检查'}
-          </button>
-        </div>
-
-        {test?.message && (
-          <div className={test.ok ? 'text-[11px] text-emerald-500' : 'text-[11px] text-red-400'}>
-            {test.message}
-          </div>
-        )}
-
-        <div className={guideBoxCls}>
-          <div className="flex items-start gap-2">
-            <Info size={14} className="mt-0.5 shrink-0" />
-            <div className="min-w-0">
-              <div className="font-bold">这是什么？</div>
-              <p>{guide?.description}</p>
-              <p className={`mt-2 ${hintCls}`}>
-                右键上传只复制一份外部副本，不会改动画布节点、资源库文件或本地自动保存结果。
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <AdvancedProviderFormBlock
-          className={formBlockCls}
-          labelClassName={labelCls}
-          hintClassName={hintCls}
-          title="1. 基础信息"
-          note="显示名称会出现在素材右键菜单中；路径前缀支持 {kind}、{yyyy-mm}、{date}，例如 t8-canvas/{kind}/{yyyy-mm}。"
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <label className="space-y-1">
-              <span className={`text-[11px] ${labelCls}`}>显示名称</span>
-              <input
-                value={target.label || ''}
-                onChange={(e) => updateCloudTarget(target.id, { label: e.target.value })}
-                className={fieldInputCls}
-                placeholder={providerLabel}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className={`text-[11px] ${labelCls}`}>路径前缀</span>
-              <input
-                value={target.prefix || ''}
-                onChange={(e) => updateCloudTarget(target.id, { prefix: e.target.value })}
-                className={fieldInputCls}
-                placeholder="t8-canvas/{kind}/{yyyy-mm}"
-              />
-            </label>
-            {supported && (
-              <label className="space-y-1 lg:col-span-2">
-                <span className={`text-[11px] ${labelCls}`}>公共域名（可选）</span>
-                <input
-                  value={target.publicBaseUrl || ''}
-                  onChange={(e) => updateCloudTarget(target.id, { publicBaseUrl: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="https://cdn.example.com/path · 留空返回默认对象 URL"
-                />
-              </label>
-            )}
-          </div>
-        </AdvancedProviderFormBlock>
-
-        {target.provider === 'tencent-cos' && (
-          <AdvancedProviderFormBlock
-            className={formBlockCls}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            title="2. 腾讯云 COS"
-            note="SecretId / SecretKey 留空或保留 **** 表示不覆盖后端已保存密钥。"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Bucket</span>
-                <input
-                  value={target.tencentCos?.bucket || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'tencentCos', { bucket: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="example-1250000000"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Region</span>
-                <input
-                  value={target.tencentCos?.region || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'tencentCos', { region: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="ap-guangzhou"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>SecretId</span>
-                <input
-                  type="password"
-                  value={target.tencentCos?.secretId || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'tencentCos', { secretId: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.tencentCos?.hasSecretId ? '留空保持不变' : '请输入 SecretId'}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>SecretKey</span>
-                <input
-                  type="password"
-                  value={target.tencentCos?.secretKey || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'tencentCos', { secretKey: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.tencentCos?.hasSecretKey ? '留空保持不变' : '请输入 SecretKey'}
-                />
-              </label>
-            </div>
-          </AdvancedProviderFormBlock>
-        )}
-
-        {target.provider === 'aliyun-oss' && (
-          <AdvancedProviderFormBlock
-            className={formBlockCls}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            title="2. 阿里云 OSS"
-            note="Endpoint 可以填 oss-cn-hangzhou.aliyuncs.com 或完整 https 地址；保存时会统一清洗。"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Bucket</span>
-                <input
-                  value={target.aliyunOss?.bucket || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'aliyunOss', { bucket: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="example-bucket"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Endpoint</span>
-                <input
-                  value={target.aliyunOss?.endpoint || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'aliyunOss', { endpoint: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="oss-cn-hangzhou.aliyuncs.com"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>AccessKeyId</span>
-                <input
-                  type="password"
-                  value={target.aliyunOss?.accessKeyId || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'aliyunOss', { accessKeyId: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.aliyunOss?.hasAccessKeyId ? '留空保持不变' : '请输入 AccessKeyId'}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>AccessKeySecret</span>
-                <input
-                  type="password"
-                  value={target.aliyunOss?.accessKeySecret || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'aliyunOss', { accessKeySecret: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.aliyunOss?.hasAccessKeySecret ? '留空保持不变' : '请输入 AccessKeySecret'}
-                />
-              </label>
-            </div>
-          </AdvancedProviderFormBlock>
-        )}
-
-        {target.provider === 'baidu-netdisk' && (
-          <AdvancedProviderFormBlock
-            className={formBlockCls}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            title="2. 百度网盘（预留）"
-            note="第一版不执行真实上传，字段用于后续 OAuth / PCS 接入时平滑迁移。"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <label className="space-y-1 lg:col-span-2">
-                <span className={`text-[11px] ${labelCls}`}>网盘目录</span>
-                <input
-                  value={target.baiduNetdisk?.folder || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'baiduNetdisk', { folder: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="/apps/T8PenguinCanvas"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Access Token</span>
-                <input
-                  type="password"
-                  value={target.baiduNetdisk?.accessToken || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'baiduNetdisk', { accessToken: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.baiduNetdisk?.hasAccessToken ? '留空保持不变' : '后续接入时使用'}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>Refresh Token</span>
-                <input
-                  type="password"
-                  value={target.baiduNetdisk?.refreshToken || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'baiduNetdisk', { refreshToken: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.baiduNetdisk?.hasRefreshToken ? '留空保持不变' : '后续接入时使用'}
-                />
-              </label>
-            </div>
-          </AdvancedProviderFormBlock>
-        )}
-
-        {target.provider === 'quark-netdisk' && (
-          <AdvancedProviderFormBlock
-            className={formBlockCls}
-            labelClassName={labelCls}
-            hintClassName={hintCls}
-            title="2. 夸克网盘（预留）"
-            note="第一版不执行真实上传，字段用于后续稳定 CLI / 授权方案接入。"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>网盘目录</span>
-                <input
-                  value={target.quarkNetdisk?.folder || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'quarkNetdisk', { folder: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="/T8PenguinCanvas"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className={`text-[11px] ${labelCls}`}>外部命令路径</span>
-                <input
-                  value={target.quarkNetdisk?.commandPath || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'quarkNetdisk', { commandPath: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder="后续 CLI 接入时使用"
-                />
-              </label>
-              <label className="space-y-1 lg:col-span-2">
-                <span className={`text-[11px] ${labelCls}`}>Cookie / 授权信息（不推荐长期依赖）</span>
-                <input
-                  type="password"
-                  value={target.quarkNetdisk?.cookie || ''}
-                  onChange={(e) => updateCloudTargetNested(target.id, 'quarkNetdisk', { cookie: e.target.value })}
-                  className={fieldInputCls}
-                  placeholder={target.quarkNetdisk?.hasCookie ? '留空保持不变' : '等待稳定方案后再填写'}
-                />
-              </label>
-            </div>
-          </AdvancedProviderFormBlock>
-        )}
-      </div>
+      <ApiSettingsCloudTargetDetailPanel
+        target={target}
+        isPixel={isPixel}
+        inputClassName={inputCls}
+        labelClassName={labelCls}
+        hintClassName={hintCls}
+        testStatus={cloudTestStatus[target.id]}
+        onUpdateTarget={updateCloudTarget}
+        onUpdateTargetNested={updateCloudTargetNested}
+        onMarkDefault={markCloudDefault}
+        onTestTarget={handleTestCloudTarget}
+      />
     );
   };
 

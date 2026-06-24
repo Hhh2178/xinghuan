@@ -44,6 +44,7 @@
     "verify:api-settings-backup-helper-contract": "npx tsx scripts/verify-api-settings-backup-helper-contract.ts",
     "verify:api-settings-key-field-split-contract": "node scripts/verify-api-settings-key-field-split-contract.mjs",
     "verify:api-settings-section-split-contract": "node scripts/verify-api-settings-section-split-contract.mjs",
+    "verify:api-settings-detail-panel-split-contract": "node scripts/verify-api-settings-detail-panel-split-contract.mjs",
     "verify:worker-runninghub-dispatch-split-contract": "node scripts/verify-worker-runninghub-dispatch-split-contract.mjs",
     "verify:assistant-provider-template-contract": "node scripts/verify-assistant-provider-template-contract.mjs",
     "verify:admin-assistant-structured-analysis-contract": "node scripts/verify-admin-assistant-structured-analysis-contract.mjs",
