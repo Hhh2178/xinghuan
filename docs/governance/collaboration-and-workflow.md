@@ -24,6 +24,10 @@
 
 ## 工作收口要求
 
+热点文件的默认执行流程，优先看：
+
+- `docs/governance/hotspot-decomposition-workflow.md`
+
 ### 做系统改动时
 
 至少检查：

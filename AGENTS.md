@@ -37,6 +37,7 @@
 ## 文件治理与归档规则
 
 - 治理规则看 `docs/governance/`
+- 热点文件怎么拆、每批怎么收口，看 `docs/governance/hotspot-decomposition-workflow.md`
 - 系统知识看 `docs/systems/`
 - 长期记忆看 `docs/memory/`
 - 逐日台账与发布证据看 `docs/logbooks/`
@@ -56,6 +57,7 @@
 - `docs/INDEX.md`：新的第一跳总索引。
 - `docs/governance/`：协作方式、CodeGraph 规则、归档政策。
 - `docs/governance/documentation-governance-standard.md`：当前正式文档治理规范。
+- `docs/governance/hotspot-decomposition-workflow.md`：热点文件拆分与工作树收口执行手册。
 - `docs/systems/`：按系统组织的知识入口。
 - `docs/memory/`：长期记忆主题目录。
 - `docs/logbooks/`：日常推进、发布、验证、事故记录目录。
@@ -167,6 +169,16 @@
     - `helper / hook`
     - `save / submit service`
   - 如果当前任务已经落在 `1200+` watchlist 文件上，本轮默认至少要完成一层真实下沉，不能只补台账或只改预算
+  - 热点拆分批次默认要满足四件事同时成立：
+    - 一层真实代码下沉
+    - 一组可复用验证证据
+    - 一份同步记录材料
+    - 一个可回退的 clean commit
+  - 动热点文件前，必须先说清：
+    - 主文件本轮保留哪些职责
+    - 本轮准备下沉哪一层
+    - 新职责准备落到哪个文件类型
+  - 默认一个提交只收一个热点文件，或一个紧耦合热点族；不鼓励把多个互不相关的超级文件混在一个提交里一起改
   - 对热点文件的真实下沉必须能指向明确落点：
     - 前端默认落到 `section shell / detail panel / hook / service`
     - 后端默认落到 `route handler / adapter / client / dispatch / diagnostics`
@@ -180,6 +192,10 @@
   - 默认批次收口标准：
     - 本轮热点文件改动要么已经 clean commit，要么在台账里明确说明剩余未收口范围
     - 不允许长期保留“功能已做完，但工作树一直混着临时验证残留”的状态
+  - 热点批次收口前，默认还要补做一次：
+    - `codegraph sync`
+    - 相关 workspace 的 type-check / build
+    - 对应 contract / verify 脚本
 - 如果当前工作树很脏，但本轮只处理其中一部分，必须在台账或发布记录里明确“本轮实际归属改动范围”。
 - 当前已落成可执行护栏：
   - `npm run verify:no-runtime-artifacts-staged`

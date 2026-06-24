@@ -150,6 +150,9 @@
   - 主文件剩余职责
   - 新文件承接职责
   - 下一轮准备继续拆哪一层
+- 热点拆分的固定执行顺序、批次模板和 clean commit 口径，以：
+  - `docs/governance/hotspot-decomposition-workflow.md`
+  - 为当前配套执行手册
 
 ### 3. 工作树整洁规则
 

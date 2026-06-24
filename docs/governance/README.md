@@ -20,10 +20,11 @@
 
 1. `documentation-governance-standard.md`
 2. `engineering-guardrails.md`
-3. `collaboration-and-workflow.md`
-4. `codegraph-and-repo-navigation.md`
-5. `archive-policy.md`
-6. `templates/README.md`
+3. `hotspot-decomposition-workflow.md`
+4. `collaboration-and-workflow.md`
+5. `codegraph-and-repo-navigation.md`
+6. `archive-policy.md`
+7. `templates/README.md`
 
 ## 正式规范与兼容关系
 
@@ -52,6 +53,7 @@
 ## 工程护栏
 
 - 热点大文件预算与发布前工作树清洁规则：`engineering-guardrails.md`
+- 热点拆分批次如何执行、如何形成 clean commit：`hotspot-decomposition-workflow.md`
 - 发布记录与当前值守入口必须同步 staged 的规则也在：`engineering-guardrails.md`
 - 对应脚本：
   - `npm run verify:release-logbook-sync-staged`

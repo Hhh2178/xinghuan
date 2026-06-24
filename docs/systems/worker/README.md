@@ -13,6 +13,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 ## 关键代码入口
 
 - 主循环：`apps/worker/src/worker.ts`
+- 任务运行态存取：`apps/worker/src/worker-task-store.ts`
 - RunningHub 协议 client：`apps/worker/src/worker-runninghub-client.ts`
 - 统一运行态诊断：`apps/worker/src/worker-runtime-diagnostics.ts`
 - RunningHub poll 响应归一化：`apps/worker/src/worker-runninghub-response.ts`
@@ -29,7 +30,12 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
   - 协议 submit / poll / 输出提取：`worker-runninghub-client.ts`
   - poll 非 JSON 护栏：`worker-runninghub-response.ts`
   - 统一失败归一化：`worker-runtime-diagnostics.ts`
+  - RunningHub key 调度：`worker-runninghub-dispatch.ts`
+  - 任务读取 / 状态写回 / heartbeat patch：`worker-task-store.ts`
 - 后续收口目标是继续把 RunningHub Key 池调度与取消同步拆出，避免 `worker.ts` 继续堆积 provider 细节
+- 当前下一步收口重点已更新为：
+  - `cancel-sync helper`
+  - `unified diagnostics / failure normalization glue`
 
 ## 工程治理要求
 

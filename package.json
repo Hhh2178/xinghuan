@@ -62,6 +62,7 @@
     "verify:system-observability": "node scripts/verify-system-observability.mjs",
     "verify:environment-sync-smoke": "node scripts/verify-environment-sync-smoke.mjs",
     "verify:worker-observability-contract": "node scripts/verify-worker-observability-contract.mjs",
+    "verify:worker-task-store-split-contract": "node scripts/verify-worker-task-store-split-contract.mjs",
     "verify:file-hotspot-budgets": "node scripts/verify-file-hotspot-budgets.mjs",
     "verify:hotspot-watchlist-contract": "node scripts/verify-hotspot-watchlist-contract.mjs",
     "verify:hotspot-doc-sync-staged": "node scripts/verify-hotspot-doc-sync-staged.mjs",

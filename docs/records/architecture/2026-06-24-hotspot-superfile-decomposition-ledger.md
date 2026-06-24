@@ -40,6 +40,7 @@
   - `worker-grsai-image-client.ts`
   - `worker-runninghub-client.ts`
   - `worker-runninghub-dispatch.ts`
+  - `worker-task-store.ts`
 - 下一步优先拆分：
   - cancel-sync helper
   - unified diagnostics / failure normalization helper
@@ -54,6 +55,9 @@
 - 当前进度：
   - `2026-06-24` 已将 RunningHub key 优先级排序、实时可执行探测、redis 占位与释放逻辑下沉到 `worker-runninghub-dispatch.ts`
   - 主文件继续保留任务领取、执行、状态回写与 deferred/requeue 编排
+  - `2026-06-24` 已将任务读取、状态写回、heartbeat/runtime patch、取消态探测下沉到 `worker-task-store.ts`
+  - 已补齐 contract：`scripts/verify-worker-task-store-split-contract.mjs`
+  - 主文件继续保留 worker 主循环、provider 执行编排与结果归一化 glue
 
 ### `apps/web/src/components/nodes/RunningHubNode.tsx`
 
