@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Cloud, Library, Palette, Skull, Sailboat, LogOut, UserRound } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, Palette, LogOut, UserRound } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
@@ -8,6 +8,7 @@ import LoginGate from './components/LoginGate';
 import StellarCursorAura from './components/StellarCursorAura';
 import ErrorBoundary from './components/ErrorBoundary';
 import * as api from './services/api';
+import brandStellarGlitchLogo from './assets/brand-stellar-glitch-logo.png';
 import type { NodeType } from './types/canvas';
 import type { AuthUser, GenerationLibraryItem, ResourceItem } from './services/api';
 import { applyThemeTemplate } from './theme/applyTheme';
@@ -412,66 +413,41 @@ function App() {
   };
 
   if (authStatus === 'checking') {
-    const transitionParticles = Array.from({ length: 36 }, (_, index) => ({
-      id: index,
-      angle: index * 37,
-      distance: 140 + (index % 8) * 17,
-      delay: `${index * 0.055}s`,
-      duration: `${1.05 + (index % 6) * 0.16}s`,
-    }));
-
     return (
-      <div className="xh-entry-shell xh-quantum-transition flex h-screen items-center justify-center overflow-hidden text-cyan-100">
+      <div className="xh-entry-shell xh-quantum-transition xh-cyber-transition-shell flex h-screen items-center justify-center overflow-hidden text-cyan-100">
         <StellarCursorAura />
-        <div className="xh-nebula-bg" aria-hidden="true">
-          <div className="xh-nebula-layer xh-nebula-layer--deep" />
-          <div className="xh-nebula-layer xh-nebula-layer--mint" />
-          <div className="xh-nebula-layer xh-nebula-layer--cyan" />
-        </div>
-        <main className="relative z-10 flex h-full w-full flex-col items-center justify-center px-6">
-          <section className="xh-transition-core-stage relative grid h-80 w-80 place-items-center sm:h-96 sm:w-96" aria-label="星幻画布启动同步中">
-            <div className="xh-transition-orbit xh-transition-orbit--outer" aria-hidden="true" />
-            <div className="xh-transition-orbit xh-transition-orbit--middle" aria-hidden="true" />
-            <div className="xh-transition-orbit xh-transition-orbit--inner" aria-hidden="true" />
-            <div className="xh-transition-particle-field" aria-hidden="true">
-              {transitionParticles.map((particle) => (
-                <span
-                  key={particle.id}
-                  className="xh-transition-particle"
-                  style={{
-                    '--xh-particle-angle': `${particle.angle}deg`,
-                    '--xh-particle-distance': `${particle.distance}px`,
-                    '--xh-particle-delay': particle.delay,
-                    '--xh-particle-duration': particle.duration,
-                  } as CSSProperties}
-                />
-              ))}
+        <div className="xh-cyber-grid" aria-hidden="true" />
+        <div className="xh-cyber-scanlines" aria-hidden="true" />
+        <div className="xh-cyber-noise" aria-hidden="true" />
+        <main className="relative z-10 flex h-full w-full items-center justify-center px-6">
+          <section className="xh-cyber-transition-panel" aria-label="星幻画布启动同步中">
+            <div className="xh-cyber-transition-logo-wrap">
+              <span className="xh-cyber-transition-logo-halo" aria-hidden="true" />
+              <img className="xh-cyber-transition-logo" src={brandStellarGlitchLogo} alt="星幻画布启动中" />
             </div>
-            <div className="xh-transition-core relative z-20 grid h-28 w-28 place-items-center rounded-[2rem] sm:h-32 sm:w-32">
-              <Sparkles size={44} strokeWidth={1.8} />
+            <div className="xh-cyber-transition-copy">
+              <p className="xh-cyber-transition-kicker">SYSTEM BOOTSTRAP // XINGHUAN FABRIC</p>
+              <h2 className="xh-cyber-transition-title">正在接通创作主板</h2>
+              <p className="xh-cyber-transition-subtitle">校验权限、同步节点目录、恢复你的工作区链路。</p>
             </div>
-          </section>
-
-          <section className="mt-10 text-center">
-            <div className="xh-transition-status inline-flex items-center gap-3 rounded-full px-6 py-2">
-              <span className="xh-transition-sync-dot" aria-hidden="true" />
-              <span className="xh-status-main xh-status-main--sync text-xl font-medium tracking-[0.18em] text-[#36F6B4]">
-                节点同步中...
-              </span>
-              <span className="xh-status-main xh-status-main--verified text-xl font-medium tracking-[0.18em] text-[#36F6B4]">
-                权限校验完成
-              </span>
-            </div>
-            <p className="xh-status-sub mt-4 text-sm tracking-[0.22em] text-[#bacbc0]/80">
-              <span className="xh-status-sub--connect">正在接入星域核心...</span>
-              <span className="xh-status-sub--render">星图渲染管线初始化...</span>
-            </p>
-            <div className="xh-transition-progress mx-auto mt-6 h-[2px] w-64 overflow-hidden rounded-full bg-white/5">
-              <span className="block h-full rounded-full" />
+            <div className="xh-cyber-transition-progress" aria-hidden="true">
+              <div className="xh-cyber-transition-progress__segments">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="xh-cyber-transition-progress__line">
+                <span />
+              </div>
+              <div className="xh-cyber-transition-progress__meta">
+                <span>AUTH CHECK: PASSING</span>
+                <span>CANVAS BUS: SYNCING</span>
+              </div>
             </div>
           </section>
         </main>
-        <div className="xh-transition-flash" aria-hidden="true" />
       </div>
     );
   }
@@ -500,119 +476,20 @@ function App() {
         }`}
       >
         <div className="flex items-center gap-3">
-          {isOp ? (
-            <div className="t8-op-brand flex items-center gap-2">
-              <span className="t8-op-brand__mark">
-                <Skull size={16} />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-op-brand__title text-[14px] font-black leading-none">
-                  ONE PIECE · 星幻无限画布
-                </h1>
-                <div className="t8-op-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  GRAND LINE CANVAS
-                </div>
-              </div>
-              <Sailboat className="t8-op-brand__ship" size={15} />
+          <div className="xh-cyber-brand-lockup">
+            <div className="xh-cyber-brand-lockup__logo-wrap">
+              <img className="xh-cyber-brand-lockup__logo" src={brandStellarGlitchLogo} alt="星幻画布" />
             </div>
-          ) : isRh ? (
-            <div className="t8-rh-brand flex items-center gap-2">
-              <span className="t8-rh-brand__mark">
-                <Cloud size={16} />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-rh-brand__title text-[14px] font-black leading-none">
-                  RH · 星幻无限画布
-                </h1>
-                <div className="t8-rh-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  RUNNINGHUB WORKSPACE
-                </div>
+            <div className="xh-cyber-brand-lockup__copy min-w-0">
+              <h1 className="xh-cyber-brand-lockup__title">星幻无限画布</h1>
+              <div className="xh-cyber-brand-lockup__sub">
+                XINGHUAN CANVAS {isRh ? '// RUNNINGHUB' : isPixel ? '// PIXEL MODE' : '// CONTROL DECK'}
               </div>
             </div>
-          ) : isNaruto ? (
-            <div className="t8-naruto-brand flex items-center gap-2">
-              <span className="t8-naruto-brand__mark" aria-hidden="true">
-                <span className="t8-naruto-brand__leaf" />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-naruto-brand__title text-[14px] font-black leading-none">
-                  火影 · 星幻无限画布
-                </h1>
-                <div className="t8-naruto-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  SHINOBI CHAKRA CANVAS
-                </div>
-              </div>
-            </div>
-          ) : isEva ? (
-            <div className="t8-eva-brand flex items-center gap-2">
-              <span className="t8-eva-brand__mark" aria-hidden="true">
-                <span className="t8-eva-brand__core" />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-eva-brand__title text-[14px] font-black leading-none">
-                  EVA · 星幻无限画布
-                </h1>
-                <div className="t8-eva-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  NERV HQ - TOKYO-3 / MAGI SYSTEM ONLINE
-                </div>
-              </div>
-              <span className="t8-eva-brand__sync" aria-hidden="true">SYSTEM STATUS: ONLINE</span>
-            </div>
-          ) : isYyh ? (
-            <div className="t8-yyh-brand flex items-center gap-2">
-              <span className="t8-yyh-brand__mark" aria-hidden="true">
-                <Sparkles size={16} />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-yyh-brand__title text-[14px] font-black leading-none">
-                  幽游白书 · 星幻无限画布
-                </h1>
-                <div className="t8-yyh-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  SPIRIT DETECTIVE CANVAS / REI MAP ONLINE
-                </div>
-              </div>
-              <span className="t8-yyh-brand__status" aria-hidden="true">REI GUN READY</span>
-            </div>
-          ) : isSlamdunk ? (
-            <div className="t8-slamdunk-brand flex items-center gap-2">
-              <span className="t8-slamdunk-brand__mark" aria-hidden="true">
-                <span className="t8-slamdunk-brand__ball" />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-slamdunk-brand__title text-[14px] font-black leading-none">
-                  灌篮高手 · 星幻无限画布
-                </h1>
-                <div className="t8-slamdunk-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  FULL COURT CANVAS / BUZZER BEATER READY
-                </div>
-              </div>
-              <span className="t8-slamdunk-brand__score" aria-hidden="true">AI 10 : 08</span>
-            </div>
-          ) : isSoccer ? (
-            <div className="t8-soccer-brand flex items-center gap-2">
-              <span className="t8-soccer-brand__mark" aria-hidden="true">
-                <span className="t8-soccer-brand__jersey" />
-              </span>
-              <div className="min-w-0">
-                <h1 className="t8-soccer-brand__title text-[14px] font-black leading-none">
-                  足球小将 · 星幻无限画布
-                </h1>
-                <div className="t8-soccer-brand__sub text-[9px] font-bold tracking-wide leading-none mt-0.5">
-                  CAPTAIN TSUBASA CANVAS / GOLDEN GOAL READY
-                </div>
-              </div>
-              <span className="t8-soccer-brand__score" aria-hidden="true">Japan 3:2 Brazil</span>
-            </div>
-          ) : isPixel ? (
-            <>
-              <h1 className="px-title text-[14px] font-bold tracking-wide leading-none">
-                星幻无限画布
-              </h1>
-              <span className="px-chip px-chip--pink text-[10px]">企业共创版</span>
-            </>
-          ) : (
-            <h1 className="text-sm font-semibold">星幻无限画布</h1>
-          )}
+            <span className="xh-cyber-brand-lockup__badge" aria-hidden="true">
+              NODE BUS ONLINE
+            </span>
+          </div>
           <span
             className={
               isPixel

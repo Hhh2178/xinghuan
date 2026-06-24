@@ -3297,41 +3297,64 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   if (!activeId) {
     return (
       <div
-        className="t8-canvas-shell xh-empty-canvas flex-1 relative flex items-center justify-center overflow-hidden"
+        className="t8-canvas-shell xh-empty-canvas xh-cyber-empty-shell flex-1 relative flex items-center justify-center overflow-hidden"
         data-theme-visual={visualStyle}
         style={{
-          background: `radial-gradient(circle at 50% 18%, rgba(96, 165, 250, 0.18), transparent 32%), radial-gradient(circle at 78% 22%, rgba(45, 212, 191, 0.13), transparent 28%), radial-gradient(circle at 18% 78%, rgba(129, 140, 248, 0.13), transparent 30%), ${bgColor}`,
+          background: `radial-gradient(circle at 50% 16%, rgba(34, 211, 238, 0.16), transparent 26%), radial-gradient(circle at 82% 20%, rgba(74, 222, 128, 0.12), transparent 24%), radial-gradient(circle at 20% 78%, rgba(14, 165, 233, 0.12), transparent 28%), linear-gradient(180deg, rgba(3, 10, 16, 0.72), rgba(3, 10, 16, 0.18)), ${bgColor}`,
           color: themeTokens.textMuted,
         }}
       >
         <StellarCursorAura className="xh-cursor-aura--canvas" />
         <div className="xh-stellar-grid" aria-hidden="true" />
         <div className="xh-stellar-lines" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-0 opacity-70">
-          <div className="xh-empty-orbit absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/12" />
-          <div className="xh-empty-orbit absolute left-1/2 top-1/2 h-[660px] w-[660px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-300/10" />
+        <div className="xh-cyber-empty-bg pointer-events-none absolute inset-0 opacity-80" aria-hidden="true">
+          <div className="xh-cyber-empty-bg__halo absolute left-1/2 top-1/2 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/12" />
+          <div className="xh-cyber-empty-bg__ring absolute left-1/2 top-1/2 h-[700px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/10" />
+          <div className="xh-cyber-empty-bg__trace absolute inset-x-[12%] top-[18%] h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
+          <div className="xh-cyber-empty-bg__trace absolute inset-x-[18%] bottom-[22%] h-px bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent" />
         </div>
-        <div className="xh-glass-panel relative w-[min(720px,calc(100%-48px))] rounded-[36px] px-8 py-8 text-center shadow-[0_30px_120px_rgba(15,50,95,0.28)]">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-cyan-300/30 bg-cyan-300/10 text-lg font-black text-cyan-100 shadow-[0_0_44px_rgba(96,165,250,0.24)]">
-            <Orbit size={30} />
+        <div className="xh-cyber-empty-card xh-glass-panel relative w-[min(760px,calc(100%-40px))] overflow-hidden rounded-[36px] border border-cyan-300/20 px-6 py-6 text-center shadow-[0_30px_120px_rgba(6,32,49,0.34)] md:px-8 md:py-8">
+          <div className="xh-cyber-empty-card__frame pointer-events-none absolute inset-0 rounded-[36px] border border-white/5" aria-hidden="true" />
+          <div className="xh-cyber-empty-visual relative mx-auto mb-6 flex h-[170px] w-full max-w-[440px] items-center justify-center overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(8,20,28,0.92),rgba(7,15,22,0.72))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_0_80px_rgba(34,211,238,0.08)]">
+            <div className="xh-cyber-empty-visual__grid absolute inset-4 rounded-[22px] border border-cyan-300/12" />
+            <div className="xh-cyber-empty-visual__bus absolute left-8 right-8 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent" />
+            <div className="xh-cyber-empty-visual__bus absolute bottom-8 left-1/2 h-12 w-px -translate-x-1/2 bg-gradient-to-b from-cyan-300/0 via-cyan-300/50 to-emerald-300/10" />
+            <div className="xh-cyber-empty-visual__chip absolute left-[18%] top-[32%] h-10 w-16 rounded-xl border border-cyan-300/30 bg-cyan-300/10" />
+            <div className="xh-cyber-empty-visual__chip absolute right-[18%] top-[32%] h-10 w-16 rounded-xl border border-emerald-300/30 bg-emerald-300/10" />
+            <div className="xh-cyber-empty-visual__chip absolute left-1/2 top-[26%] h-16 w-16 -translate-x-1/2 rounded-[20px] border border-cyan-200/40 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.24),rgba(8,20,28,0.32))] shadow-[0_0_40px_rgba(34,211,238,0.16)]" />
+            <div className="xh-cyber-empty-visual__node absolute left-[24%] top-[52%] h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.55)]" />
+            <div className="xh-cyber-empty-visual__node absolute right-[24%] top-[52%] h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.45)]" />
+            <div className="xh-cyber-empty-visual__badge relative flex h-20 w-20 items-center justify-center rounded-[24px] border border-cyan-300/28 bg-cyan-300/10 text-cyan-100 backdrop-blur-sm">
+              <Orbit size={34} />
+            </div>
           </div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.36em] text-cyan-200/70">STELLAR GRAPH CANVAS</div>
-          <div className="mt-3 text-3xl font-black tracking-tight text-white">开启第一张星图</div>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-cyan-50/62">
-            从空白画布、图像生成流、视频生成流或 RunningHub 预设开始。这里会成为你的节点星座、素材资产库和任务历史入口。
+          <div className="xh-cyber-empty-kicker text-[11px] font-semibold uppercase tracking-[0.38em] text-cyan-200/72">
+            CYBER PCB CANVAS
+          </div>
+          <div className="xh-cyber-empty-title mt-3 text-3xl font-black tracking-[0.02em] text-white md:text-[34px]">
+            点亮第一块创作主板
+          </div>
+          <p className="xh-cyber-empty-copy mx-auto mt-4 max-w-[560px] text-sm leading-7 text-cyan-50/64">
+            从一张空白板开始布线你的节点、素材与任务链路。创建后就能把生成流、参考资产和执行状态收拢到同一块控制板上。
           </p>
           <button
             type="button"
             onClick={() => createCanvas(`星图画布 ${canvases.length + 1}`)}
-            className="xh-entry-primary mx-auto mt-7 flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-black text-slate-950 transition"
+            className="xh-cyber-empty-action xh-entry-primary mx-auto mt-7 flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-black text-slate-950 transition"
           >
             <Sparkles size={17} />
             + 创建星图画布
           </button>
-          <div className="mt-7 grid grid-cols-3 gap-2 text-[11px] text-cyan-100/58">
-            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">节点星座</div>
-            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">素材资产库</div>
-            <div className="xh-empty-chip rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">模型目录</div>
+          <div className="xh-cyber-empty-status mt-6 flex flex-wrap items-center justify-center gap-3 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100/52">
+            <span className="xh-cyber-empty-status__item rounded-full border border-cyan-300/16 bg-cyan-300/[0.05] px-3 py-1.5">
+              Canvas Idle
+            </span>
+            <span className="xh-cyber-empty-status__item rounded-full border border-cyan-300/16 bg-cyan-300/[0.05] px-3 py-1.5">
+              Ready To Route
+            </span>
+            <span className="xh-cyber-empty-status__item rounded-full border border-emerald-300/16 bg-emerald-300/[0.05] px-3 py-1.5">
+              Awaiting First Trace
+            </span>
           </div>
         </div>
       </div>
