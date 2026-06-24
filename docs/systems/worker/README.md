@@ -14,6 +14,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 
 - 主循环：`apps/worker/src/worker.ts`
 - 任务运行态存取：`apps/worker/src/worker-task-store.ts`
+- 任务生命周期 glue：`apps/worker/src/worker-task-lifecycle.ts`
 - RunningHub 协议 client：`apps/worker/src/worker-runninghub-client.ts`
 - 统一运行态诊断：`apps/worker/src/worker-runtime-diagnostics.ts`
 - RunningHub poll 响应归一化：`apps/worker/src/worker-runninghub-response.ts`
@@ -32,10 +33,13 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
   - 统一失败归一化：`worker-runtime-diagnostics.ts`
   - RunningHub key 调度：`worker-runninghub-dispatch.ts`
   - 任务读取 / 状态写回 / heartbeat patch：`worker-task-store.ts`
-- 后续收口目标是继续把 RunningHub Key 池调度与取消同步拆出，避免 `worker.ts` 继续堆积 provider 细节
+- `2026-06-24` 已再下沉一层：
+  - 取消后丢弃结果/错误与保留取消态：`worker-task-lifecycle.ts`
+  - 统一 failed writeback glue 与上游业务失败 patch：`worker-task-lifecycle.ts`
+- 后续收口目标是继续把更细的 `cancel-sync helper` 与剩余失败 glue 从主文件剥离，避免 `worker.ts` 继续堆积 provider 细节
 - 当前下一步收口重点已更新为：
   - `cancel-sync helper`
-  - `unified diagnostics / failure normalization glue`
+  - `剩余 failure writeback glue`
 
 ## 工程治理要求
 

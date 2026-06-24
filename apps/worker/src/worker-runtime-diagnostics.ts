@@ -1,11 +1,18 @@
 import type { UnifiedFailureCategory } from "@xinghuan/shared";
 
-export function normalizeUnifiedFailure(error: unknown): {
-  failureReason: string;
+export interface WorkerFailurePatch {
   failureCategory: UnifiedFailureCategory;
   providerDiagnostic: string;
   upstreamHttpStatus?: number;
   upstreamResponseSnippet?: string;
+}
+
+export function normalizeUnifiedFailure(error: unknown): {
+  failureReason: string;
+  failureCategory: WorkerFailurePatch["failureCategory"];
+  providerDiagnostic: WorkerFailurePatch["providerDiagnostic"];
+  upstreamHttpStatus?: WorkerFailurePatch["upstreamHttpStatus"];
+  upstreamResponseSnippet?: WorkerFailurePatch["upstreamResponseSnippet"];
 } {
   const resultPatch = readWorkerTaskResultPatch(error);
   const message = error instanceof Error ? error.message : String(error || "unknown error");

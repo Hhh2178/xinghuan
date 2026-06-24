@@ -120,6 +120,7 @@ import {
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
+import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -2062,6 +2063,36 @@ async function handleAdminRequest(
     return true;
   }
 
+  if (await handleAdminSystemRoutes({
+    request,
+    response,
+    url,
+    adminUser,
+    requestContext,
+    deps: {
+      sendT8,
+      appendAudit,
+      readTaskQueueSettingsRecord,
+      writeTaskQueueSettingsRecord,
+      readAdminDb,
+      normalizeTaskQueueSettings,
+      withEffectiveRunningHubConcurrency,
+      readDatabaseStatus,
+      readRedisStatus,
+      readSystemObservability,
+      readStorageStats,
+      adminSettingsRevisionFromPayload,
+      environment,
+      dataDir,
+      storageDriver,
+      authDbPath,
+      adminDbPath,
+      version: "0.4.16",
+    },
+  })) {
+    return true;
+  }
+
   // Task 3 contract verification scans this admin route block for user-group CRUD, ownerDeleted support, and request.method === "DELETE".
   if (url.pathname === "/api/admin/user-groups") {
     const authDb = await readAuthDb();
@@ -2872,59 +2903,6 @@ async function handleAdminRequest(
     if (!updated) throw new Error("任务不存在");
     await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`, requestContext);
     sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(id)) || updated));
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/system" && request.method === "GET") {
-    const taskQueueSettingsRecord = await readTaskQueueSettingsRecord();
-    const adminDb = await readAdminDb();
-    const effectiveTaskQueueSettings = withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, adminDb.providers);
-    await appendAudit(adminUser, "system.read", "system", "system-status", "查看系统状态", requestContext);
-    const database = await readDatabaseStatus();
-    const redis = await readRedisStatus(effectiveTaskQueueSettings);
-    sendT8(response, {
-      environment,
-      dataDir,
-      database,
-      redis,
-      observability: await readSystemObservability(database, redis),
-      taskQueueSettings: effectiveTaskQueueSettings,
-      taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
-      taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,
-      storageDriver,
-      authDbPath,
-      adminDbPath,
-      service: "xinghuan-api",
-    version: "0.4.16",
-      storage: await readStorageStats(),
-    });
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/system" && request.method === "PATCH") {
-    const body = await readJsonBody<{
-      taskQueueSettings?: Partial<{
-        image: { concurrency?: number; userConcurrency?: number };
-        audio: { concurrency?: number; userConcurrency?: number };
-        video: { concurrency?: number; userConcurrency?: number };
-        runninghub: { concurrency?: number; enabled?: boolean };
-      }>;
-      revision?: number;
-    }>(request);
-    const current = await readTaskQueueSettingsRecord();
-    const saved = await writeTaskQueueSettingsRecord(
-      normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
-      adminSettingsRevisionFromPayload(body),
-    );
-    const adminDb = await readAdminDb();
-    const effectiveTaskQueueSettings = withEffectiveRunningHubConcurrency(saved.taskQueueSettings, adminDb.providers);
-    await appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置", requestContext);
-    sendT8(response, {
-      ok: true,
-      taskQueueSettings: effectiveTaskQueueSettings,
-      revision: saved.revision,
-      updatedAt: saved.updatedAt,
-    });
     return true;
   }
 

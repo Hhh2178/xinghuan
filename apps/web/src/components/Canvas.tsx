@@ -3,11 +3,8 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
-  MiniMap,
   ReactFlowProvider,
   SelectionMode,
-  ViewportPortal,
   Handle,
   Position,
   addEdge,
@@ -124,6 +121,9 @@ import MaterialDragOverlay from './MaterialDragOverlay';
 import SendMaterialsModal from './SendMaterialsModal';
 import { useCanvasHistory } from '../hooks/useCanvasHistory';
 import type { CanvasTemplate } from '../config/canvasTemplates';
+import { useCanvasPersistence } from './canvas/useCanvasPersistence';
+import { useCanvasConnectionPanMode } from './canvas/useCanvasConnectionPanMode';
+import { CanvasFlowOverlays } from './canvas/CanvasFlowOverlays';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
 const ImageNode = lazy(() => import('./nodes/ImageNode'));
@@ -1184,11 +1184,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadedCanvasId, setLoadedCanvasId] = useState<string | null>(null);
-  const saveTimersByCanvasRef = useRef<Map<string, number>>(new Map());
-  const pendingSaveByCanvasRef = useRef<Map<string, { nodes: Node[]; edges: Edge[]; snapshot: string; nextNodeSerialId: number }>>(new Map());
-  const lastSavedByCanvasRef = useRef<Map<string, string>>(new Map());
-  const revisionByCanvasRef = useRef<Map<string, number>>(new Map());
-  const saveConflictCanvasIdsRef = useRef<Set<string>>(new Set());
   const nextNodeSerialIdRef = useRef(1);
   const allowEmptySaveCanvasIdsRef = useRef<Set<string>>(new Set());
 
@@ -1325,12 +1320,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     defaultMode: SendTargetMode;
     atScreen?: { x: number; y: number };
   } | null>(null);
-  const pendingSendFocusRef = useRef<{
-    canvasId: string;
-    center: { x: number; y: number };
-    zoom: number;
-  } | null>(null);
-  const pendingSendFocusTimerRef = useRef<number | null>(null);
 
   // 画布空白区右键菜单(快速添加节点)
   const [paneMenu, setPaneMenu] = useState<{
@@ -1364,198 +1353,26 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     return error instanceof api.ApiError && error.status === 409 && error.payload?.error === 'CANVAS_REVISION_CONFLICT';
   }, []);
 
-  // 加载画布数据
-  useEffect(() => {
-    if (!activeId) {
-      nextNodeSerialIdRef.current = 1;
-      setNodes([]);
-      setEdges([]);
-      setLoaded(false);
-      setLoadedCanvasId(null);
-      histReset();
-      return;
-    }
-    const requestedCanvasId = activeId;
-    setLoaded(false);
-    setLoadedCanvasId(null);
-    let cancelled = false;
-    api
-      .getCanvasData(requestedCanvasId)
-      .then((data) => {
-        if (cancelled || useCanvasStore.getState().activeId !== requestedCanvasId) return;
-        const pendingSave = pendingSaveByCanvasRef.current.get(requestedCanvasId);
-        const ns = pendingSave?.nodes || data.nodes || [];
-        const es = pendingSave?.edges || data.edges || [];
-        const savedNextNodeSerialId = pendingSave?.nextNodeSerialId ?? data.nextNodeSerialId;
-        // ⚡ 兑底补丁: 历史画布中可能存在 connectable=false 的旧 groupBox 节点
-        // (5656721 事故期间创建的 group), 加载时强制打开可连接以恢复右侧聚合输出口
-        const fixedNsBeforeSerials = ns.map((n: any) =>
-          n.type === 'groupBox' && n.connectable === false
-            ? { ...n, connectable: true }
-            : n,
-        );
-        const normalized = normalizeCanvasNodeSerials(fixedNsBeforeSerials, savedNextNodeSerialId);
-        nextNodeSerialIdRef.current = normalized.nextNodeSerialId;
-        const fixedNs = normalized.nodes;
-        setNodes(fixedNs);
-        setEdges(es);
-        const loadedSnapshot = JSON.stringify({
-          nodes: fixedNsBeforeSerials,
-          edges: es,
-          nextNodeSerialId: savedNextNodeSerialId || 1,
-        });
-        const normalizedSnapshot = JSON.stringify({
-          nodes: fixedNs,
-          edges: es,
-          nextNodeSerialId: normalized.nextNodeSerialId,
-        });
-        lastSavedByCanvasRef.current.set(
-          requestedCanvasId,
-          normalized.changed || normalizedSnapshot !== loadedSnapshot ? loadedSnapshot : normalizedSnapshot,
-        );
-        revisionByCanvasRef.current.set(requestedCanvasId, Math.max(1, Number(data.revision) || 1));
-        saveConflictCanvasIdsRef.current.delete(requestedCanvasId);
-        allowEmptySaveCanvasIdsRef.current.delete(requestedCanvasId);
-        histReset({ nodes: fixedNs, edges: es });
-        setLoadedCanvasId(requestedCanvasId);
-        setLoaded(true);
-      })
-      .catch((e) => {
-        if (cancelled || useCanvasStore.getState().activeId !== requestedCanvasId) return;
-        console.error('加载画布失败', e);
-        nextNodeSerialIdRef.current = 1;
-        setNodes([]);
-        setEdges([]);
-        histReset();
-        saveConflictCanvasIdsRef.current.delete(requestedCanvasId);
-        setLoadedCanvasId(requestedCanvasId);
-        setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId, histReset]);
-
-  useEffect(() => {
-    return () => {
-      for (const timer of saveTimersByCanvasRef.current.values()) {
-        window.clearTimeout(timer);
-      }
-      saveTimersByCanvasRef.current.clear();
-      pendingSaveByCanvasRef.current.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!activeId || !loaded || loadedCanvasId !== activeId) return;
-    const pending = pendingSendFocusRef.current;
-    if (!pending || pending.canvasId !== activeId) return;
-    pendingSendFocusRef.current = null;
-    if (pendingSendFocusTimerRef.current) window.clearTimeout(pendingSendFocusTimerRef.current);
-    pendingSendFocusTimerRef.current = window.setTimeout(() => {
-      setCenter(pending.center.x, pending.center.y, {
-        zoom: pending.zoom,
-        duration: 520,
-      });
-      pendingSendFocusTimerRef.current = null;
-    }, 90);
-  }, [activeId, loaded, loadedCanvasId, nodes.length, setCenter]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingSendFocusTimerRef.current) window.clearTimeout(pendingSendFocusTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!activeId || !loaded || loadedCanvasId !== activeId) return;
-    if (altDragCloneRef.current) return;
-    if (nodes.some((node) => node.id === BULK_PHANTOM_ID || String(node.id || '').startsWith('_alt-ph-'))) return;
-    const normalized = normalizeCanvasNodeSerials(nodes, nextNodeSerialIdRef.current);
-    nextNodeSerialIdRef.current = Math.max(nextNodeSerialIdRef.current, normalized.nextNodeSerialId);
-    if (normalized.changed) {
-      setNodes(normalized.nodes);
-    }
-  }, [activeId, loaded, loadedCanvasId, nodes]);
-
-  // nodes/edges 变化后压栈(节流防止拖拽中海量入栈)
-  useEffect(() => {
-    if (!loaded || loadedCanvasId !== activeId) return;
-    scheduleCapture({ nodes, edges });
-  }, [nodes, edges, activeId, loaded, loadedCanvasId, scheduleCapture]);
-
-  // 自动保存(防抖 800ms,防空数据覆盖)
-  useEffect(() => {
-    if (!activeId || !loaded || loadedCanvasId !== activeId) return;
-    // 过滤 SHIFT 批量移线拖拽过程中的 phantom 节点与重定向边(不作为持久化快照)
-    const persistNodes = nodes.filter((n) => n.id !== BULK_PHANTOM_ID);
-    const persistEdges = edges.filter(
-      (ed) => ed.source !== BULK_PHANTOM_ID && ed.target !== BULK_PHANTOM_ID
-    );
-    const nextNodeSerialId = nextNodeSerialIdRef.current;
-    const snapshot = JSON.stringify({ nodes: persistNodes, edges: persistEdges, nextNodeSerialId });
-    const canvasIdForSave = activeId;
-    if (saveConflictCanvasIdsRef.current.has(canvasIdForSave)) return;
-    const previousSnapshot = lastSavedByCanvasRef.current.get(canvasIdForSave) || '';
-    if (snapshot === previousSnapshot) return;
-    let previousNodeCount = 0;
-    try {
-      previousNodeCount = JSON.parse(previousSnapshot || '{}')?.nodes?.length || 0;
-    } catch {
-      previousNodeCount = 0;
-    }
-    const allowEmptySave = allowEmptySaveCanvasIdsRef.current.has(canvasIdForSave);
-    if (persistNodes.length === 0 && previousNodeCount > 0 && !allowEmptySave) {
-      // 防止空数据覆盖
-      return;
-    }
-    const previousTimer = saveTimersByCanvasRef.current.get(canvasIdForSave);
-    if (previousTimer) window.clearTimeout(previousTimer);
-    pendingSaveByCanvasRef.current.set(canvasIdForSave, {
-      nodes: persistNodes,
-      edges: persistEdges,
-      nextNodeSerialId,
-      snapshot,
-    });
-    const timer = window.setTimeout(async () => {
-      const currentRevision = Math.max(1, revisionByCanvasRef.current.get(canvasIdForSave) || 1);
-      const payload = { nodes: persistNodes, edges: persistEdges, viewport: getViewport(), revision: currentRevision, nextNodeSerialId };
-      try {
-        const saved = await api.saveCanvasData(canvasIdForSave, payload, { allowEmpty: allowEmptySave });
-        const nextRevision = Math.max(currentRevision, Number(saved.revision) || currentRevision);
-        revisionByCanvasRef.current.set(canvasIdForSave, nextRevision);
-        saveConflictCanvasIdsRef.current.delete(canvasIdForSave);
-        api.autoSaveCanvasData(canvasIdForSave, { ...payload, revision: nextRevision }).catch((e) => {
-          console.warn('画布自动保存到本地路径失败', e);
-        });
-        if (allowEmptySave) allowEmptySaveCanvasIdsRef.current.delete(canvasIdForSave);
-        lastSavedByCanvasRef.current.set(canvasIdForSave, snapshot);
-        if (pendingSaveByCanvasRef.current.get(canvasIdForSave)?.snapshot === snapshot) {
-          pendingSaveByCanvasRef.current.delete(canvasIdForSave);
-        }
-        useCanvasStore.setState((state) => ({
-          canvases: state.canvases.map((canvas) =>
-            canvas.id === canvasIdForSave
-              ? { ...canvas, nodeCount: persistNodes.length, updatedAt: Date.now() }
-              : canvas,
-          ),
-        }));
-      } catch (e) {
-        if (isCanvasRevisionConflictError(e)) {
-          saveConflictCanvasIdsRef.current.add(canvasIdForSave);
-          pendingSaveByCanvasRef.current.delete(canvasIdForSave);
-          logBus.warn('当前画布已在其他标签页或设备更新，请刷新后再继续编辑', '画布冲突');
-          return;
-        }
-        console.error('保存画布失败', e);
-      } finally {
-        if (saveTimersByCanvasRef.current.get(canvasIdForSave) === timer) {
-          saveTimersByCanvasRef.current.delete(canvasIdForSave);
-        }
-      }
-    }, 800);
-    saveTimersByCanvasRef.current.set(canvasIdForSave, timer);
-  }, [nodes, edges, activeId, loaded, loadedCanvasId, getViewport, isCanvasRevisionConflictError]);
+  const { pendingSendFocusRef } = useCanvasPersistence({
+    activeId,
+    nodes,
+    edges,
+    loaded,
+    loadedCanvasId,
+    bulkPhantomId: BULK_PHANTOM_ID,
+    histReset,
+    scheduleCapture,
+    setNodes,
+    setEdges,
+    setLoaded,
+    setLoadedCanvasId,
+    nextNodeSerialIdRef,
+    allowEmptySaveCanvasIdsRef,
+    altDragCloneRef,
+    setCenter,
+    getViewport,
+    isCanvasRevisionConflictError,
+  });
 
   // 添加节点(供 Sidebar 调用) —— 默认落在当前视口中心
   // 可选 atScreen 传入屏幕坐标，节点会落在该点(用于右键画布空白区添加)
@@ -3333,104 +3150,20 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
 
   // 拉线时按 Space 进入“连线导航”模式，适合远距离连线。
   // 鼠标可松开；起点会保留到点击目标接口、再次按 Space 取消，或窗口失焦。
-  useEffect(() => {
-    const stopNativePointer = (event: PointerEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      (event as any).stopImmediatePropagation?.();
-    };
-
-    const connectPendingToHandle = (handle: ReturnType<typeof getReactFlowHandleInfo>) => {
-      const from = connectingFromRef.current;
-      if (!from || !handle || from.nodeId === handle.nodeId || from.handleType === handle.handleType) return false;
-      const params: Connection =
-        from.handleType === 'source'
-          ? {
-              source: from.nodeId,
-              sourceHandle: null,
-              target: handle.nodeId,
-              targetHandle: handle.handleId,
-            }
-          : {
-              source: handle.nodeId,
-              sourceHandle: handle.handleId,
-              target: from.nodeId,
-              targetHandle: null,
-            };
-      connectingFromRef.current = null;
-      onConnect(params);
-      return true;
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!isConnectionDraggingRef.current) return;
-      if (!matchesAnyShortcut(shortcuts['connection.pan-mode'], event)) return;
-      if (isTextEditingTarget(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.repeat) return;
-      if (connectionPanModeRef.current) {
-        connectingFromRef.current = null;
-        resetConnectionPanMode();
-        return;
-      }
-      setConnectionPanMode(true);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!isConnectionDraggingRef.current || !connectionPanModeRef.current) return;
-      const target = event.target as Element | null;
-      if (target?.closest('[data-canvas-floating-ui], .t8-context-menu, input, textarea, select, [contenteditable="true"]')) return;
-
-      const handle = getReactFlowHandleInfo(event.target);
-      if (handle) {
-        stopNativePointer(event);
-        connectPendingToHandle(handle);
-        return;
-      }
-
-      if (event.button !== 0) return;
-      connectionPanPointerRef.current = { x: event.clientX, y: event.clientY };
-      stopNativePointer(event);
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!isConnectionDraggingRef.current || !connectionPanModeRef.current) return;
-      if (event.buttons === 0) {
-        connectionPanPointerRef.current = null;
-        return;
-      }
-      const current = { x: event.clientX, y: event.clientY };
-      const last = connectionPanPointerRef.current;
-      connectionPanPointerRef.current = current;
-      if (!last) return;
-      const dx = current.x - last.x;
-      const dy = current.y - last.y;
-      if (dx === 0 && dy === 0) return;
-      const viewport = getViewport();
-      void setViewport({ x: viewport.x + dx, y: viewport.y + dy, zoom: viewport.zoom }, { duration: 0 });
-      stopNativePointer(event);
-    };
-
-    const onPointerUp = () => {
-      connectionPanPointerRef.current = null;
-    };
-    const onBlur = () => resetConnectionPanMode();
-
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('pointermove', onPointerMove, true);
-    window.addEventListener('pointerup', onPointerUp, true);
-    window.addEventListener('blur', onBlur);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('pointermove', onPointerMove, true);
-      window.removeEventListener('pointerup', onPointerUp, true);
-      window.removeEventListener('blur', onBlur);
-      document.body.classList.remove('connection-pan-mode');
-    };
-  }, [getViewport, onConnect, resetConnectionPanMode, setConnectionPanMode, setViewport, shortcuts]);
+  const { connectionPanShortcutLabel } = useCanvasConnectionPanMode({
+    shortcuts,
+    isConnectionDraggingRef,
+    connectionPanModeRef,
+    connectingFromRef,
+    connectionPanPointerRef,
+    onConnect,
+    getViewport,
+    setViewport,
+    setConnectionPanMode,
+    resetConnectionPanMode,
+    isTextEditingTarget,
+    getReactFlowHandleInfo,
+  });
 
   // ===== 全局 SHIFT+Handle 批量移线拦截器 =====
   // 原因: ReactFlow 的 multiSelectionKeyCode 包含 'Shift'，导致按住 SHIFT 在 handle 上 mousedown
@@ -4761,7 +4494,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         <div className="t8-connection-pan-hud" data-canvas-floating-ui="connection-pan-hud">
           <span className="t8-connection-pan-hud__signal" aria-hidden="true" />
           <span className="t8-connection-pan-hud__title">连线导航模式</span>
-          <span className="t8-connection-pan-hud__hint">拖动画布后点击目标接口连接，再按 {shortcutText('connection.pan-mode')} 取消</span>
+          <span className="t8-connection-pan-hud__hint">拖动画布后点击目标接口连接，再按 {connectionPanShortcutLabel} 取消</span>
         </div>
       )}
       <input
@@ -4808,125 +4541,24 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           size={isPixel ? 1.6 : 1.2}
           color={dotColor}
         />
-        {/* 对齐辅助线:在世界坐标系中随视口变换 */}
-        {(guides.vertical.length > 0 || guides.horizontal.length > 0) && (
-          <ViewportPortal>
-            <svg
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: 0,
-                height: 0,
-                overflow: 'visible',
-                pointerEvents: 'none',
-                zIndex: 5,
-              }}
-            >
-              {guides.vertical.map((x, i) => (
-                <line
-                  key={`v-${i}-${x}`}
-                  x1={x}
-                  y1={-100000}
-                  x2={x}
-                  y2={100000}
-                  stroke={guideColor}
-                  strokeWidth={isPixel ? 1.5 : 1}
-                  strokeDasharray={isPixel ? '8 4' : '6 4'}
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-              {guides.horizontal.map((y, i) => (
-                <line
-                  key={`h-${i}-${y}`}
-                  x1={-100000}
-                  y1={y}
-                  x2={100000}
-                  y2={y}
-                  stroke={guideColor}
-                  strokeWidth={isPixel ? 1.5 : 1}
-                  strokeDasharray={isPixel ? '8 4' : '6 4'}
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-            </svg>
-          </ViewportPortal>
-        )}
-        <div className="t8-control-rail nodrag nopan" data-canvas-floating-ui="control-rail">
-          <Controls
-            style={{
-              background: isOp
-                ? themeTokens.panelBg
-                : isDark ? 'rgba(20,20,22,.9)' : 'rgba(255,255,255,.9)',
-              border: isOp
-                ? `3px solid ${themeTokens.textMain}`
-                : `1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)'}`,
-              borderRadius: isOp ? '16px 16px 8px 8px' : 8,
-              boxShadow: isOp ? `4px 4px 0 ${themeTokens.textMain}` : undefined,
-            }}
-          />
-        </div>
-        <MiniMap
-          pannable
-          zoomable
-          onClick={(_e, position) => {
-            // 点击小地图任意位置 → 平滑居中到该 flow 坐标,保持当前缩放级别
-            const { zoom } = getViewport();
-            setCenter(position.x, position.y, { zoom, duration: 400 });
-          }}
-          style={{
-            width: isOp ? 144 : isNaruto ? 182 : isEva ? 258 : isYyh ? 224 : isSlamdunk ? 214 : isSoccer ? 224 : undefined,
-            height: isOp ? 144 : isNaruto ? 122 : isEva ? 172 : isYyh ? 144 : isSlamdunk ? 128 : isSoccer ? 136 : undefined,
-            background: isOp
-              ? themeTokens.panelBg
-              : isNaruto
-                ? themeTokens.panelBg
-              : isEva
-                ? themeTokens.panelBg
-              : isYyh
-                ? themeTokens.panelBg
-              : isSlamdunk
-                ? themeTokens.panelBg
-              : isSoccer
-                ? themeTokens.panelBg
-              : isDark ? 'rgba(20,20,22,.9)' : 'rgba(255,255,255,.9)',
-            border: isOp
-              ? `4px double ${themeTokens.textMain}`
-              : isNaruto
-                ? `3px solid ${themeTokens.textMain}`
-              : isEva
-                  ? `2px solid ${themeTokens.borderStrong}`
-              : isYyh
-                  ? `2px solid ${themeTokens.accent}`
-              : isSlamdunk
-                  ? `3px solid ${themeTokens.textMain}`
-              : isSoccer
-                  ? `3px solid ${themeTokens.textMain}`
-                : `1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)'}`,
-            borderRadius: isOp ? 999 : isNaruto ? '18px 18px 12px 12px' : isEva ? 8 : isYyh ? 12 : isSlamdunk ? 10 : isSoccer ? 12 : 8,
-            right: isOp ? 24 : isNaruto ? 24 : isEva ? 24 : isYyh ? 24 : isSlamdunk ? 24 : isSoccer ? 24 : undefined,
-            bottom: isOp ? 42 : isNaruto ? 40 : isEva ? 24 : isYyh ? 28 : isSlamdunk ? 32 : isSoccer ? 32 : undefined,
-            boxShadow: isOp
-              ? `0 0 0 7px ${themeTokens.warning}, 5px 5px 0 ${themeTokens.textMain}`
-              : isNaruto
-                ? themeTokens.shadowPanel
-              : isEva
-                  ? `0 0 0 4px ${themeTokens.panelBgElevated}, 0 0 0 6px ${themeTokens.borderStrong}, 0 18px 46px rgba(0,0,0,.5), inset 0 0 34px ${themeTokens.accent}22`
-              : isYyh
-                  ? `0 0 0 4px ${themeTokens.panelBgElevated}, 0 0 0 6px ${themeTokens.borderStrong}, 0 18px 46px rgba(0,0,0,.46), inset 0 0 34px ${themeTokens.secondary}22`
-              : isSlamdunk
-                  ? `0 0 0 5px ${themeTokens.secondary}, 5px 5px 0 ${themeTokens.textMain}, 0 18px 46px rgba(0,0,0,.28)`
-              : isSoccer
-                  ? `0 0 0 5px ${themeTokens.secondary}, 5px 5px 0 ${themeTokens.textMain}, 0 18px 46px rgba(0,0,0,.24)`
-              : undefined,
-            cursor: 'pointer',
-            overflow: isOp || isNaruto || isEva || isYyh || isSlamdunk || isSoccer ? 'hidden' : undefined,
-          }}
-          maskColor={isOp ? 'rgba(15,124,140,.28)' : isNaruto ? 'rgba(255,91,31,.22)' : isEva ? 'rgba(156,255,0,.18)' : isYyh ? 'rgba(67,247,255,.16)' : isSlamdunk ? 'rgba(240,123,34,.22)' : isSoccer ? 'rgba(18,107,216,.22)' : isDark ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.6)'}
-          nodeColor={() => (isOp ? themeTokens.secondary : isNaruto ? themeTokens.accent : isEva ? themeTokens.danger : isYyh ? themeTokens.success : isSlamdunk ? themeTokens.accent : isSoccer ? themeTokens.accent : isDark ? '#a1a1aa' : '#52525b')}
-        />
-        {/* 选中可执行节点时的浮动操作栏 (执行 / 中止 / 关闭) */}
-        <NodeActionBar />
+        <CanvasFlowOverlays
+          guides={guides}
+          guideColor={guideColor}
+          isPixel={isPixel}
+          isOp={isOp}
+          isNaruto={isNaruto}
+          isEva={isEva}
+          isYyh={isYyh}
+          isSlamdunk={isSlamdunk}
+          isSoccer={isSoccer}
+          isDark={isDark}
+          themeTokens={themeTokens}
+          getViewport={getViewport}
+          setCenter={setCenter}
+          edgeNodeColor={isOp ? themeTokens.secondary : isNaruto ? themeTokens.accent : isEva ? themeTokens.danger : isYyh ? themeTokens.success : isSlamdunk ? themeTokens.accent : isSoccer ? themeTokens.accent : isDark ? '#a1a1aa' : '#52525b'}
+        >
+          <NodeActionBar />
+        </CanvasFlowOverlays>
       </ReactFlow>
 
       {/* 跨节点素材拖拽浮层 (Ctrl + 鼠标左键 从素材缩略图拖出) */}

@@ -45,10 +45,14 @@ import {
 } from "./worker-provider-utils.js";
 import { createRunningHubClient } from "./worker-runninghub-client.js";
 import {
-  normalizeUnifiedFailure,
   readWorkerTaskResultPatch,
   toOptionalHttpStatus,
 } from "./worker-runtime-diagnostics.js";
+import {
+  buildUpstreamBusinessFailurePatch,
+  createWorkerTaskError,
+  createWorkerTaskLifecycle,
+} from "./worker-task-lifecycle.js";
 import {
   acquireRunningHubExecutionWindow,
   releaseRunningHubExecutionWindow,
@@ -93,6 +97,12 @@ const {
   touchQueuedTaskRuntime,
   isTaskCancelled,
 } = createWorkerTaskStore(pool);
+const workerTaskLifecycle = createWorkerTaskLifecycle({
+  workerId,
+  appendTaskLog,
+  updateTask,
+  logWorkerEvent,
+});
 
 let currentDatabaseNamePromise: Promise<string> | null = null;
 
@@ -390,8 +400,13 @@ async function processTask(taskId: string) {
   try {
     const result = await executeTask(task);
     if (await isTaskCancelled(taskId)) {
-      await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行结果`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "cancel_requested drop result after cancellation" });
+      await workerTaskLifecycle.dropCancelledAttempt({
+        taskId,
+        capability: task.capability,
+        trace,
+        line: "检测到任务已取消，丢弃执行结果",
+        message: "cancel_requested drop result after cancellation",
+      });
       return;
     }
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
@@ -406,23 +421,38 @@ async function processTask(taskId: string) {
       completedAt: new Date().toISOString(),
     });
     if (completionResult === "cancelled") {
-      await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "completion kept cancelled state" });
+      await workerTaskLifecycle.keepCancelledState({
+        taskId,
+        capability: task.capability,
+        trace,
+        line: "检测到任务已取消，保留取消状态",
+        message: "completion kept cancelled state",
+      });
       return;
     }
     logWorkerEvent("task.succeeded", { ...trace, taskId, capability: task.capability, status: "succeeded" });
   } catch (error) {
     if (await isTaskCancelled(taskId)) {
-      await appendTaskLog(taskId, `${workerId} 检测到任务已取消，丢弃执行错误`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "cancel_requested drop error after cancellation" });
+      await workerTaskLifecycle.dropCancelledAttempt({
+        taskId,
+        capability: task.capability,
+        trace,
+        line: "检测到任务已取消，丢弃执行错误",
+        message: "cancel_requested drop error after cancellation",
+      });
       return;
     }
     if (isRetryableRunningHubQueueLimitError(error)) {
       const retryDetail = buildRunningHubQueueLimitRetryDetail(error);
       const queuedResult = await requeueRunningTask(task, retryDetail, readWorkerTaskResultPatch(error));
       if (queuedResult === "cancelled") {
-        await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
-        logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "retry kept cancelled state" });
+        await workerTaskLifecycle.keepCancelledState({
+          taskId,
+          capability: task.capability,
+          trace,
+          line: "检测到任务已取消，保留取消状态",
+          message: "retry kept cancelled state",
+        });
         return;
       }
       shouldRequeueAfterRelease = queuedResult === "updated";
@@ -437,29 +467,12 @@ async function processTask(taskId: string) {
       }
       return;
     }
-    const normalized = normalizeUnifiedFailure(error);
-    const failedResult = await updateTask(taskId, "failed", [`${workerId} 执行失败: ${error instanceof Error ? error.message : String(error)}`], {
-      ...readWorkerTaskResultPatch(error),
-      workerId,
-      failedAt: new Date().toISOString(),
-      failureReason: normalized.failureReason,
-      failureCategory: normalized.failureCategory,
-      providerDiagnostic: normalized.providerDiagnostic,
-      upstreamHttpStatus: normalized.upstreamHttpStatus,
-      upstreamResponseSnippet: normalized.upstreamResponseSnippet,
+    await workerTaskLifecycle.failTask({
+      task,
+      trace,
+      error,
     });
-    if (failedResult === "cancelled") {
-      await appendTaskLog(taskId, `${workerId} 检测到任务已取消，保留取消状态`);
-      logWorkerEvent("task.cancelled_detected", { ...trace, taskId, capability: task.capability, message: "failure kept cancelled state" });
-      return;
-    }
-    logWorkerEvent("task.failed", {
-      ...trace,
-      taskId,
-      capability: task.capability,
-      status: "failed",
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return;
   } finally {
       await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
     await releaseUserExecutionWindow(task);
@@ -904,13 +917,6 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
   };
 }
 
-function createWorkerTaskError(message: string, resultPatch: Record<string, unknown> = {}) {
-  const error = new Error(message) as Error & { resultPatch?: Record<string, unknown> };
-  error.name = "WorkerTaskError";
-  error.resultPatch = resultPatch;
-  return error;
-}
-
 function isRetryableRunningHubQueueLimitError(error: unknown) {
   const patch = readWorkerTaskResultPatch(error);
   const rawSubmitText = safeText(patch.rhSubmitResponseText);
@@ -1140,11 +1146,7 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
 
   if (result.imageUrls.length === 0) {
     const message = `GRSAI 图像任务未返回可用图片${result.taskId ? `: ${result.taskId}` : ""}`;
-    throw createWorkerTaskError(message, {
-      failureCategory: "upstream_business_failed",
-      providerDiagnostic: message,
-      upstreamResponseSnippet: message.slice(0, 500),
-    });
+    throw createWorkerTaskError(message, buildUpstreamBusinessFailurePatch(message));
   }
 
   return {
@@ -1305,20 +1307,14 @@ async function pollApimartVideoTask(options: {
         const finalStatus = safeText(finalResult.status).toLowerCase();
         if (finalResult.videoUrls.length > 0 && (!finalStatus || isCompletedAsyncStatus(finalStatus))) return finalResult;
         if (isFailedAsyncStatus(finalStatus)) {
-          throw createWorkerTaskError(`视频任务失败: ${safeText(finalResult.failureReason, finalStatus || "unknown")}`, {
-            failureCategory: "upstream_business_failed",
-            providerDiagnostic: safeText(finalResult.failureReason, finalStatus || "unknown"),
-            upstreamResponseSnippet: safeText(finalResult.failureReason, finalStatus || "unknown").slice(0, 500),
-          });
+          const failureDetail = safeText(finalResult.failureReason, finalStatus || "unknown");
+          throw createWorkerTaskError(`视频任务失败: ${failureDetail}`, buildUpstreamBusinessFailurePatch(failureDetail));
         }
       }
     }
     if (isFailedAsyncStatus(status)) {
-      throw createWorkerTaskError(`视频任务失败: ${safeText(result.failureReason, status || "unknown")}`, {
-        failureCategory: "upstream_business_failed",
-        providerDiagnostic: safeText(result.failureReason, status || "unknown"),
-        upstreamResponseSnippet: safeText(result.failureReason, status || "unknown").slice(0, 500),
-      });
+      const failureDetail = safeText(result.failureReason, status || "unknown");
+      throw createWorkerTaskError(`视频任务失败: ${failureDetail}`, buildUpstreamBusinessFailurePatch(failureDetail));
     }
   }
 }
@@ -1390,11 +1386,10 @@ async function pollApimartImageTask(options: {
     });
     if (extracted.imageUrls.length > 0) return extracted;
     if (["failed", "error", "cancelled", "canceled"].includes(status)) {
-      throw createWorkerTaskError(`APIMart 图像任务失败: ${status || "unknown"}`, {
-        failureCategory: "upstream_business_failed",
-        providerDiagnostic: status || "unknown",
-        upstreamResponseSnippet: text.slice(0, 500),
-      });
+      throw createWorkerTaskError(
+        `APIMart 图像任务失败: ${status || "unknown"}`,
+        buildUpstreamBusinessFailurePatch(status || "unknown", text),
+      );
     }
   }
 }
@@ -1435,11 +1430,10 @@ async function pollModelScopeImageTask(options: {
     });
     if (extracted.imageUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return extracted;
     if (isFailedAsyncStatus(status)) {
-      throw createWorkerTaskError(`ModelScope 图像任务失败: ${status || "unknown"}`, {
-        failureCategory: "upstream_business_failed",
-        providerDiagnostic: status || "unknown",
-        upstreamResponseSnippet: text.slice(0, 500),
-      });
+      throw createWorkerTaskError(
+        `ModelScope 图像任务失败: ${status || "unknown"}`,
+        buildUpstreamBusinessFailurePatch(status || "unknown", text),
+      );
     }
   }
 }

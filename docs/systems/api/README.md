@@ -13,6 +13,8 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 ## 关键代码入口
 
 - 主服务：`apps/api/src/server.ts`
+- 后台系统状态与并发设置路由：`apps/api/src/admin-system-routes.ts`
+- 后台系统状态响应适配：`apps/api/src/admin-system-response-adapter.ts`
 - RunningHub catalog：`apps/api/src/runninghub-catalog.ts`
 - RunningHub 执行描述：`apps/api/src/runninghub-execution-descriptor.ts`
 
@@ -20,6 +22,10 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 
 - 保持前端、后台和 Worker 之间的数据契约一致
 - 保持 `runTargetId`、并发设置、任务结果与运行态字段的正确传递
+- `server.ts` 当前继续朝入口装配层收口：
+  - RunningHub 后台路由已下沉到 `admin-runninghub-routes.ts`
+  - system status / task queue settings 已下沉到 `admin-system-routes.ts`
+  - 稳定响应拼装已下沉到 `admin-system-response-adapter.ts`
 
 ## 兼容正文来源
 

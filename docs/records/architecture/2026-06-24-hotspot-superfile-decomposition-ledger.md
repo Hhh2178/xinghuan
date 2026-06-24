@@ -31,6 +31,11 @@
 - 当前进度：
   - `2026-06-24` 已将后台 RunningHub 条目管理路由分发层下沉到 `admin-runninghub-routes.ts`
   - 主文件继续保留入口装配、权限分流和底层 catalog/service 业务函数
+  - `2026-06-24` 已将 `/api/admin/system` 的 system status / task queue settings handler 下沉到：
+    - `apps/api/src/admin-system-routes.ts`
+    - `apps/api/src/admin-system-response-adapter.ts`
+  - 已补齐 contract：`scripts/verify-api-admin-system-route-split-contract.mjs`
+  - 主文件继续保留入口装配、权限分流和系统能力依赖注入，不再直接承载 `/api/admin/system` 的请求体读取与响应拼装
 
 ### `apps/worker/src/worker.ts`
 
@@ -52,6 +57,7 @@
   - `scripts/verify-file-hotspot-budgets.mjs`
   - `scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs`
   - `scripts/verify-worker-runninghub-dispatch-split-contract.mjs`
+  - `scripts/verify-worker-task-lifecycle-split-contract.mjs`
 - 当前风险：
   - 新 provider 适配和异常口径很容易再次把协议细节堆回 worker 主文件
 - 当前进度：
@@ -59,7 +65,9 @@
   - 主文件继续保留任务领取、执行、状态回写与 deferred/requeue 编排
   - `2026-06-24` 已将任务读取、状态写回、heartbeat/runtime patch、取消态探测下沉到 `worker-task-store.ts`
   - 已补齐 contract：`scripts/verify-worker-task-store-split-contract.mjs`
-  - 主文件继续保留 worker 主循环、provider 执行编排与结果归一化 glue
+  - `2026-06-24` 已将取消后结果/错误丢弃、保留取消态与 failed writeback glue 下沉到 `worker-task-lifecycle.ts`
+  - 已补齐 contract：`scripts/verify-worker-task-lifecycle-split-contract.mjs`
+  - 主文件继续保留 worker 主循环、provider 执行编排与剩余运行态 glue
 
 ### `apps/web/src/components/nodes/RunningHubNode.tsx`
 
@@ -129,6 +137,12 @@
 - `apps/web/src/components/Canvas.tsx`
   - 状态：超大组合层
   - 下一步：拆 `canvas runtime hooks / interaction sections / overlay panels`
+  - 当前进度：
+    - `2026-06-24` 已将画布加载/自动保存/发送后聚焦恢复下沉到 `apps/web/src/components/canvas/useCanvasPersistence.ts`
+    - `2026-06-24` 已将连线平移模式快捷键与指针交互下沉到 `apps/web/src/components/canvas/useCanvasConnectionPanMode.ts`
+    - `2026-06-24` 已将 controls / minimap / guides overlay 壳下沉到 `apps/web/src/components/canvas/CanvasFlowOverlays.tsx`
+    - 已补齐 contract：`scripts/verify-canvas-section-split-contract.mjs`
+    - 主文件行数已降到 `5071`
 - `apps/web/src/components/nodes/PoseMasterNode.tsx`
   - 状态：超大节点组件
   - 下一步：拆 `field schema / preview sections / runtime actions`
@@ -138,33 +152,6 @@
 - `apps/web/src/components/nodes/ImageEditModal.tsx`
   - 状态：模态 UI、编辑状态和动作耦合
   - 下一步：拆 `tool sections / modal state hooks / action services`
-- `apps/web/src/components/ApiSettings.tsx`
-  - 状态：系统设置页职责堆叠
-  - 下一步：拆 `provider sections / settings forms / save helpers`
-  - 当前进度：
-    - `2026-06-24` 已将 key 常量、导入导出备份 helper、云上传摘要与 JSON 解析下沉到 `apiSettingsHelpers.ts`
-    - `2026-06-24` 已将通用/分类 API Key 字段卡片与外链按钮下沉到 `ApiSettingsKeyField.tsx`
-    - `2026-06-24` 已将通用 Key + 分类 Key 区、路径配置区、导入导出底部动作区下沉到：
-      - `ApiSettingsKeySections.tsx`
-      - `ApiSettingsLocalPathsSection.tsx`
-      - `ApiSettingsFooterActions.tsx`
-    - `2026-06-24` 已将高级平台区与云上传区的外层 section 壳继续下沉到：
-      - `ApiSettingsAdvancedProvidersSection.tsx`
-      - `ApiSettingsCloudUploadSection.tsx`
-    - `2026-06-24` 已将云上传 detail panel 继续下沉到：
-      - `ApiSettingsCloudTargetDetailPanel.tsx`
-      - `ApiSettingsFormBlock.tsx`
-    - 已补齐 contract：`scripts/verify-api-settings-detail-panel-split-contract.mjs`
-    - `2026-06-24` 已将 advanced provider detail panel 继续下沉到：
-      - `ApiSettingsAdvancedProviderDetailPanel.tsx`
-      - `ApiSettingsComfyWorkflowPanel.tsx`
-      - `ApiSettingsModelscopeLoraPanel.tsx`
-    - 已补齐 contract：`scripts/verify-api-settings-advanced-provider-panel-split-contract.mjs`
-    - 主文件继续保留：
-      - `renderAdvancedProviderForm` / `renderCloudTargetForm` 包装层
-      - 保存 / 导入 / 明文拉取等核心编排
-    - 已补齐新的 section split contract：`scripts/verify-api-settings-section-split-contract.mjs`
-    - 主文件行数已从约 `2435` 降到 `1736 -> 1440 -> 590`
 - `apps/web/src/components/nodes/DrawingBoardNode.tsx`
   - 状态：绘制节点内部状态与渲染堆叠
   - 下一步：拆 `board interactions / toolbar sections / persistence helpers`
@@ -228,11 +215,10 @@
   - 主文件行数：`1526 -> 1282 -> 1008`
   - 当前已退出 `1200+` watchlist，下一步建议继续拆 `runtime display / submit-poll service glue`
 
-### 已在硬预算中的 1200+ 文件
+### 已在硬预算治理中的文件
 
 - `apps/api/src/server.ts`
 - `apps/worker/src/worker.ts`
-- `apps/web/src/components/nodes/RunningHubNode.tsx`
 
 说明：
 
@@ -376,6 +362,17 @@
   - `apps/web/src/components/nodes/LLMNode.tsx`
   - `apps/web/src/components/nodes/OutputNode.tsx`
   - `apps/web/src/data/portraitMasterOptions.ts`
+
+### 当前最高优先级三项
+
+在时间有限、只能先做最要紧改造时，当前最高优先级固定为：
+
+1. `apps/worker/src/worker.ts`
+   - 重点：`cancel-sync helper / diagnostics glue`
+2. `apps/api/src/server.ts`
+   - 重点：`system settings / queue settings handlers`
+3. `apps/web/src/components/Canvas.tsx`
+   - 重点：`runtime hooks / viewport interactions / overlay panels`
 
 ### 暂不回头大改的已完成热点
 
