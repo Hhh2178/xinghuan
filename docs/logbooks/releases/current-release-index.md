@@ -4,11 +4,12 @@
 
 ### Gray
 
-- 版本：`v0.4.16`
-- release：`20260624-api-settings-decomposition-gray-r1-v0416`
+- 版本：`v0.4.17`
+- release：`20260624-api-worker-canvas-hotspot-decomposition-gray-r1-v0417`
 - 当前批次记录：
-  - `gray/2026-06-24-api-settings-decomposition-gray.md`
+  - `gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`
   - `gray/2026-06-24-api-settings-decomposition-gray.md`
   - `gray/2026-06-24-hotspot-decomposition-gray.md`
   - `gray/2026-06-24-engineering-governance-guardrails-gray.md`
