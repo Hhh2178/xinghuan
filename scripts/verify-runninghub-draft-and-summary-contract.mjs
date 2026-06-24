@@ -3,6 +3,10 @@ import { strict as assert } from "node:assert";
 
 const server = await readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf8");
+const nodeConfigSection = await readFile(
+  new URL("../apps/web/src/components/nodes/RunningHubNodeConfigSection.tsx", import.meta.url),
+  "utf8",
+);
 const nodeHelpers = await readFile(new URL("../apps/web/src/components/nodes/runninghubNodeHelpers.ts", import.meta.url), "utf8");
 
 assert.match(
@@ -24,13 +28,13 @@ assert.match(
 );
 
 assert.match(
-  node,
+  nodeConfigSection,
   /<div className={`mt-1 rounded border \$\{accent\.subBg\} px-2 py-1\.5`}>/,
   "Selected RH preset summary should reuse the stronger parameter-style colored panel",
 );
 
 assert.match(
-  node,
+  nodeConfigSection,
   /<span className="text-\[9px\] font-semibold uppercase tracking-\[0\.18em\] text-white\/60">备注<\/span>/,
   "Selected RH preset summary should show a prominent note label",
 );
