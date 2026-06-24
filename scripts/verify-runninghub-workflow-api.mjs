@@ -73,12 +73,13 @@ async function main() {
 }
 
 async function verifySourceContracts() {
-  const [serverSource, routeSource, workspaceSource, editorSource, nodeSource, queueSource] = await Promise.all([
+  const [serverSource, routeSource, workspaceSource, editorSource, nodeSource, nodeConfigSectionSource, queueSource] = await Promise.all([
     readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/api/src/admin-runninghub-routes.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-runninghub-workspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-runninghub-item-editor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/web/src/components/nodes/RunningHubNodeConfigSection.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-readonly-panels.tsx", import.meta.url), "utf8"),
   ]);
   assertIncludes(serverSource, "handleAdminRunningHubRoutes");
@@ -111,9 +112,9 @@ async function verifySourceContracts() {
   assertIncludes(editorSource, "admin-runninghub-editor__body");
   assertIncludes(editorSource, "admin-runninghub-editor__side-panel");
   assertIncludes(workspaceSource, "admin-runninghub-analyze-panel__workbench");
-  assertIncludes(nodeSource, "后台条目");
-  assertIncludes(nodeSource, "通用输入");
-  assertIncludes(nodeSource, "高级方式");
+  assertIncludes(nodeConfigSectionSource, "后台条目");
+  assertIncludes(nodeConfigSectionSource, "通用输入");
+  assertIncludes(nodeConfigSectionSource, "高级方式");
   assertIncludes(nodeSource, "进行中");
   assertIncludes(nodeSource, "成功");
   assertIncludes(nodeSource, "失败");

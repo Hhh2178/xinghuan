@@ -36,6 +36,8 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
   - API 入队只固定 `preferredRhKeyId`
   - Worker 执行前才实时抢占并写入 `assignedRhKeyId`
   - 只有全部 Key 满载时才进入 `all_keys_busy`
+  - 抢占顺序是 `preferredRhKeyId -> 其他 default Key -> 其他启用 Key`
+  - 若根本不存在启用 Key，worker 会直接回写 `model_config` 失败，而不是伪装成排队
 - Worker 第二阶段收口方向：
   - `worker.ts` 逐步退回 orchestration glue
   - RunningHub 协议解析已开始下沉到独立 helper / client
@@ -45,6 +47,7 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
   - 已开始生成：`45%`
   - 成功完成：`100%`
   - 排队文案：`任务队列排队中`
+  - poll heartbeat 会持续回写 `upstreamStatus / upstreamMessage / rhTargetType / rhRunTargetId`
 
 ## 工程治理要求
 

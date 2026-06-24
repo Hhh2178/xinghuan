@@ -5,6 +5,9 @@
 - 普通 Provider 任务按能力类别拆队列
 - RunningHub 按 RH Key 池窗口独立治理
 - Worker 运行态会把实际槽位上报到 Redis
+- RunningHub 任务进入 worker 后，按 `preferredRhKeyId -> 其他 default Key -> 其他启用 Key` 顺序实时尝试抢占
+- 只有全部启用 Key 都满载时，才会保留 `rhQueueReason=all_keys_busy` 并继续排队
+- 如果 RH Provider 没有任何可用 Key，worker 直接按 `model_config` 失败，不伪装成排队
 
 ## 当前高频能力
 
@@ -30,4 +33,18 @@
 1. `/api/admin/system` 返回的 `effectiveConcurrency`
 2. Worker runtime key 是否存在
 3. 是否误落到 RunningHub RH Key 池窗口限制
-4. RH Provider 是否真的存在可用 Key，且任务是否已经绑定 `assignedRhKeyId`
+4. RH Provider 是否真的存在可用 Key，queued 态只看 `preferredRhKeyId`，真正开跑后才会写 `assignedRhKeyId`
+
+## RunningHub 运行态口径
+
+- `queued/submitting` 统一对外显示 `progress=5%`
+- `running/polling` 统一对外显示 `progress=45%`
+- `succeeded` 统一对外显示 `progress=100%`
+- `rhQueueReason=all_keys_busy` 时，queue hint 统一为 `任务队列排队中`
+- RH poll heartbeat 至少持续写回：
+  - `upstreamTaskId`
+  - `runtimeStage=polling`
+  - `upstreamStatus`
+  - `upstreamMessage`
+  - `rhTargetType`
+  - `rhRunTargetId`

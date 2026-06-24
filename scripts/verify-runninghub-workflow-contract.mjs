@@ -8,6 +8,7 @@ const adminTypes = await readFile(new URL("../apps/admin/src/admin-types.ts", im
 const adminMain = await readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf-8");
 const adminApiClient = await readFile(new URL("../apps/admin/src/admin-api-client.ts", import.meta.url), "utf-8");
 const node = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf-8");
+const nodeConfigSection = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNodeConfigSection.tsx", import.meta.url), "utf-8");
 const nodeSchema = await readFile(new URL("../apps/web/src/utils/runninghubNodeSchema.ts", import.meta.url), "utf-8");
 const catalogService = await readFile(new URL("../apps/web/src/services/runninghubCatalog.ts", import.meta.url), "utf-8");
 const sharedRunninghub = await readFile(new URL("../packages/shared/src/runninghub.ts", import.meta.url), "utf-8");
@@ -82,7 +83,7 @@ const checks = [
   [
     "RunningHub node warns when selected preset still has no resolved fields",
     /selectedPresetHasNoResolvedFields/.test(node) &&
-      /没有可用的输入槽定义/.test(node),
+      /没有可用的输入槽定义/.test(nodeConfigSection),
   ],
   [
     "RunningHub catalog preserves parameterSchema for non-binding schema drafts",

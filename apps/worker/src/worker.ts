@@ -397,7 +397,22 @@ async function processTask(taskId: string) {
     await workerDeferredRequeue.deferTaskExecution(task, "waiting_user_window", userWindow.reason);
     return;
   }
-  const runningHubWindow = await acquireRunningHubExecutionWindow(runningHubDispatchDeps);
+  let runningHubWindow: Awaited<ReturnType<typeof acquireRunningHubExecutionWindow>>;
+  try {
+    runningHubWindow = await acquireRunningHubExecutionWindow(runningHubDispatchDeps);
+  } catch (error) {
+    await releaseUserExecutionWindow(task);
+    await workerTaskLifecycle.failTask({
+      task,
+      trace,
+      error,
+      baseResultPatch: buildWorkerFailureWritebackPatch({
+        workerId,
+        error,
+      }),
+    });
+    return;
+  }
   if (!runningHubWindow.acquired) {
     await releaseUserExecutionWindow(task);
     await workerDeferredRequeue.deferTaskExecution(task, "waiting_runninghub_window", runningHubWindow.reason);
@@ -429,6 +444,8 @@ async function processTask(taskId: string) {
     startedAt: new Date().toISOString(),
     heartbeatAt: new Date().toISOString(),
     runtimeStage: "running",
+    progress: "45%",
+    queueHint: "任务已提交，正在生成",
   });
   let requeueAfterRelease = false;
   try {
@@ -892,6 +909,7 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
         ...(assignedRhKey ? {
           assignedRhKeyId: assignedRhKey.id,
           assignedRhKeyNoteSnapshot: assignedRhKey.note,
+          assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
         } : {}),
       });
     },

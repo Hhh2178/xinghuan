@@ -10,6 +10,8 @@ assert.match(server, /preferredRhKeyId/);
 assert.match(worker, /worker-runninghub-dispatch/);
 assert.match(dispatch, /selectExecutableRunningHubKey/);
 assert.match(dispatch, /all_keys_busy/);
+assert.match(dispatch, /isDefault/);
+assert.match(dispatch, /preferredRhKeyId/);
 assert.match(worker, /assignedRhKeyId/);
 
 console.log("PASS runninghub dynamic key selection contract");

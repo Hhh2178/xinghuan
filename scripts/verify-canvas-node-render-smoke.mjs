@@ -88,6 +88,8 @@ try {
 
   const renderResult = await waitForCanvasRender(cdp, expectedNodes);
   const runtimeErrors = cdp.runtimeErrors();
+  const networkFailures = cdp.networkFailures();
+  const assetResponses = cdp.assetResponses();
   const missing = renderResult.missingIds || [];
   const classMismatches = renderResult.classMismatches || [];
   const legacyFound = renderResult.legacyFound || [];
@@ -105,6 +107,8 @@ try {
     loginVisible: renderResult.loginVisible,
     errorBoundaryVisible: renderResult.errorBoundaryVisible,
     runtimeErrors,
+    networkFailures,
+    assetResponses,
   }, null, 2));
 
   assert(missing.length === 0, `missing rendered nodes: ${missing.join(", ")}`);
@@ -354,6 +358,8 @@ class CdpConnection {
     this.pending = new Map();
     this.eventWaiters = [];
     this.errors = [];
+    this.networkFailureEvents = [];
+    this.assetResponseEvents = [];
     this.frameBuffer = Buffer.alloc(0);
     this.handshakeBuffer = Buffer.alloc(0);
     this.handshakeDone = false;
@@ -427,6 +433,14 @@ class CdpConnection {
 
   runtimeErrors() {
     return [...this.errors];
+  }
+
+  networkFailures() {
+    return [...this.networkFailureEvents];
+  }
+
+  assetResponses() {
+    return [...this.assetResponseEvents];
   }
 
   close() {
@@ -513,6 +527,34 @@ class CdpConnection {
       const text = entry.text || "Log error";
       const url = entry.url ? ` (${entry.url})` : "";
       if (!isIgnorableBrowserError(text, entry.url)) this.errors.push(`${text}${url}`);
+    }
+    if (message.method === "Network.loadingFailed") {
+      const params = message.params || {};
+      const failedUrl = String(params?.url || params?.documentURL || "");
+      if (/\/assets\//.test(failedUrl) || /\.js(?:\?|$)/i.test(failedUrl)) {
+        this.networkFailureEvents.push({
+          url: failedUrl,
+          errorText: String(params?.errorText || ""),
+          canceled: Boolean(params?.canceled),
+          blockedReason: params?.blockedReason || "",
+          type: params?.type || "",
+        });
+      }
+    }
+    if (message.method === "Network.responseReceived") {
+      const params = message.params || {};
+      const response = params.response || {};
+      const responseUrl = String(response.url || "");
+      if (/\/assets\//.test(responseUrl) || /\.js(?:\?|$)/i.test(responseUrl)) {
+        this.assetResponseEvents.push({
+          url: responseUrl,
+          status: Number(response.status || 0),
+          mimeType: String(response.mimeType || ""),
+          fromDiskCache: Boolean(response.fromDiskCache),
+          fromServiceWorker: Boolean(response.fromServiceWorker),
+          fromPrefetchCache: Boolean(response.fromPrefetchCache),
+        });
+      }
     }
     for (const waiter of [...this.eventWaiters]) {
       if (waiter.method !== message.method) continue;

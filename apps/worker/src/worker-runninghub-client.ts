@@ -162,6 +162,8 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
       upstreamTaskId,
       taskId: upstreamTaskId,
       upstreamStatus: "submitted",
+      progress: "5%",
+      queueHint: "任务提交中",
       runtimeStage: "polling",
       rhTargetType: targetType,
       rhRunTargetId: runTargetId,
@@ -215,9 +217,11 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
       await input.onHeartbeat?.({
         upstreamTaskId,
         taskId: upstreamTaskId,
-        upstreamStatus: String(Number.isFinite(pollCode) ? pollCode : safeText(pollRaw.status)),
+        upstreamStatus: safeText(pollRaw.status, String(Number.isFinite(pollCode) ? pollCode : "")),
         runtimeStage: "polling",
         upstreamMessage: pollMessage,
+        progress: isRunningHubQueuedStatus(pollRaw.status) ? "5%" : "45%",
+        queueHint: isRunningHubQueuedStatus(pollRaw.status) ? "任务队列排队中" : "任务已提交，正在生成",
         rhTargetType: targetType,
         rhRunTargetId: runTargetId,
       });
@@ -286,6 +290,11 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
   return {
     runTask,
   };
+}
+
+function isRunningHubQueuedStatus(value: unknown) {
+  const status = safeText(value).toUpperCase();
+  return ["QUEUED", "PENDING", "WAITING"].includes(status);
 }
 
 function defaultWait(ms: number) {

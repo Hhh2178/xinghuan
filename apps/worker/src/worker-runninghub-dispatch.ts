@@ -37,6 +37,16 @@ interface RunningHubSelectionItem extends RunningHubKeyPoolItem {
   note: string;
 }
 
+function buildNoAvailableKeyError() {
+  const error = new Error("RunningHub 未配置可用 Key") as Error & { resultPatch?: Record<string, unknown> };
+  error.name = "WorkerTaskError";
+  error.resultPatch = {
+    failureCategory: "model_config",
+    providerDiagnostic: "RunningHub 未配置可用 Key",
+  };
+  return error;
+}
+
 export async function acquireRunningHubExecutionWindow(
   deps: RunningHubDispatchDeps,
 ): Promise<{ acquired: true } | { acquired: false; reason: string }> {
@@ -47,33 +57,38 @@ export async function acquireRunningHubExecutionWindow(
   if (!selectedRhKey) {
     return { acquired: false, reason: "RunningHub 所有 Key 并发已满 (all_keys_busy)" };
   }
-  await touchTaskRuntime(task.id, {
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  });
-  task.result = {
-    ...task.result,
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  };
-  task.payload = {
-    ...task.payload,
-    assignedRhKeyId: selectedRhKey.id,
-    assignedRhKeyNoteSnapshot: selectedRhKey.note,
-    assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
-    rhQueueReason: "",
-  };
+  try {
+    await touchTaskRuntime(task.id, {
+      assignedRhKeyId: selectedRhKey.id,
+      assignedRhKeyNoteSnapshot: selectedRhKey.note,
+      assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+      rhQueueReason: "",
+    });
+    task.result = {
+      ...task.result,
+      assignedRhKeyId: selectedRhKey.id,
+      assignedRhKeyNoteSnapshot: selectedRhKey.note,
+      assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+      rhQueueReason: "",
+    };
+    task.payload = {
+      ...task.payload,
+      assignedRhKeyId: selectedRhKey.id,
+      assignedRhKeyNoteSnapshot: selectedRhKey.note,
+      assignedRhKeyMaxConcurrency: selectedRhKey.maxConcurrency,
+      rhQueueReason: "",
+    };
+  } catch (error) {
+    await releaseRunningHubExecutionWindow(deps, selectedRhKey.id);
+    throw error;
+  }
   return { acquired: true };
 }
 
-export async function releaseRunningHubExecutionWindow(deps: RunningHubDispatchDeps) {
+export async function releaseRunningHubExecutionWindow(deps: RunningHubDispatchDeps, explicitKeyId?: string) {
   const { task, redis } = deps;
   if (deps.normalizeProtocol(task.providerProtocol) !== "runninghub") return;
-  const assignedRhKeyId = deps.safeText(task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
+  const assignedRhKeyId = deps.safeText(explicitKeyId || task.payload.assignedRhKeyId || task.result.assignedRhKeyId) || "legacy-default";
   const key = deps.runningHubRedisWindowKey(task.providerId, assignedRhKeyId);
   const current = Number(await redis.get(key).catch(() => "0")) || 0;
   if (current <= 0) return;
@@ -134,7 +149,7 @@ function resolveOrderedRunningHubKeys(deps: RunningHubDispatchDeps): RunningHubS
         isDefault: true,
         currentInFlight: 0,
       } satisfies RunningHubKeyPoolItem];
-  if (pool.length === 0) return [];
+  if (pool.length === 0) throw buildNoAvailableKeyError();
   return [
     ...pool.filter((item) => item.id === preferredRhKeyId),
     ...pool.filter((item) => item.id !== preferredRhKeyId && item.isDefault),
