@@ -32,10 +32,15 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
   - `useCanvasRuntime.ts`
   - `useCanvasViewportHotkeys.ts`
   - `CanvasOverlayLayer.tsx`
+- `Canvas.tsx` 已完成第三批真实下沉：
+  - `useCanvasSelectionMenus.ts`
+  - `useCanvasBulkReconnect.ts`
+- `Canvas.tsx` 已完成第四批真实下沉：
+  - `useCanvasSendFlow.ts`
 - `ApiSettings.tsx` 已完成 `Key sections / local paths / footer actions / cloud target detail panel / advanced provider detail panel` 五层收口，并已退出 `1200+` watchlist
 - `RunningHubNode.tsx` 已完成 `helpers -> config section -> param section` 三层收口，并已退出 `1200+` watchlist
 - `RHToolsNode.tsx` 已完成 `helpers -> param/runtime sections -> runner/launcher view shells` 三层收口，并已退出 `1200+` watchlist
 - 下一批前台热点建议继续优先处理：
-  - `Canvas.tsx` 的 selection / context-menu / bulk reconnect seam 继续下沉
+  - `Canvas.tsx` 的 `connect picker / context-menu view shell / remaining edit interactions`
   - `PoseMasterNode.tsx` 的 `field schema / preview sections / runtime actions`
   - `VideoNode.tsx` 的 runtime panel / param sections

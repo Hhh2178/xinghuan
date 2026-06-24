@@ -127,6 +127,9 @@ import { CanvasFlowOverlays } from './canvas/CanvasFlowOverlays';
 import { useCanvasRuntime } from './canvas/useCanvasRuntime';
 import { useCanvasViewportHotkeys } from './canvas/useCanvasViewportHotkeys';
 import { CanvasOverlayLayer } from './canvas/CanvasOverlayLayer';
+import { useCanvasSelectionMenus } from './canvas/useCanvasSelectionMenus';
+import { useCanvasBulkReconnect } from './canvas/useCanvasBulkReconnect';
+import { useCanvasSendFlow } from './canvas/useCanvasSendFlow';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
 const ImageNode = lazy(() => import('./nodes/ImageNode'));
@@ -1192,15 +1195,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     setConnectionPanMode(false);
   }, [setConnectionPanMode]);
 
-  // ===== SHIFT+拖拽 Handle 批量移线 =====
-  // 按住 SHIFT 从节点入口(target handle)拖出，可一次性把所有入边移到另一个节点的入口。
-  // 同理也支持从 source handle SHIFT+拖拽移动所有出边。
-  const bulkReconnectRef = useRef<{
-    fromNodeId: string;
-    handleType: 'source' | 'target';
-    edges: Edge[];
-  } | null>(null);
-
   // 跟踪最新 nodes/edges 供全局事件回调使用
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
@@ -1210,6 +1204,20 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
+
+  const {
+    handleBulkReconnectConnectEnd,
+    handleBulkReconnectConnectStart,
+    hasPendingBulkReconnect,
+  } = useCanvasBulkReconnect({
+    bulkPhantomId: BULK_PHANTOM_ID,
+    edges,
+    edgesRef,
+    nodesRef,
+    screenToFlowPosition,
+    setEdges,
+    setNodes,
+  });
 
   const assignActiveNodeSerials = useCallback((incomingNodes: Node[], existingNodes?: Node[]) => {
     const result = assignFreshNodeSerials(incomingNodes, existingNodes || nodesRef.current, nextNodeSerialIdRef.current);
@@ -1233,56 +1241,12 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     [activeId],
   );
 
-  useEffect(() => {
-    const onOpenSendMaterials = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        materials?: SendableMaterial[];
-        nodeFragment?: SendNodeFragment;
-        sourceLabel?: string;
-        defaultMode?: SendTargetMode;
-        atScreen?: { x: number; y: number };
-      }>).detail || {};
-      const materials = Array.isArray(detail.materials) ? detail.materials : [];
-      const nodeFragment = detail.nodeFragment?.nodes?.length ? detail.nodeFragment : undefined;
-      if (materials.length === 0 && !nodeFragment) return;
-      setSendModal({
-        materials,
-        nodeFragment,
-        sourceLabel: detail.sourceLabel || '素材',
-        defaultMode: detail.defaultMode || 'auto',
-        atScreen: detail.atScreen,
-      });
-    };
-    window.addEventListener('penguin:open-send-materials', onOpenSendMaterials);
-    return () => window.removeEventListener('penguin:open-send-materials', onOpenSendMaterials);
-  }, []);
-
   // 吸附 + 对齐辅助线
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [guides, setGuides] = useState<{ vertical: number[]; horizontal: number[] }>({
     vertical: [],
     horizontal: [],
   });
-
-  // 选区右键菜单(框选后右键 或 节点上右键)
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    ids: string[];
-  } | null>(null);
-  const [sendModal, setSendModal] = useState<{
-    materials: SendableMaterial[];
-    nodeFragment?: SendNodeFragment;
-    sourceLabel: string;
-    defaultMode: SendTargetMode;
-    atScreen?: { x: number; y: number };
-  } | null>(null);
-
-  // 画布空白区右键菜单(快速添加节点)
-  const [paneMenu, setPaneMenu] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
 
   // 历史栈
   const applySnapshot = useCallback((snap: { nodes: Node[]; edges: Edge[] }) => {
@@ -1342,6 +1306,37 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     nodes,
     edges,
     executableNodeTypes: EXECUTABLE_NODE_TYPES,
+  });
+  const {
+    handleSaveSendMaterialsToResource,
+    handleSendMaterialsToCanvas,
+    handleSendMaterialsToEagle,
+    insertWorkflowFragment,
+    openSendMaterials,
+    saveWorkflowFragmentToResource,
+    sendModal,
+    setSendModal,
+  } = useCanvasSendFlow({
+    activeId,
+    bulkPhantomId: BULK_PHANTOM_ID,
+    screenToFlowPosition,
+    getViewport,
+    nodesRef,
+    edgesRef,
+    setNodes,
+    setEdges,
+    pendingSendFocusRef,
+    assignActiveNodeSerials,
+    loadCanvases,
+    setActive,
+    isCanvasRevisionConflictError,
+    buildSendNodeSpecs,
+    basePositionForAppend,
+    materialNodesFromSpecs,
+    placeInstantiatedNodeFragment,
+    sourceNodeIdsFromMaterials,
+    removeDuplicateSendBridgeNodes,
+    centerOfMaterialNodes,
   });
 
   // 添加节点(供 Sidebar 调用) —— 默认落在当前视口中心
@@ -1690,360 +1685,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     },
     [downloadMaterialItem, getDownloadableItemsFromNodes],
   );
-
-  const openSendMaterials = useCallback(
-    (ids: string[], atScreen?: { x: number; y: number }) => {
-      const selectedNodes = nodesRef.current.filter((node) => ids.includes(node.id) && node.id !== BULK_PHANTOM_ID);
-      const materials = collectSendableMaterialsFromNodes(selectedNodes, activeId);
-      const nodeFragment = buildSendNodeFragment(selectedNodes, edgesRef.current, activeId);
-      if (materials.length === 0 && nodeFragment.nodes.length === 0) {
-        logBus.warn('所选内容没有可发送的节点或素材', '发送');
-        return;
-      }
-      const defaultMode = chooseDefaultSendMode({
-        selectedNodeTypes: selectedNodes.map((node) => String(node.type || '')),
-        nodeCount: nodeFragment.nodes.length,
-        edgeCount: nodeFragment.edges.length,
-        materialCount: materials.length,
-      });
-      setSendModal({
-        materials,
-        nodeFragment,
-        sourceLabel: `选中 ${nodeFragment.nodes.length} 个节点${nodeFragment.edges.length > 0 ? ` · ${nodeFragment.edges.length} 条连线` : ''}`,
-        defaultMode,
-        atScreen,
-      });
-    },
-    [activeId],
-  );
-
-  const resolveSendMode = useCallback((mode: SendTargetMode): SendTargetMode => {
-    return resolveEffectiveSendMode({
-      requestedMode: mode,
-      defaultMode: sendModal?.defaultMode || 'auto',
-      nodeCount: sendModal?.nodeFragment?.nodes.length || 0,
-      edgeCount: sendModal?.nodeFragment?.edges.length || 0,
-      materialCount: sendModal?.materials.length || 0,
-    });
-  }, [sendModal?.defaultMode, sendModal?.materials.length, sendModal?.nodeFragment?.edges.length, sendModal?.nodeFragment?.nodes.length]);
-
-  const basePositionForActiveSend = useCallback(() => {
-    const atScreen = sendModal?.atScreen;
-    if (atScreen) return screenToFlowPosition(atScreen);
-    const flowEl = document.querySelector('.react-flow') as HTMLElement | null;
-    const rect = flowEl?.getBoundingClientRect();
-    return screenToFlowPosition(
-      rect
-        ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-      : { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-    );
-  }, [screenToFlowPosition, sendModal?.atScreen]);
-
-  const insertWorkflowFragment = useCallback(
-    (fragment: SendNodeFragment, options: InsertWorkflowOptions = {}) => {
-      if (!fragment?.nodes?.length) {
-        logBus.warn('工作流资源没有可插入节点', '资源库');
-        return;
-      }
-      const base = options.atScreen ? screenToFlowPosition(options.atScreen) : basePositionForActiveSend();
-      const placedInstance = placeInstantiatedNodeFragment(
-        instantiateSendNodeFragment(fragment, nodesRef.current, base),
-        nodesRef.current,
-      );
-      const instance = {
-        ...placedInstance,
-        nodes: assignActiveNodeSerials(placedInstance.nodes, nodesRef.current),
-      };
-      const focusCenter = centerOfMaterialNodes(instance.nodes);
-      if (activeId && focusCenter) {
-        const { zoom } = getViewport();
-        pendingSendFocusRef.current = {
-          canvasId: activeId,
-          center: focusCenter,
-          zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
-        };
-      }
-      setEdges([...edgesRef.current.map((edge) => ({ ...edge, selected: false })), ...instance.edges]);
-      setNodes([...nodesRef.current.map((node) => ({ ...node, selected: false })), ...instance.nodes]);
-      logBus.success(`已插入 ${options.title || summarizeSendNodeFragment(fragment)}`, '资源库');
-    },
-    [activeId, assignActiveNodeSerials, basePositionForActiveSend, getViewport, screenToFlowPosition],
-  );
-
-  const handleSendMaterialsToCanvas = useCallback(
-    async (targetCanvasId: string, mode: SendTargetMode, switchAfter: boolean) => {
-      if (!sendModal) return;
-      try {
-        const currentSend = {
-          ...sendModal,
-          materials: sendModal.materials.map((item) => ({ ...item })),
-        };
-        const effectiveMode = resolveSendMode(mode);
-        if (effectiveMode === 'node-fragment') {
-          const fragment = currentSend.nodeFragment;
-          if (!fragment || fragment.nodes.length === 0) {
-            logBus.warn('没有可发送到画布的节点片段', '发送节点');
-            return;
-          }
-
-          if (targetCanvasId === activeId) {
-            const base = basePositionForActiveSend();
-            const placedInstance = placeInstantiatedNodeFragment(
-              instantiateSendNodeFragment(fragment, nodesRef.current, base),
-              nodesRef.current,
-            );
-            const instance = {
-              ...placedInstance,
-              nodes: assignActiveNodeSerials(placedInstance.nodes, nodesRef.current),
-            };
-            const focusCenter = centerOfMaterialNodes(instance.nodes);
-            if (activeId && focusCenter) {
-              const { zoom } = getViewport();
-              pendingSendFocusRef.current = {
-                canvasId: activeId,
-                center: focusCenter,
-                zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
-              };
-            }
-            setEdges([...edgesRef.current.map((edge) => ({ ...edge, selected: false })), ...instance.edges]);
-            setNodes([...nodesRef.current.map((node) => ({ ...node, selected: false })), ...instance.nodes]);
-            setSendModal(null);
-            logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到当前画布`, '发送节点');
-            return;
-          }
-
-          const data = await api.getCanvasData(targetCanvasId);
-          const targetNodesRaw = (Array.isArray(data.nodes) ? data.nodes : []) as Node[];
-          const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw, data.nextNodeSerialId);
-          const targetNodes = normalizedTarget.nodes;
-          const targetEdges = (Array.isArray(data.edges) ? data.edges : []) as Edge[];
-          const placedInstance = placeInstantiatedNodeFragment(
-            instantiateSendNodeFragment(fragment, targetNodes, basePositionForAppend(targetNodes)),
-            targetNodes,
-          );
-          const freshSerials = assignFreshNodeSerials(placedInstance.nodes, targetNodes, normalizedTarget.nextNodeSerialId);
-          const instance = { ...placedInstance, nodes: freshSerials.nodes };
-          const focusCenter = centerOfMaterialNodes(instance.nodes);
-          if (switchAfter && focusCenter) {
-            pendingSendFocusRef.current = {
-              canvasId: targetCanvasId,
-              center: focusCenter,
-              zoom: 0.88,
-            };
-          }
-          const payload = {
-            nodes: [...targetNodes, ...instance.nodes],
-            edges: [...targetEdges, ...instance.edges],
-            viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
-            revision: data.revision,
-            nextNodeSerialId: freshSerials.nextNodeSerialId,
-          };
-          const saved = await api.saveCanvasData(targetCanvasId, payload);
-          api.autoSaveCanvasData(targetCanvasId, { ...payload, revision: saved.revision ?? data.revision }).catch(() => {});
-          await loadCanvases();
-          if (switchAfter) setActive(targetCanvasId);
-          setSendModal(null);
-          logBus.success(`已发送 ${summarizeSendNodeFragment(fragment)} 到目标画布`, '发送节点');
-          return;
-        }
-
-        if (currentSend.materials.length === 0) {
-          logBus.warn('当前发送方式需要素材；请选择“节点片段”发送选中节点和连线', '发送素材');
-          return;
-        }
-        const specs = buildSendNodeSpecs(currentSend.materials, effectiveMode);
-        if (specs.length === 0) {
-          logBus.warn('没有可发送到画布的素材', '发送素材');
-          return;
-        }
-        const bridgeSignature = sendableMaterialSignature(currentSend.materials);
-        const bridgeSourceNodeIds = sourceNodeIdsFromMaterials(currentSend.materials);
-
-        if (targetCanvasId === activeId) {
-          const base = basePositionForActiveSend();
-          const cleaned = removeDuplicateSendBridgeNodes(
-            nodesRef.current,
-            edgesRef.current,
-            currentSend.materials,
-            bridgeSignature,
-            activeId,
-          );
-          const newNodes = materialNodesFromSpecs(specs, cleaned.nodes, base, {
-            signature: bridgeSignature,
-            mode: effectiveMode,
-            sourceCanvasId: activeId,
-            sourceNodeIds: bridgeSourceNodeIds,
-          });
-          const assignedNewNodes = assignActiveNodeSerials(newNodes, cleaned.nodes);
-          const focusCenter = centerOfMaterialNodes(assignedNewNodes);
-          if (activeId && focusCenter) {
-            const { zoom } = getViewport();
-            pendingSendFocusRef.current = {
-              canvasId: activeId,
-              center: focusCenter,
-              zoom: Math.min(Math.max(zoom || 0.9, 0.72), 1.05),
-            };
-          }
-          setEdges(cleaned.edges);
-          setNodes([...cleaned.nodes.map((node) => ({ ...node, selected: false })), ...assignedNewNodes]);
-          setSendModal(null);
-          logBus.success(
-            `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到当前画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
-            '发送素材',
-          );
-          return;
-        }
-
-        const data = await api.getCanvasData(targetCanvasId);
-        const targetNodesRaw = Array.isArray(data.nodes) ? data.nodes : [];
-        const normalizedTarget = normalizeCanvasNodeSerials(targetNodesRaw as Node[], data.nextNodeSerialId);
-        const targetNodes = normalizedTarget.nodes;
-        const targetEdges = Array.isArray(data.edges) ? data.edges : [];
-        const cleaned = removeDuplicateSendBridgeNodes(
-          targetNodes as Node[],
-          targetEdges as Edge[],
-          currentSend.materials,
-          bridgeSignature,
-          activeId,
-        );
-        const newNodes = materialNodesFromSpecs(specs, cleaned.nodes as Node[], basePositionForAppend(cleaned.nodes as Node[]), {
-          signature: bridgeSignature,
-          mode: effectiveMode,
-          sourceCanvasId: activeId,
-          sourceNodeIds: bridgeSourceNodeIds,
-        });
-        const freshSerials = assignFreshNodeSerials(newNodes, cleaned.nodes as Node[], normalizedTarget.nextNodeSerialId);
-        const focusCenter = centerOfMaterialNodes(freshSerials.nodes);
-        if (switchAfter && focusCenter) {
-          pendingSendFocusRef.current = {
-            canvasId: targetCanvasId,
-            center: focusCenter,
-            zoom: 0.88,
-          };
-        }
-        const payload = {
-          nodes: [...cleaned.nodes, ...freshSerials.nodes],
-          edges: cleaned.edges,
-          viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
-          revision: data.revision,
-          nextNodeSerialId: freshSerials.nextNodeSerialId,
-        };
-        const saved = await api.saveCanvasData(targetCanvasId, payload);
-        api.autoSaveCanvasData(targetCanvasId, { ...payload, revision: saved.revision ?? data.revision }).catch(() => {});
-        await loadCanvases();
-        if (switchAfter) setActive(targetCanvasId);
-        setSendModal(null);
-        logBus.success(
-          `已发送 ${summarizeSendableMaterials(currentSend.materials)} 到目标画布${cleaned.removed ? `，已替换旧批次 ${cleaned.removed} 个节点` : ''}`,
-          '发送素材',
-        );
-      } catch (error: any) {
-        if (isCanvasRevisionConflictError(error)) {
-          logBus.warn('目标画布已被其他标签页或设备更新，请先重新打开目标画布后再发送', '画布冲突');
-          return;
-        }
-        logBus.warn(error?.message || '发送到画布失败', '发送');
-      }
-    },
-    [activeId, assignActiveNodeSerials, basePositionForActiveSend, getViewport, isCanvasRevisionConflictError, loadCanvases, resolveSendMode, sendModal, setActive],
-  );
-
-  const saveWorkflowFragmentToResource = useCallback(
-    async (fragment: SendNodeFragment | undefined, defaultTitle = '未命名工作流') => {
-      if (!fragment?.nodes?.length) {
-        logBus.warn('至少选择 1 个节点才能保存工作流', '资源库');
-        return false;
-      }
-      const title = window.prompt('工作流名称', defaultTitle);
-      if (!title?.trim()) return false;
-      try {
-        const manifest = createWorkflowResourceManifest(fragment, { title: title.trim() });
-        const result = await api.addResourceWorkflow({
-          workflowFragment: manifest,
-          title: manifest.title,
-          tags: ['工作流'],
-          sourceCanvasId: activeId || fragment.sourceCanvasId,
-        });
-        if (!result.success) throw new Error(result.error || '保存工作流失败');
-        window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
-        const duplicate = Boolean((result as any).duplicate || (result.data as any)?.duplicate);
-        logBus.success(duplicate ? `资源库已有相同工作流：${manifest.title}` : `已保存工作流：${manifest.title}`, '资源库');
-        return true;
-      } catch (e: any) {
-        logBus.warn(e?.message || '保存工作流失败', '资源库');
-        return false;
-      }
-    },
-    [activeId],
-  );
-
-  const handleSaveSendMaterialsToResource = useCallback(async (mode?: SendTargetMode) => {
-    if (!sendModal) return;
-    const effectiveMode = resolveSendMode(mode || sendModal.defaultMode || 'auto');
-    if (effectiveMode === 'node-fragment') {
-      const fallbackTitle = sendModal.nodeFragment?.nodes.length
-        ? `${sendModal.nodeFragment.nodes.length}节点工作流`
-        : '未命名工作流';
-      await saveWorkflowFragmentToResource(sendModal.nodeFragment, fallbackTitle);
-      return;
-    }
-    if (sendModal.materials.length === 0) return;
-    const buckets = bucketSendableMaterials(sendModal.materials);
-    let saved = 0;
-    const failures: string[] = [];
-    for (const kind of ['image', 'video', 'audio', 'text'] as MaterialSetKind[]) {
-      const items = buckets[kind];
-      if (items.length === 0) continue;
-      if (kind !== 'text' && items.length === 1 && items[0].url) {
-        const result = await api.addResourceItem({
-          kind: kind as api.ResourceMediaKind,
-          url: items[0].url,
-          title: items[0].name || `${PORT_LABEL[kind]}素材`,
-          tags: ['跨画布发送'],
-          sourceNodeId: items[0].sourceNodeId,
-          sourceCanvasId: items[0].sourceCanvasId || activeId || undefined,
-        });
-        if (result.success) saved += 1;
-        else failures.push(result.error || `${PORT_LABEL[kind]}入库失败`);
-        continue;
-      }
-      const result = await api.addResourceSet({
-        materialSetKind: kind,
-        materialSetItems: items,
-        title: `${PORT_LABEL[kind]}素材集 · ${items.length}项`,
-        tags: ['跨画布发送'],
-        sourceNodeId: items[0]?.sourceNodeId,
-        sourceCanvasId: items[0]?.sourceCanvasId || activeId || undefined,
-      });
-      if (result.success) saved += 1;
-      else failures.push(result.error || `${PORT_LABEL[kind]}素材集入库失败`);
-    }
-    window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
-    if (saved > 0) logBus.success(`已保存 ${saved} 项到资源库`, '发送素材');
-    if (failures.length > 0) logBus.warn(failures.slice(0, 2).join('；'), '发送素材');
-  }, [activeId, resolveSendMode, saveWorkflowFragmentToResource, sendModal]);
-
-  const handleSendMaterialsToEagle = useCallback(async () => {
-    if (!sendModal || sendModal.materials.length === 0) return;
-    const result = await api.sendToEagle({
-      materials: sendModal.materials.map((item) => ({
-        id: item.id,
-        kind: item.kind,
-        url: item.url,
-        text: item.text,
-        name: item.name,
-      })),
-      tags: ['T8', '贞贞画布'],
-    });
-    if (!result.success) {
-      logBus.warn(result.error || '发送到 Eagle 失败，请确认 Eagle 已启动并开启本地 API', 'Eagle');
-      return;
-    }
-    const imported = result.data.imported.length;
-    const failed = result.data.failures.length;
-    if (imported > 0) logBus.success(`已发送 ${imported} 项到 Eagle`, 'Eagle');
-    if (failed > 0) logBus.warn(`${failed} 项发送失败，可检查 Eagle 是否支持该素材类型`, 'Eagle');
-  }, [sendModal]);
 
   const handleCanvasPointerMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     lastCanvasPointerRef.current = { x: e.clientX, y: e.clientY };
@@ -2657,96 +2298,22 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     groupDragRef.current = null;
   }, []);
 
-  // ===== 右键菜单 =====
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
-  const closePaneMenu = useCallback(() => setPaneMenu(null), []);
-
-  const openNodeContextMenuAt = useCallback(
-    (clientX: number, clientY: number, nodeId: string) => {
-      const currentNodes = nodesRef.current;
-      let ids: string[];
-      const currentSelected = currentNodes.filter((n) => n.selected).map((n) => n.id);
-      if (currentSelected.includes(nodeId) && currentSelected.length > 1) {
-        ids = currentSelected;
-      } else {
-        setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === nodeId })));
-        ids = [nodeId];
-      }
-      setPaneMenu(null);
-      setContextMenu({ x: clientX, y: clientY, ids });
-    },
-    []
-  );
-
-  // 选区右键(框选 ≥ 1 个节点后右键)
-  const onSelectionContextMenu = useCallback(
-    (e: React.MouseEvent, sels: Node[]) => {
-      e.preventDefault();
-      const ids = sels.map((n) => n.id);
-      if (ids.length === 0) return;
-      setContextMenu({ x: e.clientX, y: e.clientY, ids });
-    },
-    []
-  );
-
-  // 节点上右键: 若未选中则仅选中此节点
-  const onNodeContextMenu = useCallback(
-    (e: React.MouseEvent, node: Node) => {
-      e.preventDefault();
-      openNodeContextMenuAt(e.clientX, e.clientY, node.id);
-    },
-    [openNodeContextMenuAt]
-  );
-
-  // ReactFlow 的 onNodeContextMenu 在 input/select/button 等 nodrag 控件上可能不会触发。
-  // 用画布根节点捕获阶段兜底：只要右键落在节点内且不是素材预览，就打开原节点菜单。
-  const onCanvasContextMenuCapture = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (!target) return;
-      if (target.closest('[data-resource-context-menu]')) return;
-      if (target.closest('[data-drag-source]')) return;
-      const nodeEl = target.closest('.react-flow__node') as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute('data-id') || '';
-      if (!nodeId || nodeId === BULK_PHANTOM_ID) return;
-      if (!nodesRef.current.some((n) => n.id === nodeId)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      openNodeContextMenuAt(e.clientX, e.clientY, nodeId);
-    },
-    [openNodeContextMenuAt]
-  );
-
-  // 空白处右键: 弹出快速添加节点菜单(同时关闭选区菜单)
-  const onPaneContextMenu = useCallback(
-    (e: React.MouseEvent | MouseEvent) => {
-      e.preventDefault();
-      setContextMenu(null);
-      const x = (e as MouseEvent).clientX;
-      const y = (e as MouseEvent).clientY;
-      setPaneMenu({ x, y });
-    },
-    []
-  );
-
-  // 记录最新选中的节点 id 列表(以便 onSelectionEnd 读取)
-  const lastSelectedIdsRef = useRef<string[]>([]);
-  const onSelectionChange = useCallback(
-    ({ nodes: ns }: { nodes: Node[]; edges: Edge[] }) => {
-      lastSelectedIdsRef.current = ns.map((n) => n.id);
-    },
-    []
-  );
-
-  // 框选结束: 若选中 ≥ 2 个节点则自动弹出菜单
-  const onSelectionEnd = useCallback((e: React.MouseEvent) => {
-    const ids = lastSelectedIdsRef.current;
-    if (!ids || ids.length < 2) return;
-    const x = (e as any)?.clientX ?? 0;
-    const y = (e as any)?.clientY ?? 0;
-    if (!x && !y) return;
-    setContextMenu({ x, y, ids });
-  }, []);
+  const {
+    closeContextMenu,
+    closePaneMenu,
+    contextMenu,
+    onCanvasContextMenuCapture,
+    onNodeContextMenu,
+    onPaneContextMenu,
+    onSelectionChange,
+    onSelectionContextMenu,
+    onSelectionEnd,
+    paneMenu,
+  } = useCanvasSelectionMenus({
+    bulkPhantomId: BULK_PHANTOM_ID,
+    nodesRef,
+    setNodes,
+  });
 
   // 暴露 addNode 给父组件
   useEffect(() => {
@@ -2805,7 +2372,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     (params: Connection) => {
       resetConnectionPanMode();
       // 批量移线过程中禁止普通连接逻辑(不然会多一条重复边)
-      if (bulkReconnectRef.current) return;
+      if (hasPendingBulkReconnect()) return;
       const curNodes = nodesRef.current;
       const curEdges = edgesRef.current;
       // 连接有效性校验(防止绕过 isValidConnection 的底层调用)
@@ -2894,31 +2461,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       isConnectionDraggingRef.current = true;
       setConnectionPanMode(false);
 
-      // SHIFT + target handle → 批量移动所有入边
       const evt = _e as MouseEvent;
-      if (evt.shiftKey) {
-        if (params.handleType === 'target') {
-          const incoming = edges.filter((e) => e.target === params.nodeId);
-          if (incoming.length > 0) {
-            bulkReconnectRef.current = {
-              fromNodeId: params.nodeId,
-              handleType: 'target',
-              edges: JSON.parse(JSON.stringify(incoming)),
-            };
-          }
-        } else if (params.handleType === 'source') {
-          const outgoing = edges.filter((e) => e.source === params.nodeId);
-          if (outgoing.length > 0) {
-            bulkReconnectRef.current = {
-              fromNodeId: params.nodeId,
-              handleType: 'source',
-              edges: JSON.parse(JSON.stringify(outgoing)),
-            };
-          }
-        }
-      }
+      handleBulkReconnectConnectStart(evt, params);
     },
-    [edges, setConnectionPanMode]
+    [handleBulkReconnectConnectStart, setConnectionPanMode]
   );
 
   const onConnectEnd = useCallback(
@@ -2926,7 +2472,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       const from = connectingFromRef.current;
       const target = event.target as HTMLElement | null;
       const droppedOnHandle = getReactFlowHandleInfo(target);
-      if (connectionPanModeRef.current && from && !droppedOnHandle && !bulkReconnectRef.current) {
+      if (connectionPanModeRef.current && from && !droppedOnHandle && !hasPendingBulkReconnect()) {
         // Space 导航模式下，松开鼠标只是结束本次拖动画布；保留起点，
         // 用户可以继续平移画布，随后点击目标接口完成连接。
         connectionPanPointerRef.current = null;
@@ -2935,78 +2481,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       connectingFromRef.current = null;
       resetConnectionPanMode();
 
-      // ===== SHIFT+批量移线处理 =====
-      if (bulkReconnectRef.current) {
-        const bulk = bulkReconnectRef.current;
-        bulkReconnectRef.current = null;
-
-        const targetEl = event.target as HTMLElement | null;
-        if (!targetEl) return;
-        // 检测是否释放在一个 Handle 上
-        const handleEl = targetEl.closest('.react-flow__handle') as HTMLElement | null;
-        if (handleEl) {
-          const newNodeId =
-            handleEl.getAttribute('data-nodeid') ||
-            handleEl.closest('.react-flow__node')?.getAttribute('data-id') ||
-            '';
-          const dropHandleType = handleEl.getAttribute('data-handletype'); // 'source' | 'target'
-
-          if (newNodeId && newNodeId !== bulk.fromNodeId) {
-            // 入口→入口: 所有入边的 target 改为新节点
-            if (bulk.handleType === 'target' && dropHandleType === 'target') {
-              const bulkIds = new Set(bulk.edges.map((e) => e.id));
-              setEdges((eds) => {
-                const filtered = eds.filter((e) => !bulkIds.has(e.id));
-                const newTarget = nodes.find((n) => n.id === newNodeId);
-                const newEdges = bulk.edges.map((old) => {
-                  const srcNode = nodes.find((n) => n.id === old.source);
-                  const outs = srcNode ? getNodeOutputs(srcNode) : [];
-                  const ins = newTarget ? getNodeInputs(newTarget) : [];
-                  const matched = outs.find((o) => ins.includes(o) || o === 'any' || ins.includes('any'));
-                  const color = matched && matched !== 'any' ? PORT_COLOR[matched] : undefined;
-                  return {
-                    ...old,
-                    id: `e-${old.source}-${newNodeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                    target: newNodeId,
-                    targetHandle: null,
-                    ...(color ? { style: { stroke: color, strokeWidth: 2 } } : {}),
-                    data: { ...((old.data as any) || {}), portType: matched ?? 'any' },
-                  };
-                });
-                return [...filtered, ...newEdges];
-              });
-              return;
-            }
-            // 出口→出口: 所有出边的 source 改为新节点
-            if (bulk.handleType === 'source' && dropHandleType === 'source') {
-              const bulkIds = new Set(bulk.edges.map((e) => e.id));
-              setEdges((eds) => {
-                const filtered = eds.filter((e) => !bulkIds.has(e.id));
-                const newSource = nodes.find((n) => n.id === newNodeId);
-                const newEdges = bulk.edges.map((old) => {
-                  const tgtNode = nodes.find((n) => n.id === old.target);
-                  const outs = newSource ? getNodeOutputs(newSource) : [];
-                  const ins = tgtNode ? getNodeInputs(tgtNode) : [];
-                  const matched = outs.find((o) => ins.includes(o) || o === 'any' || ins.includes('any'));
-                  const color = matched && matched !== 'any' ? PORT_COLOR[matched] : undefined;
-                  return {
-                    ...old,
-                    id: `e-${newNodeId}-${old.target}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                    source: newNodeId,
-                    sourceHandle: null,
-                    ...(color ? { style: { stroke: color, strokeWidth: 2 } } : {}),
-                    data: { ...((old.data as any) || {}), portType: matched ?? 'any' },
-                  };
-                });
-                return [...filtered, ...newEdges];
-              });
-              return;
-            }
-          }
-        }
-        // 释放在其他位置 → 取消，边不变
-        return;
-      }
+      if (handleBulkReconnectConnectEnd(event)) return;
 
       // ===== 普通拖线逻辑 =====
       if (!from) return;
@@ -3040,7 +2515,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         screenPos: { x: clientX, y: clientY },
       });
     },
-    [resetConnectionPanMode, screenToFlowPosition, nodes]
+    [handleBulkReconnectConnectEnd, hasPendingBulkReconnect, resetConnectionPanMode, screenToFlowPosition, nodes]
   );
 
   // 拉线时按 Space 进入“连线导航”模式，适合远距离连线。
@@ -3075,277 +2550,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     fitView,
     isShortcutBlocked: isCanvasOverviewShortcutBlocked,
   });
-
-  // ===== 全局 SHIFT+Handle 批量移线拦截器 =====
-  // 原因: ReactFlow 的 multiSelectionKeyCode 包含 'Shift'，导致按住 SHIFT 在 handle 上 mousedown
-  // 会被 ReactFlow 拦截为多选事件，onConnectStart 可能不会触发。
-  // 这里使用 capture 阶段全局拦截 + stopImmediatePropagation 完全接管该交互。
-  // 交互升级: 拖拽期间使用 phantom 节点作为边的临时锐点,让所有连线跟随鼠标移动。
-  useEffect(() => {
-    const onMouseDownCapture = (e: MouseEvent) => {
-      if (!e.shiftKey) return;
-      if (e.button !== 0) return; // 仅左键
-      const targetEl = e.target as HTMLElement | null;
-      if (!targetEl) return;
-      const handleEl = targetEl.closest('.react-flow__handle') as HTMLElement | null;
-      if (!handleEl) return;
-
-      // 获取节点 ID
-      const nodeEl = handleEl.closest('.react-flow__node') as HTMLElement | null;
-      const nodeId =
-        handleEl.getAttribute('data-nodeid') || nodeEl?.getAttribute('data-id') || '';
-      if (!nodeId) return;
-
-      // 判断 handle 类型：data-handlepos / class / data-handletype 多重兑底
-      const detectHandleType = (el: HTMLElement): 'source' | 'target' | null => {
-        const dt = el.getAttribute('data-handletype');
-        if (dt === 'target' || dt === 'source') return dt;
-        if (el.classList.contains('react-flow__handle-left')) return 'target';
-        if (el.classList.contains('react-flow__handle-right')) return 'source';
-        const pos = el.getAttribute('data-handlepos');
-        if (pos === 'left' || pos === 'top') return 'target';
-        if (pos === 'right' || pos === 'bottom') return 'source';
-        return null;
-      };
-      const handleType = detectHandleType(handleEl);
-      if (!handleType) return;
-
-      // 收集相关边
-      const relatedEdges =
-        handleType === 'target'
-          ? edgesRef.current.filter((ed) => ed.target === nodeId)
-          : edgesRef.current.filter((ed) => ed.source === nodeId);
-      if (relatedEdges.length === 0) return;
-
-      // 拦截 ReactFlow 默认处理(多选/连接启动)
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
-
-      const startNodeId = nodeId;
-      const startHandleType = handleType;
-      const stashed: Edge[] = JSON.parse(JSON.stringify(relatedEdges));
-      const stashedIds = new Set(stashed.map((ed) => ed.id));
-
-      // 初始 phantom 位置 (flow 坐标)
-      const initFlowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
-      // 1) 创建 phantom 节点
-      setNodes((ns) => {
-        // 避免重复创建
-        if (ns.some((n) => n.id === BULK_PHANTOM_ID)) return ns;
-        return [
-          ...ns,
-          {
-            id: BULK_PHANTOM_ID,
-            type: 'bulkPhantom',
-            position: initFlowPos,
-            data: {},
-            draggable: false,
-            selectable: false,
-            deletable: false,
-            zIndex: 9999,
-            // ⚠️ 关键：phantom wrapper 必须 pointerEvents:none，否则它会盖在目标 handle 之上拦截 mouseup.target，
-            //         导致 SHIFT 多线平移到目标节点时 target.closest('.react-flow__handle') = null，平移直接失效。
-            //         详见 skill.md §43。
-            style: { pointerEvents: 'none' },
-          } as Node,
-        ];
-      });
-
-      // 2) 重定向 stashed 边的 target/source 到 phantom，让边实时跟随 phantom 移动
-      setEdges((eds) =>
-        eds.map((ed) => {
-          if (!stashedIds.has(ed.id)) return ed;
-          if (startHandleType === 'target') {
-            return { ...ed, target: BULK_PHANTOM_ID, targetHandle: null };
-          } else {
-            return { ...ed, source: BULK_PHANTOM_ID, sourceHandle: null };
-          }
-        })
-      );
-
-      // 光标反馈
-      document.body.classList.add('bulk-reconnecting');
-
-      // 高亮 hover 到的同类型可接收 handle
-      let lastHoverEl: HTMLElement | null = null;
-      const setHoverHL = (el: HTMLElement | null) => {
-        if (lastHoverEl && lastHoverEl !== el) {
-          lastHoverEl.style.boxShadow = '';
-          lastHoverEl.style.transform = '';
-        }
-        if (el && el !== lastHoverEl) {
-          el.style.boxShadow = '0 0 0 4px rgba(34, 197, 94, 0.6)';
-          el.style.transform = 'scale(1.4)';
-        }
-        lastHoverEl = el;
-      };
-
-      const cleanup = () => {
-        window.removeEventListener('mouseup', onMouseUp, true);
-        window.removeEventListener('mousemove', onMouseMove, true);
-        window.removeEventListener('keydown', onKeyDown, true);
-        document.body.classList.remove('bulk-reconnecting');
-        setHoverHL(null);
-        // 移除 phantom 节点
-        setNodes((ns) => ns.filter((n) => n.id !== BULK_PHANTOM_ID));
-      };
-
-      const restoreOriginal = () => {
-        // 取消: 边 target/source 还原为 stashed 里的原始值
-        const origMap = new Map(stashed.map((s) => [s.id, s]));
-        setEdges((eds) =>
-          eds.map((ed) => {
-            const orig = origMap.get(ed.id);
-            if (!orig) return ed;
-            return {
-              ...ed,
-              source: orig.source,
-              target: orig.target,
-              sourceHandle: orig.sourceHandle,
-              targetHandle: orig.targetHandle,
-            };
-          })
-        );
-      };
-
-      const onKeyDown = (kev: KeyboardEvent) => {
-        if (kev.key === 'Escape') {
-          cleanup();
-          restoreOriginal();
-        }
-      };
-
-      // ⚠️ 双层兜底：跳过 phantom 节点自身，从坐标下命中所有元素中找出真正的 handle
-      //         详见 skill.md §43
-      const findHandleAt = (cx: number, cy: number): HTMLElement | null => {
-        const els = document.elementsFromPoint(cx, cy);
-        for (const el of els) {
-          const h = (el as Element).closest?.('.react-flow__handle') as HTMLElement | null;
-          if (!h) continue;
-          const wrap = h.closest('.react-flow__node') as HTMLElement | null;
-          const nid = h.getAttribute('data-nodeid') || wrap?.getAttribute('data-id') || '';
-          if (nid === BULK_PHANTOM_ID) continue;
-          return h;
-        }
-        return null;
-      };
-
-      const onMouseMove = (mv: MouseEvent) => {
-        // 更新 phantom 节点位置 → 边跟随鼠标移动
-        const fp = screenToFlowPosition({ x: mv.clientX, y: mv.clientY });
-        setNodes((ns) =>
-          ns.map((n) =>
-            n.id === BULK_PHANTOM_ID ? { ...n, position: fp } : n
-          )
-        );
-        // 高亮 hover 到的同类型 handle（用 elementsFromPoint 复数遍历，跳过 phantom 自身）
-        const hoverHandle = findHandleAt(mv.clientX, mv.clientY);
-        if (hoverHandle) {
-          // 排除自身起点节点的 handle 以及 phantom 自身
-          const hoverNodeEl = hoverHandle.closest('.react-flow__node') as HTMLElement | null;
-          const hoverNodeId =
-            hoverHandle.getAttribute('data-nodeid') ||
-            hoverNodeEl?.getAttribute('data-id') ||
-            '';
-          const hoverType = detectHandleType(hoverHandle);
-          if (
-            hoverNodeId &&
-            hoverNodeId !== startNodeId &&
-            hoverNodeId !== BULK_PHANTOM_ID &&
-            hoverType === startHandleType
-          ) {
-            setHoverHL(hoverHandle);
-            return;
-          }
-        }
-        setHoverHL(null);
-      };
-
-      const onMouseUp = (upEv: MouseEvent) => {
-        // 双层路径：先尝试 event.target 快路径，命中 phantom 时用 elementsFromPoint 兜底（详见 skill.md §43）
-        const upTargetEl = upEv.target as HTMLElement | null;
-        let upHandleEl = upTargetEl?.closest('.react-flow__handle') as HTMLElement | null;
-        if (upHandleEl) {
-          const wrap = upHandleEl.closest('.react-flow__node') as HTMLElement | null;
-          const nid =
-            upHandleEl.getAttribute('data-nodeid') ||
-            wrap?.getAttribute('data-id') ||
-            '';
-          if (nid === BULK_PHANTOM_ID) upHandleEl = null;
-        }
-        if (!upHandleEl) upHandleEl = findHandleAt(upEv.clientX, upEv.clientY);
-        cleanup();
-
-        if (!upHandleEl) {
-          restoreOriginal();
-          return;
-        }
-        const upNodeEl = upHandleEl.closest('.react-flow__node') as HTMLElement | null;
-        const upNodeId =
-          upHandleEl.getAttribute('data-nodeid') ||
-          upNodeEl?.getAttribute('data-id') ||
-          '';
-        if (!upNodeId || upNodeId === startNodeId || upNodeId === BULK_PHANTOM_ID) {
-          restoreOriginal();
-          return;
-        }
-        const upHandleType = detectHandleType(upHandleEl);
-        if (upHandleType !== startHandleType) {
-          restoreOriginal();
-          return;
-        }
-
-        // 执行批量重连: 生成新边替换 stashed 中被重定向到 phantom 的边
-        setEdges((eds) => {
-          const filtered = eds.filter((ed) => !stashedIds.has(ed.id));
-          const ts = Date.now();
-          const newEdges: Edge[] = stashed.map((old) => {
-            const sourceId =
-              startHandleType === 'target' ? old.source : upNodeId;
-            const targetId =
-              startHandleType === 'target' ? upNodeId : old.target;
-            const srcN = nodesRef.current.find((n) => n.id === sourceId);
-            const tgtN = nodesRef.current.find((n) => n.id === targetId);
-            const outs = srcN ? getNodeOutputs(srcN) : [];
-            const ins = tgtN ? getNodeInputs(tgtN) : [];
-            const matched = outs.find(
-              (o) => ins.includes(o) || o === 'any' || ins.includes('any')
-            );
-            const color =
-              matched && matched !== 'any' ? PORT_COLOR[matched] : undefined;
-            return {
-              ...old,
-              id: `e-${sourceId}-${targetId}-${ts}-${Math.random()
-                .toString(36)
-                .slice(2, 6)}`,
-              source: sourceId,
-              target: targetId,
-              sourceHandle: startHandleType === 'target' ? old.sourceHandle : null,
-              targetHandle: startHandleType === 'source' ? old.targetHandle : null,
-              ...(color ? { style: { stroke: color, strokeWidth: 2 } } : {}),
-              data: {
-                ...((old.data as any) || {}),
-                portType: matched ?? 'any',
-              },
-            };
-          });
-          return [...filtered, ...newEdges];
-        });
-      };
-
-      window.addEventListener('mouseup', onMouseUp, true);
-      window.addEventListener('mousemove', onMouseMove, true);
-      window.addEventListener('keydown', onKeyDown, true);
-    };
-
-    window.addEventListener('mousedown', onMouseDownCapture, true);
-    return () => {
-      window.removeEventListener('mousedown', onMouseDownCapture, true);
-      document.body.classList.remove('bulk-reconnecting');
-    };
-  }, [screenToFlowPosition]);
 
   // 计算候选节点列表(根据起始节点输出/输入类型过滤)
   const pickerCandidates = useMemo<Array<NodeMeta & { matchedTypes: PortType[] }>>(() => {

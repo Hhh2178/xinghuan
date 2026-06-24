@@ -15,6 +15,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 主循环：`apps/worker/src/worker.ts`
 - 取消同步 glue：`apps/worker/src/worker-cancel-sync.ts`
 - 失败写回 glue：`apps/worker/src/worker-failure-glue.ts`
+- deferred / requeue glue：`apps/worker/src/worker-deferred-requeue.ts`
 - 任务运行态存取：`apps/worker/src/worker-task-store.ts`
 - 任务生命周期 glue：`apps/worker/src/worker-task-lifecycle.ts`
 - RunningHub 协议 client：`apps/worker/src/worker-runninghub-client.ts`
@@ -23,6 +24,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 输出落库：`apps/worker/src/output-materials.ts`
 - Provider 请求体：`apps/worker/src/worker-provider-request-body.ts`
 - Provider 工具：`apps/worker/src/worker-provider-utils.ts`
+- 媒体异步轮询：`apps/worker/src/worker-media-polling.ts`
 
 ## 当前重点
 
@@ -41,15 +43,26 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - `2026-06-24` 已继续再下沉一层：
   - claim/result/error/retry/completion 的取消态 glue：`worker-cancel-sync.ts`
   - failed writeback patch 拼装与失败归一化：`worker-failure-glue.ts`
+- `2026-06-24` 已继续把 deferred / requeue glue 下沉到：
+  - 等待 user / RunningHub 执行窗口后的 queued runtime patch + 延迟回推：`worker-deferred-requeue.ts`
+  - RunningHub queue-limit 回退到 queued、释放后再回推队列、chat -> video 队列映射：`worker-deferred-requeue.ts`
+- `2026-06-24` 已继续把普通 Provider 的异步媒体轮询细节下沉到：
+  - APIMart 视频轮询 / 最终结果查询：`worker-media-polling.ts`
+  - APIMart 图像轮询：`worker-media-polling.ts`
+  - ModelScope 图像轮询与 task 状态提取：`worker-media-polling.ts`
+- 本轮后 `worker.ts` 继续保留：
+  - worker 主循环
+  - provider / RunningHub 执行编排
+  - 高层 orchestration：领取、释放窗口、成功/失败分支与最终收口
 - 后续收口目标是继续把剩余零散运行态 glue 从主文件剥离，避免 `worker.ts` 继续堆积 provider 细节
 - 当前下一步收口重点已更新为：
-  - `running state / deferred-requeue glue`
-  - `provider execution family seam`
+  - `remaining runtime glue`
+  - `provider capability entry seam`
 
 ## 工程治理要求
 
 - `worker.ts` 这类 orchestration 入口文件，不再允许继续直接吸收新的 provider 协议细节。
-- 新增协议或新平台时，优先新增 `client / dispatch / diagnostics / cancel-sync` 模块，而不是把新逻辑塞回主循环。
+- 新增协议或新平台时，优先新增 `client / dispatch / diagnostics / cancel-sync / deferred-requeue` 模块，而不是把新逻辑塞回主循环。
 - 当单文件同时承载 orchestration、协议解析、状态归一化、输出映射三类以上职责时，本轮任务必须同步拆分，不允许只追加代码。
 
 ## 兼容正文来源

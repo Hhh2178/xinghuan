@@ -119,9 +119,8 @@ import {
   type RunningHubAdminItem as AdminRunningHubCatalogItem,
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
+import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
-import { handleAdminQueueSettingsRoutes } from "./admin-queue-settings-routes.js";
-import { handleAdminSystemSettingsRoutes } from "./admin-system-settings-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
@@ -2065,7 +2064,7 @@ async function handleAdminRequest(
     return true;
   }
 
-  if (await handleAdminSystemSettingsRoutes({
+  if (await handleAdminProviderRoutes({
     request,
     response,
     url,
@@ -2074,39 +2073,23 @@ async function handleAdminRequest(
     deps: {
       sendT8,
       appendAudit,
-      readTaskQueueSettingsRecord,
       readAdminDb,
-      withEffectiveRunningHubConcurrency,
-      readDatabaseStatus,
-      readRedisStatus,
-      readSystemObservability,
-      readStorageStats,
-      environment,
-      dataDir,
-      storageDriver,
-      authDbPath,
-      adminDbPath,
-      version: "0.4.16",
-    },
-  })) {
-    return true;
-  }
-
-  if (await handleAdminQueueSettingsRoutes({
-    request,
-    response,
-    url,
-    adminUser,
-    requestContext,
-    deps: {
-      sendT8,
-      appendAudit,
-      readTaskQueueSettingsRecord,
-      writeTaskQueueSettingsRecord,
-      readAdminDb,
-      normalizeTaskQueueSettings,
-      withEffectiveRunningHubConcurrency,
-      adminSettingsRevisionFromPayload,
+      writeAdminDb: async (db) => writeAdminDb(db as AdminDb),
+      usePostgresRepository,
+      insertProviderRecordPostgres: async (provider) => insertProviderRecordPostgres(provider as AdminProviderRecord),
+      upsertProviderRecordPostgres: async (provider) => upsertProviderRecordPostgres(provider as AdminProviderRecord),
+      deleteProviderRecordPostgres,
+      normalizeProviderProtocol,
+      normalizeRunningHubEntries,
+      normalizeRunningHubKeyPool,
+      normalizeModelScopeLoras,
+      encryptSecret,
+      secretPreview,
+      toPublicProvider: (provider) => toPublicProvider(provider as AdminProviderRecord),
+      probeProviderDraft,
+      fetchProviderModelsDraft,
+      updateProviderProbeResult,
+      updateProviderLastFetchedAt,
     },
   })) {
     return true;
@@ -2119,24 +2102,43 @@ async function handleAdminRequest(
     adminUser,
     requestContext,
     deps: {
-      sendT8,
-      appendAudit,
-      readTaskQueueSettingsRecord,
-      writeTaskQueueSettingsRecord,
-      readAdminDb,
-      normalizeTaskQueueSettings,
-      withEffectiveRunningHubConcurrency,
-      readDatabaseStatus,
-      readRedisStatus,
-      readSystemObservability,
-      readStorageStats,
-      adminSettingsRevisionFromPayload,
-      environment,
-      dataDir,
-      storageDriver,
-      authDbPath,
-      adminDbPath,
-      version: "0.4.16",
+      systemSettings: {
+        sendT8,
+        appendAudit,
+        readTaskQueueSettingsRecord,
+        readAdminDb,
+        withEffectiveRunningHubConcurrency,
+        readDatabaseStatus,
+        readRedisStatus,
+        readSystemObservability,
+        readStorageStats,
+        environment,
+        dataDir,
+        storageDriver,
+        authDbPath,
+        adminDbPath,
+        version: "0.4.16",
+      },
+      queueSettings: {
+        sendT8,
+        appendAudit,
+        readTaskQueueSettingsRecord,
+        writeTaskQueueSettingsRecord,
+        readAdminDb,
+        normalizeTaskQueueSettings,
+        withEffectiveRunningHubConcurrency,
+        adminSettingsRevisionFromPayload,
+      },
+      assistantSettings: {
+        sendT8,
+        appendAudit,
+        readAdminDb,
+        defaultAssistantSettings,
+        normalizeAssistantSettings,
+        writeAssistantSettingsRecord,
+        adminSettingsRevisionFromPayload,
+        maskAssistantEndpoint,
+      },
     },
   })) {
     return true;
@@ -2379,86 +2381,6 @@ async function handleAdminRequest(
     return true;
   }
 
-  if (url.pathname === "/api/admin/providers") {
-    const db = await readAdminDb();
-    if (request.method === "GET") {
-      await appendAudit(adminUser, "providers.read", "provider", "providers-list", "查看 Provider 列表", requestContext);
-      sendT8(response, db.providers.map(toPublicProvider));
-      return true;
-    }
-    if (request.method === "POST") {
-      const body = await readJsonBody<Partial<AdminProviderRecord>>(request);
-      const now = Date.now();
-      const provider: AdminProviderRecord = {
-        id: safeSlug(body.id, `provider-${now}`),
-        name: safeText(body.name, "新服务商"),
-        baseUrl: safeText(body.baseUrl),
-        protocol: normalizeProviderProtocol(body.protocol),
-        enabled: Boolean(body.enabled),
-        apiKey: encryptSecret(safeText(body.apiKey)),
-        apiKeyPreview: secretPreview(safeText(body.apiKey)),
-        rhApps: normalizeRunningHubEntries(body.rhApps, "app"),
-        rhWorkflows: normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
-        rhKeyPool: normalizeRunningHubKeyPool(body.rhKeyPool),
-        msLoras: normalizeModelScopeLoras(body.msLoras),
-        note: safeText(body.note),
-        createdAt: now,
-        updatedAt: now,
-      };
-      if (db.providers.some((item) => item.id === provider.id)) throw new Error("Provider ID 已存在");
-      if (usePostgresRepository()) {
-        await insertProviderRecordPostgres(provider);
-      } else {
-        await writeAdminDb({ ...db, providers: [provider, ...db.providers] });
-      }
-      await appendAudit(adminUser, "provider.create", "provider", provider.id, `创建 Provider ${provider.name}`, requestContext);
-      sendT8(response, toPublicProvider(provider));
-      return true;
-    }
-  }
-
-  if (url.pathname === "/api/admin/providers/probe" && request.method === "POST") {
-    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
-    sendT8(response, await probeProviderDraft(body));
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/providers/fetch-models" && request.method === "POST") {
-    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
-    sendT8(response, await fetchProviderModelsDraft(body));
-    return true;
-  }
-
-  const providerProbeMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/probe$/);
-  if (providerProbeMatch && request.method === "POST") {
-    const id = decodeURIComponent(providerProbeMatch[1]);
-    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
-    const db = await readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
-    if (!provider) throw new Error("Provider 不存在");
-    const result = await probeProviderDraft({ ...provider, ...body });
-    const now = Date.now();
-    await updateProviderProbeResult(id, result, now);
-    await appendAudit(adminUser, "provider.probe", "provider", id, `验证 Provider ${provider.name}: ${result.ok ? "ok" : "error"}`, requestContext);
-    sendT8(response, result);
-    return true;
-  }
-
-  const providerFetchModelsMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/fetch-models$/);
-  if (providerFetchModelsMatch && request.method === "POST") {
-    const id = decodeURIComponent(providerFetchModelsMatch[1]);
-    const body = await readJsonBody<Partial<AdminProviderRecord> & { apiKey?: string }>(request);
-    const db = await readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
-    if (!provider) throw new Error("Provider 不存在");
-    const result = await fetchProviderModelsDraft({ ...provider, ...body });
-    const now = Date.now();
-    await updateProviderLastFetchedAt(id, now);
-    await appendAudit(adminUser, "provider.fetchModels", "provider", id, `拉取 Provider ${provider.name} 模型 ${result.total}`, requestContext);
-    sendT8(response, result);
-    return true;
-  }
-
   const providerRunningHubKeyPoolMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/runninghub\/key-pool$/);
   if (providerRunningHubKeyPoolMatch && request.method === "GET") {
     const id = decodeURIComponent(providerRunningHubKeyPoolMatch[1]);
@@ -2619,75 +2541,6 @@ async function handleAdminRequest(
     }
     await appendAudit(adminUser, "model.import", "provider", providerId, `导入模型 ${imported} 个`, requestContext);
     sendT8(response, { imported, models: nextModels.filter((model) => model.providerId === providerId) });
-    return true;
-  }
-
-  const providerMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)$/);
-  if (providerMatch && request.method === "PATCH") {
-    const id = decodeURIComponent(providerMatch[1]);
-    const body = await readJsonBody<Partial<AdminProviderRecord> & { clearApiKey?: boolean }>(request);
-    const db = await readAdminDb();
-    let updated: AdminProviderRecord | undefined;
-    const providers = db.providers.map((provider) => {
-      if (provider.id !== id) return provider;
-      const next: AdminProviderRecord = {
-        ...provider,
-        name: body.name === undefined ? provider.name : safeText(body.name, provider.name),
-        baseUrl: body.baseUrl === undefined ? provider.baseUrl : safeText(body.baseUrl),
-        protocol: body.protocol === undefined ? provider.protocol : normalizeProviderProtocol(body.protocol),
-        enabled: body.enabled === undefined ? provider.enabled : Boolean(body.enabled),
-        rhApps: body.rhApps === undefined ? provider.rhApps : normalizeRunningHubEntries(body.rhApps, "app"),
-        rhWorkflows: body.rhWorkflows === undefined ? provider.rhWorkflows : normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
-        rhKeyPool: body.rhKeyPool === undefined ? provider.rhKeyPool : normalizeRunningHubKeyPool(body.rhKeyPool),
-        msLoras: body.msLoras === undefined ? provider.msLoras : normalizeModelScopeLoras(body.msLoras),
-        note: body.note === undefined ? provider.note : safeText(body.note),
-        updatedAt: Date.now(),
-      };
-      if (body.clearApiKey) {
-        delete next.apiKey;
-        delete next.apiKeyPreview;
-      }
-      if (body.apiKey) {
-        const apiKey = safeText(body.apiKey);
-        next.apiKey = encryptSecret(apiKey);
-        next.apiKeyPreview = secretPreview(apiKey);
-      }
-      updated = next;
-      return next;
-    });
-    if (!updated) throw new Error("Provider 不存在");
-    if (usePostgresRepository()) {
-      await upsertProviderRecordPostgres(updated);
-    } else {
-      await writeAdminDb({ ...db, providers });
-    }
-    await appendAudit(adminUser, "provider.update", "provider", id, `更新 Provider ${updated.name}`, requestContext);
-    sendT8(response, toPublicProvider(updated));
-    return true;
-  }
-
-  if (providerMatch && request.method === "DELETE") {
-    const id = decodeURIComponent(providerMatch[1]);
-    const db = await readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
-    if (!provider) throw new Error("Provider 不存在");
-    if (usePostgresRepository()) {
-      await deleteProviderRecordPostgres(id);
-    } else {
-      const removedModelIds = new Set(db.models.filter((item) => item.providerId === id).map((item) => item.id));
-      await writeAdminDb({
-        ...db,
-        providers: db.providers.filter((item) => item.id !== id),
-        models: db.models.filter((item) => item.providerId !== id),
-        tasks: db.tasks.map((task) =>
-          task.providerId === id || (task.modelId && removedModelIds.has(task.modelId))
-            ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
-            : task,
-        ),
-      });
-    }
-    await appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`, requestContext);
-    sendT8(response, null);
     return true;
   }
 
@@ -2974,23 +2827,6 @@ async function handleAdminRequest(
     );
     sendT8(response, result);
     return true;
-  }
-
-  if (url.pathname === "/api/admin/assistant/settings") {
-    if (request.method === "GET") {
-      const db = await readAdminDb();
-      sendT8(response, maskAssistantEndpoint(db.assistantSettings || defaultAssistantSettings()));
-      return true;
-    }
-    if (request.method === "PATCH") {
-      const body = await readJsonBody<Partial<AssistantSettingsRecord>>(request);
-      const db = await readAdminDb();
-      const settings = normalizeAssistantSettings(body, db.assistantSettings || defaultAssistantSettings());
-      const saved = await writeAssistantSettingsRecord(settings, adminSettingsRevisionFromPayload(body));
-      await appendAudit(adminUser, "assistant.settings.update", "assistant", "assistant-settings", "更新 AI 助手接入与显示设置", requestContext);
-      sendT8(response, maskAssistantEndpoint(saved));
-      return true;
-    }
   }
 
     if (url.pathname === "/api/admin/assistant/chat" && request.method === "POST") {

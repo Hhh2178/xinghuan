@@ -3,14 +3,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { readJsonBody } from "./http-session-utils.js";
 import { buildAdminQueueSettingsPayload } from "./api-response-adapters.js";
 
-interface CurrentUserShape {
+export interface CurrentUserShape {
   id: string;
   email: string;
   name: string;
   role: "admin" | "member";
 }
 
-interface RequestContextShape {
+export interface RequestContextShape {
   requestId: string;
   method: string;
   path: string;
@@ -41,7 +41,7 @@ interface AdminQueueSettingsMutationBody {
   revision?: number;
 }
 
-interface AdminQueueSettingsRouteDeps {
+export interface AdminQueueSettingsRouteDeps {
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   appendAudit: (
     actor: CurrentUserShape,

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { strict as assert } from "node:assert";
 
 const worker = await readFile(new URL("../apps/worker/src/worker.ts", import.meta.url), "utf8");
+const deferredRequeue = await readFile(new URL("../apps/worker/src/worker-deferred-requeue.ts", import.meta.url), "utf8");
 const adminEditor = await readFile(new URL("../apps/admin/src/admin-runninghub-item-editor.tsx", import.meta.url), "utf8");
 const runninghubNode = await readFile(new URL("../apps/web/src/components/nodes/RunningHubNode.tsx", import.meta.url), "utf8");
 const runninghubNodeHelpers = await readFile(
@@ -9,13 +10,19 @@ const runninghubNodeHelpers = await readFile(
   "utf8",
 );
 const rhToolsNode = await readFile(new URL("../apps/web/src/components/nodes/RHToolsNode.tsx", import.meta.url), "utf8");
+const rhToolsNodeHelpers = await readFile(
+  new URL("../apps/web/src/components/nodes/rhToolsNodeHelpers.ts", import.meta.url),
+  "utf8",
+);
 const apiCatalog = await readFile(new URL("../apps/api/src/runninghub-catalog.ts", import.meta.url), "utf8");
 const adminTypes = await readFile(new URL("../apps/admin/src/admin-types.ts", import.meta.url), "utf8");
 const sharedRunninghub = await readFile(new URL("../packages/shared/src/runninghub.ts", import.meta.url), "utf8");
 
 assert.match(worker, /async function executeTask\(task: TaskRow\): Promise<Record<string, unknown>> \{[\s\S]*const protocol = normalizeProtocol\(task\.providerProtocol\);[\s\S]*if \(protocol === "runninghub"\) return executeRunningHubTask\(task\);[\s\S]*if \(task\.capability === "image"\) return executeImageTask\(task\);/);
-assert.match(worker, /async function requeueDeferredTask\(taskId: string, capability: string\) \{[\s\S]*const queueCapability = capabilityToQueueCapability\(capability\);/);
-assert.match(worker, /function capabilityToQueueCapability\(capability: string\): TaskQueueCapability \| null \{[\s\S]*if \(capability === "chat"\) return "video";/);
+assert.match(worker, /createWorkerDeferredRequeue\(\{/);
+assert.match(worker, /workerDeferredRequeue\.requeueDeferredTaskAfterRelease\(/);
+assert.match(deferredRequeue, /function capabilityToQueueCapability\(capability: string\): TaskQueueCapability \| null \{[\s\S]*if \(capability === "chat"\) return "video";/);
+assert.match(deferredRequeue, /taskQueueNameForCapability\(options\.queueName, queueCapability\)/);
 
 assert.match(adminTypes, /displayLabel\?: string;/);
 assert.match(sharedRunninghub, /displayLabel\?: string;/);
@@ -37,7 +44,11 @@ assert.match(runninghubNodeHelpers, /function fieldDisplayLabel\(it: any\)/);
 assert.match(runninghubNodeHelpers, /displayLabel\s*\|\|\s*it\??\.label\s*\|\|\s*it\??\.fieldName/);
 
 assert.doesNotMatch(rhToolsNode, /来自 requestExample\.nodeInfoList 的/);
-assert.match(rhToolsNode, /function fieldDisplayLabel\(it: any\)/);
-assert.match(rhToolsNode, /displayLabel\s*\|\|\s*it\??\.label\s*\|\|\s*it\??\.fieldName/);
+assert.match(
+  rhToolsNode,
+  /import\s*\{[\s\S]*?extractRhToolsDefaultValue,[\s\S]*?inferRhToolsValueType,[\s\S]*?\}\s*from\s*['"]\.\/rhToolsNodeHelpers['"]/,
+);
+assert.match(rhToolsNodeHelpers, /export function rhToolsFieldDisplayLabel\(it: any\)/);
+assert.match(rhToolsNodeHelpers, /displayLabel\s*\|\|\s*it\??\.label\s*\|\|\s*it\??\.fieldName/);
 
 console.log("PASS runninghub worker and label contract");

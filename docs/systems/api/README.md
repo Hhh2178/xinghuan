@@ -16,6 +16,8 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 - 后台系统状态与并发设置路由：`apps/api/src/admin-system-routes.ts`
 - 后台 system GET 路由：`apps/api/src/admin-system-settings-routes.ts`
 - 后台 queue settings 路由：`apps/api/src/admin-queue-settings-routes.ts`
+- 后台 assistant settings 路由：`apps/api/src/admin-assistant-settings-routes.ts`
+- 后台 provider 路由：`apps/api/src/admin-provider-routes.ts`
 - 后台系统状态响应适配：`apps/api/src/admin-system-response-adapter.ts`
 - 通用 system/queue 响应适配：`apps/api/src/api-response-adapters.ts`
 - RunningHub catalog：`apps/api/src/runninghub-catalog.ts`
@@ -27,10 +29,12 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 - 保持 `runTargetId`、并发设置、任务结果与运行态字段的正确传递
 - `server.ts` 当前继续朝入口装配层收口：
   - RunningHub 后台路由已下沉到 `admin-runninghub-routes.ts`
-  - system status / task queue settings 已下沉到 `admin-system-routes.ts`
+  - `admin-system-routes.ts` 继续收口为 admin system 兼容/装配壳
   - 稳定响应拼装已下沉到 `admin-system-response-adapter.ts`
+  - 稳定 provider CRUD / probe / fetch-models 路由已下沉到 `admin-provider-routes.ts`
   - `GET /api/admin/system` 已继续下沉到 `admin-system-settings-routes.ts`
   - queue settings 读写边界已继续下沉到 `admin-queue-settings-routes.ts`
+  - `GET/PATCH /api/admin/assistant/settings` 已下沉到 `admin-assistant-settings-routes.ts`
   - system/queue response glue 已统一到 `api-response-adapters.ts`
 
 ## 兼容正文来源

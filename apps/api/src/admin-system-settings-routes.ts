@@ -2,14 +2,14 @@ import type { TaskQueueSettings } from "@xinghuan/shared";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { buildAdminSystemStatusPayload } from "./api-response-adapters.js";
 
-interface CurrentUserShape {
+export interface CurrentUserShape {
   id: string;
   email: string;
   name: string;
   role: "admin" | "member";
 }
 
-interface RequestContextShape {
+export interface RequestContextShape {
   requestId: string;
   method: string;
   path: string;
@@ -49,7 +49,7 @@ interface RedisStatusShape {
   runninghub: unknown;
 }
 
-interface AdminSystemSettingsRouteDeps {
+export interface AdminSystemSettingsRouteDeps {
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   appendAudit: (
     actor: CurrentUserShape,
