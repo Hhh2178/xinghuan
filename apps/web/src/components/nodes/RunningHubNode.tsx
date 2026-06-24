@@ -519,9 +519,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     currentPollKeyRef.current = key;
     let timer: number | null = null;
     const promise = new Promise<void>((resolve, reject) => {
-      let elapsed = 0;
+      let pollRounds = 0;
       const POLL_INT = 5000;
-      const MAX = 480;
       const finish = (ok: boolean, error?: Error) => {
         if (timer != null) {
           window.clearInterval(timer);
@@ -536,19 +535,13 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
         else reject(error || new Error('RH 轮询失败'));
       };
       timer = window.setInterval(async () => {
-        elapsed += 1;
-        if (elapsed > MAX) {
-          update({ status: 'error', error: '轮询超时' });
-          setError('轮询超时');
-          finish(false, new Error('轮询超时'));
-          return;
-        }
+        pollRounds += 1;
         try {
           const r = await queryRh(tid);
           console.log('[RH/poll] taskId=', tid, 'status=', r.status, 'code=', r.code, 'urls=', r.urls?.length || 0);
           // 轮询进度写入面板：每 30s 一条 debug，避免刷屏
-          if (elapsed % 6 === 0) {
-            logBus.debug(`[${elapsed * 5}s] status=${r.status} code=${r.code} urls=${r.urls?.length || 0}`, src);
+          if (pollRounds % 6 === 0) {
+            logBus.debug(`[${pollRounds * 5}s] status=${r.status} code=${r.code} urls=${r.urls?.length || 0}`, src);
           }
           if (r.status === 'SUCCESS') {
             const list: string[] = Array.isArray(r.urls) ? r.urls : [];

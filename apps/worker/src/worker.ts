@@ -744,7 +744,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
           statusPath: safeText(task.payload.taskStatusPath, "task_status"),
           pollPathTemplate: safeText(task.payload.pollPathTemplate, "tasks/{task_id}"),
           pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
-          timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 360000, 5000, 1800000),
+          timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 5000, 1800000),
           onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
         })
       : await pollApimartImageTask({
@@ -753,7 +753,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
           taskId: taskMeta.taskId,
           statusPath: safeText(task.payload.pollStatusPath, "data.status"),
           pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2500, 500, 30000),
-          timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
+          timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs, 5000, 1800000),
           onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
         });
     if (polled.imageUrls.length === 0) throw new Error(isModelScope ? "ModelScope 未返回可用图像" : "APIMart 未返回可用图像");
@@ -868,7 +868,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       finalResultPathTemplate: safeText(task.payload.finalResultPathTemplate),
       finalResultVideoPath: safeText(task.payload.finalResultVideoPath),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
-      timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs, 360000, 5000, 1800000),
+      timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs, 5000, 1800000),
       onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
     });
     if (polled.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
@@ -991,21 +991,7 @@ function resolveRunningHubPollTimeoutMs(task: TaskRow) {
     || task.payload.maxPollMs
     || task.payload.pollTimeoutMs
     || executionRules.pollingTimeoutMs;
-  const defaultTimeoutMs = inferRunningHubDefaultTimeoutMs(task);
-  return clampNumber(explicitTimeoutMs, defaultTimeoutMs, 5000, 60 * 60 * 1000);
-}
-
-function inferRunningHubDefaultTimeoutMs(task: TaskRow) {
-  if (task.capability === "video") return 60 * 60 * 1000;
-  const title = safeText(task.title).toLowerCase();
-  const runTargetId = safeText(task.payload.runTargetId).toLowerCase();
-  const workflowId = safeText(task.payload.workflowId).toLowerCase();
-  const webappId = safeText(task.payload.webappId).toLowerCase();
-  const targetText = `${title} ${runTargetId} ${workflowId} ${webappId}`;
-  if (/lip[\s-]?sync|talking\s*head|avatar|数字人|对口型/i.test(targetText)) {
-    return 60 * 60 * 1000;
-  }
-  return 20 * 60 * 1000;
+  return clampOptionalNumber(explicitTimeoutMs, 5000, 24 * 60 * 60 * 1000);
 }
 
 function clearTransientRuntimeFields(result: Record<string, unknown>) {
@@ -1224,7 +1210,7 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
     apiKey,
     baseUrl: task.providerBaseUrl,
     pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 1500, 500, 30000),
-    timeoutMs: clampNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 360000, 5000, 1800000),
+    timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs || task.payload.pollTimeoutMs, 5000, 1800000),
   });
   const imageUrls = await prepareGrsaiReferenceImages({
     dataDir,
@@ -1310,6 +1296,11 @@ function readString(value: unknown) {
 function clampNumber(value: unknown, fallback: number, min: number, max: number) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+}
+
+function clampOptionalNumber(value: unknown, min: number, max: number) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : undefined;
 }
 
 function decryptSecret(value: string) {

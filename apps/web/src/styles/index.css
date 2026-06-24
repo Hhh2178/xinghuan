@@ -4199,6 +4199,10 @@ html[data-theme-visual="pixel"] .t8-context-menu__node-icon {
   backdrop-filter: blur(14px);
 }
 
+.xh-topbar-pill--announcement {
+  justify-content: center;
+}
+
 .xh-announcement-trigger__label {
   font-size: 12px;
   font-weight: 700;

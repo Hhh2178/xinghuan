@@ -3,11 +3,11 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.4.15`
-  - release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
+  - 版本：`v0.5.1`
+  - release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
 - production：
-  - 版本：`v0.4.13`
-  - release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
+  - 版本：`v0.5.1`
+  - release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 
 ## 当前高频入口
 

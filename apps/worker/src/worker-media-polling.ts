@@ -38,12 +38,14 @@ export async function pollApimartVideoTask(options: {
   finalResultPathTemplate: string;
   finalResultVideoPath: string;
   pollIntervalMs: number;
-  timeoutMs: number;
+  timeoutMs?: number;
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
   for (;;) {
-    if (Date.now() - startedAt > options.timeoutMs) throw new Error("视频生成轮询超时");
+    if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
+      throw new Error("视频生成轮询超时");
+    }
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const pollPath = safeText(options.pollPathTemplate, "tasks/{task_id}").replace("{task_id}", encodeURIComponent(options.taskId));
     const response = await fetch(openAiEndpoint(options.baseUrl, pollPath), {
@@ -122,11 +124,11 @@ export async function pollApimartImageTask(options: {
   taskId: string;
   statusPath: string;
   pollIntervalMs: number;
-  timeoutMs: number;
+  timeoutMs?: number;
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
-  let deadline = startedAt + options.timeoutMs;
+  let deadline = typeof options.timeoutMs === "number" && options.timeoutMs > 0 ? startedAt + options.timeoutMs : Number.POSITIVE_INFINITY;
   const pollPathTemplate = "tasks/{task_id}";
   for (;;) {
     if (Date.now() > deadline) throw new Error("APIMart 图像生成轮询超时");
@@ -175,13 +177,15 @@ export async function pollModelScopeImageTask(options: {
   statusPath: string;
   pollPathTemplate: string;
   pollIntervalMs: number;
-  timeoutMs: number;
+  timeoutMs?: number;
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
   const pollPathTemplate = safeText(options.pollPathTemplate, "tasks/{task_id}");
   for (;;) {
-    if (Date.now() - startedAt > options.timeoutMs) throw new Error("ModelScope 图像生成轮询超时");
+    if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
+      throw new Error("ModelScope 图像生成轮询超时");
+    }
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(options.taskId));
     const response = await fetch(openAiEndpoint(options.baseUrl, statusPath), {

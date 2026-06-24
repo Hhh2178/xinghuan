@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-状态：当前准备将 gray 推进到 `v0.4.14`，production 当前保持在 `v0.4.13`。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又继续完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复、`instanceType` 默认值治理、RH worker 路由修复、字段显示名透传和输出类型自定义值保留，并进一步完成 RH App / Workflow 运行态字段归一化、混合态条目阻断与 worker AI App v2 submit/query 协议切换；`2026-06-23` 先后完成 RH 节点恢复轮询 production 发布、GRSAI worker 收口 + RunningHub 动态 Key 池 `v0.4.13` 发布，并继续补齐 RunningHub 治理护栏、Worker 运行时诊断拆分和 poll 非 JSON 容错。当前下一步更集中在 `v0.4.14` gray 放行、用户对真实业务链路的人工复测，以及后续将 production 数据库从当前 `xinghuan_canvas_next` 规划到真正独立库。
+状态：当前 gray 与 production 都已运行在 `v0.5.1`。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又继续完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复、`instanceType` 默认值治理、RH worker 路由修复、字段显示名透传和输出类型自定义值保留，并进一步完成 RH App / Workflow 运行态字段归一化、混合态条目阻断与 worker AI App v2 submit/query 协议切换；`2026-06-23` 先后完成 RH 节点恢复轮询 production 发布、GRSAI worker 收口 + RunningHub 动态 Key 池发布，并继续补齐 RunningHub 治理护栏、Worker 运行时诊断拆分和 poll 非 JSON 容错；`2026-06-24` 则完成 RH 与通用异步任务的“轮询超时默认留空”治理，并已完成 gray / production 同版 `v0.5.1` 切换。当前下一步更集中在用户对真实业务链路的人工复测，以及后续将 production 数据库从当前 `xinghuan_canvas_next` 规划到真正独立库。
 
 当前与本版本最相关的最新状态：
 
-- 当前灰度 active release：`20260623-runninghub-runtime-guardrails-gray-r1-v0414`
-- 当前生产 active release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
-- 当前灰度版本：`v0.4.14`
+- 当前灰度 active release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
+- 当前生产 active release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
+- 当前灰度版本：`v0.5.1`
 - 当前本地严格验收已通过：
   - `npm run type-check`
   - `npm run verify:runninghub-analyze-contract`

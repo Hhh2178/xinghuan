@@ -24,13 +24,13 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.1`
-  - release：`20260624-task-runtime-kernel-governance-gray-r1-v051`
+  - release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
   - 状态：`2026-06-24 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.5.1`
-  - release：`20260624-task-runtime-kernel-governance-prod-r1-v051`
+  - release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 
 ## current / archive 分工
 

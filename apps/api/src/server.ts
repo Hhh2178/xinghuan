@@ -8154,7 +8154,7 @@ function buildRunningHubExecutionDraft(
     supportsMultipleOutputs: outputs.some((item) => item.multiple !== false) || fallbackRules.supportsMultipleOutputs,
     pollingStrategy: asyncTask ? "fixed-interval" : "none",
     pollingIntervalMs: asyncTask ? 5000 : 0,
-    pollingTimeoutMs: asyncTask ? 300000 : 0,
+    pollingTimeoutMs: undefined,
   };
 }
 
@@ -8241,7 +8241,9 @@ function normalizeRunningHubExecutionRulesForAdmin(
     supportsMultipleOutputs: row.supportsMultipleOutputs === undefined ? true : Boolean(row.supportsMultipleOutputs),
     pollingStrategy,
     pollingIntervalMs: Number.isFinite(Number(row.pollingIntervalMs)) ? Math.max(0, Number(row.pollingIntervalMs)) : 0,
-    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) ? Math.max(0, Number(row.pollingTimeoutMs)) : 0,
+    pollingTimeoutMs: Number.isFinite(Number(row.pollingTimeoutMs)) && Number(row.pollingTimeoutMs) > 0
+      ? Math.max(0, Number(row.pollingTimeoutMs))
+      : undefined,
     retryable: Boolean(row.retryable),
   };
 }
@@ -8847,7 +8849,6 @@ async function generateGrsaiImage(
     apiKey,
     baseUrl: safeText(baseUrl),
     pollIntervalMs: 1500,
-    timeoutMs: 120000,
   });
   const result = await client.generate({
     modelId,
@@ -9512,7 +9513,6 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       advancedConfig.mode = "async_video_task";
       advancedConfig.submitPath = "videos/generations";
       advancedConfig.pollIntervalMs = 2500;
-      advancedConfig.pollTimeoutMs = 360000;
     }
     const xaiStyleVideo =
       capability === "video" &&
@@ -9542,7 +9542,6 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       advancedConfig.taskIdPath = "task_id";
       advancedConfig.taskStatusPath = "task_status";
       advancedConfig.pollIntervalMs = 2500;
-      advancedConfig.pollTimeoutMs = 360000;
     }
     advancedConfig.resultVideoPath = capability === "video"
       ? toapisDetected || /result\.data/i.test(sampleResponse + notes)
@@ -9569,7 +9568,6 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     advancedConfig.taskStatusPath = "status";
     advancedConfig.resultVideoPath = "data.output";
     advancedConfig.pollIntervalMs = 3000;
-    advancedConfig.pollTimeoutMs = 360000;
     advancedConfig.requestMapping = platoGrok15Detected
       ? {
           ratio: "",
@@ -9609,7 +9607,6 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
     advancedConfig.finalResultPathTemplate = "../agnesapi?video_id={task_id}";
     advancedConfig.finalResultVideoPath = "remixed_from_video_id";
     advancedConfig.pollIntervalMs = 10000;
-    advancedConfig.pollTimeoutMs = 600000;
     advancedConfig.requestMapping = {
       ratio: "aspect_ratio",
       duration: "duration",

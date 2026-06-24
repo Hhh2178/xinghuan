@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, Palette, LogOut, UserRound } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, Palette, LogOut, UserRound, Bell } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
@@ -7,7 +7,6 @@ import { useShortcutStore } from './stores/shortcuts';
 import { AnnouncementCenterDrawer } from './components/AnnouncementCenterDrawer';
 import { AnnouncementStrongReminderModal } from './components/AnnouncementStrongReminderModal';
 import LoginGate from './components/LoginGate';
-import StellarCursorAura from './components/StellarCursorAura';
 import ErrorBoundary from './components/ErrorBoundary';
 import CyberTransitionStage from './components/CyberTransitionStage';
 import EmptyCanvasPreviewShell from './components/EmptyCanvasPreviewShell';
@@ -68,23 +67,6 @@ function getDevPreviewMode(): 'login' | 'transition' | 'empty-canvas' | null {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null;
   const raw = new URLSearchParams(window.location.search).get('preview');
   return raw === 'login' || raw === 'transition' || raw === 'empty-canvas' ? raw : null;
-}
-
-function WorkspaceShellFallback() {
-  return (
-    <div className="xh-workspace-fallback h-screen overflow-hidden">
-      <StellarCursorAura className="xh-cursor-aura--canvas" />
-      <div className="xh-stellar-grid" aria-hidden="true" />
-      <div className="xh-stellar-lines" aria-hidden="true" />
-      <div className="xh-glass-panel relative z-10 w-[min(420px,calc(100%-40px))] rounded-[30px] px-7 py-7 text-center">
-        <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-cyan-200/10 text-cyan-100">
-          <Sparkles size={28} />
-        </div>
-        <div className="text-lg font-black tracking-tight text-cyan-50">正在展开星幻工作区</div>
-        <div className="mt-2 text-sm text-cyan-100/60">画布、节点库和资源面板正在按需加载...</div>
-      </div>
-    </div>
-  );
 }
 
 function portraitResourceToNodeData(item: ResourceItem): Record<string, any> | null {
@@ -360,6 +342,18 @@ function App() {
   const isYyh = currentTemplate.visuals?.style === 'yyh';
   const isSlamdunk = currentTemplate.visuals?.style === 'slamdunk';
   const isSoccer = currentTemplate.visuals?.style === 'soccer-hero';
+  const utilityButtonClassName = isPixel
+    ? 'px-btn px-btn--sm'
+    : 'relative flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border';
+  const announcementButtonClassName = isPixel
+    ? `${utilityButtonClassName} px-btn--ghost`
+    : `${utilityButtonClassName} bg-cyan-500/10 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20`;
+  const resourceButtonClassName = isPixel
+    ? `${utilityButtonClassName} px-btn--mint`
+    : `${utilityButtonClassName} bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/20`;
+  const generationButtonClassName = isPixel
+    ? `${utilityButtonClassName} px-btn--yellow`
+    : `${utilityButtonClassName} bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20`;
 
   const handleAddNode = (type: NodeType) => {
     addNodeRef.current?.(type);
@@ -457,7 +451,7 @@ function App() {
   }
 
   return (
-    <Suspense fallback={<WorkspaceShellFallback />}>
+    <Suspense fallback={<CyberTransitionStage />}>
     <RHToolsProvider>
     <div
       className={`t8-app-shell h-screen flex flex-col overflow-hidden ${
@@ -525,14 +519,6 @@ function App() {
             {currentUser.name}
           </span>
           <button
-            type="button"
-            onClick={announcements.openDrawer}
-            className="xh-announcement-trigger"
-            title="公告中心"
-          >
-            <BellBadge unreadCount={announcements.unreadCount} />
-          </button>
-          <button
             className="t8-icon-button"
             title="退出登录"
             type="button"
@@ -560,19 +546,19 @@ function App() {
             <span className="text-[11px] truncate">{currentTemplate.name}</span>
           </button>
           <button
+            type="button"
+            onClick={announcements.openDrawer}
+            className={`${announcementButtonClassName} xh-topbar-pill--announcement`}
+            title="公告中心"
+          >
+            <BellBadge unreadCount={announcements.unreadCount} />
+          </button>
+          <button
             onClick={() => {
               setGenerationLibraryOpen(false);
               setResourceOpen(true);
             }}
-            className={
-              isPixel
-                ? 'px-btn px-btn--sm px-btn--mint'
-                : `flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                    isDark
-                      ? 'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/20'
-                      : 'bg-fuchsia-50 border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-100'
-                  }`
-            }
+            className={resourceButtonClassName}
             title="资源库"
           >
             <Library size={14} />
@@ -583,15 +569,7 @@ function App() {
               setResourceOpen(false);
               setGenerationLibraryOpen(true);
             }}
-            className={
-              isPixel
-                ? 'px-btn px-btn--sm px-btn--yellow'
-                : `flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                    isDark
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
-                      : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
-                  }`
-            }
+            className={generationButtonClassName}
             title="生成库"
           >
             <Sparkles size={14} />
@@ -660,8 +638,9 @@ function App() {
 function BellBadge({ unreadCount }: { unreadCount: number }) {
   return (
     <>
+      <Bell size={14} />
       <span className="xh-announcement-trigger__label">公告</span>
-      {unreadCount > 0 ? <span className="xh-announcement-badge">{unreadCount}</span> : null}
+      {unreadCount > 0 ? <span className="xh-announcement-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
     </>
   );
 }

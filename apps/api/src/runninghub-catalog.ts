@@ -71,7 +71,7 @@ export interface RunningHubExecutionRules {
   supportsMultipleOutputs: boolean;
   pollingStrategy: "none" | "fixed-interval";
   pollingIntervalMs: number;
-  pollingTimeoutMs: number;
+  pollingTimeoutMs?: number;
   retryable: boolean;
 }
 

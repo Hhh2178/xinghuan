@@ -5,11 +5,12 @@
 ### Gray
 
 - 版本：`v0.5.1`
-- release：`20260624-task-runtime-kernel-governance-gray-r1-v051`
+- release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
 - 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
+  - `gray/2026-06-24-runninghub-timeout-empty-default-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
   - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
   - `gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`
   - `gray/2026-06-24-api-settings-decomposition-gray.md`
@@ -26,10 +27,12 @@
 ### Production
 
 - 版本：`v0.5.1`
-- release：`20260624-task-runtime-kernel-governance-prod-r1-v051`
+- release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `production/2026-06-24-task-runtime-kernel-governance-production.md`
+  - `production/2026-06-24-runninghub-timeout-empty-default-production.md`
 - 历史运行态材料：
+  - `production/2026-06-24-task-runtime-kernel-governance-production.md`
   - `production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`
   - `production/2026-06-23-runninghub-poll-resume-production.md`
   - `production/2026-06-19-runninghub-release-index.md`

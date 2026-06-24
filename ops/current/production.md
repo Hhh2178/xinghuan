@@ -3,11 +3,13 @@
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.5.1`
-- 当前 release：`20260624-task-runtime-kernel-governance-prod-r1-v051`
+- 当前 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../production-deploy-runbook.md`
   - `../production-acceptance-checklist.md`
+  - `../../docs/logbooks/releases/production/2026-06-24-runninghub-timeout-empty-default-production.md`
   - `../../docs/logbooks/releases/production/2026-06-24-task-runtime-kernel-governance-production.md`
 
 ## 当前数据库实态
@@ -21,7 +23,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
+  - `/opt/apps/xinghuan-canvas/releases/20260624-task-runtime-kernel-governance-prod-r1-v051`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

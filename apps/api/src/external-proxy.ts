@@ -90,6 +90,12 @@ interface GenerateExternalProxyDependencies {
 }
 
 export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
+  function clampOptionalInteger(value: unknown, min: number, max: number) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
+    return Math.round(Math.max(min, Math.min(max, numeric)));
+  }
+
   function isModelScopeImageProvider(protocol: string, provider: ProviderLike) {
     const baseUrl = deps.safeText(provider.baseUrl).toLowerCase();
     return protocol === "modelscope" || baseUrl.includes("api-inference.modelscope.cn");
@@ -244,9 +250,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     advancedConfig: ReturnType<typeof parseAdvancedConfig>;
   }) {
     const pollIntervalMs = deps.clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
-    const pollTimeoutMs = deps.clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+    const pollTimeoutMs = clampOptionalInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000);
     const startedAt = Date.now();
-    let deadline = startedAt + pollTimeoutMs;
+    let deadline = typeof pollTimeoutMs === "number" ? startedAt + pollTimeoutMs : Number.POSITIVE_INFINITY;
     const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
     while (Date.now() < deadline) {
       const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
@@ -340,9 +346,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     advancedConfig: ReturnType<typeof parseAdvancedConfig>;
   }) {
     const pollIntervalMs = deps.clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
-    const pollTimeoutMs = deps.clampInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000, 360000);
+    const pollTimeoutMs = clampOptionalInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000);
     const startedAt = Date.now();
-    let deadline = startedAt + pollTimeoutMs;
+    let deadline = typeof pollTimeoutMs === "number" ? startedAt + pollTimeoutMs : Number.POSITIVE_INFINITY;
     const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "tasks/{task_id}");
     while (Date.now() < deadline) {
       const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));

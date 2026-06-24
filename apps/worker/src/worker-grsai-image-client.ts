@@ -30,7 +30,10 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 1500);
-  const timeoutMs = Math.max(1000, options.timeoutMs ?? 120000);
+  const timeoutMs =
+    typeof options.timeoutMs === "number" && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+      ? Math.max(1000, options.timeoutMs)
+      : undefined;
   const delay = options.wait ?? wait;
   const createTaskError = options.createTaskError ?? defaultCreateTaskError;
 
@@ -84,7 +87,7 @@ export function createGrsaiImageClient(options: GrsaiImageClientOptions) {
       let gatewayRetryCount = 0;
       const maxGatewayRetries = 4;
       for (;;) {
-        if (Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
+        if (typeof timeoutMs === "number" && Date.now() - startedAt > timeoutMs) throw new Error("GRSAI 图像生成轮询超时");
         if (pollIntervalMs > 0) await delay(pollIntervalMs);
 
         let polled: Awaited<ReturnType<typeof pollGrsaiJson>>;

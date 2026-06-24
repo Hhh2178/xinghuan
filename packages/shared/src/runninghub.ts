@@ -57,7 +57,7 @@ export interface RhExecutionAssetHandlingDescriptor {
 export interface RhExecutionPollingDescriptor {
   strategy: "none" | "fixed-interval";
   intervalMs: number;
-  timeoutMs: number;
+  timeoutMs?: number;
 }
 
 export interface RhExecutionResultDescriptor {

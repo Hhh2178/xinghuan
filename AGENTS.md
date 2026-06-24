@@ -353,7 +353,7 @@
 - 当前服务器实态：
   - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
   - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-- 当前灰度 release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
+- 当前灰度 release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
   - `2026-06-23` 已完成 RH 画布节点恢复轮询 gray 热修：
     - 普通 RH 节点补齐 `taskId + polling` 持久化运行态恢复轮询
     - 当 RH 任务已在后台成功，但节点组件重挂载或画布状态重建后，不再永久卡在 `45%`
@@ -363,7 +363,7 @@
     - RH 工作台备注摘要块已增强视觉强调
     - RH / RH Tools 节点重复执行后会先清空旧输出，再写回本次新结果
     - gray 已实机点击验证 `新建 AI 应用 / 新建工作流` 成功且无报错
-  - 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
+  - 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
   - `2026-06-22` 已完成 RH 显式无入参工作流 gray 热修：
     - 后台 RH 工作台对 `allowsEmptyInputs=true` 的 workflow 不再显示“缺少输入槽”
     - 管理端保存/启用时不再误拦截 `nodeInfoList=[]` 的合法 workflow

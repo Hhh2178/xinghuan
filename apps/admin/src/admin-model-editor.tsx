@@ -210,7 +210,7 @@ function normalizeCapabilityTags(tags: unknown): ModelCapabilityTag[] {
 
 function pollTimeoutSecondsValue(model: ModelRecord) {
   const value = Number(model.advancedConfig?.pollTimeoutMs);
-  if (!Number.isFinite(value) || value <= 0) return "360";
+  if (!Number.isFinite(value) || value <= 0) return "";
   return String(Math.max(30, Math.min(600, Math.round(value / 1000))));
 }
 
@@ -304,7 +304,7 @@ export function ModelEditorRow({
   const [schemaError, setSchemaError] = useState("");
   const [configError, setConfigError] = useState("");
   const [advancedConfigText, setAdvancedConfigText] = useState("{}");
-  const [pollTimeoutSeconds, setPollTimeoutSeconds] = useState("360");
+  const [pollTimeoutSeconds, setPollTimeoutSeconds] = useState("");
   const [defaultVoice, setDefaultVoice] = useState("");
   const [presetVoiceText, setPresetVoiceText] = useState("");
 
@@ -351,12 +351,17 @@ export function ModelEditorRow({
     const executionMode = normalizeExecutionMode(draft);
     advancedConfig.executionMode = executionMode;
     if (draft.capability === "image" || draft.capability === "video") {
-      const seconds = Number(pollTimeoutSeconds);
-      if (!Number.isFinite(seconds) || seconds < 30 || seconds > 600) {
-        setConfigError("最大轮询时长需要填写 30 到 600 秒。");
-        return;
+      const rawSeconds = pollTimeoutSeconds.trim();
+      if (rawSeconds) {
+        const seconds = Number(rawSeconds);
+        if (!Number.isFinite(seconds) || seconds < 30 || seconds > 600) {
+          setConfigError("最大轮询时长需要填写 30 到 600 秒。");
+          return;
+        }
+        advancedConfig.pollTimeoutMs = Math.round(seconds) * 1000;
+      } else {
+        delete advancedConfig.pollTimeoutMs;
       }
-      advancedConfig.pollTimeoutMs = Math.round(seconds) * 1000;
     }
     if (draft.capability === "audio") {
       const synced = syncAudioVoicePresetSchema(parameterSchemaObject, advancedConfig, defaultVoice.trim(), presetVoiceText);
@@ -717,7 +722,7 @@ export function ModelEditorRow({
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>运行时控制</strong>
-                <span>默认 360 秒，适合 APIMart 这类异步任务模型。</span>
+                <span>默认留空，不启用轮询超时；只有手动填写后才会写入任务配置。</span>
               </div>
               <div className="model-runtime-grid">
                 <label className="model-runtime-field">
@@ -728,12 +733,13 @@ export function ModelEditorRow({
                     max={600}
                     step={10}
                     value={pollTimeoutSeconds}
+                    placeholder="留空表示不设置"
                     onChange={(e) => {
                       setConfigError("");
                       setPollTimeoutSeconds(e.target.value);
                     }}
                   />
-                  <small>保存时会写入 `advancedConfig.pollTimeoutMs`。</small>
+                  <small>留空时不会写入 `advancedConfig.pollTimeoutMs`。</small>
                 </label>
               </div>
             </section>

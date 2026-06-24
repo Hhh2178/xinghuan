@@ -2,9 +2,9 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.4.15`
-- 当前灰度 release：`20260623-runninghub-worker-second-stage-gray-r1-v0415`
-- 当前生产 release：`20260623-runninghub-grsai-worker-key-pool-prod-r1-v0413`
+- 当前活跃版本：`v0.5.1`
+- 当前灰度 release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
+- 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
 - 当前多用户正式化治理口径：
@@ -29,6 +29,10 @@
 - 当前工程治理重点：
   - 避免继续制造 `server.ts / worker.ts / RunningHubNode.tsx` 这类超级文件
   - 发布前必须收紧工作树，只保留本轮预期改动
+- 当前已完成的最新运行态治理：
+  - RH 与通用异步任务的轮询超时默认值已收口为“留空不启用”
+  - RH 前端节点已去掉本地轮询硬超时
+  - gray / production 已都切到 `v0.5.1` 的 timeout-empty-default release
 
 ## 相关入口
 

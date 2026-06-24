@@ -140,7 +140,7 @@ export function buildRunningHubExecutionDescriptor(item: RunningHubCatalogSource
     polling: {
       strategy: "fixed-interval",
       intervalMs: 5000,
-      timeoutMs: 20 * 60 * 1000,
+      timeoutMs: undefined,
     },
     result: {
       mode: "inline",

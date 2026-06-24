@@ -259,7 +259,7 @@ function defaultExecutionRules(item: RunningHubAdminItem): RunningHubExecutionRu
     supportsMultipleOutputs: true,
     pollingStrategy: "none",
     pollingIntervalMs: 0,
-    pollingTimeoutMs: 0,
+    pollingTimeoutMs: undefined,
     retryable: false,
   };
 }
@@ -871,8 +871,15 @@ export function AdminRunningHubItemEditor({
                   <label>
                     <span>轮询超时(ms)</span>
                     <input
-                      value={String(executionRules.pollingTimeoutMs)}
-                      onChange={(e) => setExecutionRules({ ...executionRules, pollingTimeoutMs: Number(e.target.value) || 0 })}
+                      value={executionRules.pollingTimeoutMs ?? ""}
+                      placeholder="留空表示不设置"
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        setExecutionRules({
+                          ...executionRules,
+                          pollingTimeoutMs: raw ? Math.max(0, Number(raw) || 0) : undefined,
+                        });
+                      }}
                     />
                   </label>
                   <label className="admin-runninghub-editor__checkbox">

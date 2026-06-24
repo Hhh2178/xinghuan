@@ -21,7 +21,7 @@ interface RunningHubRunInput {
   nodeInfoList: RunningHubNodeInfoItem[];
   instanceType?: string;
   pollIntervalMs: number;
-  timeoutMs: number;
+  timeoutMs?: number;
   onHeartbeat?: (patch: Record<string, unknown>) => void | Promise<void>;
 }
 
@@ -172,14 +172,16 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
 
     const startedAt = Date.now();
     for (;;) {
-      if (Date.now() - startedAt > input.timeoutMs) {
-        throw createWorkerTaskError(`RunningHub 轮询超时: ${upstreamTaskId}`, {
-          failureCategory: "upstream_poll_timeout",
-          providerDiagnostic: `RunningHub 轮询超时: ${upstreamTaskId}`,
-          upstreamTaskId,
-          runtimeStage: "failed",
-          providerState: "FAILED",
-        });
+      if (typeof input.timeoutMs === "number" && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0) {
+        if (Date.now() - startedAt > input.timeoutMs) {
+          throw createWorkerTaskError(`RunningHub 轮询超时: ${upstreamTaskId}`, {
+            failureCategory: "upstream_poll_timeout",
+            providerDiagnostic: `RunningHub 轮询超时: ${upstreamTaskId}`,
+            upstreamTaskId,
+            runtimeStage: "failed",
+            providerState: "FAILED",
+          });
+        }
       }
 
       await wait(input.pollIntervalMs);
