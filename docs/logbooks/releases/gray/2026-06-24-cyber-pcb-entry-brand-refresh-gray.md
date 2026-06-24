@@ -42,10 +42,25 @@
 
 - prepare：
   - `npm run release:gray:prepare:runninghub -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
+  - 归档包：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418.tar.gz`
+  - 包大小：`5.49 MB`
+  - 临时 staging：`C:\Users\Administrator\AppData\Local\Temp\xinghuan-release-mJ1W6k`
 - deploy：
   - `npm run release:gray:deploy -- --release=20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418 --archive="D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\dist-release\20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418.tar.gz" --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem"`
 - verify：
   - `npm run release:gray:verify -- --ssh-key="D:\codex\服务器\Tencent_Cloud_Server.pem" --expected-version=0.4.18 --expected-environment=gray`
+- 远端 current release：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
+- 远端服务状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- 远端状态接口：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `http://127.0.0.1:18200/api/status`
+  - 两者均返回：
+    - `version = 0.4.18`
+    - `environment = gray`
+    - `dataDir = /opt/apps/xinghuan-canvas-next/shared/data`
 
 ## 待用户验收
 

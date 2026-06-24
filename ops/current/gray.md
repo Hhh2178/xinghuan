@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.4.18`
 - 当前 release：`20260624-cyber-pcb-entry-brand-refresh-gray-r1-v0418`
-- 当前状态：`2026-06-24 准备发布`
+- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
