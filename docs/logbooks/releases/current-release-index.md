@@ -9,6 +9,8 @@
 - 当前状态：`2026-06-24 待本轮 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
+- 待下一次 gray 放行候选批次：
+  - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
 - 历史运行态材料：
   - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
   - `gray/2026-06-24-api-worker-canvas-hotspot-decomposition-gray.md`

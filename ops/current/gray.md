@@ -5,6 +5,8 @@
 - 当前版本：`v0.5.1`
 - 当前 release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
 - 当前状态：`2026-06-24 待本轮 deploy + runtime verify`
+- 待发候选批次：
+  - `../../docs/logbooks/releases/gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`

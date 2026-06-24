@@ -26,6 +26,8 @@
   - 版本：`v0.5.1`
   - release：`20260624-cyber-pcb-entry-brand-refresh-gray-r2-v051`
   - 状态：`2026-06-24 待本轮 deploy + runtime verify`
+  - 待发候选批次：
+    - `../docs/logbooks/releases/gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
