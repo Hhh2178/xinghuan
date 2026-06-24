@@ -120,6 +120,8 @@ import {
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
+import { handleAdminQueueSettingsRoutes } from "./admin-queue-settings-routes.js";
+import { handleAdminSystemSettingsRoutes } from "./admin-system-settings-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
@@ -2058,6 +2060,53 @@ async function handleAdminRequest(
       deleteAdminRunningHubCatalogItem,
       testAdminRunningHubCatalogItem,
       analyzeRunningHubCatalogDraft,
+    },
+  })) {
+    return true;
+  }
+
+  if (await handleAdminSystemSettingsRoutes({
+    request,
+    response,
+    url,
+    adminUser,
+    requestContext,
+    deps: {
+      sendT8,
+      appendAudit,
+      readTaskQueueSettingsRecord,
+      readAdminDb,
+      withEffectiveRunningHubConcurrency,
+      readDatabaseStatus,
+      readRedisStatus,
+      readSystemObservability,
+      readStorageStats,
+      environment,
+      dataDir,
+      storageDriver,
+      authDbPath,
+      adminDbPath,
+      version: "0.4.16",
+    },
+  })) {
+    return true;
+  }
+
+  if (await handleAdminQueueSettingsRoutes({
+    request,
+    response,
+    url,
+    adminUser,
+    requestContext,
+    deps: {
+      sendT8,
+      appendAudit,
+      readTaskQueueSettingsRecord,
+      writeTaskQueueSettingsRecord,
+      readAdminDb,
+      normalizeTaskQueueSettings,
+      withEffectiveRunningHubConcurrency,
+      adminSettingsRevisionFromPayload,
     },
   })) {
     return true;

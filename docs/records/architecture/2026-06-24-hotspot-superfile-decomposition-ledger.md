@@ -18,14 +18,19 @@
   - provider generation task service
   - 部分 sanitizer / session / lifecycle helper
   - `admin-runninghub-routes.ts`
+  - `admin-system-settings-routes.ts`
+  - `admin-queue-settings-routes.ts`
+  - `api-response-adapters.ts`
 - 下一步优先拆分：
-  - system settings / queue settings 相关 handler
-  - 更细的 request-response adapter
+  - 兼容壳 `admin-system-routes.ts`
+  - 其他稳定 admin 配置类 handler
 - 目标形态：
   - `server.ts` 只保留入口装配与高层编排
 - 当前护栏：
   - `scripts/verify-file-hotspot-budgets.mjs`
   - `scripts/verify-api-admin-runninghub-route-split-contract.mjs`
+  - `scripts/verify-api-system-settings-route-split-contract.mjs`
+  - `scripts/verify-api-queue-settings-route-split-contract.mjs`
 - 当前风险：
   - 新协议接入容易继续把解析、校验、运行态拼接堆回入口文件
 - 当前进度：
@@ -36,6 +41,14 @@
     - `apps/api/src/admin-system-response-adapter.ts`
   - 已补齐 contract：`scripts/verify-api-admin-system-route-split-contract.mjs`
   - 主文件继续保留入口装配、权限分流和系统能力依赖注入，不再直接承载 `/api/admin/system` 的请求体读取与响应拼装
+  - `2026-06-24` 已继续把 system / queue settings 再下沉一层到：
+    - `apps/api/src/admin-system-settings-routes.ts`
+    - `apps/api/src/admin-queue-settings-routes.ts`
+    - `apps/api/src/api-response-adapters.ts`
+  - 已补齐 contract：
+    - `scripts/verify-api-system-settings-route-split-contract.mjs`
+    - `scripts/verify-api-queue-settings-route-split-contract.mjs`
+  - 主文件继续保留入口装配和兼容分发，`admin-system-routes.ts` 暂时保留为过渡壳
 
 ### `apps/worker/src/worker.ts`
 
@@ -48,9 +61,11 @@
   - `worker-runninghub-client.ts`
   - `worker-runninghub-dispatch.ts`
   - `worker-task-store.ts`
+  - `worker-cancel-sync.ts`
+  - `worker-failure-glue.ts`
 - 下一步优先拆分：
-  - cancel-sync helper
-  - unified diagnostics / failure normalization helper
+  - deferred / requeue glue
+  - 其他零散运行态 glue
 - 目标形态：
   - `worker.ts` 只保留任务编排 glue
 - 当前护栏：
@@ -58,6 +73,8 @@
   - `scripts/verify-worker-runninghub-runtime-second-stage-contract.mjs`
   - `scripts/verify-worker-runninghub-dispatch-split-contract.mjs`
   - `scripts/verify-worker-task-lifecycle-split-contract.mjs`
+  - `scripts/verify-worker-cancel-sync-split-contract.mjs`
+  - `scripts/verify-worker-failure-glue-split-contract.mjs`
 - 当前风险：
   - 新 provider 适配和异常口径很容易再次把协议细节堆回 worker 主文件
 - 当前进度：
@@ -67,6 +84,12 @@
   - 已补齐 contract：`scripts/verify-worker-task-store-split-contract.mjs`
   - `2026-06-24` 已将取消后结果/错误丢弃、保留取消态与 failed writeback glue 下沉到 `worker-task-lifecycle.ts`
   - 已补齐 contract：`scripts/verify-worker-task-lifecycle-split-contract.mjs`
+  - `2026-06-24` 已继续把取消同步与失败归一化再下沉一层到：
+    - `apps/worker/src/worker-cancel-sync.ts`
+    - `apps/worker/src/worker-failure-glue.ts`
+  - 已补齐 contract：
+    - `scripts/verify-worker-cancel-sync-split-contract.mjs`
+    - `scripts/verify-worker-failure-glue-split-contract.mjs`
   - 主文件继续保留 worker 主循环、provider 执行编排与剩余运行态 glue
 
 ### `apps/web/src/components/nodes/RunningHubNode.tsx`
@@ -136,13 +159,20 @@
 
 - `apps/web/src/components/Canvas.tsx`
   - 状态：超大组合层
-  - 下一步：拆 `canvas runtime hooks / interaction sections / overlay panels`
+  - 下一步：拆 `selection / context menu / bulk reconnect seams`
   - 当前进度：
     - `2026-06-24` 已将画布加载/自动保存/发送后聚焦恢复下沉到 `apps/web/src/components/canvas/useCanvasPersistence.ts`
     - `2026-06-24` 已将连线平移模式快捷键与指针交互下沉到 `apps/web/src/components/canvas/useCanvasConnectionPanMode.ts`
     - `2026-06-24` 已将 controls / minimap / guides overlay 壳下沉到 `apps/web/src/components/canvas/CanvasFlowOverlays.tsx`
     - 已补齐 contract：`scripts/verify-canvas-section-split-contract.mjs`
-    - 主文件行数已降到 `5071`
+    - `2026-06-24` 已将批量运行 glue、viewport hotkeys 与 cut overlay 壳继续下沉到：
+      - `apps/web/src/components/canvas/useCanvasRuntime.ts`
+      - `apps/web/src/components/canvas/useCanvasViewportHotkeys.ts`
+      - `apps/web/src/components/canvas/CanvasOverlayLayer.tsx`
+    - 已补齐 contract：
+      - `scripts/verify-canvas-runtime-split-contract.mjs`
+      - `scripts/verify-canvas-overlay-split-contract.mjs`
+    - 主文件行数已降到 `4748`
 - `apps/web/src/components/nodes/PoseMasterNode.tsx`
   - 状态：超大节点组件
   - 下一步：拆 `field schema / preview sections / runtime actions`
@@ -257,7 +287,7 @@
      - 性能与渲染敏感度 `2`
      - 可拆分成熟度 `5`
    - 总分：`22`
-   - 下一步：`cancel-sync helper / diagnostics glue`
+   - 下一步：`deferred / requeue glue / remaining runtime glue`
 
 2. `apps/api/src/server.ts`
    - 分类：编排入口型
@@ -268,7 +298,7 @@
      - 性能与渲染敏感度 `1`
      - 可拆分成熟度 `5`
    - 总分：`21`
-   - 下一步：`system settings / queue settings handlers / request-response adapter`
+   - 下一步：`compat route shell / other stable admin settings handlers`
 
 3. `apps/web/src/components/Canvas.tsx`
    - 分类：交互画布型
@@ -279,7 +309,7 @@
      - 性能与渲染敏感度 `5`
      - 可拆分成熟度 `3`
    - 总分：`21`
-   - 下一步：`runtime hooks / interaction sections / overlay panels`
+   - 下一步：`selection / context menu / bulk reconnect seams`
 
 4. `apps/web/src/components/nodes/PoseMasterNode.tsx`
    - 分类：运行态节点型
@@ -368,11 +398,11 @@
 在时间有限、只能先做最要紧改造时，当前最高优先级固定为：
 
 1. `apps/worker/src/worker.ts`
-   - 重点：`cancel-sync helper / diagnostics glue`
+   - 重点：`deferred / requeue glue / remaining runtime glue`
 2. `apps/api/src/server.ts`
-   - 重点：`system settings / queue settings handlers`
+   - 重点：`compat route shell / stable admin settings handlers`
 3. `apps/web/src/components/Canvas.tsx`
-   - 重点：`runtime hooks / viewport interactions / overlay panels`
+   - 重点：`selection / context menu / bulk reconnect seams`
 
 ### 暂不回头大改的已完成热点
 

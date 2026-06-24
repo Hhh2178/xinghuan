@@ -44,6 +44,8 @@ import {
   providerJsonHeaders as buildProviderJsonHeaders,
 } from "./worker-provider-utils.js";
 import { createRunningHubClient } from "./worker-runninghub-client.js";
+import { createWorkerCancelSync } from "./worker-cancel-sync.js";
+import { buildWorkerFailureWritebackPatch } from "./worker-failure-glue.js";
 import {
   readWorkerTaskResultPatch,
   toOptionalHttpStatus,
@@ -102,6 +104,12 @@ const workerTaskLifecycle = createWorkerTaskLifecycle({
   appendTaskLog,
   updateTask,
   logWorkerEvent,
+});
+const workerCancelSync = createWorkerCancelSync({
+  isTaskCancelled,
+  logWorkerEvent,
+  dropCancelledAttempt: workerTaskLifecycle.dropCancelledAttempt,
+  keepCancelledState: workerTaskLifecycle.keepCancelledState,
 });
 
 let currentDatabaseNamePromise: Promise<string> | null = null;
@@ -364,12 +372,13 @@ async function processTask(taskId: string) {
   const capabilitySettings = task.capability === "image" || task.capability === "audio" || task.capability === "video"
     ? taskQueueSettings[task.capability]
     : null;
+  const runningHubDispatchDeps = buildRunningHubDispatchDeps(task, taskQueueSettings);
   const userWindow = capabilitySettings ? await acquireUserExecutionWindow(task, capabilitySettings.userConcurrency) : { acquired: true as const };
   if (!userWindow.acquired) {
     await deferTaskExecution(task, "waiting_user_window", userWindow.reason);
     return;
   }
-  const runningHubWindow = await acquireRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
+  const runningHubWindow = await acquireRunningHubExecutionWindow(runningHubDispatchDeps);
   if (!runningHubWindow.acquired) {
     await releaseUserExecutionWindow(task);
     await deferTaskExecution(task, "waiting_runninghub_window", runningHubWindow.reason);
@@ -377,14 +386,20 @@ async function processTask(taskId: string) {
   }
 
   const claimResult = await updateTask(taskId, "running", [`${workerId} 已领取任务`]);
-  if (claimResult === "cancelled") {
-    await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
-    await releaseUserExecutionWindow(task);
-    logWorkerEvent("task.skipped", { ...trace, taskId, status: "cancelled", message: "cancel_requested before claim" });
+  if (await workerCancelSync.handleCancelledClaim({
+    taskId,
+    capability: task.capability,
+    trace,
+    claimResult,
+    onCancelled: async () => {
+      await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
+      await releaseUserExecutionWindow(task);
+    },
+  })) {
     return;
   }
   if (claimResult === "missing") {
-    await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
+    await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
     await releaseUserExecutionWindow(task);
     console.warn(`xinghuan-worker skipped missing task during claim ${taskId}`);
     return;
@@ -399,14 +414,11 @@ async function processTask(taskId: string) {
   let shouldRequeueAfterRelease = false;
   try {
     const result = await executeTask(task);
-    if (await isTaskCancelled(taskId)) {
-      await workerTaskLifecycle.dropCancelledAttempt({
-        taskId,
-        capability: task.capability,
-        trace,
-        line: "检测到任务已取消，丢弃执行结果",
-        message: "cancel_requested drop result after cancellation",
-      });
+    if (await workerCancelSync.dropResultIfCancelled({
+      taskId,
+      capability: task.capability,
+      trace,
+    })) {
       return;
     }
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
@@ -420,39 +432,32 @@ async function processTask(taskId: string) {
       workerId,
       completedAt: new Date().toISOString(),
     });
-    if (completionResult === "cancelled") {
-      await workerTaskLifecycle.keepCancelledState({
-        taskId,
-        capability: task.capability,
-        trace,
-        line: "检测到任务已取消，保留取消状态",
-        message: "completion kept cancelled state",
-      });
+    if (await workerCancelSync.keepCompletionCancelledState({
+      taskId,
+      capability: task.capability,
+      trace,
+      outcome: completionResult,
+    })) {
       return;
     }
     logWorkerEvent("task.succeeded", { ...trace, taskId, capability: task.capability, status: "succeeded" });
   } catch (error) {
-    if (await isTaskCancelled(taskId)) {
-      await workerTaskLifecycle.dropCancelledAttempt({
-        taskId,
-        capability: task.capability,
-        trace,
-        line: "检测到任务已取消，丢弃执行错误",
-        message: "cancel_requested drop error after cancellation",
-      });
+    if (await workerCancelSync.dropErrorIfCancelled({
+      taskId,
+      capability: task.capability,
+      trace,
+    })) {
       return;
     }
     if (isRetryableRunningHubQueueLimitError(error)) {
       const retryDetail = buildRunningHubQueueLimitRetryDetail(error);
       const queuedResult = await requeueRunningTask(task, retryDetail, readWorkerTaskResultPatch(error));
-      if (queuedResult === "cancelled") {
-        await workerTaskLifecycle.keepCancelledState({
-          taskId,
-          capability: task.capability,
-          trace,
-          line: "检测到任务已取消，保留取消状态",
-          message: "retry kept cancelled state",
-        });
+      if (await workerCancelSync.keepRetryCancelledState({
+        taskId,
+        capability: task.capability,
+        trace,
+        outcome: queuedResult,
+      })) {
         return;
       }
       shouldRequeueAfterRelease = queuedResult === "updated";
@@ -471,10 +476,14 @@ async function processTask(taskId: string) {
       task,
       trace,
       error,
+      baseResultPatch: buildWorkerFailureWritebackPatch({
+        workerId,
+        error,
+      }),
     });
     return;
   } finally {
-      await releaseRunningHubExecutionWindow(buildRunningHubDispatchDeps(task, taskQueueSettings));
+    await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
     await releaseUserExecutionWindow(task);
     if (shouldRequeueAfterRelease) {
       await wait(Math.max(500, taskDeferredRetryMs));

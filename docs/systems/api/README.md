@@ -14,7 +14,10 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 
 - 主服务：`apps/api/src/server.ts`
 - 后台系统状态与并发设置路由：`apps/api/src/admin-system-routes.ts`
+- 后台 system GET 路由：`apps/api/src/admin-system-settings-routes.ts`
+- 后台 queue settings 路由：`apps/api/src/admin-queue-settings-routes.ts`
 - 后台系统状态响应适配：`apps/api/src/admin-system-response-adapter.ts`
+- 通用 system/queue 响应适配：`apps/api/src/api-response-adapters.ts`
 - RunningHub catalog：`apps/api/src/runninghub-catalog.ts`
 - RunningHub 执行描述：`apps/api/src/runninghub-execution-descriptor.ts`
 
@@ -26,6 +29,9 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
   - RunningHub 后台路由已下沉到 `admin-runninghub-routes.ts`
   - system status / task queue settings 已下沉到 `admin-system-routes.ts`
   - 稳定响应拼装已下沉到 `admin-system-response-adapter.ts`
+  - `GET /api/admin/system` 已继续下沉到 `admin-system-settings-routes.ts`
+  - queue settings 读写边界已继续下沉到 `admin-queue-settings-routes.ts`
+  - system/queue response glue 已统一到 `api-response-adapters.ts`
 
 ## 兼容正文来源
 

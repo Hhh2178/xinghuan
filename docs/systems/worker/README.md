@@ -13,6 +13,8 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 ## 关键代码入口
 
 - 主循环：`apps/worker/src/worker.ts`
+- 取消同步 glue：`apps/worker/src/worker-cancel-sync.ts`
+- 失败写回 glue：`apps/worker/src/worker-failure-glue.ts`
 - 任务运行态存取：`apps/worker/src/worker-task-store.ts`
 - 任务生命周期 glue：`apps/worker/src/worker-task-lifecycle.ts`
 - RunningHub 协议 client：`apps/worker/src/worker-runninghub-client.ts`
@@ -36,10 +38,13 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - `2026-06-24` 已再下沉一层：
   - 取消后丢弃结果/错误与保留取消态：`worker-task-lifecycle.ts`
   - 统一 failed writeback glue 与上游业务失败 patch：`worker-task-lifecycle.ts`
-- 后续收口目标是继续把更细的 `cancel-sync helper` 与剩余失败 glue 从主文件剥离，避免 `worker.ts` 继续堆积 provider 细节
+- `2026-06-24` 已继续再下沉一层：
+  - claim/result/error/retry/completion 的取消态 glue：`worker-cancel-sync.ts`
+  - failed writeback patch 拼装与失败归一化：`worker-failure-glue.ts`
+- 后续收口目标是继续把剩余零散运行态 glue 从主文件剥离，避免 `worker.ts` 继续堆积 provider 细节
 - 当前下一步收口重点已更新为：
-  - `cancel-sync helper`
-  - `剩余 failure writeback glue`
+  - `running state / deferred-requeue glue`
+  - `provider execution family seam`
 
 ## 工程治理要求
 

@@ -124,6 +124,9 @@ import type { CanvasTemplate } from '../config/canvasTemplates';
 import { useCanvasPersistence } from './canvas/useCanvasPersistence';
 import { useCanvasConnectionPanMode } from './canvas/useCanvasConnectionPanMode';
 import { CanvasFlowOverlays } from './canvas/CanvasFlowOverlays';
+import { useCanvasRuntime } from './canvas/useCanvasRuntime';
+import { useCanvasViewportHotkeys } from './canvas/useCanvasViewportHotkeys';
+import { CanvasOverlayLayer } from './canvas/CanvasOverlayLayer';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
 const ImageNode = lazy(() => import('./nodes/ImageNode'));
@@ -961,46 +964,6 @@ function BulkPhantomNode() {
 nodeTypes.bulkPhantom = BulkPhantomNode;
 const BULK_PHANTOM_ID = '__bulk_phantom__';
 
-function findNearestNavigableNode(nodes: Node[], center: { x: number; y: number }): Node | null {
-  const valid = (node: Node, includeGroups: boolean) => {
-    if (!node.id || node.id === BULK_PHANTOM_ID) return false;
-    if ((node as any).hidden) return false;
-    if (!includeGroups && node.type === 'groupBox') return false;
-    return true;
-  };
-  const candidates = nodes.filter((node) => valid(node, false));
-  const fallbackCandidates = candidates.length > 0 ? candidates : nodes.filter((node) => valid(node, true));
-  let best: Node | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  fallbackCandidates.forEach((node) => {
-    const rect = rectOf(node);
-    const nodeCenter = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
-    const dx = nodeCenter.x - center.x;
-    const dy = nodeCenter.y - center.y;
-    const distance = dx * dx + dy * dy;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = node;
-    }
-  });
-  return best;
-}
-
-function pulseNearestNode(nodeId: string) {
-  window.setTimeout(() => {
-    const css = (window as any).CSS;
-    const safeId = typeof css?.escape === 'function'
-      ? css.escape(nodeId)
-      : nodeId.replace(/["\\]/g, '\\$&');
-    const el = document.querySelector(`.react-flow__node[data-id="${safeId}"]`) as HTMLElement | null;
-    if (!el) return;
-    el.classList.remove('t8-nearest-node-pulse');
-    void el.offsetWidth;
-    el.classList.add('t8-nearest-node-pulse');
-    window.setTimeout(() => el.classList.remove('t8-nearest-node-pulse'), 1300);
-  }, 460);
-}
-
 // 边类型: 默认边采用可点击断开的 DeletableEdge
 const edgeTypes = {
   default: DeletableEdge,
@@ -1301,12 +1264,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     horizontal: [],
   });
 
-  // 批量运行状态
-  const [isRunning, setIsRunning] = useState(false);
-  const cancelRunRef = useRef(false);
-  const batchTotal = useRunBusStore((s) => s.batchTotal);
-  const batchDone = useRunBusStore((s) => s.batchDoneCount);
-
   // 选区右键菜单(框选后右键 或 节点上右键)
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -1372,6 +1329,19 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     setCenter,
     getViewport,
     isCanvasRevisionConflictError,
+  });
+
+  const {
+    batchDone,
+    batchTotal,
+    handleCancelRun,
+    handleRunAll,
+    handleRunGroup,
+    isRunning,
+  } = useCanvasRuntime({
+    nodes,
+    edges,
+    executableNodeTypes: EXECUTABLE_NODE_TYPES,
   });
 
   // 添加节点(供 Sidebar 调用) —— 默认落在当前视口中心
@@ -2292,76 +2262,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     setEdges((prev) => [...prev, ...built.edges]);
   }, [assignActiveNodeSerials]);
 
-  // ===== 批量运行 =====
-  // 通用: 在指定节点子集上拓扑排序 + 串行调 runBus
-  const runNodesByOrder = useCallback(
-    async (subNodes: Node[], subEdges: Edge[]) => {
-      const order = topologicalSort(subNodes, subEdges, EXECUTABLE_NODE_TYPES);
-      if (order.length === 0) return 0;
-      cancelRunRef.current = false;
-      setIsRunning(true);
-      const { triggerRun, setBatchProgress, cancelAll } = useRunBusStore.getState();
-      setBatchProgress(order.length, 0);
-      try {
-        for (let i = 0; i < order.length; i++) {
-          if (cancelRunRef.current) break;
-          const id = order[i];
-          await new Promise<void>((resolve) => {
-            let done = false;
-            const finish = () => {
-              if (done) return;
-              done = true;
-              unsub();
-              window.clearTimeout(timer);
-              resolve();
-            };
-            const unsub = useRunBusStore.subscribe((state) => {
-              if (state.lastDone && state.lastDone.id === id) finish();
-              if (cancelRunRef.current) finish();
-            });
-            // 安全超时 60 分钟，避免图像/视频/SD2.0/音频长轮询被批量运行提前截断。
-            const timer = window.setTimeout(finish, 60 * 60 * 1000);
-            triggerRun(id, 'batch');
-          });
-          setBatchProgress(order.length, i + 1);
-        }
-      } finally {
-        cancelAll();
-        setIsRunning(false);
-        cancelRunRef.current = false;
-      }
-      return order.length;
-    },
-    []
-  );
-
-  const handleRunAll = useCallback(async () => {
-    if (isRunning) return;
-    const order = topologicalSort(nodes, edges, EXECUTABLE_NODE_TYPES);
-    if (order.length === 0) {
-      alert('画布上没有可执行节点');
-      return;
-    }
-    await runNodesByOrder(nodes, edges);
-  }, [isRunning, nodes, edges, runNodesByOrder]);
-
-  // 组执行: 仅在选中的节点子集上运行(仅保留子集内部边作为依赖)
-  const handleRunGroup = useCallback(
-    async (ids: string[]) => {
-      if (isRunning) return;
-      const idSet = new Set(ids);
-      const subNodes = nodes.filter((n) => idSet.has(n.id));
-      const subEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
-      const executable = subNodes.filter((n) => n.type && EXECUTABLE_NODE_TYPES.has(n.type));
-      if (executable.length === 0) {
-        alert('所选节点中没有可执行节点');
-        return;
-      }
-      await runNodesByOrder(subNodes, subEdges);
-    },
-    [isRunning, nodes, edges, runNodesByOrder]
-  );
-
   // ===== ALT+拖动复制节点 =====
   // 思路: dragStart 时在原位插入占位克隆(临时ID),用户拖动过程中原位看起来有节点不动;
   // dragStop 时做 ID 互换: 占位克隆 → 恢复原始ID(保留连线), 被拖走的原节点 → 分配新ID(sanitize)
@@ -2496,11 +2396,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     clearDeleteReq();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deleteReq?.ts]);
-
-  const handleCancelRun = useCallback(() => {
-    cancelRunRef.current = true;
-    useRunBusStore.getState().cancelAll();
-  }, []);
 
   const handleAlignSelection = useCallback((action: NodeAlignAction, ids?: string[]) => {
     const targetIds = (ids && ids.length > 0)
@@ -3165,168 +3060,28 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     getReactFlowHandleInfo,
   });
 
+  const { focusNodeBySerialId, handleViewportHotkeys } = useCanvasViewportHotkeys({
+    activeId,
+    loaded,
+    loadedCanvasId,
+    nodes,
+    nodesRef,
+    selectedCount,
+    bulkPhantomId: BULK_PHANTOM_ID,
+    shortcuts,
+    screenToFlowPosition,
+    getViewport,
+    setCenter,
+    fitView,
+    isShortcutBlocked: isCanvasOverviewShortcutBlocked,
+  });
+
   // ===== 全局 SHIFT+Handle 批量移线拦截器 =====
   // 原因: ReactFlow 的 multiSelectionKeyCode 包含 'Shift'，导致按住 SHIFT 在 handle 上 mousedown
   // 会被 ReactFlow 拦截为多选事件，onConnectStart 可能不会触发。
   // 这里使用 capture 阶段全局拦截 + stopImmediatePropagation 完全接管该交互。
   // 交互升级: 拖拽期间使用 phantom 节点作为边的临时锐点,让所有连线跟随鼠标移动。
   useEffect(() => {
-    // SHIFT 键状态 → body.shift-mode (光标提示)
-    const onShiftDown = (kev: KeyboardEvent) => {
-      if (kev.key === 'Shift' && !document.body.classList.contains('shift-mode')) {
-        document.body.classList.add('shift-mode');
-      }
-    };
-    const onShiftUp = (kev: KeyboardEvent) => {
-      if (kev.key === 'Shift') {
-        document.body.classList.remove('shift-mode');
-      }
-    };
-    window.addEventListener('keydown', onShiftDown);
-    window.addEventListener('keyup', onShiftUp);
-    // 失焦时也清除
-    const onBlur = () => document.body.classList.remove('shift-mode');
-    window.addEventListener('blur', onBlur);
-
-    // ===== 剩刀划线断连模式 =====
-    // 触发条件: SHIFT + 空白区域(.react-flow__pane 或 GroupBoxNode 内部空白) 左键按下
-    // 交互: mousemove 实时探测鼠标下的 .react-flow__edge 并标记为待切, mouseup 批量删除
-    // 视觉: body.cut-mode (剩刀光标) + 临时 SVG overlay 画出鼠标轨迹 + 待切 edge 高亮
-    let cutSvg: SVGSVGElement | null = null;
-    let cutPath: SVGPolylineElement | null = null;
-    let cutPoints: number[][] = [];
-    let cutSet: Set<string> = new Set();
-    let cutting = false;
-
-    const finishCut = () => {
-      if (!cutting) return;
-      cutting = false;
-      // 提交删除
-      if (cutSet.size > 0) {
-        const idsToCut = new Set(cutSet);
-        setEdges((prev) => prev.filter((ed) => !idsToCut.has(ed.id)));
-      }
-      // 清理 DOM
-      document.body.classList.remove('cut-mode');
-      if (cutSvg && cutSvg.parentNode) cutSvg.parentNode.removeChild(cutSvg);
-      cutSvg = null;
-      cutPath = null;
-      cutPoints = [];
-      // 清除高亮 class
-      document
-        .querySelectorAll('.react-flow__edge.cut-marked')
-        .forEach((el) => el.classList.remove('cut-marked'));
-      cutSet = new Set();
-      window.removeEventListener('mousemove', onCutMove, true);
-      window.removeEventListener('mouseup', onCutUp, true);
-    };
-
-    const onCutMove = (mv: MouseEvent) => {
-      if (!cutting) return;
-      // 上一个鼠标点 → 当前点 之间插值采样，避免快速拖动时跳过细 stroke 线(像素主题黑色 edge 仅 2.5px,
-      // 鼠标快速拖动时 mousemove 間距可达 ≥20px,只看当前点会完全跳过该 edge)。
-      const lastPt = cutPoints.length > 0 ? cutPoints[cutPoints.length - 1] : [mv.clientX, mv.clientY];
-      cutPoints.push([mv.clientX, mv.clientY]);
-      // 最多保留近 200 个点, 避免 polyline 过长
-      if (cutPoints.length > 200) cutPoints = cutPoints.slice(-200);
-      if (cutPath) {
-        cutPath.setAttribute('points', cutPoints.map((p) => p.join(',')).join(' '));
-      }
-      // 插值采样: 每 4px 一个采样点, 上限 60 点 避免单次 mousemove 量过大
-      const dx = mv.clientX - lastPt[0];
-      const dy = mv.clientY - lastPt[1];
-      const dist = Math.hypot(dx, dy);
-      const steps = Math.min(60, Math.max(1, Math.ceil(dist / 4)));
-      for (let s = 0; s <= steps; s++) {
-        const t = steps === 0 ? 1 : s / steps;
-        const px = lastPt[0] + dx * t;
-        const py = lastPt[1] + dy * t;
-        // 命中检测: 采样点下所有元素
-        const els = document.elementsFromPoint(px, py);
-        for (const el of els) {
-          const edgeEl = (el as Element).closest?.('.react-flow__edge') as Element | null;
-          if (!edgeEl) continue;
-          const id = edgeEl.getAttribute('data-id') || '';
-          if (!id) continue;
-          if (!cutSet.has(id)) {
-            cutSet.add(id);
-            edgeEl.classList.add('cut-marked');
-          }
-        }
-      }
-    };
-
-    const onCutUp = () => finishCut();
-
-    const onCutMouseDownCapture = (e: MouseEvent) => {
-      if (!e.shiftKey) return;
-      if (e.button !== 0) return;
-      const targetEl = e.target as HTMLElement | null;
-      if (!targetEl) return;
-      // 排除: handle / button / input / textarea / [contenteditable] / edge 本体
-      if (
-        targetEl.closest('.react-flow__handle') ||
-        targetEl.closest('button') ||
-        targetEl.closest('input') ||
-        targetEl.closest('textarea') ||
-        targetEl.closest('[contenteditable="true"]') ||
-        targetEl.closest('.react-flow__edge')
-      ) {
-        return;
-      }
-      // 只在: react-flow pane(画布空白) 或 GroupBoxNode 内部空白 触发
-      const onPane = !!targetEl.closest('.react-flow__pane');
-      const groupNode = targetEl.closest('.react-flow__node-groupBox') as HTMLElement | null;
-      // 如果在普通节点内部(非 GroupBox) 不触发, 避免与节点拖动冲突
-      const inOtherNode =
-        !!targetEl.closest('.react-flow__node') && !groupNode;
-      if (!onPane && !groupNode) return;
-      if (inOtherNode) return;
-
-      // 拦截 ReactFlow 默认 panning
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-
-      cutting = true;
-      cutSet = new Set();
-      cutPoints = [[e.clientX, e.clientY]];
-      document.body.classList.add('cut-mode');
-
-      // 创建临时 SVG overlay (fixed, pointer-events:none)
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.style.position = 'fixed';
-      svg.style.left = '0';
-      svg.style.top = '0';
-      svg.style.right = '0';
-      svg.style.bottom = '0';
-      svg.style.width = '100vw';
-      svg.style.height = '100vh';
-      svg.style.pointerEvents = 'none';
-      svg.style.zIndex = '99999';
-      svg.setAttribute('class', 'cut-overlay-svg');
-      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      polyline.setAttribute('fill', 'none');
-      polyline.setAttribute('points', `${e.clientX},${e.clientY}`);
-      polyline.setAttribute('class', 'cut-overlay-path');
-      svg.appendChild(polyline);
-      document.body.appendChild(svg);
-      cutSvg = svg;
-      cutPath = polyline;
-
-      window.addEventListener('mousemove', onCutMove, true);
-      window.addEventListener('mouseup', onCutUp, true);
-    };
-
-    // SHIFT 释放期间中途中断: 也收尾
-    const onCutKeyUp = (kev: KeyboardEvent) => {
-      if (kev.key === 'Shift' && cutting) finishCut();
-    };
-    window.addEventListener('keyup', onCutKeyUp);
-    window.addEventListener('mousedown', onCutMouseDownCapture, true);
-
     const onMouseDownCapture = (e: MouseEvent) => {
       if (!e.shiftKey) return;
       if (e.button !== 0) return; // 仅左键
@@ -3588,20 +3343,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     window.addEventListener('mousedown', onMouseDownCapture, true);
     return () => {
       window.removeEventListener('mousedown', onMouseDownCapture, true);
-      window.removeEventListener('mousedown', onCutMouseDownCapture, true);
-      window.removeEventListener('keyup', onCutKeyUp);
-      window.removeEventListener('mousemove', onCutMove, true);
-      window.removeEventListener('mouseup', onCutUp, true);
-      window.removeEventListener('keydown', onShiftDown);
-      window.removeEventListener('keyup', onShiftUp);
-      window.removeEventListener('blur', onBlur);
-      document.body.classList.remove('shift-mode');
       document.body.classList.remove('bulk-reconnecting');
-      document.body.classList.remove('cut-mode');
-      if (cutSvg && cutSvg.parentNode) cutSvg.parentNode.removeChild(cutSvg);
-      document
-        .querySelectorAll('.react-flow__edge.cut-marked')
-        .forEach((el) => el.classList.remove('cut-marked'));
     };
   }, [screenToFlowPosition]);
 
@@ -4210,48 +3952,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     return () => window.removeEventListener('paste', onPaste, true);
   }, [activeId, createUploadNodesFromFiles, replaceUploadNodeFromFiles]);
 
-  const focusNearestNodeToViewport = useCallback(() => {
-    if (!loaded || loadedCanvasId !== activeId) return;
-    const flowEl = document.querySelector('.react-flow') as HTMLElement | null;
-    if (!flowEl) return;
-    const bounds = flowEl.getBoundingClientRect();
-    const viewportCenter = screenToFlowPosition({
-      x: bounds.left + bounds.width / 2,
-      y: bounds.top + bounds.height / 2,
-    });
-    const nearest = findNearestNavigableNode(nodes, viewportCenter);
-    if (!nearest) {
-      logBus.warn('当前画布没有可定位节点', '快捷键 G');
-      return;
-    }
-    const rect = rectOf(nearest);
-    const currentZoom = getViewport().zoom || 1;
-    const zoom = Math.min(Math.max(currentZoom, 0.55), 1.15);
-    setCenter(rect.x + rect.w / 2, rect.y + rect.h / 2, { zoom, duration: 450 });
-    pulseNearestNode(nearest.id);
-  }, [activeId, getViewport, loaded, loadedCanvasId, nodes, screenToFlowPosition, setCenter]);
-
-  const focusNodeBySerialId = useCallback(() => {
-    if (!loaded || loadedCanvasId !== activeId) return;
-    const raw = window.prompt('输入要查找的 NodeID');
-    if (raw === null) return;
-    const serialId = parseNodeSerialInput(raw);
-    if (!serialId) {
-      logBus.warn('请输入有效的 NodeID 数字', '查找 NodeID');
-      return;
-    }
-    const target = findNodeBySerialId(nodesRef.current, serialId);
-    if (!target) {
-      logBus.warn(`没有找到 NodeID #${serialId}`, '查找 NodeID');
-      return;
-    }
-    const rect = rectOf(target);
-    const currentZoom = getViewport().zoom || 1;
-    const zoom = Math.min(Math.max(currentZoom, 0.55), 1.15);
-    setCenter(rect.x + rect.w / 2, rect.y + rect.h / 2, { zoom, duration: 450 });
-    pulseNearestNode(target.id);
-  }, [activeId, getViewport, loaded, loadedCanvasId, setCenter]);
-
   // ===== 全局快捷键 =====
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -4302,32 +4002,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           .filter((n) => n.selected && n.type !== 'groupBox')
           .map((n) => n.id);
         if (selIds.length >= 1) handleCreateGroup(selIds);
-      } else if (matchesAnyShortcut(shortcuts['canvas.overview'], e) || matchesAnyShortcut(shortcuts['canvas.nearest-node'], e)) {
-        const isNearestShortcut = matchesAnyShortcut(shortcuts['canvas.nearest-node'], e);
-        if (isNearestShortcut && selectedCount > 0) return;
-        const activeEl = document.activeElement as HTMLElement | null;
-        if (
-          isCanvasOverviewShortcutBlocked(e.target) ||
-          isCanvasOverviewShortcutBlocked(activeEl) ||
-          document.querySelector(
-            [
-              '[data-canvas-floating-ui="image-compare-modal"]',
-              '[data-canvas-floating-ui="portrait-master-editor"]',
-              '[data-canvas-floating-ui="send-materials-modal"]',
-              '[data-canvas-floating-ui="picker-menu"]',
-              '[data-canvas-floating-ui="node-menu"]',
-              '[data-canvas-floating-ui="pane-menu"]',
-            ].join(','),
-          )
-        ) {
-          return;
-        }
-        e.preventDefault();
-        if (!isNearestShortcut) {
-          fitView({ padding: 0.18, duration: 420, minZoom: 0.05, maxZoom: 1.15 });
-        } else {
-          focusNearestNodeToViewport();
-        }
+      } else if (handleViewportHotkeys(e)) {
+        return;
       } else if (matchesAnyShortcut(shortcuts['canvas.delete'], e)) {
         // xyflow 内置 Backspace 删除,但在节点未选中时仍可能删除连线;
         // 我们手动处理仅删除选中,避免输入边缘情况
@@ -4348,7 +4024,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         internalPasteTimerRef.current = null;
       }
     };
-  }, [histUndo, histRedo, handleCopy, handlePaste, handleDuplicate, handleDeleteSelected, handleCreateGroup, nodes, selectedCount, fitView, focusNearestNodeToViewport, shortcuts]);
+  }, [handleViewportHotkeys, histUndo, histRedo, handleCopy, handlePaste, handleDuplicate, handleDeleteSelected, handleCreateGroup, nodes, selectedCount, shortcuts]);
 
   // 全局滚轮拦截 —— 自动给所有节点内的 input / textarea / select / contenteditable
   // 挂上 wheel.stopPropagation()，让用户在文本框内可用鼠标滚轮滚动文字而不触发画布缩放。
@@ -4490,13 +4166,14 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         onAlignSelection={handleAlignSelection}
       />
       <TerminalPanel />
-      {connectionPanModeActive && (
-        <div className="t8-connection-pan-hud" data-canvas-floating-ui="connection-pan-hud">
-          <span className="t8-connection-pan-hud__signal" aria-hidden="true" />
-          <span className="t8-connection-pan-hud__title">连线导航模式</span>
-          <span className="t8-connection-pan-hud__hint">拖动画布后点击目标接口连接，再按 {connectionPanShortcutLabel} 取消</span>
-        </div>
-      )}
+      <CanvasOverlayLayer
+        connectionPanModeActive={connectionPanModeActive}
+        connectionPanShortcutLabel={connectionPanShortcutLabel}
+        onCutEdges={(edgeIds) => {
+          const idsToCut = new Set(edgeIds);
+          setEdges((prev) => prev.filter((edge) => !idsToCut.has(edge.id)));
+        }}
+      />
       <input
         ref={fileInputRef}
         type="file"
