@@ -4,12 +4,13 @@
 
 ### Gray
 
-- 版本：`v0.5.3`
-- release：`20260626-resource-preview-gray-r1-v053`
+- 版本：`v0.5.4`
+- release：`20260626-group-permissions-group-lock-gray-r1-v054`
 - 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-26-resource-preview-gray.md`
+  - `gray/2026-06-26-group-permissions-group-lock-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-26-group-permissions-group-lock-gray.md`
   - `gray/2026-06-26-resource-preview-gray.md`
   - `gray/2026-06-26-shared-resource-admin-generation-gray.md`
   - `gray/2026-06-26-workflow-resource-visibility-gray.md`

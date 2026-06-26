@@ -2,11 +2,12 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.3`
-- 当前 release：`20260626-resource-preview-gray-r1-v053`
+- 当前版本：`v0.5.4`
+- 当前 release：`20260626-group-permissions-group-lock-gray-r1-v054`
 - 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-26-group-permissions-group-lock-gray.md`
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-resource-preview-gray.md`
@@ -29,7 +30,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260626-canvas-compatibility-persistence-gray-r1-v051`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260626-resource-preview-gray-r1-v053`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
