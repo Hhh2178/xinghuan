@@ -24,7 +24,7 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.1`
-  - release：`20260626-workflow-resource-visibility-gray-r1-v051`
+  - release：`20260626-canvas-compatibility-persistence-gray-r1-v051`
   - 状态：`2026-06-26 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
