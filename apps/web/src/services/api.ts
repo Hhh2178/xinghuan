@@ -783,7 +783,7 @@ export function getResourceItems(params: {
 } = {}) {
   const sp = new URLSearchParams();
   if (params.kind) sp.set('kind', params.kind);
-  if (params.categoryId) sp.set('categoryId', params.categoryId);
+  if (params.categoryId && params.categoryId !== 'all') sp.set('categoryId', params.categoryId);
   if (params.q) sp.set('q', params.q);
   if (params.favorite) sp.set('favorite', '1');
   const qs = sp.toString();

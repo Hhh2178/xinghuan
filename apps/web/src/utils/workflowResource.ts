@@ -159,6 +159,19 @@ export function resourceItemToWorkflowFragment(item: ResourceItem): SendNodeFrag
   return workflowManifestToFragment((item as any).workflowFragment);
 }
 
+export async function resolveWorkflowResourceFragment(
+  item: Pick<ResourceItem, 'kind' | 'workflowFragment' | 'fileUrl'>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SendNodeFragment | null> {
+  if (item.kind !== 'workflow') return null;
+  const embedded = workflowManifestToFragment((item as any).workflowFragment);
+  if (embedded) return embedded;
+  if (!item.fileUrl) return null;
+  const response = await fetchImpl(item.fileUrl);
+  if (!response.ok) throw new Error(`读取工作流资源失败: HTTP ${response.status}`);
+  return workflowManifestToFragment(await response.json());
+}
+
 export function summarizeWorkflowResource(item: Pick<ResourceItem, 'workflowNodeCount' | 'workflowEdgeCount'>): string {
   const nodeCount = Number(item.workflowNodeCount || 0);
   const edgeCount = Number(item.workflowEdgeCount || 0);

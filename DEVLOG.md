@@ -56,6 +56,34 @@
 
 ## 2026-06-26
 
+### 工作流资源保存后不可见修复
+
+目标:
+- 修复“框选节点保存到资源库后，在工作流资源库里看不到”的问题
+- 修复 workflow 资源后续插入画布时对 `fileUrl` 的错误强依赖
+
+变更:
+- `apps/web/src/services/api.ts` 中的 `getResourceItems` 不再把默认分类态 `all` 当成真实 `categoryId` 发给后端
+- `apps/web/src/utils/workflowResource.ts` 新增 `resolveWorkflowResourceFragment`，优先从内嵌 `workflowFragment` 恢复工作流，缺失时才回退到 `fileUrl`
+- `apps/web/src/App.tsx` 改为走统一工作流资源解析逻辑
+- 新增回归脚本 `scripts/verify-resource-items-query-contract.ts`
+- 新增回归脚本 `scripts/verify-workflow-resource-resolver-contract.ts`
+
+验证:
+- `npx tsx scripts/verify-resource-items-query-contract.ts`
+- `npx tsx scripts/verify-workflow-resource-resolver-contract.ts`
+- `npm run type-check -w @xinghuan/web`
+
+影响:
+- 资源库“工作流”分类现在可以正常看到刚保存的工作流
+- 这类 workflow 资源后续插入画布时不再依赖额外生成 json 文件
+
+风险:
+- 仍需你在灰度环境亲测一次“保存工作流到资源库 -> 打开工作流资源库 -> 点击插入”的完整交互
+
+下一步:
+- 提交并推送 gray，等待真实画布链路验收
+
 ### 旧工作流兼容与资源库可见性修复
 
 目标:

@@ -5,11 +5,12 @@
 ### Gray
 
 - 版本：`v0.5.1`
-- release：`20260626-canvas-compatibility-persistence-gray-r1-v051`
+- release：`20260626-workflow-resource-visibility-gray-r1-v051`
 - 当前状态：`2026-06-26 待 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-26-canvas-compatibility-persistence-gray.md`
+  - `gray/2026-06-26-workflow-resource-visibility-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-26-canvas-compatibility-persistence-gray.md`
   - `gray/2026-06-24-timeout-zero-and-app-shell-loading-gray.md`
   - `gray/2026-06-24-runninghub-timeout-empty-default-gray.md`
   - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`

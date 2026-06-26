@@ -18,7 +18,7 @@ import { useAnnouncements } from './hooks/useAnnouncements';
 import { applyThemeTemplate } from './theme/applyTheme';
 import { resolveThemeTemplate } from './theme/defaultTemplates';
 import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } from './utils/materialSet';
-import { workflowManifestToFragment } from './utils/workflowResource';
+import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
 import {
   buildPortraitPrompt,
@@ -168,10 +168,7 @@ async function poseResourceToNodeData(item: ResourceItem): Promise<Record<string
 }
 
 async function workflowResourceToFragment(item: ResourceItem) {
-  if (item.kind !== 'workflow' || !item.fileUrl) return null;
-  const res = await fetch(item.fileUrl);
-  if (!res.ok) throw new Error(`读取工作流资源失败: HTTP ${res.status}`);
-  return workflowManifestToFragment(await res.json());
+  return resolveWorkflowResourceFragment(item);
 }
 
 /**
