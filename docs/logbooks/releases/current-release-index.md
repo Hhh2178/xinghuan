@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.1`
 - release：`20260626-workflow-resource-visibility-gray-r1-v051`
-- 当前状态：`2026-06-26 待 deploy + runtime verify`
+- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-26-workflow-resource-visibility-gray.md`
 - 历史运行态材料：

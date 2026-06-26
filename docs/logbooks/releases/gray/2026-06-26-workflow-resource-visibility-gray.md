@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.1`
 - release：`20260626-workflow-resource-visibility-gray-r1-v051`
-- 当前状态：`待 deploy + runtime verify`
+- 当前状态：`已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -30,6 +30,13 @@
 - `npx tsx scripts/verify-resource-items-query-contract.ts`
 - `npx tsx scripts/verify-workflow-resource-resolver-contract.ts`
 - `npm run type-check -w @xinghuan/web`
+- `npm run build:single-port`
+- `npm run package:release -- 20260626-workflow-resource-visibility-gray-r1-v051`
+- `node scripts/release/deploy-gray-release.mjs --release=20260626-workflow-resource-visibility-gray-r1-v051 --archive=dist-release/20260626-workflow-resource-visibility-gray-r1-v051.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
+- `node scripts/release/verify-gray-runtime.mjs --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.1 --expected-environment=gray`
+- 手动 SSH 复核：
+  - `readlink -f /opt/apps/xinghuan-canvas-next/current`
+  - 确认当前 symlink 已指向 `20260626-workflow-resource-visibility-gray-r1-v051`
 
 ## 待用户验收
 
