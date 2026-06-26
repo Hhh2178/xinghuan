@@ -53,6 +53,7 @@ import { useGroupBusStore, GROUP_COLORS, DEFAULT_GROUP_NAME } from '../stores/gr
 import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
+import { createLazyImportWithReloadRecovery } from '../utils/lazyImportRecovery';
 // v1.2.10.5: 节点落点防重叠解析器 (单节点/整组双模式 + 兜底+toast+飞镜)
 import {
   placeSingleNode,
@@ -141,15 +142,15 @@ import {
 import EmptyCanvasSplash from './EmptyCanvasSplash';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
-const ImageNode = lazy(() => import('./nodes/ImageNode'));
-const LLMNode = lazy(() => import('./nodes/LLMNode'));
-const VideoNode = lazy(() => import('./nodes/VideoNode'));
-const SeedanceNode = lazy(() => import('./nodes/SeedanceNode'));
+const ImageNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/ImageNode')));
+const LLMNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LLMNode')));
+const VideoNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/VideoNode')));
+const SeedanceNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/SeedanceNode')));
 import AudioNode from './nodes/AudioNode';
-const RunningHubNode = lazy(() => import('./nodes/RunningHubNode'));
+const RunningHubNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RunningHubNode')));
 import RhConfigNode from './nodes/RhConfigNode';
-const RHToolsNode = lazy(() => import('./nodes/RHToolsNode'));
-const RHToolboxNode = lazy(() => import('./nodes/RHToolboxNode'));
+const RHToolsNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolsNode')));
+const RHToolboxNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolboxNode')));
 import ComfyUIStoreNode from './nodes/ComfyUIStoreNode';
 import ComfyUIAppMakerNode from './nodes/ComfyUIAppMakerNode';
 import ResizeNode from './nodes/ResizeNode';
@@ -158,10 +159,10 @@ import GridCropNode from './nodes/GridCropNode';
 import GridEditorNode from './nodes/GridEditorNode';
 import CombineNode from './nodes/CombineNode';
 import RemoveBgNode from './nodes/RemoveBgNode';
-const ImageCompareNode = lazy(() => import('./nodes/ImageCompareNode'));
-const ToolboxParamNode = lazy(() => import('./nodes/ToolboxParamNode'));
-const PortraitMasterNode = lazy(() => import('./nodes/PortraitMasterNode'));
-const PoseMasterNode = lazy(() => import('./nodes/PoseMasterNode'));
+const ImageCompareNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/ImageCompareNode')));
+const ToolboxParamNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/ToolboxParamNode')));
+const PortraitMasterNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/PortraitMasterNode')));
+const PoseMasterNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/PoseMasterNode')));
 import IdeaNode from './nodes/IdeaNode';
 import BpNode from './nodes/BpNode';
 import RelayNode from './nodes/RelayNode';
@@ -170,16 +171,16 @@ import VideoOutputNode from './nodes/VideoOutputNode';
 import PortraitMetadataNode from './nodes/PortraitMetadataNode';
 import StoryboardGridNode from './nodes/StoryboardGridNode';
 import PresetImageNode from './nodes/PresetImageNode';
-const DrawingBoardNode = lazy(() => import('./nodes/DrawingBoardNode'));
+const DrawingBoardNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/DrawingBoardNode')));
 import BrowserNode from './nodes/BrowserNode';
 import FrameExtractorNode from './nodes/FrameExtractorNode';
 import FramePairNode from './nodes/FramePairNode';
-const LoopNode = lazy(() => import('./nodes/LoopNode'));
+const LoopNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LoopNode')));
 import PickFromSetNode from './nodes/PickFromSetNode';
-const TextSplitNode = lazy(() => import('./nodes/TextSplitNode'));
+const TextSplitNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/TextSplitNode')));
 import MaterialSetNode from './nodes/MaterialSetNode';
 import UploadNode from './nodes/UploadNode';
-const OutputNode = lazy(() => import('./nodes/OutputNode'));
+const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/OutputNode')));
 import GroupBoxNode from './nodes/GroupBoxNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
@@ -196,7 +197,7 @@ import {
 } from '../config/portTypes';
 
 const RHToolboxMakerNode = import.meta.env?.DEV
-  ? lazy(() => import('./nodes/RHToolboxMakerNode'))
+  ? lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolboxMakerNode')))
   : PlaceholderNode;
 
 const RHToolboxMakerDevNode = (props: any) => import.meta.env?.DEV ? (

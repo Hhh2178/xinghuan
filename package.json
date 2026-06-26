@@ -145,6 +145,7 @@
     "verify:canvas-node-render-smoke": "node scripts/verify-canvas-node-render-smoke.mjs",
     "verify:canvas-audio-ui-removal": "node scripts/verify-canvas-audio-ui-removal.mjs",
     "verify:web-bundle-no-theme-audio": "node scripts/verify-web-bundle-no-theme-audio.mjs",
+    "verify:web-lazy-import-recovery": "npx tsx scripts/verify-web-lazy-import-recovery.ts",
     "verify:output-node-preview-layout": "npx tsx scripts/verify-output-node-preview-layout.mjs",
     "verify:generation-node-copy-cleanup": "node scripts/verify-generation-node-copy-cleanup.mjs",
     "verify:node-resize-sync-contract": "node scripts/verify-node-resize-sync-contract.mjs",

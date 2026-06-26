@@ -18,6 +18,7 @@ import { useAnnouncements } from './hooks/useAnnouncements';
 import { applyThemeTemplate } from './theme/applyTheme';
 import { resolveThemeTemplate } from './theme/defaultTemplates';
 import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } from './utils/materialSet';
+import { createLazyImportWithReloadRecovery } from './utils/lazyImportRecovery';
 import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
 import {
@@ -31,19 +32,24 @@ import {
   type PortraitLanguage,
 } from './data/portraitMasterOptions';
 
-const Sidebar = lazy(() => import('./components/Sidebar'));
-const Canvas = lazy(() => import('./components/Canvas'));
-const ResourceLibraryDrawer = lazy(() => import('./components/ResourceLibraryDrawer'));
-const GenerationLibraryDrawer = lazy(() => import('./components/GenerationLibraryDrawer'));
-const MaterialContextMenu = lazy(() => import('./components/MaterialContextMenu'));
-const ThemeTemplateManager = lazy(() => import('./components/ThemeTemplateManager'));
+const Sidebar = lazy(createLazyImportWithReloadRecovery(() => import('./components/Sidebar')));
+const Canvas = lazy(createLazyImportWithReloadRecovery(() => import('./components/Canvas')));
+const ResourceLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/ResourceLibraryDrawer')));
+const GenerationLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/GenerationLibraryDrawer')));
+const MaterialContextMenu = lazy(createLazyImportWithReloadRecovery(() => import('./components/MaterialContextMenu')));
+const ThemeTemplateManager = lazy(createLazyImportWithReloadRecovery(() => import('./components/ThemeTemplateManager')));
 const RHToolsProvider = lazy(() =>
+  createLazyImportWithReloadRecovery(() =>
+    import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
+  )(),
+);
+const preloadRHToolsProvider = createLazyImportWithReloadRecovery(() =>
   import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
 );
 const preloadWorkspaceShell = Promise.all([
-  import('./components/Sidebar'),
-  import('./components/Canvas'),
-  import('./providers/RHToolsProvider'),
+  createLazyImportWithReloadRecovery(() => import('./components/Sidebar'))(),
+  createLazyImportWithReloadRecovery(() => import('./components/Canvas'))(),
+  preloadRHToolsProvider(),
 ]);
 
 type AddNodeFn = import('./components/Canvas').AddNodeFn;
