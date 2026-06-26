@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Edge, Node, Viewport } from '@xyflow/react';
 import { normalizeCanvasNodeSerials } from '../../utils/nodeSerialIds';
+import { migrateImportedNodes } from '../../utils/nodeMigration';
 import { useCanvasStore } from '../../stores/canvas';
 import { logBus } from '../../stores/logs';
 import * as api from '../../services/api';
@@ -103,7 +104,8 @@ export function useCanvasPersistence({
         const ns = pendingSave?.nodes || data.nodes || [];
         const es = pendingSave?.edges || data.edges || [];
         const savedNextNodeSerialId = pendingSave?.nextNodeSerialId ?? data.nextNodeSerialId;
-        const fixedNsBeforeSerials = ns.map((node: any) =>
+        const migratedNodes = migrateImportedNodes(ns as Node[]);
+        const fixedNsBeforeSerials = migratedNodes.map((node: any) =>
           node.type === 'groupBox' && node.connectable === false ? { ...node, connectable: true } : node,
         );
         const normalized = normalizeCanvasNodeSerials(fixedNsBeforeSerials, savedNextNodeSerialId);

@@ -59,7 +59,16 @@
     - `https://canvas-next.hhh2121.xyz/api/status => version = 0.4.13, environment = gray`
   - 当前补记：
     - gray 已切到 `20260623-runninghub-grsai-worker-key-pool-gray-r1-v0413`
-    - production 暂仍停留在 `v0.4.12`
+  - production 暂仍停留在 `v0.4.12`
+
+## 2026-06-26
+
+- 旧工作流导入兼容与 workflow 资源可见性修复：
+  - 新增 `apps/web/src/utils/nodeMigration.ts`，导入与恢复画布时对旧 `llm` 节点做轻迁移，清理运行态残留字段
+  - `apps/web/src/components/Canvas.tsx` 与 `apps/web/src/components/canvas/useCanvasPersistence.ts` 接入迁移层
+  - `apps/api/src/server.ts` 对 workflow 资源项补齐摘要与预览字段，避免“保存成功但资源库看不见”
+  - 新增 `docs/records/canvas/2026-06-26-canvas-compatibility-and-persistence-risk-analysis.md`
+  - 本地验证通过：`npm run type-check -w @xinghuan/api`、`npm run type-check -w @xinghuan/web`
 
 - RunningHub 节点恢复轮询已完成 production `v0.4.12` 发布：
   - production release：

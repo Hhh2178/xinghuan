@@ -5,11 +5,12 @@
 ### Gray
 
 - 版本：`v0.5.1`
-- release：`20260624-timeout-zero-and-app-shell-loading-gray-r2-v051`
-- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
+- release：`20260626-canvas-compatibility-persistence-gray-r1-v051`
+- 当前状态：`2026-06-26 待 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-24-timeout-zero-and-app-shell-loading-gray.md`
+  - `gray/2026-06-26-canvas-compatibility-persistence-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-24-timeout-zero-and-app-shell-loading-gray.md`
   - `gray/2026-06-24-runninghub-timeout-empty-default-gray.md`
   - `gray/2026-06-24-announcement-center-and-runninghub-queue-repair-gray.md`
   - `gray/2026-06-24-cyber-pcb-entry-brand-refresh-gray.md`
@@ -37,7 +38,7 @@
   - `production/2026-06-24-task-runtime-kernel-governance-production.md`
   - `production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`
   - `production/2026-06-23-runninghub-poll-resume-production.md`
-  - `production/2026-06-19-runninghub-release-index.md`
+- `production/2026-06-19-runninghub-release-index.md`
 
 ## 当前值守建议
 

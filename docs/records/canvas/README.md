@@ -8,3 +8,4 @@
 
 - `../../prd/v0.1.0/design.md`
 - `../../prd/v0.1.0/spec.md`
+- `2026-06-26-canvas-compatibility-and-persistence-risk-analysis.md`

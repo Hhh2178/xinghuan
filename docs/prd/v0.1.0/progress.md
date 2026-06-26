@@ -6,6 +6,8 @@
 
 当前与本版本最相关的最新状态：
 
+- 2026-06-26 已完成旧工作流导入兼容轻迁移、画布恢复时旧 `llm` 节点清理、以及 workflow 资源摘要字段补齐，等待人工浏览器验收。
+
 - 当前灰度 active release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
 - 当前生产 active release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 - 当前灰度版本：`v0.5.1`

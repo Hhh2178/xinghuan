@@ -97,6 +97,7 @@ import {
   normalizeCanvasNodeSerials,
   parseNodeSerialInput,
 } from '../utils/nodeSerialIds';
+import { migrateImportedNodes } from '../utils/nodeMigration';
 import { resolveConnectionByNodeSerialId } from '../utils/connectByNodeSerialId';
 import { formatShortcutList, matchesAnyShortcut } from '../utils/keyboardShortcuts';
 import { applyNodeAlignment, type NodeAlignAction } from '../utils/nodeAlign';
@@ -1876,7 +1877,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           if (!confirm(`导入将替换当前画布(${importedNodes.length} 个节点 / ${importedEdges.length} 条连线),是否继续?`)) {
             return;
           }
-          const normalized = normalizeCanvasNodeSerials(importedNodes, source.nextNodeSerialId);
+          const migratedNodes = migrateImportedNodes(importedNodes);
+          const normalized = normalizeCanvasNodeSerials(migratedNodes, source.nextNodeSerialId);
           nextNodeSerialIdRef.current = normalized.nextNodeSerialId;
           setNodes(normalized.nodes);
           setEdges(importedEdges);

@@ -129,6 +129,8 @@ import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
+import { cleanImportedNodeData, sanitizeCanvasNodes } from "./canvas-node-migration.js";
+import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
 
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
@@ -328,6 +330,13 @@ interface ResourceItem {
   taskId?: string;
   providerId?: string;
   modelId?: string;
+  workflowNodeCount?: number;
+  workflowEdgeCount?: number;
+  workflowNodeTypes?: string[];
+  workflowPreview?: {
+    nodes: Array<{ id: string; type: string; label: string; x: number; y: number }>;
+    edges: Array<{ source: string; target: string }>;
+  };
   revision: number;
 }
 
@@ -856,32 +865,8 @@ function normalizeResourceItemRecord(item: ResourceItem): ResourceItem {
   };
 }
 
-function sanitizeCanvasNodeData(data: unknown): unknown {
-  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
-  const source = data as Record<string, unknown>;
-  const next: Record<string, unknown> = { ...source };
-  let changed = false;
-  for (const key of ["prompt", "text", "title", "content"] as const) {
-    if (typeof source[key] !== "string") continue;
-    const cleaned = sanitizeVisibleSeedText(source[key]);
-    if (cleaned === source[key]) continue;
-    next[key] = cleaned;
-    changed = true;
-  }
-  return changed ? next : data;
-}
-
-function sanitizeCanvasNodes(nodes: unknown[]): unknown[] {
-  let changed = false;
-  const sanitized = nodes.map((node) => {
-    if (!node || typeof node !== "object" || Array.isArray(node)) return node;
-    const source = node as Record<string, unknown>;
-    const nextData = sanitizeCanvasNodeData(source.data);
-    if (nextData === source.data) return node;
-    changed = true;
-    return { ...source, data: nextData };
-  });
-  return changed ? sanitized : nodes;
+function optionalObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 }
 
 function sanitizeAdminDbVisibleText(db: AdminDb): { db: AdminDb; changed: boolean } {
@@ -5488,10 +5473,6 @@ function toCanvasListItem(row: {
   };
 }
 
-function optionalObject(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
-}
-
 function resourceItemMetadata(item: ResourceItem) {
   return {
     sourceUrl: item.sourceUrl || "",
@@ -5555,7 +5536,7 @@ function toResourceItem(row: {
   const taskId = String(metadata.taskId ?? "").trim();
   const providerId = String(metadata.providerId ?? "").trim();
   const modelId = String(metadata.modelId ?? "").trim();
-  return {
+  return enrichWorkflowResourceItem({
     id: row.id,
     kind: normalizeResourceKind(row.kind) || "image",
     title: safeText(row.title, "资源"),
@@ -5582,7 +5563,7 @@ function toResourceItem(row: {
     providerId: providerId || undefined,
     modelId: modelId || undefined,
     revision: Number(row.revision) || 1,
-  };
+  });
 }
 
 function parseJsonObject(value: string) {
@@ -11380,7 +11361,7 @@ async function readResourceDbFromFile(user: CurrentUser): Promise<ResourceDb> {
     const raw = JSON.parse(await readFile(userDataDirs(user).resourceDbPath, "utf-8")) as ResourceDb;
     return {
       categories: Array.isArray(raw.categories) ? raw.categories.map(normalizeResourceCategoryRecord) : [],
-      items: Array.isArray(raw.items) ? raw.items.map(normalizeResourceItemRecord) : [],
+      items: Array.isArray(raw.items) ? raw.items.map(normalizeResourceItemRecord).map(enrichWorkflowResourceItem) : [],
     };
   } catch {
     return { categories: [], items: [] };
