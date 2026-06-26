@@ -68,7 +68,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
   },
   define: {
-    __APP_VERSION__: JSON.stringify("0.5.2"),
+    __APP_VERSION__: JSON.stringify("0.5.3"),
     __APP_NAME__: JSON.stringify("xinghuan-canvas"),
     __WEB_BUILD_MARKER__: JSON.stringify(webBuildMarker),
   },

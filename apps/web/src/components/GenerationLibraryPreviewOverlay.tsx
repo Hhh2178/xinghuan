@@ -33,7 +33,7 @@ export default function GenerationLibraryPreviewOverlay({
         <>
           {item.kind === 'image' && (
             <img
-              src={item.previewUrl || item.fileUrl}
+              src={item.fileUrl || item.previewUrl}
               alt={item.title}
               className="max-h-full max-w-full object-contain"
               draggable={false}
@@ -41,7 +41,7 @@ export default function GenerationLibraryPreviewOverlay({
           )}
           {item.kind === 'video' && (
             <LoopingVideo
-              src={item.previewUrl || item.fileUrl}
+              src={item.fileUrl || item.previewUrl}
               controls
               className="max-h-full max-w-full object-contain"
             />

@@ -31,6 +31,9 @@ assert.match(
 assert.match(sharedWebApiSource, /uploadSharedResourceFile/, "web api should expose local file upload for shared resources");
 assert.doesNotMatch(resourceDrawerSource, /window\.prompt\(['"]输入公共资源 URL['"]\)/, "shared upload must not ask admins to paste a URL");
 assert.match(resourceDrawerSource, /type="file"/, "resource drawer should use a file input for public uploads");
+assert.match(resourceDrawerSource, /ResourcePreviewOverlay/, "resource drawer should reuse the shared preview overlay for complete media preview");
+assert.match(resourceDrawerSource, /const \[previewItem, setPreviewItem\]/, "resource drawer should track complete preview state");
+assert.match(resourceDrawerSource, /object-contain/, "resource drawer cards should preserve full media ratio");
 assert.match(
   sharedWebApiSource,
   /copySharedResourceToPersonal/,

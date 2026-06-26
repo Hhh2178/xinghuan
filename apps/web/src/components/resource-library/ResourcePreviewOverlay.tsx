@@ -33,7 +33,7 @@ export function ResourcePreviewOverlay({
       onClick={onClose}
     >
       <div
-        className="relative flex h-full max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-950 text-white"
+        className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-950 text-white"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -61,7 +61,7 @@ export function ResourcePreviewOverlay({
           </div>
         </div>
 
-        <div className="relative flex-1 bg-black">
+        <div className="relative flex h-[min(88vh,820px)] min-h-[320px] w-full items-center justify-center bg-black">
           {hasPrev && onPrev && (
             <button
               onClick={onPrev}
@@ -80,8 +80,10 @@ export function ResourcePreviewOverlay({
               <ChevronRight size={18} />
             </button>
           )}
-          <div className="flex h-full w-full items-center justify-center p-4">
+          <div className="flex h-full w-full items-center justify-center p-4 sm:p-5">
+            <div className="flex h-full w-full max-w-[min(100%,960px)] items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/85">
             {media}
+            </div>
           </div>
         </div>
       </div>

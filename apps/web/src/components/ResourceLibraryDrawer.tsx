@@ -26,6 +26,7 @@ import type { AuthUser, ResourceCategory, ResourceItem, ResourceKind } from '../
 import { resourceItemToSendMaterials } from '../utils/sendMaterials';
 import { summarizeWorkflowResource } from '../utils/workflowResource';
 import LoopingVideo from './LoopingVideo';
+import { ResourcePreviewOverlay } from './resource-library/ResourcePreviewOverlay';
 
 const KIND_META: Record<ResourceKind, { label: string; icon: typeof ImageIcon; accent: string }> = {
   image: { label: '图像', icon: ImageIcon, accent: '#fbbf24' },
@@ -174,6 +175,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [hoverPreview, setHoverPreview] = useState<{ src: string; title: string; left: number; top: number } | null>(null);
+  const [previewItem, setPreviewItem] = useState<ResourceItem | null>(null);
   const sharedUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const isSharedSource = source === 'shared';
@@ -463,8 +465,8 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
     const rect = target.getBoundingClientRect();
     const viewportWidth = window.innerWidth || 1200;
     const viewportHeight = window.innerHeight || 800;
-    const previewWidth = Math.min(320, Math.max(240, viewportWidth - 24));
-    const previewHeight = 380;
+    const previewWidth = Math.min(360, Math.max(260, viewportWidth - 24));
+    const previewHeight = 420;
     const gap = 10;
     let left = rect.left - previewWidth - gap;
     if (left < 12) {
@@ -484,6 +486,17 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
 
   const hideImagePreview = useCallback(() => {
     setHoverPreview(null);
+  }, []);
+
+  const canPreviewItem = useCallback((item: ResourceItem) => item.kind === 'image' || item.kind === 'video', []);
+
+  const openPreview = useCallback((item: ResourceItem) => {
+    if (!canPreviewItem(item)) return;
+    setPreviewItem(item);
+  }, [canPreviewItem]);
+
+  const closePreview = useCallback(() => {
+    setPreviewItem(null);
   }, []);
 
   if (!open) return null;
@@ -692,7 +705,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                       <img
                         src={item.thumbUrl || item.fileUrl}
                         alt={item.title}
-                        className="resource-media w-full h-full object-cover transition-transform duration-200"
+                        className="resource-media h-full w-full object-contain p-2 transition-transform duration-200"
                         draggable={false}
                       />
                       <button
@@ -715,7 +728,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                     <LoopingVideo
                       src={item.fileUrl}
                       muted
-                      className="resource-media w-full h-full object-cover transition-transform duration-200"
+                      className="resource-media h-full w-full object-contain p-2 transition-transform duration-200"
                       onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
                       onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                     />
@@ -773,7 +786,15 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                       <WorkflowTopologyCard item={item} accent={activeMeta.accent} />
                     </div>
                   )}
-                  {(!isSharedSource || canManageShared) && (
+                  {isSharedSource ? (
+                    <button
+                      onClick={() => copySharedItemToPersonal(item)}
+                      className="t8-mini-icon-button absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-emerald-200"
+                      title="另存为我的资源"
+                    >
+                      <Library size={13} />
+                    </button>
+                  ) : (
                     <button
                       onClick={() => updateItem(item, { favorite: !item.favorite })}
                       className="t8-mini-icon-button absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-amber-300 flex items-center justify-center"
@@ -811,6 +832,17 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                     <div className={`text-[10px] ${subtle}`}>分类：{categories.find((cat) => cat.id === item.categoryId)?.name || '未分类'}</div>
                   )}
                   <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                    {canPreviewItem(item) && (
+                      <button
+                        onClick={() => openPreview(item)}
+                        className="nodrag nopan t8-mini-icon-button resource-card-action"
+                        style={miniActionBase}
+                        title="查看完整素材"
+                        aria-label="查看完整素材"
+                      >
+                        <Eye size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={() => insertItem(item)}
                       className="nodrag nopan t8-mini-icon-button resource-card-action"
@@ -830,16 +862,6 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                     >
                       <Send size={13} />
                     </button>
-                    {isSharedSource && (
-                      <button
-                        onClick={() => copySharedItemToPersonal(item)}
-                        className="nodrag nopan t8-mini-icon-button resource-card-action"
-                        style={miniActionBase}
-                        title="另存为我的资源"
-                      >
-                        <Library size={13} />
-                      </button>
-                    )}
                     {(!isSharedSource || canManageShared) && (
                       <>
                         <button
@@ -876,6 +898,30 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
           <img src={hoverPreview.src} alt={hoverPreview.title} draggable={false} />
           <div className="resource-card-image-hover-preview__title">{hoverPreview.title}</div>
         </div>
+      )}
+      {previewItem && (
+        <ResourcePreviewOverlay
+          title={previewItem.title}
+          filename={previewItem.originalName || previewItem.title}
+          downloadUrl={previewItem.fileUrl}
+          onClose={closePreview}
+          media={
+            previewItem.kind === 'image' ? (
+              <img
+                src={previewItem.fileUrl || previewItem.thumbUrl}
+                alt={previewItem.title}
+                className="max-h-full max-w-full object-contain"
+                draggable={false}
+              />
+            ) : previewItem.kind === 'video' ? (
+              <LoopingVideo
+                src={previewItem.fileUrl}
+                controls
+                className="max-h-full max-w-full object-contain"
+              />
+            ) : null
+          }
+        />
       )}
     </div>
   );

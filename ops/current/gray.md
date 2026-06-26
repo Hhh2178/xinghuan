@@ -2,14 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.2`
-- 当前 release：`20260626-shared-resource-admin-generation-gray-r1-v052`
-- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.3`
+- 当前 release：`20260626-resource-preview-gray-r1-v053`
+- 当前状态：`2026-06-26 待 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
-  - `../../docs/logbooks/releases/gray/2026-06-26-shared-resource-admin-generation-gray.md`
+  - `../../docs/logbooks/releases/gray/2026-06-26-resource-preview-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-canvas-compatibility-persistence-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-workflow-resource-visibility-gray.md`
   - `../../docs/records/canvas/2026-06-26-canvas-compatibility-and-persistence-risk-analysis.md`

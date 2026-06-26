@@ -24,10 +24,13 @@ assert.match(drawerSource, /from '\.\/GenerationLibraryPreviewOverlay'/, "drawer
 assert.match(drawerSource, /const \[previewIndex, setPreviewIndex\]/, "drawer should track preview state");
 assert.match(drawerSource, /查看/, "drawer should render a preview action");
 assert.match(drawerSource, /下载/, "drawer should render a download action");
-assert.match(drawerSource, /item\.previewUrl \|\| item\.fileUrl/, "drawer should prefer previewUrl");
+assert.match(drawerSource, /item\.previewUrl \|\| item\.fileUrl/, "drawer cards should prefer previewUrl");
 assert.match(drawerSource, /item\.downloadUrl/, "drawer should use downloadUrl");
 assert.match(drawerSource, /<GenerationLibraryPreviewOverlay/, "drawer should mount the overlay");
 assert.doesNotMatch(drawerSource, /object-cover/, "generation library drawer cards should not crop image or video previews");
 assert.match(drawerSource, /object-contain/, "generation library drawer cards should show full image or video previews");
+assert.match(overlaySource, /item\.fileUrl \|\| item\.previewUrl/, "overlay should prefer original media for complete preview");
+assert.doesNotMatch(overlaySource, /item\.previewUrl \|\| item\.fileUrl/, "overlay should not prioritize cropped preview assets");
+assert.match(sharedOverlaySource, /h-\[min\(88vh,820px\)\]|max-h-\[88vh\]/, "shared overlay should constrain preview stage height");
 
 console.log("PASS generation library preview contract");
