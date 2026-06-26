@@ -7,27 +7,41 @@ export function cleanImportedNodeData(nodeType: unknown, data: unknown): unknown
   let changed = false;
 
   if (String(nodeType || '').toLowerCase() === 'llm') {
-    for (const key of ['error', 'status', 'isRunning', 'isPolling', 'pollingTimer', 'taskId', 'progress'] as const) {
+    const legacyPrompt = typeof next.prompt === 'string' ? next.prompt : '';
+    const userPrompt = typeof next.userPrompt === 'string' ? next.userPrompt : '';
+    const reply = typeof next.reply === 'string' ? next.reply : '';
+
+    if (!userPrompt && legacyPrompt && (!reply || legacyPrompt !== reply)) {
+      next.userPrompt = legacyPrompt;
+      changed = true;
+    }
+
+    for (const key of [
+      'error',
+      'status',
+      'isRunning',
+      'isPolling',
+      'pollingTimer',
+      'taskId',
+      'taskIds',
+      'progress',
+      'reply',
+      'prompt',
+      'history',
+      'generatedImages',
+      'imageUrl',
+      'imageUrls',
+      'consumedTexts',
+      'taskRuns',
+      'startedAt',
+      'finishedAt',
+      'lastPrompt',
+      'lastDurationMs',
+    ] as const) {
       if (key in next) {
         delete next[key];
         changed = true;
       }
-    }
-    if (next.reply == null && typeof next.prompt === 'string') {
-      next.userPrompt = typeof next.userPrompt === 'string' ? next.userPrompt : next.prompt;
-      changed = true;
-    }
-    if (Array.isArray(next.generatedImages) && next.generatedImages.length === 0) {
-      delete next.generatedImages;
-      changed = true;
-    }
-    if (Array.isArray(next.history) && next.history.length === 0) {
-      delete next.history;
-      changed = true;
-    }
-    if (typeof next.prompt === 'string' && typeof next.reply === 'string' && next.prompt === next.reply) {
-      next.userPrompt = typeof next.userPrompt === 'string' && next.userPrompt.trim() ? next.userPrompt : next.prompt;
-      changed = true;
     }
   }
 

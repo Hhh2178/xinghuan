@@ -6,30 +6,8 @@ export function migrateImportedNodeData(node: Node): Node {
   const data = (node.data || {}) as Record<string, unknown>;
   if (type !== 'llm') return node;
 
-  const nextData: Record<string, unknown> = { ...data };
-  let changed = false;
-
-  for (const key of ['error', 'status', 'isRunning', 'isPolling', 'pollingTimer', 'taskId', 'progress'] as const) {
-    if (key in nextData) {
-      delete nextData[key];
-      changed = true;
-    }
-  }
-
-  if (typeof nextData.prompt === 'string' && !nextData.userPrompt) {
-    nextData.userPrompt = nextData.prompt;
-    changed = true;
-  }
-
-  if (Array.isArray(nextData.history) && nextData.history.length === 0) {
-    delete nextData.history;
-    changed = true;
-  }
-
-  if (Array.isArray(nextData.generatedImages) && nextData.generatedImages.length === 0) {
-    delete nextData.generatedImages;
-    changed = true;
-  }
+  const nextData = cleanImportedLlmData(data);
+  const changed = nextData !== data;
 
   if (changed) {
     return {
@@ -43,4 +21,47 @@ export function migrateImportedNodeData(node: Node): Node {
 export function migrateImportedNodes(nodes: Node[]): Node[] {
   if (!Array.isArray(nodes)) return [];
   return nodes.map((node) => migrateImportedNodeData(node));
+}
+
+function cleanImportedLlmData(data: Record<string, unknown>): Record<string, unknown> {
+  const nextData: Record<string, unknown> = { ...data };
+  let changed = false;
+  const legacyPrompt = typeof nextData.prompt === 'string' ? nextData.prompt : '';
+  const userPrompt = typeof nextData.userPrompt === 'string' ? nextData.userPrompt : '';
+  const reply = typeof nextData.reply === 'string' ? nextData.reply : '';
+
+  if (!userPrompt && legacyPrompt && (!reply || legacyPrompt !== reply)) {
+    nextData.userPrompt = legacyPrompt;
+    changed = true;
+  }
+
+  for (const key of [
+    'error',
+    'status',
+    'isRunning',
+    'isPolling',
+    'pollingTimer',
+    'taskId',
+    'taskIds',
+    'progress',
+    'reply',
+    'prompt',
+    'history',
+    'generatedImages',
+    'imageUrl',
+    'imageUrls',
+    'consumedTexts',
+    'taskRuns',
+    'startedAt',
+    'finishedAt',
+    'lastPrompt',
+    'lastDurationMs',
+  ] as const) {
+    if (key in nextData) {
+      delete nextData[key];
+      changed = true;
+    }
+  }
+
+  return changed ? nextData : data;
 }

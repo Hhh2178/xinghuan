@@ -110,3 +110,30 @@
 
 下一步:
 - 继续做本地浏览器真实验收，并视情况补充更细的节点 schema 迁移
+### LLM 导入残留会话状态清理
+目标:
+- 修复“旧工作流导入后 LLM 节点无法正常使用，复制节点也无效，必须重建节点”的问题
+- 让工作流资源库保存/恢复后的 LLM 节点不再携带旧会话和旧输出残留
+
+变更:
+- 收紧 `apps/web/src/utils/nodeMigration.ts` 的 `llm` 导入迁移，只保留模型配置与用户输入，清理旧的 `reply / prompt / history / generatedImages / imageUrls / taskRuns` 等残留运行态
+- 同步收紧 `apps/api/src/canvas-node-migration.ts`，保证后端保存/恢复画布时与前端迁移口径一致
+- 确认 `apps/web/src/utils/workflowResource.ts` 创建与恢复 workflow fragment 时会走模板运行态清理和 `LLM` 导入迁移，避免资源库里的旧工作流再次带回脏状态
+- 新增回归脚本 `scripts/verify-llm-import-migration-contract.ts`
+
+验证:
+- `npx tsx scripts/verify-llm-import-migration-contract.ts`
+- `npx tsx scripts/verify-workflow-resource-resolver-contract.ts`
+- `npm run type-check -w @xinghuan/web`
+- `npm run type-check -w @xinghuan/api`
+- `codegraph sync`
+
+影响:
+- 旧工作流导入、从后端恢复、从资源库插入时，LLM 节点会被还原成“保留配置但不保留旧会话”的干净状态
+- 之前因为旧多模态历史和旧输出地址被重复带入而导致的兼容性问题会被收口在迁移层，不需要用户手工重建节点
+
+风险:
+- 这次有意不再保留 LLM 节点的历史聊天内容和旧生成结果；如果后续需要“带会话复制/带会话归档”，要设计成显式能力，不能继续复用导入链路
+
+下一步:
+- 由你在灰度或当前环境中重点验证“旧工作流导入 / 资源库插入 / 刷新后重新打开画布”这三条链路里的 LLM 节点是否恢复正常
