@@ -1,7 +1,17 @@
-import { FolderPlus, Image as ImageIcon, Library, Music, RefreshCw, Save, Search, Trash2, Upload, Video } from "lucide-react";
+import { Image as ImageIcon, Library, Music, RefreshCw, Search, Upload, Video } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminSharedResourceApi } from "./admin-api-client";
-import type { ResourceCategory, ResourceKind, ResourceMediaKind, SharedResourceItem } from "./admin-types";
+import { AdminMediaPreviewModal } from "./admin-media-preview-modal";
+import { AdminPublicResourceCard } from "./admin-public-resource-card";
+import { AdminPublicResourceCategorySidebar } from "./admin-public-resource-category-sidebar";
+import type {
+  AdminSharedResourceDraft,
+  AdminSharedResourcePreviewKind,
+  ResourceCategory,
+  ResourceKind,
+  ResourceMediaKind,
+  SharedResourceItem,
+} from "./admin-types";
 
 const KIND_META: Record<ResourceKind, { label: string; icon: typeof ImageIcon }> = {
   image: { label: "图像", icon: ImageIcon },
@@ -12,14 +22,7 @@ const KIND_META: Record<ResourceKind, { label: string; icon: typeof ImageIcon }>
   workflow: { label: "工作流", icon: Library },
 };
 
-type Draft = {
-  title: string;
-  categoryId: string;
-  tagsText: string;
-  note: string;
-};
-
-function createDraft(item: SharedResourceItem): Draft {
+function createDraft(item: SharedResourceItem): AdminSharedResourceDraft {
   return {
     title: item.title || "",
     categoryId: item.categoryId || "",
@@ -28,10 +31,9 @@ function createDraft(item: SharedResourceItem): Draft {
   };
 }
 
-function formatSize(size?: number) {
-  if (!Number.isFinite(size || 0) || !size) return "-";
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+function getPreviewKind(item: SharedResourceItem): AdminSharedResourcePreviewKind {
+  if (item.kind === "image" || item.kind === "video" || item.kind === "audio") return item.kind;
+  return "other";
 }
 
 export function AdminPublicResourcesPanel() {
@@ -40,9 +42,10 @@ export function AdminPublicResourcesPanel() {
   const [q, setQ] = useState("");
   const [categories, setCategories] = useState<ResourceCategory[]>([]);
   const [items, setItems] = useState<SharedResourceItem[]>([]);
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [drafts, setDrafts] = useState<Record<string, AdminSharedResourceDraft>>({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [previewItem, setPreviewItem] = useState<SharedResourceItem | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const canUpload = kind === "image" || kind === "video" || kind === "audio";
@@ -70,12 +73,9 @@ export function AdminPublicResourcesPanel() {
     void load();
   }, [kind, categoryId]);
 
-  const categoryNameById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
-    [categories],
-  );
+  const categoryNameById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
 
-  function updateDraft(id: string, patch: Partial<Draft>) {
+  function updateDraft(id: string, patch: Partial<AdminSharedResourceDraft>) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
   }
 
@@ -178,7 +178,7 @@ export function AdminPublicResourcesPanel() {
         <div>
           <span>Shared Resource Governance</span>
           <strong>公共资源管理</strong>
-          <p>集中维护公共图像、视频、音频、素材集、姿势和工作流，前台用户可浏览并另存为个人资源。</p>
+          <p>把公共图像、视频、音频与其他治理条目收在同一个卡片工作区里，确保预览完整可见、管理动作稳定可读。</p>
         </div>
         <div className="admin-public-resources-hero__actions">
           <button type="button" onClick={() => void load()} disabled={loading}>
@@ -204,105 +204,97 @@ export function AdminPublicResourcesPanel() {
       </div>
 
       <div className="admin-public-resources-toolbar">
-        {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
-          const Icon = KIND_META[nextKind].icon;
-          return (
-            <button key={nextKind} type="button" className={kind === nextKind ? "active" : ""} onClick={() => {
-              setKind(nextKind);
-              setCategoryId("all");
-            }}>
-              <Icon aria-hidden="true" />
-              {KIND_META[nextKind].label}
-            </button>
-          );
-        })}
-        <label>
+        <div className="admin-public-resources-toolbar__kinds">
+          {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
+            const Icon = KIND_META[nextKind].icon;
+            return (
+              <button
+                key={nextKind}
+                type="button"
+                className={kind === nextKind ? "active" : ""}
+                onClick={() => {
+                  setKind(nextKind);
+                  setCategoryId("all");
+                }}
+              >
+                <Icon aria-hidden="true" />
+                {KIND_META[nextKind].label}
+              </button>
+            );
+          })}
+        </div>
+        <label className="admin-public-resources-toolbar__search">
           <Search aria-hidden="true" />
-          <input value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => {
-            if (event.key === "Enter") void load();
-          }} placeholder="搜索名称 / 标签 / 备注" />
+          <input
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void load();
+            }}
+            placeholder="搜索名称 / 标签 / 备注"
+          />
         </label>
       </div>
 
       {message ? <div className="error-banner">{message}</div> : null}
 
       <div className="admin-public-resources-layout">
-        <aside className="data-panel admin-public-resources-categories">
-          <header>
-            <FolderPlus aria-hidden="true" />
-            <h2>分类</h2>
-            <button type="button" onClick={createCategory}>新增</button>
-          </header>
-          <div className="admin-public-resources-category-list">
-            <button type="button" className={categoryId === "all" ? "active" : ""} onClick={() => setCategoryId("all")}>
-              全部
-            </button>
-            {categories.map((category) => (
-              <div key={category.id} className={categoryId === category.id ? "active" : ""}>
-                <button type="button" onClick={() => setCategoryId(category.id)}>{category.name}</button>
-                <button type="button" onClick={() => void renameCategory(category)}>改名</button>
-                <button type="button" className="danger-button" onClick={() => void deleteCategory(category)}>删除</button>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <AdminPublicResourceCategorySidebar
+          categories={categories}
+          activeCategoryId={categoryId}
+          itemCount={items.length}
+          loading={loading}
+          onSelectCategory={setCategoryId}
+          onCreateCategory={() => void createCategory()}
+          onRenameCategory={(category) => void renameCategory(category)}
+          onDeleteCategory={(category) => void deleteCategory(category)}
+        />
 
-        <section className="data-panel admin-public-resources-list">
+        <section className="data-panel admin-public-resources-workspace">
           <header>
-            <Library aria-hidden="true" />
-            <h2>{activeMeta.label}公共资源</h2>
-            <span>{loading ? "加载中" : `${items.length} 项`}</span>
+            <div className="admin-public-resources-workspace__title">
+              <Library aria-hidden="true" />
+              <div>
+                <h2>{activeMeta.label}公共资源</h2>
+                <span>{loading ? "加载中" : `${items.length} 项资源`}</span>
+              </div>
+            </div>
           </header>
-          <div className="admin-public-resources-table">
-            {items.map((item) => {
-              const draft = drafts[item.id] || createDraft(item);
-              return (
-                <article key={item.id} className="admin-public-resource-row">
-                  <div className="admin-public-resource-row__preview">
-                    {item.kind === "image" && (item.fileUrl || item.url) ? <img src={item.fileUrl || item.url} alt={item.title} /> : null}
-                    {item.kind === "video" ? <Video aria-hidden="true" /> : null}
-                    {item.kind === "audio" ? <Music aria-hidden="true" /> : null}
-                    {item.kind !== "image" && item.kind !== "video" && item.kind !== "audio" ? <Library aria-hidden="true" /> : null}
-                  </div>
-                  <div className="admin-public-resource-row__fields">
-                    <input value={draft.title} onChange={(event) => updateDraft(item.id, { title: event.target.value })} placeholder="资源名称" />
-                    <select value={draft.categoryId} onChange={(event) => updateDraft(item.id, { categoryId: event.target.value })}>
-                      <option value="">未分类</option>
-                      {item.categoryId && !categoryNameById.has(item.categoryId) ? (
-                        <option value={item.categoryId}>缺失分类：{item.categoryId}</option>
-                      ) : null}
-                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
-                    <input value={draft.tagsText} onChange={(event) => updateDraft(item.id, { tagsText: event.target.value })} placeholder="标签，用英文逗号分隔" />
-                    <input value={draft.note} onChange={(event) => updateDraft(item.id, { note: event.target.value })} placeholder="备注" />
-                  </div>
-                  <div className="admin-public-resource-row__meta">
-                    <span>{item.mime || item.kind}</span>
-                    <span>{formatSize(item.size)}</span>
-                    <span>{new Date(item.updatedAt).toLocaleString()}</span>
-                  </div>
-                  <div className="admin-public-resource-row__actions">
-                    <button type="button" onClick={() => void saveItem(item)}>
-                      <Save aria-hidden="true" />
-                      保存
-                    </button>
-                    <button type="button" className="danger-button" onClick={() => void deleteItem(item)}>
-                      <Trash2 aria-hidden="true" />
-                      删除
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+
+          <div className="admin-public-resources-grid">
+            {items.map((item) => (
+              <AdminPublicResourceCard
+                key={item.id}
+                item={item}
+                draft={drafts[item.id] || createDraft(item)}
+                categories={categories}
+                categoryNameById={categoryNameById}
+                onDraftChange={(patch) => updateDraft(item.id, patch)}
+                onSave={() => void saveItem(item)}
+                onDelete={() => void deleteItem(item)}
+                onOpenPreview={() => setPreviewItem(item)}
+              />
+            ))}
+
             {!loading && !items.length ? (
               <div className="admin-public-resources-empty">
                 <Library aria-hidden="true" />
                 <span>暂无公共资源</span>
+                <small>保留上传、分类与治理动作，等第一条资源进来后这里会自动切换成卡片网格。</small>
               </div>
             ) : null}
           </div>
         </section>
       </div>
+
+      <AdminMediaPreviewModal
+        open={Boolean(previewItem)}
+        title={previewItem?.title || ""}
+        url={previewItem?.fileUrl || previewItem?.url}
+        mime={previewItem?.mime}
+        kind={previewItem ? getPreviewKind(previewItem) : "other"}
+        onClose={() => setPreviewItem(null)}
+      />
     </section>
   );
 }

@@ -164,6 +164,10 @@ export interface AdminAnnouncementRecord extends AdminAnnouncementRecordShape {}
 type AuditRecord = AuditRecordShape;
 type SystemInfo = SystemInfoShape;
 type AdminUsageSummary = AdminUsageSummaryShape;
+type MutateOptions = {
+  suppressGlobalError?: boolean;
+  rethrow?: boolean;
+};
 
 function defaultAssistantSettings(): AssistantSettings {
   return {
@@ -387,9 +391,12 @@ function AdminApp() {
     path: string,
     payload: Record<string, unknown>,
     method = "POST",
+    options?: MutateOptions,
   ) {
+    const shouldSetGlobalError = !options?.suppressGlobalError;
+    const shouldRethrow = Boolean(options?.rethrow);
     setBusy(true);
-    setError("");
+    if (shouldSetGlobalError) setError("");
     try {
       await api(path, {
         method,
@@ -398,7 +405,11 @@ function AdminApp() {
       });
       await Promise.all([loadAdminData(), loadTaskPage()]);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      const message = nextError instanceof Error ? nextError.message : String(nextError);
+      setError(shouldSetGlobalError ? message : "");
+      if (shouldRethrow) {
+        throw nextError instanceof Error ? nextError : new Error(message);
+      }
     } finally {
       setBusy(false);
     }

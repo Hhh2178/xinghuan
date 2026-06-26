@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
-import { FolderTree, Network, RefreshCw, Search, ShieldCheck, Workflow } from "lucide-react";
+import { FolderTree, Network, RefreshCw, Search, Workflow } from "lucide-react";
+import { AdminPermissionsGroupRail } from "./admin-permissions-group-rail";
+import { AdminPermissionsSavebar } from "./admin-permissions-savebar";
+import { AdminPermissionsSummaryStrip } from "./admin-permissions-summary-strip";
 import { StatusPill } from "./admin-common-components";
 import type {
   AdminGroupPermissionPolicy,
   AdminPermissionCatalog,
+  AdminUserGroup,
   GroupPermissionDeny,
   PermissionNodeType,
   ResourceCategory,
@@ -98,23 +102,6 @@ function PermissionToggle({
       </span>
       <span>{denied ? "禁用" : "允许"}</span>
     </button>
-  );
-}
-
-function PermissionSummaryCard({
-  label,
-  value,
-  tone = "muted",
-}: {
-  label: string;
-  value: string | number;
-  tone?: "success" | "warning" | "danger" | "muted";
-}) {
-  return (
-    <div className="permission-summary-card">
-      <span>{label}</span>
-      <StatusPill tone={tone}>{String(value)}</StatusPill>
-    </div>
   );
 }
 
@@ -301,49 +288,15 @@ export function AdminPermissionsPanel({
 
   return (
     <section className="permissions-shell">
-      <section className="data-panel permissions-groups-panel">
-        <header>
-          <ShieldCheck aria-hidden="true" />
-          <h2>权限分组</h2>
-        </header>
-        <div className="permissions-groups-panel__body">
-          <label className="toolbar-search permissions-search">
-            <Search aria-hidden="true" />
-            <input
-              placeholder="搜索分组"
-              value={groupSearch}
-              onChange={(event) => setGroupSearch(event.target.value)}
-            />
-          </label>
-          <div className="permissions-group-list">
-            {visibleGroups.map((group) => {
-              const policy = policyMap.get(group.id);
-              const summary = normalizeDeny(policy?.deny);
-              const selected = effectiveGroup?.id === group.id;
-              return (
-                <button
-                  type="button"
-                  key={group.id}
-                  className={selected ? "permissions-group-card active" : "permissions-group-card"}
-                  onClick={() => setSelectedGroupId(group.id)}
-                >
-                  <div className="permissions-group-card__title">
-                    <strong>{group.name}</strong>
-                    <StatusPill tone={selected ? "success" : "muted"}>{policy?.memberCount || 0} 人</StatusPill>
-                  </div>
-                  <p>{group.description || "当前分组暂无说明"}</p>
-                  <div className="permissions-group-card__stats">
-                    <span>资源 {summary.sharedResourceCategoryIds.length + summary.sharedResourceItemIds.length}</span>
-                    <span>RH {summary.runningHubAppCatalogIds.length + summary.runningHubWorkflowCatalogIds.length}</span>
-                    <span>节点 {summary.nodeTypes.length}</span>
-                  </div>
-                </button>
-              );
-            })}
-            {!visibleGroups.length ? <div className="permissions-empty-card">没有匹配的分组。</div> : null}
-          </div>
-        </div>
-      </section>
+      <AdminPermissionsGroupRail
+        groups={visibleGroups as AdminUserGroup[]}
+        groupSearch={groupSearch}
+        onGroupSearchChange={setGroupSearch}
+        selectedGroupId={effectiveGroup?.id || null}
+        onSelectGroup={setSelectedGroupId}
+        policyMap={policyMap}
+        summarizeDeny={normalizeDeny}
+      />
 
       <section className="panel-stack permissions-editor">
         <div className="api-card permissions-hero">
@@ -362,14 +315,14 @@ export function AdminPermissionsPanel({
           </div>
         </div>
 
-        <div className="permissions-summary-grid">
-          <PermissionSummaryCard label="当前分组" value={effectiveGroup?.name || "-"} tone="success" />
-          <PermissionSummaryCard label="成员数量" value={selectedPolicy?.memberCount || 0} />
-          <PermissionSummaryCard label="已限制公共资源" value={currentDeny.sharedResourceCategoryIds.length + currentDeny.sharedResourceItemIds.length} tone={currentDeny.sharedResourceCategoryIds.length + currentDeny.sharedResourceItemIds.length ? "warning" : "muted"} />
-          <PermissionSummaryCard label="已限制 RH 应用" value={currentDeny.runningHubAppCatalogIds.length} tone={currentDeny.runningHubAppCatalogIds.length ? "warning" : "muted"} />
-          <PermissionSummaryCard label="已限制 RH 工作流" value={currentDeny.runningHubWorkflowCatalogIds.length} tone={currentDeny.runningHubWorkflowCatalogIds.length ? "warning" : "muted"} />
-          <PermissionSummaryCard label="已限制节点" value={currentDeny.nodeTypes.length} tone={currentDeny.nodeTypes.length ? "warning" : "muted"} />
-        </div>
+        <AdminPermissionsSummaryStrip
+          groupName={effectiveGroup?.name || "-"}
+          memberCount={selectedPolicy?.memberCount || 0}
+          deniedSharedResources={currentDeny.sharedResourceCategoryIds.length + currentDeny.sharedResourceItemIds.length}
+          deniedRunningHubApps={currentDeny.runningHubAppCatalogIds.length}
+          deniedRunningHubWorkflows={currentDeny.runningHubWorkflowCatalogIds.length}
+          deniedNodeTypes={currentDeny.nodeTypes.length}
+        />
 
         <div className="permissions-section-tabs">
           {SECTION_OPTIONS.map((option) => (
@@ -514,29 +467,14 @@ export function AdminPermissionsPanel({
 
           <MissingPermissionBlock activeSection={activeSection} missingIds={missingIds} />
 
-          <div className="permissions-savebar">
-            <div>
-              <strong>{dirty ? "有未保存的权限调整" : "当前分组权限已同步"}</strong>
-              <span>
-                {selectedPolicy?.updatedAt
-                  ? `最近更新：${new Date(selectedPolicy.updatedAt).toLocaleString()}`
-                  : "当前分组还没有独立的限制记录。"}
-              </span>
-            </div>
-            <div className="permissions-savebar__actions">
-              <button
-                type="button"
-                className="muted-button"
-                disabled={!dirty || saving}
-                onClick={() => updateDraft(persistedDeny)}
-              >
-                放弃修改
-              </button>
-              <button type="button" disabled={!dirty || saving || !effectiveGroup} onClick={handleSave}>
-                {saving ? "保存中..." : "保存权限"}
-              </button>
-            </div>
-          </div>
+          <AdminPermissionsSavebar
+            dirty={dirty}
+            saving={saving}
+            hasSelectedGroup={Boolean(effectiveGroup)}
+            updatedAt={selectedPolicy?.updatedAt}
+            onReset={() => updateDraft(persistedDeny)}
+            onSave={handleSave}
+          />
         </div>
       </section>
     </section>

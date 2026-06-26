@@ -93,6 +93,15 @@ export interface SharedResourceItem {
   publishedAt?: number;
 }
 
+export interface AdminSharedResourceDraft {
+  title: string;
+  categoryId: string;
+  tagsText: string;
+  note: string;
+}
+
+export type AdminSharedResourcePreviewKind = ResourceMediaKind | "other";
+
 export interface AdminUserGroup {
   id: string;
   name: string;

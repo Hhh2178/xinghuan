@@ -1061,7 +1061,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-version: "0.5.4",
+      version: "0.5.5",
       environment,
       dataDir,
     });
@@ -2292,7 +2292,7 @@ async function handleAdminRequest(
         storageDriver,
         authDbPath,
         adminDbPath,
-version: "0.5.4",
+    version: "0.5.5",
       },
       queueSettings: {
         sendT8,
@@ -2334,14 +2334,14 @@ version: "0.5.4",
       assertUserGroupNameUnique(authDb.userGroups, name);
       const now = Date.now();
       const group: UserGroupRecord = {
-        id: safeSlug(body.id || name, `group-${now}`),
+        id: createUserGroupId(now),
         name,
         description: safeText(body.description),
         sortOrder: normalizeUserGroupSortOrder(body.sortOrder),
         createdAt: now,
         updatedAt: now,
       };
-      if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("用户组 ID 已存在");
+      if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("系统生成的用户组 ID 冲突，请重试。");
       if (usePostgresRepository()) {
         await insertUserGroupPostgres(group);
       } else {
@@ -8855,6 +8855,10 @@ function normalizeTaskStatus(value: unknown): TaskStatus {
 function normalizeUserGroupId(value: unknown) {
   const groupId = safeText(value);
   return groupId || undefined;
+}
+
+function createUserGroupId(timestamp = Date.now()) {
+  return `group-${timestamp}-${randomToken(4)}`;
 }
 
 function normalizeUserGroupSortOrder(value: unknown) {

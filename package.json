@@ -1,6 +1,6 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
@@ -35,6 +35,7 @@
     "verify:admin-overview-panel-contract": "node scripts/verify-admin-overview-panel-contract.mjs",
     "verify:admin-task-panel-contract": "node scripts/verify-admin-task-panel-contract.mjs",
     "verify:admin-users-panel-contract": "node scripts/verify-admin-users-panel-contract.mjs",
+    "verify:admin-governance-redesign-contract": "node scripts/verify-admin-governance-redesign-contract.mjs",
     "verify:admin-api-layout-contract": "node scripts/verify-admin-api-layout-contract.mjs",
     "verify:admin-api-settings-panel-helper-split-contract": "node scripts/verify-admin-api-settings-panel-helper-split-contract.mjs",
     "verify:admin-api-settings-panel-helper-behavior": "npx tsx scripts/verify-admin-api-settings-panel-helper-behavior.ts",

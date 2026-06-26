@@ -3,10 +3,16 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const modulePath = join(root, "apps", "admin", "src", "admin-users-panel.tsx");
+const accountsSectionPath = join(root, "apps", "admin", "src", "admin-user-accounts-section.tsx");
+const groupsSectionPath = join(root, "apps", "admin", "src", "admin-user-groups-section.tsx");
+const sessionsSectionPath = join(root, "apps", "admin", "src", "admin-user-sessions-section.tsx");
 const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), "utf8");
 const panelSource = existsSync(modulePath) ? readFileSync(modulePath, "utf8") : "";
+const accountsSectionSource = existsSync(accountsSectionPath) ? readFileSync(accountsSectionPath, "utf8") : "";
+const groupsSectionSource = existsSync(groupsSectionPath) ? readFileSync(groupsSectionPath, "utf8") : "";
+const sessionsSectionSource = existsSync(sessionsSectionPath) ? readFileSync(sessionsSectionPath, "utf8") : "";
 
-const requiredColumns = ["邮箱", "名称", "角色", "状态", "重置密码", "操作"];
+const requiredColumns = ["邮箱", "名称", "所属组", "备注", "角色", "状态", "当前密码", "重置密码", "操作"];
 
 const checks = [
   {
@@ -32,62 +38,63 @@ const checks = [
   {
     name: "users panel preserves create user form",
     pass:
-      panelSource.includes('title="新增成员"') &&
-      panelSource.includes('placeholder="邮箱"') &&
-      panelSource.includes('placeholder="名称"') &&
-      panelSource.includes('placeholder="分组名称"') &&
-      panelSource.includes('placeholder="账号备注"') &&
-      panelSource.includes('<option value="member">成员</option>') &&
-      panelSource.includes('<option value="admin">管理员</option>') &&
-      panelSource.includes('placeholder="初始密码"') &&
-      panelSource.includes('mutate("/api/admin/users", form)') &&
-      panelSource.includes("创建用户"),
+      existsSync(accountsSectionPath) &&
+      accountsSectionSource.includes('title="新增成员"') &&
+      accountsSectionSource.includes('placeholder="邮箱"') &&
+      accountsSectionSource.includes('placeholder="名称"') &&
+      accountsSectionSource.includes('placeholder="账号备注"') &&
+      accountsSectionSource.includes('<option value="member">成员</option>') &&
+      accountsSectionSource.includes('<option value="admin">管理员</option>') &&
+      accountsSectionSource.includes('placeholder="初始密码"') &&
+      accountsSectionSource.includes('mutate("/api/admin/users", form)') &&
+      accountsSectionSource.includes("创建用户"),
   },
   {
     name: "users panel preserves user group controls",
     pass:
-      panelSource.includes("用户组管理") &&
-      panelSource.includes("所属组") &&
-      panelSource.includes("备注") &&
-      panelSource.includes("删除账号") &&
-      panelSource.includes('"/api/admin/user-groups"') &&
-      panelSource.includes("`/api/admin/users/${user.id}`"),
+      panelSource.includes('label: "用户组"') &&
+      existsSync(groupsSectionPath) &&
+      groupsSectionSource.includes('title="新建用户组"') &&
+      groupsSectionSource.includes("分组概览") &&
+      groupsSectionSource.includes('"/api/admin/user-groups"'),
   },
   {
     name: "users panel preserves user table title and columns",
     pass:
-      panelSource.includes('title="用户与权限"') &&
-      requiredColumns.every((column) => panelSource.includes(`<th>${column}</th>`)),
+      accountsSectionSource.includes('title="账号列表"') &&
+      requiredColumns.every((column) => accountsSectionSource.includes(`<th>${column}</th>`)),
   },
   {
     name: "users panel preserves role and status rendering",
     pass:
-      panelSource.includes('user.role === "admin" ? "管理员" : "成员"') &&
-      panelSource.includes('tone={user.disabled ? "danger" : "success"}') &&
-      panelSource.includes('user.disabled ? "禁用" : "启用"'),
+      accountsSectionSource.includes('user.role === "admin" ? "管理员" : "成员"') &&
+      accountsSectionSource.includes('tone={user.disabled ? "danger" : "success"}') &&
+      accountsSectionSource.includes('user.disabled ? "禁用" : "启用"'),
   },
   {
     name: "users panel preserves password reset flow",
     pass:
-      panelSource.includes('placeholder="新密码"') &&
-      panelSource.includes('if (!password) return;') &&
-      panelSource.includes('mutate(`/api/admin/users/${user.id}`, { password }, "PATCH")') &&
-      panelSource.includes('setPasswords({ ...passwords, [user.id]: "" })') &&
-      panelSource.includes("重置"),
+      accountsSectionSource.includes('placeholder="新密码"') &&
+      accountsSectionSource.includes('if (!password) return;') &&
+      accountsSectionSource.includes('mutate(`/api/admin/users/${user.id}`, { password }, "PATCH")') &&
+      accountsSectionSource.includes('setPasswords({ ...passwords, [user.id]: "" })') &&
+      accountsSectionSource.includes("重置"),
   },
   {
     name: "users panel preserves enable disable flow",
     pass:
-      panelSource.includes('mutate(`/api/admin/users/${user.id}`, { disabled: !user.disabled }, "PATCH")') &&
-      panelSource.includes('{user.disabled ? "启用" : "禁用"}'),
+      accountsSectionSource.includes('mutate(`/api/admin/users/${user.id}`, { disabled: !user.disabled }, "PATCH")') &&
+      accountsSectionSource.includes('{user.disabled ? "启用" : "禁用"}'),
   },
   {
     name: "users panel uses shared admin components",
     pass:
-      panelSource.includes('from "./admin-common-components"') &&
-      panelSource.includes("<FormPanel") &&
-      panelSource.includes("<AdminTable") &&
-      panelSource.includes("<StatusPill"),
+      accountsSectionSource.includes('from "./admin-common-components"') &&
+      groupsSectionSource.includes('from "./admin-common-components"') &&
+      sessionsSectionSource.includes('from "./admin-common-components"') &&
+      accountsSectionSource.includes("<FormPanel") &&
+      accountsSectionSource.includes("<AdminTable") &&
+      sessionsSectionSource.includes("<StatusPill"),
   },
 ];
 
