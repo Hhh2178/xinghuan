@@ -10,6 +10,7 @@ import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
 import { Overview } from "./admin-overview-panel";
+import { AdminPublicResourcesPanel } from "./admin-public-resources-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
 import { AdminRunningHubWorkspace } from "./admin-runninghub-workspace";
@@ -499,6 +500,9 @@ function AdminApp() {
           ) : null}
           {activeTab === "runninghub-workspace" ? (
             <AdminRunningHubWorkspace selectedProviderId={runningHubWorkspaceProviderId} />
+          ) : null}
+          {activeTab === "public-resources" ? (
+            <AdminPublicResourcesPanel />
           ) : null}
           {activeTab === "assistant" ? (
             <AdminAssistantSettingsPanel

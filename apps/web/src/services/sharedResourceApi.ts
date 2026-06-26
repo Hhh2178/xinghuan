@@ -81,6 +81,31 @@ export function addSharedResourceItem(payload: AddResourcePayload) {
   });
 }
 
+export async function uploadSharedResourceFile(file: File) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${BASE}/files/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json?.success === false) {
+      return {
+        success: false as const,
+        status: response.status,
+        error: json?.error || `HTTP ${response.status}`,
+      };
+    }
+    return {
+      success: true as const,
+      data: json?.data as { filename: string; url: string; size: number; mime: string },
+    };
+  } catch (e: any) {
+    return { success: false as const, error: e?.message || '文件上传失败' };
+  }
+}
+
 export function addSharedResourceSet(payload: AddResourceSetPayload) {
   return safeSharedRequest<ResourceItem & { duplicate?: boolean }>(`${BASE}/shared-resources/sets/add`, {
     method: 'POST',

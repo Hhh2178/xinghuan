@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock3, Download, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
+import { Clock3, Download, Eye, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { useThemeStore } from '../stores/theme';
 import * as api from '../services/api';
 import type { GenerationLibraryItem, GenerationLibraryKind } from '../services/api';
@@ -98,9 +99,31 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   const inputCls = isPixel
     ? 'px-input h-9 text-xs'
     : `h-9 rounded-md border px-2 text-xs outline-none ${isDark ? 'border-white/10 bg-zinc-900 text-white' : 'border-black/10 bg-white text-zinc-900'}`;
-  const itemBtn = isPixel
-    ? 'px-btn px-btn--sm'
-    : `rounded-md border px-2 py-1 text-xs transition ${isDark ? 'border-white/10 hover:bg-white/10' : 'border-black/10 hover:bg-black/5'}`;
+  const miniActionBase: CSSProperties = {
+    width: 28,
+    height: 28,
+    minWidth: 28,
+    padding: 0,
+    borderRadius: 999,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: '0 0 28px',
+    border: isPixel ? '2px solid var(--px-ink, #1A1410)' : `1px solid ${isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.22)'}`,
+    background: isPixel ? 'var(--px-surface, #fff)' : isDark ? 'rgba(255,255,255,.06)' : '#fffdf6',
+    color: isPixel ? 'var(--px-ink, #1A1410)' : isDark ? '#f8fafc' : '#1f2937',
+    boxShadow: isPixel ? '2px 2px 0 var(--px-ink, #1A1410)' : '0 1px 2px rgba(0,0,0,.12)',
+    lineHeight: 1,
+  };
+  const miniInsertStyle: CSSProperties = {
+    ...miniActionBase,
+    background: isPixel ? 'var(--px-candy-mint, #A8E6C9)' : activeMeta.accent,
+    color: isPixel ? 'var(--px-ink, #1A1410)' : '#08111f',
+  };
+  const miniDeleteStyle: CSSProperties = {
+    ...miniActionBase,
+    color: '#dc2626',
+  };
 
   const insertItem = async (item: GenerationLibraryItem) => {
     await onInsertMaterial(item);
@@ -135,7 +158,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   if (!open) return null;
 
   return (
-    <div className={`generation-library-drawer fixed top-0 right-0 z-50 h-screen w-[420px] max-w-[calc(100vw-18px)] shadow-2xl flex flex-col ${panelCls}`}>
+    <div className={`generation-library-drawer fixed inset-y-0 right-0 z-50 h-dvh w-[min(420px,100vw)] max-w-[100vw] overflow-hidden shadow-2xl flex flex-col ${panelCls}`}>
       <div className={`h-[52px] px-4 py-3 flex items-center justify-between shrink-0 ${isPixel ? 'border-b-2 border-[var(--px-ink)] bg-[var(--px-muted)]' : isDark ? 'border-b border-white/10' : 'border-b border-black/10'}`}>
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles size={18} style={{ color: activeMeta.accent }} />
@@ -209,7 +232,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
                     <img
                       src={item.previewUrl || item.fileUrl}
                       alt={item.title}
-                      className="h-full w-full cursor-zoom-in object-cover"
+                      className="h-full w-full cursor-zoom-in object-contain"
                       draggable={false}
                     />
                   )}
@@ -217,7 +240,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
                     <LoopingVideo
                       src={item.previewUrl || item.fileUrl}
                       muted
-                      className="h-full w-full cursor-zoom-in object-cover"
+                      className="h-full w-full cursor-zoom-in object-contain"
                       onMouseEnter={(event) => event.currentTarget.play().catch(() => {})}
                       onMouseLeave={(event) => {
                         event.currentTarget.pause();
@@ -239,20 +262,44 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
               actions={
                 <>
                   {(item.kind === 'image' || item.kind === 'video') && (
-                    <button onClick={() => openPreview(item)} className={`${itemBtn} flex items-center gap-1`} title="查看">
-                      查看
+                    <button
+                      onClick={() => openPreview(item)}
+                      className="nodrag nopan t8-mini-icon-button resource-card-action"
+                      style={miniActionBase}
+                      title="查看"
+                      aria-label="查看"
+                    >
+                      <Eye size={13} />
                     </button>
                   )}
                   {item.downloadUrl && item.canDownload !== false && (
-                    <a href={item.downloadUrl} className={`${itemBtn} flex items-center gap-1`} title="下载">
-                      <Download size={13} /> 下载
+                    <a
+                      href={item.downloadUrl}
+                      className="nodrag nopan t8-mini-icon-button resource-card-action"
+                      style={miniActionBase}
+                      title="下载"
+                      aria-label="下载"
+                    >
+                      <Download size={13} />
                     </a>
                   )}
-                  <button onClick={() => insertItem(item)} className={`${itemBtn} flex items-center gap-1`} title="插入画布">
-                    <Plus size={13} /> 插入
+                  <button
+                    onClick={() => insertItem(item)}
+                    className="nodrag nopan t8-mini-icon-button resource-card-action"
+                    style={miniInsertStyle}
+                    title="插入画布"
+                    aria-label="插入画布"
+                  >
+                    <Plus size={15} />
                   </button>
-                  <button onClick={() => deleteItem(item)} className={`${itemBtn} flex items-center gap-1 text-rose-300`} title="删除">
-                    <Trash2 size={13} /> 删除
+                  <button
+                    onClick={() => deleteItem(item)}
+                    className="nodrag nopan t8-mini-icon-button resource-card-action"
+                    style={miniDeleteStyle}
+                    title="删除"
+                    aria-label="删除"
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </>
               }

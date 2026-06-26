@@ -112,5 +112,82 @@ export const adminAnnouncementApi = {
   deleteAnnouncement: (id: string) =>
     api<{ deleted: true; id: string }>(`/api/admin/announcements/${encodeURIComponent(id)}`, {
       method: "DELETE",
+  }),
+};
+
+export const adminSharedResourceApi = {
+  listCategories: (kind?: import("./admin-types").ResourceKind) =>
+    api<import("./admin-types").ResourceCategory[]>(
+      `/api/shared-resources/categories${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`,
+    ),
+  createCategory: (payload: { kind: import("./admin-types").ResourceKind; name: string }) =>
+    api<import("./admin-types").ResourceCategory>("/api/shared-resources/categories", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
     }),
+  renameCategory: (id: string, payload: { name: string; revision?: number }) =>
+    api<import("./admin-types").ResourceCategory>(`/api/shared-resources/categories/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteCategory: (id: string, revision?: number) =>
+    api<{ movedTo: string }>(`/api/shared-resources/categories/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(revision ? { revision } : {}),
+    }),
+  listItems: (params: { kind?: import("./admin-types").ResourceKind; categoryId?: string; q?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.kind) query.set("kind", params.kind);
+    if (params.categoryId && params.categoryId !== "all") query.set("categoryId", params.categoryId);
+    if (params.q) query.set("q", params.q);
+    const suffix = query.toString();
+    return api<import("./admin-types").SharedResourceItem[]>(`/api/shared-resources/items${suffix ? `?${suffix}` : ""}`);
+  },
+  createItem: (payload: {
+    kind: import("./admin-types").ResourceMediaKind;
+    url: string;
+    title?: string;
+    originalName?: string;
+    mime?: string;
+    size?: number;
+    categoryId?: string;
+    tags?: string[];
+    note?: string;
+  }) =>
+    api<import("./admin-types").SharedResourceItem>("/api/shared-resources/items/add", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateItem: (
+    id: string,
+    payload: Partial<Pick<import("./admin-types").SharedResourceItem, "title" | "categoryId" | "tags" | "favorite" | "note">> & {
+      revision?: number;
+    },
+  ) =>
+    api<import("./admin-types").SharedResourceItem>(`/api/shared-resources/items/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteItem: (id: string, revision?: number) =>
+    api<void>(`/api/shared-resources/items/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(revision ? { revision } : {}),
+    }),
+  uploadFile: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch("/api/files/upload", { method: "POST", body: formData, credentials: "same-origin" });
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : {};
+    if (!response.ok || payload?.success === false) {
+      throw new AdminApiError(payload?.error || `upload ${response.status}`, payload, response.status);
+    }
+    return payload.data as { filename: string; url: string; size: number; mime: string };
+  },
 };

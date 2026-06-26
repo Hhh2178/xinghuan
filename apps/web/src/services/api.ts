@@ -724,6 +724,9 @@ export interface AddResourcePayload {
   kind: ResourceMediaKind;
   categoryId?: string;
   title?: string;
+  originalName?: string;
+  mime?: string;
+  size?: number;
   tags?: string[];
   sourceNodeId?: string;
   sourceCanvasId?: string;

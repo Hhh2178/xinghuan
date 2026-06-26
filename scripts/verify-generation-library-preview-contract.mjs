@@ -27,5 +27,7 @@ assert.match(drawerSource, /下载/, "drawer should render a download action");
 assert.match(drawerSource, /item\.previewUrl \|\| item\.fileUrl/, "drawer should prefer previewUrl");
 assert.match(drawerSource, /item\.downloadUrl/, "drawer should use downloadUrl");
 assert.match(drawerSource, /<GenerationLibraryPreviewOverlay/, "drawer should mount the overlay");
+assert.doesNotMatch(drawerSource, /object-cover/, "generation library drawer cards should not crop image or video previews");
+assert.match(drawerSource, /object-contain/, "generation library drawer cards should show full image or video previews");
 
 console.log("PASS generation library preview contract");

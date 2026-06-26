@@ -2,13 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.1`
-- 当前 release：`20260626-canvas-compatibility-persistence-gray-r1-v051`
-- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.2`
+- 当前 release：`20260626-shared-resource-admin-generation-gray-r1-v052`
+- 当前状态：`2026-06-26 准备 deploy，待 runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../gray-deploy-runbook.md`
   - `../gray-acceptance-checklist.md`
+  - `../../docs/logbooks/releases/gray/2026-06-26-shared-resource-admin-generation-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-canvas-compatibility-persistence-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-workflow-resource-visibility-gray.md`
   - `../../docs/records/canvas/2026-06-26-canvas-compatibility-and-persistence-risk-analysis.md`
@@ -28,7 +29,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260626-workflow-resource-visibility-gray-r1-v051`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260626-canvas-compatibility-persistence-gray-r1-v051`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

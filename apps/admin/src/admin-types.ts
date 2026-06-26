@@ -28,6 +28,8 @@ export type {
 
 export type UserRole = "admin" | "member";
 export type Capability = "chat" | "image" | "video" | "audio";
+export type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
+export type ResourceMediaKind = "image" | "video" | "audio";
 export type ModelCapabilityTag =
   | "text_chat"
   | "image_understanding"
@@ -61,6 +63,34 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+}
+
+export interface ResourceCategory {
+  id: string;
+  kind: ResourceKind;
+  name: string;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SharedResourceItem {
+  id: string;
+  kind: ResourceKind;
+  title: string;
+  fileUrl?: string;
+  url?: string;
+  mime?: string;
+  size?: number;
+  categoryId?: string;
+  tags: string[];
+  favorite: boolean;
+  note?: string;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+  publishedBy?: string;
+  publishedAt?: number;
 }
 
 export interface AdminUserGroup {

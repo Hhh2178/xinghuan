@@ -2460,6 +2460,18 @@ html[data-theme-visual="tech"][data-theme-mode="light"] .react-flow__node:not(.r
   backdrop-filter: blur(8px);
 }
 
+.resource-library-drawer,
+.generation-library-drawer {
+  max-inline-size: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.resource-library-drawer *,
+.generation-library-drawer * {
+  min-inline-size: 0;
+}
+
 .resource-library-drawer .resource-card .resource-card-preview-trigger {
   width: 28px !important;
   height: 28px !important;

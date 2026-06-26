@@ -998,7 +998,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-version: "0.5.1",
+version: "0.5.2",
       environment,
       dataDir,
     });
@@ -2224,7 +2224,7 @@ async function handleAdminRequest(
         storageDriver,
         authDbPath,
         adminDbPath,
-version: "0.5.1",
+version: "0.5.2",
       },
       queueSettings: {
         sendT8,

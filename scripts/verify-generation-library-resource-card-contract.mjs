@@ -22,5 +22,8 @@ assert.match(
 );
 assert.match(generationDrawerSource, /下载/, "generation library should preserve a download action");
 assert.match(generationDrawerSource, /查看|预览/, "generation library should preserve a preview action");
+assert.doesNotMatch(generationDrawerSource, /object-cover/, "generation library cards should not crop generated media");
+assert.match(generationDrawerSource, /object-contain/, "generation library cards should show complete media");
+assert.match(generationDrawerSource, /miniActionBase/, "generation library should use resource-library style circular icon actions");
 
 console.log("PASS generation library resource card contract");

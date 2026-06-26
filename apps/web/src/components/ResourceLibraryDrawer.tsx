@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eye,
   FolderPlus,
@@ -174,6 +174,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [hoverPreview, setHoverPreview] = useState<{ src: string; title: string; left: number; top: number } | null>(null);
+  const sharedUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const isSharedSource = source === 'shared';
   const canManageShared = isSharedSource && currentUser?.role === 'admin';
@@ -311,8 +312,15 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
       ? await sharedResourceApi.updateSharedResourceItem(item.id, { ...patch, revision: item.revision })
       : await api.updateResourceItem(item.id, { ...patch, revision: item.revision });
     if (result.success) {
-      setItems((prev) => prev.map((x) => (x.id === item.id ? result.data : x)));
+      if (patch.categoryId !== undefined && categoryId !== 'all' && patch.categoryId !== categoryId) {
+        setItems((prev) => prev.filter((x) => x.id !== item.id));
+      } else {
+        setItems((prev) => prev.map((x) => (x.id === item.id ? result.data : x)));
+      }
       window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+      if (patch.categoryId !== undefined) {
+        await load({ silent: true });
+      }
       return true;
     }
     await handleResourceMutationError(result, '资源更新失败');
@@ -400,27 +408,53 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
     window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
   };
 
-  const uploadSharedResource = async () => {
+  const openSharedResourceUpload = () => {
     if (!canManageShared) return;
     if (!['image', 'video', 'audio'].includes(kind)) {
       setMsg('当前首版上传按钮先支持图像、视频、音频公共资源；工作流/姿势/素材集稍后接入');
       return;
     }
-    const url = window.prompt('输入公共资源 URL');
-    if (!url?.trim()) return;
-    const title = window.prompt('公共资源名称', '');
-    const result = await sharedResourceApi.addSharedResourceItem({
-      kind: kind as api.ResourceMediaKind,
-      url: url.trim(),
-      title: title?.trim() || undefined,
-      tags: ['公共资源'],
-    });
-    if (!result.success) {
-      setMsg(result.error || '上传到公共资源库失败');
+    sharedUploadInputRef.current?.click();
+  };
+
+  const uploadSharedResourceFiles = async (files: FileList | null) => {
+    if (!canManageShared || !files?.length) return;
+    if (!['image', 'video', 'audio'].includes(kind)) return;
+    const acceptedPrefix = `${kind}/`;
+    const selected = Array.from(files).filter((file) => file.type.startsWith(acceptedPrefix));
+    if (!selected.length) {
+      setMsg(`请选择${activeMeta.label}文件`);
       return;
     }
-    setMsg(`已加入公共资源库：${result.data.title}`);
-    await load({ silent: true });
+    setLoading(true);
+    let successCount = 0;
+    for (const file of selected) {
+      const uploaded = await sharedResourceApi.uploadSharedResourceFile(file);
+      if (!uploaded.success) {
+        setMsg(uploaded.error || `${file.name} 上传失败`);
+        continue;
+      }
+      const result = await sharedResourceApi.addSharedResourceItem({
+        kind: kind as api.ResourceMediaKind,
+        url: uploaded.data.url,
+        title: file.name,
+        originalName: file.name,
+        mime: uploaded.data.mime || file.type,
+        size: uploaded.data.size || file.size,
+        categoryId: categoryId === 'all' ? undefined : categoryId,
+        tags: ['公共资源'],
+      });
+      if (!result.success) {
+        setMsg(result.error || `${file.name} 加入公共资源库失败`);
+        continue;
+      }
+      successCount += 1;
+    }
+    setLoading(false);
+    if (successCount > 0) {
+      setMsg(`已上传 ${successCount} 个公共资源`);
+      await load({ silent: true });
+    }
   };
 
   const showImagePreview = useCallback((target: HTMLButtonElement, item: ResourceItem) => {
@@ -495,7 +529,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
   };
 
   return (
-    <div className={`resource-library-drawer fixed top-0 right-0 z-50 h-screen w-[440px] max-w-[calc(100vw-18px)] shadow-2xl flex flex-col ${panelCls}`}>
+    <div className={`resource-library-drawer fixed inset-y-0 right-0 z-50 h-dvh w-[min(440px,100vw)] max-w-[100vw] overflow-hidden shadow-2xl flex flex-col ${panelCls}`}>
       <div className={`h-[52px] px-4 py-3 flex items-center justify-between shrink-0 ${isPixel ? 'border-b-2 border-[var(--px-ink)] bg-[var(--px-muted)]' : isDark ? 'border-b border-white/10' : 'border-b border-black/10'}`}>
         <div className="flex items-center gap-2 min-w-0">
           <Library size={18} style={{ color: activeMeta.accent }} />
@@ -561,9 +595,22 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
             <Star size={15} fill={favoriteOnly ? 'currentColor' : 'none'} />
           </button>
           {canManageShared && (
-            <button onClick={uploadSharedResource} className={itemBtn} title="上传到公共资源库">
+            <button onClick={openSharedResourceUpload} className={itemBtn} title="上传到公共资源库">
               上传到公共资源库
             </button>
+          )}
+          {canManageShared && (
+            <input
+              ref={sharedUploadInputRef}
+              type="file"
+              multiple
+              accept={kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : undefined}
+              className="hidden"
+              onChange={(event) => {
+                void uploadSharedResourceFiles(event.currentTarget.files);
+                event.currentTarget.value = '';
+              }}
+            />
           )}
         </div>
       </div>
@@ -750,10 +797,14 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                   {item.kind === 'audio' && <audio src={item.fileUrl} controls className="w-full h-8" />}
                   {(!isSharedSource || canManageShared) ? (
                     <select
-                      value={item.categoryId}
+                      value={item.categoryId || ''}
                       onChange={(e) => updateItem(item, { categoryId: e.target.value })}
                       className={isPixel ? 'px-input w-full h-7 text-[11px]' : `w-full h-7 px-1.5 rounded text-[11px] ${isDark ? 'bg-zinc-900 border border-white/10' : 'bg-white border border-black/10'}`}
                     >
+                      <option value="">未分类</option>
+                      {item.categoryId && !categories.some((cat) => cat.id === item.categoryId) ? (
+                        <option value={item.categoryId}>缺失分类：{item.categoryId}</option>
+                      ) : null}
                       {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   ) : (

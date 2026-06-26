@@ -2,8 +2,8 @@
 
 ## 当前版本
 
-- `v0.5.1`｜🟡 Phase 3 入口视觉换肤批次进入 gray｜2026-06-24｜当前活跃版本
-  - 摘要：无限画布 2.0 当前产品能力基线继续沿 RunningHub、后台治理、队列并发、环境同步与多用户正式化治理推进。本轮将登录页、启动过渡页、空画布等待页和顶部左上品牌区统一切换到新的 Cyber PCB 视觉语言，同时保持现有登录、鉴权、创建画布和工作区装配逻辑不变，并补齐品牌资源、前端契约脚本、daily 台账与 gray 发布证据。当前目标是将这轮入口视觉刷新以 `v0.5.1` 推进到 gray，再交由用户执行实际页面观感验收。
+- `v0.5.2`｜🟡 公共资源后台与生成库交互修复批次进入 gray｜2026-06-26｜当前活跃版本
+  - 摘要：无限画布 2.0 当前产品能力基线继续沿 RunningHub、后台治理、队列并发、环境同步与多用户正式化治理推进。本轮补齐后台“公共资源”管理页，将公共资源上传从 URL 填写改为本地文件上传，并修复资源库抽屉溢出与生成库媒体裁切/动作按钮不一致问题。当前目标是将这轮公共资源与生成库体验修复以 `v0.5.2` 推进到 gray，再交由用户执行实际页面观感与业务验收。
   - 文档：[`prd.md`](./v0.1.0/prd.md) / [`spec.md`](./v0.1.0/spec.md) / [`design.md`](./v0.1.0/design.md) / [`entry-ui-google-brief.md`](./v0.1.0/entry-ui-google-brief.md) / [`plan.md`](./v0.1.0/plan.md) / [`provider-model-framework.md`](./v0.1.0/provider-model-framework.md) / [`assistant-hermes-plan.md`](./v0.1.0/assistant-hermes-plan.md) / [`assistant-hermes-implementation-plan.md`](./v0.1.0/assistant-hermes-implementation-plan.md) / [`progress.md`](./v0.1.0/progress.md) / [`decisions.md`](./v0.1.0/decisions.md) / [`release.md`](./v0.1.0/release.md) / [`changelog.md`](./v0.1.0/changelog.md)
 
 ## 推荐阅读顺序
