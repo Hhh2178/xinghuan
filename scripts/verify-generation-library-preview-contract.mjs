@@ -6,12 +6,15 @@ const root = process.cwd();
 
 const overlayPath = join(root, "apps", "web", "src", "components", "GenerationLibraryPreviewOverlay.tsx");
 const overlaySource = existsSync(overlayPath) ? readFileSync(overlayPath, "utf8") : "";
+const sharedOverlayPath = join(root, "apps", "web", "src", "components", "resource-library", "ResourcePreviewOverlay.tsx");
+const sharedOverlaySource = existsSync(sharedOverlayPath) ? readFileSync(sharedOverlayPath, "utf8") : "";
+const combinedOverlaySource = `${overlaySource}\n${sharedOverlaySource}`;
 assert.equal(existsSync(overlayPath), true, "GenerationLibraryPreviewOverlay should exist");
 assert.match(overlaySource, /export default function GenerationLibraryPreviewOverlay/, "overlay component should be exported");
-assert.match(overlaySource, /role="dialog"/, "overlay should expose dialog semantics");
-assert.match(overlaySource, /下载/, "overlay should expose a download action");
-assert.match(overlaySource, /上一张|上一项/, "overlay should expose previous navigation");
-assert.match(overlaySource, /下一张|下一项/, "overlay should expose next navigation");
+assert.match(combinedOverlaySource, /role="dialog"/, "overlay should expose dialog semantics");
+assert.match(combinedOverlaySource, /下载/, "overlay should expose a download action");
+assert.match(combinedOverlaySource, /上一张|上一项/, "overlay should expose previous navigation");
+assert.match(combinedOverlaySource, /下一张|下一项/, "overlay should expose next navigation");
 assert.match(overlaySource, /item\.kind === 'image'/, "overlay should handle image preview");
 assert.match(overlaySource, /item\.kind === 'video'/, "overlay should handle video preview");
 

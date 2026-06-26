@@ -5,6 +5,7 @@ import * as api from '../services/api';
 import type { GenerationLibraryItem, GenerationLibraryKind } from '../services/api';
 import LoopingVideo from './LoopingVideo';
 import GenerationLibraryPreviewOverlay from './GenerationLibraryPreviewOverlay';
+import { ResourceMediaCard } from './resource-library/ResourceMediaCard';
 
 const KIND_META: Record<GenerationLibraryKind, { label: string; icon: typeof ImageIcon; accent: string }> = {
   image: { label: '图片', icon: ImageIcon, accent: '#fbbf24' },
@@ -188,55 +189,55 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
         )}
         <div className="grid grid-cols-2 gap-2">
           {items.map((item) => (
-            <article
+            <ResourceMediaCard
               key={item.id}
-              className={`generation-card overflow-hidden transition-transform ${isPixel ? 'border-2 border-[var(--px-ink)] bg-[var(--px-surface)] shadow-[3px_3px_0_var(--px-ink)]' : isDark ? 'rounded-lg border border-white/10 bg-white/[0.04]' : 'rounded-lg border border-black/10 bg-black/[0.03]'}`}
-              data-drag-source
-              data-drag-kind={item.kind}
-              data-drag-url={item.fileUrl}
-              data-drag-preview={item.previewUrl || item.fileUrl}
-              data-drag-node-id="generation-library"
-              title="Ctrl+拖拽到节点，或点击插入画布"
-            >
-              <div
-                className="relative h-28 overflow-hidden bg-black/80"
-                onClick={() => (item.kind === 'image' || item.kind === 'video') && openPreview(item)}
-              >
-                {item.kind === 'image' && (
-                  <img
-                    src={item.previewUrl || item.fileUrl}
-                    alt={item.title}
-                    className="h-full w-full cursor-zoom-in object-cover"
-                    draggable={false}
-                  />
-                )}
-                {item.kind === 'video' && (
-                  <LoopingVideo
-                    src={item.previewUrl || item.fileUrl}
-                    muted
-                    className="h-full w-full cursor-zoom-in object-cover"
-                    onMouseEnter={(event) => event.currentTarget.play().catch(() => {})}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.pause();
-                      event.currentTarget.currentTime = 0;
-                    }}
-                  />
-                )}
-                {item.kind === 'audio' && (
-                  <div className="flex h-full w-full items-center justify-center" style={{ background: 'linear-gradient(135deg,#155e75,#7c3aed,#db2777)' }}>
-                    <Music size={34} className="text-white drop-shadow" />
+              className={`generation-card ${isPixel ? 'border-2 border-[var(--px-ink)] bg-[var(--px-surface)] shadow-[3px_3px_0_var(--px-ink)]' : isDark ? 'bg-white/[0.04]' : 'border-black/10 bg-black/[0.03]'}`}
+              title={item.title}
+              subtitle={formatSize(item.size) || item.mime || item.kind}
+              media={
+                <div
+                  data-drag-source
+                  data-drag-kind={item.kind}
+                  data-drag-url={item.fileUrl}
+                  data-drag-preview={item.previewUrl || item.fileUrl}
+                  data-drag-node-id="generation-library"
+                  title="Ctrl+拖拽到节点，或点击插入画布"
+                  className="relative h-full w-full"
+                  onClick={() => (item.kind === 'image' || item.kind === 'video') && openPreview(item)}
+                >
+                  {item.kind === 'image' && (
+                    <img
+                      src={item.previewUrl || item.fileUrl}
+                      alt={item.title}
+                      className="h-full w-full cursor-zoom-in object-cover"
+                      draggable={false}
+                    />
+                  )}
+                  {item.kind === 'video' && (
+                    <LoopingVideo
+                      src={item.previewUrl || item.fileUrl}
+                      muted
+                      className="h-full w-full cursor-zoom-in object-cover"
+                      onMouseEnter={(event) => event.currentTarget.play().catch(() => {})}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.pause();
+                        event.currentTarget.currentTime = 0;
+                      }}
+                    />
+                  )}
+                  {item.kind === 'audio' && (
+                    <div className="flex h-full w-full items-center justify-center" style={{ background: 'linear-gradient(135deg,#155e75,#7c3aed,#db2777)' }}>
+                      <Music size={34} className="text-white drop-shadow" />
+                    </div>
+                  )}
+                  <div className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    <Clock3 size={11} />
+                    {formatRemaining(item.expiresAt)}
                   </div>
-                )}
-                <div className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
-                  <Clock3 size={11} />
-                  {formatRemaining(item.expiresAt)}
                 </div>
-              </div>
-              <div className="p-2 space-y-1.5">
-                <div className="text-xs font-medium truncate" title={item.title}>{item.title}</div>
-                <div className={`text-[10px] truncate ${subtle}`}>{formatSize(item.size) || item.mime || item.kind}</div>
-                {item.kind === 'audio' && <audio src={item.fileUrl} controls className="h-8 w-full" />}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
+              }
+              actions={
+                <>
                   {(item.kind === 'image' || item.kind === 'video') && (
                     <button onClick={() => openPreview(item)} className={`${itemBtn} flex items-center gap-1`} title="查看">
                       查看
@@ -253,9 +254,11 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
                   <button onClick={() => deleteItem(item)} className={`${itemBtn} flex items-center gap-1 text-rose-300`} title="删除">
                     <Trash2 size={13} /> 删除
                   </button>
-                </div>
-              </div>
-            </article>
+                </>
+              }
+            >
+              {item.kind === 'audio' && <audio src={item.fileUrl} controls className="h-8 w-full" />}
+            </ResourceMediaCard>
           ))}
         </div>
       </main>

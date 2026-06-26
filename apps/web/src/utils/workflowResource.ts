@@ -1,6 +1,8 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { ResourceItem } from '../services/api';
 import type { SendNodeFragment } from './sendNodeFragment';
+import { migrateImportedNodes } from './nodeMigration';
+import { cleanupNodeRuntimeForWorkflowTemplate } from './workflowRuntimeCleanup';
 
 export const WORKFLOW_RESOURCE_SCHEMA = 't8-workflow-fragment';
 
@@ -47,7 +49,7 @@ function safeTitle(value: unknown, fallback = '未命名工作流'): string {
 
 function cleanNodes(nodes: unknown): Node[] {
   if (!Array.isArray(nodes)) return [];
-  return nodes
+  const clonedNodes = nodes
     .filter((node): node is Node => !!node && typeof node === 'object' && typeof (node as Node).id === 'string')
     .map((node) => {
       const cloned = clonePlain(node) as Node & Record<string, any>;
@@ -56,8 +58,12 @@ function cleanNodes(nodes: unknown): Node[] {
       delete cloned.resizing;
       delete cloned.positionAbsolute;
       delete cloned.measured;
+      if (cloned.data && typeof cloned.data === 'object' && !Array.isArray(cloned.data)) {
+        cloned.data = cleanupNodeRuntimeForWorkflowTemplate(cloned.type, cloned.data) as Record<string, unknown>;
+      }
       return cloned as Node;
     });
+  return migrateImportedNodes(clonedNodes);
 }
 
 function cleanEdges(edges: unknown, nodeIds: Set<string>): Edge[] {

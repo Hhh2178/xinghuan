@@ -129,6 +129,7 @@ import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
+import { createSharedResourceRouteHandler } from "./shared-resource-routes.js";
 import { cleanImportedNodeData, sanitizeCanvasNodes } from "./canvas-node-migration.js";
 import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
 
@@ -157,6 +158,7 @@ const adminDir = join(dataDir, "admin");
 const usersDir = join(dataDir, "users");
 const authDbPath = join(authDir, "auth.json");
 const adminDbPath = join(adminDir, "admin.json");
+const sharedResourceDbPath = join(adminDir, "shared-resource-library.json");
 const webDistCandidates = [
   process.env.XINGHUAN_WEB_DIST_DIR,
   resolve(process.cwd(), "../../apps/web/dist"),
@@ -275,6 +277,22 @@ const {
   filePath: join(dataDir, "admin", "task-runtime-events.ndjson"),
 });
 
+const handleSharedResourceRoutes = createSharedResourceRouteHandler({
+  adminDir,
+  sharedResourceDbPath,
+  safeText,
+  inferMime,
+  normalizeResourceKind,
+  resourceRevisionFromPayload,
+  readJsonBody,
+  sendT8,
+  HttpError,
+  readResourceDb,
+  writeResourceDb,
+  usePostgresRepository,
+  upsertResourceItemPostgres,
+});
+
 interface CanvasListItem {
   id: string;
   name: string;
@@ -307,6 +325,7 @@ interface ResourceCategory {
 interface ResourceItem {
   id: string;
   kind: ResourceKind;
+  libraryScope?: "personal" | "shared";
   title: string;
   url?: string;
   sourceUrl?: string;
@@ -1693,6 +1712,8 @@ version: "0.5.1",
         return;
       }
     }
+
+    if (await handleSharedResourceRoutes({ request, response, url, currentUser })) return;
 
     const resourceCategoryMatch = url.pathname.match(/^\/api\/resources\/categories\/([^/]+)$/);
     if (resourceCategoryMatch) {
@@ -11355,6 +11376,7 @@ async function readResourceDb(user: CurrentUser): Promise<ResourceDb> {
   return readResourceDbFromFile(user);
 }
 
+
 async function readResourceDbFromFile(user: CurrentUser): Promise<ResourceDb> {
   await ensureDataDirs(user);
   try {
@@ -11717,6 +11739,7 @@ async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKin
   }
   return item;
 }
+
 
 function pickResourcePatch(patch: Partial<ResourceItem>) {
   return {

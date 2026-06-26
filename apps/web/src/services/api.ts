@@ -659,6 +659,7 @@ export interface ResourceCategory {
 export interface ResourceItem {
   id: string;
   kind: ResourceKind;
+  libraryScope?: 'personal' | 'shared';
   categoryId: string;
   title: string;
   originalName?: string;

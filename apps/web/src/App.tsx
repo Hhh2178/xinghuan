@@ -626,6 +626,7 @@ function App() {
         open={resourceOpen}
         onClose={() => setResourceOpen(false)}
         onInsertMaterial={handleInsertResource}
+        currentUser={currentUser}
       />
       <GenerationLibraryDrawer
         open={generationLibraryOpen}

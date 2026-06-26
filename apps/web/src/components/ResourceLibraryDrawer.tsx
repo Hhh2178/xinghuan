@@ -21,7 +21,8 @@ import {
 import type { CSSProperties } from 'react';
 import { useThemeStore } from '../stores/theme';
 import * as api from '../services/api';
-import type { ResourceCategory, ResourceItem, ResourceKind } from '../services/api';
+import * as sharedResourceApi from '../services/sharedResourceApi';
+import type { AuthUser, ResourceCategory, ResourceItem, ResourceKind } from '../services/api';
 import { resourceItemToSendMaterials } from '../utils/sendMaterials';
 import { summarizeWorkflowResource } from '../utils/workflowResource';
 import LoopingVideo from './LoopingVideo';
@@ -39,7 +40,10 @@ interface ResourceLibraryDrawerProps {
   open: boolean;
   onClose: () => void;
   onInsertMaterial: (item: ResourceItem) => void | Promise<void>;
+  currentUser?: AuthUser | null;
 }
+
+type ResourceLibrarySource = 'personal' | 'shared';
 
 function formatSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return '';
@@ -156,10 +160,11 @@ function resultData<T>(r: api.Result<T> | any): T | null {
   return r?.success ? (r.data as T) : null;
 }
 
-export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial }: ResourceLibraryDrawerProps) {
+export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial, currentUser }: ResourceLibraryDrawerProps) {
   const { theme, style } = useThemeStore();
   const isDark = theme === 'dark';
   const isPixel = style === 'pixel';
+  const [source, setSource] = useState<ResourceLibrarySource>('personal');
   const [kind, setKind] = useState<ResourceKind>('image');
   const [categoryId, setCategoryId] = useState('all');
   const [q, setQ] = useState('');
@@ -170,12 +175,17 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   const [msg, setMsg] = useState('');
   const [hoverPreview, setHoverPreview] = useState<{ src: string; title: string; left: number; top: number } | null>(null);
 
+  const isSharedSource = source === 'shared';
+  const canManageShared = isSharedSource && currentUser?.role === 'admin';
+
   const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!open) return;
     if (!silent) setLoading(true);
     const [catRes, itemRes] = await Promise.all([
-      api.getResourceCategories(kind),
-      api.getResourceItems({ kind, categoryId, q, favorite: favoriteOnly }),
+      isSharedSource ? sharedResourceApi.getSharedResourceCategories(kind) : api.getResourceCategories(kind),
+      isSharedSource
+        ? sharedResourceApi.getSharedResourceItems({ kind, categoryId, q, favorite: favoriteOnly })
+        : api.getResourceItems({ kind, categoryId, q, favorite: favoriteOnly }),
     ]);
     const nextCats = resultData<ResourceCategory[]>(catRes);
     const nextItems = resultData<ResourceItem[]>(itemRes);
@@ -183,10 +193,10 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
     if (nextItems) setItems(nextItems);
     if (nextCats && nextItems) setMsg('');
     if (!nextCats || !nextItems) {
-      setMsg((catRes as any)?.error || (itemRes as any)?.error || '资源库加载失败');
+      setMsg((catRes as any)?.error || (itemRes as any)?.error || `${isSharedSource ? '公共' : '个人'}资源库加载失败`);
     }
     if (!silent) setLoading(false);
-  }, [open, kind, categoryId, q, favoriteOnly]);
+  }, [open, isSharedSource, kind, categoryId, q, favoriteOnly]);
 
   useEffect(() => {
     load();
@@ -211,16 +221,22 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   useEffect(() => {
     setCategoryId('all');
     setFavoriteOnly(false);
-  }, [kind]);
+  }, [kind, source]);
 
   const activeMeta = KIND_META[kind];
   const ActiveIcon = activeMeta.icon;
-  const totalText = useMemo(() => `${items.length} 个资源`, [items.length]);
+  const totalText = useMemo(() => `${items.length} 个${isSharedSource ? '公共' : '个人'}资源`, [items.length, isSharedSource]);
 
   const addCategory = async () => {
+    if (isSharedSource && !canManageShared) {
+      setMsg('只有管理员可以管理公共资源分类');
+      return;
+    }
     const name = window.prompt(`新建${activeMeta.label}分类`);
     if (!name?.trim()) return;
-    const r = await api.addResourceCategory(kind, name.trim());
+    const r = isSharedSource
+      ? await sharedResourceApi.addSharedResourceCategory(kind, name.trim())
+      : await api.addResourceCategory(kind, name.trim());
     if (r.success) {
       setMsg(`已创建分类：${name.trim()}`);
       await load();
@@ -244,10 +260,13 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   );
 
   const renameCategory = async (cat: ResourceCategory) => {
+    if (isSharedSource && !canManageShared) return;
     if (cat.system) return;
     const nextName = window.prompt('重命名分类', cat.name);
     if (!nextName?.trim() || nextName.trim() === cat.name) return;
-    const result = await api.renameResourceCategory(cat.id, nextName.trim(), cat.revision);
+    const result = isSharedSource
+      ? await sharedResourceApi.renameSharedResourceCategory(cat.id, nextName.trim(), cat.revision)
+      : await api.renameResourceCategory(cat.id, nextName.trim(), cat.revision);
     if (result.success) {
       setMsg('分类已重命名');
       await load({ silent: true });
@@ -265,9 +284,12 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   };
 
   const removeCategory = async (cat: ResourceCategory) => {
+    if (isSharedSource && !canManageShared) return;
     if (cat.system) return;
     if (!window.confirm(`删除分类“${cat.name}”？该分类内资源会移动到未分类。`)) return;
-    const result = await api.deleteResourceCategory(cat.id, cat.revision);
+    const result = isSharedSource
+      ? await sharedResourceApi.deleteSharedResourceCategory(cat.id, cat.revision)
+      : await api.deleteResourceCategory(cat.id, cat.revision);
     if (result.success) {
       setMsg('分类已删除');
       if (categoryId === cat.id) setCategoryId('all');
@@ -285,7 +307,9 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   };
 
   const updateItem = async (item: ResourceItem, patch: Parameters<typeof api.updateResourceItem>[1]) => {
-    const result = await api.updateResourceItem(item.id, { ...patch, revision: item.revision });
+    const result = isSharedSource
+      ? await sharedResourceApi.updateSharedResourceItem(item.id, { ...patch, revision: item.revision })
+      : await api.updateResourceItem(item.id, { ...patch, revision: item.revision });
     if (result.success) {
       setItems((prev) => prev.map((x) => (x.id === item.id ? result.data : x)));
       window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
@@ -309,8 +333,11 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
   };
 
   const deleteItem = async (item: ResourceItem) => {
+    if (isSharedSource && !canManageShared) return;
     if (!window.confirm(`从资源库删除“${item.title}”？`)) return;
-    const result = await api.deleteResourceItem(item.id, item.revision);
+    const result = isSharedSource
+      ? await sharedResourceApi.deleteSharedResourceItem(item.id, item.revision)
+      : await api.deleteResourceItem(item.id, item.revision);
     if (result.success) {
       setItems((prev) => prev.filter((x) => x.id !== item.id));
       setMsg('资源已删除');
@@ -334,7 +361,9 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
     try {
       const source = items.find((entry) => entry.id === item.id) || item;
       await onInsertMaterial(item);
-      await updateItem(source, { touch: true });
+      if (!isSharedSource || canManageShared) {
+        await updateItem(source, { touch: true });
+      }
       setMsg(item.kind === 'pose' ? '已恢复为姿势大师节点' : item.kind === 'workflow' ? '已插入工作流' : '已插入画布');
     } catch (e: any) {
       setMsg(e?.message || '插入失败');
@@ -354,8 +383,44 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
         defaultMode: item.kind === 'set' ? 'material-set' : 'upload',
       },
     }));
-    const source = items.find((entry) => entry.id === item.id) || item;
-    await updateItem(source, { touch: true });
+    if (!isSharedSource || canManageShared) {
+      const source = items.find((entry) => entry.id === item.id) || item;
+      await updateItem(source, { touch: true });
+    }
+  };
+
+  const copySharedItemToPersonal = async (item: ResourceItem) => {
+    if (!isSharedSource) return;
+    const result = await sharedResourceApi.copySharedResourceToPersonal(item.id);
+    if (!result.success) {
+      setMsg(result.error || '另存为我的资源失败');
+      return;
+    }
+    setMsg(`已另存为我的资源：${item.title}`);
+    window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+  };
+
+  const uploadSharedResource = async () => {
+    if (!canManageShared) return;
+    if (!['image', 'video', 'audio'].includes(kind)) {
+      setMsg('当前首版上传按钮先支持图像、视频、音频公共资源；工作流/姿势/素材集稍后接入');
+      return;
+    }
+    const url = window.prompt('输入公共资源 URL');
+    if (!url?.trim()) return;
+    const title = window.prompt('公共资源名称', '');
+    const result = await sharedResourceApi.addSharedResourceItem({
+      kind: kind as api.ResourceMediaKind,
+      url: url.trim(),
+      title: title?.trim() || undefined,
+      tags: ['公共资源'],
+    });
+    if (!result.success) {
+      setMsg(result.error || '上传到公共资源库失败');
+      return;
+    }
+    setMsg(`已加入公共资源库：${result.data.title}`);
+    await load({ silent: true });
   };
 
   const showImagePreview = useCallback((target: HTMLButtonElement, item: ResourceItem) => {
@@ -435,12 +500,27 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
         <div className="flex items-center gap-2 min-w-0">
           <Library size={18} style={{ color: activeMeta.accent }} />
           <div className="min-w-0">
-            <div className="text-sm font-semibold leading-none">资源库</div>
+            <div className="text-sm font-semibold leading-none">{isSharedSource ? '公共资源库' : '资源库'}</div>
             <div className={`text-[11px] mt-1 ${subtle}`}>{totalText}</div>
           </div>
         </div>
         <button onClick={onClose} className={isPixel ? 't8-mini-icon-button px-btn px-btn--icon px-btn--ghost' : `t8-mini-icon-button h-9 w-9 p-0 rounded-md ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="关闭">
           <X size={16} />
+        </button>
+      </div>
+
+      <div className={`px-3 py-2 flex items-center gap-1.5 shrink-0 ${isPixel ? 'border-b-2 border-[var(--px-ink)]' : isDark ? 'border-b border-white/10' : 'border-b border-black/10'}`}>
+        <button
+          onClick={() => setSource('personal')}
+          className={isPixel ? `px-btn px-btn--sm ${source === 'personal' ? 'px-btn--yellow' : ''}` : `flex-1 h-8 rounded-md text-xs ${source === 'personal' ? 'bg-cyan-400 text-zinc-950' : subtle}`}
+        >
+          我的资源库
+        </button>
+        <button
+          onClick={() => setSource('shared')}
+          className={isPixel ? `px-btn px-btn--sm ${source === 'shared' ? 'px-btn--yellow' : ''}` : `flex-1 h-8 rounded-md text-xs ${source === 'shared' ? 'bg-emerald-300 text-zinc-950' : subtle}`}
+        >
+          公共资源库
         </button>
       </div>
 
@@ -480,6 +560,11 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
           >
             <Star size={15} fill={favoriteOnly ? 'currentColor' : 'none'} />
           </button>
+          {canManageShared && (
+            <button onClick={uploadSharedResource} className={itemBtn} title="上传到公共资源库">
+              上传到公共资源库
+            </button>
+          )}
         </div>
       </div>
 
@@ -500,7 +585,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
               >
                 {cat.name}
               </button>
-              {!cat.system && (
+              {(!cat.system && (!isSharedSource || canManageShared)) && (
                 <div className="hidden group-hover:flex items-center">
                   <button onClick={() => renameCategory(cat)} className="p-1 opacity-70 hover:opacity-100" title="重命名"><Pencil size={10} /></button>
                   <button onClick={() => removeCategory(cat)} className="p-1 opacity-70 hover:opacity-100 text-red-400" title="删除"><Trash2 size={10} /></button>
@@ -508,9 +593,11 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
               )}
             </div>
           ))}
-          <button onClick={addCategory} className={`w-full mt-2 ${itemBtn} flex items-center justify-center gap-1`} title="新建分类">
-            <FolderPlus size={12} /> 分类
-          </button>
+          {(!isSharedSource || canManageShared) && (
+            <button onClick={addCategory} className={`w-full mt-2 ${itemBtn} flex items-center justify-center gap-1`} title="新建分类">
+              <FolderPlus size={12} /> 分类
+            </button>
+          )}
         </aside>
 
         <main className="flex-1 min-w-0 overflow-y-auto p-3">
@@ -639,13 +726,15 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
                       <WorkflowTopologyCard item={item} accent={activeMeta.accent} />
                     </div>
                   )}
-                  <button
-                    onClick={() => updateItem(item, { favorite: !item.favorite })}
-                    className="t8-mini-icon-button absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-amber-300 flex items-center justify-center"
-                    title="收藏"
-                  >
-                    <Star size={13} fill={item.favorite ? 'currentColor' : 'none'} />
-                  </button>
+                  {(!isSharedSource || canManageShared) && (
+                    <button
+                      onClick={() => updateItem(item, { favorite: !item.favorite })}
+                      className="t8-mini-icon-button absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-amber-300 flex items-center justify-center"
+                      title="收藏"
+                    >
+                      <Star size={13} fill={item.favorite ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
                 </div>
                 <div className="p-2 space-y-1.5">
                   <div className="text-xs font-medium truncate" title={item.title}>{item.title}</div>
@@ -659,13 +748,17 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
                       : formatSize(item.size) || item.mime || item.kind}
                   </div>
                   {item.kind === 'audio' && <audio src={item.fileUrl} controls className="w-full h-8" />}
-                  <select
-                    value={item.categoryId}
-                    onChange={(e) => updateItem(item, { categoryId: e.target.value })}
-                    className={isPixel ? 'px-input w-full h-7 text-[11px]' : `w-full h-7 px-1.5 rounded text-[11px] ${isDark ? 'bg-zinc-900 border border-white/10' : 'bg-white border border-black/10'}`}
-                  >
-                    {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                  </select>
+                  {(!isSharedSource || canManageShared) ? (
+                    <select
+                      value={item.categoryId}
+                      onChange={(e) => updateItem(item, { categoryId: e.target.value })}
+                      className={isPixel ? 'px-input w-full h-7 text-[11px]' : `w-full h-7 px-1.5 rounded text-[11px] ${isDark ? 'bg-zinc-900 border border-white/10' : 'bg-white border border-black/10'}`}
+                    >
+                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                    </select>
+                  ) : (
+                    <div className={`text-[10px] ${subtle}`}>分类：{categories.find((cat) => cat.id === item.categoryId)?.name || '未分类'}</div>
+                  )}
                   <div className="flex items-center justify-center gap-1.5 pt-0.5">
                     <button
                       onClick={() => insertItem(item)}
@@ -686,22 +779,36 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial 
                     >
                       <Send size={13} />
                     </button>
-                    <button
-                      onClick={() => renameItem(item)}
-                      className="nodrag nopan t8-mini-icon-button resource-card-action"
-                      style={miniActionBase}
-                      title="重命名"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => deleteItem(item)}
-                      className="nodrag nopan t8-mini-icon-button resource-card-action"
-                      style={miniDeleteStyle}
-                      title="删除"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {isSharedSource && (
+                      <button
+                        onClick={() => copySharedItemToPersonal(item)}
+                        className="nodrag nopan t8-mini-icon-button resource-card-action"
+                        style={miniActionBase}
+                        title="另存为我的资源"
+                      >
+                        <Library size={13} />
+                      </button>
+                    )}
+                    {(!isSharedSource || canManageShared) && (
+                      <>
+                        <button
+                          onClick={() => renameItem(item)}
+                          className="nodrag nopan t8-mini-icon-button resource-card-action"
+                          style={miniActionBase}
+                          title="重命名"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => deleteItem(item)}
+                          className="nodrag nopan t8-mini-icon-button resource-card-action"
+                          style={miniDeleteStyle}
+                          title="删除"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </article>
