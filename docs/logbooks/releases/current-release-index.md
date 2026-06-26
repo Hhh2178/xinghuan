@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.5`
 - release：`20260626-admin-governance-redesign-gray-r1-v055`
-- 当前状态：`2026-06-26 待 deploy`
+- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-26-admin-governance-redesign-gray.md`
 - 历史运行态材料：

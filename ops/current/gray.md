@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.5`
 - 当前 release：`20260626-admin-governance-redesign-gray-r1-v055`
-- 当前状态：`2026-06-26 待 deploy`
+- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-06-26-admin-governance-redesign-gray.md`

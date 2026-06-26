@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.5`
 - release：`20260626-admin-governance-redesign-gray-r1-v055`
-- 当前状态：`待 deploy`
+- 当前状态：`已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -60,7 +60,25 @@
 
 ### 远端部署与运行态
 
-- 待本轮 gray deploy 后补记
+- `npm run release:gray:prepare -- --release=20260626-admin-governance-redesign-gray-r1-v055`
+- `npm run release:gray:deploy -- --release=20260626-admin-governance-redesign-gray-r1-v055 --archive=dist-release/20260626-admin-governance-redesign-gray-r1-v055.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
+- `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.5 --expected-environment=gray`
+- 发布包：
+  - `dist-release/20260626-admin-governance-redesign-gray-r1-v055.tar.gz`
+- 服务器解包目录：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260626-admin-governance-redesign-gray-r1-v055`
+- release 内执行：
+  - `npm ci`
+  - `npm run db:migrate`
+- 本次迁移结果：
+  - `applied = []`
+  - `skipped = 19`
+- 运行态复核：
+  - `current = /opt/apps/xinghuan-canvas-next/releases/20260626-admin-governance-redesign-gray-r1-v055`
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+  - `http://127.0.0.1:18200/api/status => version = 0.5.5, environment = gray`
+  - `https://canvas-next.hhh2121.xyz/api/status => version = 0.5.5, environment = gray`
 
 ## 待用户验收
 
