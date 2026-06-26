@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.2`
 - release：`20260626-shared-resource-admin-generation-gray-r1-v052`
-- 当前状态：`2026-06-26 准备 deploy，待 runtime verify`
+- 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-26-shared-resource-admin-generation-gray.md`
 - 历史运行态材料：

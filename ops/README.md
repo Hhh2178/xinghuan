@@ -25,7 +25,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.2`
   - release：`20260626-shared-resource-admin-generation-gray-r1-v052`
-  - 状态：`2026-06-26 准备 deploy，待 runtime verify`
+  - 状态：`2026-06-26 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
