@@ -5505,7 +5505,7 @@ td {
   min-width: 0;
   border: 1px solid rgba(56, 189, 248, 0.14);
   border-radius: 14px;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .admin-public-resources-category-list > button {
@@ -5517,7 +5517,11 @@ td {
 }
 
 .admin-public-resources-category-list > button strong {
-  color: #f0fdfa;
+  color: #ffffff;
+}
+
+.admin-public-resources-category-list > button span {
+  color: #ffffff;
 }
 
 .admin-public-resources-category-card {
@@ -5536,7 +5540,7 @@ td {
   gap: 4px;
   padding: 0;
   border: 0;
-  color: #e5f7ff;
+  color: #ffffff;
   text-align: left;
   background: transparent;
 }
@@ -5548,7 +5552,7 @@ td {
 }
 
 .admin-public-resources-category-card__select small {
-  color: #93c5fd;
+  color: rgba(255, 255, 255, 0.84);
   font-size: 11px;
   text-transform: uppercase;
 }
@@ -5571,8 +5575,8 @@ td {
 
 .admin-public-resources-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   padding: 12px;
 }
 
@@ -5589,15 +5593,15 @@ td {
 
 .admin-public-resource-card__preview-shell {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .admin-public-resource-card__preview-frame {
   display: grid;
   place-items: center;
-  min-height: 220px;
+  min-height: 180px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 14px;
@@ -5666,14 +5670,14 @@ td {
 
 .admin-public-resource-card__management {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .admin-public-resource-card__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .admin-public-resource-card__field {
@@ -5695,7 +5699,7 @@ td {
 
 .admin-public-resource-card__field textarea {
   width: 100%;
-  min-height: 88px;
+  min-height: 72px;
   padding: 10px 12px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 12px;

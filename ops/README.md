@@ -23,8 +23,8 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.5`
-  - release：`20260626-admin-governance-redesign-gray-r1-v055`
+  - 版本：`v0.5.6`
+  - release：`20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
   - 状态：`2026-06-26 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`

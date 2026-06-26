@@ -4,12 +4,13 @@
 
 ### Gray
 
-- 版本：`v0.5.5`
-- release：`20260626-admin-governance-redesign-gray-r1-v055`
+- 版本：`v0.5.6`
+- release：`20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
 - 当前状态：`2026-06-26 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `gray/2026-06-26-admin-governance-redesign-gray.md`
+  - `gray/2026-06-26-lazy-import-recovery-admin-grid-gray.md`
 - 历史运行态材料：
+  - `gray/2026-06-26-lazy-import-recovery-admin-grid-gray.md`
   - `gray/2026-06-26-admin-governance-redesign-gray.md`
   - `gray/2026-06-26-group-permissions-group-lock-gray.md`
   - `gray/2026-06-26-resource-preview-gray.md`
