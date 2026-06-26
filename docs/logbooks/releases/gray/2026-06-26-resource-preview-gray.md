@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.3`
 - release：`20260626-resource-preview-gray-r1-v053`
-- 当前状态：`待 deploy + runtime verify`
+- 当前状态：`已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -37,13 +37,24 @@
 - `node scripts/verify-generation-library-resource-card-contract.mjs`
 - `node scripts/verify-generation-library-preview-contract.mjs`
 
-## 待执行发布
+## 本次部署执行
 
 - `codegraph sync`
 - `npm run build:single-port`
 - `npm run package:release -- 20260626-resource-preview-gray-r1-v053`
 - `node scripts/release/deploy-gray-release.mjs --release=20260626-resource-preview-gray-r1-v053 --archive=dist-release/20260626-resource-preview-gray-r1-v053.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
 - `node scripts/release/verify-gray-runtime.mjs --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.3 --expected-environment=gray`
+
+## 运行态复核
+
+- current 指针：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260626-resource-preview-gray-r1-v053`
+- `/api/status`：
+  - `version = 0.5.3`
+  - `environment = gray`
+- 关键服务状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
 
 ## 待用户验收
 
