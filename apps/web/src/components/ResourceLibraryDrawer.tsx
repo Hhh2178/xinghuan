@@ -399,17 +399,6 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
     }
   };
 
-  const copySharedItemToPersonal = async (item: ResourceItem) => {
-    if (!isSharedSource) return;
-    const result = await sharedResourceApi.copySharedResourceToPersonal(item.id);
-    if (!result.success) {
-      setMsg(result.error || '另存为我的资源失败');
-      return;
-    }
-    setMsg(`已另存为我的资源：${item.title}`);
-    window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
-  };
-
   const openSharedResourceUpload = () => {
     if (!canManageShared) return;
     if (!['image', 'video', 'audio'].includes(kind)) {
@@ -786,15 +775,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                       <WorkflowTopologyCard item={item} accent={activeMeta.accent} />
                     </div>
                   )}
-                  {isSharedSource ? (
-                    <button
-                      onClick={() => copySharedItemToPersonal(item)}
-                      className="t8-mini-icon-button absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-emerald-200"
-                      title="另存为我的资源"
-                    >
-                      <Library size={13} />
-                    </button>
-                  ) : (
+                  {!isSharedSource ? (
                     <button
                       onClick={() => updateItem(item, { favorite: !item.favorite })}
                       className="t8-mini-icon-button absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-amber-300 flex items-center justify-center"
@@ -802,7 +783,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                     >
                       <Star size={13} fill={item.favorite ? 'currentColor' : 'none'} />
                     </button>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-2 space-y-1.5">
                   <div className="text-xs font-medium truncate" title={item.title}>{item.title}</div>
@@ -831,7 +812,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
                   ) : (
                     <div className={`text-[10px] ${subtle}`}>分类：{categories.find((cat) => cat.id === item.categoryId)?.name || '未分类'}</div>
                   )}
-                  <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
                     {canPreviewItem(item) && (
                       <button
                         onClick={() => openPreview(item)}

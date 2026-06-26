@@ -30,6 +30,30 @@ export async function api<T = unknown>(pathname: string, options?: RequestInit):
   return payload.data as T;
 }
 
+export const adminAuditApi = {
+  readUsageSummary: () => api<import("./admin-types").AdminUsageSummary>("/api/admin/audit/usage-summary"),
+};
+
+export const adminPermissionApi = {
+  listPolicies: () =>
+    api<import("./admin-types").AdminGroupPermissionPolicy[]>("/api/admin/group-permission-policies"),
+  readPolicy: (groupId: string) =>
+    api<import("./admin-types").AdminGroupPermissionPolicy>(
+      `/api/admin/group-permission-policies/${encodeURIComponent(groupId)}`,
+    ),
+  updatePolicy: (groupId: string, payload: { deny: import("./admin-types").GroupPermissionDeny }) =>
+    api<import("./admin-types").AdminGroupPermissionPolicy>(
+      `/api/admin/group-permission-policies/${encodeURIComponent(groupId)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    ),
+  readCatalog: () => api<import("./admin-types").AdminPermissionCatalog>("/api/admin/permission-catalog"),
+  readEffectivePermissions: () => api<import("./admin-types").EffectivePermissions>("/api/me/permissions"),
+};
+
 export const adminRunningHubApi = {
   listItems: () =>
     api<{ items: import("./admin-types").RunningHubAdminItem[] }>("/api/admin/runninghub/items").then((result) => result.items),

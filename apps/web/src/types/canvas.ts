@@ -251,11 +251,11 @@ export interface CanvasData {
 export interface ApiSettings {
   // 三套通用 Key
   zhenzhenApiKey: string;
-  zhenzhenBaseUrl: string; // 锁定 https://ai.t8star.org
+  zhenzhenBaseUrl: string; // 当前图像/音视频服务地址
   rhApiKey: string;
-  rhBaseUrl: string; // https://www.runninghub.cn
+  rhBaseUrl: string; // 当前 RunningHub 服务地址
   llmApiKey: string;
-  llmBaseUrl: string; // 锁定 https://ai.t8star.org
+  llmBaseUrl: string; // 当前 LLM 服务地址
   // 分类 API Key（留空时 fallback 到 zhenzhenApiKey）
   gptImageApiKey?: string;
   nanoBananaApiKey?: string;

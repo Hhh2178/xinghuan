@@ -20,6 +20,7 @@ import type {
   AdminUserGroup as AdminUserGroupShape,
   AdminSessionRecord as AdminSessionRecordShape,
   AuditRecord as AuditRecordShape,
+  AdminUsageSummary as AdminUsageSummaryShape,
   AuthUser as AuthUserShape,
   Capability as CapabilityShape,
   ConfirmAction as ConfirmActionShape,
@@ -162,6 +163,7 @@ export interface AdminAnnouncementRecord extends AdminAnnouncementRecordShape {}
 
 type AuditRecord = AuditRecordShape;
 type SystemInfo = SystemInfoShape;
+type AdminUsageSummary = AdminUsageSummaryShape;
 
 function defaultAssistantSettings(): AssistantSettings {
   return {
@@ -250,6 +252,7 @@ function AdminApp() {
   const [models, setModels] = useState<ModelRecordShape[]>([]);
   const [taskPage, setTaskPage] = useState<TaskListPage>(defaultTaskListPage());
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>([]);
+  const [usageSummary, setUsageSummary] = useState<AdminUsageSummary | null>(null);
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -282,6 +285,7 @@ function AdminApp() {
         nextProviders,
         nextModels,
         nextAuditLogs,
+        nextUsageSummary,
         nextSystem,
       ] = await Promise.all([
         api<Summary>("/api/admin/summary"),
@@ -292,6 +296,7 @@ function AdminApp() {
         api<ProviderRecordShape[]>("/api/admin/providers"),
         api<ModelRecordShape[]>("/api/admin/models"),
         api<AuditRecord[]>("/api/admin/audit"),
+        api<AdminUsageSummary>("/api/admin/audit/usage-summary"),
         api<SystemInfo>("/api/admin/system"),
       ]);
       setSummary(nextSummary);
@@ -302,6 +307,7 @@ function AdminApp() {
       setProviders(nextProviders);
       setModels(nextModels);
       setAuditLogs(nextAuditLogs);
+      setUsageSummary(nextUsageSummary);
       setSystem(nextSystem);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
@@ -610,7 +616,7 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "audit" ? (
-            <AuditPanel auditLogs={auditLogs} />
+            <AuditPanel auditLogs={auditLogs} usageSummary={usageSummary} />
           ) : null}
           {activeTab === "system" ? (
             <SystemPanel

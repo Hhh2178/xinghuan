@@ -242,15 +242,11 @@ export function buildSettingsBackupPayload(args: {
   raw: ApiSettings | null;
   editable: Partial<ApiSettings>;
   now?: Date;
-  fixedZhenzhenBaseUrl: string;
-  runningHubBaseUrl: string;
 }) {
   const {
     raw,
     editable,
     now = new Date(),
-    fixedZhenzhenBaseUrl,
-    runningHubBaseUrl,
   } = args;
 
   const exportSettings = {
@@ -258,9 +254,6 @@ export function buildSettingsBackupPayload(args: {
     ...Object.fromEntries(
       Object.entries(editable).filter(([, value]) => typeof value === 'string' && value.trim()),
     ),
-    zhenzhenBaseUrl: fixedZhenzhenBaseUrl,
-    llmBaseUrl: fixedZhenzhenBaseUrl,
-    rhBaseUrl: runningHubBaseUrl,
   };
 
   return {

@@ -4,6 +4,7 @@ import { findNodeBySerialId, parseNodeSerialInput } from '../../utils/nodeSerial
 import { rectOf } from '../../utils/nodePlacement';
 import { logBus } from '../../stores/logs';
 import { matchesAnyShortcut, type ShortcutMap } from '../../utils/keyboardShortcuts';
+import { CANVAS_MAX_ZOOM, CANVAS_MIN_ZOOM } from './groupBoxGuards';
 
 interface UseCanvasViewportHotkeysArgs {
   activeId: string | null;
@@ -96,7 +97,7 @@ export function useCanvasViewportHotkeys({
     }
     const rect = rectOf(nearest);
     const currentZoom = getViewport().zoom || 1;
-    const zoom = Math.min(Math.max(currentZoom, 0.55), 1.15);
+    const zoom = Math.min(Math.max(currentZoom, CANVAS_MIN_ZOOM), CANVAS_MAX_ZOOM);
     setCenter(rect.x + rect.w / 2, rect.y + rect.h / 2, { zoom, duration: 450 });
     pulseNearestNode(nearest.id);
   }, [activeId, bulkPhantomId, getViewport, loaded, loadedCanvasId, nodes, screenToFlowPosition, setCenter]);
@@ -117,7 +118,7 @@ export function useCanvasViewportHotkeys({
     }
     const rect = rectOf(target);
     const currentZoom = getViewport().zoom || 1;
-    const zoom = Math.min(Math.max(currentZoom, 0.55), 1.15);
+    const zoom = Math.min(Math.max(currentZoom, CANVAS_MIN_ZOOM), CANVAS_MAX_ZOOM);
     setCenter(rect.x + rect.w / 2, rect.y + rect.h / 2, { zoom, duration: 450 });
     pulseNearestNode(target.id);
   }, [activeId, getViewport, loaded, loadedCanvasId, nodesRef, setCenter]);
@@ -149,7 +150,7 @@ export function useCanvasViewportHotkeys({
       focusNearestNodeToViewport();
       return true;
     }
-    fitView({ padding: 0.18, duration: 420, minZoom: 0.05, maxZoom: 1.15 });
+    fitView({ padding: 0.18, duration: 420, minZoom: CANVAS_MIN_ZOOM, maxZoom: CANVAS_MAX_ZOOM });
     return true;
   }, [fitView, focusNearestNodeToViewport, isShortcutBlocked, selectedCount, shortcuts]);
 

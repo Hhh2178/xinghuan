@@ -130,6 +130,14 @@ import { CanvasOverlayLayer } from './canvas/CanvasOverlayLayer';
 import { useCanvasSelectionMenus } from './canvas/useCanvasSelectionMenus';
 import { useCanvasBulkReconnect } from './canvas/useCanvasBulkReconnect';
 import { useCanvasSendFlow } from './canvas/useCanvasSendFlow';
+import {
+  CANVAS_MAX_ZOOM,
+  CANVAS_MIN_ZOOM,
+  findLockedGroupForNode,
+  getGroupBoxLiveMemberIds,
+  isGroupBoxLocked,
+  isGroupBoxNode,
+} from './canvas/groupBoxGuards';
 import EmptyCanvasSplash from './EmptyCanvasSplash';
 import PlaceholderNode from './nodes/PlaceholderNode';
 import TextNode from './nodes/TextNode';
@@ -1181,6 +1189,12 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const altDragCloneRef = useRef<{
     placeholderIds: Map<string, string>; // origId -> placeholderId
   } | null>(null);
+  const lockedNodeDragRef = useRef<{
+    nodeId: string;
+    position: { x: number; y: number };
+    reason: 'locked-group' | 'locked-member';
+    groupId?: string;
+  } | null>(null);
 
   const setConnectionPanMode = useCallback((enabled: boolean) => {
     connectionPanModeRef.current = enabled;
@@ -1912,6 +1926,30 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const onNodeDragStart = useCallback(
     (e: any, node: Node) => {
       altDragCloneRef.current = null;
+      lockedNodeDragRef.current = null;
+      if (isGroupBoxNode(node)) {
+        if (isGroupBoxLocked((node.data as any) || {})) {
+          lockedNodeDragRef.current = {
+            nodeId: node.id,
+            position: { ...node.position },
+            reason: 'locked-group',
+          };
+          logBus.info('当前分组已锁定，解锁后才能拖动', '分组锁定');
+          return;
+        }
+      } else {
+        const lockedGroup = findLockedGroupForNode(nodesRef.current, node.id);
+        if (lockedGroup) {
+          lockedNodeDragRef.current = {
+            nodeId: node.id,
+            position: { ...node.position },
+            reason: 'locked-member',
+            groupId: lockedGroup.id,
+          };
+          logBus.info('当前节点所在分组已锁定，解锁分组后才能拖动', '分组锁定');
+          return;
+        }
+      }
       if (!e.altKey) return;
       // ALT 按下: 确定被拖动的节点集合
       const selected = nodes.filter((n) => n.selected);
@@ -1997,10 +2035,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
           memberIds: targets.map((n) => n.id),
           width: groupW,
           height: groupH,
+          locked: true,
         },
         // 置于普通节点之下(负 1000 避免选中时 zIndex 被括号调高)
         zIndex: -1000,
-        draggable: true,
+        draggable: false,
         selectable: true,
         deletable: true,
         // 可连接: 右侧 source handle 能把「组内所有节点的聚合输出」传给组外
@@ -2065,38 +2104,22 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   // ===== 智能对齐辅助线 =====
   const onNodeDrag = useCallback(
     (_e: any, node: Node) => {
+      const lockedDrag = lockedNodeDragRef.current;
+      if (lockedDrag && lockedDrag.nodeId === node.id) {
+        setNodes((prev) =>
+          prev.map((candidate) =>
+            candidate.id === node.id
+              ? { ...candidate, position: { ...lockedDrag.position } }
+              : candidate
+          )
+        );
+        return;
+      }
       // 拖动 GroupBox 节点: 联动所有成员节点同步偏移
-      if (node.type === 'groupBox') {
+      if (isGroupBoxNode(node)) {
         const ref = groupDragRef.current;
         if (!ref || ref.groupId !== node.id) {
-          // 首帧: 根据当前几何位置重新计算哪些节点在组矩形内
-          // (节点中心点在组 bbox 内则视为成员,不再依赖创组时的静态 memberIds)
-          const gx = node.position.x;
-          const gy = node.position.y;
-          const gw =
-            (node.data as any)?.width ||
-            (node as any).width ||
-            (node as any).measured?.width ||
-            0;
-          const gh =
-            (node.data as any)?.height ||
-            (node as any).height ||
-            (node as any).measured?.height ||
-            0;
-          const liveMembers: string[] = [];
-          for (const n of nodes) {
-            if (n.id === node.id) continue;
-            if (n.type === 'groupBox') continue; // 不嵌套组
-            const nw =
-              (n as any).width || (n as any).measured?.width || 200;
-            const nh =
-              (n as any).height || (n as any).measured?.height || 100;
-            const cx = n.position.x + nw / 2;
-            const cy = n.position.y + nh / 2;
-            if (cx >= gx && cx <= gx + gw && cy >= gy && cy <= gy + gh) {
-              liveMembers.push(n.id);
-            }
-          }
+          const liveMembers = getGroupBoxLiveMemberIds(nodes, node);
           groupDragRef.current = {
             groupId: node.id,
             lastX: node.position.x,
@@ -2190,6 +2213,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
 
   const onNodeDragStop = useCallback((_e: any, node: Node) => {
     setGuides({ vertical: [], horizontal: [] });
+    lockedNodeDragRef.current = null;
 
     // ===== ALT+拖动结束: ID 互换 =====
     // 占位克隆(临时ID,在原位) → 恢复为原始ID(边自动留在原位)
@@ -2265,7 +2289,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     }
 
     // 拖动组结束: 将最新的几何成员同步到 data.memberIds(供GroupBoxNode显示节点数/执行使用)
-    if (node?.type === 'groupBox' && groupDragRef.current?.groupId === node.id) {
+    if (isGroupBoxNode(node) && groupDragRef.current?.groupId === node.id) {
       const latestIds = groupDragRef.current.memberIds;
       setNodes((prev) =>
         prev.map((n) =>
@@ -3382,6 +3406,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         snapGrid={SNAP_GRID}
         elevateNodesOnSelect={false}
         fitView
+        minZoom={CANVAS_MIN_ZOOM}
+        maxZoom={CANVAS_MAX_ZOOM}
         proOptions={memoProOptions}
         defaultEdgeOptions={memoDefaultEdgeOptions}
       >

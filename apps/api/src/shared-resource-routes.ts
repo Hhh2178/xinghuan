@@ -63,6 +63,7 @@ type CurrentUser = {
   email: string;
   name: string;
   role: "admin" | "member";
+  groupId?: string;
 };
 
 type HttpErrorLike = new (statusCode: number, message: string, payload?: Record<string, unknown>) => Error;
@@ -86,6 +87,12 @@ type SharedResourceRouteDeps = {
   writeResourceDb: (db: ResourceDb, user: CurrentUser, options?: { pruneMissing?: boolean }) => Promise<void>;
   usePostgresRepository: () => boolean;
   upsertResourceItemPostgres: (item: ResourceItem, user: CurrentUser) => Promise<ResourceItem>;
+  readGroupPermissionPolicies: () => Promise<import("./group-permission-policy.js").GroupPermissionPolicy[]>;
+  filterSharedResourceItemsForUser: <T extends { id: string; categoryId?: string }>(
+    items: T[],
+    user: CurrentUser | null | undefined,
+    policies: import("./group-permission-policy.js").GroupPermissionPolicy[],
+  ) => T[];
 };
 
 export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) {
@@ -103,6 +110,8 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     writeResourceDb,
     usePostgresRepository,
     upsertResourceItemPostgres,
+    readGroupPermissionPolicies,
+    filterSharedResourceItemsForUser,
   } = deps;
 
   async function readSharedResourceDb(): Promise<ResourceDb> {
@@ -240,7 +249,16 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
       if (request.method === "GET") {
         const kind = normalizeResourceKind(url.searchParams.get("kind"));
         const db = await readSharedResourceDb();
-        sendT8(response, kind ? db.categories.filter((item) => item.kind === kind) : db.categories);
+        const policies = await readGroupPermissionPolicies();
+        const visibleItems = filterSharedResourceItemsForUser(db.items, currentUser, policies);
+        const visibleCategoryIds = new Set(visibleItems.map((item) => safeText(item.categoryId)).filter(Boolean));
+        sendT8(
+          response,
+          (kind ? db.categories.filter((item) => item.kind === kind) : db.categories).filter((item) => {
+            if (!currentUser || currentUser.role === "admin") return true;
+            return visibleCategoryIds.has(item.id);
+          }),
+        );
         return true;
       }
       requireAdmin(currentUser);
@@ -320,13 +338,14 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
 
     if (url.pathname === "/api/shared-resources/items") {
       const db = await readSharedResourceDb();
+      const policies = await readGroupPermissionPolicies();
       const kind = normalizeResourceKind(url.searchParams.get("kind"));
       const categoryId = safeText(url.searchParams.get("categoryId"), "");
       const q = safeText(url.searchParams.get("q"), "").toLowerCase();
       const favorite = url.searchParams.get("favorite") === "1";
       sendT8(
         response,
-        db.items.filter((item) => {
+        filterSharedResourceItemsForUser(db.items, currentUser, policies).filter((item) => {
           if (kind && item.kind !== kind) return false;
           if (categoryId && item.categoryId !== categoryId) return false;
           if (favorite && !item.favorite) return false;

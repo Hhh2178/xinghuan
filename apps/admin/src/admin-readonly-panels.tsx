@@ -1,7 +1,8 @@
 import { Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
-import type { AuditRecord, SystemInfo } from "./admin-types";
+import { AdminUsageDashboard } from "./admin-usage-dashboard";
+import type { AdminUsageSummary, AuditRecord, SystemInfo } from "./admin-types";
 
 const TASK_QUEUE_DEFAULTS = {
   image: { concurrency: 100, userConcurrency: 8 },
@@ -63,21 +64,24 @@ function formatSlotCount(queues: RuntimeQueueState[]) {
     .join(" / ");
 }
 
-export function AuditPanel({ auditLogs }: { auditLogs: AuditRecord[] }) {
+export function AuditPanel({ auditLogs, usageSummary }: { auditLogs: AuditRecord[]; usageSummary: AdminUsageSummary | null }) {
   return (
-    <DataTable
-      title="审计日志"
-      columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}
-      rows={auditLogs.map((item) => [
-        new Date(item.createdAt).toLocaleString(),
-        item.actorEmail,
-        item.action,
-        `${item.targetType}:${item.targetId}`,
-        item.requestId || "-",
-        `${item.ip || "-"}${item.userAgent ? ` | ${item.userAgent.slice(0, 80)}` : ""}`,
-        item.summary,
-      ])}
-    />
+    <>
+      <AdminUsageDashboard usageSummary={usageSummary} />
+      <DataTable
+        title="审计日志"
+        columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}
+        rows={auditLogs.map((item) => [
+          new Date(item.createdAt).toLocaleString(),
+          item.actorEmail,
+          item.action,
+          `${item.targetType}:${item.targetId}`,
+          item.requestId || "-",
+          `${item.ip || "-"}${item.userAgent ? ` | ${item.userAgent.slice(0, 80)}` : ""}`,
+          item.summary,
+        ])}
+      />
+    </>
   );
 }
 

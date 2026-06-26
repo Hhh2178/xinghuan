@@ -2,10 +2,6 @@ import { create } from 'zustand';
 import type { ApiSettings } from '../types/canvas';
 import * as api from '../services/api';
 
-// 三套 Key 的固定 base URL
-export const FIXED_ZHENZHEN_BASE = 'https://ai.t8star.org';
-export const RH_BASE = 'https://www.runninghub.cn';
-
 interface ApiKeysState {
   settings: ApiSettings;
   loading: boolean;
@@ -18,11 +14,11 @@ interface ApiKeysState {
 
 const DEFAULT: ApiSettings = {
   zhenzhenApiKey: '',
-  zhenzhenBaseUrl: FIXED_ZHENZHEN_BASE,
+  zhenzhenBaseUrl: '',
   rhApiKey: '',
-  rhBaseUrl: RH_BASE,
+  rhBaseUrl: '',
   llmApiKey: '',
-  llmBaseUrl: FIXED_ZHENZHEN_BASE,
+  llmBaseUrl: '',
   // 分类独立 Key（留空时 fallback 到 zhenzhenApiKey）
   gptImageApiKey: '',
   nanoBananaApiKey: '',
@@ -67,7 +63,7 @@ export const useApiKeysStore = create<ApiKeysState>((set) => ({
     try {
       const data = await api.getSettings();
       set({
-        settings: { ...DEFAULT, ...data, zhenzhenBaseUrl: FIXED_ZHENZHEN_BASE, llmBaseUrl: FIXED_ZHENZHEN_BASE },
+        settings: { ...DEFAULT, ...data },
         loading: false,
         loaded: true,
       });
@@ -83,7 +79,7 @@ export const useApiKeysStore = create<ApiKeysState>((set) => ({
       // 重新拉取(后端会返回脱敏后的 Key)
       const data = await api.getSettings();
       set({
-        settings: { ...DEFAULT, ...data, zhenzhenBaseUrl: FIXED_ZHENZHEN_BASE, llmBaseUrl: FIXED_ZHENZHEN_BASE },
+        settings: { ...DEFAULT, ...data },
         loading: false,
       });
     } catch (e: any) {

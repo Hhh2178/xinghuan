@@ -584,6 +584,142 @@ export interface AuditRecord {
   createdAt: number;
 }
 
+export type UsageCapability =
+  | "image"
+  | "video"
+  | "runninghub_app"
+  | "runninghub_workflow"
+  | "llm"
+  | "audio"
+  | "unknown";
+
+export interface UsageGroupRow {
+  groupId: string;
+  groupName: string;
+  memberCount: number;
+  total: number;
+  image: number;
+  video: number;
+  runninghubApp: number;
+  runninghubWorkflow: number;
+  llm: number;
+  audio: number;
+  topModelName?: string;
+  topRunningHubEntryTitle?: string;
+}
+
+export interface UsageUserRow {
+  userId: string;
+  email: string;
+  name: string;
+  remark?: string;
+  groupId?: string;
+  groupName?: string;
+  ownerDeleted?: boolean;
+  total: number;
+  image: number;
+  video: number;
+  runninghubApp: number;
+  runninghubWorkflow: number;
+  llm: number;
+  audio: number;
+  topModelName?: string;
+  topRunningHubEntryTitle?: string;
+}
+
+export interface UsageModelRow {
+  capability: "image" | "video" | "llm" | "audio";
+  providerId: string;
+  providerName: string;
+  modelRecordId: string;
+  modelId: string;
+  displayName: string;
+  total: number;
+  topGroupName?: string;
+  topUserEmail?: string;
+}
+
+export interface UsageRunningHubEntryRow {
+  kind: "app" | "workflow";
+  providerId: string;
+  providerName: string;
+  catalogId: string;
+  title: string;
+  runTargetId: string;
+  total: number;
+  topGroupName?: string;
+  topUserEmail?: string;
+}
+
+export interface UsageDailyRow {
+  day: string;
+  image: number;
+  video: number;
+  runninghubApp: number;
+  runninghubWorkflow: number;
+  llm: number;
+  audio: number;
+  total: number;
+}
+
+export interface AdminUsageSummary {
+  range: { from: number; to: number };
+  totals: {
+    successful: number;
+    image: number;
+    video: number;
+    runninghubApp: number;
+    runninghubWorkflow: number;
+    llm: number;
+    audio: number;
+    unknown: number;
+  };
+  groups: UsageGroupRow[];
+  users: UsageUserRow[];
+  models: UsageModelRow[];
+  runningHubEntries: UsageRunningHubEntryRow[];
+  daily: UsageDailyRow[];
+}
+
+export interface GroupPermissionDeny {
+  sharedResourceCategoryIds: string[];
+  sharedResourceItemIds: string[];
+  runningHubAppCatalogIds: string[];
+  runningHubWorkflowCatalogIds: string[];
+  nodeTypes: string[];
+}
+
+export interface AdminGroupPermissionPolicy {
+  groupId: string;
+  groupName?: string;
+  memberCount: number;
+  deny: GroupPermissionDeny;
+  updatedAt: number;
+  updatedBy?: string;
+}
+
+export interface EffectivePermissions {
+  groupId: string;
+  isAdmin: boolean;
+  deny: GroupPermissionDeny;
+}
+
+export interface PermissionNodeType {
+  id: string;
+  label: string;
+  group: string;
+  description?: string;
+}
+
+export interface AdminPermissionCatalog {
+  userGroups: AdminUserGroup[];
+  sharedResourceCategories: ResourceCategory[];
+  sharedResourceItems: SharedResourceItem[];
+  runningHubApps: RunningHubAdminItem[];
+  runningHubWorkflows: RunningHubAdminItem[];
+  nodeTypes: PermissionNodeType[];
+}
+
 export interface AssistantAnalysisRequest {
   providerName?: string;
   baseUrl?: string;

@@ -122,10 +122,23 @@ import {
   type RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
 import { createTaskRuntimeEventStore } from "./task-runtime-events.js";
+import {
+  buildEffectivePermissions,
+  canUseRunningHubCatalogItem,
+  emptyGroupPermissionDeny,
+  filterRunningHubCatalogForUser,
+  filterSharedResourceItemsForUser,
+  normalizeGroupPermissionPolicies,
+  normalizeGroupPermissionPolicy,
+  type GroupPermissionPolicy,
+} from "./group-permission-policy.js";
+import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
+import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
+import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
@@ -291,6 +304,76 @@ const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   writeResourceDb,
   usePostgresRepository,
   upsertResourceItemPostgres,
+  readGroupPermissionPolicies: async () => (await readAuthDb()).groupPermissionPolicies,
+  filterSharedResourceItemsForUser,
+});
+
+const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandler({
+  readJsonBody,
+  sendT8,
+  HttpError,
+  safeText,
+  readAuthDb,
+  writeAuthDb: async (updater, options) => {
+    const authDb = await readAuthDb();
+    const nextAuthDb = updater(authDb) as AuthDb;
+    await writeAuthDb(nextAuthDb, {
+      allowPostgresFullReplace: true,
+      reason: options?.reason || "group-permission-policy-routes",
+    });
+  },
+  readSharedResourceCatalog,
+  readRunningHubPermissionCatalog: async () => {
+    const catalog = await publicRunningHubCatalog(null, { includeRestricted: true });
+    return { apps: catalog.apps, workflows: catalog.workflows };
+  },
+  appendAudit,
+});
+
+const handleAdminAuditRoutes = createAdminAuditRouteHandler({
+  sendT8,
+  HttpError,
+  readAdminDb,
+  readAuthDb,
+  publicRunningHubCatalog: async () => {
+    const catalog = await publicRunningHubCatalog();
+    return { items: catalog.items };
+  },
+  usePostgresRepository,
+  getPostgresPool,
+  millisToDate,
+  dateToMillis,
+  normalizeTaskStatus,
+  safeText,
+  plainObject,
+  appendAudit,
+});
+
+const handleAdminTaskListRoutes = createAdminTaskListRouteHandler({
+  sendT8,
+  HttpError,
+  readAdminDb,
+  readAuthDb,
+  usePostgresRepository,
+  getPostgresPool,
+  readJsonBody,
+  appendAudit,
+  clampInteger,
+  safeText,
+  plainObject,
+  withUnifiedRuntimeDiagnostic,
+  toAdminTaskRecord,
+  enrichAdminTaskRecord,
+  normalizeTaskStatus,
+  normalizeTaskQueueCapability,
+  enqueueTask,
+  readTaskRecord,
+  insertTaskRecord,
+  appendTaskLog,
+  createRetriedTask,
+  cancelTaskWithStrategy,
+  writeTaskRecord,
+  logApiEvent,
 });
 
 interface CanvasListItem {
@@ -442,6 +525,7 @@ interface LoginAttemptRecord {
 
 interface AuthDb {
   userGroups: UserGroupRecord[];
+  groupPermissionPolicies: GroupPermissionPolicy[];
   users: UserRecord[];
   sessions: SessionRecord[];
   loginAttempts: LoginAttemptRecord[];
@@ -462,7 +546,7 @@ interface AdminSessionRecord {
   current: boolean;
 }
 
-type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role">;
+type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role" | "groupId">;
 
 type ModelCapability = "chat" | "image" | "video" | "audio";
 type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "modelscope" | "custom" | "grsai_draw";
@@ -551,27 +635,6 @@ interface AdminTaskRecord {
   displayTone?: "muted" | "warning" | "success" | "danger";
   runtimeStage?: string;
   providerState?: string;
-}
-
-interface AdminTaskListQuery {
-  page: number;
-  pageSize: number;
-  status: string;
-  providerId: string;
-  capability: string;
-}
-
-interface AdminTaskListPage {
-  items: AdminTaskRecord[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-  filters: {
-    status: string;
-    providerId: string;
-    capability: string;
-  };
 }
 
 function toOptionalNumber(value: unknown) {
@@ -1145,6 +1208,8 @@ version: "0.5.3",
       if (await handleAdminRequest(request, response, url, currentUser, requestContext)) return;
     }
 
+    if (await handleGroupPermissionPolicyRoutes({ request, response, url, currentUser, requestContext })) return;
+
     if (request.method === "GET" && url.pathname.startsWith("/files/input/")) {
       await sendStaticFile(response, userDataDirs(currentUser!).inputDir, url.pathname.slice("/files/input/".length));
       return;
@@ -1304,13 +1369,13 @@ version: "0.5.3",
     }
 
     if (url.pathname === "/api/runninghub/catalog" && request.method === "GET") {
-      sendT8(response, await publicRunningHubCatalog());
+      sendT8(response, await publicRunningHubCatalog(currentUser));
       return;
     }
 
     if (url.pathname.startsWith("/api/runninghub/catalog/") && request.method === "GET") {
       const catalogId = decodeURIComponent(url.pathname.slice("/api/runninghub/catalog/".length));
-      const item = await publicRunningHubCatalogItemDetail(catalogId);
+      const item = await publicRunningHubCatalogItemDetail(catalogId, currentUser);
       if (!item) throw new HttpError(404, "RUNNINGHUB_CATALOG_ITEM_NOT_FOUND");
       sendT8(response, item);
       return;
@@ -1360,7 +1425,10 @@ version: "0.5.3",
     }
 
     if (url.pathname === "/api/proxy/external/llm" && request.method === "POST") {
-      sendT8(response, await generateExternalChatProxy(await readJsonBody(request), currentUser!, providerFilePublicOrigin(request)));
+      const rawBody = await readJsonBody(request);
+      const llmResult = await generateExternalChatProxy(rawBody, currentUser!, providerFilePublicOrigin(request));
+      await insertTaskRecord(createSucceededExternalChatTask(rawBody, llmResult, currentUser!, requestContext));
+      sendT8(response, llmResult);
       return;
     }
 
@@ -1409,7 +1477,7 @@ version: "0.5.3",
     if (url.pathname === "/api/proxy/runninghub/app-info" && request.method === "GET") {
       const webappId = safeText(url.searchParams.get("webappId"));
       if (!webappId) throw new Error("缺少 webappId");
-      const item = await publicRunningHubCatalogItemDetail(webappId);
+      const item = await publicRunningHubCatalogItemDetail(webappId, currentUser);
       const localFields = Array.isArray(item?.fields) ? item.fields : [];
       const localInputSlots = Array.isArray(item?.inputSlots) ? item.inputSlots : [];
       if (item && (localFields.length > 0 || localInputSlots.length > 0)) {
@@ -2807,119 +2875,9 @@ version: "0.5.3",
     return true;
   }
 
-  if (url.pathname === "/api/admin/tasks") {
-    if (request.method === "GET") {
-      await appendAudit(adminUser, "tasks.read", "task", "tasks-list", "查看任务列表", requestContext);
-      sendT8(response, await readAdminTaskPage(parseAdminTaskListQuery(url)));
-      return true;
-    }
-    if (request.method === "POST") {
-      const db = await readAdminDb();
-      const body = await readJsonBody<Partial<AdminTaskRecord>>(request);
-      const now = Date.now();
-      const task: AdminTaskRecord = {
-        id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
-        title: safeText(body.title, "后台任务"),
-        status: normalizeTaskStatus(body.status),
-        ownerId: safeText(body.ownerId, adminUser.id),
-        providerId: safeText(body.providerId),
-        modelId: safeText(body.modelId),
-        payload: plainObject(body.payload),
-        result: plainObject(body.result),
-        logs: Array.isArray(body.logs) ? body.logs.map((line) => safeText(line)).filter(Boolean) : ["任务由后台创建"],
-        createdAt: now,
-        updatedAt: now,
-      };
-      await insertTaskRecord(task);
-      const capability = normalizeTaskQueueCapability(task.payload?.taskCapability);
-      const queueResult = task.status === "queued" && capability
-        ? await enqueueTask(task.id, capability)
-        : { queued: false, reason: task.status === "queued" ? "unsupported_capability" : "not_queued_status", queueName: "" };
-      const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
-      await appendTaskLog(task.id, queueLog);
-      const queuedTask: AdminTaskRecord = {
-        ...task,
-        logs: [...task.logs, queueLog],
-        updatedAt: Date.now(),
-      };
-      await appendAudit(adminUser, "task.create", "task", task.id, `创建任务 ${task.title}`, requestContext);
-      logApiEvent("task.created", requestContext, {
-        taskId: task.id,
-        userId: adminUser.id,
-        providerId: task.providerId,
-        modelId: task.modelId,
-        status: task.status,
-      });
-      sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(task.id)) || queuedTask));
-      return true;
-    }
-  }
+  if (await handleAdminTaskListRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
-  const retryMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)\/retry$/);
-  if (retryMatch && request.method === "POST") {
-    const id = decodeURIComponent(retryMatch[1]);
-    const originalTask = await readTaskRecord(id);
-    if (!originalTask) throw new Error("任务不存在");
-    const now = Date.now();
-    const retriedTask = createRetriedTask(originalTask, {
-      id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
-      ownerId: adminUser.id,
-      now,
-    });
-    await insertTaskRecord(retriedTask);
-    await appendTaskLog(id, `管理员发起重试，创建新任务 ${retriedTask.id}`);
-    const capability = normalizeTaskQueueCapability(retriedTask.payload?.taskCapability);
-    const queueResult = capability
-      ? await enqueueTask(retriedTask.id, capability)
-      : { queued: false, reason: "unsupported_capability", queueName: "" };
-    const queueLog = queueResult.queued ? `已进入 Redis 队列 ${queueResult.queueName}` : `未进入 Redis 队列: ${queueResult.reason}`;
-    await appendTaskLog(retriedTask.id, queueLog);
-    await appendAudit(adminUser, "task.retry", "task", id, `重试任务 ${originalTask.title}，新任务 ${retriedTask.id}`, requestContext);
-    sendT8(
-      response,
-      withUnifiedRuntimeDiagnostic((await readTaskRecord(retriedTask.id)) || { ...retriedTask, logs: [...retriedTask.logs, queueLog], updatedAt: Date.now() }),
-    );
-    return true;
-  }
-
-  const taskMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)$/);
-  if (taskMatch && request.method === "PATCH") {
-    const id = decodeURIComponent(taskMatch[1]);
-    const body = await readJsonBody<Partial<AdminTaskRecord> & { action?: string }>(request);
-    let updated: AdminTaskRecord | null = null;
-    if (body.action === "cancel") {
-      const cancelled = await cancelTaskWithStrategy(id, adminUser);
-      updated = cancelled?.task ?? null;
-      if (!updated) throw new Error("任务不存在");
-      await appendAudit(adminUser, "task.cancel", "task", id, `取消任务 ${updated.title}`, requestContext);
-      sendT8(response, withUnifiedRuntimeDiagnostic(updated));
-      return true;
-    }
-    if (body.status !== undefined) {
-      throw new Error("任务状态不能直接修改，请使用取消或重试动作");
-    }
-    const currentTask = await readTaskRecord(id);
-    if (!currentTask) throw new Error("任务不存在");
-    updated = {
-      ...currentTask,
-      title: body.title === undefined ? currentTask.title : safeText(body.title, currentTask.title),
-      payload: body.payload === undefined ? currentTask.payload : plainObject(body.payload),
-      result: body.result === undefined ? currentTask.result : plainObject(body.result),
-      logs: body.logs === undefined ? currentTask.logs : body.logs.map((line) => safeText(line)).filter(Boolean),
-      updatedAt: Date.now(),
-    };
-    await writeTaskRecord(updated);
-    if (!updated) throw new Error("任务不存在");
-    await appendAudit(adminUser, "task.update", "task", id, `更新任务 ${updated.title}`, requestContext);
-    sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(id)) || updated));
-    return true;
-  }
-
-  if (url.pathname === "/api/admin/audit" && request.method === "GET") {
-    const db = await readAdminDb();
-    sendT8(response, (db.auditLogs || []).slice(0, 200));
-    return true;
-  }
+  if (await handleAdminAuditRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
   if (url.pathname === "/api/admin/assistant/analyze-provider" && request.method === "POST") {
     const body = await readJsonBody<AssistantAnalyzeRequest>(request);
@@ -3963,10 +3921,11 @@ async function readAuthDb(): Promise<AuthDb> {
   try {
     db = JSON.parse(await readFile(authDbPath, "utf-8")) as AuthDb;
   } catch {
-    db = { userGroups: [], users: [], sessions: [], loginAttempts: [] };
+    db = { userGroups: [], groupPermissionPolicies: [], users: [], sessions: [], loginAttempts: [] };
   }
   db = {
     userGroups: Array.isArray(db.userGroups) ? db.userGroups : [],
+    groupPermissionPolicies: normalizeGroupPermissionPolicies(db.groupPermissionPolicies),
     users: Array.isArray(db.users) ? db.users : [],
     sessions: Array.isArray(db.sessions) ? db.sessions.map(normalizeSessionRecord) : [],
     loginAttempts: Array.isArray(db.loginAttempts) ? db.loginAttempts.map(normalizeLoginAttemptRecord) : [],
@@ -3975,6 +3934,7 @@ async function readAuthDb(): Promise<AuthDb> {
   const now = Date.now();
   const cleaned = {
     userGroups: bootstrapped.userGroups,
+    groupPermissionPolicies: bootstrapped.groupPermissionPolicies,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
@@ -3999,6 +3959,21 @@ async function writeAuthDb(db: AuthDb, options?: { allowPostgresFullReplace?: bo
   }
   await ensureDataDirs();
   await writeFile(authDbPath, JSON.stringify(db, null, 2), "utf-8");
+}
+
+async function readSharedResourceCatalog(): Promise<{ categories: ResourceCategory[]; items: ResourceItem[] }> {
+  await mkdir(adminDir, { recursive: true });
+  try {
+    const raw = JSON.parse(await readFile(sharedResourceDbPath, "utf-8")) as { categories?: ResourceCategory[]; items?: ResourceItem[] };
+    return {
+      categories: Array.isArray(raw.categories) ? raw.categories : [],
+      items: Array.isArray(raw.items)
+        ? raw.items.map((item) => enrichWorkflowResourceItem({ ...item, libraryScope: "shared" as const }))
+        : [],
+    };
+  } catch {
+    return { categories: [], items: [] };
+  }
 }
 
 async function readAdminDb(): Promise<AdminDb> {
@@ -4150,9 +4125,12 @@ async function ensureRuntimeDatabaseTarget(serviceName: string) {
 
 async function readAuthDbPostgres(): Promise<AuthDb> {
   const pool = await getPostgresPool();
-  const [userGroupsResult, usersResult, sessionsResult, attemptsResult] = await Promise.all([
+  const [userGroupsResult, groupPoliciesResult, usersResult, sessionsResult, attemptsResult] = await Promise.all([
     pool.query(
       "select id, name, description, sort_order, created_at, updated_at from xh_user_groups order by sort_order asc, created_at asc",
+    ),
+    pool.query(
+      "select group_id, deny, updated_by, updated_at from xh_group_permission_policies order by updated_at desc",
     ),
     pool.query(
       "select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at from xh_users order by created_at asc",
@@ -4171,6 +4149,14 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
     })),
+    groupPermissionPolicies: groupPoliciesResult.rows.map((row) =>
+      normalizeGroupPermissionPolicy({
+        groupId: row.group_id,
+        updatedAt: dateToMillis(row.updated_at),
+        updatedBy: safeText(row.updated_by) || undefined,
+        deny: row.deny || {},
+      })
+    ),
     users: usersResult.rows.map((row) => ({
       id: row.id,
       email: row.email,
@@ -4212,6 +4198,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   const now = Date.now();
   const cleaned: AuthDb = {
     userGroups: bootstrapped.userGroups,
+    groupPermissionPolicies: bootstrapped.groupPermissionPolicies,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
@@ -4238,6 +4225,7 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query("delete from xh_group_permission_policies");
     await client.query("delete from xh_login_attempts");
     await client.query("delete from xh_sessions");
     await client.query("delete from xh_users");
@@ -4253,6 +4241,18 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
           Number.isFinite(userGroup.sortOrder) ? Math.floor(userGroup.sortOrder) : 0,
           millisToDate(userGroup.createdAt),
           millisToDate(userGroup.updatedAt),
+        ],
+      );
+    }
+    for (const policy of db.groupPermissionPolicies) {
+      await client.query(
+        `insert into xh_group_permission_policies (group_id, deny, updated_by, updated_at)
+         values ($1, $2::jsonb, $3, $4)`,
+        [
+          policy.groupId,
+          JSON.stringify(policy.deny || emptyGroupPermissionDeny()),
+          policy.updatedBy || null,
+          millisToDate(policy.updatedAt),
         ],
       );
     }
@@ -6107,110 +6107,50 @@ async function cancelTaskRecord(taskId: string, actorEmail: string) {
   return updatedTask;
 }
 
-function parseAdminTaskListQuery(url: URL): AdminTaskListQuery {
+function createSucceededExternalChatTask(
+  rawBody: unknown,
+  result: Awaited<ReturnType<typeof generateExternalChatProxy>>,
+  user: CurrentUser,
+  requestContext: RequestContext,
+): AdminTaskRecord {
+  const body = plainObject(rawBody);
+  const params = plainObject(body.providerParams);
+  const raw = plainObject(result.raw);
+  const now = Date.now();
   return {
-    page: clampInteger(url.searchParams.get("page"), 1, 100000, 1),
-    pageSize: clampInteger(url.searchParams.get("pageSize"), 1, 100, 20),
-    status: safeText(url.searchParams.get("status")),
-    providerId: safeText(url.searchParams.get("providerId")),
-    capability: safeText(url.searchParams.get("capability")).toLowerCase(),
-  };
-}
-
-async function readAdminTaskPage(query: AdminTaskListQuery): Promise<AdminTaskListPage> {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    const where: string[] = [];
-    const params: unknown[] = [];
-    if (query.status) {
-      params.push(query.status);
-      where.push(`status = $${params.length}`);
-    }
-    if (query.providerId) {
-      params.push(query.providerId);
-      where.push(`provider_id = $${params.length}`);
-    }
-    if (query.capability) {
-      params.push(query.capability);
-      where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
-    }
-    const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
-    const totalResult = await pool.query(`select count(*)::int as total from xh_tasks ${whereSql}`, params);
-    const total = Number(totalResult.rows?.[0]?.total || 0);
-    const offset = (query.page - 1) * query.pageSize;
-    const pageParams = [...params, query.pageSize, offset];
-    const itemsResult = await pool.query(
-      `select t.id,
-              t.owner_id,
-              t.title,
-              t.status,
-              t.provider_id,
-              t.model_id,
-              t.payload,
-              t.result,
-              t.logs,
-              t.created_at,
-              t.updated_at,
-              u.name as owner_name,
-              u.email as owner_email,
-              u.remark as owner_remark,
-              u.group_id as owner_group_id,
-              g.name as owner_group_name,
-              case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
-       from xh_tasks t
-       left join xh_users u on u.id = t.owner_id
-       left join xh_user_groups g on g.id = u.group_id
-       ${whereSql}
-       order by t.created_at desc
-       limit $${pageParams.length - 1} offset $${pageParams.length}`,
-      pageParams,
-    );
-    const items = itemsResult.rows.map((row) => withUnifiedRuntimeDiagnostic(toAdminTaskRecord(row)));
-    return {
-      items,
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
-      hasMore: offset + items.length < total,
-      filters: {
-        status: query.status,
-        providerId: query.providerId,
-        capability: query.capability,
-      },
-    };
-  }
-
-  const [db, authDb] = await Promise.all([readAdminDb(), readAuthDb()]);
-  const usersById = new Map(authDb.users.map((user) => [user.id, user]));
-  const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
-  const filtered = db.tasks
-    .filter((task) => {
-      if (query.status && task.status !== query.status) return false;
-      if (query.providerId && task.providerId !== query.providerId) return false;
-      if (query.capability) {
-        const resultRow = plainObject(task.result);
-        const rawRow = plainObject(resultRow.raw);
-        const taskCapability = safeText(task.payload?.taskCapability || resultRow.capability || rawRow.capability).toLowerCase();
-        if (taskCapability !== query.capability) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-    .map((task) => withUnifiedRuntimeDiagnostic(enrichAdminTaskRecord(task, usersById, groupsById)));
-  const total = filtered.length;
-  const offset = (query.page - 1) * query.pageSize;
-  const items = filtered.slice(offset, offset + query.pageSize);
-  return {
-    items,
-    total,
-    page: query.page,
-    pageSize: query.pageSize,
-    hasMore: offset + items.length < total,
-    filters: {
-      status: query.status,
-      providerId: query.providerId,
-      capability: query.capability,
+    id: `task-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    title: safeText(body.title, "扩展对话任务"),
+    status: "succeeded",
+    ownerId: user.id,
+    providerId: safeText(result.provider?.id || raw.providerId),
+    modelId: safeText(raw.modelRecordId),
+    payload: {
+      taskCapability: "chat",
+      executionMode: "direct",
+      requestId: requestContext.requestId,
+      userId: user.id,
+      providerId: safeText(body.providerId || result.provider?.id),
+      providerModel: safeText(body.providerModel || body.model),
+      modelRecordId: safeText(params.modelRecordId || raw.modelRecordId),
+      messageCount: Array.isArray(body.messages) ? body.messages.length : 0,
     },
+    result: {
+      adapter: "external_chat_proxy",
+      protocol: safeText(result.provider?.protocol),
+      capability: "chat",
+      content: safeText(result.content || result.text),
+      providerId: safeText(result.provider?.id || raw.providerId),
+      providerName: safeText(result.provider?.name || raw.providerName),
+      modelId: safeText(raw.modelId),
+      modelRecordId: safeText(raw.modelRecordId),
+      modelDisplayName: safeText(raw.modelDisplayName),
+      raw,
+      requestId: requestContext.requestId,
+      userId: user.id,
+    },
+    logs: ["画布完成扩展对话任务"],
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -6858,6 +6798,7 @@ function toPublicUser(user: UserRecord): CurrentUser {
     email: user.email,
     name: user.name,
     role: user.role,
+    groupId: user.groupId,
   };
 }
 
@@ -7106,17 +7047,42 @@ function lastTaskFailureLog(logs: string[]) {
   return [...logs].reverse().find((line) => /失败|error|failed/i.test(line)) || "";
 }
 
-async function publicRunningHubCatalog() {
+function assertCanUseRunningHubCatalogItem(
+  currentUser: CurrentUser | null | undefined,
+  policies: GroupPermissionPolicy[],
+  item: RhCatalogItem,
+) {
+  if (!currentUser || currentUser.role === "admin") return;
+  const groupId = safeText(currentUser.groupId, "ungrouped");
+  const policy = policies.find((entry) => entry.groupId === groupId) || null;
+  if (!canUseRunningHubCatalogItem(policy, item)) {
+    throw new HttpError(403, "RUNNINGHUB_CATALOG_ITEM_FORBIDDEN");
+  }
+}
+
+async function publicRunningHubCatalog(
+  currentUser?: CurrentUser | null,
+  options?: { includeRestricted?: boolean },
+) {
   const db = await readAdminDb();
+  const policies = options?.includeRestricted ? [] : (await readAuthDb()).groupPermissionPolicies;
   const providers = db.providers
     .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
     .map((provider) => {
-      const workflows = normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow")
+      const workflows = filterRunningHubCatalogForUser(
+        normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow")
         .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogItem(provider, entry));
-      const apps = normalizeRunningHubCatalogItems(provider.rhApps, "app")
+        .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
+        currentUser,
+        policies,
+      );
+      const apps = filterRunningHubCatalogForUser(
+        normalizeRunningHubCatalogItems(provider.rhApps, "app")
         .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogItem(provider, entry));
+        .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
+        currentUser,
+        policies,
+      );
       return {
         id: provider.id,
         name: provider.name,
@@ -7171,6 +7137,11 @@ async function createRunningHubQueuedTask(input: {
     : "video";
   if (!runTargetId) throw new Error(targetType === "app" ? "缺少 webappId/runTargetId" : "缺少 workflowId/runTargetId");
   const matchedCatalogItem = findRunningHubCatalogItemByTarget(input.provider, targetType, runTargetId);
+  const authDb = await readAuthDb();
+  if (matchedCatalogItem) {
+    const publicCatalogItem = toPublicRunningHubCatalogItem(input.provider, matchedCatalogItem);
+    assertCanUseRunningHubCatalogItem(input.user, authDb.groupPermissionPolicies, publicCatalogItem);
+  }
   const taskQueueSettingsRecord = await readTaskQueueSettingsRecord().catch(() => null);
   const legacyFallbackConcurrency = Math.max(
     1,
@@ -7195,6 +7166,9 @@ async function createRunningHubQueuedTask(input: {
       taskCapability,
       executionMode: "worker_queue",
       targetType,
+      rhCatalogId: matchedCatalogItem ? `${input.provider.id}:${matchedCatalogItem.kind || targetType}:${matchedCatalogItem.id}` : undefined,
+      rhCatalogTitle: matchedCatalogItem?.title,
+      rhCatalogKind: matchedCatalogItem?.kind,
       pageId,
       webappId,
       workflowId,
@@ -7217,6 +7191,11 @@ async function createRunningHubQueuedTask(input: {
       adapter: "runninghub",
       protocol: "runninghub",
       capability: taskCapability,
+      providerId: input.provider.id,
+      providerName: input.provider.name,
+      rhCatalogId: matchedCatalogItem ? `${input.provider.id}:${matchedCatalogItem.kind || targetType}:${matchedCatalogItem.id}` : undefined,
+      rhCatalogTitle: matchedCatalogItem?.title,
+      rhCatalogKind: matchedCatalogItem?.kind,
       rhTargetType: targetType,
       rhRunTargetId: runTargetId,
       pageId,
@@ -8417,8 +8396,8 @@ async function testAdminRunningHubCatalogItem(catalogId: string, testPayloadValu
   };
 }
 
-async function publicRunningHubCatalogItemDetail(catalogId: string): Promise<RhCatalogItem | null> {
-  const catalog = await publicRunningHubCatalog();
+async function publicRunningHubCatalogItemDetail(catalogId: string, currentUser?: CurrentUser | null): Promise<RhCatalogItem | null> {
+  const catalog = await publicRunningHubCatalog(currentUser);
   const canonicalMatch = catalog.items.find((entry) => entry.catalogId === catalogId);
   if (canonicalMatch) return canonicalMatch;
   const idMatches = catalog.items.filter((entry) => entry.id === catalogId);

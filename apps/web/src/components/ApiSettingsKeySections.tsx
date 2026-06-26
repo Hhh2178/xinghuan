@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 
-import { FIXED_ZHENZHEN_BASE, RH_BASE } from '../stores/apiKeys';
 import { CLASSIFIED_KEYS, COMMON_KEYS, type KeyField } from './apiSettingsHelpers';
 import ApiSettingsKeyField from './ApiSettingsKeyField';
 
@@ -14,11 +13,8 @@ interface ApiSettingsKeySectionsProps {
   hintClassName: string;
   inputClassName: string;
   eyeButtonClassName: string;
-  linkButtonClassName: string;
-  altLinkButtonClassName: string;
   onChange: (field: KeyField, value: string) => void;
   onToggleShow: (field: KeyField) => void;
-  onOpenExternal: (url: string) => void;
   onToggleClassified: () => void;
 }
 
@@ -29,21 +25,18 @@ function renderCommonKey(
   shows: Record<KeyField, boolean>,
   onChange: (field: KeyField, value: string) => void,
   onToggleShow: (field: KeyField) => void,
-  onOpenExternal: (url: string) => void,
   labelClassName: string,
   hintClassName: string,
   inputClassName: string,
   eyeButtonClassName: string,
-  linkButtonClassName: string,
-  altLinkButtonClassName: string,
 ) {
   const spec = COMMON_KEYS[specIndex];
   const baseUrlNote =
     specIndex === 0
-      ? `Base URL 锁定: ${FIXED_ZHENZHEN_BASE}`
+      ? 'Base URL 由当前系统配置决定'
       : specIndex === 1
-        ? `Base URL: ${RH_BASE}`
-        : `Base URL 锁定: ${FIXED_ZHENZHEN_BASE} (与贞贞同地址, Key 独立)`;
+        ? 'RunningHub 地址由当前系统配置决定'
+        : 'LLM 地址由当前系统配置决定，可与图像服务独立';
 
   return (
     <ApiSettingsKeyField
@@ -56,12 +49,9 @@ function renderCommonKey(
       hintClassName={hintClassName}
       inputClassName={inputClassName}
       eyeButtonClassName={eyeButtonClassName}
-      linkButtonClassName={linkButtonClassName}
-      altLinkButtonClassName={altLinkButtonClassName}
       baseUrlNote={baseUrlNote}
       onChange={(value) => onChange(spec.field, value)}
       onToggleShow={onToggleShow}
-      onOpenExternal={onOpenExternal}
     />
   );
 }
@@ -76,11 +66,8 @@ export default function ApiSettingsKeySections({
   hintClassName,
   inputClassName,
   eyeButtonClassName,
-  linkButtonClassName,
-  altLinkButtonClassName,
   onChange,
   onToggleShow,
-  onOpenExternal,
   onToggleClassified,
 }: ApiSettingsKeySectionsProps) {
   const configuredCount = CLASSIFIED_KEYS.filter((spec) => {
@@ -94,9 +81,9 @@ export default function ApiSettingsKeySections({
 
   return (
     <>
-      {renderCommonKey(0, settings, inputs, shows, onChange, onToggleShow, onOpenExternal, labelClassName, hintClassName, inputClassName, eyeButtonClassName, linkButtonClassName, altLinkButtonClassName)}
-      {renderCommonKey(1, settings, inputs, shows, onChange, onToggleShow, onOpenExternal, labelClassName, hintClassName, inputClassName, eyeButtonClassName, linkButtonClassName, altLinkButtonClassName)}
-      {renderCommonKey(2, settings, inputs, shows, onChange, onToggleShow, onOpenExternal, labelClassName, hintClassName, inputClassName, eyeButtonClassName, linkButtonClassName, altLinkButtonClassName)}
+      {renderCommonKey(0, settings, inputs, shows, onChange, onToggleShow, labelClassName, hintClassName, inputClassName, eyeButtonClassName)}
+      {renderCommonKey(1, settings, inputs, shows, onChange, onToggleShow, labelClassName, hintClassName, inputClassName, eyeButtonClassName)}
+      {renderCommonKey(2, settings, inputs, shows, onChange, onToggleShow, labelClassName, hintClassName, inputClassName, eyeButtonClassName)}
 
       <div className="t8-api-settings-divider pt-3 border-t">
         <button
@@ -141,12 +128,9 @@ export default function ApiSettingsKeySections({
                   hintClassName={hintClassName}
                   inputClassName={inputClassName}
                   eyeButtonClassName={eyeButtonClassName}
-                  linkButtonClassName={linkButtonClassName}
-                  altLinkButtonClassName={altLinkButtonClassName}
                   fallbackHint
                   onChange={(value) => onChange(spec.field, value)}
                   onToggleShow={onToggleShow}
-                  onOpenExternal={onOpenExternal}
                 />
               ))}
             </div>

@@ -566,7 +566,14 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     return {
       content,
       text: content,
-      raw: { providerId: provider.id, modelId: model.modelId, finishReason: (raw as any)?.choices?.[0]?.finish_reason || "" },
+      raw: {
+        providerId: provider.id,
+        providerName: provider.name,
+        modelId: model.modelId,
+        modelRecordId: model.id,
+        modelDisplayName: model.displayName,
+        finishReason: (raw as any)?.choices?.[0]?.finish_reason || "",
+      },
       provider: { id: provider.id, name: provider.name, protocol },
     };
   }

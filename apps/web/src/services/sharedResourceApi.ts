@@ -143,10 +143,3 @@ export function deleteSharedResourceItem(id: string, revision?: number) {
     body: JSON.stringify(revision ? { revision } : {}),
   });
 }
-
-export function copySharedResourceToPersonal(id: string) {
-  return safeSharedRequest<ResourceItem>(`${BASE}/shared-resources/items/${encodeURIComponent(id)}/copy-to-personal`, {
-    method: 'POST',
-    body: JSON.stringify({}),
-  });
-}

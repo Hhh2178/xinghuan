@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { KeyRound, X } from 'lucide-react';
-import { useApiKeysStore, FIXED_ZHENZHEN_BASE, RH_BASE } from '../stores/apiKeys';
+import { useApiKeysStore } from '../stores/apiKeys';
 import { useThemeStore } from '../stores/theme';
 import type { AdvancedProviderConfig, ApiSettings, CloudUploadTargetConfig } from '../types/canvas';
 import { getRawSettings, testAdvancedProvider, testCloudUploadTarget } from '../services/api';
@@ -154,8 +154,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
       const payload = buildSettingsBackupPayload({
         raw,
         editable: getCurrentEditableSettings(),
-        fixedZhenzhenBaseUrl: FIXED_ZHENZHEN_BASE,
-        runningHubBaseUrl: RH_BASE,
       });
       const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       downloadJson(`t8-settings-backup-${date}.json`, payload);
@@ -298,8 +296,6 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
   const eyeBtnCls = isPixel
     ? 't8-api-settings-icon-btn px-btn px-btn--icon px-btn--ghost'
     : 't8-api-settings-icon-btn p-2 rounded-md';
-
-  // 获取 APIKey 外部链接按钮样式（双主题）
   const linkBtnCls = isPixel
     ? 't8-api-settings-action-btn px-btn px-btn--mint flex items-center gap-1 text-[11px] px-2 py-1'
     : 't8-api-settings-action-btn flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition border';
@@ -311,7 +307,7 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
     try {
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      // 志忘
+      // 忽略打开失败
     }
   };
 
@@ -521,11 +517,8 @@ export default function ApiSettingsModal({ open, onClose }: ApiSettingsModalProp
             hintClassName={hintCls}
             inputClassName={inputCls}
             eyeButtonClassName={eyeBtnCls}
-            linkButtonClassName={linkBtnCls}
-            altLinkButtonClassName={linkBtnAltCls}
             onChange={setInputAt}
             onToggleShow={handleToggleShow}
-            onOpenExternal={openExternal}
             onToggleClassified={() => setClassifiedOpen((v) => !v)}
           />
 

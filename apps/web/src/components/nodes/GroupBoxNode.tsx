@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useReactFlow, useNodes, Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Play, X, Edit2 } from 'lucide-react';
+import { Play, X, Edit2, Lock, Unlock } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
 import { resolveThemeTemplate } from '../../theme/defaultTemplates';
 import { useGroupBusStore, GROUP_COLORS } from '../../stores/groupBus';
+import { getGroupBoxLiveMemberIds, isGroupBoxLocked } from '../canvas/groupBoxGuards';
 
 // 文件名后缀识别(与 OutputNode 一致): 剑中低代价修正「上游用 imageUrl 装视频/音频」兑底
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|m4v|mkv)(\?|$)/i.test(u);
@@ -14,6 +15,7 @@ export interface GroupBoxData {
   memberIds: string[];
   width: number;
   height: number;
+  locked?: boolean;
 }
 
 const HEADER_H = 40;
@@ -31,6 +33,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
   const color = d?.color ?? GROUP_COLORS[0];
   const width = d?.width ?? 320;
   const height = d?.height ?? 200;
+  const locked = d?.locked !== false;
 
   const { theme, style, templateId, customTemplates } = useThemeStore();
   const currentTemplate = useMemo(
@@ -52,31 +55,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
   const liveMemberIds = useMemo<string[]>(() => {
     const self = allNodes.find((n) => n.id === id);
     if (!self) return [];
-    const gx = self.position.x;
-    const gy = self.position.y;
-    const gw =
-      (self.data as any)?.width ||
-      (self as any).width ||
-      (self as any).measured?.width ||
-      width;
-    const gh =
-      (self.data as any)?.height ||
-      (self as any).height ||
-      (self as any).measured?.height ||
-      height;
-    const ids: string[] = [];
-    for (const n of allNodes as Node[]) {
-      if (n.id === id) continue;
-      if (n.type === 'groupBox') continue; // 不嵌套组
-      const nw = (n as any).width || (n as any).measured?.width || 200;
-      const nh = (n as any).height || (n as any).measured?.height || 100;
-      const cx = n.position.x + nw / 2;
-      const cy = n.position.y + nh / 2;
-      if (cx >= gx && cx <= gx + gw && cy >= gy && cy <= gy + gh) {
-        ids.push(n.id);
-      }
-    }
-    return ids;
+    return getGroupBoxLiveMemberIds(allNodes as Node[], self);
   }, [allNodes, id, width, height]);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -189,12 +168,28 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
     (patch: Partial<GroupBoxData>) => {
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === id ? { ...n, data: { ...(n.data as object), ...patch } } : n
+          n.id === id
+            ? {
+                ...n,
+                draggable: patch.locked === undefined ? n.draggable : !isGroupBoxLocked(patch),
+                data: { ...(n.data as object), ...patch },
+              }
+            : n
         )
       );
     },
     [id, setNodes]
   );
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === id && n.draggable !== !locked
+          ? { ...n, draggable: !locked }
+          : n
+      )
+    );
+  }, [id, locked, setNodes]);
 
   const saveName = useCallback(() => {
     const v = editValue.trim();
@@ -209,6 +204,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
     (corner: 'tl' | 'tr' | 'bl' | 'br') => (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      if (locked) return;
       const startX = e.clientX;
       const startY = e.clientY;
       const startW = width;
@@ -285,7 +281,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [id, width, height, getNodes, getZoom, setNodes]
+    [getNodes, getZoom, height, id, locked, setNodes, width]
   );
 
   // 主题派生颜色
@@ -524,6 +520,42 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
           </button>
         )}
 
+        <button
+          className="nodrag t8-group-box__button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateData({ locked: !locked });
+          }}
+          title={locked ? '解锁分组' : '锁定分组'}
+          style={{
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: locked ? color : btnBg,
+            border: isPixel ? '2px solid #1A1410' : 'none',
+            borderRadius: isPixel ? 6 : 6,
+            cursor: 'pointer',
+            flexShrink: 0,
+            color: locked ? '#fff' : subTextColor,
+            boxShadow: locked && isPixel ? '2px 2px 0 #1A1410' : 'none',
+          }}
+          onMouseEnter={(e) => {
+            if (!locked) {
+              (e.currentTarget as HTMLElement).style.background = btnHoverBg;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!locked) {
+              (e.currentTarget as HTMLElement).style.background = btnBg;
+            }
+          }}
+        >
+          {locked ? <Lock size={12} /> : <Unlock size={12} />}
+        </button>
+
         {/* 执行按钮(右上角) */}
         <button
           className="nodrag t8-group-box__button t8-group-box__button--run"
@@ -689,7 +721,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
             onMouseDown={startResize(c)}
             onMouseEnter={() => setHoverCorner(c)}
             onMouseLeave={() => setHoverCorner(null)}
-            title="拖动缩放组范围"
+            title={locked ? '分组已锁定，解锁后才能缩放' : '拖动缩放组范围'}
             style={{
               position: 'absolute',
               width: 16,
@@ -700,6 +732,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              cursor: locked ? 'not-allowed' : posStyle.cursor,
             }}
           >
             <div
@@ -713,7 +746,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
                   ? `1px 1px 0 ${color}`
                   : `0 1px 4px rgba(0,0,0,0.3)`,
                 transition: 'width 0.12s, height 0.12s, opacity 0.12s',
-                opacity: active ? 1 : 0.55,
+                opacity: locked ? 0.22 : active ? 1 : 0.55,
                 pointerEvents: 'none',
               }}
             />

@@ -63,6 +63,73 @@
 
 ## 2026-06-26
 
+- 组权限治理第一批基础链路：
+  - 新增 `apps/api/db/019_group_permission_policies.sql`
+  - 新增 `apps/api/src/group-permission-policy.ts`
+  - 新增 `apps/api/src/group-permission-policy-routes.ts`
+  - 新增契约脚本 `scripts/verify-group-permission-governance-contract.mjs`
+  - `apps/api/src/server.ts`
+    - auth storage 新增 `groupPermissionPolicies`
+    - 新增 `/api/admin/group-permission-policies`
+    - 新增 `/api/admin/group-permission-policies/:groupId`
+    - 新增 `/api/admin/permission-catalog`
+    - 新增 `/api/me/permissions`
+    - RunningHub public catalog/detail 开始按用户组过滤
+    - RunningHub submit 增加后端兜底校验
+  - `apps/api/src/shared-resource-routes.ts`
+    - 公共资源分类与条目开始按用户组直接过滤
+  - `apps/web/src/components/ResourceLibraryDrawer.tsx`
+    - 删除“另存为我的资源 / 发送到我的资源库”前端入口
+    - 公共资源卡片操作区改为自动换行
+  - `apps/web/src/services/sharedResourceApi.ts`
+    - 删除前端已废弃的 copy-to-personal 调用
+  - `apps/admin/src/admin-types.ts`
+  - `apps/admin/src/admin-api-client.ts`
+    - 预埋分组权限策略、权限目录、有效权限接口类型与 client
+  - 当前用户侧口径：
+    - 无权限公共资源直接不显示
+    - 无权限 RH AI 应用 / 工作流直接不显示
+    - 历史残留 RH 引用仍由后端 submit 拦截
+  - 本地验证通过：
+    - `node scripts/verify-group-permission-governance-contract.mjs`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/web`
+    - `npm run type-check -w @xinghuan/admin`
+
+- 组权限治理后台管理端第一版：
+  - 新增 `apps/admin/src/admin-permissions-panel.tsx`
+    - 把分组权限治理独立成可复用的权限矩阵组件
+    - 支持 `公共资源 / RH AI 应用 / RH 工作流 / 节点能力` 四个子区块
+    - 支持当前筛选批量允许 / 禁用、缺失 ID 保留展示和底部保存条
+  - `apps/admin/src/admin-users-panel.tsx`
+    - 用户页改为 `账号 / 用户组 / 权限 / 会话` 四段式工作台
+    - 删除旧的窄侧栏分组滚动区
+    - 用户组页改为大卡片式管理区，支持更多分组
+  - `apps/admin/src/styles.css`
+    - 新增权限工作台、分组卡片、权限卡片、保存条和响应式布局样式
+  - 同步更新：
+    - `docs/systems/admin/ui-and-information-architecture.md`
+    - `docs/prd/v0.1.0/progress.md`
+  - 本地验证通过：
+    - `npm run type-check -w @xinghuan/admin`
+    - `node scripts/verify-group-permission-governance-contract.mjs`
+
+- 审计页成功用量统计驾驶舱第一版：
+  - 新增 `apps/api/src/admin-usage-analytics.ts`，把成功任务聚合逻辑从 `server.ts` 主流程中抽离。
+  - 新增 `/api/admin/audit/usage-summary`，只统计 `xh_tasks.status = succeeded`。
+  - 后台审计页顶部新增驾驶舱，显示成功总量、能力占比、分组/账号排行、模型矩阵和 RH 条目矩阵。
+  - 图片 / 视频 / LLM 统计已按模型显示名、模型 ID、Provider 聚合。
+  - RunningHub 统计已按后台 catalog 条目标题、catalogId、runTargetId 聚合。
+  - 新 RH 队列任务入库时会补写 `rhCatalogId / rhCatalogTitle / rhCatalogKind` 快照。
+  - 同步补齐同步 LLM 调用的 task-backed 记录，避免审计页完全丢失 LLM 成功次数。
+  - 新增契约脚本 `scripts/verify-admin-usage-dashboard-contract.mjs`。
+  - 本地验证通过：
+    - `node scripts/verify-admin-usage-dashboard-contract.mjs`
+    - `npm run verify:admin-readonly-panels-contract`
+    - `npm run verify:admin-api-client-contract`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run type-check -w @xinghuan/api`
+
 - 旧工作流导入兼容与 workflow 资源可见性修复：
   - 新增 `apps/web/src/utils/nodeMigration.ts`，导入与恢复画布时对旧 `llm` 节点做轻迁移，清理运行态残留字段
   - `apps/web/src/components/Canvas.tsx` 与 `apps/web/src/components/canvas/useCanvasPersistence.ts` 接入迁移层
