@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRightLeft, CheckSquare, RefreshCcw, ShieldAlert } from "lucide-react";
 import { api } from "./admin-api-client";
-import { AdminTable, StatusPill } from "./admin-common-components";
+import { AdminTable, AdminWorkspaceBand, StatusPill } from "./admin-common-components";
 import type {
   ConfirmAction,
   EnvironmentSyncApplyResponse,
@@ -224,17 +224,21 @@ export function AdminEnvironmentSyncPanel({
 
   return (
     <section className="panel-stack environment-sync-page">
-      <div className="api-card environment-sync-hero">
-        <div className="environment-sync-hero__copy">
-          <strong>灰度 / 正式环境数据对齐</strong>
-          <p>先查看两边差异，再勾选账号或服务商进行同步。勾选服务商时，会把该服务商下面的模型配置一起同步过去。</p>
-        </div>
-        <div className="environment-sync-hero__metrics">
-          <span>{selectedRows.length} 项已选</span>
-          <span>{users.length} 个账号差异项</span>
-          <span>{providers.length} 个服务商差异项</span>
-        </div>
-      </div>
+      <AdminWorkspaceBand
+        className="environment-sync-band"
+        kicker="Ops Center"
+        title="灰度 / 正式环境数据对齐"
+        description="先查看两边差异，再勾选账号或服务商进行同步。勾选服务商时，会把该服务商下面的模型配置一起同步过去。"
+        currentLabel={`${environmentLabel(sourceEnvironment)} -> ${environmentLabel(targetEnvironment)}`}
+        currentDescription={`${selectedRows.length} 项已选 · ${selectedRows.filter((row) => row.state === "conflict").length} 项冲突`}
+        actions={
+          <div className="environment-sync-band__metrics">
+            <span>{users.length} 个账号差异项</span>
+            <span>{providers.length} 个服务商差异项</span>
+            <span>{selectedRows.length} 项已选</span>
+          </div>
+        }
+      />
 
       <div className="environment-sync-toolbar">
         <div className="environment-sync-toolbar__group">

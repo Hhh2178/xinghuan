@@ -1,6 +1,7 @@
 import { Image as ImageIcon, Library, Music, RefreshCw, Search, Upload, Video } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminSharedResourceApi } from "./admin-api-client";
+import { AdminBandTabButton, AdminWorkspaceBand } from "./admin-common-components";
 import { AdminMediaPreviewModal } from "./admin-media-preview-modal";
 import { AdminPublicResourceCard } from "./admin-public-resource-card";
 import { AdminPublicResourceCategorySidebar } from "./admin-public-resource-category-sidebar";
@@ -176,55 +177,62 @@ export function AdminPublicResourcesPanel() {
 
   return (
     <section className="admin-public-resources-page admin-public-resources-page--starlight">
-      <div className="admin-public-resources-hero">
-        <div>
-          <span>Shared Resource Governance</span>
-          <strong>公共资源管理</strong>
-          <p>把公共图像、视频、音频与其他治理条目收在同一个卡片工作区里，确保预览完整可见、管理动作稳定可读。</p>
-        </div>
-        <div className="admin-public-resources-hero__actions">
-          <button type="button" onClick={() => void load()} disabled={loading}>
-            <RefreshCw aria-hidden="true" />
-            刷新
-          </button>
-          <button type="button" onClick={() => uploadInputRef.current?.click()} disabled={!canUpload || loading}>
-            <Upload aria-hidden="true" />
-            上传本地资源
-          </button>
-          <input
-            ref={uploadInputRef}
-            type="file"
-            multiple
-            className="admin-public-resources-file-input"
-            accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : undefined}
-            onChange={(event) => {
-              void uploadFiles(event.currentTarget.files);
-              event.currentTarget.value = "";
-            }}
-          />
-        </div>
-      </div>
+      <AdminWorkspaceBand
+        className="admin-public-resources-band"
+        kicker="Shared Resource Governance"
+        title="公共资源管理"
+        description="把公共图像、视频、音频与治理条目收在同一个卡片工作区里，确保预览完整可见、上传稳定、分类可控。"
+        currentLabel={`${activeMeta.label}资源`}
+        currentDescription={`${visibleCategoryName} · ${loading ? "同步中" : `${items.length} 项资源`}`}
+        actions={
+          <div className="admin-public-resources-band__actions">
+            <button type="button" onClick={() => void load()} disabled={loading}>
+              <RefreshCw aria-hidden="true" />
+              刷新
+            </button>
+            <button type="button" onClick={() => uploadInputRef.current?.click()} disabled={!canUpload || loading}>
+              <Upload aria-hidden="true" />
+              上传本地资源
+            </button>
+          </div>
+        }
+        footer={
+          <div className="admin-public-resources-band__footer">
+            {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
+              const Icon = KIND_META[nextKind].icon;
+              return (
+                <AdminBandTabButton
+                  key={nextKind}
+                  active={kind === nextKind}
+                  onClick={() => {
+                    setKind(nextKind);
+                    setCategoryId("all");
+                  }}
+                >
+                  <Icon aria-hidden="true" />
+                  <span>
+                    <strong>{KIND_META[nextKind].label}</strong>
+                    <small>{nextKind}</small>
+                  </span>
+                </AdminBandTabButton>
+              );
+            })}
+          </div>
+        }
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        multiple
+        className="admin-public-resources-file-input"
+        accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : undefined}
+        onChange={(event) => {
+          void uploadFiles(event.currentTarget.files);
+          event.currentTarget.value = "";
+        }}
+      />
 
       <div className="admin-public-resources-toolbar">
-        <div className="admin-public-resources-toolbar__kinds">
-          {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
-            const Icon = KIND_META[nextKind].icon;
-            return (
-              <button
-                key={nextKind}
-                type="button"
-                className={kind === nextKind ? "active" : ""}
-                onClick={() => {
-                  setKind(nextKind);
-                  setCategoryId("all");
-                }}
-              >
-                <Icon aria-hidden="true" />
-                {KIND_META[nextKind].label}
-              </button>
-            );
-          })}
-        </div>
         <label className="admin-public-resources-toolbar__search">
           <Search aria-hidden="true" />
           <input

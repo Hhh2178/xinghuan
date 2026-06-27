@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/shared",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -10,3 +10,4 @@
     "build": "tsc -p tsconfig.build.json"
   }
 }
+

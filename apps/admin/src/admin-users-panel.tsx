@@ -1,6 +1,7 @@
 import { Activity, KeyRound, ShieldCheck, Users2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { adminPermissionApi } from "./admin-api-client";
+import { AdminWorkspaceBand } from "./admin-common-components";
 import { AdminUserAccountsSection } from "./admin-user-accounts-section";
 import { AdminUserGroupsSection } from "./admin-user-groups-section";
 import { AdminUserSessionsSection } from "./admin-user-sessions-section";
@@ -125,19 +126,22 @@ export function UsersPanel({
 
   return (
     <section className="panel-stack users-page users-page--starlight">
-      <div className="api-card users-hero">
-        <div>
-          <strong>账号、分组与权限治理</strong>
-          <p>这里负责账号创建、用户组维护、分组权限隐藏策略以及后台会话治理，不再把所有功能挤在同一条窄侧栏里。</p>
-        </div>
-        <div className="users-hero-metrics">
-          <span>{users.length} 个账号</span>
-          <span>{enabledCount} 个启用</span>
-          <span>{adminCount} 个管理员</span>
-          <span>{userGroups.length} 个用户组</span>
-          <span>{activeSessionCount} 个活跃会话</span>
-        </div>
-      </div>
+      <AdminWorkspaceBand
+        className="users-band"
+        kicker="Governance Center"
+        title="账号、分组与权限治理"
+        description="这里负责账号创建、用户组维护、分组权限隐藏策略以及后台会话治理，不再把所有功能挤在同一条窄侧栏里。"
+        currentLabel={USER_TABS.find((tab) => tab.id === activeTab)?.label || "总览"}
+        currentDescription={`${users.length} 个账号 · ${userGroups.length} 个用户组 · ${activeSessionCount} 个活跃会话`}
+        actions={
+          <div className="users-band__metrics">
+            <span>{enabledCount} 个启用</span>
+            <span>{adminCount} 个管理员</span>
+            <span>{restrictedGroupCount} 个限制组</span>
+            <span>{activeSessionCount} 个活跃会话</span>
+          </div>
+        }
+      />
 
       <div className="users-governance-summary" aria-label="组织治理概览">
         <div>

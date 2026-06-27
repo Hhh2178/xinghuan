@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { api } from "./admin-api-client";
+import { AdminWorkspaceBand } from "./admin-common-components";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { ModelPicker } from "./admin-model-picker";
@@ -17,7 +18,6 @@ import {
   formatAssistantRawOutput,
   inferProviderProtocol,
   isModelScopeProvider,
-  isRunningHubProvider,
   parseAssistantDocUrls,
   providerDraft,
   safeAssistantSchemaText,
@@ -42,12 +42,10 @@ export function ApiSettingsPanel({
   providers,
   models,
   refresh,
-  onOpenRunningHubWorkspace,
 }: {
   providers: ProviderRecord[];
   models: ModelRecord[];
   refresh: () => Promise<void>;
-  onOpenRunningHubWorkspace: (providerId: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState(providers[0]?.id || "");
   const selected =
@@ -503,25 +501,23 @@ export function ApiSettingsPanel({
     setManualModelCapability(null);
   }
 
-  const rhVisible = selected ? isRunningHubProvider(draft) : false;
   const msVisible = selected ? isModelScopeProvider(draft) : false;
-  const rhItemCount = draft.rhApps.length + draft.rhWorkflows.length;
 
   return (
     <section className="api-settings-page">
-      <div className="api-settings-head">
-        <div className="api-settings-head-copy">
-          <span className="api-settings-kicker">平台与模型目录</span>
-          <h2>统一管理接入能力</h2>
-          <p>
-            管理平台地址、模型列表和 Key。Key
-            写入后端加密保存，页面不会回显完整内容。
-          </p>
-        </div>
-        <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
-          {busy ? "处理中..." : status}
-        </span>
-      </div>
+      <AdminWorkspaceBand
+        className="api-settings-band"
+        kicker="Capability Console"
+        title="统一管理接入能力"
+        description="管理平台地址、模型列表、协议判断和 Key。Key 写入后端加密保存，页面不会回显完整内容。"
+        currentLabel={selected?.name || "新增平台"}
+        currentDescription={selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}
+        actions={
+          <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
+            {busy ? "处理中..." : status}
+          </span>
+        }
+      />
 
       <div className="api-settings-layout">
         <aside className="provider-rail">
@@ -988,36 +984,6 @@ export function ApiSettingsPanel({
             ) : null}
           </div>
 
-          {rhVisible ? (
-            <section className="api-card runninghub-summary-card">
-              <div className="runninghub-summary-card__copy">
-                <span>RunningHub Provider</span>
-                <strong>RunningHub 条目已迁移到独立工作台</strong>
-                <p>Provider 页面只保留目录摘要和入口。工作流、AI 应用及后续结构化编辑在 RH 工作台内继续完成。</p>
-              </div>
-              <dl className="runninghub-summary-card__stats">
-                <div>
-                  <dt>工作流</dt>
-                  <dd>{draft.rhWorkflows.length}</dd>
-                </div>
-                <div>
-                  <dt>AI 应用</dt>
-                  <dd>{draft.rhApps.length}</dd>
-                </div>
-                <div>
-                  <dt>总条目</dt>
-                  <dd>{rhItemCount}</dd>
-                </div>
-              </dl>
-              <button
-                type="button"
-                className="ghost-action runninghub-summary-card__action"
-                onClick={() => onOpenRunningHubWorkspace(selected?.id || draft.id || "runninghub")}
-              >
-                <ArrowRight aria-hidden="true" /> 进入 RH 工作台
-              </button>
-            </section>
-          ) : null}
           {msVisible ? (
             <ModelScopeLoraPanel
               loras={draft.msLoras}

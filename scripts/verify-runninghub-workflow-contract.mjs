@@ -22,19 +22,13 @@ const checks = [
       && /normalizeOptionalJsonText/.test(api),
   ],
   [
-    "Admin exposes RunningHub workspace shell instead of inline workflow editor",
-    /进入 RH 工作台/.test(adminSettings) &&
+    "Admin exposes RunningHub workspace shell as independent admin area",
+    !/进入 RH 工作台/.test(adminSettings) &&
       /runninghub-workspace/.test(adminMain) &&
       /RunningHub 工作台/.test(adminWorkspace) &&
       /工作流/.test(adminWorkspace) &&
       /AI 应用/.test(adminWorkspace) &&
       /admin-runninghub-editor__section-chip/.test(adminEditor),
-  ],
-  [
-    "Admin hands selected provider context into RunningHub workspace",
-    /onOpenRunningHubWorkspace/.test(adminSettings) &&
-      /setRunningHubWorkspaceProviderId/.test(adminMain) &&
-      /selectedProviderId/.test(adminWorkspace),
   ],
   [
     "Admin workspace preserves detected RH kind drift and migration hints",

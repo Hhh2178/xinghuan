@@ -7,9 +7,9 @@ import { AdminAnnouncementPanel } from "./admin-announcement-panel";
 import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
 import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
+import { AdminBandTabButton, AdminWorkspaceBand } from "./admin-common-components";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
-import { AdminGenerationLibraryPanel } from "./admin-generation-library-panel";
 import { Overview } from "./admin-overview-panel";
 import { AdminPublicResourcesPanel } from "./admin-public-resources-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
@@ -246,7 +246,6 @@ function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
   const [currentUser, setCurrentUser] = useState<AuthUserShape | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const [runningHubWorkspaceProviderId, setRunningHubWorkspaceProviderId] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = window.localStorage.getItem(ADMIN_ASSISTANT_STORAGE_KEY);
@@ -353,7 +352,7 @@ function AdminApp() {
   useEffect(() => {
     if (!isAdmin) return;
     const hasActiveTasks = taskPage.items.some((task) => task.status === "queued" || task.status === "running");
-    const shouldLiveRefresh = activeTab === "tasks" || activeTab === "generation-library" || hasActiveTasks;
+    const shouldLiveRefresh = activeTab === "tasks" || hasActiveTasks;
     if (!shouldLiveRefresh) return;
     const timer = window.setInterval(() => {
       void loadTaskPage();
@@ -523,32 +522,40 @@ function AdminApp() {
 
           {error ? <div className="error-banner">{error}</div> : null}
 
-          <section className="starlight-workspace-home" aria-label="当前工作域">
-            <div className="starlight-workspace-home__copy">
-              <span>{activeWorkspace.subtitle}</span>
-              <strong>{activeWorkspace.label}</strong>
-              <p>{activeWorkspace.description}</p>
-            </div>
-            <div className="starlight-workspace-tabs" role="tablist" aria-label={`${activeWorkspace.label}页面`}>
-              {activeWorkspaceTabs.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={activeTab === item.id ? "active" : ""}
-                    onClick={() => setActiveTab(item.id)}
-                  >
-                    <Icon aria-hidden="true" />
-                    <span>
-                      <strong>{item.label}</strong>
-                      <small>{adminTabDescriptions[item.id]}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+          <AdminWorkspaceBand
+            kicker={activeWorkspace.subtitle}
+            title={activeWorkspace.label}
+            description={activeWorkspace.description}
+            currentLabel={titleFor(activeTab)}
+            currentDescription={adminTabDescriptions[activeTab]}
+            actions={
+              <div className="admin-workspace-band__meta-pills" aria-label="当前工作区状态">
+                <span>{refreshPolicy.label}</span>
+                <span>{refreshPolicy.intervalLabel}</span>
+              </div>
+            }
+            footer={
+              <div className="admin-workspace-band__tab-row" role="tablist" aria-label={`${activeWorkspace.label}页面`}>
+                {activeWorkspaceTabs.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <AdminBandTabButton
+                      key={item.id}
+                      active={activeTab === item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      aria-pressed={activeTab === item.id}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{adminTabDescriptions[item.id]}</small>
+                      </span>
+                    </AdminBandTabButton>
+                  );
+                })}
+              </div>
+            }
+          />
 
           <Suspense fallback={<div className="starlight-page-loading"><Loader2 className="spin" aria-hidden="true" /> 正在加载后台模块...</div>}>
           {activeTab === "overview" ? (
@@ -573,20 +580,13 @@ function AdminApp() {
               providers={providers}
               models={models}
               refresh={loadAdminData}
-              onOpenRunningHubWorkspace={(providerId) => {
-                setRunningHubWorkspaceProviderId(providerId);
-                setActiveTab("runninghub-workspace");
-              }}
             />
           ) : null}
           {activeTab === "runninghub-workspace" ? (
-            <AdminRunningHubWorkspace selectedProviderId={runningHubWorkspaceProviderId} />
+            <AdminRunningHubWorkspace />
           ) : null}
           {activeTab === "public-resources" ? (
             <AdminPublicResourcesPanel />
-          ) : null}
-          {activeTab === "generation-library" ? (
-            <AdminGenerationLibraryPanel />
           ) : null}
           {activeTab === "assistant" ? (
             <AdminAssistantSettingsPanel
@@ -786,6 +786,7 @@ function LoginView({
         <label>
           账号邮箱
           <input
+            autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
@@ -794,6 +795,7 @@ function LoginView({
           密码
           <input
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />

@@ -32,7 +32,9 @@ assert(panel.includes("environment-sync-rail"));
 assert(panel.includes("environment-sync-table-area"));
 assert(panel.includes("environment-sync-table-scroll"));
 assert(panel.includes("environment-sync-section-tabs"));
+assert(panel.includes("AdminWorkspaceBand"));
 assert(!panel.includes("environment-sync-sidebar"));
+assert(!panel.includes("environment-sync-hero"));
 assert(main.includes("admin-workspace--with-assistant"));
 assert(main.includes('activeTab === "environment-sync"'));
 assert(styles.includes(".environment-sync-toolbar {"));
@@ -41,5 +43,6 @@ assert(styles.includes(".environment-sync-rail {"));
 assert(styles.includes(".environment-sync-table-area {"));
 assert(styles.includes(".environment-sync-table-scroll {"));
 assert(styles.includes(".environment-sync-section-tabs {"));
+assert(styles.includes(".admin-workspace-band {"));
 
 console.log(JSON.stringify({ ok: true }, null, 2));

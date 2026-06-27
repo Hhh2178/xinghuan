@@ -11,9 +11,9 @@ const readAdminDbSource = apiServerSource.slice(
   apiServerSource.indexOf("async function readAdminDb()"),
   apiServerSource.indexOf("async function writeAdminDb("),
 );
-const providerProbeRouteSource = apiServerSource.slice(
-  apiServerSource.indexOf("const providerProbeMatch"),
-  apiServerSource.indexOf("const providerImportModelsMatch"),
+const providerRouteSplitSource = apiServerSource.slice(
+  apiServerSource.indexOf("if (await handleAdminProviderRoutes({"),
+  apiServerSource.indexOf("const providerRunningHubKeyPoolMatch"),
 );
 const providerProbeSource = apiServerSource.slice(
   apiServerSource.indexOf("async function probeProviderDraft"),
@@ -83,7 +83,7 @@ const checks = [
     pass:
       modelEditorSource.includes("model-runtime-grid") &&
       modelEditorSource.includes("最大轮询时长（秒）") &&
-      modelEditorSource.includes("默认 360 秒"),
+      (modelEditorSource.includes("默认 360 秒") || modelEditorSource.includes("默认留空，不启用轮询超时")),
   },
   {
     name: "postgres admin reads do not perform full-table writes",
@@ -94,9 +94,9 @@ const checks = [
   {
     name: "provider probe and fetch status updates are targeted in postgres",
     pass:
-      providerProbeRouteSource.includes("updateProviderProbeResult") &&
-      providerProbeRouteSource.includes("updateProviderLastFetchedAt") &&
-      !providerProbeRouteSource.includes("await writeAdminDb({ ...db, providers"),
+      providerRouteSplitSource.includes("updateProviderProbeResult") &&
+      providerRouteSplitSource.includes("updateProviderLastFetchedAt") &&
+      !providerRouteSplitSource.includes("writeAdminDb({ ...db, providers"),
   },
   {
     name: "GRSAI providers are detected by endpoint as well as protocol",

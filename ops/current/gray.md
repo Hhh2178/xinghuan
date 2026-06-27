@@ -2,11 +2,12 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.7`
-- 当前 release：`20260627-admin-resource-content-governance-gray-r1-v057`
-- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.8`
+- 当前 release：`20260627-admin-shell-visual-unification-gray-r1-v058`
+- 当前状态：`2026-06-27 待 deploy`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-27-admin-shell-visual-unification-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-resource-content-governance-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-lazy-import-recovery-admin-grid-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-26-admin-governance-redesign-gray.md`
@@ -33,9 +34,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-resource-content-governance-gray-r1-v057`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-shell-visual-unification-gray-r1-v058`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-resource-content-governance-gray-r1-v057`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/web",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,9 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@xinghuan/canvas-core": "0.5.7",
-    "@xinghuan/shared": "0.5.7",
-    "@xinghuan/ui": "0.5.7",
+    "@xinghuan/canvas-core": "0.5.8",
+    "@xinghuan/shared": "0.5.8",
+    "@xinghuan/ui": "0.5.8",
     "@mediapipe/tasks-vision": "^0.10.35",
     "@xyflow/react": "^12.10.0",
     "react": "^19.2.1",
@@ -28,3 +28,4 @@
     "typescript": "^5.9.3"
   }
 }
+

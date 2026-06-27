@@ -55,7 +55,7 @@ const checks = [
       main.includes("starlight-sidebar") &&
       main.includes("starlight-topbar") &&
       main.includes("starlight-domain-nav") &&
-      main.includes("starlight-workspace-home"),
+      main.includes("admin-workspace-band"),
   },
   {
     name: "main keeps existing business panels",
@@ -85,7 +85,8 @@ const checks = [
       styles.includes("--starlight-cyan") &&
       styles.includes("--starlight-panel") &&
       styles.includes(".starlight-shell") &&
-      styles.includes(".starlight-domain-nav"),
+      styles.includes(".starlight-domain-nav") &&
+      styles.includes(".admin-workspace-band"),
   },
 ];
 
