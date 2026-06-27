@@ -5588,11 +5588,13 @@ td {
 
 .admin-public-resources-hero,
 .admin-public-resources-toolbar,
+.admin-public-resources-inspector,
 .admin-public-resources-layout,
 .admin-public-resources-grid,
 .admin-public-resource-card,
 .admin-public-resource-card__management,
 .admin-public-resource-card__actions,
+.admin-public-resource-card__action-row,
 .admin-public-resources-hero__actions {
   min-width: 0;
 }
@@ -5711,6 +5713,35 @@ td {
   width: 100%;
 }
 
+.admin-public-resources-inspector {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-public-resources-inspector div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 12px;
+  background: rgba(8, 13, 20, 0.78);
+}
+
+.admin-public-resources-inspector span {
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-public-resources-inspector strong {
+  min-width: 0;
+  color: #ffffff;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
 .admin-public-resources-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -5782,7 +5813,8 @@ td {
   color: #ffffff;
 }
 
-.admin-public-resources-category-list > button span {
+.admin-public-resources-category-list > button span,
+.admin-public-resources-category-card__name {
   color: #ffffff;
 }
 
@@ -5807,7 +5839,7 @@ td {
   background: transparent;
 }
 
-.admin-public-resources-category-card__select span,
+.admin-public-resources-category-card__name,
 .admin-public-resources-category-card__select small {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -5855,19 +5887,29 @@ td {
 
 .admin-public-resource-card__preview-shell {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.admin-public-resource-card__preview-frame {
+.admin-public-resource-card__preview-stage {
   display: grid;
   place-items: center;
-  min-height: 180px;
+  min-height: 156px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #000;
+}
+
+.admin-public-resource-card__preview-frame {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .admin-public-resource-card__preview-frame img {
@@ -5902,9 +5944,11 @@ td {
 
 .admin-public-resource-card__audio-preview {
   width: 100%;
+  height: 100%;
   display: grid;
+  align-content: center;
   gap: 14px;
-  padding: 16px;
+  padding: 12px;
 }
 
 .admin-public-resource-card__audio-preview audio {
@@ -5915,6 +5959,15 @@ td {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-public-resource-card__action-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -5932,14 +5985,14 @@ td {
 
 .admin-public-resource-card__management {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
 }
 
 .admin-public-resource-card__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .admin-public-resource-card__field {
@@ -5961,7 +6014,7 @@ td {
 
 .admin-public-resource-card__field textarea {
   width: 100%;
-  min-height: 72px;
+  min-height: 60px;
   padding: 10px 12px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 12px;
@@ -6134,6 +6187,12 @@ td {
 
   .admin-public-resources-sidebar {
     position: static;
+  }
+}
+
+@media (max-width: 1280px) {
+  .admin-public-resources-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

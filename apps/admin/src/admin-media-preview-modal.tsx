@@ -40,7 +40,7 @@ export function AdminMediaPreviewModal({ open, title, url, mime, kind, onClose }
       onClick={onClose}
     >
       <section
-        className="admin-media-preview-modal"
+        className="admin-media-preview-modal admin-media-preview-modal--starlight"
         role="dialog"
         aria-modal="true"
         aria-label={`预览 ${title}`}

@@ -159,6 +159,14 @@
 - 下半区为标题、分类、标签、备注、文件信息和操作。
 - 操作按钮可换行，不溢出。
 
+落地约定：
+
+- 页面级使用 `admin-public-resources-page--starlight` 标识，资源卡片使用 `admin-public-resource-card--starlight` 标识。
+- 卡片预览舞台使用 `admin-public-resource-card__preview-stage`，内部媒体统一 `object-fit: contain`。
+- 完整预览弹窗使用 `admin-media-preview-modal--starlight`，弹窗媒体同样必须完整展示。
+- 操作按钮放入 `admin-public-resource-card__action-row`，所有 action row 默认 `flex-wrap: wrap`。
+- 分类名称使用 `admin-public-resources-category-card__name`，文字颜色保持白色，长名称允许安全换行。
+
 ## 6. stitch 方案保留与修正清单
 
 保留为设计资产：

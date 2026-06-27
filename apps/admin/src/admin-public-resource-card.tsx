@@ -104,19 +104,23 @@ export function AdminPublicResourceCard({
   const missingCategory = item.categoryId && !categoryNameById.has(item.categoryId);
 
   return (
-    <article className="admin-public-resource-card">
+    <article className="admin-public-resource-card admin-public-resource-card--starlight">
       <div className="admin-public-resource-card__preview-shell">
-        <div className="admin-public-resource-card__preview-frame">{renderPreview(item)}</div>
+        <div className="admin-public-resource-card__preview-stage">
+          <div className="admin-public-resource-card__preview-frame">{renderPreview(item)}</div>
+        </div>
         <div className="admin-public-resource-card__preview-actions">
-          <button type="button" onClick={onOpenPreview}>
-            <ExternalLink aria-hidden="true" />
-            {getPreviewText(item)}
-          </button>
-          {previewUrl ? (
-            <a href={previewUrl} target="_blank" rel="noreferrer" className="admin-public-resource-card__preview-link">
-              原始链接
-            </a>
-          ) : null}
+          <div className="admin-public-resource-card__action-row">
+            <button type="button" onClick={onOpenPreview}>
+              <ExternalLink aria-hidden="true" />
+              {getPreviewText(item)}
+            </button>
+            {previewUrl ? (
+              <a href={previewUrl} target="_blank" rel="noreferrer" className="admin-public-resource-card__preview-link">
+                原始链接
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -159,14 +163,16 @@ export function AdminPublicResourceCard({
         </div>
 
         <div className="admin-public-resource-card__actions">
-          <button type="button" onClick={onSave}>
-            <Save aria-hidden="true" />
-            保存
-          </button>
-          <button type="button" className="danger-button" onClick={onDelete}>
-            <Trash2 aria-hidden="true" />
-            删除
-          </button>
+          <div className="admin-public-resource-card__action-row">
+            <button type="button" onClick={onSave}>
+              <Save aria-hidden="true" />
+              保存
+            </button>
+            <button type="button" className="danger-button" onClick={onDelete}>
+              <Trash2 aria-hidden="true" />
+              删除
+            </button>
+          </div>
         </div>
       </div>
     </article>

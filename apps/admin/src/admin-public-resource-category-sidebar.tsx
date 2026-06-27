@@ -23,7 +23,7 @@ export function AdminPublicResourceCategorySidebar({
   onDeleteCategory,
 }: AdminPublicResourceCategorySidebarProps) {
   return (
-    <aside className="data-panel admin-public-resources-sidebar">
+    <aside className="data-panel admin-public-resources-sidebar admin-public-resources-sidebar--starlight">
       <header>
         <div className="admin-public-resources-sidebar__title">
           <FolderPlus aria-hidden="true" />
@@ -43,7 +43,7 @@ export function AdminPublicResourceCategorySidebar({
           className={activeCategoryId === "all" ? "active" : ""}
           onClick={() => onSelectCategory("all")}
         >
-          <span>全部资源</span>
+          <span className="admin-public-resources-category-card__name">全部资源</span>
           <strong>{itemCount}</strong>
         </button>
 
@@ -53,7 +53,7 @@ export function AdminPublicResourceCategorySidebar({
             className={`admin-public-resources-category-card${activeCategoryId === category.id ? " active" : ""}`}
           >
             <button type="button" className="admin-public-resources-category-card__select" onClick={() => onSelectCategory(category.id)}>
-              <span>{category.name}</span>
+              <span className="admin-public-resources-category-card__name">{category.name}</span>
               <small>{category.kind}</small>
             </button>
             <div className="admin-public-resources-category-card__actions">

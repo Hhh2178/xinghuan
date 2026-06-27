@@ -50,6 +50,7 @@ export function AdminPublicResourcesPanel() {
 
   const canUpload = kind === "image" || kind === "video" || kind === "audio";
   const activeMeta = KIND_META[kind];
+  const categorizedCount = items.filter((item) => item.categoryId).length;
 
   async function load() {
     setLoading(true);
@@ -74,6 +75,7 @@ export function AdminPublicResourcesPanel() {
   }, [kind, categoryId]);
 
   const categoryNameById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
+  const visibleCategoryName = categoryId === "all" ? "全部分类" : categoryNameById.get(categoryId) || "未命名分类";
 
   function updateDraft(id: string, patch: Partial<AdminSharedResourceDraft>) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
@@ -173,7 +175,7 @@ export function AdminPublicResourcesPanel() {
   }
 
   return (
-    <section className="admin-public-resources-page">
+    <section className="admin-public-resources-page admin-public-resources-page--starlight">
       <div className="admin-public-resources-hero">
         <div>
           <span>Shared Resource Governance</span>
@@ -234,6 +236,25 @@ export function AdminPublicResourcesPanel() {
             placeholder="搜索名称 / 标签 / 备注"
           />
         </label>
+      </div>
+
+      <div className="admin-public-resources-inspector" aria-label="公共资源概览">
+        <div>
+          <span>当前资源类型</span>
+          <strong>{activeMeta.label}</strong>
+        </div>
+        <div>
+          <span>当前分类</span>
+          <strong>{visibleCategoryName}</strong>
+        </div>
+        <div>
+          <span>资源数量</span>
+          <strong>{loading ? "同步中" : items.length}</strong>
+        </div>
+        <div>
+          <span>已归类</span>
+          <strong>{categorizedCount}</strong>
+        </div>
       </div>
 
       {message ? <div className="error-banner">{message}</div> : null}
