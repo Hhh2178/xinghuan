@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.12`
 - release：`20260627-admin-capability-flow-create-form-gray-r1-v0512`
-- 当前状态：`2026-06-27 待 deploy + runtime verify`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-27-admin-capability-flow-create-form-gray.md`
 - 历史运行态材料：
