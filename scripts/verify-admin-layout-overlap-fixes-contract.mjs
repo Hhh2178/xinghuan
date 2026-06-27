@@ -4,6 +4,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const apiSettingsSource = readFileSync(join(root, "apps", "admin", "src", "admin-api-settings-panel.tsx"), "utf8");
 const accountsSource = readFileSync(join(root, "apps", "admin", "src", "admin-user-accounts-section.tsx"), "utf8");
+const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), "utf8");
 const groupsSource = readFileSync(join(root, "apps", "admin", "src", "admin-user-groups-section.tsx"), "utf8");
 const commonComponentsSource = readFileSync(join(root, "apps", "admin", "src", "admin-common-components.tsx"), "utf8");
 const permissionsRailSource = readFileSync(join(root, "apps", "admin", "src", "admin-permissions-group-rail.tsx"), "utf8");
@@ -27,6 +28,12 @@ const apiSettingsContentBlock = cssBlock(".api-settings-content");
 
 const checks = [
   {
+    name: "providers capability page uses normal document flow outside fixed-panel shell",
+    pass:
+      mainSource.includes('activeTab === "assistant" || activeTab === "environment-sync"') &&
+      !mainSource.includes('activeTab === "providers" || activeTab === "assistant" || activeTab === "environment-sync"'),
+  },
+  {
     name: "api settings removes duplicated capability console workspace band title",
     pass: !apiSettingsSource.includes('title="统一管理接入能力"'),
   },
@@ -46,6 +53,10 @@ const checks = [
       !accountsSource.includes('placeholder="账号备注"') &&
       accountsSource.includes("generateStrongPassword") &&
       accountsSource.includes("生成强密码") &&
+      accountsSource.includes('autoComplete="off"') &&
+      accountsSource.includes('autoComplete="new-password"') &&
+      accountsSource.includes('name="xh-new-member-remark"') &&
+      accountsSource.includes('name="xh-new-member-initial-password"') &&
       stylesSource.includes(".users-create-stack-card__password-row"),
   },
   {

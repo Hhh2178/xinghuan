@@ -59,14 +59,33 @@ export function AdminUserAccountsSection({
     <div className="users-accounts-workbench users-accounts-workbench--starlight">
       <section className="panel-stack users-accounts-create-rail">
         <FormPanel title="新增成员" icon={Plus} bodyClassName="form-grid form-grid--stack">
-          <div className="users-create-stack-card">
+          <form
+            className="users-create-stack-card"
+            autoComplete="off"
+            onSubmit={(event) => {
+              event.preventDefault();
+              mutate("/api/admin/users", form);
+            }}
+          >
             <label className="users-create-stack-card__field">
               <span>邮箱</span>
-              <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input
+                name="xh-new-member-email"
+                autoComplete="off"
+                data-lpignore="true"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
             </label>
             <label className="users-create-stack-card__field">
               <span>名称</span>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <input
+                name="xh-new-member-display-name"
+                autoComplete="off"
+                data-lpignore="true"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </label>
             <label className="users-create-stack-card__field">
               <span>角色</span>
@@ -86,17 +105,30 @@ export function AdminUserAccountsSection({
             </label>
             <label className="users-create-stack-card__field">
               <span>账号备注</span>
-              <input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} />
+              <input
+                name="xh-new-member-remark"
+                autoComplete="off"
+                data-lpignore="true"
+                value={form.remark}
+                onChange={(e) => setForm({ ...form, remark: e.target.value })}
+              />
             </label>
             <label className="users-create-stack-card__field">
               <span>初始密码</span>
               <div className="users-create-stack-card__password-row">
-                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <input
+                  type="password"
+                  name="xh-new-member-initial-password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
                 <button type="button" onClick={generateStrongPassword}>生成强密码</button>
               </div>
             </label>
-            <button type="button" onClick={() => mutate("/api/admin/users", form)}>创建用户</button>
-          </div>
+            <button type="submit">创建用户</button>
+          </form>
         </FormPanel>
       </section>
 

@@ -23,9 +23,9 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.11`
-  - release：`20260627-admin-structural-layout-fixes-gray-r1-v0511`
-  - 状态：`2026-06-27 已完成 deploy + runtime verify`
+  - 版本：`v0.5.12`
+  - release：`20260627-admin-capability-flow-create-form-gray-r1-v0512`
+  - 状态：`2026-06-27 待 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
