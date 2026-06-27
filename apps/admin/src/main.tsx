@@ -1,5 +1,5 @@
 import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-react";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
 import { adminAnnouncementApi, AdminApiError, api } from "./admin-api-client";
@@ -38,7 +38,14 @@ import type {
   TaskRecord as TaskRecordShape,
 } from "./admin-types";
 import { UsersPanel } from "./admin-users-panel";
-import { adminNavItems, titleFor } from "./admin-view-model";
+import {
+  adminTabDescriptions,
+  adminWorkspaces,
+  refreshPolicyFor,
+  tabsForWorkspace,
+  titleFor,
+  workspaceForTab,
+} from "./admin-view-model";
 import "./styles.css";
 
 void ConfirmActionDialog;
@@ -258,6 +265,7 @@ function AdminApp() {
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>([]);
   const [usageSummary, setUsageSummary] = useState<AdminUsageSummary | null>(null);
   const [system, setSystem] = useState<SystemInfo | null>(null);
+  const [lastRefreshAt, setLastRefreshAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -313,6 +321,7 @@ function AdminApp() {
       setAuditLogs(nextAuditLogs);
       setUsageSummary(nextUsageSummary);
       setSystem(nextSystem);
+      setLastRefreshAt(Date.now());
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -330,6 +339,7 @@ function AdminApp() {
     if (!isAdmin) return;
     const nextTaskPage = await api<TaskListPage>(taskPagePath(page, pageSize, filters));
     setTaskPage(nextTaskPage);
+    setLastRefreshAt(Date.now());
   }
 
   useEffect(() => {
@@ -423,42 +433,60 @@ function AdminApp() {
     return <ForbiddenView user={currentUser} onLogout={handleLogout} />;
   }
 
+  const activeWorkspace = workspaceForTab(activeTab);
+  const activeWorkspaceTabs = tabsForWorkspace(activeWorkspace.id);
+  const refreshPolicy = refreshPolicyFor(activeTab);
+  const lastRefreshLabel = lastRefreshAt ? new Date(lastRefreshAt).toLocaleTimeString("zh-CN", { hour12: false }) : "等待首次同步";
+
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="brand-mark">
+    <div className="starlight-shell admin-shell">
+      <aside className="starlight-sidebar admin-sidebar">
+        <div className="starlight-brand brand-mark">
           <ShieldCheck aria-hidden="true" />
           <div>
-            <strong>星幻后台</strong>
-            <span>{summary?.environment || "gray"}</span>
+            <strong>星幻无限画布</strong>
+            <span>{summary?.environment || "gray"} · Admin Console</span>
           </div>
         </div>
-        <nav aria-label="后台模块">
-          {adminNavItems.map((item) => {
-            const Icon = item.icon;
+        <nav className="starlight-domain-nav" aria-label="后台工作域">
+          {adminWorkspaces.map((workspace) => {
+            const Icon = workspace.icon;
+            const selected = activeWorkspace.id === workspace.id;
             return (
               <button
                 type="button"
-                className={activeTab === item.id ? "active" : ""}
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                className={selected ? "active" : ""}
+                key={workspace.id}
+                onClick={() => setActiveTab(workspace.tabs[0])}
               >
                 <Icon aria-hidden="true" />
-                <span>{item.label}</span>
+                <span>
+                  <strong>{workspace.label}</strong>
+                  <small>{workspace.subtitle}</small>
+                </span>
               </button>
             );
           })}
         </nav>
+        <div className="starlight-sidebar__footer">
+          <span>当前页面</span>
+          <strong>{titleFor(activeTab)}</strong>
+          <small>{adminTabDescriptions[activeTab]}</small>
+        </div>
       </aside>
 
       <div className={`admin-workspace${assistantOpen ? " admin-workspace--with-assistant" : ""}`}>
         <main className={`admin-main${activeTab === "providers" || activeTab === "assistant" || activeTab === "environment-sync" ? " admin-main--fixed-panel" : ""}${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
-          <header className="admin-topbar">
+          <header className="starlight-topbar admin-topbar">
             <div>
-              <p>统一后台</p>
+              <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>
               <h1>{titleFor(activeTab)}</h1>
             </div>
             <div className="topbar-actions">
+              <span className={`starlight-refresh-policy starlight-refresh-policy--${refreshPolicy.kind}`} title={refreshPolicy.description}>
+                {refreshPolicy.label} · {refreshPolicy.intervalLabel}
+              </span>
+              <span className="starlight-refresh-time">最近刷新 {lastRefreshLabel}</span>
               {busy ? (
                 <Loader2 className="spin" aria-hidden="true" />
               ) : (
@@ -493,6 +521,34 @@ function AdminApp() {
 
           {error ? <div className="error-banner">{error}</div> : null}
 
+          <section className="starlight-workspace-home" aria-label="当前工作域">
+            <div className="starlight-workspace-home__copy">
+              <span>{activeWorkspace.subtitle}</span>
+              <strong>{activeWorkspace.label}</strong>
+              <p>{activeWorkspace.description}</p>
+            </div>
+            <div className="starlight-workspace-tabs" role="tablist" aria-label={`${activeWorkspace.label}页面`}>
+              {activeWorkspaceTabs.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={activeTab === item.id ? "active" : ""}
+                    onClick={() => setActiveTab(item.id)}
+                  >
+                    <Icon aria-hidden="true" />
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{adminTabDescriptions[item.id]}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <Suspense fallback={<div className="starlight-page-loading"><Loader2 className="spin" aria-hidden="true" /> 正在加载后台模块...</div>}>
           {activeTab === "overview" ? (
             <Overview
               summary={summary}
@@ -663,6 +719,7 @@ function AdminApp() {
               onError={setError}
             />
           ) : null}
+          </Suspense>
         </main>
 
         <AdminAssistantPanel
