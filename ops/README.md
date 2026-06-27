@@ -29,8 +29,9 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.1`
-  - release：`20260624-timeout-zero-and-app-shell-loading-prod-r2-v051`
+  - 版本：`v0.5.12`
+  - release：`20260627-admin-capability-flow-create-form-prod-r1-v0512`
+  - 状态：`2026-06-27 已完成 deploy + runtime verify`
 
 ## current / archive 分工
 

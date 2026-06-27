@@ -36,7 +36,7 @@ const remoteRoot = String(firstArg(args["remote-root"]) || defaults.remoteRoot);
 const remoteTmpDir = String(firstArg(args["remote-tmp"]) || "/tmp");
 const serviceName = String(firstArg(args.service) || defaults.serviceName);
 const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
-const sharedEnvFile = `${remoteRoot}/shared/canvas-next.env`;
+const sharedEnvFile = String(firstArg(args["shared-env-file"]) || `${remoteRoot}/shared/canvas-next.env`);
 const dryRun = flagEnabled(args["dry-run"]);
 
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
@@ -92,6 +92,7 @@ printJson({
   target,
   remoteArchive,
   releaseDir,
+  sharedEnvFile,
   serviceName,
   workerServiceName,
   steps: steps.map((step) => ({ name: step.name, command: `${step.command} ${step.args.join(" ")}` })),

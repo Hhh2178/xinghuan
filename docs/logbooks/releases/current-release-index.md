@@ -41,12 +41,14 @@
 
 ### Production
 
-- 版本：`v0.5.1`
-- release：`20260624-timeout-zero-and-app-shell-loading-prod-r2-v051`
-- 当前状态：`2026-06-24 已完成 deploy + runtime verify`
+- 版本：`v0.5.12`
+- release：`20260627-admin-capability-flow-create-form-prod-r1-v0512`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `production/2026-06-24-timeout-zero-and-app-shell-loading-production.md`
+  - `production/2026-06-27-admin-capability-flow-create-form-production.md`
 - 历史运行态材料：
+  - `production/2026-06-27-admin-capability-flow-create-form-production.md`
+  - `production/2026-06-24-timeout-zero-and-app-shell-loading-production.md`
   - `production/2026-06-24-runninghub-timeout-empty-default-production.md`
   - `production/2026-06-24-task-runtime-kernel-governance-production.md`
   - `production/2026-06-23-runninghub-grsai-worker-key-pool-production.md`

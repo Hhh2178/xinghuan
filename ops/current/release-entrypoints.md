@@ -9,6 +9,7 @@
 
 ## 近期仍常回看的 release 记录
 
+- `../../docs/logbooks/releases/production/2026-06-27-admin-capability-flow-create-form-production.md`
 - `../../docs/logbooks/releases/gray/2026-06-24-timeout-zero-and-app-shell-loading-gray.md`
 - `../../docs/logbooks/releases/production/2026-06-24-timeout-zero-and-app-shell-loading-production.md`
 - `../../docs/logbooks/releases/gray/2026-06-24-runninghub-timeout-empty-default-gray.md`
