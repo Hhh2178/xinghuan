@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.9`
 - release：`20260627-admin-layout-overlap-resource-grid-gray-r1-v059`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 上一灰度 release：`20260627-admin-shell-visual-unification-gray-r1-v058`
 
 ## 发布目标
@@ -90,3 +90,14 @@
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
+
+## 部署结果
+
+- gray `current` 已切换到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-layout-overlap-resource-grid-gray-r1-v059`
+- `systemd` 状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- `runtime verify`：
+  - `http://127.0.0.1:18200/api/status -> version 0.5.9 / environment gray`
+  - `https://canvas-next.hhh2121.xyz/api/status -> version 0.5.9 / environment gray`
