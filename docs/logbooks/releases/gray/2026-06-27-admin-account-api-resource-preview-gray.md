@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.10`
 - release：`20260627-admin-account-api-resource-preview-gray-r1-v0510`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 上一灰度 release：`20260627-admin-layout-overlap-resource-grid-gray-r1-v059`
 
 ## 发布目标
@@ -57,6 +57,24 @@
 - `npm run release:gray:prepare -- --release=20260627-admin-account-api-resource-preview-gray-r1-v0510 --verify="npm run verify:admin-layout-overlap-fixes" --verify="npm run verify:admin-users-panel-contract" --verify="node scripts/verify-admin-governance-redesign-contract.mjs" --verify="npm run verify:admin-public-resources-starlight" --verify="npm run verify:admin-resource-content-phase2" --verify="npm run verify:admin-api-layout-contract" --verify="npm run verify:admin-view-model-contract" --verify="npm run verify:admin-starlight-shell"`
 - `npm run release:gray:deploy -- --release=20260627-admin-account-api-resource-preview-gray-r1-v0510 --archive=dist-release/20260627-admin-account-api-resource-preview-gray-r1-v0510.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
 - `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.10 --expected-environment=gray`
+
+### 部署结果
+
+- 当前 release 指针：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-account-api-resource-preview-gray-r1-v0510`
+- systemd 状态：
+  - `xinghuan-canvas-next.service`: `active`
+  - `xinghuan-canvas-next-worker.service`: `active`
+- 内网状态：
+  - `http://127.0.0.1:18200/api/status`
+  - `status=ok`
+  - `version=0.5.10`
+  - `environment=gray`
+- 公网状态：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `status=ok`
+  - `version=0.5.10`
+  - `environment=gray`
 
 ## 待用户验收
 
