@@ -88,16 +88,26 @@ export function AdminUserGroupsSection({
     <div className="users-group-workbench users-group-workbench--starlight">
       <section className="panel-stack users-group-workbench__rail">
         <FormPanel title="新建用户组" icon={FolderTree}>
-          <input placeholder="分组名称" value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} />
-          <input placeholder="分组说明" value={groupForm.description} onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })} />
-          <input
-            placeholder="排序值"
-            type="number"
-            value={String(groupForm.sortOrder)}
-            onChange={(e) => setGroupForm({ ...groupForm, sortOrder: Number(e.target.value) || 0 })}
-          />
-          {groupFormError ? <div className="form-error">{groupFormError}</div> : null}
-          <button type="button" onClick={() => void handleCreateGroup()}>创建分组</button>
+          <div className="users-group-create-card">
+            <label className="users-group-create-card__field">
+              <span>分组名称</span>
+              <input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} />
+            </label>
+            <label className="users-group-create-card__field">
+              <span>分组说明</span>
+              <input value={groupForm.description} onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })} />
+            </label>
+            <label className="users-group-create-card__field">
+              <span>排序值</span>
+              <input
+                type="number"
+                value={String(groupForm.sortOrder)}
+                onChange={(e) => setGroupForm({ ...groupForm, sortOrder: Number(e.target.value) || 0 })}
+              />
+            </label>
+            {groupFormError ? <div className="form-error">{groupFormError}</div> : null}
+            <button type="button" onClick={() => void handleCreateGroup()}>创建分组</button>
+          </div>
         </FormPanel>
       </section>
 
@@ -157,7 +167,6 @@ export function AdminUserGroupsSection({
                     <label>
                       <span>分组名称</span>
                       <input
-                        placeholder="分组名称"
                         value={draft.name}
                         onChange={(e) => setGroupDrafts({
                           ...groupDrafts,
@@ -168,7 +177,6 @@ export function AdminUserGroupsSection({
                     <label>
                       <span>分组说明</span>
                       <input
-                        placeholder="分组说明"
                         value={draft.description}
                         onChange={(e) => setGroupDrafts({
                           ...groupDrafts,
@@ -179,7 +187,6 @@ export function AdminUserGroupsSection({
                     <label>
                       <span>排序值</span>
                       <input
-                        placeholder="排序值"
                         type="number"
                         value={String(draft.sortOrder)}
                         onChange={(e) => setGroupDrafts({

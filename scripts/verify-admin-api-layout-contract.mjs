@@ -26,8 +26,10 @@ const checks = [
     pass: stylesSource.includes("--admin-sticky-offset"),
   },
   {
-    name: "provider rail uses shared sticky offset",
-    pass: stylesSource.includes(".provider-rail {\n  position: sticky;\n  top: var(--admin-sticky-offset);"),
+    name: "provider rail uses shared height budget without sticky overlap",
+    pass:
+      /\.provider-rail\s*\{\s*position:\s*relative;/s.test(stylesSource) &&
+      stylesSource.includes("max-height: calc(100vh - var(--admin-sticky-offset) - 24px)"),
   },
   {
     name: "users create column uses shared sticky offset",

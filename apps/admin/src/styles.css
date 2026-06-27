@@ -3019,7 +3019,7 @@ td {
 
 .api-settings-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   align-items: start;
   gap: 18px;
   min-height: 0;
@@ -3062,13 +3062,14 @@ td {
 }
 
 .provider-rail {
-  position: sticky;
-  top: var(--admin-sticky-offset);
+  position: relative;
+  top: auto;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
   align-self: start;
-  height: 100%;
+  height: auto;
+  max-height: calc(100vh - var(--admin-sticky-offset) - 24px);
   min-height: 0;
   overflow: hidden;
   padding: 16px;
@@ -4766,6 +4767,24 @@ td {
   color: #dbeafe;
 }
 
+.users-create-stack-card input,
+.users-create-stack-card select,
+.users-create-stack-card__password-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.users-create-stack-card__password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.users-create-stack-card__password-row button {
+  min-height: 38px;
+  margin-top: 0;
+}
+
 .users-create-stack-card button {
   width: 100%;
 }
@@ -4929,8 +4948,65 @@ td {
 
 .users-account-record {
   display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.users-account-record__summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(120px, 0.8fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 18px;
+}
+
+.users-account-record__summary-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.users-account-record__summary-cell span {
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.users-account-record__summary-cell strong {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.users-account-record__summary-cell small {
+  min-width: 0;
+  color: #93c5fd;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.users-account-record__toggle {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.users-account-record__toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.16s ease;
+}
+
+.users-account-record__toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.users-account-record__details {
+  display: grid;
   gap: 14px;
   padding: 16px 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 13, 20, 0.42);
 }
 
 .users-account-record__identity {
@@ -5035,6 +5111,30 @@ td {
   position: sticky;
   top: var(--admin-sticky-offset);
   align-self: start;
+}
+
+.users-group-create-card {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.users-group-create-card__field {
+  display: grid;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.users-group-create-card__field span {
+  color: #dbeafe;
+}
+
+.users-group-create-card input,
+.users-group-create-card button {
+  width: 100%;
+  min-width: 0;
 }
 
 .users-group-workbench__main {
@@ -6694,7 +6794,7 @@ td {
 
 .admin-public-resources-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
   padding: 12px;
   align-items: start;
@@ -6743,8 +6843,7 @@ td {
 .admin-public-resource-card__preview-stage {
   display: grid;
   place-items: center;
-  min-height: 156px;
-  aspect-ratio: 16 / 10;
+  height: clamp(150px, 15vw, 220px);
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 10px;
@@ -6761,14 +6860,18 @@ td {
 }
 
 .admin-public-resource-card__preview-frame img {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
 .admin-public-resource-card__preview-frame video {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   background: #000;
 }
@@ -7036,10 +7139,9 @@ td {
   background: #000;
 }
 
-.admin-media-preview-modal__stage img,
-.admin-media-preview-modal__stage video {
-  width: 100%;
-  height: 100%;
+.admin-media-preview-modal__media {
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;

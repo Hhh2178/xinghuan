@@ -57,8 +57,8 @@ export function AdminMediaPreviewModal({ open, title, url, mime, kind, onClose }
         </header>
 
         <div className="admin-media-preview-modal__stage">
-          {canPreviewImage ? <img src={url} alt={title} /> : null}
-          {canPreviewVideo ? <video src={url} controls playsInline preload="metadata" /> : null}
+          {canPreviewImage ? <img className="admin-media-preview-modal__media" src={url} alt={title} /> : null}
+          {canPreviewVideo ? <video className="admin-media-preview-modal__media" src={url} controls playsInline preload="metadata" /> : null}
           {canPreviewAudio ? <audio src={url} controls preload="metadata" /> : null}
           {!canPreviewImage && !canPreviewVideo && !canPreviewAudio ? renderFallback(kind, title) : null}
         </div>

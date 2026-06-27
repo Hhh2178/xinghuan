@@ -41,12 +41,12 @@ const checks = [
       accountsSectionSource.includes("users-accounts-workbench--starlight") &&
       accountsSectionSource.includes("users-accounts-summary") &&
       accountsSectionSource.includes("users-accounts-table-panel") &&
-      accountsSectionSource.includes('placeholder="邮箱"') &&
-      accountsSectionSource.includes('placeholder="名称"') &&
-      accountsSectionSource.includes('placeholder="账号备注"') &&
+      accountsSectionSource.includes("users-create-stack-card__field") &&
+      accountsSectionSource.includes("users-create-stack-card__password-row") &&
+      accountsSectionSource.includes("generateStrongPassword") &&
+      accountsSectionSource.includes("生成强密码") &&
       accountsSectionSource.includes('<option value="member">成员</option>') &&
       accountsSectionSource.includes('<option value="admin">管理员</option>') &&
-      accountsSectionSource.includes('placeholder="初始密码"') &&
       accountsSectionSource.includes('mutate("/api/admin/users", form)') &&
       accountsSectionSource.includes("创建用户"),
   },
@@ -65,8 +65,13 @@ const checks = [
       accountsSectionSource.includes('title="账号列表"') &&
       accountsSectionSource.includes("<th>账号工作台</th>") &&
       accountsSectionSource.includes("users-account-record") &&
+      accountsSectionSource.includes("users-account-record__summary-row") &&
+      accountsSectionSource.includes("users-account-record__details") &&
       accountsSectionSource.includes("users-account-record__identity") &&
       accountsSectionSource.includes("users-account-record__grid") &&
+      accountsSectionSource.includes("<span>账号</span>") &&
+      accountsSectionSource.includes("<span>密码</span>") &&
+      accountsSectionSource.includes("<span>归属组</span>") &&
       accountsSectionSource.includes("<span>所属组</span>") &&
       accountsSectionSource.includes("<span>备注</span>") &&
       accountsSectionSource.includes("<span>当前密码</span>") &&
