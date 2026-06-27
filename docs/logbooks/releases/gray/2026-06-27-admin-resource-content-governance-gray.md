@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.7`
 - release：`20260627-admin-resource-content-governance-gray-r1-v057`
-- 当前状态：`待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -51,12 +51,18 @@
 - `npm run build -w @xinghuan/admin`
 - `codegraph sync`
 
-### 待执行的发布验证
+### Gray 发布与运行态
 
 - `npm run build`
 - `npm run release:gray:prepare -- --release=20260627-admin-resource-content-governance-gray-r1-v057`
 - `npm run release:gray:deploy -- --release=20260627-admin-resource-content-governance-gray-r1-v057 --archive=dist-release/20260627-admin-resource-content-governance-gray-r1-v057.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
 - `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.7 --expected-environment=gray`
+- Gray 运行态结果：
+  - `current`：`/opt/apps/xinghuan-canvas-next/releases/20260627-admin-resource-content-governance-gray-r1-v057`
+  - `xinghuan-canvas-next.service`：`active`
+  - `xinghuan-canvas-next-worker.service`：`active`
+  - `https://canvas-next.hhh2121.xyz/api/status`：`version=0.5.7`，`environment=gray`
+  - `http://127.0.0.1:18200/api/status`：`version=0.5.7`，`environment=gray`
 
 ## 待用户验收
 
@@ -79,4 +85,10 @@
 
 ## 回滚信息
 
-- 待 deploy 后补记当前 `current` 回滚锚点与运行态复核结果。
+- deploy 前回滚锚点：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
+- 当前 release 目录：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-resource-content-governance-gray-r1-v057`
+- 回滚后需重启：
+  - `xinghuan-canvas-next.service`
+  - `xinghuan-canvas-next-worker.service`

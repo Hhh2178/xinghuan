@@ -25,7 +25,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.7`
   - release：`20260627-admin-resource-content-governance-gray-r1-v057`
-  - 状态：`2026-06-27 待 deploy`
+  - 状态：`2026-06-27 已完成 deploy + runtime verify`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
