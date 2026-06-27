@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.8`
 - release：`20260627-admin-shell-visual-unification-gray-r1-v058`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-27-admin-shell-visual-unification-gray.md`
 - 历史运行态材料：

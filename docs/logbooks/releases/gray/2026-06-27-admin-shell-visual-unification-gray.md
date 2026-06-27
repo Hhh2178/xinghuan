@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.8`
 - release：`20260627-admin-shell-visual-unification-gray-r1-v058`
-- 当前状态：`待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -65,6 +65,10 @@
 - `npm run verify:runninghub-workflow-contract`
 - `npm run verify:admin-api-layout-contract`
 - `npm run build -w @xinghuan/admin`
+- `npm run build:single-port`
+- `npm run release:gray:prepare -- --release=20260627-admin-shell-visual-unification-gray-r1-v058`
+- `npm run release:gray:deploy -- --release=20260627-admin-shell-visual-unification-gray-r1-v058 --archive=dist-release/20260627-admin-shell-visual-unification-gray-r1-v058.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
+- `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.8 --expected-environment=gray`
 
 ### 本地浏览器 QA
 
@@ -109,3 +113,14 @@
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
+
+## 部署结果
+
+- gray `current` 已切换到：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-shell-visual-unification-gray-r1-v058`
+- `systemd` 状态：
+  - `xinghuan-canvas-next.service = active`
+  - `xinghuan-canvas-next-worker.service = active`
+- `runtime verify`：
+  - `http://127.0.0.1:18200/api/status -> version 0.5.8 / environment gray`
+  - `https://canvas-next.hhh2121.xyz/api/status -> version 0.5.8 / environment gray`
