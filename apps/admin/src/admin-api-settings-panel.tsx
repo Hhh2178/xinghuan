@@ -543,11 +543,11 @@ export function ApiSettingsPanel({
         </aside>
 
         <div className="api-settings-content">
-          <div className="api-settings-section-head">
-            <div className="api-settings-section-head__copy">
-              <span className="api-settings-kicker">Capability Console</span>
+          <div className="api-settings-inline-status">
+            <div className="api-settings-inline-status__copy">
+              <span>当前 Provider</span>
               <strong>{selected?.name || "新增平台"}</strong>
-              <p>{selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}</p>
+              <small>{selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}</small>
             </div>
             <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
               {busy ? "处理中..." : status}

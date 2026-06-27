@@ -33,11 +33,21 @@ export function AdminTable({
   );
 }
 
-export function FormPanel({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
+export function FormPanel({
+  title,
+  icon: Icon,
+  bodyClassName = "form-grid",
+  children,
+}: {
+  title: string;
+  icon: LucideIcon;
+  bodyClassName?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="form-panel">
       <header><Icon aria-hidden="true" /><h2>{title}</h2></header>
-      <div className="form-grid">{children}</div>
+      <div className={bodyClassName}>{children}</div>
     </section>
   );
 }

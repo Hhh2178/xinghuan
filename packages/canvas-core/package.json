@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/canvas-core",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -10,4 +10,3 @@
     "build": "tsc -p tsconfig.build.json"
   }
 }
-

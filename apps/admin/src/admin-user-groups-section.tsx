@@ -87,7 +87,7 @@ export function AdminUserGroupsSection({
   return (
     <div className="users-group-workbench users-group-workbench--starlight">
       <section className="panel-stack users-group-workbench__rail">
-        <FormPanel title="新建用户组" icon={FolderTree}>
+        <FormPanel title="新建用户组" icon={FolderTree} bodyClassName="form-grid form-grid--stack">
           <div className="users-group-create-card">
             <label className="users-group-create-card__field">
               <span>分组名称</span>

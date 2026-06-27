@@ -5,11 +5,25 @@ const root = process.cwd();
 const apiSettingsSource = readFileSync(join(root, "apps", "admin", "src", "admin-api-settings-panel.tsx"), "utf8");
 const accountsSource = readFileSync(join(root, "apps", "admin", "src", "admin-user-accounts-section.tsx"), "utf8");
 const groupsSource = readFileSync(join(root, "apps", "admin", "src", "admin-user-groups-section.tsx"), "utf8");
+const commonComponentsSource = readFileSync(join(root, "apps", "admin", "src", "admin-common-components.tsx"), "utf8");
 const permissionsRailSource = readFileSync(join(root, "apps", "admin", "src", "admin-permissions-group-rail.tsx"), "utf8");
 const resourcePanelSource = readFileSync(join(root, "apps", "admin", "src", "admin-public-resources-panel.tsx"), "utf8");
 const resourceCardSource = readFileSync(join(root, "apps", "admin", "src", "admin-public-resource-card.tsx"), "utf8");
 const mediaModalSource = readFileSync(join(root, "apps", "admin", "src", "admin-media-preview-modal.tsx"), "utf8");
 const stylesSource = readFileSync(join(root, "apps", "admin", "src", "styles.css"), "utf8");
+
+function cssBlock(selector) {
+  const index = stylesSource.indexOf(`${selector} {`);
+  if (index < 0) return "";
+  const end = stylesSource.indexOf("}", index);
+  return end < 0 ? "" : stylesSource.slice(index, end + 1);
+}
+
+const publicResourcesGridBlock = cssBlock(".admin-public-resources-grid");
+const publicResourceCardBlock = cssBlock(".admin-public-resource-card");
+const apiSettingsLayoutBlock = cssBlock(".api-settings-layout");
+const providerRailBlock = cssBlock(".provider-rail");
+const apiSettingsContentBlock = cssBlock(".api-settings-content");
 
 const checks = [
   {
@@ -18,7 +32,11 @@ const checks = [
   },
   {
     name: "account create card uses dedicated stacked layout marker",
-    pass: accountsSource.includes("users-create-stack-card"),
+    pass:
+      commonComponentsSource.includes("bodyClassName") &&
+      accountsSource.includes('bodyClassName="form-grid form-grid--stack"') &&
+      accountsSource.includes("users-create-stack-card") &&
+      /\.form-grid--stack\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/s.test(stylesSource),
   },
   {
     name: "account create form removes noisy placeholders and adds random strong password action",
@@ -42,6 +60,7 @@ const checks = [
   {
     name: "user group create form uses the same full-width vertical card pattern",
     pass:
+      groupsSource.includes('bodyClassName="form-grid form-grid--stack"') &&
       groupsSource.includes("users-group-create-card") &&
       groupsSource.includes("users-group-create-card__field") &&
       !groupsSource.includes('placeholder="分组名称"') &&
@@ -69,8 +88,12 @@ const checks = [
       resourceCardSource.includes("admin-public-resource-card__detail"),
   },
   {
-    name: "public resource desktop grid uses adaptive minmax columns",
-    pass: /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(220px,\s*1fr\)\)/.test(stylesSource),
+    name: "public resource desktop grid uses fixed card columns without stretching single cards",
+    pass:
+      /grid-template-columns:\s*repeat\(auto-fill,\s*250px\)/.test(publicResourcesGridBlock) &&
+      publicResourcesGridBlock.includes("justify-content: start") &&
+      publicResourceCardBlock.includes("width: 250px") &&
+      !publicResourcesGridBlock.includes("1fr"),
   },
   {
     name: "public resource card has collapsed and expanded state styles",
@@ -89,13 +112,15 @@ const checks = [
       mediaModalSource.includes('className="admin-media-preview-modal__media"'),
   },
   {
-    name: "api settings avoids sticky provider rail overlap and keeps content scroll isolated",
+    name: "api settings uses normal-flow provider rail without overlay positioning",
     pass:
       stylesSource.includes(".api-settings-layout") &&
-      stylesSource.includes("grid-template-columns: minmax(220px, 260px) minmax(0, 1fr)") &&
-      /\.provider-rail\s*\{\s*position:\s*relative;/s.test(stylesSource) &&
-      stylesSource.includes("max-height: calc(100vh - var(--admin-sticky-offset) - 24px)") &&
-      /\.api-settings-content\s*\{[\s\S]*?min-width:\s*0;/s.test(stylesSource),
+      stylesSource.includes("grid-template-columns: minmax(240px, 280px) minmax(0, 1fr)") &&
+      apiSettingsLayoutBlock.includes("overflow: visible") &&
+      !providerRailBlock.includes("position:") &&
+      !providerRailBlock.includes("top:") &&
+      !providerRailBlock.includes("z-index:") &&
+      apiSettingsContentBlock.includes("overflow: visible"),
   },
   {
     name: "create user panel and normal action buttons do not rely on bright cyan filled primary button",

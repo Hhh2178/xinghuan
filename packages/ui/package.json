@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/ui",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -14,4 +14,3 @@
     "lucide-react": "^0.555.0"
   }
 }
-

@@ -7,6 +7,24 @@ const modelEditorSource = readFileSync(join(root, "apps", "admin", "src", "admin
 const apiSettingsSource = readFileSync(join(root, "apps", "admin", "src", "admin-api-settings-panel.tsx"), "utf8");
 const apiServerSource = readFileSync(join(root, "apps", "api", "src", "server.ts"), "utf8");
 
+function cssBlock(selector, requiredText = "") {
+  let index = -1;
+  let searchFrom = 0;
+  do {
+    index = stylesSource.indexOf(`${selector} {`, searchFrom);
+    if (index < 0) return "";
+    const end = stylesSource.indexOf("}", index);
+    const block = end < 0 ? "" : stylesSource.slice(index, end + 1);
+    if (!requiredText || block.includes(requiredText)) return block;
+    searchFrom = end + 1;
+  } while (searchFrom > 0);
+  if (index < 0) return "";
+  const end = stylesSource.indexOf("}", index);
+  return end < 0 ? "" : stylesSource.slice(index, end + 1);
+}
+
+const providerRailBlock = cssBlock(".provider-rail", "display: grid");
+
 const readAdminDbSource = apiServerSource.slice(
   apiServerSource.indexOf("async function readAdminDb()"),
   apiServerSource.indexOf("async function writeAdminDb("),
@@ -26,10 +44,13 @@ const checks = [
     pass: stylesSource.includes("--admin-sticky-offset"),
   },
   {
-    name: "provider rail uses shared height budget without sticky overlap",
+    name: "provider rail stays in normal document flow without overlay positioning",
     pass:
-      /\.provider-rail\s*\{\s*position:\s*relative;/s.test(stylesSource) &&
-      stylesSource.includes("max-height: calc(100vh - var(--admin-sticky-offset) - 24px)"),
+      providerRailBlock.includes("display: grid") &&
+      !providerRailBlock.includes("position:") &&
+      !providerRailBlock.includes("top:") &&
+      !providerRailBlock.includes("z-index:") &&
+      !providerRailBlock.includes("max-height: calc(100vh"),
   },
   {
     name: "users create column uses shared sticky offset",
@@ -37,7 +58,10 @@ const checks = [
   },
   {
     name: "api settings exposes styled status chip",
-    pass: apiSettingsSource.includes("api-settings-status"),
+    pass:
+      apiSettingsSource.includes("api-settings-status") &&
+      apiSettingsSource.includes("api-settings-inline-status") &&
+      !apiSettingsSource.includes("api-settings-section-head"),
   },
   {
     name: "api settings exposes assistant configuration card",

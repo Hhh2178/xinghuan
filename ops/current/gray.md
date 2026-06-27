@@ -2,11 +2,12 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.10`
-- 当前 release：`20260627-admin-account-api-resource-preview-gray-r1-v0510`
-- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.11`
+- 当前 release：`20260627-admin-structural-layout-fixes-gray-r1-v0511`
+- 当前状态：`2026-06-27 待 deploy`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-27-admin-structural-layout-fixes-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-account-api-resource-preview-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-layout-overlap-resource-grid-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-shell-visual-unification-gray.md`
@@ -36,9 +37,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-account-api-resource-preview-gray-r1-v0510`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-structural-layout-fixes-gray-r1-v0511`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-layout-overlap-resource-grid-gray-r1-v059`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-account-api-resource-preview-gray-r1-v0510`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

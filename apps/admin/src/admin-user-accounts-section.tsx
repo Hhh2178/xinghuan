@@ -58,7 +58,7 @@ export function AdminUserAccountsSection({
   return (
     <div className="users-accounts-workbench users-accounts-workbench--starlight">
       <section className="panel-stack users-accounts-create-rail">
-        <FormPanel title="新增成员" icon={Plus}>
+        <FormPanel title="新增成员" icon={Plus} bodyClassName="form-grid form-grid--stack">
           <div className="users-create-stack-card">
             <label className="users-create-stack-card__field">
               <span>邮箱</span>
