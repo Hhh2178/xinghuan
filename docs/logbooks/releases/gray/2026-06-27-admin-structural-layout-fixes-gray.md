@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.11`
 - release：`20260627-admin-structural-layout-fixes-gray-r1-v0511`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 上一灰度 release：`20260627-admin-account-api-resource-preview-gray-r1-v0510`
 
 ## 发布目标
@@ -54,10 +54,27 @@
 
 ### Gray 发布与运行态
 
-- 待执行：
-  - `npm run release:gray:prepare -- --release=20260627-admin-structural-layout-fixes-gray-r1-v0511 --verify="npm run verify:admin-layout-overlap-fixes" --verify="npm run verify:admin-api-layout-contract" --verify="npm run verify:admin-resource-content-phase2" --verify="npm run build -w @xinghuan/admin"`
-  - `npm run release:gray:deploy -- --release=20260627-admin-structural-layout-fixes-gray-r1-v0511 --archive=dist-release/20260627-admin-structural-layout-fixes-gray-r1-v0511.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
-  - `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.11 --expected-environment=gray`
+- `npm run release:gray:prepare -- --release=20260627-admin-structural-layout-fixes-gray-r1-v0511 --verify="npm run verify:admin-layout-overlap-fixes" --verify="npm run verify:admin-api-layout-contract" --verify="npm run verify:admin-resource-content-phase2" --verify="npm run build -w @xinghuan/admin"`
+- `npm run release:gray:deploy -- --release=20260627-admin-structural-layout-fixes-gray-r1-v0511 --archive=dist-release/20260627-admin-structural-layout-fixes-gray-r1-v0511.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
+- `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.11 --expected-environment=gray`
+
+### 部署结果
+
+- 当前 release 指针：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-structural-layout-fixes-gray-r1-v0511`
+- systemd 状态：
+  - `xinghuan-canvas-next.service`: `active`
+  - `xinghuan-canvas-next-worker.service`: `active`
+- 内网状态：
+  - `http://127.0.0.1:18200/api/status`
+  - `status=ok`
+  - `version=0.5.11`
+  - `environment=gray`
+- 公网状态：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `status=ok`
+  - `version=0.5.11`
+  - `environment=gray`
 
 ## 待用户验收
 

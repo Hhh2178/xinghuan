@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.11`
 - 当前 release：`20260627-admin-structural-layout-fixes-gray-r1-v0511`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-structural-layout-fixes-gray.md`

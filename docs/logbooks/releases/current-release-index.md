@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.11`
 - release：`20260627-admin-structural-layout-fixes-gray-r1-v0511`
-- 当前状态：`2026-06-27 待 deploy`
+- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
 - 当前批次记录：
   - `gray/2026-06-27-admin-structural-layout-fixes-gray.md`
 - 历史运行态材料：
