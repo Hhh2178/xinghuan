@@ -24,10 +24,10 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.6`
+- 当前活跃版本：`v0.5.7`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
+- 当前灰度 release：`20260627-admin-resource-content-governance-gray-r1-v057`
 - 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 - 当前重点系统：RunningHub、后台 Admin、API、Worker
 
@@ -69,14 +69,14 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.5.6`
+- 当前活跃版本：`v0.5.7`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前多用户正式化阶段：`Phase A-E` 已完成灰度/生产收口
 - 当前 `Phase E` 状态：长期观测治理第三批已完成 gray / production 真实执行
 - 当前 `Phase E` rollback 状态：gray / production 样本都已补齐
 - 当前 `Phase E` 本地补强：高频后台读接口已纳入 requestId 审计补样，后续重点更集中在外部通知闭环
-- 当前灰度 release：`20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
+- 当前灰度 release：`20260627-admin-resource-content-governance-gray-r1-v057`
 - 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 worker 治理状态：已完成 RunningHub client 第一批下沉，下一步继续拆分 dispatch / runtime diagnostics / cancel sync

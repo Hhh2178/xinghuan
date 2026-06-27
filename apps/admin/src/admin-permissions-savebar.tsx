@@ -14,7 +14,7 @@ export function AdminPermissionsSavebar({
   onSave: () => void;
 }) {
   return (
-    <div className="permissions-savebar">
+    <div className="permissions-savebar permissions-savebar--starlight">
       <div>
         <strong>{dirty ? "有未保存的权限调整" : "当前分组权限已同步"}</strong>
         <span>

@@ -9,6 +9,24 @@ function summarizeTop(rows: Array<{ label: string; total: number }>) {
   return rows.slice(0, 5);
 }
 
+function topGroupInsight(summary: AdminUsageSummary) {
+  const item = summary.groups[0];
+  if (!item) return "暂无分组成功记录";
+  return `${item.groupName} ${item.total} 次`;
+}
+
+function topModelInsight(summary: AdminUsageSummary) {
+  const item = summary.models[0];
+  if (!item) return "暂无模型成功记录";
+  return `${item.displayName} ${item.total} 次`;
+}
+
+function topRhInsight(summary: AdminUsageSummary) {
+  const item = summary.runningHubEntries[0];
+  if (!item) return "暂无 RH 成功记录";
+  return `${item.title} ${item.total} 次`;
+}
+
 export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsageSummary | null }) {
   if (!usageSummary) {
     return null;
@@ -17,7 +35,7 @@ export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsage
   const total = usageSummary.totals.successful;
   if (!total) {
     return (
-      <section className="usage-dashboard usage-dashboard--empty">
+      <section className="usage-dashboard usage-dashboard--starlight usage-dashboard--empty">
         <header className="usage-dashboard__header">
           <div>
             <p>成功用量驾驶舱</p>
@@ -46,7 +64,7 @@ export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsage
   const topRunningHubEntries = usageSummary.runningHubEntries.slice(0, 8);
 
   return (
-    <section className="usage-dashboard">
+    <section className="usage-dashboard usage-dashboard--starlight">
       <header className="usage-dashboard__header">
         <div>
           <p>成功用量驾驶舱</p>
@@ -56,6 +74,25 @@ export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsage
           {new Date(usageSummary.range.from).toLocaleString()} - {new Date(usageSummary.range.to).toLocaleString()}
         </span>
       </header>
+
+      <div className="usage-governance-strip">
+        <div>
+          <span>最活跃分组</span>
+          <strong>{topGroupInsight(usageSummary)}</strong>
+        </div>
+        <div>
+          <span>最高频模型</span>
+          <strong>{topModelInsight(usageSummary)}</strong>
+        </div>
+        <div>
+          <span>最高频 RH 条目</span>
+          <strong>{topRhInsight(usageSummary)}</strong>
+        </div>
+        <div>
+          <span>统计口径</span>
+          <strong>仅统计 succeeded</strong>
+        </div>
+      </div>
 
       <div className="usage-kpi-grid">
         <article className="usage-kpi-card">
@@ -88,9 +125,39 @@ export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsage
           <strong>{usageSummary.totals.llm}</strong>
           <small>{percentage(usageSummary.totals.llm, total)}</small>
         </article>
+        <article className="usage-kpi-card">
+          <span>音频调用</span>
+          <strong>{usageSummary.totals.audio}</strong>
+          <small>{percentage(usageSummary.totals.audio, total)}</small>
+        </article>
       </div>
 
       <div className="usage-dashboard-grid">
+        <article className="usage-panel usage-panel--overview">
+          <header>
+            <h3>治理提示</h3>
+            <span>Governance Focus</span>
+          </header>
+          <div className="usage-overview-grid">
+            <div>
+              <span>Top 分组</span>
+              <strong>{topGroupInsight(usageSummary)}</strong>
+            </div>
+            <div>
+              <span>Top 账号</span>
+              <strong>{topUsers[0] ? `${topUsers[0].label} ${topUsers[0].total} 次` : "暂无账号记录"}</strong>
+            </div>
+            <div>
+              <span>Top 模型</span>
+              <strong>{topModelInsight(usageSummary)}</strong>
+            </div>
+            <div>
+              <span>Top RH 条目</span>
+              <strong>{topRhInsight(usageSummary)}</strong>
+            </div>
+          </div>
+        </article>
+
         <article className="usage-panel">
           <header>
             <h3>能力占比环</h3>
@@ -158,7 +225,7 @@ export function AdminUsageDashboard({ usageSummary }: { usageSummary: AdminUsage
               <div key={item.day} className="usage-trend-row">
                 <strong>{item.day}</strong>
                 <span>总 {item.total}</span>
-                <small>图 {item.image} / 视 {item.video} / RH App {item.runninghubApp} / RH Flow {item.runninghubWorkflow} / LLM {item.llm}</small>
+                <small>图 {item.image} / 视 {item.video} / RH App {item.runninghubApp} / RH Flow {item.runninghubWorkflow} / LLM {item.llm} / 音 {item.audio}</small>
               </div>
             ))}
           </div>

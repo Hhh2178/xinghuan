@@ -24,6 +24,51 @@ const SECTION_OPTIONS: Array<{ id: PermissionSection; label: string }> = [
   { id: "node-types", label: "节点能力" },
 ];
 
+const SECTION_DETAILS: Record<
+  PermissionSection,
+  {
+    label: string;
+    title: string;
+    description: string;
+    bulkLabel: string;
+    emptyLabel: string;
+    scopeNote: string;
+  }
+> = {
+  "shared-resources": {
+    label: "公共资源",
+    title: "公共素材可见范围",
+    description: "分类禁用会整体隐藏该分类下的素材；条目禁用用于做更细粒度的开放控制。",
+    bulkLabel: "当前筛选会影响分类与素材条目两层对象。",
+    emptyLabel: "当前筛选下没有可配置的公共资源。",
+    scopeNote: "前台成员只会看到当前分组被开放的分类和素材。",
+  },
+  "runninghub-apps": {
+    label: "RH AI 应用",
+    title: "AI 应用开放范围",
+    description: "这里控制普通成员是否能在前台看到并使用对应 RH AI 应用。",
+    bulkLabel: "当前筛选会直接影响应用目录显示。",
+    emptyLabel: "当前筛选下没有可配置的 RH AI 应用。",
+    scopeNote: "被禁用的应用会从普通成员界面直接隐藏。",
+  },
+  "runninghub-workflows": {
+    label: "RH 工作流",
+    title: "工作流开放范围",
+    description: "用于限制哪些 RH 工作流可以被当前分组成员看到、选择和运行。",
+    bulkLabel: "当前筛选会直接影响工作流目录显示。",
+    emptyLabel: "当前筛选下没有可配置的 RH 工作流。",
+    scopeNote: "被禁用的工作流会从普通成员界面直接隐藏。",
+  },
+  "node-types": {
+    label: "节点能力",
+    title: "节点能力开放范围",
+    description: "节点禁用后，普通成员无法在画布中创建和使用该类能力节点。",
+    bulkLabel: "当前筛选会直接影响节点创建入口。",
+    emptyLabel: "当前筛选下没有可配置的节点能力。",
+    scopeNote: "被禁用的节点类型会从普通成员的节点面板里移除。",
+  },
+};
+
 function emptyDeny(): GroupPermissionDeny {
   return {
     sharedResourceCategoryIds: [],
@@ -74,6 +119,10 @@ function resourceKindLabel(kind: string) {
 
 function runningHubKindLabel(kind: "app" | "workflow") {
   return kind === "app" ? "AI 应用" : "工作流";
+}
+
+function formatUpdatedAt(value?: number) {
+  return value ? new Date(value).toLocaleString() : "未单独保存";
 }
 
 function sectionDenyKey(section: PermissionSection): keyof GroupPermissionDeny {
@@ -285,9 +334,30 @@ export function AdminPermissionsPanel({
   }, [activeSection, nodeTypes, runningHubApps, runningHubWorkflows, sharedCategories, sharedItems]);
 
   const effectiveGroup = selectedGroup || null;
+  const activeSectionDetail = SECTION_DETAILS[activeSection];
+  const deniedTotal =
+    currentDeny.sharedResourceCategoryIds.length +
+    currentDeny.sharedResourceItemIds.length +
+    currentDeny.runningHubAppCatalogIds.length +
+    currentDeny.runningHubWorkflowCatalogIds.length +
+    currentDeny.nodeTypes.length;
+  const visiblePrimaryCount = visibleIds.primary.length;
+  const visiblePrimaryDeniedCount = visibleIds.primary.filter((id) => currentDeny[sectionDenyKey(activeSection)].includes(id)).length;
+  const visibleSecondaryDeniedCount =
+    activeSection === "shared-resources"
+      ? visibleIds.secondary.filter((id) => currentDeny.sharedResourceCategoryIds.includes(id)).length
+      : 0;
+  const missingCurrentCount =
+    activeSection === "shared-resources"
+      ? missingIds.sharedResourceCategoryIds.length + missingIds.sharedResourceItemIds.length
+      : activeSection === "runninghub-apps"
+        ? missingIds.runningHubAppCatalogIds.length
+        : activeSection === "runninghub-workflows"
+          ? missingIds.runningHubWorkflowCatalogIds.length
+          : missingIds.nodeTypes.length;
 
   return (
-    <section className="permissions-shell">
+    <section className="permissions-shell permissions-shell--starlight">
       <AdminPermissionsGroupRail
         groups={visibleGroups as AdminUserGroup[]}
         groupSearch={groupSearch}
@@ -300,11 +370,17 @@ export function AdminPermissionsPanel({
 
       <section className="panel-stack permissions-editor">
         <div className="api-card permissions-hero">
-          <div>
+          <div className="permissions-hero__copy">
+            <span className="permissions-hero__eyebrow">权限策略工作台</span>
             <strong>{effectiveGroup?.name || "请选择分组"}</strong>
             <p>
               未开放的公共资源、RH 应用、工作流和节点能力会直接从普通成员界面隐藏，只在后端保留兜底校验。
             </p>
+            <div className="permission-row__chips">
+              <span>{effectiveGroup?.description || "当前分组暂无说明"}</span>
+              <span>最近保存 {formatUpdatedAt(selectedPolicy?.updatedAt)}</span>
+              {selectedPolicy?.updatedBy ? <span>更新人 {selectedPolicy.updatedBy}</span> : null}
+            </div>
           </div>
           <div className="permissions-hero__actions">
             <button type="button" className="icon-button" onClick={onReload} title="刷新权限目录">
@@ -324,6 +400,33 @@ export function AdminPermissionsPanel({
           deniedNodeTypes={currentDeny.nodeTypes.length}
         />
 
+        <div className="permissions-impact-panel">
+          <div className="permissions-impact-panel__card">
+            <span>当前筛选可配置条目</span>
+            <strong>{visiblePrimaryCount}</strong>
+            <small>{activeSectionDetail.label}</small>
+          </div>
+          <div className="permissions-impact-panel__card">
+            <span>当前视图已禁用</span>
+            <strong>{visiblePrimaryDeniedCount + visibleSecondaryDeniedCount}</strong>
+            <small>
+              {activeSection === "shared-resources"
+                ? `分类 ${visibleSecondaryDeniedCount} / 条目 ${visiblePrimaryDeniedCount}`
+                : "仅统计当前筛选范围"}
+            </small>
+          </div>
+          <div className="permissions-impact-panel__card">
+            <span>当前分组总限制</span>
+            <strong>{deniedTotal}</strong>
+            <small>跨全部目录累计</small>
+          </div>
+          <div className="permissions-impact-panel__card">
+            <span>目录缺失限制项</span>
+            <strong>{missingCurrentCount}</strong>
+            <small>继续保留，不会被静默放开</small>
+          </div>
+        </div>
+
         <div className="permissions-section-tabs">
           {SECTION_OPTIONS.map((option) => (
             <button
@@ -340,8 +443,30 @@ export function AdminPermissionsPanel({
         <div className="data-panel permissions-content-panel">
           <header>
             {activeSection === "shared-resources" ? <FolderTree aria-hidden="true" /> : activeSection === "node-types" ? <Network aria-hidden="true" /> : <Workflow aria-hidden="true" />}
-            <h2>{SECTION_OPTIONS.find((item) => item.id === activeSection)?.label || "权限配置"}</h2>
+            <h2>{activeSectionDetail.label}</h2>
           </header>
+
+          <div className="permissions-section-overview">
+            <div className="permissions-section-overview__copy">
+              <span>{activeSectionDetail.title}</span>
+              <strong>{activeSectionDetail.description}</strong>
+              <p>{activeSectionDetail.scopeNote}</p>
+            </div>
+            <div className="permissions-section-overview__stats">
+              <div>
+                <span>当前列表</span>
+                <strong>{visiblePrimaryCount}</strong>
+              </div>
+              <div>
+                <span>已禁用</span>
+                <strong>{visiblePrimaryDeniedCount + visibleSecondaryDeniedCount}</strong>
+              </div>
+              <div>
+                <span>保留项</span>
+                <strong>{missingCurrentCount}</strong>
+              </div>
+            </div>
+          </div>
 
           <div className="permissions-toolbar">
             <label className="toolbar-search permissions-search">
@@ -353,6 +478,10 @@ export function AdminPermissionsPanel({
               />
             </label>
             <div className="permissions-toolbar__actions">
+              <div className="permissions-toolbar__action-copy">
+                <strong>批量操作</strong>
+                <span>{activeSectionDetail.bulkLabel}</span>
+              </div>
               {activeSection === "shared-resources" ? (
                 <>
                   <button type="button" onClick={() => setBulkState("sharedResourceCategoryIds", visibleIds.secondary, false)}>当前分类全部允许</button>
@@ -393,6 +522,7 @@ export function AdminPermissionsPanel({
                         </div>
                       );
                     })}
+                    {!sharedCategories.length ? <div className="permissions-empty-card">当前筛选下没有匹配的资源分类。</div> : null}
                   </div>
                 </section>
 
@@ -416,6 +546,7 @@ export function AdminPermissionsPanel({
                         />
                       );
                     })}
+                    {!sharedItems.length ? <div className="permissions-empty-card">当前筛选下没有匹配的资源条目。</div> : null}
                   </div>
                 </section>
               </>
@@ -461,7 +592,7 @@ export function AdminPermissionsPanel({
             ) : null}
 
             {activeSection !== "shared-resources" && !visibleIds.primary.length ? (
-              <div className="permissions-empty-card">当前筛选下没有可配置的条目。</div>
+              <div className="permissions-empty-card">{activeSectionDetail.emptyLabel}</div>
             ) : null}
           </div>
 
@@ -542,8 +673,19 @@ function RunningHubPermissionCard({
           {item.runTargetId ? <span>{item.runTargetId}</span> : null}
           {item.fields?.length ? <span>{item.fields.length} 个输入槽</span> : null}
         </div>
-        <code>{item.catalogId}</code>
-        <PermissionToggle denied={denied} onToggle={onToggle} />
+        <div className="permission-card__meta-grid">
+          <div>
+            <span>目录 ID</span>
+            <code>{item.catalogId}</code>
+          </div>
+          <div>
+            <span>运行目标</span>
+            <code>{item.runTargetId || "未配置"}</code>
+          </div>
+        </div>
+        <div className="permission-card__footer">
+          <PermissionToggle denied={denied} onToggle={onToggle} />
+        </div>
       </div>
     </div>
   );
@@ -569,11 +711,19 @@ function NodePermissionCard({
           <StatusPill tone={denied ? "danger" : "success"}>{denied ? "已禁用" : "允许"}</StatusPill>
         </div>
         <p>{item.description || "当前节点能力用于控制成员是否能创建和运行对应节点。"}</p>
-        <div className="permission-row__chips">
-          <span>{item.group}</span>
-          <span>{item.id}</span>
+        <div className="permission-card__meta-grid">
+          <div>
+            <span>节点分组</span>
+            <code>{item.group}</code>
+          </div>
+          <div>
+            <span>节点 ID</span>
+            <code>{item.id}</code>
+          </div>
         </div>
-        <PermissionToggle denied={denied} onToggle={onToggle} />
+        <div className="permission-card__footer">
+          <PermissionToggle denied={denied} onToggle={onToggle} />
+        </div>
       </div>
     </div>
   );

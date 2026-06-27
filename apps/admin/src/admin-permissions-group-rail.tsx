@@ -20,7 +20,7 @@ export function AdminPermissionsGroupRail({
   summarizeDeny: (deny?: GroupPermissionDeny) => GroupPermissionDeny;
 }) {
   return (
-    <section className="data-panel permissions-groups-panel">
+    <section className="data-panel permissions-groups-panel permissions-groups-panel--starlight">
       <header>
         <ShieldCheck aria-hidden="true" />
         <h2>权限分组</h2>
@@ -47,7 +47,7 @@ export function AdminPermissionsGroupRail({
                 onClick={() => onSelectGroup(group.id)}
               >
                 <div className="permissions-group-card__title">
-                  <strong>{group.name}</strong>
+                  <strong className="permissions-group-card__name">{group.name}</strong>
                   <StatusPill tone={selected ? "success" : "muted"}>{policy?.memberCount || 0} 人</StatusPill>
                 </div>
                 <p>{group.description || "当前分组暂无说明"}</p>

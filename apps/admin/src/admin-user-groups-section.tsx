@@ -59,6 +59,13 @@ export function AdminUserGroupsSection({
       ),
     [groupSearch, sortedGroups],
   );
+  const totalRestrictedGroups = useMemo(
+    () => sortedGroups.filter((group) => {
+      const summary = groupPolicySummary.get(group.id);
+      return Boolean(summary && (summary.resources || summary.runningHub || summary.nodes));
+    }).length,
+    [groupPolicySummary, sortedGroups],
+  );
 
   function groupDraft(group: AdminUserGroup) {
     return groupDrafts[group.id] || { name: group.name, description: group.description, sortOrder: group.sortOrder };
@@ -78,7 +85,7 @@ export function AdminUserGroupsSection({
   }
 
   return (
-    <div className="users-group-workbench">
+    <div className="users-group-workbench users-group-workbench--starlight">
       <section className="panel-stack users-group-workbench__rail">
         <FormPanel title="新建用户组" icon={FolderTree}>
           <input placeholder="分组名称" value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} />
@@ -100,6 +107,20 @@ export function AdminUserGroupsSection({
           <h2>分组概览</h2>
         </header>
         <div className="users-group-list-panel__body">
+          <div className="users-group-workbench__summary">
+            <div>
+              <span>分组总数</span>
+              <strong>{sortedGroups.length}</strong>
+            </div>
+            <div>
+              <span>当前结果</span>
+              <strong>{visibleGroups.length}</strong>
+            </div>
+            <div>
+              <span>存在限制</span>
+              <strong>{totalRestrictedGroups}</strong>
+            </div>
+          </div>
           <label className="toolbar-search users-group-search">
             <Search aria-hidden="true" />
             <input
@@ -123,55 +144,69 @@ export function AdminUserGroupsSection({
                     </div>
                     <StatusPill tone={memberCount ? "warning" : "muted"}>{memberCount} 人</StatusPill>
                   </div>
-                  <div className="user-group-card__meta">
-                    <span>资源限制 {policy?.resources || 0}</span>
-                    <span>RH 限制 {policy?.runningHub || 0}</span>
-                    <span>节点限制 {policy?.nodes || 0}</span>
-                    <span>排序 {group.sortOrder}</span>
+                  <div className="user-group-card__summary users-group-card__summary">
+                    <div className="user-group-card__meta">
+                      <span>资源限制 {policy?.resources || 0}</span>
+                      <span>RH 限制 {policy?.runningHub || 0}</span>
+                      <span>节点限制 {policy?.nodes || 0}</span>
+                      <span>排序 {group.sortOrder}</span>
+                    </div>
+                    <small>{cannotDelete ? "该分组仍有关联成员，删除前需先迁移成员。" : "当前分组可直接调整或删除。"}</small>
                   </div>
                   <div className="user-group-card__editor">
-                    <input
-                      placeholder="分组名称"
-                      value={draft.name}
-                      onChange={(e) => setGroupDrafts({
-                        ...groupDrafts,
-                        [group.id]: { ...draft, name: e.target.value },
-                      })}
-                    />
-                    <input
-                      placeholder="分组说明"
-                      value={draft.description}
-                      onChange={(e) => setGroupDrafts({
-                        ...groupDrafts,
-                        [group.id]: { ...draft, description: e.target.value },
-                      })}
-                    />
-                    <input
-                      placeholder="排序值"
-                      type="number"
-                      value={String(draft.sortOrder)}
-                      onChange={(e) => setGroupDrafts({
-                        ...groupDrafts,
-                        [group.id]: { ...draft, sortOrder: Number(e.target.value) || 0 },
-                      })}
-                    />
+                    <label>
+                      <span>分组名称</span>
+                      <input
+                        placeholder="分组名称"
+                        value={draft.name}
+                        onChange={(e) => setGroupDrafts({
+                          ...groupDrafts,
+                          [group.id]: { ...draft, name: e.target.value },
+                        })}
+                      />
+                    </label>
+                    <label>
+                      <span>分组说明</span>
+                      <input
+                        placeholder="分组说明"
+                        value={draft.description}
+                        onChange={(e) => setGroupDrafts({
+                          ...groupDrafts,
+                          [group.id]: { ...draft, description: e.target.value },
+                        })}
+                      />
+                    </label>
+                    <label>
+                      <span>排序值</span>
+                      <input
+                        placeholder="排序值"
+                        type="number"
+                        value={String(draft.sortOrder)}
+                        onChange={(e) => setGroupDrafts({
+                          ...groupDrafts,
+                          [group.id]: { ...draft, sortOrder: Number(e.target.value) || 0 },
+                        })}
+                      />
+                    </label>
                   </div>
                   <div className="row-actions user-group-card__actions">
-                    <button
-                      type="button"
-                      onClick={() => mutate(`/api/admin/user-groups/${group.id}`, draft, "PATCH")}
-                    >
-                      保存分组
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-button"
-                      disabled={cannotDelete}
-                      title={cannotDelete ? "该分组仍有关联用户，暂时不能删除" : "删除分组"}
-                      onClick={() => mutate(`/api/admin/user-groups/${group.id}`, {}, "DELETE")}
-                    >
-                      删除分组
-                    </button>
+                    <div className="user-group-card__action-row users-group-card__action-row">
+                      <button
+                        type="button"
+                        onClick={() => mutate(`/api/admin/user-groups/${group.id}`, draft, "PATCH")}
+                      >
+                        保存分组
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        disabled={cannotDelete}
+                        title={cannotDelete ? "该分组仍有关联用户，暂时不能删除" : "删除分组"}
+                        onClick={() => mutate(`/api/admin/user-groups/${group.id}`, {}, "DELETE")}
+                      >
+                        删除分组
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

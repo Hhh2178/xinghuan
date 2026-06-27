@@ -9,6 +9,7 @@ import { AdminAssistantPanel } from "./admin-assistant-panel";
 import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
+import { AdminGenerationLibraryPanel } from "./admin-generation-library-panel";
 import { Overview } from "./admin-overview-panel";
 import { AdminPublicResourcesPanel } from "./admin-public-resources-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
@@ -352,7 +353,8 @@ function AdminApp() {
   useEffect(() => {
     if (!isAdmin) return;
     const hasActiveTasks = taskPage.items.some((task) => task.status === "queued" || task.status === "running");
-    if (activeTab !== "tasks" && !hasActiveTasks) return;
+    const shouldLiveRefresh = activeTab === "tasks" || activeTab === "generation-library" || hasActiveTasks;
+    if (!shouldLiveRefresh) return;
     const timer = window.setInterval(() => {
       void loadTaskPage();
     }, 5000);
@@ -558,7 +560,13 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "users" ? (
-            <UsersPanel users={users} userGroups={userGroups} sessions={sessions} mutate={mutate} />
+            <UsersPanel
+              users={users}
+              userGroups={userGroups}
+              sessions={sessions}
+              mutate={mutate}
+              onOpenAudit={() => setActiveTab("audit")}
+            />
           ) : null}
           {activeTab === "providers" ? (
             <ApiSettingsPanel
@@ -576,6 +584,9 @@ function AdminApp() {
           ) : null}
           {activeTab === "public-resources" ? (
             <AdminPublicResourcesPanel />
+          ) : null}
+          {activeTab === "generation-library" ? (
+            <AdminGenerationLibraryPanel />
           ) : null}
           {activeTab === "assistant" ? (
             <AdminAssistantSettingsPanel

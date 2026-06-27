@@ -30,6 +30,7 @@ export type UserRole = "admin" | "member";
 export type Capability = "chat" | "image" | "video" | "audio";
 export type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
 export type ResourceMediaKind = "image" | "video" | "audio";
+export type GenerationLibraryKind = "image" | "video" | "audio";
 export type ModelCapabilityTag =
   | "text_chat"
   | "image_understanding"
@@ -91,6 +92,31 @@ export interface SharedResourceItem {
   updatedAt: number;
   publishedBy?: string;
   publishedAt?: number;
+}
+
+export interface GenerationLibraryItem {
+  id: string;
+  kind: GenerationLibraryKind;
+  title: string;
+  url: string;
+  fileUrl: string;
+  mime?: string;
+  size?: number;
+  filename?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
+  openUrl?: string;
+  canDownload?: boolean;
+  isExpired?: boolean;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+  sourceNodeId?: string;
+  sourceCanvasId?: string;
+  taskId?: string;
+  providerId?: string;
+  modelId?: string;
+  duplicate?: boolean;
 }
 
 export interface AdminSharedResourceDraft {

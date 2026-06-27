@@ -149,6 +149,49 @@
 - 行点击进入 Inspector。
 - 操作列固定或明确。
 
+### 组织治理工作区
+
+要求：
+
+- 组织与治理页顶部先展示治理概览条，再进入账号 / 用户组 / 权限 / 会话的分区工作台。
+- 组织与治理工作域进入后先给域级 overview 首页，再进入账号 / 用户组 / 权限 / 会话 / 审计的分区工作台。
+- 用户组工作区采用左侧创建轨道、右侧卡片工作台，不允许退回窄侧栏式编辑。
+- 账号管理工作区采用左侧创建轨道、右侧治理摘要 + 巡检卡 + 账号表治理台，不回退为裸表格页。
+- 会话管理工作区采用摘要条 + 提示卡 + 会话表治理台，确保“先判断，再执行下线”。
+- 用量分析工作区采用“治理摘要条 + KPI + overview 面板 + 图表 / 矩阵”结构，不允许只剩散落的统计卡和表格。
+- 用户组卡片内部必须分成标题区、限制摘要区、编辑区和操作区。
+- 权限策略页左侧 rail 负责切组，右侧编辑器负责主视觉和主要交互。
+- 权限页需要有影响面板，直接告诉管理员当前组限制了多少对象。
+- 权限策略页右侧编辑器必须先给出“当前域说明 + 影响范围 + 批量操作提示”，再进入具体对象列表，避免管理员直接面对无上下文的开关墙。
+- RH / 节点能力权限卡片必须使用稳定的上下层结构，下层拆出标题、状态、元信息块和底部权限开关。
+- 长 catalogId、runTargetId、nodeType id 不直接裸露在正文流中，统一落入受控 meta block。
+
+落地约定：
+
+- 页面级使用 `users-page--starlight` 标识。
+- 组织治理首页使用 `users-governance-overview` 与 `users-governance-quick-grid` 作为固定入口结构。
+- 账号治理工作区使用 `users-accounts-workbench--starlight` 标识，会话治理工作区使用 `users-sessions-workbench--starlight` 标识。
+- 用量驾驶舱继续使用 `usage-dashboard--starlight` 标识，并补充 `usage-governance-strip` 与 `usage-overview-grid` 作为固定治理部件。
+- 用户组工作区使用 `users-group-workbench--starlight` 标识。
+- 组织治理概览条使用 `users-governance-summary`，桌面端固定五列，缩窄后自动降列。
+- 用户组卡片操作区使用 `users-group-card__action-row`，默认 `flex-wrap: wrap`。
+- 权限页使用 `permissions-shell--starlight` 标识，影响面板使用 `permissions-impact-panel`。
+- 权限分组名称使用 `permissions-group-card__name`，必须保持白色高对比文本。
+- 权限域说明区使用 `permissions-section-overview`，后续扩展新的权限对象时继续复用。
+
+### 资源与内容工作区
+
+要求：
+
+- `公共资源` 与 `生成库` 都应复用统一的资源卡片语言，不允许一个是完整预览卡片、另一个退回旧式杂糅列表。
+- `生成库` 卡片继续沿用四列优先网格、黑底完整预览、按钮自动换行。
+- 生成结果卡片下半区至少保留：
+  - 标题
+  - mime / 体积 / 剩余保留时间
+  - 任务来源、Provider、模型
+  - 转公共资源、删除
+- 资源与内容工作域里的媒体预览，一律优先 `contain`，不因“铺满”裁切主画面。
+
 ### 资源卡片
 
 要求：

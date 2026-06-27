@@ -40,6 +40,9 @@ const checks = [
     pass:
       existsSync(accountsSectionPath) &&
       accountsSectionSource.includes('title="新增成员"') &&
+      accountsSectionSource.includes("users-accounts-workbench--starlight") &&
+      accountsSectionSource.includes("users-accounts-summary") &&
+      accountsSectionSource.includes("users-accounts-table-panel") &&
       accountsSectionSource.includes('placeholder="邮箱"') &&
       accountsSectionSource.includes('placeholder="名称"') &&
       accountsSectionSource.includes('placeholder="账号备注"') &&
@@ -63,6 +66,13 @@ const checks = [
     pass:
       accountsSectionSource.includes('title="账号列表"') &&
       requiredColumns.every((column) => accountsSectionSource.includes(`<th>${column}</th>`)),
+  },
+  {
+    name: "users accounts workspace uses governance workbench hooks",
+    pass:
+      accountsSectionSource.includes("users-account-card") &&
+      accountsSectionSource.includes("users-accounts-create-rail") &&
+      accountsSectionSource.includes("users-account-table-toolbar"),
   },
   {
     name: "users panel preserves role and status rendering",
@@ -95,6 +105,14 @@ const checks = [
       accountsSectionSource.includes("<FormPanel") &&
       accountsSectionSource.includes("<AdminTable") &&
       sessionsSectionSource.includes("<StatusPill"),
+  },
+  {
+    name: "sessions workspace uses governance workbench hooks",
+    pass:
+      sessionsSectionSource.includes("users-sessions-workbench--starlight") &&
+      sessionsSectionSource.includes("users-sessions-summary") &&
+      sessionsSectionSource.includes("users-session-table-toolbar") &&
+      sessionsSectionSource.includes('title="活跃会话"'),
   },
 ];
 

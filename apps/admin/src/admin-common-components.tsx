@@ -13,11 +13,22 @@ export function DataTable({ title, columns, rows }: { title: string; columns: st
   );
 }
 
-export function AdminTable({ title, children }: { title: string; children: ReactNode }) {
+export function AdminTable({
+  title,
+  toolbar,
+  tableWrapClassName,
+  children,
+}: {
+  title: string;
+  toolbar?: ReactNode;
+  tableWrapClassName?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="data-panel">
       <header><h2>{title}</h2></header>
-      <div className="table-wrap"><table>{children}</table></div>
+      {toolbar ? <div className="table-toolbar">{toolbar}</div> : null}
+      <div className={tableWrapClassName ? `table-wrap ${tableWrapClassName}` : "table-wrap"}><table>{children}</table></div>
     </section>
   );
 }

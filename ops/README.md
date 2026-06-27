@@ -23,9 +23,9 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.6`
-  - release：`20260626-lazy-import-recovery-admin-grid-gray-r1-v056`
-  - 状态：`2026-06-26 已完成 deploy + runtime verify`
+  - 版本：`v0.5.7`
+  - release：`20260627-admin-resource-content-governance-gray-r1-v057`
+  - 状态：`2026-06-27 待 deploy`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
@@ -41,6 +41,7 @@
 ## 常用入口
 
 - 服务器连接：`server-connection.md`
+- Phase E 放行 gate：`phase-e-observability-release-gate-2026-06-15.md`
 - Gray 部署：`gray-deploy-runbook.md`
 - Gray 标准清单：`gray-release-standard-checklist.md`
 - Gray 记录模板：`templates/gray-release-record-template.md`

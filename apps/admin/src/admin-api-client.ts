@@ -215,3 +215,31 @@ export const adminSharedResourceApi = {
     return payload.data as { filename: string; url: string; size: number; mime: string };
   },
 };
+
+export const adminGenerationLibraryApi = {
+  listItems: (params: { kind?: import("./admin-types").GenerationLibraryKind; q?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.kind) query.set("kind", params.kind);
+    if (params.q) query.set("q", params.q);
+    const suffix = query.toString();
+    return api<import("./admin-types").GenerationLibraryItem[]>(
+      `/api/generation-library/items${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+  deleteItem: (id: string) =>
+    api<void>(`/api/generation-library/items/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+  createSharedResourceItem: (payload: {
+    kind: import("./admin-types").ResourceMediaKind;
+    url: string;
+    title?: string;
+    originalName?: string;
+    mime?: string;
+    size?: number;
+    categoryId?: string;
+    tags?: string[];
+    note?: string;
+  }) =>
+    adminSharedResourceApi.createItem(payload),
+};

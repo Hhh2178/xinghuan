@@ -33,7 +33,7 @@ export function AdminPermissionsSummaryStrip({
   deniedNodeTypes: number;
 }) {
   return (
-    <div className="permissions-summary-grid">
+    <div className="permissions-summary-grid permissions-summary-grid--starlight">
       <PermissionSummaryCard label="当前分组" value={groupName} tone="success" />
       <PermissionSummaryCard label="成员数量" value={memberCount} />
       <PermissionSummaryCard

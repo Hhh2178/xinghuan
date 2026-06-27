@@ -9,6 +9,7 @@ import {
   PanelsTopLeft,
   ScrollText,
   ServerCog,
+  Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export type AdminTabId =
   | "providers"
   | "runninghub-workspace"
   | "public-resources"
+  | "generation-library"
   | "assistant"
   | "announcement"
   | "tasks"
@@ -59,6 +61,7 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
   { id: "providers", label: "API 设置", icon: KeyRound },
   { id: "runninghub-workspace", label: "RH 工作台", icon: PanelsTopLeft },
   { id: "public-resources", label: "公共资源", icon: Library },
+  { id: "generation-library", label: "生成库", icon: Sparkles },
   { id: "assistant", label: "AI 助手", icon: Bot },
   { id: "announcement", label: "公告", icon: Bell },
   { id: "tasks", label: "任务", icon: Activity },
@@ -90,7 +93,7 @@ export const adminWorkspaces: AdminWorkspace[] = [
     subtitle: "Resource & Content",
     description: "公共资源、生成内容、公告、分类与标签。",
     icon: Library,
-    tabs: ["public-resources", "announcement"],
+    tabs: ["public-resources", "generation-library", "announcement"],
   },
   {
     id: "governance-center",
@@ -116,6 +119,7 @@ export const adminTabDescriptions: Record<AdminTabId, string> = {
   providers: "Provider 接入、模型目录、Key 状态和模型拉取。",
   "runninghub-workspace": "RunningHub AI 应用、工作流、输入槽、Schema 和测试。",
   "public-resources": "公共素材上传、分类、卡片预览、编辑和权限摘要。",
+  "generation-library": "生成结果卡片治理、完整预览、来源追踪和转公共资源。",
   assistant: "创作侧与后台 AI 助手、接入内核和上下文权限。",
   announcement: "公告草稿、发布、强提醒、置顶和弹窗策略。",
   tasks: "任务列表、队列状态、取消、重试和日志查看。",
@@ -130,6 +134,7 @@ export const adminRefreshPolicies: Record<AdminTabId, AdminRefreshPolicy> = {
   providers: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "Provider 表单有未保存修改时禁止静默覆盖。" },
   "runninghub-workspace": { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "RH 编辑器保存前保留草稿和测试上下文。" },
   "public-resources": { kind: "manual", label: "手动刷新", intervalLabel: "按需", description: "资源上传和编辑完成后局部刷新列表。" },
+  "generation-library": { kind: "live", label: "自动刷新", intervalLabel: "5 秒", description: "生成结果列表与过期状态保持热刷新。" },
   assistant: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "AI 助手配置使用 revision 冲突保护。" },
   announcement: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "公告草稿编辑期间不自动覆盖。" },
   tasks: { kind: "live", label: "自动刷新", intervalLabel: "3-5 秒", description: "queued / running 任务和日志保持热刷新。" },
