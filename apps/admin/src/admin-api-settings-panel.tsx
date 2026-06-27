@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { api } from "./admin-api-client";
-import { AdminWorkspaceBand } from "./admin-common-components";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { ModelPicker } from "./admin-model-picker";
@@ -505,20 +504,6 @@ export function ApiSettingsPanel({
 
   return (
     <section className="api-settings-page">
-      <AdminWorkspaceBand
-        className="api-settings-band"
-        kicker="Capability Console"
-        title="统一管理接入能力"
-        description="管理平台地址、模型列表、协议判断和 Key。Key 写入后端加密保存，页面不会回显完整内容。"
-        currentLabel={selected?.name || "新增平台"}
-        currentDescription={selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}
-        actions={
-          <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
-            {busy ? "处理中..." : status}
-          </span>
-        }
-      />
-
       <div className="api-settings-layout">
         <aside className="provider-rail">
           <div className="rail-title">平台列表</div>
@@ -558,6 +543,17 @@ export function ApiSettingsPanel({
         </aside>
 
         <div className="api-settings-content">
+          <div className="api-settings-section-head">
+            <div className="api-settings-section-head__copy">
+              <span className="api-settings-kicker">Capability Console</span>
+              <strong>{selected?.name || "新增平台"}</strong>
+              <p>{selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}</p>
+            </div>
+            <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
+              {busy ? "处理中..." : status}
+            </span>
+          </div>
+
           <div className="api-card">
             <div className="provider-form-head">
               <strong>{selected?.name || "新增平台"}</strong>

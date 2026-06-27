@@ -23,9 +23,9 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.8`
-  - release：`20260627-admin-shell-visual-unification-gray-r1-v058`
-  - 状态：`2026-06-27 已完成 deploy + runtime verify`
+  - 版本：`v0.5.9`
+  - release：`20260627-admin-layout-overlap-resource-grid-gray-r1-v059`
+  - 状态：`2026-06-27 待 deploy`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

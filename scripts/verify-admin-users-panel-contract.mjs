@@ -12,8 +12,6 @@ const accountsSectionSource = existsSync(accountsSectionPath) ? readFileSync(acc
 const groupsSectionSource = existsSync(groupsSectionPath) ? readFileSync(groupsSectionPath, "utf8") : "";
 const sessionsSectionSource = existsSync(sessionsSectionPath) ? readFileSync(sessionsSectionPath, "utf8") : "";
 
-const requiredColumns = ["邮箱", "名称", "所属组", "备注", "角色", "状态", "当前密码", "重置密码", "操作"];
-
 const checks = [
   {
     name: "admin users panel module exists",
@@ -62,10 +60,17 @@ const checks = [
       groupsSectionSource.includes('"/api/admin/user-groups"'),
   },
   {
-    name: "users panel preserves user table title and columns",
+    name: "users panel preserves account workbench title and single-column layout",
     pass:
       accountsSectionSource.includes('title="账号列表"') &&
-      requiredColumns.every((column) => accountsSectionSource.includes(`<th>${column}</th>`)),
+      accountsSectionSource.includes("<th>账号工作台</th>") &&
+      accountsSectionSource.includes("users-account-record") &&
+      accountsSectionSource.includes("users-account-record__identity") &&
+      accountsSectionSource.includes("users-account-record__grid") &&
+      accountsSectionSource.includes("<span>所属组</span>") &&
+      accountsSectionSource.includes("<span>备注</span>") &&
+      accountsSectionSource.includes("<span>当前密码</span>") &&
+      accountsSectionSource.includes("<span>重置密码</span>"),
   },
   {
     name: "users accounts workspace uses governance workbench hooks",
@@ -94,7 +99,7 @@ const checks = [
     name: "users panel preserves enable disable flow",
     pass:
       accountsSectionSource.includes('mutate(`/api/admin/users/${user.id}`, { disabled: !user.disabled }, "PATCH")') &&
-      accountsSectionSource.includes('{user.disabled ? "启用" : "禁用"}'),
+      accountsSectionSource.includes('{user.disabled ? "启用账号" : "禁用账号"}'),
   },
   {
     name: "users panel uses shared admin components",

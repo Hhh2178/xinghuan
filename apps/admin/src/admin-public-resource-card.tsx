@@ -15,6 +15,8 @@ type AdminPublicResourceCardProps = {
   onSave: () => void;
   onDelete: () => void;
   onOpenPreview: () => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
 };
 
 function formatSize(size?: number) {
@@ -98,22 +100,31 @@ export function AdminPublicResourceCard({
   onSave,
   onDelete,
   onOpenPreview,
+  expanded,
+  onToggleExpand,
 }: AdminPublicResourceCardProps) {
   const previewUrl = getPreviewUrl(item);
   const previewKind = getPreviewKind(item);
   const missingCategory = item.categoryId && !categoryNameById.has(item.categoryId);
 
   return (
-    <article className="admin-public-resource-card admin-public-resource-card--starlight">
+    <article className={`admin-public-resource-card admin-public-resource-card--starlight${expanded ? " admin-public-resource-card--expanded" : ""}`}>
       <div className="admin-public-resource-card__preview-shell">
         <div className="admin-public-resource-card__preview-stage">
           <div className="admin-public-resource-card__preview-frame">{renderPreview(item)}</div>
+        </div>
+        <div className="admin-public-resource-card__summary">
+          <strong>{draft.title || item.title}</strong>
+          <span>{categoryNameById.get(draft.categoryId || item.categoryId || "") || "未分类"}</span>
         </div>
         <div className="admin-public-resource-card__preview-actions">
           <div className="admin-public-resource-card__action-row">
             <button type="button" onClick={onOpenPreview}>
               <ExternalLink aria-hidden="true" />
               {getPreviewText(item)}
+            </button>
+            <button type="button" onClick={onToggleExpand}>
+              {expanded ? "收起详情" : "展开详情"}
             </button>
             {previewUrl ? (
               <a href={previewUrl} target="_blank" rel="noreferrer" className="admin-public-resource-card__preview-link">
@@ -124,57 +135,61 @@ export function AdminPublicResourceCard({
         </div>
       </div>
 
-      <div className="admin-public-resource-card__management">
-        <div className="admin-public-resource-card__fields">
-          <label className="admin-public-resource-card__field">
-            <span>资源名称</span>
-            <input value={draft.title} onChange={(event) => onDraftChange({ title: event.target.value })} placeholder="资源名称" />
-          </label>
-          <label className="admin-public-resource-card__field">
-            <span>分类</span>
-            <select value={draft.categoryId} onChange={(event) => onDraftChange({ categoryId: event.target.value })}>
-              <option value="">未分类</option>
-              {missingCategory ? <option value={item.categoryId}>缺失分类：{item.categoryId}</option> : null}
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="admin-public-resource-card__field admin-public-resource-card__field--span-2">
-            <span>标签</span>
-            <input
-              value={draft.tagsText}
-              onChange={(event) => onDraftChange({ tagsText: event.target.value })}
-              placeholder="标签，用英文逗号分隔"
-            />
-          </label>
-          <label className="admin-public-resource-card__field admin-public-resource-card__field--span-2">
-            <span>备注</span>
-            <textarea value={draft.note} onChange={(event) => onDraftChange({ note: event.target.value })} rows={3} placeholder="备注" />
-          </label>
-        </div>
+      {expanded ? (
+        <div className="admin-public-resource-card__detail">
+          <div className="admin-public-resource-card__management">
+            <div className="admin-public-resource-card__fields">
+              <label className="admin-public-resource-card__field">
+                <span>资源名称</span>
+                <input value={draft.title} onChange={(event) => onDraftChange({ title: event.target.value })} placeholder="资源名称" />
+              </label>
+              <label className="admin-public-resource-card__field">
+                <span>分类</span>
+                <select value={draft.categoryId} onChange={(event) => onDraftChange({ categoryId: event.target.value })}>
+                  <option value="">未分类</option>
+                  {missingCategory ? <option value={item.categoryId}>缺失分类：{item.categoryId}</option> : null}
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="admin-public-resource-card__field admin-public-resource-card__field--span-2">
+                <span>标签</span>
+                <input
+                  value={draft.tagsText}
+                  onChange={(event) => onDraftChange({ tagsText: event.target.value })}
+                  placeholder="标签，用英文逗号分隔"
+                />
+              </label>
+              <label className="admin-public-resource-card__field admin-public-resource-card__field--span-2">
+                <span>备注</span>
+                <textarea value={draft.note} onChange={(event) => onDraftChange({ note: event.target.value })} rows={3} placeholder="备注" />
+              </label>
+            </div>
 
-        <div className="admin-public-resource-card__meta">
-          <span>{item.mime || previewKind}</span>
-          <span>{formatSize(item.size)}</span>
-          <span>{new Date(item.updatedAt).toLocaleString()}</span>
-        </div>
+            <div className="admin-public-resource-card__meta">
+              <span>{item.mime || previewKind}</span>
+              <span>{formatSize(item.size)}</span>
+              <span>{new Date(item.updatedAt).toLocaleString()}</span>
+            </div>
 
-        <div className="admin-public-resource-card__actions">
-          <div className="admin-public-resource-card__action-row">
-            <button type="button" onClick={onSave}>
-              <Save aria-hidden="true" />
-              保存
-            </button>
-            <button type="button" className="danger-button" onClick={onDelete}>
-              <Trash2 aria-hidden="true" />
-              删除
-            </button>
+            <div className="admin-public-resource-card__actions">
+              <div className="admin-public-resource-card__action-row">
+                <button type="button" onClick={onSave}>
+                  <Save aria-hidden="true" />
+                  保存
+                </button>
+                <button type="button" className="danger-button" onClick={onDelete}>
+                  <Trash2 aria-hidden="true" />
+                  删除
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </article>
   );
 }

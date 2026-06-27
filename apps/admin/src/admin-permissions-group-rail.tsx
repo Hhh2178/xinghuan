@@ -48,7 +48,7 @@ export function AdminPermissionsGroupRail({
               >
                 <div className="permissions-group-card__title">
                   <strong className="permissions-group-card__name">{group.name}</strong>
-                  <StatusPill tone={selected ? "success" : "muted"}>{policy?.memberCount || 0} 人</StatusPill>
+                  <StatusPill tone={selected ? "warning" : "muted"}>{policy?.memberCount || 0} 人</StatusPill>
                 </div>
                 <p>{group.description || "当前分组暂无说明"}</p>
                 <div className="permissions-group-card__stats">

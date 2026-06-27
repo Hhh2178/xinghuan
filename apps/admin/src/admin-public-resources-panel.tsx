@@ -47,6 +47,7 @@ export function AdminPublicResourcesPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [previewItem, setPreviewItem] = useState<SharedResourceItem | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const canUpload = kind === "image" || kind === "video" || kind === "audio";
@@ -64,6 +65,7 @@ export function AdminPublicResourcesPanel() {
       setCategories(nextCategories);
       setItems(nextItems);
       setDrafts(Object.fromEntries(nextItems.map((item) => [item.id, createDraft(item)])));
+      setExpandedItemId((current) => (nextItems.some((item) => item.id === current) ? current : null));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -302,6 +304,8 @@ export function AdminPublicResourcesPanel() {
                 onSave={() => void saveItem(item)}
                 onDelete={() => void deleteItem(item)}
                 onOpenPreview={() => setPreviewItem(item)}
+                expanded={expandedItemId === item.id}
+                onToggleExpand={() => setExpandedItemId((current) => (current === item.id ? null : item.id))}
               />
             ))}
 
