@@ -2,11 +2,12 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.5.13`
-- 当前 release：`20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
-- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.15`
+- 当前 release：`20260628-web-version-sync-prod-r1-v0515`
+- 当前状态：`2026-06-28 待 deploy`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-06-28-web-version-sync-production.md`
   - `../../docs/logbooks/releases/production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
   - `../../docs/logbooks/releases/production/2026-06-27-admin-capability-flow-create-form-production.md`
   - `../production-deploy-runbook.md`
@@ -26,7 +27,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260624-timeout-zero-and-app-shell-loading-prod-r2-v051`
+  - `/opt/apps/xinghuan-canvas/releases/20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

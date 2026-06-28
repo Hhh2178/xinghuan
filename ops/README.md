@@ -23,16 +23,16 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.14`
-  - release：`20260628-admin-audit-account-drilldown-gray-r1-v0514`
-  - 状态：`2026-06-28 已完成 deploy + runtime verify`
-  - 当前补修：`2026-06-28-admin-audit-account-drilldown-gray.md`
+  - 版本：`v0.5.15`
+  - release：`20260628-web-version-sync-gray-r1-v0515`
+  - 状态：`2026-06-28 待 deploy`
+  - 当前补修：`2026-06-28-web-version-sync-gray.md`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.13`
-  - release：`20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
-  - 状态：`2026-06-28 已完成 deploy + runtime verify`
+  - 版本：`v0.5.15`
+  - release：`20260628-web-version-sync-prod-r1-v0515`
+  - 状态：`2026-06-28 待 deploy`
 
 ## current / archive 分工
 

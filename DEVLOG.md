@@ -237,6 +237,33 @@
 
 ### 工作流资源保存后不可见修复
 
+### Web 版本号展示与 release 对齐
+
+目标:
+- 修复前端显示版本号长期停留在 `0.5.6` 的问题
+- 保证 Web 端版本角标与根版本、API 状态、gray / production release 一致
+
+变更:
+- `apps/web/vite.config.ts` 改为从根 `package.json` 读取版本并注入 `__APP_VERSION__`
+- 新增 `scripts/verify-web-app-version-define.mjs`，阻止回退为硬编码版本
+- 在根 `package.json` 新增 `verify:web-app-version-define`
+- monorepo 与共享版本常量统一推进到 `v0.5.15`
+
+验证:
+- `npm install --package-lock-only --ignore-scripts`
+- `npm run verify:web-app-version-define`
+- `npm run build -w @xinghuan/web`
+
+影响:
+- Web UI 中的版本号会跟随正式版本推进自动同步
+- 后续 gray / production 批次不再需要手动改前端展示版本
+
+风险:
+- 仍需在 gray / production 实机刷新前端确认缓存没有残留旧 bundle
+
+下一步:
+- 执行 `v0.5.15` 的 gray 与 production 发布，并验证远端状态返回与前端版本展示
+
 目标:
 - 修复“框选节点保存到资源库后，在工作流资源库里看不到”的问题
 - 修复 workflow 资源后续插入画布时对 `fileUrl` 的错误强依赖

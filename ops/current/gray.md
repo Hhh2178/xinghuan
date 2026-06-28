@@ -2,12 +2,13 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.14`
-- 当前 release：`20260628-admin-audit-account-drilldown-gray-r1-v0514`
-- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
-- 当前补修：`2026-06-28-admin-audit-account-drilldown-gray.md`
+- 当前版本：`v0.5.15`
+- 当前 release：`20260628-web-version-sync-gray-r1-v0515`
+- 当前状态：`2026-06-28 待 deploy`
+- 当前补修：`2026-06-28-web-version-sync-gray.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-28-web-version-sync-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-28-admin-audit-account-drilldown-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-capability-flow-create-form-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-28-admin-assistant-environment-sync-overlap-gray.md`
@@ -41,9 +42,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-audit-account-drilldown-gray-r1-v0514`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260627-admin-capability-flow-create-form-gray-r1-v0512`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-audit-account-drilldown-gray-r1-v0514`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

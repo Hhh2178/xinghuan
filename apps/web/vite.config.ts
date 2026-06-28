@@ -1,9 +1,11 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import path from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const webBuildMarker = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+const rootPackageJson = JSON.parse(readFileSync(path.resolve(__dirname, "../../package.json"), "utf8"));
+const appVersion = String(rootPackageJson.version || "").trim() || "0.0.0";
 
 function buildMetaPlugin() {
   return {
@@ -68,7 +70,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
   },
   define: {
-    __APP_VERSION__: JSON.stringify("0.5.6"),
+    __APP_VERSION__: JSON.stringify(appVersion),
     __APP_NAME__: JSON.stringify("xinghuan-canvas"),
     __WEB_BUILD_MARKER__: JSON.stringify(webBuildMarker),
   },
