@@ -43,12 +43,13 @@
 
 ### Production
 
-- 版本：`v0.5.12`
-- release：`20260627-admin-capability-flow-create-form-prod-r1-v0512`
-- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
+- 版本：`v0.5.13`
+- release：`20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 - 当前批次记录：
-  - `production/2026-06-27-admin-capability-flow-create-form-production.md`
+  - `production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
 - 历史运行态材料：
+  - `production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
   - `production/2026-06-27-admin-capability-flow-create-form-production.md`
   - `production/2026-06-24-timeout-zero-and-app-shell-loading-production.md`
   - `production/2026-06-24-runninghub-timeout-empty-default-production.md`

@@ -6,4 +6,4 @@
 
 ## 当前 active production release
 
-- `2026-06-27-admin-capability-flow-create-form-production.md`
+- `2026-06-28-admin-assistant-environment-sync-overlap-production.md`

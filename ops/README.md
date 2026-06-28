@@ -30,9 +30,9 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.12`
-  - release：`20260627-admin-capability-flow-create-form-prod-r1-v0512`
-  - 状态：`2026-06-27 已完成 deploy + runtime verify`
+  - 版本：`v0.5.13`
+  - release：`20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
+  - 状态：`2026-06-28 已完成 deploy + runtime verify`
 
 ## current / archive 分工
 

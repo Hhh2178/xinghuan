@@ -2,11 +2,12 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.5.12`
-- 当前 release：`20260627-admin-capability-flow-create-form-prod-r1-v0512`
-- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.13`
+- 当前 release：`20260628-admin-assistant-environment-sync-overlap-prod-r1-v0513`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
   - `../../docs/logbooks/releases/production/2026-06-27-admin-capability-flow-create-form-production.md`
   - `../production-deploy-runbook.md`
   - `../production-acceptance-checklist.md`
