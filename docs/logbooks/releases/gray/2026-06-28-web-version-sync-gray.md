@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.15`
 - release：`20260628-web-version-sync-gray-r1-v0515`
-- 当前状态：`待 deploy`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 - 上一灰度 release：`20260628-admin-audit-account-drilldown-gray-r1-v0514`
 
 ## 发布目标
@@ -48,6 +48,24 @@
 - `npm run release:gray:prepare -- --release=20260628-web-version-sync-gray-r1-v0515 --verify="npm run verify:web-app-version-define" --verify="npm run build -w @xinghuan/web"`
 - `npm run release:gray:deploy -- --release=20260628-web-version-sync-gray-r1-v0515 --archive=dist-release/20260628-web-version-sync-gray-r1-v0515.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
 - `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.15 --expected-environment=gray`
+
+### 部署结果
+
+- 当前 release 指针：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260628-web-version-sync-gray-r1-v0515`
+- systemd 状态：
+  - `xinghuan-canvas-next.service`: `active`
+  - `xinghuan-canvas-next-worker.service`: `active`
+- 内网状态：
+  - `http://127.0.0.1:18200/api/status`
+  - `status=ok`
+  - `version=0.5.15`
+  - `environment=gray`
+- 公网状态：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `status=ok`
+  - `version=0.5.15`
+  - `environment=gray`
 
 ## 待用户验收
 

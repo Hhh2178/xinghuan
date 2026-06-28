@@ -25,7 +25,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.15`
   - release：`20260628-web-version-sync-gray-r1-v0515`
-  - 状态：`2026-06-28 待 deploy`
+  - 状态：`2026-06-28 已完成 deploy + runtime verify`
   - 当前补修：`2026-06-28-web-version-sync-gray.md`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
