@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.14`
 - 当前 release：`20260628-admin-audit-account-drilldown-gray-r1-v0514`
-- 当前状态：`2026-06-28 待 deploy`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 - 当前补修：`2026-06-28-admin-audit-account-drilldown-gray.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：

@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.14`
 - release：`20260628-admin-audit-account-drilldown-gray-r1-v0514`
-- 当前状态：`待 deploy`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 - 上一灰度 release：`20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513`
 
 ## 发布目标
@@ -55,11 +55,29 @@
 - `npm run build -w @xinghuan/admin`
 - `codegraph sync`
 
-### Gray 发布前计划执行
+### Gray 发布与运行态
 
 - `npm run release:gray:prepare -- --release=20260628-admin-audit-account-drilldown-gray-r1-v0514 --verify="npx tsx scripts/verify-admin-usage-summary-selected-user.ts" --verify="node scripts/verify-admin-usage-dashboard-contract.mjs" --verify="npm run build -w @xinghuan/api" --verify="npm run build -w @xinghuan/admin"`
 - `npm run release:gray:deploy -- --release=20260628-admin-audit-account-drilldown-gray-r1-v0514 --archive=dist-release/20260628-admin-audit-account-drilldown-gray-r1-v0514.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
 - `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.14 --expected-environment=gray`
+
+### 部署结果
+
+- 当前 release 指针：
+  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-audit-account-drilldown-gray-r1-v0514`
+- systemd 状态：
+  - `xinghuan-canvas-next.service`: `active`
+  - `xinghuan-canvas-next-worker.service`: `active`
+- 内网状态：
+  - `http://127.0.0.1:18200/api/status`
+  - `status=ok`
+  - `version=0.5.14`
+  - `environment=gray`
+- 公网状态：
+  - `https://canvas-next.hhh2121.xyz/api/status`
+  - `status=ok`
+  - `version=0.5.14`
+  - `environment=gray`
 
 ## 待用户验收
 
