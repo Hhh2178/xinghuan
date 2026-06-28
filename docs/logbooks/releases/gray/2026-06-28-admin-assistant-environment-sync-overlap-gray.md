@@ -4,8 +4,8 @@
 
 - 环境：`gray`
 - 版本：`v0.5.13`
-- release：`20260628-admin-assistant-environment-sync-overlap-gray-r1-v0513`
-- 当前状态：`2026-06-28 待 deploy + runtime verify`
+- release：`20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513`
+- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
 
 ## 发布目标
 
@@ -20,15 +20,21 @@
 
 - `apps/admin/src/main.tsx`
   - `assistant`、`environment-sync` 不再使用 `admin-main--fixed-panel`。
+- `apps/admin/src/styles.css`
+  - `assistant-settings-page` 和 `environment-sync-page` 回到正常文档流。
+  - `environment-sync-toolbar` 取消 sticky 覆盖行为。
 - `scripts/verify-admin-layout-overlap-fixes-contract.mjs`
   - 更新契约，反映新的页面壳层策略。
 - 版本推进：
-  - monorepo 工作区版本从 `v0.5.12` 推进到 `v0.5.13`。
+  - monorepo 工作区版本保持 `v0.5.13`。
 
 ## 验证
 
 - `npm run verify:admin-layout-overlap-fixes`
 - `npm run build -w @xinghuan/admin`
+- `npm run release:gray:prepare -- --release=20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513`
+- `npm run release:gray:deploy -- --release=20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513 --archive=dist-release/20260628-admin-assistant-environment-sync-overlap-gray-r2-v0513.tar.gz --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem`
+- `npm run release:gray:verify -- --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem --expected-version=0.5.13 --expected-environment=gray`
 
 ## 待用户验收
 
