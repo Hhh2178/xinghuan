@@ -57,6 +57,7 @@ export interface AdminUsageSummary {
   models: UsageModelRow[];
   runningHubEntries: UsageRunningHubEntryRow[];
   daily: UsageDailyRow[];
+  selectedUser?: UsageSelectedUserSummary;
 }
 
 export interface UsageGroupRow {
@@ -126,6 +127,42 @@ export interface UsageDailyRow {
   llm: number;
   audio: number;
   total: number;
+}
+
+export interface UsageSelectedUserModelRow {
+  capability: "image" | "video" | "llm" | "audio";
+  providerId: string;
+  providerName: string;
+  modelRecordId: string;
+  modelId: string;
+  displayName: string;
+  total: number;
+  lastUsedAt?: number;
+}
+
+export interface UsageSelectedUserRunningHubRow {
+  kind: "app" | "workflow";
+  providerId: string;
+  providerName: string;
+  catalogId: string;
+  title: string;
+  runTargetId: string;
+  total: number;
+  lastUsedAt?: number;
+}
+
+export interface UsageSelectedUserSummary {
+  userId: string;
+  email: string;
+  name: string;
+  remark?: string;
+  groupId?: string;
+  groupName?: string;
+  ownerDeleted?: boolean;
+  successful: number;
+  lastSucceededAt?: number;
+  modelBreakdown: UsageSelectedUserModelRow[];
+  runningHubBreakdown: UsageSelectedUserRunningHubRow[];
 }
 
 export interface RunningHubUsageCatalogResolver {
@@ -290,13 +327,72 @@ function topEntryName(counter: Map<string, number>) {
   return topName || undefined;
 }
 
+function buildSelectedUserSummary(input: {
+  userId: string;
+  identityTask?: UsagePreparedTask;
+  tasks: UsagePreparedTask[];
+}): UsageSelectedUserSummary | undefined {
+  const identityTask = input.identityTask || input.tasks[0];
+  if (!identityTask) return undefined;
+
+  const modelMap = new Map<string, UsageSelectedUserModelRow>();
+  const rhMap = new Map<string, UsageSelectedUserRunningHubRow>();
+
+  for (const task of input.tasks) {
+    if (task.modelEntry) {
+      const key = [task.modelEntry.capability, task.modelEntry.providerId, task.modelEntry.modelRecordId].join("::");
+      const existing = modelMap.get(key) || {
+        ...task.modelEntry,
+        total: 0,
+        lastUsedAt: undefined,
+      };
+      existing.total += 1;
+      existing.lastUsedAt = Math.max(existing.lastUsedAt || 0, task.createdAt);
+      modelMap.set(key, existing);
+    }
+
+    if (task.rhEntry) {
+      const key = [task.rhEntry.kind, task.rhEntry.providerId, task.rhEntry.catalogId].join("::");
+      const existing = rhMap.get(key) || {
+        ...task.rhEntry,
+        total: 0,
+        lastUsedAt: undefined,
+      };
+      existing.total += 1;
+      existing.lastUsedAt = Math.max(existing.lastUsedAt || 0, task.createdAt);
+      rhMap.set(key, existing);
+    }
+  }
+
+  const modelBreakdown = [...modelMap.values()].sort(
+    (a, b) => b.total - a.total || (b.lastUsedAt || 0) - (a.lastUsedAt || 0) || a.displayName.localeCompare(b.displayName, "zh-CN"),
+  );
+  const runningHubBreakdown = [...rhMap.values()].sort(
+    (a, b) => b.total - a.total || (b.lastUsedAt || 0) - (a.lastUsedAt || 0) || a.title.localeCompare(b.title, "zh-CN"),
+  );
+
+  return {
+    userId: input.userId,
+    email: identityTask.email,
+    name: identityTask.name,
+    remark: identityTask.remark,
+    groupId: identityTask.groupId,
+    groupName: identityTask.groupName,
+    ownerDeleted: Boolean(identityTask.ownerDeleted),
+    successful: input.tasks.length,
+    lastSucceededAt: input.tasks.length ? Math.max(...input.tasks.map((task) => task.createdAt)) : undefined,
+    modelBreakdown,
+    runningHubBreakdown,
+  };
+}
+
 export function buildAdminUsageSummary(input: {
   tasks: AdminUsageTaskRecord[];
   filters: AdminUsageSummaryFilters;
   groupMemberCounts: Map<string, number>;
   runningHubResolver: RunningHubUsageCatalogResolver;
 }): AdminUsageSummary {
-  const prepared: UsagePreparedTask[] = input.tasks
+  const successfulInRange: UsagePreparedTask[] = input.tasks
     .filter((task) => task.status === "succeeded")
     .filter((task) => task.createdAt >= input.filters.from && task.createdAt <= input.filters.to)
     .map((task) => {
@@ -319,12 +415,27 @@ export function buildAdminUsageSummary(input: {
         modelEntry: resolveModelEntry(task, capability),
       };
     })
-    .filter((task) => (input.filters.groupId ? task.groupId === input.filters.groupId : true))
-    .filter((task) => (input.filters.userId ? task.userId === input.filters.userId : true))
+    .filter((task) => (input.filters.groupId ? task.groupId === input.filters.groupId : true));
+
+  const prepared: UsagePreparedTask[] = successfulInRange
     .filter((task) => (input.filters.capability ? task.capability === input.filters.capability : true))
     .filter((task) => (input.filters.providerId ? safeText(task.providerId) === input.filters.providerId : true))
     .filter((task) => (input.filters.modelId ? task.modelEntry?.modelRecordId === input.filters.modelId || task.modelEntry?.modelId === input.filters.modelId : true))
     .filter((task) => (input.filters.rhCatalogId ? task.rhEntry?.catalogId === input.filters.rhCatalogId : true));
+
+  const selectedUserIdentityTask = input.filters.userId
+    ? successfulInRange.find((task) => task.userId === input.filters.userId)
+    : undefined;
+  const selectedUserTasks = input.filters.userId
+    ? prepared.filter((task) => task.userId === input.filters.userId)
+    : [];
+  const selectedUser = input.filters.userId
+    ? buildSelectedUserSummary({
+      userId: input.filters.userId,
+      identityTask: selectedUserIdentityTask,
+      tasks: selectedUserTasks,
+    })
+    : undefined;
 
   const totals = {
     successful: prepared.length,
@@ -492,5 +603,6 @@ export function buildAdminUsageSummary(input: {
     models,
     runningHubEntries,
     daily,
+    selectedUser,
   };
 }

@@ -697,6 +697,42 @@ export interface UsageDailyRow {
   total: number;
 }
 
+export interface UsageSelectedUserModelRow {
+  capability: "image" | "video" | "llm" | "audio";
+  providerId: string;
+  providerName: string;
+  modelRecordId: string;
+  modelId: string;
+  displayName: string;
+  total: number;
+  lastUsedAt?: number;
+}
+
+export interface UsageSelectedUserRunningHubRow {
+  kind: "app" | "workflow";
+  providerId: string;
+  providerName: string;
+  catalogId: string;
+  title: string;
+  runTargetId: string;
+  total: number;
+  lastUsedAt?: number;
+}
+
+export interface UsageSelectedUserSummary {
+  userId: string;
+  email: string;
+  name: string;
+  remark?: string;
+  groupId?: string;
+  groupName?: string;
+  ownerDeleted?: boolean;
+  successful: number;
+  lastSucceededAt?: number;
+  modelBreakdown: UsageSelectedUserModelRow[];
+  runningHubBreakdown: UsageSelectedUserRunningHubRow[];
+}
+
 export interface AdminUsageSummary {
   range: { from: number; to: number };
   totals: {
@@ -714,6 +750,7 @@ export interface AdminUsageSummary {
   models: UsageModelRow[];
   runningHubEntries: UsageRunningHubEntryRow[];
   daily: UsageDailyRow[];
+  selectedUser?: UsageSelectedUserSummary;
 }
 
 export interface GroupPermissionDeny {

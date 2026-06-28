@@ -31,7 +31,32 @@ export async function api<T = unknown>(pathname: string, options?: RequestInit):
 }
 
 export const adminAuditApi = {
-  readUsageSummary: () => api<import("./admin-types").AdminUsageSummary>("/api/admin/audit/usage-summary"),
+  readUsageSummary: (
+    filters: {
+      range?: "today" | "7d" | "30d";
+      from?: number;
+      to?: number;
+      groupId?: string;
+      userId?: string;
+      capability?: import("./admin-types").UsageCapability;
+      providerId?: string;
+      modelId?: string;
+      rhCatalogId?: string;
+    } = {},
+  ) => {
+    const query = new URLSearchParams();
+    if (filters.range) query.set("range", filters.range);
+    if (typeof filters.from === "number") query.set("from", String(filters.from));
+    if (typeof filters.to === "number") query.set("to", String(filters.to));
+    if (filters.groupId) query.set("groupId", filters.groupId);
+    if (filters.userId) query.set("userId", filters.userId);
+    if (filters.capability) query.set("capability", filters.capability);
+    if (filters.providerId) query.set("providerId", filters.providerId);
+    if (filters.modelId) query.set("modelId", filters.modelId);
+    if (filters.rhCatalogId) query.set("rhCatalogId", filters.rhCatalogId);
+    const suffix = query.toString();
+    return api<import("./admin-types").AdminUsageSummary>(`/api/admin/audit/usage-summary${suffix ? `?${suffix}` : ""}`);
+  },
 };
 
 export const adminPermissionApi = {

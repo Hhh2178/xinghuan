@@ -1443,6 +1443,19 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.usage-panel--filters,
+.usage-panel--selected-user,
+.usage-panel--empty-state {
+  gap: 14px;
+}
+
+.usage-panel--empty-state p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .usage-overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1465,6 +1478,46 @@ button:disabled {
   margin: 0;
   color: #ecfeff;
   font-size: 15px;
+}
+
+.usage-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.usage-filter-field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.usage-filter-field span {
+  color: #c7d2fe;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.usage-filter-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  background: rgba(7, 12, 18, 0.92);
+  color: #f8fafc;
+}
+
+.usage-filter-field--wide {
+  grid-column: span 2;
+}
+
+.usage-inline-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .usage-ring-list,
@@ -1523,6 +1576,42 @@ button:disabled {
   font-size: 12px;
 }
 
+.usage-selected-user-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.usage-selected-user-card {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  border-radius: 12px;
+  background: rgba(8, 13, 20, 0.72);
+}
+
+.usage-selected-user-card span {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.usage-selected-user-card strong {
+  color: #f8fafc;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.usage-selected-user-card small {
+  color: #99f6e4;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .usage-table-wrap {
   overflow: auto;
 }
@@ -1550,6 +1639,11 @@ button:disabled {
 .usage-table td {
   color: #e2e8f0;
   font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.usage-table td[colspan] {
+  color: #cbd5e1;
 }
 
 @media (max-width: 1024px) {
@@ -1557,6 +1651,10 @@ button:disabled {
   .usage-overview-grid,
   .usage-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .usage-filter-field--wide {
+    grid-column: span 1;
   }
 }
 

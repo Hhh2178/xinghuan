@@ -31,14 +31,21 @@ const adminAuditRoutesSource = existsSync(join(root, adminAuditRoutesPath)) ? re
 
 check("usage dashboard module exists", existsSync(join(root, usageDashboardPath)));
 check("readonly panels import usage dashboard", readonlyPanelsSource.includes('from "./admin-usage-dashboard"'));
-check("audit panel accepts usageSummary prop", /AuditPanel\s*\(\{\s*auditLogs,\s*usageSummary\s*\}/.test(readonlyPanelsSource));
-check("audit panel renders usage dashboard above audit table", readonlyPanelsSource.includes("<AdminUsageDashboard usageSummary={usageSummary} />"));
+check("audit panel accepts usageSummary prop", readonlyPanelsSource.includes("usageSummary: AdminUsageSummary | null;"));
+check("audit panel renders usage dashboard above audit table", readonlyPanelsSource.includes("<AdminUsageDashboard"));
 check("admin types expose AdminUsageSummary", adminTypesSource.includes("export interface AdminUsageSummary"));
 check("admin types expose UsageModelRow", adminTypesSource.includes("export interface UsageModelRow"));
 check("admin types expose UsageRunningHubEntryRow", adminTypesSource.includes("export interface UsageRunningHubEntryRow"));
+check("admin types expose selected user usage summary", adminTypesSource.includes("export interface UsageSelectedUserSummary"));
+check("admin types expose selected user model row", adminTypesSource.includes("export interface UsageSelectedUserModelRow"));
+check("admin types expose selected user RH row", adminTypesSource.includes("export interface UsageSelectedUserRunningHubRow"));
 check("admin api client exposes usage summary fetch", adminApiClientSource.includes("/api/admin/audit/usage-summary"));
-check("main loads usage summary", mainSource.includes("api<AdminUsageSummary>(\"/api/admin/audit/usage-summary\")"));
-check("main passes usage summary into audit panel", mainSource.includes("<AuditPanel auditLogs={auditLogs} usageSummary={usageSummary} />"));
+check("admin api client supports usage summary query params", adminApiClientSource.includes("new URLSearchParams()"));
+check("admin api client forwards usage summary userId filter", adminApiClientSource.includes('query.set("userId", filters.userId)'));
+check("main stores usage summary filters", mainSource.includes("const [usageFilters, setUsageFilters]"));
+check("main stores selected usage user id", mainSource.includes("const [selectedUsageUserId, setSelectedUsageUserId]"));
+check("main loads usage summary through adminAuditApi", mainSource.includes("adminAuditApi.readUsageSummary("));
+check("main passes usage summary into audit panel", mainSource.includes("<AuditPanel"));
 check(
   "server exposes usage summary endpoint",
   adminAuditRoutesSource.includes('url.pathname === "/api/admin/audit/usage-summary"')
@@ -48,8 +55,12 @@ check(
 check("server records RH catalog snapshot fields", serverSource.includes("rhCatalogId") && serverSource.includes("rhCatalogTitle") && serverSource.includes("rhCatalogKind"));
 check("server records task-backed LLM analytics row", serverSource.includes("扩展对话任务") || serverSource.includes("taskCapability: \"chat\""));
 check("usage dashboard renders KPI strip", usageDashboardSource.includes("usage-kpi-grid"));
-check("usage dashboard renders model matrix", usageDashboardSource.includes("模型矩阵"));
-check("usage dashboard renders RH entry matrix", usageDashboardSource.includes("RH 条目矩阵"));
+check("usage dashboard renders account selector", usageDashboardSource.includes("选择账号查看明细"));
+check("usage dashboard renders selected account summary", usageDashboardSource.includes("账号下钻"));
+check("usage dashboard renders account model usage table", usageDashboardSource.includes("账号模型使用明细"));
+check("usage dashboard renders account RH usage table", usageDashboardSource.includes("账号 RH 条目使用明细"));
+check("usage dashboard keeps global model totals table", usageDashboardSource.includes("模型总使用次数"));
+check("usage dashboard keeps global RH totals table", usageDashboardSource.includes("RH 条目总使用次数"));
 
 const failed = checks.filter((item) => !item.pass);
 

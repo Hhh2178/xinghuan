@@ -1,5 +1,38 @@
 # v0.1.0 Changelog
 
+## 2026-06-28
+
+- 审计页账号级模型与 RH 条目下钻：
+  - 新增实现计划：
+    - `docs/superpowers/plans/2026-06-28-admin-audit-account-model-rh-usage-drilldown.md`
+  - 新增回归脚本：
+    - `scripts/verify-admin-usage-summary-selected-user.ts`
+  - `apps/api/src/admin-usage-analytics.ts`
+    - `AdminUsageSummary` 新增 `selectedUser`
+    - 审计汇总新增账号模型明细和账号 RH 条目明细聚合
+    - 当管理员选择账号时，继续保留当前筛选条件下的全局统计，不再把整页总量缩成单账号统计
+  - `apps/admin/src/admin-types.ts`
+    - 同步补齐账号下钻相关类型
+  - `apps/admin/src/admin-api-client.ts`
+    - `readUsageSummary()` 支持范围、分组、能力、Provider、账号等查询参数
+  - `apps/admin/src/main.tsx`
+    - 审计页新增独立 usage filter / selected user 状态和刷新链路
+  - `apps/admin/src/admin-readonly-panels.tsx`
+    - 审计面板透传筛选、账号选择、加载中和错误状态
+  - `apps/admin/src/admin-usage-dashboard.tsx`
+    - 审计页升级为“筛选区 + 账号下钻区 + 全局汇总区 + 审计日志区”
+    - 账号下钻拆成“账号模型使用明细”和“账号 RH 条目使用明细”两张表
+    - 全局区继续保留“模型总使用次数”和“RH 条目总使用次数”
+  - `apps/admin/src/styles.css`
+    - 新增审计筛选条、账号摘要卡、空态和长字段表格样式
+  - `scripts/verify-admin-usage-dashboard-contract.mjs`
+    - 契约脚本升级为覆盖账号选择、账号下钻和全局总量表保留
+  - 本地验证通过：
+    - `npx tsx scripts/verify-admin-usage-summary-selected-user.ts`
+    - `node scripts/verify-admin-usage-dashboard-contract.mjs`
+    - `npm run build -w @xinghuan/api`
+    - `npm run build -w @xinghuan/admin`
+
 ## 2026-06-23
 
 - RunningHub runtime guardrails 准备进入 gray `v0.4.14`：

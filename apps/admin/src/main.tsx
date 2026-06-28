@@ -2,7 +2,7 @@ import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-rea
 import { StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
-import { adminAnnouncementApi, AdminApiError, api } from "./admin-api-client";
+import { adminAnnouncementApi, adminAuditApi, AdminApiError, api } from "./admin-api-client";
 import { AdminAnnouncementPanel } from "./admin-announcement-panel";
 import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
@@ -37,6 +37,7 @@ import type {
   TabId,
   TaskListPage as TaskListPageShape,
   TaskRecord as TaskRecordShape,
+  UsageCapability as UsageCapabilityShape,
 } from "./admin-types";
 import { UsersPanel } from "./admin-users-panel";
 import {
@@ -172,9 +173,19 @@ export interface AdminAnnouncementRecord extends AdminAnnouncementRecordShape {}
 type AuditRecord = AuditRecordShape;
 type SystemInfo = SystemInfoShape;
 type AdminUsageSummary = AdminUsageSummaryShape;
+type UsageCapability = UsageCapabilityShape;
 type MutateOptions = {
   suppressGlobalError?: boolean;
   rethrow?: boolean;
+};
+
+type UsageSummaryRange = "today" | "7d" | "30d";
+
+type UsageSummaryFilterState = {
+  range: UsageSummaryRange;
+  groupId: string;
+  capability: "" | UsageCapability;
+  providerId: string;
 };
 
 function defaultAssistantSettings(): AssistantSettings {
@@ -264,6 +275,15 @@ function AdminApp() {
   const [taskPage, setTaskPage] = useState<TaskListPage>(defaultTaskListPage());
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>([]);
   const [usageSummary, setUsageSummary] = useState<AdminUsageSummary | null>(null);
+  const [usageFilters, setUsageFilters] = useState<UsageSummaryFilterState>({
+    range: "30d",
+    groupId: "",
+    capability: "",
+    providerId: "",
+  });
+  const [selectedUsageUserId, setSelectedUsageUserId] = useState("");
+  const [usageSummaryLoading, setUsageSummaryLoading] = useState(false);
+  const [usageSummaryError, setUsageSummaryError] = useState("");
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -297,7 +317,6 @@ function AdminApp() {
         nextProviders,
         nextModels,
         nextAuditLogs,
-        nextUsageSummary,
         nextSystem,
       ] = await Promise.all([
         api<Summary>("/api/admin/summary"),
@@ -308,7 +327,6 @@ function AdminApp() {
         api<ProviderRecordShape[]>("/api/admin/providers"),
         api<ModelRecordShape[]>("/api/admin/models"),
         api<AuditRecord[]>("/api/admin/audit"),
-        api<AdminUsageSummary>("/api/admin/audit/usage-summary"),
         api<SystemInfo>("/api/admin/system"),
       ]);
       setSummary(nextSummary);
@@ -319,7 +337,6 @@ function AdminApp() {
       setProviders(nextProviders);
       setModels(nextModels);
       setAuditLogs(nextAuditLogs);
-      setUsageSummary(nextUsageSummary);
       setSystem(nextSystem);
       setLastRefreshAt(Date.now());
     } catch (nextError) {
@@ -342,12 +359,58 @@ function AdminApp() {
     setLastRefreshAt(Date.now());
   }
 
+  async function loadUsageSummary(
+    nextFilters = usageFilters,
+    nextSelectedUsageUserId = selectedUsageUserId,
+  ) {
+    if (!isAdmin) return;
+    setUsageSummaryLoading(true);
+    setUsageSummaryError("");
+    try {
+      const nextUsageSummary = await adminAuditApi.readUsageSummary({
+        range: nextFilters.range,
+        groupId: nextFilters.groupId || undefined,
+        capability: nextFilters.capability || undefined,
+        providerId: nextFilters.providerId || undefined,
+        userId: nextSelectedUsageUserId || undefined,
+      });
+      setUsageSummary(nextUsageSummary);
+      setLastRefreshAt(Date.now());
+    } catch (nextError) {
+      setUsageSummaryError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setUsageSummaryLoading(false);
+    }
+  }
+
+  function handleUsageFiltersChange(nextFilters: UsageSummaryFilterState) {
+    setUsageFilters(nextFilters);
+    if (nextFilters.groupId && selectedUsageUserId) {
+      const selectedUser = users.find((item) => item.id === selectedUsageUserId);
+      if (selectedUser && selectedUser.groupId !== nextFilters.groupId) {
+        setSelectedUsageUserId("");
+      }
+    }
+  }
+
   useEffect(() => {
     if (!isAdmin) return;
     void loadAdminData();
     void loadTaskPage();
     void loadAnnouncements();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void loadUsageSummary();
+  }, [
+    isAdmin,
+    usageFilters.range,
+    usageFilters.groupId,
+    usageFilters.capability,
+    usageFilters.providerId,
+    selectedUsageUserId,
+  ]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -694,7 +757,19 @@ function AdminApp() {
             />
           ) : null}
           {activeTab === "audit" ? (
-            <AuditPanel auditLogs={auditLogs} usageSummary={usageSummary} />
+            <AuditPanel
+              auditLogs={auditLogs}
+              usageSummary={usageSummary}
+              usageSummaryLoading={usageSummaryLoading}
+              usageSummaryError={usageSummaryError}
+              usageFilters={usageFilters}
+              selectedUsageUserId={selectedUsageUserId}
+              users={users}
+              userGroups={userGroups}
+              providers={providers}
+              onUsageFiltersChange={handleUsageFiltersChange}
+              onSelectedUsageUserIdChange={setSelectedUsageUserId}
+            />
           ) : null}
           {activeTab === "system" ? (
             <SystemPanel

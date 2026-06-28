@@ -2,7 +2,15 @@ import { Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
 import { AdminUsageDashboard } from "./admin-usage-dashboard";
-import type { AdminUsageSummary, AuditRecord, SystemInfo } from "./admin-types";
+import type {
+  AdminUsageSummary,
+  AdminUser,
+  AdminUserGroup,
+  AuditRecord,
+  ProviderRecord,
+  SystemInfo,
+  UsageCapability,
+} from "./admin-types";
 
 const TASK_QUEUE_DEFAULTS = {
   image: { concurrency: 100, userConcurrency: 8 },
@@ -64,10 +72,55 @@ function formatSlotCount(queues: RuntimeQueueState[]) {
     .join(" / ");
 }
 
-export function AuditPanel({ auditLogs, usageSummary }: { auditLogs: AuditRecord[]; usageSummary: AdminUsageSummary | null }) {
+export function AuditPanel({
+  auditLogs,
+  usageSummary,
+  usageSummaryLoading,
+  usageSummaryError,
+  usageFilters,
+  selectedUsageUserId,
+  users,
+  userGroups,
+  providers,
+  onUsageFiltersChange,
+  onSelectedUsageUserIdChange,
+}: {
+  auditLogs: AuditRecord[];
+  usageSummary: AdminUsageSummary | null;
+  usageSummaryLoading: boolean;
+  usageSummaryError: string;
+  usageFilters: {
+    range: "today" | "7d" | "30d";
+    groupId: string;
+    capability: "" | UsageCapability;
+    providerId: string;
+  };
+  selectedUsageUserId: string;
+  users: AdminUser[];
+  userGroups: AdminUserGroup[];
+  providers: ProviderRecord[];
+  onUsageFiltersChange: (next: {
+    range: "today" | "7d" | "30d";
+    groupId: string;
+    capability: "" | UsageCapability;
+    providerId: string;
+  }) => void;
+  onSelectedUsageUserIdChange: (value: string) => void;
+}) {
   return (
     <>
-      <AdminUsageDashboard usageSummary={usageSummary} />
+      <AdminUsageDashboard
+        usageSummary={usageSummary}
+        usageSummaryLoading={usageSummaryLoading}
+        usageSummaryError={usageSummaryError}
+        usageFilters={usageFilters}
+        selectedUsageUserId={selectedUsageUserId}
+        users={users}
+        userGroups={userGroups}
+        providers={providers}
+        onUsageFiltersChange={onUsageFiltersChange}
+        onSelectedUsageUserIdChange={onSelectedUsageUserIdChange}
+      />
       <DataTable
         title="审计日志"
         columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}

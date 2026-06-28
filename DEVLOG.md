@@ -54,6 +54,58 @@
 - `2026-06` 的大段旧正文已拆到 `docs/logbooks/daily/2026/2026-06/`。
 - 后续新的逐日推进不再回填到本文件。
 
+## 2026-06-28
+
+### 审计页账号级模型与 RH 条目下钻
+
+目标:
+- 在保留当前全局成功用量驾驶舱的前提下，新增“先选账号，再查看该账号模型与 RH 条目使用明细”的能力
+- 保证账号下钻与全局汇总继续共用同一套 `succeeded` 统计口径
+- 为后续更细的账号审计、按组分析和导出能力预留稳定结构
+
+变更:
+- 新增实现计划 `docs/superpowers/plans/2026-06-28-admin-audit-account-model-rh-usage-drilldown.md`
+- 新增回归脚本 `scripts/verify-admin-usage-summary-selected-user.ts`
+- `apps/api/src/admin-usage-analytics.ts`
+  - `AdminUsageSummary` 新增 `selectedUser`
+  - 新增账号模型明细与 RH 条目明细聚合
+  - 选中账号后不再把全局统计缩成单账号统计，而是保留全局总量并额外返回账号下钻块
+- `apps/admin/src/admin-types.ts`
+  - 同步补齐 `UsageSelectedUserSummary`、账号模型明细和账号 RH 明细类型
+- `apps/admin/src/admin-api-client.ts`
+  - `adminAuditApi.readUsageSummary()` 改为支持 `range/groupId/userId/capability/providerId/...` 查询参数
+- `apps/admin/src/main.tsx`
+  - 审计页新增独立筛选状态、选中账号状态和独立刷新链路
+- `apps/admin/src/admin-readonly-panels.tsx`
+  - 审计面板向成功用量驾驶舱透传筛选、账号选择和加载错误状态
+- `apps/admin/src/admin-usage-dashboard.tsx`
+  - 审计页升级为“筛选区 + 账号下钻区 + 全局汇总区 + 审计日志区”
+  - 账号下钻拆为“账号模型使用明细”和“账号 RH 条目使用明细”两张表
+  - 保留“模型总使用次数”和“RH 条目总使用次数”两张全局表
+- `apps/admin/src/styles.css`
+  - 新增审计筛选条、账号摘要卡、空态和长字段表格的响应式样式
+- `scripts/verify-admin-usage-dashboard-contract.mjs`
+  - 契约检查升级为覆盖账号选择、账号下钻和全局表保留
+
+验证:
+- `npx tsx scripts/verify-admin-usage-summary-selected-user.ts`
+- `node scripts/verify-admin-usage-dashboard-contract.mjs`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/admin`
+
+影响:
+- 后台现在可以先选账号，再看到该账号使用了哪些模型、用了多少次、最近一次使用时间
+- 后台现在可以先选账号，再看到该账号使用了哪些 RH 条目、用了多少次、最近一次使用时间
+- 选中账号后，全局模型与 RH 总使用次数统计仍会保留，不会退化成单账号视图
+
+风险:
+- 本轮完成了数据结构、筛选链路和桌面布局收口，但还没有做 gray 浏览器人工验收
+- 若后续要支持自定义时间、导出或更深层模型/条目 drilldown，需要继续扩展筛选栏和表格操作区
+
+下一步:
+- 在 gray 环境验证真实账号数据、长 ID 展示和账号切换交互
+- 继续扩展更细的账号 / 用户组审计统计与导出能力
+
 ## 2026-06-26
 
 ### 组权限治理第一批基础链路
