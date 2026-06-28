@@ -477,7 +477,7 @@ function AdminApp() {
       </aside>
 
       <div className={`admin-workspace${assistantOpen ? " admin-workspace--with-assistant" : ""}`}>
-        <main className={`admin-main${activeTab === "assistant" || activeTab === "environment-sync" ? " admin-main--fixed-panel" : ""}${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
+        <main className={`admin-main${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
           <header className="starlight-topbar admin-topbar">
             <div>
               <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>

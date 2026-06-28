@@ -30,8 +30,12 @@ const checks = [
   {
     name: "providers capability page uses normal document flow outside fixed-panel shell",
     pass:
-      mainSource.includes('activeTab === "assistant" || activeTab === "environment-sync"') &&
+      mainSource.includes('activeTab === "providers"') &&
       !mainSource.includes('activeTab === "providers" || activeTab === "assistant" || activeTab === "environment-sync"'),
+  },
+  {
+    name: "assistant and environment sync pages no longer use the fixed-panel shell",
+    pass: !mainSource.includes('admin-main--fixed-panel'),
   },
   {
     name: "api settings removes duplicated capability console workspace band title",

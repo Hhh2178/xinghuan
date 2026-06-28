@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.12`
-- 当前 release：`20260627-admin-capability-flow-create-form-gray-r1-v0512`
-- 当前状态：`2026-06-27 已完成 deploy + runtime verify`
+- 当前版本：`v0.5.13`
+- 当前 release：`20260628-admin-assistant-environment-sync-overlap-gray-r1-v0513`
+- 当前状态：`2026-06-28 待 deploy + runtime verify`
+- 当前补修：`2026-06-28-admin-assistant-environment-sync-overlap-gray.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-capability-flow-create-form-gray.md`
+  - `../../docs/logbooks/releases/gray/2026-06-28-admin-assistant-environment-sync-overlap-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-structural-layout-fixes-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-account-api-resource-preview-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-layout-overlap-resource-grid-gray.md`
