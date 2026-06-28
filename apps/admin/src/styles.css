@@ -1168,10 +1168,9 @@ button:disabled {
   align-self: stretch;
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
   max-height: none;
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   padding-bottom: 8px;
 }
 
@@ -3430,7 +3429,7 @@ td {
 
 .environment-sync-page {
   min-height: 0;
-  height: 100%;
+  height: auto;
   gap: 16px;
 }
 
@@ -3475,9 +3474,6 @@ td {
 }
 
 .environment-sync-toolbar {
-  position: sticky;
-  top: 6px;
-  z-index: 4;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, auto) auto;
   gap: 12px;

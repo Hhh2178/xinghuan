@@ -138,6 +138,24 @@ const checks = [
       apiSettingsContentBlock.includes("overflow: visible"),
   },
   {
+    name: "assistant settings page keeps normal document flow without self scroll shell",
+    pass:
+      stylesSource.includes(".assistant-settings-page") &&
+      stylesSource.includes("height: auto") &&
+      stylesSource.includes("overflow: visible") &&
+      !stylesSource.includes(".assistant-settings-page {\n  display: grid;\n  gap: 18px;\n  align-content: start;\n  align-self: stretch;\n  min-width: 0;\n  min-height: 0;\n  height: 100%;") &&
+      !stylesSource.includes(".assistant-settings-page {\n  display: grid;\n  gap: 18px;\n  align-content: start;\n  align-self: stretch;\n  min-width: 0;\n  min-height: 0;\n  height: 100%;\n  max-height: none;\n  overflow: auto;"),
+  },
+  {
+    name: "environment sync page and toolbar no longer force sticky overlay behavior",
+    pass:
+      stylesSource.includes(".environment-sync-page") &&
+      stylesSource.includes(".environment-sync-page {\n  min-height: 0;\n  height: auto;") &&
+      stylesSource.includes(".environment-sync-toolbar {\n  display: grid;") &&
+      !stylesSource.includes(".environment-sync-toolbar {\n  position: sticky;") &&
+      !stylesSource.includes(".environment-sync-toolbar {\n  position: sticky;\n  top: 6px;"),
+  },
+  {
     name: "create user panel and normal action buttons do not rely on bright cyan filled primary button",
     pass:
       !stylesSource.includes(".primary-action {\n  background: linear-gradient(135deg, #22d3ee") &&
