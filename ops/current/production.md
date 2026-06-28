@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.5.15`
 - 当前 release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前状态：`2026-06-28 待 deploy`
+- 当前状态：`2026-06-28 已完成 production deploy + runtime verify`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-06-28-web-version-sync-production.md`

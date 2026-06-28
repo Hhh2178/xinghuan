@@ -5,7 +5,7 @@
 - 环境：`production`
 - 版本：`v0.5.15`
 - release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前状态：`待 deploy`
+- 当前状态：`2026-06-28 已完成 production deploy + runtime verify`
 - 晋级来源 gray release：
   - `/opt/apps/xinghuan-canvas-next/releases/20260628-web-version-sync-gray-r1-v0515`
 - 上一 production release：
@@ -51,6 +51,25 @@
   - `--internal-status-url=http://127.0.0.1:18100/api/status`
   - `--public-status-url=https://canvas.hhh2121.xyz/api/status`
   - `--expected-environment=production`
+- 服务器解包目录：
+  - `/opt/apps/xinghuan-canvas/releases/20260628-web-version-sync-prod-r1-v0515`
+- current 指针：
+  - `/opt/apps/xinghuan-canvas/releases/20260628-web-version-sync-prod-r1-v0515`
+- systemd 状态：
+  - `xinghuan-canvas.service`: `active`
+  - `xinghuan-canvas-worker.service`: `active`
+- 内网状态：
+  - `http://127.0.0.1:18100/api/status`
+  - `version = 0.5.15`
+  - `environment = production`
+- 公网状态：
+  - `https://canvas.hhh2121.xyz/api/status`
+  - `version = 0.5.15`
+  - `environment = production`
+- 生产 env 下迁移：
+  - `npm run db:migrate`
+  - `applied = []`
+  - `skipped = 19`
 
 ## 待用户验收
 

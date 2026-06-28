@@ -49,7 +49,7 @@
 
 - 版本：`v0.5.15`
 - release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前状态：`2026-06-28 待 deploy`
+- 当前状态：`2026-06-28 已完成 production deploy + runtime verify`
 - 当前批次记录：
   - `production/2026-06-28-web-version-sync-production.md`
   - `production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
