@@ -2,12 +2,13 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.15`
-- 当前 release：`20260628-web-version-sync-gray-r1-v0515`
-- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
-- 当前补修：`2026-06-28-web-version-sync-gray.md`
+- 当前版本：`v0.5.16`
+- 当前 release：`20260629-group-default-permission-refresh-gray-r1-v0516`
+- 当前状态：`待部署`
+- 当前补修：`2026-06-29-group-default-permission-refresh-gray.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-29-group-default-permission-refresh-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-28-web-version-sync-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-28-admin-audit-account-drilldown-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-27-admin-capability-flow-create-form-gray.md`

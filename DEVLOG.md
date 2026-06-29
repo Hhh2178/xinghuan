@@ -56,6 +56,51 @@
 
 ## 2026-06-28
 
+### 分组默认名、共享资源默认关闭与上传节点刷新恢复
+
+目标:
+- 按当前批次顺序收口三个问题：新建分组默认名、公共资源权限隐藏、画布刷新后上传素材丢失
+- 保持“没有开放权限就不显示”的前台口径
+- 让历史画布里缺少 `uploadType` 的上传节点也能在刷新后恢复素材
+
+变更:
+- `apps/web/src/stores/groupBus.ts`
+  - 新建分组默认名改为 `未命名组`
+- `apps/api/src/group-permission-policy.ts`
+  - 成员组在缺少权限策略时改为默认关闭
+  - 共享资源 / RH 条目 / 节点能力支持 `["*"]` 作为默认关闭哨兵
+- `apps/api/src/server.ts`
+  - 新建用户组时同步写入默认关闭的权限策略，避免新组默认全开放
+- `apps/web/src/components/nodes/UploadNode.tsx`
+  - 新增 `inferUploadKindFromData`
+  - 当旧节点数据缺少 `uploadType` 但仍保留 `imageUrl/videoUrl/audioUrl` 等素材字段时，节点会自动恢复类型并回写
+- 新增验证脚本：
+  - `scripts/verify-group-default-name-contract.mjs`
+  - `scripts/verify-shared-resource-visibility-contract.mjs`
+  - `scripts/verify-upload-node-material-persistence-contract.mjs`
+- 新增实施计划：
+  - `docs/superpowers/plans/2026-06-29-group-default-permission-refresh-plan.md`
+
+验证:
+- `node scripts/verify-group-default-name-contract.mjs`
+- `node scripts/verify-shared-resource-visibility-contract.mjs`
+- `node scripts/verify-upload-node-material-persistence-contract.mjs`
+- `npm run type-check -w @xinghuan/web`
+- `npm run type-check -w @xinghuan/api`
+
+影响:
+- 新建画布分组不再出现异常默认文案
+- 没有权限策略的普通成员组，前台默认不会再看到公共资源 / RH / 节点能力
+- 老画布里只剩素材 URL、但缺少 `uploadType` 的上传节点，刷新后能自动恢复预览与类型
+
+风险:
+- 这轮把“缺少策略”解释为“默认关闭”，更贴近当前产品口径；如果后续要回到显式 allow-list 模型，需要同步重画后台权限页的交互文案
+- 旧的、已经存在的“空 deny 列表策略”仍然表示全开放；如果要把历史组也全部切到默认关闭，需要单独做迁移或后台批量调整
+
+下一步:
+- 在灰度环境用真实成员账号复验公共资源与 RH 可见性
+- 重点复验“画布插入图片/视频素材 -> 刷新页面 -> 上传节点仍能完整显示”链路
+
 ### 审计页账号级模型与 RH 条目下钻
 
 目标:

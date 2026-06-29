@@ -43,4 +43,4 @@ export const GROUP_COLORS = [
   '#EF4444', '#84CC16', '#F97316', '#14B8A6', '#A855F7', '#64748B',
 ];
 
-export const DEFAULT_GROUP_NAME = 'My favourite girl is Go Younjung';
+export const DEFAULT_GROUP_NAME = '未命名组';

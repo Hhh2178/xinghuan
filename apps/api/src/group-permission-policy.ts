@@ -88,9 +88,21 @@ export function policyForUser(
   user: PermissionedUserLike | null | undefined,
   policies: GroupPermissionPolicy[],
 ) {
-  if (!user || user.role === "admin") return null;
+  if (!user) return null;
+  if (user.role === "admin") return null;
   const groupId = effectiveGroupIdForUser(user);
-  return policies.find((item) => item.groupId === groupId) || null;
+  return policies.find((item) => item.groupId === groupId) || {
+    groupId,
+    updatedAt: 0,
+    updatedBy: undefined,
+    deny: {
+      sharedResourceCategoryIds: ["*"],
+      sharedResourceItemIds: ["*"],
+      runningHubAppCatalogIds: ["*"],
+      runningHubWorkflowCatalogIds: ["*"],
+      nodeTypes: ["*"],
+    },
+  };
 }
 
 export function canUseSharedResource(
@@ -98,6 +110,8 @@ export function canUseSharedResource(
   item: SharedResourceLike,
 ) {
   if (!policy) return true;
+  if (policy.deny.sharedResourceItemIds.includes("*")) return false;
+  if (policy.deny.sharedResourceCategoryIds.includes("*")) return false;
   if (policy.deny.sharedResourceItemIds.includes(item.id)) return false;
   if (item.categoryId && policy.deny.sharedResourceCategoryIds.includes(item.categoryId)) return false;
   return true;
@@ -110,6 +124,7 @@ export function filterSharedResourceItemsForUser<T extends SharedResourceLike>(
 ) {
   const policy = policyForUser(user, policies);
   if (!policy) return items;
+  if (policy.deny.sharedResourceItemIds.includes("*") || policy.deny.sharedResourceCategoryIds.includes("*")) return [];
   return items.filter((item) => canUseSharedResource(policy, item));
 }
 
@@ -118,6 +133,8 @@ export function canUseRunningHubCatalogItem(
   item: Pick<RhCatalogItem, "kind" | "catalogId">,
 ) {
   if (!policy) return true;
+  if (item.kind === "app" && policy.deny.runningHubAppCatalogIds.includes("*")) return false;
+  if (item.kind !== "app" && policy.deny.runningHubWorkflowCatalogIds.includes("*")) return false;
   if (item.kind === "app") {
     return !policy.deny.runningHubAppCatalogIds.includes(item.catalogId);
   }
@@ -131,11 +148,16 @@ export function filterRunningHubCatalogForUser<T extends Pick<RhCatalogItem, "ki
 ) {
   const policy = policyForUser(user, policies);
   if (!policy) return items;
+  if (
+    policy.deny.runningHubAppCatalogIds.includes("*") &&
+    policy.deny.runningHubWorkflowCatalogIds.includes("*")
+  ) return [];
   return items.filter((item) => canUseRunningHubCatalogItem(policy, item));
 }
 
 export function canUseNodeType(policy: GroupPermissionPolicy | null | undefined, nodeType: string) {
   if (!policy) return true;
+  if (policy.deny.nodeTypes.includes("*")) return false;
   return !policy.deny.nodeTypes.includes(safeText(nodeType));
 }
 

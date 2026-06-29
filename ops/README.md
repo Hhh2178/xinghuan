@@ -23,10 +23,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.15`
-  - release：`20260628-web-version-sync-gray-r1-v0515`
-  - 状态：`2026-06-28 已完成 deploy + runtime verify`
-  - 当前补修：`2026-06-28-web-version-sync-gray.md`
+  - 版本：`v0.5.16`
+  - release：`20260629-group-default-permission-refresh-gray-r1-v0516`
+  - 状态：`待部署`
+  - 当前补修：`2026-06-29-group-default-permission-refresh-gray.md`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

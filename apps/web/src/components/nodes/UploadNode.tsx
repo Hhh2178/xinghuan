@@ -1,4 +1,5 @@
 import { memo, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect } from 'react';
 import { Handle, Position, useReactFlow, type Node, type Edge, type NodeProps } from '@xyflow/react';
 import {
   AlertCircle,
@@ -102,6 +103,16 @@ function inferKindFromFile(file: File): UploadKind | null {
   return null;
 }
 
+function inferUploadKindFromData(data: Record<string, any>): UploadKind | null {
+  const imageItems = getMediaItemsFromData(data, 'image');
+  if (imageItems.length > 0) return 'image';
+  const videoItems = getMediaItemsFromData(data, 'video');
+  if (videoItems.length > 0) return 'video';
+  const audioItems = getMediaItemsFromData(data, 'audio');
+  if (audioItems.length > 0) return 'audio';
+  return null;
+}
+
 const UploadNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
@@ -130,7 +141,8 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
   const [editingUrl, setEditingUrl] = useState<string | null>(null);
 
   const d = data as any;
-  const uploadType: UploadKind | null = d?.uploadType ?? null;
+  const inferredUploadKind = inferUploadKindFromData(d);
+  const uploadType: UploadKind | null = inferUploadKindFromData(d);
   const meta = uploadType ? KIND_META[uploadType] : null;
   const mediaItems = uploadType ? getMediaItemsFromData(d, uploadType) : [];
   const url: string | undefined = mediaItems[0]?.url;
@@ -145,6 +157,14 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
   // 节点本地尺寸 state: 默认 (260, 高度由内容撑开 — 上传后图/视频会撑高 root)
   // 拖角后由 ResizableCorners onResize 同步具体 px (保证 measured 准确 + keepAspectRatio 生效 + handleBounds 准确)
   const [size, setSize] = useState<{ w: number; h?: number }>({ w: 260 });
+
+  useEffect(() => {
+    if (uploadType === null && inferredUploadKind) {
+      update({
+        uploadType: inferredUploadKind,
+      });
+    }
+  }, [inferredUploadKind, update, uploadType]);
 
   // === 运行总线: 点击 RUN 后根据已上传素材生成下游 OutputNode ===
   // 设计要点:

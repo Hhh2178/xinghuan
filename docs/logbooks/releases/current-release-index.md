@@ -4,10 +4,11 @@
 
 ### Gray
 
-- 版本：`v0.5.15`
-- release：`20260628-web-version-sync-gray-r1-v0515`
-- 当前状态：`2026-06-28 已完成 deploy + runtime verify`
+- 版本：`v0.5.16`
+- release：`20260629-group-default-permission-refresh-gray-r1-v0516`
+- 当前状态：`待部署`
 - 当前批次记录：
+  - `gray/2026-06-29-group-default-permission-refresh-gray.md`
   - `gray/2026-06-28-web-version-sync-gray.md`
   - `gray/2026-06-28-admin-audit-account-drilldown-gray.md`
   - `gray/2026-06-28-admin-assistant-environment-sync-overlap-gray.md`

@@ -1061,7 +1061,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.5.15",
+      version: "0.5.16",
       environment,
       dataDir,
     });
@@ -2292,7 +2292,7 @@ async function handleAdminRequest(
         storageDriver,
         authDbPath,
         adminDbPath,
-    version: "0.5.15",
+    version: "0.5.16",
       },
       queueSettings: {
         sendT8,
@@ -2341,11 +2341,40 @@ async function handleAdminRequest(
         createdAt: now,
         updatedAt: now,
       };
+      const defaultClosedPolicy = normalizeGroupPermissionPolicy({
+        groupId: group.id,
+        updatedAt: now,
+        updatedBy: adminUser.id,
+        deny: {
+          sharedResourceCategoryIds: ["*"],
+          sharedResourceItemIds: ["*"],
+          runningHubAppCatalogIds: ["*"],
+          runningHubWorkflowCatalogIds: ["*"],
+          nodeTypes: ["*"],
+        },
+      });
       if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("系统生成的用户组 ID 冲突，请重试。");
       if (usePostgresRepository()) {
         await insertUserGroupPostgres(group);
+        await writeAuthDb({
+          ...authDb,
+          groupPermissionPolicies: normalizeGroupPermissionPolicies([
+            ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
+            defaultClosedPolicy,
+          ]),
+        }, {
+          allowPostgresFullReplace: true,
+          reason: "user-group-create-default-closed-policy",
+        });
       } else {
-        await writeAuthDb({ ...authDb, userGroups: [...authDb.userGroups, group] });
+        await writeAuthDb({
+          ...authDb,
+          userGroups: [...authDb.userGroups, group],
+          groupPermissionPolicies: normalizeGroupPermissionPolicies([
+            ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
+            defaultClosedPolicy,
+          ]),
+        });
       }
       await appendAudit(adminUser, "userGroup.create", "user-group", group.id, `创建用户组 ${group.name}`, requestContext);
       sendT8(response, toAdminUserGroup(group));
