@@ -1,0 +1,256 @@
+interface AicopyVideoAdapterPayloadInput {
+  modelId: string;
+  prompt: string;
+  ratio?: string;
+  duration?: string | number;
+  resolution?: string;
+  images?: string[];
+  requestMapping?: Record<string, string>;
+  requestValueTypes?: Record<string, string>;
+  requestValueTemplates?: Record<string, string>;
+  fixedBody?: Record<string, unknown>;
+}
+
+export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayloadInput) {
+  const payload: Record<string, unknown> = {
+    model: input.modelId,
+    prompt: input.prompt,
+  };
+  const mapping = { ratio: "size", duration: "seconds", images: "images", ...plainObject(input.requestMapping) } as Record<string, string>;
+  const valueTypes = plainObject(input.requestValueTypes) as Record<string, string>;
+  const images = normalizePreviewImages(input.modelId, input.images);
+  const size = previewVideoSizeFromRatio(input.ratio);
+
+  assignMapped(payload, mapping.ratio, size);
+  assignMapped(payload, mapping.duration, castMappedValue(input.duration, valueTypes.duration));
+  assignMapped(payload, mapping.resolution, castMappedValue(input.resolution, valueTypes.resolution));
+  if (images.length > 0) assignMapped(payload, mapping.images, castMappedValue(images, valueTypes.images));
+
+  const mergedPayload = { ...payload, ...plainObject(input.fixedBody) };
+  applyValueTemplates(mergedPayload, plainObject(input.requestValueTemplates), {
+    model: input.modelId,
+    prompt: input.prompt,
+    ratio: String(input.ratio || ""),
+    duration: String(input.duration || ""),
+    resolution: String(input.resolution || ""),
+    first_image: String(images[0] || ""),
+    image_count: String(images.length),
+    video_size: size,
+    preview_video_size: size,
+  });
+  return mergedPayload;
+}
+
+export function shouldUseAicopyVideoAdapter(input: {
+  protocol?: string;
+  advancedMode?: string;
+  modelId?: string;
+  providerBaseUrl?: string;
+}) {
+  const protocol = String(input.protocol || "").trim().toLowerCase();
+  const providerBaseUrl = String(input.providerBaseUrl || "").trim().toLowerCase();
+  if (protocol === "aicopy") return true;
+  return providerBaseUrl.includes("api.aicopy.top");
+}
+
+export function extractAicopyTask(raw: unknown, options: {
+  taskIdPath?: string;
+  statusPath?: string;
+} = {}) {
+  const data = firstDataNode(raw);
+  return {
+    taskId: readStringAtPath(raw, options.taskIdPath || "task_id")
+      || readStringAtPath(raw, "data.task_id")
+      || readStringAtPath(data, "task_id")
+      || readStringAtPath(raw, "id")
+      || readStringAtPath(raw, "request_id"),
+    status: readStringAtPath(raw, options.statusPath || "status")
+      || readStringAtPath(raw, "data.status")
+      || readStringAtPath(data, "status")
+      || readStringAtPath(raw, "request_status"),
+    raw,
+  };
+}
+
+export function extractAicopyVideoResult(raw: unknown, options: {
+  statusPath?: string;
+  resultVideoPath?: string;
+} = {}) {
+  const videoUrls = firstStringArrayAtPaths(raw, [
+    options.resultVideoPath || "data.output",
+    "data.result.videos",
+    "data.result.video_urls",
+    "data.result.videoUrl",
+    "data.video.url",
+    "video.url",
+    "output",
+    "output.videos",
+    "output.video_url",
+  ]) || [];
+  return {
+    status: readStringAtPath(raw, options.statusPath || "status")
+      || readStringAtPath(raw, "data.status")
+      || readStringAtPath(raw, "data.0.status"),
+    failureReason: extractFailureReason(raw),
+    videoUrls,
+    raw,
+  };
+}
+
+function assignMapped(target: Record<string, unknown>, key: string | undefined, value: unknown) {
+  if (!key) return;
+  if (typeof value === "string" && value.trim()) {
+    target[key] = value.trim();
+    return;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    target[key] = value;
+    return;
+  }
+  if (Array.isArray(value) && value.length > 0) target[key] = value;
+}
+
+function castMappedValue(value: unknown, typeHint: string | undefined) {
+  const type = String(typeHint || "").trim().toLowerCase();
+  if (!type || value === undefined || value === null) return value;
+  if (type === "string") {
+    if (Array.isArray(value)) return value.map((item) => String(item));
+    return String(value);
+  }
+  if (type === "number") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+  if (type === "boolean") {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+    return Boolean(value);
+  }
+  return value;
+}
+
+function applyValueTemplates(
+  target: Record<string, unknown>,
+  templates: Record<string, unknown>,
+  context: Record<string, string>,
+) {
+  for (const [key, rawTemplate] of Object.entries(templates)) {
+    const template = String(rawTemplate || "").trim();
+    if (!key || !template) continue;
+    const rendered = template.replace(/\{([a-z0-9_]+)\}/gi, (_, token) => context[String(token || "").toLowerCase()] || "");
+    if (rendered.trim()) target[key] = rendered.trim();
+  }
+}
+
+function previewVideoSizeFromRatio(ratioValue: unknown) {
+  const ratio = String(ratioValue || "").trim();
+  if (ratio === "16:9") return "1280x720";
+  if (ratio === "9:16") return "720x1280";
+  if (ratio === "1:1") return "1024x1024";
+  if (ratio === "3:2") return "1792x1024";
+  if (ratio === "2:3") return "1024x1792";
+  return "";
+}
+
+function normalizePreviewImages(modelIdValue: unknown, images: string[] | undefined) {
+  const normalizedImages = Array.isArray(images) ? images.filter((item) => typeof item === "string" && item.trim()) : [];
+  const modelId = String(modelIdValue || "").trim().toLowerCase();
+  if (!modelId.includes("grok-imagine-video-1.5-preview")) return normalizedImages;
+  if (modelId.includes("-official")) return normalizedImages;
+  if (normalizedImages.length === 1) return [normalizedImages[0], normalizedImages[0]];
+  return normalizedImages;
+}
+
+function firstDataNode(value: unknown) {
+  const data = readPath(value, "data");
+  if (Array.isArray(data)) return data[0];
+  return data;
+}
+
+function readStringAtPath(value: unknown, path: string) {
+  const result = readPath(value, path);
+  return typeof result === "string" ? result.trim() : "";
+}
+
+function firstStringArrayAtPaths(value: unknown, paths: string[]) {
+  for (const path of paths) {
+    const values = toStringArray(readPath(value, path));
+    if (values && values.length > 0) return values;
+  }
+  return null;
+}
+
+function toStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    const out = value.flatMap((item) => nestedStringValues(item)).filter(Boolean);
+    return out.length > 0 ? out : null;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value).trim();
+    return text ? [text] : null;
+  }
+  if (value && typeof value === "object") {
+    const out = nestedStringValues(value).filter(Boolean);
+    return out.length > 0 ? out : null;
+  }
+  return null;
+}
+
+function nestedStringValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => nestedStringValues(item)).filter(Boolean);
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value).trim();
+    return text ? [text] : [];
+  }
+  if (!value || typeof value !== "object") return [];
+  const row = value as Record<string, unknown>;
+  for (const key of ["url", "video_url", "videoUrl", "src", "file_url"]) {
+    const next = nestedStringValues(row[key]);
+    if (next.length > 0) return next;
+  }
+  return [];
+}
+
+function extractFailureReason(raw: unknown) {
+  const directPaths = [
+    "error.message",
+    "error",
+    "message",
+    "msg",
+    "failure_reason",
+    "detail",
+    "data.error.message",
+    "data.error",
+    "data.message",
+    "data.msg",
+  ];
+  for (const path of directPaths) {
+    const text = readReasonAtPath(raw, path);
+    if (text) return text;
+  }
+  return "";
+}
+
+function readReasonAtPath(value: unknown, path: string) {
+  const result = readPath(value, path);
+  return typeof result === "string" || typeof result === "number" ? String(result).trim() : "";
+}
+
+function readPath(value: unknown, path: string) {
+  const parts = String(path || "").split(".").map((part) => part.trim()).filter(Boolean);
+  let current: unknown = value;
+  for (const part of parts) {
+    if (Array.isArray(current)) {
+      const index = Number.parseInt(part, 10);
+      current = Number.isFinite(index) ? current[index] : undefined;
+      continue;
+    }
+    if (!current || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function plainObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}

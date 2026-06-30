@@ -614,6 +614,7 @@ export function ApiSettingsPanel({
                   <option value="runninghub">RunningHub</option>
                   <option value="volcengine">火山方舟</option>
                   <option value="apimart">APIMart</option>
+                  <option value="aicopy">AICopy</option>
                   <option value="modelscope">ModelScope</option>
                   <option value="custom">自定义</option>
                 </select>
@@ -639,6 +640,8 @@ export function ApiSettingsPanel({
                       ? `${assistantResult.protocol} / ${assistantResult.recommendedLayer}${assistantResult.asyncTask ? " / async" : ""}`
                       : draft.protocol === "grsai_draw"
                         ? "grsai_draw / adapter / async"
+                        : draft.protocol === "aicopy"
+                          ? "aicopy / adapter / async"
                         : "待 AI 或管理员确认"
                   }
                   readOnly

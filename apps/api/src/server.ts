@@ -549,7 +549,7 @@ interface AdminSessionRecord {
 type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role" | "groupId">;
 
 type ModelCapability = "chat" | "image" | "video" | "audio";
-type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "modelscope" | "custom" | "grsai_draw";
+type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "aicopy" | "modelscope" | "custom" | "grsai_draw";
 
 interface AdminProviderRecord {
   id: string;
@@ -1061,7 +1061,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.5.17",
+      version: "0.5.18",
       environment,
       dataDir,
     });
@@ -2292,7 +2292,7 @@ async function handleAdminRequest(
         storageDriver,
         authDbPath,
         adminDbPath,
-    version: "0.5.17",
+    version: "0.5.18",
       },
       queueSettings: {
         sendT8,
@@ -6946,7 +6946,7 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
     safeText(params.modelRecordId),
   );
   const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
   }
   if (!providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -6956,7 +6956,7 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
   const advancedConfig = parseAdvancedConfig(model.advancedConfig);
   const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
   const requestedRatio = safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
-  const requestedDuration = body.duration ?? params.duration;
+  const requestedDuration = normalizeVideoDurationValue(body.duration ?? params.duration);
   const requestedResolution = safeText(body.resolution || params.resolution);
   const images = normalizeProviderReferenceUrlsForAccess(
     Array.isArray(body.images)
@@ -7037,6 +7037,16 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
       queued: true,
     },
   };
+}
+
+function normalizeVideoDurationValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.round(parsed);
+    return value.trim();
+  }
+  return value;
 }
 
 async function readExternalVideoTaskStatus(taskId: string, user: CurrentUser) {
@@ -9444,7 +9454,7 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   const agnesDetected = /agnes|agnes-ai\.com|agnes-video/i.test(signals);
   const platoDetected = /柏拉图|apilio|api\.apilio\.ai|gpt-best\.apifox\.cn|grok-1\.5-video-(6s|10s|15s)|grok-imagine-video-1\.5-preview|\/v2\/videos\/generations/i.test(signals);
   const platoGrok15Detected = /grok-1\.5-video-(6s|10s|15s)/i.test(modelId);
-  const platoPreviewDetected = /grok-imagine-video-1\.5-preview/i.test(modelId);
+  const platoPreviewDetected = /grok-imagine-video-1\.5-preview(?:-official)?/i.test(modelId);
   const videoDetected =
     platoDetected ||
     toapisDetected ||
@@ -9574,15 +9584,26 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
   if (platoDetected && capability === "video") {
     chainTemplate = "async_task_poll_result";
     advancedConfig.mode = "async_video_task";
-    advancedConfig.submitPath = platoGrok15Detected
-      ? preferredProviderEndpoint(baseUrl, "/v1/videos")
-      : preferredProviderEndpoint(baseUrl, "/v2/videos/generations");
+    advancedConfig.submitPath = platoPreviewDetected
+      ? "videos"
+      : platoGrok15Detected
+        ? preferredProviderEndpoint(baseUrl, "/v1/videos")
+        : preferredProviderEndpoint(baseUrl, "/v2/videos/generations");
     advancedConfig.taskIdPath = "task_id";
-    advancedConfig.pollPathTemplate = preferredProviderEndpoint(baseUrl, "/v2/videos/generations/{task_id}");
+    advancedConfig.pollPathTemplate = platoPreviewDetected
+      ? "videos/{task_id}"
+      : preferredProviderEndpoint(baseUrl, "/v2/videos/generations/{task_id}");
     advancedConfig.taskStatusPath = "status";
     advancedConfig.resultVideoPath = "data.output";
     advancedConfig.pollIntervalMs = 3000;
-    advancedConfig.requestMapping = platoGrok15Detected
+    advancedConfig.requestMapping = platoPreviewDetected
+      ? {
+          ratio: "",
+          duration: "seconds",
+          resolution: "",
+          images: "images",
+        }
+      : platoGrok15Detected
       ? {
           ratio: "",
           duration: "duration",
@@ -9595,6 +9616,10 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
           resolution: "resolution",
           images: "images",
         };
+    if (platoPreviewDetected) {
+      advancedConfig.requestValueTypes = { duration: "string" };
+      advancedConfig.requestValueTemplates = { size: "{preview_video_size}" };
+    }
     if (platoGrok15Detected) {
       advancedConfig.requestBodyMode = "multipart_form_data";
       advancedConfig.requestContentType = "multipart/form-data";
@@ -9673,7 +9698,9 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
       0,
       platoGrok15Detected
         ? "将提交端点改为 /v1/videos，使用 multipart/form-data 上传 input_reference 文件，并把 size 由 ratio/resolution 派生。"
-        : "将提交/轮询端点改为 Grok v2 视频接口，并确认最终视频 URL 来自 data.output。",
+        : platoPreviewDetected
+          ? "将提交/轮询端点改为 /v1/videos 与 /v1/videos/{task_id}，按 JSON body 提交 seconds/size/images，并确认最终视频 URL 来自 data.output。"
+          : "将提交/轮询端点改为 Grok v2 视频接口，并确认最终视频 URL 来自 data.output。",
     );
   }
   return {
@@ -9696,8 +9723,8 @@ async function buildFallbackAssistantAnalysis(input: AssistantAnalyzeRequest): P
           ? `${summary} 已识别为 GRSAI 站点，建议使用手动模型目录并默认接入 gpt-image-2。`
           : platoDetected
             ? platoGrok15Detected
-              ? `${summary} 柏拉图的 grok-1.5-video-6s/10s/15s 需要使用 /v1/videos、multipart/form-data 和 input_reference 文件上传，size 建议由 ratio/resolution 派生后填入。`
-              : `${summary} 柏拉图的 grok-imagine-video-1.5-preview 建议使用 Grok v2 视频端点，按 JSON body 提交 images 数组，并从 data.output 读取最终视频 URL。`
+            ? `${summary} 柏拉图的 grok-1.5-video-6s/10s/15s 需要使用 /v1/videos、multipart/form-data 和 input_reference 文件上传，size 建议由 ratio/resolution 派生后填入。`
+              : `${summary} 柏拉图的 grok-imagine-video-1.5-preview 建议使用 /v1/videos 与 /v1/videos/{task_id}，按 JSON body 提交 seconds、size、images，并从 data.output 读取最终视频 URL。`
           : toapisDetected
             ? `${summary} 官方文档使用 https://toapis.com/v1/videos/generations 和 /v1/videos/generations/{task_id}。`
             : agnesDetected

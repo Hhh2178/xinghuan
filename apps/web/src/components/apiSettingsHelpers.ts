@@ -61,6 +61,7 @@ export const ADVANCED_PROVIDER_LABELS: Record<AdvancedProviderProtocol, string> 
   modelscope: 'ModelScope',
   volcengine: '火山引擎',
   comfyui: '本地 ComfyUI',
+  aicopy: 'AICopy',
   'jimeng-cli': '即梦 CLI',
 };
 
@@ -107,6 +108,15 @@ export const ADVANCED_PROVIDER_GUIDES: Record<AdvancedProviderProtocol, {
     connectionHint: '实例地址填本机 ComfyUI，例如 http://127.0.0.1:8188。多个实例可一行一个。',
     modelHint: '图像节点里选择的是工作流 ID/名称，不需要填写模型列表。',
     baseUrlPlaceholder: 'http://127.0.0.1:8188',
+  },
+  aicopy: {
+    subtitle: '接入 AICopy 的异步视频任务接口',
+    description: '适合接入 api.aicopy.top 这一类视频服务商。视频模型默认会走任务提交和轮询链路。',
+    nodeScopes: ['视频节点'],
+    connectionHint: 'Base URL 填 AICopy API 域名，模型协议会自动识别为 aicopy。',
+    modelHint: '视频模型按上游模型名填写，例如 grok-imagine-video-1.5-preview。',
+    baseUrlPlaceholder: 'https://api.aicopy.top',
+    keyLabel: 'AICopy API Key',
   },
   'jimeng-cli': {
     subtitle: '通过本地 dreamina / 即梦 CLI 调用图像和视频',

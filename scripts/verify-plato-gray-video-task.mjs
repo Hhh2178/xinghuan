@@ -3,7 +3,7 @@ const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOO
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 const providerNameHint = (process.env.XINGHUAN_VERIFY_PLATO_PROVIDER_NAME ?? "柏拉图").toLowerCase();
 const providerBaseUrlHint = (process.env.XINGHUAN_VERIFY_PLATO_BASE_URL ?? "api.apilio.ai").toLowerCase();
-const modelIdHint = (process.env.XINGHUAN_VERIFY_PLATO_MODEL_ID ?? "grok-1.5-video-6s").toLowerCase();
+const modelIdHint = (process.env.XINGHUAN_VERIFY_PLATO_MODEL_ID ?? "grok-imagine-video-1.5-preview").toLowerCase();
 const taskPollAttempts = Number.parseInt(process.env.XINGHUAN_VERIFY_TASK_POLL_ATTEMPTS ?? "180", 10);
 const taskPollIntervalMs = Number.parseInt(process.env.XINGHUAN_VERIFY_TASK_POLL_INTERVAL_MS ?? "3000", 10);
 const jpg512 =
@@ -41,14 +41,15 @@ async function main() {
     && String(item?.capability || "").toLowerCase() === "video"
     && String(item?.modelId || "").toLowerCase() === modelIdHint,
   );
-  results.push(["Find enabled Plato 6s model", Boolean(model?.id)]);
+  results.push(["Find enabled Plato preview model", Boolean(model?.id)]);
   if (!model?.id) return finish(results);
 
   const advancedConfig = plainObject(model.advancedConfig);
-  results.push(["Model submitPath uses /v1/videos", String(advancedConfig.submitPath || "").includes("/v1/videos")]);
-  results.push(["Model pollPathTemplate uses /v2/videos/generations/{task_id}", String(advancedConfig.pollPathTemplate || "").includes("/v2/videos/generations/{task_id}")]);
+  results.push(["Model submitPath uses /v1/videos", String(advancedConfig.submitPath || "") === "videos" || String(advancedConfig.submitPath || "").includes("/v1/videos")]);
+  results.push(["Model pollPathTemplate uses /v1/videos/{task_id}", String(advancedConfig.pollPathTemplate || "") === "videos/{task_id}" || String(advancedConfig.pollPathTemplate || "").includes("/v1/videos/{task_id}")]);
   results.push(["Model resultVideoPath uses data.output", String(advancedConfig.resultVideoPath || "") === "data.output"]);
-  results.push(["Model requestMapping.images uses input_reference", plainObject(advancedConfig.requestMapping).images === "input_reference"]);
+  results.push(["Model requestMapping.images uses images", plainObject(advancedConfig.requestMapping).images === "images"]);
+  results.push(["Model requestMapping.duration uses seconds", plainObject(advancedConfig.requestMapping).duration === "seconds"]);
 
   const uploadForm = new FormData();
   uploadForm.set("file", new Blob([Buffer.from(jpg512, "base64")], { type: "image/jpeg" }), "plato-gray-reference.jpg");

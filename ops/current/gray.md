@@ -2,10 +2,11 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.17`
-- 当前 release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-- 当前状态：`待部署`
+- 当前版本：`v0.5.18`
+- 当前 release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
+- 当前状态：`2026-06-30 已完成 deploy + runtime verify`
 - 当前补修：`2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
+- 当前本地待补修：`aicopy / grok-imagine-video-1.5-preview` 协议修复与视频时长范围配置已在 worktree 完成，待重新部署后执行新一轮 gray 烟测
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`

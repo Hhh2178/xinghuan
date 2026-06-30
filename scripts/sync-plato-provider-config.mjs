@@ -13,17 +13,23 @@ const client = new Client({ connectionString: databaseUrl });
 
 const previewConfig = {
   mode: "async_video_task",
-  submitPath: `${providerBaseUrl}/v2/videos/generations`,
+  submitPath: "videos",
   taskIdPath: "task_id",
-  pollPathTemplate: `${providerBaseUrl}/v2/videos/generations/{task_id}`,
+  pollPathTemplate: "videos/{task_id}",
   taskStatusPath: "status",
   resultVideoPath: "data.output",
   pollIntervalMs: 3000,
   pollTimeoutMs: 360000,
+  requestValueTypes: {
+    duration: "string",
+  },
+  requestValueTemplates: {
+    size: "{preview_video_size}",
+  },
   requestMapping: {
-    ratio: "aspect_ratio",
-    duration: "duration",
-    resolution: "resolution",
+    ratio: "",
+    duration: "seconds",
+    resolution: "",
     images: "images",
   },
 };
@@ -54,6 +60,7 @@ const modelPlans = [
   { modelId: "grok-1.5-video-10s", durationOptions: [10], config: grok15Config },
   { modelId: "grok-1.5-video-15s", durationOptions: [15], config: grok15Config },
   { modelId: "grok-imagine-video-1.5-preview", durationOptions: [6, 10, 15], config: previewConfig },
+  { modelId: "grok-imagine-video-1.5-preview-official", durationOptions: [6, 10, 15], config: previewConfig },
 ];
 
 await client.connect();

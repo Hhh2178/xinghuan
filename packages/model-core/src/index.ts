@@ -1,6 +1,6 @@
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 
-export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "modelscope" | "custom" | "grsai_draw";
+export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "aicopy" | "modelscope" | "custom" | "grsai_draw";
 
 export type ModelCapabilityTag =
   | "text_chat"
@@ -74,11 +74,28 @@ export interface ModelParameterSchema {
   size?: { type?: string; options?: string[]; default?: string };
   referenceImages?: { type?: string; max?: number };
   referenceAudio?: { type?: string; max?: number; formats?: string[] };
-  duration?: { type?: string; options?: Array<string | number>; default?: string | number };
+  duration?: {
+    type?: string;
+    options?: Array<string | number>;
+    default?: string | number;
+    mode?: "tiers" | "range" | string;
+    min?: number;
+    max?: number;
+    step?: number;
+  };
   resolution?: { type?: string; options?: string[]; default?: string };
   audioFormat?: { type?: string; options?: string[]; default?: string };
   voice?: { type?: string; options?: string[]; default?: string };
   [key: string]: unknown;
+}
+
+export type ModelDurationMode = "tiers" | "range";
+
+export interface ModelDurationRange {
+  min: number;
+  max: number;
+  step: number;
+  default: number;
 }
 
 export interface ModelUiMetadata {
@@ -90,6 +107,8 @@ export interface ModelUiMetadata {
   maxReferenceImages: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;
+  durationMode?: ModelDurationMode;
+  durationRange?: ModelDurationRange;
   resolutionOptions: string[];
   defaultResolution: string;
   inputCapabilities: {
@@ -101,6 +120,20 @@ export interface ModelUiMetadata {
     firstFrame: boolean;
     lastFrame: boolean;
   };
+}
+
+export function durationOptionsFromRange(range?: ModelDurationRange): number[] {
+  if (!range) return [];
+  const out: number[] = [];
+  for (let value = range.min; value <= range.max; value += range.step) {
+    out.push(value);
+    if (out.length > 128) break;
+  }
+  if (!out.includes(range.default)) {
+    out.push(range.default);
+    out.sort((a, b) => a - b);
+  }
+  return out;
 }
 
 export interface ProviderModelDraft {
@@ -246,7 +279,14 @@ export function uiMetadataFromSchema(
   const schema = parseModelParameterSchema(schemaValue);
   const aspectRatios = compactStrings(schema.aspectRatio?.options, capability === "video" ? VIDEO_RATIOS : IMAGE_RATIOS);
   const sizes = compactStrings(schema.size?.options, capability === "image" ? OPENAI_IMAGE_SIZES : []);
-  const durationOptions = compactValues(schema.duration?.options, capability === "video" ? VIDEO_DURATIONS : []);
+  const durationSchema = parsePlainObject(schema.duration);
+  const durationMode = capability === "video" && resolveDurationMode(durationSchema);
+  const durationRange = capability === "video" ? resolveDurationRange(durationSchema) : undefined;
+  const durationOptions = capability === "video"
+    ? durationMode === "range"
+      ? durationOptionsFromRange(durationRange)
+      : compactValues(schema.duration?.options, VIDEO_DURATIONS)
+    : compactValues(schema.duration?.options, []);
   const resolutionOptions = compactStrings(schema.resolution?.options, capability === "video" ? VIDEO_RESOLUTIONS : []);
   const maxReferenceImages = Number(schema.referenceImages?.max);
   const inputCapabilities = parseInputCapabilities(
@@ -261,7 +301,11 @@ export function uiMetadataFromSchema(
     supportsReference: Boolean(schema.referenceImages),
     maxReferenceImages: Number.isFinite(maxReferenceImages) ? Math.max(0, Math.min(16, maxReferenceImages)) : 0,
     durationOptions,
-    defaultDuration: valueInList(schema.duration?.default, durationOptions, durationOptions[0] || ""),
+    defaultDuration: durationMode === "range"
+      ? (durationRange?.default ?? valueInList(schema.duration?.default, durationOptions, durationOptions[0] || 0))
+      : valueInList(schema.duration?.default, durationOptions, durationOptions[0] || ""),
+    ...(durationMode ? { durationMode } : {}),
+    ...(durationRange ? { durationRange } : {}),
     resolutionOptions,
     defaultResolution: stringInList(schema.resolution?.default, resolutionOptions, resolutionOptions[0] || ""),
     inputCapabilities: {
@@ -310,3 +354,37 @@ function stringInList(value: unknown, list: string[], fallback: string) {
 function valueInList(value: unknown, list: Array<string | number>, fallback: string | number) {
   return list.includes(value as string | number) ? value as string | number : fallback;
 }
+
+function resolveDurationMode(durationSchema: Record<string, unknown>): ModelDurationMode | undefined {
+  const mode = String(durationSchema.mode || durationSchema.type || "").trim().toLowerCase();
+  if (mode === "range") return "range";
+  if (mode === "tiers" || mode === "select" || mode === "enum" || mode === "list") return "tiers";
+  if (Number.isFinite(Number(durationSchema.min)) && Number.isFinite(Number(durationSchema.max))) return "range";
+  if (Array.isArray(durationSchema.options)) return "tiers";
+  return undefined;
+}
+
+function resolveDurationRange(durationSchema: Record<string, unknown>): ModelDurationRange | undefined {
+  const min = Math.max(1, Math.round(Number(durationSchema.min)));
+  const max = Math.max(min, Math.round(Number(durationSchema.max)));
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+  const stepValue = Number(durationSchema.step);
+  const step = Number.isFinite(stepValue) && stepValue > 0 ? Math.max(1, Math.round(stepValue)) : 1;
+  const defaultValue = Number(durationSchema.default);
+  const defaultDuration = Number.isFinite(defaultValue)
+    ? clampInteger(defaultValue, min, max, min)
+    : min;
+  return {
+    min,
+    max,
+    step,
+    default: defaultDuration,
+  };
+}
+
+function clampInteger(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+export * from "./aicopy-video-adapter.js";

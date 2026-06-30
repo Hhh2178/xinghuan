@@ -297,6 +297,13 @@ export interface PublicModelUi {
   maxReferenceImages: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;
+  durationMode?: "tiers" | "range";
+  durationRange?: {
+    min: number;
+    max: number;
+    step: number;
+    default: number;
+  };
   resolutionOptions: string[];
   defaultResolution: string;
   inputCapabilities: {

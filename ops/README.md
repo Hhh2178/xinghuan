@@ -23,10 +23,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.17`
-  - release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-  - 状态：`待部署`
+  - 版本：`v0.5.18`
+  - release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
+  - 状态：`2026-06-30 已完成 deploy + runtime verify`
   - 当前补修：`组内拓扑执行 + 科技风收口`
+  - 本地待补修：`aicopy / grok-imagine-video-1.5-preview` 协议修复与视频时长范围配置已完成代码收口，待 gray 重部署后执行在线烟测
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

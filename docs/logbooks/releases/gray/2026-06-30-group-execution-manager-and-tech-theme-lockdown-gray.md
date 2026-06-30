@@ -1,11 +1,11 @@
-# Group Execution Manager And Tech Theme Lockdown Gray Release - 2026-06-30
+# AICopy Video Task And Duration Range Gray Release - 2026-06-30
 
 ## 状态
 
 - 环境：`gray`
-- 版本：`v0.5.17`
-- release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-- 当前状态：`待部署`
+- 版本：`v0.5.18`
+- release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
+- 当前状态：`2026-06-30 本地收口完成，待 gray 重新部署与在线烟测`
 - 上一灰度 release：`20260629-group-default-permission-refresh-gray-r1-v0516`
 
 ## 发布目标
@@ -33,21 +33,37 @@
   - 移除旧多风格入口。
 - `docs/archive/canvas-theme-presets/`
   - 旧主题预设归档。
+- `apps/web/src/components/nodes/VideoNode.tsx`
+  - AICopy 视频节点改为走后台任务提交 + 轮询，不再卡在同步视频生成路径。
+- `apps/web/src/types/canvas.ts`
+  - 前端高级 Provider 协议补齐 `aicopy`。
+- `apps/web/src/components/apiSettingsHelpers.ts`
+  - AICopy 作为独立高级 Provider 协议在设置页可见。
+- `apps/admin/src/admin-model-editor.tsx`
+  - 视频模型时长配置支持档位 / 范围双模式，并在保存时回写 `parameterSchema`。
+- `apps/admin/src/admin-api-settings-panel-helpers.ts`
+  - AI 草案同步对对象形态的 `parameterSchema` 也能正确保真。
 
 ## Agent 已验证
 
 - `npm run type-check -w @xinghuan/web`
 - `npm run type-check -w @xinghuan/admin`
-- `npm run verify:current-release-entry-consistency`
-- `node scripts/run-codegraph.mjs status`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/worker`
+- `npm run type-check -w @xinghuan/model-core`
+- `npm run build -w @xinghuan/web`
+- `npm run build -w @xinghuan/api`
+- `npm run build -w @xinghuan/model-core`
+- `npm run verify:provider-model-catalog-contract`
 
-## 待执行
+## 本轮补修状态
 
-- `npm run release:gray:prepare -- --release=20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-- `npm run release:gray:deploy -- --release=20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517 --archive=dist-release/20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517.tar.gz --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem`
-- `npm run release:gray:verify -- --ssh-key=D:/codex/服务器/Tencent_Cloud_Server.pem --expected-version=0.5.17 --expected-environment=gray`
+- `2026-06-30` 本地代码已补修 `aicopy / grok-imagine-video-1.5-preview` 协议与视频时长范围配置链路。
+- 当前补修尚未重新推送到 gray；现阶段灰度在线烟测仍待重新部署后执行。
+- 本机执行 `node scripts/verify-external-video-proxy.mjs` 时，直连 `http://127.0.0.1:18200` 返回 `ECONNREFUSED`，因此这轮只能先完成静态契约与类型校验，不能把它表述为“已完成新的 gray runtime verify”。
 
 ## 风险
 
 - 组内拓扑执行依赖连线正确性，旧画布若存在断链或环，需要用户后续人工复核。
 - 主题已锁到科技风，但仍保留少量兼容字段，后续若继续瘦身可再拆兼容层。
+- `aicopy` preview 模型的最终在线可用性，还需要在 gray 可达后跑一次真实任务提交与轮询。

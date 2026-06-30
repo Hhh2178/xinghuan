@@ -54,6 +54,7 @@ export type ProviderProtocol =
   | "runninghub"
   | "volcengine"
   | "apimart"
+  | "aicopy"
   | "modelscope"
   | "custom"
   | "grsai_draw";
@@ -380,6 +381,13 @@ export interface ModelRecord {
   advancedConfig?: Record<string, unknown>;
   protocolOverride?: string;
   updatedAt: number;
+}
+
+export interface VideoDurationRange {
+  min: number;
+  max: number;
+  step: number;
+  default: number;
 }
 
 export interface ModelInputCapabilities {

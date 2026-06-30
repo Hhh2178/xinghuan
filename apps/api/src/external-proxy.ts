@@ -3,6 +3,10 @@ import {
   parseAdvancedConfig,
   parseInputCapabilities,
   uiMetadataFromSchema,
+  createAicopyVideoAdapterPayload,
+  extractAicopyTask,
+  extractAicopyVideoResult,
+  shouldUseAicopyVideoAdapter,
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
 import { createGrsaiImageClient } from "./grsai-image-adapter.js";
@@ -313,6 +317,46 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     throw new Error("视频任务轮询超时");
   }
 
+  async function pollAicopyVideoTask(input: {
+    provider: ProviderLike;
+    apiKey: string;
+    taskId: string;
+    protocol: string;
+    advancedConfig: ReturnType<typeof parseAdvancedConfig>;
+  }) {
+    const pollIntervalMs = deps.clampInteger(input.advancedConfig.pollIntervalMs, 1500, 30000, 2500);
+    const pollTimeoutMs = clampOptionalInteger(input.advancedConfig.pollTimeoutMs, 30000, 600000);
+    const startedAt = Date.now();
+    let deadline = typeof pollTimeoutMs === "number" ? startedAt + pollTimeoutMs : Number.POSITIVE_INFINITY;
+    const pollPathTemplate = deps.safeText(input.advancedConfig.pollPathTemplate, "videos/{task_id}");
+    while (Date.now() < deadline) {
+      const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(input.taskId));
+      const upstream = await fetch(openAiEndpoint(input.provider.baseUrl, statusPath), {
+        method: "GET",
+        headers: deps.providerModelHeaders(input.apiKey, input.protocol),
+        signal: AbortSignal.timeout(60000),
+      });
+      const text = await upstream.text();
+      if (deps.looksLikeHtml(text)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+      if (!upstream.ok) throw new Error(`查询视频任务失败 ${upstream.status}: ${text.slice(0, 500)}`);
+      const raw = parseUpstreamJson(text, "视频任务轮询接口", upstream.headers.get("content-type") || "");
+      const result = extractAicopyVideoResult(raw, {
+        statusPath: deps.safeText(input.advancedConfig.taskStatusPath, "status"),
+        resultVideoPath: deps.safeText(input.advancedConfig.resultVideoPath, "data.output"),
+      });
+      const normalizedStatus = String(result.status || "").trim().toLowerCase();
+      if (result.videoUrls.length > 0 && (!normalizedStatus || isCompletedAsyncStatus(normalizedStatus))) {
+        return result;
+      }
+      if (isFailedAsyncStatus(normalizedStatus)) {
+        const reason = deps.safeText(result.failureReason, result.status || "failed");
+        throw new Error(`视频任务失败: ${reason}`);
+      }
+      await sleep(pollIntervalMs);
+    }
+    throw new Error("视频任务轮询超时");
+  }
+
   async function fetchFinalApimartVideoResult(input: {
     provider: ProviderLike;
     apiKey: string;
@@ -590,7 +634,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
     }
     const apiKey = deps.providerPlainApiKey(provider);
@@ -600,7 +644,8 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
     const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
-    const requestedDuration = body.duration ?? params.duration;
+  const requestedDurationRaw = body.duration ?? params.duration;
+  const requestedDuration = normalizeVideoDurationValue(requestedDurationRaw);
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
     const images = normalizeProviderReferenceUrls(
       Array.isArray(body.images) ? body.images.map((item) => String(item || "").trim()).filter(Boolean).slice(0, ui.maxReferenceImages || 1) : [],
@@ -614,20 +659,82 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       ? normalizeProviderReferenceUrl(deps.safeText(body.last_frame || params.last_frame), publicOrigin, user)
       : "";
     const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
-    const duration = ui.durationOptions.length > 0
-      ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
-      : undefined;
+  const duration = ui.durationOptions.length > 0
+    ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
+    : undefined;
     const resolution = ui.resolutionOptions.length > 0
       ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
       : "";
 
-    const useApimartAsyncVideo = shouldUseApimartVideoAdapter({
+    const useAicopyAsyncVideo = shouldUseAicopyVideoAdapter({
+      protocol,
+      advancedMode: deps.safeText(advancedConfig.mode),
+      modelId: model.modelId,
+      providerBaseUrl: provider.baseUrl,
+    });
+    const useApimartAsyncVideo = !useAicopyAsyncVideo && shouldUseApimartVideoAdapter({
       protocol,
       advancedMode: deps.safeText(advancedConfig.mode),
       modelId: model.modelId,
       providerBaseUrl: provider.baseUrl,
     });
     const submitPath = deps.safeText(advancedConfig.submitPath, "videos/generations");
+
+    if (useAicopyAsyncVideo) {
+      const payload = createAicopyVideoAdapterPayload({
+        modelId: model.modelId,
+        prompt,
+        ratio,
+        duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
+        resolution,
+        images,
+        requestMapping: deps.stringMap(advancedConfig.requestMapping),
+        requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
+        requestValueTemplates: deps.stringMap(advancedConfig.requestValueTemplates),
+        fixedBody: deps.plainObject(advancedConfig.fixedBody),
+      });
+      const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, deps.safeText(advancedConfig.submitPath, "videos")), {
+        method: "POST",
+        headers: { ...deps.providerModelHeaders(apiKey, protocol), "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(180000),
+      });
+      const submitText = await submitResponse.text();
+      if (deps.looksLikeHtml(submitText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
+      if (!submitResponse.ok) throw new Error(`上游视频生成失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
+      const submitRaw = parseUpstreamJson(submitText, "扩展视频提交接口", submitResponse.headers.get("content-type") || "");
+      const task = extractAicopyTask(submitRaw, {
+        taskIdPath: deps.safeText(advancedConfig.taskIdPath, "task_id"),
+        statusPath: deps.safeText(advancedConfig.taskStatusPath, "status"),
+      });
+      if (!task.taskId) throw new Error("异步视频任务未返回 task_id/id");
+      const result = await pollAicopyVideoTask({
+        provider,
+        apiKey,
+        taskId: task.taskId,
+        protocol,
+        advancedConfig,
+      });
+      if (result.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
+      const videoUrls: string[] = [];
+      for (const sourceUrl of result.videoUrls) {
+        const saved = await deps.saveRemoteVideoToOutput(sourceUrl, user);
+        videoUrls.push(saved.url);
+      }
+      return {
+        videoUrls,
+        remoteVideoUrls: result.videoUrls,
+        taskId: task.taskId,
+        raw: {
+          providerId: provider.id,
+          modelId: model.modelId,
+          count: videoUrls.length,
+          mode: "async_video_task",
+          inferredBy: "explicit",
+        },
+        provider: { id: provider.id, name: provider.name, protocol },
+      };
+    }
 
     if (useApimartAsyncVideo) {
       const requestMapping = deps.stringMap(advancedConfig.requestMapping);
@@ -804,6 +911,16 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     generateExternalVideoProxy,
     generateExternalAudioProxy,
   };
+}
+
+function normalizeVideoDurationValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.round(parsed);
+    return value.trim();
+  }
+  return value;
 }
 
 function sleep(ms: number) {

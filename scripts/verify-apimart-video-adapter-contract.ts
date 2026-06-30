@@ -237,6 +237,15 @@ assert.equal(
 );
 assert.equal(
   shouldUseApimartVideoAdapter({
+    protocol: "aicopy",
+    advancedMode: "",
+    modelId: "grok-imagine-video-1.5-preview",
+    providerBaseUrl: "https://api.aicopy.top",
+  }),
+  false,
+);
+assert.equal(
+  shouldUseApimartVideoAdapter({
     protocol: "openai",
     advancedMode: "",
     modelId: "plain-video-model",

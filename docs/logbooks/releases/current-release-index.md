@@ -4,9 +4,10 @@
 
 ### Gray
 
-- 版本：`v0.5.17`
-- release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-- 当前状态：`待部署`
+- 版本：`v0.5.18`
+- release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
+- 当前状态：`2026-06-30 已完成 deploy + runtime verify`
+- 当前本地补修：`aicopy / grok-imagine-video-1.5-preview` 协议修复与视频时长范围配置已完成代码收口，待 gray 重部署后执行在线烟测
 - 当前批次记录：
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `gray/2026-06-29-group-default-permission-refresh-gray.md`

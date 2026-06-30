@@ -140,13 +140,13 @@ async function main() {
     const asyncAsset = await fetch(`${baseUrl}${asyncVideoUrl}`, { headers: { cookie } });
     assert(asyncAsset.ok && /^video\//i.test(asyncAsset.headers.get("content-type") || ""), "saved apimart video is not accessible");
 
-    console.log("[verify] agnes async video");
+    console.log("[verify] grok preview async video");
     await fetchJson(`/api/admin/models/${modelRecord.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        modelId: "grok-video-1.5-preview",
-        displayName: "Verify Generic Async Video Model",
+        modelId: "grok-imagine-video-1.5-preview",
+        displayName: "Verify Grok Preview Async Video Model",
         inputProfile: "prompt,image_reference",
         inputCapabilities: {
           prompt: true,
@@ -157,12 +157,14 @@ async function main() {
         },
         advancedConfig: {
           mode: "async_video_task",
-          submitPath: "videos/generations",
-          taskIdPath: "id",
-          pollPathTemplate: "videos/generations/{task_id}",
+          submitPath: "videos",
+          taskIdPath: "task_id",
+          pollPathTemplate: "videos/{task_id}",
           taskStatusPath: "status",
-          resultVideoPath: "result.data.0.url",
-          requestMapping: { ratio: "aspect_ratio", duration: "seconds", images: "images" },
+          resultVideoPath: "data.output",
+          requestMapping: { ratio: "", duration: "seconds", resolution: "", images: "images" },
+          requestValueTypes: { duration: "string" },
+          requestValueTemplates: { size: "{preview_video_size}" },
         },
       }),
     });
@@ -173,8 +175,8 @@ async function main() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         providerId,
-        providerModel: "grok-video-1.5-preview",
-        model: "grok-video-1.5-preview",
+        providerModel: "grok-imagine-video-1.5-preview",
+        model: "grok-imagine-video-1.5-preview",
         prompt: "verification generic async video",
         images: [referenceUrl],
         aspect_ratio: "16:9",
@@ -187,11 +189,11 @@ async function main() {
     assert(genericAsyncVideoUrl.startsWith("/files/output/"), "generic async video was not saved locally");
     const genericAsyncSubmit = upstreamRequests.find((item) => item.kind === "generic-async-submit");
     const genericAsyncStatus = upstreamRequests.find((item) => item.kind === "generic-async-status");
-    assert(genericAsyncSubmit?.url === "/v1/videos/generations", "generic async submit endpoint mismatch");
-    assert(genericAsyncSubmit?.body?.seconds === 6, "generic async duration mapping mismatch");
-    assert(genericAsyncSubmit?.body?.aspect_ratio === "16:9", "generic async ratio mapping mismatch");
-    assert(Array.isArray(genericAsyncSubmit?.body?.images), "generic async images mapping mismatch");
-    assert(genericAsyncStatus?.url === "/v1/videos/generations/video_verify_456", "generic async poll endpoint mismatch");
+    assert(genericAsyncSubmit?.url === "/v1/videos", "generic async submit endpoint mismatch");
+    assert(genericAsyncSubmit?.body?.seconds === "6", "generic async duration mapping mismatch");
+    assert(genericAsyncSubmit?.body?.size === "1280x720", "generic async size mapping mismatch");
+    assert(Array.isArray(genericAsyncSubmit?.body?.images) && genericAsyncSubmit.body.images.length === 2, "generic async images mapping mismatch");
+    assert(genericAsyncStatus?.url === "/v1/videos/task_preview_456", "generic async poll endpoint mismatch");
 
     await fetchJson(`/api/admin/models/${modelRecord.id}`, {
       method: "PATCH",
@@ -278,15 +280,15 @@ function startMockServer() {
             response.end(JSON.stringify({ code: 200, data: [{ task_id: "task_verify_123", status: "submitted" }] }));
             return;
           }
-          if (body.model === "grok-video-1.5-preview") {
-            upstreamRequests.push({ kind: "generic-async-submit", url: request.url, authorization: request.headers.authorization, body });
-            response.writeHead(200, { "content-type": "application/json" });
-            response.end(JSON.stringify({ id: "video_verify_456", object: "generation.task", status: "queued" }));
-            return;
-          }
           upstreamRequests.push({ kind: "sync-submit", url: request.url, authorization: request.headers.authorization, body });
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ data: [{ url: `http://127.0.0.1:${address.port}/asset.mp4` }] }));
+          return;
+        }
+        if (request.url === "/v1/videos" && body.model === "grok-imagine-video-1.5-preview") {
+          upstreamRequests.push({ kind: "generic-async-submit", url: request.url, authorization: request.headers.authorization, body });
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ task_id: "task_preview_456", status: "queued" }));
           return;
         }
         if (request.url === "/v1/videos" && body.model === "agnes-video-v2.0") {
@@ -301,10 +303,10 @@ function startMockServer() {
           response.end(JSON.stringify({ code: 200, data: { status: "completed", result: { videos: [`http://127.0.0.1:${address.port}/asset.mp4`] } } }));
           return;
         }
-        if (request.url === "/v1/videos/generations/video_verify_456") {
+        if (request.url === "/v1/videos/task_preview_456") {
           upstreamRequests.push({ kind: "generic-async-status", url: request.url, authorization: request.headers.authorization, body });
           response.writeHead(200, { "content-type": "application/json" });
-          response.end(JSON.stringify({ status: "completed", result: { data: [{ url: `http://127.0.0.1:${address.port}/asset.mp4`, format: "mp4" }] } }));
+          response.end(JSON.stringify({ task_id: "task_preview_456", status: "completed", data: { output: `http://127.0.0.1:${address.port}/asset.mp4` } }));
           return;
         }
         if (request.url === "/v1/videos/task_verify_agnes") {

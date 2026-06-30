@@ -11,8 +11,14 @@ check("Image node consumes backend image catalog", image.includes("catalog.image
 check("Video node consumes backend video catalog", video.includes("catalog.videoModels") && video.includes("modelRecordId"));
 check("LLM node consumes backend chat catalog", llm.includes("catalog.chatModels") && llm.includes("modelRecordId"));
 check("Video node uses dynamic catalog UI metadata", video.includes("backendModel.ui.durationOptions") && video.includes("backendModel.ui.resolutionOptions"));
+check("Video node supports backend duration ranges", video.includes("durationRange") && video.includes("durationOptionsFromRange"));
 check("Image node normalizes stale values after schema changes", image.includes("if (!backendUi.aspectRatios.includes(aspectRatio))") && image.includes("if (!backendUi.sizes.includes(sizeLevel))"));
-check("Video node normalizes stale values after schema changes", video.includes("if (!backendModel.ui.aspectRatios.includes(ratio))") && video.includes("if (!backendModel.ui.durationOptions.includes(duration))") && video.includes("if (!backendModel.ui.resolutionOptions.includes(resolution))"));
+check(
+  "Video node normalizes stale values after schema changes",
+  video.includes("if (!backendModel.ui.aspectRatios.includes(ratio))")
+    && video.includes("if (!durationOptions.includes(Number(duration)))")
+    && video.includes("if (!backendModel.ui.resolutionOptions.includes(resolution))"),
+);
 check("API exposes external chat proxy", api.includes('"/api/proxy/external/llm"') && api.includes("generateExternalChatProxy"));
 check("API exposes external video proxy", api.includes('"/api/proxy/external/video"') && api.includes("generateExternalVideoProxy"));
 check(

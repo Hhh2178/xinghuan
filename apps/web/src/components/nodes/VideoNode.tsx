@@ -5,6 +5,7 @@ import {
   VIDEO_MODELS,
   isFalVideoModel,
   VIDEO_FAL_REGISTRY,
+  type VideoModelDef,
   VEO_FAL_RATIOS,
   VEO_FAL_DURATIONS,
   VEO_FAL_RESOLUTIONS,
@@ -105,6 +106,19 @@ const videoGenerationErrorMessage = (error: unknown) => {
   }
   const text = String(error || '').trim();
   return text || '未知错误';
+};
+const durationOptionsFromRange = (range?: { min: number; max: number; step: number; default: number }) => {
+  if (!range) return [];
+  const out: number[] = [];
+  for (let value = range.min; value <= range.max; value += range.step) {
+    out.push(value);
+    if (out.length > 128) break;
+  }
+  if (!out.includes(range.default)) {
+    out.push(range.default);
+    out.sort((a, b) => a - b);
+  }
+  return out;
 };
 type TaskRunState = {
   taskId?: string;
@@ -218,7 +232,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     ? ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
     : modelDef.ratios;
   const durationOptions = isBackendSelected && backendModel
-    ? backendModel.ui.durationOptions
+    ? (backendModel.ui.durationMode === 'range' && backendModel.ui.durationRange
+      ? durationOptionsFromRange(backendModel.ui.durationRange)
+      : backendModel.ui.durationOptions)
     : isJimengSeedanceSelected
     ? [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     : modelDef.durations || [];
@@ -233,7 +249,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     if (!isBackendSelected || !backendModel) return;
     const patch: Record<string, unknown> = {};
     if (!backendModel.ui.aspectRatios.includes(ratio)) patch.ratio = backendModel.ui.defaultAspectRatio;
-    if (!backendModel.ui.durationOptions.includes(duration)) patch.duration = backendModel.ui.defaultDuration;
+    if (!durationOptions.includes(Number(duration))) patch.duration = backendModel.ui.defaultDuration;
     if (!backendModel.ui.resolutionOptions.includes(resolution)) patch.resolution = backendModel.ui.defaultResolution;
     if (backendFrameModeOptions.length > 0 && rawFrameMode !== frameMode) patch.frameMode = frameMode;
     if (Object.keys(patch).length) update(patch);
@@ -505,7 +521,10 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       providerModel: next.modelId,
     };
     if (!next.ui.aspectRatios.includes(ratio)) patch.ratio = next.ui.defaultAspectRatio;
-    if (!next.ui.durationOptions.includes(duration)) patch.duration = next.ui.defaultDuration;
+    const nextDurationOptions = next.ui.durationMode === 'range' && next.ui.durationRange
+      ? durationOptionsFromRange(next.ui.durationRange)
+      : next.ui.durationOptions;
+    if (!nextDurationOptions.includes(Number(duration))) patch.duration = next.ui.defaultDuration;
     if (!next.ui.resolutionOptions.includes(resolution)) patch.resolution = next.ui.defaultResolution;
     update(patch);
   };
@@ -526,7 +545,10 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       providerModel: nextModel.modelId,
     };
     if (!nextModel.ui.aspectRatios.includes(ratio)) patch.ratio = nextModel.ui.defaultAspectRatio;
-    if (!nextModel.ui.durationOptions.includes(duration)) patch.duration = nextModel.ui.defaultDuration;
+    const nextDurationOptions = nextModel.ui.durationMode === 'range' && nextModel.ui.durationRange
+      ? durationOptionsFromRange(nextModel.ui.durationRange)
+      : nextModel.ui.durationOptions;
+    if (!nextDurationOptions.includes(Number(duration))) patch.duration = nextModel.ui.defaultDuration;
     if (!nextModel.ui.resolutionOptions.includes(resolution)) patch.resolution = nextModel.ui.defaultResolution;
     update(patch);
   };
@@ -730,12 +752,48 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         const refs = imageUrls.slice(0, Math.max(1, maxMentionRefs || modelDef.maxRefImages || 8));
         const videoRefs = videoUrls.slice(0, maxMentionVideos);
         const audioRefs = audioUrls.slice(0, maxMentionAudios);
+        const isAicopyAsyncVideo = providerSelection.provider.protocol === 'aicopy';
         logBus.info(
           isJimengSeedanceSelected
             ? `${batchLabel} 扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · 图${refs.length}/视${videoRefs.length}/音${audioRefs.length}`
             : `${batchLabel} 扩展平台视频提交: ${providerSelection.provider.label || providerSelection.provider.id} · ${providerModel} · refs=${refs.length}`,
           src,
         );
+        if (isAicopyAsyncVideo) {
+          const r = await submitExternalVideoTask({
+            providerId: providerSelection.provider.id,
+            providerModel,
+            model: providerModel,
+            prompt: finalPrompt,
+            aspect_ratio: ratio,
+            ratio,
+            duration,
+            resolution,
+            seed: seed > 0 ? seed : undefined,
+            images: refs,
+            videos: videoRefs,
+            audios: audioRefs,
+            providerParams: {
+              ...(d?.providerParams || {}),
+              sourceNodeId: id,
+            },
+          });
+          if (!r.taskId) {
+            throw new Error(`AICopy 后台视频任务没有返回任务号：${providerSelection.provider.label || providerSelection.provider.id} / ${providerModel}`);
+          }
+          patchTaskRun(batchIndex, {
+            status: 'polling',
+            taskId: r.taskId,
+            progress: r.progress || '5%',
+            startedAt: Date.now(),
+          });
+          update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: r.progress || '5%' });
+          const polled = await startExternalVideoTaskPolling(r.taskId, batchIndex);
+          if (!polled.videoUrls[0]) {
+            throw new Error(`AICopy 后台视频任务完成但没有返回视频：${providerSelection.provider.label || providerSelection.provider.id} / ${providerModel}`);
+          }
+          return { videoUrls: polled.videoUrls, remoteVideoUrls: polled.remoteVideoUrls || [], taskId: r.taskId };
+        }
         const r = await generateExternalVideo({
           providerId: providerSelection.provider.id,
           providerModel,

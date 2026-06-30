@@ -40,6 +40,7 @@ export function inferProviderProtocol(p: ProviderDraft) {
   if (/runninghub/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "runninghub" as ProviderProtocol;
   if (/modelscope|api-inference\.modelscope\.cn/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "modelscope" as ProviderProtocol;
   if (/gemini/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "gemini" as ProviderProtocol;
+  if (/aicopy|api\.aicopy\.top/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "aicopy" as ProviderProtocol;
   if (/apimart/i.test(`${p.id}\n${p.name}\n${p.baseUrl}`)) return "apimart" as ProviderProtocol;
   return p.protocol;
 }
@@ -194,6 +195,13 @@ export function defaultInputCapabilitiesForCapability(capability: Capability, ca
 }
 
 export function safeAssistantSchemaText(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return "{}";
+    }
+  }
   if (typeof value !== "string" || !value.trim()) return "{}";
   try {
     return JSON.stringify(JSON.parse(value), null, 2);

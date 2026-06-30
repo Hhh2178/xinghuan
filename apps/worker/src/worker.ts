@@ -29,6 +29,11 @@ import {
   shouldUseApimartVideoAdapter,
 } from "./worker-apimart-video-adapter.js";
 import {
+  createAicopyVideoAdapterPayload,
+  extractAicopyTask,
+  shouldUseAicopyVideoAdapter,
+} from "@xinghuan/model-core";
+import {
   buildProviderMultipartRequestBody,
   isMultipartRequestBodyMode,
 } from "./worker-provider-request-body.js";
@@ -802,6 +807,71 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const lastFrame = safeText(task.payload.last_frame || task.payload.lastFrame);
   const advancedMode = safeText(task.payload.advancedMode || task.payload.mode);
   const submitPath = safeText(task.payload.submitPath, "videos/generations");
+
+  if (shouldUseAicopyVideoAdapter({
+    protocol,
+    advancedMode,
+    modelId: task.providerModelId,
+    providerBaseUrl: task.providerBaseUrl,
+  })) {
+    const submitPayload = createAicopyVideoAdapterPayload({
+      modelId: task.providerModelId,
+      prompt,
+      ratio,
+      duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
+      resolution,
+      images,
+      requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
+      requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
+      requestValueTemplates: plainObject(task.payload.requestValueTemplates) as Record<string, string>,
+      fixedBody: plainObject(task.payload.fixedBody),
+    });
+    const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, safeText(task.payload.submitPath, "videos")), {
+      method: "POST",
+      headers: buildProviderJsonHeaders(apiKey),
+      body: JSON.stringify(submitPayload),
+      signal: AbortSignal.timeout(180000),
+    });
+    const text = await upstream.text();
+    if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const taskMeta = extractAicopyTask(raw, {
+      taskIdPath: safeText(task.payload.taskIdPath, "task_id"),
+      statusPath: safeText(task.payload.taskStatusPath, "status"),
+    });
+    if (!taskMeta.taskId) throw new Error("异步视频任务未返回 task_id/id");
+    await touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: taskMeta.taskId,
+      taskId: taskMeta.taskId,
+      upstreamStatus: safeText(taskMeta.status || "submitted"),
+      runtimeStage: "polling",
+    });
+    const polled = await pollApimartVideoTask({
+      baseUrl: task.providerBaseUrl,
+      apiKey,
+      taskId: taskMeta.taskId,
+      statusPath: safeText(task.payload.taskStatusPath, "status"),
+      resultVideoPath: safeText(task.payload.resultVideoPath, "data.output"),
+      pollPathTemplate: safeText(task.payload.pollPathTemplate, "videos/{task_id}"),
+      finalResultTaskIdPath: safeText(task.payload.finalResultTaskIdPath),
+      finalResultPathTemplate: safeText(task.payload.finalResultPathTemplate),
+      finalResultVideoPath: safeText(task.payload.finalResultVideoPath),
+      pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
+      timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs, 5000, 1800000),
+      onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
+    });
+    if (polled.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
+    return {
+      adapter: "aicopy-video",
+      providerId: task.providerId,
+      modelId: task.providerModelId,
+      taskId: taskMeta.taskId,
+      videoUrls: polled.videoUrls,
+      remoteVideoUrls: polled.videoUrls,
+      videoCount: polled.videoUrls.length,
+    };
+  }
 
   if (shouldUseApimartVideoAdapter({
     protocol,

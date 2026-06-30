@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { durationOptionsFromRange } from "@xinghuan/model-core";
 import { type ProviderGenerationExecutionMode } from "@xinghuan/shared";
 import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
+import {
+  readVideoDurationSchema,
+  syncVideoDurationSchema,
+  normalizeVideoDurationTierList,
+} from "./admin-model-editor-video-duration";
 import type { Capability, ModelCapabilityTag, ModelRecord } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -307,6 +313,12 @@ export function ModelEditorRow({
   const [pollTimeoutSeconds, setPollTimeoutSeconds] = useState("");
   const [defaultVoice, setDefaultVoice] = useState("");
   const [presetVoiceText, setPresetVoiceText] = useState("");
+  const [videoDurationMode, setVideoDurationMode] = useState<"tiers" | "range">("tiers");
+  const [videoDurationTiers, setVideoDurationTiers] = useState("4\n6\n8\n10\n15");
+  const [videoDurationMin, setVideoDurationMin] = useState("4");
+  const [videoDurationMax, setVideoDurationMax] = useState("20");
+  const [videoDurationStep, setVideoDurationStep] = useState("1");
+  const [videoDurationDefault, setVideoDurationDefault] = useState("8");
 
   useEffect(() => {
     setDraft({
@@ -329,6 +341,13 @@ export function ModelEditorRow({
       : [];
     setDefaultVoice(String(voiceSchema.default || model.advancedConfig?.voice || "").trim());
     setPresetVoiceText(voiceOptions.join("\n"));
+    const videoDuration = readVideoDurationSchema(schemaObject);
+    setVideoDurationMode(videoDuration.mode as "tiers" | "range");
+    setVideoDurationTiers(videoDuration.tiers.length ? videoDuration.tiers.join("\n") : "4\n6\n8\n10\n15");
+    setVideoDurationMin(String(videoDuration.range?.min || 4));
+    setVideoDurationMax(String(videoDuration.range?.max || 20));
+    setVideoDurationStep(String(videoDuration.range?.step || 1));
+    setVideoDurationDefault(String(videoDuration.range?.default || 8));
   }, [model.id, model.updatedAt]);
 
   async function saveModel() {
@@ -367,6 +386,28 @@ export function ModelEditorRow({
       const synced = syncAudioVoicePresetSchema(parameterSchemaObject, advancedConfig, defaultVoice.trim(), presetVoiceText);
       parameterSchemaObject = synced.schema;
       advancedConfig = synced.advancedConfig;
+      parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
+    }
+    if (draft.capability === "video") {
+      parameterSchemaObject = syncVideoDurationSchema(
+        parameterSchemaObject,
+        videoDurationMode,
+        videoDurationTiers,
+        {
+          minText: videoDurationMin,
+          maxText: videoDurationMax,
+          stepText: videoDurationStep,
+          defaultText: videoDurationDefault,
+        },
+      );
+      const syncedDuration = parameterSchemaObject.duration && typeof parameterSchemaObject.duration === "object" && !Array.isArray(parameterSchemaObject.duration)
+        ? parameterSchemaObject.duration as Record<string, unknown>
+        : {};
+      if (videoDurationMode === "range") {
+        setVideoDurationTiers(Array.isArray(syncedDuration.options) ? syncedDuration.options.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0).join("\n") : videoDurationTiers);
+      } else {
+        setVideoDurationDefault(String(syncedDuration.default || videoDurationDefault));
+      }
       parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     }
     setSchemaError("");
@@ -431,6 +472,7 @@ export function ModelEditorRow({
           <option value="volcengine">火山</option>
           <option value="runninghub">RH</option>
           <option value="apimart">APIMart</option>
+          <option value="aicopy">AICopy</option>
           <option value="modelscope">ModelScope</option>
           <option value="grsai_draw">GRSAI Draw</option>
           <option value="custom">自定义</option>
@@ -626,6 +668,71 @@ export function ModelEditorRow({
                   <span>如果该模型没有固定音色，可以保留为空，前端会继续使用自由输入框。</span>
                 </div>
               )}
+            </section>
+          ) : null}
+          {draft.capability === "video" ? (
+            <section className="schema-guide-card compact audio-preset-card">
+              <div className="schema-guide-head">
+                <strong>视频时长配置</strong>
+                <span>可以保留档位列表，也可以切换为范围模式，让画布下拉显示每个整数秒。</span>
+              </div>
+              <div className="audio-preset-grid">
+                <label className="audio-preset-field">
+                  时长模式
+                  <select
+                    value={videoDurationMode}
+                    onChange={(e) => setVideoDurationMode(e.target.value as "tiers" | "range")}
+                  >
+                    <option value="tiers">档位</option>
+                    <option value="range">范围</option>
+                  </select>
+                  <small>档位模式保留 `duration.options`，范围模式写入 `duration.min/max/step/default`。</small>
+                </label>
+                {videoDurationMode === "tiers" ? (
+                  <label className="audio-preset-field">
+                    时长档位
+                    <textarea
+                      value={videoDurationTiers}
+                      onChange={(e) => setVideoDurationTiers(e.target.value)}
+                      placeholder={"4\n6\n8\n10\n15"}
+                      spellCheck={false}
+                    />
+                    <small>支持换行或逗号分隔，保存后会写入 `duration.options`。</small>
+                  </label>
+                ) : (
+                  <div className="audio-preset-grid">
+                    <label className="audio-preset-field">
+                      起始秒
+                      <input value={videoDurationMin} onChange={(e) => setVideoDurationMin(e.target.value)} />
+                    </label>
+                    <label className="audio-preset-field">
+                      结束秒
+                      <input value={videoDurationMax} onChange={(e) => setVideoDurationMax(e.target.value)} />
+                    </label>
+                    <label className="audio-preset-field">
+                      步长
+                      <input value={videoDurationStep} onChange={(e) => setVideoDurationStep(e.target.value)} />
+                    </label>
+                    <label className="audio-preset-field">
+                      默认秒数
+                      <input value={videoDurationDefault} onChange={(e) => setVideoDurationDefault(e.target.value)} />
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div className="schema-guide-note">
+                <strong>预览</strong>
+                <span>
+                  {videoDurationMode === "range"
+                    ? durationOptionsFromRange({
+                        min: Math.max(1, Number(videoDurationMin) || 1),
+                        max: Math.max(Number(videoDurationMin) || 1, Number(videoDurationMax) || 1),
+                        step: Math.max(1, Number(videoDurationStep) || 1),
+                        default: Math.max(1, Number(videoDurationDefault) || 1),
+                      }).join(", ")
+                    : normalizeVideoDurationTierList(videoDurationTiers).join(", ")}
+                </span>
+              </div>
             </section>
           ) : null}
           <section className="schema-guide-card compact">

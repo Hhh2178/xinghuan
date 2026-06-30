@@ -328,7 +328,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
     const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
-    const requestedDuration = body.duration ?? params.duration;
+    const requestedDuration = normalizeVideoDurationValue(body.duration ?? params.duration);
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
     const images = deps.normalizeProviderReferenceUrls(
       Array.isArray(body.images)
@@ -520,6 +520,16 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     submitProviderGenerationTask,
     readProviderGenerationTaskStatus,
   };
+}
+
+function normalizeVideoDurationValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.round(parsed);
+    return value.trim();
+  }
+  return value;
 }
 
 function clampInteger(value: unknown, min: number, max: number, fallback: number) {

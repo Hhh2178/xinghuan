@@ -54,7 +54,8 @@ const checks = [
     pass:
       normalizeProviderProtocol("llm") === "openai" &&
       normalizeProviderProtocol("gemini") === "gemini" &&
-      normalizeProviderProtocol("grsai_draw") === "grsai_draw",
+      normalizeProviderProtocol("grsai_draw") === "grsai_draw" &&
+      normalizeProviderProtocol("aicopy") === "aicopy",
   },
   {
     name: "builds protocol-specific model URLs",

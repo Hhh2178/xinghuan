@@ -53,8 +53,8 @@
 
 ## 2026-06-30 状态更新
 
-- 当前活跃版本：`v0.5.17`
-- 当前 gray release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
+- 当前活跃版本：`v0.5.18`
+- 当前 gray release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
 - 当前 production release：`20260628-web-version-sync-prod-r1-v0515`
 - 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口、主入口状态收口
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`

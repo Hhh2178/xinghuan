@@ -51,7 +51,6 @@ export function createApimartVideoAdapterPayload(input: ApimartVideoAdapterPaylo
   };
   const mapping = { ...DEFAULT_REQUEST_MAPPING, ...plainObject(input.requestMapping) } as Record<string, string>;
   const valueTypes = plainObject(input.requestValueTypes) as Record<string, string>;
-
   assignMapped(payload, mapping.ratio, castMappedValue(input.ratio, valueTypes.ratio));
   assignMapped(payload, mapping.duration, castMappedValue(input.duration, valueTypes.duration));
   assignMapped(payload, mapping.resolution, castMappedValue(input.resolution, valueTypes.resolution));
