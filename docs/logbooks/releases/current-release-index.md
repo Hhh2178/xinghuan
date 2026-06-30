@@ -5,9 +5,9 @@
 ### Gray
 
 - 版本：`v0.5.19`
-- release：`20260630-group-execution-manager-runtime-rounds-gray-r1-v0519`
-- 当前状态：`2026-06-30 本地代码与发布材料已收口，待 gray deploy + runtime verify`
-- 当前本地补修：`组执行管理器已补齐开始执行开关、执行次数、每轮按当前画布重算拓扑；待 gray 重部署后执行在线烟测`
+- release：`20260630-group-execution-manager-runtime-rounds-gray-r2-v0519`
+- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify；release package smoke 脚本已补齐并完成服务器侧 smoke`
+- 当前本地补修：`组执行管理器已补齐开始执行开关、执行次数、每轮按当前画布重算拓扑；待用户在 gray 上补做真实交互验收`
 - 当前批次记录：
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
