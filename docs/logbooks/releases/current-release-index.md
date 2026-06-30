@@ -51,10 +51,11 @@
 
 ### Production
 
-- 版本：`v0.5.15`
-- release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前状态：`2026-06-28 已完成 production deploy + runtime verify`
+- 版本：`v0.5.19`
+- release：`20260630-group-execution-manager-runtime-rounds-prod-r1-v0519`
+- 当前状态：`2026-06-30 已完成 production deploy + runtime verify`
 - 当前批次记录：
+  - `production/2026-06-30-group-execution-manager-runtime-rounds-production.md`
   - `production/2026-06-28-web-version-sync-production.md`
   - `production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
 - 历史运行态材料：

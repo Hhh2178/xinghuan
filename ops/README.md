@@ -31,9 +31,9 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.15`
-  - release：`20260628-web-version-sync-prod-r1-v0515`
-  - 状态：`2026-06-28 已完成 production deploy + runtime verify`
+  - 版本：`v0.5.19`
+  - release：`20260630-group-execution-manager-runtime-rounds-prod-r1-v0519`
+  - 状态：`2026-06-30 已完成 production deploy + runtime verify`
 
 ## current / archive 分工
 
