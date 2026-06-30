@@ -712,12 +712,12 @@ const PortraitMasterNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const rf = useReactFlow();
   const { activeId, canvases, loadCanvases } = useCanvasStore();
-  const { templateId, customTemplates } = useThemeStore();
+  const { templateId } = useThemeStore();
   const yyhPortraitIds = useHiddenFeatureStore((s) => s.yyhPortraitIds);
   const d = (data as any) || {};
   const activeTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const isYyhVisual = activeTemplate.visuals?.style === 'yyh';
   const yyhHiddenMode = Boolean(isYyhVisual && isYyhPortraitEnabled(yyhPortraitIds, id));

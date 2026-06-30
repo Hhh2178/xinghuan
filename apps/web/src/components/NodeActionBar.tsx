@@ -56,11 +56,11 @@ const NodeActionBar = () => {
   const nodes = useNodes();
   const { x: vx, y: vy, zoom } = useViewport();
   const { setNodes } = useReactFlow();
-  const { theme, style, templateId, customTemplates } = useThemeStore();
+  const { theme, style, templateId } = useThemeStore();
   const isDark = theme === 'dark';
   const activeTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const visualStyle = activeTemplate.visuals?.style || style;
   const isPixel = visualStyle === 'pixel';

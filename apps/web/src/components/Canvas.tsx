@@ -50,6 +50,7 @@ import { useShortcutStore } from '../stores/shortcuts';
 import { getTemplateMode, resolveThemeTemplate } from '../theme/defaultTemplates';
 import { useRunBusStore } from '../stores/runBus';
 import { useGroupBusStore, GROUP_COLORS, DEFAULT_GROUP_NAME } from '../stores/groupBus';
+import { GROUP_EXECUTION_MANAGER_NODE_TYPE, buildGroupExecutionManagerDataFromNodes, findGroupExecutionManagerNode, normalizeGroupExecutionManagerData, type GroupExecutionManagerData } from './canvas/groupExecutionManager';
 import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
@@ -182,6 +183,7 @@ import MaterialSetNode from './nodes/MaterialSetNode';
 import UploadNode from './nodes/UploadNode';
 const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/OutputNode')));
 import GroupBoxNode from './nodes/GroupBoxNode';
+import GroupExecutionManagerNode from './nodes/GroupExecutionManagerNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
 import type { NodeType, NodeMeta } from '../types/canvas';
@@ -964,6 +966,7 @@ const nodeTypes = NODE_REGISTRY.reduce<Record<string, any>>((acc, m) => {
 }, {});
 // 节点组容器(不在 NODE_REGISTRY 中,作为独立的视觉容器节点类型)
 nodeTypes.groupBox = withNodeSerialBadge(GroupBoxNode);
+nodeTypes[GROUP_EXECUTION_MANAGER_NODE_TYPE] = withNodeSerialBadge(GroupExecutionManagerNode);
 
 // SHIFT 批量移线 phantom 节点: 拖拽期间充当边的临时锐点,跟随鼠标移动
 function BulkPhantomNode() {
@@ -1140,12 +1143,12 @@ interface CanvasInnerProps {
 
 function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   const { activeId, canvases, loadCanvases, setActive, createCanvas } = useCanvasStore();
-  const { theme, style, templateId, customTemplates } = useThemeStore();
+  const { theme, style, templateId } = useThemeStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
   const shortcutText = useCallback((actionId: string) => formatShortcutList(shortcuts[actionId]), [shortcuts]);
   const currentTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const visualStyle = currentTemplate.visuals?.style || style;
   const isOp = visualStyle === 'op';
@@ -1362,6 +1365,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   //   兜底走最右侧 + 写日志 + setCenter 飞镜。
   const addNode = useCallback(
     (type: NodeType, options?: AddNodeOptions) => {
+      if (type === GROUP_EXECUTION_MANAGER_NODE_TYPE && nodes.some((node) => node.type === GROUP_EXECUTION_MANAGER_NODE_TYPE)) {
+        logBus.info('画布中已经存在一个全局组执行管理器', '组执行');
+        return;
+      }
       const atScreen = options?.atScreen;
       const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       let cx: number;
@@ -1396,10 +1403,37 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
         position: { x: finalPos.x, y: finalPos.y },
         data: { ...(INITIAL_DATA[type] || {}), ...(options?.data || {}) },
       };
+      if (type === GROUP_EXECUTION_MANAGER_NODE_TYPE) {
+        newNode.data = {
+          ...(newNode.data || {}),
+          ...buildGroupExecutionManagerDataFromNodes([...nodes, newNode]),
+        };
+      }
       setNodes((prev) => [...prev, ...assignActiveNodeSerials([newNode], prev)]);
     },
     [screenToFlowPosition, nodes, getViewport, setCenter, assignActiveNodeSerials]
   );
+
+  useEffect(() => {
+    const managerNode = findGroupExecutionManagerNode(nodes);
+    if (!managerNode) return;
+    const managerData = buildGroupExecutionManagerDataFromNodes(nodes, managerNode);
+    const current = managerNode.data as Record<string, any>;
+    const same =
+      JSON.stringify(current?.groupOrder || []) === JSON.stringify(managerData.groupOrder || []) &&
+      JSON.stringify(current?.skippedGroupIds || []) === JSON.stringify(managerData.skippedGroupIds || []) &&
+      JSON.stringify(current?.groups || []) === JSON.stringify(managerData.groups || []) &&
+      String(current?.title || '') === String(managerData.title || '') &&
+      String(current?.note || '') === String(managerData.note || '');
+    if (same) return;
+    setNodes((prev) =>
+      prev.map((node) =>
+        node.id === managerNode.id
+          ? { ...node, data: { ...(node.data as any), ...managerData } }
+          : node,
+      ),
+    );
+  }, [nodes, setNodes]);
 
   const createUploadNodesFromFiles = useCallback(
     async (rawFiles: File[], atScreen?: { x: number; y: number }) => {

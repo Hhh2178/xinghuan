@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import * as api from '../services/api';
 import {
   BUILT_IN_THEME_TEMPLATES,
   DEFAULT_THEME_TEMPLATE_ID,
-  PIXEL_TEMPLATE_ID,
   TECH_TEMPLATE_ID,
   resolveThemeTemplate,
 } from '../theme/defaultTemplates';
@@ -18,113 +16,29 @@ interface ThemeState {
   style: ThemeStyle;
   templateId: string;
   customTemplates: ThemeTemplate[];
-  templatesLoaded: boolean;
-  templatesPath: string;
-  templatesError: string | null;
   toggleTheme: () => void;
   setTheme: (theme: CanvasTheme) => void;
-  toggleStyle: () => void;
-  setStyle: (style: ThemeStyle) => void;
   setTemplate: (templateId: string, mode?: CanvasTheme) => void;
-  loadCustomTemplates: () => Promise<void>;
-  importTemplate: (template: ThemeTemplate) => Promise<ThemeTemplate>;
-  saveCustomTemplate: (template: ThemeTemplate) => Promise<ThemeTemplate>;
-  deleteCustomTemplate: (templateId: string) => Promise<void>;
-}
-
-function legacyTemplateId(style?: ThemeStyle) {
-  return style === 'tech' ? TECH_TEMPLATE_ID : PIXEL_TEMPLATE_ID;
 }
 
 /**
  * 主题状态管理。
  * - theme: dark | light 明暗模式
- * - style: tech | pixel 旧组件兼容风格
+ * - style: 仅保留 tech 兼容字段
  * - templateId: 当前模板 ID，新主题体系的主入口
  */
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       theme: 'dark',
       style: 'tech',
       templateId: DEFAULT_THEME_TEMPLATE_ID,
       customTemplates: [],
-      templatesLoaded: false,
-      templatesPath: '',
-      templatesError: null,
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       setTheme: (theme) => set({ theme }),
-      toggleStyle: () =>
-        set((state) => {
-          const nextId = state.style === 'tech' ? PIXEL_TEMPLATE_ID : TECH_TEMPLATE_ID;
-          const tpl = resolveThemeTemplate(nextId, get().customTemplates);
-          return {
-            templateId: tpl.id,
-            style: tpl.legacyStyle,
-            theme: tpl.legacyStyle === 'pixel' ? 'light' : 'dark',
-          };
-        }),
-      setStyle: (style) => {
-        const tpl = resolveThemeTemplate(legacyTemplateId(style), get().customTemplates);
-        set({ templateId: tpl.id, style: tpl.legacyStyle, theme: tpl.legacyStyle === 'pixel' ? 'light' : 'dark' });
-      },
       setTemplate: (templateId, mode) => {
-        const tpl = resolveThemeTemplate(templateId, get().customTemplates);
+        const tpl = resolveThemeTemplate(templateId);
         set({ templateId: tpl.id, style: tpl.legacyStyle, ...(mode ? { theme: mode } : {}) });
-      },
-      async loadCustomTemplates() {
-        const res = await api.getThemeTemplates();
-        if (!res.success) {
-          set({ templatesLoaded: true, templatesError: res.error || '加载主题模板失败' });
-          return;
-        }
-        const customTemplates = (res.data.templates || []).map((tpl) => ({ ...tpl, builtIn: false }));
-        const current = resolveThemeTemplate(TECH_TEMPLATE_ID, customTemplates);
-        set({
-          customTemplates,
-          templatesLoaded: true,
-          templatesPath: res.data.path || '',
-          templatesError: null,
-          templateId: current.id,
-          style: current.legacyStyle,
-          theme: 'dark',
-        });
-      },
-      async importTemplate(template) {
-        const res = await api.importThemeTemplate({ ...template, builtIn: false });
-        if (!res.success) throw new Error(res.error || '导入主题失败');
-        const saved = { ...res.data, builtIn: false };
-        set((state) => ({
-          customTemplates: [...state.customTemplates.filter((tpl) => tpl.id !== saved.id), saved],
-          templateId: saved.id,
-          style: saved.legacyStyle,
-        }));
-        return saved;
-      },
-      async saveCustomTemplate(template) {
-        const res = await api.saveThemeTemplate({ ...template, builtIn: false });
-        if (!res.success) throw new Error(res.error || '保存主题失败');
-        const saved = { ...res.data, builtIn: false };
-        set((state) => ({
-          customTemplates: [...state.customTemplates.filter((tpl) => tpl.id !== saved.id), saved],
-          templateId: saved.id,
-          style: saved.legacyStyle,
-        }));
-        return saved;
-      },
-      async deleteCustomTemplate(templateId) {
-        if (BUILT_IN_THEME_TEMPLATES.some((tpl) => tpl.id === templateId)) return;
-        const res = await api.deleteThemeTemplate(templateId);
-        if (!res.success) throw new Error(res.error || '删除主题失败');
-        set((state) => {
-          const customTemplates = state.customTemplates.filter((tpl) => tpl.id !== templateId);
-          const currentDeleted = state.templateId === templateId;
-          const fallback = resolveThemeTemplate(DEFAULT_THEME_TEMPLATE_ID, customTemplates);
-          return {
-            customTemplates,
-          ...(currentDeleted ? { templateId: fallback.id, style: fallback.legacyStyle, theme: 'dark' as CanvasTheme } : {}),
-          };
-        });
       },
     }),
     {
@@ -143,7 +57,7 @@ export const useThemeStore = create<ThemeState>()(
           ...p,
           templateId,
           style: tpl?.legacyStyle || 'tech',
-          theme: (tpl?.legacyStyle || 'tech') === 'pixel' ? 'light' : 'dark',
+          theme: p.theme === 'light' ? 'light' : 'dark',
         };
       },
     }

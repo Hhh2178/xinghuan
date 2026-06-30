@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, Palette, LogOut, UserRound, Bell } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
@@ -37,7 +37,6 @@ const Canvas = lazy(createLazyImportWithReloadRecovery(() => import('./component
 const ResourceLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/ResourceLibraryDrawer')));
 const GenerationLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/GenerationLibraryDrawer')));
 const MaterialContextMenu = lazy(createLazyImportWithReloadRecovery(() => import('./components/MaterialContextMenu')));
-const ThemeTemplateManager = lazy(createLazyImportWithReloadRecovery(() => import('./components/ThemeTemplateManager')));
 const RHToolsProvider = lazy(() =>
   createLazyImportWithReloadRecovery(() =>
     import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
@@ -182,22 +181,21 @@ async function workflowResourceToFragment(item: ResourceItem) {
  * 布局: [侧边栏(画布管理 + 节点列表)] [画布主体] + 头部状态栏
  */
 function App() {
-  const { theme, style, templateId, customTemplates, toggleTheme, loadCustomTemplates } = useThemeStore();
+  const { theme, style, templateId, toggleTheme } = useThemeStore();
   const { load: loadSettings } = useApiKeysStore();
   const { load: loadModelCatalog } = useModelCatalogStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
   const [workspaceShellReady, setWorkspaceShellReady] = useState(false);
   const currentTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'error'>('checking');
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
-  const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const previewMode = getDevPreviewMode();
   const announcements = useAnnouncements(Boolean(currentUser));
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
@@ -325,8 +323,7 @@ function App() {
     if (!currentUser) return;
     loadSettings();
     loadModelCatalog();
-    loadCustomTemplates();
-  }, [currentUser, loadSettings, loadModelCatalog, loadCustomTemplates]);
+  }, [currentUser, loadSettings, loadModelCatalog]);
 
   useEffect(() => {
     let alive = true;
@@ -558,23 +555,6 @@ function App() {
           </button>
         </div>
         <div className="flex items-center gap-1">
-          {/* 主题模板 */}
-          <button
-            onClick={() => setThemeManagerOpen(true)}
-            className={
-              isPixel
-                ? 'px-btn px-btn--sm px-btn--pink max-w-[150px]'
-                : `flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                    isDark
-                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 hover:bg-sky-500/20'
-                      : 'bg-sky-50 border-sky-300 text-sky-700 hover:bg-sky-100'
-                  }`
-            }
-            title="主题模板"
-          >
-            <Palette size={14} />
-            <span className="text-[11px] truncate">{currentTemplate.name}</span>
-          </button>
           <button
             type="button"
             onClick={announcements.openDrawer}
@@ -627,7 +607,6 @@ function App() {
         </ErrorBoundary>
       </div>
 
-      <ThemeTemplateManager open={themeManagerOpen} onClose={() => setThemeManagerOpen(false)} />
       <ResourceLibraryDrawer
         open={resourceOpen}
         onClose={() => setResourceOpen(false)}

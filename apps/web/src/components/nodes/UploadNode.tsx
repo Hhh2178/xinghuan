@@ -116,12 +116,12 @@ function inferUploadKindFromData(data: Record<string, any>): UploadKind | null {
 const UploadNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
-  const { theme, style, templateId, customTemplates } = useThemeStore();
+  const { theme, style, templateId } = useThemeStore();
   const isDark = theme === 'dark';
   const isPixel = style === 'pixel';
   const activeTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const isRhDomVisual =
     typeof document !== 'undefined' && document.documentElement.dataset.themeVisual === 'rh';

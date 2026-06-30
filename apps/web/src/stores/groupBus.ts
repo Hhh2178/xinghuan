@@ -17,24 +17,35 @@ export interface GroupDeleteRequest {
   ts: number;
 }
 
+export interface GroupRunAllRequest {
+  ts: number;
+}
+
 interface GroupBusState {
   executeReq: GroupExecuteRequest | null;
   deleteReq: GroupDeleteRequest | null;
+  runAllReq: GroupRunAllRequest | null;
   requestExecute: (groupId: string, memberIds: string[]) => void;
   requestDelete: (groupId: string) => void;
+  requestRunAll: () => void;
   clearExecute: () => void;
   clearDelete: () => void;
+  clearRunAll: () => void;
 }
 
 export const useGroupBusStore = create<GroupBusState>((set) => ({
   executeReq: null,
   deleteReq: null,
+  runAllReq: null,
   requestExecute: (groupId, memberIds) =>
     set({ executeReq: { groupId, memberIds, ts: Date.now() } }),
   requestDelete: (groupId) =>
     set({ deleteReq: { groupId, ts: Date.now() } }),
+  requestRunAll: () =>
+    set({ runAllReq: { ts: Date.now() } }),
   clearExecute: () => set({ executeReq: null }),
   clearDelete: () => set({ deleteReq: null }),
+  clearRunAll: () => set({ runAllReq: null }),
 }));
 
 // 12 色 GroupBox 调色板(与 PenguinPravite NodeGroupBox.GROUP_COLORS 对齐)

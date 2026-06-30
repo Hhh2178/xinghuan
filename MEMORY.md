@@ -50,3 +50,12 @@
 - 系统结构、协议、接口和执行链路优先写入 `docs/systems/`。
 - 发布、验证、视觉复查和逐日推进优先写入 `docs/logbooks/`。
 - `MEMORY.md` 只保留摘要、导航和兼容说明，不再继续堆积长历史正文。
+
+## 2026-06-30 状态更新
+
+- 当前活跃版本：`v0.5.17`
+- 当前 gray release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
+- 当前 production release：`20260628-web-version-sync-prod-r1-v0515`
+- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口、主入口状态收口
+- 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
+- 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

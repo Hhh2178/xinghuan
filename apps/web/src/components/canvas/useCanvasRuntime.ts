@@ -2,6 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import type { Edge, Node } from '@xyflow/react';
 import { useRunBusStore } from '../../stores/runBus';
 import { topologicalSort } from '../../utils/topologicalSort';
+import {
+  resolveGroupExecutionPlan,
+  resolveGlobalExecutionOrder,
+} from './groupExecutionManager';
 
 interface UseCanvasRuntimeArgs {
   nodes: Node[];
@@ -19,9 +23,8 @@ export function useCanvasRuntime({
   const batchTotal = useRunBusStore((state) => state.batchTotal);
   const batchDone = useRunBusStore((state) => state.batchDoneCount);
 
-  const runNodesByOrder = useCallback(
-    async (subNodes: Node[], subEdges: Edge[]) => {
-      const order = topologicalSort(subNodes, subEdges, executableNodeTypes);
+  const runExecutionOrder = useCallback(
+    async (order: string[]) => {
       if (order.length === 0) return 0;
       cancelRunRef.current = false;
       setIsRunning(true);
@@ -56,18 +59,18 @@ export function useCanvasRuntime({
       }
       return order.length;
     },
-    [executableNodeTypes],
+    [],
   );
 
   const handleRunAll = useCallback(async () => {
     if (isRunning) return;
-    const order = topologicalSort(nodes, edges, executableNodeTypes);
+    const order = resolveGlobalExecutionOrder(nodes, edges, executableNodeTypes);
     if (order.length === 0) {
       alert('画布上没有可执行节点');
       return;
     }
-    await runNodesByOrder(nodes, edges);
-  }, [edges, executableNodeTypes, isRunning, nodes, runNodesByOrder]);
+    await runExecutionOrder(order);
+  }, [edges, executableNodeTypes, isRunning, nodes, runExecutionOrder]);
 
   const handleRunGroup = useCallback(
     async (ids: string[]) => {
@@ -80,10 +83,25 @@ export function useCanvasRuntime({
         alert('所选节点中没有可执行节点');
         return;
       }
-      await runNodesByOrder(subNodes, subEdges);
+      const order = topologicalSort(subNodes, subEdges, executableNodeTypes);
+      await runExecutionOrder(order);
     },
-    [edges, executableNodeTypes, isRunning, nodes, runNodesByOrder],
+    [edges, executableNodeTypes, isRunning, nodes, runExecutionOrder],
   );
+
+  const handleRunAllGroups = useCallback(async () => {
+    if (isRunning) return;
+    const plan = resolveGroupExecutionPlan(nodes, edges, executableNodeTypes);
+    const fullOrder = [
+      ...plan.groupBlocks.filter((block) => !block.skipped).flatMap((block) => block.executableIds),
+      ...plan.standaloneIds,
+    ];
+    if (fullOrder.length === 0) {
+      alert('画布上没有可执行节点');
+      return;
+    }
+    await runExecutionOrder(fullOrder);
+  }, [edges, executableNodeTypes, isRunning, nodes, runExecutionOrder]);
 
   const handleCancelRun = useCallback(() => {
     cancelRunRef.current = true;
@@ -96,6 +114,7 @@ export function useCanvasRuntime({
     handleCancelRun,
     handleRunAll,
     handleRunGroup,
+    handleRunAllGroups,
     isRunning,
   };
 }

@@ -129,13 +129,13 @@ interface Collected {
 const OutputNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
-  const { theme, templateId, customTemplates } = useThemeStore();
+  const { theme, templateId } = useThemeStore();
   const isDark = theme === 'dark';
   const d = (data as any) || {};
   const rf = useReactFlow();
   const activeTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const isRhDomVisual =
     typeof document !== 'undefined' && document.documentElement.dataset.themeVisual === 'rh';

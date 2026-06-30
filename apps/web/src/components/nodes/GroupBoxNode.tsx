@@ -35,10 +35,10 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
   const height = d?.height ?? 200;
   const locked = d?.locked !== false;
 
-  const { theme, style, templateId, customTemplates } = useThemeStore();
+  const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
-    () => resolveThemeTemplate(templateId, customTemplates),
-    [templateId, customTemplates],
+    () => resolveThemeTemplate(templateId),
+    [templateId],
   );
   const visualStyle = currentTemplate.visuals?.style || style;
   const isDark = theme === 'dark';

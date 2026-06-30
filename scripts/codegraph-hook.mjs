@@ -18,7 +18,7 @@ function warn(message) {
 }
 
 function getCodegraphCommand() {
-  return "codegraph";
+  return process.platform === "win32" ? "codegraph.cmd" : "codegraph";
 }
 
 function runCommand(command, args) {

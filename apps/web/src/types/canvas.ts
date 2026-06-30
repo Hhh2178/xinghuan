@@ -41,6 +41,7 @@ export type NodeType =
   | 'upscale'
   | 'grid-crop'
   | 'grid-editor'
+  | 'group-execution-manager'
   // Auxiliary (5)
   | 'edit'
   | 'idea'

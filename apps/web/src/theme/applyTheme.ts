@@ -72,11 +72,11 @@ export function applyThemeTemplate(template: ThemeTemplate, mode: ThemeMode) {
   const activeMode = getTemplateMode(template, mode);
   const tokens = activeMode.tokens;
   const visuals = template.visuals || {
-    style: template.legacyStyle === 'tech' ? 'tech' : 'pixel',
+    style: 'tech',
     intensity: 'medium',
     iconPack: 'default',
-    canvasPattern: template.legacyStyle === 'tech' ? 'circuit' : 'dots',
-    nodeFrame: template.legacyStyle === 'tech' ? 'glass' : 'sticker',
+    canvasPattern: 'circuit',
+    nodeFrame: 'glass',
   };
 
   root.setAttribute('data-theme-template', template.id);
@@ -93,7 +93,5 @@ export function applyThemeTemplate(template: ThemeTemplate, mode: ThemeMode) {
     root.style.setProperty(TOKEN_CSS_MAP[key], tokens[key]);
   });
 
-  if (template.legacyStyle === 'pixel') {
-    applyPixelCompatibility(root, tokens, mode);
-  }
+  applyPixelCompatibility(root, tokens, mode);
 }

@@ -107,6 +107,7 @@ export const NODE_PORTS: Record<string, NodePorts> = {
   upscale: { inputs: ['image'], outputs: ['image'] },
   'grid-crop': { inputs: ['image'], outputs: ['image'] },
   'grid-editor': { inputs: ['image'], outputs: ['image'] },
+  'group-execution-manager': { inputs: [], outputs: ['any'] },
 
   // ========== Auxiliary ==========
   edit: { inputs: ['text', 'image'], outputs: ['image'] },

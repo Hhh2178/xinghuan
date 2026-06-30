@@ -8,15 +8,7 @@
 
 ## 项目总纲入口
 
-从 Phase 1 文档治理重构开始，当前推荐阅读顺序改为：
-
-1. `AGENTS.md`
-2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `README.md`
-5. `MEMORY.md`
-6. `ops/README.md`
-7. `DEVLOG.md`
+默认阅读顺序：`AGENTS.md` -> `docs/INDEX.md` -> `docs/systems/README.md` -> `README.md` -> `MEMORY.md` -> `ops/README.md` -> `DEVLOG.md`
 
 ## 系统地图
 
@@ -36,14 +28,12 @@
 
 ## 文件治理与归档规则
 
-- 治理规则看 `docs/governance/`
-- 热点文件怎么拆、每批怎么收口，看 `docs/governance/hotspot-decomposition-workflow.md`
-- 热点优先级与风险评分，看 `docs/governance/hotspot-risk-scorecard.md`
+- 治理规则、热点拆分与风险评分看 `docs/governance/`
 - 系统知识看 `docs/systems/`
 - 长期记忆看 `docs/memory/`
-- 逐日台账与发布证据看 `docs/logbooks/`
+- 日常台账、发布证据与验证记录看 `docs/logbooks/`
 - 设计与演进记录看 `docs/records/`
-- 发布记录正文、gray/prod 批次证据统一写入 `docs/logbooks/releases/`，不要再散落到临时目录或仅保存在 `ops/` 草稿里。
+- 发布记录正文与 gray/prod 批次证据统一写入 `docs/logbooks/releases/`，不要再散落到临时目录或仅保存在 `ops/` 草稿里。
 
 旧入口文件目前继续保留，但职责已经改成“摘要 + 跳转入口”：
 
@@ -54,46 +44,15 @@
 
 ## 当前目录约定
 
-- `AGENTS.md`：本文件，记录协作和工程规则。
-- `docs/INDEX.md`：新的第一跳总索引。
-- `docs/governance/`：协作方式、CodeGraph 规则、归档政策。
-- `docs/governance/documentation-governance-standard.md`：当前正式文档治理规范。
-- `docs/governance/hotspot-decomposition-workflow.md`：热点文件拆分与工作树收口执行手册。
-- `docs/governance/hotspot-risk-scorecard.md`：热点优先级评分卡与双轨治理标准。
-- `docs/systems/`：按系统组织的知识入口。
-- `docs/memory/`：长期记忆主题目录。
-- `docs/logbooks/`：日常推进、发布、验证、事故记录目录。
-- `docs/records/`：设计方案与演进记录目录。
-- `MEMORY.md`：长期项目记忆、关键决策、服务器和部署状态。
-- `DEVLOG.md`：开发日志台账，按日期记录真实推进、测试和部署。
-- `README.md`：当前工作根入口和高层状态摘要。
-- `docs/project-atlas/README.md`：兼容层总纲入口，保留旧的结构化导航正文。
-- `docs/project-atlas/*.md`：兼容层主题正文，新的主入口以 `docs/systems/`、`docs/governance/`、`docs/logbooks/` 为准。
-- `docs/repo-structure.md`：当前 worktree、主仓库、过程目录和运行产物目录说明。
-- `docs/runtime-artifacts.md`：运行产物目录和清理边界说明。
-- `docs/documentation-governance.md`：旧治理入口兼容层，正式规范已迁到 `docs/governance/documentation-governance-standard.md`。
-- `docs/size-audit-2026-06-15.md`：当前仓库体积基线、主要占用来源和后续瘦身顺序。
-- `docs/prd/README.md`：PRD 版本索引。
-- `docs/prd/v0.1.0/`：当前 2.0 初始规划版本文档。
-- `ops/`：服务器、部署、运维和验收记录。
-- `config/`：非密钥配置模板。
-- `development/`：开发过程资料和临时实施记录。
-- `research/`：候选项目、节点库、参考项目调研。
+- `docs/INDEX.md`、`docs/governance/`、`docs/systems/`、`docs/memory/`、`docs/logbooks/`、`docs/records/` 是主文档入口。
+- `README.md`、`MEMORY.md`、`docs/prd/README.md`、`ops/README.md` 只保留当前状态摘要和跳转。
+- `docs/project-atlas/README.md`、`docs/documentation-governance.md` 只作兼容入口，不再作为第一跳。
+- `docs/repo-structure.md`、`docs/runtime-artifacts.md`、`docs/size-audit-2026-06-15.md` 只负责结构、运行产物和体积边界说明。
+- `ops/`、`config/`、`development/`、`research/` 分别保留运维、模板、过程资料和调研材料。
 
 ## 默认查看顺序
 
-当需要快速恢复上下文时，优先顺序：
-
-1. `AGENTS.md`
-2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `README.md`
-5. `MEMORY.md`
-6. `ops/README.md`
-7. `DEVLOG.md`
-8. `docs/project-atlas/README.md`
-9. `docs/repo-structure.md`
-10. `docs/runtime-artifacts.md`
+当需要快速恢复上下文时，优先顺序仍按上面的默认阅读顺序；若要补结构信息，再看 `docs/repo-structure.md` 和 `docs/runtime-artifacts.md`。
 
 ## 入口优先级
 
@@ -103,7 +62,7 @@
 
 使用原则：
 
-- 当前开发、部署、验收、结构整理，优先看本目录下的 `AGENTS.md`、`docs/project-atlas/README.md`、`MEMORY.md`、`DEVLOG.md`、`docs/`、`ops/`
+- 当前开发、部署、验收和结构整理，优先看本目录下的 `AGENTS.md`、`README.md`、`MEMORY.md`、`DEVLOG.md`、`docs/`、`ops/`
 - 当前默认导航先走 `docs/INDEX.md -> docs/systems/<system>/ -> 代码`
 - 当前状态先看 `README.md`、`MEMORY.md`、`docs/prd/README.md`、`ops/README.md`，不要只看旧日志顶部或历史灰度记录判断状态
 - `D:/codex/无限画布2.0` 是主仓库，不是当前默认工作现场
@@ -266,7 +225,7 @@
 
 ## 版本治理规则
 
-- 当前活跃版本已推进为 `v0.5.1`。
+- 当前活跃版本已推进为 `v0.5.17`。
 - 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
 - `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
 - 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
@@ -330,78 +289,12 @@
 
 ## 当前状态
 
-- 2.0 当前活跃版本已为 `v0.5.1`。
-- 产品路线口径：
-  - `Phase 2` 节点与模型治理已完成灰度验收。
-  - `Phase 3` 任务与素材闭环已完成主要能力落地，并继续以当前版本文档为主记录。
-- 多用户正式化治理口径：
-  - `Phase A` 已完成 owner/仓储止血第一批收口。
-  - `Phase B` 已完成 revision 冲突保护。
-  - `Phase C` 已完成会话治理、CSRF、登录限流，并已发布到灰度与生产。
-  - `Phase D` 已完成当前代码收口、本地验收、灰度发布与正式发布。
-  - `Phase E` 已完成 gray / production 放行：
-    - 第一阶段请求链路观测
-    - 第二阶段系统观测页与放行 gate
-    - 长期观测治理第一批：失败窗口与 revision conflict 统计
-    - 长期观测治理第二批：健康判断、趋势对比与阈值状态
-  - 当前已补齐 gray / production rollback 样本。
-  - 当前长期观测治理下一步：
-    - requestId 覆盖率持续提升
-    - 告警触发与通知闭环
-    - 更长时间窗口的运行稳定性基线
-- 旧项目已被明确放弃作为继续开发主干。
-- 当前服务器实态：
-  - 灰度 `canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
-  - 生产 `canvas.hhh2121.xyz` / `127.0.0.1:18100`
-- 当前灰度 release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
-  - `2026-06-23` 已完成 RH 画布节点恢复轮询 gray 热修：
-    - 普通 RH 节点补齐 `taskId + polling` 持久化运行态恢复轮询
-    - 当 RH 任务已在后台成功，但节点组件重挂载或画布状态重建后，不再永久卡在 `45%`
-    - RH 成功结果回填继续沿用最新输出整组覆盖逻辑
-  - `2026-06-23` 已完成 RH 工作台空白新建与画布输出残留 gray 热修：
-    - 后台新建空白 `AI 应用 / 工作流` 不再因为默认启用而直接命中缺少输入槽错误
-    - RH 工作台备注摘要块已增强视觉强调
-    - RH / RH Tools 节点重复执行后会先清空旧输出，再写回本次新结果
-    - gray 已实机点击验证 `新建 AI 应用 / 新建工作流` 成功且无报错
-  - 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
-  - `2026-06-22` 已完成 RH 显式无入参工作流 gray 热修：
-    - 后台 RH 工作台对 `allowsEmptyInputs=true` 的 workflow 不再显示“缺少输入槽”
-    - 管理端保存/启用时不再误拦截 `nodeInfoList=[]` 的合法 workflow
-    - gray 目标条目 `2064255815862800385` 已确认保持：
-      - `allowsEmptyInputs = true`
-      - `fields = 0`
-      - `outputSchema[0].path = results`
-  - `2026-06-22` 已完成 RunningHub App / Workflow 运行态归一化与 AI App v2 gray 发布：
-    - RH public catalog 与节点运行态开始按 `kind` 纠正 `appId / workflowId / runTargetId` 归属
-    - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
-    - RunningHub AI App worker submit/query 已切到官方 v2 协议
-  - `2026-06-17` 已完成柏拉图视频 Provider 接入热修复：
-    - `grok-1.5-video-6s/10s/15s` 走 `/v1/videos` + `multipart/form-data`
-    - `grok-imagine-video-1.5-preview` 继续走 `/v2/videos/generations`
-    - 后台 API 接入助手与右侧 AI 助手都要以“结构化接入方案”为默认输出形态，而不是继续给纯散文式猜配置结果
-  - `2026-06-17` 已完成 gray / production 环境同步能力发布与联调：
-    - 后台新增“环境同步”页
-    - 支持用户 / 服务商（含关联模型）双向预览与逐项同步
-    - 服务器环境文件已补齐：
-      - `XINGHUAN_ENVIRONMENT_SYNC_TOKEN`
-      - `XINGHUAN_GRAY_API_BASE_URL`
-      - `XINGHUAN_PRODUCTION_API_BASE_URL`
-  - `2026-06-18` 已完成 RunningHub 运行时与队列治理 gray / production 发布：
-    - RH catalog 规范化
-    - 后台 RH 工作台与结构化条目编辑器
-    - 前台单一 RH 节点固定 typed handles 与 `inputSlots` 优先消费过渡
-    - RH query 结果读取已改为统一保留 `image/video/audio` 输出数组，避免按 capability 分支丢结果
-    - RH queued task 入库已不再误把 workflow/page id 写入 `xh_tasks.model_id`
-    - 普通 Provider 任务已验证用户级并发窗口与自动递进
-    - RunningHub 任务已验证平台级并发窗口 `2` 与自动递进
-    - gray / production gate 已通过：
-      - `verify:release-preflight`
-      - `verify:request-chain-observability`
-      - `verify:system-observability`
-    - 当前补记：
-      - 本轮未包含新 migration
-      - release 目录执行 `db:migrate` 仍暴露 `PG_DRIVER_NOT_INSTALLED`，后续凡是带 migration 的发布都必须先修补 release 迁移依赖链
-  - `2026-06-19` 已完成 RH 条目真实输入槽同步并发布 gray / production：
-    - 后台 RH 工作台新增“从运行目标同步输入槽”
-    - 当 RH 运行目标能返回 `nodeInfoList` 时，后台条目可直接补齐真实 `nodeId / fieldName`
-    - 画布 RH 节点随后按后台条目自动展开参数区，不再停留在 Schema 草稿态
+- 当前活跃版本：`v0.5.17`
+- 当前灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
+- 当前灰度 release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
+- 当前灰度状态：`待部署`
+- 当前生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
+- 当前生产 release：`20260628-web-version-sync-prod-r1-v0515`
+- 当前生产状态：`2026-06-28 已完成 production deploy + runtime verify`
+- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口、主入口状态收口
+- 详细阶段历史、逐日证据和运行态细节统一看 `docs/memory/`、`docs/logbooks/`、`ops/README.md`

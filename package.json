@@ -1,13 +1,13 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.5.16",
+  "version": "0.5.17",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
   "scripts": {
-    "codegraph:status": "codegraph status",
-    "codegraph:init": "codegraph init -i",
-    "codegraph:sync": "codegraph sync",
+    "codegraph:status": "node scripts/run-codegraph.mjs status",
+    "codegraph:init": "node scripts/run-codegraph.mjs init -i",
+    "codegraph:sync": "node scripts/run-codegraph.mjs sync",
     "codegraph:ensure": "node scripts/codegraph-hook.mjs manual",
     "setup:codegraph-hooks": "node scripts/setup-codegraph-hooks.mjs",
     "type-check": "npm run type-check --workspaces --if-present",

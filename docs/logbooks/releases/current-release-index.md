@@ -4,10 +4,11 @@
 
 ### Gray
 
-- 版本：`v0.5.16`
-- release：`20260629-group-default-permission-refresh-gray-r1-v0516`
+- 版本：`v0.5.17`
+- release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
 - 当前状态：`待部署`
 - 当前批次记录：
+  - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `gray/2026-06-29-group-default-permission-refresh-gray.md`
   - `gray/2026-06-28-web-version-sync-gray.md`
   - `gray/2026-06-28-admin-audit-account-drilldown-gray.md`

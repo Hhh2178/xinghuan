@@ -8,6 +8,11 @@
 - 精确文本定位时再回退到 `rg`
 - 改动完成后执行 `codegraph sync`
 
+Windows PowerShell 提示:
+- 这个 worktree 里，直接敲 `codegraph` 可能会命中 PowerShell 的 `.ps1` shim。
+- 建议在本仓库里统一用 `npm run codegraph:status`、`npm run codegraph:init`、`npm run codegraph:sync`。
+- 仓库脚本和 hooks 已经改成绕过这个 shim 的调用方式。
+
 ## 适合优先用 CodeGraph 的场景
 
 - 找 RunningHub、Admin、API、Worker 的真实入口文件
