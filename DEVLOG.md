@@ -84,6 +84,45 @@
 下一步:
 - 跑 type-check、补文档状态、同步 codegraph
 
+### 组执行管理器轮次与每轮重算拓扑
+
+目标:
+- 给全局组执行管理器补齐开始执行开关与执行次数
+- 让整套组顺序支持重复执行 `N` 轮
+- 保证每一轮都按当前画布 `nodes / edges` 重新计算拓扑，而不是复用旧顺序
+
+变更:
+- `apps/web/src/components/nodes/GroupExecutionManagerNode.tsx`
+  - 新增持续开关、执行次数和开始执行按钮
+- `apps/web/src/components/canvas/groupExecutionManager.ts`
+  - 管理器数据新增 `enabled / executionCount`
+  - 执行计划新增管理器启用态和轮次信息
+- `apps/web/src/components/canvas/useCanvasRuntime.ts`
+  - 全局运行改为读取最新画布快照
+  - 管理器启用时，整套组序列支持按轮次重复执行
+  - 每轮开始前重新计算当前拓扑和组执行计划
+- `apps/web/src/utils/topologicalSort.ts`
+  - 多下游无显式依赖时改为稳定排序，不再随机乱序
+- 新增 `scripts/verify-group-execution-manager-contract.ts`
+
+验证:
+- `npx tsx scripts/verify-group-execution-manager-contract.ts`
+- `npm run type-check -w @xinghuan/web`
+- `node scripts/verify-canvas-runtime-split-contract.mjs`
+
+影响:
+- 组内执行不再出现同一上游扇出多个下游时的随机顺序
+- 全局组执行支持从管理器面板直接开始，并能连续跑多轮
+- 画布在运行过程中如果用户修改了连线，下一轮会按最新拓扑生效
+
+风险:
+- 真实灰度环境还需要再跑一轮实际交互，重点确认停止批量运行后的轮次收口表现
+
+下一步:
+- `codegraph sync`
+- gray deploy + runtime verify
+- 在线复验组执行管理器与 aicopy 视频链路
+
 ### 主入口状态收口
 
 目标:

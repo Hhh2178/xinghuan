@@ -28,7 +28,14 @@ const localChecks = [
   {
     label: "apps/api/dist/server.js",
     path: "apps/api/dist/server.js",
-    includesAny: [[`version: "${expectedVersion}"`, `version:"${expectedVersion}"`, `version = "${expectedVersion}"`]],
+    includesAny: [[
+      `version: "${expectedVersion}"`,
+      `version:"${expectedVersion}"`,
+      `version = "${expectedVersion}"`,
+      "version: appVersion",
+      "version:appVersion",
+      "version = appVersion",
+    ]],
   },
 ];
 

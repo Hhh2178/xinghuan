@@ -2,8 +2,8 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.5.1`
-- 当前灰度 release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
+- 当前活跃版本：`v0.5.19`
+- 当前灰度 release：`20260630-group-execution-manager-runtime-rounds-gray-r1-v0519`
 - 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
 - 当前产品路线口径：
   - `Phase 3` 仍在持续收口
@@ -29,6 +29,10 @@
 - 当前工程治理重点：
   - 避免继续制造 `server.ts / worker.ts / RunningHubNode.tsx` 这类超级文件
   - 发布前必须收紧工作树，只保留本轮预期改动
+- 当前画布执行链路重点：
+  - 组执行管理器已支持持续开关、执行次数和面板内直接开始执行
+  - 组内执行按当前连线拓扑串行
+  - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
   - RH 与通用异步任务的轮询超时默认值已收口为“留空不启用”
   - RH 前端节点已去掉本地轮询硬超时

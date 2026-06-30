@@ -1320,10 +1320,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     handleCancelRun,
     handleRunAll,
     handleRunGroup,
+    handleRunAllGroups,
     isRunning,
   } = useCanvasRuntime({
-    nodes,
-    edges,
+    getNodes: () => nodesRef.current,
+    getEdges: () => edgesRef.current,
     executableNodeTypes: EXECUTABLE_NODE_TYPES,
   });
   const {
@@ -1423,6 +1424,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
       JSON.stringify(current?.groupOrder || []) === JSON.stringify(managerData.groupOrder || []) &&
       JSON.stringify(current?.skippedGroupIds || []) === JSON.stringify(managerData.skippedGroupIds || []) &&
       JSON.stringify(current?.groups || []) === JSON.stringify(managerData.groups || []) &&
+      Boolean(current?.enabled ?? true) === Boolean(managerData.enabled) &&
+      Number(current?.executionCount ?? 1) === Number(managerData.executionCount) &&
       String(current?.title || '') === String(managerData.title || '') &&
       String(current?.note || '') === String(managerData.note || '');
     if (same) return;
@@ -2092,8 +2095,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
   // 监听 GroupBox 的执行请求 / 删除请求
   const executeReq = useGroupBusStore((s) => s.executeReq);
   const deleteReq = useGroupBusStore((s) => s.deleteReq);
+  const runAllReq = useGroupBusStore((s) => s.runAllReq);
   const clearExecuteReq = useGroupBusStore((s) => s.clearExecute);
   const clearDeleteReq = useGroupBusStore((s) => s.clearDelete);
+  const clearRunAllReq = useGroupBusStore((s) => s.clearRunAll);
 
   useEffect(() => {
     if (!executeReq) return;
@@ -2101,6 +2106,13 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     clearExecuteReq();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executeReq?.ts]);
+
+  useEffect(() => {
+    if (!runAllReq) return;
+    void handleRunAllGroups();
+    clearRunAllReq();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runAllReq?.ts]);
 
   useEffect(() => {
     if (!deleteReq) return;

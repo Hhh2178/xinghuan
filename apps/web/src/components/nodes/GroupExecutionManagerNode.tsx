@@ -1,8 +1,9 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { ArrowDownAZ, Ban, Workflow } from 'lucide-react';
+import { ArrowDownAZ, Ban, Play, Repeat, ToggleLeft, ToggleRight, Workflow } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
 import { resolveThemeTemplate } from '../../theme/defaultTemplates';
+import { useGroupBusStore } from '../../stores/groupBus';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import type { GroupExecutionManagerData } from '../canvas/groupExecutionManager';
 
@@ -28,6 +29,9 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
   const note = typeof d.note === 'string' ? d.note : '';
   const groupOrder = Array.isArray(d.groupOrder) ? d.groupOrder : [];
   const skippedGroupIds = new Set(Array.isArray(d.skippedGroupIds) ? d.skippedGroupIds : []);
+  const enabled = d.enabled !== false;
+  const executionCount = Number.isFinite(Number(d.executionCount)) ? Math.max(1, Math.floor(Number(d.executionCount))) : 1;
+  const requestRunAll = useGroupBusStore((state) => state.requestRunAll);
 
   const normalizedGroups = useMemo(() => {
     const mapped = new Map<string, ManagerItem>();
@@ -114,7 +118,7 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{title}</div>
-          <div className="text-[10px] opacity-70 truncate">全局控制组执行顺序 / 跳过</div>
+          <div className="text-[10px] opacity-70 truncate">全局控制组执行顺序 / 跳过 / 轮次</div>
         </div>
         <div className="text-[10px] opacity-70 flex items-center gap-1">
           <ArrowDownAZ size={12} />
@@ -149,6 +153,56 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
             }}
           />
         </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <div className="text-[10px] font-semibold opacity-70 mb-1">持续开关</div>
+            <button
+              type="button"
+              onClick={() => update({ enabled: !enabled })}
+              className="w-full rounded px-2 py-1.5 text-xs border flex items-center justify-between gap-2"
+              style={{
+                background: isDark ? 'rgba(255,255,255,.04)' : '#fff',
+                color: isDark ? '#fff' : '#111',
+                borderColor: isPixel ? '#1A1410' : isDark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.12)',
+              }}
+            >
+              <span>{enabled ? '启用' : '停用'}</span>
+              {enabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+            </button>
+          </label>
+          <label className="block">
+            <div className="text-[10px] font-semibold opacity-70 mb-1">执行次数</div>
+            <div className="relative">
+              <Repeat size={12} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={executionCount}
+                onChange={(e) => update({ executionCount: Math.max(1, Math.min(99, Math.floor(Number(e.target.value) || 1))) })}
+                className="w-full rounded pl-7 pr-2 py-1.5 text-xs outline-none border"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,.04)' : '#fff',
+                  color: isDark ? '#fff' : '#111',
+                  borderColor: isPixel ? '#1A1410' : isDark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.12)',
+                }}
+              />
+            </div>
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={() => requestRunAll()}
+          className="w-full rounded px-3 py-2 text-xs font-semibold border flex items-center justify-center gap-2"
+          style={{
+            background: '#38bdf822',
+            color: '#38bdf8',
+            borderColor: '#38bdf855',
+          }}
+        >
+          <Play size={13} fill="currentColor" />
+          <span>开始执行</span>
+        </button>
 
         <div className="space-y-1.5">
           <div className="text-[10px] font-semibold opacity-70">组顺序</div>

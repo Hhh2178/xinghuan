@@ -3,6 +3,7 @@ import {
   type AssistantChatResult,
   type AnnouncementRecord,
   TASK_QUEUE_CAPABILITIES,
+  appVersion,
   buildTaskQueueRuntimeDescriptors,
   createHealthPayload,
   type EnvironmentSyncApplyItem,
@@ -1061,7 +1062,7 @@ const server = createServer(async (request, response) => {
     sendT8(response, {
       status: "ok",
       service: "xinghuan-api",
-      version: "0.5.18",
+      version: appVersion,
       environment,
       dataDir,
     });
@@ -2292,7 +2293,7 @@ async function handleAdminRequest(
         storageDriver,
         authDbPath,
         adminDbPath,
-    version: "0.5.18",
+        version: appVersion,
       },
       queueSettings: {
         sendT8,

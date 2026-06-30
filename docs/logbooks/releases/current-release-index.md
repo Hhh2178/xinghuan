@@ -4,12 +4,13 @@
 
 ### Gray
 
-- 版本：`v0.5.18`
-- release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
-- 当前状态：`2026-06-30 已完成 deploy + runtime verify`
-- 当前本地补修：`aicopy / grok-imagine-video-1.5-preview` 协议修复与视频时长范围配置已完成代码收口，待 gray 重部署后执行在线烟测
+- 版本：`v0.5.19`
+- release：`20260630-group-execution-manager-runtime-rounds-gray-r1-v0519`
+- 当前状态：`2026-06-30 本地代码与发布材料已收口，待 gray deploy + runtime verify`
+- 当前本地补修：`组执行管理器已补齐开始执行开关、执行次数、每轮按当前画布重算拓扑；待 gray 重部署后执行在线烟测`
 - 当前批次记录：
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
+  - `gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
   - `gray/2026-06-29-group-default-permission-refresh-gray.md`
   - `gray/2026-06-28-web-version-sync-gray.md`
   - `gray/2026-06-28-admin-audit-account-drilldown-gray.md`

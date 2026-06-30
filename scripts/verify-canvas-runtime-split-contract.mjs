@@ -24,14 +24,16 @@ ensureExists(viewportHotkeysFile);
 
 ensureContains(canvasFile, "import { useCanvasRuntime } from './canvas/useCanvasRuntime';");
 ensureContains(canvasFile, "import { useCanvasViewportHotkeys } from './canvas/useCanvasViewportHotkeys';");
-ensureContains(canvasFile, 'const {\n    batchDone,\n    batchTotal,\n    handleCancelRun,\n    handleRunAll,\n    handleRunGroup,\n    isRunning,\n  } = useCanvasRuntime({');
+ensureContains(canvasFile, 'const {\n    batchDone,\n    batchTotal,\n    handleCancelRun,\n    handleRunAll,\n    handleRunGroup,\n    handleRunAllGroups,\n    isRunning,\n  } = useCanvasRuntime({');
 ensureContains(canvasFile, 'const { focusNodeBySerialId, handleViewportHotkeys } = useCanvasViewportHotkeys({');
 ensureContains(canvasFile, 'handleViewportHotkeys(e)');
 
 ensureContains(runtimeFile, 'export function useCanvasRuntime(');
 ensureContains(runtimeFile, 'const runNodesByOrder = useCallback(');
+ensureContains(runtimeFile, 'const runManagedRounds = useCallback(async () => {');
 ensureContains(runtimeFile, 'const handleRunAll = useCallback(async () => {');
 ensureContains(runtimeFile, 'const handleRunGroup = useCallback(');
+ensureContains(runtimeFile, 'const handleRunAllGroups = useCallback(async () => {');
 
 ensureContains(viewportHotkeysFile, 'export function useCanvasViewportHotkeys(');
 ensureContains(viewportHotkeysFile, 'const focusNearestNodeToViewport = useCallback(() => {');

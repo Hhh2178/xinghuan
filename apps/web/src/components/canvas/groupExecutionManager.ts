@@ -7,6 +7,8 @@ export const GROUP_EXECUTION_MANAGER_NODE_TYPE = 'group-execution-manager' as co
 
 export interface GroupExecutionManagerData {
   title: string;
+  enabled: boolean;
+  executionCount: number;
   groupOrder: string[];
   skippedGroupIds: string[];
   groups?: Array<{
@@ -26,6 +28,9 @@ export interface GroupExecutionGroupBlock {
 }
 
 export interface GroupExecutionPlan {
+  managerPresent: boolean;
+  managerEnabled: boolean;
+  executionCount: number;
   groupBlocks: GroupExecutionGroupBlock[];
   standaloneIds: string[];
 }
@@ -42,6 +47,12 @@ function uniqueStrings(values: string[]) {
   return result;
 }
 
+function normalizeExecutionCount(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(1, Math.min(99, Math.floor(numeric)));
+}
+
 export function normalizeGroupExecutionManagerData(
   data: Partial<GroupExecutionManagerData> | null | undefined,
   groupIds: string[],
@@ -56,6 +67,8 @@ export function normalizeGroupExecutionManagerData(
   const skippedGroupIds = incomingSkipped.filter((id) => canonicalGroupIds.includes(id));
   return {
     title: typeof data?.title === 'string' && data.title.trim() ? data.title : '全局组执行管理',
+    enabled: data?.enabled !== false,
+    executionCount: normalizeExecutionCount(data?.executionCount),
     groupOrder: order,
     skippedGroupIds,
     note: typeof data?.note === 'string' ? data.note : '',
@@ -138,7 +151,22 @@ export function resolveGroupExecutionPlan(
     executableNodeTypes,
   );
 
-  return { groupBlocks, standaloneIds };
+  return {
+    managerPresent: Boolean(managerNode),
+    managerEnabled: managerData.enabled,
+    executionCount: managerData.executionCount,
+    groupBlocks,
+    standaloneIds,
+  };
+}
+
+export function resolveManagedExecutionOrder(plan: GroupExecutionPlan): string[] {
+  return [
+    ...plan.groupBlocks
+      .filter((block) => !block.skipped)
+      .flatMap((block) => block.executableIds),
+    ...plan.standaloneIds,
+  ];
 }
 
 export function resolveGlobalExecutionOrder(
@@ -147,10 +175,5 @@ export function resolveGlobalExecutionOrder(
   executableNodeTypes: Set<string>,
 ): string[] {
   const plan = resolveGroupExecutionPlan(nodes, edges, executableNodeTypes);
-  return [
-    ...plan.groupBlocks
-      .filter((block) => !block.skipped)
-      .flatMap((block) => block.executableIds),
-    ...plan.standaloneIds,
-  ];
+  return resolveManagedExecutionOrder(plan);
 }
