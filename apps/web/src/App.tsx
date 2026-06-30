@@ -389,6 +389,9 @@ function App() {
   const generationButtonClassName = isPixel
     ? `${utilityButtonClassName} px-btn--yellow`
     : `${utilityButtonClassName} bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20`;
+  const performanceButtonClassName = isPixel
+    ? `${utilityButtonClassName} px-btn--ghost`
+    : `${utilityButtonClassName} bg-sky-500/10 border-sky-500/30 text-sky-200 hover:bg-sky-500/20`;
 
   const handleAddNode = (type: NodeType) => {
     addNodeRef.current?.(type);
@@ -568,28 +571,6 @@ function App() {
             <LogOut size={14} />
           </button>
         </div>
-        <div className="flex flex-1 justify-center px-3">
-          <button
-            type="button"
-            className={`xh-topbar-performance-toggle ${performanceMode === 'optimized' ? 'is-active' : ''}`}
-            title={`切换性能优化模式（当前${performanceMode === 'optimized' ? '开启' : '关闭'}，切换后将刷新）`}
-            aria-pressed={performanceMode === 'optimized'}
-            onClick={handlePerformanceModeToggle}
-          >
-            <span className="xh-topbar-performance-toggle__copy">
-              <span className="xh-topbar-performance-toggle__label">
-                <Gauge size={13} />
-                性能优化
-              </span>
-              <span className="xh-topbar-performance-toggle__hint">
-                {performanceMode === 'optimized' ? '已开启' : '已关闭'}
-              </span>
-            </span>
-            <span className="xh-topbar-performance-toggle__rail" aria-hidden="true">
-              <span className="xh-topbar-performance-toggle__thumb" />
-            </span>
-          </button>
-        </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -620,6 +601,21 @@ function App() {
           >
             <Sparkles size={14} />
             <span className="text-[11px]">生成库</span>
+          </button>
+          <button
+            type="button"
+            className={`${performanceButtonClassName} xh-topbar-pill--performance ${performanceMode === 'optimized' ? 'is-active' : ''}`}
+            title="切换性能优化模式"
+            aria-pressed={performanceMode === 'optimized'}
+            onClick={handlePerformanceModeToggle}
+          >
+            <span className="xh-topbar-pill--performance__label">
+              <Gauge size={14} />
+              <span className="text-[11px]">性能优化</span>
+            </span>
+            <span className="xh-topbar-pill--performance__rail" aria-hidden="true">
+              <span className="xh-topbar-pill--performance__thumb" />
+            </span>
           </button>
           <button
             onClick={toggleTheme}

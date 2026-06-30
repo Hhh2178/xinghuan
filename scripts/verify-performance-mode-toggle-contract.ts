@@ -46,6 +46,21 @@ async function main() {
     /性能优化/,
     'topbar should expose a visible performance mode control',
   );
+  assert.doesNotMatch(
+    appSource,
+    /已开启|已关闭/,
+    'performance toggle should not show open/closed text labels',
+  );
+  assert.doesNotMatch(
+    appSource,
+    /flex flex-1 justify-center px-3/,
+    'performance toggle should not stay in the center column',
+  );
+  assert.match(
+    appSource,
+    /<div className="flex items-center gap-1">[\s\S]*xh-topbar-pill--performance[\s\S]*性能优化[\s\S]*aria-pressed=/s,
+    'performance toggle should live with the right-side announcement controls',
+  );
 
   console.log('verify-performance-mode-toggle-contract: ok');
 }

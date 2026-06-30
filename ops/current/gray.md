@@ -6,7 +6,7 @@
 - 当前 release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
 - 当前状态：`2026-06-30 准备灰度发布`
 - 当前补修：`2026-06-30-performance-toggle-and-import-fixes-gray.md`
-- 当前本地待补修：`待用户在 gray 上补做真实浏览器验收；服务器视频样例缺失导致 verify:single-port 的视频生成库样例项未覆盖`
+- 当前本地待补修：`待用户在 gray 上补做真实浏览器验收；服务器视频样例缺失导致 verify:single-port 的视频生成库样例项未覆盖；性能优化开关已移至右侧公告控件区`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`

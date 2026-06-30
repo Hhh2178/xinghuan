@@ -20,7 +20,7 @@
 - `apps/web/src/stores/performanceMode.ts`
   - 新增持久化性能模式 store，默认 `normal`。
 - `apps/web/src/App.tsx`
-  - 顶栏中部新增“性能优化”开关。
+  - 顶栏右侧公告控件区新增“性能优化”胶囊开关。
   - 切换模式后立即 `window.location.reload()`。
   - 启动时按持久化模式写入 `data-performance-mode`。
 - `apps/web/src/styles/index.css`
