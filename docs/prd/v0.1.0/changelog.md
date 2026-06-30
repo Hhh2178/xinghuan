@@ -1,5 +1,31 @@
 # v0.1.0 Changelog
 
+## 2026-06-30
+
+- 视频节点导入兼容与前端低性能降级：
+  - `apps/web/src/utils/nodeMigration.ts`
+    - 导入与恢复画布时，视频节点新增轻迁移，清理旧 `status / taskId / taskRuns / progress / videoUrl / remoteVideoUrls / startedAt / finishedAt` 等运行态
+  - `apps/api/src/canvas-node-migration.ts`
+    - 后端同步补齐视频节点导入清理，保持前后端迁移口径一致
+  - 新增回归脚本：
+    - `scripts/verify-video-import-migration-contract.ts`
+    - `scripts/verify-visual-performance-mode-contract.ts`
+    - `scripts/verify-performance-mode-toggle-contract.ts`
+  - `apps/web/src/utils/visualPerformanceMode.ts`
+    - 保留前端 reduced 渲染档位，继续作为性能优化模式的轻量视觉层
+  - `apps/web/src/stores/performanceMode.ts`
+    - 新增持久化性能模式 store，默认关闭，支持跨刷新/重新登录保留选择
+  - `apps/web/src/App.tsx`
+    - 顶栏中部新增“性能优化”开关，切换后强制刷新，并在启动时按持久化选择应用 `data-performance-mode`
+  - `apps/web/src/styles/index.css`
+    - reduced mode 下关闭鼠标光晕、星轨动画，并对画布节点和关键浮层统一禁用 `backdrop-filter`
+  - 本地验证通过：
+    - `npx tsx scripts/verify-video-import-migration-contract.ts`
+    - `npx tsx scripts/verify-llm-import-migration-contract.ts`
+    - `npx tsx scripts/verify-visual-performance-mode-contract.ts`
+    - `npx tsx scripts/verify-performance-mode-toggle-contract.ts`
+    - `npm run type-check -w @xinghuan/web`
+
 ## 2026-06-28
 
 - 审计页账号级模型与 RH 条目下钻：

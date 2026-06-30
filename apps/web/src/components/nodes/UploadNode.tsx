@@ -17,9 +17,11 @@ import { useHiddenFeatureStore, isRhDuckUploadEnabled } from '../../stores/hidde
 import { PORT_COLOR } from '../../config/portTypes';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
+import { useRunBusStore } from '../../stores/runBus';
 import ImageEditModal, { type ImageEditProduceMeta } from './ImageEditModal';
 import ResizableCorners from './ResizableCorners';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
+import { shouldAutoCreateUploadOutputs } from './uploadRunPolicy';
 import CollectionSplitButton from '../CollectionSplitButton';
 import ImageHoverPreview from '../ImageHoverPreview';
 import LoopingVideo from '../LoopingVideo';
@@ -181,6 +183,12 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
     }
     const edges = rf.getEdges();
     const nodes = rf.getNodes();
+    const runMode = useRunBusStore.getState().mode;
+    const hasDownstreamLinks = edges.some((edge) => edge.source === id);
+
+    if (!shouldAutoCreateUploadOutputs({ runMode, hasDownstreamLinks })) {
+      return;
+    }
 
     const toDecodedMediaItem = (source: MediaItem, decoded?: DuckDecodeFileItem): MediaItem | null => {
       if (!decoded?.decoded || !decoded.url) return null;

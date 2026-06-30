@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
+import { usePerformanceModeStore } from './stores/performanceMode';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
 import { useShortcutStore } from './stores/shortcuts';
@@ -21,6 +22,7 @@ import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } fr
 import { createLazyImportWithReloadRecovery } from './utils/lazyImportRecovery';
 import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
+import { applyVisualPerformanceMode } from './utils/visualPerformanceMode';
 import {
   buildPortraitPrompt,
   normalizePortraitLocks,
@@ -182,6 +184,7 @@ async function workflowResourceToFragment(item: ResourceItem) {
  */
 function App() {
   const { theme, style, templateId, toggleTheme } = useThemeStore();
+  const performanceMode = usePerformanceModeStore((state) => state.mode);
   const { load: loadSettings } = useApiKeysStore();
   const { load: loadModelCatalog } = useModelCatalogStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
@@ -292,6 +295,11 @@ function App() {
     const t = window.setInterval(check, 15_000);
     return () => window.clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    applyVisualPerformanceMode(root, performanceMode === 'optimized' ? 'reduced' : 'default');
+  }, [performanceMode]);
 
   useEffect(() => {
     let alive = true;
@@ -457,6 +465,12 @@ function App() {
     setCurrentUser(null);
   };
 
+  const handlePerformanceModeToggle = () => {
+    const nextMode = performanceMode === 'optimized' ? 'normal' : 'optimized';
+    usePerformanceModeStore.getState().setMode(nextMode);
+    window.location.reload();
+  };
+
   if (previewMode === 'transition') {
     return <CyberTransitionStage />;
   }
@@ -496,7 +510,7 @@ function App() {
               : 'bg-white border-black/10'
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <img className="xh-cyber-topbar-logo xh-cyber-topbar-logo--large" src={brandStellarGlitchLogo} alt="星幻画布" />
           <span
             className={
@@ -552,6 +566,28 @@ function App() {
             onClick={handleLogout}
           >
             <LogOut size={14} />
+          </button>
+        </div>
+        <div className="flex flex-1 justify-center px-3">
+          <button
+            type="button"
+            className={`xh-topbar-performance-toggle ${performanceMode === 'optimized' ? 'is-active' : ''}`}
+            title={`切换性能优化模式（当前${performanceMode === 'optimized' ? '开启' : '关闭'}，切换后将刷新）`}
+            aria-pressed={performanceMode === 'optimized'}
+            onClick={handlePerformanceModeToggle}
+          >
+            <span className="xh-topbar-performance-toggle__copy">
+              <span className="xh-topbar-performance-toggle__label">
+                <Gauge size={13} />
+                性能优化
+              </span>
+              <span className="xh-topbar-performance-toggle__hint">
+                {performanceMode === 'optimized' ? '已开启' : '已关闭'}
+              </span>
+            </span>
+            <span className="xh-topbar-performance-toggle__rail" aria-hidden="true">
+              <span className="xh-topbar-performance-toggle__thumb" />
+            </span>
           </button>
         </div>
         <div className="flex items-center gap-1">

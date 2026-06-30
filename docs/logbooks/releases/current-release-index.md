@@ -4,11 +4,12 @@
 
 ### Gray
 
-- 版本：`v0.5.19`
-- release：`20260630-group-execution-manager-runtime-rounds-gray-r2-v0519`
-- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify；release package smoke 脚本已补齐并完成服务器侧 smoke`
-- 当前本地补修：`组执行管理器已补齐开始执行开关、执行次数、每轮按当前画布重算拓扑；待用户在 gray 上补做真实交互验收`
+- 版本：`v0.5.20`
+- release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
+- 当前状态：`2026-06-30 准备灰度发布`
+- 当前本地补修：`性能优化开关、视频导入兼容、上传输出策略已完成本地收口`
 - 当前批次记录：
+  - `gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
   - `gray/2026-06-29-group-default-permission-refresh-gray.md`

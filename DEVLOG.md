@@ -56,6 +56,52 @@
 
 ## 2026-06-30
 
+### 视频节点导入兼容与前端低性能降级
+
+目标:
+- 修复旧工作流导入后视频节点偶发不可用的问题
+- 对齐前后端导入迁移口径，避免旧运行态把节点卡成“轮询中/不可运行”
+- 缓解部分低配电脑上前端科技风画布的严重卡顿
+
+变更:
+- `apps/web/src/utils/nodeMigration.ts`
+  - 新增视频节点导入迁移，清理 `status / taskId / taskRuns / videoUrl / remoteVideoUrls / startedAt / finishedAt` 等旧运行态
+- `apps/api/src/canvas-node-migration.ts`
+  - 同步补齐视频节点导入清理，保证后端保存/恢复与前端口径一致
+- 新增 `scripts/verify-video-import-migration-contract.ts`
+- 新增 `apps/web/src/utils/visualPerformanceMode.ts`
+  - 保留 reduced 渲染档位，统一承接前端性能优化模式的轻量视觉渲染
+- 新增 `apps/web/src/stores/performanceMode.ts`
+  - 新增持久化性能模式 store，默认 `normal`，切到 `optimized` 后跨刷新与重新登录保留
+- `apps/web/src/App.tsx`
+  - 顶栏中部新增“性能优化”开关，切换后立即刷新页面
+  - 启动时按持久化性能模式写入 `data-performance-mode`
+- `apps/web/src/styles/index.css`
+  - 低性能模式下关闭鼠标光晕与星轨动画
+  - 低性能模式下对 `react-flow` 节点与若干浮层统一禁用 `backdrop-filter`
+- 新增 `scripts/verify-visual-performance-mode-contract.ts`
+- 新增 `scripts/verify-performance-mode-toggle-contract.ts`
+
+验证:
+- `npx tsx scripts/verify-video-import-migration-contract.ts`
+- `npx tsx scripts/verify-llm-import-migration-contract.ts`
+- `npx tsx scripts/verify-visual-performance-mode-contract.ts`
+- `npx tsx scripts/verify-performance-mode-toggle-contract.ts`
+- `npm run type-check -w @xinghuan/web`
+
+影响:
+- 旧视频节点在“导入工作流 / 恢复画布”后不再因为残留运行态而卡死
+- 画布顶栏现在可手动切换性能优化模式，开启后会稳定进入较轻的科技风表现，减少鼠标光晕和磨玻璃带来的浏览器压力
+
+风险:
+- 这次导入迁移会主动丢弃视频节点的旧输出结果与旧任务状态；如果后续要支持“带结果归档导入”，需要单独设计
+- 当前性能优化仍主要压制全局视觉特效和画布节点磨玻璃，节点超多场景下的更深层懒渲染/视口裁剪还需要下一轮继续推进
+
+下一步:
+- 在问题工作流上复验“视频节点导入后可立即运行”
+- 在出现卡顿的电脑上确认手动性能优化模式是否明显改善
+- 如仍有明显卡顿，再继续下探 `CanvasAssistant / LoginGate / 节点级 blur` 的第二层热点
+
 ### 组内拓扑执行与科技风收口
 
 目标:

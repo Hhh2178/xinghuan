@@ -23,10 +23,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.19`
-  - release：`20260630-group-execution-manager-runtime-rounds-gray-r2-v0519`
-  - 状态：`2026-06-30 已完成 gray deploy + runtime verify；服务器 current release smoke 已恢复可执行`
-  - 当前补修：`组执行管理器开始执行 / 执行轮次 / 每轮重算拓扑`
+  - 版本：`v0.5.20`
+  - release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
+  - 状态：`2026-06-30 准备灰度发布`
+  - 当前补修：`性能优化开关、视频导入兼容、上传输出策略`
   - 本地待补修：`待用户补做 gray 真实交互验收；aicopy 视频链路与组执行管理器视觉行为仍待业务侧确认`
 - Production：
   - 域名：`canvas.hhh2121.xyz`

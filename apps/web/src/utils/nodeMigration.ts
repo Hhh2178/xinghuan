@@ -4,9 +4,12 @@ export function migrateImportedNodeData(node: Node): Node {
   if (!node || typeof node !== 'object') return node;
   const type = String(node.type || '').toLowerCase();
   const data = (node.data || {}) as Record<string, unknown>;
-  if (type !== 'llm') return node;
-
-  const nextData = cleanImportedLlmData(data);
+  const nextData =
+    type === 'llm'
+      ? cleanImportedLlmData(data)
+      : type === 'video'
+        ? cleanImportedVideoData(data)
+        : data;
   const changed = nextData !== data;
 
   if (changed) {
@@ -52,6 +55,37 @@ function cleanImportedLlmData(data: Record<string, unknown>): Record<string, unk
     'imageUrls',
     'consumedTexts',
     'taskRuns',
+    'startedAt',
+    'finishedAt',
+    'lastPrompt',
+    'lastDurationMs',
+  ] as const) {
+    if (key in nextData) {
+      delete nextData[key];
+      changed = true;
+    }
+  }
+
+  return changed ? nextData : data;
+}
+
+function cleanImportedVideoData(data: Record<string, unknown>): Record<string, unknown> {
+  const nextData: Record<string, unknown> = { ...data };
+  let changed = false;
+
+  for (const key of [
+    'error',
+    'status',
+    'isRunning',
+    'isPolling',
+    'pollingTimer',
+    'taskId',
+    'taskIds',
+    'progress',
+    'taskRuns',
+    'videoUrl',
+    'videoUrls',
+    'remoteVideoUrls',
     'startedAt',
     'finishedAt',
     'lastPrompt',

@@ -6,7 +6,9 @@ export function cleanImportedNodeData(nodeType: unknown, data: unknown): unknown
   const next: Record<string, unknown> = { ...source };
   let changed = false;
 
-  if (String(nodeType || '').toLowerCase() === 'llm') {
+  const normalizedType = String(nodeType || '').toLowerCase();
+
+  if (normalizedType === 'llm') {
     const legacyPrompt = typeof next.prompt === 'string' ? next.prompt : '';
     const userPrompt = typeof next.userPrompt === 'string' ? next.userPrompt : '';
     const reply = typeof next.reply === 'string' ? next.reply : '';
@@ -33,6 +35,32 @@ export function cleanImportedNodeData(nodeType: unknown, data: unknown): unknown
       'imageUrls',
       'consumedTexts',
       'taskRuns',
+      'startedAt',
+      'finishedAt',
+      'lastPrompt',
+      'lastDurationMs',
+    ] as const) {
+      if (key in next) {
+        delete next[key];
+        changed = true;
+      }
+    }
+  }
+
+  if (normalizedType === 'video') {
+    for (const key of [
+      'error',
+      'status',
+      'isRunning',
+      'isPolling',
+      'pollingTimer',
+      'taskId',
+      'taskIds',
+      'progress',
+      'taskRuns',
+      'videoUrl',
+      'videoUrls',
+      'remoteVideoUrls',
       'startedAt',
       'finishedAt',
       'lastPrompt',

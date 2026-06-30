@@ -2,13 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.19`
-- 当前 release：`20260630-group-execution-manager-runtime-rounds-gray-r2-v0519`
-- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify；服务器 current release smoke 已恢复可执行`
-- 当前补修：`2026-06-30-group-execution-manager-runtime-rounds-gray.md`
-- 当前本地待补修：`待用户在 gray 上补做组执行管理器真实交互验收与 aicopy 视频链路验收；服务器视频样例缺失导致 verify:single-port 的视频生成库样例项未覆盖`
+- 当前版本：`v0.5.20`
+- 当前 release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
+- 当前状态：`2026-06-30 准备灰度发布`
+- 当前补修：`2026-06-30-performance-toggle-and-import-fixes-gray.md`
+- 当前本地待补修：`待用户在 gray 上补做真实浏览器验收；服务器视频样例缺失导致 verify:single-port 的视频生成库样例项未覆盖`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-29-group-default-permission-refresh-gray.md`
