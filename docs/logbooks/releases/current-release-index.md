@@ -6,7 +6,7 @@
 
 - 版本：`v0.5.20`
 - release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-- 当前状态：`2026-06-30 准备灰度发布`
+- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify`
 - 当前本地补修：`性能优化右侧开关、视频导入兼容、上传输出策略已完成本地收口`
 - 当前批次记录：
   - `gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`

@@ -5,7 +5,7 @@
 - 环境：`gray`
 - 版本：`v0.5.20`
 - release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-- 当前状态：`准备灰度发布`
+- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify`
 - 上一灰度 release：`20260630-group-execution-manager-runtime-rounds-gray-r2-v0519`
 
 ## 发布目标

@@ -25,7 +25,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.20`
   - release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-  - 状态：`2026-06-30 准备灰度发布`
+  - 状态：`2026-06-30 已完成 gray deploy + runtime verify`
   - 当前补修：`性能优化右侧开关、视频导入兼容、上传输出策略`
   - 本地待补修：`待用户补做 gray 真实交互验收；aicopy 视频链路与组执行管理器视觉行为仍待业务侧确认`
 - Production：
