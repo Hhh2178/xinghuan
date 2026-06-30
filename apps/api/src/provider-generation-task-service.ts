@@ -318,7 +318,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(params.modelRecordId),
     );
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
