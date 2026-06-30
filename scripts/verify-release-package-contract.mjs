@@ -28,6 +28,8 @@ assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-task-se
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-task-service.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-worker.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-worker.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-single-port.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-single-port.mjs");
 assertArrayIncludes("requiredPaths", "apps/api/src/server.ts");
 assertArrayIncludes("requiredPaths", "apps/api/src/provider-generation-task-service.ts");
 assertArrayIncludes("requiredPaths", "apps/worker/src/worker.ts");
@@ -52,6 +54,7 @@ console.log(
         "scripts/verify-worker-observability-contract.mjs",
         "scripts/verify-provider-generation-task-service.mjs",
         "scripts/verify-provider-generation-worker.mjs",
+        "scripts/verify-single-port.mjs",
       ],
       requiredSources: [
         "apps/api/src/server.ts",
