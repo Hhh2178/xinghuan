@@ -610,7 +610,7 @@ function App() {
             onClick={handlePerformanceModeToggle}
           >
             <span className="xh-topbar-pill--performance__label">
-              <Gauge size={14} />
+              <Gauge size={13} />
               <span className="text-[11px]">性能优化</span>
             </span>
             <span className="xh-topbar-pill--performance__rail" aria-hidden="true">
