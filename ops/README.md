@@ -33,8 +33,8 @@
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.5.20`
   - release：`20260701-performance-toggle-button-sizing-prod-r1-v0520`
-  - 状态：`2026-07-01 待 production deploy + runtime verify`
-  - 当前补修：`性能优化按钮尺寸对齐已完成本地收口，待正式晋级`
+  - 状态：`2026-07-01 已完成 production deploy + runtime verify`
+  - 当前补修：`性能优化按钮尺寸对齐已完成正式晋级`
 
 ## current / archive 分工
 

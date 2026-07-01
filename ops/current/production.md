@@ -4,8 +4,8 @@
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.5.20`
 - 当前 release：`20260701-performance-toggle-button-sizing-prod-r1-v0520`
-- 当前状态：`2026-07-01 待 production deploy + runtime verify`
-- 当前补修：`性能优化按钮尺寸对齐已完成本地收口，待正式晋级`
+- 当前状态：`2026-07-01 已完成 production deploy + runtime verify`
+- 当前补修：`性能优化按钮尺寸对齐已完成正式晋级`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-06-30-group-execution-manager-runtime-rounds-production.md`
