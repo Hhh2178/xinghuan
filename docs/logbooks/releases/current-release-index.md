@@ -52,10 +52,12 @@
 
 ### Production
 
-- 版本：`v0.5.19`
-- release：`20260630-group-execution-manager-runtime-rounds-prod-r1-v0519`
-- 当前状态：`2026-06-30 已完成 production deploy + runtime verify`
+- 版本：`v0.5.20`
+- release：`20260701-performance-toggle-button-sizing-prod-r1-v0520`
+- 当前状态：`2026-07-01 待 production deploy + runtime verify`
+- 当前补修：`性能优化按钮尺寸对齐已完成本地收口，待正式晋级`
 - 当前批次记录：
+  - `production/2026-07-01-performance-toggle-button-sizing-production.md`
   - `production/2026-06-30-group-execution-manager-runtime-rounds-production.md`
   - `production/2026-06-28-web-version-sync-production.md`
   - `production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`

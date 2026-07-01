@@ -6,4 +6,4 @@
 
 ## 当前 active production release
 
-- `2026-06-28-admin-assistant-environment-sync-overlap-production.md`
+- `2026-07-01-performance-toggle-button-sizing-production.md`
