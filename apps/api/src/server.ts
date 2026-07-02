@@ -137,6 +137,7 @@ import { createGroupPermissionPolicyRouteHandler } from "./group-permission-poli
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
+import { handleComfyuiInstanceRoutes } from "./comfyui-instance-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
@@ -2223,6 +2224,8 @@ async function handleAdminRequest(
   })) {
     return true;
   }
+
+  if (await handleComfyuiInstanceRoutes({ request, response, url, adminUser, requestContext, deps: { sendT8, appendAudit, adminDir } })) return true;
 
   if (await handleAdminAnnouncementRoutes({
     request,
