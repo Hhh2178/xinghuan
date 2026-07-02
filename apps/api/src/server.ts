@@ -137,7 +137,7 @@ import { createGroupPermissionPolicyRouteHandler } from "./group-permission-poli
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
-import { handleComfyuiInstanceRoutes } from "./comfyui-instance-routes.js";
+import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } from "./comfyui-instance-routes.js";
 import { handleComfyuiPublicRoutes } from "./comfyui-public-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
@@ -153,7 +153,7 @@ const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
-const environmentSyncToken = safeText(process.env.XINGHUAN_ENVIRONMENT_SYNC_TOKEN || "");
+const environmentSyncToken = safeText(process.env.XINGHUAN_ENVIRONMENT_SYNC_TOKEN || ""), comfyuiConnectorToken = safeText(process.env.XINGHUAN_COMFYUI_CONNECTOR_TOKEN || "");
 const environmentSyncBaseUrls: Record<"gray" | "production", string> = {
   gray: safeText(process.env.XINGHUAN_GRAY_API_BASE_URL || "http://127.0.0.1:18200"),
   production: safeText(process.env.XINGHUAN_PRODUCTION_API_BASE_URL || "http://127.0.0.1:18100"),
@@ -1097,6 +1097,7 @@ const server = createServer(async (request, response) => {
         }));
         return;
       }
+      if (await handleInternalComfyuiConnectorRoutes({ request, response, url, deps: { sendT8, adminDir, connectorToken: comfyuiConnectorToken } })) return;
 
       if (requiresCsrfProtection(url.pathname, request.method || "GET")) {
         assertSameOriginWriteRequest(request);
@@ -3033,7 +3034,6 @@ function assertInternalEnvironmentSyncRequest(request: import("node:http").Incom
     throw new HttpError(403, "ENVIRONMENT_SYNC_FORBIDDEN");
   }
 }
-
 async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSyncTarget): Promise<EnvironmentSyncSnapshot> {
   const authDb = await readAuthDb();
   const adminDb = await readAdminDb();

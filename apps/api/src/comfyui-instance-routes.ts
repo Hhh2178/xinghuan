@@ -41,6 +41,12 @@ interface ComfyuiInstanceRouteDeps {
   adminDir: string;
 }
 
+interface InternalComfyuiConnectorRouteDeps {
+  sendT8: (response: ServerResponse, payload: unknown, statusCode?: number, headers?: Record<string, string>) => void;
+  adminDir: string;
+  connectorToken: string;
+}
+
 interface InstanceMutationBody {
   id?: string;
   name?: string;
@@ -51,6 +57,10 @@ interface InstanceMutationBody {
   capabilities?: unknown;
   note?: string;
   connectorVersion?: string;
+}
+
+interface ConnectorMutationBody extends InstanceMutationBody {
+  heartbeatIntervalMs?: number;
 }
 
 interface WorkflowMutationBody {
@@ -113,6 +123,96 @@ function assertAdmin(currentUser: CurrentUserShape | null | undefined) {
 
 function workflowSummary(workflow: ComfyuiWorkflowDraft) {
   return `ComfyUI 工作流 ${workflow.title}`;
+}
+
+function resolveHeartbeatIntervalMs(value: unknown) {
+  const interval = Number(value);
+  if (!Number.isFinite(interval)) return 15000;
+  return Math.max(5000, Math.min(300000, Math.floor(interval)));
+}
+
+export async function handleInternalComfyuiConnectorRoutes(input: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  url: URL;
+  deps: InternalComfyuiConnectorRouteDeps;
+}) {
+  const { request, response, url, deps } = input;
+  if (!url.pathname.startsWith("/api/internal/comfyui/connectors/")) return false;
+  if (!deps.connectorToken) {
+    sendComfyuiError(response, 503, "COMFYUI_CONNECTOR_DISABLED");
+    return true;
+  }
+  const headerToken = safeText(request.headers["x-comfyui-connector-token"]);
+  if (!headerToken || headerToken !== deps.connectorToken) {
+    sendComfyuiError(response, 403, "COMFYUI_CONNECTOR_FORBIDDEN");
+    return true;
+  }
+  const registry = createComfyuiWorkflowRegistry(deps.adminDir);
+
+  if (url.pathname === "/api/internal/comfyui/connectors/register" && request.method === "POST") {
+    const body = await readJsonBody<ConnectorMutationBody>(request);
+    const instance = normalizeComfyuiInstanceRecord({
+      ...body,
+      id: safeSlug(body.id, safeSlug(body.name, `comfyui-${Date.now().toString(36)}`)),
+      capabilities: Array.isArray(body.capabilities) ? body.capabilities : [],
+      health: body.health === "offline" || body.health === "degraded" ? body.health : "online",
+      lastSeenAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const state = await registry.updateRegistry((current) => {
+      const instances = current.instances.filter((item) => item.id !== instance.id);
+      instances.unshift(instance);
+      return { ...current, instances };
+    });
+    const created = state.instances.find((item) => item.id === instance.id) || instance;
+    deps.sendT8(response, {
+      instance: created,
+      heartbeatIntervalMs: resolveHeartbeatIntervalMs(body.heartbeatIntervalMs),
+      registeredAt: Date.now(),
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/internal/comfyui/connectors/heartbeat" && request.method === "POST") {
+    const body = await readJsonBody<ConnectorMutationBody>(request);
+    const instanceId = safeSlug(body.id, "");
+    if (!instanceId) {
+      sendComfyuiError(response, 400, "INSTANCE_ID_REQUIRED");
+      return true;
+    }
+
+    const before = await registry.readRegistry();
+    const existed = before.instances.find((item) => item.id === instanceId);
+    const state = existed
+      ? await registry.touchHeartbeat(instanceId, body)
+      : await registry.updateRegistry((current) => {
+          const instance = normalizeComfyuiInstanceRecord({
+            ...body,
+            id: instanceId,
+            capabilities: Array.isArray(body.capabilities) ? body.capabilities : [],
+            health: body.health === "offline" || body.health === "degraded" ? body.health : "online",
+            lastSeenAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          const instances = current.instances.filter((item) => item.id !== instance.id);
+          instances.unshift(instance);
+          return { ...current, instances };
+        });
+    const updated = state.instances.find((item) => item.id === instanceId);
+    if (!updated) {
+      sendComfyuiError(response, 404, "INSTANCE_NOT_FOUND");
+      return true;
+    }
+    deps.sendT8(response, {
+      instance: updated,
+      heartbeatIntervalMs: resolveHeartbeatIntervalMs(body.heartbeatIntervalMs),
+      heartbeatAt: Date.now(),
+    });
+    return true;
+  }
+
+  return false;
 }
 
 export async function handleComfyuiInstanceRoutes(input: {

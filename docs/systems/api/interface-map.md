@@ -4,6 +4,7 @@
 
 - `/api/admin/system`
 - `/api/admin/runninghub/*`
+- `/api/admin/comfyui/instances`
 - `/api/admin/tasks`
 - `/api/admin/providers`
 - `/api/admin/models`
@@ -12,6 +13,36 @@
 - `/api/admin/group-permission-policies`
 - `/api/admin/group-permission-policies/:groupId`
 - `/api/admin/permission-catalog`
+
+## ComfyUI 接口
+
+- `GET /api/admin/comfyui/instances`
+  - 读取 ComfyUI 实例列表、共享工作流摘要、工作流总数。
+- `POST /api/admin/comfyui/instances`
+  - 新建或覆盖一个 ComfyUI 实例记录。
+- `PATCH /api/admin/comfyui/instances/:instanceId`
+  - 修改实例基础信息。
+- `POST /api/admin/comfyui/instances/:instanceId/heartbeat`
+  - 后台人工或调试用心跳刷新。
+- `GET /api/admin/comfyui/instances/:instanceId/workflows`
+  - 读取实例专属工作流。
+- `POST /api/admin/comfyui/instances/:instanceId/workflows`
+  - 创建实例工作流草稿。
+- `PATCH /api/admin/comfyui/instances/:instanceId/workflows/:workflowId`
+  - 更新标题、暴露参数、默认值、输出定义。
+- `POST /api/admin/comfyui/instances/:instanceId/workflows/:workflowId/push-to-shared`
+  - 将实例草稿发布到共享区。
+- `GET /api/comfyui/apps`
+  - 画布公共消费目录，只返回已发布共享工作流与关联实例摘要。
+
+## ComfyUI Connector 内部接口
+
+- `POST /api/internal/comfyui/connectors/register`
+  - 机器侧 connector 注册实例。
+  - Header: `x-comfyui-connector-token`
+- `POST /api/internal/comfyui/connectors/heartbeat`
+  - 机器侧 connector 周期性上报 `health / capabilities / lastSeenAt`。
+  - Header: `x-comfyui-connector-token`
 
 ## 组权限治理接口
 
@@ -80,6 +111,8 @@
 
 ## 排障第一跳
 
+- ComfyUI 实例在线但画布目录为空：先看 `/api/admin/comfyui/instances` 与 `GET /api/comfyui/apps`
+- ComfyUI 机器注册不上来：先看 `/api/internal/comfyui/connectors/register` 的 token 与 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`
 - 参数保存了但前端没变：先看 `/api/admin/runninghub/*`
 - 配置保存了但运行态没跟上：先看 `/api/admin/system` 返回的 `effectiveConcurrency`
 - 审计页成功用量和真实任务不一致：先看 `xh_tasks` 是否存在成功行，再看 `/api/admin/audit/usage-summary`
