@@ -1,4 +1,9 @@
-import type { AdvancedProviderConfig } from '../types/canvas';
+import type {
+  AdvancedProviderConfig,
+  ComfyuiCatalogInstance,
+  ComfyuiCatalogWorkflow,
+  ComfyuiCatalogWorkflowField,
+} from '../types/canvas';
 import {
   analyzeComfyWorkflow,
   compactComfyFields,
@@ -258,6 +263,64 @@ function shouldExposeParam(field: ComfyFieldMapping): boolean {
   const source = String(field.source || '').trim();
   if (!source || source === 'fixed' || MEDIA_SOURCE_RE.test(source)) return false;
   return EXPOSED_SOURCES.has(source);
+}
+
+function catalogFieldToParam(field: ComfyuiCatalogWorkflowField, defaultValues: Record<string, unknown>): ComfyAppUserParam | null {
+  if (field.kind === 'image' || field.kind === 'video' || field.kind === 'audio') return null;
+  const key = cleanId(field.key || `${field.nodeId}-${field.fieldName}`, `${field.nodeId}-${field.fieldName}`);
+  const defaultValue = Object.prototype.hasOwnProperty.call(defaultValues, field.key)
+    ? defaultValues[field.key]
+    : field.value;
+  return {
+    key,
+    label: cleanText(field.label, COMFY_APP_SOURCE_LABELS[field.source] || field.fieldName, 80),
+    kind: field.kind,
+    source: cleanText(field.source || field.fieldName, field.fieldName, 80),
+    defaultValue: defaultValue as string | number | boolean | undefined,
+    required: field.required === true,
+    rows: field.kind === 'textarea' ? 4 : undefined,
+  };
+}
+
+export function buildComfyAppFromCatalogWorkflow(
+  workflow: ComfyuiCatalogWorkflow,
+  instance?: ComfyuiCatalogInstance | null,
+): ComfyAppDefinition {
+  const defaultValues = workflow.defaultValues || {};
+  const fields = workflow.exposedFields.map((field) => ({
+    nodeId: field.nodeId,
+    fieldName: field.fieldName,
+    source: field.source || field.fieldName,
+    ...(field.source === 'fixed' || Object.prototype.hasOwnProperty.call(defaultValues, field.key)
+      ? { value: Object.prototype.hasOwnProperty.call(defaultValues, field.key) ? defaultValues[field.key] : field.value }
+      : {}),
+  }));
+  const userParams = workflow.exposedFields
+    .map((field) => catalogFieldToParam(field, defaultValues))
+    .filter(Boolean) as ComfyAppUserParam[];
+  const outputs = workflow.outputSchema.length
+    ? workflow.outputSchema.map((output) => ({
+        key: cleanId(output.key, `output-${output.kind}`),
+        label: cleanText(output.label, `输出${output.kind}`, 80),
+        kind: output.kind,
+      }))
+    : [{ key: 'image-1', label: '输出图 1', kind: 'image' as const }];
+
+  return {
+    id: cleanId(workflow.sharedWorkflowId || workflow.id, workflow.id),
+    title: cleanText(workflow.title, 'ComfyUI 工作流', 100),
+    categoryId: cleanId(instance?.id || workflow.instanceId || DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_ID),
+    description: cleanText(workflow.description, instance ? `${instance.name} · 共享工作流` : '共享工作流', 300),
+    workflowJson: workflow.workflowJson as Record<string, any>,
+    fields,
+    userParams,
+    outputs,
+    capabilities: Array.isArray(instance?.capabilities) && instance?.capabilities.length ? instance.capabilities : ['image.generate'],
+    runtime: { pollIntervalMs: 1000, maxPolls: 3600 },
+    ui: { icon: 'Workflow', accent: '#38bdf8' },
+    version: 1,
+    updatedAt: workflow.updatedAt ? new Date(workflow.updatedAt).toISOString() : new Date().toISOString(),
+  };
 }
 
 export function buildComfyAppFromWorkflow(options: {

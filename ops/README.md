@@ -23,11 +23,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.20`
-  - release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-  - 状态：`2026-06-30 已完成 gray deploy + runtime verify`
-  - 当前补修：`性能优化右侧开关、视频导入兼容、上传输出策略`
-  - 本地待补修：`待用户补做 gray 真实交互验收；aicopy 视频链路与组执行管理器视觉行为仍待业务侧确认`
+  - 版本：`v0.5.22`
+  - release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+  - 状态：`2026-07-02 已完成 gray deploy + runtime verify`
+  - 当前补修：`公共工作流上传兼容、共享 ComfyUI 工作流画布消费节点、版本常量对齐`
+  - 本地待补修：`待用户在 gray 上验收公共工作流上传、共享 ComfyUI 节点目录显示与实际运行输出`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

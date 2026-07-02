@@ -75,6 +75,8 @@ export const NODE_PORTS: Record<string, NodePorts> = {
   ...DEV_NODE_PORTS,
 
   // ========== ComfyUI ==========
+  // ComfyUI应用：消费后台共享工作流目录，输入/输出四类素材，参数仅显示后台暴露字段。
+  'comfyui-app': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   // ComfyUI超市：本地 workflow 应用运行器，可按 manifest 消费/输出四类素材。
   'comfyui-store': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   // ComfyUI应用制作工具：把 API Workflow JSON 转成应用 manifest，输出 JSON 文本。

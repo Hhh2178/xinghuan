@@ -131,6 +131,85 @@ export const adminRunningHubApi = {
     api<Record<string, unknown>>(`/api/proxy/runninghub/app-info?webappId=${encodeURIComponent(runTargetId)}`),
 };
 
+export const adminComfyuiApi = {
+  listInstances: () =>
+    api<{
+      revision: number;
+      updatedAt: number;
+      instances: import("./admin-types").ComfyuiInstanceRecord[];
+      sharedWorkflows: import("./admin-types").ComfyuiWorkflowDraft[];
+      workflowCount: number;
+    }>("/api/admin/comfyui/instances"),
+  createInstance: (payload: Partial<import("./admin-types").ComfyuiInstanceRecord> & { capabilities?: unknown }) =>
+    api<import("./admin-types").ComfyuiInstanceRecord>("/api/admin/comfyui/instances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateInstance: (instanceId: string, payload: Partial<import("./admin-types").ComfyuiInstanceRecord> & { capabilities?: unknown }) =>
+    api<import("./admin-types").ComfyuiInstanceRecord>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteInstance: (instanceId: string) =>
+    api<{ deleted: boolean; instanceId: string }>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}`, {
+      method: "DELETE",
+    }),
+  heartbeatInstance: (instanceId: string, payload: Partial<import("./admin-types").ComfyuiInstanceRecord> & { capabilities?: unknown }) =>
+    api<import("./admin-types").ComfyuiInstanceRecord>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/heartbeat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateCapabilities: (instanceId: string, capabilities: string[]) =>
+    api<import("./admin-types").ComfyuiInstanceRecord>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/capabilities`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ capabilities }),
+    }),
+  listWorkflows: (instanceId: string) =>
+    api<{ instanceId: string; workflows: import("./admin-types").ComfyuiWorkflowDraft[] }>(
+      `/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/workflows`,
+    ).then((result) => result.workflows),
+  createWorkflow: (instanceId: string, payload: Partial<import("./admin-types").ComfyuiWorkflowDraft> & {
+    workflowJson?: Record<string, unknown> | string;
+    exposedFields?: unknown;
+    defaultValues?: unknown;
+    hiddenFields?: unknown;
+    outputSchema?: unknown;
+  }) =>
+    api<import("./admin-types").ComfyuiWorkflowDraft>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/workflows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateWorkflow: (instanceId: string, workflowId: string, payload: Partial<import("./admin-types").ComfyuiWorkflowDraft> & {
+    workflowJson?: Record<string, unknown> | string;
+    exposedFields?: unknown;
+    defaultValues?: unknown;
+    hiddenFields?: unknown;
+    outputSchema?: unknown;
+  }) =>
+    api<import("./admin-types").ComfyuiWorkflowDraft>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/workflows/${encodeURIComponent(workflowId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteWorkflow: (instanceId: string, workflowId: string) =>
+    api<{ deleted: boolean; instanceId: string; workflowId: string }>(
+      `/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/workflows/${encodeURIComponent(workflowId)}`,
+      { method: "DELETE" },
+    ),
+  pushWorkflowToShared: (instanceId: string, workflowId: string) =>
+    api<{
+      workflow: import("./admin-types").ComfyuiWorkflowDraft;
+      sharedWorkflow: import("./admin-types").ComfyuiWorkflowDraft;
+    }>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/workflows/${encodeURIComponent(workflowId)}/push-to-shared`, {
+      method: "POST",
+    }),
+};
+
 export const adminAnnouncementApi = {
   listAnnouncements: () => api<import("./admin-types").AdminAnnouncementRecord[]>("/api/admin/announcements"),
   createAnnouncement: (payload: import("./admin-types").AdminAnnouncementUpsertPayload) =>

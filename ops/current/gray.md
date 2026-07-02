@@ -2,13 +2,14 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.20`
-- 当前 release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify`
-- 当前补修：`2026-06-30-performance-toggle-and-import-fixes-gray.md`
-- 当前本地待补修：`待用户在 gray 上补做真实浏览器验收；服务器视频样例缺失导致 verify:single-port 的视频生成库样例项未覆盖；性能优化开关已移至右侧公告控件区`
+- 当前版本：`v0.5.22`
+- 当前 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前状态：`2026-07-02 已完成 gray deploy + runtime verify`
+- 当前补修：`2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
+- 当前本地待补修：`待用户在 gray 上验收公共工作流上传、共享 ComfyUI 节点目录显示、共享工作流运行输出与权限边界`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
@@ -47,9 +48,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-audit-account-drilldown-gray-r1-v0514`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260628-admin-audit-account-drilldown-gray-r1-v0514`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

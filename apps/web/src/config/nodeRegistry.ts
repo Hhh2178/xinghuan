@@ -35,6 +35,7 @@ export const NODE_REGISTRY: NodeMeta[] = [
   ...DEV_NODE_REGISTRY,
 
   // ========== ComfyUI 本地工作流节点 ==========
+  { type: 'comfyui-app', label: 'ComfyUI应用', category: 'comfyui', description: '后台共享 ComfyUI 工作流消费节点：只显示已发布参数与输出', icon: 'Workflow', color: 'cyan' },
   { type: 'comfyui-store', label: 'ComfyUI超市', category: 'comfyui', description: '本地 ComfyUI 应用库：导入制作好的工作流应用，接上游素材后一键运行', icon: 'Boxes', color: 'cyan' },
   { type: 'comfyui-app-maker', label: 'ComfyUI应用制作工具', category: 'comfyui', description: '上传 ComfyUI API Workflow JSON，自动识别参数并保存为可复用应用', icon: 'FileJson', color: 'emerald' },
 

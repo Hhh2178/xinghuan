@@ -24,7 +24,7 @@ import * as api from '../services/api';
 import * as sharedResourceApi from '../services/sharedResourceApi';
 import type { AuthUser, ResourceCategory, ResourceItem, ResourceKind } from '../services/api';
 import { resourceItemToSendMaterials } from '../utils/sendMaterials';
-import { summarizeWorkflowResource, workflowManifestToFragment } from '../utils/workflowResource';
+import { createWorkflowResourceManifest, summarizeWorkflowResource, workflowManifestToFragment } from '../utils/workflowResource';
 import LoopingVideo from './LoopingVideo';
 import { ResourcePreviewOverlay } from './resource-library/ResourcePreviewOverlay';
 
@@ -425,13 +425,17 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
         try {
           const rawText = await file.text();
           const parsed = JSON.parse(rawText) as Record<string, unknown>;
-          if (!workflowManifestToFragment(parsed)) {
+          const fragment = workflowManifestToFragment(parsed);
+          if (!fragment) {
             setMsg(`${file.name} 不是合法的工作流 JSON`);
             continue;
           }
+          const manifest = createWorkflowResourceManifest(fragment, {
+            title: typeof parsed.title === 'string' && parsed.title.trim() ? String(parsed.title).trim() : file.name.replace(/\.json$/i, ''),
+          });
           const result = await sharedResourceApi.addSharedResourceWorkflow({
-            workflowFragment: parsed,
-            title: typeof parsed.title === 'string' && parsed.title.trim() ? String(parsed.title).trim() : file.name,
+            workflowFragment: manifest,
+            title: manifest.title,
             categoryId: categoryId === 'all' ? undefined : categoryId,
             tags: ['公共工作流'],
           });
