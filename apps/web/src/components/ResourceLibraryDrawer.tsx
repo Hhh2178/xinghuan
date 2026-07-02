@@ -24,7 +24,7 @@ import * as api from '../services/api';
 import * as sharedResourceApi from '../services/sharedResourceApi';
 import type { AuthUser, ResourceCategory, ResourceItem, ResourceKind } from '../services/api';
 import { resourceItemToSendMaterials } from '../utils/sendMaterials';
-import { summarizeWorkflowResource } from '../utils/workflowResource';
+import { summarizeWorkflowResource, workflowManifestToFragment } from '../utils/workflowResource';
 import LoopingVideo from './LoopingVideo';
 import { ResourcePreviewOverlay } from './resource-library/ResourcePreviewOverlay';
 
@@ -401,8 +401,8 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
 
   const openSharedResourceUpload = () => {
     if (!canManageShared) return;
-    if (!['image', 'video', 'audio'].includes(kind)) {
-      setMsg('当前首版上传按钮先支持图像、视频、音频公共资源；工作流/姿势/素材集稍后接入');
+    if (!['image', 'video', 'audio', 'workflow'].includes(kind)) {
+      setMsg('当前上传按钮先支持图像、视频、音频和工作流公共资源；姿势/素材集稍后接入');
       return;
     }
     sharedUploadInputRef.current?.click();
@@ -410,16 +410,42 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
 
   const uploadSharedResourceFiles = async (files: FileList | null) => {
     if (!canManageShared || !files?.length) return;
-    if (!['image', 'video', 'audio'].includes(kind)) return;
-    const acceptedPrefix = `${kind}/`;
-    const selected = Array.from(files).filter((file) => file.type.startsWith(acceptedPrefix));
+    if (!['image', 'video', 'audio', 'workflow'].includes(kind)) return;
+    const selected = kind === 'workflow'
+      ? Array.from(files).filter((file) => file.name.toLowerCase().endsWith('.json') || file.type === 'application/json' || file.type === 'text/json')
+      : Array.from(files).filter((file) => file.type.startsWith(`${kind}/`));
     if (!selected.length) {
-      setMsg(`请选择${activeMeta.label}文件`);
+      setMsg(kind === 'workflow' ? '请选择 workflow JSON 文件' : `请选择${activeMeta.label}文件`);
       return;
     }
     setLoading(true);
     let successCount = 0;
     for (const file of selected) {
+      if (kind === 'workflow') {
+        try {
+          const rawText = await file.text();
+          const parsed = JSON.parse(rawText) as Record<string, unknown>;
+          if (!workflowManifestToFragment(parsed)) {
+            setMsg(`${file.name} 不是合法的工作流 JSON`);
+            continue;
+          }
+          const result = await sharedResourceApi.addSharedResourceWorkflow({
+            workflowFragment: parsed,
+            title: typeof parsed.title === 'string' && parsed.title.trim() ? String(parsed.title).trim() : file.name,
+            categoryId: categoryId === 'all' ? undefined : categoryId,
+            tags: ['公共工作流'],
+          });
+          if (!result.success) {
+            setMsg(result.error || `${file.name} 加入公共资源库失败`);
+            continue;
+          }
+          successCount += 1;
+          continue;
+        } catch (error: any) {
+          setMsg(error?.message || `${file.name} 不是合法的工作流 JSON`);
+          continue;
+        }
+      }
       const uploaded = await sharedResourceApi.uploadSharedResourceFile(file);
       if (!uploaded.success) {
         setMsg(uploaded.error || `${file.name} 上传失败`);
@@ -606,7 +632,7 @@ export default function ResourceLibraryDrawer({ open, onClose, onInsertMaterial,
               ref={sharedUploadInputRef}
               type="file"
               multiple
-              accept={kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : undefined}
+              accept={kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : kind === 'workflow' ? '.json,application/json,text/json' : undefined}
               className="hidden"
               onChange={(event) => {
                 void uploadSharedResourceFiles(event.currentTarget.files);

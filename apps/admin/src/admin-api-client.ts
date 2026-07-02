@@ -211,6 +211,21 @@ export const adminSharedResourceApi = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  createWorkflow: (payload: {
+    workflowFragment: Record<string, unknown>;
+    title?: string;
+    categoryId?: string;
+    tags?: string[];
+    note?: string;
+    sourceCanvasId?: string;
+    sourceNodeId?: string;
+    favorite?: boolean;
+  }) =>
+    api<import("./admin-types").SharedResourceItem>("/api/shared-resources/workflows/add", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
   updateItem: (
     id: string,
     payload: Partial<Pick<import("./admin-types").SharedResourceItem, "title" | "categoryId" | "tags" | "favorite" | "note">> & {

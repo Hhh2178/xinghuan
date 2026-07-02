@@ -132,6 +132,7 @@ import { CanvasOverlayLayer } from './canvas/CanvasOverlayLayer';
 import { useCanvasSelectionMenus } from './canvas/useCanvasSelectionMenus';
 import { useCanvasBulkReconnect } from './canvas/useCanvasBulkReconnect';
 import { useCanvasSendFlow } from './canvas/useCanvasSendFlow';
+import type { AuthUser } from '../services/api';
 import {
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
@@ -1139,9 +1140,10 @@ function getReactFlowHandleInfo(target: EventTarget | null): {
 interface CanvasInnerProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
+  currentUser?: AuthUser | null;
 }
 
-function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
+function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasInnerProps) {
   const { activeId, canvases, loadCanvases, setActive, createCanvas } = useCanvasStore();
   const { theme, style, templateId } = useThemeStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
@@ -1334,6 +1336,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
     insertWorkflowFragment,
     openSendMaterials,
     saveWorkflowFragmentToResource,
+    saveWorkflowFragmentToSharedResource,
     sendModal,
     setSendModal,
   } = useCanvasSendFlow({
@@ -3799,6 +3802,23 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
                 <Workflow size={13} />
                 <span>保存工作流到资源库</span>
               </button>
+              {currentUser?.role === 'admin' && (
+                <button
+                  className={menuItemCls}
+                  disabled={sendNodeCount === 0}
+                  title={sendNodeCount > 0 ? '把当前工作流保存到公共资源库' : '请选择至少 1 个节点'}
+                  onClick={() => {
+                    closeContextMenu();
+                    void saveWorkflowFragmentToSharedResource(
+                      nodeFragmentPreview,
+                      sendEdgeCount > 0 ? `${sendNodeCount}节点${sendEdgeCount}线公共工作流` : `${sendNodeCount}节点公共工作流`,
+                    );
+                  }}
+                >
+                  <Library size={13} />
+                  <span>保存工作流到公共库</span>
+                </button>
+              )}
               <button
                 className={menuItemCls}
                 disabled={!canSendSelection}
@@ -3982,6 +4002,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef }: CanvasInnerProps) {
 interface CanvasProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
+  currentUser?: AuthUser | null;
 }
 
 export default function Canvas(props: CanvasProps) {

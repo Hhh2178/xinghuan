@@ -93,6 +93,14 @@ export interface SharedResourceItem {
   updatedAt: number;
   publishedBy?: string;
   publishedAt?: number;
+  workflowFragment?: Record<string, unknown>;
+  workflowNodeCount?: number;
+  workflowEdgeCount?: number;
+  workflowNodeTypes?: string[];
+  workflowPreview?: {
+    nodes: Array<{ id: string; type: string; label: string; x: number; y: number }>;
+    edges: Array<{ source: string; target: string }>;
+  };
 }
 
 export interface GenerationLibraryItem {

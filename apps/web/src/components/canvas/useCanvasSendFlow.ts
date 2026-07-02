@@ -3,6 +3,7 @@ import type { Edge, Node } from '@xyflow/react';
 
 import { PORT_LABEL } from '../../config/portTypes';
 import * as api from '../../services/api';
+import * as sharedResourceApi from '../../services/sharedResourceApi';
 import { logBus } from '../../stores/logs';
 import { bucketSendableMaterials, collectSendableMaterialsFromNodes, sendableMaterialSignature, summarizeSendableMaterials, type SendTargetMode, type SendableMaterial } from '../../utils/sendMaterials';
 import { buildSendNodeFragment, instantiateSendNodeFragment, summarizeSendNodeFragment, type InstantiatedSendNodeFragment, type SendNodeFragment } from '../../utils/sendNodeFragment';
@@ -440,6 +441,35 @@ export function useCanvasSendFlow({
     [activeId],
   );
 
+  const saveWorkflowFragmentToSharedResource = useCallback(
+    async (fragment: SendNodeFragment | undefined, defaultTitle = '未命名公共工作流') => {
+      if (!fragment?.nodes?.length) {
+        logBus.warn('至少选择 1 个节点才能保存公共工作流', '公共资源库');
+        return false;
+      }
+      const title = window.prompt('公共工作流名称', defaultTitle);
+      if (!title?.trim()) return false;
+      try {
+        const manifest = createWorkflowResourceManifest(fragment, { title: title.trim() });
+        const result = await sharedResourceApi.addSharedResourceWorkflow({
+          workflowFragment: manifest,
+          title: manifest.title,
+          tags: ['公共工作流'],
+          sourceCanvasId: activeId || fragment.sourceCanvasId,
+        });
+        if (!result.success) throw new Error(result.error || '保存公共工作流失败');
+        window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+        const duplicate = Boolean((result as any).duplicate || (result.data as any)?.duplicate);
+        logBus.success(duplicate ? `公共资源库已有相同工作流：${manifest.title}` : `已保存到公共资源库：${manifest.title}`, '公共资源库');
+        return true;
+      } catch (error: any) {
+        logBus.warn(error?.message || '保存公共工作流失败', '公共资源库');
+        return false;
+      }
+    },
+    [activeId],
+  );
+
   const handleSaveSendMaterialsToResource = useCallback(async (mode?: SendTargetMode) => {
     if (!sendModal) return;
     const effectiveMode = resolveSendMode(mode || sendModal.defaultMode || 'auto');
@@ -515,6 +545,7 @@ export function useCanvasSendFlow({
     insertWorkflowFragment,
     openSendMaterials,
     saveWorkflowFragmentToResource,
+    saveWorkflowFragmentToSharedResource,
     sendModal,
     setSendModal,
   };

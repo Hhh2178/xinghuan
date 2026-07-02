@@ -37,6 +37,12 @@ function getPreviewKind(item: SharedResourceItem): AdminSharedResourcePreviewKin
   return "other";
 }
 
+function isWorkflowManifest(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const manifest = value as Record<string, unknown>;
+  return manifest.schema === "t8-workflow-fragment" && Array.isArray(manifest.nodes) && manifest.nodes.length > 0;
+}
+
 export function AdminPublicResourcesPanel() {
   const [kind, setKind] = useState<ResourceKind>("image");
   const [categoryId, setCategoryId] = useState("all");
@@ -50,7 +56,7 @@ export function AdminPublicResourcesPanel() {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canUpload = kind === "image" || kind === "video" || kind === "audio";
+  const canUpload = kind === "image" || kind === "video" || kind === "audio" || kind === "workflow";
   const activeMeta = KIND_META[kind];
   const categorizedCount = items.filter((item) => item.categoryId).length;
 
@@ -154,6 +160,23 @@ export function AdminPublicResourcesPanel() {
     let uploadedCount = 0;
     try {
       for (const file of Array.from(files)) {
+        if (kind === "workflow") {
+          if (!file.name.toLowerCase().endsWith(".json") && file.type !== "application/json" && file.type !== "text/json") continue;
+          const text = await file.text();
+          const parsed = JSON.parse(text) as unknown;
+          if (!isWorkflowManifest(parsed)) {
+            setMessage(`${file.name} 不是合法的 workflow JSON`);
+            continue;
+          }
+          await adminSharedResourceApi.createWorkflow({
+            workflowFragment: parsed,
+            title: typeof parsed.title === "string" && parsed.title.trim() ? String(parsed.title).trim() : file.name,
+            categoryId: categoryId === "all" ? undefined : categoryId,
+            tags: ["公共工作流"],
+          });
+          uploadedCount += 1;
+          continue;
+        }
         if (file.type && !file.type.startsWith(`${kind}/`)) continue;
         const uploaded = await adminSharedResourceApi.uploadFile(file);
         await adminSharedResourceApi.createItem({
@@ -227,7 +250,7 @@ export function AdminPublicResourcesPanel() {
         type="file"
         multiple
         className="admin-public-resources-file-input"
-        accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : undefined}
+        accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : kind === "workflow" ? ".json,application/json,text/json" : undefined}
         onChange={(event) => {
           void uploadFiles(event.currentTarget.files);
           event.currentTarget.value = "";
