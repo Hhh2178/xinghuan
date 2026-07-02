@@ -9,6 +9,7 @@ import {
   PanelsTopLeft,
   ScrollText,
   ServerCog,
+  Workflow,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,7 @@ export type AdminTabId =
   | "users"
   | "providers"
   | "runninghub-workspace"
+  | "comfyui"
   | "public-resources"
   | "assistant"
   | "announcement"
@@ -58,6 +60,7 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
   { id: "users", label: "用户", icon: Users },
   { id: "providers", label: "API 设置", icon: KeyRound },
   { id: "runninghub-workspace", label: "RH 工作台", icon: PanelsTopLeft },
+  { id: "comfyui", label: "ComfyUI", icon: Workflow },
   { id: "public-resources", label: "公共资源", icon: Library },
   { id: "assistant", label: "AI 助手", icon: Bot },
   { id: "announcement", label: "公告", icon: Bell },
@@ -82,7 +85,7 @@ export const adminWorkspaces: AdminWorkspace[] = [
     subtitle: "Capability Console",
     description: "Provider、模型、RunningHub、节点能力和 AI 助手接入。",
     icon: KeyRound,
-    tabs: ["providers", "runninghub-workspace", "assistant"],
+    tabs: ["providers", "runninghub-workspace", "comfyui", "assistant"],
   },
   {
     id: "resource-content",
@@ -115,6 +118,7 @@ export const adminTabDescriptions: Record<AdminTabId, string> = {
   users: "账号、用户组、权限策略和会话治理。",
   providers: "Provider 接入、模型目录、Key 状态和模型拉取。",
   "runninghub-workspace": "RunningHub AI 应用、工作流、输入槽、Schema 和测试。",
+  comfyui: "ComfyUI 机器实例、工作流草稿、暴露参数、默认值和共享发布。",
   "public-resources": "公共素材上传、分类、卡片预览、编辑和权限摘要。",
   assistant: "创作侧与后台 AI 助手、接入内核和上下文权限。",
   announcement: "公告草稿、发布、强提醒、置顶和弹窗策略。",
@@ -129,6 +133,7 @@ export const adminRefreshPolicies: Record<AdminTabId, AdminRefreshPolicy> = {
   users: { kind: "manual", label: "手动刷新", intervalLabel: "按需", description: "账号和权限编辑存在草稿，默认不自动覆盖。" },
   providers: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "Provider 表单有未保存修改时禁止静默覆盖。" },
   "runninghub-workspace": { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "RH 编辑器保存前保留草稿和测试上下文。" },
+  comfyui: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "ComfyUI 实例与工作流草稿保存前不自动覆盖。" },
   "public-resources": { kind: "manual", label: "手动刷新", intervalLabel: "按需", description: "资源上传和编辑完成后局部刷新列表。" },
   assistant: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "AI 助手配置使用 revision 冲突保护。" },
   announcement: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "公告草稿编辑期间不自动覆盖。" },

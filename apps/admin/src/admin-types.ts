@@ -103,6 +103,59 @@ export interface SharedResourceItem {
   };
 }
 
+export type ComfyuiInstanceHealth = "online" | "offline" | "degraded";
+
+export interface ComfyuiInstanceRecord {
+  id: string;
+  name: string;
+  tailscaleAddress: string;
+  baseUrl: string;
+  health: ComfyuiInstanceHealth;
+  concurrency: number;
+  capabilities: string[];
+  lastSeenAt: number;
+  createdAt: number;
+  updatedAt: number;
+  note?: string;
+  connectorVersion?: string;
+}
+
+export interface ComfyuiWorkflowFieldDraft {
+  key: string;
+  nodeId: string;
+  fieldName: string;
+  label: string;
+  source: string;
+  kind: "text" | "textarea" | "number" | "boolean" | "select" | "image" | "video" | "audio";
+  required?: boolean;
+  value?: unknown;
+}
+
+export interface ComfyuiWorkflowOutputDraft {
+  key: string;
+  label: string;
+  kind: "text" | "image" | "video" | "audio";
+  sourceNodeId?: string;
+  sourceFieldName?: string;
+}
+
+export interface ComfyuiWorkflowDraft {
+  id: string;
+  instanceId: string;
+  title: string;
+  description?: string;
+  workflowJson: Record<string, unknown>;
+  exposedFields: ComfyuiWorkflowFieldDraft[];
+  defaultValues: Record<string, unknown>;
+  hiddenFields: string[];
+  outputSchema: ComfyuiWorkflowOutputDraft[];
+  sharedWorkflowId?: string;
+  createdAt: number;
+  updatedAt: number;
+  publishedAt?: number;
+  publishedBy?: string;
+}
+
 export interface GenerationLibraryItem {
   id: string;
   kind: GenerationLibraryKind;

@@ -59,6 +59,9 @@ export function AdminPublicResourcesPanel() {
   const canUpload = kind === "image" || kind === "video" || kind === "audio" || kind === "workflow";
   const activeMeta = KIND_META[kind];
   const categorizedCount = items.filter((item) => item.categoryId).length;
+  const workflowHint = kind === "workflow"
+    ? "ComfyUI 工作流也可以上传到公共库，但实例级编辑和共享发布请转到 ComfyUI 面板。"
+    : "";
 
   async function load() {
     setLoading(true);
@@ -206,7 +209,7 @@ export function AdminPublicResourcesPanel() {
         className="admin-public-resources-band"
         kicker="Shared Resource Governance"
         title="公共资源管理"
-        description="把公共图像、视频、音频与治理条目收在同一个卡片工作区里，确保预览完整可见、上传稳定、分类可控。"
+        description={workflowHint || "把公共图像、视频、音频与治理条目收在同一个卡片工作区里，确保预览完整可见、上传稳定、分类可控。"}
         currentLabel={`${activeMeta.label}资源`}
         currentDescription={`${visibleCategoryName} · ${loading ? "同步中" : `${items.length} 项资源`}`}
         actions={

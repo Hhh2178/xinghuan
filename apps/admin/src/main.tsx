@@ -10,6 +10,7 @@ import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
 import { AdminBandTabButton, AdminWorkspaceBand } from "./admin-common-components";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
+import { AdminComfyuiInstancesPanel } from "./admin-comfyui-instances-panel";
 import { Overview } from "./admin-overview-panel";
 import { AdminPublicResourcesPanel } from "./admin-public-resources-panel";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
@@ -647,6 +648,9 @@ function AdminApp() {
           ) : null}
           {activeTab === "runninghub-workspace" ? (
             <AdminRunningHubWorkspace />
+          ) : null}
+          {activeTab === "comfyui" ? (
+            <AdminComfyuiInstancesPanel />
           ) : null}
           {activeTab === "public-resources" ? (
             <AdminPublicResourcesPanel />
