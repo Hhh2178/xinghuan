@@ -18,6 +18,7 @@ export type NodeType =
   | 'rh-tools'
   | 'rh-toolbox'
   | 'rh-toolbox-maker'
+  | 'comfyui-app'
   | 'comfyui-store'
   | 'comfyui-app-maker'
   // Special (5)
@@ -211,6 +212,64 @@ export interface CloudUploadSummary {
   defaultLabel?: string;
 }
 
+export interface ComfyuiCatalogInstance {
+  id: string;
+  name: string;
+  tailscaleAddress: string;
+  baseUrl: string;
+  health: 'online' | 'offline' | 'degraded';
+  concurrency: number;
+  capabilities: string[];
+  lastSeenAt: number;
+  createdAt: number;
+  updatedAt: number;
+  note?: string;
+  connectorVersion?: string;
+}
+
+export interface ComfyuiCatalogWorkflowField {
+  key: string;
+  nodeId: string;
+  fieldName: string;
+  label: string;
+  source: string;
+  kind: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'image' | 'video' | 'audio';
+  required?: boolean;
+  value?: unknown;
+}
+
+export interface ComfyuiCatalogWorkflowOutput {
+  key: string;
+  label: string;
+  kind: 'text' | 'image' | 'video' | 'audio';
+  sourceNodeId?: string;
+  sourceFieldName?: string;
+}
+
+export interface ComfyuiCatalogWorkflow {
+  id: string;
+  instanceId: string;
+  title: string;
+  description?: string;
+  workflowJson: Record<string, unknown>;
+  exposedFields: ComfyuiCatalogWorkflowField[];
+  defaultValues: Record<string, unknown>;
+  hiddenFields: string[];
+  outputSchema: ComfyuiCatalogWorkflowOutput[];
+  sharedWorkflowId?: string;
+  createdAt: number;
+  updatedAt: number;
+  publishedAt?: number;
+  publishedBy?: string;
+}
+
+export interface ComfyuiCatalogResponse {
+  revision: number;
+  updatedAt: number;
+  instances: ComfyuiCatalogInstance[];
+  workflows: ComfyuiCatalogWorkflow[];
+}
+
 export type CanvasProviderSource = 'zhenzhen' | AdvancedProviderProtocol;
 
 export interface CanvasNodeData {
@@ -224,6 +283,12 @@ export interface CanvasNodeData {
   providerId?: string;
   providerModel?: string;
   providerParams?: Record<string, any>;
+  comfyuiAppProviderId?: string;
+  comfyuiAppInstanceId?: string;
+  comfyuiAppWorkflowId?: string;
+  comfyuiAppParamValues?: Record<string, any>;
+  comfyuiAppSearchQuery?: string;
+  comfyuiAppSelectedOutputKey?: string;
   status?: 'idle' | 'generating' | 'success' | 'error';
   error?: string;
   // 通用扩展字段

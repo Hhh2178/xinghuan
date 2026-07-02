@@ -147,8 +147,11 @@ export function createWorkflowResourceManifest(
 
 export function workflowManifestToFragment(value: unknown): SendNodeFragment | null {
   const raw = value && typeof value === 'object' ? (value as Record<string, any>) : null;
-  const manifest = raw?.schema === WORKFLOW_RESOURCE_SCHEMA ? raw : raw?.workflowFragment;
-  if (!manifest || typeof manifest !== 'object' || manifest.schema !== WORKFLOW_RESOURCE_SCHEMA) return null;
+  const candidate = raw?.workflowFragment && typeof raw.workflowFragment === 'object'
+    ? raw.workflowFragment as Record<string, any>
+    : raw;
+  if (!candidate || typeof candidate !== 'object') return null;
+  const manifest = candidate.schema === WORKFLOW_RESOURCE_SCHEMA ? candidate : candidate;
   const nodes = cleanNodes(manifest.nodes);
   if (nodes.length === 0) return null;
   const nodeIds = new Set(nodes.map((node) => node.id));

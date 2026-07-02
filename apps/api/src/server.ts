@@ -138,6 +138,7 @@ import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleComfyuiInstanceRoutes } from "./comfyui-instance-routes.js";
+import { handleComfyuiPublicRoutes } from "./comfyui-public-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
@@ -1201,6 +1202,8 @@ const server = createServer(async (request, response) => {
       sendJson(response, { ok: false, success: false, error: "AUTH_REQUIRED" }, 401);
       return;
     }
+
+    if (await handleComfyuiPublicRoutes({ request, response, url, deps: { sendT8, adminDir } })) return;
 
     if (url.pathname.startsWith("/api/admin/")) {
       if (!currentUser || currentUser.role !== "admin") {

@@ -153,6 +153,7 @@ const RunningHubNode = lazy(createLazyImportWithReloadRecovery(() => import('./n
 import RhConfigNode from './nodes/RhConfigNode';
 const RHToolsNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolsNode')));
 const RHToolboxNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolboxNode')));
+import ComfyUIApplicationNode from './nodes/ComfyUIApplicationNode';
 import ComfyUIStoreNode from './nodes/ComfyUIStoreNode';
 import ComfyUIAppMakerNode from './nodes/ComfyUIAppMakerNode';
 import ResizeNode from './nodes/ResizeNode';
@@ -252,6 +253,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   'rh-tools': LazyRHToolsNode,
   'rh-toolbox': LazyRHToolboxNode,
   ...(import.meta.env?.DEV ? { 'rh-toolbox-maker': RHToolboxMakerDevNode } : {}),
+  'comfyui-app': ComfyUIApplicationNode,
   'comfyui-store': ComfyUIStoreNode,
   'comfyui-app-maker': ComfyUIAppMakerNode,
   // Special (5)
@@ -540,6 +542,22 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     comfyuiStoreActiveAppId: '',
     comfyuiStoreSearchQuery: '',
     comfyuiStoreParamValues: {},
+    materialOrder: [],
+    excludedMaterialIds: [],
+    status: 'idle',
+    taskId: '',
+    imageUrl: '',
+    imageUrls: [],
+    videoUrls: [],
+    audioUrls: [],
+    outputText: '',
+    error: '',
+  },
+  'comfyui-app': {
+    comfyuiAppInstanceId: '',
+    comfyuiAppWorkflowId: '',
+    comfyuiAppSearchQuery: '',
+    comfyuiAppParamValues: {},
     materialOrder: [],
     excludedMaterialIds: [],
     status: 'idle',

@@ -2,7 +2,15 @@
  * T8-penguin-canvas 后端 API 封装
  * 所有请求走 Vite proxy → http://127.0.0.1:18766
  */
-import type { AdvancedProviderConfig, ApiSettings, CanvasData, CanvasListItem, CloudUploadSummary, CloudUploadTargetConfig } from '../types/canvas';
+import type {
+  AdvancedProviderConfig,
+  ApiSettings,
+  CanvasData,
+  CanvasListItem,
+  CloudUploadSummary,
+  CloudUploadTargetConfig,
+  ComfyuiCatalogResponse,
+} from '../types/canvas';
 import type { ThemeTemplate } from '../theme/types';
 import type { MediaKind } from '../utils/mediaCollection';
 
@@ -183,6 +191,11 @@ export async function streamAssistantChat(
 
 export async function getAssistantSettings(): Promise<PublicAssistantSettings> {
   const res = await request<{ success: boolean; data: PublicAssistantSettings }>(`${BASE}/assistant/settings`);
+  return res.data;
+}
+
+export async function getComfyuiAppCatalog(): Promise<ComfyuiCatalogResponse> {
+  const res = await request<{ success: boolean; data: ComfyuiCatalogResponse }>(`${BASE}/comfyui/apps`);
   return res.data;
 }
 
