@@ -4,11 +4,12 @@
 
 ### Gray
 
-- 版本：`v0.5.20`
-- release：`20260630-performance-toggle-and-import-fixes-gray-r1-v0520`
-- 当前状态：`2026-06-30 已完成 gray deploy + runtime verify`
-- 当前本地补修：`性能优化右侧开关、视频导入兼容、上传输出策略已完成本地收口`
+- 版本：`v0.5.22`
+- release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前状态：`2026-07-02 已完成 gray deploy + runtime verify`
+- 当前本地补修：`公共工作流上传兼容、共享 ComfyUI 工作流画布消费节点、版本常量对齐已完成灰度收口`
 - 当前批次记录：
+  - `gray/2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
   - `gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
   - `gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`
