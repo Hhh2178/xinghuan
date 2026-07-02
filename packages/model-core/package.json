@@ -1,10 +1,16 @@
 {
   "name": "@xinghuan/model-core",
-  "version": "0.5.20",
+  "version": "0.5.22",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
     "type-check": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json"
