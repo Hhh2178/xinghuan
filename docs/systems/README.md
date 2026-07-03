@@ -13,6 +13,7 @@
 - `auth-and-users/`
 - `storage-and-data/`
 - `observability-and-ops/`
+- `harness/`
 
 ## 推荐阅读顺序
 
@@ -64,3 +65,7 @@
 ### Observability 与 Ops
 
 - 关注：release gate、gray/prod 运维、系统观测页
+
+### Harness
+
+- 关注：workspace / verify / release / integration 执行分层、根脚本聚合入口、子 harness 接入约定

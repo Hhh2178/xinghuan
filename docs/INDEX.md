@@ -39,6 +39,7 @@
 - `docs/systems/auth-and-users/`
 - `docs/systems/storage-and-data/`
 - `docs/systems/observability-and-ops/`
+- `docs/systems/harness/`
 
 ### 长期有效的项目记忆
 
@@ -107,6 +108,12 @@
 
 - release gate：`docs/systems/observability-and-ops/release-gates.md`
 - gray / production 运维：`docs/systems/observability-and-ops/gray-and-production-operations.md`
+
+### Harness
+
+- 项目执行分层：`docs/systems/harness/README.md`
+- workspace / verify / release 地图：`docs/systems/harness/workspace-verify-release-map.md`
+- 子 harness 接入约定：`docs/systems/harness/subharness-convention.md`
 
 ## 与旧入口的关系
 

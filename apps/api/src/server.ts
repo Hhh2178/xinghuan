@@ -200,12 +200,7 @@ class HttpError extends Error {
   }
 }
 
-const {
-  generateExternalImageProxy,
-  generateExternalChatProxy,
-  generateExternalVideoProxy,
-  generateExternalAudioProxy,
-} = createExternalProxyHandlers({
+const { generateExternalImageProxy, generateExternalChatProxy, generateExternalVideoProxy, generateExternalAudioProxy } = createExternalProxyHandlers({
   dataDir,
   providerFileScope: environment,
   normalizeProviderProtocol,
@@ -229,10 +224,7 @@ const {
   clampInteger,
 });
 
-const {
-  submitProviderGenerationTask,
-  readProviderGenerationTaskStatus,
-} = createProviderGenerationTaskService({
+const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = createProviderGenerationTaskService({
   supportedTaskCapabilities: ["image", "video", "audio"],
   normalizeProviderProtocol,
   providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
@@ -253,9 +245,7 @@ const {
   plainObject,
 });
 
-const {
-  cancelTaskWithStrategy,
-} = createTaskCancellationService({
+const { cancelTaskWithStrategy } = createTaskCancellationService({
   readTaskRecord,
   writeTaskRecord,
   readAdminDb,
@@ -1204,7 +1194,13 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (await handleComfyuiPublicRoutes({ request, response, url, deps: { sendT8, adminDir } })) return;
+    if (await handleComfyuiPublicRoutes({ request, response, url, deps: {
+      sendT8, adminDir,
+      normalizeReferenceUrl: (value) => normalizeProviderReferenceUrlForAccess(value, providerFilePublicOrigin(request), currentUser!, { secret: secretKey(), scope: environment }),
+      saveRemoteImageToOutput: (sourceUrl) => saveRemoteImageToOutput(sourceUrl, currentUser!),
+      saveRemoteVideoToOutput: (sourceUrl) => saveRemoteVideoToOutput(sourceUrl, currentUser!),
+      saveRemoteAudioToOutput: (sourceUrl) => saveRemoteAudioToOutput(sourceUrl, currentUser!),
+    } })) return;
 
     if (url.pathname.startsWith("/api/admin/")) {
       if (!currentUser || currentUser.role !== "admin") {

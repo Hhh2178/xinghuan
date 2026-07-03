@@ -19,6 +19,11 @@
   - `POST /api/internal/comfyui/connectors/register`
   - `POST /api/internal/comfyui/connectors/heartbeat`
 - Connector 会把本机 `baseUrl / tailscaleAddress / health / capabilities / connectorVersion` 回写到后台实例池。
+- Connector harness 入口：
+  - workspace 说明：`apps/comfyui-connector/README.md`
+  - 环境模板：`apps/comfyui-connector/.env.example`
+  - systemd 模板：`ops/systemd/xinghuan-comfyui-connector.service.example`
+  - 工程契约：`npm run verify:comfyui-connector-harness`
 
 ## ComfyUI 分层约束
 
@@ -26,6 +31,7 @@
 - 实例草稿可编辑暴露参数口、默认值、输出定义。
 - 只有管理员才能执行 `推送到共享区`，把机器草稿发布成共享目录。
 - 画布只消费 `GET /api/comfyui/apps` 暴露的共享工作流，节点类型为 `comfyui-app`。
+- 画布实际运行不再复用通用图像代理，而是走 `POST /api/comfyui/apps/:workflowId/run` 的专用执行入口。
 
 ## 当前典型样本
 

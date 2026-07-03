@@ -6,6 +6,7 @@
 - 数据类型要显式隔离，不能用 `any` 绕过连接校验
 - RunningHub 节点、图像/视频/音频节点都应消费结构化条目和参数定义
 - ComfyUI 节点优先消费后台治理后的共享工作流，不在画布长期维护草稿
+- `comfyui-app` 节点的执行入口是后台专用 `POST /api/comfyui/apps/:workflowId/run`，不再把共享工作流伪装成通用图像 provider
 
 ## 关键建模层
 

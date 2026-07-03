@@ -1,9 +1,35 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import {
+  buildComfyuiExecutionPrompt,
+  buildComfyuiViewAssetUrl,
+  canRunComfyuiWorkflowOnInstance,
+  extractComfyuiResultAssets,
+  normalizeComfyuiExecutionMediaInputs,
+  normalizeComfyuiUserParams,
+  selectComfyuiExecutionInstance,
+  submitComfyuiPrompt,
+  uploadComfyuiImageInput,
+  waitForComfyuiHistory,
+} from "./comfyui-execution.js";
 import { readComfyuiRegistry } from "./comfyui-workflow-registry.js";
+import { readJsonBody } from "./http-session-utils.js";
+import { safeText } from "./api-sanitizers.js";
 
 interface ComfyuiPublicRouteDeps {
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number, headers?: Record<string, string>) => void;
   adminDir: string;
+  normalizeReferenceUrl: (value: string) => string;
+  saveRemoteImageToOutput: (sourceUrl: string) => Promise<{ url: string }>;
+  saveRemoteVideoToOutput: (sourceUrl: string) => Promise<{ url: string }>;
+  saveRemoteAudioToOutput: (sourceUrl: string) => Promise<{ url: string }>;
+}
+
+function sendComfyuiPublicError(response: ServerResponse, statusCode: number, error: string) {
+  response.writeHead(statusCode, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  response.end(JSON.stringify({ success: false, error }));
 }
 
 export async function handleComfyuiPublicRoutes(input: {
@@ -21,6 +47,87 @@ export async function handleComfyuiPublicRoutes(input: {
       updatedAt: state.updatedAt,
       instances: state.instances,
       workflows: state.sharedWorkflows,
+    });
+    return true;
+  }
+
+  const runMatch = url.pathname.match(/^\/api\/comfyui\/apps\/([^/]+)\/run$/);
+  if (runMatch && request.method === "POST") {
+    const workflowRef = decodeURIComponent(runMatch[1]);
+    const state = await readComfyuiRegistry(deps.adminDir);
+    const workflow = state.sharedWorkflows.find((item) => item.id === workflowRef || item.sharedWorkflowId === workflowRef);
+    if (!workflow) {
+      sendComfyuiPublicError(response, 404, "COMFYUI_WORKFLOW_NOT_FOUND");
+      return true;
+    }
+
+    const body = await readJsonBody<{
+      instanceId?: string;
+      userParams?: unknown;
+      inputs?: unknown;
+    }>(request);
+    const instance = selectComfyuiExecutionInstance({
+      state,
+      workflow,
+      requestedInstanceId: safeText(body.instanceId),
+    });
+    if (!canRunComfyuiWorkflowOnInstance(instance)) {
+      sendComfyuiPublicError(response, 409, "COMFYUI_INSTANCE_UNAVAILABLE");
+      return true;
+    }
+
+    const normalizedInputs = normalizeComfyuiExecutionMediaInputs(body.inputs);
+    const preparedInputs = {
+      ...normalizedInputs,
+      images: normalizedInputs.images?.length
+        ? await Promise.all(
+            normalizedInputs.images.map((item) => uploadComfyuiImageInput(instance.baseUrl, deps.normalizeReferenceUrl(item))),
+          )
+        : [],
+      videos: normalizedInputs.videos?.map((item) => deps.normalizeReferenceUrl(item)) || [],
+      audios: normalizedInputs.audios?.map((item) => deps.normalizeReferenceUrl(item)) || [],
+    };
+
+    const prompt = buildComfyuiExecutionPrompt({
+      workflowJson: workflow.workflowJson,
+      exposedFields: workflow.exposedFields,
+      defaultValues: workflow.defaultValues,
+      userParams: normalizeComfyuiUserParams(body.userParams),
+      mediaInputs: preparedInputs,
+    });
+    const promptId = await submitComfyuiPrompt(instance.baseUrl, prompt);
+    const historyEntry = await waitForComfyuiHistory(instance.baseUrl, promptId);
+    const assets = extractComfyuiResultAssets(historyEntry);
+
+    const imageUrls = await Promise.all(
+      assets.images.map(async (asset) => (await deps.saveRemoteImageToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+    );
+    const videoUrls = await Promise.all(
+      assets.videos.map(async (asset) => (await deps.saveRemoteVideoToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+    );
+    const audioUrls = await Promise.all(
+      assets.audios.map(async (asset) => (await deps.saveRemoteAudioToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+    );
+
+    deps.sendT8(response, {
+      workflowId: workflow.id,
+      sharedWorkflowId: workflow.sharedWorkflowId || workflow.id,
+      instanceId: instance.id,
+      instanceName: instance.name,
+      promptId,
+      imageUrls,
+      videoUrls,
+      audioUrls,
+      text: assets.texts.join("\n").trim(),
+      raw: {
+        promptId,
+        outputCount: {
+          images: imageUrls.length,
+          videos: videoUrls.length,
+          audios: audioUrls.length,
+          texts: assets.texts.length,
+        },
+      },
     });
     return true;
   }

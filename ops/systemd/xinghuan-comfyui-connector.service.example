@@ -1,0 +1,16 @@
+[Unit]
+Description=Xinghuan ComfyUI Connector
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/apps/xinghuan-canvas/current
+EnvironmentFile=/opt/apps/xinghuan-comfyui-connector/shared/comfyui-connector.env
+ExecStart=/usr/bin/node /opt/apps/xinghuan-canvas/current/apps/comfyui-connector/dist/connector.js
+Restart=always
+RestartSec=5
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target

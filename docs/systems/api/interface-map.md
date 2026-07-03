@@ -34,6 +34,9 @@
   - 将实例草稿发布到共享区。
 - `GET /api/comfyui/apps`
   - 画布公共消费目录，只返回已发布共享工作流与关联实例摘要。
+- `POST /api/comfyui/apps/:workflowId/run`
+  - 画布执行共享工作流的专用入口。
+  - 后端会选择实例、注入暴露参数、提交 ComfyUI prompt、轮询 history，并将输出转存到本地素材输出目录。
 
 ## ComfyUI Connector 内部接口
 
@@ -43,6 +46,10 @@
 - `POST /api/internal/comfyui/connectors/heartbeat`
   - 机器侧 connector 周期性上报 `health / capabilities / lastSeenAt`。
   - Header: `x-comfyui-connector-token`
+- 机器侧 harness 约定：
+  - 环境变量模板：`apps/comfyui-connector/.env.example`
+  - 进程模板：`ops/systemd/xinghuan-comfyui-connector.service.example`
+  - 本机契约校验：`npm run verify:comfyui-connector-harness`
 
 ## 组权限治理接口
 

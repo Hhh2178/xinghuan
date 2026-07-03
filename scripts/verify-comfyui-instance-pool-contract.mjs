@@ -24,6 +24,14 @@ const canvasSource = await readFile(
   new URL("../apps/web/src/components/Canvas.tsx", import.meta.url),
   "utf8",
 );
+const comfyuiPublicRoutesSource = await readFile(
+  new URL("../apps/api/src/comfyui-public-routes.ts", import.meta.url),
+  "utf8",
+);
+const comfyuiWebServiceSource = await readFile(
+  new URL("../apps/web/src/services/comfyuiApps.ts", import.meta.url),
+  "utf8",
+);
 const connectorPackage = JSON.parse(
   await readFile(
     new URL("../apps/comfyui-connector/package.json", import.meta.url),
@@ -146,6 +154,21 @@ assert.match(
   apiDoc,
   /\/api\/comfyui\/apps/,
   "api map should include the public comfyui catalog",
+);
+assert.match(
+  comfyuiPublicRoutesSource,
+  /runMatch/,
+  "public routes should expose a comfyui run endpoint",
+);
+assert.match(
+  comfyuiPublicRoutesSource,
+  /submitComfyuiPrompt/,
+  "public comfyui route should submit prompts through the dedicated execution path",
+);
+assert.match(
+  comfyuiWebServiceSource,
+  /\/api\/comfyui\/apps\/\$\{encodeURIComponent\(app\.id\)\}\/run/,
+  "web comfyui service should call the dedicated comfyui run endpoint",
 );
 
 console.log("comfyui instance pool contract: ok");
