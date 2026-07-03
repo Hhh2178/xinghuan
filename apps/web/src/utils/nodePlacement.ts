@@ -50,6 +50,7 @@ export const NODE_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   'runninghub-wallet': { w: 360, h: 460 },
   'rh-tools': { w: 360, h: 460 },
   'rh-toolbox': { w: 360, h: 460 },
+  comfyui: { w: 420, h: 620 },
   'comfyui-app': { w: 420, h: 620 },
   'comfyui-store': { w: 400, h: 560 },
   'comfyui-app-maker': { w: 720, h: 620 },

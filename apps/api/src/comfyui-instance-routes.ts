@@ -77,6 +77,7 @@ interface WorkflowMutationBody {
   defaultValues?: unknown;
   hiddenFields?: unknown;
   outputSchema?: unknown;
+  instanceBindings?: unknown;
   sharedWorkflowId?: string;
 }
 
@@ -111,6 +112,7 @@ function mergeWorkflowDraft(existing: ComfyuiWorkflowDraft, body: WorkflowMutati
     defaultValues: body.defaultValues && typeof body.defaultValues === "object" && !Array.isArray(body.defaultValues) ? body.defaultValues : existing.defaultValues,
     hiddenFields: Array.isArray(body.hiddenFields) ? body.hiddenFields : existing.hiddenFields,
     outputSchema: Array.isArray(body.outputSchema) ? body.outputSchema : existing.outputSchema,
+    instanceBindings: Array.isArray(body.instanceBindings) ? body.instanceBindings : existing.instanceBindings,
     instanceId: existing.instanceId,
     id: existing.id,
     createdAt: existing.createdAt,
@@ -517,6 +519,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       defaultValues: body.defaultValues && typeof body.defaultValues === "object" && !Array.isArray(body.defaultValues) ? body.defaultValues as Record<string, unknown> : undefined,
       hiddenFields: Array.isArray(body.hiddenFields) ? body.hiddenFields.map((value) => safeText(value)).filter(Boolean) : undefined,
       outputSchema: Array.isArray(body.outputSchema) ? body.outputSchema as any : undefined,
+      instanceBindings: Array.isArray(body.instanceBindings) ? body.instanceBindings as any : undefined,
       sharedWorkflowId: safeText(body.sharedWorkflowId),
     });
     const state = await registry.updateRegistry((current) => {

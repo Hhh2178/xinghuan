@@ -47,7 +47,10 @@ export async function handleComfyuiPublicRoutes(input: {
       revision: state.revision,
       updatedAt: state.updatedAt,
       instances: state.instances,
-      workflows: state.sharedWorkflows,
+      workflows: state.sharedWorkflows.map((workflow) => ({
+        ...workflow,
+        instanceBindings: Array.isArray(workflow.instanceBindings) ? workflow.instanceBindings : [],
+      })),
     });
     return true;
   }
@@ -67,10 +70,18 @@ export async function handleComfyuiPublicRoutes(input: {
       userParams?: unknown;
       inputs?: unknown;
     }>(request);
+    const requestedInstanceId = safeText(body.instanceId);
+    const allowedBindings = Array.isArray(workflow.instanceBindings) && workflow.instanceBindings.length
+      ? workflow.instanceBindings.filter((item) => item.enabled !== false)
+      : [{ instanceId: workflow.instanceId, enabled: true }];
+    if (requestedInstanceId && !allowedBindings.some((item) => item.instanceId === requestedInstanceId)) {
+      sendComfyuiPublicError(response, 409, "COMFYUI_INSTANCE_NOT_ALLOWED");
+      return true;
+    }
     const instance = selectComfyuiExecutionInstance({
       state,
       workflow,
-      requestedInstanceId: safeText(body.instanceId),
+      requestedInstanceId,
     });
     if (!canRunComfyuiWorkflowOnInstance(instance)) {
       sendComfyuiPublicError(response, 409, "COMFYUI_INSTANCE_UNAVAILABLE");

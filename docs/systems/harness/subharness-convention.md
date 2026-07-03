@@ -33,6 +33,16 @@
 - `scripts/verify-comfyui-connector-harness-contract.mjs`
 - `npm run verify:comfyui-connector-harness`
 
+当前 ComfyUI 前后台治理子 harness 还应继续保持：
+
+- `scripts/verify-comfyui-workflow-parser-contract.mjs`
+- `scripts/verify-admin-comfyui-governance-contract.mjs`
+- `scripts/verify-comfyui-canvas-schema-contract.mjs`
+- `scripts/verify-comfyui-unified-node-contract.mjs`
+- `scripts/verify-comfyui-legacy-node-migration-contract.mjs`
+- `scripts/verify-comfyui-instance-pool-contract.mjs`
+- `npm run harness:verify:comfyui`
+
 后续 ComfyUI instance pool、共享工作流管理、机器级工作流管理都应继续沿用这套结构。
 
 ## 禁止事项
@@ -41,4 +51,3 @@
 - 不在子 harness 中复制 release 记录正文。
 - 不把本地运行缓存、临时状态或真实密钥写入仓库。
 - 不把 `.agent/` 作为当前项目的正式执行入口；如果后续确实需要本地自动化覆盖层，应默认本地忽略且只引用现有真源。
-

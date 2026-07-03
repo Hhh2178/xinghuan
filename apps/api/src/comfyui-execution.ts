@@ -32,6 +32,17 @@ interface ComfyuiSubmitPromptResponse {
   promptId?: string;
 }
 
+interface LegacyComfyuiExecutionField {
+  key: string;
+  nodeId: string;
+  fieldName: string;
+  label: string;
+  source: string;
+  kind: ComfyuiWorkflowInputSchemaItem["kind"];
+  required?: boolean;
+  value?: unknown;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -75,9 +86,30 @@ function fieldOwnValue(
   return cloneJson(field.defaultValue);
 }
 
+function normalizeLegacyExecutionSchema(fields: LegacyComfyuiExecutionField[] | undefined) {
+  if (!Array.isArray(fields) || !fields.length) return [];
+  return fields.map((field, index) => {
+    const isMedia = field.kind === "image" || field.kind === "video" || field.kind === "audio";
+    return {
+      key: field.key,
+      nodeId: field.nodeId,
+      fieldName: field.fieldName,
+      source: field.source,
+      label: field.label,
+      mode: isMedia ? "upstream" : "param",
+      kind: field.kind,
+      required: Boolean(field.required),
+      defaultValue: cloneJson(field.value),
+      upstreamSlot: isMedia ? field.source : undefined,
+      order: index,
+    } satisfies ComfyuiWorkflowInputSchemaItem;
+  });
+}
+
 export function buildComfyuiExecutionPrompt(input: {
   workflowJson: Record<string, unknown>;
-  inputSchema: ComfyuiWorkflowInputSchemaItem[];
+  inputSchema?: ComfyuiWorkflowInputSchemaItem[];
+  exposedFields?: LegacyComfyuiExecutionField[];
   defaultValues: Record<string, unknown>;
   userParams?: Record<string, unknown>;
   mediaInputs?: ComfyuiExecutionMediaInputs;
@@ -85,8 +117,11 @@ export function buildComfyuiExecutionPrompt(input: {
   const workflowJson = cloneJson(input.workflowJson);
   const userParams = isRecord(input.userParams) ? input.userParams : {};
   const mediaInputs = input.mediaInputs || {};
+  const inputSchema = Array.isArray(input.inputSchema) && input.inputSchema.length
+    ? input.inputSchema
+    : normalizeLegacyExecutionSchema(input.exposedFields);
 
-  for (const field of input.inputSchema || []) {
+  for (const field of inputSchema) {
     if (field.mode === "hidden") continue;
     const value = fieldOwnValue(field, userParams, input.defaultValues || {}, mediaInputs);
     if (value === undefined) continue;
@@ -200,12 +235,18 @@ export function selectComfyuiExecutionInstance(input: {
 }) {
   const { state, workflow, requestedInstanceId } = input;
   const instances = Array.isArray(state.instances) ? state.instances : [];
+  const allowedBindings = Array.isArray(workflow.instanceBindings) && workflow.instanceBindings.length
+    ? workflow.instanceBindings.filter((item) => item.enabled !== false)
+    : [{ instanceId: workflow.instanceId, enabled: true, isDefault: true }];
+  const allowedIds = new Set(allowedBindings.map((item) => item.instanceId).filter(Boolean));
+  const candidates = instances.filter((item) => allowedIds.has(item.id));
+  const defaultInstanceId = allowedBindings.find((item) => item.isDefault)?.instanceId || workflow.instanceId;
   const preferred = requestedInstanceId
-    ? instances.find((item) => item.id === requestedInstanceId)
-    : instances.find((item) => item.id === workflow.instanceId);
+    ? candidates.find((item) => item.id === requestedInstanceId)
+    : candidates.find((item) => item.id === defaultInstanceId);
   if (preferred && preferred.health !== "offline") return preferred;
-  return instances.find((item) => item.health === "online")
-    || instances.find((item) => item.health !== "offline")
+  return candidates.find((item) => item.health === "online")
+    || candidates.find((item) => item.health !== "offline")
     || null;
 }
 

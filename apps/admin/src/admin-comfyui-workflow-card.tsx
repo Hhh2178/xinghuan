@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   AudioLines,
   Check,
+  Cpu,
   EyeOff,
   FileJson2,
   Film,
@@ -21,7 +22,9 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   ComfyuiDetectedInput,
   ComfyuiDetectedOutput,
+  ComfyuiInstanceRecord,
   ComfyuiWorkflowDraft,
+  ComfyuiWorkflowInstanceBinding,
   ComfyuiWorkflowInputSchemaItem,
   ComfyuiWorkflowOutputSchemaItem,
   ComfyuiWorkflowValueKind,
@@ -34,10 +37,12 @@ export interface ComfyuiWorkflowEditPayload {
   inputSchema: ComfyuiWorkflowInputSchemaItem[];
   defaultValues: Record<string, unknown>;
   outputSchema: ComfyuiWorkflowOutputSchemaItem[];
+  instanceBindings: ComfyuiWorkflowInstanceBinding[];
 }
 
 interface ComfyuiWorkflowCardProps {
   workflow: ComfyuiWorkflowDraft;
+  availableInstances: ComfyuiInstanceRecord[];
   onSave: (workflowId: string, payload: ComfyuiWorkflowEditPayload) => Promise<void> | void;
   onPushToShared: (workflowId: string) => Promise<void> | void;
   onDelete: (workflowId: string) => Promise<void> | void;
@@ -124,12 +129,48 @@ function outputMetaLabel(meta: ComfyuiDetectedOutput | undefined, field: Comfyui
   return meta?.nodeTitle || field.sourceNodeId || field.key;
 }
 
-export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onDelete }: ComfyuiWorkflowCardProps) {
+function normalizeWorkflowBindings(
+  bindings: ComfyuiWorkflowInstanceBinding[] | undefined,
+  availableInstances: ComfyuiInstanceRecord[],
+  fallbackInstanceId: string,
+): ComfyuiWorkflowInstanceBinding[] {
+  const raw = Array.isArray(bindings) ? bindings : [];
+  const seen = new Set<string>();
+  const normalized = raw
+    .map((binding) => ({
+      instanceId: String(binding.instanceId || "").trim(),
+      enabled: binding.enabled !== false,
+      isDefault: binding.isDefault === true,
+      executionMode: binding.executionMode === "fixed" || binding.executionMode === "pool" ? binding.executionMode : "selectable",
+      capabilityTags: Array.isArray(binding.capabilityTags) ? binding.capabilityTags : [],
+    } satisfies ComfyuiWorkflowInstanceBinding))
+    .filter((binding) => binding.instanceId && !seen.has(binding.instanceId) && seen.add(binding.instanceId));
+
+  if (!normalized.length) {
+    return [{
+      instanceId: fallbackInstanceId,
+      enabled: true,
+      isDefault: true,
+      executionMode: "selectable" as const,
+      capabilityTags: availableInstances.find((instance) => instance.id === fallbackInstanceId)?.capabilities || [],
+    }];
+  }
+
+  if (!normalized.some((binding) => binding.isDefault)) {
+    normalized[0] = { ...normalized[0], isDefault: true };
+  }
+  return normalized;
+}
+
+export function AdminComfyuiWorkflowCard({ workflow, availableInstances, onSave, onPushToShared, onDelete }: ComfyuiWorkflowCardProps) {
   const [title, setTitle] = useState(workflow.title);
   const [description, setDescription] = useState(workflow.description || "");
   const [workflowJsonText, setWorkflowJsonText] = useState(prettyJson(workflow.workflowJson));
   const [draftInputSchema, setDraftInputSchema] = useState<ComfyuiWorkflowInputSchemaItem[]>(cloneRows(workflow.inputSchema));
   const [draftOutputSchema, setDraftOutputSchema] = useState<ComfyuiWorkflowOutputSchemaItem[]>(cloneRows(workflow.outputSchema));
+  const [draftInstanceBindings, setDraftInstanceBindings] = useState<ComfyuiWorkflowInstanceBinding[]>(
+    normalizeWorkflowBindings(workflow.instanceBindings, availableInstances, workflow.instanceId),
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<"save" | "shared" | "delete" | "">("");
 
@@ -139,9 +180,10 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
     setWorkflowJsonText(prettyJson(workflow.workflowJson));
     setDraftInputSchema(cloneRows(workflow.inputSchema));
     setDraftOutputSchema(cloneRows(workflow.outputSchema));
+    setDraftInstanceBindings(normalizeWorkflowBindings(workflow.instanceBindings, availableInstances, workflow.instanceId));
     setMessage("");
     setBusy("");
-  }, [workflow]);
+  }, [availableInstances, workflow]);
 
   const inputMetaMap = useMemo(
     () => new Map(workflow.analysis.detectedInputs.map((item) => [item.key, item])),
@@ -154,6 +196,10 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
   const upstreamCount = draftInputSchema.filter((item) => item.mode === "upstream").length;
   const hiddenCount = draftInputSchema.filter((item) => item.mode === "hidden").length;
   const enabledOutputCount = draftOutputSchema.filter((item) => item.enabled !== false).length;
+  const bindingMap = useMemo(
+    () => new Map(draftInstanceBindings.map((binding) => [binding.instanceId, binding])),
+    [draftInstanceBindings],
+  );
 
   function updateInputRow(index: number, patch: Partial<ComfyuiWorkflowInputSchemaItem>) {
     setDraftInputSchema((current) => current.map((item, rowIndex) => (
@@ -167,6 +213,35 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
     )));
   }
 
+  function updateBinding(instanceId: string, patch: Partial<ComfyuiWorkflowInstanceBinding>) {
+    setDraftInstanceBindings((current) => {
+      const existing = current.find((binding) => binding.instanceId === instanceId);
+      if (existing) {
+        return current.map((binding) => (
+          binding.instanceId === instanceId ? { ...binding, ...patch } : binding
+        ));
+      }
+      return [
+        ...current,
+        {
+          instanceId,
+          enabled: true,
+          executionMode: "selectable",
+          capabilityTags: availableInstances.find((instance) => instance.id === instanceId)?.capabilities || [],
+          ...patch,
+        },
+      ];
+    });
+  }
+
+  function setDefaultBinding(instanceId: string) {
+    setDraftInstanceBindings((current) => current.map((binding) => ({
+      ...binding,
+      isDefault: binding.instanceId === instanceId,
+      enabled: binding.instanceId === instanceId ? true : binding.enabled,
+    })));
+  }
+
   async function handleSave() {
     setBusy("save");
     setMessage("");
@@ -176,17 +251,34 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
           ...item,
           label: item.label.trim() || item.fieldName,
           upstreamSlot: item.mode === "upstream" ? (item.upstreamSlot || item.source || "").trim() || undefined : undefined,
+          slotLabel: item.mode === "upstream" ? (item.slotLabel || item.label || item.fieldName).trim() || undefined : undefined,
+          displayTier: item.mode === "param"
+            ? item.displayTier === "secondary" || item.displayTier === "advanced"
+              ? item.displayTier
+              : "primary" as const
+            : undefined,
           order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : index,
-        }))
+        }) satisfies ComfyuiWorkflowInputSchemaItem)
         .sort((a, b) => a.order - b.order);
       const nextOutputSchema = cloneRows(draftOutputSchema)
         .map((item, index) => ({
           ...item,
           key: item.key.trim() || `output-${index + 1}`,
           label: item.label.trim() || `输出 ${index + 1}`,
+          isPrimary: item.isPrimary === true,
           order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : index,
         }))
         .sort((a, b) => a.order - b.order);
+      if (!nextOutputSchema.some((item) => item.isPrimary)) {
+        nextOutputSchema[0] = { ...nextOutputSchema[0], isPrimary: true };
+      }
+      const nextBindings = normalizeWorkflowBindings(draftInstanceBindings, availableInstances, workflow.instanceId)
+        .map((binding) => ({
+          ...binding,
+          capabilityTags: binding.capabilityTags?.length
+            ? binding.capabilityTags
+            : availableInstances.find((instance) => instance.id === binding.instanceId)?.capabilities || [],
+        }) satisfies ComfyuiWorkflowInstanceBinding);
       const payload: ComfyuiWorkflowEditPayload = {
         title: title.trim() || workflow.title,
         description: description.trim(),
@@ -194,6 +286,7 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
         inputSchema: nextInputSchema,
         defaultValues: defaultValuesFromSchema(nextInputSchema),
         outputSchema: nextOutputSchema,
+        instanceBindings: nextBindings,
       };
       await onSave(workflow.id, payload);
       setMessage("已保存工作流治理草稿");
@@ -331,6 +424,7 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
             <span>来源字段</span>
             <span>显示名称</span>
             <span>暴露模式</span>
+            <span>展示层级</span>
             <span>类型</span>
             <span>默认值 / 上游口</span>
             <span>必填</span>
@@ -370,6 +464,15 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
                   <option value="hidden">隐藏</option>
                 </select>
                 <select
+                  value={field.displayTier || "primary"}
+                  onChange={(event) => updateInputRow(index, { displayTier: event.target.value as ComfyuiWorkflowInputSchemaItem["displayTier"] })}
+                  disabled={field.mode !== "param"}
+                >
+                  <option value="primary">核心参数</option>
+                  <option value="secondary">更多参数</option>
+                  <option value="advanced">高级参数</option>
+                </select>
+                <select
                   value={field.kind}
                   onChange={(event) => updateInputRow(index, { kind: event.target.value as ComfyuiWorkflowValueKind })}
                 >
@@ -383,11 +486,18 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
                   <option value="audio">audio</option>
                 </select>
                 {field.mode === "upstream" ? (
-                  <input
-                    value={field.upstreamSlot || ""}
-                    onChange={(event) => updateInputRow(index, { upstreamSlot: event.target.value })}
-                    placeholder="image1 / video1 / audio1"
-                  />
+                  <div className="space-y-2">
+                    <input
+                      value={field.upstreamSlot || ""}
+                      onChange={(event) => updateInputRow(index, { upstreamSlot: event.target.value })}
+                      placeholder="image1 / video1 / audio1"
+                    />
+                    <input
+                      value={field.slotLabel || ""}
+                      onChange={(event) => updateInputRow(index, { slotLabel: event.target.value })}
+                      placeholder="参考图 / 蒙版图 / 主提示词"
+                    />
+                  </div>
                 ) : field.kind === "textarea" ? (
                   <textarea
                     rows={2}
@@ -433,6 +543,71 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
       <section className="admin-comfyui-workflow-card__section">
         <div className="admin-comfyui-section-head">
           <div className="admin-comfyui-section-head__icon">
+            <Cpu aria-hidden="true" />
+          </div>
+          <div>
+            <strong>执行机器</strong>
+            <span>控制该工作流能在哪些 ComfyUI 机器上运行，并指定默认机器与执行模式。</span>
+          </div>
+        </div>
+        <div className="admin-comfyui-machine-binding-grid">
+          {availableInstances.map((instance) => {
+            const binding = bindingMap.get(instance.id) || {
+              instanceId: instance.id,
+              enabled: false,
+              executionMode: "selectable" as const,
+              capabilityTags: instance.capabilities,
+            };
+            return (
+              <article key={instance.id} className="admin-comfyui-machine-binding-card">
+                <div className="admin-comfyui-machine-binding-card__head">
+                  <strong>{instance.name}</strong>
+                  <span>{instance.health} · {instance.baseUrl}</span>
+                </div>
+                <label className="admin-comfyui-inline-check">
+                  <input
+                    type="checkbox"
+                    checked={binding.enabled !== false}
+                    onChange={(event) => updateBinding(instance.id, { enabled: event.target.checked })}
+                  />
+                  <span>允许运行</span>
+                </label>
+                <label className="admin-comfyui-inline-check">
+                  <input
+                    type="radio"
+                    name="comfyui-default-machine"
+                    checked={binding.isDefault === true}
+                    onChange={() => setDefaultBinding(instance.id)}
+                  />
+                  <span>默认机器</span>
+                </label>
+                <label>
+                  <span>执行模式</span>
+                  <select
+                    value={binding.executionMode || "selectable"}
+                    onChange={(event) => updateBinding(instance.id, {
+                      executionMode: event.target.value as ComfyuiWorkflowInstanceBinding["executionMode"],
+                    })}
+                  >
+                    <option value="selectable">前台可切换</option>
+                    <option value="fixed">固定机器</option>
+                    <option value="pool">预留机器池</option>
+                  </select>
+                </label>
+                <div className="admin-comfyui-machine-binding-card__tags">
+                  {(instance.capabilities || []).length
+                    ? instance.capabilities.map((tag) => <span key={tag}>{tag}</span>)
+                    : <span>无能力标签</span>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="admin-comfyui-workflow-card__section">
+        <div className="admin-comfyui-section-head">
+          <div className="admin-comfyui-section-head__icon">
             <Settings2 aria-hidden="true" />
           </div>
           <div>
@@ -446,6 +621,7 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
             <span>输出 key</span>
             <span>显示名称</span>
             <span>类型</span>
+            <span>主输出</span>
             <span>启用</span>
             <span>顺序</span>
           </div>
@@ -484,6 +660,18 @@ export function AdminComfyuiWorkflowCard({ workflow, onSave, onPushToShared, onD
                   <option value="audio">audio</option>
                   <option value="text">text</option>
                 </select>
+                <label className="admin-comfyui-inline-check">
+                  <input
+                    type="radio"
+                    name="comfyui-primary-output"
+                    checked={field.isPrimary === true}
+                    onChange={() => setDraftOutputSchema((current) => current.map((item, rowIndex) => ({
+                      ...item,
+                      isPrimary: rowIndex === index,
+                    })))}
+                  />
+                  <span>主输出</span>
+                </label>
                 <label className="admin-comfyui-inline-check">
                   <input
                     type="checkbox"

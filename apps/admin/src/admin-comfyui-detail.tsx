@@ -66,6 +66,7 @@ function healthCopy(instance: ComfyuiInstanceRecord | null) {
 export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>("config");
   const [instance, setInstance] = useState<ComfyuiInstanceRecord | null>(null);
+  const [availableInstances, setAvailableInstances] = useState<ComfyuiInstanceRecord[]>([]);
   const [workflows, setWorkflows] = useState<ComfyuiWorkflowDraft[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -109,6 +110,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
     setMessage("");
     try {
       const result = await adminComfyuiApi.listInstances();
+      setAvailableInstances(result.instances);
       const found = result.instances.find((item) => item.id === instanceId);
       if (found) {
         setInstance(found);
@@ -150,6 +152,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
   useEffect(() => {
     if (instanceId === "new") {
       setInstance(null);
+      setAvailableInstances([]);
       setWorkflows([]);
       setSelectedWorkflowId("");
       setWorkflowTitle("");
@@ -190,6 +193,11 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
         : await adminComfyuiApi.createInstance(payload);
       setMessage(`已保存实例：${saved.name}`);
       setInstance(saved);
+      setAvailableInstances((current) => {
+        const next = current.filter((item) => item.id !== saved.id);
+        next.unshift(saved);
+        return next;
+      });
       setInstanceForm({
         id: saved.id,
         name: saved.name,
@@ -556,6 +564,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
                 {selectedWorkflow ? (
                   <AdminComfyuiWorkflowCard
                     workflow={selectedWorkflow}
+                    availableInstances={availableInstances}
                     onSave={saveWorkflow}
                     onPushToShared={pushWorkflowToShared}
                     onDelete={deleteWorkflow}

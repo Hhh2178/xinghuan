@@ -34,10 +34,11 @@ export const NODE_REGISTRY: NodeMeta[] = [
   { type: 'rh-toolbox', label: 'RH工具箱', category: 'rh', description: '维护者精选 RunningHub 工具箱，只读分类运行，可作为图像/视频/文本/音频辅助能力被其他节点复用', icon: 'Wrench', color: 'cyan', hidden: true },
   ...DEV_NODE_REGISTRY,
 
-  // ========== ComfyUI 本地工作流节点 ==========
-  { type: 'comfyui-app', label: 'ComfyUI应用', category: 'comfyui', description: '后台共享 ComfyUI 工作流消费节点：只显示已发布参数与输出', icon: 'Workflow', color: 'cyan' },
-  { type: 'comfyui-store', label: 'ComfyUI超市', category: 'comfyui', description: '本地 ComfyUI 应用库：导入制作好的工作流应用，接上游素材后一键运行', icon: 'Boxes', color: 'cyan' },
-  { type: 'comfyui-app-maker', label: 'ComfyUI应用制作工具', category: 'comfyui', description: '上传 ComfyUI API Workflow JSON，自动识别参数并保存为可复用应用', icon: 'FileJson', color: 'emerald' },
+  // ========== ComfyUI 统一节点 ==========
+  { type: 'comfyui', label: 'comfyui', category: 'comfyui', description: '统一 ComfyUI 节点：选择后台已治理并发布的共享工作流，按 schema 暴露参数与输出', icon: 'Workflow', color: 'cyan' },
+  { type: 'comfyui-app', label: 'ComfyUI应用', category: 'comfyui', description: '旧 ComfyUI 应用节点，保留迁移兼容', icon: 'Workflow', color: 'cyan', hidden: true },
+  { type: 'comfyui-store', label: 'ComfyUI超市', category: 'comfyui', description: '旧 ComfyUI 超市节点，保留迁移兼容', icon: 'Boxes', color: 'cyan', hidden: true },
+  { type: 'comfyui-app-maker', label: 'ComfyUI应用制作工具', category: 'comfyui', description: '旧 ComfyUI 制作节点，保留迁移兼容', icon: 'FileJson', color: 'emerald', hidden: true },
 
   // ========== Special 特殊节点(5) ==========
   // 以下五个节点暂时隐藏不展示 (hidden: true) —— 需要重新启用时删除 hidden 即可。

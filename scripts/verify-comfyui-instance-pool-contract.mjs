@@ -91,6 +91,11 @@ assert.match(
   "registry should normalize exposed fields and defaults",
 );
 assert.match(
+  registrySource,
+  /instanceBindings/,
+  "registry should persist machine binding data",
+);
+assert.match(
   routeSource,
   /\/api\/internal\/comfyui\/connectors\/register/,
   "server should expose connector registration",
@@ -102,12 +107,12 @@ assert.match(
 );
 assert.match(
   nodeRegistrySource,
-  /comfyui-app/,
-  "canvas should register a backend-managed comfyui app node",
+  /type: 'comfyui', label: 'comfyui'/,
+  "canvas should expose the unified backend-managed comfyui node",
 );
 assert.match(
   canvasSource,
-  /ComfyUIApplicationNode/,
+  /comfyui: ComfyUINode/,
   "new canvas node should be wired into the canvas registry",
 );
 assert.ok(
@@ -137,7 +142,7 @@ assert.match(
 );
 assert.match(
   canvasDoc,
-  /comfyui-app/,
+  /comfyui-app|comfyui/,
   "canvas docs should describe the backend-managed node",
 );
 assert.match(
@@ -162,12 +167,22 @@ assert.match(
 );
 assert.match(
   comfyuiPublicRoutesSource,
+  /instanceBindings/,
+  "public catalog should expose workflow machine bindings",
+);
+assert.match(
+  comfyuiPublicRoutesSource,
   /submitComfyuiPrompt/,
   "public comfyui route should submit prompts through the dedicated execution path",
 );
 assert.match(
   comfyuiWebServiceSource,
-  /\/api\/comfyui\/apps\/\$\{encodeURIComponent\(app\.id\)\}\/run/,
+  /instanceId/,
+  "web comfyui service should submit selected instance id",
+);
+assert.match(
+  comfyuiWebServiceSource,
+  /sharedWorkflowId|workflowId/,
   "web comfyui service should call the dedicated comfyui run endpoint",
 );
 

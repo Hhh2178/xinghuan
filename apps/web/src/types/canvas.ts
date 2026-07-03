@@ -18,6 +18,7 @@ export type NodeType =
   | 'rh-tools'
   | 'rh-toolbox'
   | 'rh-toolbox-maker'
+  | 'comfyui'
   | 'comfyui-app'
   | 'comfyui-store'
   | 'comfyui-app-maker'
@@ -245,7 +246,16 @@ export interface ComfyuiCatalogWorkflowOutput {
   sourceNodeId?: string;
   sourceFieldName?: string;
   enabled?: boolean;
+  isPrimary?: boolean;
   order?: number;
+}
+
+export interface ComfyuiCatalogWorkflowInstanceBinding {
+  instanceId: string;
+  enabled: boolean;
+  isDefault?: boolean;
+  executionMode?: 'fixed' | 'selectable' | 'pool';
+  capabilityTags?: string[];
 }
 
 export interface ComfyuiCatalogDetectedInput {
@@ -292,7 +302,11 @@ export interface ComfyuiCatalogWorkflowInputSchemaItem {
   kind: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'image' | 'video' | 'audio';
   required: boolean;
   defaultValue?: unknown;
+  displayTier?: 'primary' | 'secondary' | 'advanced';
   upstreamSlot?: string;
+  slotLabel?: string;
+  multiple?: boolean;
+  note?: string;
   order: number;
 }
 
@@ -315,6 +329,7 @@ export interface ComfyuiCatalogWorkflow {
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];
   outputSchema: ComfyuiCatalogWorkflowOutput[];
+  instanceBindings: ComfyuiCatalogWorkflowInstanceBinding[];
   sharedWorkflowId?: string;
   createdAt: number;
   updatedAt: number;
@@ -342,6 +357,12 @@ export interface CanvasNodeData {
   providerId?: string;
   providerModel?: string;
   providerParams?: Record<string, any>;
+  comfyuiInstanceId?: string;
+  sharedWorkflowId?: string;
+  comfyuiWorkflowId?: string;
+  comfyuiSearchQuery?: string;
+  comfyuiParamValues?: Record<string, any>;
+  comfyuiSelectedOutputKey?: string;
   comfyuiAppProviderId?: string;
   comfyuiAppInstanceId?: string;
   comfyuiAppWorkflowId?: string;

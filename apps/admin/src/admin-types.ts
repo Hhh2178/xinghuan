@@ -3,6 +3,9 @@ import {
   type AssistantMessageBlock,
   type ComfyuiDetectedInput,
   type ComfyuiDetectedOutput,
+  type ComfyuiWorkflowDisplayTier,
+  type ComfyuiWorkflowExecutionMode,
+  type ComfyuiWorkflowInstanceBinding,
   type ComfyuiParserWarning,
   type ComfyuiWorkflowAnalysisResult,
   type ComfyuiWorkflowInputSchemaItem,
@@ -188,6 +191,7 @@ export interface ComfyuiWorkflowDraft {
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];
   outputSchema: ComfyuiWorkflowOutputSchemaItem[];
+  instanceBindings: ComfyuiWorkflowInstanceBinding[];
   sharedWorkflowId?: string;
   createdAt: number;
   updatedAt: number;
@@ -198,6 +202,9 @@ export interface ComfyuiWorkflowDraft {
 export type {
   ComfyuiDetectedInput,
   ComfyuiDetectedOutput,
+  ComfyuiWorkflowDisplayTier,
+  ComfyuiWorkflowExecutionMode,
+  ComfyuiWorkflowInstanceBinding,
   ComfyuiParserWarning,
   ComfyuiWorkflowAnalysisResult,
   ComfyuiWorkflowInputSchemaItem,

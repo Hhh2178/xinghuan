@@ -25,6 +25,8 @@ export interface RunComfyuiAppResult {
   text?: string;
   outputs?: ComfyuiRunOutput[];
   taskId?: string;
+  instanceId?: string;
+  instanceName?: string;
   raw?: any;
 }
 
@@ -61,5 +63,7 @@ export async function runComfyuiApp(options: RunComfyuiAppOptions): Promise<RunC
     audioUrls: result.audioUrls,
     text: result.text || '',
     outputs: Array.isArray(result.outputs) ? result.outputs : [],
+    instanceId: result.instanceId,
+    instanceName: result.instanceName,
   };
 }

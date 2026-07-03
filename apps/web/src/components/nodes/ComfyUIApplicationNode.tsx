@@ -1,13 +1,21 @@
 import { memo, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AlertCircle, ArrowLeft, Loader2, Play, RefreshCw, Search, ServerCog, Workflow } from 'lucide-react';
-import { getComfyuiAppCatalog } from '../../services/api';
-import { runComfyuiApp } from '../../services/comfyuiApps';
+import { Workflow } from 'lucide-react';
+
 import { PORT_COLOR } from '../../config/portTypes';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
+import { runComfyuiApp } from '../../services/comfyuiApps';
+import { getComfyuiAppCatalog } from '../../services/api';
 import { logBus } from '../../stores/logs';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import { useThemeStore } from '../../stores/theme';
+import type {
+  AdvancedProviderConfig,
+  ComfyuiCatalogInstance,
+  ComfyuiCatalogResponse,
+  ComfyuiCatalogWorkflow,
+  ComfyuiRunOutput,
+} from '../../types/canvas';
 import {
   buildComfyAppFromCatalogWorkflow,
   comfyAppInputRequirements,
@@ -20,18 +28,20 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
+import ComfyUINodeOutputSummarySection from './ComfyUINodeOutputSummarySection';
+import ComfyUINodeParamSection from './ComfyUINodeParamSection';
+import ComfyUINodeRunSection from './ComfyUINodeRunSection';
+import ComfyUINodeSelectorSection from './ComfyUINodeSelectorSection';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import ResizableCorners from './ResizableCorners';
+import {
+  buildComfyuiMachineOptions,
+  resolveDefaultComfyuiMachineId,
+  splitVisibleComfyuiParams,
+} from './comfyuiNodeHelpers';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
-import type {
-  AdvancedProviderConfig,
-  ComfyuiCatalogInstance,
-  ComfyuiCatalogResponse,
-  ComfyuiCatalogWorkflow,
-  ComfyuiRunOutput,
-} from '../../types/canvas';
 
 const handleStyle: CSSProperties = {
   width: 12,
@@ -39,16 +49,6 @@ const handleStyle: CSSProperties = {
   border: 'none',
   zIndex: 20,
 };
-
-function parseInputValue(kind: string, value: unknown) {
-  if (kind === 'number') {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : '';
-  }
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  return '';
-}
 
 interface CatalogEntry {
   workflow: ComfyuiCatalogWorkflow;
@@ -127,44 +127,66 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     });
   }, [catalog]);
 
-  const activeWorkflowId = String(d.sharedWorkflowId || d.comfyuiAppWorkflowId || '');
+  const selectedWorkflowId = String(d.sharedWorkflowId || d.comfyuiWorkflowId || d.comfyuiAppWorkflowId || '');
   const activeEntry = useMemo(
     () => entries.find((entry) => (
-      entry.workflow.sharedWorkflowId === activeWorkflowId
-      || entry.workflow.id === activeWorkflowId
+      entry.workflow.sharedWorkflowId === selectedWorkflowId
+      || entry.workflow.id === selectedWorkflowId
     )) || null,
-    [entries, activeWorkflowId],
+    [entries, selectedWorkflowId],
   );
 
+  const machineOptions = useMemo(
+    () => buildComfyuiMachineOptions(activeEntry?.workflow, catalog?.instances || []),
+    [activeEntry?.workflow, catalog?.instances],
+  );
+  const selectedMachineId = String(
+    d.comfyuiInstanceId
+    || d.comfyuiAppInstanceId
+    || resolveDefaultComfyuiMachineId(activeEntry?.workflow, catalog?.instances || []),
+  );
+  const selectedMachineLabel = machineOptions.find((item) => item.id === selectedMachineId)?.label || '';
+
   useEffect(() => {
-    if (!entries.length) return;
-    if (activeEntry) return;
+    if (!entries.length || activeEntry) return;
     const fallback = entries[0];
+    const defaultMachineId = resolveDefaultComfyuiMachineId(fallback.workflow, catalog?.instances || []);
     update({
       sharedWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
+      comfyuiWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
       comfyuiAppWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
-      comfyuiAppInstanceId: fallback.workflow.instanceId,
+      comfyuiInstanceId: defaultMachineId || fallback.workflow.instanceId,
+      comfyuiAppInstanceId: defaultMachineId || fallback.workflow.instanceId,
+      comfyuiParamValues: defaultComfyAppParamValues(fallback.app),
       comfyuiAppParamValues: defaultComfyAppParamValues(fallback.app),
+      comfyuiSelectedOutputKey: fallback.app.outputs[0]?.key || '',
       comfyuiAppSelectedOutputKey: fallback.app.outputs[0]?.key || '',
     });
-  }, [activeEntry, entries, update]);
+  }, [activeEntry, catalog?.instances, entries, update]);
 
-  const query = String(d.comfyuiAppSearchQuery || '').trim().toLowerCase();
-  const filteredEntries = useMemo(() => (
-    entries.filter((entry) => {
-      if (!query) return true;
-      return `${entry.workflow.title} ${entry.workflow.description || ''} ${entry.instance?.name || ''} ${(entry.instance?.capabilities || []).join(' ')}`
-        .toLowerCase()
-        .includes(query);
-    })
-  ), [entries, query]);
+  useEffect(() => {
+    if (!activeEntry) return;
+    if (!machineOptions.length) return;
+    if (machineOptions.some((item) => item.id === selectedMachineId)) return;
+    const defaultMachineId = resolveDefaultComfyuiMachineId(activeEntry.workflow, catalog?.instances || []);
+    update({
+      comfyuiInstanceId: defaultMachineId,
+      comfyuiAppInstanceId: defaultMachineId,
+    });
+  }, [activeEntry, catalog?.instances, machineOptions, selectedMachineId, update]);
 
   const app = activeEntry?.app || null;
   const req = comfyAppInputRequirements(app);
   const paramValues = {
     ...defaultComfyAppParamValues(app),
+    ...(d.comfyuiParamValues || {}),
     ...(d.comfyuiAppParamValues || {}),
   };
+  const visibleParams = useMemo(
+    () => splitVisibleComfyuiParams(activeEntry?.workflow, app?.userParams || []),
+    [activeEntry?.workflow, app?.userParams],
+  );
+
   const status = d.status || 'idle';
   const isBusy = status === 'running' || status === 'submitting';
   const namedOutputs: ComfyuiRunOutput[] = Array.isArray(d.outputs) ? d.outputs : [];
@@ -185,6 +207,14 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     ? namedOutputAudios
     : Array.isArray(d.audioUrls) ? d.audioUrls : [];
   const outputText = namedOutputTexts.join('\n').trim() || String(d.outputText || '');
+  const outputsForSummary = namedOutputs.length
+    ? namedOutputs
+    : [
+      ...(outputImages[0] ? [{ key: 'image-1', label: '输出图 1', kind: 'image' as const, value: outputImages[0] }] : []),
+      ...(outputVideos[0] ? [{ key: 'video-1', label: '输出视频 1', kind: 'video' as const, value: outputVideos[0] }] : []),
+      ...(outputAudios[0] ? [{ key: 'audio-1', label: '输出音频 1', kind: 'audio' as const, value: outputAudios[0] }] : []),
+      ...(outputText ? [{ key: 'text-1', label: '输出文本 1', kind: 'text' as const, value: outputText }] : []),
+    ];
 
   const upstream = useUpstreamMaterials(id);
   const excludedMaterialIds = useMemo(() => normalizeExcludedMaterialIds(d.excludedMaterialIds), [d.excludedMaterialIds]);
@@ -207,20 +237,25 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   const sub = isPixel ? 'var(--px-ink-soft)' : isLight ? '#64748b' : 'rgba(229,247,251,0.62)';
   const border = isPixel ? 'var(--px-ink)' : isLight ? 'rgba(14,165,233,0.24)' : 'rgba(56,189,248,0.24)';
   const accent = '#38bdf8';
-  const inputCls = isPixel ? 'px-input nodrag nowheel w-full px-2 py-1 text-xs' : 'nodrag nowheel w-full rounded border px-2 py-1 text-xs outline-none';
+  const inputClassName = isPixel ? 'px-input nodrag nowheel w-full px-2 py-1 text-xs' : 'nodrag nowheel w-full rounded border px-2 py-1 text-xs outline-none';
   const inputStyle: CSSProperties = isPixel ? {} : {
     background: isLight ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.06)',
     borderColor: border,
     color: text,
   };
-  const buttonCls = isPixel
+  const buttonClassName = isPixel
     ? 'px-btn nodrag nowheel inline-flex items-center justify-center gap-1 px-2 py-1 text-[11px]'
     : 'nodrag nowheel inline-flex items-center justify-center gap-1 rounded border px-2 py-1 text-[11px]';
+  const runButtonStyle: CSSProperties = {
+    ...inputStyle,
+    borderColor: accent,
+    color: accent,
+  };
   const rootStyle: CSSProperties = {
     width: size.w,
     height: size.h,
-    minWidth: 360,
-    minHeight: 460,
+    minWidth: 380,
+    minHeight: 540,
     background: bg,
     color: text,
     border: `2px solid ${selected ? accent : border}`,
@@ -237,36 +272,42 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       materialOrder: order.filter((item) => item !== material.id),
     });
   };
-  const setParam = (key: string, value: unknown) => update({ comfyuiAppParamValues: { ...paramValues, [key]: value } });
-  const selectEntry = (entry: CatalogEntry) => update({
-    sharedWorkflowId: entry.workflow.sharedWorkflowId || entry.workflow.id,
-    comfyuiAppWorkflowId: entry.workflow.sharedWorkflowId || entry.workflow.id,
-    comfyuiAppInstanceId: entry.workflow.instanceId,
-    comfyuiAppParamValues: defaultComfyAppParamValues(entry.app),
-    comfyuiAppSelectedOutputKey: entry.app.outputs[0]?.key || '',
-    status: 'idle',
-    error: '',
+  const setParam = (key: string, value: unknown) => update({
+    comfyuiParamValues: { ...paramValues, [key]: value },
+    comfyuiAppParamValues: { ...paramValues, [key]: value },
   });
 
   const handleRun = async () => {
-    const src = `comfyui-app:${id.slice(0, 6)}`;
+    const src = `comfyui:${id.slice(0, 6)}`;
     if (!activeEntry || !app) {
       update({ status: 'error', error: '请先选择一个共享 ComfyUI 工作流。' });
       throw new Error('请先选择一个共享 ComfyUI 工作流。');
     }
-    if (!activeEntry.instance) {
-      update({ status: 'error', error: '当前共享工作流缺少可用实例。' });
-      throw new Error('当前共享工作流缺少可用实例。');
+    if (!selectedMachineId) {
+      update({ status: 'error', error: '请先选择一台可用的 ComfyUI 机器。' });
+      throw new Error('请先选择一台可用的 ComfyUI 机器。');
     }
     taskCompletionSound.primeAudio();
-    update({ status: 'running', error: '', imageUrl: '', imageUrls: [], videoUrls: [], audioUrls: [], outputText: '', outputs: [], progress: '提交中' });
-    logBus.info(`共享 ComfyUI 工作流提交: ${activeEntry.workflow.title} · ${activeEntry.instance.baseUrl}`, src);
+    update({
+      status: 'running',
+      error: '',
+      imageUrl: '',
+      imageUrls: [],
+      videoUrls: [],
+      audioUrls: [],
+      outputText: '',
+      outputs: [],
+      progress: '提交中',
+      comfyuiLastRunInstanceId: selectedMachineId,
+      comfyuiLastRunInstanceLabel: selectedMachineLabel,
+    });
+    logBus.info(`共享 ComfyUI 工作流提交: ${activeEntry.workflow.title} · ${selectedMachineLabel || selectedMachineId}`, src);
     try {
       const result = await runComfyuiApp({
         provider: buildProviderFromEntry(activeEntry),
         app,
         sharedWorkflowId: activeEntry.workflow.sharedWorkflowId || activeEntry.workflow.id,
-        instanceId: activeEntry.workflow.instanceId,
+        instanceId: selectedMachineId,
         userParams: paramValues,
         inputs: {
           texts: orderedTexts.map((item) => item.url),
@@ -300,6 +341,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
         outputText: outputTextValue,
         outputs: resultOutputs,
         error: '',
+        comfyuiLastRunInstanceId: result.instanceId || selectedMachineId,
+        comfyuiLastRunInstanceLabel: result.instanceName || selectedMachineLabel,
       });
       logBus.success(`共享 ComfyUI 工作流完成: ${activeEntry.workflow.title}`, src);
       taskCompletionSound.notifyComplete(id, app.outputs[0]?.kind || 'image');
@@ -319,8 +362,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       <Handle type="source" position={Position.Right} style={{ ...handleStyle, background: PORT_COLOR.image, right: -6 }} />
       <ResizableCorners
         selected={selected}
-        minWidth={360}
-        minHeight={460}
+        minWidth={380}
+        minHeight={540}
         accent={accent}
         keepAspectRatio={false}
         onResize={(_, params) => update({ size: { w: Math.round(params.width), h: Math.round(params.height) } })}
@@ -332,82 +375,66 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
           <Workflow size={17} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-black">ComfyUI 应用</div>
+          <div className="truncate text-base font-black">comfyui</div>
           <div className="truncate text-[11px]" style={{ color: sub }}>
-            {activeEntry ? `${activeEntry.workflow.title} · ${activeEntry.instance?.name || '未知实例'}` : `${entries.length} 个共享工作流`}
+            {activeEntry
+              ? `${activeEntry.workflow.title} · ${selectedMachineLabel || '未选机器'}`
+              : `${entries.length} 个共享工作流`}
           </div>
         </div>
-        {activeEntry && (
-          <button type="button" className={buttonCls} style={inputStyle} onClick={() => update({ comfyuiAppWorkflowId: '' })}>
-            <ArrowLeft size={12} /> 列表
-          </button>
-        )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3 nowheel">
-        {!activeEntry ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-60" />
-                <input
-                  value={d.comfyuiAppSearchQuery || ''}
-                  onChange={(event) => update({ comfyuiAppSearchQuery: event.target.value })}
-                  className={`${inputCls} pl-7`}
-                  style={inputStyle}
-                  placeholder="搜索共享 ComfyUI 工作流"
-                />
-              </div>
-              <button type="button" className={buttonCls} style={inputStyle} onClick={() => void refreshCatalog()} disabled={catalogLoading}>
-                {catalogLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                刷新
-              </button>
-            </div>
+      <div className="flex-1 min-h-0 overflow-auto space-y-3 p-3 nowheel">
+        <ComfyUINodeSelectorSection
+          workflowId={selectedWorkflowId}
+          machineId={selectedMachineId}
+          workflowOptions={entries.map((entry) => ({
+            id: entry.workflow.sharedWorkflowId || entry.workflow.id,
+            label: entry.workflow.title,
+          }))}
+          machineOptions={machineOptions}
+          inputClassName={inputClassName}
+          buttonClassName={buttonClassName}
+          inputStyle={inputStyle}
+          loading={catalogLoading}
+          onRefresh={() => void refreshCatalog()}
+          onSelectWorkflow={(workflowId) => {
+            const entry = entries.find((item) => (item.workflow.sharedWorkflowId || item.workflow.id) === workflowId);
+            if (!entry) {
+              update({ sharedWorkflowId: '', comfyuiWorkflowId: '', comfyuiAppWorkflowId: '' });
+              return;
+            }
+            const defaultMachineId = resolveDefaultComfyuiMachineId(entry.workflow, catalog?.instances || []);
+            update({
+              sharedWorkflowId: workflowId,
+              comfyuiWorkflowId: workflowId,
+              comfyuiAppWorkflowId: workflowId,
+              comfyuiInstanceId: defaultMachineId,
+              comfyuiAppInstanceId: defaultMachineId,
+              comfyuiParamValues: defaultComfyAppParamValues(entry.app),
+              comfyuiAppParamValues: defaultComfyAppParamValues(entry.app),
+              status: 'idle',
+              error: '',
+            });
+          }}
+          onSelectMachine={(instanceId) => update({ comfyuiInstanceId: instanceId, comfyuiAppInstanceId: instanceId })}
+        />
 
-            {catalogMessage && (
-              <div className="flex gap-1 rounded border px-2 py-1 text-[11px] text-red-400" style={{ borderColor: 'rgba(248,113,113,0.45)' }}>
-                <AlertCircle size={12} className="mt-0.5 shrink-0" />
-                <span className="break-all">{catalogMessage}</span>
-              </div>
-            )}
-
-            {filteredEntries.length ? (
-              <div className="space-y-1.5">
-                {filteredEntries.map((entry) => (
-                  <button
-                    key={entry.workflow.id}
-                    type="button"
-                    className="nodrag nowheel w-full rounded border p-2 text-left"
-                    style={{ borderColor: border, background: isLight ? 'rgba(15,23,42,0.03)' : 'rgba(255,255,255,0.05)' }}
-                    onClick={() => selectEntry(entry)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <ServerCog size={14} style={{ color: accent }} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-black">{entry.workflow.title}</div>
-                        <div className="truncate text-[10px]" style={{ color: sub }}>
-                          {entry.instance?.name || entry.workflow.instanceId} · {entry.instance?.health || 'unknown'} · {entry.app.userParams.length} 参数
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded border p-3 text-[11px]" style={{ borderColor: border, color: sub }}>
-                {catalogLoading ? '正在加载共享 ComfyUI 工作流...' : '还没有可用的共享 ComfyUI 工作流。请先在后台推送到共享区。'}
-              </div>
-            )}
+        {catalogMessage ? (
+          <div className="rounded border px-2 py-1 text-[11px] text-red-400" style={{ borderColor: 'rgba(248,113,113,0.45)' }}>
+            {catalogMessage}
           </div>
-        ) : (
-          <div className="space-y-3">
+        ) : null}
+
+        {activeEntry ? (
+          <>
             <div className="rounded border p-2" style={{ borderColor: border, background: isLight ? 'rgba(14,165,233,0.06)' : 'rgba(56,189,248,0.08)' }}>
               <div className="text-xs font-black">{activeEntry.workflow.title}</div>
               <div className="mt-1 text-[10px]" style={{ color: sub }}>
-                {activeEntry.instance?.name || activeEntry.workflow.instanceId} · 需要：图片 {req.images} / 视频 {req.videos} / 音频 {req.audios}
+                输入需求：图片 {req.images} / 视频 {req.videos} / 音频 {req.audios}
               </div>
               <div className="mt-1 text-[10px]" style={{ color: sub }}>
-                输出：{app?.outputs.map((output) => output.label || output.kind).join(' / ') || 'image'}
+                机器策略：{machineOptions.length ? `${machineOptions.length} 台可选` : '暂无可用机器'}
               </div>
             </div>
 
@@ -425,84 +452,43 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
               isDark={isDark}
               isPixel={isPixel}
               groups={['text', 'image', 'video', 'audio']}
-              title="上游素材 · 可拖拽调整顺序"
+              title="通用输入 · 拖拽可调整顺序"
             />
 
-            <div className="space-y-2">
-              <div className="text-xs font-black">参数</div>
-              {app?.userParams.length ? app.userParams.map((param) => (
-                <label key={param.key} className="block space-y-1">
-                  <span className="text-[11px] font-bold" style={{ color: sub }}>{param.label}</span>
-                  {param.kind === 'textarea' ? (
-                    <textarea
-                      value={String(paramValues[param.key] ?? '')}
-                      onChange={(event) => setParam(param.key, event.target.value)}
-                      rows={param.rows || 4}
-                      className={`${inputCls} resize-y`}
-                      style={inputStyle}
-                      placeholder={param.placeholder}
-                    />
-                  ) : param.kind === 'boolean' ? (
-                    <input type="checkbox" checked={!!paramValues[param.key]} onChange={(event) => setParam(param.key, event.target.checked)} />
-                  ) : (
-                    <input
-                      type={param.kind === 'number' ? 'number' : 'text'}
-                      min={param.min}
-                      max={param.max}
-                      step={param.step}
-                      value={parseInputValue(param.kind, paramValues[param.key])}
-                      onChange={(event) => setParam(param.key, param.kind === 'number' ? event.target.value : event.target.value)}
-                      className={inputCls}
-                      style={inputStyle}
-                      placeholder={param.placeholder}
-                    />
-                  )}
-                </label>
-              )) : (
-                <div className="rounded border px-2 py-2 text-[11px]" style={{ borderColor: border, color: sub }}>
-                  当前工作流没有暴露可编辑参数，直接运行即可。
-                </div>
-              )}
-            </div>
+            <ComfyUINodeParamSection
+              primaryFields={visibleParams.primary}
+              secondaryFields={visibleParams.secondary}
+              advancedFields={visibleParams.advanced}
+              values={paramValues}
+              inputClassName={inputClassName}
+              inputStyle={inputStyle}
+              onChange={setParam}
+            />
 
-            <button type="button" className={`${buttonCls} w-full py-2 text-sm font-black`} style={{ ...inputStyle, borderColor: accent, color: accent }} disabled={isBusy} onClick={handleRun}>
-              {isBusy ? <><Loader2 size={14} className="animate-spin" /> 运行中...</> : <><Play size={14} /> 运行共享 ComfyUI</>}
-            </button>
+            <ComfyUINodeRunSection
+              status={status}
+              progress={String(d.progress || '')}
+              machineLabel={selectedMachineLabel || String(d.comfyuiLastRunInstanceLabel || '')}
+              error={String(d.error || '')}
+              isBusy={isBusy}
+              runLabel="运行 comfyui"
+              buttonClassName={buttonClassName}
+              buttonStyle={runButtonStyle}
+              onRun={() => void handleRun()}
+            />
 
-            {d.error && (
-              <div className="flex gap-1 rounded border px-2 py-1 text-[11px] text-red-400" style={{ borderColor: 'rgba(248,113,113,0.45)' }}>
-                <AlertCircle size={12} className="mt-0.5 shrink-0" />
-                <span className="break-all">{d.error}</span>
-              </div>
-            )}
-
-            {outputImages.length > 0 && (
-              <div className="grid grid-cols-2 gap-1.5">
-                {outputImages.slice(0, 4).map((url, index) => (
-                  <img key={`${url}-${index}`} src={url} alt="ComfyUI 输出" className="w-full rounded object-contain" />
-                ))}
-              </div>
-            )}
-            {outputVideos.length > 0 && (
-              <div className="space-y-1.5">
-                {outputVideos.slice(0, 2).map((url, index) => (
-                  <video key={`${url}-${index}`} src={url} controls className="w-full rounded" />
-                ))}
-              </div>
-            )}
-            {outputAudios.length > 0 && (
-              <div className="space-y-1.5">
-                {outputAudios.slice(0, 2).map((url, index) => (
-                  <audio key={`${url}-${index}`} src={url} controls className="w-full" />
-                ))}
-              </div>
-            )}
-            {outputText && <pre className="max-h-24 overflow-auto rounded border p-2 text-[10px] whitespace-pre-wrap" style={{ borderColor: border }}>{outputText}</pre>}
-
-            <button type="button" className={buttonCls} style={inputStyle} onClick={() => void refreshCatalog()} disabled={catalogLoading}>
-              {catalogLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-              刷新共享目录
-            </button>
+            <ComfyUINodeOutputSummarySection
+              workflow={activeEntry.workflow}
+              outputs={outputsForSummary}
+              status={status}
+              borderColor={border}
+              subColor={sub}
+              textColor={text}
+            />
+          </>
+        ) : (
+          <div className="rounded border p-3 text-[11px]" style={{ borderColor: border, color: sub }}>
+            {catalogLoading ? '正在加载共享 comfyui 工作流...' : '还没有可用的共享 comfyui 工作流。请先在后台推送到共享区。'}
           </div>
         )}
       </div>

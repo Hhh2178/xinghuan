@@ -6,10 +6,15 @@ import {
   buildDefaultComfyuiOutputSchema,
   migrateLegacyComfyuiWorkflowSchema,
   type ComfyuiWorkflowAnalysisResult,
+  type ComfyuiWorkflowInstanceBinding,
   type ComfyuiWorkflowInputSchemaItem,
   type ComfyuiWorkflowOutputSchemaItem,
 } from "@xinghuan/shared";
 import { safeSlug, safeText } from "./api-sanitizers.js";
+import {
+  normalizeComfyuiWorkflowDraft,
+  normalizeComfyuiWorkflowDraftList,
+} from "./comfyui-workflow-normalizer.js";
 
 export interface ComfyuiInstanceRecord {
   id: string;
@@ -64,6 +69,7 @@ export interface ComfyuiWorkflowDraft {
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];
   outputSchema: ComfyuiWorkflowOutputSchemaItem[];
+  instanceBindings: ComfyuiWorkflowInstanceBinding[];
   sharedWorkflowId?: string;
   createdAt: number;
   updatedAt: number;
@@ -323,6 +329,43 @@ function normalizeHiddenFields(hiddenFields: unknown, defaultHiddenFields: strin
   return Array.from(new Set(values));
 }
 
+function normalizeInstanceBindings(
+  bindings: unknown,
+  fallbackInstanceId: string,
+  fallbackCapabilities: string[] = [],
+): ComfyuiWorkflowInstanceBinding[] {
+  const raw = Array.isArray(bindings) ? bindings : [];
+  const seen = new Set<string>();
+  const rows = raw
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const instanceId = safeSlug(item.instanceId, "");
+      if (!instanceId || seen.has(instanceId)) return null;
+      seen.add(instanceId);
+      return {
+        instanceId,
+        enabled: item.enabled !== false,
+        isDefault: item.isDefault === true,
+        executionMode: item.executionMode === "fixed" || item.executionMode === "pool" ? item.executionMode : "selectable",
+        capabilityTags: nonEmptyStrings(item.capabilityTags),
+      } satisfies ComfyuiWorkflowInstanceBinding;
+    })
+    .filter(Boolean) as ComfyuiWorkflowInstanceBinding[];
+  if (!rows.length) {
+    return [{
+      instanceId: fallbackInstanceId,
+      enabled: true,
+      isDefault: true,
+      executionMode: "selectable",
+      capabilityTags: fallbackCapabilities,
+    }];
+  }
+  if (!rows.some((item) => item.isDefault)) {
+    rows[0] = { ...rows[0], isDefault: true };
+  }
+  return rows;
+}
+
 function normalizeInputSchema(
   inputSchema: unknown,
   fallbackSchema: ComfyuiWorkflowInputSchemaItem[],
@@ -357,7 +400,17 @@ function normalizeInputSchema(
           : Object.prototype.hasOwnProperty.call(item, "defaultValue")
             ? cloneJson(item.defaultValue)
             : fallback?.defaultValue,
+        displayTier: mode === "param"
+          ? item.displayTier === "secondary" || item.displayTier === "advanced"
+            ? item.displayTier
+            : fallback?.displayTier || "primary"
+          : undefined,
         upstreamSlot: safeText(item.upstreamSlot, fallback?.upstreamSlot || (mode === "upstream" ? source : "")) || undefined,
+        slotLabel: mode === "upstream"
+          ? safeText(item.slotLabel, fallback?.slotLabel || safeText(item.label, fallback?.label || FIELD_LABELS[source] || fieldName)) || undefined
+          : undefined,
+        multiple: mode === "upstream" ? Boolean(item.multiple ?? fallback?.multiple) : undefined,
+        note: safeText(item.note, fallback?.note || "") || undefined,
         order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : fallback?.order ?? index,
       } satisfies ComfyuiWorkflowInputSchemaItem;
     })
@@ -382,6 +435,8 @@ function normalizeOutputSchema(
         sourceNodeId: safeText(item.sourceNodeId, fallback?.sourceNodeId || ""),
         sourceFieldName: safeText(item.sourceFieldName, fallback?.sourceFieldName || ""),
         enabled: item.enabled === undefined ? fallback?.enabled ?? true : Boolean(item.enabled),
+        isPrimary: item.isPrimary === undefined ? fallback?.isPrimary === true : Boolean(item.isPrimary),
+        note: safeText(item.note, fallback?.note || "") || undefined,
         order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : fallback?.order ?? index,
       } satisfies ComfyuiWorkflowOutputSchemaItem;
     })
@@ -434,6 +489,7 @@ export function normalizeComfyuiWorkflowSchema(input: unknown): ComfyuiWorkflowD
   );
   const exposedFields = buildLegacyExposedFields(inputSchema);
   const hiddenFields = buildLegacyHiddenFields(inputSchema);
+  const instanceBindings = normalizeInstanceBindings(payload.instanceBindings, instanceId);
   const createdAt = nowOr(payload.createdAt);
   const updatedAt = nowOr(payload.updatedAt);
 
@@ -449,6 +505,7 @@ export function normalizeComfyuiWorkflowSchema(input: unknown): ComfyuiWorkflowD
     defaultValues,
     hiddenFields,
     outputSchema,
+    instanceBindings,
     sharedWorkflowId: safeText(payload.sharedWorkflowId),
     createdAt,
     updatedAt,
@@ -467,6 +524,7 @@ export function buildComfyuiWorkflowDraft(input: {
   defaultValues?: Record<string, unknown>;
   hiddenFields?: string[];
   outputSchema?: Array<Partial<ComfyuiWorkflowOutputSchemaItem>>;
+  instanceBindings?: ComfyuiWorkflowInstanceBinding[];
   sharedWorkflowId?: string;
 }) {
   return normalizeComfyuiWorkflowSchema({
@@ -518,8 +576,12 @@ export async function readComfyuiRegistry(adminDir: string): Promise<ComfyuiRegi
       revision: normalizePositiveInteger(raw.revision, 1),
       updatedAt: nowOr(raw.updatedAt),
       instances: Array.isArray(raw.instances) ? raw.instances.map(normalizeComfyuiInstanceRecord) : [],
-      workflows: Array.isArray(raw.workflows) ? raw.workflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)) : [],
-      sharedWorkflows: Array.isArray(raw.sharedWorkflows) ? raw.sharedWorkflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)) : [],
+      workflows: Array.isArray(raw.workflows)
+        ? normalizeComfyuiWorkflowDraftList(raw.workflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)))
+        : [],
+      sharedWorkflows: Array.isArray(raw.sharedWorkflows)
+        ? normalizeComfyuiWorkflowDraftList(raw.sharedWorkflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)))
+        : [],
     };
   } catch {
     return defaultComfyuiRegistryState();
@@ -532,8 +594,12 @@ export async function writeComfyuiRegistry(adminDir: string, state: ComfyuiRegis
     revision: normalizePositiveInteger(state.revision, 1),
     updatedAt: nowOr(state.updatedAt),
     instances: Array.isArray(state.instances) ? state.instances.map(normalizeComfyuiInstanceRecord) : [],
-    workflows: Array.isArray(state.workflows) ? state.workflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)) : [],
-    sharedWorkflows: Array.isArray(state.sharedWorkflows) ? state.sharedWorkflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)) : [],
+    workflows: Array.isArray(state.workflows)
+      ? normalizeComfyuiWorkflowDraftList(state.workflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)))
+      : [],
+    sharedWorkflows: Array.isArray(state.sharedWorkflows)
+      ? normalizeComfyuiWorkflowDraftList(state.sharedWorkflows.map((workflow) => normalizeComfyuiWorkflowSchema(workflow)))
+      : [],
   };
   await writeFile(registryPath(adminDir), JSON.stringify(next, null, 2), "utf-8");
   return next;
@@ -602,7 +668,7 @@ export function createComfyuiWorkflowRegistry(adminDir: string) {
       return instanceId ? state.workflows.filter((workflow) => workflow.instanceId === instanceId) : state.workflows;
     },
     upsertWorkflow: async (input: unknown) => {
-      const workflow = normalizeComfyuiWorkflowSchema(input);
+      const workflow = normalizeComfyuiWorkflowDraft(normalizeComfyuiWorkflowSchema(input));
       return updateRegistry((state) => {
         const workflows = state.workflows.filter((item) => item.id !== workflow.id);
         workflows.unshift(workflow);

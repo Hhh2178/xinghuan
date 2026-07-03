@@ -27,6 +27,7 @@ export interface ComfyAppUserParam {
   label: string;
   kind: ComfyAppParamKind;
   source: string;
+  displayTier?: 'primary' | 'secondary' | 'advanced';
   defaultValue?: string | number | boolean;
   placeholder?: string;
   required?: boolean;
@@ -195,6 +196,7 @@ export function normalizeComfyAppManifest(value: Partial<ComfyAppManifest> | nul
         label: cleanText(param?.label, COMFY_APP_SOURCE_LABELS[source] || source, 80),
         kind,
         source,
+        displayTier: param?.displayTier === 'secondary' || param?.displayTier === 'advanced' ? param.displayTier : 'primary',
         defaultValue: param?.defaultValue,
         placeholder: cleanText(param?.placeholder, '', 160),
         required: param?.required === true,
@@ -319,6 +321,7 @@ function schemaFieldToParam(field: ComfyuiCatalogWorkflowInputSchemaItem, defaul
     label: cleanText(field.label, COMFY_APP_SOURCE_LABELS[field.source] || field.fieldName, 80),
     kind: field.kind,
     source: cleanText(field.source || field.fieldName, field.fieldName, 80),
+    displayTier: field.displayTier || 'primary',
     defaultValue: defaultValue as string | number | boolean | undefined,
     required: field.required === true,
     rows: field.kind === 'textarea' ? 4 : undefined,
@@ -390,6 +393,7 @@ export function buildComfyAppFromWorkflow(options: {
         label: COMFY_APP_SOURCE_LABELS[source] || source,
         kind,
         source,
+        displayTier: TEXT_SOURCES.has(source) ? 'primary' : ['width', 'height', 'seed', 'steps'].includes(source) ? 'secondary' : 'advanced',
         defaultValue: value,
         required: source === 'prompt',
         min: ['width', 'height'].includes(source) ? 64 : source === 'batch_size' ? 1 : undefined,

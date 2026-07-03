@@ -8,6 +8,9 @@ export type ComfyuiWorkflowValueKind =
   | "video"
   | "audio";
 
+export type ComfyuiWorkflowDisplayTier = "primary" | "secondary" | "advanced";
+export type ComfyuiWorkflowExecutionMode = "fixed" | "selectable" | "pool";
+
 export interface ComfyuiDetectedInput {
   key: string;
   nodeId: string;
@@ -52,7 +55,11 @@ export interface ComfyuiWorkflowInputSchemaItem {
   kind: ComfyuiWorkflowValueKind;
   required: boolean;
   defaultValue?: unknown;
+  displayTier?: ComfyuiWorkflowDisplayTier;
   upstreamSlot?: string;
+  slotLabel?: string;
+  multiple?: boolean;
+  note?: string;
   order: number;
 }
 
@@ -63,7 +70,17 @@ export interface ComfyuiWorkflowOutputSchemaItem {
   sourceNodeId?: string;
   sourceFieldName?: string;
   enabled: boolean;
+  isPrimary?: boolean;
+  note?: string;
   order: number;
+}
+
+export interface ComfyuiWorkflowInstanceBinding {
+  instanceId: string;
+  enabled: boolean;
+  isDefault?: boolean;
+  executionMode?: ComfyuiWorkflowExecutionMode;
+  capabilityTags?: string[];
 }
 
 export interface LegacyComfyuiWorkflowFieldDraft {
@@ -371,6 +388,9 @@ export function buildDefaultComfyuiInputSchema(
       required: item.source === "prompt" || item.source === "positive",
       defaultValue: cloneJson(item.value),
       upstreamSlot: isMedia ? item.source : undefined,
+      slotLabel: isMedia ? item.label : undefined,
+      displayTier: isMedia ? undefined : index < 4 ? "primary" : "secondary",
+      multiple: false,
       order: index,
     };
   });
@@ -390,6 +410,7 @@ export function buildDefaultComfyuiOutputSchema(
     sourceNodeId: item.sourceNodeId,
     sourceFieldName: item.sourceFieldName,
     enabled: true,
+    isPrimary: index === 0,
     order: index,
   }));
 }
@@ -435,6 +456,9 @@ export function migrateLegacyComfyuiWorkflowSchema(input: {
             required: field.required === true,
             defaultValue,
             upstreamSlot: mode === "upstream" ? source : undefined,
+            slotLabel: mode === "upstream" ? safeText(field.label, FIELD_LABELS[source] || fieldName) : undefined,
+            displayTier: mode === "param" ? (index < 4 ? "primary" : "secondary") : undefined,
+            multiple: false,
             order: index,
           } satisfies ComfyuiWorkflowInputSchemaItem;
         })
@@ -449,6 +473,7 @@ export function migrateLegacyComfyuiWorkflowSchema(input: {
         sourceNodeId: safeText(item?.sourceNodeId),
         sourceFieldName: safeText(item?.sourceFieldName),
         enabled: true,
+        isPrimary: index === 0,
         order: index,
       }))
     : buildDefaultComfyuiOutputSchema(analysis);

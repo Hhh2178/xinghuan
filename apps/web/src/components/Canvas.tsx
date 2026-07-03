@@ -153,9 +153,7 @@ const RunningHubNode = lazy(createLazyImportWithReloadRecovery(() => import('./n
 import RhConfigNode from './nodes/RhConfigNode';
 const RHToolsNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolsNode')));
 const RHToolboxNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolboxNode')));
-import ComfyUIApplicationNode from './nodes/ComfyUIApplicationNode';
-import ComfyUIStoreNode from './nodes/ComfyUIStoreNode';
-import ComfyUIAppMakerNode from './nodes/ComfyUIAppMakerNode';
+import ComfyUINode from './nodes/ComfyUINode';
 import ResizeNode from './nodes/ResizeNode';
 import UpscaleNode from './nodes/UpscaleNode';
 import GridCropNode from './nodes/GridCropNode';
@@ -253,9 +251,10 @@ const SPECIFIC_NODES: Record<string, any> = {
   'rh-tools': LazyRHToolsNode,
   'rh-toolbox': LazyRHToolboxNode,
   ...(import.meta.env?.DEV ? { 'rh-toolbox-maker': RHToolboxMakerDevNode } : {}),
-  'comfyui-app': ComfyUIApplicationNode,
-  'comfyui-store': ComfyUIStoreNode,
-  'comfyui-app-maker': ComfyUIAppMakerNode,
+  comfyui: ComfyUINode,
+  'comfyui-app': ComfyUINode,
+  'comfyui-store': ComfyUINode,
+  'comfyui-app-maker': ComfyUINode,
   // Special (5)
   'multi-angle-3d': PresetImageNode,
   'panorama-720': PresetImageNode,
@@ -536,7 +535,26 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     outputText: '',
     error: '',
   },
+  comfyui: {
+    sharedWorkflowId: '',
+    comfyuiInstanceId: '',
+    comfyuiWorkflowId: '',
+    comfyuiSearchQuery: '',
+    comfyuiParamValues: {},
+    comfyuiSelectedOutputKey: '',
+    materialOrder: [],
+    excludedMaterialIds: [],
+    status: 'idle',
+    taskId: '',
+    imageUrl: '',
+    imageUrls: [],
+    videoUrls: [],
+    audioUrls: [],
+    outputText: '',
+    error: '',
+  },
   'comfyui-store': {
+    sharedWorkflowId: '',
     comfyuiStoreProviderId: '',
     comfyuiStoreCategoryId: 'all',
     comfyuiStoreActiveAppId: '',
@@ -554,6 +572,7 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     error: '',
   },
   'comfyui-app': {
+    sharedWorkflowId: '',
     comfyuiAppInstanceId: '',
     comfyuiAppWorkflowId: '',
     comfyuiAppSearchQuery: '',
@@ -570,6 +589,7 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     error: '',
   },
   'comfyui-app-maker': {
+    sharedWorkflowId: '',
     comfyMakerTitle: 'Anima 文生图',
     comfyMakerAppId: 'anima-text-to-image-v1',
     comfyMakerCategoryId: 'image',
@@ -673,7 +693,7 @@ const EXECUTABLE_NODE_TYPES = new Set<string>([
   'multi-angle-3d', 'panorama-720', 'penguin-portrait',
   'video', 'seedance', 'audio', 'llm', 'runninghub', 'runninghub-wallet',
   // v1.2.10.1: rh-tools 与 RunningHub 同质，同样可被批量运行调起
-  'rh-tools', 'rh-toolbox', 'comfyui-store',
+  'rh-tools', 'rh-toolbox', 'comfyui', 'comfyui-store',
   'resize', 'upscale', 'grid-crop', 'grid-editor', 'remove-bg', 'combine', 'image-compare', 'drawing-board',
   'frame-extractor', 'frame-pair',
   'upload',
@@ -688,7 +708,7 @@ const GENERATION_LIBRARY_NODE_TYPES = new Set<string>([
   'image', 'edit',
   'multi-angle-3d', 'panorama-720', 'penguin-portrait',
   'video', 'seedance', 'audio', 'llm', 'runninghub', 'runninghub-wallet',
-  'rh-tools', 'rh-toolbox', 'comfyui-store',
+  'rh-tools', 'rh-toolbox', 'comfyui', 'comfyui-store',
   'resize', 'upscale', 'grid-crop', 'grid-editor', 'remove-bg', 'combine', 'image-compare', 'drawing-board',
   'frame-extractor', 'frame-pair',
   'remove-ai-watermark',
