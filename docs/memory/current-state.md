@@ -5,9 +5,12 @@
 - 当前活跃版本：`v0.5.22`
 - 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前工作分支：`xinghuan-integration-clean`
+- 待发布灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (commit 5f96e8d, 已提交待部署)
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
-  - 当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计和发布链路一致性
+  - ComfyUI 后台实例池管理界面重构已完成：新增仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式
+  - 当前重点是 ComfyUI 工作流端到端验收、项目级 harness、发布链路一致性和主入口状态收口
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -39,7 +42,13 @@
   - gray 当前 release 为 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
-  - ComfyUI 后台当前体验仍需重新设计，不应把运行态对齐误判为产品体验验收通过
+  - ComfyUI 后台实例池管理界面重构已完成（2026-07-03）：
+    - 新增 admin-comfyui-overview.tsx 仪表盘概览页
+    - 新增 admin-comfyui-detail.tsx 实例详情页（基本配置/工作流管理/执行日志三个标签页）
+    - 新增 POST /api/admin/comfyui/instances/:id/test-connection 连接测试 API
+    - 新增完整 CSS 样式（metric-card、instance-grid、detail-header、tabs 等）
+    - 新增 XINGHUAN_COMFYUI_CONNECTOR_TOKEN 环境变量配置
+  - 待发布灰度验证：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
 
 ## 相关入口
 
