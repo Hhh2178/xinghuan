@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/admin",
-  "version": "0.5.23",
+  "version": "0.5.24",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,9 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@xinghuan/model-core": "0.5.23",
-    "@xinghuan/shared": "0.5.23",
-    "@xinghuan/ui": "0.5.23",
+    "@xinghuan/model-core": "0.5.24",
+    "@xinghuan/shared": "0.5.24",
+    "@xinghuan/ui": "0.5.24",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "lucide-react": "^0.555.0"
