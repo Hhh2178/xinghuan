@@ -3,6 +3,7 @@ import {
   buildComfyuiExecutionPrompt,
   buildComfyuiViewAssetUrl,
   canRunComfyuiWorkflowOnInstance,
+  collectComfyuiNamedOutputs,
   extractComfyuiResultAssets,
   normalizeComfyuiExecutionMediaInputs,
   normalizeComfyuiUserParams,
@@ -90,7 +91,7 @@ export async function handleComfyuiPublicRoutes(input: {
 
     const prompt = buildComfyuiExecutionPrompt({
       workflowJson: workflow.workflowJson,
-      exposedFields: workflow.exposedFields,
+      inputSchema: workflow.inputSchema,
       defaultValues: workflow.defaultValues,
       userParams: normalizeComfyuiUserParams(body.userParams),
       mediaInputs: preparedInputs,
@@ -108,6 +109,14 @@ export async function handleComfyuiPublicRoutes(input: {
     const audioUrls = await Promise.all(
       assets.audios.map(async (asset) => (await deps.saveRemoteAudioToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
     );
+    const text = assets.texts.join("\n").trim();
+    const outputs = collectComfyuiNamedOutputs({
+      outputSchema: workflow.outputSchema,
+      imageUrls,
+      videoUrls,
+      audioUrls,
+      text,
+    });
 
     deps.sendT8(response, {
       workflowId: workflow.id,
@@ -115,10 +124,11 @@ export async function handleComfyuiPublicRoutes(input: {
       instanceId: instance.id,
       instanceName: instance.name,
       promptId,
+      outputs,
       imageUrls,
       videoUrls,
       audioUrls,
-      text: assets.texts.join("\n").trim(),
+      text,
       raw: {
         promptId,
         outputCount: {

@@ -1,8 +1,8 @@
 import { extname } from "node:path";
+import type { ComfyuiWorkflowInputSchemaItem, ComfyuiWorkflowOutputSchemaItem } from "@xinghuan/shared";
 import type {
   ComfyuiInstanceRecord,
   ComfyuiWorkflowDraft,
-  ComfyuiWorkflowFieldDraft,
   ComfyuiRegistryState,
 } from "./comfyui-workflow-registry.js";
 
@@ -46,7 +46,7 @@ function textArray(value: unknown) {
 }
 
 function fieldOwnValue(
-  field: ComfyuiWorkflowFieldDraft,
+  field: ComfyuiWorkflowInputSchemaItem,
   userParams: Record<string, unknown>,
   defaultValues: Record<string, unknown>,
   mediaInputs: ComfyuiExecutionMediaInputs,
@@ -59,7 +59,7 @@ function fieldOwnValue(
     return mediaInputs.texts!.join("\n").trim();
   }
 
-  const sourceMatch = String(field.source || "").match(/^(image|video|audio)(\d+)$/i);
+  const sourceMatch = String(field.upstreamSlot || field.source || "").match(/^(image|video|audio)(\d+)$/i);
   if (sourceMatch) {
     const kind = sourceMatch[1].toLowerCase();
     const index = Math.max(0, Number(sourceMatch[2]) - 1);
@@ -72,12 +72,12 @@ function fieldOwnValue(
     return cloneJson(defaultValues[field.key]);
   }
 
-  return cloneJson(field.value);
+  return cloneJson(field.defaultValue);
 }
 
 export function buildComfyuiExecutionPrompt(input: {
   workflowJson: Record<string, unknown>;
-  exposedFields: ComfyuiWorkflowFieldDraft[];
+  inputSchema: ComfyuiWorkflowInputSchemaItem[];
   defaultValues: Record<string, unknown>;
   userParams?: Record<string, unknown>;
   mediaInputs?: ComfyuiExecutionMediaInputs;
@@ -86,7 +86,8 @@ export function buildComfyuiExecutionPrompt(input: {
   const userParams = isRecord(input.userParams) ? input.userParams : {};
   const mediaInputs = input.mediaInputs || {};
 
-  for (const field of input.exposedFields || []) {
+  for (const field of input.inputSchema || []) {
+    if (field.mode === "hidden") continue;
     const value = fieldOwnValue(field, userParams, input.defaultValues || {}, mediaInputs);
     if (value === undefined) continue;
     const node = isRecord(workflowJson[field.nodeId]) ? workflowJson[field.nodeId] as Record<string, unknown> : {};
@@ -99,6 +100,41 @@ export function buildComfyuiExecutionPrompt(input: {
   }
 
   return workflowJson;
+}
+
+export function collectComfyuiNamedOutputs(input: {
+  outputSchema: ComfyuiWorkflowOutputSchemaItem[];
+  imageUrls: string[];
+  videoUrls: string[];
+  audioUrls: string[];
+  text: string;
+}) {
+  const imageQueue = [...input.imageUrls];
+  const videoQueue = [...input.videoUrls];
+  const audioQueue = [...input.audioUrls];
+  const defaultSchema: ComfyuiWorkflowOutputSchemaItem[] = [{
+    key: "image-1",
+    label: "输出图 1",
+    kind: "image",
+    enabled: true,
+    order: 0,
+  }];
+  const outputSchema = input.outputSchema.length ? input.outputSchema : defaultSchema;
+
+  return outputSchema
+    .filter((item) => item.enabled !== false)
+    .map((item) => ({
+      key: item.key,
+      label: item.label,
+      kind: item.kind,
+      value: item.kind === "image"
+        ? imageQueue.shift() || ""
+        : item.kind === "video"
+          ? videoQueue.shift() || ""
+          : item.kind === "audio"
+            ? audioQueue.shift() || ""
+            : input.text,
+    }));
 }
 
 function normalizeAsset(value: unknown): ComfyuiExecutionAsset | null {

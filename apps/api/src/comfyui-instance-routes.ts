@@ -72,6 +72,7 @@ interface WorkflowMutationBody {
   instanceId?: string;
   workflowJson?: unknown;
   workflow?: unknown;
+  inputSchema?: unknown;
   exposedFields?: unknown;
   defaultValues?: unknown;
   hiddenFields?: unknown;
@@ -105,6 +106,7 @@ function mergeWorkflowDraft(existing: ComfyuiWorkflowDraft, body: WorkflowMutati
     ...existing,
     ...body,
     workflowJson: parseWorkflowJsonPayload(body.workflowJson ?? body.workflow ?? existing.workflowJson),
+    inputSchema: Array.isArray(body.inputSchema) ? body.inputSchema : existing.inputSchema,
     exposedFields: Array.isArray(body.exposedFields) ? body.exposedFields : existing.exposedFields,
     defaultValues: body.defaultValues && typeof body.defaultValues === "object" && !Array.isArray(body.defaultValues) ? body.defaultValues : existing.defaultValues,
     hiddenFields: Array.isArray(body.hiddenFields) ? body.hiddenFields : existing.hiddenFields,
@@ -510,6 +512,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       workflowJson,
       title: safeText(body.title, "ComfyUI 工作流"),
       description: safeText(body.description),
+      inputSchema: Array.isArray(body.inputSchema) ? body.inputSchema as any : undefined,
       exposedFields: Array.isArray(body.exposedFields) ? body.exposedFields as any : undefined,
       defaultValues: body.defaultValues && typeof body.defaultValues === "object" && !Array.isArray(body.defaultValues) ? body.defaultValues as Record<string, unknown> : undefined,
       hiddenFields: Array.isArray(body.hiddenFields) ? body.hiddenFields.map((value) => safeText(value)).filter(Boolean) : undefined,

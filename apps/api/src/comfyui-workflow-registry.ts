@@ -1,5 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  analyzeComfyuiWorkflow,
+  buildDefaultComfyuiInputSchema,
+  buildDefaultComfyuiOutputSchema,
+  migrateLegacyComfyuiWorkflowSchema,
+  type ComfyuiWorkflowAnalysisResult,
+  type ComfyuiWorkflowInputSchemaItem,
+  type ComfyuiWorkflowOutputSchemaItem,
+} from "@xinghuan/shared";
 import { safeSlug, safeText } from "./api-sanitizers.js";
 
 export interface ComfyuiInstanceRecord {
@@ -36,16 +45,25 @@ export interface ComfyuiWorkflowOutputDraft {
   sourceFieldName?: string;
 }
 
+type LegacyComfyuiWorkflowFieldDraft = Partial<ComfyuiWorkflowFieldDraft> & {
+  nodeId?: string;
+  fieldName?: string;
+};
+
+type LegacyComfyuiWorkflowOutputDraft = Partial<ComfyuiWorkflowOutputDraft>;
+
 export interface ComfyuiWorkflowDraft {
   id: string;
   instanceId: string;
   title: string;
   description?: string;
   workflowJson: Record<string, unknown>;
+  analysis: ComfyuiWorkflowAnalysisResult;
+  inputSchema: ComfyuiWorkflowInputSchemaItem[];
   exposedFields: ComfyuiWorkflowFieldDraft[];
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];
-  outputSchema: ComfyuiWorkflowOutputDraft[];
+  outputSchema: ComfyuiWorkflowOutputSchemaItem[];
   sharedWorkflowId?: string;
   createdAt: number;
   updatedAt: number;
@@ -305,27 +323,117 @@ function normalizeHiddenFields(hiddenFields: unknown, defaultHiddenFields: strin
   return Array.from(new Set(values));
 }
 
+function normalizeInputSchema(
+  inputSchema: unknown,
+  fallbackSchema: ComfyuiWorkflowInputSchemaItem[],
+  defaultValues: Record<string, unknown>,
+) {
+  if (!Array.isArray(inputSchema) || !inputSchema.length) return fallbackSchema;
+  const rows = inputSchema
+    .map((item, index) => {
+      if (!isRecord(item)) return null;
+      const nodeId = safeText(item.nodeId);
+      const fieldName = safeText(item.fieldName);
+      if (!nodeId || !fieldName) return null;
+      const key = safeText(item.key, fieldKey(nodeId, fieldName));
+      const source = safeText(item.source, fieldName);
+      const fallback = fallbackSchema.find((row) => row.key === key || (row.nodeId === nodeId && row.fieldName === fieldName));
+      const rawKind = String(item.kind);
+      const kind = ["text", "textarea", "number", "boolean", "select", "image", "video", "audio"].includes(rawKind)
+        ? rawKind as ComfyuiWorkflowInputSchemaItem["kind"]
+        : fallback?.kind || detectFieldKind(source, defaultValues[key]);
+      const mode = item.mode === "hidden" || item.mode === "upstream" ? item.mode : "param";
+      return {
+        key,
+        nodeId,
+        fieldName,
+        source,
+        label: safeText(item.label, fallback?.label || FIELD_LABELS[source] || fieldName),
+        mode,
+        kind,
+        required: Boolean(item.required ?? fallback?.required),
+        defaultValue: Object.prototype.hasOwnProperty.call(defaultValues, key)
+          ? cloneJson(defaultValues[key])
+          : Object.prototype.hasOwnProperty.call(item, "defaultValue")
+            ? cloneJson(item.defaultValue)
+            : fallback?.defaultValue,
+        upstreamSlot: safeText(item.upstreamSlot, fallback?.upstreamSlot || (mode === "upstream" ? source : "")) || undefined,
+        order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : fallback?.order ?? index,
+      } satisfies ComfyuiWorkflowInputSchemaItem;
+    })
+    .filter(Boolean) as ComfyuiWorkflowInputSchemaItem[];
+  return rows.length ? rows.sort((a, b) => a.order - b.order) : fallbackSchema;
+}
+
+function normalizeOutputSchema(
+  outputSchema: unknown,
+  fallbackSchema: ComfyuiWorkflowOutputSchemaItem[],
+) {
+  if (!Array.isArray(outputSchema) || !outputSchema.length) return fallbackSchema;
+  const rows = outputSchema
+    .map((item, index) => {
+      if (!isRecord(item)) return null;
+      const kind = String(item.kind);
+      const fallback = fallbackSchema[index];
+      return {
+        key: safeText(item.key, fallback?.key || `output-${index + 1}`),
+        label: safeText(item.label, fallback?.label || `输出 ${index + 1}`),
+        kind: (kind === "video" || kind === "audio" || kind === "text" ? kind : "image") as ComfyuiWorkflowOutputSchemaItem["kind"],
+        sourceNodeId: safeText(item.sourceNodeId, fallback?.sourceNodeId || ""),
+        sourceFieldName: safeText(item.sourceFieldName, fallback?.sourceFieldName || ""),
+        enabled: item.enabled === undefined ? fallback?.enabled ?? true : Boolean(item.enabled),
+        order: Number.isFinite(Number(item.order)) ? Math.max(0, Math.floor(Number(item.order))) : fallback?.order ?? index,
+      } satisfies ComfyuiWorkflowOutputSchemaItem;
+    })
+    .filter(Boolean) as ComfyuiWorkflowOutputSchemaItem[];
+  return rows.length ? rows.sort((a, b) => a.order - b.order) : fallbackSchema;
+}
+
+function buildLegacyExposedFields(inputSchema: ComfyuiWorkflowInputSchemaItem[]): ComfyuiWorkflowFieldDraft[] {
+  return inputSchema
+    .filter((field) => field.mode !== "hidden")
+    .map((field) => ({
+      key: field.key,
+      nodeId: field.nodeId,
+      fieldName: field.fieldName,
+      label: field.label,
+      source: field.source,
+      kind: field.kind,
+      required: field.required,
+      value: cloneJson(field.defaultValue),
+    }));
+}
+
+function buildLegacyHiddenFields(inputSchema: ComfyuiWorkflowInputSchemaItem[]) {
+  return inputSchema.filter((field) => field.mode === "hidden").map((field) => field.key);
+}
+
 export function normalizeComfyuiWorkflowSchema(input: unknown): ComfyuiWorkflowDraft {
   const payload = isRecord(input) ? input : {};
   const workflowJson = isRecord(payload.workflowJson) ? cloneJson(payload.workflowJson) : isRecord(payload.workflow) ? cloneJson(payload.workflow) : {};
-  const autoDetected = detectWorkflowFields(workflowJson);
+  const analysis = analyzeComfyuiWorkflow(workflowJson);
   const title = safeText(payload.title, "ComfyUI 工作流");
   const instanceId = safeSlug(payload.instanceId, "instance");
   const id = safeSlug(payload.id, `${instanceId || "instance"}-${title || "workflow"}`);
-  const exposedFields = Array.isArray(payload.exposedFields) && payload.exposedFields.length
-    ? payload.exposedFields.map((field) => normalizeField(field, workflowJson)).filter(Boolean) as ComfyuiWorkflowFieldDraft[]
-    : autoDetected.exposedFields;
-  const normalizedFields = exposedFields.map((field) => ({
-    ...field,
-    value: Object.prototype.hasOwnProperty.call(payload.defaultValues || {}, field.key)
-      ? cloneJson((payload.defaultValues as Record<string, unknown>)[field.key])
-      : field.value,
-  }));
-  const defaultValues = normalizeDefaultValues(payload.defaultValues, normalizedFields, workflowJson);
-  const hiddenFields = normalizeHiddenFields(payload.hiddenFields, autoDetected.hiddenFields.filter((field) => !normalizedFields.some((item) => item.key === field)));
-  const outputSchema = Array.isArray(payload.outputSchema) && payload.outputSchema.length
-    ? payload.outputSchema.map((item, index) => normalizeOutput(item, index)).filter(Boolean) as ComfyuiWorkflowOutputDraft[]
-    : detectWorkflowOutputs(workflowJson);
+  const migrated = migrateLegacyComfyuiWorkflowSchema({
+    workflowJson,
+    exposedFields: Array.isArray(payload.exposedFields) ? payload.exposedFields as LegacyComfyuiWorkflowFieldDraft[] : undefined,
+    defaultValues: isRecord(payload.defaultValues) ? payload.defaultValues : undefined,
+    hiddenFields: Array.isArray(payload.hiddenFields) ? payload.hiddenFields as string[] : undefined,
+    outputSchema: Array.isArray(payload.outputSchema) ? payload.outputSchema as LegacyComfyuiWorkflowOutputDraft[] : undefined,
+  });
+  const defaultValues = isRecord(payload.defaultValues) ? cloneJson(payload.defaultValues) : migrated.defaultValues;
+  const inputSchema = normalizeInputSchema(
+    payload.inputSchema,
+    migrated.inputSchema.length ? migrated.inputSchema : buildDefaultComfyuiInputSchema(analysis),
+    defaultValues,
+  );
+  const outputSchema = normalizeOutputSchema(
+    payload.outputSchema,
+    migrated.outputSchema.length ? migrated.outputSchema : buildDefaultComfyuiOutputSchema(analysis),
+  );
+  const exposedFields = buildLegacyExposedFields(inputSchema);
+  const hiddenFields = buildLegacyHiddenFields(inputSchema);
   const createdAt = nowOr(payload.createdAt);
   const updatedAt = nowOr(payload.updatedAt);
 
@@ -335,7 +443,9 @@ export function normalizeComfyuiWorkflowSchema(input: unknown): ComfyuiWorkflowD
     title,
     description: safeText(payload.description),
     workflowJson,
-    exposedFields: normalizedFields,
+    analysis,
+    inputSchema,
+    exposedFields,
     defaultValues,
     hiddenFields,
     outputSchema,
@@ -352,10 +462,11 @@ export function buildComfyuiWorkflowDraft(input: {
   workflowJson: Record<string, unknown>;
   title?: string;
   description?: string;
+  inputSchema?: ComfyuiWorkflowInputSchemaItem[];
   exposedFields?: Array<Partial<ComfyuiWorkflowFieldDraft> & { nodeId?: string; fieldName?: string }>;
   defaultValues?: Record<string, unknown>;
   hiddenFields?: string[];
-  outputSchema?: Array<Partial<ComfyuiWorkflowOutputDraft>>;
+  outputSchema?: Array<Partial<ComfyuiWorkflowOutputSchemaItem>>;
   sharedWorkflowId?: string;
 }) {
   return normalizeComfyuiWorkflowSchema({
