@@ -2,8 +2,8 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.5.23`
-- 当前灰度 release：`20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
+- 当前活跃版本：`v0.5.24`
+- 当前灰度 release：`20260703-comfyui-rh-node-machine-gray-r1-v0524` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：ComfyUI 工作流治理链路已完成并部署到灰度（2026-07-03 15:31）
@@ -38,8 +38,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行在 `v0.5.23`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
+  - gray 当前运行在 `v0.5.24`，production 当前运行在 `v0.5.22`
+  - gray 当前 release 为 `20260703-comfyui-rh-node-machine-gray-r1-v0524` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：
@@ -50,7 +50,7 @@
     - 新增 XINGHUAN_COMFYUI_CONNECTOR_TOKEN 环境变量配置
   - 灰度部署验证通过：
     - 服务状态：xinghuan-canvas-next 和 xinghuan-canvas-next-worker 均为 active
-    - API 状态：内网和公网 HTTPS 均返回 version=0.5.23, environment=gray
+    - API 状态：内网和公网 HTTPS 均返回 version=0.5.24, environment=gray
   - ComfyUI 图标一致性修复与 connector harness 灰度激活已完成（2026-07-03 12:26）：
     - 修复 `.error-banner` 全站选择器冲突，统一按钮圆角/图标尺寸到全站规范
     - 发现并修复灰度早期增量部署遗漏重新构建 `apps/api/dist` 的问题：connector 注册/心跳路由此前在灰度实际不可用

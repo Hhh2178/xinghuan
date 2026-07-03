@@ -4,13 +4,14 @@
 
 ### Gray
 
-- 版本：`v0.5.23`
-- release：`20260703-comfyui-workflow-governance-gray-r1-v0523`
-- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify；ComfyUI 工作流治理链路已切到统一 schema，并保持本机 ComfyUI 实例接入`
-- 部署内容：`ComfyUI 工作流治理链路灰度发布：共享 parser、统一 runtime schema、后台工作流治理编辑器重构、画布节点消费 named outputs`
-- 补充修复：`发布前修复 shared appVersion 常量仍停留在 0.5.22 的版本漂移问题，并重新通过 release version alignment / package contract / current pointer 验证`
-- 部署时间：`2026-07-03 15:31`
+- 版本：`v0.5.24`
+- release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
+- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify；ComfyUI RH 风格统一节点、机器选择与后台治理链路已发布到 gray`
+- 部署内容：`单一 comfyui 节点、工作流与机器双选择、displayTier / instanceBindings 治理、legacy 节点迁移与 ComfyUI 子 harness 收口`
+- 补充修复：`发布前已完成 version bump 到 0.5.24，并重新通过 release version alignment / package contract / current pointer 验证`
+- 部署时间：`2026-07-03 18:49`
 - 当前批次记录：
+  - `gray/2026-07-03-comfyui-rh-node-machine-gray.md`
   - `gray/2026-07-03-comfyui-workflow-governance-gray.md`
   - `gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
   - `gray/2026-07-03-comfyui-dashboard-redesign-gray.md`

@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.5.23`
-  - release：`20260703-comfyui-workflow-governance-gray-r1-v0523`
+  - 版本：`v0.5.24`
+  - release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`
