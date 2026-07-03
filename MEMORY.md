@@ -54,11 +54,12 @@
 ## 2026-07-03 状态更新
 
 - 当前活跃版本：`v0.5.22`
-- 当前 gray release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前 gray release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 待发布灰度：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (commit 5f96e8d, 已提交待部署)
-- 最新完成：ComfyUI 后台实例池管理界面重构完成（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）
-- 当前工作重心：ComfyUI 后台已重构完成待灰度验证，工作流端到端验收、项目级 harness、主入口状态收口
+- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）
+- 部署时间：2026-07-03 12:00
+- 部署状态：✅ 服务运行正常，API 响应正常，HTTPS 访问正常
+- 当前工作重心：ComfyUI 后台已部署待用户验收，工作流端到端验收、项目级 harness、主入口状态收口
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

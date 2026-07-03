@@ -5,13 +5,13 @@
 ### Gray
 
 - 版本：`v0.5.22`
-- release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
-- 当前状态：`2026-07-02 已完成 gray deploy + runtime verify`
-- 待发布 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (commit 5f96e8d, 已提交待部署)
-- 待发布内容：`ComfyUI 后台实例池管理界面重构（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）`
-- 当前本地补修：`公共工作流上传兼容、共享 ComfyUI 工作流画布消费节点、版本常量对齐已完成灰度收口`
+- release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
+- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify + public HTTPS verify`
+- 部署内容：`ComfyUI 后台实例池管理界面重构（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）`
+- 部署时间：`2026-07-03 12:00`
 - 当前批次记录：
-  - `gray/2026-07-03-comfyui-dashboard-redesign-gray.md` (待部署)
+  - `gray/2026-07-03-comfyui-dashboard-redesign-gray.md`
+  - `gray/2026-07-03-comfyui-dashboard-redesign-gray-deployment-completed.md`
   - `gray/2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
   - `gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `gray/2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`

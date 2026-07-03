@@ -27,10 +27,10 @@
 - 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 待发布灰度：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已提交，待部署)
+- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度
 - 当前重点系统：ComfyUI 机器池与工作流治理、项目级 harness、后台 Admin、API、Worker
 
 ## 当前工作根
@@ -74,10 +74,13 @@
 - 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 待发布灰度：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已提交 commit 5f96e8d，待部署)
+- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度，待用户验收
+- 当前工作重心：ComfyUI 工作流端到端验收、项目级 harness、主入口状态收口
+- 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
+- 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
 - 当前工作重心：ComfyUI 后台仪表盘已重构完成，待灰度验证；工作流端到端验收、项目级 harness、主入口状态收口
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
