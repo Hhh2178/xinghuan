@@ -2,15 +2,15 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.5.22`
-- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
+- 当前活跃版本：`v0.5.23`
+- 当前灰度 release：`20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03 12:00）
+- 最新完成：ComfyUI 工作流治理链路已完成并部署到灰度（2026-07-03 15:31）
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
   - ComfyUI 后台实例池管理界面重构已完成并部署：新增仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式
-  - 当前重点是 ComfyUI 后台用户验收、工作流端到端验收、项目级 harness、发布链路一致性和主入口状态收口
+  - 当前重点是 ComfyUI 工作流治理页用户验收、工作流端到端验收、项目级 harness、发布链路一致性和主入口状态收口
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -38,8 +38,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray / production 当前都已运行在 `v0.5.22`
-  - gray 当前 release 为 `20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
+  - gray 当前运行在 `v0.5.23`，production 当前运行在 `v0.5.22`
+  - gray 当前 release 为 `20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：
@@ -50,13 +50,13 @@
     - 新增 XINGHUAN_COMFYUI_CONNECTOR_TOKEN 环境变量配置
   - 灰度部署验证通过：
     - 服务状态：xinghuan-canvas-next 和 xinghuan-canvas-next-worker 均为 active
-    - API 状态：内网和公网 HTTPS 均返回 version=0.5.22, environment=gray
+    - API 状态：内网和公网 HTTPS 均返回 version=0.5.23, environment=gray
   - ComfyUI 图标一致性修复与 connector harness 灰度激活已完成（2026-07-03 12:26）：
     - 修复 `.error-banner` 全站选择器冲突，统一按钮圆角/图标尺寸到全站规范
     - 发现并修复灰度早期增量部署遗漏重新构建 `apps/api/dist` 的问题：connector 注册/心跳路由此前在灰度实际不可用
     - 已补齐灰度 `apps/api/dist`、`apps/admin/dist`，并在服务器 `canvas-next.env` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`
     - 验证：`POST /api/internal/comfyui/connectors/register` 带正确 token 返回 200，测试数据已清理
-    - 待用户浏览器验收新界面 + 在本机运行 `@xinghuan/comfyui-connector` 完成真实机器接入
+    - 本机真实机器接入已完成；当前待用户浏览器验收工作流治理页与共享工作流真实执行链路
 
 ## 相关入口
 

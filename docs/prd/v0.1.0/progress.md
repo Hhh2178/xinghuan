@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-状态：当前 gray 与 production 都已运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计、发布链路一致性和主入口状态收口。`2026-07-03` 已完成 ComfyUI 后台实例池管理界面重构：新增仪表盘概览页、实例详情页、连接测试功能、工作流管理和完整 CSS 样式；同时补齐后端测试连接 API、服务端环境变量配置和部署文档。当前 gray 仍在 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`，production 仍在 `20260702-envsync-admin-sections-prod-r1-v0522`，两个环境的 `/api/status` 均返回 `version = 0.5.22`。
+状态：当前 gray 已运行在 `v0.5.23`，production 仍运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 工作流治理验收、机器池与共享工作流链路打磨、项目级 harness、发布链路一致性和主入口状态收口。`2026-07-03` 已完成 ComfyUI 工作流治理链路灰度发布：共享 parser、统一 runtime schema、后台治理编辑器重构、画布节点消费 named outputs，并在发布前修复 shared `appVersion` 常量漂移。当前 gray 已切到 `20260703-comfyui-workflow-governance-gray-r1-v0523`，production 仍在 `20260702-envsync-admin-sections-prod-r1-v0522`；当前 `https://canvas-next.hhh2121.xyz/api/status` 返回 `version = 0.5.23`，production `/api/status` 仍返回 `version = 0.5.22`。
 
 当前与本版本最相关的最新状态：
 
@@ -21,9 +21,9 @@
 - 2026-06-26 已完成“组权限治理第一批基础链路”：新增分组权限策略存储与 API，公共资源库开始按组直接隐藏无权限资源，RunningHub catalog 开始按组直接隐藏无权限 AI 应用 / 工作流，RH submit 保留后端兜底校验。
 - 2026-06-26 已完成“组权限治理后台管理端第一版”：用户页已重构为 `账号 / 用户组 / 权限 / 会话` 四段式工作台，权限页已接入分组权限目录与保存能力，为后续节点能力锁定和公共资源后台卡片化改造打下管理端基础。
 
-- 当前灰度 active release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前灰度 active release：`20260703-comfyui-workflow-governance-gray-r1-v0523`
 - 当前生产 active release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前灰度版本：`v0.5.22`
+- 当前灰度版本：`v0.5.23`
 - 当前生产版本：`v0.5.22`
 - 当前本地严格验收已通过：
   - `node scripts/verify-project-harness-contract.mjs`
@@ -32,9 +32,9 @@
   - `npm run harness:verify:project`
   - `npm run harness:verify:release`
 - 当前线上运行态已确认：
-  - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.22, environment gray`
+  - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.23, environment gray`
   - `https://canvas.hhh2121.xyz/api/status => version 0.5.22, environment production`
-  - `/opt/apps/xinghuan-canvas-next/current -> 20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+  - `/opt/apps/xinghuan-canvas-next/current -> 20260703-comfyui-workflow-governance-gray-r1-v0523`
   - `/opt/apps/xinghuan-canvas/current -> 20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前仍需重点处理：
   - ComfyUI 本地 JSON 工作流导入、参数暴露、默认值编辑、共享区发布和画布节点选择仍需端到端验收

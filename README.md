@@ -24,13 +24,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.22`
+- 当前活跃版本：`v0.5.23`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
+- 当前生产版本：`v0.5.22`
+- 当前灰度 release：`20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度
+- 最新完成：ComfyUI 工作流治理链路已完成并部署到灰度
 - 当前重点系统：ComfyUI 机器池与工作流治理、项目级 harness、后台 Admin、API、Worker
 
 ## 当前工作根
@@ -71,14 +72,15 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.5.22`
+- 当前活跃版本：`v0.5.23`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522` (已部署)
+- 当前生产版本：`v0.5.22`
+- 当前灰度 release：`20260703-comfyui-workflow-governance-gray-r1-v0523` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度，待用户验收
-- 当前工作重心：ComfyUI 工作流端到端验收、项目级 harness、主入口状态收口
+- 最新完成：ComfyUI 工作流治理链路已完成并部署到灰度，待用户验收
+- 当前工作重心：ComfyUI 工作流治理验收、项目级 harness、主入口状态收口
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
 - 当前工作重心：ComfyUI 后台仪表盘已重构完成，待灰度验证；工作流端到端验收、项目级 harness、主入口状态收口
@@ -118,8 +120,9 @@
 
 ## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.22`
-- 当前 gray release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
+- 当前活跃版本：`v0.5.23`
+- 当前生产版本：`v0.5.22`
+- 当前 gray release：`20260703-comfyui-workflow-governance-gray-r1-v0523`
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前工作重心：ComfyUI 管理体验重设计已部署灰度，图标一致性修复与 connector harness 已激活，等待用户本机 connector 接入验证、机器池与工作流治理、项目级 harness 与主入口状态收口
-- 详细变更和验证继续看 `docs/logbooks/`，本轮修复详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
+- 当前工作重心：ComfyUI 工作流 JSON 解析、输入输出映射治理与共享执行链路已部署灰度，等待用户做浏览器验收与真实业务链路验证
+- 详细变更和验证继续看 `docs/logbooks/`，本轮发布详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-workflow-governance-gray.md`
