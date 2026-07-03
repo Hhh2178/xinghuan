@@ -2,7 +2,7 @@ import type {
   AdvancedProviderConfig,
   ComfyuiCatalogInstance,
   ComfyuiCatalogWorkflow,
-  ComfyuiCatalogWorkflowField,
+  ComfyuiCatalogWorkflowInputSchemaItem,
 } from '../types/canvas';
 import {
   analyzeComfyWorkflow,
@@ -50,6 +50,7 @@ export interface ComfyAppDefinition {
   description?: string;
   workflowJson: Record<string, any>;
   fields: ComfyFieldMapping[];
+  inputSchema?: ComfyuiCatalogWorkflowInputSchemaItem[];
   userParams: ComfyAppUserParam[];
   outputs: ComfyAppOutputMapping[];
   capabilities?: string[];
@@ -265,14 +266,56 @@ function shouldExposeParam(field: ComfyFieldMapping): boolean {
   return EXPOSED_SOURCES.has(source);
 }
 
-function catalogFieldToParam(field: ComfyuiCatalogWorkflowField, defaultValues: Record<string, unknown>): ComfyAppUserParam | null {
+function legacyInputSchema(workflow: ComfyuiCatalogWorkflow): ComfyuiCatalogWorkflowInputSchemaItem[] {
+  const hidden = new Set(Array.isArray(workflow.hiddenFields) ? workflow.hiddenFields : []);
+  return (Array.isArray(workflow.exposedFields) ? workflow.exposedFields : []).map((field, index) => ({
+    key: field.key,
+    nodeId: field.nodeId,
+    fieldName: field.fieldName,
+    source: field.source || field.fieldName,
+    label: field.label,
+    mode: hidden.has(field.key) ? 'hidden' : (field.kind === 'image' || field.kind === 'video' || field.kind === 'audio') ? 'upstream' : 'param',
+    kind: field.kind,
+    required: field.required === true,
+    defaultValue: Object.prototype.hasOwnProperty.call(workflow.defaultValues || {}, field.key)
+      ? workflow.defaultValues[field.key]
+      : field.value,
+    upstreamSlot: field.kind === 'image' || field.kind === 'video' || field.kind === 'audio'
+      ? field.source || field.fieldName
+      : undefined,
+    order: index,
+  }));
+}
+
+function getWorkflowInputSchema(workflow: ComfyuiCatalogWorkflow): ComfyuiCatalogWorkflowInputSchemaItem[] {
+  return Array.isArray(workflow.inputSchema) && workflow.inputSchema.length
+    ? workflow.inputSchema.slice().sort((a, b) => (a.order || 0) - (b.order || 0))
+    : legacyInputSchema(workflow);
+}
+
+function schemaFieldToMapping(field: ComfyuiCatalogWorkflowInputSchemaItem, defaultValues: Record<string, unknown>): ComfyFieldMapping {
+  return {
+    nodeId: field.nodeId,
+    fieldName: field.fieldName,
+    source: field.upstreamSlot || field.source || field.fieldName,
+    ...(
+      field.mode !== 'upstream' && (
+        field.defaultValue !== undefined || Object.prototype.hasOwnProperty.call(defaultValues, field.key)
+      )
+        ? { value: Object.prototype.hasOwnProperty.call(defaultValues, field.key) ? defaultValues[field.key] : field.defaultValue }
+        : {}
+    ),
+  };
+}
+
+function schemaFieldToParam(field: ComfyuiCatalogWorkflowInputSchemaItem, defaultValues: Record<string, unknown>): ComfyAppUserParam | null {
+  if (field.mode !== 'param') return null;
   if (field.kind === 'image' || field.kind === 'video' || field.kind === 'audio') return null;
-  const key = cleanId(field.key || `${field.nodeId}-${field.fieldName}`, `${field.nodeId}-${field.fieldName}`);
   const defaultValue = Object.prototype.hasOwnProperty.call(defaultValues, field.key)
     ? defaultValues[field.key]
-    : field.value;
+    : field.defaultValue;
   return {
-    key,
+    key: cleanId(field.key || `${field.nodeId}-${field.fieldName}`, `${field.nodeId}-${field.fieldName}`),
     label: cleanText(field.label, COMFY_APP_SOURCE_LABELS[field.source] || field.fieldName, 80),
     kind: field.kind,
     source: cleanText(field.source || field.fieldName, field.fieldName, 80),
@@ -287,23 +330,24 @@ export function buildComfyAppFromCatalogWorkflow(
   instance?: ComfyuiCatalogInstance | null,
 ): ComfyAppDefinition {
   const defaultValues = workflow.defaultValues || {};
-  const fields = workflow.exposedFields.map((field) => ({
-    nodeId: field.nodeId,
-    fieldName: field.fieldName,
-    source: field.source || field.fieldName,
-    ...(field.source === 'fixed' || Object.prototype.hasOwnProperty.call(defaultValues, field.key)
-      ? { value: Object.prototype.hasOwnProperty.call(defaultValues, field.key) ? defaultValues[field.key] : field.value }
-      : {}),
-  }));
-  const userParams = workflow.exposedFields
-    .map((field) => catalogFieldToParam(field, defaultValues))
+  const inputSchema = getWorkflowInputSchema(workflow);
+  const fields = inputSchema
+    .filter((field) => field.mode !== 'hidden')
+    .map((field) => schemaFieldToMapping(field, defaultValues));
+  const userParams = inputSchema
+    .map((field) => schemaFieldToParam(field, defaultValues))
     .filter(Boolean) as ComfyAppUserParam[];
   const outputs = workflow.outputSchema.length
-    ? workflow.outputSchema.map((output) => ({
+    ? workflow.outputSchema
+      .filter((output) => output.enabled !== false)
+      .map((output) => ({
         key: cleanId(output.key, `output-${output.kind}`),
         label: cleanText(output.label, `输出${output.kind}`, 80),
         kind: output.kind,
       }))
+    : [];
+  const normalizedOutputs = outputs.length
+    ? outputs
     : [{ key: 'image-1', label: '输出图 1', kind: 'image' as const }];
 
   return {
@@ -313,8 +357,9 @@ export function buildComfyAppFromCatalogWorkflow(
     description: cleanText(workflow.description, instance ? `${instance.name} · 共享工作流` : '共享工作流', 300),
     workflowJson: workflow.workflowJson as Record<string, any>,
     fields,
+    inputSchema,
     userParams,
-    outputs,
+    outputs: normalizedOutputs,
     capabilities: Array.isArray(instance?.capabilities) && instance?.capabilities.length ? instance.capabilities : ['image.generate'],
     runtime: { pollIntervalMs: 1000, maxPolls: 3600 },
     ui: { icon: 'Workflow', accent: '#38bdf8' },
@@ -373,6 +418,21 @@ export function buildComfyAppFromWorkflow(options: {
 
 export function comfyAppInputRequirements(app: ComfyAppDefinition | null | undefined): ComfyAppInputRequirements {
   const req = { images: 0, videos: 0, audios: 0 };
+  const upstreamFields = Array.isArray(app?.inputSchema) && app?.inputSchema?.length
+    ? app.inputSchema.filter((field) => field.mode === 'upstream')
+    : [];
+  if (upstreamFields.length) {
+    for (const field of upstreamFields) {
+      const source = String(field.upstreamSlot || field.source || '').trim().toLowerCase();
+      const match = source.match(/^(image|video|audio)(?:_|-)?(\d+)$/);
+      if (!match) continue;
+      const n = Math.max(1, Number(match[2]) || 1);
+      if (match[1] === 'image') req.images = Math.max(req.images, n);
+      if (match[1] === 'video') req.videos = Math.max(req.videos, n);
+      if (match[1] === 'audio') req.audios = Math.max(req.audios, n);
+    }
+    return req;
+  }
   for (const field of Array.isArray(app?.fields) ? app!.fields : []) {
     const source = String(field.source || '').trim().toLowerCase();
     const match = source.match(/^(image|video|audio)(?:_|-)?(\d+)$/);

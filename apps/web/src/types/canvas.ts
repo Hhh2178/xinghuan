@@ -244,6 +244,63 @@ export interface ComfyuiCatalogWorkflowOutput {
   kind: 'text' | 'image' | 'video' | 'audio';
   sourceNodeId?: string;
   sourceFieldName?: string;
+  enabled?: boolean;
+  order?: number;
+}
+
+export interface ComfyuiCatalogDetectedInput {
+  key: string;
+  nodeId: string;
+  fieldName: string;
+  source: string;
+  label: string;
+  classType: string;
+  nodeTitle: string;
+  kind: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'image' | 'video' | 'audio';
+  value?: unknown;
+}
+
+export interface ComfyuiCatalogDetectedOutput {
+  key: string;
+  label: string;
+  kind: 'text' | 'image' | 'video' | 'audio';
+  sourceNodeId?: string;
+  sourceFieldName?: string;
+  classType?: string;
+  nodeTitle?: string;
+}
+
+export interface ComfyuiCatalogParserWarning {
+  code: string;
+  message: string;
+  nodeId?: string;
+}
+
+export interface ComfyuiCatalogWorkflowAnalysis {
+  detectedInputs: ComfyuiCatalogDetectedInput[];
+  detectedOutputs: ComfyuiCatalogDetectedOutput[];
+  warnings: ComfyuiCatalogParserWarning[];
+}
+
+export interface ComfyuiCatalogWorkflowInputSchemaItem {
+  key: string;
+  nodeId: string;
+  fieldName: string;
+  source: string;
+  label: string;
+  mode: 'hidden' | 'param' | 'upstream';
+  kind: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'image' | 'video' | 'audio';
+  required: boolean;
+  defaultValue?: unknown;
+  upstreamSlot?: string;
+  order: number;
+}
+
+export interface ComfyuiRunOutput {
+  key: string;
+  label: string;
+  kind: 'text' | 'image' | 'video' | 'audio';
+  value: unknown;
 }
 
 export interface ComfyuiCatalogWorkflow {
@@ -252,6 +309,8 @@ export interface ComfyuiCatalogWorkflow {
   title: string;
   description?: string;
   workflowJson: Record<string, unknown>;
+  analysis: ComfyuiCatalogWorkflowAnalysis;
+  inputSchema: ComfyuiCatalogWorkflowInputSchemaItem[];
   exposedFields: ComfyuiCatalogWorkflowField[];
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];

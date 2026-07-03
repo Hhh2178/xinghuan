@@ -1,4 +1,4 @@
-import type { AdvancedProviderConfig } from '../types/canvas';
+import type { AdvancedProviderConfig, ComfyuiRunOutput } from '../types/canvas';
 import {
   type ComfyAppDefinition,
 } from '../utils/comfyuiApps';
@@ -21,6 +21,7 @@ export interface RunComfyuiAppResult {
   videoUrls?: string[];
   audioUrls?: string[];
   text?: string;
+  outputs?: ComfyuiRunOutput[];
   taskId?: string;
   raw?: any;
 }
@@ -53,5 +54,6 @@ export async function runComfyuiApp(options: RunComfyuiAppOptions): Promise<RunC
     videoUrls: result.videoUrls,
     audioUrls: result.audioUrls,
     text: result.text || '',
+    outputs: Array.isArray(result.outputs) ? result.outputs : [],
   };
 }

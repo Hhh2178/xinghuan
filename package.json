@@ -83,6 +83,7 @@
     "verify:project-harness-contract": "node scripts/verify-project-harness-contract.mjs",
     "verify:comfyui-connector-harness": "node scripts/verify-comfyui-connector-harness-contract.mjs",
     "verify:comfyui-workflow-parser-contract": "node scripts/verify-comfyui-workflow-parser-contract.mjs",
+    "verify:comfyui-canvas-schema-contract": "node scripts/verify-comfyui-canvas-schema-contract.mjs",
     "verify:comfyui-execution-helpers": "npx tsx scripts/verify-comfyui-execution-helpers.ts",
     "verify:worker-observability-contract": "node scripts/verify-worker-observability-contract.mjs",
     "verify:worker-task-store-split-contract": "node scripts/verify-worker-task-store-split-contract.mjs",

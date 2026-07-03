@@ -25,7 +25,13 @@ import ResizableCorners from './ResizableCorners';
 import { useOrderedMaterials } from './useOrderedMaterials';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
-import type { AdvancedProviderConfig, ComfyuiCatalogInstance, ComfyuiCatalogResponse, ComfyuiCatalogWorkflow } from '../../types/canvas';
+import type {
+  AdvancedProviderConfig,
+  ComfyuiCatalogInstance,
+  ComfyuiCatalogResponse,
+  ComfyuiCatalogWorkflow,
+  ComfyuiRunOutput,
+} from '../../types/canvas';
 
 const handleStyle: CSSProperties = {
   width: 12,
@@ -71,6 +77,15 @@ function buildProviderFromEntry(entry: CatalogEntry): AdvancedProviderConfig {
   };
 }
 
+function outputStringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+  if (typeof value === 'string') {
+    const text = value.trim();
+    return text ? [text] : [];
+  }
+  return [];
+}
+
 const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { theme, style } = useThemeStore();
@@ -114,7 +129,11 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
 
   const activeWorkflowId = String(d.comfyuiAppWorkflowId || '');
   const activeEntry = useMemo(
-    () => entries.find((entry) => entry.workflow.id === activeWorkflowId || entry.app.id === activeWorkflowId) || null,
+    () => entries.find((entry) => (
+      entry.workflow.id === activeWorkflowId
+      || entry.workflow.sharedWorkflowId === activeWorkflowId
+      || entry.app.id === activeWorkflowId
+    )) || null,
     [entries, activeWorkflowId],
   );
 
@@ -126,6 +145,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       comfyuiAppWorkflowId: fallback.workflow.id,
       comfyuiAppInstanceId: fallback.workflow.instanceId,
       comfyuiAppParamValues: defaultComfyAppParamValues(fallback.app),
+      comfyuiAppSelectedOutputKey: fallback.app.outputs[0]?.key || '',
     });
   }, [activeEntry, entries, update]);
 
@@ -147,10 +167,24 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   };
   const status = d.status || 'idle';
   const isBusy = status === 'running' || status === 'submitting';
-  const outputImages: string[] = Array.isArray(d.imageUrls) ? d.imageUrls : (d.imageUrl ? [d.imageUrl] : []);
-  const outputVideos: string[] = Array.isArray(d.videoUrls) ? d.videoUrls : [];
-  const outputAudios: string[] = Array.isArray(d.audioUrls) ? d.audioUrls : [];
-  const outputText = String(d.outputText || '');
+  const namedOutputs: ComfyuiRunOutput[] = Array.isArray(d.outputs) ? d.outputs : [];
+  const namedOutputImages = namedOutputs.flatMap((item) => item.kind === 'image' ? outputStringList(item.value) : []);
+  const namedOutputVideos = namedOutputs.flatMap((item) => item.kind === 'video' ? outputStringList(item.value) : []);
+  const namedOutputAudios = namedOutputs.flatMap((item) => item.kind === 'audio' ? outputStringList(item.value) : []);
+  const namedOutputTexts = namedOutputs
+    .filter((item) => item.kind === 'text')
+    .map((item) => String(item.value ?? '').trim())
+    .filter(Boolean);
+  const outputImages: string[] = namedOutputImages.length
+    ? namedOutputImages
+    : Array.isArray(d.imageUrls) ? d.imageUrls : (d.imageUrl ? [d.imageUrl] : []);
+  const outputVideos: string[] = namedOutputVideos.length
+    ? namedOutputVideos
+    : Array.isArray(d.videoUrls) ? d.videoUrls : [];
+  const outputAudios: string[] = namedOutputAudios.length
+    ? namedOutputAudios
+    : Array.isArray(d.audioUrls) ? d.audioUrls : [];
+  const outputText = namedOutputTexts.join('\n').trim() || String(d.outputText || '');
 
   const upstream = useUpstreamMaterials(id);
   const excludedMaterialIds = useMemo(() => normalizeExcludedMaterialIds(d.excludedMaterialIds), [d.excludedMaterialIds]);
@@ -208,6 +242,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     comfyuiAppWorkflowId: entry.workflow.id,
     comfyuiAppInstanceId: entry.workflow.instanceId,
     comfyuiAppParamValues: defaultComfyAppParamValues(entry.app),
+    comfyuiAppSelectedOutputKey: entry.app.outputs[0]?.key || '',
     status: 'idle',
     error: '',
   });
@@ -223,7 +258,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       throw new Error('当前共享工作流缺少可用实例。');
     }
     taskCompletionSound.primeAudio();
-    update({ status: 'running', error: '', imageUrl: '', imageUrls: [], videoUrls: [], audioUrls: [], outputText: '', progress: '提交中' });
+    update({ status: 'running', error: '', imageUrl: '', imageUrls: [], videoUrls: [], audioUrls: [], outputText: '', outputs: [], progress: '提交中' });
     logBus.info(`共享 ComfyUI 工作流提交: ${activeEntry.workflow.title} · ${activeEntry.instance.baseUrl}`, src);
     try {
       const result = await runComfyuiApp({
@@ -237,15 +272,30 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
           audios: orderedAudios.map((item) => item.url),
         },
       });
+      const resultOutputs = Array.isArray(result.outputs) ? result.outputs : [];
+      const resultOutputImages = resultOutputs.flatMap((item) => item.kind === 'image' ? outputStringList(item.value) : []);
+      const resultOutputVideos = resultOutputs.flatMap((item) => item.kind === 'video' ? outputStringList(item.value) : []);
+      const resultOutputAudios = resultOutputs.flatMap((item) => item.kind === 'audio' ? outputStringList(item.value) : []);
+      const resultOutputText = resultOutputs
+        .filter((item) => item.kind === 'text')
+        .map((item) => String(item.value ?? '').trim())
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+      const imageUrls = resultOutputImages.length ? resultOutputImages : result.imageUrls;
+      const videoUrls = resultOutputVideos.length ? resultOutputVideos : (result.videoUrls || []);
+      const audioUrls = resultOutputAudios.length ? resultOutputAudios : (result.audioUrls || []);
+      const outputTextValue = resultOutputText || result.text || '';
       update({
         status: 'success',
         progress: '100%',
         taskId: result.taskId || '',
-        imageUrl: result.imageUrls[0] || '',
-        imageUrls: result.imageUrls,
-        videoUrls: result.videoUrls || [],
-        audioUrls: result.audioUrls || [],
-        outputText: result.text || '',
+        imageUrl: imageUrls[0] || '',
+        imageUrls,
+        videoUrls,
+        audioUrls,
+        outputText: outputTextValue,
+        outputs: resultOutputs,
         error: '',
       });
       logBus.success(`共享 ComfyUI 工作流完成: ${activeEntry.workflow.title}`, src);
@@ -333,7 +383,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-black">{entry.workflow.title}</div>
                         <div className="truncate text-[10px]" style={{ color: sub }}>
-                          {entry.instance?.name || entry.workflow.instanceId} · {entry.instance?.health || 'unknown'} · {entry.workflow.exposedFields.length} 参数
+                          {entry.instance?.name || entry.workflow.instanceId} · {entry.instance?.health || 'unknown'} · {entry.app.userParams.length} 参数
                         </div>
                       </div>
                     </div>
