@@ -2,10 +2,14 @@
 
 ## 当前状态
 
-状态：当前 gray 与 production 都已运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计、发布链路一致性和主入口状态收口。`2026-07-02` gray 已切到 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`，production 已切到 `20260702-envsync-admin-sections-prod-r1-v0522`，两个环境的 `/api/status` 均返回 `version = 0.5.22`。需要特别注意：ComfyUI 相关运行态和版本对齐不代表当前后台设计体验合格，截图暴露出的 ComfyUI 实例池/工作流管理界面仍需要下一轮重设计与功能链路收口。
+状态：当前 gray 与 production 都已运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计、发布链路一致性和主入口状态收口。`2026-07-03` 已完成 ComfyUI 后台实例池管理界面重构：新增仪表盘概览页、实例详情页、连接测试功能、工作流管理和完整 CSS 样式；同时补齐后端测试连接 API、服务端环境变量配置和部署文档。当前 gray 仍在 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`，production 仍在 `20260702-envsync-admin-sections-prod-r1-v0522`，两个环境的 `/api/status` 均返回 `version = 0.5.22`。
 
 当前与本版本最相关的最新状态：
 
+- 2026-07-03 已完成 ComfyUI 后台实例池管理界面重构：新增 `admin-comfyui-overview.tsx`（仪表盘概览页）、`admin-comfyui-detail.tsx`（实例详情页，支持基本配置、工作流管理、执行日志三个标签页）、`admin-comfyui-instances-panel.tsx`（路由组件），完整 CSS 样式已添加到 `apps/admin/src/styles.css`。
+- 2026-07-03 已补齐后端测试连接 API：新增 `POST /api/admin/comfyui/instances/:id/test-connection`，支持延迟检测、GPU/VRAM 实时监控、队列状态查询，返回 `systemStats`（devices/vram）和 `queueInfo`（running/pending）。
+- 2026-07-03 已补齐服务端 ComfyUI Connector 环境变量配置：`config/.env.example` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN` 配置项，与机器侧 connector 共享认证 token。
+- 2026-07-03 ComfyUI connector 机制已完整实现：机器侧 `@xinghuan/comfyui-connector` 通过 `POST /api/internal/comfyui/connectors/register` 注册实例，每 15 秒发送心跳到 `POST /api/internal/comfyui/connectors/heartbeat`，自动探测健康状态和能力标签。
 - 2026-07-02 已在 `xinghuan-integration-clean` 干净整合分支上补齐 `apps/comfyui-connector` 的 harness 工程骨架：新增 connector config 模块、workspace README、`.env.example`、systemd 模板与 `verify:comfyui-connector-harness` 契约脚本，后续多机器接入可以按统一模板继续扩展。
 - 2026-07-02 已补齐共享 ComfyUI 工作流的专用执行入口：新增 `POST /api/comfyui/apps/:workflowId/run`，由后台负责实例选择、参数注入、prompt 提交、history 轮询与输出转存，前台 `comfyui-app` 节点不再绕通用图像代理执行。
 - 2026-07-02 已补齐项目级 harness 入口层：新增 `docs/systems/harness/`、根级 `harness:verify:*` 聚合命令与 `verify:project-harness-contract`，当前仓库开始具备 workspace / verify / release / integration 四层统一执行地图。
@@ -33,9 +37,8 @@
   - `/opt/apps/xinghuan-canvas-next/current -> 20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
   - `/opt/apps/xinghuan-canvas/current -> 20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前仍需重点处理：
-  - ComfyUI 后台实例池与工作流管理体验很差，需要重新设计信息架构、表单布局、空态、操作顺序和权限提示
   - ComfyUI 本地 JSON 工作流导入、参数暴露、默认值编辑、共享区发布和画布节点选择仍需端到端验收
-  - 当前工作树仍包含未提交的 ComfyUI connector、共享工作流执行链路和项目级 harness 改动，需要收口成干净批次
+  - 当前工作树仍包含未提交的 ComfyUI 后台重构、连接测试 API 和环境配置改动，需要收口成干净批次
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果
@@ -103,7 +106,10 @@
 
 ## 已完成
 
-- 已完成后台 AI 助手设置页草稿态保存流，支持“保存 AI 助手配置 / 重置未保存修改”。
+- 已完成 ComfyUI 后台实例池管理界面重构：新增仪表盘概览页、实例详情页（基本配置/工作流管理/执行日志三个标签页）、连接测试功能、完整 CSS 样式。
+- 已补齐后端测试连接 API：`POST /api/admin/comfyui/instances/:id/test-connection`，支持延迟检测、GPU/VRAM 监控、队列状态查询。
+- 已补齐服务端 ComfyUI Connector 环境变量配置：`config/.env.example` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`。
+- 已完成后台 AI 助手设置页草稿态保存流，支持”保存 AI 助手配置 / 重置未保存修改”。
 - 已移除后台顶栏重复 AI 助手入口，仅保留侧栏页签和右侧抽屉开关。
 - 已修复关闭态后台 AI 助手抽屉遮挡主内容点击的问题。
 - 已移除登录页默认预填管理员邮箱。
@@ -254,17 +260,15 @@
 
 ## 进行中
 
-- ComfyUI 后台体验重设计与实例池/工作流治理链路收口。
 - ComfyUI 共享工作流从后台管理到画布节点运行的端到端验收。
-- 当前工作树的 ComfyUI connector、共享执行入口和项目级 harness 批次收口。
+- 当前工作树的 ComfyUI 后台重构、连接测试 API 和环境配置批次收口。
 - 主入口状态一致性治理，避免代理继续从旧 `progress.md` 摘出过期版本。
 
 ## 待办
 
-- 重做 ComfyUI 后台页面的信息架构与表单布局，避免机器实例和工作流编辑混在同一个拥挤区域。
-- 明确 ComfyUI 工作流管理层级：机器实例内建立专属工作流，再由管理员推送到共享区。
 - 补齐 ComfyUI 工作流本地 JSON 导入、输入/输出参数识别、参数暴露编辑、默认值编辑和共享发布验收。
-- 收口当前 `xinghuan-integration-clean` 工作树，拆分或提交当前 ComfyUI/harness 批次。
+- 收口当前 `xinghuan-integration-clean` 工作树，提交 ComfyUI 后台重构批次。
+- 灰度验证 ComfyUI 后台新界面和连接测试功能。
 
 ## 风险
 

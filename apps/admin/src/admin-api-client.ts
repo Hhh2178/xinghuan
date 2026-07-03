@@ -162,6 +162,10 @@ export const adminComfyuiApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  testConnection: (instanceId: string) =>
+    api<import("./admin-types").ComfyuiConnectionTestResult>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/test-connection`, {
+      method: "POST",
+    }),
   updateCapabilities: (instanceId: string, capabilities: string[]) =>
     api<import("./admin-types").ComfyuiInstanceRecord>(`/api/admin/comfyui/instances/${encodeURIComponent(instanceId)}/capabilities`, {
       method: "PATCH",

@@ -7673,3 +7673,566 @@ td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ComfyUI Instance Pool - Overview Page */
+.admin-comfyui-overview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0;
+}
+
+.admin-comfyui-band {
+  margin: 0;
+}
+
+.admin-comfyui-band__actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-comfyui-band__actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid rgba(102, 252, 241, 0.26);
+  border-radius: 6px;
+  background: rgba(102, 252, 241, 0.08);
+  color: var(--starlight-cyan);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-comfyui-band__actions button:hover:not(:disabled) {
+  background: rgba(102, 252, 241, 0.15);
+  border-color: var(--starlight-cyan);
+}
+
+.admin-comfyui-band__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-comfyui-band__actions button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-comfyui-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  padding: 20px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  border-color: rgba(102, 252, 241, 0.3);
+  background: rgba(102, 252, 241, 0.05);
+}
+
+.metric-card__label {
+  font-size: 13px;
+  color: #9fb5b7;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-card__value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.metric-card--success {
+  border-color: rgba(80, 250, 123, 0.3);
+  background: rgba(80, 250, 123, 0.05);
+}
+
+.metric-card--success .metric-card__value {
+  color: var(--starlight-success);
+}
+
+.metric-card--danger {
+  border-color: rgba(255, 85, 85, 0.3);
+  background: rgba(255, 85, 85, 0.05);
+}
+
+.metric-card--danger .metric-card__value {
+  color: var(--starlight-danger);
+}
+
+.admin-comfyui-instance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+}
+
+.admin-comfyui-instance-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.admin-comfyui-instance-card:hover {
+  border-color: rgba(102, 252, 241, 0.4);
+  box-shadow: 0 4px 20px rgba(102, 252, 241, 0.1);
+  transform: translateY(-2px);
+}
+
+.admin-comfyui-instance-card[data-health="online"] {
+  border-left: 3px solid var(--starlight-success);
+}
+
+.admin-comfyui-instance-card[data-health="degraded"] {
+  border-left: 3px solid var(--starlight-warning);
+}
+
+.admin-comfyui-instance-card[data-health="offline"] {
+  border-left: 3px solid var(--starlight-danger);
+}
+
+.admin-comfyui-instance-card__header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-comfyui-instance-card__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.admin-comfyui-instance-card__title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: 500;
+  color: #dbe8ec;
+  flex-shrink: 0;
+}
+
+.admin-comfyui-instance-card__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #9fb5b7;
+}
+
+.admin-comfyui-instance-card__meta .latency {
+  color: var(--starlight-cyan);
+  font-weight: 500;
+}
+
+.admin-comfyui-instance-card__body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.info-row {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-label {
+  color: #9fb5b7;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.info-value {
+  color: #dbe8ec;
+  flex: 1;
+  word-break: break-all;
+}
+
+.connection-error {
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(255, 85, 85, 0.1);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+}
+
+.connection-error strong {
+  display: block;
+  color: var(--starlight-danger);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.connection-error p {
+  margin: 0;
+  font-size: 12px;
+  color: #dbe8ec;
+  line-height: 1.4;
+}
+
+.admin-comfyui-instance-card__footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.admin-comfyui-instance-card__footer button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #dbe8ec;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-comfyui-instance-card__footer button:hover:not(:disabled) {
+  border-color: var(--starlight-cyan);
+  background: rgba(102, 252, 241, 0.1);
+  color: var(--starlight-cyan);
+}
+
+.admin-comfyui-instance-card__footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-comfyui-instance-card__footer button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ComfyUI Instance Pool - Detail Page */
+.admin-comfyui-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-comfyui-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-comfyui-detail-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #dbe8ec;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  border-color: var(--starlight-cyan);
+  background: rgba(102, 252, 241, 0.1);
+  color: var(--starlight-cyan);
+}
+
+.back-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-comfyui-detail-header__actions {
+  display: flex;
+  gap: 12px;
+}
+
+.admin-comfyui-detail-header__actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid rgba(102, 252, 241, 0.26);
+  border-radius: 6px;
+  background: rgba(102, 252, 241, 0.08);
+  color: var(--starlight-cyan);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-comfyui-detail-header__actions button:hover:not(:disabled) {
+  background: rgba(102, 252, 241, 0.15);
+  border-color: var(--starlight-cyan);
+}
+
+.admin-comfyui-detail-header__actions button.danger {
+  border-color: rgba(255, 85, 85, 0.3);
+  background: rgba(255, 85, 85, 0.08);
+  color: var(--starlight-danger);
+}
+
+.admin-comfyui-detail-header__actions button.danger:hover:not(:disabled) {
+  background: rgba(255, 85, 85, 0.15);
+  border-color: var(--starlight-danger);
+}
+
+.admin-comfyui-detail-header__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-comfyui-detail-header__actions button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-comfyui-detail-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tab-button {
+  padding: 12px 20px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9fb5b7;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover:not(:disabled) {
+  color: #dbe8ec;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-button.active {
+  color: var(--starlight-cyan);
+  border-bottom-color: var(--starlight-cyan);
+}
+
+.tab-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-comfyui-detail-content {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.admin-comfyui-config-panel h2,
+.admin-comfyui-create-workflow-panel h2,
+.admin-comfyui-logs-panel h2 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.admin-comfyui-workflows-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-comfyui-workflow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-comfyui-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-comfyui-actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid rgba(102, 252, 241, 0.26);
+  border-radius: 6px;
+  background: rgba(102, 252, 241, 0.08);
+  color: var(--starlight-cyan);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-comfyui-actions button:hover:not(:disabled) {
+  background: rgba(102, 252, 241, 0.15);
+  border-color: var(--starlight-cyan);
+}
+
+.admin-comfyui-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-comfyui-actions button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.message-banner {
+  padding: 14px 20px;
+  margin: 0 24px 20px;
+  border-radius: 6px;
+  background: rgba(102, 252, 241, 0.1);
+  border: 1px solid rgba(102, 252, 241, 0.3);
+  color: var(--starlight-cyan);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.error-banner {
+  padding: 14px 20px;
+  border-radius: 6px;
+  background: rgba(255, 85, 85, 0.1);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  color: var(--starlight-danger);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #9fb5b7;
+}
+
+.empty-state p {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.empty-state p:last-child {
+  margin-bottom: 0;
+}
+
+.empty-state button {
+  margin-top: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid rgba(102, 252, 241, 0.26);
+  border-radius: 6px;
+  background: rgba(102, 252, 241, 0.08);
+  color: var(--starlight-cyan);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-state button:hover {
+  background: rgba(102, 252, 241, 0.15);
+  border-color: var(--starlight-cyan);
+}
+
+.empty-state button svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 768px) {
+  .admin-comfyui-instance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-comfyui-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-comfyui-detail-header {
+    flex-wrap: wrap;
+  }
+
+  .admin-comfyui-detail-header__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-comfyui-band__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .admin-comfyui-band__actions button {
+    width: 100%;
+  }
+}

@@ -103,7 +103,7 @@ export interface SharedResourceItem {
   };
 }
 
-export type ComfyuiInstanceHealth = "online" | "offline" | "degraded";
+export type ComfyuiInstanceHealth = "online" | "offline" | "degraded" | "unknown";
 
 export interface ComfyuiInstanceRecord {
   id: string;
@@ -118,6 +118,30 @@ export interface ComfyuiInstanceRecord {
   updatedAt: number;
   note?: string;
   connectorVersion?: string;
+}
+
+export interface ComfyuiConnectionTestResult {
+  success: boolean;
+  latency?: number;
+  systemStats?: {
+    system?: {
+      os?: string;
+      python_version?: string;
+      embedded_python?: boolean;
+    };
+    devices?: Array<{
+      name?: string;
+      type?: string;
+      vram_total?: number;
+      vram_free?: number;
+    }>;
+  };
+  queueInfo?: {
+    running?: number;
+    pending?: number;
+  };
+  error?: string;
+  errorDetail?: string;
 }
 
 export interface ComfyuiWorkflowFieldDraft {

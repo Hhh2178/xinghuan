@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { safeSlug, safeText } from "./api-sanitizers.js";
 import { readJsonBody } from "./http-session-utils.js";
 import {
@@ -129,6 +131,108 @@ function resolveHeartbeatIntervalMs(value: unknown) {
   const interval = Number(value);
   if (!Number.isFinite(interval)) return 15000;
   return Math.max(5000, Math.min(300000, Math.floor(interval)));
+}
+
+interface ComfyuiConnectionTestResult {
+  success: boolean;
+  latency?: number;
+  systemStats?: {
+    system?: {
+      os?: string;
+      python_version?: string;
+      embedded_python?: boolean;
+    };
+    devices?: Array<{
+      name?: string;
+      type?: string;
+      vram_total?: number;
+      vram_free?: number;
+    }>;
+  };
+  queueInfo?: {
+    running?: number;
+    pending?: number;
+  };
+  error?: string;
+  errorDetail?: string;
+}
+
+async function testComfyuiConnection(baseUrl: string): Promise<ComfyuiConnectionTestResult> {
+  const startTime = Date.now();
+
+  try {
+    const systemStatsUrl = new URL("/system_stats", baseUrl);
+    const queueUrl = new URL("/queue", baseUrl);
+
+    const [systemStats, queueInfo] = await Promise.all([
+      fetchComfyuiEndpoint(systemStatsUrl.toString()),
+      fetchComfyuiEndpoint(queueUrl.toString()),
+    ]);
+
+    const latency = Date.now() - startTime;
+
+    return {
+      success: true,
+      latency,
+      systemStats: systemStats && typeof systemStats === "object" ? systemStats as any : undefined,
+      queueInfo: queueInfo && typeof queueInfo === "object" && "queue_running" in queueInfo && "queue_pending" in queueInfo
+        ? { running: Number(queueInfo.queue_running) || 0, pending: Number(queueInfo.queue_pending) || 0 }
+        : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      errorDetail: error instanceof Error && error.stack ? error.stack : undefined,
+    };
+  }
+}
+
+async function fetchComfyuiEndpoint(url: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const requester = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
+
+    const req = requester({
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === "https:" ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: "GET",
+      timeout: 10000,
+      headers: {
+        "user-agent": "xinghuan-comfyui-test/1.0",
+        "accept": "application/json",
+      },
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        try {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            const parsed = JSON.parse(data);
+            resolve(parsed);
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+          }
+        } catch (parseError) {
+          reject(new Error(`JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`));
+        }
+      });
+    });
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("Connection timeout"));
+    });
+
+    req.end();
+  });
 }
 
 export async function handleInternalComfyuiConnectorRoutes(input: {
@@ -365,6 +469,22 @@ export async function handleComfyuiInstanceRoutes(input: {
     }
     await deps.appendAudit(adminUser, "comfyui.instance.capabilities", "comfyui-instance", instanceId, `更新 ComfyUI 实例 ${updated.name} 能力`, requestContext);
     deps.sendT8(response, updated);
+    return true;
+  }
+
+  const testConnectionMatch = url.pathname.match(/^\/api\/admin\/comfyui\/instances\/([^/]+)\/test-connection$/);
+  if (testConnectionMatch && request.method === "POST") {
+    const instanceId = decodeURIComponent(testConnectionMatch[1]);
+    const state = await registry.readRegistry();
+    const instance = state.instances.find((item) => item.id === instanceId);
+    if (!instance) {
+      sendComfyuiError(response, 404, "INSTANCE_NOT_FOUND");
+      return true;
+    }
+
+    const testResult = await testComfyuiConnection(instance.baseUrl);
+    await deps.appendAudit(adminUser, "comfyui.instance.testConnection", "comfyui-instance", instanceId, `测试 ComfyUI 实例 ${instance.name} 连接`, requestContext);
+    deps.sendT8(response, testResult);
     return true;
   }
 
