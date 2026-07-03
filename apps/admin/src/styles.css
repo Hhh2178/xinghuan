@@ -7954,50 +7954,113 @@ td {
 
 /* ComfyUI Instance Pool - Detail Page */
 .admin-comfyui-detail-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  gap: 18px;
 }
 
 .admin-comfyui-detail-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 22px 24px;
+  border: 1px solid rgba(102, 252, 241, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(102, 252, 241, 0.08), transparent 48%),
+    rgba(8, 13, 20, 0.88);
+}
+
+.admin-comfyui-detail-header__copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-comfyui-detail-header__eyebrow,
+.admin-comfyui-workflow-card__eyebrow {
+  color: #99f6e4;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .admin-comfyui-detail-header h1 {
-  flex: 1;
   margin: 0;
-  font-size: 24px;
-  font-weight: 700;
   color: #ffffff;
+  font-size: 30px;
+  line-height: 1.1;
 }
 
-.back-button {
+.admin-comfyui-detail-header__meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #dbe8ec;
+  flex-wrap: wrap;
+}
+
+.admin-comfyui-detail-header__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(102, 252, 241, 0.12);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.58);
+  color: #cde8ea;
+  font-size: 12px;
+}
+
+.admin-comfyui-health-pill {
+  font-weight: 800;
+}
+
+.admin-comfyui-health-pill--online {
+  border-color: rgba(46, 204, 113, 0.34);
+  color: #b9ffd4;
+}
+
+.admin-comfyui-health-pill--degraded {
+  border-color: rgba(241, 196, 15, 0.34);
+  color: #ffe4a3;
+}
+
+.admin-comfyui-health-pill--offline {
+  border-color: rgba(231, 76, 60, 0.34);
+  color: #ffb7b0;
+}
+
+.admin-comfyui-health-pill--draft {
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #d9e1e6;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(102, 252, 241, 0.18);
+  border-radius: 12px;
+  background: rgba(8, 47, 73, 0.24);
+  color: #d9f7f4;
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
 .back-button:hover {
   border-color: var(--starlight-cyan);
-  background: rgba(102, 252, 241, 0.1);
-  color: var(--starlight-cyan);
+  background: rgba(102, 252, 241, 0.12);
+  transform: translateY(-1px);
 }
 
-.back-button svg {
+.back-button svg,
+.admin-comfyui-detail-header__actions button svg,
+.admin-comfyui-actions button svg,
+.admin-comfyui-workflow-card__actions button svg {
   width: 16px;
   height: 16px;
 }
@@ -8005,198 +8068,672 @@ td {
 .admin-comfyui-detail-header__actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.admin-comfyui-detail-header__actions button {
-  display: flex;
+.admin-comfyui-detail-header__actions button,
+.admin-comfyui-actions button,
+.admin-comfyui-workflow-card__actions button,
+.admin-comfyui-upload-box button {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
-  border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 8px;
-  background: rgba(102, 252, 241, 0.08);
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(102, 252, 241, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 47, 73, 0.26);
   color: var(--starlight-cyan);
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
-.admin-comfyui-detail-header__actions button:hover:not(:disabled) {
-  background: rgba(102, 252, 241, 0.15);
+.admin-comfyui-detail-header__actions button:hover:not(:disabled),
+.admin-comfyui-actions button:hover:not(:disabled),
+.admin-comfyui-workflow-card__actions button:hover:not(:disabled),
+.admin-comfyui-upload-box button:hover:not(:disabled) {
   border-color: var(--starlight-cyan);
+  background: rgba(102, 252, 241, 0.12);
+  transform: translateY(-1px);
 }
 
-.admin-comfyui-detail-header__actions button.danger {
-  border-color: rgba(255, 85, 85, 0.3);
+.admin-comfyui-detail-header__actions button.danger,
+.admin-comfyui-workflow-card__actions button.danger {
+  border-color: rgba(255, 85, 85, 0.28);
   background: rgba(255, 85, 85, 0.08);
-  color: var(--starlight-danger);
+  color: #ff8e84;
 }
 
-.admin-comfyui-detail-header__actions button.danger:hover:not(:disabled) {
-  background: rgba(255, 85, 85, 0.15);
-  border-color: var(--starlight-danger);
+.admin-comfyui-detail-header__actions button.danger:hover:not(:disabled),
+.admin-comfyui-workflow-card__actions button.danger:hover:not(:disabled) {
+  border-color: rgba(255, 85, 85, 0.52);
+  background: rgba(255, 85, 85, 0.14);
 }
 
-.admin-comfyui-detail-header__actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.admin-comfyui-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.admin-comfyui-detail-header__actions button svg {
-  width: 16px;
-  height: 16px;
+.admin-comfyui-summary-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 16px;
+  background: rgba(8, 13, 20, 0.76);
+}
+
+.admin-comfyui-summary-card__icon,
+.admin-comfyui-workflow-card__title-icon,
+.admin-comfyui-section-head__icon,
+.admin-comfyui-source-cell__icon,
+.admin-comfyui-create-workflow-panel__guide-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(102, 252, 241, 0.14);
+  background: rgba(8, 47, 73, 0.32);
+  color: var(--starlight-cyan);
+}
+
+.admin-comfyui-summary-card strong,
+.admin-comfyui-parser-summary__card strong {
+  display: block;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.admin-comfyui-summary-card span,
+.admin-comfyui-parser-summary__card span {
+  display: block;
+  margin-top: 6px;
+  color: #93c5d2;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .admin-comfyui-detail-tabs {
   display: flex;
-  gap: 4px;
-  padding: 16px 24px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.tab-button {
-  padding: 12px 20px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #9fb5b7;
+.admin-comfyui-detail-tabs .tab-button {
+  min-width: 220px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 14px;
+  background: rgba(8, 13, 20, 0.76);
+  color: #c1d0d7;
+  text-align: left;
+}
+
+.admin-comfyui-detail-tabs .tab-button span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-comfyui-detail-tabs .tab-button strong {
+  color: #ffffff;
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.tab-button:hover:not(:disabled) {
-  color: #dbe8ec;
-  background: rgba(255, 255, 255, 0.05);
+.admin-comfyui-detail-tabs .tab-button small {
+  color: #7da5b2;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.tab-button.active {
-  color: var(--starlight-cyan);
-  border-bottom-color: var(--starlight-cyan);
+.admin-comfyui-detail-tabs .tab-button svg {
+  width: 18px;
+  height: 18px;
+  color: #8fd7d2;
 }
 
-.tab-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.admin-comfyui-detail-tabs .tab-button.active,
+.admin-comfyui-detail-tabs .tab-button:hover:not(:disabled) {
+  border-color: rgba(102, 252, 241, 0.34);
+  background: linear-gradient(135deg, rgba(102, 252, 241, 0.12), rgba(8, 47, 73, 0.3));
+  transform: translateY(-1px);
 }
 
 .admin-comfyui-detail-content {
-  padding: 24px;
-  flex: 1;
-  overflow-y: auto;
+  display: grid;
+  gap: 18px;
 }
 
-.admin-comfyui-config-panel h2,
-.admin-comfyui-create-workflow-panel h2,
-.admin-comfyui-logs-panel h2 {
-  margin: 0 0 20px;
-  font-size: 18px;
-  font-weight: 600;
+.admin-comfyui-panel-head,
+.admin-comfyui-section-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-comfyui-panel-head--compact {
+  margin-bottom: 6px;
+}
+
+.admin-comfyui-panel-head h2,
+.admin-comfyui-workflow-card__header h3 {
+  margin: 0;
   color: #ffffff;
 }
 
-.admin-comfyui-workflows-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.admin-comfyui-panel-head p,
+.admin-comfyui-section-head span,
+.admin-comfyui-workflow-card__header p {
+  margin: 6px 0 0;
+  color: #8fb5c1;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
-.admin-comfyui-workflow-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.admin-comfyui-workflows-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-comfyui-create-workflow-panel,
+.admin-comfyui-config-panel,
+.admin-comfyui-logs-panel,
+.admin-comfyui-workflow-card,
+.admin-comfyui-workflow-rail {
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(10, 14, 22, 0.95), rgba(9, 12, 19, 0.88));
+}
+
+.admin-comfyui-create-workflow-panel__guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(102, 252, 241, 0.14);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, 0.18);
+}
+
+.admin-comfyui-create-workflow-panel__guide strong,
+.admin-comfyui-create-workflow-panel__checklist strong,
+.admin-comfyui-beta-note__item strong,
+.admin-comfyui-source-cell__copy strong,
+.admin-comfyui-warning-card strong,
+.admin-comfyui-section-head strong,
+.admin-comfyui-workflow-card__header h3,
+.admin-comfyui-workflow-rail__item-copy strong,
+.admin-comfyui-advanced-panel__tip span {
+  color: #ffffff;
+}
+
+.admin-comfyui-create-workflow-panel__guide span,
+.admin-comfyui-create-workflow-panel__checklist span,
+.admin-comfyui-beta-note__item span,
+.admin-comfyui-source-cell__copy span,
+.admin-comfyui-warning-card span,
+.admin-comfyui-workflow-rail__item-copy span,
+.admin-comfyui-workflow-rail__item-copy small,
+.admin-comfyui-advanced-panel__tip span,
+.admin-comfyui-workflow-card__footer-note span {
+  color: #93c5d2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-comfyui-create-workflow-panel__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.admin-comfyui-create-workflow-panel__side {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-comfyui-upload-box,
+.admin-comfyui-create-workflow-panel__checklist,
+.admin-comfyui-beta-note__item,
+.admin-comfyui-workflow-card__footer-note {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.admin-comfyui-upload-box__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-comfyui-upload-box__copy strong {
+  color: #ffffff;
+}
+
+.admin-comfyui-upload-box__copy span {
+  color: #93c5d2;
+  font-size: 13px;
+}
+
+.admin-comfyui-upload-box__input {
+  display: none;
 }
 
 .admin-comfyui-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
   margin-top: 16px;
 }
 
-.admin-comfyui-actions button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 8px;
-  background: rgba(102, 252, 241, 0.08);
-  color: var(--starlight-cyan);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.admin-comfyui-actions button:hover:not(:disabled) {
-  background: rgba(102, 252, 241, 0.15);
-  border-color: var(--starlight-cyan);
-}
-
-.admin-comfyui-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.admin-comfyui-actions button svg {
-  width: 16px;
-  height: 16px;
-}
-
 .message-banner {
-  padding: 14px 20px;
-  margin: 0 24px 20px;
-  border-radius: 8px;
+  padding: 14px 18px;
+  border: 1px solid rgba(102, 252, 241, 0.24);
+  border-radius: 14px;
   background: rgba(102, 252, 241, 0.1);
-  border: 1px solid rgba(102, 252, 241, 0.3);
-  color: var(--starlight-cyan);
+  color: #a9fff9;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
 }
 
-.empty-state {
-  padding: 60px 20px;
+.admin-comfyui-governance-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.admin-comfyui-workflow-rail__list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-comfyui-workflow-rail__item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(102, 252, 241, 0.08);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.32);
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.admin-comfyui-workflow-rail__item:hover,
+.admin-comfyui-workflow-rail__item.active {
+  border-color: rgba(102, 252, 241, 0.28);
+  background: rgba(8, 47, 73, 0.3);
+  transform: translateY(-1px);
+}
+
+.admin-comfyui-workflow-rail__item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  background: rgba(8, 47, 73, 0.28);
+  color: var(--starlight-cyan);
+}
+
+.admin-comfyui-workflow-rail__item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.admin-comfyui-governance-main {
+  min-width: 0;
+}
+
+.admin-comfyui-governance-empty {
+  min-height: 320px;
+  place-items: center;
   text-align: center;
-  color: #9fb5b7;
 }
 
-.empty-state p {
-  margin: 0 0 12px;
-  font-size: 15px;
-  line-height: 1.6;
+.admin-comfyui-governance-empty svg {
+  width: 36px;
+  height: 36px;
+  color: var(--starlight-cyan);
 }
 
-.empty-state p:last-child {
-  margin-bottom: 0;
+.admin-comfyui-workflow-card {
+  display: grid;
+  gap: 18px;
 }
 
-.empty-state button {
-  margin-top: 20px;
+.admin-comfyui-workflow-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-comfyui-workflow-card__title {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.admin-comfyui-workflow-card__meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.admin-comfyui-workflow-card__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(102, 252, 241, 0.12);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.2);
+  color: #c5edf0;
+  font-size: 12px;
+}
+
+.admin-comfyui-workflow-card__intro-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  gap: 14px;
+}
+
+.admin-comfyui-workflow-card__section {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-comfyui-section-head__icon--warning {
+  border-color: rgba(241, 196, 15, 0.18);
+  background: rgba(241, 196, 15, 0.12);
+  color: #ffd16d;
+}
+
+.admin-comfyui-parser-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-comfyui-parser-summary__card {
+  padding: 16px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.admin-comfyui-warning-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-comfyui-warning-card {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(241, 196, 15, 0.18);
+  border-radius: 14px;
+  background: rgba(92, 66, 0, 0.14);
+}
+
+.admin-comfyui-warning-card svg {
+  width: 18px;
+  height: 18px;
+  color: #ffd16d;
+  margin-top: 2px;
+}
+
+.admin-comfyui-mapping-table {
+  display: grid;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.admin-comfyui-mapping-row,
+.admin-comfyui-output-row {
+  min-width: 1080px;
+  display: grid;
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(102, 252, 241, 0.08);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.admin-comfyui-mapping-row {
+  grid-template-columns: minmax(250px, 1.65fr) minmax(160px, 1fr) 132px 132px minmax(220px, 1.1fr) 98px 78px;
+}
+
+.admin-comfyui-output-row {
+  grid-template-columns: minmax(250px, 1.55fr) minmax(150px, 0.95fr) minmax(160px, 1fr) 120px 98px 78px;
+}
+
+.admin-comfyui-mapping-row--header,
+.admin-comfyui-output-row--header {
+  min-width: 1080px;
+  align-items: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #7ba4b1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-comfyui-source-cell {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.admin-comfyui-source-cell__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.admin-comfyui-source-cell__copy small {
+  color: #6f8a96;
+  font-size: 11px;
+}
+
+.admin-comfyui-mapping-row input,
+.admin-comfyui-mapping-row select,
+.admin-comfyui-mapping-row textarea,
+.admin-comfyui-output-row input,
+.admin-comfyui-output-row select,
+.admin-comfyui-workflow-card__intro-grid input,
+.admin-comfyui-workflow-card__intro-grid textarea,
+.admin-comfyui-advanced-panel textarea,
+.admin-comfyui-config-panel input,
+.admin-comfyui-config-panel textarea,
+.admin-comfyui-create-workflow-panel input,
+.admin-comfyui-create-workflow-panel textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(102, 252, 241, 0.12);
+  border-radius: 12px;
+  background: rgba(7, 12, 20, 0.84);
+  color: #f3fbff;
+}
+
+.admin-comfyui-mapping-row textarea,
+.admin-comfyui-workflow-card__intro-grid textarea,
+.admin-comfyui-advanced-panel textarea,
+.admin-comfyui-config-panel textarea,
+.admin-comfyui-create-workflow-panel textarea {
+  resize: vertical;
+}
+
+.admin-comfyui-inline-check {
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 8px;
-  background: rgba(102, 252, 241, 0.08);
-  color: var(--starlight-cyan);
-  font-size: 14px;
-  font-weight: 500;
+  padding: 0 12px;
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 12px;
+  background: rgba(8, 47, 73, 0.16);
+  color: #cde8ea;
+}
+
+.admin-comfyui-inline-check input {
+  width: 14px;
+  min-height: 14px;
+  padding: 0;
+}
+
+.admin-comfyui-advanced-panel {
+  border: 1px solid rgba(102, 252, 241, 0.1);
+  border-radius: 16px;
+  background: rgba(10, 14, 22, 0.66);
+  overflow: hidden;
+}
+
+.admin-comfyui-advanced-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  color: #dff7fb;
+  font-weight: 700;
+  list-style: none;
 }
 
-.empty-state button:hover {
-  background: rgba(102, 252, 241, 0.15);
-  border-color: var(--starlight-cyan);
+.admin-comfyui-advanced-panel summary::-webkit-details-marker {
+  display: none;
 }
 
-.empty-state button svg {
-  width: 16px;
-  height: 16px;
+.admin-comfyui-advanced-panel__body {
+  display: grid;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.admin-comfyui-advanced-panel__tip {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(102, 252, 241, 0.08);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, 0.16);
+}
+
+.admin-comfyui-advanced-panel__tip svg,
+.admin-comfyui-workflow-card__footer-note svg {
+  width: 18px;
+  height: 18px;
+  color: #94f7f0;
+  margin-top: 1px;
+}
+
+.admin-comfyui-workflow-card__message {
+  padding: 14px 16px;
+  border: 1px solid rgba(102, 252, 241, 0.2);
+  border-radius: 14px;
+  background: rgba(102, 252, 241, 0.08);
+  color: #a6fff8;
+  font-weight: 700;
+}
+
+.admin-comfyui-workflow-card__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-comfyui-workflow-card__footer-note {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+}
+
+.admin-comfyui-beta-note {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.empty-state {
+  padding: 56px 22px;
+  color: #9fb5b7;
+  text-align: center;
+}
+
+.empty-state--compact {
+  padding: 26px 18px;
+}
+
+.empty-state p {
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1280px) {
+  .admin-comfyui-summary-strip,
+  .admin-comfyui-parser-summary,
+  .admin-comfyui-beta-note {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-comfyui-governance-layout,
+  .admin-comfyui-create-workflow-panel__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .admin-comfyui-detail-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .admin-comfyui-detail-header__actions,
+  .admin-comfyui-actions,
+  .admin-comfyui-workflow-card__actions {
+    justify-content: flex-start;
+  }
+
+  .admin-comfyui-workflow-card__intro-grid,
+  .admin-comfyui-summary-strip,
+  .admin-comfyui-parser-summary,
+  .admin-comfyui-beta-note {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -8208,21 +8745,17 @@ td {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .admin-comfyui-detail-header {
-    flex-wrap: wrap;
-  }
-
-  .admin-comfyui-detail-header__actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
   .admin-comfyui-band__actions {
     flex-direction: column;
     width: 100%;
   }
 
-  .admin-comfyui-band__actions button {
+  .admin-comfyui-band__actions button,
+  .admin-comfyui-detail-tabs .tab-button,
+  .admin-comfyui-detail-header__actions button,
+  .admin-comfyui-actions button,
+  .admin-comfyui-workflow-card__actions button,
+  .admin-comfyui-upload-box button {
     width: 100%;
   }
 }

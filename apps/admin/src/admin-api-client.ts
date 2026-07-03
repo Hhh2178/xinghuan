@@ -178,6 +178,7 @@ export const adminComfyuiApi = {
     ).then((result) => result.workflows),
   createWorkflow: (instanceId: string, payload: Partial<import("./admin-types").ComfyuiWorkflowDraft> & {
     workflowJson?: Record<string, unknown> | string;
+    inputSchema?: unknown;
     exposedFields?: unknown;
     defaultValues?: unknown;
     hiddenFields?: unknown;
@@ -190,6 +191,7 @@ export const adminComfyuiApi = {
     }),
   updateWorkflow: (instanceId: string, workflowId: string, payload: Partial<import("./admin-types").ComfyuiWorkflowDraft> & {
     workflowJson?: Record<string, unknown> | string;
+    inputSchema?: unknown;
     exposedFields?: unknown;
     defaultValues?: unknown;
     hiddenFields?: unknown;

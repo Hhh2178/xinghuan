@@ -1,4 +1,17 @@
-import { type AssistantChatResult as SharedAssistantChatResult, type AssistantMessageBlock, type ProviderGenerationExecutionMode, type TaskQueueSettings, type TaskStatus } from "@xinghuan/shared";
+import {
+  type AssistantChatResult as SharedAssistantChatResult,
+  type AssistantMessageBlock,
+  type ComfyuiDetectedInput,
+  type ComfyuiDetectedOutput,
+  type ComfyuiParserWarning,
+  type ComfyuiWorkflowAnalysisResult,
+  type ComfyuiWorkflowInputSchemaItem,
+  type ComfyuiWorkflowOutputSchemaItem,
+  type ComfyuiWorkflowValueKind,
+  type ProviderGenerationExecutionMode,
+  type TaskQueueSettings,
+  type TaskStatus,
+} from "@xinghuan/shared";
 import type {
   AnnouncementPriority,
   AnnouncementRecord,
@@ -150,7 +163,7 @@ export interface ComfyuiWorkflowFieldDraft {
   fieldName: string;
   label: string;
   source: string;
-  kind: "text" | "textarea" | "number" | "boolean" | "select" | "image" | "video" | "audio";
+  kind: ComfyuiWorkflowValueKind;
   required?: boolean;
   value?: unknown;
 }
@@ -169,16 +182,28 @@ export interface ComfyuiWorkflowDraft {
   title: string;
   description?: string;
   workflowJson: Record<string, unknown>;
+  analysis: ComfyuiWorkflowAnalysisResult;
+  inputSchema: ComfyuiWorkflowInputSchemaItem[];
   exposedFields: ComfyuiWorkflowFieldDraft[];
   defaultValues: Record<string, unknown>;
   hiddenFields: string[];
-  outputSchema: ComfyuiWorkflowOutputDraft[];
+  outputSchema: ComfyuiWorkflowOutputSchemaItem[];
   sharedWorkflowId?: string;
   createdAt: number;
   updatedAt: number;
   publishedAt?: number;
   publishedBy?: string;
 }
+
+export type {
+  ComfyuiDetectedInput,
+  ComfyuiDetectedOutput,
+  ComfyuiParserWarning,
+  ComfyuiWorkflowAnalysisResult,
+  ComfyuiWorkflowInputSchemaItem,
+  ComfyuiWorkflowOutputSchemaItem,
+  ComfyuiWorkflowValueKind,
+};
 
 export interface GenerationLibraryItem {
   id: string;

@@ -40,6 +40,7 @@
     "verify:admin-api-client-contract": "npx tsx scripts/verify-admin-api-client-contract.ts",
     "verify:admin-view-model-contract": "npx tsx scripts/verify-admin-view-model-contract.ts",
     "verify:admin-starlight-shell": "node scripts/verify-admin-starlight-shell-contract.mjs",
+    "verify:admin-comfyui-governance-contract": "node scripts/verify-admin-comfyui-governance-contract.mjs",
     "verify:admin-public-resources-starlight": "node scripts/verify-admin-public-resources-starlight-contract.mjs",
     "verify:admin-resource-content-phase2": "node scripts/verify-admin-resource-content-phase2-contract.mjs",
     "verify:admin-governance-center-phase2": "node scripts/verify-admin-governance-center-phase2-contract.mjs",
