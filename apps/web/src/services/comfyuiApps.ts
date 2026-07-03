@@ -4,8 +4,10 @@ import {
 } from '../utils/comfyuiApps';
 
 export interface RunComfyuiAppOptions {
-  provider: AdvancedProviderConfig;
-  app: ComfyAppDefinition;
+  provider?: AdvancedProviderConfig | null;
+  app?: ComfyAppDefinition | null;
+  sharedWorkflowId?: string;
+  instanceId?: string;
   inputs?: {
     texts?: string[];
     images?: string[];
@@ -27,15 +29,19 @@ export interface RunComfyuiAppResult {
 }
 
 export async function runComfyuiApp(options: RunComfyuiAppOptions): Promise<RunComfyuiAppResult> {
-  const { provider, app } = options;
+  const { provider } = options;
   const inputs = options.inputs || {};
   const userParams = options.userParams || {};
-  const response = await fetch(`/api/comfyui/apps/${encodeURIComponent(app.id)}/run`, {
+  const workflowId = String(options.sharedWorkflowId || options.app?.id || '').trim();
+  if (!workflowId) {
+    throw new Error('COMFYUI_WORKFLOW_ID_REQUIRED');
+  }
+  const response = await fetch(`/api/comfyui/apps/${encodeURIComponent(workflowId)}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
     body: JSON.stringify({
-      instanceId: provider?.id?.replace(/^comfyui-instance-/, '') || undefined,
+      instanceId: options.instanceId || provider?.id?.replace(/^comfyui-instance-/, '') || undefined,
       userParams,
       inputs,
     }),

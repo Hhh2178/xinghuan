@@ -127,12 +127,11 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     });
   }, [catalog]);
 
-  const activeWorkflowId = String(d.comfyuiAppWorkflowId || '');
+  const activeWorkflowId = String(d.sharedWorkflowId || d.comfyuiAppWorkflowId || '');
   const activeEntry = useMemo(
     () => entries.find((entry) => (
-      entry.workflow.id === activeWorkflowId
-      || entry.workflow.sharedWorkflowId === activeWorkflowId
-      || entry.app.id === activeWorkflowId
+      entry.workflow.sharedWorkflowId === activeWorkflowId
+      || entry.workflow.id === activeWorkflowId
     )) || null,
     [entries, activeWorkflowId],
   );
@@ -142,7 +141,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     if (activeEntry) return;
     const fallback = entries[0];
     update({
-      comfyuiAppWorkflowId: fallback.workflow.id,
+      sharedWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
+      comfyuiAppWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
       comfyuiAppInstanceId: fallback.workflow.instanceId,
       comfyuiAppParamValues: defaultComfyAppParamValues(fallback.app),
       comfyuiAppSelectedOutputKey: fallback.app.outputs[0]?.key || '',
@@ -239,7 +239,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   };
   const setParam = (key: string, value: unknown) => update({ comfyuiAppParamValues: { ...paramValues, [key]: value } });
   const selectEntry = (entry: CatalogEntry) => update({
-    comfyuiAppWorkflowId: entry.workflow.id,
+    sharedWorkflowId: entry.workflow.sharedWorkflowId || entry.workflow.id,
+    comfyuiAppWorkflowId: entry.workflow.sharedWorkflowId || entry.workflow.id,
     comfyuiAppInstanceId: entry.workflow.instanceId,
     comfyuiAppParamValues: defaultComfyAppParamValues(entry.app),
     comfyuiAppSelectedOutputKey: entry.app.outputs[0]?.key || '',
@@ -264,6 +265,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       const result = await runComfyuiApp({
         provider: buildProviderFromEntry(activeEntry),
         app,
+        sharedWorkflowId: activeEntry.workflow.sharedWorkflowId || activeEntry.workflow.id,
+        instanceId: activeEntry.workflow.instanceId,
         userParams: paramValues,
         inputs: {
           texts: orderedTexts.map((item) => item.url),
