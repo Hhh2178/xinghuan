@@ -119,7 +119,7 @@
 ## 2026-07-03 状态更新
 
 - 当前活跃版本：`v0.5.22`
-- 当前 gray release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前 gray release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前工作重心：ComfyUI 管理体验重设计、机器池与工作流治理、项目级 harness 与主入口状态收口
-- 详细变更和验证继续看 `docs/logbooks/`
+- 当前工作重心：ComfyUI 管理体验重设计已部署灰度，图标一致性修复与 connector harness 已激活，等待用户本机 connector 接入验证、机器池与工作流治理、项目级 harness 与主入口状态收口
+- 详细变更和验证继续看 `docs/logbooks/`，本轮修复详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`

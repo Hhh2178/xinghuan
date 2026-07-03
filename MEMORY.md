@@ -60,6 +60,7 @@
 - 最新完成：ComfyUI 后台实例池管理界面重构已完成并部署到灰度（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）
 - 部署时间：2026-07-03 12:00
 - 部署状态：✅ 服务运行正常，API 响应正常，HTTPS 访问正常
-- 当前工作重心：ComfyUI 后台已部署待用户验收，工作流端到端验收、项目级 harness、主入口状态收口
+- 2026-07-03 12:26 补充修复：ComfyUI 图标一致性修复（`.error-banner` 全站选择器冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 `apps/api/dist` 遗漏内容并配置 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`，connector 注册/心跳在灰度正式生效，详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
+- 当前工作重心：ComfyUI 后台已部署待用户验收，等待用户本机 connector 接入验证、工作流端到端验收、项目级 harness、主入口状态收口
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

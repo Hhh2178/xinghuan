@@ -7698,7 +7698,7 @@ td {
   gap: 8px;
   padding: 10px 18px;
   border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(102, 252, 241, 0.08);
   color: var(--starlight-cyan);
   font-size: 14px;
@@ -7891,7 +7891,7 @@ td {
 .connection-error {
   margin-top: 6px;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(255, 85, 85, 0.1);
   border: 1px solid rgba(255, 85, 85, 0.3);
 }
@@ -7927,7 +7927,7 @@ td {
   gap: 6px;
   padding: 8px 12px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   color: #dbe8ec;
   font-size: 13px;
@@ -7948,8 +7948,8 @@ td {
 }
 
 .admin-comfyui-instance-card__footer button svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 /* ComfyUI Instance Pool - Detail Page */
@@ -7982,7 +7982,7 @@ td {
   gap: 8px;
   padding: 10px 16px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   color: #dbe8ec;
   font-size: 14px;
@@ -8013,7 +8013,7 @@ td {
   gap: 8px;
   padding: 10px 18px;
   border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(102, 252, 241, 0.08);
   color: var(--starlight-cyan);
   font-size: 14px;
@@ -8122,7 +8122,7 @@ td {
   gap: 8px;
   padding: 10px 18px;
   border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(102, 252, 241, 0.08);
   color: var(--starlight-cyan);
   font-size: 14px;
@@ -8149,20 +8149,10 @@ td {
 .message-banner {
   padding: 14px 20px;
   margin: 0 24px 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(102, 252, 241, 0.1);
   border: 1px solid rgba(102, 252, 241, 0.3);
   color: var(--starlight-cyan);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.error-banner {
-  padding: 14px 20px;
-  border-radius: 6px;
-  background: rgba(255, 85, 85, 0.1);
-  border: 1px solid rgba(255, 85, 85, 0.3);
-  color: var(--starlight-danger);
   font-size: 14px;
   font-weight: 500;
 }
@@ -8190,7 +8180,7 @@ td {
   gap: 8px;
   padding: 10px 20px;
   border: 1px solid rgba(102, 252, 241, 0.26);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(102, 252, 241, 0.08);
   color: var(--starlight-cyan);
   font-size: 14px;

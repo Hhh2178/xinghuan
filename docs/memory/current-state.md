@@ -51,7 +51,12 @@
   - 灰度部署验证通过：
     - 服务状态：xinghuan-canvas-next 和 xinghuan-canvas-next-worker 均为 active
     - API 状态：内网和公网 HTTPS 均返回 version=0.5.22, environment=gray
-    - 待用户浏览器验收新界面
+  - ComfyUI 图标一致性修复与 connector harness 灰度激活已完成（2026-07-03 12:26）：
+    - 修复 `.error-banner` 全站选择器冲突，统一按钮圆角/图标尺寸到全站规范
+    - 发现并修复灰度早期增量部署遗漏重新构建 `apps/api/dist` 的问题：connector 注册/心跳路由此前在灰度实际不可用
+    - 已补齐灰度 `apps/api/dist`、`apps/admin/dist`，并在服务器 `canvas-next.env` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`
+    - 验证：`POST /api/internal/comfyui/connectors/register` 带正确 token 返回 200，测试数据已清理
+    - 待用户浏览器验收新界面 + 在本机运行 `@xinghuan/comfyui-connector` 完成真实机器接入
 
 ## 相关入口
 
