@@ -56,6 +56,28 @@
 - ✅ 测试数据已清理，`comfyui-instance-pool.json` 恢复为空
 - ✅ `xinghuan-canvas-next` 服务重启后状态 `active`
 
+## 07-03 补充：本机真实实例接入完成
+
+在上述“gray 具备 connector 注册/心跳能力”基础上，随后完成了当前这台本机 ComfyUI 的真实接入：
+
+- 本机 ComfyUI 仍运行在 `http://127.0.0.1:8188`
+- 由于 gray 服务器当前不能直接依赖 tailnet 访问本机，实际采用 SSH 反向隧道：
+  - gray `127.0.0.1:28188` -> local `127.0.0.1:8188`
+- connector 新增 `XINGHUAN_COMFYUI_REGISTER_BASE_URL` 支持：
+  - 本机探活继续使用 `XINGHUAN_COMFYUI_BASE_URL=http://127.0.0.1:8188`
+  - 后台注册地址单独使用 `XINGHUAN_COMFYUI_REGISTER_BASE_URL=http://127.0.0.1:28188`
+
+补充验证:
+
+- ✅ 本机 `GET /system_stats` 返回 `comfyui_version=0.27.0`
+- ✅ gray 服务器 `curl http://127.0.0.1:28188/system_stats` 返回真实 ComfyUI JSON
+- ✅ gray 实例池注册表中出现在线实例：
+  - `id=comfyui-chinami-lrlmfij-gray`
+  - `name=Local ComfyUI CHINAMI-LRLMFIJ`
+  - `baseUrl=http://127.0.0.1:28188`
+  - `health=online`
+- ✅ connector 日志持续输出 `heartbeat ok`
+
 ## 回滚方案
 
 ```bash
@@ -70,6 +92,7 @@ release 目录复制对应 `apps/api/dist`、`apps/admin/dist` 覆盖回 `curren
 
 ## 后续
 
-- 用户在本机运行 `@xinghuan/comfyui-connector`，完成真实机器注册与浏览器验收
+- 浏览器侧继续验收 ComfyUI 后台实例卡片、详情页与后续工作流执行链路
+- 如需长期保活，补一本机 connector + 反向隧道的固定运维脚本/服务化入口
 - 下一次 production 发布时需确认这批 dist 修复内容同步覆盖，避免生产环境出现同样的
   "源码已提交、构建产物未同步"问题

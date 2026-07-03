@@ -12,6 +12,7 @@ export interface ComfyuiConnectorConfig {
   instanceName: string;
   tailscaleAddress: string;
   comfyuiBaseUrl: string;
+  comfyuiRegisterBaseUrl: string;
   concurrency: number;
   connectorVersion: string;
   note?: string;
@@ -78,7 +79,7 @@ function connectorBody(
     id: config.instanceId,
     name: config.instanceName,
     tailscaleAddress: config.tailscaleAddress,
-    baseUrl: config.comfyuiBaseUrl,
+    baseUrl: config.comfyuiRegisterBaseUrl,
     concurrency: config.concurrency,
     connectorVersion: config.connectorVersion,
     note: config.note || "",

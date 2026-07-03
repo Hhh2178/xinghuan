@@ -8,6 +8,7 @@ export interface ComfyuiConnectorRuntimeConfig {
   instanceName: string;
   tailscaleAddress: string;
   comfyuiBaseUrl: string;
+  comfyuiRegisterBaseUrl: string;
   concurrency: number;
   connectorVersion: string;
   note: string;
@@ -42,6 +43,10 @@ export function readConnectorConfig(): ComfyuiConnectorRuntimeConfig {
     comfyuiBaseUrl: optionalEnv(
       "XINGHUAN_COMFYUI_BASE_URL",
       "http://127.0.0.1:8188",
+    ),
+    comfyuiRegisterBaseUrl: optionalEnv(
+      "XINGHUAN_COMFYUI_REGISTER_BASE_URL",
+      optionalEnv("XINGHUAN_COMFYUI_BASE_URL", "http://127.0.0.1:8188"),
     ),
     concurrency: positiveInteger(
       optionalEnv("XINGHUAN_COMFYUI_CONCURRENCY", "1"),

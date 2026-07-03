@@ -4,7 +4,7 @@
 
 - gray：
   - 版本：`v0.5.22`
-  - release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+  - release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

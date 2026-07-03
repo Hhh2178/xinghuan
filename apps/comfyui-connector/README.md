@@ -41,6 +41,9 @@ apps/comfyui-connector/
   - 机器的 Tailscale 地址或 MagicDNS 名称
 - `XINGHUAN_COMFYUI_BASE_URL`
   - 本机 ComfyUI 地址，默认 `http://127.0.0.1:8188`
+- `XINGHUAN_COMFYUI_REGISTER_BASE_URL`
+  - 注册到后台实例池时暴露给服务端访问的地址；默认回退到 `XINGHUAN_COMFYUI_BASE_URL`
+  - 当本机通过反向隧道、内网穿透或其他转发方式暴露给灰度后台时，应把这个值设成服务端真正可达的地址
 - `XINGHUAN_COMFYUI_CONCURRENCY`
   - 当前机器允许的并发数
 - `XINGHUAN_COMFYUI_CONNECTOR_VERSION`

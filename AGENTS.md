@@ -291,8 +291,8 @@
 
 - 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
-- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
-- 当前灰度状态：`2026-07-02 已完成 gray deploy + runtime verify`
+- 当前灰度 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
+- 当前灰度状态：`2026-07-03 已完成 gray deploy + runtime verify + connector harness 激活 + 本机 ComfyUI 实例接入`
 - 当前生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前生产状态：`2026-07-02 已完成 production deploy + runtime verify`

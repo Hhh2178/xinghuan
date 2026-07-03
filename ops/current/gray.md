@@ -3,12 +3,16 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.22`
-- 当前 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
-- 当前状态：`2026-07-02 已完成 gray deploy + runtime verify`
-- 当前补修：`2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
-- 当前本地待补修：`待用户在 gray 上验收公共工作流上传、共享 ComfyUI 节点目录显示、共享工作流运行输出与权限边界`
+- 当前 release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
+- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify + connector harness 激活 + 本机 ComfyUI 实例接入`
+- 当前补修：`2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
+- 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188`
+- 当前本地待补修：`待用户在 gray 上验收实例详情页、共享工作流运行输出、权限边界与后续工作流链路`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
+  - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-dashboard-redesign-gray.md`
+  - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-dashboard-redesign-gray-deployment-completed.md`
   - `../../docs/logbooks/releases/gray/2026-07-02-comfyui-shared-app-and-workflow-upload-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-performance-toggle-and-import-fixes-gray.md`
   - `../../docs/logbooks/releases/gray/2026-06-30-group-execution-manager-runtime-rounds-gray.md`

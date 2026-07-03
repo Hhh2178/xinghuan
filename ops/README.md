@@ -24,10 +24,11 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.22`
-  - release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
-  - 状态：`2026-07-02 已完成 gray deploy + runtime verify`
-  - 当前补修：`公共工作流上传兼容、共享 ComfyUI 工作流画布消费节点、版本常量对齐`
-  - 本地待补修：`待用户在 gray 上验收公共工作流上传、共享 ComfyUI 节点目录显示与实际运行输出`
+  - release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
+  - 状态：`2026-07-03 已完成 gray deploy + runtime verify + connector harness 激活 + 本机 ComfyUI 实例接入`
+  - 当前补修：`ComfyUI 后台实例池管理界面重构、图标一致性修复、connector 注册/心跳链路修复`
+  - 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）`
+  - 本地待补修：`待用户在 gray 上验收实例管理体验、共享工作流运行输出与权限边界`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

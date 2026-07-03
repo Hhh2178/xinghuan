@@ -70,9 +70,24 @@ assert.match(
   "env example should document instance id",
 );
 assert.match(
+  envExampleSource,
+  /XINGHUAN_COMFYUI_REGISTER_BASE_URL=/,
+  "env example should document the backend-facing ComfyUI address",
+);
+assert.match(
   readmeSource,
   /环境变量/,
   "README should document environment variables",
+);
+assert.match(
+  readmeSource,
+  /XINGHUAN_COMFYUI_REGISTER_BASE_URL/,
+  "README should document the backend-facing ComfyUI address override",
+);
+assert.match(
+  configSource,
+  /XINGHUAN_COMFYUI_REGISTER_BASE_URL/,
+  "connector config should support a dedicated backend-facing base url",
 );
 assert.match(
   readmeSource,

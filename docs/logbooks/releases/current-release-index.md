@@ -6,9 +6,9 @@
 
 - 版本：`v0.5.22`
 - release：`20260703-comfyui-dashboard-redesign-gray-r1-v0522`
-- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify + public HTTPS verify + 图标一致性修复 + connector harness 激活`
+- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify + public HTTPS verify + 图标一致性修复 + connector harness 激活 + 本机 ComfyUI 实例接入`
 - 部署内容：`ComfyUI 后台实例池管理界面重构（仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式）`
-- 补充修复：`ComfyUI 图标一致性修复（error-banner 冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 apps/api dist 与 XINGHUAN_COMFYUI_CONNECTOR_TOKEN，connector 注册/心跳在灰度正式可用`
+- 补充修复：`ComfyUI 图标一致性修复（error-banner 冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 apps/api dist 与 XINGHUAN_COMFYUI_CONNECTOR_TOKEN，connector 注册/心跳在灰度正式可用；connector 新增 register base url override，并通过反向隧道把本机 ComfyUI 接入灰度实例池`
 - 部署时间：`2026-07-03 12:00`（首次）/ `2026-07-03 12:26`（图标修复 + connector harness 激活）
 - 当前批次记录：
   - `gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
