@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.5.20`
-- 当前 release：`20260701-performance-toggle-button-sizing-prod-r1-v0520`
-- 当前状态：`2026-07-01 已完成 production deploy + runtime verify`
-- 当前补修：`性能优化按钮尺寸对齐已完成正式晋级`
+- 当前版本：`v0.5.22`
+- 当前 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前状态：`2026-07-02 已完成 production deploy + runtime verify`
+- 当前补修：`环境同步后台分区与 v0.5.22 正式运行态对齐`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-02-envsync-admin-sections-production.md`
+  - `../../docs/logbooks/releases/production/2026-07-01-performance-toggle-button-sizing-production.md`
   - `../../docs/logbooks/releases/production/2026-06-30-group-execution-manager-runtime-rounds-production.md`
   - `../../docs/logbooks/releases/production/2026-06-28-web-version-sync-production.md`
   - `../../docs/logbooks/releases/production/2026-06-28-admin-assistant-environment-sync-overlap-production.md`
@@ -29,7 +31,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260628-web-version-sync-prod-r1-v0515`
+  - `/opt/apps/xinghuan-canvas/releases/20260701-performance-toggle-button-sizing-prod-r1-v0520`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

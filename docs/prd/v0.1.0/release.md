@@ -2,7 +2,7 @@
 
 ## 版本定位
 
-v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、单端口生产服务、灰度认证版、Phase 2 节点与模型治理闭环，以及 Phase 3 第一轮任务/素材闭环版本。它已切到生产域名 `canvas.hhh2121.xyz`，当前生产 release 为 `20260607-1610-node-acceptance-prod`；后台模型、通用节点、基础任务队列、输出素材落库、任务取消/重试、画布/素材 PostgreSQL repository、生产用户账号、图像/视频/LLM 外部代理、全节点验收链路和 RunningHub 目录链路第一版均已具备可验收基础。RunningHub 真实工作流卡片录入、字段展开和预览运行仍按用户要求暂缓。
+v0.1.0 是无限画布 2.0 的立项、T8 成熟画板迁移、单端口生产服务、灰度认证版、Phase 2 节点与模型治理闭环，以及 Phase 3 第一轮任务/素材闭环版本。本文件保留早期 release 范围说明，不再作为当前运行态入口。当前 gray 与 production 都已运行在 `v0.5.22`；当前 release 状态以 `../README.md`、`progress.md`、`../../logbooks/releases/current-release-index.md`、`../../../ops/README.md` 和线上 `/api/status` 为准。
 
 `2026-06-07` 已补齐本机全节点验收矩阵和完整验收链路：46 个注册节点均通过组件/端口/默认数据合同检查，并在真实浏览器画布中全部渲染；`npm run verify:local-acceptance-chain` 已通过构建、单端口、节点矩阵、浏览器渲染、模型目录、外部代理、任务生命周期、素材 API、输出预览、RunningHub 合同/API、Worker 合同、输出落库和 14 天清理共 20 项核心验收。去 AI 水印节点 API 已改为结构化未配置兜底，避免暂未接入真实 Adapter 时影响画布渲染。灰度 release `20260607-1545-node-acceptance-gray` 与生产 release `20260607-1610-node-acceptance-prod` 均已上线并通过服务器核心验收和公网 46 节点浏览器烟测。
 

@@ -31,10 +31,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.20`
-  - release：`20260701-performance-toggle-button-sizing-prod-r1-v0520`
-  - 状态：`2026-07-01 已完成 production deploy + runtime verify`
-  - 当前补修：`性能优化按钮尺寸对齐已完成正式晋级`
+  - 版本：`v0.5.22`
+  - release：`20260702-envsync-admin-sections-prod-r1-v0522`
+  - 状态：`2026-07-02 已完成 production deploy + runtime verify`
+  - 当前补修：`环境同步后台分区与 v0.5.22 正式运行态对齐`
 
 ## current / archive 分工
 

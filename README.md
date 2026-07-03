@@ -24,12 +24,12 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.18`
+- 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
-- 当前生产 release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前重点系统：画布组执行、科技风收口、RunningHub、后台 Admin、API、Worker
+- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前重点系统：ComfyUI 机器池与工作流治理、项目级 harness、后台 Admin、API、Worker
 
 ## 当前工作根
 
@@ -69,12 +69,12 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.5.18`
+- 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前灰度 release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
-- 当前生产 release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口与主入口状态收口
+- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前工作重心：ComfyUI 机器池与工作流治理、项目级 harness、主入口状态收口与 ComfyUI 后台体验重设计
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
 
@@ -109,10 +109,10 @@
 
 如果旧目录与本目录文档冲突，以当前 worktree 为准。
 
-## 2026-06-30 状态更新
+## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.18`
-- 当前 gray release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
-- 当前 production release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口和主入口状态收口
+- 当前活跃版本：`v0.5.22`
+- 当前 gray release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前工作重心：ComfyUI 管理体验重设计、机器池与工作流治理、项目级 harness 与主入口状态收口
 - 详细变更和验证继续看 `docs/logbooks/`

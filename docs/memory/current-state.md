@@ -2,11 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.5.19`
-- 当前灰度 release：`20260630-group-execution-manager-runtime-rounds-gray-r1-v0519`
-- 当前生产 release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
+- 当前活跃版本：`v0.5.22`
+- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前产品路线口径：
-  - `Phase 3` 仍在持续收口
+  - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
+  - 当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计和发布链路一致性
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -34,9 +35,11 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - RH 与通用异步任务的轮询超时默认值已收口为“留空不启用”
-  - RH 前端节点已去掉本地轮询硬超时
-  - gray / production 已都切到 `v0.5.1` 的 timeout-empty-default release
+  - gray / production 当前都已运行在 `v0.5.22`
+  - gray 当前 release 为 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+  - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
+  - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
+  - ComfyUI 后台当前体验仍需重新设计，不应把运行态对齐误判为产品体验验收通过
 
 ## 相关入口
 

@@ -225,7 +225,7 @@
 
 ## 版本治理规则
 
-- 当前活跃版本已推进为 `v0.5.17`。
+- 当前活跃版本已推进为 `v0.5.22`。
 - 后续每一次 gray / production 真实发布，都必须推进一个非 major 版本号，不能继续长期复用同一个小版本。
 - `major` 版本升级只能在用户明确下达升级指令后执行，协作过程中不得自行推进大版本。
 - 同一批 release 的 gray 与 production 必须暴露相同的应用版本号，不能出现“同批发布但两个环境显示不同版本”的状态。
@@ -289,12 +289,12 @@
 
 ## 当前状态
 
-- 当前活跃版本：`v0.5.17`
+- 当前活跃版本：`v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
-- 当前灰度 release：`20260630-group-execution-manager-and-tech-theme-lockdown-gray-r1-v0517`
-- 当前灰度状态：`待部署`
+- 当前灰度 release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前灰度状态：`2026-07-02 已完成 gray deploy + runtime verify`
 - 当前生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
-- 当前生产 release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前生产状态：`2026-06-28 已完成 production deploy + runtime verify`
-- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口、主入口状态收口
+- 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前生产状态：`2026-07-02 已完成 production deploy + runtime verify`
+- 当前工作重心：ComfyUI 管理体验重设计、机器池与工作流治理、项目级 harness、主入口状态收口
 - 详细阶段历史、逐日证据和运行态细节统一看 `docs/memory/`、`docs/logbooks/`、`ops/README.md`

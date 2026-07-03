@@ -1,5 +1,79 @@
 # v0.1.0 Changelog
 
+## 2026-07-03
+
+- 主入口状态漂移修复：
+  - 修正 `README.md`、`MEMORY.md`、`AGENTS.md`、`docs/prd/README.md`、`docs/prd/v0.1.0/progress.md`、`docs/memory/current-state.md`、`docs/memory/recent-release-index.md`、`ops/README.md`、`ops/current/production.md` 与 `docs/logbooks/releases/current-release-index.md`
+  - 明确当前 gray 与 production 都已运行在 `v0.5.22`
+  - 明确早期 `Phase 3` 任务与素材闭环已完成，不再作为当前阶段口径
+  - 新增 production 运行态记录：
+    - `docs/logbooks/releases/production/2026-07-02-envsync-admin-sections-production.md`
+  - 本次修复原因：
+    - 其他代理从旧 `progress.md` 顶部摘要读取到 `v0.5.1 / Phase 3 持续收口`，导致与真实运行态严重不符
+  - 线上证据：
+    - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.22, environment gray`
+    - `https://canvas.hhh2121.xyz/api/status => version 0.5.22, environment production`
+
+## 2026-07-02
+
+- ComfyUI connector harness 工程化：
+  - `package.json`
+    - 新增 `verify:comfyui-connector-harness`
+  - `scripts/verify-comfyui-connector-harness-contract.mjs`
+    - 新增 connector harness 契约，约束 workspace 文档、环境模板、配置模块与 systemd 模板
+  - `apps/comfyui-connector/src/config.ts`
+    - 抽离环境变量读取与默认值收口
+  - `apps/comfyui-connector/src/connector.ts`
+    - 入口改为复用 `readConnectorConfig()`
+  - `apps/comfyui-connector/README.md`
+    - 补齐环境变量、命令、systemd 和验证清单
+  - `apps/comfyui-connector/.env.example`
+    - 新增机器侧 env 模板
+  - `ops/systemd/xinghuan-comfyui-connector.service.example`
+    - 新增 connector systemd 模板
+  - `docs/systems/providers/protocol-layering.md`
+  - `docs/systems/api/interface-map.md`
+    - 补充 connector harness 接入入口
+  - 本地验证通过：
+    - `node scripts/verify-comfyui-connector-harness-contract.mjs`
+    - `npm run type-check -w @xinghuan/comfyui-connector`
+- ComfyUI 共享工作流专用执行链路：
+  - `apps/api/src/comfyui-execution.ts`
+    - 新增工作流 prompt 注入、history 轮询、结果解析和图片输入上传辅助
+  - `apps/api/src/comfyui-public-routes.ts`
+    - 新增 `POST /api/comfyui/apps/:workflowId/run`
+  - `apps/api/src/server.ts`
+    - 公共 ComfyUI 路由增加输入 URL 归一化与结果转存依赖
+  - `apps/web/src/services/comfyuiApps.ts`
+    - 前台执行共享工作流时改走专用 ComfyUI run 路由
+  - `scripts/verify-comfyui-execution-helpers.ts`
+    - 新增执行辅助逻辑验证
+  - `scripts/verify-comfyui-instance-pool-contract.mjs`
+    - 新增 run 入口与前台调用护栏
+  - 本地验证通过：
+    - `npx tsx scripts/verify-comfyui-execution-helpers.ts`
+    - `node scripts/verify-comfyui-instance-pool-contract.mjs`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/web`
+- 项目级 harness 入口层：
+  - `docs/systems/harness/README.md`
+  - `docs/systems/harness/workspace-verify-release-map.md`
+  - `docs/systems/harness/subharness-convention.md`
+    - 新增项目级 harness 执行地图，明确 workspace / verify / release / integration 分层
+    - 把 ComfyUI connector 登记为当前子 harness 样板
+  - `scripts/verify-project-harness-contract.mjs`
+    - 新增 project harness 契约，约束根级聚合命令与文档入口
+  - `package.json`
+    - 新增 `harness:verify:project`
+    - 新增 `harness:verify:quick`
+    - 新增 `harness:verify:workspace`
+    - 新增 `harness:verify:release`
+    - 新增 `harness:verify:comfyui`
+    - 新增 `verify:project-harness-contract`
+  - `docs/systems/README.md`
+  - `docs/INDEX.md`
+    - 同步把 harness 纳入系统索引
+
 ## 2026-06-30
 
 - 视频节点导入兼容与前端低性能降级：

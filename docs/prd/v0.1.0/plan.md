@@ -2,7 +2,7 @@
 
 ## 状态
 
-Phase 1 已完成。Phase 0 已完成主干确认：以 T8 成熟无限画板 UI 为工作台基底，外围补齐星幻 Web 平台能力。Phase 2 已完成灰度收口：后台 Provider/模型治理、真实 Provider Adapter、通用生成节点和 GRSAI 同步/异步链路均已通过灰度验收。当前进入 Phase 3：任务与素材闭环，优先完成输出素材落库、素材空间联动、任务取消/重试和生产切换前收口。
+本文件保留 v0.1.0 早期阶段计划和历史验收结构，不再单独承担当前项目状态入口。当前 gray 与 production 都已运行在 `v0.5.22`，早期 `Phase 3` 任务与素材闭环已完成；当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计和发布链路一致性。当前真实运行态以 `../README.md`、`progress.md`、`../../logbooks/releases/current-release-index.md`、`../../../ops/README.md` 和线上 `/api/status` 为准。
 
 ## Phase 0 - 选型与 POC
 

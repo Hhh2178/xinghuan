@@ -3,11 +3,11 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.5.1`
-  - release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
+  - 版本：`v0.5.22`
+  - release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
 - production：
-  - 版本：`v0.5.1`
-  - release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
+  - 版本：`v0.5.22`
+  - release：`20260702-envsync-admin-sections-prod-r1-v0522`
 
 ## 当前高频入口
 

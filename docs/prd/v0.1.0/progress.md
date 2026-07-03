@@ -2,10 +2,13 @@
 
 ## 当前状态
 
-状态：当前 gray 与 production 都已运行在 `v0.5.1`。产品路线仍处于 `Phase 3` 持续收口阶段，但当前重点已经从基础能力搭建转为 RH 运行时治理、条目真实输入槽同步、协议样例反推字段、队列窗口治理和运行态稳定性收口。产品能力侧已经完成输出素材落库、素材空间联动、取消/重试、画布/素材 PostgreSQL repository、Provider 任务化标准链路、环境同步、全节点验收矩阵和灰度/生产核心链路验收；与此同时，多用户正式化治理侧 `Phase A-E` 已完成灰度/生产收口、rollback 样本补齐，以及长期观测治理第三批上线。`2026-06-18` 已进一步完成 RunningHub query 结果保留修复、RH queued task 外键修复、普通 Provider 用户级并发验证，以及 RH 平台级并发窗口验证；`2026-06-19` 完成 RH 工作台滚动吸顶收口、编辑器头部与正文解耦、分析区 workbench 化，以及 RH 条目从运行目标同步真实 `nodeInfoList -> fields` 的闭环；`2026-06-22` 又继续完成 RH 分析面板 `requestExample / responseExample` 补齐、后端从 `requestExample.nodeInfoList` 生成字段、`responseExample` 推断输出定义与执行规则、`runTargetId` 校验修复、`instanceType` 默认值治理、RH worker 路由修复、字段显示名透传和输出类型自定义值保留，并进一步完成 RH App / Workflow 运行态字段归一化、混合态条目阻断与 worker AI App v2 submit/query 协议切换；`2026-06-23` 先后完成 RH 节点恢复轮询 production 发布、GRSAI worker 收口 + RunningHub 动态 Key 池发布，并继续补齐 RunningHub 治理护栏、Worker 运行时诊断拆分和 poll 非 JSON 容错；`2026-06-24` 则完成 RH 与通用异步任务的“轮询超时默认留空”治理，并已完成 gray / production 同版 `v0.5.1` 切换。当前下一步更集中在用户对真实业务链路的人工复测，以及后续将 production 数据库从当前 `xinghuan_canvas_next` 规划到真正独立库。
+状态：当前 gray 与 production 都已运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 机器池与工作流治理、项目级 harness、后台体验重设计、发布链路一致性和主入口状态收口。`2026-07-02` gray 已切到 `20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`，production 已切到 `20260702-envsync-admin-sections-prod-r1-v0522`，两个环境的 `/api/status` 均返回 `version = 0.5.22`。需要特别注意：ComfyUI 相关运行态和版本对齐不代表当前后台设计体验合格，截图暴露出的 ComfyUI 实例池/工作流管理界面仍需要下一轮重设计与功能链路收口。
 
 当前与本版本最相关的最新状态：
 
+- 2026-07-02 已在 `xinghuan-integration-clean` 干净整合分支上补齐 `apps/comfyui-connector` 的 harness 工程骨架：新增 connector config 模块、workspace README、`.env.example`、systemd 模板与 `verify:comfyui-connector-harness` 契约脚本，后续多机器接入可以按统一模板继续扩展。
+- 2026-07-02 已补齐共享 ComfyUI 工作流的专用执行入口：新增 `POST /api/comfyui/apps/:workflowId/run`，由后台负责实例选择、参数注入、prompt 提交、history 轮询与输出转存，前台 `comfyui-app` 节点不再绕通用图像代理执行。
+- 2026-07-02 已补齐项目级 harness 入口层：新增 `docs/systems/harness/`、根级 `harness:verify:*` 聚合命令与 `verify:project-harness-contract`，当前仓库开始具备 workspace / verify / release / integration 四层统一执行地图。
 - 2026-06-30 已将旧工作流导入兼容从 `llm` 扩展到 `video` 节点：导入与恢复画布时会清理旧 `status / taskId / taskRuns / videoUrl / remoteVideoUrls` 等运行态，避免视频节点偶发卡死。
 - 2026-06-30 已新增前端“性能优化”手动开关：顶栏中部可在正常模式与优化模式间切换，默认关闭，选择会跨刷新与重新登录保留；开启后前端会关闭鼠标光晕、星轨动画与画布磨玻璃，以缓解部分电脑上的严重卡顿。
 - 2026-06-26 已完成旧工作流导入兼容轻迁移、画布恢复时旧 `llm` 节点清理、以及 workflow 资源摘要字段补齐，等待人工浏览器验收。
@@ -14,43 +17,25 @@
 - 2026-06-26 已完成“组权限治理第一批基础链路”：新增分组权限策略存储与 API，公共资源库开始按组直接隐藏无权限资源，RunningHub catalog 开始按组直接隐藏无权限 AI 应用 / 工作流，RH submit 保留后端兜底校验。
 - 2026-06-26 已完成“组权限治理后台管理端第一版”：用户页已重构为 `账号 / 用户组 / 权限 / 会话` 四段式工作台，权限页已接入分组权限目录与保存能力，为后续节点能力锁定和公共资源后台卡片化改造打下管理端基础。
 
-- 当前灰度 active release：`20260624-runninghub-timeout-empty-default-gray-r1-v051`
-- 当前生产 active release：`20260624-runninghub-timeout-empty-default-prod-r1-v051`
-- 当前灰度版本：`v0.5.1`
+- 当前灰度 active release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前生产 active release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前灰度版本：`v0.5.22`
+- 当前生产版本：`v0.5.22`
 - 当前本地严格验收已通过：
-  - `npm run type-check`
-  - `npm run verify:runninghub-analyze-contract`
-  - `npm run verify:runninghub-workflow-contract`
-  - `npm run verify:runninghub-queue-governance-contract`
-  - `npm run verify:runninghub-workflow-api`
-  - `npm run build:single-port`
-  - `npm run verify:single-port`
-  - `npm run verify:local-acceptance-chain`
-- 当前本地还额外完成：
-  - 普通任务默认总并发固定为 `100`
-  - 普通任务默认单用户并发固定为 `8`
-  - 后台系统页已显示 `配置值 / 实际生效值 / worker 槽位数`
-  - worker 已支持按最新 `taskQueueSettings` 运行时刷新 `image/audio/video` 槽位
-- 当前灰度已进一步完成：
-  - RH App / Workflow 提交参数已按 `kind` 归一化
-  - RH 节点会阻断 `app + workflowId` / `workflow + appId` 的混合态条目直接运行
-  - worker AI App 已切到 `/openapi/v2/run/ai-app/{id}` 与 `/openapi/v2/query`
-- 当前已确认的 gray 修复前证据：
-  - `/api/admin/system` 返回 `image/audio/video concurrency=100, userConcurrency=8`
-  - 但 gray worker 在 `2026-06-22 16:00:49 CST` 启动日志仍打印 `queues:[image:4,audio:4,video:4]`
-  - 该问题已确认是 `image/audio/video` 三类共性的“配置值与 worker 实际生效值不一致”
-- 当前 gray / production 最新状态已额外补齐：
-  - `GRSAI` nano 路由与图像节点错误透传
-  - 高频后台读接口 requestId 审计补样后的 gray / production gate 复验
-  - 项目 atlas、文档入口和 release 台账同步进入 gray / production
-  - 柏拉图 `grok-1.5-video-6s/10s/15s` 改为 `/v1/videos` + `multipart/form-data` + `input_reference` 文件上传
-  - 柏拉图 preview 模型继续保留 `/v2/videos/generations` JSON 提交
-  - 后台 API 接入助手与右侧 AI 助手已开始输出结构化接入方案，而不是只给散乱文本
-  - 后台“环境同步”页已进入 gray / production，当前能力已收口为账号 + 服务商（含关联模型）同步，并完成双向预览与真实写回 smoke
-  - RH catalog / 工作台 / 单一 RH 节点第一阶段已继续推进到 RH 运行时治理版本
-  - 普通 Provider 队列已验证按 `capability + owner` 独立并发与自动递进
-  - RunningHub 已验证平台窗口 `2` 下的等待与自动递进
-  - RH 工作台已支持从运行目标同步真实输入槽；当后台条目保存后，画布 RH 节点会按条目自动展开可执行参数区
+  - `node scripts/verify-project-harness-contract.mjs`
+  - `npm run harness:verify:comfyui`
+  - `npm run harness:verify:workspace`
+  - `npm run harness:verify:project`
+  - `npm run harness:verify:release`
+- 当前线上运行态已确认：
+  - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.22, environment gray`
+  - `https://canvas.hhh2121.xyz/api/status => version 0.5.22, environment production`
+  - `/opt/apps/xinghuan-canvas-next/current -> 20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+  - `/opt/apps/xinghuan-canvas/current -> 20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前仍需重点处理：
+  - ComfyUI 后台实例池与工作流管理体验很差，需要重新设计信息架构、表单布局、空态、操作顺序和权限提示
+  - ComfyUI 本地 JSON 工作流导入、参数暴露、默认值编辑、共享区发布和画布节点选择仍需端到端验收
+  - 当前工作树仍包含未提交的 ComfyUI connector、共享工作流执行链路和项目级 harness 改动，需要收口成干净批次
 - `Phase D` 当前已补齐：
   - 统一任务取消服务
   - `cancelScope / upstreamSupported / upstreamAttempted` 结构化取消结果
@@ -269,20 +254,17 @@
 
 ## 进行中
 
-- Phase 3 任务与素材闭环。
-- 生产切换预检与 `canvas.hhh2121.xyz` / `127.0.0.1:18100` 切换准备。
-- 灰度自动清理首轮实际执行后的审计与观察。
-- RunningHub 真实工作流测试暂缓后的文档与运维基线收口。
+- ComfyUI 后台体验重设计与实例池/工作流治理链路收口。
+- ComfyUI 共享工作流从后台管理到画布节点运行的端到端验收。
+- 当前工作树的 ComfyUI connector、共享执行入口和项目级 harness 批次收口。
+- 主入口状态一致性治理，避免代理继续从旧 `progress.md` 摘出过期版本。
 
 ## 待办
 
-- 继续完成生产预检清单，确认生产 `18100` 环境文件、systemd 和 Nginx 不复用灰度数据/日志路径。
-- 已补齐生产位 env、runbook、验收清单、Nginx 和 systemd 模板；下一步转为服务器侧逐项落地与 smoke 执行准备。
-- 生产 release `20260606-1604-phase3-prod-prep` 已在服务器 `18100` 本机端口通过核心 smoke；API/Worker/timer 已 active/enabled。
-- `canvas.hhh2121.xyz` 已完成 HTTPS 生产切换，公网 `verify:single-port`、`verify:canvas-resource-api`、`verify:task-lifecycle`、`verify:worker-output-materials` 和清理 dry-run 均已通过。
-- 以当前灰度 release `20260607-0218-phase3-runninghub-workflow-gray` 作为生产切换准备基线，补齐切换前 smoke 清单。
-- 在用户恢复该事项后，再录入首条真实 RunningHub 工作流卡片并补字段展开/预览运行验收。
-- 在全部非 RH 预检项收口后，再推进 `canvas.hhh2121.xyz` 和 `127.0.0.1:18100` 正式切换。
+- 重做 ComfyUI 后台页面的信息架构与表单布局，避免机器实例和工作流编辑混在同一个拥挤区域。
+- 明确 ComfyUI 工作流管理层级：机器实例内建立专属工作流，再由管理员推送到共享区。
+- 补齐 ComfyUI 工作流本地 JSON 导入、输入/输出参数识别、参数暴露编辑、默认值编辑和共享发布验收。
+- 收口当前 `xinghuan-integration-clean` 工作树，拆分或提交当前 ComfyUI/harness 批次。
 
 ## 风险
 

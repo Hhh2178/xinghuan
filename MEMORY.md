@@ -29,7 +29,7 @@
 - 部署状态：`docs/memory/deployment-state.md`
 - 最近运行态索引：`docs/memory/recent-release-index.md`
 - 当前发布索引：`docs/logbooks/releases/current-release-index.md`
-- 最近日常事项：`docs/logbooks/daily/2026/2026-06/recent-highlights.md`
+- 最近日常事项：`docs/logbooks/daily/2026/2026-07/recent-highlights.md`
 
 ## 主题记忆入口
 
@@ -51,11 +51,11 @@
 - 发布、验证、视觉复查和逐日推进优先写入 `docs/logbooks/`。
 - `MEMORY.md` 只保留摘要、导航和兼容说明，不再继续堆积长历史正文。
 
-## 2026-06-30 状态更新
+## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.18`
-- 当前 gray release：`20260630-aicopy-video-task-and-duration-range-gray-r1-v0518`
-- 当前 production release：`20260628-web-version-sync-prod-r1-v0515`
-- 当前工作重心：画布组内拓扑执行、全局组管理节点、科技风收口、主入口状态收口
+- 当前活跃版本：`v0.5.22`
+- 当前 gray release：`20260702-comfyui-shared-app-and-workflow-upload-gray-r1-v0522`
+- 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前工作重心：ComfyUI 管理体验重设计、机器池与工作流治理、项目级 harness、主入口状态收口
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

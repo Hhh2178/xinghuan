@@ -11,8 +11,8 @@
 
 ## 最近高频入口
 
-- 当前月份说明：`docs/logbooks/daily/2026/2026-06/README.md`
-- 当前月份高频事项：`docs/logbooks/daily/2026/2026-06/recent-highlights.md`
+- 当前月份说明：`docs/logbooks/daily/2026/2026-07/README.md`
+- 当前月份高频事项：`docs/logbooks/daily/2026/2026-07/recent-highlights.md`
 - 当前发布索引：`docs/logbooks/releases/current-release-index.md`
 - 当前验证索引：`docs/logbooks/validations/`
 
