@@ -27,6 +27,8 @@
 - `observability/`
 - `architecture/README.md`
 - `2026-06-23-full-stack-collaboration-audit.md`
+- `providers/2026-07-04-comfyui-phase-archive-v0525.md`
+  - ComfyUI 当前阶段封存包：产品思路、接口、参数、运行态与后续恢复入口
 
 ## 与 `docs/systems/` 的区别
 

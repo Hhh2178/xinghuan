@@ -63,6 +63,10 @@ function healthCopy(instance: ComfyuiInstanceRecord | null) {
   return { label: "未知", tone: "draft" as const };
 }
 
+function baseUrlSourceText(value?: ComfyuiInstanceRecord["baseUrlSource"]) {
+  return value === "connector" ? "跟随 connector" : "手工固定";
+}
+
 export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>("config");
   const [instance, setInstance] = useState<ComfyuiInstanceRecord | null>(null);
@@ -306,7 +310,8 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
           <h1>{instance?.name || "新增实例"}</h1>
           <div className="admin-comfyui-detail-header__meta">
             <span className={`admin-comfyui-health-pill admin-comfyui-health-pill--${status.tone}`}>{status.label}</span>
-            <span>{instance?.baseUrl || "等待填写 Base URL"}</span>
+            <span>{instance?.baseUrl || "等待填写后端执行地址"}</span>
+            <span>{instance?.reportedBaseUrl || "未收到机器本地 ComfyUI 地址"}</span>
             <span>{instance?.tailscaleAddress || "未配置 Tailscale 地址"}</span>
           </div>
         </div>
@@ -392,7 +397,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
             <div className="admin-comfyui-panel-head">
               <div>
                 <h2>实例配置</h2>
-                <p>维护本机或远端 ComfyUI 实例的连接地址、并发能力和说明信息。</p>
+                <p>分开维护灰度后端可执行地址与 connector 上报的机器本地 ComfyUI 地址，避免地址语义混淆。</p>
               </div>
             </div>
             <div className="form-grid">
@@ -405,11 +410,20 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
                 />
               </label>
               <label>
-                <span>Base URL</span>
+                <span>后端执行地址</span>
                 <input
                   value={instanceForm.baseUrl}
                   onChange={(event) => setInstanceForm((current) => ({ ...current, baseUrl: event.target.value }))}
-                  placeholder="http://127.0.0.1:8188"
+                  placeholder="http://127.0.0.1:28188"
+                />
+              </label>
+              <label>
+                <span>机器本地 ComfyUI 地址</span>
+                <input
+                  value={instance?.reportedBaseUrl || ""}
+                  readOnly
+                  disabled
+                  placeholder="connector 上报后显示"
                 />
               </label>
               <label>
@@ -418,6 +432,14 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
                   value={instanceForm.tailscaleAddress}
                   onChange={(event) => setInstanceForm((current) => ({ ...current, tailscaleAddress: event.target.value }))}
                   placeholder="100.64.0.10"
+                />
+              </label>
+              <label>
+                <span>地址来源</span>
+                <input
+                  value={baseUrlSourceText(instance?.baseUrlSource)}
+                  readOnly
+                  disabled
                 />
               </label>
               <label>
@@ -443,7 +465,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
                   rows={3}
                   value={instanceForm.note}
                   onChange={(event) => setInstanceForm((current) => ({ ...current, note: event.target.value }))}
-                  placeholder="机器说明、反向代理方式、GPU 信息等"
+                  placeholder="机器说明、反向代理方式、执行地址约定、GPU 信息等"
                 />
               </label>
             </div>

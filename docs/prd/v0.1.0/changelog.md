@@ -32,6 +32,34 @@
     - `npm run type-check -w @xinghuan/web`
     - `npm run type-check -w @xinghuan/api`
     - `npm run harness:verify:comfyui`
+- ComfyUI 实例地址语义与健康状态收口：
+  - `apps/api/src/comfyui-workflow-registry.ts`
+    - 新增 `reportedBaseUrl / baseUrlSource`
+    - 新增有效健康状态判定，stale heartbeat 不再继续伪装在线
+  - `apps/api/src/comfyui-instance-routes.ts`
+    - connector register / heartbeat 改为保留机器本地地址
+    - 后台手工保存实例后，执行地址默认切到 `manual`
+  - `apps/comfyui-connector/src/heartbeat.ts`
+    - connector 同时上报执行地址与机器本地地址
+  - `apps/admin/src/admin-comfyui-overview.tsx`
+    - 卡片分开展示执行地址与机器本地 ComfyUI 地址
+    - 连接测试失败时状态降为 `degraded`
+  - `apps/admin/src/admin-comfyui-detail.tsx`
+    - 配置页把可编辑字段改名为 `后端执行地址`
+    - 新增只读 `机器本地 ComfyUI 地址 / 地址来源`
+  - 新增回归：
+    - `scripts/verify-comfyui-instance-address-semantics.ts`
+    - `scripts/verify-admin-comfyui-instance-address-ui-contract.mjs`
+  - `package.json`
+    - 将两条新回归纳入 `harness:verify:comfyui`
+  - 本地验证通过：
+    - `npx tsx scripts/verify-comfyui-instance-address-semantics.ts`
+    - `node scripts/verify-admin-comfyui-instance-address-ui-contract.mjs`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run type-check -w @xinghuan/admin`
+    - `npm run type-check -w @xinghuan/comfyui-connector`
+    - `npm run verify:project-harness-contract`
+    - `npm run harness:verify:comfyui`
 
 ## 2026-07-03
 

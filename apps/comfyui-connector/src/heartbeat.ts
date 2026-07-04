@@ -80,6 +80,8 @@ function connectorBody(
     name: config.instanceName,
     tailscaleAddress: config.tailscaleAddress,
     baseUrl: config.comfyuiRegisterBaseUrl,
+    reportedBaseUrl: config.comfyuiBaseUrl,
+    baseUrlSource: "connector",
     concurrency: config.concurrency,
     connectorVersion: config.connectorVersion,
     note: config.note || "",

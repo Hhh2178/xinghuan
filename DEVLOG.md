@@ -54,6 +54,58 @@
 - `2026-06` 的大段旧正文已拆到 `docs/logbooks/daily/2026/2026-06/`。
 - 后续新的逐日推进不再回填到本文件。
 
+## 2026-07-04
+
+### ComfyUI 实例地址语义与假在线收口
+
+目标:
+- 修复后台手工修改 ComfyUI 实例地址后会被 connector 心跳覆盖的问题
+- 修复实例池把连接失败实例仍显示为“在线”的误导状态
+- 明确区分机器本地 ComfyUI 地址与灰度后端实际执行地址
+
+变更:
+- `apps/api/src/comfyui-workflow-registry.ts`
+  - 为实例记录补充 `reportedBaseUrl` 与 `baseUrlSource`
+  - 新增 `getEffectiveComfyuiInstanceHealth()`，把 stale heartbeat 判成离线
+  - `touchHeartbeat()` 改为只在 `baseUrlSource=connector` 时更新执行地址，避免覆盖手工配置
+- `apps/api/src/comfyui-instance-routes.ts`
+  - connector register / heartbeat 新增机器本地地址上报
+  - 后台实例列表返回有效健康状态
+  - 后台手工保存实例后，执行地址默认切到 `manual`
+- `apps/comfyui-connector/src/heartbeat.ts`
+  - connector 同时上报 `baseUrl`（后端执行地址）与 `reportedBaseUrl`（机器本地 ComfyUI 地址）
+- `apps/admin/src/admin-comfyui-overview.tsx`
+  - 概览卡片改为分开展示 `执行地址` 与 `机器 ComfyUI`
+  - 测试连接失败时，前台显示状态降为 `degraded`
+- `apps/admin/src/admin-comfyui-detail.tsx`
+  - 配置页把可编辑字段明确改名为 `后端执行地址`
+  - 新增只读 `机器本地 ComfyUI 地址` 与 `地址来源`
+- 新增回归：
+  - `scripts/verify-comfyui-instance-address-semantics.ts`
+  - `scripts/verify-admin-comfyui-instance-address-ui-contract.mjs`
+
+验证:
+- `npx tsx scripts/verify-comfyui-instance-address-semantics.ts`
+- `node scripts/verify-admin-comfyui-instance-address-ui-contract.mjs`
+- `npm run type-check -w @xinghuan/api`
+- `npm run type-check -w @xinghuan/admin`
+- `npm run type-check -w @xinghuan/comfyui-connector`
+- `npm run verify:project-harness-contract`
+- `npm run harness:verify:comfyui`
+
+影响:
+- 后台手工修改实例执行地址后，不会再被 connector 心跳直接冲掉
+- 管理界面可以同时看到“机器本地 8188”和“灰度后端实际执行地址”，减少地址语义误解
+- stale heartbeat 与连接失败不再继续伪装成在线实例
+
+风险:
+- 当前灰度服务器没有安装 Tailscale，仍不能直接访问机器 `100.83.71.85:8188`
+- 如果要真正让 gray 直接走本机 `8188`，还需要补灰度侧 Tailscale 或其他直连方案；仅修后台字段语义还不足以打通执行
+
+下一步:
+- 重新对齐本机 connector / 反向隧道配置，确认 gray 后端有一个真实可达的执行地址
+- 在灰度后台重新测试实例连接，并补做一次共享工作流真实执行
+
 ## 2026-06-30
 
 ### 视频节点导入兼容与前端低性能降级

@@ -7,6 +7,7 @@
 当前与本版本最相关的最新状态：
 
 - 2026-07-04 已完成统一 `comfyui` 节点第一轮体验收口：前台选择层级改成 `先机器、后工作流`，节点取消内部滚动并改为随参数自动增高；后端 `POST /api/comfyui/apps/:workflowId/run` 新增分阶段错误翻译，不再把机器不可达问题直接暴露成裸 `fetch failed`。
+- 2026-07-04 已完成 ComfyUI 实例地址语义收口：实例记录拆成 `后端执行地址 baseUrl` 与 `机器本地地址 reportedBaseUrl` 两层；connector 心跳不再覆盖后台手工执行地址；实例池概览对 stale heartbeat / 测试失败状态不再继续误判为在线。
 - 2026-07-03 已完成 ComfyUI 后台实例池管理界面重构：新增 `admin-comfyui-overview.tsx`（仪表盘概览页）、`admin-comfyui-detail.tsx`（实例详情页，支持基本配置、工作流管理、执行日志三个标签页）、`admin-comfyui-instances-panel.tsx`（路由组件），完整 CSS 样式已添加到 `apps/admin/src/styles.css`。
 - 2026-07-03 已补齐后端测试连接 API：新增 `POST /api/admin/comfyui/instances/:id/test-connection`，支持延迟检测、GPU/VRAM 实时监控、队列状态查询，返回 `systemStats`（devices/vram）和 `queueInfo`（running/pending）。
 - 2026-07-03 已补齐服务端 ComfyUI Connector 环境变量配置：`config/.env.example` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN` 配置项，与机器侧 connector 共享认证 token。

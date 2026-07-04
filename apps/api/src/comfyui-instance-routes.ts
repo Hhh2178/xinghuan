@@ -6,6 +6,7 @@ import { readJsonBody } from "./http-session-utils.js";
 import {
   buildComfyuiWorkflowDraft,
   createComfyuiWorkflowRegistry,
+  getEffectiveComfyuiInstanceHealth,
   normalizeComfyuiInstanceRecord,
   normalizeComfyuiWorkflowSchema,
   type ComfyuiInstanceRecord,
@@ -54,6 +55,8 @@ interface InstanceMutationBody {
   name?: string;
   tailscaleAddress?: string;
   baseUrl?: string;
+  reportedBaseUrl?: string;
+  baseUrlSource?: "manual" | "connector";
   health?: "online" | "offline" | "degraded";
   concurrency?: number;
   capabilities?: unknown;
@@ -125,6 +128,13 @@ function mergeWorkflowDraft(existing: ComfyuiWorkflowDraft, body: WorkflowMutati
 
 function assertAdmin(currentUser: CurrentUserShape | null | undefined) {
   return Boolean(currentUser && currentUser.role === "admin");
+}
+
+function withEffectiveHealth(instance: ComfyuiInstanceRecord): ComfyuiInstanceRecord {
+  return {
+    ...instance,
+    health: getEffectiveComfyuiInstanceHealth(instance),
+  };
 }
 
 function workflowSummary(workflow: ComfyuiWorkflowDraft) {
@@ -264,6 +274,8 @@ export async function handleInternalComfyuiConnectorRoutes(input: {
       ...body,
       id: safeSlug(body.id, safeSlug(body.name, `comfyui-${Date.now().toString(36)}`)),
       capabilities: Array.isArray(body.capabilities) ? body.capabilities : [],
+      reportedBaseUrl: safeText(body.reportedBaseUrl, body.baseUrl),
+      baseUrlSource: "connector",
       health: body.health === "offline" || body.health === "degraded" ? body.health : "online",
       lastSeenAt: Date.now(),
       updatedAt: Date.now(),
@@ -275,7 +287,7 @@ export async function handleInternalComfyuiConnectorRoutes(input: {
     });
     const created = state.instances.find((item) => item.id === instance.id) || instance;
     deps.sendT8(response, {
-      instance: created,
+      instance: withEffectiveHealth(created),
       heartbeatIntervalMs: resolveHeartbeatIntervalMs(body.heartbeatIntervalMs),
       registeredAt: Date.now(),
     });
@@ -299,6 +311,8 @@ export async function handleInternalComfyuiConnectorRoutes(input: {
             ...body,
             id: instanceId,
             capabilities: Array.isArray(body.capabilities) ? body.capabilities : [],
+            reportedBaseUrl: safeText(body.reportedBaseUrl, body.baseUrl),
+            baseUrlSource: "connector",
             health: body.health === "offline" || body.health === "degraded" ? body.health : "online",
             lastSeenAt: Date.now(),
             updatedAt: Date.now(),
@@ -313,7 +327,7 @@ export async function handleInternalComfyuiConnectorRoutes(input: {
       return true;
     }
     deps.sendT8(response, {
-      instance: updated,
+      instance: withEffectiveHealth(updated),
       heartbeatIntervalMs: resolveHeartbeatIntervalMs(body.heartbeatIntervalMs),
       heartbeatAt: Date.now(),
     });
@@ -346,7 +360,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       deps.sendT8(response, {
         revision: state.revision,
         updatedAt: state.updatedAt,
-        instances: state.instances,
+        instances: state.instances.map(withEffectiveHealth),
         sharedWorkflows: state.sharedWorkflows,
         workflowCount: state.workflows.length,
       });
@@ -360,6 +374,8 @@ export async function handleComfyuiInstanceRoutes(input: {
         ...body,
         id: safeSlug(body.id, safeSlug(body.name, `comfyui-${Date.now().toString(36)}`)),
         capabilities: Array.isArray(body.capabilities) ? body.capabilities : [],
+        reportedBaseUrl: safeText(body.reportedBaseUrl, body.baseUrl),
+        baseUrlSource: "manual",
       });
       const state = await registry.updateRegistry((current) => {
         const instances = current.instances.filter((item) => item.id !== instance.id);
@@ -368,7 +384,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       });
       const created = state.instances.find((item) => item.id === instance.id) || instance;
       await deps.appendAudit(adminUser, "comfyui.instance.create", "comfyui-instance", created.id, `创建 ComfyUI 实例 ${created.name}`, requestContext);
-      deps.sendT8(response, created, 201);
+      deps.sendT8(response, withEffectiveHealth(created), 201);
       return true;
     }
   }
@@ -385,6 +401,8 @@ export async function handleComfyuiInstanceRoutes(input: {
               ...item,
               ...body,
               id: instanceId,
+              baseUrlSource: typeof body.baseUrl === "string" && body.baseUrl.trim() ? "manual" : item.baseUrlSource,
+              reportedBaseUrl: safeText(body.reportedBaseUrl, item.reportedBaseUrl || ""),
               capabilities: Array.isArray(body.capabilities) ? body.capabilities : item.capabilities,
               updatedAt: now,
               lastSeenAt: item.lastSeenAt,
@@ -399,7 +417,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       return true;
     }
     await deps.appendAudit(adminUser, "comfyui.instance.update", "comfyui-instance", instanceId, `更新 ComfyUI 实例 ${updated.name}`, requestContext);
-    deps.sendT8(response, updated);
+    deps.sendT8(response, withEffectiveHealth(updated));
     return true;
   }
 
@@ -434,6 +452,9 @@ export async function handleComfyuiInstanceRoutes(input: {
               ...item,
               ...body,
               id: instanceId,
+              baseUrl: item.baseUrlSource === "connector" ? safeText(body.baseUrl, item.baseUrl) : item.baseUrl,
+              reportedBaseUrl: safeText(body.reportedBaseUrl, item.reportedBaseUrl || ""),
+              baseUrlSource: body.baseUrlSource === "connector" ? "connector" : item.baseUrlSource,
               health: body.health === "offline" || body.health === "degraded" ? body.health : "online",
               capabilities: Array.isArray(body.capabilities) ? body.capabilities : item.capabilities,
               lastSeenAt: now,
@@ -449,7 +470,7 @@ export async function handleComfyuiInstanceRoutes(input: {
       return true;
     }
     await deps.appendAudit(adminUser, "comfyui.instance.heartbeat", "comfyui-instance", instanceId, `刷新 ComfyUI 实例 ${updated.name} 心跳`, requestContext);
-    deps.sendT8(response, updated);
+    deps.sendT8(response, withEffectiveHealth(updated));
     return true;
   }
 

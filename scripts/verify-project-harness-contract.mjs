@@ -48,7 +48,7 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:comfyui"],
-  "npm run verify:comfyui-connector-harness && npm run verify:comfyui-workflow-parser-contract && npm run verify:admin-comfyui-governance-contract && npm run verify:comfyui-canvas-schema-contract && npm run verify:comfyui-unified-node-contract && npm run verify:comfyui-legacy-node-migration-contract && npm run verify:comfyui-execution-helpers && node scripts/verify-comfyui-instance-pool-contract.mjs",
+  "npm run verify:comfyui-connector-harness && npm run verify:comfyui-workflow-parser-contract && npm run verify:admin-comfyui-governance-contract && npm run verify:comfyui-canvas-schema-contract && npm run verify:comfyui-unified-node-contract && npm run verify:comfyui-legacy-node-migration-contract && npm run verify:comfyui-execution-helpers && npm run verify:comfyui-public-route-errors && npx tsx scripts/verify-comfyui-instance-address-semantics.ts && node scripts/verify-admin-comfyui-instance-address-ui-contract.mjs && node scripts/verify-comfyui-instance-pool-contract.mjs",
   "project harness should expose ComfyUI subharness verification chain",
 );
 assert.equal(

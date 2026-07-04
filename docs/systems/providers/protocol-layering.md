@@ -18,7 +18,8 @@
 - 机器侧运行 `apps/comfyui-connector`，通过 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN` 调用：
   - `POST /api/internal/comfyui/connectors/register`
   - `POST /api/internal/comfyui/connectors/heartbeat`
-- Connector 会把本机 `baseUrl / tailscaleAddress / health / capabilities / connectorVersion` 回写到后台实例池。
+- Connector 会把 `baseUrl`（灰度后端可执行地址）与 `reportedBaseUrl`（机器本地 ComfyUI 地址）分层回写到后台实例池。
+- 后台手工固定过执行地址后，后续 heartbeat 只继续刷新 `reportedBaseUrl / health / capabilities / connectorVersion`，不再覆盖手工执行地址。
 - Connector harness 入口：
   - workspace 说明：`apps/comfyui-connector/README.md`
   - 环境模板：`apps/comfyui-connector/.env.example`

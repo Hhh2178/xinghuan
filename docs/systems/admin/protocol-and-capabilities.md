@@ -15,7 +15,10 @@
 - `管理员` 才能管理实例工作流草稿、修改暴露参数口、默认值、输出口，并执行 `推送到共享区`。
 - 每台机器先拥有自己的实例工作区，不直接把共享区当主编辑源。
 - 实例记录至少包含：
-  - `id / name / tailscaleAddress / baseUrl`
+  - `id / name / tailscaleAddress`
+  - `baseUrl`：灰度 / production 后端实际执行地址
+  - `reportedBaseUrl`：connector 上报的机器本地 ComfyUI 地址
+  - `baseUrlSource`：当前执行地址来自 `manual` 还是 `connector`
   - `health / concurrency / capabilities`
   - `connectorVersion / lastSeenAt`
 
@@ -44,6 +47,7 @@
 - 查看 Worker 数与槽位数
 - 查看 RH 平台窗口
 - 查看 ComfyUI 机器 heartbeat 与健康状态
+- 区分查看“机器本地地址”和“后端执行地址”，避免把 `8188` 与隧道 / 反向代理地址混为一谈
 
 ## 边界说明
 

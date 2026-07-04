@@ -21,6 +21,8 @@ export interface ComfyuiInstanceRecord {
   name: string;
   tailscaleAddress: string;
   baseUrl: string;
+  reportedBaseUrl?: string;
+  baseUrlSource: "manual" | "connector";
   health: "online" | "offline" | "degraded";
   concurrency: number;
   capabilities: string[];
@@ -154,6 +156,10 @@ function nonEmptyStrings(value: unknown): string[] {
 function normalizePositiveInteger(value: unknown, fallback = 1) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function normalizeBaseUrlSource(value: unknown, fallback: ComfyuiInstanceRecord["baseUrlSource"] = "manual") {
+  return value === "connector" ? "connector" : fallback;
 }
 
 function fieldKey(nodeId: string, fieldName: string) {
@@ -546,6 +552,8 @@ export function normalizeComfyuiInstanceRecord(input: unknown): ComfyuiInstanceR
     name: safeText(payload.name, "ComfyUI 实例"),
     tailscaleAddress: safeText(payload.tailscaleAddress),
     baseUrl: safeText(payload.baseUrl, "http://127.0.0.1:8188"),
+    reportedBaseUrl: safeText(payload.reportedBaseUrl),
+    baseUrlSource: normalizeBaseUrlSource(payload.baseUrlSource),
     health,
     concurrency: normalizePositiveInteger(payload.concurrency, 1),
     capabilities: nonEmptyStrings(payload.capabilities),
@@ -555,6 +563,21 @@ export function normalizeComfyuiInstanceRecord(input: unknown): ComfyuiInstanceR
     note: safeText(payload.note),
     connectorVersion: safeText(payload.connectorVersion),
   };
+}
+
+export function getEffectiveComfyuiInstanceHealth(
+  instance: Pick<ComfyuiInstanceRecord, "health" | "lastSeenAt">,
+  options?: {
+    now?: number;
+    staleAfterMs?: number;
+    lastConnectionOk?: boolean;
+  },
+): ComfyuiInstanceRecord["health"] {
+  const now = Number.isFinite(Number(options?.now)) ? Number(options?.now) : Date.now();
+  const staleAfterMs = Number.isFinite(Number(options?.staleAfterMs)) ? Math.max(5_000, Number(options?.staleAfterMs)) : 45_000;
+  if (now - instance.lastSeenAt > staleAfterMs) return "offline";
+  if (options?.lastConnectionOk === false && instance.health === "online") return "degraded";
+  return instance.health;
 }
 
 export function defaultComfyuiRegistryState(): ComfyuiRegistryState {
@@ -639,7 +662,11 @@ export function createComfyuiWorkflowRegistry(adminDir: string) {
                 ...instance,
                 name: safeText(payload.name, instance.name),
                 tailscaleAddress: safeText(payload.tailscaleAddress, instance.tailscaleAddress),
-                baseUrl: safeText(payload.baseUrl, instance.baseUrl),
+                baseUrl: instance.baseUrlSource === "connector"
+                  ? safeText(payload.baseUrl, instance.baseUrl)
+                  : instance.baseUrl,
+                reportedBaseUrl: safeText(payload.reportedBaseUrl, instance.reportedBaseUrl || ""),
+                baseUrlSource: normalizeBaseUrlSource(payload.baseUrlSource, instance.baseUrlSource),
                 health: (payload.health === "offline" || payload.health === "degraded" ? payload.health : "online") as ComfyuiInstanceRecord["health"],
                 concurrency: normalizePositiveInteger(payload.concurrency, instance.concurrency),
                 capabilities: payload.capabilities ? nonEmptyStrings(payload.capabilities) : instance.capabilities,

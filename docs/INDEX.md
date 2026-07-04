@@ -60,6 +60,7 @@
 
 - 超级文件拆分台账：`docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
 - `1200+` source 文件 watchlist 也统一记录在这份台账中
+- ComfyUI 当前阶段封存：`docs/records/providers/2026-07-04-comfyui-phase-archive-v0525.md`
 
 ## 当前核心系统导航
 

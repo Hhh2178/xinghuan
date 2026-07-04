@@ -126,6 +126,8 @@ export interface ComfyuiInstanceRecord {
   name: string;
   tailscaleAddress: string;
   baseUrl: string;
+  reportedBaseUrl?: string;
+  baseUrlSource?: "manual" | "connector";
   health: ComfyuiInstanceHealth;
   concurrency: number;
   capabilities: string[];

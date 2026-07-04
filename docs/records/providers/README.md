@@ -8,3 +8,5 @@
 
 - `../../project-atlas/provider-protocol-and-request-body-design.md`
 - `../../../ops/plato-provider-rollout-2026-06-17.md`
+- `2026-07-04-comfyui-phase-archive-v0525.md`
+  - ComfyUI 当前阶段封存：设计思路、接口、参数、运行态、已完成项与未完成项

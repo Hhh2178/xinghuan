@@ -51,6 +51,14 @@ function getStatusText(health: ComfyuiInstanceHealth): string {
   }
 }
 
+function resolveDisplayHealth(
+  instance: ComfyuiInstanceRecord,
+  testResult?: ComfyuiConnectionTestResult,
+): ComfyuiInstanceHealth {
+  if (testResult && !testResult.success && instance.health === "online") return "degraded";
+  return instance.health;
+}
+
 export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps) {
   const [instances, setInstances] = useState<ComfyuiInstanceRecord[]>([]);
   const [sharedWorkflows, setSharedWorkflows] = useState<number>(0);
@@ -103,8 +111,8 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
     void loadInstances();
   }, []);
 
-  const onlineCount = instances.filter((item) => item.health === "online").length;
-  const offlineCount = instances.filter((item) => item.health === "offline").length;
+  const onlineCount = instances.filter((item) => resolveDisplayHealth(item, testResults.get(item.id)) === "online").length;
+  const offlineCount = instances.filter((item) => resolveDisplayHealth(item, testResults.get(item.id)) === "offline").length;
 
   return (
     <section className="admin-comfyui-overview-page">
@@ -167,14 +175,15 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
           const isTesting = testingInstances.has(instance.id);
           const gpu = testResult?.systemStats?.devices?.[0];
           const queue = testResult?.queueInfo;
+          const effectiveHealth = resolveDisplayHealth(instance, testResult);
 
           return (
-            <article key={instance.id} className="admin-comfyui-instance-card" data-health={instance.health}>
+            <article key={instance.id} className="admin-comfyui-instance-card" data-health={effectiveHealth}>
               <header className="admin-comfyui-instance-card__header">
                 <div className="admin-comfyui-instance-card__title">
-                  <span className="status-indicator" style={{ backgroundColor: getStatusColor(instance.health) }} />
+                  <span className="status-indicator" style={{ backgroundColor: getStatusColor(effectiveHealth) }} />
                   <h3>{instance.name}</h3>
-                  <span className="status-badge">{getStatusText(instance.health)}</span>
+                  <span className="status-badge">{getStatusText(effectiveHealth)}</span>
                 </div>
                 <div className="admin-comfyui-instance-card__meta">
                   {testResult?.success && testResult.latency ? (
@@ -186,9 +195,15 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
 
               <div className="admin-comfyui-instance-card__body">
                 <div className="info-row">
-                  <span className="info-label">地址:</span>
+                  <span className="info-label">执行地址:</span>
                   <span className="info-value">{instance.baseUrl}</span>
                 </div>
+                {instance.reportedBaseUrl ? (
+                  <div className="info-row">
+                    <span className="info-label">机器 ComfyUI:</span>
+                    <span className="info-value">{instance.reportedBaseUrl}</span>
+                  </div>
+                ) : null}
                 {instance.tailscaleAddress ? (
                   <div className="info-row">
                     <span className="info-label">Tailscale:</span>
