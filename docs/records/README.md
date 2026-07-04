@@ -15,6 +15,8 @@
 - `docs/superpowers/plans/`
 - `architecture/`
 - `architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
+- `architecture/2026-07-04-structural-improvement-roadmap.md`
+- `architecture/2026-07-04-structural-improvement-execution-plan.md`
 
 ## 当前领域入口
 
