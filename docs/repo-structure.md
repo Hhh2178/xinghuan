@@ -1,12 +1,12 @@
 # 仓库结构与 Worktree 说明
 
-## 为什么当前项目在 `D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b`
+## 为什么当前项目在 `D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean`
 
 当前目录不是“另一个项目副本”，而是 Git worktree。
 
 - 主仓库目录：`D:\codex\无限画布2.0`
-- 当前工作树：`D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b`
-- 当前分支：`xinghuan-milestone-b`
+- 当前工作树：`D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean`
+- 当前分支：`xinghuan-integration-clean`
 
 这样做的目的：
 
@@ -16,7 +16,7 @@
 
 当前工作树中的 `.git` 不是完整仓库目录，而是指向主仓库：
 
-- `gitdir: D:/codex/无限画布2.0/.git/worktrees/xinghuan-milestone-b`
+- `gitdir: D:/codex/无限画布2.0/.git/worktrees/xinghuan-integration-clean`
 
 因此这里仍然属于同一个 Git 仓库，只是分离出来的独立工作目录。
 

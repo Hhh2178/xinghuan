@@ -38,7 +38,7 @@
 
 当前默认开发入口：
 
-- `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 
 这不是另一份独立项目副本，而是主仓库 `D:/codex/无限画布2.0` 挂出的 Git worktree，用于承载当前里程碑的大量未合并改动。
 

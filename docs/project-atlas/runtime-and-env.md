@@ -3,7 +3,7 @@
 ## 环境分层
 
 - 本地开发
-  - 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+  - 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 - 灰度
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`

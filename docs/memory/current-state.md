@@ -16,7 +16,7 @@
 
 ## 当前环境入口
 
-- 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 - 灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
 - 生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
 - 当前 production 数据库目标：`xinghuan_canvas_next`

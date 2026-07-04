@@ -4,7 +4,7 @@
 
 `MEMORY.md` 继续保留为长期记忆兼容入口，但不再承担全部历史正文。
 
-- 当前主工作根：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+- 当前主工作根：`D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 - 当前长期记忆目录：`docs/memory/`
 - 当前系统知识目录：`docs/systems/`
 - 当前逐日台账与发布证据目录：`docs/logbooks/`
