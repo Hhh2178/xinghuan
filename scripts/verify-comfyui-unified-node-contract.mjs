@@ -100,13 +100,32 @@ assert.match(
 );
 assert.match(
   comfySelectorSection,
-  /工作流/,
-  "selector section must expose the workflow label",
+  /机器/,
+  "selector section must expose the machine label",
 );
 assert.match(
   comfySelectorSection,
-  /机器/,
-  "selector section must expose the machine label",
+  /工作流/,
+  "selector section must expose the workflow label",
+);
+assert.ok(
+  comfySelectorSection.indexOf("机器") < comfySelectorSection.indexOf("工作流"),
+  "selector section must render machine selection before workflow selection",
+);
+assert.doesNotMatch(
+  comfyNodeShell,
+  /overflow-auto/,
+  "unified comfyui shell must not use an internal scroll container",
+);
+assert.doesNotMatch(
+  comfyNodeShell,
+  /height:\s*size\.h/,
+  "unified comfyui shell must not hard-lock node height to a stored size",
+);
+assert.match(
+  comfyNodeShell,
+  /selectedMachineId[\s\S]*selectedWorkflowId/,
+  "unified comfyui shell must derive workflow selection under the selected machine context",
 );
 assert.doesNotMatch(
   comfyNodeShell,

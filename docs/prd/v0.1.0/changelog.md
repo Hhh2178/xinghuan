@@ -1,5 +1,38 @@
 # v0.1.0 Changelog
 
+## 2026-07-04
+
+- ComfyUI 统一节点 machine-first 与错误翻译收口：
+  - `apps/web/src/components/nodes/comfyuiNodeHelpers.ts`
+    - 新增实例优先的 workflow 聚合与默认选择解析
+  - `apps/web/src/components/nodes/ComfyUIApplicationNode.tsx`
+    - 节点选择顺序切换为 `先机器、后工作流`
+    - 移除固定高度与内部滚动容器
+    - workflow 不再脱离机器上下文单独驱动
+  - `apps/web/src/components/nodes/ComfyUINodeSelectorSection.tsx`
+    - 选择区视觉和文案改成 machine-first
+  - `apps/api/src/comfyui-execution.ts`
+    - 新增分阶段 ComfyUI 执行错误翻译
+  - `apps/api/src/comfyui-public-routes.ts`
+    - 共享运行路由新增阶段化异常收口，返回机器/工作流上下文错误
+  - `apps/web/src/services/comfyuiApps.ts`
+    - 前端补充画布后端请求失败的错误提示
+  - `apps/web/src/utils/nodePlacement.ts`
+    - 调整 unified comfyui 节点默认高度估算
+  - `scripts/verify-comfyui-unified-node-contract.mjs`
+    - 新增 machine-first 与无内部滚动约束
+  - `scripts/verify-comfyui-public-route-errors.ts`
+    - 新增公共运行错误翻译回归
+  - `package.json`
+    - 将 `verify:comfyui-public-route-errors` 纳入 `harness:verify:comfyui`
+  - 本地验证通过：
+    - `node scripts/verify-comfyui-unified-node-contract.mjs`
+    - `npx tsx scripts/verify-comfyui-public-route-errors.ts`
+    - `npx tsx scripts/verify-comfyui-execution-helpers.ts`
+    - `npm run type-check -w @xinghuan/web`
+    - `npm run type-check -w @xinghuan/api`
+    - `npm run harness:verify:comfyui`
+
 ## 2026-07-03
 
 - 主入口状态漂移修复：

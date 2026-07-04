@@ -5,6 +5,8 @@ import {
   canRunComfyuiWorkflowOnInstance,
   collectComfyuiNamedOutputs,
   extractComfyuiResultAssets,
+  formatComfyuiExecutionError,
+  type ComfyuiExecutionStage,
   normalizeComfyuiExecutionMediaInputs,
   normalizeComfyuiUserParams,
   selectComfyuiExecutionInstance,
@@ -88,69 +90,86 @@ export async function handleComfyuiPublicRoutes(input: {
       return true;
     }
 
-    const normalizedInputs = normalizeComfyuiExecutionMediaInputs(body.inputs);
-    const preparedInputs = {
-      ...normalizedInputs,
-      images: normalizedInputs.images?.length
-        ? await Promise.all(
-            normalizedInputs.images.map((item) => uploadComfyuiImageInput(instance.baseUrl, deps.normalizeReferenceUrl(item))),
-          )
-        : [],
-      videos: normalizedInputs.videos?.map((item) => deps.normalizeReferenceUrl(item)) || [],
-      audios: normalizedInputs.audios?.map((item) => deps.normalizeReferenceUrl(item)) || [],
-    };
+    let stage: ComfyuiExecutionStage = "image_upload";
+    try {
+      const normalizedInputs = normalizeComfyuiExecutionMediaInputs(body.inputs);
+      const preparedInputs = {
+        ...normalizedInputs,
+        images: normalizedInputs.images?.length
+          ? await Promise.all(
+              normalizedInputs.images.map((item) => uploadComfyuiImageInput(instance.baseUrl, deps.normalizeReferenceUrl(item))),
+            )
+          : [],
+        videos: normalizedInputs.videos?.map((item) => deps.normalizeReferenceUrl(item)) || [],
+        audios: normalizedInputs.audios?.map((item) => deps.normalizeReferenceUrl(item)) || [],
+      };
 
-    const prompt = buildComfyuiExecutionPrompt({
-      workflowJson: workflow.workflowJson,
-      inputSchema: workflow.inputSchema,
-      defaultValues: workflow.defaultValues,
-      userParams: normalizeComfyuiUserParams(body.userParams),
-      mediaInputs: preparedInputs,
-    });
-    const promptId = await submitComfyuiPrompt(instance.baseUrl, prompt);
-    const historyEntry = await waitForComfyuiHistory(instance.baseUrl, promptId);
-    const assets = extractComfyuiResultAssets(historyEntry);
+      const prompt = buildComfyuiExecutionPrompt({
+        workflowJson: workflow.workflowJson,
+        inputSchema: workflow.inputSchema,
+        defaultValues: workflow.defaultValues,
+        userParams: normalizeComfyuiUserParams(body.userParams),
+        mediaInputs: preparedInputs,
+      });
+      stage = "prompt_submit";
+      const promptId = await submitComfyuiPrompt(instance.baseUrl, prompt);
+      stage = "history_poll";
+      const historyEntry = await waitForComfyuiHistory(instance.baseUrl, promptId);
+      const assets = extractComfyuiResultAssets(historyEntry);
 
-    const imageUrls = await Promise.all(
-      assets.images.map(async (asset) => (await deps.saveRemoteImageToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
-    );
-    const videoUrls = await Promise.all(
-      assets.videos.map(async (asset) => (await deps.saveRemoteVideoToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
-    );
-    const audioUrls = await Promise.all(
-      assets.audios.map(async (asset) => (await deps.saveRemoteAudioToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
-    );
-    const text = assets.texts.join("\n").trim();
-    const outputs = collectComfyuiNamedOutputs({
-      outputSchema: workflow.outputSchema,
-      imageUrls,
-      videoUrls,
-      audioUrls,
-      text,
-    });
+      stage = "asset_persist";
+      const imageUrls = await Promise.all(
+        assets.images.map(async (asset) => (await deps.saveRemoteImageToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+      );
+      const videoUrls = await Promise.all(
+        assets.videos.map(async (asset) => (await deps.saveRemoteVideoToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+      );
+      const audioUrls = await Promise.all(
+        assets.audios.map(async (asset) => (await deps.saveRemoteAudioToOutput(buildComfyuiViewAssetUrl(instance.baseUrl, asset))).url),
+      );
+      const text = assets.texts.join("\n").trim();
+      const outputs = collectComfyuiNamedOutputs({
+        outputSchema: workflow.outputSchema,
+        imageUrls,
+        videoUrls,
+        audioUrls,
+        text,
+      });
 
-    deps.sendT8(response, {
-      workflowId: workflow.id,
-      sharedWorkflowId: workflow.sharedWorkflowId || workflow.id,
-      instanceId: instance.id,
-      instanceName: instance.name,
-      promptId,
-      outputs,
-      imageUrls,
-      videoUrls,
-      audioUrls,
-      text,
-      raw: {
+      deps.sendT8(response, {
+        workflowId: workflow.id,
+        sharedWorkflowId: workflow.sharedWorkflowId || workflow.id,
+        instanceId: instance.id,
+        instanceName: instance.name,
         promptId,
-        outputCount: {
-          images: imageUrls.length,
-          videos: videoUrls.length,
-          audios: audioUrls.length,
-          texts: assets.texts.length,
+        outputs,
+        imageUrls,
+        videoUrls,
+        audioUrls,
+        text,
+        raw: {
+          promptId,
+          outputCount: {
+            images: imageUrls.length,
+            videos: videoUrls.length,
+            audios: audioUrls.length,
+            texts: assets.texts.length,
+          },
         },
-      },
-    });
-    return true;
+      });
+      return true;
+    } catch (error) {
+      sendComfyuiPublicError(
+        response,
+        502,
+        formatComfyuiExecutionError(error, {
+          stage,
+          instanceName: instance.name,
+          workflowTitle: workflow.title,
+        }),
+      );
+      return true;
+    }
   }
 
   return false;

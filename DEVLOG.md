@@ -527,3 +527,54 @@
 
 下一步:
 - 由你在灰度或当前环境中重点验证“旧工作流导入 / 资源库插入 / 刷新后重新打开画布”这三条链路里的 LLM 节点是否恢复正常
+
+### ComfyUI 节点层级与运行错误收口
+
+目标:
+- 修复统一 `comfyui` 节点运行时出现的 `fetch failed`
+- 把前台节点选择层级改成“先机器，再工作流”
+- 去掉节点内部滚动，让参数区按内容自动拉长展示
+
+变更:
+- `apps/web/src/components/nodes/comfyuiNodeHelpers.ts`
+  - 新增机器优先的共享工作流分组逻辑，按实例聚合可用 workflow，并统一默认机器/当前 workflow 解析
+- `apps/web/src/components/nodes/ComfyUIApplicationNode.tsx`
+  - 节点状态改成 machine-first 选择模型
+  - 去掉固定高度和内部 `overflow-auto`
+  - 当 workflow 不属于当前机器时自动回落到该机器下可用 workflow
+  - 运行前新增离线机器拦截
+- `apps/web/src/components/nodes/ComfyUINodeSelectorSection.tsx`
+  - 选择区顺序改为 `机器 -> 工作流`
+- `apps/api/src/comfyui-execution.ts`
+  - 新增 ComfyUI 执行错误翻译，区分图片上传、prompt 提交、history 拉取和结果保存阶段
+- `apps/api/src/comfyui-public-routes.ts`
+  - 共享工作流运行接口新增分阶段异常收口，返回可操作的机器/工作流错误信息
+- `apps/web/src/services/comfyuiApps.ts`
+  - 补前端到画布后端请求失败时的兜底提示
+- `apps/web/src/utils/nodePlacement.ts`
+  - 提高 `comfyui` 默认落点高度估算，避免 auto-height 后新节点初始重叠风险
+- `scripts/verify-comfyui-unified-node-contract.mjs`
+  - 新增 machine-first 与“无内部滚动”契约
+- `scripts/verify-comfyui-public-route-errors.ts`
+  - 新增 ComfyUI 公共运行错误翻译回归脚本
+- `package.json`
+  - 将 `verify:comfyui-public-route-errors` 纳入 `harness:verify:comfyui`
+
+验证:
+- `node scripts/verify-comfyui-unified-node-contract.mjs`
+- `npx tsx scripts/verify-comfyui-public-route-errors.ts`
+- `npx tsx scripts/verify-comfyui-execution-helpers.ts`
+- `npm run type-check -w @xinghuan/web`
+- `npm run type-check -w @xinghuan/api`
+- `npm run harness:verify:comfyui`
+
+影响:
+- 画布侧统一 `comfyui` 节点现在按真实机器层级消费共享工作流
+- 节点参数区不再出现内部滚动条，参数多时会直接拉长节点
+- 后端不再把机器连通性问题原样透传成单独的 `fetch failed`
+
+风险:
+- 这轮主要完成了代码层、契约层和类型层收口，仍需要你在 gray 浏览器现场复验一次真实机器切换、真实 workflow 执行和长参数节点视觉
+
+下一步:
+- 推 gray 做真实画布验收，并根据浏览器反馈继续收口 ComfyUI 节点视觉层级

@@ -37,6 +37,7 @@
 - `POST /api/comfyui/apps/:workflowId/run`
   - 画布执行共享工作流的专用入口。
   - 后端会选择实例、注入暴露参数、提交 ComfyUI prompt、轮询 history，并将输出转存到本地素材输出目录。
+  - 当前会按 `图片上传 / prompt 提交 / history 拉取 / 结果保存` 四个阶段翻译错误，并返回机器名与 workflow 名，避免前台只收到裸 `fetch failed`。
 
 ## ComfyUI Connector 内部接口
 

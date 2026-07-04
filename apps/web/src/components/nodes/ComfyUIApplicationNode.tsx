@@ -35,7 +35,11 @@ import ComfyUINodeSelectorSection from './ComfyUINodeSelectorSection';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import ResizableCorners from './ResizableCorners';
 import {
+  buildComfyuiMachineCatalog,
   buildComfyuiMachineOptions,
+  type ComfyuiCatalogEntry,
+  type ComfyuiMachineCatalogItem,
+  resolveComfyuiMachineWorkflow,
   resolveDefaultComfyuiMachineId,
   splitVisibleComfyuiParams,
 } from './comfyuiNodeHelpers';
@@ -50,13 +54,7 @@ const handleStyle: CSSProperties = {
   zIndex: 20,
 };
 
-interface CatalogEntry {
-  workflow: ComfyuiCatalogWorkflow;
-  instance: ComfyuiCatalogInstance | null;
-  app: ComfyAppDefinition;
-}
-
-function buildProviderFromEntry(entry: CatalogEntry): AdvancedProviderConfig {
+function buildProviderFromEntry(entry: ComfyuiCatalogEntry<ComfyAppDefinition>): AdvancedProviderConfig {
   return {
     id: `comfyui-instance-${entry.instance?.id || entry.workflow.instanceId}`,
     label: entry.instance?.name || entry.workflow.instanceId,
@@ -93,7 +91,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   const isDark = theme === 'dark';
   const isPixel = style === 'pixel';
   const d = (data || {}) as any;
-  const size = d.size && typeof d.size.w === 'number' ? d.size : { w: 420, h: 620 };
+  const size = d.size && typeof d.size.w === 'number' ? d.size : { w: 420, h: 760 };
   const [catalog, setCatalog] = useState<ComfyuiCatalogResponse | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogMessage, setCatalogMessage] = useState('');
@@ -115,7 +113,7 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     void refreshCatalog();
   }, []);
 
-  const entries = useMemo<CatalogEntry[]>(() => {
+  const entries = useMemo<ComfyuiCatalogEntry<ComfyAppDefinition>[]>(() => {
     const instancesById = new Map((catalog?.instances || []).map((instance) => [instance.id, instance]));
     return (catalog?.workflows || []).map((workflow) => {
       const instance = instancesById.get(workflow.instanceId) || null;
@@ -127,53 +125,60 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     });
   }, [catalog]);
 
-  const selectedWorkflowId = String(d.sharedWorkflowId || d.comfyuiWorkflowId || d.comfyuiAppWorkflowId || '');
-  const activeEntry = useMemo(
-    () => entries.find((entry) => (
-      entry.workflow.sharedWorkflowId === selectedWorkflowId
-      || entry.workflow.id === selectedWorkflowId
-    )) || null,
-    [entries, selectedWorkflowId],
+  const machineCatalog = useMemo(
+    () => buildComfyuiMachineCatalog(entries, catalog?.instances || []),
+    [entries, catalog?.instances],
   );
-
   const machineOptions = useMemo(
-    () => buildComfyuiMachineOptions(activeEntry?.workflow, catalog?.instances || []),
-    [activeEntry?.workflow, catalog?.instances],
+    () => buildComfyuiMachineOptions(machineCatalog),
+    [machineCatalog],
   );
-  const selectedMachineId = String(
-    d.comfyuiInstanceId
-    || d.comfyuiAppInstanceId
-    || resolveDefaultComfyuiMachineId(activeEntry?.workflow, catalog?.instances || []),
+  const persistedMachineId = String(d.comfyuiInstanceId || d.comfyuiAppInstanceId || '');
+  const selectedMachineId = resolveDefaultComfyuiMachineId(machineCatalog, persistedMachineId);
+  const activeMachine = useMemo<ComfyuiMachineCatalogItem<ComfyAppDefinition> | null>(
+    () => machineCatalog.find((item) => item.id === selectedMachineId) || null,
+    [machineCatalog, selectedMachineId],
   );
-  const selectedMachineLabel = machineOptions.find((item) => item.id === selectedMachineId)?.label || '';
+  const selectedWorkflowId = String(d.sharedWorkflowId || d.comfyuiWorkflowId || d.comfyuiAppWorkflowId || '');
+  const workflowOptions = useMemo(
+    () => (activeMachine?.workflows || []).map((entry) => ({
+      id: entry.workflow.sharedWorkflowId || entry.workflow.id,
+      label: entry.workflow.title,
+    })),
+    [activeMachine],
+  );
+  const activeEntry = useMemo(
+    () => resolveComfyuiMachineWorkflow(activeMachine, selectedWorkflowId),
+    [activeMachine, selectedWorkflowId],
+  );
+  const selectedMachineLabel = activeMachine?.instance.name || machineOptions.find((item) => item.id === selectedMachineId)?.label || '';
 
   useEffect(() => {
-    if (!entries.length || activeEntry) return;
-    const fallback = entries[0];
-    const defaultMachineId = resolveDefaultComfyuiMachineId(fallback.workflow, catalog?.instances || []);
+    if (!machineCatalog.length) return;
+    const nextMachineId = resolveDefaultComfyuiMachineId(machineCatalog, persistedMachineId);
+    const nextMachine = machineCatalog.find((item) => item.id === nextMachineId) || null;
+    const nextEntry = resolveComfyuiMachineWorkflow(nextMachine, selectedWorkflowId);
+    if (!nextMachineId || !nextEntry) return;
+    const nextWorkflowId = nextEntry.workflow.sharedWorkflowId || nextEntry.workflow.id;
+    const machineChanged = persistedMachineId !== nextMachineId;
+    const workflowChanged = selectedWorkflowId !== nextWorkflowId;
+    if (!machineChanged && !workflowChanged) return;
     update({
-      sharedWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
-      comfyuiWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
-      comfyuiAppWorkflowId: fallback.workflow.sharedWorkflowId || fallback.workflow.id,
-      comfyuiInstanceId: defaultMachineId || fallback.workflow.instanceId,
-      comfyuiAppInstanceId: defaultMachineId || fallback.workflow.instanceId,
-      comfyuiParamValues: defaultComfyAppParamValues(fallback.app),
-      comfyuiAppParamValues: defaultComfyAppParamValues(fallback.app),
-      comfyuiSelectedOutputKey: fallback.app.outputs[0]?.key || '',
-      comfyuiAppSelectedOutputKey: fallback.app.outputs[0]?.key || '',
+      sharedWorkflowId: nextWorkflowId,
+      comfyuiWorkflowId: nextWorkflowId,
+      comfyuiAppWorkflowId: nextWorkflowId,
+      comfyuiInstanceId: nextMachineId,
+      comfyuiAppInstanceId: nextMachineId,
+      ...(workflowChanged ? {
+        comfyuiParamValues: defaultComfyAppParamValues(nextEntry.app),
+        comfyuiAppParamValues: defaultComfyAppParamValues(nextEntry.app),
+        comfyuiSelectedOutputKey: nextEntry.app.outputs[0]?.key || '',
+        comfyuiAppSelectedOutputKey: nextEntry.app.outputs[0]?.key || '',
+        status: 'idle',
+        error: '',
+      } : {}),
     });
-  }, [activeEntry, catalog?.instances, entries, update]);
-
-  useEffect(() => {
-    if (!activeEntry) return;
-    if (!machineOptions.length) return;
-    if (machineOptions.some((item) => item.id === selectedMachineId)) return;
-    const defaultMachineId = resolveDefaultComfyuiMachineId(activeEntry.workflow, catalog?.instances || []);
-    update({
-      comfyuiInstanceId: defaultMachineId,
-      comfyuiAppInstanceId: defaultMachineId,
-    });
-  }, [activeEntry, catalog?.instances, machineOptions, selectedMachineId, update]);
+  }, [machineCatalog, persistedMachineId, selectedWorkflowId, update]);
 
   const app = activeEntry?.app || null;
   const req = comfyAppInputRequirements(app);
@@ -253,9 +258,8 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
   };
   const rootStyle: CSSProperties = {
     width: size.w,
-    height: size.h,
     minWidth: 380,
-    minHeight: 540,
+    minHeight: 420,
     background: bg,
     color: text,
     border: `2px solid ${selected ? accent : border}`,
@@ -287,6 +291,10 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
       update({ status: 'error', error: '请先选择一台可用的 ComfyUI 机器。' });
       throw new Error('请先选择一台可用的 ComfyUI 机器。');
     }
+    if (activeMachine?.instance.health === 'offline') {
+      update({ status: 'error', error: `机器 ${activeMachine.instance.name} 当前离线，请切换到在线机器后再运行。` });
+      throw new Error(`机器 ${activeMachine.instance.name} 当前离线，请切换到在线机器后再运行。`);
+    }
     taskCompletionSound.primeAudio();
     update({
       status: 'running',
@@ -304,7 +312,10 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
     logBus.info(`共享 ComfyUI 工作流提交: ${activeEntry.workflow.title} · ${selectedMachineLabel || selectedMachineId}`, src);
     try {
       const result = await runComfyuiApp({
-        provider: buildProviderFromEntry(activeEntry),
+        provider: buildProviderFromEntry({
+          ...activeEntry,
+          instance: activeMachine?.instance || activeEntry.instance,
+        }),
         app,
         sharedWorkflowId: activeEntry.workflow.sharedWorkflowId || activeEntry.workflow.id,
         instanceId: selectedMachineId,
@@ -384,14 +395,11 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto space-y-3 p-3 nowheel">
+      <div className="space-y-3 p-3 nowheel">
         <ComfyUINodeSelectorSection
           workflowId={selectedWorkflowId}
           machineId={selectedMachineId}
-          workflowOptions={entries.map((entry) => ({
-            id: entry.workflow.sharedWorkflowId || entry.workflow.id,
-            label: entry.workflow.title,
-          }))}
+          workflowOptions={workflowOptions}
           machineOptions={machineOptions}
           inputClassName={inputClassName}
           buttonClassName={buttonClassName}
@@ -399,25 +407,45 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
           loading={catalogLoading}
           onRefresh={() => void refreshCatalog()}
           onSelectWorkflow={(workflowId) => {
-            const entry = entries.find((item) => (item.workflow.sharedWorkflowId || item.workflow.id) === workflowId);
+            const entry = resolveComfyuiMachineWorkflow(activeMachine, workflowId);
             if (!entry) {
               update({ sharedWorkflowId: '', comfyuiWorkflowId: '', comfyuiAppWorkflowId: '' });
               return;
             }
-            const defaultMachineId = resolveDefaultComfyuiMachineId(entry.workflow, catalog?.instances || []);
             update({
               sharedWorkflowId: workflowId,
               comfyuiWorkflowId: workflowId,
               comfyuiAppWorkflowId: workflowId,
-              comfyuiInstanceId: defaultMachineId,
-              comfyuiAppInstanceId: defaultMachineId,
+              comfyuiInstanceId: selectedMachineId,
+              comfyuiAppInstanceId: selectedMachineId,
               comfyuiParamValues: defaultComfyAppParamValues(entry.app),
               comfyuiAppParamValues: defaultComfyAppParamValues(entry.app),
+              comfyuiSelectedOutputKey: entry.app.outputs[0]?.key || '',
+              comfyuiAppSelectedOutputKey: entry.app.outputs[0]?.key || '',
               status: 'idle',
               error: '',
             });
           }}
-          onSelectMachine={(instanceId) => update({ comfyuiInstanceId: instanceId, comfyuiAppInstanceId: instanceId })}
+          onSelectMachine={(instanceId) => {
+            const nextMachine = machineCatalog.find((item) => item.id === instanceId) || null;
+            const nextEntry = resolveComfyuiMachineWorkflow(nextMachine, selectedWorkflowId);
+            const nextWorkflowId = nextEntry ? (nextEntry.workflow.sharedWorkflowId || nextEntry.workflow.id) : '';
+            update({
+              comfyuiInstanceId: instanceId,
+              comfyuiAppInstanceId: instanceId,
+              sharedWorkflowId: nextWorkflowId,
+              comfyuiWorkflowId: nextWorkflowId,
+              comfyuiAppWorkflowId: nextWorkflowId,
+              ...(nextEntry && nextWorkflowId !== selectedWorkflowId ? {
+                comfyuiParamValues: defaultComfyAppParamValues(nextEntry.app),
+                comfyuiAppParamValues: defaultComfyAppParamValues(nextEntry.app),
+                comfyuiSelectedOutputKey: nextEntry.app.outputs[0]?.key || '',
+                comfyuiAppSelectedOutputKey: nextEntry.app.outputs[0]?.key || '',
+              } : {}),
+              status: 'idle',
+              error: '',
+            });
+          }}
         />
 
         {catalogMessage ? (
@@ -434,7 +462,10 @@ const ComfyUIApplicationNode = ({ id, data, selected }: NodeProps) => {
                 输入需求：图片 {req.images} / 视频 {req.videos} / 音频 {req.audios}
               </div>
               <div className="mt-1 text-[10px]" style={{ color: sub }}>
-                机器策略：{machineOptions.length ? `${machineOptions.length} 台可选` : '暂无可用机器'}
+                执行机器：{activeMachine ? activeMachine.instance.name : '未选择机器'}
+              </div>
+              <div className="mt-1 text-[10px]" style={{ color: sub }}>
+                共享工作流：{workflowOptions.length ? `${workflowOptions.length} 个可选` : '当前机器暂无可用工作流'}
               </div>
             </div>
 

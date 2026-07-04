@@ -27,6 +27,53 @@ export interface ComfyuiExecutionAssets {
   texts: string[];
 }
 
+export type ComfyuiExecutionStage =
+  | "image_upload"
+  | "prompt_submit"
+  | "history_poll"
+  | "asset_persist";
+
+function extractStatusCode(message: string) {
+  const match = message.match(/\b(\d{3})\b/);
+  return match ? match[1] : "";
+}
+
+function stageLabel(stage: ComfyuiExecutionStage) {
+  if (stage === "image_upload") return "上传输入素材";
+  if (stage === "prompt_submit") return "提交工作流";
+  if (stage === "history_poll") return "拉取执行结果";
+  return "保存输出结果";
+}
+
+export function formatComfyuiExecutionError(
+  error: unknown,
+  context: {
+    stage: ComfyuiExecutionStage;
+    instanceName?: string;
+    workflowTitle?: string;
+  },
+) {
+  const rawMessage = error instanceof Error ? error.message : String(error ?? "").trim();
+  const machineLabel = context.instanceName || "所选 ComfyUI 机器";
+  const workflowLabel = context.workflowTitle || "当前工作流";
+  const statusCode = extractStatusCode(rawMessage);
+  const suffix = statusCode ? `（HTTP ${statusCode}）` : "";
+
+  if (/fetch failed/i.test(rawMessage)) {
+    return `${machineLabel} 连接失败，无法为工作流「${workflowLabel}」${stageLabel(context.stage)}。请检查机器在线状态、Tailscale 连通性和 ComfyUI baseUrl 配置。`;
+  }
+  if (/图片上传失败/i.test(rawMessage)) {
+    return `${machineLabel} 为工作流「${workflowLabel}」上传输入图片失败${suffix}。请检查该实例的上传接口与磁盘权限。`;
+  }
+  if (/prompt 提交失败/i.test(rawMessage) || /prompt_id/i.test(rawMessage)) {
+    return `${machineLabel} 未能成功提交工作流「${workflowLabel}」${suffix}。请检查该实例的 ComfyUI /prompt 接口是否正常。`;
+  }
+  if (/history 查询失败/i.test(rawMessage) || /执行超时/i.test(rawMessage)) {
+    return `${machineLabel} 已接收工作流「${workflowLabel}」，但在拉取结果时失败${suffix}。请检查实例执行日志、队列状态和 history 输出。`;
+  }
+  return `${machineLabel} 运行工作流「${workflowLabel}」失败：${rawMessage || "未知错误"}`;
+}
+
 interface ComfyuiSubmitPromptResponse {
   prompt_id?: string;
   promptId?: string;

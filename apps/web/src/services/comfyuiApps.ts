@@ -38,16 +38,25 @@ export async function runComfyuiApp(options: RunComfyuiAppOptions): Promise<RunC
   if (!workflowId) {
     throw new Error('COMFYUI_WORKFLOW_ID_REQUIRED');
   }
-  const response = await fetch(`/api/comfyui/apps/${encodeURIComponent(workflowId)}/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({
-      instanceId: options.instanceId || provider?.id?.replace(/^comfyui-instance-/, '') || undefined,
-      userParams,
-      inputs,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`/api/comfyui/apps/${encodeURIComponent(workflowId)}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        instanceId: options.instanceId || provider?.id?.replace(/^comfyui-instance-/, '') || undefined,
+        userParams,
+        inputs,
+      }),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/fetch failed/i.test(message)) {
+      throw new Error('画布后端请求 ComfyUI 运行接口失败，请检查当前灰度后端是否在线。');
+    }
+    throw error;
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload?.success) {
     throw new Error(payload?.error || `HTTP ${response.status}`);
