@@ -2,14 +2,15 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.24`
-- 当前 release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
-- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify；ComfyUI RH 风格统一节点、机器选择和后台治理链路已发布到 gray`
-- 当前补修：`2026-07-03-comfyui-rh-node-machine-gray.md`
+- 当前版本：`v0.5.25`
+- 当前 release：`20260704-comfyui-machine-first-gray-r1-v0525`
+- 当前状态：`2026-07-04 已完成 gray deploy + runtime verify；统一 comfyui 节点的 machine-first 选择、自适应高度和错误翻译链路已发布到 gray`
+- 当前补修：`2026-07-04-comfyui-machine-first-gray.md`
 - 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188`
-- 当前本地待补修：`待用户在 gray 上验收工作流 JSON 解析、输入输出映射治理、共享工作流真实运行输出与权限边界`
+- 当前本地待补修：`待用户在 gray 上验收机器切换、workflow 过滤、长参数节点视觉与共享工作流真实运行输出`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-04-comfyui-machine-first-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-rh-node-machine-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-workflow-governance-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
@@ -54,9 +55,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260703-comfyui-workflow-governance-gray-r1-v0523`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260703-comfyui-rh-node-machine-gray-r1-v0524`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260703-comfyui-workflow-governance-gray-r1-v0523`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260703-comfyui-rh-node-machine-gray-r1-v0524`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

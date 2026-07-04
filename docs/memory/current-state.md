@@ -2,11 +2,11 @@
 
 ## 当前版本与阶段
 
-- 当前活跃版本：`v0.5.24`
-- 当前灰度 release：`20260703-comfyui-rh-node-machine-gray-r1-v0524` (已部署)
+- 当前活跃版本：`v0.5.25`
+- 当前灰度 release：`20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 工作流治理链路已完成并部署到灰度（2026-07-03 15:31）
+- 最新完成：ComfyUI 统一节点 machine-first 选择、自适应高度与错误翻译链路已完成并部署到灰度（2026-07-04 10:26）
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
   - ComfyUI 后台实例池管理界面重构已完成并部署：新增仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式
@@ -38,8 +38,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行在 `v0.5.24`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260703-comfyui-rh-node-machine-gray-r1-v0524` (已部署)
+  - gray 当前运行在 `v0.5.25`，production 当前运行在 `v0.5.22`
+  - gray 当前 release 为 `20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

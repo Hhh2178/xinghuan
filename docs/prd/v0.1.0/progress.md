@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-状态：当前 gray 已运行在 `v0.5.24`，production 仍运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI RH 风格统一节点验收、机器池与共享工作流链路打磨、项目级 harness、发布链路一致性和主入口状态收口。`2026-07-03` 已完成 ComfyUI RH 风格统一节点灰度发布：单一 `comfyui` 节点、工作流与机器双选择、displayTier / instanceBindings 治理、legacy 节点迁移与 ComfyUI 子 harness 收口。当前 gray 已切到 `20260703-comfyui-rh-node-machine-gray-r1-v0524`，production 仍在 `20260702-envsync-admin-sections-prod-r1-v0522`；当前 `https://canvas-next.hhh2121.xyz/api/status` 返回 `version = 0.5.24`，production `/api/status` 仍返回 `version = 0.5.22`。
+状态：当前 gray 已运行在 `v0.5.25`，production 仍运行在 `v0.5.22`。早期 `Phase 3` 任务与素材闭环已经完成，不再作为当前阶段口径；当前重点是 ComfyUI 统一节点的 machine-first 选择、自适应高度、共享执行链路验收、机器池与共享工作流链路打磨、项目级 harness、发布链路一致性和主入口状态收口。`2026-07-04` 已完成 ComfyUI machine-first 节点灰度发布：统一 `comfyui` 节点改成先机器后工作流、取消内部滚动、增加离线机器拦截和分阶段错误翻译。当前 gray 已切到 `20260704-comfyui-machine-first-gray-r1-v0525`，production 仍在 `20260702-envsync-admin-sections-prod-r1-v0522`；当前 `https://canvas-next.hhh2121.xyz/api/status` 返回 `version = 0.5.25`，production `/api/status` 仍返回 `version = 0.5.22`。
 
 当前与本版本最相关的最新状态：
 
@@ -22,9 +22,9 @@
 - 2026-06-26 已完成“组权限治理第一批基础链路”：新增分组权限策略存储与 API，公共资源库开始按组直接隐藏无权限资源，RunningHub catalog 开始按组直接隐藏无权限 AI 应用 / 工作流，RH submit 保留后端兜底校验。
 - 2026-06-26 已完成“组权限治理后台管理端第一版”：用户页已重构为 `账号 / 用户组 / 权限 / 会话` 四段式工作台，权限页已接入分组权限目录与保存能力，为后续节点能力锁定和公共资源后台卡片化改造打下管理端基础。
 
-- 当前灰度 active release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
+- 当前灰度 active release：`20260704-comfyui-machine-first-gray-r1-v0525`
 - 当前生产 active release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前灰度版本：`v0.5.24`
+- 当前灰度版本：`v0.5.25`
 - 当前生产版本：`v0.5.22`
 - 当前本地严格验收已通过：
   - `node scripts/verify-project-harness-contract.mjs`
@@ -33,9 +33,9 @@
   - `npm run harness:verify:project`
   - `npm run harness:verify:release`
 - 当前线上运行态已确认：
-  - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.24, environment gray`
+  - `https://canvas-next.hhh2121.xyz/api/status => version 0.5.25, environment gray`
   - `https://canvas.hhh2121.xyz/api/status => version 0.5.22, environment production`
-  - `/opt/apps/xinghuan-canvas-next/current -> 20260703-comfyui-rh-node-machine-gray-r1-v0524`
+  - `/opt/apps/xinghuan-canvas-next/current -> 20260704-comfyui-machine-first-gray-r1-v0525`
   - `/opt/apps/xinghuan-canvas/current -> 20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前仍需重点处理：
   - ComfyUI 本地 JSON 工作流导入、参数暴露、默认值编辑、共享区发布和画布节点选择仍需端到端验收

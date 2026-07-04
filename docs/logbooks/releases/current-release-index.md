@@ -4,13 +4,14 @@
 
 ### Gray
 
-- 版本：`v0.5.24`
-- release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
-- 当前状态：`2026-07-03 已完成 gray deploy + runtime verify；ComfyUI RH 风格统一节点、机器选择与后台治理链路已发布到 gray`
-- 部署内容：`单一 comfyui 节点、工作流与机器双选择、displayTier / instanceBindings 治理、legacy 节点迁移与 ComfyUI 子 harness 收口`
-- 补充修复：`发布前已完成 version bump 到 0.5.24，并重新通过 release version alignment / package contract / current pointer 验证`
-- 部署时间：`2026-07-03 18:49`
+- 版本：`v0.5.25`
+- release：`20260704-comfyui-machine-first-gray-r1-v0525`
+- 当前状态：`2026-07-04 已完成 gray deploy + runtime verify；统一 comfyui 节点的 machine-first 选择、自适应高度与错误翻译链路已发布到 gray`
+- 部署内容：`先机器后工作流、节点自适应拉长、无内部滚动、离线机器拦截、ComfyUI 分阶段错误翻译`
+- 补充修复：`首次 verify 命中服务重启窗口后，已通过 SSH 复核 current 指针 / systemd / 内外网 status，并完成第二次标准 verify`
+- 部署时间：`2026-07-04 10:26`
 - 当前批次记录：
+  - `gray/2026-07-04-comfyui-machine-first-gray.md`
   - `gray/2026-07-03-comfyui-rh-node-machine-gray.md`
   - `gray/2026-07-03-comfyui-workflow-governance-gray.md`
   - `gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`

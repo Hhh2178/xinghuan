@@ -53,16 +53,16 @@
 
 ## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.24`
+- 当前活跃版本：`v0.5.25`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260703-comfyui-rh-node-machine-gray-r1-v0524` (已部署)
+- 当前 gray release：`20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI RH 风格统一节点、机器选择与后台治理链路已完成并部署到灰度
-- 部署时间：2026-07-03 18:49
+- 最新完成：ComfyUI 统一节点 machine-first 选择、自适应高度与错误翻译链路已完成并部署到灰度
+- 部署时间：2026-07-04 10:26
 - 部署状态：✅ 服务运行正常，API 响应正常，HTTPS 访问正常
 - 2026-07-03 12:26 补充修复：ComfyUI 图标一致性修复（`.error-banner` 全站选择器冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 `apps/api/dist` 遗漏内容并配置 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`，connector 注册/心跳在灰度正式生效，详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
-- 2026-07-03 18:49 发布推进：`v0.5.24` gray release 已切到 `20260703-comfyui-rh-node-machine-gray-r1-v0524`，并完成统一 comfyui 节点、机器选择、displayTier/instanceBindings 治理灰度发布，详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-rh-node-machine-gray.md`
-- 当前工作重心：ComfyUI RH 风格统一节点待用户验收，重点核对工作流下拉、机器选择、JSON 自动解析、输入输出映射治理与共享工作流真实执行链路
+- 2026-07-04 10:26 发布推进：`v0.5.25` gray release 已切到 `20260704-comfyui-machine-first-gray-r1-v0525`，并完成统一 comfyui 节点的 machine-first 选择、自适应高度和错误翻译灰度发布，详见 `docs/logbooks/releases/gray/2026-07-04-comfyui-machine-first-gray.md`
+- 当前工作重心：ComfyUI 统一节点待用户验收，重点核对机器切换、workflow 过滤、长参数节点视觉与共享工作流真实执行链路
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

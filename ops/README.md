@@ -23,12 +23,12 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.24`
-  - release：`20260703-comfyui-rh-node-machine-gray-r1-v0524`
-  - 状态：`2026-07-03 已完成 gray deploy + runtime verify；ComfyUI RH 风格统一节点、机器选择和后台治理链路已发布到 gray`
-  - 当前补修：`统一 comfyui 节点、工作流/机器双选择、displayTier/instanceBindings 治理、legacy 节点迁移、ComfyUI 子 harness 收口`
+  - 版本：`v0.5.25`
+  - release：`20260704-comfyui-machine-first-gray-r1-v0525`
+  - 状态：`2026-07-04 已完成 gray deploy + runtime verify；统一 comfyui 节点的 machine-first 选择、自适应高度和错误翻译链路已发布到 gray`
+  - 当前补修：`先机器后工作流、节点自适应拉长、无内部滚动、离线机器拦截、ComfyUI 分阶段错误翻译`
   - 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）`
-  - 本地待补修：`待用户在 gray 上验收工作流 JSON 自动解析、输入输出映射治理、共享工作流运行输出与权限边界`
+  - 本地待补修：`待用户在 gray 上验收机器切换、workflow 过滤、长参数节点视觉与共享工作流运行输出`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
