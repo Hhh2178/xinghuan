@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/comfyui-connector",
-  "version": "0.5.26",
+  "version": "0.5.27",
   "private": true,
   "type": "module",
   "main": "./dist/connector.js",
@@ -11,7 +11,7 @@
     "start": "node dist/connector.js"
   },
   "dependencies": {
-    "@xinghuan/shared": "0.5.26"
+    "@xinghuan/shared": "0.5.27"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
