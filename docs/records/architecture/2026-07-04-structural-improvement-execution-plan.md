@@ -227,20 +227,23 @@
 
 ## 六、执行进度看板
 
+> 2026-07-05 update: this board is now tracked from the active clean worktree `xinghuan-integration-clean`.
+> ComfyUI feature development is frozen separately and is not part of the remaining structural execution batches.
+
 | Phase | 批次 | 状态 | Clean commit | 记录归档 | 备注 |
 |-------|------|------|--------------|----------|------|
-| 0 | A1 ESLint | 待开始 | — | — | |
-| 0 | A2 Prettier | 待开始 | — | — | |
-| 0 | A3 vitest | 待开始 | — | — | |
-| 0 | A4 CI 聚合 | 待开始 | — | — | |
-| 6 | B1 鉴权精准查询 | 待开始 | — | — | 最高优先 |
+| 0 | A1 ESLint | 已完成 | `53f8ee8` | `2026-07-05 daily` | warn-first baseline |
+| 0 | A2 Prettier | 已完成 | `53f8ee8` | `2026-07-05 daily` | 移除误导性 format 入口，避免 1060 个历史格式差异阻断 |
+| 0 | A3 vitest | 已完成 | `53f8ee8` | `2026-07-05 daily` | 根 test 入口已跑通 |
+| 0 | A4 CI 聚合 | 已完成 | `53f8ee8` | `2026-07-05 daily` | `npm run ci` 已通过 |
+| 6 | B1 鉴权精准查询 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | current-user 精准查询已完成；login email lookup 延后到 E1 auth repository |
 | 6 | B2 任务列表分页 | 待开始 | — | — | |
 | 6 | B3 连接池调参 | 待开始 | — | — | |
-| 1 | C1 去重(A类) | 待开始 | — | — | |
-| 1 | C2 去重(B类) | 待开始 | — | — | |
-| 6 | D1 图标瘦身 | 待开始 | — | — | 可并行 |
-| 3 | E1 repository 骨架 | 待开始 | — | — | |
-| 6 | F1 任务 SSE | 待开始 | — | — | 需先设计 |
+| 1 | C1 去重(A类) | 已完成 | `7966bd1` | `2026-07-05 daily` | shared/node 子路径导出，避免污染 Web/Admin bundle |
+| 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
+| 6 | D1 图标瘦身 | 已完成 | `619fcdd` | `2026-07-05 daily` | `vendor-icons` 从约 588 KB 降到约 58 KB |
+| 3 | E1 repository 骨架 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | auth current-user slice 已落地；其余 repository 仍需分批 |
+| 6 | F1 任务 SSE | 待决策 | — | — | 先写 decision/deferral record，不直接实现 |
 
 每完成一批，更新本表 + roadmap checkbox + daily log。
 
@@ -248,6 +251,7 @@
 
 ## 七、启动建议
 
-- 第一步执行 **A1~A4**（安全网），零业务风险。
-- 随后执行 **B1**（鉴权精准查询）——行为零变更、收益最高、有 A 组 vitest 兜底。
-- D1（图标）可作为并行的低风险小批次穿插。
+- 下一步执行 **B2**（任务列表分页 + 去大字段），因为灰度验证曾发现列表响应仍可能包含 `payload/result/logs`。
+- 随后执行或明确延期 **B3**（连接池调参）。
+- 再继续 **E1** 剩余 repository 边界；每个领域单独提交、单独校验。
+- **F1** 先写任务实时机制 decision/deferral record，不在迁移期间直接开新实时链路。

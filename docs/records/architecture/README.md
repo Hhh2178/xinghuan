@@ -7,6 +7,12 @@
 - `2026-06-24-hotspot-superfile-decomposition-ledger.md`
 - `2026-07-04-structural-improvement-roadmap.md`（跨维度结构改进路线图：去重/工具链/测试/持久化）
 - `2026-07-04-structural-improvement-execution-plan.md`（上面路线图的配套执行手册：逐批收口/测试/校验/归档/记录）
+- `2026-07-05-comfyui-feature-freeze.md`（ComfyUI 功能暂停封存：只允许 crash/security/rollback/docs 级别例外）
+- `2026-07-05-worktree-migration-audit.md`（`xinghuan-milestone-b` 到 `xinghuan-integration-clean` 的迁移审计）
+
+当前执行主计划：
+
+- `docs/superpowers/plans/2026-07-05-clean-worktree-migration-maintenance-master-plan.md`
 
 ## 适用内容
 

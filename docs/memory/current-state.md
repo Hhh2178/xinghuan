@@ -6,11 +6,12 @@
 - 当前灰度 release：`20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 统一节点 machine-first 选择、自适应高度与错误翻译链路已完成并部署到灰度（2026-07-04 10:26）
+- 最新完成：clean worktree 结构治理批次已开始收口，工具链安全网、图标瘦身、API/Worker provider 去重、auth current-user 精准查询已在 `xinghuan-integration-clean` 提交。
+- 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
-  - ComfyUI 后台实例池管理界面重构已完成并部署：新增仪表盘概览页、实例详情页、连接测试 API、完整 CSS 样式
-  - 当前重点是 ComfyUI 工作流治理页用户验收、工作流端到端验收、项目级 harness、发布链路一致性和主入口状态收口
+  - ComfyUI 后台实例池管理界面重构已完成并部署到灰度，但后续功能开发已冻结
+  - 当前重点是 clean worktree 迁移完整性、未完成结构批次 B2/B3/E1/F1 的完成或明确延期、发布链路一致性和主入口状态收口
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -57,6 +58,23 @@
     - 已补齐灰度 `apps/api/dist`、`apps/admin/dist`，并在服务器 `canvas-next.env` 新增 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`
     - 验证：`POST /api/internal/comfyui/connectors/register` 带正确 token 返回 200，测试数据已清理
     - 本机真实机器接入已完成；当前待用户浏览器验收工作流治理页与共享工作流真实执行链路
+
+## 当前结构治理状态（2026-07-05）
+
+- 已完成并提交：
+  - `53f8ee8` 工具链安全网：lint/test/ci 可执行。
+  - `619fcdd` 图标瘦身：移除 lucide namespace import，`vendor-icons` 显著下降。
+  - `7966bd1` API/Worker provider 去重：共享 helper 下沉到 `packages/shared` 的受控 Node 子路径。
+  - `9e27bc7` auth current-user 精准查询：当前用户 session lookup 不再走全量 auth-db 读取。
+- 仍需推进或明确延期：
+  - B1 login email lookup extraction。
+  - B2 任务列表分页与 `payload/result/logs` 去大字段。
+  - B3 Postgres pool 调参。
+  - E1 剩余 repository boundary。
+  - F1 任务实时机制 decision/deferral。
+- 灰度前必须执行：
+  - 迁移完整性校验，确认成果不只停留在 `xinghuan-milestone-b`。
+  - `npm run ci`、`npm run verify:file-hotspot-budgets`、`npm run codegraph:sync`。
 
 ## 相关入口
 

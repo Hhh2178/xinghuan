@@ -31,6 +31,25 @@
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-04-structural-improvement-roadmap.md`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md`
 
+## 0.1 2026-07-05 Revision
+
+This revision changes the plan from "continue ComfyUI after migration" to "pause and seal ComfyUI, then finish or explicitly defer the non-ComfyUI structural plan."
+
+Current decision:
+
+- ComfyUI feature development is frozen and no longer part of this execution plan.
+- The existing ComfyUI gray state remains sealed as release evidence, not as the next active feature line.
+- Migration completeness is still required: already completed clean-branch成果 must remain, and unfinished non-ComfyUI batches from the structural plan must stay in the backlog with clear validation gates.
+- Gray deployment for this plan should validate structural/runtime safety only; it must not be treated as a new ComfyUI feature rollout.
+
+Current remaining execution target:
+
+1. Finish B2 task list pagination and heavy-field stripping, or write a deferral record with reason and risk.
+2. Finish B3 Postgres pool tuning, or write a deferral record with safe gray defaults.
+3. Continue E1 repository boundary skeleton one domain at a time, starting from the lowest-risk remaining domain.
+4. Decide or defer F1 task realtime mechanism with a decision record.
+5. Run migration-completeness validation before any gray release.
+
 ## 1. Hard Rules
 
 - 不再在 `xinghuan-milestone-b` 继续开发。
@@ -41,6 +60,10 @@
 - 每批收口必须有四个证据：`git status --short`、相关测试/校验输出、daily log 或 release log、clean commit。
 - 灰度和正式发布只能从 `xinghuan-integration-clean` 出发，发布前必须确认版本号和 release record。
 - ComfyUI 功能开发从本计划开始暂停。允许的 ComfyUI 改动仅限崩溃修复、权限止血、灰度回滚记录、运行状态封存；不允许新增工作流能力、节点 UI、连接器架构或 Tailscale/隧道方案。
+- ComfyUI freeze is not a "pending feature task." Do not use this plan to resume ComfyUI, polish ComfyUI UI, add workflow parameter editors, or connect additional local machines.
+- If a ComfyUI emergency exception is required, it must be a separate stop-the-line batch with its own validation, release impact, and rollback record.
+- Any remaining structural batch may be completed or explicitly deferred, but it cannot disappear from the plan without a dated decision record.
+- A batch is only considered migrated when the clean branch has code/docs, validation evidence, and a clean commit. "Exists in milestone-b" is not completion evidence.
 
 ---
 
@@ -118,6 +141,13 @@ tencent_key_ascii.pem
 ---
 
 ## Phase M - Migrate Existing成果
+
+Status note:
+
+- This phase records the original migration path from the mistaken worktree.
+- The low-risk batches that were actually kept have already been rebuilt as clean commits and are reflected in Phase U.
+- Do not repeat a Phase M task if the matching Phase U task already has a clean commit.
+- Use Phase V to audit whether anything valuable still exists only in `xinghuan-milestone-b`.
 
 ### Task M1: Tooling Baseline
 
@@ -511,6 +541,12 @@ The old plan currently lists these batches as not complete:
 
 **Purpose:** 先把工具链补齐，让后续迁移和结构改造都有可重复校验入口。
 
+Status:
+
+- Completed in commit `53f8ee8`.
+- `npm run lint`, `npm run test`, `npm run type-check`, and `npm run ci` passed for the committed baseline.
+- Root format scripts were intentionally removed instead of introducing a repo-wide Prettier failure baseline.
+
 **Files:**
 
 - `package.json`
@@ -520,7 +556,7 @@ The old plan currently lists these batches as not complete:
 - `vitest.config.ts`
 - `.githooks/pre-push`
 
-- [ ] **Step 1: Finish A1 ESLint**
+- [x] **Step 1: Finish A1 ESLint**
 
 Run:
 
@@ -535,7 +571,7 @@ Expected:
 - `npm run lint` exists and executes.
 - Existing warnings are recorded, not silently ignored.
 
-- [ ] **Step 2: Finish A2 Prettier decision**
+- [x] **Step 2: Finish A2 Prettier decision**
 
 Run:
 
@@ -548,7 +584,7 @@ Expected:
 - Either Prettier dependency and config exist and `npm run format:check` works.
 - Or misleading format scripts are removed and the decision is recorded in daily log.
 
-- [ ] **Step 3: Finish A3 Vitest baseline**
+- [x] **Step 3: Finish A3 Vitest baseline**
 
 Run:
 
@@ -562,7 +598,7 @@ Expected:
 - At least one stable baseline test runs.
 - The test location convention is recorded in daily log.
 
-- [ ] **Step 4: Finish A4 CI aggregation**
+- [x] **Step 4: Finish A4 CI aggregation**
 
 Run:
 
@@ -575,7 +611,7 @@ Expected:
 - `ci` runs type-check, build or targeted build, core verify scripts, and tests.
 - Any deliberately excluded slow/live checks are named in the script or daily log.
 
-- [ ] **Step 5: Commit tooling safety net**
+- [x] **Step 5: Commit tooling safety net**
 
 Run:
 
@@ -597,34 +633,55 @@ git commit -m "chore(tooling): complete structural safety net"
 - related tests under `apps/api/src/*.test.ts`
 - related scripts under `scripts/verify-*.mjs`
 
-- [ ] **Step 1: Complete B1 auth precise queries**
+- [x] **Step 1: Complete B1 auth current-user precise queries**
 
-Run before implementation:
+Status:
+
+- Completed in commit `9e27bc7`.
+- Current-user lookup is now delegated to `createAuthCurrentUserRepository`.
+- Postgres current-user path uses targeted session and user queries instead of full auth-db reads.
+- Login email lookup remains intentionally deferred to the broader E1 auth repository boundary.
+
+Validation already recorded:
 
 ```powershell
 npx vitest run apps/api/src/auth-repository.test.ts
+npm run type-check -w @xinghuan/api
+npm run verify:auth-current-user-repository-contract
+npm run verify:auth-login-precision-query-contract
+npm run verify:file-hotspot-budgets
+npm run ci
 ```
 
-Expected:
+- [ ] **Step 2: Complete or defer B1 login email lookup extraction**
 
-- Tests cover valid session, expired session, revoked session, disabled user.
+Decision needed before marking B1 fully closed:
 
-Run after implementation:
+- Preferred path: include login email lookup in the later E1 auth repository expansion.
+- Acceptable deferral: write a dated note in this plan and daily log explaining that current-user hot path is fixed and login path is tracked by `verify:auth-login-precision-query-contract`.
+
+Run if implementing now:
 
 ```powershell
 npm run type-check -w @xinghuan/api
 npx vitest run apps/api/src/auth-repository.test.ts
-node scripts/verify-auth-current-user-repository-contract.mjs
-node scripts/verify-auth-login-precision-query-contract.mjs
+npm run verify:auth-login-precision-query-contract
 ```
 
 Expected:
 
-- `getCurrentUser` no longer requires full-table auth reads for ordinary session lookup.
+- Login lookup does not reintroduce full-table auth reads on ordinary login.
+- Existing login behavior remains unchanged.
 
-- [ ] **Step 2: Complete B2 task list pagination and heavy-field stripping**
+- [ ] **Step 3: Complete B2 task list pagination and heavy-field stripping**
 
-Run:
+Current finding:
+
+- `scripts/verify-admin-task-pagination.mjs` still needs to align with the intended invariant.
+- The intended invariant is that admin task list rows must not include heavy fields `payload`, `result`, or `logs`.
+- Detail endpoints may still return heavy fields where explicitly required.
+
+Run before implementation:
 
 ```powershell
 npm run type-check -w @xinghuan/api
@@ -634,11 +691,25 @@ node scripts/verify-admin-task-pagination.mjs
 
 Expected:
 
+- Existing failures identify whether route code, repository code, or verify-script expectations are stale.
+
+Run after implementation:
+
+```powershell
+npm run type-check -w @xinghuan/api
+npx vitest run apps/api/src/task-repository.test.ts apps/api/src/admin-task-list-routes.test.ts
+node scripts/verify-admin-task-pagination.mjs
+npm run verify:file-hotspot-budgets
+```
+
+Expected:
+
 - Admin task list rows do not include `payload`, `result`, or `logs`.
 - Detail endpoints may still return heavy fields where intentionally required.
 - Pagination metadata is present and stable.
+- `server.ts` stays within hotspot budget, or the budget change is reviewed before commit.
 
-- [ ] **Step 3: Complete B3 Postgres pool tuning**
+- [ ] **Step 4: Complete or defer B3 Postgres pool tuning**
 
 Run:
 
@@ -652,18 +723,29 @@ Expected:
 - Pool size and timeout are configurable by environment.
 - Defaults are documented and safe for gray.
 
-- [ ] **Step 4: Commit backend read-path batch**
+If deferred:
+
+- Create `docs/records/architecture/2026-07-05-postgres-pool-tuning-deferral.md`.
+- Record current default behavior, why it is safe enough for the next gray validation, and what metric should trigger tuning.
+
+- [ ] **Step 5: Commit backend read-path batch**
 
 Run:
 
 ```powershell
 git add apps/api/src scripts docs/logbooks/daily/2026/2026-07/2026-07-05.md
-git commit -m "perf(api): complete backend read-path structural improvements"
+git commit -m "perf(api): complete task list read-path improvements"
 ```
 
 ### Task U3: Complete Phase 1 Api/Worker Deduplication
 
 **Purpose:** 完成旧计划 C1/C2，降低 api 与 worker provider 行为漂移风险。
+
+Status:
+
+- Completed in commit `7966bd1`.
+- Node-only shared helpers are exported through controlled `@xinghuan/shared/node/*` subpaths.
+- Browser-facing shared root export remains free of Node built-ins.
 
 **Files:**
 
@@ -675,7 +757,7 @@ git commit -m "perf(api): complete backend read-path structural improvements"
 - `apps/worker/src/*provider*.ts`
 - related tests and verify scripts
 
-- [ ] **Step 1: Complete C1 byte-identical deduplication**
+- [x] **Step 1: Complete C1 byte-identical deduplication**
 
 Run:
 
@@ -689,7 +771,7 @@ Expected:
 - Shared modules are imported by both api and worker.
 - Byte-identical duplicate source files no longer exist in both apps.
 
-- [ ] **Step 2: Complete C2 diverged adapter deduplication**
+- [x] **Step 2: Complete C2 diverged adapter deduplication**
 
 Run:
 
@@ -703,7 +785,7 @@ Expected:
 - Common adapter logic lives in shared package.
 - App-specific differences are explicit parameters or thin wrappers.
 
-- [ ] **Step 3: Commit deduplication batch**
+- [x] **Step 3: Commit deduplication batch**
 
 Run:
 
@@ -716,13 +798,18 @@ git commit -m "refactor(shared): complete api worker provider deduplication"
 
 **Purpose:** 完成旧计划 D1，修复 lucide namespace import 导致的图标包过大问题。
 
+Status:
+
+- Completed in commit `619fcdd`.
+- `vendor-icons` decreased from about `588.54 kB` to about `58.80 kB`.
+
 **Files:**
 
 - `apps/web/src/components/Canvas.tsx`
 - `apps/web/src/components/Sidebar.tsx`
 - `apps/web/src/components/nodes/PlaceholderNode.tsx`
 
-- [ ] **Step 1: Verify no namespace icon imports remain**
+- [x] **Step 1: Verify no namespace icon imports remain**
 
 Run:
 
@@ -734,7 +821,7 @@ Expected:
 
 - No matches.
 
-- [ ] **Step 2: Build web**
+- [x] **Step 2: Build web**
 
 Run:
 
@@ -747,7 +834,7 @@ Expected:
 - Web build passes.
 - Build output or validation record notes icon chunk size if available.
 
-- [ ] **Step 3: Commit frontend icon batch**
+- [x] **Step 3: Commit frontend icon batch**
 
 Run:
 
@@ -773,7 +860,15 @@ git commit -m "perf(web): complete icon import shrink"
 - matching `*.test.ts`
 - matching `scripts/verify-*-repository-*.mjs`
 
-- [ ] **Step 1: Migrate repositories one domain at a time**
+- [x] **Step 1: Land the first auth current-user repository slice**
+
+Status:
+
+- Completed in commit `9e27bc7`.
+- This is a narrow E1 slice, not the full E1 repository boundary.
+- It covers current-user lookup only; broader auth login/admin auth repository work remains open.
+
+- [ ] **Step 2: Migrate the remaining repositories one domain at a time**
 
 Run pattern per domain:
 
@@ -787,8 +882,9 @@ Expected:
 
 - Each domain has its own commit.
 - `server.ts` changes remain adapter-level, not a broad rewrite.
+- If a domain is deferred, create a dated decision record instead of leaving the plan ambiguous.
 
-- [ ] **Step 2: Verify repository boundary after all selected domains**
+- [ ] **Step 3: Verify repository boundary after all selected domains**
 
 Run:
 
@@ -801,8 +897,9 @@ Expected:
 
 - Repository tests pass.
 - No interrupted or half-written test file is copied from `xinghuan-milestone-b`.
+- Each repository either has implementation evidence in `xinghuan-integration-clean` or an explicit deferral record.
 
-- [ ] **Step 3: Commit repository boundary summary docs**
+- [ ] **Step 4: Commit repository boundary summary docs**
 
 Run:
 
@@ -810,6 +907,16 @@ Run:
 git add docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md docs/logbooks/daily/2026/2026-07/2026-07-05.md
 git commit -m "docs: record repository boundary migration progress"
 ```
+
+Remaining E1 checklist:
+
+- Auth login lookup extraction: open, should extend the existing auth repository rather than add another ad-hoc helper.
+- Provider repository boundary: open.
+- Settings repository boundary: open.
+- Admin repository boundary: open.
+- Task repository boundary: partly coupled with B2, open until list/detail split is verified.
+- Usage summary repository/service: open.
+- Environment sync local boundary: open unless separately deferred.
 
 ### Task U6: Defer Or Design Phase 6 Task Realtime Mechanism
 
@@ -862,11 +969,122 @@ git commit -m "docs: decide task realtime mechanism follow-up"
 
 ---
 
+## Phase V - Migration Completeness Validation
+
+### Task V1: Verify No Required成果 Is Still Only In The Old Worktree
+
+**Purpose:** 在灰度前确认本轮要保留的改造成果没有只停留在 `xinghuan-milestone-b`，也没有因为 ComfyUI freeze 被误删或误混。
+
+**Scope:** This is a read-only audit unless it discovers a missing required batch.
+
+- [ ] **Step 1: Confirm branch and cleanliness**
+
+Run:
+
+```powershell
+git branch --show-current
+git status --short
+git log --oneline -10
+```
+
+Expected:
+
+```text
+xinghuan-integration-clean
+```
+
+`git status --short` must be empty before release. If docs were updated by this audit, commit them first.
+
+- [ ] **Step 2: Confirm completed clean-branch commits exist**
+
+Run:
+
+```powershell
+git log --oneline --grep "structural safety net" -1
+git log --oneline --grep "icon import shrink" -1
+git log --oneline --grep "provider deduplication" -1
+git log --oneline --grep "auth current user" -1
+```
+
+Expected:
+
+- Tooling, icon shrink, provider deduplication, and auth current-user batches all appear in `xinghuan-integration-clean`.
+
+- [ ] **Step 3: Compare remaining planned files against the frozen source worktree**
+
+Run:
+
+```powershell
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b status --short
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff --name-only
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b ls-files --others --exclude-standard
+```
+
+Expected:
+
+- Any useful non-ComfyUI file found only in `xinghuan-milestone-b` is classified as one of:
+  - migrated
+  - intentionally deferred with decision record
+  - discarded as local scratch/temp
+  - blocked pending a new plan
+
+Do not copy files during this step.
+
+- [ ] **Step 4: Run structural validation set**
+
+Run:
+
+```powershell
+npm run type-check
+npm run ci
+npm run verify:file-hotspot-budgets
+npm run codegraph:sync
+```
+
+Expected:
+
+- All commands pass before gray release.
+- If a command fails, write a validation record and fix or explicitly defer release.
+
+- [ ] **Step 5: Update status documents**
+
+Modify only facts that changed:
+
+```text
+docs/memory/current-state.md
+docs/memory/deployment-state.md
+docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md
+docs/logbooks/daily/2026/2026-07/2026-07-05.md
+docs/logbooks/daily/2026/2026-07/recent-highlights.md
+```
+
+Required result:
+
+- Other Codex windows should read `xinghuan-integration-clean`, gray `v0.5.25`, production `v0.5.22`, ComfyUI frozen, and remaining structural batches accurately.
+
+- [ ] **Step 6: Commit validation docs**
+
+Run:
+
+```powershell
+git add docs/memory/current-state.md docs/memory/deployment-state.md docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/logbooks/daily/2026/2026-07/recent-highlights.md docs/superpowers/plans/2026-07-05-clean-worktree-migration-maintenance-master-plan.md
+git commit -m "docs: update clean migration status and validation gates"
+```
+
+---
+
 ## Phase R - Release And Maintenance Chain
 
 ### Task R1: Fixed Gray Release Procedure
 
 **Purpose:** 避免再次出现把正式版推到灰度、版本号回退、灰度/正式来源混乱的问题。
+
+Entry gate:
+
+- ComfyUI remains frozen.
+- Phase V has passed or produced explicit deferral records.
+- B2/B3/E1/F1 are either completed or intentionally deferred with dated records.
+- Worktree is clean and the release source is `xinghuan-integration-clean`.
 
 - [ ] **Step 1: Confirm source branch and version**
 
@@ -1021,14 +1239,15 @@ Expected:
 
 ## Execution Order
 
-1. Finish Phase S and commit ignore/audit/plan docs.
-2. Finish Phase C and commit the ComfyUI freeze record before new feature work continues.
-3. Finish Phase M1 and commit tooling baseline.
-4. Migrate M2 low-risk committed batches one at a time.
-5. Rebuild M3 E1 repository work domain by domain.
-6. Complete Phase U unfinished structural batches, or explicitly defer a batch with a decision record.
-7. Use Phase R for every gray/production deployment.
-8. Use Phase A after every commit or release so other windows read the right state.
+1. Keep ComfyUI frozen. Do not resume ComfyUI feature work in this plan.
+2. Confirm Phase S, Phase C, Phase U1, Phase U3, Phase U4, and B1 current-user slice remain committed in `xinghuan-integration-clean`.
+3. Execute B2 task list pagination/heavy-field stripping next, because it has a live gray verification mismatch and direct runtime impact.
+4. Execute or explicitly defer B3 Postgres pool tuning.
+5. Continue E1 repository boundaries one domain at a time, starting with the lowest-risk remaining domain and keeping `server.ts` within hotspot budget.
+6. Write the F1 task realtime decision or deferral record before attempting realtime implementation.
+7. Run Phase V migration-completeness validation.
+8. Use Phase R for gray/production deployment only after Phase V passes.
+9. Use Phase A after every commit or release so other windows read the right state.
 
 ## Current Progress Snapshot
 
@@ -1055,7 +1274,8 @@ As of 2026-07-05 after provider deduplication batch:
   - B3 Postgres pool tuning.
   - E1 repository boundary skeleton.
   - F1 task realtime mechanism decision or deferral.
-- Main blocker before further feature work: complete or explicitly defer the remaining backend/repository/realtime structural batches, then use the fixed gray release procedure for validation.
+- Required before the next gray release: run Phase V migration-completeness validation and ensure every unfinished batch is either completed or explicitly deferred.
+- Main blocker before further feature work: complete or explicitly defer the remaining backend/repository/realtime structural batches. ComfyUI feature work remains blocked until a separate continuation plan is approved after this structural line is clean.
 
 ## Self-Review
 
