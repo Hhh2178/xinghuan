@@ -673,13 +673,15 @@ Expected:
 - Login lookup does not reintroduce full-table auth reads on ordinary login.
 - Existing login behavior remains unchanged.
 
-- [ ] **Step 3: Complete B2 task list pagination and heavy-field stripping**
+- [x] **Step 3: Complete B2 task list pagination and heavy-field stripping**
 
-Current finding:
+Status:
 
-- `scripts/verify-admin-task-pagination.mjs` still needs to align with the intended invariant.
-- The intended invariant is that admin task list rows must not include heavy fields `payload`, `result`, or `logs`.
-- Detail endpoints may still return heavy fields where explicitly required.
+- Local implementation completed in this batch.
+- `GET /api/admin/tasks` now returns list summaries without `payload`, `result`, or `logs`.
+- Postgres list SQL no longer selects `t.payload`, `t.result`, or `t.logs`.
+- `scripts/verify-admin-task-pagination.mjs` now asserts no heavy fields and validates capability filtering without relying on hidden fields.
+- Gray/live validation remains pending until this commit is deployed.
 
 Run before implementation:
 
@@ -1270,7 +1272,7 @@ As of 2026-07-05 after provider deduplication batch:
   - Phase U2/B1 auth current-user precise query.
 - Unfinished structural plan items still to carry forward:
   - B1 login email lookup extraction remains deferred to the broader E1 auth repository batch.
-  - B2 task list pagination and heavy-field stripping.
+  - B2 gray/live verification after deployment.
   - B3 Postgres pool tuning.
   - E1 repository boundary skeleton.
   - F1 task realtime mechanism decision or deferral.

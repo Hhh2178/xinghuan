@@ -30,6 +30,8 @@ async function main() {
   const page2 = await fetchJson("/api/admin/tasks?page=2&pageSize=5");
   const failedOnly = await fetchJson("/api/admin/tasks?page=1&pageSize=10&status=failed");
   const imageOnly = await fetchJson("/api/admin/tasks?page=1&pageSize=10&capability=image");
+  const seededImageTitles = new Set([0, 1, 2, 4, 5].map((index) => `phase-d page ${suffix}-${index}`));
+  const seededVideoTitles = new Set([3, 6].map((index) => `phase-d page ${suffix}-${index}`));
 
   assert(Array.isArray(page1.data?.items), "page1 items missing");
   assert(page1.data.items.length <= 5, "page1 size mismatch");
@@ -37,11 +39,12 @@ async function main() {
   assert(Number(page1.data.total) >= 7, "total should include seeded tasks");
   assert(typeof page1.data.hasMore === "boolean", "hasMore missing");
   assert((failedOnly.data.items || []).every((item) => item.status === "failed"), "status filter mismatch");
-  assert((imageOnly.data.items || []).every((item) => {
-    const raw = item.result && typeof item.result === "object" ? item.result.raw : undefined;
-    const capability = item.payload?.taskCapability || item.result?.capability || raw?.capability || "";
-    return capability === "image";
-  }), "capability filter mismatch");
+  for (const page of [page1, page2, failedOnly, imageOnly]) {
+    assert((page.data.items || []).every((item) => !("payload" in item) && !("result" in item) && !("logs" in item)), "task list leaked heavy fields");
+  }
+  const seededImageItems = (imageOnly.data.items || []).filter((item) => seededImageTitles.has(item.title));
+  assert(seededImageItems.length > 0, "capability filter did not return seeded image tasks");
+  assert(seededImageItems.every((item) => !seededVideoTitles.has(item.title)), "capability filter returned seeded video task");
 
   console.log(JSON.stringify({
     ok: true,

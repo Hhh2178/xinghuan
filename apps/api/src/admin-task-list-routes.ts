@@ -19,6 +19,11 @@ interface AdminTaskListPage {
   };
 }
 
+function toAdminTaskListSummary(task: any) {
+  const { payload: _payload, result: _result, logs: _logs, ...summary } = task || {};
+  return summary;
+}
+
 type SendT8 = (
   response: import("node:http").ServerResponse,
   data: unknown,
@@ -138,9 +143,6 @@ export function createAdminTaskListRouteHandler(deps: {
                 t.status,
                 t.provider_id,
                 t.model_id,
-                t.payload,
-                t.result,
-                t.logs,
                 t.created_at,
                 t.updated_at,
                 u.name as owner_name,
@@ -157,7 +159,7 @@ export function createAdminTaskListRouteHandler(deps: {
          limit $${pageParams.length - 1} offset $${pageParams.length}`,
         pageParams,
       );
-      const items = itemsResult.rows.map((row: any) => withUnifiedRuntimeDiagnostic(toAdminTaskRecord(row)));
+      const items = itemsResult.rows.map((row: any) => toAdminTaskListSummary(withUnifiedRuntimeDiagnostic(toAdminTaskRecord(row))));
       return {
         items,
         total,
@@ -188,7 +190,7 @@ export function createAdminTaskListRouteHandler(deps: {
         return true;
       })
       .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
-      .map((task: any) => withUnifiedRuntimeDiagnostic(enrichAdminTaskRecord(task, usersById, groupsById)));
+      .map((task: any) => toAdminTaskListSummary(withUnifiedRuntimeDiagnostic(enrichAdminTaskRecord(task, usersById, groupsById))));
     const total = filtered.length;
     const offset = (query.page - 1) * query.pageSize;
     const items = filtered.slice(offset, offset + query.pageSize);
