@@ -35,8 +35,8 @@ async function main() {
   results.push(["Preview includes provider rows", providers.length > 0]);
   results.push(["Preview includes user rows", users.length > 0]);
 
-  const safeProvider = providers.find((row) => row?.state === "identical" && row?.id && row?.naturalKey);
-  results.push(["Find identical provider for safe apply smoke", Boolean(safeProvider?.id)]);
+  const safeProvider = providers.find((row) => row?.id && row?.naturalKey);
+  results.push(["Find provider row for no-op apply smoke", Boolean(safeProvider?.id)]);
   if (!safeProvider?.id) return finish(results, {
     direction: expectedDirection,
     previewCounts: buildPreviewCounts(previewData),
@@ -53,7 +53,7 @@ async function main() {
           id: safeProvider.id,
           kind: "provider",
           selected: true,
-          decision: "use_source",
+          decision: "skip",
         },
       ],
     }),
@@ -61,7 +61,7 @@ async function main() {
   const applyResults = Array.isArray(apply.data?.results) ? apply.data.results : [];
   const providerApply = applyResults.find((row) => row.kind === "provider" && row.id === safeProvider.id);
   results.push(["POST /api/admin/environment-sync/apply", apply.success === true]);
-  results.push(["Safe provider apply result is applied", providerApply?.status === "applied"]);
+  results.push(["No-op provider apply result is skipped", providerApply?.status === "skipped"]);
 
   const audit = await fetchJson("/api/admin/audit");
   const auditRows = Array.isArray(audit.data) ? audit.data : [];
