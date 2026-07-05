@@ -40,22 +40,6 @@ export interface AdminProviderRecordShape {
   updatedAt: number;
 }
 
-interface AdminTaskRecordShape {
-  providerId?: string;
-  modelId?: string;
-}
-
-interface AdminModelRecordShape {
-  id: string;
-  providerId: string;
-}
-
-interface AdminDbShape {
-  providers: AdminProviderRecordShape[];
-  models: AdminModelRecordShape[];
-  tasks: AdminTaskRecordShape[];
-}
-
 interface ProviderProbeResultShape {
   ok?: boolean;
   message?: string;
@@ -75,12 +59,11 @@ export interface AdminProviderRouteDeps {
     summary: string,
     requestContext: RequestContextShape,
   ) => Promise<void>;
-  readAdminDb: () => Promise<AdminDbShape>;
-  writeAdminDb: (db: AdminDbShape) => Promise<void>;
-  usePostgresRepository: () => boolean;
-  insertProviderRecordPostgres: (provider: AdminProviderRecordShape) => Promise<void>;
-  upsertProviderRecordPostgres: (provider: AdminProviderRecordShape) => Promise<void>;
-  deleteProviderRecordPostgres: (providerId: string) => Promise<void>;
+  readProviderRecords: () => Promise<AdminProviderRecordShape[]>;
+  findProviderRecordById: (providerId: string) => Promise<AdminProviderRecordShape | null>;
+  insertProviderRecord: (provider: AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
+  updateProviderRecord: (providerId: string, transform: (provider: AdminProviderRecordShape) => AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
+  deleteProviderRecord: (providerId: string) => Promise<AdminProviderRecordShape>;
   normalizeProviderProtocol: (value: unknown) => string;
   normalizeRunningHubEntries: (value: unknown, kind: "app" | "workflow") => unknown;
   normalizeRunningHubKeyPool: (value: unknown) => unknown;
@@ -107,10 +90,10 @@ export async function handleAdminProviderRoutes(input: {
   const { request, response, url, adminUser, requestContext, deps } = input;
 
   if (url.pathname === PROVIDER_PATH) {
-    const db = await deps.readAdminDb();
     if (request.method === "GET") {
+      const providers = await deps.readProviderRecords();
       await deps.appendAudit(adminUser, "providers.read", "provider", "providers-list", "查看 Provider 列表", requestContext);
-      deps.sendT8(response, db.providers.map(deps.toPublicProvider));
+      deps.sendT8(response, providers.map(deps.toPublicProvider));
       return true;
     }
     if (request.method === "POST") {
@@ -133,12 +116,7 @@ export async function handleAdminProviderRoutes(input: {
         createdAt: now,
         updatedAt: now,
       };
-      if (db.providers.some((item) => item.id === provider.id)) throw new Error("Provider ID 已存在");
-      if (deps.usePostgresRepository()) {
-        await deps.insertProviderRecordPostgres(provider);
-      } else {
-        await deps.writeAdminDb({ ...db, providers: [provider, ...db.providers] });
-      }
+      await deps.insertProviderRecord(provider);
       await deps.appendAudit(adminUser, "provider.create", "provider", provider.id, `创建 Provider ${provider.name}`, requestContext);
       deps.sendT8(response, deps.toPublicProvider(provider));
       return true;
@@ -161,8 +139,7 @@ export async function handleAdminProviderRoutes(input: {
   if (providerProbeMatch && request.method === "POST") {
     const id = decodeURIComponent(providerProbeMatch[1]);
     const body = await readJsonBody<Partial<AdminProviderRecordShape> & { apiKey?: string }>(request);
-    const db = await deps.readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
+    const provider = await deps.findProviderRecordById(id);
     if (!provider) throw new Error("Provider 不存在");
     const result = await deps.probeProviderDraft({ ...provider, ...body });
     const now = Date.now();
@@ -176,8 +153,7 @@ export async function handleAdminProviderRoutes(input: {
   if (providerFetchModelsMatch && request.method === "POST") {
     const id = decodeURIComponent(providerFetchModelsMatch[1]);
     const body = await readJsonBody<Partial<AdminProviderRecordShape> & { apiKey?: string }>(request);
-    const db = await deps.readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
+    const provider = await deps.findProviderRecordById(id);
     if (!provider) throw new Error("Provider 不存在");
     const result = await deps.fetchProviderModelsDraft({ ...provider, ...body });
     const now = Date.now();
@@ -191,10 +167,7 @@ export async function handleAdminProviderRoutes(input: {
   if (providerMatch && request.method === "PATCH") {
     const id = decodeURIComponent(providerMatch[1]);
     const body = await readJsonBody<Partial<AdminProviderRecordShape> & { clearApiKey?: boolean }>(request);
-    const db = await deps.readAdminDb();
-    let updated: AdminProviderRecordShape | undefined;
-    const providers = db.providers.map((provider) => {
-      if (provider.id !== id) return provider;
+    const updated = await deps.updateProviderRecord(id, (provider) => {
       const next: AdminProviderRecordShape = {
         ...provider,
         name: body.name === undefined ? provider.name : safeText(body.name, provider.name),
@@ -217,15 +190,8 @@ export async function handleAdminProviderRoutes(input: {
         next.apiKey = deps.encryptSecret(apiKey);
         next.apiKeyPreview = deps.secretPreview(apiKey);
       }
-      updated = next;
       return next;
     });
-    if (!updated) throw new Error("Provider 不存在");
-    if (deps.usePostgresRepository()) {
-      await deps.upsertProviderRecordPostgres(updated);
-    } else {
-      await deps.writeAdminDb({ ...db, providers });
-    }
     await deps.appendAudit(adminUser, "provider.update", "provider", id, `更新 Provider ${updated.name}`, requestContext);
     deps.sendT8(response, deps.toPublicProvider(updated));
     return true;
@@ -233,24 +199,7 @@ export async function handleAdminProviderRoutes(input: {
 
   if (providerMatch && request.method === "DELETE") {
     const id = decodeURIComponent(providerMatch[1]);
-    const db = await deps.readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
-    if (!provider) throw new Error("Provider 不存在");
-    if (deps.usePostgresRepository()) {
-      await deps.deleteProviderRecordPostgres(id);
-    } else {
-      const removedModelIds = new Set(db.models.filter((item) => item.providerId === id).map((item) => item.id));
-      await deps.writeAdminDb({
-        ...db,
-        providers: db.providers.filter((item) => item.id !== id),
-        models: db.models.filter((item) => item.providerId !== id),
-        tasks: db.tasks.map((task) =>
-          task.providerId === id || (task.modelId && removedModelIds.has(task.modelId))
-            ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
-            : task,
-        ),
-      });
-    }
+    const provider = await deps.deleteProviderRecord(id);
     await deps.appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`, requestContext);
     deps.sendT8(response, null);
     return true;

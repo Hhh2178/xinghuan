@@ -137,6 +137,7 @@ import {
 } from "./group-permission-policy.js";
 import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
+import { createProviderRepository } from "./provider-repository.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } from "./comfyui-instance-routes.js";
@@ -286,6 +287,7 @@ const {
 });
 
 const authCurrentUserRepository = createAuthCurrentUserRepository({ usePostgresRepository, readAuthDb, getPostgresPool, dateToMillis, safeText, safeEmail });
+const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -2256,12 +2258,11 @@ async function handleAdminRequest(
     deps: {
       sendT8,
       appendAudit,
-      readAdminDb,
-      writeAdminDb: async (db) => writeAdminDb(db as AdminDb),
-      usePostgresRepository,
-      insertProviderRecordPostgres: async (provider) => insertProviderRecordPostgres(provider as AdminProviderRecord),
-      upsertProviderRecordPostgres: async (provider) => upsertProviderRecordPostgres(provider as AdminProviderRecord),
-      deleteProviderRecordPostgres,
+      readProviderRecords: providerRepository.readProviderRecords,
+      findProviderRecordById: providerRepository.findProviderRecordById,
+      insertProviderRecord: async (provider) => providerRepository.insertProviderRecord(provider as AdminProviderRecord),
+      updateProviderRecord: async (providerId, transform) => providerRepository.updateProviderRecord(providerId, (provider) => transform(provider) as AdminProviderRecord),
+      deleteProviderRecord: providerRepository.deleteProviderRecord,
       normalizeProviderProtocol,
       normalizeRunningHubEntries,
       normalizeRunningHubKeyPool,

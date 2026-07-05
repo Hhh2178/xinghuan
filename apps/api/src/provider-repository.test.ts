@@ -158,4 +158,23 @@ describe("provider repository", () => {
     expect(query.mock.calls[1][0]).toContain("update xh_providers set rh_apps");
     expect(query.mock.calls[1][0]).not.toContain("delete from xh_providers");
   });
+
+  it("deletes file-backed provider and clears related model/task references", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "provider-repo-delete-"));
+    const adminDbPath = join(dir, "admin.json");
+    const repo = createProviderRepository(createDeps({ adminDbPath }));
+    await repo.writeAdminDb({
+      providers: [{ id: "p1", name: "Provider One", baseUrl: "https://example.test", enabled: true, createdAt: 1, updatedAt: 1 }],
+      models: [{ id: "m1", providerId: "p1", modelId: "gpt-test", displayName: "GPT Test", capability: "chat", enabled: true, inputProfile: "prompt", parameterSchema: "{}", createdAt: 1, updatedAt: 1 }],
+      tasks: [{ providerId: "p1", modelId: "m1" }],
+    });
+
+    await expect(repo.deleteProviderRecord("p1")).resolves.toMatchObject({ id: "p1" });
+    await expect(repo.readAdminDb()).resolves.toMatchObject({
+      providers: [],
+      models: [],
+      tasks: [{ providerId: "", modelId: "" }],
+    });
+    await rm(dir, { recursive: true, force: true });
+  });
 });

@@ -262,6 +262,29 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     return updated;
   }
 
+  async function deleteProviderRecord(providerId: string): Promise<AdminProviderRecord> {
+    const current = await findProviderRecordById(providerId);
+    if (!current) throw new Error("Provider 不存在");
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      await pool.query("delete from xh_providers where id = $1", [providerId]);
+      return current;
+    }
+    const db = await readAdminDb();
+    const removedModelIds = new Set(db.models.filter((model) => model.providerId === providerId).map((model) => model.id));
+    await writeAdminDb({
+      ...db,
+      providers: db.providers.filter((provider) => provider.id !== providerId),
+      models: db.models.filter((model) => model.providerId !== providerId),
+      tasks: (db.tasks || []).map((task) =>
+        task.providerId === providerId || (task.modelId && removedModelIds.has(task.modelId))
+          ? { ...task, providerId: "", modelId: removedModelIds.has(task.modelId || "") ? "" : task.modelId }
+          : task,
+      ),
+    });
+    return current;
+  }
+
   async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
     const pool = await deps.getPostgresPool();
     const normalized = deps.normalizeProviderSecret(provider);
@@ -402,6 +425,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     insertProviderRecord,
     upsertProviderRecord,
     updateProviderRecord,
+    deleteProviderRecord,
     updateProviderProbeResult,
     updateProviderLastFetchedAt,
     updateProviderRhCatalog,
