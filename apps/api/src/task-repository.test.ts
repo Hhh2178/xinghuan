@@ -118,20 +118,29 @@ describe("task repository", () => {
         updatedAt: task.updatedAt,
         displayMessage: task.displayMessage,
       }),
-      withUnifiedRuntimeDiagnostic: (task) => ({ ...task, displayMessage: "diagnostic" }),
+      withUnifiedRuntimeDiagnostic: (task) => ({
+        ...task,
+        logs: [],
+        result: {},
+        displayMessage: "diagnostic",
+      }),
     }));
 
-    await expect(repo.readTaskListPage({
+    const page = await repo.readTaskListPage({
       page: 1,
       pageSize: 1,
       status: "queued",
       providerId: "provider-1",
       capability: "image",
-    })).resolves.toMatchObject({
+    });
+    expect(page).toMatchObject({
       items: [{ id: "task-1", title: "Task One", status: "queued", displayMessage: "diagnostic" }],
       total: 2,
       hasMore: true,
     });
+    expect(page.items[0]).not.toHaveProperty("payload");
+    expect(page.items[0]).not.toHaveProperty("result");
+    expect(page.items[0]).not.toHaveProperty("logs");
   });
 
   it("reads a postgres task detail with heavy fields by id", async () => {
@@ -218,5 +227,40 @@ describe("task repository", () => {
       hasMore: false,
     });
     expect(enrichAdminTaskRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it("strips heavy task fields from file-backed list items even when the summarizer leaks them", async () => {
+    const repo = createTaskRepository(createDeps({
+      readTaskRecords: async () => [
+        taskRecord({
+          id: "task-heavy",
+          title: "Heavy",
+          payload: { prompt: "hidden prompt" },
+          result: { raw: "hidden result" },
+          logs: ["hidden log"],
+          createdAt: 10,
+          updatedAt: 10,
+        }),
+      ],
+      summarizeAdminTaskRecord: (task) => ({
+        ...task,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      } as TaskListItemShape),
+    }));
+
+    const page = await repo.readTaskListPage({
+      page: 1,
+      pageSize: 10,
+      status: "",
+      providerId: "",
+      capability: "",
+    });
+
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).toMatchObject({ id: "task-heavy", title: "Heavy" });
+    expect(page.items[0]).not.toHaveProperty("payload");
+    expect(page.items[0]).not.toHaveProperty("result");
+    expect(page.items[0]).not.toHaveProperty("logs");
   });
 });

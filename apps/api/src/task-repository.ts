@@ -237,7 +237,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
         pageParams,
       );
       const items = itemsResult.rows.map((row) =>
-        deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.toAdminTaskRecord(row))),
+        toSafeTaskListItem(deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.toAdminTaskRecord(row)))),
       );
       return toTaskListPage(query, total, offset, items);
     }
@@ -249,7 +249,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       .filter((task) => taskMatchesQuery(task, query))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .map((task) =>
-        deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.enrichAdminTaskRecord(task, usersById, groupsById))),
+        toSafeTaskListItem(deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.enrichAdminTaskRecord(task, usersById, groupsById)))),
       );
     const total = filtered.length;
     const offset = (query.page - 1) * query.pageSize;
@@ -355,5 +355,14 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
         capability: query.capability,
       },
     };
+  }
+
+  function toSafeTaskListItem(item: TaskListItemShape | (TaskListItemShape & Record<string, unknown>)): TaskListItemShape {
+    const { payload: _payload, result: _result, logs: _logs, ...summary } = item as TaskListItemShape & {
+      payload?: unknown;
+      result?: unknown;
+      logs?: unknown;
+    };
+    return summary;
   }
 }
