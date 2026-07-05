@@ -145,6 +145,7 @@ import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } fro
 import { handleComfyuiPublicRoutes } from "./comfyui-public-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
+import { createAdminRepository } from "./admin-repository.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
@@ -306,6 +307,15 @@ const settingsRepository = createSettingsRepository({
     currentRevision,
   }),
 });
+const adminRepository = createAdminRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  readAdminDb,
+  writeAdminDb: async (db, options) => writeAdminDb(db as AdminDb, options),
+  dateToMillis,
+  millisToDate,
+  safeText,
+});
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -351,6 +361,7 @@ const handleAdminAuditRoutes = createAdminAuditRouteHandler({
   sendT8,
   HttpError,
   readAdminDb,
+  readAuditRecords: adminRepository.readAuditRecords,
   readAuthDb,
   publicRunningHubCatalog: async () => {
     const catalog = await publicRunningHubCatalog();
@@ -1025,19 +1036,11 @@ const materialAccessService = createMaterialAccessService({
 });
 
 async function readAnnouncementRecords() {
-  const db = await readAdminDb();
-  return Array.isArray(db.announcements) ? db.announcements : [];
+  return adminRepository.readAnnouncementRecords();
 }
 
 async function writeAnnouncementRecords(announcements: AnnouncementRecord[]) {
-  const db = await readAdminDb();
-  await writeAdminDb({
-    ...db,
-    announcements,
-  }, {
-    allowPostgresFullReplace: true,
-    reason: "announcement.write",
-  });
+  await adminRepository.writeAnnouncementRecords(announcements);
 }
 
 const announcementStore = createAnnouncementStore({
@@ -2211,19 +2214,14 @@ async function handleAdminRequest(
   }
 
   if (url.pathname === "/api/admin/summary" && request.method === "GET") {
-    const [authDb, adminDb, storage] = await Promise.all([readAuthDb(), readAdminDb(), readStorageStats()]);
+    const [authDb, storage] = await Promise.all([readAuthDb(), readStorageStats()]);
     await appendAudit(adminUser, "summary.read", "summary", "admin-summary", "查看后台总览", requestContext);
-    sendT8(response, {
+    const summary = await adminRepository.readAdminSummary({
       users: authDb.users.length,
       enabledUsers: authDb.users.filter((user) => !user.disabled).length,
-      providers: adminDb.providers.length,
-      enabledProviders: adminDb.providers.filter((provider) => provider.enabled).length,
-      models: adminDb.models.length,
-      enabledModels: adminDb.models.filter((model) => model.enabled).length,
-      tasks: adminDb.tasks.length,
-      runningTasks: adminDb.tasks.filter((task) => task.status === "queued" || task.status === "running").length,
-      auditLogs: adminDb.auditLogs?.length || 0,
-      storage,
+    }, storage);
+    sendT8(response, {
+      ...summary,
       environment,
     });
     return true;
@@ -10063,32 +10061,7 @@ async function appendAudit(
 }
 
 async function appendAuditRecord(record: AdminAuditRecord) {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    await pool.query(
-      `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, request_id, ip, user_agent, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        record.id,
-        record.actorId || null,
-        record.actorEmail,
-        record.action,
-        record.targetType,
-        record.targetId,
-        record.summary,
-        record.requestId || null,
-        record.ip || null,
-        record.userAgent || null,
-        millisToDate(record.createdAt),
-        ],
-      );
-    return;
-  }
-  const db = await readAdminDb();
-  await writeAdminDb({
-    ...db,
-    auditLogs: [record, ...(db.auditLogs || [])].slice(0, 1000),
-  });
+  await adminRepository.appendAuditRecord(record);
 }
 
 const observabilityConflictActions = {

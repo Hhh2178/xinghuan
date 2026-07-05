@@ -73,6 +73,7 @@ export function createAdminAuditRouteHandler(deps: {
     providers: any[];
     models: any[];
   }>;
+  readAuditRecords?: (limit?: number) => Promise<any[]>;
   readAuthDb: () => Promise<{
     users: any[];
     userGroups: any[];
@@ -92,6 +93,7 @@ export function createAdminAuditRouteHandler(deps: {
     sendT8,
     HttpError,
     readAdminDb,
+    readAuditRecords,
     readAuthDb,
     publicRunningHubCatalog,
     usePostgresRepository,
@@ -264,8 +266,8 @@ export function createAdminAuditRouteHandler(deps: {
     const actor = requireAdmin(currentUser);
 
     if (url.pathname === "/api/admin/audit" && request.method === "GET") {
-      const db = await readAdminDb();
-      sendT8(response, (db.auditLogs || []).slice(0, 200));
+      const auditLogs = readAuditRecords ? await readAuditRecords(200) : (await readAdminDb()).auditLogs || [];
+      sendT8(response, auditLogs.slice(0, 200));
       return true;
     }
 

@@ -23,7 +23,7 @@ Target branch: `xinghuan-integration-clean`
 | Auth repository | `apps/api/src/auth-repository.ts`, tests, auth verify scripts | Partially present | Keep existing clean slices; migrate remaining admin-write slices only if needed | auth repository tests + auth verify scripts |
 | Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Core repository, admin provider route wiring, and provider/model persistence helpers migrated in clean branch | Continue later with remaining RH catalog call-site migration and optional focused contract script | provider repository tests + provider route split contract |
 | Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Migrated in clean branch with assistant/queue/system route wiring | Complete for current assistant and task-queue settings boundary; revisit only if broader system settings are added | settings repository tests + assistant/queue/system route contracts + assistant save contract |
-| Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Open | Migrate after settings | admin repository tests + audit/task summary contracts |
+| Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Lightweight admin summary, audit records, and announcement compatibility boundary migrated | Complete current admin summary/audit/announcement slice; leave task record ownership to Phase 6 task repository | admin repository tests + audit/announcement repository contracts |
 | Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Partially covered by B2 | Migrate after admin | task repository tests + admin task pagination |
 | Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Open | Migrate after task | usage summary repository contract |
 | Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Open | Migrate after repository boundaries | envsync local contract + envsync smoke |
@@ -74,3 +74,26 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff-tree --no-co
   - `node scripts/verify-api-system-settings-route-split-contract.mjs`
   - `npm run verify:file-hotspot-budgets`
 - Result: passed. `apps/api/src/server.ts` hotspot budget improved to `11595 / 11910`.
+
+### Admin repository boundary
+
+- Clean branch status: migrated lightweight slice.
+- Purpose: avoid loading or rewriting the full admin DB for admin summary, audit list/append, and announcement compatibility paths where focused reads/writes are enough.
+- Implementation:
+  - Added `apps/api/src/admin-repository.ts`.
+  - Added `apps/api/src/admin-repository.test.ts`.
+  - `/api/admin/summary` now composes user/storage data with `adminRepository.readAdminSummary()`.
+  - `appendAuditRecord()` delegates to `adminRepository.appendAuditRecord()`.
+  - Admin audit list route receives `readAuditRecords(200)` and no longer needs full `readAdminDb()` for the basic audit list.
+  - File-backed announcement read/write compatibility is delegated to `adminRepository`; Postgres announcement CRUD remains primarily owned by `announcement-store`.
+  - Added repository contracts for audit and announcement records.
+- Explicit non-scope:
+  - Task detail/list/write records are not owned by this admin repository slice. They remain Phase 6 `task-repository` work.
+  - Usage summary remains Phase 7 because it intentionally reads task payload/result for analytics.
+- Validation:
+  - `npx vitest run apps/api/src/admin-repository.test.ts apps/api/src/settings-repository.test.ts apps/api/src/provider-repository.test.ts`
+  - `npm run type-check -w @xinghuan/api`
+  - `node scripts/verify-admin-audit-records-repository-contract.mjs`
+  - `node scripts/verify-admin-announcement-records-repository-contract.mjs`
+  - `npm run verify:file-hotspot-budgets`
+- Result: passed. `apps/api/src/server.ts` hotspot budget improved to `11560 / 11910`.
