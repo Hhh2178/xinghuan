@@ -237,7 +237,7 @@
 | 0 | A3 vitest | 已完成 | `53f8ee8` | `2026-07-05 daily` | 根 test 入口已跑通 |
 | 0 | A4 CI 聚合 | 已完成 | `53f8ee8` | `2026-07-05 daily` | `npm run ci` 已通过 |
 | 6 | B1 鉴权精准查询 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | current-user 精准查询已完成；login email lookup 延后到 E1 auth repository |
-| 6 | B2 任务列表分页 | 本地完成 / 待灰度验证 | `f9d7fff` | `2026-07-05 daily` | 列表响应去除 `payload/result/logs`；live verify 待灰度部署后执行 |
+| 6 | B2 任务列表分页 | 已完成并灰度验证 | `f9d7fff` / gray `c549e71` | `2026-07-05 daily` / gray release log | 列表响应去除 `payload/result/logs`；`20260705-admin-task-list-heavy-fields-gray-r1-v0525` live verify 已通过 |
 | 6 | B3 连接池调参 | 待开始 | — | — | |
 | 1 | C1 去重(A类) | 已完成 | `7966bd1` | `2026-07-05 daily` | shared/node 子路径导出，避免污染 Web/Admin bundle |
 | 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
@@ -251,7 +251,7 @@
 
 ## 七、启动建议
 
-- 下一步执行 **B2**（任务列表分页 + 去大字段），因为灰度验证曾发现列表响应仍可能包含 `payload/result/logs`。
-- 随后执行或明确延期 **B3**（连接池调参）。
+- 下一步执行或明确延期 **B3**（连接池调参）。
 - 再继续 **E1** 剩余 repository 边界；每个领域单独提交、单独校验。
 - **F1** 先写任务实时机制 decision/deferral record，不在迁移期间直接开新实时链路。
+- 进入下一轮灰度或正式推进前，先跑迁移完整性校验，确认成果没有只停留在 `xinghuan-milestone-b`。

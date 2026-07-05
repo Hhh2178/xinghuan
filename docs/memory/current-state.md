@@ -11,7 +11,7 @@
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度，但后续功能开发已冻结
-  - 当前重点是 clean worktree 迁移完整性、未完成结构批次 B2/B3/E1/F1 的完成或明确延期、发布链路一致性和主入口状态收口
+  - 当前重点是 clean worktree 迁移完整性、未完成结构批次 B3/E1/F1 的完成或明确延期、发布链路一致性和主入口状态收口
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -66,9 +66,9 @@
   - `619fcdd` 图标瘦身：移除 lucide namespace import，`vendor-icons` 显著下降。
   - `7966bd1` API/Worker provider 去重：共享 helper 下沉到 `packages/shared` 的受控 Node 子路径。
   - `9e27bc7` auth current-user 精准查询：当前用户 session lookup 不再走全量 auth-db 读取。
+  - `f9d7fff` / gray `c549e71` B2 任务列表分页与去大字段：`GET /api/admin/tasks` 列表不再返回 `payload/result/logs`，并已在灰度 `20260705-admin-task-list-heavy-fields-gray-r1-v0525` live verify 通过。
 - 仍需推进或明确延期：
-  - B1 login email lookup extraction。
-  - B2 任务列表分页与 `payload/result/logs` 去大字段。
+  - B1 login email lookup extraction，归入后续 E1 auth repository 批次。
   - B3 Postgres pool 调参。
   - E1 剩余 repository boundary。
   - F1 任务实时机制 decision/deferral。

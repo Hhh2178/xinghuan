@@ -44,11 +44,11 @@ Current decision:
 
 Current remaining execution target:
 
-1. Finish B2 task list pagination and heavy-field stripping, or write a deferral record with reason and risk.
+1. Keep the completed B2 task list pagination and heavy-field stripping batch intact, including its gray/live verification evidence.
 2. Finish B3 Postgres pool tuning, or write a deferral record with safe gray defaults.
 3. Continue E1 repository boundary skeleton one domain at a time, starting from the lowest-risk remaining domain.
 4. Decide or defer F1 task realtime mechanism with a decision record.
-5. Run migration-completeness validation before any gray release.
+5. Run migration-completeness validation before any later gray release.
 
 ## 1. Hard Rules
 
@@ -681,7 +681,7 @@ Status:
 - `GET /api/admin/tasks` now returns list summaries without `payload`, `result`, or `logs`.
 - Postgres list SQL no longer selects `t.payload`, `t.result`, or `t.logs`.
 - `scripts/verify-admin-task-pagination.mjs` now asserts no heavy fields and validates capability filtering without relying on hidden fields.
-- Gray/live validation remains pending until this commit is deployed.
+- Gray/live validation completed in release `20260705-admin-task-list-heavy-fields-gray-r1-v0525`.
 
 Run before implementation:
 
@@ -710,6 +710,21 @@ Expected:
 - Detail endpoints may still return heavy fields where intentionally required.
 - Pagination metadata is present and stable.
 - `server.ts` stays within hotspot budget, or the budget change is reviewed before commit.
+
+Gray/live verification already completed:
+
+```powershell
+npm run release:gray:prepare -- --release=20260705-admin-task-list-heavy-fields-gray-r1-v0525 --verify="npx vitest run apps/api/src/admin-task-list-routes.test.ts"
+npm run release:gray:deploy -- --release=20260705-admin-task-list-heavy-fields-gray-r1-v0525 --archive=dist-release/20260705-admin-task-list-heavy-fields-gray-r1-v0525.tar.gz --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem
+npm run release:gray:verify -- --ssh-key=D:\codex\服务器\Tencent_Cloud_Server.pem --expected-version=0.5.25 --expected-environment=gray
+ssh -i D:\codex\服务器\Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38 "set -a; . /opt/apps/xinghuan-canvas-next/shared/canvas-next.env; set +a; cd /opt/apps/xinghuan-canvas-next/current; XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18200 node scripts/verify-admin-task-pagination.mjs"
+```
+
+Observed result:
+
+- Gray release `20260705-admin-task-list-heavy-fields-gray-r1-v0525` passed.
+- Live admin task pagination verification passed.
+- Task list rows did not leak `payload`, `result`, or `logs`.
 
 - [ ] **Step 4: Complete or defer B3 Postgres pool tuning**
 
@@ -1243,17 +1258,17 @@ Expected:
 
 1. Keep ComfyUI frozen. Do not resume ComfyUI feature work in this plan.
 2. Confirm Phase S, Phase C, Phase U1, Phase U3, Phase U4, and B1 current-user slice remain committed in `xinghuan-integration-clean`.
-3. Execute B2 task list pagination/heavy-field stripping next, because it has a live gray verification mismatch and direct runtime impact.
+3. Treat B2 task list pagination/heavy-field stripping as completed and gray-verified; do not reopen it unless a regression is reproduced.
 4. Execute or explicitly defer B3 Postgres pool tuning.
 5. Continue E1 repository boundaries one domain at a time, starting with the lowest-risk remaining domain and keeping `server.ts` within hotspot budget.
 6. Write the F1 task realtime decision or deferral record before attempting realtime implementation.
-7. Run Phase V migration-completeness validation.
-8. Use Phase R for gray/production deployment only after Phase V passes.
+7. Run Phase V migration-completeness validation before the next release wave.
+8. Use Phase R for gray/production deployment only after Phase V passes or produces explicit deferral records.
 9. Use Phase A after every commit or release so other windows read the right state.
 
 ## Current Progress Snapshot
 
-As of 2026-07-05 after provider deduplication batch:
+As of 2026-07-05 after B2 gray rollout:
 
 - Secret ignore coverage in clean worktree: present.
 - Secret ignore coverage in server root `.gitignore`: explicit entries added by this plan batch.
@@ -1270,13 +1285,13 @@ As of 2026-07-05 after provider deduplication batch:
   - Phase U4/D1 frontend icon import shrink.
   - Phase U3/C1-C2 API/Worker provider deduplication.
   - Phase U2/B1 auth current-user precise query.
+  - Phase U2/B2 admin task list pagination and heavy-field stripping, including gray/live verification.
 - Unfinished structural plan items still to carry forward:
   - B1 login email lookup extraction remains deferred to the broader E1 auth repository batch.
-  - B2 gray/live verification after deployment.
   - B3 Postgres pool tuning.
   - E1 repository boundary skeleton.
   - F1 task realtime mechanism decision or deferral.
-- Required before the next gray release: run Phase V migration-completeness validation and ensure every unfinished batch is either completed or explicitly deferred.
+- Required before the next gray release wave: run Phase V migration-completeness validation and ensure every unfinished batch is either completed or explicitly deferred.
 - Main blocker before further feature work: complete or explicitly defer the remaining backend/repository/realtime structural batches. ComfyUI feature work remains blocked until a separate continuation plan is approved after this structural line is clean.
 
 ## Self-Review
