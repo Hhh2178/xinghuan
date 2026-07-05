@@ -125,6 +125,8 @@
     "verify:admin-assistant-ui-contract": "node scripts/verify-admin-assistant-ui-contract.mjs",
     "verify:admin-auth-passwords": "node scripts/verify-admin-auth-passwords.mjs",
     "verify:auth-session-concurrency": "node scripts/verify-auth-session-concurrency.mjs",
+    "verify:auth-current-user-repository-contract": "node scripts/verify-auth-current-user-repository-contract.mjs",
+    "verify:auth-login-precision-query-contract": "node scripts/verify-auth-login-precision-query-contract.mjs",
     "verify:phase-a-hardening-contract": "node scripts/verify-phase-a-hardening-contract.mjs",
     "verify:multi-user-isolation": "node scripts/verify-multi-user-isolation.mjs",
     "verify:release-preflight": "node scripts/capture-release-preflight.mjs",

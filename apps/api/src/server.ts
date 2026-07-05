@@ -96,6 +96,7 @@ import {
   createOpenAiAudioChatPayload,
   extractAudioProviderResult,
 } from "./audio-provider-adapter.js";
+import { createAuthCurrentUserRepository } from "./auth-repository.js";
 import {
   applyTaskCancellation,
   assertTaskCancellable,
@@ -282,6 +283,8 @@ const {
   getPostgresPool,
   filePath: join(dataDir, "admin", "task-runtime-events.ndjson"),
 });
+
+const authCurrentUserRepository = createAuthCurrentUserRepository({ usePostgresRepository, readAuthDb, getPostgresPool, dateToMillis, safeText, safeEmail });
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -6583,16 +6586,13 @@ async function logoutUser(request: import("node:http").IncomingMessage) {
 async function getCurrentUser(request: import("node:http").IncomingMessage): Promise<CurrentUser | null> {
   const sessionId = readCookie(request, SESSION_COOKIE_NAME);
   if (!sessionId) return null;
-  const db = await readAuthDb();
   const now = Date.now();
-  const session = db.sessions.find((item) => item.id === sessionId && item.expiresAt > now && !item.revokedAt);
-  if (!session) return null;
-  const user = db.users.find((item) => item.id === session.userId && !item.disabled);
-  if (!user) return null;
-  if (shouldTouchSession(session, request, now)) {
-    await touchSessionRecord(session.id, request, now);
+  const lookup = await authCurrentUserRepository.findCurrentUserBySessionId(sessionId, now);
+  if (!lookup) return null;
+  if (shouldTouchSession(lookup.session, request, now)) {
+    await touchSessionRecord(lookup.session.id, request, now);
   }
-  return user ? toPublicUser(user) : null;
+  return toPublicUser(lookup.user);
 }
 
 function normalizeSessionRecord(session: SessionRecord): SessionRecord {

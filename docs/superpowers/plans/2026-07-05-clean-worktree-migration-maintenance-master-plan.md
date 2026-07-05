@@ -1048,8 +1048,9 @@ As of 2026-07-05 after provider deduplication batch:
   - Phase U1/M1 tooling safety net.
   - Phase U4/D1 frontend icon import shrink.
   - Phase U3/C1-C2 API/Worker provider deduplication.
+  - Phase U2/B1 auth current-user precise query.
 - Unfinished structural plan items still to carry forward:
-  - B1 auth precise queries.
+  - B1 login email lookup extraction remains deferred to the broader E1 auth repository batch.
   - B2 task list pagination and heavy-field stripping.
   - B3 Postgres pool tuning.
   - E1 repository boundary skeleton.
