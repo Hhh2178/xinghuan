@@ -11,10 +11,10 @@
     "codegraph:ensure": "node scripts/codegraph-hook.mjs manual",
     "setup:codegraph-hooks": "node scripts/setup-codegraph-hooks.mjs",
     "type-check": "npm run type-check --workspaces --if-present",
+    "test": "vitest run",
+    "ci": "npm run verify:quick && npm run build && npm run test",
     "lint": "eslint . --ext .ts,.tsx,.js,.mjs",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.mjs --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md}\"",
     "build": "npm run build -w @xinghuan/shared && npm run build -w @xinghuan/canvas-core && npm run build -w @xinghuan/model-core && npm run build -w @xinghuan/ui && npm run build -w @xinghuan/api && npm run build -w @xinghuan/worker && npm run build -w @xinghuan/web && npm run build -w @xinghuan/admin && npm run build -w @xinghuan/comfyui-connector",
     "build:single-port": "npm run build -w @xinghuan/shared && npm run build -w @xinghuan/canvas-core && npm run build -w @xinghuan/model-core && npm run build -w @xinghuan/ui && npm run build -w @xinghuan/api && npm run build -w @xinghuan/worker && npm run build -w @xinghuan/web && npm run build -w @xinghuan/admin && npm run build -w @xinghuan/comfyui-connector",
     "package:release": "node scripts/package-release.mjs",
@@ -213,7 +213,7 @@
     "verify:package-exports": "node scripts/verify-package-exports.mjs",
     "verify:critical": "npm run verify:no-runtime-artifacts-staged && npm run verify:file-hotspot-budgets && npm run verify:staged-source-size-guard",
     "verify:important": "npm run type-check && npm run verify:hotspot-watchlist-contract && npm run verify:package-exports",
-    "verify:recommended": "npm run lint && npm run format:check",
+    "verify:recommended": "npm run lint",
     "verify:quick": "npm run verify:critical && npm run verify:important",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:import-files": "node scripts/db-import-files.mjs",
@@ -236,9 +236,19 @@
     "lucide-react": "^0.555.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "vitest": "^4.0.15",
     "tsx": "^4.20.6"
   }
 }
