@@ -92,4 +92,23 @@
 - 完成代码修改后、交付前，执行一次 `codegraph sync`，保持索引与源码一致。
 - 当前仓库的 Git hook 约定：
   - `post-checkout`、`post-merge`、`post-rewrite`：若缺少索引则执行 `codegraph init -i`，否则执行 `codegraph sync`
-  - `post-commit`：�
+  - `post-commit`：执行 `codegraph sync`，保持索引与提交后的源码一致。
+
+## 工程治理与发布护栏
+
+- 热点文件预算与 watchlist 必须保持可执行：
+  - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:hotspot-watchlist-contract`
+  - `npm run verify:hotspot-doc-sync-staged`
+- `1200+` 行文件默认进入热点关注范围；继续触碰热点文件时，必须留下对应台账、计划或发布记录，说明下一步拆分路线。
+- 当前热点风险评分入口：
+  - `docs/governance/hotspot-risk-scorecard.md`
+- release logbook 与当前运行态入口必须同步：
+  - `npm run verify:release-logbook-sync-staged`
+  - `npm run verify:current-release-entry-consistency`
+  - `ops/current/gray.md`
+- 发布前必须确认工作树与运行产物边界：
+  - `npm run verify:no-runtime-artifacts-staged`
+  - `npm run verify:staged-source-size-guard`
+  - `npm run verify:release-worktree-clean`
+- `.githooks/pre-commit` 会执行提交前治理检查；不要通过跳过 hook 的方式绕过热点、release logbook 或运行产物护栏。
