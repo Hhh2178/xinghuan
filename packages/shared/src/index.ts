@@ -19,6 +19,7 @@ export * from "./announcements.js";
 export * from "./environment-sync.js";
 export * from "./runninghub.js";
 export * from "./comfyui-workflow.js";
+export * from "./postgres-pool-config.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

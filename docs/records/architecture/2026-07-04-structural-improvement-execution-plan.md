@@ -238,7 +238,7 @@
 | 0 | A4 CI 聚合 | 已完成 | `53f8ee8` | `2026-07-05 daily` | `npm run ci` 已通过 |
 | 6 | B1 鉴权精准查询 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | current-user 精准查询已完成；login email lookup 延后到 E1 auth repository |
 | 6 | B2 任务列表分页 | 已完成并灰度验证 | `f9d7fff` / gray `c549e71` | `2026-07-05 daily` / gray release log | 列表响应去除 `payload/result/logs`；`20260705-admin-task-list-heavy-fields-gray-r1-v0525` live verify 已通过 |
-| 6 | B3 连接池调参 | 待开始 | — | — | |
+| 6 | B3 连接池调参 | 已完成 | 本批提交 | `2026-07-05 daily` | API/Worker pool 默认值不变，可通过 shared/service env 覆盖 |
 | 1 | C1 去重(A类) | 已完成 | `7966bd1` | `2026-07-05 daily` | shared/node 子路径导出，避免污染 Web/Admin bundle |
 | 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
 | 6 | D1 图标瘦身 | 已完成 | `619fcdd` | `2026-07-05 daily` | `vendor-icons` 从约 588 KB 降到约 58 KB |

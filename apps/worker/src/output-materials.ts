@@ -1,5 +1,6 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { resolvePostgresPoolConfig } from "@xinghuan/shared";
 
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
@@ -242,10 +243,14 @@ async function getPostgresPool() {
   if (!databaseUrl) throw new Error("DATABASE_NOT_CONFIGURED");
   postgresPoolPromise ??= import("pg").then((pg) => {
     const { Pool } = pg.default || pg;
+    const poolConfig = resolvePostgresPoolConfig(process.env, {
+      serviceEnvPrefix: "XINGHUAN_WORKER",
+      defaultMax: 3,
+      defaultConnectionTimeoutMillis: 3000,
+    });
     return new Pool({
       connectionString: databaseUrl,
-      connectionTimeoutMillis: 3000,
-      max: 3,
+      ...poolConfig,
     });
   });
   return postgresPoolPromise;

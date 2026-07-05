@@ -15,6 +15,7 @@ import {
   type EnvironmentSyncTarget,
   defaultTaskQueueSettings,
   normalizeTaskQueueSettings,
+  resolvePostgresPoolConfig,
   taskQueueNameForCapability,
   type AppEnvironment,
   type RhCatalogItem,
@@ -4119,10 +4120,10 @@ async function getPostgresPool() {
   if (!databaseUrl) throw new Error("DATABASE_NOT_CONFIGURED");
   postgresPoolPromise ??= import("pg").then((pg) => {
     const Pool = pg.Pool;
+    const poolConfig = resolvePostgresPoolConfig(process.env, { serviceEnvPrefix: "XINGHUAN_API", defaultMax: 5, defaultConnectionTimeoutMillis: 3000 });
     return new Pool({
       connectionString: databaseUrl,
-      connectionTimeoutMillis: 3000,
-      max: 5,
+      ...poolConfig,
     });
   });
   return postgresPoolPromise;

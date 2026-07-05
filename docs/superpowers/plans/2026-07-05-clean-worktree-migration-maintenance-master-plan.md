@@ -726,13 +726,32 @@ Observed result:
 - Live admin task pagination verification passed.
 - Task list rows did not leak `payload`, `result`, or `logs`.
 
-- [ ] **Step 4: Complete or defer B3 Postgres pool tuning**
+- [x] **Step 4: Complete or defer B3 Postgres pool tuning**
+
+Status:
+
+- Implemented a shared `resolvePostgresPoolConfig` helper in `packages/shared`.
+- API pool keeps safe gray defaults: `max=5`, `connectionTimeoutMillis=3000`.
+- Worker pools keep safe gray defaults: `max=3`, `connectionTimeoutMillis=3000`.
+- Shared overrides:
+  - `XINGHUAN_POSTGRES_POOL_MAX`
+  - `XINGHUAN_POSTGRES_POOL_CONNECTION_TIMEOUT_MS`
+- API-specific overrides:
+  - `XINGHUAN_API_POSTGRES_POOL_MAX`
+  - `XINGHUAN_API_POSTGRES_POOL_CONNECTION_TIMEOUT_MS`
+- Worker-specific overrides:
+  - `XINGHUAN_WORKER_POSTGRES_POOL_MAX`
+  - `XINGHUAN_WORKER_POSTGRES_POOL_CONNECTION_TIMEOUT_MS`
+- Service-specific overrides take precedence over shared overrides.
+- Invalid values fall back to defaults; unsafe max values are clamped to `1..50`.
 
 Run:
 
 ```powershell
 Select-String -Path 'apps\api\src\*.ts' -Pattern 'PG_POOL|POSTGRES_POOL|max:'
 npm run type-check -w @xinghuan/api
+npm run type-check -w @xinghuan/worker
+npx vitest run packages/shared/src/postgres-pool-config.test.ts
 ```
 
 Expected:

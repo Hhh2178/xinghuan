@@ -4,6 +4,7 @@ import {
   createHealthPayload,
   defaultTaskQueueSettings,
   normalizeTaskQueueSettings,
+  resolvePostgresPoolConfig,
   taskQueueNameForCapability,
   type AppEnvironment,
   type TaskQueueRuntimeDescriptor,
@@ -103,8 +104,11 @@ if (!redisUrl) {
 
 const pool = new Pool({
   connectionString: databaseUrl,
-  connectionTimeoutMillis: 3000,
-  max: 3,
+  ...resolvePostgresPoolConfig(process.env, {
+    serviceEnvPrefix: "XINGHUAN_WORKER",
+    defaultMax: 3,
+    defaultConnectionTimeoutMillis: 3000,
+  }),
 });
 const redisControl = createClient({ url: redisUrl });
 const {
