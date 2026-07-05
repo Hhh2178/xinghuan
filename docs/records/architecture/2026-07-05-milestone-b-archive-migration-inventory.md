@@ -26,8 +26,8 @@ Target branch: `xinghuan-integration-clean`
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Lightweight admin summary, audit records, and announcement compatibility boundary migrated | Complete current admin summary/audit/announcement slice; leave task record ownership to Phase 6 task repository | admin repository tests + audit/announcement repository contracts |
 | Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Task list/detail/write/log repository migrated locally | Complete local repository boundary; live `verify:admin-task-pagination` must rerun after gray deploy because it targets the current gray service by default | task repository tests + route injection test + task repository contracts + hotspot budget |
 | Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Migrated in clean branch | Complete current usage summary data/service split | usage summary repository/service tests + repository contract |
-| Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Open | Migrate after repository boundaries | envsync local contract + envsync smoke |
-| Shared API/Worker helpers | `packages/shared/src/*` | Partially present | Compare and migrate only missing helpers | shared helper tests + package export verify |
+| Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Explicitly deferred from this migration wave | Do not extract the 872-line old file directly; keep current clean inline implementation and verify smoke/service, then migrate in a dedicated envsync-local plan | envsync service contract + envsync smoke |
+| Shared API/Worker helpers | `packages/shared/src/*` | Already rebuilt in clean branch and revalidated | Complete for provider request body, GRS-AI reference images, audio adapter, and Apimart contract coverage | shared helper tests + package export verify + adapter contracts |
 | ComfyUI | admin/web/api/connector files and ComfyUI plans/specs | Frozen | Archive only; no active feature migration | no active migration |
 | Scratch/tool output | `.claude/`, temp logs, task/progress/findings | Excluded from archive commit | Do not migrate | no staged files |
 
@@ -137,3 +137,33 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff-tree --no-co
   - `node scripts/verify-admin-usage-summary-repository-contract.mjs`
   - `npm run verify:file-hotspot-budgets`
 - Result: passed. `apps/api/src/server.ts` remains within budget at `11492 / 11910`.
+
+### Environment sync local boundary
+
+- Clean branch status: explicitly deferred.
+- Reason:
+  - The archived `environment-sync-local.ts` is 872 lines and depends on old-tree type/module shape that is not fully present in the clean branch.
+  - Direct extraction would mix auth metadata, provider/model upsert, shared resource sync, and public-resource workflow handling into one high-risk batch.
+  - Current clean branch already has an environment sync service and live smoke verifier; changing the local apply/snapshot path should be a dedicated envsync-local migration with its own gray validation.
+- Current action:
+  - Do not migrate the old file wholesale.
+  - Keep `apps/api/src/server.ts` inline envsync local functions for this migration wave.
+  - Carry forward a dedicated follow-up plan item: extract envsync local handlers after repository boundaries are deployed and gray smoke is green.
+- Required validation before release:
+  - `node scripts/verify-environment-sync-service.mjs`
+  - `npm run verify:environment-sync-smoke`
+
+### Shared API/Worker helpers
+
+- Clean branch status: already rebuilt and revalidated.
+- Evidence:
+  - `packages/shared/src/provider-request-body.ts`
+  - `packages/shared/src/grsai-reference-images.ts`
+  - `packages/shared/src/audio-provider-adapter.ts`
+  - Existing Apimart adapter contract remains covered by `scripts/verify-apimart-video-adapter-contract.ts`.
+- Validation:
+  - `npx vitest run packages/shared/src/provider-request-body.test.ts packages/shared/src/grsai-reference-images.test.ts packages/shared/src/audio-provider-adapter.test.ts`
+  - `npm run verify:package-exports`
+  - `npm run verify:grsai-reference-images-contract`
+  - `npx tsx scripts/verify-apimart-video-adapter-contract.ts`
+- Result: passed.

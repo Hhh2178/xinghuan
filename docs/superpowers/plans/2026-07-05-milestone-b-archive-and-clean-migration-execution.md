@@ -23,6 +23,52 @@
 - Keep `apps/api/src/server.ts` within hotspot budget. If a migration grows it, stop and split more behavior into focused modules.
 - Every migrated domain must have four pieces of evidence: tests/verify output, daily or architecture record, clean commit, and clean `git status --short`.
 
+## Current Execution Snapshot - 2026-07-05
+
+This is the authoritative progress snapshot for continuing the plan.
+
+### Completed In Old Worktree
+
+- Archive branch exists: `archive/xinghuan-milestone-b-wip-20260705`
+- Archive commit exists: `a60e689 archive: snapshot milestone-b unfinished repository refactor`
+- Remaining untracked old-tree scratch is not migration evidence and must not be copied:
+  - `.claude/`
+  - `.eslint-report.json`
+  - `task_plan.md`
+  - `progress.md`
+  - `findings.md`
+  - `tmp-envsync-api.err.log`
+  - `tmp-envsync-api.out.log`
+
+### Completed In Clean Worktree
+
+| Area | Clean commit | Status |
+|------|--------------|--------|
+| Tooling / CI safety net | `53f8ee8` | Completed before repository wave |
+| Auth current-user/login repository slice | `9e27bc7` and gray `20260705-auth-login-repository-gray-r3-v0525` | Completed and gray verified |
+| Admin task list heavy-field stripping | `f9d7fff` and gray `c549e71` | Completed and gray verified |
+| Postgres pool configurability | `2127368` | Completed and gray verified |
+| Shared provider helper rebuild | `7966bd1` | Completed and revalidated |
+| Web icon import shrink | `619fcdd` | Completed |
+| Provider repository boundary | `c5af7bd`, `fb529c9`, `eeb0a36` | Completed locally |
+| Settings repository boundary | `55ad04b` | Completed locally |
+| Admin repository boundary | `c0b8b70` | Completed locally |
+| Task repository boundary | `41fb8a3` | Completed locally; live gray task pagination must rerun after deploy |
+| Admin usage summary repository/service | `340257f` | Completed locally |
+
+### Remaining Scope In This Plan
+
+1. Commit the current docs-only status/decision update.
+2. Run final local validation and repair any failing repository/shared/envsync checks.
+3. Sync CodeGraph and leave the clean worktree clean.
+4. Prepare a gray release gate only after the validation set passes and the user approves deployment.
+
+### Explicit Deferrals
+
+- `environment-sync-local` extraction is deferred. The old archived file is a broad 872-line local sync aggregator and must be migrated in a dedicated follow-up plan, not forced into this repository wave.
+- F1 task realtime mechanism is deferred. No SSE or shared frontend polling implementation is introduced in this migration line.
+- ComfyUI feature development is frozen. Do not migrate or resume ComfyUI UI, connector, workflow parser, Tailscale, tunnel, or machine-pool work under this plan.
+
 ## File Map
 
 ### Old Worktree Archive Inputs
@@ -45,7 +91,6 @@
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/task-repository.ts`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/admin-usage-summary-repository.ts`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/admin-usage-summary-service.ts`
-- `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/environment-sync-local.ts`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/packages/shared/src/*.ts`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-*.mjs`
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-05-migration-completeness-validation.md`
@@ -297,14 +342,14 @@ Target branch: `xinghuan-integration-clean`
 
 | Domain | Old files | Clean status | Decision | Validation |
 | --- | --- | --- | --- | --- |
-| Auth repository | `apps/api/src/auth-repository.ts`, tests, auth verify scripts | Partially present | Complete remaining admin-write slices only if needed | auth repository tests + auth verify scripts |
-| Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Open | Migrate next | provider repository tests + provider route split contract |
-| Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Open | Migrate after provider | settings repository tests + assistant/task queue contracts |
-| Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Open | Migrate after settings | admin repository tests + audit/task summary contracts |
-| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Partially covered by B2 | Migrate after admin | task repository tests + admin task pagination |
-| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Open | Migrate after task | usage summary repository contract |
-| Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Open | Migrate after repository boundaries | envsync local contract + envsync smoke |
-| Shared API/Worker helpers | `packages/shared/src/*` | Partially present | Compare and migrate only missing helpers | shared helper tests + package export verify |
+| Auth repository | `apps/api/src/auth-repository.ts`, tests, auth verify scripts | Completed slice | Keep current-user/login slices; complete more only under a later domain plan | auth repository tests + auth verify scripts |
+| Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Completed | Keep `c5af7bd`/`fb529c9`/`eeb0a36` clean rebuild | provider repository tests + provider route split contract |
+| Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Completed | Keep `55ad04b` clean rebuild | settings repository tests + assistant/task queue contracts |
+| Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Completed | Keep `c0b8b70` clean rebuild | admin repository tests + audit/announcement contracts |
+| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Completed locally | Keep `41fb8a3`; rerun live task pagination after gray deploy | task repository tests + admin task pagination |
+| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Completed locally | Keep `340257f` clean rebuild | usage summary repository contract |
+| Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Deferred | Do not migrate old 872-line file in this wave; validate current service/smoke and create dedicated follow-up plan | envsync service contract + envsync smoke |
+| Shared API/Worker helpers | `packages/shared/src/*` | Completed and revalidated | Keep clean helper rebuild | shared helper tests + package export verify |
 | ComfyUI | admin/web/api/connector files | Frozen | Archive only | no active migration |
 | Scratch/tool output | `.claude/`, temp logs, task/progress/findings | Excluded | Do not migrate | no staged files |
 ```
@@ -348,7 +393,7 @@ Expected: clean branch has one docs-only commit.
 - Target test: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/provider-repository.test.ts`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/server.ts`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/admin-provider-routes.ts`
-- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-provider-repository-write-boundary-contract.mjs`
+- Verify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-api-admin-provider-route-split-contract.mjs`
 
 - [ ] **Step 1: Run source/target comparison**
 
@@ -419,7 +464,7 @@ Run:
 ```powershell
 npm run type-check -w @xinghuan/api
 npx vitest run apps/api/src/provider-repository.test.ts apps/api/src/admin-provider-routes.test.ts
-npm run verify:api-admin-provider-route-split-contract
+node scripts/verify-api-admin-provider-route-split-contract.mjs
 npm run verify:runninghub-workflow-contract
 npm run verify:model-catalog
 npm run verify:provider-model-catalog-contract
@@ -436,7 +481,7 @@ Run:
 
 ```powershell
 git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean status --short
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add apps/api/src/provider-repository.ts apps/api/src/provider-repository.test.ts apps/api/src/admin-provider-routes.ts apps/api/src/admin-provider-routes.test.ts apps/api/src/server.ts scripts/verify-provider-repository-write-boundary-contract.mjs docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add apps/api/src/provider-repository.ts apps/api/src/provider-repository.test.ts apps/api/src/admin-provider-routes.ts apps/api/src/admin-provider-routes.test.ts apps/api/src/server.ts scripts/verify-api-admin-provider-route-split-contract.mjs docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md
 git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean commit -m "refactor(api): migrate provider repository boundary"
 ```
 
@@ -456,7 +501,7 @@ Expected: clean commit with only provider-domain files and docs.
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/admin-queue-settings-routes.ts`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/admin-system-settings-routes.ts`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/server.ts`
-- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-settings-repository-boundary-contract.mjs`
+- Verify: route split contracts and `scripts/verify-admin-assistant-settings-save-contract.mjs`
 
 - [ ] **Step 1: Compare old and clean settings repository**
 
@@ -504,9 +549,10 @@ Run:
 ```powershell
 npm run type-check -w @xinghuan/api
 npx vitest run apps/api/src/settings-repository.test.ts apps/api/src/admin-assistant-settings-routes.test.ts apps/api/src/admin-system-settings-routes.test.ts
-node scripts/verify-settings-repository-boundary-contract.mjs
+node scripts/verify-api-admin-assistant-settings-route-split-contract.mjs
+node scripts/verify-api-queue-settings-route-split-contract.mjs
+node scripts/verify-api-system-settings-route-split-contract.mjs
 node scripts/verify-admin-assistant-settings-save-contract.mjs
-npm run verify:queue-settings
 ```
 
 Expected: all commands pass.
@@ -516,7 +562,7 @@ Expected: all commands pass.
 Run:
 
 ```powershell
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add apps/api/src/settings-repository.ts apps/api/src/settings-repository.test.ts apps/api/src/admin-assistant-settings-routes.ts apps/api/src/admin-assistant-settings-routes.test.ts apps/api/src/admin-queue-settings-routes.ts apps/api/src/admin-system-settings-routes.ts apps/api/src/admin-system-settings-routes.test.ts apps/api/src/server.ts scripts/verify-settings-repository-boundary-contract.mjs scripts/verify-admin-assistant-settings-save-contract.mjs docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add apps/api/src/settings-repository.ts apps/api/src/settings-repository.test.ts apps/api/src/admin-assistant-settings-routes.ts apps/api/src/admin-assistant-settings-routes.test.ts apps/api/src/admin-queue-settings-routes.ts apps/api/src/admin-system-settings-routes.ts apps/api/src/admin-system-settings-routes.test.ts apps/api/src/server.ts scripts/verify-api-admin-assistant-settings-route-split-contract.mjs scripts/verify-api-queue-settings-route-split-contract.mjs scripts/verify-api-system-settings-route-split-contract.mjs scripts/verify-admin-assistant-settings-save-contract.mjs docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md
 git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean commit -m "refactor(api): migrate settings repository boundary"
 ```
 
@@ -754,84 +800,77 @@ Expected: clean usage-summary commit.
 
 ---
 
-## Phase 8 - Environment Sync Local Boundary
+## Phase 8 - Environment Sync Local Boundary Deferral
 
-### Task 8.1: Migrate Local Environment Sync Handlers
+### Task 8.1: Record Dedicated Follow-Up Instead Of Migrating Now
 
 **Files:**
 
-- Target: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/environment-sync-local.ts`
-- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/environment-sync-service.ts`
-- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/apps/api/src/server.ts`
-- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/packages/shared/src/environment-sync.ts`
-- Script: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-environment-sync-local-repository-contract.mjs`
-- Script: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/scripts/verify-environment-sync-smoke.mjs`
+- Inspect only: `D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b/apps/api/src/environment-sync-local.ts`
+- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md`
+- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-05-migration-completeness-validation.md`
+- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/logbooks/daily/2026/2026-07/2026-07-05.md`
 
-- [ ] **Step 1: Compare environment sync local handler**
+- [x] **Step 1: Classify the old environment sync local file**
 
 Run:
 
 ```powershell
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean diff --no-index -- D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean\apps\api\src\environment-sync-local.ts D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\apps\api\src\environment-sync-local.ts
+(Get-Content -LiteralPath 'D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b\apps\api\src\environment-sync-local.ts').Count
 ```
 
-Expected: identify snapshot/apply/normalize/token behavior.
+Observed:
 
-- [ ] **Step 2: Run local contract before implementation**
-
-Run:
-
-```powershell
-node scripts/verify-environment-sync-local-repository-contract.mjs
+```text
+872
 ```
 
-Expected before implementation: fail if clean branch does not yet have the expected split.
+Decision:
 
-- [ ] **Step 3: Implement environment sync local handlers**
+- Do not migrate this file wholesale.
+- The old file combines auth metadata, provider/model upsert, group permission policy sync, shared resource sync, public-resource workflow handling, and snapshot/apply orchestration.
+- Migrating it inside the repository wave would create a large mixed-risk batch and make rollback unclear.
 
-Required behavior:
+- [x] **Step 2: Record the deferral**
 
-- `createEnvironmentSyncLocalHandlers(deps)`
-- `assertInternalEnvironmentSyncRequest(request)`
-- `readEnvironmentSyncLocalSnapshot(targetEnvironment)`
-- `readEnvironmentSyncRemoteSnapshot(targetEnvironment)`
-- `applyEnvironmentSyncLocalSnapshot(request)`
-- `applyEnvironmentSyncRemoteSnapshot(targetEnvironment, request)`
-- normalize helpers for user groups, users, group permission policies, providers, models, and public resources.
+Record in architecture inventory and daily log:
 
-Type rule:
+```markdown
+Environment-sync-local extraction is deferred to a dedicated follow-up plan. The current clean branch keeps the inline envsync local implementation and validates the existing environment sync service/smoke path for this migration wave.
+```
 
-- Use typed repository inputs.
-- Do not reintroduce broad `as any` for provider/model/user upsert adapters.
-- Any remaining `unknown` cast must be isolated at trust boundaries and documented in code or validation docs.
-
-- [ ] **Step 4: Run environment sync validation**
+- [ ] **Step 3: Validate current envsync behavior before release**
 
 Run:
 
 ```powershell
-npm run type-check -w @xinghuan/api
-node scripts/verify-environment-sync-local-repository-contract.mjs
 node scripts/verify-environment-sync-service.mjs
-node scripts/verify-environment-sync-smoke.mjs
+npm run verify:environment-sync-smoke
 ```
 
 Expected:
 
-- Local contract passes.
-- Service contract passes.
-- Smoke is idempotent and does not mutate unexpectedly.
+- Service contract passes locally.
+- Smoke verifier either passes against the configured target or records a clear environment/runtime blocker. A failed live smoke blocks gray release unless the blocker is known to be target availability rather than branch behavior.
 
-- [ ] **Step 5: Commit environment sync batch**
+- [ ] **Step 4: Create a later dedicated envsync-local plan before code extraction**
 
-Run:
+When this deferred work resumes, write a separate plan under:
 
-```powershell
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add apps/api/src/environment-sync-local.ts apps/api/src/environment-sync-service.ts apps/api/src/server.ts packages/shared/src/environment-sync.ts scripts/verify-environment-sync-local-repository-contract.mjs scripts/verify-environment-sync-service.mjs scripts/verify-environment-sync-smoke.mjs docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean commit -m "refactor(api): migrate environment sync local boundary"
+```text
+docs/superpowers/plans/YYYY-MM-DD-environment-sync-local-boundary.md
 ```
 
-Expected: clean environment-sync commit.
+That plan must split the old 872-line handler into at least these independent batches:
+
+1. Snapshot read model boundary.
+2. Local apply/upsert boundary.
+3. Remote snapshot/apply client boundary.
+4. Public resource/workflow sync policy boundary.
+5. Permission/group policy sync validation.
+6. Gray smoke and rollback record.
+
+Expected: no envsync-local code extraction occurs in this migration plan.
 
 ---
 
@@ -909,6 +948,7 @@ Expected: shared-only commit plus minimal API/Worker import wrapper changes.
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/records/architecture/2026-07-05-migration-completeness-validation.md`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/memory/current-state.md`
 - Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/logbooks/daily/2026/2026-07/2026-07-05.md`
+- Modify: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean/docs/superpowers/plans/2026-07-05-milestone-b-archive-and-clean-migration-execution.md`
 
 - [ ] **Step 1: Mark completed domains**
 
@@ -945,7 +985,7 @@ ComfyUI feature development remains frozen. The archive branch preserves evidenc
 Run:
 
 ```powershell
-git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md docs/records/architecture/2026-07-05-migration-completeness-validation.md docs/memory/current-state.md docs/logbooks/daily/2026/2026-07/2026-07-05.md
+git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean add docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md docs/records/architecture/2026-07-05-migration-completeness-validation.md docs/records/architecture/2026-07-05-milestone-b-archive-migration-inventory.md docs/memory/current-state.md docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/superpowers/plans/2026-07-05-milestone-b-archive-and-clean-migration-execution.md
 git -C D:\codex\无限画布2.0-worktrees\xinghuan-integration-clean commit -m "docs: record repository migration completion status"
 ```
 
@@ -988,19 +1028,26 @@ Expected:
 Run:
 
 ```powershell
-node scripts/verify-provider-repository-write-boundary-contract.mjs
-node scripts/verify-settings-repository-boundary-contract.mjs
+npx vitest run apps/api/src/provider-repository.test.ts apps/api/src/settings-repository.test.ts
+node scripts/verify-api-admin-provider-route-split-contract.mjs
+node scripts/verify-api-admin-assistant-settings-route-split-contract.mjs
+node scripts/verify-api-queue-settings-route-split-contract.mjs
+node scripts/verify-api-system-settings-route-split-contract.mjs
+node scripts/verify-admin-assistant-settings-save-contract.mjs
 node scripts/verify-admin-audit-records-repository-contract.mjs
 node scripts/verify-admin-announcement-records-repository-contract.mjs
 node scripts/verify-admin-task-records-repository-contract.mjs
 node scripts/verify-admin-usage-summary-repository-contract.mjs
 node scripts/verify-task-repository-boundary-contract.mjs
-node scripts/verify-environment-sync-local-repository-contract.mjs
 node scripts/verify-environment-sync-service.mjs
-node scripts/verify-environment-sync-smoke.mjs
+npm run verify:environment-sync-smoke
 ```
 
-Expected: all commands pass.
+Expected:
+
+- Repository contracts pass.
+- Environment sync service contract passes.
+- Environment sync smoke passes against the configured target, or a live-target blocker is recorded before any release gate proceeds.
 
 - [ ] **Step 4: Repair loop for failures**
 
@@ -1018,7 +1065,7 @@ Allowed fix commit message examples:
 
 ```text
 fix(api): repair provider repository migration regression
-fix(api): repair environment sync local contract regression
+fix(api): repair environment sync service regression
 fix(test): align repository contract verifier with clean boundary
 ```
 
@@ -1101,7 +1148,7 @@ Expected: no gray deploy is performed until the release gate is explicitly satis
 6. Phase 5: admin repository.
 7. Phase 6: task repository.
 8. Phase 7: usage summary repository/service.
-9. Phase 8: environment sync local.
+9. Phase 8: environment sync local deferral and current envsync validation.
 10. Phase 9: shared helpers completion.
 11. Phase 10: structural progress completion or deferral records.
 12. Phase 11: full validation and repair loop.

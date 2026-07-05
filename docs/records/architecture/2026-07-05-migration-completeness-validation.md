@@ -8,7 +8,7 @@ This validation checks whether the active clean worktree can continue toward gra
 
 - Active worktree: `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 - Active branch: `xinghuan-integration-clean`
-- Latest validated commit: `2127368 perf(runtime): make postgres pool tuning configurable`
+- Latest validated commit: `340257f refactor(api): migrate admin usage summary boundary`
 - Gray runtime before this validation: `v0.5.25`, release `20260705-admin-task-list-heavy-fields-gray-r1-v0525`
 - Production runtime before this validation: `v0.5.22`, release `20260702-envsync-admin-sections-prod-r1-v0522`
 
@@ -21,6 +21,13 @@ This validation checks whether the active clean worktree can continue toward gra
 - `f9d7fff` admin task list heavy-field stripping.
 - `c549e71` B2 gray rollout record.
 - `2127368` Postgres pool tuning configurability.
+- `c5af7bd` provider repository core boundary.
+- `fb529c9` admin provider route repository wiring.
+- `eeb0a36` provider persistence helper extraction.
+- `55ad04b` settings repository boundary.
+- `c0b8b70` admin repository boundary.
+- `41fb8a3` task repository boundary.
+- `340257f` admin usage summary repository/service boundary.
 
 ## Old Worktree Classification
 
@@ -29,7 +36,8 @@ The old `xinghuan-milestone-b` worktree remains dirty and must not be merged who
 Useful remaining material is classified as follows:
 
 - ComfyUI UI, node, connector, Tailscale, and workflow-management files: frozen. They are sealed as release evidence and cannot continue in this migration line.
-- E1 repository files such as provider/settings/admin/task/usage/environment-sync repositories and tests: not migrated wholesale. They remain the next repository-boundary backlog and must be rebuilt one domain at a time in `xinghuan-integration-clean`.
+- E1 repository files were not migrated wholesale. Provider, settings, admin, task, and usage summary boundaries have now been rebuilt one domain at a time in `xinghuan-integration-clean`.
+- Environment-sync-local archive material remains deferred to a dedicated follow-up because the old file is a broad 872-line local sync aggregator.
 - Environment-sync v2 docs and release records from July 1-2: historical/archive material. Current release state is now tracked from clean-branch docs.
 - `.claude/`, `task_plan.md`, `findings.md`, `progress.md`, `.eslint-report.json`, and temporary envsync logs: local scratch or tool output; not required for clean-branch release.
 - Shared provider/audio/reference-image helper material: already rebuilt in clean branch through `7966bd1`.
@@ -55,5 +63,5 @@ npm run codegraph:sync
 
 - Clean branch validation passed through `npm run ci` and `npm run codegraph:sync`.
 - The old worktree contains many mixed and unfinished changes, so it remains a read-only patch source only.
-- The next release wave may proceed from `xinghuan-integration-clean` after release-log consistency checks pass.
-- Remaining non-ComfyUI structural items are E1 repository boundaries and F1 task realtime decision/deferral.
+- The next release wave may proceed from `xinghuan-integration-clean` after full validation, CodeGraph sync, and release-log consistency checks pass.
+- Remaining non-ComfyUI structural items are environment-sync-local extraction as a dedicated follow-up and F1 task realtime implementation, which is currently deferred.

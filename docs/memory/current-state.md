@@ -6,7 +6,7 @@
 - 当前灰度 release：`20260705-auth-login-repository-gray-r3-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：clean worktree 结构治理批次已开始收口，工具链安全网、图标瘦身、API/Worker provider 去重、auth current-user 精准查询已在 `xinghuan-integration-clean` 提交。
+- 最新完成：clean worktree repository boundary 迁移已完成 provider/settings/admin/task/usage summary 五个领域；environment-sync-local 抽取明确延期到专门批次。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -72,9 +72,16 @@
   - `f9d7fff` / gray `c549e71` B2 任务列表分页与去大字段：`GET /api/admin/tasks` 列表不再返回 `payload/result/logs`，并已在灰度 `20260705-postgres-pool-tuning-gray-r1-v0525` live verify 通过。
   - `2127368` / gray `20260705-postgres-pool-tuning-gray-r1-v0525` B3 Postgres pool 调参已完成：API/Worker 默认值不变，并新增 shared/service env 覆盖入口，已完成 gray runtime verify。
   - `20260705-auth-login-repository-gray-r3-v0525` 已完成 gray runtime verify、auth verifier、admin task pagination、environment sync no-op smoke。
+- 本轮本地已完成但尚未灰度发布：
+  - `c5af7bd` provider repository core boundary。
+  - `fb529c9` admin provider route repository wiring。
+  - `eeb0a36` provider persistence helper extraction。
+  - `55ad04b` settings repository boundary。
+  - `c0b8b70` admin repository boundary。
+  - `41fb8a3` task repository boundary。
+  - `340257f` admin usage summary repository/service boundary。
 - 仍需推进或明确延期：
-  - E1 auth repository 已完成 current-user 与 login email lookup 两个切片；其余 repository boundary 仍需分批。
-  - E1 剩余 repository boundary。
+  - E1 environment-sync-local 抽取延期到专门批次，不在本次 repository wave 强行迁移。
   - F1 任务实时机制已决策延期实现；后续优先 shared frontend polling，再评估 SSE。
 - 灰度前必须执行：
   - 迁移完整性校验，确认成果不只停留在 `xinghuan-milestone-b`。
