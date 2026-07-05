@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/api",
-  "version": "0.5.25",
+  "version": "0.5.26",
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
@@ -11,8 +11,8 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@xinghuan/model-core": "0.5.25",
-    "@xinghuan/shared": "0.5.25",
+    "@xinghuan/model-core": "0.5.26",
+    "@xinghuan/shared": "0.5.26",
     "busboy": "^1.6.0",
     "pg": "^8.21.0",
     "redis": "^6.0.0"
