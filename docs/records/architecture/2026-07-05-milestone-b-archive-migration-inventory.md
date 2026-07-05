@@ -25,7 +25,7 @@ Target branch: `xinghuan-integration-clean`
 | Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Migrated in clean branch with assistant/queue/system route wiring | Complete for current assistant and task-queue settings boundary; revisit only if broader system settings are added | settings repository tests + assistant/queue/system route contracts + assistant save contract |
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Lightweight admin summary, audit records, and announcement compatibility boundary migrated | Complete current admin summary/audit/announcement slice; leave task record ownership to Phase 6 task repository | admin repository tests + audit/announcement repository contracts |
 | Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Task list/detail/write/log repository migrated locally | Complete local repository boundary; live `verify:admin-task-pagination` must rerun after gray deploy because it targets the current gray service by default | task repository tests + route injection test + task repository contracts + hotspot budget |
-| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Open | Migrate after task | usage summary repository contract |
+| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Migrated in clean branch | Complete current usage summary data/service split | usage summary repository/service tests + repository contract |
 | Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Open | Migrate after repository boundaries | envsync local contract + envsync smoke |
 | Shared API/Worker helpers | `packages/shared/src/*` | Partially present | Compare and migrate only missing helpers | shared helper tests + package export verify |
 | ComfyUI | admin/web/api/connector files and ComfyUI plans/specs | Frozen | Archive only; no active feature migration | no active migration |
@@ -119,3 +119,21 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff-tree --no-co
   - `npm run verify:admin-task-pagination` targets `http://127.0.0.1:18200` by default and currently reflects the already-running gray service, not this local un-deployed branch.
   - Re-run it after the next gray deployment package includes this commit.
 - Result: local checks passed. `apps/api/src/server.ts` hotspot budget improved to `11471 / 11910`.
+
+### Usage summary repository/service boundary
+
+- Clean branch status: migrated.
+- Purpose: move successful-usage dashboard data loading out of `admin-audit-routes.ts` and split it into a storage-focused repository plus analytics service.
+- Implementation:
+  - Added `apps/api/src/admin-usage-summary-repository.ts`.
+  - Added `apps/api/src/admin-usage-summary-service.ts`.
+  - Added repository/service tests.
+  - `admin-audit-routes.ts` now depends on injected `readAdminUsageSummary(query)` and no longer owns usage summary SQL or `buildAdminUsageSummary()` calls.
+  - `server.ts` wires `createAdminUsageSummaryRepository()` into `createAdminUsageSummaryService()` and injects the service into admin audit routes.
+  - Postgres repository selects only the payload/result subfields required by analytics via `jsonb_build_object`.
+- Validation:
+  - `npx vitest run apps/api/src/admin-usage-summary-repository.test.ts apps/api/src/admin-usage-summary-service.test.ts apps/api/src/admin-repository.test.ts apps/api/src/task-repository.test.ts apps/api/src/admin-task-list-routes.test.ts`
+  - `npm run type-check -w @xinghuan/api`
+  - `node scripts/verify-admin-usage-summary-repository-contract.mjs`
+  - `npm run verify:file-hotspot-budgets`
+- Result: passed. `apps/api/src/server.ts` remains within budget at `11492 / 11910`.

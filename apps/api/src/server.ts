@@ -146,6 +146,8 @@ import { handleComfyuiPublicRoutes } from "./comfyui-public-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
 import { createAdminRepository } from "./admin-repository.js";
+import { createAdminUsageSummaryRepository } from "./admin-usage-summary-repository.js";
+import { createAdminUsageSummaryService } from "./admin-usage-summary-service.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createAnnouncementStore } from "./announcement-store.js";
@@ -338,6 +340,24 @@ const taskRepository = createTaskRepository({
   plainObject,
   millisToDate,
 });
+const adminUsageSummaryRepository = createAdminUsageSummaryRepository({
+  readAdminDb,
+  readAuthDb,
+  usePostgresRepository,
+  getPostgresPool,
+  millisToDate,
+  dateToMillis,
+  normalizeTaskStatus,
+  safeText,
+  plainObject,
+});
+const adminUsageSummaryService = createAdminUsageSummaryService({
+  readAdminUsageSummaryRecords: adminUsageSummaryRepository.readAdminUsageSummaryRecords,
+  publicRunningHubCatalog: async () => {
+    const catalog = await publicRunningHubCatalog();
+    return { items: catalog.items };
+  },
+});
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -385,6 +405,7 @@ const handleAdminAuditRoutes = createAdminAuditRouteHandler({
   readAdminDb,
   readAuditRecords: adminRepository.readAuditRecords,
   readAuthDb,
+  readAdminUsageSummary: adminUsageSummaryService.readAdminUsageSummary,
   publicRunningHubCatalog: async () => {
     const catalog = await publicRunningHubCatalog();
     return { items: catalog.items };
