@@ -71,7 +71,7 @@
 - 仍需推进或明确延期：
   - B1 login email lookup extraction，归入后续 E1 auth repository 批次。
   - E1 剩余 repository boundary。
-  - F1 任务实时机制 decision/deferral。
+  - F1 任务实时机制已决策延期实现；后续优先 shared frontend polling，再评估 SSE。
 - 灰度前必须执行：
   - 迁移完整性校验，确认成果不只停留在 `xinghuan-milestone-b`。
   - `npm run ci`、`npm run verify:file-hotspot-budgets`、`npm run codegraph:sync`。

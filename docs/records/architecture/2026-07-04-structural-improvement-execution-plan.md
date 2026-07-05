@@ -243,7 +243,7 @@
 | 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
 | 6 | D1 图标瘦身 | 已完成 | `619fcdd` | `2026-07-05 daily` | `vendor-icons` 从约 588 KB 降到约 58 KB |
 | 3 | E1 repository 骨架 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | auth current-user slice 已落地；其余 repository 仍需分批 |
-| 6 | F1 任务 SSE | 待决策 | — | — | 先写 decision/deferral record，不直接实现 |
+| 6 | F1 任务实时机制 | 已决策 / 延期实现 | 本批提交 | `2026-07-05 decision` | 迁移线不直接改实时链路；后续优先 shared frontend polling，再评估 SSE |
 
 每完成一批，更新本表 + roadmap checkbox + daily log。
 

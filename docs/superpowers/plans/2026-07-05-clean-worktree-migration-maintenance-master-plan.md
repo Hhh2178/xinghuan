@@ -966,7 +966,7 @@ Remaining E1 checklist:
 - selected M2/M3 batches committed or explicitly deferred
 - daily log updated
 
-- [ ] **Step 1: Write a separate F1 decision record**
+- [x] **Step 1: Write a separate F1 decision record**
 
 Create:
 
@@ -982,7 +982,7 @@ Required content:
 - option B: shared frontend polling
 - chosen next step or explicit deferral reason
 
-- [ ] **Step 2: Verify no runtime mechanism change is mixed into migration**
+- [x] **Step 2: Verify no runtime mechanism change is mixed into migration**
 
 Run:
 
@@ -994,7 +994,7 @@ Expected:
 
 - No task realtime source change appears in migration commits unless F1 has a separate approved plan.
 
-- [ ] **Step 3: Commit F1 decision only**
+- [x] **Step 3: Commit F1 decision only**
 
 Run:
 
