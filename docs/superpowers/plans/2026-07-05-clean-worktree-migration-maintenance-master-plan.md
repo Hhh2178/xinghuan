@@ -1032,7 +1032,7 @@ Expected:
 
 ## Current Progress Snapshot
 
-As of 2026-07-05:
+As of 2026-07-05 after provider deduplication batch:
 
 - Secret ignore coverage in clean worktree: present.
 - Secret ignore coverage in server root `.gitignore`: explicit entries added by this plan batch.
@@ -1040,10 +1040,21 @@ As of 2026-07-05:
 - Mistaken worktree: `xinghuan-milestone-b`, frozen as patch source.
 - Current gray version recorded in active docs: `v0.5.25`.
 - Current production version recorded in active docs: `v0.5.22`.
-- Migration status: audit complete, execution not yet complete.
-- ComfyUI status: feature development paused; freeze record must be committed before any non-emergency ComfyUI source change.
-- Unfinished structural plan items still to carry forward: A1-A4, B1-B3, C1-C2, D1, E1, F1.
-- Main blocker before further feature work: commit Phase S, commit Phase C freeze record, then stabilize tooling Phase M1.
+- Migration status: audit complete; clean worktree execution is in progress through small committed batches.
+- ComfyUI status: feature development paused and freeze record committed; only emergency fixes or evidence-preserving documentation are allowed.
+- Completed or committed batches:
+  - Phase S secret ignore and migration plan baseline.
+  - Phase C ComfyUI feature freeze record.
+  - Phase U1/M1 tooling safety net.
+  - Phase U4/D1 frontend icon import shrink.
+  - Phase U3/C1-C2 API/Worker provider deduplication.
+- Unfinished structural plan items still to carry forward:
+  - B1 auth precise queries.
+  - B2 task list pagination and heavy-field stripping.
+  - B3 Postgres pool tuning.
+  - E1 repository boundary skeleton.
+  - F1 task realtime mechanism decision or deferral.
+- Main blocker before further feature work: complete or explicitly defer the remaining backend/repository/realtime structural batches, then use the fixed gray release procedure for validation.
 
 ## Self-Review
 

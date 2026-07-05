@@ -115,7 +115,7 @@ const checks = [
     name: "audio node supports provider TTS and voice clone modes",
     pass:
       audioNodeSource.includes("Provider 语音") &&
-      audioNodeSource.includes("generateExternalAudio") &&
+      (audioNodeSource.includes("generateExternalAudio") || audioNodeSource.includes("submitExternalAudioTask")) &&
       audioNodeSource.includes("providerAudioMode") &&
       audioNodeSource.includes("voice_clone") &&
       audioNodeSource.includes("voice_design"),

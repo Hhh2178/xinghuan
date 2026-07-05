@@ -153,6 +153,31 @@ for (const pkgPath of packagePaths) {
         success(`  exports["."].import 正确: ${rootExport.import}`);
       }
     }
+
+    for (const [exportName, exportConfig] of Object.entries(pkg.exports)) {
+      if (exportName === ".") continue;
+      if (!exportName.startsWith("./")) {
+        error(`  exports["${exportName}"] 子路径必须以 ./ 开头`);
+        pkgHasError = true;
+        continue;
+      }
+      if (!exportConfig || typeof exportConfig !== "object") {
+        error(`  exports["${exportName}"] 必须是对象配置`);
+        pkgHasError = true;
+        continue;
+      }
+      const expectedBase = exportName.replace(/^\.\//, "");
+      const expectedTypes = `./dist/${expectedBase.replace(/^node\//, "")}.d.ts`;
+      const expectedImport = `./dist/${expectedBase.replace(/^node\//, "")}.js`;
+      if (exportConfig.types !== expectedTypes) {
+        error(`  exports["${exportName}"].types 应该指向: "${expectedTypes}"`);
+        pkgHasError = true;
+      }
+      if (exportConfig.import !== expectedImport) {
+        error(`  exports["${exportName}"].import 应该指向: "${expectedImport}"`);
+        pkgHasError = true;
+      }
+    }
   }
 
   if (pkgHasError) {
