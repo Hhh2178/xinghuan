@@ -53,18 +53,19 @@
 
 ## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.25`
+- 当前活跃版本：`v0.5.27`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260705-auth-login-repository-gray-r3-v0525` (已部署)
+- 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：E1 auth-login repository slice 已完成灰度部署验证；release 包 auth verifier 与 environment sync 幂等 smoke 已补齐
-- 部署时间：2026-07-05 20:00
+- 最新完成：clean repository boundary wave 已完成灰度部署验证；task repository list summaries 已在仓储边界剥离 `payload/result/logs`
+- 部署时间：2026-07-06 00:04
 - 部署状态：✅ 服务运行正常，API 响应正常，HTTPS 访问正常
 - 2026-07-03 12:26 补充修复：ComfyUI 图标一致性修复（`.error-banner` 全站选择器冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 `apps/api/dist` 遗漏内容并配置 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`，connector 注册/心跳在灰度正式生效，详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
 - 2026-07-05 20:00 发布推进：`v0.5.25` gray release 已切到 `20260705-admin-task-list-heavy-fields-gray-r1-v0525`，并完成 admin task list 去重字段灰度验证，详见 `docs/logbooks/releases/gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
 - 2026-07-05 20:25 发布推进：`v0.5.25` gray release 已切到 `20260705-postgres-pool-tuning-gray-r1-v0525`，并完成 B3 Postgres pool tuning 灰度验证，详见 `docs/logbooks/releases/gray/2026-07-05-postgres-pool-tuning-gray.md`
 - 2026-07-05 21:02 发布推进：`v0.5.25` gray release 已切到 `20260705-auth-login-repository-gray-r3-v0525`，并完成 auth-login repository、release 包 auth verifier、environment sync 幂等 smoke 灰度验证，详见 `docs/logbooks/releases/gray/2026-07-05-auth-login-repository-gray.md`
-- 当前工作重心：E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能开发已暂停封存
+- 2026-07-06 00:04 发布推进：`v0.5.27` gray release 已切到 `20260706-task-list-lightweight-gray-r1-v0527`，并完成 clean repository boundary wave、task list repository lightweight repair、远端 admin task pagination 与 environment sync smoke 验证，详见 `docs/logbooks/releases/gray/2026-07-06-task-list-lightweight-gray.md`
+- 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

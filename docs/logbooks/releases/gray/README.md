@@ -6,6 +6,7 @@
 
 ## 当前 active gray release
 
+- `2026-07-06-task-list-lightweight-gray.md`
 - `2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
 - `2026-06-28-admin-assistant-environment-sync-overlap-gray.md`
 - `2026-06-27-admin-capability-flow-create-form-gray.md`

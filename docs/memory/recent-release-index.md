@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.5.25`
-  - release：`20260705-auth-login-repository-gray-r3-v0525`
+  - 版本：`v0.5.27`
+  - release：`20260706-task-list-lightweight-gray-r1-v0527`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

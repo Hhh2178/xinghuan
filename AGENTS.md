@@ -97,8 +97,8 @@
 ## 工程治理与发布护栏
 
 - 当前 gray 运行态入口：
-  - gray 版本：`v0.5.25`
-  - gray release：`20260705-auth-login-repository-gray-r3-v0525`
+  - gray 版本：`v0.5.27`
+  - gray release：`20260706-task-list-lightweight-gray-r1-v0527`
   - production 版本：`v0.5.22`
   - production release：`20260702-envsync-admin-sections-prod-r1-v0522`
   - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`docs/memory/current-state.md` 为准。

@@ -23,12 +23,12 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.5.25`
-  - release：`20260705-auth-login-repository-gray-r3-v0525`
-  - 状态：`2026-07-05 已完成 gray deploy + runtime verify；auth login lookup 已走 repository，release 包 auth verifier 与 environment sync 幂等 smoke 已补齐`
-  - 当前补修：`E1 auth-login repository slice、release 包 auth verifier 补齐、environment sync no-op smoke`
+  - 版本：`v0.5.27`
+  - release：`20260706-task-list-lightweight-gray-r1-v0527`
+  - 状态：`2026-07-06 已完成 gray deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs，远端 admin task pagination 与 environment sync smoke 已通过`
+  - 当前补修：`clean repository boundary wave、task list repository lightweight repair、版本对齐到 v0.5.27`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
-  - 本地待补修：`E1 剩余 repository boundary；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
+  - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

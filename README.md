@@ -24,14 +24,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.25`
+- 当前活跃版本：`v0.5.27`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260705-auth-login-repository-gray-r3-v0525` (已部署)
+- 当前灰度 release：`20260706-task-list-lightweight-gray-r1-v0527` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：E1 auth-login repository slice 已完成灰度部署验证；release 包 auth verifier 与 environment sync 幂等 smoke 已补齐
+- 最新完成：clean repository boundary wave 已完成灰度部署验证；task repository list summaries 已在仓储边界剥离 `payload/result/logs`
 - 当前重点系统：后台 Admin、API、Worker、项目级 harness；ComfyUI 功能开发已暂停封存
 
 ## 当前工作根
@@ -72,15 +72,15 @@
 
 ## 当前定位
 
-- 当前活跃版本：`v0.5.25`
+- 当前活跃版本：`v0.5.27`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260705-auth-login-repository-gray-r3-v0525` (已部署)
+- 当前灰度 release：`20260706-task-list-lightweight-gray-r1-v0527` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：E1 auth-login repository slice 已完成灰度部署验证；release 包 auth verifier 与 environment sync 幂等 smoke 已补齐
-- 当前工作重心：E1 剩余 repository boundary、F1 task realtime decision、主入口状态收口
+- 最新完成：clean repository boundary wave 已完成灰度部署验证；task repository list summaries 已在仓储边界剥离 `payload/result/logs`
+- 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision、主入口状态收口
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
 - 当前 ComfyUI 状态：功能开发已暂停封存，仅允许 crash/security/rollback/docs 级别例外
@@ -120,9 +120,9 @@
 
 ## 2026-07-03 状态更新
 
-- 当前活跃版本：`v0.5.25`
+- 当前活跃版本：`v0.5.27`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260705-auth-login-repository-gray-r3-v0525`
+- 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527`
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前工作重心：E1 剩余 repository boundary；F1 realtime implementation 已延期
+- 当前工作重心：environment-sync-local 专门抽取计划；F1 realtime implementation 已延期
 - 详细变更和验证继续看 `docs/logbooks/`，本轮发布详见 `docs/logbooks/releases/gray/2026-07-05-auth-login-repository-gray.md`

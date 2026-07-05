@@ -18,6 +18,10 @@
   - `2026-07-04`
 - Clean migration master plan revision：
   - `2026-07-05`
+- Repository boundary gray release repair：
+  - `2026-07-06`
+  - 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527`
+  - 注意：live verifier 不要默认打本机 `127.0.0.1:18200`，需远端 release 目录加载 gray env 后执行或显式指定已确认目标。
 
 ## 对应入口
 

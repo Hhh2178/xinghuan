@@ -158,6 +158,22 @@ psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"
 - Agent 默认执行服务层、域名层、运行态与安全边界检查。
 - 用户默认执行视觉层和真实业务体验验收。
 
+### Live Verifier 注意事项
+
+- 不要默认把本机 `http://127.0.0.1:18200` 当成服务器灰度。Windows/WSL 可能存在 `wslrelay.exe` 或本机残留服务占用该端口，导致 verifier 命中旧目标。
+- 灰度放行推荐在服务器 release 目录执行：
+
+```bash
+cd /opt/apps/xinghuan-canvas-next/current
+set -a
+. /opt/apps/xinghuan-canvas-next/shared/canvas-next.env
+set +a
+XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18200 node scripts/verify-admin-task-pagination.mjs
+XINGHUAN_VERIFY_BASE_URL=http://127.0.0.1:18200 node scripts/verify-environment-sync-smoke.mjs
+```
+
+- 如果必须在本机执行 live verifier，必须显式设置 `XINGHUAN_VERIFY_BASE_URL` 指向确认过的公网灰度域名或 SSH 隧道目标，并先用 `/api/status` 确认 `version` 与 `environment`。
+
 ## 回滚
 
 1. 将 `current` 指回上一个 release：

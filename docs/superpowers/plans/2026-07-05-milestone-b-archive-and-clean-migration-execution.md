@@ -55,13 +55,14 @@ This is the authoritative progress snapshot for continuing the plan.
 | Admin repository boundary | `c0b8b70` | Completed locally |
 | Task repository boundary | `41fb8a3` | Completed locally; live gray task pagination must rerun after deploy |
 | Admin usage summary repository/service | `340257f` | Completed locally |
+| Task list lightweight gray repair | `66f9a99`, release `20260706-task-list-lightweight-gray-r1-v0527` | Completed and gray verified |
 
 ### Remaining Scope In This Plan
 
 1. Commit the current docs-only status/decision update.
-2. Run final local validation and repair any failing repository/shared/envsync checks.
-3. Sync CodeGraph and leave the clean worktree clean.
-4. Prepare a gray release gate only after the validation set passes and the user approves deployment.
+2. Sync CodeGraph and release docs after gray `v0.5.27`.
+3. Leave the clean worktree clean.
+4. Do not resume ComfyUI or environment-sync-local extraction inside this completed repository wave.
 
 ### Explicit Deferrals
 
