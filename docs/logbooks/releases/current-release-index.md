@@ -5,13 +5,14 @@
 ### Gray
 
 - 版本：`v0.5.25`
-- release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
-- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；admin task list 列表响应已去除 payload/result/logs 重字段`
-- 部署内容：`GET /api/admin/tasks 轻量摘要、分页与过滤保留、B2 live verify 通过、ComfyUI 功能继续冻结`
-- 补充修复：`发布 gate 修复 AGENTS.md 截断和当前 release 状态漂移后，prepare/deploy/verify 完整通过`
-- 本地后续：`B3 Postgres pool tuning 已在 clean branch 完成并等待下一轮 gray；剩余结构项为 E1/F1`
-- 部署时间：`2026-07-05 20:00`
+- release：`20260705-postgres-pool-tuning-gray-r1-v0525`
+- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；API/Worker Postgres pool 调参改为环境变量可配，默认值保持不变`
+- 部署内容：`B3 Postgres pool tuning、B2 live verify 复测通过、environment sync smoke 复测通过、ComfyUI 功能继续冻结`
+- 补充修复：`Phase V 迁移完整性 gate 通过后，从 xinghuan-integration-clean 推送 gray`
+- 本地后续：`剩余结构项为 E1 repository boundary 与 F1 realtime decision/deferral`
+- 部署时间：`2026-07-05 20:25`
 - 当前批次记录：
+  - `gray/2026-07-05-postgres-pool-tuning-gray.md`
   - `gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
   - `gray/2026-07-04-comfyui-machine-first-gray.md`
   - `gray/2026-07-03-comfyui-rh-node-machine-gray.md`

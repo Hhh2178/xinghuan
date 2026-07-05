@@ -28,10 +28,10 @@
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
+- 当前灰度 release：`20260705-postgres-pool-tuning-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Admin task list 列表响应去除 `payload/result/logs` 重字段并完成灰度部署验证
+- 最新完成：B3 Postgres pool tuning 已完成灰度部署验证；Admin task list 重字段收口复测通过
 - 当前重点系统：后台 Admin、API、Worker、项目级 harness；ComfyUI 功能开发已暂停封存
 
 ## 当前工作根
@@ -76,11 +76,11 @@
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
+- 当前灰度 release：`20260705-postgres-pool-tuning-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Admin task list 列表响应去除 `payload/result/logs` 重字段并完成灰度部署验证
-- 当前工作重心：B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision、主入口状态收口
+- 最新完成：B3 Postgres pool tuning 已完成灰度部署验证；Admin task list 重字段收口复测通过
+- 当前工作重心：E1 剩余 repository boundary、F1 task realtime decision、主入口状态收口
 - 当前架构：前后端与 worker 统一在本项目 2.0 worktree 中推进
 - 当前 RunningHub、环境同步、版本对齐、账号级审计能力等细节，统一看 `docs/logbooks/`、`docs/memory/`、`ops/README.md`
 - 当前 ComfyUI 状态：功能开发已暂停封存，仅允许 crash/security/rollback/docs 级别例外
@@ -122,7 +122,7 @@
 
 - 当前活跃版本：`v0.5.25`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
+- 当前 gray release：`20260705-postgres-pool-tuning-gray-r1-v0525`
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前工作重心：B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision
-- 详细变更和验证继续看 `docs/logbooks/`，本轮发布详见 `docs/logbooks/releases/gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
+- 当前工作重心：E1 剩余 repository boundary、F1 task realtime decision
+- 详细变更和验证继续看 `docs/logbooks/`，本轮发布详见 `docs/logbooks/releases/gray/2026-07-05-postgres-pool-tuning-gray.md`

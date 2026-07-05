@@ -24,11 +24,11 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.5.25`
-  - release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
-  - 状态：`2026-07-05 已完成 gray deploy + runtime verify；admin task list 列表响应已去除 payload/result/logs 重字段`
-  - 当前补修：`GET /api/admin/tasks 轻量摘要、分页与过滤保留、B2 live verify 通过`
+  - release：`20260705-postgres-pool-tuning-gray-r1-v0525`
+  - 状态：`2026-07-05 已完成 gray deploy + runtime verify；API/Worker Postgres pool 调参改为环境变量可配，默认值保持不变`
+  - 当前补修：`B3 Postgres pool tuning、B2 live verify 复测通过、environment sync smoke 复测通过`
   - 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）`
-  - 本地待补修：`B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能继续冻结`
+  - 本地待补修：`E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`

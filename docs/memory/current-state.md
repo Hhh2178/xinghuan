@@ -3,7 +3,7 @@
 ## 当前版本与阶段
 
 - 当前活跃版本：`v0.5.25`
-- 当前灰度 release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
+- 当前灰度 release：`20260705-postgres-pool-tuning-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：clean worktree 结构治理批次已开始收口，工具链安全网、图标瘦身、API/Worker provider 去重、auth current-user 精准查询已在 `xinghuan-integration-clean` 提交。
@@ -11,7 +11,7 @@
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度，但后续功能开发已冻结
-  - 当前重点是 clean worktree 迁移完整性、未完成结构批次 B3/E1/F1 的完成或明确延期、发布链路一致性和主入口状态收口
+  - 当前重点是 clean worktree 迁移完整性、未完成结构批次 E1/F1 的完成或明确延期、发布链路一致性和主入口状态收口
 - 当前多用户正式化治理口径：
   - `Phase A-E` 已完成 gray / production 收口
 
@@ -40,7 +40,7 @@
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
   - gray 当前运行在 `v0.5.25`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
+  - gray 当前 release 为 `20260705-postgres-pool-tuning-gray-r1-v0525` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：
@@ -66,8 +66,8 @@
   - `619fcdd` 图标瘦身：移除 lucide namespace import，`vendor-icons` 显著下降。
   - `7966bd1` API/Worker provider 去重：共享 helper 下沉到 `packages/shared` 的受控 Node 子路径。
   - `9e27bc7` auth current-user 精准查询：当前用户 session lookup 不再走全量 auth-db 读取。
-  - `f9d7fff` / gray `c549e71` B2 任务列表分页与去大字段：`GET /api/admin/tasks` 列表不再返回 `payload/result/logs`，并已在灰度 `20260705-admin-task-list-heavy-fields-gray-r1-v0525` live verify 通过。
-  - B3 Postgres pool 调参已完成：API/Worker 默认值不变，并新增 shared/service env 覆盖入口。
+  - `f9d7fff` / gray `c549e71` B2 任务列表分页与去大字段：`GET /api/admin/tasks` 列表不再返回 `payload/result/logs`，并已在灰度 `20260705-postgres-pool-tuning-gray-r1-v0525` live verify 通过。
+  - `2127368` / gray `20260705-postgres-pool-tuning-gray-r1-v0525` B3 Postgres pool 调参已完成：API/Worker 默认值不变，并新增 shared/service env 覆盖入口，已完成 gray runtime verify。
 - 仍需推进或明确延期：
   - B1 login email lookup extraction，归入后续 E1 auth repository 批次。
   - E1 剩余 repository boundary。
