@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import * as Icons from 'lucide-react';
 import {
   Check,
   ChevronDown,
@@ -20,6 +19,7 @@ import type { NodeMeta, NodeType } from '../types/canvas';
 import { useThemeStore } from '../stores/theme';
 import { useCanvasStore } from '../stores/canvas';
 import { resolveThemeTemplate } from '../theme/defaultTemplates';
+import { getNodeIcon } from './nodeIconMap';
 const COLOR_HEX: Record<string, string> = {
   sky: '#7dd3fc',
   amber: '#fcd34d',
@@ -303,7 +303,7 @@ export default function Sidebar({ onAddNode }: SidebarProps) {
       : visualStyle === 'soccer-hero'
         ? SOCCER_ICON_BY_TYPE[n.type] || n.icon
         : n.icon;
-    const Icon = (Icons as any)[themedIcon] || Icons.Box;
+    const Icon = getNodeIcon(themedIcon);
     const colorHex = COLOR_HEX[n.color] || COLOR_HEX.slate;
     return (
       <button

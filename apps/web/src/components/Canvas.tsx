@@ -43,7 +43,6 @@ import {
   Trash2,
   Workflow,
 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import { useCanvasStore } from '../stores/canvas';
 import { useThemeStore } from '../stores/theme';
 import { useShortcutStore } from '../stores/shortcuts';
@@ -187,6 +186,7 @@ import GroupExecutionManagerNode from './nodes/GroupExecutionManagerNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
 import type { NodeType, NodeMeta } from '../types/canvas';
+import { getNodeIcon } from './nodeIconMap';
 import {
   isConnectionValid,
   getNodeOutputs,
@@ -4021,7 +4021,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
                       style={{ '--t8-menu-icon-color': color } as CSSProperties}
                     >
                       {(() => {
-                        const Icon = (LucideIcons as any)[meta.icon] || LucideIcons.Box;
+                        const Icon = getNodeIcon(meta.icon);
                         return <Icon size={13} />;
                       })()}
                     </span>

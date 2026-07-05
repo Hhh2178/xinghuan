@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import * as Icons from 'lucide-react';
 import { getNodeMeta } from '../../config/nodeRegistry';
+import { getNodeIcon } from '../nodeIconMap';
 
 // 节点配色表(避免 Tailwind 动态 class 不生效)
 const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
@@ -27,7 +27,7 @@ const PlaceholderNode = ({ data, type, selected }: NodeProps) => {
   const label = (data as any)?.label || meta?.label || type;
   const description = meta?.description || '';
   const iconName = meta?.icon || 'Box';
-  const IconComp = (Icons as any)[iconName] || Icons.Box;
+  const IconComp = getNodeIcon(iconName);
   const colorKey = meta?.color || 'slate';
   const color = COLOR_MAP[colorKey] || COLOR_MAP.slate;
 
