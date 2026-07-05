@@ -4,6 +4,9 @@
 .env.*
 !.env.example
 !.env.local.example
+*.pem
+Tencent_Cloud_Server.pem
+tencent_key_ascii.pem
 
 # 运行期输出
 runtime/
