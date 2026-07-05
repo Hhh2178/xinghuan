@@ -3,14 +3,15 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.5.25`
-- 当前 release：`20260705-postgres-pool-tuning-gray-r1-v0525`
-- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；API/Worker Postgres pool 调参改为环境变量可配，默认值保持不变`
-- 当前补修：`2026-07-05-postgres-pool-tuning-gray.md`
-- 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188`
-- 当前本地待补修：`E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能继续冻结`
+- 当前 release：`20260705-auth-login-repository-gray-r3-v0525`
+- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；auth login lookup 已走 repository，release 包 auth verifier 与 environment sync 幂等 smoke 已补齐`
+- 当前补修：`2026-07-05-auth-login-repository-gray.md`
+- 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
+- 当前本地待补修：`E1 剩余 repository boundary；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-05-postgres-pool-tuning-gray.md`
+  - `../../docs/logbooks/releases/gray/2026-07-05-auth-login-repository-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-04-comfyui-machine-first-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-03-comfyui-rh-node-machine-gray.md`
@@ -57,9 +58,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260705-admin-task-list-heavy-fields-gray-r1-v0525`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260705-postgres-pool-tuning-gray-r1-v0525`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260705-admin-task-list-heavy-fields-gray-r1-v0525`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260705-postgres-pool-tuning-gray-r1-v0525`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

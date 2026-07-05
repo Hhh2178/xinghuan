@@ -5,13 +5,14 @@
 ### Gray
 
 - 版本：`v0.5.25`
-- release：`20260705-postgres-pool-tuning-gray-r1-v0525`
-- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；API/Worker Postgres pool 调参改为环境变量可配，默认值保持不变`
-- 部署内容：`B3 Postgres pool tuning、B2 live verify 复测通过、environment sync smoke 复测通过、ComfyUI 功能继续冻结`
-- 补充修复：`Phase V 迁移完整性 gate 通过后，从 xinghuan-integration-clean 推送 gray`
-- 本地后续：`剩余结构项为 E1 repository boundary 与 F1 realtime decision/deferral`
-- 部署时间：`2026-07-05 20:25`
+- release：`20260705-auth-login-repository-gray-r3-v0525`
+- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；auth login enabled-user lookup 已收口到 repository，release 包 auth verifier 与 environment sync 幂等 smoke 已补齐`
+- 部署内容：`E1 auth-login repository slice、release 包 auth verifier 补齐、environment sync no-op smoke、ComfyUI 功能继续冻结`
+- 补充修复：`r1 暴露 release 包缺少 auth verifier；r2 暴露 environment sync smoke 非幂等；r3 已全部通过`
+- 本地后续：`剩余结构项为 E1 其他 repository boundary；F1 realtime implementation 已延期`
+- 部署时间：`2026-07-05 21:02`
 - 当前批次记录：
+  - `gray/2026-07-05-auth-login-repository-gray.md`
   - `gray/2026-07-05-postgres-pool-tuning-gray.md`
   - `gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
   - `gray/2026-07-04-comfyui-machine-first-gray.md`
