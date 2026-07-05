@@ -96,6 +96,13 @@
 
 ## 工程治理与发布护栏
 
+- 当前 gray 运行态入口：
+  - gray 版本：`v0.5.25`
+  - gray release：`20260704-comfyui-machine-first-gray-r1-v0525`
+  - production 版本：`v0.5.22`
+  - production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+  - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`docs/memory/current-state.md` 为准。
+  - ComfyUI 功能开发已暂停封存；本轮继续推进 clean worktree 结构治理与灰度链路校验。
 - 热点文件预算与 watchlist 必须保持可执行：
   - `npm run verify:file-hotspot-budgets`
   - `npm run verify:hotspot-watchlist-contract`
