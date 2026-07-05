@@ -237,7 +237,7 @@
 | 0 | A3 vitest | 已完成 | `53f8ee8` | `2026-07-05 daily` | 根 test 入口已跑通 |
 | 0 | A4 CI 聚合 | 已完成 | `53f8ee8` | `2026-07-05 daily` | `npm run ci` 已通过 |
 | 6 | B1 鉴权精准查询 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | current-user 精准查询已完成；login email lookup 延后到 E1 auth repository |
-| 6 | B2 任务列表分页 | 本地完成 / 待灰度验证 | pending commit | `2026-07-05 daily` | 列表响应去除 `payload/result/logs`；live verify 待灰度部署后执行 |
+| 6 | B2 任务列表分页 | 本地完成 / 待灰度验证 | `f9d7fff` | `2026-07-05 daily` | 列表响应去除 `payload/result/logs`；live verify 待灰度部署后执行 |
 | 6 | B3 连接池调参 | 待开始 | — | — | |
 | 1 | C1 去重(A类) | 已完成 | `7966bd1` | `2026-07-05 daily` | shared/node 子路径导出，避免污染 Web/Admin bundle |
 | 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
