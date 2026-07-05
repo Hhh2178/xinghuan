@@ -1013,7 +1013,7 @@ git commit -m "docs: decide task realtime mechanism follow-up"
 
 **Scope:** This is a read-only audit unless it discovers a missing required batch.
 
-- [ ] **Step 1: Confirm branch and cleanliness**
+- [x] **Step 1: Confirm branch and cleanliness**
 
 Run:
 
@@ -1031,7 +1031,7 @@ xinghuan-integration-clean
 
 `git status --short` must be empty before release. If docs were updated by this audit, commit them first.
 
-- [ ] **Step 2: Confirm completed clean-branch commits exist**
+- [x] **Step 2: Confirm completed clean-branch commits exist**
 
 Run:
 
@@ -1046,7 +1046,7 @@ Expected:
 
 - Tooling, icon shrink, provider deduplication, and auth current-user batches all appear in `xinghuan-integration-clean`.
 
-- [ ] **Step 3: Compare remaining planned files against the frozen source worktree**
+- [x] **Step 3: Compare remaining planned files against the frozen source worktree**
 
 Run:
 
@@ -1066,7 +1066,7 @@ Expected:
 
 Do not copy files during this step.
 
-- [ ] **Step 4: Run structural validation set**
+- [x] **Step 4: Run structural validation set**
 
 Run:
 
@@ -1082,7 +1082,7 @@ Expected:
 - All commands pass before gray release.
 - If a command fails, write a validation record and fix or explicitly defer release.
 
-- [ ] **Step 5: Update status documents**
+- [x] **Step 5: Update status documents**
 
 Modify only facts that changed:
 

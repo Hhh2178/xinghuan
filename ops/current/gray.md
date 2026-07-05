@@ -7,7 +7,7 @@
 - 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；admin task list 列表响应已去除 payload/result/logs 重字段`
 - 当前补修：`2026-07-05-admin-task-list-heavy-fields-gray.md`
 - 当前机器态：`gray 实例池已接入 1 台本机 ComfyUI，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188`
-- 当前本地待补修：`B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能继续冻结`
+- 当前本地待补修：`E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-04-comfyui-machine-first-gray.md`
