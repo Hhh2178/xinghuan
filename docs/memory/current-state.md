@@ -82,10 +82,13 @@
   - `41fb8a3` task repository boundary。
   - `340257f` admin usage summary repository/service boundary。
   - `66f9a99` task repository list summary heavy-field repair。
+- 当前 repository wave 状态：
+  - provider/settings/admin/task/admin usage summary boundary 已随 `20260706-task-list-lightweight-gray-r1-v0527` 推送灰度。
+  - 远端 `verify-admin-task-pagination` 与 `verify-environment-sync-smoke` 已在服务器 release 目录加载 gray env 后通过。
 - 仍需推进或明确延期：
   - E1 environment-sync-local 抽取延期到专门批次，不在本次 repository wave 强行迁移。
   - F1 任务实时机制已决策延期实现；后续优先 shared frontend polling，再评估 SSE。
-- 灰度前必须执行：
+- 后续新灰度前必须执行：
   - 迁移完整性校验，确认成果不只停留在 `xinghuan-milestone-b`。
   - `npm run ci`、`npm run verify:file-hotspot-budgets`、`npm run codegraph:sync`。
 

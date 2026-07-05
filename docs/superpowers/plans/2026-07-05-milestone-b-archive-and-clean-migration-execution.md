@@ -50,19 +50,18 @@ This is the authoritative progress snapshot for continuing the plan.
 | Postgres pool configurability | `2127368` | Completed and gray verified |
 | Shared provider helper rebuild | `7966bd1` | Completed and revalidated |
 | Web icon import shrink | `619fcdd` | Completed |
-| Provider repository boundary | `c5af7bd`, `fb529c9`, `eeb0a36` | Completed locally |
-| Settings repository boundary | `55ad04b` | Completed locally |
-| Admin repository boundary | `c0b8b70` | Completed locally |
-| Task repository boundary | `41fb8a3` | Completed locally; live gray task pagination must rerun after deploy |
-| Admin usage summary repository/service | `340257f` | Completed locally |
+| Provider repository boundary | `c5af7bd`, `fb529c9`, `eeb0a36` | Completed and included in gray `20260706-task-list-lightweight-gray-r1-v0527` |
+| Settings repository boundary | `55ad04b` | Completed and included in gray `20260706-task-list-lightweight-gray-r1-v0527` |
+| Admin repository boundary | `c0b8b70` | Completed and included in gray `20260706-task-list-lightweight-gray-r1-v0527` |
+| Task repository boundary | `41fb8a3` | Completed and gray verified via remote admin task pagination |
+| Admin usage summary repository/service | `340257f` | Completed and included in gray `20260706-task-list-lightweight-gray-r1-v0527` |
 | Task list lightweight gray repair | `66f9a99`, release `20260706-task-list-lightweight-gray-r1-v0527` | Completed and gray verified |
 
 ### Remaining Scope In This Plan
 
-1. Commit the current docs-only status/decision update.
-2. Sync CodeGraph and release docs after gray `v0.5.27`.
-3. Leave the clean worktree clean.
-4. Do not resume ComfyUI or environment-sync-local extraction inside this completed repository wave.
+1. Finalize the completion audit evidence.
+2. Leave the clean worktree clean.
+3. Do not resume ComfyUI or environment-sync-local extraction inside this completed repository wave.
 
 ### Explicit Deferrals
 
@@ -151,7 +150,7 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff --stat
 
 Expected:
 
-- Clean branch latest commits include the current gray `v0.5.25` records.
+- Clean branch latest commits include the current gray `v0.5.27` records.
 - Old branch latest committed work stops around the `2026-07-04` tooling/repository refactor commits.
 - Old branch diff shows the WIP repository/environment-sync/shared decomposition.
 
@@ -347,8 +346,8 @@ Target branch: `xinghuan-integration-clean`
 | Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Completed | Keep `c5af7bd`/`fb529c9`/`eeb0a36` clean rebuild | provider repository tests + provider route split contract |
 | Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Completed | Keep `55ad04b` clean rebuild | settings repository tests + assistant/task queue contracts |
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Completed | Keep `c0b8b70` clean rebuild | admin repository tests + audit/announcement contracts |
-| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Completed locally | Keep `41fb8a3`; rerun live task pagination after gray deploy | task repository tests + admin task pagination |
-| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Completed locally | Keep `340257f` clean rebuild | usage summary repository contract |
+| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Completed and gray verified | Keep `41fb8a3` plus repair `66f9a99`; remote admin task pagination passed in gray `v0.5.27` | task repository tests + admin task pagination |
+| Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Completed and gray included | Keep `340257f` clean rebuild | usage summary repository contract |
 | Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Deferred | Do not migrate old 872-line file in this wave; validate current service/smoke and create dedicated follow-up plan | envsync service contract + envsync smoke |
 | Shared API/Worker helpers | `packages/shared/src/*` | Completed and revalidated | Keep clean helper rebuild | shared helper tests + package export verify |
 | ComfyUI | admin/web/api/connector files | Frozen | Archive only | no active migration |
@@ -1125,8 +1124,8 @@ Get-Content -LiteralPath D:\codex\无限画布2.0-worktrees\xinghuan-integration
 
 Expected:
 
-- Gray currently records `v0.5.25` unless a later verified release changed it.
-- Production currently records `v0.5.22` unless a later verified release changed it.
+- Gray currently records `v0.5.27` release `20260706-task-list-lightweight-gray-r1-v0527`.
+- Production currently records `v0.5.22` release `20260702-envsync-admin-sections-prod-r1-v0522`.
 
 - [ ] **Step 2: Prepare gray release only after approval**
 
