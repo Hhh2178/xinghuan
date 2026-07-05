@@ -5052,113 +5052,15 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
 }
 
 async function insertProviderRecordPostgres(provider: AdminProviderRecord) {
-  const normalized = normalizeProviderSecret(provider);
-  const pool = await getPostgresPool();
-  await pool.query(
-    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)`,
-    [
-      normalized.id,
-      normalized.name,
-      normalized.baseUrl,
-      normalizeProviderProtocol(normalized.protocol),
-      normalized.enabled,
-      normalized.apiKey || null,
-      normalized.apiKeyPreview || null,
-      normalized.lastProbeStatus || null,
-      normalized.lastProbeMessage || null,
-      normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
-      JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
-      JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
-      JSON.stringify(normalizeRunningHubKeyPool(normalized.rhKeyPool)),
-      JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
-      normalized.note || null,
-      millisToDate(normalized.createdAt),
-      millisToDate(normalized.updatedAt),
-    ],
-  );
+  await providerRepository.upsertProviderRecordPostgres(provider);
 }
 
 async function upsertProviderRecordPostgres(provider: AdminProviderRecord) {
-  const normalized = normalizeProviderSecret(provider);
-  const pool = await getPostgresPool();
-  await pool.query(
-    `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)
-     on conflict (id) do update set
-       name = excluded.name,
-       base_url = excluded.base_url,
-       protocol = excluded.protocol,
-       enabled = excluded.enabled,
-       api_key_cipher = excluded.api_key_cipher,
-       api_key_preview = excluded.api_key_preview,
-       last_probe_status = excluded.last_probe_status,
-       last_probe_message = excluded.last_probe_message,
-       last_fetched_at = excluded.last_fetched_at,
-       rh_apps = excluded.rh_apps,
-       rh_workflows = excluded.rh_workflows,
-       rh_key_pool = excluded.rh_key_pool,
-       ms_loras = excluded.ms_loras,
-       note = excluded.note,
-       updated_at = excluded.updated_at`,
-    [
-      normalized.id,
-      normalized.name,
-      normalized.baseUrl,
-      normalizeProviderProtocol(normalized.protocol),
-      normalized.enabled,
-      normalized.apiKey || null,
-      normalized.apiKeyPreview || null,
-      normalized.lastProbeStatus || null,
-      normalized.lastProbeMessage || null,
-      normalized.lastFetchedAt ? millisToDate(normalized.lastFetchedAt) : null,
-      JSON.stringify(normalizeRunningHubEntries(normalized.rhApps, "app")),
-      JSON.stringify(normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
-      JSON.stringify(normalizeRunningHubKeyPool(normalized.rhKeyPool)),
-      JSON.stringify(normalizeModelScopeLoras(normalized.msLoras)),
-      normalized.note || null,
-      millisToDate(normalized.createdAt),
-      millisToDate(normalized.updatedAt),
-    ],
-  );
+  await providerRepository.upsertProviderRecordPostgres(provider);
 }
 
 async function findProviderRecordByNaturalKey(name: string): Promise<AdminProviderRecord | null> {
-  const normalizedName = safeText(name).toLowerCase();
-  if (!normalizedName) return null;
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    const result = await pool.query(
-      `select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at
-       from xh_providers
-       where lower(name) = lower($1)
-       limit 1`,
-      [name],
-    );
-    const row = result.rows[0];
-    if (!row) return null;
-    return normalizeProviderSecret({
-      id: safeText(row.id),
-      name: safeText(row.name),
-      baseUrl: safeText(row.base_url),
-      protocol: normalizeProviderProtocol(row.protocol),
-      enabled: Boolean(row.enabled),
-      apiKey: safeText(row.api_key_cipher),
-      apiKeyPreview: safeText(row.api_key_preview),
-      lastProbeStatus: safeText(row.last_probe_status),
-      lastProbeMessage: safeText(row.last_probe_message),
-      lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : 0,
-      rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
-      rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
-      rhKeyPool: normalizeRunningHubKeyPool(row.rh_key_pool),
-      msLoras: normalizeModelScopeLoras(row.ms_loras),
-      note: safeText(row.note),
-      createdAt: dateToMillis(row.created_at),
-      updatedAt: dateToMillis(row.updated_at),
-    });
-  }
-  const db = await readAdminDb();
-  return db.providers.find((provider) => provider.name.trim().toLowerCase() === normalizedName) || null;
+  return providerRepository.findProviderRecordByNaturalKey(name) as Promise<AdminProviderRecord | null>;
 }
 
 async function findModelRecordByNaturalKey(
@@ -5166,121 +5068,23 @@ async function findModelRecordByNaturalKey(
   capability: ModelCapability,
   modelId: string,
 ): Promise<AdminModelRecord | null> {
-  const normalizedProviderId = safeText(providerId);
-  const normalizedCapability = normalizeCapability(capability);
-  const normalizedModelId = safeText(modelId).toLowerCase();
-  if (!normalizedProviderId || !normalizedModelId) return null;
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    const result = await pool.query(
-      `select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at
-       from xh_models
-       where provider_id = $1 and lower(capability) = lower($2) and lower(model_id) = lower($3)
-       limit 1`,
-      [normalizedProviderId, normalizedCapability, modelId],
-    );
-    const row = result.rows[0];
-    if (!row) return null;
-    return normalizeAdminModelRecord({
-      id: safeText(row.id),
-      providerId: safeText(row.provider_id),
-      modelId: safeText(row.model_id),
-      displayName: safeText(row.display_name),
-      capability: normalizeCapability(row.capability),
-      enabled: Boolean(row.enabled),
-      executionMode: normalizeProviderGenerationExecutionMode(row?.advanced_config?.executionMode, plainObject(row.advanced_config), normalizeCapability(row.capability)),
-      inputProfile: safeText(row.input_profile, "prompt"),
-      inputCapabilities: plainObject(row.input_capabilities),
-      capabilityTags: normalizeModelCapabilityTags(row.capability_tags, normalizeCapability(row.capability), row.model_id),
-      testState: normalizeModelTestState(row.test_state),
-      parameterSchema: safeJsonText(JSON.stringify(row.parameter_schema || {}), "{}"),
-      advancedConfig: plainObject(row.advanced_config),
-      protocolOverride: normalizeOptionalProtocol(row.protocol_override),
-      createdAt: dateToMillis(row.created_at),
-      updatedAt: dateToMillis(row.updated_at),
-    });
-  }
-  const db = await readAdminDb();
-  return db.models.find((model) =>
-    model.providerId === normalizedProviderId &&
-    normalizeCapability(model.capability) === normalizedCapability &&
-    model.modelId.trim().toLowerCase() === normalizedModelId) || null;
+  return providerRepository.findModelRecordByNaturalKey(providerId, capability, modelId) as Promise<AdminModelRecord | null>;
 }
 
 async function deleteProviderRecordPostgres(providerId: string) {
-  const pool = await getPostgresPool();
-  await pool.query("delete from xh_providers where id = $1", [providerId]);
+  await providerRepository.deleteProviderRecord(providerId);
 }
 
 async function insertModelRecordPostgres(model: AdminModelRecord) {
-  const normalized = normalizeAdminModelRecord(model);
-  const pool = await getPostgresPool();
-  await pool.query(
-    `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)`,
-    [
-      normalized.id,
-      normalized.providerId,
-      normalized.modelId,
-      normalized.displayName,
-      normalized.capability,
-      normalized.enabled,
-      normalized.inputProfile,
-      JSON.stringify(plainObject(normalized.inputCapabilities)),
-      JSON.stringify(normalized.capabilityTags || []),
-      JSON.stringify(normalizeModelTestState(normalized.testState)),
-      JSON.stringify(parseJsonObject(normalized.parameterSchema)),
-      JSON.stringify(plainObject(normalized.advancedConfig)),
-      normalized.protocolOverride || null,
-      millisToDate(normalized.createdAt),
-      millisToDate(normalized.updatedAt),
-    ],
-  );
+  await providerRepository.insertModelRecord(model);
 }
 
 async function upsertModelRecordPostgres(model: AdminModelRecord) {
-  const normalized = normalizeAdminModelRecord(model);
-  const pool = await getPostgresPool();
-  await pool.query(
-    `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)
-     on conflict (id) do update set
-       provider_id = excluded.provider_id,
-       model_id = excluded.model_id,
-       display_name = excluded.display_name,
-       capability = excluded.capability,
-       enabled = excluded.enabled,
-       input_profile = excluded.input_profile,
-       input_capabilities = excluded.input_capabilities,
-       capability_tags = excluded.capability_tags,
-       test_state = excluded.test_state,
-       parameter_schema = excluded.parameter_schema,
-       advanced_config = excluded.advanced_config,
-       protocol_override = excluded.protocol_override,
-       updated_at = excluded.updated_at`,
-    [
-      normalized.id,
-      normalized.providerId,
-      normalized.modelId,
-      normalized.displayName,
-      normalized.capability,
-      normalized.enabled,
-      normalized.inputProfile,
-      JSON.stringify(plainObject(normalized.inputCapabilities)),
-      JSON.stringify(normalized.capabilityTags || []),
-      JSON.stringify(normalizeModelTestState(normalized.testState)),
-      JSON.stringify(parseJsonObject(normalized.parameterSchema)),
-      JSON.stringify(plainObject(normalized.advancedConfig)),
-      normalized.protocolOverride || null,
-      millisToDate(normalized.createdAt),
-      millisToDate(normalized.updatedAt),
-    ],
-  );
+  await providerRepository.upsertModelRecordPostgres(model);
 }
 
 async function deleteModelRecordPostgres(modelId: string) {
-  const pool = await getPostgresPool();
-  await pool.query("delete from xh_models where id = $1", [modelId]);
+  await providerRepository.deleteModelRecord(modelId);
 }
 
 async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord, expectedRevision?: number) {

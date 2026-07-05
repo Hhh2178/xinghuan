@@ -382,6 +382,57 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     return importResult;
   }
 
+  async function insertModelRecord(model: AdminModelRecord): Promise<AdminModelRecord> {
+    const normalized = deps.normalizeAdminModelRecord(model);
+    if (deps.usePostgresRepository()) {
+      await upsertModelRecordPostgres(normalized);
+      return normalized;
+    }
+    const db = await readAdminDb();
+    if (db.models.some((item) => item.id === normalized.id)) throw new Error("模型 ID 已存在");
+    await writeAdminDb({ ...db, models: [normalized, ...db.models] });
+    return normalized;
+  }
+
+  async function updateModelRecord(modelId: string, transform: (model: AdminModelRecord) => AdminModelRecord): Promise<AdminModelRecord> {
+    const current = await findModelRecordById(modelId);
+    if (!current) throw new Error("模型不存在");
+    const updated = deps.normalizeAdminModelRecord(transform(current));
+    if (deps.usePostgresRepository()) {
+      await upsertModelRecordPostgres(updated);
+      return updated;
+    }
+    const db = await readAdminDb();
+    await writeAdminDb({ ...db, models: db.models.map((model) => (model.id === modelId ? updated : model)) });
+    return updated;
+  }
+
+  async function deleteModelRecord(modelId: string): Promise<AdminModelRecord> {
+    const current = await findModelRecordById(modelId);
+    if (!current) throw new Error("模型不存在");
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      await pool.query("delete from xh_models where id = $1", [modelId]);
+      return current;
+    }
+    const db = await readAdminDb();
+    await writeAdminDb({
+      ...db,
+      models: db.models.filter((model) => model.id !== modelId),
+      tasks: (db.tasks || []).map((task) => (task.modelId === modelId ? { ...task, modelId: "" } : task)),
+    });
+    return current;
+  }
+
+  async function upsertModelRecordByProviderName(providerName: string, model: AdminModelRecord): Promise<AdminModelRecord> {
+    const provider = await findProviderRecordByNaturalKey(providerName);
+    if (!provider) throw new Error(`目标环境缺少服务商 ${providerName}，无法写入模型`);
+    const existing = await findModelRecordByNaturalKey(provider.id, model.capability, model.modelId);
+    const normalized = deps.normalizeAdminModelRecord({ ...model, id: existing?.id || model.id, providerId: provider.id, createdAt: existing?.createdAt || model.createdAt });
+    if (existing) return updateModelRecord(existing.id, () => normalized);
+    return insertModelRecord(normalized);
+  }
+
   async function upsertModelRecordPostgres(model: AdminModelRecord) {
     const pool = await deps.getPostgresPool();
     const normalized = deps.normalizeAdminModelRecord(model);
@@ -430,6 +481,10 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     updateProviderLastFetchedAt,
     updateProviderRhCatalog,
     importProviderModels,
+    insertModelRecord,
+    updateModelRecord,
+    deleteModelRecord,
+    upsertModelRecordByProviderName,
     upsertProviderRecordPostgres,
     upsertModelRecordPostgres,
   };
