@@ -28,6 +28,10 @@ assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-task-se
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-task-service.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-worker.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-worker.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-auth-current-user-repository-contract.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-auth-current-user-repository-contract.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-auth-login-precision-query-contract.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-auth-login-precision-query-contract.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-single-port.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-single-port.mjs");
 assertArrayIncludes("requiredPaths", "apps/api/src/server.ts");
@@ -54,6 +58,8 @@ console.log(
         "scripts/verify-worker-observability-contract.mjs",
         "scripts/verify-provider-generation-task-service.mjs",
         "scripts/verify-provider-generation-worker.mjs",
+        "scripts/verify-auth-current-user-repository-contract.mjs",
+        "scripts/verify-auth-login-precision-query-contract.mjs",
         "scripts/verify-single-port.mjs",
       ],
       requiredSources: [
