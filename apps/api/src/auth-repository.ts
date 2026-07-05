@@ -75,6 +75,7 @@ export interface AuthCurrentUserRepositoryDeps {
 export function createAuthCurrentUserRepository(deps: AuthCurrentUserRepositoryDeps) {
   return {
     findCurrentUserBySessionId,
+    findEnabledUserByEmail,
   };
 
   async function findCurrentUserBySessionId(sessionId: string, now: number): Promise<CurrentAuthUserLookup | null> {
@@ -113,6 +114,28 @@ export function createAuthCurrentUserRepository(deps: AuthCurrentUserRepositoryD
     const userRow = userResult.rows[0];
     if (!userRow) return null;
     return { session, user: toUserRecord(userRow) };
+  }
+
+  async function findEnabledUserByEmail(email: string): Promise<UserRecord | null> {
+    const normalizedEmail = deps.safeEmail(email);
+    if (!normalizedEmail) return null;
+    if (deps.usePostgresRepository()) return findEnabledUserByEmailPostgres(normalizedEmail);
+    const db = await deps.readAuthDb();
+    return db.users.find((item) => item.email.toLowerCase() === normalizedEmail && !item.disabled) || null;
+  }
+
+  async function findEnabledUserByEmailPostgres(email: string): Promise<UserRecord | null> {
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query(
+      `select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
+       from xh_users
+       where lower(email) = lower($1)
+         and disabled = false
+       limit 1`,
+      [email],
+    );
+    const row = result.rows[0];
+    return row ? toUserRecord(row) : null;
   }
 
   function toSessionRecord(row: Record<string, unknown>): SessionRecord {

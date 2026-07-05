@@ -8,14 +8,21 @@ const repositorySource = existsSync(repositoryPath) ? readFileSync(repositoryPat
 
 const checks = [
   {
-    name: "auth repository boundary exists before login query extraction",
+    name: "auth repository boundary exists for login query extraction",
     pass: existsSync(repositoryPath),
   },
   {
-    name: "login still resolves enabled users by email without session joins",
+    name: "login delegates enabled-user email lookup to repository",
     pass:
-      serverSource.includes("db.users.find((item) => item.email.toLowerCase() === email && !item.disabled)") ||
-      repositorySource.includes("lower(email) = lower($1)"),
+      serverSource.includes("authCurrentUserRepository.findEnabledUserByEmail(email)") &&
+      repositorySource.includes("findEnabledUserByEmail"),
+  },
+  {
+    name: "postgres login lookup uses targeted enabled-user email query",
+    pass:
+      repositorySource.includes("from xh_users") &&
+      repositorySource.includes("lower(email) = lower($1)") &&
+      repositorySource.includes("disabled = false"),
   },
   {
     name: "repository does not introduce broad login joins",
@@ -25,10 +32,10 @@ const checks = [
       !repositorySource.includes("from xh_group_permission_policies"),
   },
   {
-    name: "current B1 batch keeps login extraction explicitly deferred",
+    name: "login extraction keeps session writes outside repository",
     pass:
       serverSource.includes("async function loginUser") &&
-      repositorySource.includes("createAuthCurrentUserRepository"),
+      serverSource.includes("createSessionRecordPostgres(session)"),
   },
 ];
 

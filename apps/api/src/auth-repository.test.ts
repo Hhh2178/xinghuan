@@ -141,4 +141,48 @@ describe("auth current user repository", () => {
     });
     expect(query).toHaveBeenCalledTimes(2);
   });
+
+  it("uses a targeted postgres user email query for login lookup", async () => {
+    const query = vi.fn(async (sql: string, params: unknown[]) => {
+      expect(sql).toContain("from xh_users");
+      expect(sql).toContain("lower(email) = lower($1)");
+      expect(sql).toContain("disabled = false");
+      expect(sql).not.toContain("xh_sessions");
+      expect(sql).not.toContain("xh_login_attempts");
+      expect(sql).not.toContain("xh_user_groups");
+      expect(params).toEqual(["user@example.test"]);
+      return {
+        rows: [{
+          id: "user-1",
+          email: "USER@EXAMPLE.TEST",
+          name: "User One",
+          role: "member",
+          password_hash: "hash",
+          password_cipher: null,
+          group_id: "group-1",
+          remark: "",
+          disabled: false,
+          created_at: 1000,
+          updated_at: 1000,
+        }],
+      };
+    });
+    const repo = createAuthCurrentUserRepository({
+      usePostgresRepository: () => true,
+      readAuthDb: async () => {
+        throw new Error("full auth db should not be read");
+      },
+      getPostgresPool: async () => ({ query } as any),
+      dateToMillis: (value: unknown) => Number(value) || 0,
+      safeText: (value: unknown) => String(value ?? "").trim(),
+      safeEmail: (value: unknown) => String(value ?? "").trim().toLowerCase(),
+    });
+
+    await expect(repo.findEnabledUserByEmail("USER@EXAMPLE.TEST")).resolves.toEqual(expect.objectContaining({
+      id: "user-1",
+      email: "user@example.test",
+      groupId: "group-1",
+    }));
+    expect(query).toHaveBeenCalledTimes(1);
+  });
 });

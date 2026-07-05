@@ -69,7 +69,7 @@
   - `f9d7fff` / gray `c549e71` B2 任务列表分页与去大字段：`GET /api/admin/tasks` 列表不再返回 `payload/result/logs`，并已在灰度 `20260705-postgres-pool-tuning-gray-r1-v0525` live verify 通过。
   - `2127368` / gray `20260705-postgres-pool-tuning-gray-r1-v0525` B3 Postgres pool 调参已完成：API/Worker 默认值不变，并新增 shared/service env 覆盖入口，已完成 gray runtime verify。
 - 仍需推进或明确延期：
-  - B1 login email lookup extraction，归入后续 E1 auth repository 批次。
+  - E1 auth repository 已完成 current-user 与 login email lookup 两个切片；其余 repository boundary 仍需分批。
   - E1 剩余 repository boundary。
   - F1 任务实时机制已决策延期实现；后续优先 shared frontend polling，再评估 SSE。
 - 灰度前必须执行：

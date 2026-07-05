@@ -6539,8 +6539,8 @@ async function loginUser(
   const now = Date.now();
   if (!email || !password) return null;
   await assertLoginAllowed(scope, email, ip, now);
-  const db = await readAuthDb();
-  const user = db.users.find((item) => item.email.toLowerCase() === email && !item.disabled);
+  const db = usePostgresRepository() ? null : await readAuthDb();
+  const user = db ? db.users.find((item) => item.email.toLowerCase() === email && !item.disabled) : await authCurrentUserRepository.findEnabledUserByEmail(email);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     await recordLoginFailure(scope, email, ip, now);
     return null;
@@ -6560,6 +6560,7 @@ async function loginUser(
   if (usePostgresRepository()) {
     await createSessionRecordPostgres(session);
   } else {
+    if (!db) throw new Error("AUTH_DB_NOT_LOADED");
     await writeAuthDb({
       ...db,
       loginAttempts: db.loginAttempts.filter((item) => item.key !== clearedLoginAttemptKey),

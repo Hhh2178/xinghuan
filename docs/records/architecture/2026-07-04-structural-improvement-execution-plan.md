@@ -236,14 +236,14 @@
 | 0 | A2 Prettier | 已完成 | `53f8ee8` | `2026-07-05 daily` | 移除误导性 format 入口，避免 1060 个历史格式差异阻断 |
 | 0 | A3 vitest | 已完成 | `53f8ee8` | `2026-07-05 daily` | 根 test 入口已跑通 |
 | 0 | A4 CI 聚合 | 已完成 | `53f8ee8` | `2026-07-05 daily` | `npm run ci` 已通过 |
-| 6 | B1 鉴权精准查询 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | current-user 精准查询已完成；login email lookup 延后到 E1 auth repository |
+| 6 | B1 鉴权精准查询 | 已完成 / 待提交 | `9e27bc7` + 本批提交 | `2026-07-05 daily` | current-user 已提交；login email lookup 已验证并随本批提交 |
 | 6 | B2 任务列表分页 | 已完成并灰度验证 | `f9d7fff` / gray `c549e71` | `2026-07-05 daily` / gray release log | 列表响应去除 `payload/result/logs`；`20260705-admin-task-list-heavy-fields-gray-r1-v0525` live verify 已通过 |
-| 6 | B3 连接池调参 | 已完成 | 本批提交 | `2026-07-05 daily` | API/Worker pool 默认值不变，可通过 shared/service env 覆盖 |
+| 6 | B3 连接池调参 | 已完成并灰度验证 | `2127368` / gray `20260705-postgres-pool-tuning-gray-r1-v0525` | `2026-07-05 daily` / gray release log | API/Worker pool 默认值不变，可通过 shared/service env 覆盖 |
 | 1 | C1 去重(A类) | 已完成 | `7966bd1` | `2026-07-05 daily` | shared/node 子路径导出，避免污染 Web/Admin bundle |
 | 1 | C2 去重(B类) | 已完成 | `7966bd1` | `2026-07-05 daily` | audio provider adapter 共用逻辑已下沉 |
 | 6 | D1 图标瘦身 | 已完成 | `619fcdd` | `2026-07-05 daily` | `vendor-icons` 从约 588 KB 降到约 58 KB |
-| 3 | E1 repository 骨架 | 部分完成 | `9e27bc7` | `2026-07-05 daily` | auth current-user slice 已落地；其余 repository 仍需分批 |
-| 6 | F1 任务实时机制 | 已决策 / 延期实现 | 本批提交 | `2026-07-05 decision` | 迁移线不直接改实时链路；后续优先 shared frontend polling，再评估 SSE |
+| 3 | E1 repository 骨架 | 部分完成 | `9e27bc7` + 本批提交 | `2026-07-05 daily` | auth current-user/login slices 已验证；其余 repository 仍需分批 |
+| 6 | F1 任务实时机制 | 已决策 / 延期实现 | `95bae0f` | `2026-07-05 decision` | 迁移线不直接改实时链路；后续优先 shared frontend polling，再评估 SSE |
 
 每完成一批，更新本表 + roadmap checkbox + daily log。
 

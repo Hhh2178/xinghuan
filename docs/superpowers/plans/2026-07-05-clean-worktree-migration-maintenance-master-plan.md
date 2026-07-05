@@ -44,10 +44,10 @@ Current decision:
 
 Current remaining execution target:
 
-1. Keep the completed B2 task list pagination and heavy-field stripping batch intact, including its gray/live verification evidence.
-2. Finish B3 Postgres pool tuning, or write a deferral record with safe gray defaults.
-3. Continue E1 repository boundary skeleton one domain at a time, starting from the lowest-risk remaining domain.
-4. Decide or defer F1 task realtime mechanism with a decision record.
+1. Keep the completed B2 task list pagination/heavy-field stripping and B3 Postgres pool tuning batches intact, including gray/live verification evidence.
+2. Keep F1 task realtime implementation deferred by decision record; do not start SSE or shared polling implementation inside this migration line.
+3. Keep the completed E1 auth-login repository slice intact after its validation and clean commit.
+4. Continue the remaining E1 repository boundary skeleton one domain at a time, starting from the lowest-risk remaining domain.
 5. Run migration-completeness validation before any later gray release.
 
 ## 1. Hard Rules
@@ -61,6 +61,7 @@ Current remaining execution target:
 - 灰度和正式发布只能从 `xinghuan-integration-clean` 出发，发布前必须确认版本号和 release record。
 - ComfyUI 功能开发从本计划开始暂停。允许的 ComfyUI 改动仅限崩溃修复、权限止血、灰度回滚记录、运行状态封存；不允许新增工作流能力、节点 UI、连接器架构或 Tailscale/隧道方案。
 - ComfyUI freeze is not a "pending feature task." Do not use this plan to resume ComfyUI, polish ComfyUI UI, add workflow parameter editors, or connect additional local machines.
+- ComfyUI pause overrides older ComfyUI plans in this worktree. Older ComfyUI plans remain evidence and design archive only until a new approved continuation plan is written.
 - If a ComfyUI emergency exception is required, it must be a separate stop-the-line batch with its own validation, release impact, and rollback record.
 - Any remaining structural batch may be completed or explicitly deferred, but it cannot disappear from the plan without a dated decision record.
 - A batch is only considered migrated when the clean branch has code/docs, validation evidence, and a clean commit. "Exists in milestone-b" is not completion evidence.
@@ -640,7 +641,7 @@ Status:
 - Completed in commit `9e27bc7`.
 - Current-user lookup is now delegated to `createAuthCurrentUserRepository`.
 - Postgres current-user path uses targeted session and user queries instead of full auth-db reads.
-- Login email lookup remains intentionally deferred to the broader E1 auth repository boundary.
+- Login email lookup is completed later in the E1 auth-login repository slice.
 
 Validation already recorded:
 
@@ -653,25 +654,30 @@ npm run verify:file-hotspot-budgets
 npm run ci
 ```
 
-- [ ] **Step 2: Complete or defer B1 login email lookup extraction**
+- [x] **Step 2: Complete or defer B1 login email lookup extraction**
 
-Decision needed before marking B1 fully closed:
+Status:
 
-- Preferred path: include login email lookup in the later E1 auth repository expansion.
-- Acceptable deferral: write a dated note in this plan and daily log explaining that current-user hot path is fixed and login path is tracked by `verify:auth-login-precision-query-contract`.
+- Completed in the active E1 auth-login repository slice.
+- `loginUser` delegates enabled-user email lookup to `authCurrentUserRepository.findEnabledUserByEmail` in Postgres mode.
+- Postgres login lookup now uses a targeted `xh_users` query with `lower(email) = lower($1)` and `disabled = false`.
+- File-backed mode still reads the file auth DB once to preserve local JSON session/login-attempt writes.
 
-Run if implementing now:
+Validation:
 
 ```powershell
 npm run type-check -w @xinghuan/api
 npx vitest run apps/api/src/auth-repository.test.ts
+npm run verify:auth-current-user-repository-contract
 npm run verify:auth-login-precision-query-contract
+npm run verify:file-hotspot-budgets
 ```
 
 Expected:
 
 - Login lookup does not reintroduce full-table auth reads on ordinary login.
 - Existing login behavior remains unchanged.
+- `verify:auth-login-precision-query-contract` now asserts repository delegation instead of a deferral marker.
 
 - [x] **Step 3: Complete B2 task list pagination and heavy-field stripping**
 
@@ -902,7 +908,42 @@ Status:
 
 - Completed in commit `9e27bc7`.
 - This is a narrow E1 slice, not the full E1 repository boundary.
-- It covers current-user lookup only; broader auth login/admin auth repository work remains open.
+- It covers current-user lookup only; broader admin auth repository work remains open.
+
+- [x] **Step 1.1: Finish the active auth-login repository slice**
+
+Status:
+
+- Implemented, freshly validated, and ready for the clean commit in this batch.
+- `findEnabledUserByEmail` extends the existing auth repository boundary instead of adding another ad-hoc helper.
+- Postgres login lookup should use targeted `xh_users` email lookup; file-backed mode should preserve local JSON login-attempt/session write behavior.
+
+Run before commit:
+
+```powershell
+npx vitest run apps/api/src/auth-repository.test.ts
+npm run type-check -w @xinghuan/api
+npm run verify:auth-current-user-repository-contract
+npm run verify:auth-login-precision-query-contract
+npm run verify:file-hotspot-budgets
+npm run verify:no-runtime-artifacts-staged
+npm run verify:staged-source-size-guard
+git diff --check
+```
+
+Expected:
+
+- Auth repository tests pass.
+- `verify:auth-login-precision-query-contract` confirms repository delegation rather than a deferral marker.
+- `apps/api/src/server.ts` stays within hotspot budget.
+- No runtime artifacts or unrelated files are staged.
+
+Commit:
+
+```powershell
+git add apps/api/src/auth-repository.ts apps/api/src/auth-repository.test.ts apps/api/src/server.ts scripts/verify-auth-login-precision-query-contract.mjs docs/records/architecture/2026-07-04-structural-improvement-execution-plan.md docs/memory/current-state.md docs/logbooks/daily/2026/2026-07/2026-07-05.md docs/superpowers/plans/2026-07-05-clean-worktree-migration-maintenance-master-plan.md
+git commit -m "refactor(api): route auth login lookup through repository"
+```
 
 - [ ] **Step 2: Migrate the remaining repositories one domain at a time**
 
@@ -946,7 +987,7 @@ git commit -m "docs: record repository boundary migration progress"
 
 Remaining E1 checklist:
 
-- Auth login lookup extraction: open, should extend the existing auth repository rather than add another ad-hoc helper.
+- Auth repository: current-user and login email lookup slices complete; broader admin auth writes remain open.
 - Provider repository boundary: open.
 - Settings repository boundary: open.
 - Admin repository boundary: open.
@@ -1276,18 +1317,18 @@ Expected:
 ## Execution Order
 
 1. Keep ComfyUI frozen. Do not resume ComfyUI feature work in this plan.
-2. Confirm Phase S, Phase C, Phase U1, Phase U3, Phase U4, and B1 current-user slice remain committed in `xinghuan-integration-clean`.
-3. Treat B2 task list pagination/heavy-field stripping as completed and gray-verified; do not reopen it unless a regression is reproduced.
-4. Execute or explicitly defer B3 Postgres pool tuning.
-5. Continue E1 repository boundaries one domain at a time, starting with the lowest-risk remaining domain and keeping `server.ts` within hotspot budget.
-6. Write the F1 task realtime decision or deferral record before attempting realtime implementation.
+2. Confirm Phase S, Phase C, Phase U1, Phase U2/B2-B3, Phase U3, Phase U4, and Phase U6/F1 decision remain committed in `xinghuan-integration-clean`.
+3. Treat B2 task list pagination/heavy-field stripping and B3 Postgres pool tuning as completed and gray-verified; do not reopen either unless a regression is reproduced.
+4. Commit the freshly validated E1 auth-login repository slice, then run CodeGraph sync.
+5. Continue the rest of E1 repository boundaries one domain at a time, starting with the lowest-risk remaining domain and keeping `server.ts` within hotspot budget.
+6. Keep F1 implementation deferred until a separate realtime plan exists; the current migration line must not introduce SSE or shared polling code.
 7. Run Phase V migration-completeness validation before the next release wave.
 8. Use Phase R for gray/production deployment only after Phase V passes or produces explicit deferral records.
 9. Use Phase A after every commit or release so other windows read the right state.
 
 ## Current Progress Snapshot
 
-As of 2026-07-05 after B2 gray rollout:
+As of 2026-07-05 after B3 gray rollout and E1 auth-login validation:
 
 - Secret ignore coverage in clean worktree: present.
 - Secret ignore coverage in server root `.gitignore`: explicit entries added by this plan batch.
@@ -1305,13 +1346,13 @@ As of 2026-07-05 after B2 gray rollout:
   - Phase U3/C1-C2 API/Worker provider deduplication.
   - Phase U2/B1 auth current-user precise query.
   - Phase U2/B2 admin task list pagination and heavy-field stripping, including gray/live verification.
+  - Phase U2/B3 Postgres pool tuning, including gray/live verification.
+  - Phase U6/F1 task realtime mechanism decision/deferral.
 - Unfinished structural plan items still to carry forward:
-  - B1 login email lookup extraction remains deferred to the broader E1 auth repository batch.
-  - B3 Postgres pool tuning.
   - E1 repository boundary skeleton.
-  - F1 task realtime mechanism decision or deferral.
+  - E1 auth admin writes, provider, settings, admin, task, usage summary, and environment-sync-local repository boundaries.
 - Required before the next gray release wave: run Phase V migration-completeness validation and ensure every unfinished batch is either completed or explicitly deferred.
-- Main blocker before further feature work: complete or explicitly defer the remaining backend/repository/realtime structural batches. ComfyUI feature work remains blocked until a separate continuation plan is approved after this structural line is clean.
+- Main blocker before further feature work: complete or explicitly defer the remaining backend/repository structural batches. ComfyUI feature work remains blocked until a separate continuation plan is approved after this structural line is clean.
 
 ## Self-Review
 
