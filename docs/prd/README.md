@@ -2,9 +2,9 @@
 
 ## 当前版本
 
-- `v0.5.25`｜🟡 ComfyUI machine-first 节点灰度发布｜2026-07-04｜当前活跃版本
-  - 摘要：无限画布 2.0 当前 gray 已运行在 `v0.5.25`，production 仍运行在 `v0.5.22`。当前重点是 ComfyUI 统一节点的机器优先选择、自适应高度、共享执行链路验收与机器池/工作流治理继续打磨；早期 `Phase 3` 任务与素材闭环已完成，不再作为当前阶段口径。当前详细状态统一看 `README.md`、`MEMORY.md`、`ops/README.md` 与 `docs/logbooks/releases/current-release-index.md`。
-  - 当前 gray release：`20260704-comfyui-machine-first-gray-r1-v0525`
+- `v0.5.25`｜🟡 Admin task list 重字段收口灰度发布｜2026-07-05｜当前活跃版本
+  - 摘要：无限画布 2.0 当前 gray 已运行在 `v0.5.25`，production 仍运行在 `v0.5.22`。当前最新 gray release 完成 admin task list 列表响应去除 `payload/result/logs` 重字段；ComfyUI 功能开发已暂停封存，当前重点转向 B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision。当前详细状态统一看 `README.md`、`MEMORY.md`、`ops/README.md` 与 `docs/logbooks/releases/current-release-index.md`。
+  - 当前 gray release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
   - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
   - 文档：[`prd.md`](./v0.1.0/prd.md) / [`spec.md`](./v0.1.0/spec.md) / [`design.md`](./v0.1.0/design.md) / [`entry-ui-google-brief.md`](./v0.1.0/entry-ui-google-brief.md) / [`plan.md`](./v0.1.0/plan.md) / [`provider-model-framework.md`](./v0.1.0/provider-model-framework.md) / [`assistant-hermes-plan.md`](./v0.1.0/assistant-hermes-plan.md) / [`assistant-hermes-implementation-plan.md`](./v0.1.0/assistant-hermes-implementation-plan.md) / [`progress.md`](./v0.1.0/progress.md) / [`decisions.md`](./v0.1.0/decisions.md) / [`release.md`](./v0.1.0/release.md) / [`changelog.md`](./v0.1.0/changelog.md)
 

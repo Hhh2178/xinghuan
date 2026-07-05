@@ -5,12 +5,13 @@
 ### Gray
 
 - 版本：`v0.5.25`
-- release：`20260704-comfyui-machine-first-gray-r1-v0525`
-- 当前状态：`2026-07-04 已完成 gray deploy + runtime verify；统一 comfyui 节点的 machine-first 选择、自适应高度与错误翻译链路已发布到 gray`
-- 部署内容：`先机器后工作流、节点自适应拉长、无内部滚动、离线机器拦截、ComfyUI 分阶段错误翻译`
-- 补充修复：`首次 verify 命中服务重启窗口后，已通过 SSH 复核 current 指针 / systemd / 内外网 status，并完成第二次标准 verify`
-- 部署时间：`2026-07-04 10:26`
+- release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
+- 当前状态：`2026-07-05 已完成 gray deploy + runtime verify；admin task list 列表响应已去除 payload/result/logs 重字段`
+- 部署内容：`GET /api/admin/tasks 轻量摘要、分页与过滤保留、B2 live verify 通过、ComfyUI 功能继续冻结`
+- 补充修复：`发布 gate 修复 AGENTS.md 截断和当前 release 状态漂移后，prepare/deploy/verify 完整通过`
+- 部署时间：`2026-07-05 20:00`
 - 当前批次记录：
+  - `gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
   - `gray/2026-07-04-comfyui-machine-first-gray.md`
   - `gray/2026-07-03-comfyui-rh-node-machine-gray.md`
   - `gray/2026-07-03-comfyui-workflow-governance-gray.md`

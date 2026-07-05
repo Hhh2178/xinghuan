@@ -98,7 +98,7 @@
 
 - 当前 gray 运行态入口：
   - gray 版本：`v0.5.25`
-  - gray release：`20260704-comfyui-machine-first-gray-r1-v0525`
+  - gray release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
   - production 版本：`v0.5.22`
   - production release：`20260702-envsync-admin-sections-prod-r1-v0522`
   - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`docs/memory/current-state.md` 为准。

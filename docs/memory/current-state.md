@@ -3,7 +3,7 @@
 ## 当前版本与阶段
 
 - 当前活跃版本：`v0.5.25`
-- 当前灰度 release：`20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
+- 当前灰度 release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：clean worktree 结构治理批次已开始收口，工具链安全网、图标瘦身、API/Worker provider 去重、auth current-user 精准查询已在 `xinghuan-integration-clean` 提交。
@@ -40,7 +40,7 @@
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
   - gray 当前运行在 `v0.5.25`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
+  - gray 当前 release 为 `20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

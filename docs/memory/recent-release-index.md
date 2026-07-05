@@ -4,7 +4,7 @@
 
 - gray：
   - 版本：`v0.5.25`
-  - release：`20260704-comfyui-machine-first-gray-r1-v0525`
+  - release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

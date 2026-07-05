@@ -55,14 +55,14 @@
 
 - 当前活跃版本：`v0.5.25`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260704-comfyui-machine-first-gray-r1-v0525` (已部署)
+- 当前 gray release：`20260705-admin-task-list-heavy-fields-gray-r1-v0525` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：ComfyUI 统一节点 machine-first 选择、自适应高度与错误翻译链路已完成并部署到灰度
-- 部署时间：2026-07-04 10:26
+- 最新完成：Admin task list 列表响应去除 `payload/result/logs` 重字段并完成灰度部署验证
+- 部署时间：2026-07-05 20:00
 - 部署状态：✅ 服务运行正常，API 响应正常，HTTPS 访问正常
 - 2026-07-03 12:26 补充修复：ComfyUI 图标一致性修复（`.error-banner` 全站选择器冲突、按钮圆角/图标尺寸统一）+ 补齐灰度 `apps/api/dist` 遗漏内容并配置 `XINGHUAN_COMFYUI_CONNECTOR_TOKEN`，connector 注册/心跳在灰度正式生效，详见 `docs/logbooks/releases/gray/2026-07-03-comfyui-icon-fix-and-connector-harness-activation-gray.md`
-- 2026-07-04 10:26 发布推进：`v0.5.25` gray release 已切到 `20260704-comfyui-machine-first-gray-r1-v0525`，并完成统一 comfyui 节点的 machine-first 选择、自适应高度和错误翻译灰度发布，详见 `docs/logbooks/releases/gray/2026-07-04-comfyui-machine-first-gray.md`
-- 当前工作重心：ComfyUI 统一节点待用户验收，重点核对机器切换、workflow 过滤、长参数节点视觉与共享工作流真实执行链路
+- 2026-07-05 20:00 发布推进：`v0.5.25` gray release 已切到 `20260705-admin-task-list-heavy-fields-gray-r1-v0525`，并完成 admin task list 去重字段灰度验证，详见 `docs/logbooks/releases/gray/2026-07-05-admin-task-list-heavy-fields-gray.md`
+- 当前工作重心：B3 Postgres pool tuning、E1 剩余 repository boundary、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`
