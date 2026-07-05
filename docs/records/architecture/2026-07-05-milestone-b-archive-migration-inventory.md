@@ -21,7 +21,7 @@ Target branch: `xinghuan-integration-clean`
 | Domain | Old files | Clean status | Decision | Validation |
 | --- | --- | --- | --- | --- |
 | Auth repository | `apps/api/src/auth-repository.ts`, tests, auth verify scripts | Partially present | Keep existing clean slices; migrate remaining admin-write slices only if needed | auth repository tests + auth verify scripts |
-| Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Open | Migrate next | provider repository tests + provider route split contract |
+| Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Core repository slice migrated in clean branch; route wiring still pending | Continue with provider route integration after core commit | provider repository tests + provider route split contract |
 | Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Open | Migrate after provider | settings repository tests + assistant/task queue contracts |
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Open | Migrate after settings | admin repository tests + audit/task summary contracts |
 | Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Partially covered by B2 | Migrate after admin | task repository tests + admin task pagination |
