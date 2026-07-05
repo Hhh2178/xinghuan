@@ -22,7 +22,7 @@ Target branch: `xinghuan-integration-clean`
 | --- | --- | --- | --- | --- |
 | Auth repository | `apps/api/src/auth-repository.ts`, tests, auth verify scripts | Partially present | Keep existing clean slices; migrate remaining admin-write slices only if needed | auth repository tests + auth verify scripts |
 | Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Core repository, admin provider route wiring, and provider/model persistence helpers migrated in clean branch | Continue later with remaining RH catalog call-site migration and optional focused contract script | provider repository tests + provider route split contract |
-| Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Open | Migrate after provider | settings repository tests + assistant/task queue contracts |
+| Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Migrated in clean branch with assistant/queue/system route wiring | Complete for current assistant and task-queue settings boundary; revisit only if broader system settings are added | settings repository tests + assistant/queue/system route contracts + assistant save contract |
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Open | Migrate after settings | admin repository tests + audit/task summary contracts |
 | Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Partially covered by B2 | Migrate after admin | task repository tests + admin task pagination |
 | Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Open | Migrate after task | usage summary repository contract |
@@ -51,3 +51,26 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff-tree --no-co
 6. Environment sync local boundary.
 7. Shared helper completion.
 8. Full validation and repair loop.
+
+## Completed Clean Migration Evidence
+
+### Settings repository boundary
+
+- Clean branch status: migrated.
+- Purpose: remove assistant settings and task queue settings persistence details from `apps/api/src/server.ts`, and prevent settings routes from loading the full admin DB for narrow reads.
+- Implementation:
+  - Added `apps/api/src/settings-repository.ts`.
+  - Added `apps/api/src/settings-repository.test.ts`.
+  - `server.ts` now instantiates `createSettingsRepository()` and keeps only thin compatibility wrappers for existing call sites.
+  - Assistant settings route reads through `readAssistantSettingsRecord()` instead of `readAdminDb()`.
+  - Queue/system settings routes read providers through `providerRepository.readProviderRecords()` instead of loading the full admin DB only to compute effective RunningHub concurrency.
+  - `scripts/verify-admin-assistant-settings-save-contract.mjs` now validates the repository-backed boundary rather than the old inline `server.ts` writer.
+- Validation:
+  - `npx vitest run apps/api/src/settings-repository.test.ts apps/api/src/provider-repository.test.ts`
+  - `npm run type-check -w @xinghuan/api`
+  - `node scripts/verify-admin-assistant-settings-save-contract.mjs`
+  - `node scripts/verify-api-admin-assistant-settings-route-split-contract.mjs`
+  - `node scripts/verify-api-queue-settings-route-split-contract.mjs`
+  - `node scripts/verify-api-system-settings-route-split-contract.mjs`
+  - `npm run verify:file-hotspot-budgets`
+- Result: passed. `apps/api/src/server.ts` hotspot budget improved to `11595 / 11910`.

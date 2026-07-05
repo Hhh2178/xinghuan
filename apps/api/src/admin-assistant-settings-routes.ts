@@ -62,10 +62,6 @@ interface AssistantSettingsRecordShape {
   revision: number;
 }
 
-interface AdminDbShape {
-  assistantSettings?: AssistantSettingsRecordShape;
-}
-
 export interface AdminAssistantSettingsRouteDeps {
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   appendAudit: (
@@ -76,7 +72,7 @@ export interface AdminAssistantSettingsRouteDeps {
     summary: string,
     requestContext: RequestContextShape,
   ) => Promise<void>;
-  readAdminDb: () => Promise<AdminDbShape>;
+  readAssistantSettingsRecord: () => Promise<AssistantSettingsRecordShape>;
   defaultAssistantSettings: () => AssistantSettingsRecordShape;
   normalizeAssistantSettings: (
     value: unknown,
@@ -102,15 +98,15 @@ export async function handleAdminAssistantSettingsRoutes(input: {
   if (url.pathname !== "/api/admin/assistant/settings") return false;
 
   if (request.method === "GET") {
-    const db = await deps.readAdminDb();
-    deps.sendT8(response, deps.maskAssistantEndpoint(db.assistantSettings || deps.defaultAssistantSettings()));
+    const settings = await deps.readAssistantSettingsRecord();
+    deps.sendT8(response, deps.maskAssistantEndpoint(settings || deps.defaultAssistantSettings()));
     return true;
   }
 
   if (request.method === "PATCH") {
     const body = await readJsonBody<Partial<AssistantSettingsRecordShape>>(request);
-    const db = await deps.readAdminDb();
-    const settings = deps.normalizeAssistantSettings(body, db.assistantSettings || deps.defaultAssistantSettings());
+    const current = await deps.readAssistantSettingsRecord();
+    const settings = deps.normalizeAssistantSettings(body, current || deps.defaultAssistantSettings());
     const saved = await deps.writeAssistantSettingsRecord(settings, deps.adminSettingsRevisionFromPayload(body));
     await deps.appendAudit(
       adminUser,

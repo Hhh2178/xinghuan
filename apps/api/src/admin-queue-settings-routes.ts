@@ -27,10 +27,6 @@ interface SystemSettingsRecordShape {
   revision: number;
 }
 
-interface AdminDbShape {
-  providers: any[];
-}
-
 interface AdminQueueSettingsMutationBody {
   taskQueueSettings?: Partial<{
     image: { concurrency?: number; userConcurrency?: number };
@@ -53,7 +49,7 @@ export interface AdminQueueSettingsRouteDeps {
   ) => Promise<void>;
   readTaskQueueSettingsRecord: () => Promise<SystemSettingsRecordShape>;
   writeTaskQueueSettingsRecord: (taskQueueSettings: TaskQueueSettings, expectedRevision?: number) => Promise<SystemSettingsRecordShape>;
-  readAdminDb: () => Promise<AdminDbShape>;
+  readProviderRecords: () => Promise<any[]>;
   normalizeTaskQueueSettings: (patch?: unknown, current?: TaskQueueSettings) => TaskQueueSettings;
   withEffectiveRunningHubConcurrency: (taskQueueSettings: TaskQueueSettings, providers: any[]) => TaskQueueSettings;
   adminSettingsRevisionFromPayload: (value: unknown) => number | undefined;
@@ -76,8 +72,8 @@ export async function handleAdminQueueSettingsRoutes(input: {
 
   if (request.method === "GET" && url.pathname === "/api/admin/queue-settings") {
     const current = await deps.readTaskQueueSettingsRecord();
-    const adminDb = await deps.readAdminDb();
-    const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(current.taskQueueSettings, adminDb.providers);
+    const providers = await deps.readProviderRecords();
+    const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(current.taskQueueSettings, providers);
     await deps.appendAudit(adminUser, "system.taskQueue.read", "system", "task-queue-settings", "查看任务并发设置", requestContext);
     deps.sendT8(response, buildAdminQueueSettingsPayload({
       taskQueueSettings: effectiveTaskQueueSettings,
@@ -95,8 +91,8 @@ export async function handleAdminQueueSettingsRoutes(input: {
     deps.normalizeTaskQueueSettings(body.taskQueueSettings, current.taskQueueSettings),
     deps.adminSettingsRevisionFromPayload(body),
   );
-  const adminDb = await deps.readAdminDb();
-  const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(saved.taskQueueSettings, adminDb.providers);
+  const providers = await deps.readProviderRecords();
+  const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(saved.taskQueueSettings, providers);
   await deps.appendAudit(adminUser, "system.taskQueue.update", "system", "task-queue-settings", "更新任务并发设置", requestContext);
   deps.sendT8(response, buildAdminQueueSettingsPayload({
     taskQueueSettings: effectiveTaskQueueSettings,

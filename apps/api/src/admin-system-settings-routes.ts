@@ -26,10 +26,6 @@ interface SystemSettingsRecordShape {
   revision: number;
 }
 
-interface AdminDbShape {
-  providers: any[];
-}
-
 interface DatabaseStatusShape {
   configured: boolean;
   status: string;
@@ -60,7 +56,7 @@ export interface AdminSystemSettingsRouteDeps {
     requestContext: RequestContextShape,
   ) => Promise<void>;
   readTaskQueueSettingsRecord: () => Promise<SystemSettingsRecordShape>;
-  readAdminDb: () => Promise<AdminDbShape>;
+  readProviderRecords: () => Promise<any[]>;
   withEffectiveRunningHubConcurrency: (taskQueueSettings: TaskQueueSettings, providers: any[]) => TaskQueueSettings;
   readDatabaseStatus: () => Promise<DatabaseStatusShape>;
   readRedisStatus: (taskQueueSettings: TaskQueueSettings) => Promise<RedisStatusShape>;
@@ -86,8 +82,8 @@ export async function handleAdminSystemSettingsRoutes(input: {
   if (url.pathname !== "/api/admin/system" || request.method !== "GET") return false;
 
   const taskQueueSettingsRecord = await deps.readTaskQueueSettingsRecord();
-  const adminDb = await deps.readAdminDb();
-  const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, adminDb.providers);
+  const providers = await deps.readProviderRecords();
+  const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, providers);
   await deps.appendAudit(adminUser, "system.read", "system", "system-status", "查看系统状态", requestContext);
   const database = await deps.readDatabaseStatus();
   const redis = await deps.readRedisStatus(effectiveTaskQueueSettings);

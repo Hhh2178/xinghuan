@@ -138,6 +138,7 @@ import {
 import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
+import { createSettingsRepository } from "./settings-repository.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } from "./comfyui-instance-routes.js";
@@ -288,6 +289,23 @@ const {
 
 const authCurrentUserRepository = createAuthCurrentUserRepository({ usePostgresRepository, readAuthDb, getPostgresPool, dateToMillis, safeText, safeEmail });
 const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
+const settingsRepository = createSettingsRepository({
+  usePostgresRepository,
+  ensureDataDirs,
+  adminDbPath,
+  getPostgresPool,
+  dateToMillis,
+  millisToDate,
+  plainObject,
+  defaultAssistantSettings,
+  normalizeAssistantSettings: (value, base) => normalizeAssistantSettings(value, base as AssistantSettingsRecord | undefined),
+  normalizeTaskQueueSettings,
+  defaultTaskQueueSettings,
+  createRevisionConflictError: (settingsKey, currentRevision) => new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
+    settingsKey,
+    currentRevision,
+  }),
+});
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -2290,7 +2308,7 @@ async function handleAdminRequest(
         sendT8,
         appendAudit,
         readTaskQueueSettingsRecord,
-        readAdminDb,
+        readProviderRecords: providerRepository.readProviderRecords,
         withEffectiveRunningHubConcurrency,
         readDatabaseStatus,
         readRedisStatus,
@@ -2308,7 +2326,7 @@ async function handleAdminRequest(
         appendAudit,
         readTaskQueueSettingsRecord,
         writeTaskQueueSettingsRecord,
-        readAdminDb,
+        readProviderRecords: providerRepository.readProviderRecords,
         normalizeTaskQueueSettings,
         withEffectiveRunningHubConcurrency,
         adminSettingsRevisionFromPayload,
@@ -2316,7 +2334,7 @@ async function handleAdminRequest(
       assistantSettings: {
         sendT8,
         appendAudit,
-        readAdminDb,
+        readAssistantSettingsRecord,
         defaultAssistantSettings,
         normalizeAssistantSettings,
         writeAssistantSettingsRecord,
@@ -4075,42 +4093,7 @@ async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: 
 }
 
 async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord, expectedRevision?: number) {
-  const normalized = normalizeAssistantSettings(settings);
-  if (usePostgresRepository()) {
-    return writeAssistantSettingsRecordPostgres(normalized, expectedRevision);
-  }
-  const db = await readAdminDb();
-  const current = normalizeAssistantSettings(db.assistantSettings);
-  if (expectedRevision !== undefined && expectedRevision !== current.revision) {
-    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
-      settingsKey: "assistant",
-      currentRevision: current.revision,
-    });
-  }
-  const nextRevision = current.revision + 1;
-  const updatedAt = Date.now();
-  await ensureDataDirs();
-  await writeFile(
-    adminDbPath,
-    JSON.stringify(
-      {
-        ...db,
-        assistantSettings: {
-          ...normalized,
-          revision: nextRevision,
-          updatedAt,
-        },
-      },
-      null,
-      2,
-    ),
-    "utf-8",
-  );
-  return {
-    ...normalized,
-    revision: nextRevision,
-    updatedAt,
-  };
+  return settingsRepository.writeAssistantSettingsRecord(settings, expectedRevision);
 }
 
 function usePostgresRepository() {
@@ -5087,125 +5070,16 @@ async function deleteModelRecordPostgres(modelId: string) {
   await providerRepository.deleteModelRecord(modelId);
 }
 
-async function writeAssistantSettingsRecordPostgres(settings: AssistantSettingsRecord, expectedRevision?: number) {
-  const pool = await getPostgresPool();
-  const normalized = normalizeAssistantSettings(settings);
-  const currentResult = await pool.query("select revision from xh_assistant_settings where id = 'default' limit 1");
-  const currentRevision = Number(currentResult.rows[0]?.revision) || 1;
-  if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
-    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
-      settingsKey: "assistant",
-      currentRevision,
-    });
-  }
-  const nextRevision = currentResult.rows[0] ? currentRevision + 1 : currentRevision;
-  const updatedAt = Date.now();
-  await pool.query(
-    `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
-     values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)
-     on conflict (id) do update set
-       frontend = excluded.frontend,
-       backend = excluded.backend,
-       integration = excluded.integration,
-       revision = excluded.revision,
-       updated_at = excluded.updated_at`,
-    [
-      "default",
-      JSON.stringify(normalized.frontend),
-      JSON.stringify(normalized.backend),
-      JSON.stringify(normalized.integration),
-      nextRevision,
-      millisToDate(updatedAt),
-    ],
-  );
-  return {
-    ...normalized,
-    revision: nextRevision,
-    updatedAt,
-  };
+async function readAssistantSettingsRecord(): Promise<AssistantSettingsRecord> {
+  return settingsRepository.readAssistantSettingsRecord();
 }
 
 async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
-  if (usePostgresRepository()) {
-    return readTaskQueueSettingsRecordPostgres();
-  }
-  const db = await readAdminDb();
-  return {
-    taskQueueSettings: normalizeTaskQueueSettings(db.taskQueueSettings),
-    updatedAt: Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
-      ? Number(db.taskQueueSettingsUpdatedAt)
-      : Date.now(),
-    revision: Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
-      ? Math.floor(Number(db.taskQueueSettingsRevision))
-      : 1,
-  };
-}
-
-async function readTaskQueueSettingsRecordPostgres(): Promise<SystemSettingsRecord> {
-  const pool = await getPostgresPool();
-  const result = await pool.query("select task_queue_settings, revision, updated_at from xh_system_settings where id = 'default' limit 1");
-  if (!result.rows[0]) {
-    return {
-      taskQueueSettings: defaultTaskQueueSettings(),
-      updatedAt: Date.now(),
-      revision: 1,
-    };
-  }
-  return {
-    taskQueueSettings: normalizeTaskQueueSettings(plainObject(result.rows[0].task_queue_settings)),
-    updatedAt: result.rows[0].updated_at ? dateToMillis(result.rows[0].updated_at) : Date.now(),
-    revision: Number(result.rows[0].revision) || 1,
-  };
+  return settingsRepository.readTaskQueueSettingsRecord();
 }
 
 async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings, expectedRevision?: number): Promise<SystemSettingsRecord> {
-  const normalized = normalizeTaskQueueSettings(taskQueueSettings);
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    const currentResult = await pool.query("select revision from xh_system_settings where id = 'default' limit 1");
-    const currentRevision = Number(currentResult.rows[0]?.revision) || 1;
-    if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
-      throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
-        settingsKey: "task-queue",
-        currentRevision,
-      });
-    }
-    const nextRevision = currentResult.rows[0] ? currentRevision + 1 : currentRevision;
-    const updatedAt = Date.now();
-    await pool.query(
-      `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
-       values ($1, $2::jsonb, $3, $4)
-       on conflict (id) do update set
-         task_queue_settings = excluded.task_queue_settings,
-         revision = excluded.revision,
-         updated_at = excluded.updated_at`,
-      ["default", JSON.stringify(normalized), nextRevision, millisToDate(updatedAt)],
-    );
-    return { taskQueueSettings: normalized, updatedAt, revision: nextRevision };
-  }
-  const db = await readAdminDb();
-  const currentRevision = Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
-    ? Math.floor(Number(db.taskQueueSettingsRevision))
-    : 1;
-  if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
-    throw new HttpError(409, "ADMIN_SETTINGS_REVISION_CONFLICT", {
-      settingsKey: "task-queue",
-      currentRevision,
-    });
-  }
-  const nextRevision = currentRevision + 1;
-  const updatedAt = Date.now();
-  await writeAdminDb({
-    ...db,
-    taskQueueSettings: normalized,
-    taskQueueSettingsRevision: nextRevision,
-    taskQueueSettingsUpdatedAt: updatedAt,
-  });
-  return {
-    taskQueueSettings: normalized,
-    updatedAt,
-    revision: nextRevision,
-  };
+  return settingsRepository.writeTaskQueueSettingsRecord(taskQueueSettings, expectedRevision);
 }
 
 async function updateProviderProbeResult(providerId: string, result: { ok?: boolean; message?: string }, now: number) {
