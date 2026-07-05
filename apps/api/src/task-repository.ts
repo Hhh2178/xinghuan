@@ -1,0 +1,359 @@
+import type { Pool, QueryResultRow } from "pg";
+import type { TaskStatus } from "@xinghuan/shared";
+
+export interface TaskRecordShape {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerRemark?: string;
+  ownerGroupId?: string;
+  ownerGroupName?: string;
+  ownerDeleted?: boolean;
+  providerId?: string;
+  modelId?: string;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  logs: string[];
+  createdAt: number;
+  updatedAt: number;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: "muted" | "warning" | "success" | "danger";
+  runtimeStage?: string;
+  providerState?: string;
+}
+
+export interface TaskOwnerRecordShape {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "member";
+  passwordHash: string;
+  groupId?: string;
+  remark?: string;
+  disabled?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TaskOwnerGroupRecordShape {
+  id: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TaskListItemShape {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerRemark?: string;
+  ownerGroupId?: string;
+  ownerGroupName?: string;
+  ownerDeleted?: boolean;
+  providerId?: string;
+  modelId?: string;
+  displayStatus?: string;
+  displayMessage?: string;
+  displayTone?: "muted" | "warning" | "success" | "danger";
+  runtimeStage?: string;
+  providerState?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TaskPostgresRowShape {
+  id: string;
+  title: string;
+  status: string;
+  owner_id?: string | null;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  owner_remark?: string | null;
+  owner_group_id?: string | null;
+  owner_group_name?: string | null;
+  owner_deleted?: unknown;
+  provider_id?: string | null;
+  model_id?: string | null;
+  payload?: unknown;
+  result?: unknown;
+  logs?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+}
+
+interface TaskListPostgresRow extends QueryResultRow, TaskPostgresRowShape {}
+interface TaskDetailPostgresRow extends QueryResultRow, TaskPostgresRowShape {}
+interface TaskCountPostgresRow extends QueryResultRow {
+  total: unknown;
+}
+
+export interface TaskRepositoryDeps {
+  usePostgresRepository: () => boolean;
+  getPostgresPool: () => Promise<Pool>;
+  readTaskRecords: () => Promise<TaskRecordShape[]>;
+  writeTaskRecords: (tasks: TaskRecordShape[]) => Promise<void>;
+  readTaskOwnerRecords: () => Promise<{ users: TaskOwnerRecordShape[]; userGroups: TaskOwnerGroupRecordShape[] }>;
+  toAdminTaskRecord: (row: TaskPostgresRowShape) => TaskRecordShape;
+  enrichAdminTaskRecord: (
+    task: TaskRecordShape,
+    usersById: Map<string, TaskOwnerRecordShape>,
+    groupsById: Map<string, TaskOwnerGroupRecordShape>,
+  ) => TaskRecordShape;
+  summarizeAdminTaskRecord: (task: TaskRecordShape) => TaskListItemShape;
+  withUnifiedRuntimeDiagnostic: (task: TaskRecordShape) => TaskRecordShape;
+  safeText: (value: unknown, fallback?: string) => string;
+  plainObject: (value: unknown) => Record<string, unknown>;
+  millisToDate: (value: number | undefined) => Date;
+}
+
+export interface TaskListQuery {
+  page: number;
+  pageSize: number;
+  status: string;
+  providerId: string;
+  capability: string;
+}
+
+export interface TaskListPage {
+  items: TaskListItemShape[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  filters: {
+    status: string;
+    providerId: string;
+    capability: string;
+  };
+}
+
+export function createTaskRepository(deps: TaskRepositoryDeps) {
+  return {
+    appendTaskLog,
+    insertTaskRecord,
+    readTaskListPage,
+    readTaskRecord,
+    writeTaskRecord,
+  };
+
+  async function appendTaskLog(taskId: string, line: string) {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      await pool.query(
+        `update xh_tasks
+         set logs = coalesce(logs, '[]'::jsonb) || $2::jsonb,
+             updated_at = now()
+         where id = $1`,
+        [taskId, JSON.stringify([line])],
+      );
+      return;
+    }
+    const tasks = await deps.readTaskRecords();
+    await deps.writeTaskRecords(
+      tasks.map((task) =>
+        task.id === taskId ? { ...task, logs: [...(Array.isArray(task.logs) ? task.logs : []), line], updatedAt: Date.now() } : task,
+      ),
+    );
+  }
+
+  async function insertTaskRecord(task: TaskRecordShape) {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      await pool.query(
+        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
+        [
+          task.id,
+          task.ownerId || null,
+          task.title,
+          task.status,
+          task.providerId || null,
+          task.modelId || null,
+          JSON.stringify(deps.plainObject(task.payload)),
+          JSON.stringify(deps.plainObject(task.result)),
+          JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
+          deps.millisToDate(task.createdAt),
+          deps.millisToDate(task.updatedAt),
+        ],
+      );
+      return;
+    }
+    const tasks = await deps.readTaskRecords();
+    await deps.writeTaskRecords([task, ...tasks]);
+  }
+
+  async function readTaskListPage(query: TaskListQuery): Promise<TaskListPage> {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const where: string[] = [];
+      const params: unknown[] = [];
+      if (query.status) {
+        params.push(query.status);
+        where.push(`status = $${params.length}`);
+      }
+      if (query.providerId) {
+        params.push(query.providerId);
+        where.push(`provider_id = $${params.length}`);
+      }
+      if (query.capability) {
+        params.push(query.capability);
+        where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
+      }
+      const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
+      const totalResult = await pool.query<TaskCountPostgresRow>(`select count(*)::int as total from xh_tasks ${whereSql}`, params);
+      const total = Number(totalResult.rows?.[0]?.total || 0);
+      const offset = (query.page - 1) * query.pageSize;
+      const pageParams = [...params, query.pageSize, offset];
+      const itemsResult = await pool.query<TaskListPostgresRow>(
+        `select t.id,
+                t.owner_id,
+                t.title,
+                t.status,
+                t.provider_id,
+                t.model_id,
+                t.created_at,
+                t.updated_at,
+                u.name as owner_name,
+                u.email as owner_email,
+                u.remark as owner_remark,
+                u.group_id as owner_group_id,
+                g.name as owner_group_name,
+                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+         from xh_tasks t
+         left join xh_users u on u.id = t.owner_id
+         left join xh_user_groups g on g.id = u.group_id
+         ${whereSql}
+         order by t.created_at desc
+         limit $${pageParams.length - 1} offset $${pageParams.length}`,
+        pageParams,
+      );
+      const items = itemsResult.rows.map((row) =>
+        deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.toAdminTaskRecord(row))),
+      );
+      return toTaskListPage(query, total, offset, items);
+    }
+
+    const [tasks, owners] = await Promise.all([deps.readTaskRecords(), deps.readTaskOwnerRecords()]);
+    const usersById = new Map(owners.users.map((user) => [user.id, user]));
+    const groupsById = new Map(owners.userGroups.map((group) => [group.id, group]));
+    const filtered = tasks
+      .filter((task) => taskMatchesQuery(task, query))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .map((task) =>
+        deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.enrichAdminTaskRecord(task, usersById, groupsById))),
+      );
+    const total = filtered.length;
+    const offset = (query.page - 1) * query.pageSize;
+    return toTaskListPage(query, total, offset, filtered.slice(offset, offset + query.pageSize));
+  }
+
+  async function readTaskRecord(taskId: string): Promise<TaskRecordShape | null> {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const result = await pool.query<TaskDetailPostgresRow>(
+        `select t.id,
+                t.owner_id,
+                t.title,
+                t.status,
+                t.provider_id,
+                t.model_id,
+                t.payload,
+                t.result,
+                t.logs,
+                t.created_at,
+                t.updated_at,
+                u.name as owner_name,
+                u.email as owner_email,
+                u.remark as owner_remark,
+                u.group_id as owner_group_id,
+                g.name as owner_group_name,
+                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+         from xh_tasks t
+         left join xh_users u on u.id = t.owner_id
+         left join xh_user_groups g on g.id = u.group_id
+         where t.id = $1
+         limit 1`,
+        [taskId],
+      );
+      return result.rows[0] ? deps.toAdminTaskRecord(result.rows[0]) : null;
+    }
+    const [tasks, owners] = await Promise.all([deps.readTaskRecords(), deps.readTaskOwnerRecords()]);
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return null;
+    return deps.enrichAdminTaskRecord(
+      task,
+      new Map(owners.users.map((user) => [user.id, user])),
+      new Map(owners.userGroups.map((group) => [group.id, group])),
+    );
+  }
+
+  async function writeTaskRecord(task: TaskRecordShape) {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      await pool.query(
+        `update xh_tasks
+         set owner_id = $2,
+             title = $3,
+             status = $4,
+             provider_id = $5,
+             model_id = $6,
+             payload = $7::jsonb,
+             result = $8::jsonb,
+             logs = $9::jsonb,
+             updated_at = $10
+         where id = $1`,
+        [
+          task.id,
+          task.ownerId || null,
+          task.title,
+          task.status,
+          task.providerId || null,
+          task.modelId || null,
+          JSON.stringify(deps.plainObject(task.payload)),
+          JSON.stringify(deps.plainObject(task.result)),
+          JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
+          deps.millisToDate(task.updatedAt),
+        ],
+      );
+      return;
+    }
+    const tasks = await deps.readTaskRecords();
+    await deps.writeTaskRecords(tasks.map((item) => (item.id === task.id ? task : item)));
+  }
+
+  function taskMatchesQuery(task: TaskRecordShape, query: TaskListQuery) {
+    if (query.status && task.status !== query.status) return false;
+    if (query.providerId && task.providerId !== query.providerId) return false;
+    if (query.capability) {
+      const resultRow = deps.plainObject(task.result);
+      const rawRow = deps.plainObject(resultRow.raw);
+      const taskCapability = deps.safeText(task.payload?.taskCapability || resultRow.capability || rawRow.capability).toLowerCase();
+      if (taskCapability !== query.capability) return false;
+    }
+    return true;
+  }
+
+  function toTaskListPage(query: TaskListQuery, total: number, offset: number, items: TaskListItemShape[]): TaskListPage {
+    return {
+      items,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      hasMore: offset + items.length < total,
+      filters: {
+        status: query.status,
+        providerId: query.providerId,
+        capability: query.capability,
+      },
+    };
+  }
+}

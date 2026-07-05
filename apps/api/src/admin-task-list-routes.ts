@@ -52,6 +52,7 @@ export function createAdminTaskListRouteHandler(deps: {
   HttpError: HttpErrorLike;
   readAdminDb: () => Promise<{ tasks: any[] }>;
   readAuthDb: () => Promise<{ users: any[]; userGroups: any[] }>;
+  readTaskListPage?: (query: AdminTaskListQuery) => Promise<AdminTaskListPage>;
   usePostgresRepository: () => boolean;
   getPostgresPool: () => Promise<any>;
   readJsonBody: <T>(request: import("node:http").IncomingMessage) => Promise<T>;
@@ -85,6 +86,7 @@ export function createAdminTaskListRouteHandler(deps: {
     HttpError,
     readAdminDb,
     readAuthDb,
+    readTaskListPage,
     usePostgresRepository,
     getPostgresPool,
     readJsonBody,
@@ -225,7 +227,8 @@ export function createAdminTaskListRouteHandler(deps: {
     if (url.pathname === "/api/admin/tasks") {
       if (request.method === "GET") {
         await appendAudit(actor, "tasks.read", "task", "tasks-list", "查看任务列表", requestContext);
-        sendT8(response, await readAdminTaskPage(parseAdminTaskListQuery(url, { clampInteger, safeText })));
+        const query = parseAdminTaskListQuery(url, { clampInteger, safeText });
+        sendT8(response, readTaskListPage ? await readTaskListPage(query) : await readAdminTaskPage(query));
         return true;
       }
 

@@ -112,6 +112,38 @@ describe("admin task list routes", () => {
     expect(page.items[0]).not.toHaveProperty("logs");
   });
 
+  it("uses injected task repository page reader when provided", async () => {
+    const readTaskListPage = vi.fn(async () => ({
+      items: [{ id: "task-repo", title: "Repository task", status: "queued", createdAt: 1, updatedAt: 1 }],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+      hasMore: false,
+      filters: { status: "", providerId: "", capability: "" },
+    }));
+    const { deps, sent } = createBaseDeps({ readTaskListPage });
+    const handler = createAdminTaskListRouteHandler(deps as any);
+
+    const handled = await handler({
+      request: { method: "GET" } as any,
+      response: {} as any,
+      url: new URL("http://local.test/api/admin/tasks?page=1&pageSize=10"),
+      currentUser: { id: "admin-1", role: "admin" },
+      requestContext: { requestId: "test" },
+    });
+
+    expect(handled).toBe(true);
+    expect(readTaskListPage).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 10,
+      status: "",
+      providerId: "",
+      capability: "",
+    });
+    expect(sent[0].data).toMatchObject({ total: 1, items: [{ id: "task-repo" }] });
+    expect(deps.readAdminDb).not.toHaveBeenCalled();
+  });
+
   it("does not select payload result or logs for postgres list rows", async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("count(*)")) return { rows: [{ total: 1 }] };

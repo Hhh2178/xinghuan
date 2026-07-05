@@ -147,6 +147,7 @@ import { handleAdminSystemRoutes } from "./admin-system-routes.js";
 import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
 import { createAdminRepository } from "./admin-repository.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
+import { createTaskRepository } from "./task-repository.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
@@ -316,6 +317,27 @@ const adminRepository = createAdminRepository({
   millisToDate,
   safeText,
 });
+const taskRepository = createTaskRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  readTaskRecords: async () => (await readAdminDb()).tasks,
+  writeTaskRecords: async (tasks) => {
+    const db = await readAdminDb();
+    await writeAdminDb({ ...db, tasks: tasks as AdminTaskRecord[] });
+  },
+  readTaskOwnerRecords: async () => {
+    const authDb = await readAuthDb();
+    return { users: authDb.users, userGroups: authDb.userGroups };
+  },
+  toAdminTaskRecord: (row) => toAdminTaskRecord(row),
+  enrichAdminTaskRecord: (task, usersById, groupsById) =>
+    enrichAdminTaskRecord(task as AdminTaskRecord, usersById as Map<string, UserRecord>, groupsById as Map<string, UserGroupRecord>),
+  summarizeAdminTaskRecord: (task) => summarizeAdminTaskListRecord(task as AdminTaskRecord),
+  withUnifiedRuntimeDiagnostic: (task) => withUnifiedRuntimeDiagnostic(task as AdminTaskRecord),
+  safeText,
+  plainObject,
+  millisToDate,
+});
 
 const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   adminDir,
@@ -382,6 +404,7 @@ const handleAdminTaskListRoutes = createAdminTaskListRouteHandler({
   HttpError,
   readAdminDb,
   readAuthDb,
+  readTaskListPage: taskRepository.readTaskListPage,
   usePostgresRepository,
   getPostgresPool,
   readJsonBody,
@@ -1037,6 +1060,11 @@ const materialAccessService = createMaterialAccessService({
 
 async function readAnnouncementRecords() {
   return adminRepository.readAnnouncementRecords();
+}
+
+function summarizeAdminTaskListRecord(task: AdminTaskRecord) {
+  const { payload: _payload, result: _result, logs: _logs, ...summary } = task;
+  return summary;
 }
 
 async function writeAnnouncementRecords(announcements: AnnouncementRecord[]) {
@@ -5634,99 +5662,15 @@ async function enqueueTask(
 }
 
 async function appendTaskLog(taskId: string, line: string) {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    await pool.query(
-      `update xh_tasks
-       set logs = coalesce(logs, '[]'::jsonb) || $2::jsonb,
-           updated_at = now()
-       where id = $1`,
-      [taskId, JSON.stringify([line])],
-    );
-    return;
-  }
-  const db = await readAdminDb();
-  await writeAdminDb({
-    ...db,
-    tasks: db.tasks.map((task) =>
-      task.id === taskId ? { ...task, logs: [...task.logs, line], updatedAt: Date.now() } : task,
-    ),
-  });
+  await taskRepository.appendTaskLog(taskId, line);
 }
 
 async function readTaskRecord(taskId: string): Promise<AdminTaskRecord | null> {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    const result = await pool.query(
-      `select t.id,
-              t.owner_id,
-              t.title,
-              t.status,
-              t.provider_id,
-              t.model_id,
-              t.payload,
-              t.result,
-              t.logs,
-              t.created_at,
-              t.updated_at,
-              u.name as owner_name,
-              u.email as owner_email,
-              u.remark as owner_remark,
-              u.group_id as owner_group_id,
-              g.name as owner_group_name,
-              case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
-       from xh_tasks t
-       left join xh_users u on u.id = t.owner_id
-       left join xh_user_groups g on g.id = u.group_id
-       where t.id = $1
-       limit 1`,
-      [taskId],
-    );
-    return result.rows[0] ? toAdminTaskRecord(result.rows[0]) : null;
-  }
-  const [db, authDb] = await Promise.all([readAdminDb(), readAuthDb()]);
-  const task = db.tasks.find((item) => item.id === taskId);
-  if (!task) return null;
-  return enrichAdminTaskRecord(
-    task,
-    new Map(authDb.users.map((user) => [user.id, user])),
-    new Map(authDb.userGroups.map((group) => [group.id, group])),
-  );
+  return taskRepository.readTaskRecord(taskId) as Promise<AdminTaskRecord | null>;
 }
 
 async function insertTaskRecord(task: AdminTaskRecord) {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    await pool.query(
-      `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
-      [
-        task.id,
-        task.ownerId || null,
-        task.title,
-        task.status,
-        task.providerId || null,
-        task.modelId || null,
-        JSON.stringify(plainObject(task.payload)),
-        JSON.stringify(plainObject(task.result)),
-        JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
-        millisToDate(task.createdAt),
-        millisToDate(task.updatedAt),
-      ],
-    );
-    await appendTaskRuntimeEventBestEffort({
-      taskId: task.id,
-      eventType: "task_created",
-      payload: {
-        status: task.status,
-        providerId: task.providerId,
-        modelId: task.modelId,
-      },
-    });
-    return;
-  }
-  const db = await readAdminDb();
-  await writeAdminDb({ ...db, tasks: [task, ...db.tasks] });
+  await taskRepository.insertTaskRecord(task);
   await appendTaskRuntimeEventBestEffort({
     taskId: task.id,
     eventType: "task_created",
@@ -5739,40 +5683,7 @@ async function insertTaskRecord(task: AdminTaskRecord) {
 }
 
 async function writeTaskRecord(task: AdminTaskRecord) {
-  if (usePostgresRepository()) {
-    const pool = await getPostgresPool();
-    await pool.query(
-      `update xh_tasks
-       set owner_id = $2,
-           title = $3,
-           status = $4,
-           provider_id = $5,
-           model_id = $6,
-           payload = $7::jsonb,
-           result = $8::jsonb,
-           logs = $9::jsonb,
-           updated_at = $10
-       where id = $1`,
-      [
-        task.id,
-        task.ownerId || null,
-        task.title,
-        task.status,
-        task.providerId || null,
-        task.modelId || null,
-        JSON.stringify(plainObject(task.payload)),
-        JSON.stringify(plainObject(task.result)),
-        JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
-        millisToDate(task.updatedAt),
-      ],
-    );
-    return;
-  }
-  const db = await readAdminDb();
-  await writeAdminDb({
-    ...db,
-    tasks: db.tasks.map((item) => (item.id === task.id ? task : item)),
-  });
+  await taskRepository.writeTaskRecord(task);
 }
 
 async function cancelTaskRecord(taskId: string, actorEmail: string) {

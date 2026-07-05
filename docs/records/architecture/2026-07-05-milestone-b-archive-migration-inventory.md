@@ -24,7 +24,7 @@ Target branch: `xinghuan-integration-clean`
 | Provider repository | `apps/api/src/provider-repository.ts`, route tests, provider verify scripts | Core repository, admin provider route wiring, and provider/model persistence helpers migrated in clean branch | Continue later with remaining RH catalog call-site migration and optional focused contract script | provider repository tests + provider route split contract |
 | Settings repository | `apps/api/src/settings-repository.ts`, settings route tests | Migrated in clean branch with assistant/queue/system route wiring | Complete for current assistant and task-queue settings boundary; revisit only if broader system settings are added | settings repository tests + assistant/queue/system route contracts + assistant save contract |
 | Admin repository | `apps/api/src/admin-repository.ts`, admin/audit tests | Lightweight admin summary, audit records, and announcement compatibility boundary migrated | Complete current admin summary/audit/announcement slice; leave task record ownership to Phase 6 task repository | admin repository tests + audit/announcement repository contracts |
-| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Partially covered by B2 | Migrate after admin | task repository tests + admin task pagination |
+| Task repository | `apps/api/src/task-repository.ts`, task cancellation tests | Task list/detail/write/log repository migrated locally | Complete local repository boundary; live `verify:admin-task-pagination` must rerun after gray deploy because it targets the current gray service by default | task repository tests + route injection test + task repository contracts + hotspot budget |
 | Usage summary repository/service | `apps/api/src/admin-usage-summary-repository.ts`, `apps/api/src/admin-usage-summary-service.ts` | Open | Migrate after task | usage summary repository contract |
 | Environment sync local | `apps/api/src/environment-sync-local.ts`, envsync verify scripts | Open | Migrate after repository boundaries | envsync local contract + envsync smoke |
 | Shared API/Worker helpers | `packages/shared/src/*` | Partially present | Compare and migrate only missing helpers | shared helper tests + package export verify |
@@ -97,3 +97,25 @@ git -C D:\codex\无限画布2.0-worktrees\xinghuan-milestone-b diff-tree --no-co
   - `node scripts/verify-admin-announcement-records-repository-contract.mjs`
   - `npm run verify:file-hotspot-budgets`
 - Result: passed. `apps/api/src/server.ts` hotspot budget improved to `11560 / 11910`.
+
+### Task repository boundary
+
+- Clean branch status: migrated local repository boundary.
+- Purpose: move task list/detail/write/log database and file-backed operations out of `server.ts`, while preserving the B2 invariant that task list responses do not include heavy `payload`, `result`, or `logs` fields.
+- Implementation:
+  - Added `apps/api/src/task-repository.ts`.
+  - Added `apps/api/src/task-repository.test.ts`.
+  - `admin-task-list-routes.ts` now accepts an injected `readTaskListPage()` and prefers it for `GET /api/admin/tasks`.
+  - `server.ts` now instantiates `createTaskRepository()` and delegates `appendTaskLog()`, `readTaskRecord()`, `insertTaskRecord()`, and `writeTaskRecord()`.
+  - `insertTaskRecord()` keeps runtime event emission in `server.ts` after repository insert so repository remains a storage boundary.
+  - Added repository contracts for task list/read/write boundaries.
+- Validation:
+  - `npx vitest run apps/api/src/task-repository.test.ts apps/api/src/admin-task-list-routes.test.ts apps/api/src/admin-repository.test.ts`
+  - `npm run type-check -w @xinghuan/api`
+  - `node scripts/verify-task-repository-boundary-contract.mjs`
+  - `node scripts/verify-admin-task-records-repository-contract.mjs`
+  - `npm run verify:file-hotspot-budgets`
+- Live validation note:
+  - `npm run verify:admin-task-pagination` targets `http://127.0.0.1:18200` by default and currently reflects the already-running gray service, not this local un-deployed branch.
+  - Re-run it after the next gray deployment package includes this commit.
+- Result: local checks passed. `apps/api/src/server.ts` hotspot budget improved to `11471 / 11910`.
