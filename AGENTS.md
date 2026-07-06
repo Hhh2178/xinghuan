@@ -4,71 +4,56 @@
 
 无限画布 2.0 是公司内部节点式 AIGC 创作平台的新立项项目。旧 `node-banana-enterprise` 项目不再作为产品主干，只作为失败经验、需求来源和迁移参考。
 
-本项目目标是从一开始建立可扩展节点系统、独立后台、模型与服务商管理、云端项目存储、用户隔离、素材空间和任务执行链路，避免在节点基础薄弱的项目上继续补丁式改造。
+本项目目标是建立可扩展节点系统、独立后台、模型与服务商管理、云端项目存储、用户隔离、素材空间和任务执行链路，避免继续在节点基础薄弱的项目上补丁式改造。
 
-## 项目总纲入口
+## 默认阅读顺序
 
-默认阅读顺序：`AGENTS.md` -> `docs/INDEX.md` -> `docs/systems/README.md` -> `README.md` -> `MEMORY.md` -> `ops/README.md` -> `DEVLOG.md`
+1. `AGENTS.md`
+2. `docs/INDEX.md`
+3. `docs/systems/README.md`
+4. `README.md`
+5. `MEMORY.md`
+6. `ops/README.md`
+7. `DEVLOG.md`
 
-## 系统地图
+## 当前工作根
 
-当任务涉及具体系统时，优先进入：
-
-- RunningHub：`docs/systems/runninghub/`
-- 后台 Admin：`docs/systems/admin/`
-- API：`docs/systems/api/`
-- Worker：`docs/systems/worker/`
-
-## 协作方式
-
-- 先通过 `docs/INDEX.md` 判断要找的是治理规则、系统知识、长期记忆、台账证据，还是历史方案。
-- 先读系统知识再读代码，避免直接在 `MEMORY.md`、`DEVLOG.md`、`ops/README.md` 里全文乱找。
-- 做完真实改动后，同步检查主入口与对应系统文档，而不是只补一条日志。
-- 发现热点文件继续膨胀时，先判断应该新增模块还是新增 hook / helper，而不是默认继续往原文件堆。
-
-## 文件治理与归档规则
-
-- 治理规则、热点拆分与风险评分看 `docs/governance/`
-- 系统知识看 `docs/systems/`
-- 长期记忆看 `docs/memory/`
-- 日常台账、发布证据与验证记录看 `docs/logbooks/`
-- 设计与演进记录看 `docs/records/`
-- 发布记录正文与 gray/prod 批次证据统一写入 `docs/logbooks/releases/`，不要再散落到临时目录或仅保存在 `ops/` 草稿里。
-
-旧入口文件目前继续保留，但职责已经改成“摘要 + 跳转入口”：
-
-- `README.md`
-- `MEMORY.md`
-- `DEVLOG.md`
-- `ops/README.md`
-
-## 当前目录约定
-
-- `docs/INDEX.md`、`docs/governance/`、`docs/systems/`、`docs/memory/`、`docs/logbooks/`、`docs/records/` 是主文档入口。
-- `README.md`、`MEMORY.md`、`docs/prd/README.md`、`ops/README.md` 只保留当前状态摘要和跳转。
-- `docs/project-atlas/README.md`、`docs/documentation-governance.md` 只作兼容入口，不再作为第一跳。
-- `docs/repo-structure.md`、`docs/runtime-artifacts.md`、`docs/size-audit-2026-06-15.md` 只负责结构、运行产物和体积边界说明。
-- `ops/`、`config/`、`development/`、`research/` 分别保留运维、模板、过程资料和调研材料。
-
-## 默认查看顺序
-
-当需要快速恢复上下文时，优先顺序仍按上面的默认阅读顺序；若要补结构信息，再看 `docs/repo-structure.md` 和 `docs/runtime-artifacts.md`。
-
-## 入口优先级
-
-当前无限画布 2.0 的默认工作入口就是本目录：
+当前无限画布 2.0 默认工作入口：
 
 - `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
 
-使用原则：
+当前工作树是主仓库 `D:/codex/无限画布2.0` 挂出的 Git worktree。`D:/codex/服务器/无限画布/` 只作为旧主干和历史方案参考，不作为当前 2.0 的主说明来源。
 
-- 当前开发、部署、验收和结构整理，优先看本目录下的 `AGENTS.md`、`README.md`、`MEMORY.md`、`DEVLOG.md`、`docs/`、`ops/`
-- 当前默认导航先走 `docs/INDEX.md -> docs/systems/<system>/ -> 代码`
-- 当前状态先看 `README.md`、`MEMORY.md`、`docs/prd/README.md`、`ops/README.md`，不要只看旧日志顶部或历史灰度记录判断状态
-- `D:/codex/无限画布2.0` 是主仓库，不是当前默认工作现场
-- `D:/codex/服务器/无限画布/` 只作为旧主干/旧文档参考入口，不作为当前 2.0 的主说明来源
-- `output/`、`releases/`、`dist-release/`、`logs/` 等目录不作为需求和设计入口，说明统一看 `docs/runtime-artifacts.md`
-- 根目录 `releases/` 属于运行产物忽略目录；`docs/logbooks/releases/` 属于文档证据目录，必须可提交、可索引、可追踪，不能与运行产物目录混淆。
+## 当前运行态摘要
+
+- Gray 版本：`v0.5.27`
+- Gray release：`20260706-task-list-lightweight-gray-r1-v0527`
+- Production 版本：`v0.5.22`
+- Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
+- ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
+
+## 文档权威层级
+
+- 项目概览：`README.md`
+- 文档总索引：`docs/INDEX.md`
+- 根入口职责：`docs/governance/root-entry-responsibility-matrix.md`
+- 协作和归档规则：`docs/governance/`
+- 系统知识：`docs/systems/`
+- 长期记忆：`docs/memory/`
+- 日常台账、发布证据与验证记录：`docs/logbooks/`
+- 设计和执行计划：`docs/superpowers/specs/`、`docs/superpowers/plans/`
+
+根入口文件只保留摘要和跳转。系统细节、运行历史、发布证据和逐日推进必须写入对应权威目录。
+
+## AI / 自动化执行规则
+
+- 开工先看 `git status --short`，确认工作树是否干净，以及脏改动是否属于本轮任务。
+- 先通过 `docs/INDEX.md` 判断要找的是治理规则、系统知识、长期记忆、台账证据，还是历史方案。
+- 涉及具体系统时，先读 `docs/systems/<system>/`，再读代码。
+- 做完真实改动后，同步检查对应系统文档、台账和必要的入口摘要。
+- 发现热点文件继续膨胀时，先判断应该新增模块、hook、helper 或 section，而不是默认继续往原文件堆。
+- 不要只依赖聊天上下文判断版本、部署态或历史结论；以当前 worktree 文件和运行态证据为准。
 
 ## 安全规则
 
@@ -79,43 +64,26 @@
 - 真实服务商 Key 只能放入服务器环境变量、密钥管理系统或后台加密字段。
 - 设计和代码尽量使用相对路径，避免绑定单机绝对路径。
 
-## CodeGraph 规则
+## 提交与发布护栏
 
-- 当前仓库默认启用 CodeGraph 工作流，优先用它理解结构、依赖关系和影响面。
-- 开始看代码前先执行：
-  - 已有索引时：`codegraph status`
-  - 尚未建索引时：`codegraph init -i`
-- 涉及以下场景时，优先使用 CodeGraph，再回退到 `rg` 或手工阅读：
-  - 找符号定义、调用链、依赖方、影响面
-  - 判断改动会波及哪些模块
-  - 恢复仓库上下文
-- 完成代码修改后、交付前，执行一次 `codegraph sync`，保持索引与源码一致。
-- 当前仓库的 Git hook 约定：
-  - `post-checkout`、`post-merge`、`post-rewrite`：若缺少索引则执行 `codegraph init -i`，否则执行 `codegraph sync`
-  - `post-commit`：执行 `codegraph sync`，保持索引与提交后的源码一致。
-
-## 工程治理与发布护栏
-
-- 当前 gray 运行态入口：
-  - gray 版本：`v0.5.27`
-  - gray release：`20260706-task-list-lightweight-gray-r1-v0527`
-  - production 版本：`v0.5.22`
-  - production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-  - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`docs/memory/current-state.md` 为准。
-  - ComfyUI 功能开发已暂停封存；本轮继续推进 clean worktree 结构治理与灰度链路校验。
-- 热点文件预算与 watchlist 必须保持可执行：
-  - `npm run verify:file-hotspot-budgets`
-  - `npm run verify:hotspot-watchlist-contract`
-  - `npm run verify:hotspot-doc-sync-staged`
-- `1200+` 行文件默认进入热点关注范围；继续触碰热点文件时，必须留下对应台账、计划或发布记录，说明下一步拆分路线。
-- 当前热点风险评分入口：
-  - `docs/governance/hotspot-risk-scorecard.md`
-- release logbook 与当前运行态入口必须同步：
-  - `npm run verify:release-logbook-sync-staged`
-  - `npm run verify:current-release-entry-consistency`
-  - `ops/current/gray.md`
+- `.githooks/pre-commit` 会执行提交前治理检查；不要通过跳过 hook 的方式绕过热点、release logbook 或运行产物护栏。
 - 发布前必须确认工作树与运行产物边界：
   - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:staged-source-size-guard`
   - `npm run verify:release-worktree-clean`
-- `.githooks/pre-commit` 会执行提交前治理检查；不要通过跳过 hook 的方式绕过热点、release logbook 或运行产物护栏。
+- release logbook 与当前运行态入口必须同步：
+  - `npm run verify:release-logbook-sync-staged`
+  - `npm run verify:current-release-entry-consistency`
+- 项目 harness 入口：
+  - `npm run harness:verify:project`
+  - `npm run harness:verify:workspace`
+  - `npm run harness:verify:release`
+
+## 详细规则入口
+
+- CodeGraph 详细规则：`docs/governance/codegraph-and-repo-navigation.md`
+- 热点文件治理：`docs/governance/engineering-guardrails.md`
+- 热点拆分流程：`docs/governance/hotspot-decomposition-workflow.md`
+- 发布 gate：`docs/systems/observability-and-ops/release-gates.md`
+- Harness 执行地图：`docs/systems/harness/README.md`
+- 根入口职责矩阵：`docs/governance/root-entry-responsibility-matrix.md`

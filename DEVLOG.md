@@ -2,6 +2,8 @@
 
 ## 兼容入口说明
 
+> 本文件是逐日推进台账的兼容入口。新的当前日志和发布证据请优先写入 `docs/logbooks/`。
+
 `DEVLOG.md` 继续保留为逐日推进台账的兼容入口，但详细正文已拆分到 `docs/logbooks/daily/`。
 
 - 当前总索引：`docs/INDEX.md`
