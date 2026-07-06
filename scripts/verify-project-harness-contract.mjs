@@ -53,8 +53,28 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:project"],
-  "npm run verify:project-harness-contract && npm run harness:verify:quick",
-  "project harness should expose project verification chain",
+  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run harness:verify:quick",
+  "project harness should expose project verification chain with documentation contracts",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:documentation-entry-contract/,
+  "project harness should include documentation entry contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:visual-design-docs-contract/,
+  "project harness should include visual design docs contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:system-doc-template-contract/,
+  "project harness should include system doc template contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:harness-doc-sync-contract/,
+  "project harness should include harness doc sync contract",
 );
 
 assert.match(
@@ -81,6 +101,31 @@ assert.match(
   harnessReadme,
   /Integration harness/,
   "harness README should document integration harness layer",
+);
+assert.match(
+  harnessReadme,
+  /Documentation harness/,
+  "harness README should document documentation harness layer",
+);
+assert.match(
+  harnessReadme,
+  /verify:documentation-entry-contract/,
+  "harness README should document documentation entry contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:visual-design-docs-contract/,
+  "harness README should document visual design docs contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:system-doc-template-contract/,
+  "harness README should document system doc template contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:harness-doc-sync-contract/,
+  "harness README should document harness doc sync contract",
 );
 assert.match(
   harnessMap,

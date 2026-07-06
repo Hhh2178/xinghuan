@@ -40,6 +40,24 @@
 - 修改脚本、文档入口或治理规则后确认入口未漂移
 - 触碰热点文件后确认预算、watchlist 和文档同步要求仍成立
 
+## Documentation harness
+
+用于确认入口文件、视觉规范、系统模板和 harness 接线没有漂移。
+
+常用命令：
+
+- `npm run verify:documentation-entry-contract`
+- `npm run verify:visual-design-docs-contract`
+- `npm run verify:system-doc-template-contract`
+- `npm run verify:harness-doc-sync-contract`
+
+适用场景：
+
+- 修改 `AGENTS.md`、`README.md`、`MEMORY.md`、`DEVLOG.md` 或 `ops/README.md`
+- 修改 canvas/admin 视觉规范
+- 新增或调整系统接口文档模板
+- 修改 `package.json` 中的 harness 聚合命令
+
 ## Release harness
 
 用于 gray / production 发布准备和发布记录一致性检查。
@@ -81,4 +99,3 @@
 - 新增 ComfyUI 机器侧连接器配置
 - 修改共享 ComfyUI 工作流执行链路
 - 后续扩展多机器实例池、共享工作流或其他机器侧 connector
-

@@ -30,6 +30,18 @@ const steps = [
     label: "verify-current-release-entry-consistency",
     args: ["scripts/verify-current-release-entry-consistency.mjs"],
   },
+  {
+    label: "verify-documentation-entry-contract",
+    args: ["scripts/verify-documentation-entry-contract.mjs"],
+  },
+  {
+    label: "verify-visual-design-docs-contract",
+    args: ["scripts/verify-visual-design-docs-contract.mjs"],
+  },
+  {
+    label: "verify-system-doc-template-contract",
+    args: ["scripts/verify-system-doc-template-contract.mjs"],
+  },
 ];
 
 for (const step of steps) {

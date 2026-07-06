@@ -34,9 +34,15 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - `npm run harness:verify:release`
 - `npm run harness:verify:comfyui`
 
+## Documentation Contract Commands
+
+- `npm run verify:documentation-entry-contract`
+- `npm run verify:visual-design-docs-contract`
+- `npm run verify:system-doc-template-contract`
+- `npm run verify:harness-doc-sync-contract`
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。
 - 本目录只记录执行地图和接入约定，不复制系统设计正文、发布记录或长期状态。
-
