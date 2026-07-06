@@ -38,6 +38,8 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 
 - `npm run verify:documentation-entry-contract`
 - `npm run verify:visual-design-docs-contract`
+- `npm run verify:design-token-docs-contract`
+- `npm run verify:component-registry-docs-contract`
 - `npm run verify:system-doc-template-contract`
 - `npm run verify:harness-doc-sync-contract`
 

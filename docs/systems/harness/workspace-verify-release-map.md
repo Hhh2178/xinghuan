@@ -48,6 +48,8 @@
 
 - `npm run verify:documentation-entry-contract`
 - `npm run verify:visual-design-docs-contract`
+- `npm run verify:design-token-docs-contract`
+- `npm run verify:component-registry-docs-contract`
 - `npm run verify:system-doc-template-contract`
 - `npm run verify:harness-doc-sync-contract`
 
@@ -55,6 +57,7 @@
 
 - 修改 `AGENTS.md`、`README.md`、`MEMORY.md`、`DEVLOG.md` 或 `ops/README.md`
 - 修改 canvas/admin 视觉规范
+- 修改 canvas/admin token 或组件注册表
 - 新增或调整系统接口文档模板
 - 修改 `package.json` 中的 harness 聚合命令
 

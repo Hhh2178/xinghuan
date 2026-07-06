@@ -53,7 +53,7 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:project"],
-  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run harness:verify:quick",
+  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run harness:verify:quick",
   "project harness should expose project verification chain with documentation contracts",
 );
 assert.match(
@@ -65,6 +65,16 @@ assert.match(
   scripts["harness:verify:project"],
   /verify:visual-design-docs-contract/,
   "project harness should include visual design docs contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:design-token-docs-contract/,
+  "project harness should include design token docs contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:component-registry-docs-contract/,
+  "project harness should include component registry docs contract",
 );
 assert.match(
   scripts["harness:verify:project"],
@@ -116,6 +126,16 @@ assert.match(
   harnessReadme,
   /verify:visual-design-docs-contract/,
   "harness README should document visual design docs contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:design-token-docs-contract/,
+  "harness README should document design token docs contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:component-registry-docs-contract/,
+  "harness README should document component registry docs contract",
 );
 assert.match(
   harnessReadme,

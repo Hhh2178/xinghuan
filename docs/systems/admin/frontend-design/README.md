@@ -18,14 +18,18 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 
 1. `README.md`
 2. `visual-style-and-stitch-baseline.md`
-3. `page-map-and-functions.md`
-4. `realtime-loading-and-refresh.md`
-5. `change-guidelines.md`
+3. `design-tokens.md`
+4. `visual-component-registry.md`
+5. `functional-component-registry.md`
 6. `component-library-policy.md`
-7. `layout-and-density-standard.md`
-8. `form-table-drawer-standard.md`
-9. `icon-text-alignment-standard.md`
-10. `verification-checklist.md`
+7. `ant-design-pilot-component-map.md`
+8. `layout-and-density-standard.md`
+9. `form-table-drawer-standard.md`
+10. `icon-text-alignment-standard.md`
+11. `page-map-and-functions.md`
+12. `realtime-loading-and-refresh.md`
+13. `change-guidelines.md`
+14. `verification-checklist.md`
 
 ## 与其他文档的关系
 
@@ -44,4 +48,5 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 - 新增自动刷新、实时状态或长任务交互时，必须补 `realtime-loading-and-refresh.md`。
 - 调整视觉语言、导航、卡片、表格、Inspector 或状态色时，必须补 `visual-style-and-stitch-baseline.md`。
 - 调整组件库、表格、表单、抽屉、图标文字对齐或后台密度时，必须补本目录对应标准文件。
+- 新增可复用后台组件或功能模块时，必须先检查 `visual-component-registry.md` 与 `functional-component-registry.md`。
 - 改动只影响某次临时方案时，可以写入 `docs/superpowers/specs/`；一旦成为长期设计约束，就同步沉淀到本目录。

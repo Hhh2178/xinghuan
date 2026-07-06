@@ -12,6 +12,8 @@ const scripts = rootPackage.scripts ?? {};
 for (const [name, command] of Object.entries({
   "verify:documentation-entry-contract": "node scripts/verify-documentation-entry-contract.mjs",
   "verify:visual-design-docs-contract": "node scripts/verify-visual-design-docs-contract.mjs",
+  "verify:design-token-docs-contract": "node scripts/verify-design-token-docs-contract.mjs",
+  "verify:component-registry-docs-contract": "node scripts/verify-component-registry-docs-contract.mjs",
   "verify:system-doc-template-contract": "node scripts/verify-system-doc-template-contract.mjs",
   "verify:harness-doc-sync-contract": "node scripts/verify-harness-doc-sync-contract.mjs",
 })) {
@@ -32,6 +34,16 @@ assertIncludes(
   scripts["harness:verify:project"],
   "verify:harness-doc-sync-contract",
   "project harness chain must include harness doc sync contract",
+);
+assertIncludes(
+  scripts["harness:verify:project"],
+  "verify:design-token-docs-contract",
+  "project harness chain must include design token docs contract",
+);
+assertIncludes(
+  scripts["harness:verify:project"],
+  "verify:component-registry-docs-contract",
+  "project harness chain must include component registry docs contract",
 );
 
 console.log("harness doc sync contract: ok");
