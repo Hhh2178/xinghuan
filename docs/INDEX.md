@@ -89,6 +89,7 @@
 
 - 节点与数据模型：`docs/systems/canvas/node-and-data-model.md`
 - 项目与素材链路：`docs/systems/canvas/project-and-material-flow.md`
+- 前台画布视觉规范：`docs/systems/canvas/frontend-design/`
 
 ### Providers
 

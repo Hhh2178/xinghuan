@@ -21,6 +21,10 @@
 2. 再看系统专题文件
 3. 最后再回代码文件
 
+## 模板
+
+- 系统接口文档模板：`docs/systems/interface-documentation-template.md`
+
 ## 与其他目录的分工
 
 - `docs/governance/`：规则、流程、归档

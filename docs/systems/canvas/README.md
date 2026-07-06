@@ -14,6 +14,11 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 
 1. `node-and-data-model.md`
 2. `project-and-material-flow.md`
+3. `frontend-design/`
+
+## 视觉与交互规范
+
+- 前台画布视觉规范：`docs/systems/canvas/frontend-design/`
 
 ## 相关系统
 
