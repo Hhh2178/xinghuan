@@ -1,5 +1,8 @@
 import type { Pool, QueryResultRow } from "pg";
 import type { TaskStatus } from "@xinghuan/shared";
+import { applyTaskFinalization, isTerminalTaskStatus } from "./task-lifecycle.js";
+
+const TASK_LIST_WINDOW_LIMIT = 2000;
 
 export interface TaskRecordShape {
   id: string;
@@ -19,6 +22,7 @@ export interface TaskRecordShape {
   logs: string[];
   createdAt: number;
   updatedAt: number;
+  finalizedAt?: number;
   displayStatus?: string;
   displayMessage?: string;
   displayTone?: "muted" | "warning" | "success" | "danger";
@@ -68,6 +72,7 @@ export interface TaskListItemShape {
   providerState?: string;
   createdAt: number;
   updatedAt: number;
+  finalizedAt?: number;
 }
 
 export interface TaskPostgresRowShape {
@@ -88,6 +93,7 @@ export interface TaskPostgresRowShape {
   logs?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
+  finalized_at?: unknown;
 }
 
 interface TaskListPostgresRow extends QueryResultRow, TaskPostgresRowShape {}
@@ -129,6 +135,9 @@ export interface TaskListPage {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  windowLimit: number;
+  windowSize: number;
+  truncated: boolean;
   filters: {
     status: string;
     providerId: string;
@@ -166,11 +175,12 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
   }
 
   async function insertTaskRecord(task: TaskRecordShape) {
+    task = applyTaskFinalization(task, task.updatedAt);
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       await pool.query(
-        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
+        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at, finalized_at)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11, $12)`,
         [
           task.id,
           task.ownerId || null,
@@ -183,6 +193,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
           JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
           deps.millisToDate(task.createdAt),
           deps.millisToDate(task.updatedAt),
+          task.finalizedAt ? deps.millisToDate(task.finalizedAt) : null,
         ],
       );
       return;
@@ -209,12 +220,15 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
         where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
       }
       const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
-      const totalResult = await pool.query<TaskCountPostgresRow>(`select count(*)::int as total from xh_tasks ${whereSql}`, params);
+      const windowResult = await pool.query<TaskCountPostgresRow>(`select count(*)::int as total from (select id from xh_tasks order by updated_at desc, created_at desc, id desc limit 2001) recent`, []);
+      const windowCount = Number(windowResult.rows?.[0]?.total || 0);
+      const totalResult = await pool.query<TaskCountPostgresRow>(`with recent_tasks as (select * from xh_tasks order by updated_at desc, created_at desc, id desc limit ${TASK_LIST_WINDOW_LIMIT}) select count(*)::int as total from recent_tasks ${whereSql}`, params);
       const total = Number(totalResult.rows?.[0]?.total || 0);
       const offset = (query.page - 1) * query.pageSize;
       const pageParams = [...params, query.pageSize, offset];
       const itemsResult = await pool.query<TaskListPostgresRow>(
-        `select t.id,
+        `with recent_tasks as (select * from xh_tasks order by updated_at desc, created_at desc, id desc limit ${TASK_LIST_WINDOW_LIMIT})
+         select t.id,
                 t.owner_id,
                 t.title,
                 t.status,
@@ -222,38 +236,41 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 t.model_id,
                 t.created_at,
                 t.updated_at,
+                t.finalized_at,
                 u.name as owner_name,
                 u.email as owner_email,
                 u.remark as owner_remark,
                 u.group_id as owner_group_id,
                 g.name as owner_group_name,
                 case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
-         from xh_tasks t
+         from recent_tasks t
          left join xh_users u on u.id = t.owner_id
          left join xh_user_groups g on g.id = u.group_id
          ${whereSql}
-         order by t.created_at desc
+         order by t.updated_at desc, t.created_at desc, t.id desc
          limit $${pageParams.length - 1} offset $${pageParams.length}`,
         pageParams,
       );
       const items = itemsResult.rows.map((row) =>
         toSafeTaskListItem(deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.toAdminTaskRecord(row)))),
       );
-      return toTaskListPage(query, total, offset, items);
+      return toTaskListPage(query, total, offset, items, Math.min(windowCount, TASK_LIST_WINDOW_LIMIT), windowCount > TASK_LIST_WINDOW_LIMIT);
     }
 
     const [tasks, owners] = await Promise.all([deps.readTaskRecords(), deps.readTaskOwnerRecords()]);
     const usersById = new Map(owners.users.map((user) => [user.id, user]));
     const groupsById = new Map(owners.userGroups.map((group) => [group.id, group]));
-    const filtered = tasks
+    const recentTasks = [...tasks]
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || (b.createdAt || 0) - (a.createdAt || 0) || b.id.localeCompare(a.id))
+      .slice(0, TASK_LIST_WINDOW_LIMIT);
+    const filtered = recentTasks
       .filter((task) => taskMatchesQuery(task, query))
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .map((task) =>
         toSafeTaskListItem(deps.summarizeAdminTaskRecord(deps.withUnifiedRuntimeDiagnostic(deps.enrichAdminTaskRecord(task, usersById, groupsById)))),
       );
     const total = filtered.length;
     const offset = (query.page - 1) * query.pageSize;
-    return toTaskListPage(query, total, offset, filtered.slice(offset, offset + query.pageSize));
+    return toTaskListPage(query, total, offset, filtered.slice(offset, offset + query.pageSize), recentTasks.length, tasks.length > TASK_LIST_WINDOW_LIMIT);
   }
 
   async function readTaskRecord(taskId: string): Promise<TaskRecordShape | null> {
@@ -271,6 +288,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 t.logs,
                 t.created_at,
                 t.updated_at,
+                t.finalized_at,
                 u.name as owner_name,
                 u.email as owner_email,
                 u.remark as owner_remark,
@@ -297,6 +315,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
   }
 
   async function writeTaskRecord(task: TaskRecordShape) {
+    task = applyTaskFinalization(task, task.updatedAt);
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       await pool.query(
@@ -309,7 +328,8 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
              payload = $7::jsonb,
              result = $8::jsonb,
              logs = $9::jsonb,
-             updated_at = $10
+             updated_at = $10,
+             finalized_at = $11
          where id = $1`,
         [
           task.id,
@@ -322,6 +342,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
           JSON.stringify(deps.plainObject(task.result)),
           JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
           deps.millisToDate(task.updatedAt),
+          task.finalizedAt ? deps.millisToDate(task.finalizedAt) : null,
         ],
       );
       return;
@@ -342,13 +363,16 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
     return true;
   }
 
-  function toTaskListPage(query: TaskListQuery, total: number, offset: number, items: TaskListItemShape[]): TaskListPage {
+  function toTaskListPage(query: TaskListQuery, total: number, offset: number, items: TaskListItemShape[], windowSize = total, truncated = false): TaskListPage {
     return {
       items,
       total,
       page: query.page,
       pageSize: query.pageSize,
       hasMore: offset + items.length < total,
+      windowLimit: TASK_LIST_WINDOW_LIMIT,
+      windowSize,
+      truncated,
       filters: {
         status: query.status,
         providerId: query.providerId,
@@ -363,6 +387,9 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       result?: unknown;
       logs?: unknown;
     };
-    return summary;
+    return {
+      ...summary,
+      finalizedAt: summary.finalizedAt || (isTerminalTaskStatus(summary.status) ? summary.updatedAt : undefined),
+    };
   }
 }

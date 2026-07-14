@@ -76,7 +76,7 @@ export function createRetriedTask<T extends TaskLifecycleRecord>(task: T, option
     logs: [`由任务 ${task.id} 重试创建`],
     createdAt: now,
     updatedAt: now,
-  };
+  } as unknown as T;
 }
 
 export function assertTaskCancellable(status: TaskStatus) {

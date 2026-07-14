@@ -104,7 +104,11 @@ export function createWorkerTaskStore(pool: Pool) {
        set status = $2,
            logs = $3::jsonb,
            result = ${replaceResult ? "$4::jsonb" : "coalesce(result, '{}'::jsonb) || $4::jsonb"},
-           updated_at = now()
+           updated_at = now(),
+           finalized_at = case
+             when $2 in ('succeeded', 'failed', 'cancelled') then coalesce(finalized_at, now())
+             else finalized_at
+           end
        where id = $1
          and status <> 'cancelled'`,
       [taskId, status, JSON.stringify(logs), JSON.stringify(resultPatch || {})],

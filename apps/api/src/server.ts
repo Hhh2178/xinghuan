@@ -743,6 +743,7 @@ interface AdminTaskRecord {
   logs: string[];
   createdAt: number;
   updatedAt: number;
+  finalizedAt?: number;
   displayStatus?: string;
   displayMessage?: string;
   displayTone?: "muted" | "warning" | "success" | "danger";
@@ -5249,6 +5250,7 @@ function toAdminTaskRecord(row: {
   logs?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
+  finalized_at?: unknown;
 }): AdminTaskRecord {
   return {
     id: row.id,
@@ -5268,6 +5270,7 @@ function toAdminTaskRecord(row: {
     logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
+    finalizedAt: row.finalized_at ? dateToMillis(row.finalized_at) : undefined,
   };
 }
 

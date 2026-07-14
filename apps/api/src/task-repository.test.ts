@@ -94,6 +94,7 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
 describe("task repository", () => {
   it("reads a postgres task list page without selecting task payload result or logs", async () => {
     const query = vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes("limit 2001")) return { rows: [{ total: 2 }] };
       if (sql.includes("count(*)")) {
         expect(sql).toContain("from xh_tasks");
         expect(sql).toContain("payload->>'taskCapability'");
@@ -262,5 +263,20 @@ describe("task repository", () => {
     expect(page.items[0]).not.toHaveProperty("payload");
     expect(page.items[0]).not.toHaveProperty("result");
     expect(page.items[0]).not.toHaveProperty("logs");
+  });
+
+  it("keeps file-backed task lists within the newest 2000 activity records", async () => {
+    const repo = createTaskRepository(createDeps({
+      readTaskRecords: async () => Array.from({ length: 2001 }, (_, index) => taskRecord({
+        id: `task-${index}`,
+        title: `Task ${index}`,
+        createdAt: index,
+        updatedAt: index,
+      })),
+    }));
+    const page = await repo.readTaskListPage({ page: 1, pageSize: 100, status: "", providerId: "", capability: "" });
+    expect(page).toMatchObject({ windowLimit: 2000, windowSize: 2000, truncated: true, total: 2000 });
+    expect(page.items[0].id).toBe("task-2000");
+    expect(page.items).not.toContainEqual(expect.objectContaining({ id: "task-0" }));
   });
 });
