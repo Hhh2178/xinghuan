@@ -115,6 +115,16 @@ requestContract: {
 - [x] Run `npm run type-check -w @xinghuan/model-core -w @xinghuan/worker -w @xinghuan/admin -w @xinghuan/api`.
 - [ ] Run the relevant project harness and a production-safe gray deployment verification before proposing production promotion.
 
+### Task 7: Persist The Virtual Ungrouped Permission Bucket
+
+**Files:**
+- Create: `apps/api/db/020_ungrouped_permission_policy.sql`
+- Create: `scripts/verify-ungrouped-permission-policy-contract.mjs`
+
+- [x] Remove the foreign key that incorrectly requires every policy group ID to exist in `xh_user_groups`; `ungrouped` is a virtual group created by the existing route and permission runtime.
+- [x] Keep the existing primary key and `updated_by` foreign key, so each virtual or named group still has one policy and editor attribution remains valid.
+- [ ] Deploy the migration to gray, persist an explicit empty deny policy for `ungrouped`, and verify that ungrouped members receive the RunningHub catalog while named groups without a policy remain default-closed.
+
 ## Deployment Data Step
 
 After the code is verified in gray, write an explicit empty-deny policy for the `ungrouped` bucket only if the administrator confirms that existing ungrouped users should have all current RH entries. New named groups remain default-closed. This is an intentional production permission-data change and must be verified with a member session before promotion.
