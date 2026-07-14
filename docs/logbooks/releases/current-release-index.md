@@ -66,11 +66,12 @@
 
 ### Production
 
-- 版本：`v0.5.27`
-- release：`20260714-task-list-lightweight-prod-r1-v0527`
-- 当前状态：`2026-07-14 11:28 已完成 production deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs 并正式晋级`
-- 当前补修：`clean repository boundary wave、task list repository lightweight repair、正式环境版本对齐到 v0.5.27、ComfyUI 功能继续冻结`
+- 版本：`v0.5.22`
+- release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前状态：`2026-07-14 15:44 因 admin 会话失效后的创建分组误导状态、成员 RH catalog 全空，以及 AIFork SD 视频适配问题回退；API/Worker 与内网/公网状态接口已验证为 v0.5.22`
+- 当前补修：`保留 v0.5.27 release 供排查；完成 RH 可见性、管理员会话失效处理和 AIFork SD 适配验证后再重新发布`
 - 当前批次记录：
+  - `../incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`
   - `production/2026-07-14-task-list-lightweight-production.md`
   - `production/2026-07-02-envsync-admin-sections-production.md`
   - `production/2026-07-01-performance-toggle-button-sizing-production.md`

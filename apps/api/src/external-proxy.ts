@@ -652,6 +652,11 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       publicOrigin,
       user,
     );
+    const audios = normalizeProviderReferenceUrls(
+      Array.isArray(body.audios) ? body.audios.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 3) : [],
+      publicOrigin,
+      user,
+    );
     const resolvedFirstFrame = inputCapabilities.firstFrame
       ? normalizeProviderReferenceUrl(deps.safeText(body.first_frame || params.first_frame), publicOrigin, user)
       : "";
@@ -665,6 +670,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const resolution = ui.resolutionOptions.length > 0
       ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
       : "";
+    const modeType = images.length === 0 ? "text2video" : resolvedFirstFrame && resolvedLastFrame ? "frames2video" : "image2video";
 
     const useAicopyAsyncVideo = shouldUseAicopyVideoAdapter({
       protocol,
@@ -687,10 +693,13 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         ratio,
         duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
         resolution,
+        modeType,
         images,
+        audios,
         requestMapping: deps.stringMap(advancedConfig.requestMapping),
         requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
         requestValueTemplates: deps.stringMap(advancedConfig.requestValueTemplates),
+        requestContract: deps.plainObject(advancedConfig.requestContract),
         fixedBody: deps.plainObject(advancedConfig.fixedBody),
       });
       const submitResponse = await fetch(openAiEndpoint(provider.baseUrl, deps.safeText(advancedConfig.submitPath, "videos")), {

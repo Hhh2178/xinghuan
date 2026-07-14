@@ -3,6 +3,7 @@ import {
   extractApimartTask,
   extractApimartVideoResult,
 } from "./worker-apimart-video-adapter.js";
+import { extractAicopyVideoResult } from "@xinghuan/model-core";
 import {
   extractImageOutputs,
   openAiEndpoint,
@@ -88,6 +89,54 @@ export async function pollApimartVideoTask(options: {
         }
       }
     }
+    if (isFailedAsyncStatus(status)) {
+      const failureDetail = safeText(result.failureReason, status || "unknown");
+      throw createWorkerTaskError(`视频任务失败: ${failureDetail}`, buildUpstreamBusinessFailurePatch(failureDetail));
+    }
+  }
+}
+
+export async function pollAicopyVideoTask(options: {
+  baseUrl: string;
+  apiKey: string;
+  taskId: string;
+  statusPath: string;
+  resultVideoPath: string;
+  resultPaths?: string[];
+  pollPathTemplate: string;
+  pollIntervalMs: number;
+  timeoutMs?: number;
+  onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
+}) {
+  const startedAt = Date.now();
+  for (;;) {
+    if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
+      throw new Error("视频生成轮询超时");
+    }
+    if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
+    const pollPath = safeText(options.pollPathTemplate, "videos/{task_id}").replace("{task_id}", encodeURIComponent(options.taskId));
+    const response = await fetch(openAiEndpoint(options.baseUrl, pollPath), {
+      method: "GET",
+      headers: providerHeaders(options.apiKey),
+      signal: AbortSignal.timeout(120000),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`视频任务轮询失败 ${response.status}: ${text.slice(0, 500)}`);
+    const raw = text ? JSON.parse(text) : {};
+    const result = extractAicopyVideoResult(raw, {
+      statusPath: options.statusPath,
+      resultVideoPath: options.resultVideoPath,
+      resultPaths: options.resultPaths,
+    });
+    const status = safeText(result.status).toLowerCase();
+    await options.onHeartbeat?.({
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: options.taskId,
+      taskId: options.taskId,
+      upstreamStatus: status || "pending",
+      runtimeStage: "polling",
+    });
+    if (result.videoUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return result;
     if (isFailedAsyncStatus(status)) {
       const failureDetail = safeText(result.failureReason, status || "unknown");
       throw createWorkerTaskError(`视频任务失败: ${failureDetail}`, buildUpstreamBusinessFailurePatch(failureDetail));

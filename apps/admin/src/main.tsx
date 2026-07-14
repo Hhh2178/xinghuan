@@ -2,7 +2,7 @@ import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-rea
 import { StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
-import { adminAnnouncementApi, adminAuditApi, AdminApiError, api } from "./admin-api-client";
+import { adminAnnouncementApi, adminAuditApi, AdminApiError, api, isAuthRequiredError } from "./admin-api-client";
 import { AdminAnnouncementPanel } from "./admin-announcement-panel";
 import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
@@ -304,6 +304,13 @@ function AdminApp() {
 
   const isAdmin = currentUser?.role === "admin";
 
+  function handleAuthRequired(nextError: unknown) {
+    if (!isAuthRequiredError(nextError)) return false;
+    setCurrentUser(null);
+    setError("登录状态已失效，请重新登录。");
+    return true;
+  }
+
   async function loadAdminData() {
     if (!isAdmin) return;
     setBusy(true);
@@ -341,7 +348,9 @@ function AdminApp() {
       setSystem(nextSystem);
       setLastRefreshAt(Date.now());
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      if (!handleAuthRequired(nextError)) {
+        setError(nextError instanceof Error ? nextError.message : String(nextError));
+      }
     } finally {
       setBusy(false);
     }
@@ -481,7 +490,8 @@ function AdminApp() {
       await Promise.all([loadAdminData(), loadTaskPage()]);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : String(nextError);
-      setError(shouldSetGlobalError ? message : "");
+      const authRequired = handleAuthRequired(nextError);
+      if (!authRequired) setError(shouldSetGlobalError ? message : "");
       if (shouldRethrow) {
         throw nextError instanceof Error ? nextError : new Error(message);
       }

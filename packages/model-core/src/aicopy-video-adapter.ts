@@ -4,11 +4,27 @@ interface AicopyVideoAdapterPayloadInput {
   ratio?: string;
   duration?: string | number;
   resolution?: string;
+  modeType?: string;
   images?: string[];
+  audios?: string[];
   requestMapping?: Record<string, string>;
   requestValueTypes?: Record<string, string>;
   requestValueTemplates?: Record<string, string>;
+  requestContract?: unknown;
   fixedBody?: Record<string, unknown>;
+}
+
+export interface AicopyRequestBinding {
+  path: string;
+  source?: "model" | "prompt" | "duration" | "ratio" | "resolution" | "modeType" | "images" | "audios";
+  value?: unknown;
+  type?: "string" | "number" | "boolean" | "string[]";
+  omitWhenEmpty?: boolean;
+}
+
+export interface AicopyRequestContract {
+  bindings?: AicopyRequestBinding[];
+  resultPaths?: string[];
 }
 
 export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayloadInput) {
@@ -19,12 +35,27 @@ export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayload
   const mapping = { ratio: "size", duration: "seconds", images: "images", ...plainObject(input.requestMapping) } as Record<string, string>;
   const valueTypes = plainObject(input.requestValueTypes) as Record<string, string>;
   const images = normalizePreviewImages(input.modelId, input.images);
+  const audios = normalizePublicUrls(input.audios);
   const size = previewVideoSizeFromRatio(input.ratio);
+  const requestContract = normalizeRequestContract(input.requestContract);
 
-  assignMapped(payload, mapping.ratio, size);
-  assignMapped(payload, mapping.duration, castMappedValue(input.duration, valueTypes.duration));
-  assignMapped(payload, mapping.resolution, castMappedValue(input.resolution, valueTypes.resolution));
-  if (images.length > 0) assignMapped(payload, mapping.images, castMappedValue(images, valueTypes.images));
+  if (requestContract.bindings.length > 0) {
+    applyRequestContract(payload, requestContract.bindings, {
+      model: input.modelId,
+      prompt: input.prompt,
+      duration: input.duration,
+      ratio: input.ratio,
+      resolution: input.resolution,
+      modeType: input.modeType,
+      images,
+      audios,
+    });
+  } else {
+    assignMapped(payload, mapping.ratio, size);
+    assignMapped(payload, mapping.duration, castMappedValue(input.duration, valueTypes.duration));
+    assignMapped(payload, mapping.resolution, castMappedValue(input.resolution, valueTypes.resolution));
+    if (images.length > 0) assignMapped(payload, mapping.images, castMappedValue(images, valueTypes.images));
+  }
 
   const mergedPayload = { ...payload, ...plainObject(input.fixedBody) };
   applyValueTemplates(mergedPayload, plainObject(input.requestValueTemplates), {
@@ -75,8 +106,13 @@ export function extractAicopyTask(raw: unknown, options: {
 export function extractAicopyVideoResult(raw: unknown, options: {
   statusPath?: string;
   resultVideoPath?: string;
+  resultPaths?: string[];
 } = {}) {
   const videoUrls = firstStringArrayAtPaths(raw, [
+    ...normalizeResultPaths(options.resultPaths),
+    "result_url",
+    "content_url",
+    "data.metadata.url",
     options.resultVideoPath || "data.output",
     "data.result.videos",
     "data.result.video_urls",
@@ -126,7 +162,100 @@ function castMappedValue(value: unknown, typeHint: string | undefined) {
     if (typeof value === "string") return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
     return Boolean(value);
   }
+  if (type === "string[]") {
+    if (!Array.isArray(value)) return value === undefined || value === null ? [] : [String(value)];
+    return value.map((item) => String(item)).filter(Boolean);
+  }
   return value;
+}
+
+function normalizeRequestContract(value: unknown): Required<Pick<AicopyRequestContract, "bindings">> & Pick<AicopyRequestContract, "resultPaths"> {
+  const row = plainObject(value);
+  const bindings = Array.isArray(row.bindings)
+    ? row.bindings
+      .map((item) => normalizeRequestBinding(item))
+      .filter(Boolean) as AicopyRequestBinding[]
+    : [];
+  return {
+    bindings,
+    resultPaths: normalizeResultPaths(row.resultPaths),
+  };
+}
+
+function normalizeRequestBinding(value: unknown): AicopyRequestBinding | null {
+  const row = plainObject(value);
+  const path = normalizeSafePath(row.path);
+  const source = normalizeRequestSource(row.source);
+  const hasValue = Object.prototype.hasOwnProperty.call(row, "value");
+  if (!path || (!source && !hasValue)) return null;
+  const type = normalizeRequestValueType(row.type);
+  return {
+    path,
+    ...(source ? { source } : {}),
+    ...(hasValue ? { value: row.value } : {}),
+    ...(type ? { type } : {}),
+    ...(row.omitWhenEmpty === true ? { omitWhenEmpty: true } : {}),
+  };
+}
+
+function normalizeRequestSource(value: unknown): AicopyRequestBinding["source"] | undefined {
+  const source = String(value || "").trim();
+  return ["model", "prompt", "duration", "ratio", "resolution", "modeType", "images", "audios"].includes(source)
+    ? source as NonNullable<AicopyRequestBinding["source"]>
+    : undefined;
+}
+
+function normalizeRequestValueType(value: unknown): AicopyRequestBinding["type"] | undefined {
+  const type = String(value || "").trim();
+  return ["string", "number", "boolean", "string[]"].includes(type)
+    ? type as NonNullable<AicopyRequestBinding["type"]>
+    : undefined;
+}
+
+function normalizeSafePath(value: unknown) {
+  const parts = String(value || "").trim().split(".").map((item) => item.trim()).filter(Boolean);
+  if (parts.length === 0 || parts.length > 5) return "";
+  return parts.every((part) => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(part)) ? parts.join(".") : "";
+}
+
+function applyRequestContract(
+  target: Record<string, unknown>,
+  bindings: AicopyRequestBinding[],
+  values: Record<NonNullable<AicopyRequestBinding["source"]>, unknown>,
+) {
+  for (const binding of bindings) {
+    const sourceValue = binding.source ? values[binding.source] : binding.value;
+    const value = castMappedValue(sourceValue, binding.type);
+    if (binding.omitWhenEmpty && isEmptyRequestValue(value)) continue;
+    if (isEmptyRequestValue(value)) continue;
+    assignNestedValue(target, binding.path, value);
+  }
+}
+
+function isEmptyRequestValue(value: unknown) {
+  return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
+function assignNestedValue(target: Record<string, unknown>, path: string, value: unknown) {
+  const parts = normalizeSafePath(path).split(".").filter(Boolean);
+  if (parts.length === 0) return;
+  let current = target;
+  for (const part of parts.slice(0, -1)) {
+    const existing = current[part];
+    if (!existing || typeof existing !== "object" || Array.isArray(existing)) current[part] = {};
+    current = current[part] as Record<string, unknown>;
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function normalizePublicUrls(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
+}
+
+function normalizeResultPaths(value: unknown) {
+  return Array.isArray(value)
+    ? [...new Set(value.map((item) => String(item || "").trim()).filter((item) => Boolean(normalizeSafePath(item))))]
+    : [];
 }
 
 function applyValueTemplates(

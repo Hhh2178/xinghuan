@@ -56,6 +56,7 @@ import {
 import {
   extractModelScopeImageTask,
   modelScopeHeaders,
+  pollAicopyVideoTask,
   pollApimartImageTask,
   pollApimartVideoTask,
   pollModelScopeImageTask,
@@ -697,7 +698,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
   if (protocol === "grsai_draw") {
     return executeGrsaiImageTask(task);
   }
-  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 图像 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -795,7 +796,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+  if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 视频 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -804,11 +805,14 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const prompt = safeText(task.payload.prompt);
   if (!prompt) throw new Error("视频任务缺少 prompt");
   const images = Array.isArray(task.payload.images) ? task.payload.images.map((item) => safeText(item)).filter(Boolean).slice(0, 16) : [];
+  const audioPayload = Array.isArray(task.payload.audios) ? task.payload.audios : task.payload.audioUrls;
+  const audios = Array.isArray(audioPayload) ? audioPayload.map((item) => safeText(item)).filter(Boolean).slice(0, 3) : [];
   const ratio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio || task.payload.ratio);
   const duration = task.payload.duration;
   const resolution = safeText(task.payload.resolution);
   const firstFrame = safeText(task.payload.first_frame || task.payload.firstFrame);
   const lastFrame = safeText(task.payload.last_frame || task.payload.lastFrame);
+  const modeType = images.length === 0 ? "text2video" : firstFrame && lastFrame ? "frames2video" : "image2video";
   const advancedMode = safeText(task.payload.advancedMode || task.payload.mode);
   const submitPath = safeText(task.payload.submitPath, "videos/generations");
 
@@ -824,10 +828,13 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       ratio,
       duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
       resolution,
+      modeType,
       images,
+      audios,
       requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
       requestValueTemplates: plainObject(task.payload.requestValueTemplates) as Record<string, string>,
+      requestContract: plainObject(task.payload.requestContract),
       fixedBody: plainObject(task.payload.fixedBody),
     });
     const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, safeText(task.payload.submitPath, "videos")), {
@@ -851,16 +858,16 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       upstreamStatus: safeText(taskMeta.status || "submitted"),
       runtimeStage: "polling",
     });
-    const polled = await pollApimartVideoTask({
+    const polled = await pollAicopyVideoTask({
       baseUrl: task.providerBaseUrl,
       apiKey,
       taskId: taskMeta.taskId,
       statusPath: safeText(task.payload.taskStatusPath, "status"),
       resultVideoPath: safeText(task.payload.resultVideoPath, "data.output"),
+      resultPaths: Array.isArray(plainObject(task.payload.requestContract).resultPaths)
+        ? plainObject(task.payload.requestContract).resultPaths as string[]
+        : undefined,
       pollPathTemplate: safeText(task.payload.pollPathTemplate, "videos/{task_id}"),
-      finalResultTaskIdPath: safeText(task.payload.finalResultTaskIdPath),
-      finalResultPathTemplate: safeText(task.payload.finalResultPathTemplate),
-      finalResultVideoPath: safeText(task.payload.finalResultVideoPath),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
       timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs, 5000, 1800000),
       onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),

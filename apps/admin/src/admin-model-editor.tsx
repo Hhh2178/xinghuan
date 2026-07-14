@@ -229,6 +229,47 @@ function safeJsonObject(value: string) {
   }
 }
 
+const AIFORK_VIDEO_REQUEST_CONTRACT_EXAMPLE = `{
+  "requestContract": {
+    "bindings": [
+      { "path": "duration", "source": "duration", "type": "number" },
+      { "path": "metadata.modeType", "source": "modeType", "type": "string" },
+      { "path": "metadata.ratio", "source": "ratio", "type": "string" },
+      { "path": "metadata.enableSound", "value": "on", "type": "string" },
+      { "path": "images", "source": "images", "type": "string[]" },
+      { "path": "audios", "source": "audios", "type": "string[]", "omitWhenEmpty": true }
+    ],
+    "resultPaths": ["result_url", "data.metadata.url", "data.output"]
+  }
+}`;
+
+function validateAicopyRequestContract(value: Record<string, unknown>) {
+  const contract = value.requestContract;
+  if (contract === undefined) return "";
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) return "请求契约必须是 JSON 对象。";
+  const row = contract as Record<string, unknown>;
+  if (row.bindings !== undefined && !Array.isArray(row.bindings)) return "请求契约 bindings 必须是数组。";
+  const allowedSources = new Set(["model", "prompt", "duration", "ratio", "resolution", "modeType", "images", "audios"]);
+  const allowedTypes = new Set(["string", "number", "boolean", "string[]"]);
+  for (const binding of Array.isArray(row.bindings) ? row.bindings : []) {
+    if (!binding || typeof binding !== "object" || Array.isArray(binding)) return "请求契约每个 binding 都必须是对象。";
+    const item = binding as Record<string, unknown>;
+    const path = String(item.path || "").trim();
+    if (!/^([A-Za-z_][A-Za-z0-9_]{0,63})(\.[A-Za-z_][A-Za-z0-9_]{0,63}){0,4}$/.test(path)) {
+      return "请求契约 path 只能使用最多五层的字母、数字与下划线路径。";
+    }
+    const hasValue = Object.prototype.hasOwnProperty.call(item, "value");
+    const source = String(item.source || "").trim();
+    if (!hasValue && !allowedSources.has(source)) return "请求契约 binding 必须填写允许的 source 或固定 value。";
+    if (item.type !== undefined && !allowedTypes.has(String(item.type))) return "请求契约 type 只允许 string、number、boolean、string[]。";
+    if (item.omitWhenEmpty !== undefined && typeof item.omitWhenEmpty !== "boolean") return "请求契约 omitWhenEmpty 必须为布尔值。";
+  }
+  if (row.resultPaths !== undefined && (!Array.isArray(row.resultPaths) || row.resultPaths.some((path) => !/^([A-Za-z_][A-Za-z0-9_]{0,63})(\.[A-Za-z_][A-Za-z0-9_]{0,63}){0,4}$/.test(String(path || "").trim())))) {
+    return "请求契约 resultPaths 必须是安全字段路径数组。";
+  }
+  return "";
+}
+
 function normalizeVoicePresetList(value: string) {
   return value
     .split(/[\n,，]/)
@@ -365,6 +406,11 @@ export function ModelEditorRow({
       advancedConfig = JSON.parse(advancedConfigText || "{}");
     } catch {
       setConfigError("高级配置必须是有效 JSON。");
+      return;
+    }
+    const requestContractError = validateAicopyRequestContract(advancedConfig);
+    if (requestContractError) {
+      setConfigError(requestContractError);
       return;
     }
     const executionMode = normalizeExecutionMode(draft);
@@ -861,6 +907,15 @@ export function ModelEditorRow({
               spellCheck={false}
             />
           </label>
+          {draft.capability === "video" ? (
+            <section className="schema-guide-card compact">
+              <div className="schema-guide-head">
+                <strong>AIFork 视频请求契约</strong>
+                <span>把模型专属请求字段写入下方高级配置的 requestContract。允许来源只有 prompt、duration、ratio、resolution、modeType、images、audios；系统不会执行脚本或表达式。</span>
+              </div>
+              <pre className="schema-example-block">{AIFORK_VIDEO_REQUEST_CONTRACT_EXAMPLE}</pre>
+            </section>
+          ) : null}
           <label>
             高级配置（JSON）
             <textarea

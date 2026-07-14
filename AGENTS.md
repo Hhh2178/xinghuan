@@ -28,8 +28,9 @@
 
 - Gray 版本：`v0.5.27`
 - Gray release：`20260706-task-list-lightweight-gray-r1-v0527`
-- Production 版本：`v0.5.27`
-- Production release：`20260714-task-list-lightweight-prod-r1-v0527`
+- Production 版本：`v0.5.22`
+- Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- `v0.6.1` 正在完成 AIFork 视频适配、RH 可见性与后台会话修复的灰度验证，未验证前不得晋级生产。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 
@@ -53,6 +54,7 @@
 - 涉及具体系统时，先读 `docs/systems/<system>/`，再读代码。
 - 做完真实改动后，同步检查对应系统文档、台账和必要的入口摘要。
 - 发现热点文件继续膨胀时，先判断应该新增模块、hook、helper 或 section，而不是默认继续往原文件堆。
+- `1200+` 行 source 文件属于 watchlist；触碰既有热点时必须同步对应计划、台账或发布记录，并保持在既定预算内。
 - 不要只依赖聊天上下文判断版本、部署态或历史结论；以当前 worktree 文件和运行态证据为准。
 
 ## 安全规则
@@ -70,6 +72,9 @@
 - 发布前必须确认工作树与运行产物边界：
   - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:staged-source-size-guard`
+  - `npm run verify:file-hotspot-budgets`
+  - `npm run verify:hotspot-watchlist-contract`
+  - `npm run verify:hotspot-doc-sync-staged`
   - `npm run verify:release-worktree-clean`
 - release logbook 与当前运行态入口必须同步：
   - `npm run verify:release-logbook-sync-staged`
@@ -83,6 +88,7 @@
 
 - CodeGraph 详细规则：`docs/governance/codegraph-and-repo-navigation.md`
 - 热点文件治理：`docs/governance/engineering-guardrails.md`
+- 热点风险评分：`docs/governance/hotspot-risk-scorecard.md`
 - 热点拆分流程：`docs/governance/hotspot-decomposition-workflow.md`
 - 发布 gate：`docs/systems/observability-and-ops/release-gates.md`
 - Harness 执行地图：`docs/systems/harness/README.md`

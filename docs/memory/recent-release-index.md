@@ -6,8 +6,8 @@
   - 版本：`v0.5.27`
   - release：`20260706-task-list-lightweight-gray-r1-v0527`
 - production：
-  - 版本：`v0.5.27`
-  - release：`20260714-task-list-lightweight-prod-r1-v0527`
+  - 版本：`v0.5.22`
+  - release：`20260702-envsync-admin-sections-prod-r1-v0522`
 
 ## 当前高频入口
 

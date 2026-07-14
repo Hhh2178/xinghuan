@@ -5,6 +5,7 @@ import {
   emptyGroupPermissionDeny,
   normalizeGroupPermissionPolicies,
   normalizeGroupPermissionPolicy,
+  policyForUser,
   serializePolicyDeny,
   type GroupPermissionPolicy,
   type NodeCapabilityDefinition,
@@ -156,7 +157,10 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
   }
 
   function buildPolicyResponse(group: UserGroupLike, authDb: AuthDbLike) {
-    const policy = authDb.groupPermissionPolicies.find((item) => item.groupId === group.id) || {
+    const policy = policyForUser(
+      { id: "permission-preview", role: "member", groupId: group.id },
+      authDb.groupPermissionPolicies,
+    ) || {
       groupId: group.id,
       updatedAt: 0,
       updatedBy: undefined,

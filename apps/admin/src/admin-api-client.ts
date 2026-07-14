@@ -20,6 +20,10 @@ export class AdminApiError extends Error {
   }
 }
 
+export function isAuthRequiredError(error: unknown) {
+  return error instanceof AdminApiError && (error.status === 401 || error.code === "AUTH_REQUIRED");
+}
+
 export async function api<T = unknown>(pathname: string, options?: RequestInit): Promise<T> {
   const response = await fetch(pathname, { ...options, credentials: "same-origin" });
   const text = await response.text();

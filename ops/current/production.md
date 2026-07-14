@@ -2,12 +2,13 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.5.27`
-- 当前 release：`20260714-task-list-lightweight-prod-r1-v0527`
-- 当前状态：`2026-07-14 11:28 已完成 production deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs 并正式晋级`
-- 当前补修：`clean repository boundary wave、task list repository lightweight repair、正式环境版本对齐到 v0.5.27`
+- 当前版本：`v0.5.22`
+- 当前 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前状态：`2026-07-14 15:44 已从 v0.5.27 回退；API/Worker active，内网与公网 /api/status 均已验证为 v0.5.22`
+- 当前补修：`v0.5.27 release 保留排查；需完成管理员会话失效处理、RH catalog 可见性和 AIFork SD 视频适配修复后再晋级`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`
   - `../../docs/logbooks/releases/production/2026-07-14-task-list-lightweight-production.md`
   - `../../docs/logbooks/releases/production/2026-07-02-envsync-admin-sections-production.md`
   - `../../docs/logbooks/releases/production/2026-07-01-performance-toggle-button-sizing-production.md`
