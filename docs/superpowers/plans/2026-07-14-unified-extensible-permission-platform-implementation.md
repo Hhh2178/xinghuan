@@ -32,7 +32,7 @@
 - Create: `apps/api/src/permissions/authorization-resolver.ts`
 - Create: `apps/api/src/permissions/authorization-resolver.test.ts`
 
-- [ ] **Step 1: Write resolver tests before implementation**
+- [x] **Step 1: Write resolver tests before implementation**
 
 Create fixtures for `restricted`, `published`, and `retired` subjects. Assert all required precedence cases:
 
@@ -44,12 +44,12 @@ expect(resolvePermission({ user: member, subject: publishedChild, action: "view"
 expect(resolvePermission({ user: member, subject: published, action: "view", rules: [] }).allowed).toBe(false);
 ```
 
-- [ ] **Step 2: Run the test to confirm it fails**
+- [x] **Step 2: Run the test to confirm it fails**
 
 Run: `npx vitest run apps/api/src/permissions/authorization-resolver.test.ts`
 Expected: failure because the resolver module does not exist.
 
-- [ ] **Step 3: Add immutable contracts**
+- [x] **Step 3: Add immutable contracts**
 
 Define `PermissionAction`, `PermissionExposureState`, `PermissionPrincipalType`, `PermissionEffect`, `PermissionSubject`, `PermissionRule`, `PermissionDecision`, and `PermissionedUser` in `packages/shared/src/permission-contract.ts`. Export them from `packages/shared/src/index.ts`.
 
@@ -60,7 +60,7 @@ export const PERMISSION_ACTIONS = ["view", "use", "execute", "manage", "export"]
 export const PERMISSION_EXPOSURE_STATES = ["restricted", "published", "retired"] as const;
 ```
 
-- [ ] **Step 4: Implement the pure resolver**
+- [x] **Step 4: Implement the pure resolver**
 
 Implement `resolvePermission(input)` in `authorization-resolver.ts` with these invariant checks:
 
@@ -76,7 +76,7 @@ return deny("no-matching-rule");
 
 Subject matching must accept the exact key and its parent chain only. A child-specific rule is more specific than a parent rule; equal specificity prefers deny.
 
-- [ ] **Step 5: Run focused verification**
+- [x] **Step 5: Run focused verification**
 
 Run: `npx vitest run apps/api/src/permissions/authorization-resolver.test.ts`
 Expected: all resolver precedence tests pass.
