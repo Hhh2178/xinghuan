@@ -14,6 +14,14 @@ function ownerPrimary(task: TaskRecord) {
   return task.ownerRemark || task.ownerName || task.ownerEmail || "未知账号";
 }
 
+function taskMessage(task: TaskRecord) {
+  return task.displayMessage || task.logs?.at(-1) || "-";
+}
+
+function finalStatusTime(task: TaskRecord) {
+  return task.finalizedAt ? new Date(task.finalizedAt).toLocaleString() : "--";
+}
+
 export function TasksPanel(
   { taskPage, mutate, onQueryChange }: { taskPage: TaskListPage; mutate: AdminMutate; onQueryChange: (next: TaskQuery) => void },
 ) {
@@ -66,36 +74,18 @@ export function TasksPanel(
         </select>
       </FormPanel>
       <AdminTable title="任务监控">
-        <thead><tr><th>任务</th><th>状态</th><th>发起账号</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>任务</th><th>状态</th><th>最终状态时间</th><th>发起账号</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
         <tbody>
           {taskPage.items.map((task) => (
-            <tr key={task.id}>
-              <td>{task.title}</td>
+            <tr key={task.id} className="task-monitor-row">
+              <td><span className="task-monitor-cell" title={task.title}>{task.title}</span></td>
               <td><StatusPill tone={taskDisplayTone(task)}>{taskStatusText(task)}</StatusPill></td>
-              <td>
-                <div className="task-owner-meta">
-                  <strong>{ownerPrimary(task)}</strong>
-                  <span>
-                    {task.ownerDeleted
-                      ? (task.ownerEmail || "未知账号")
-                      : [task.ownerEmail, task.ownerGroupName].filter(Boolean).join(" · ") || "-"}
-                  </span>
-                </div>
-              </td>
-              <td>{task.providerId || "-"}</td>
-              <td>{task.modelId || "-"}</td>
-              <td>
-                {task.displayMessage ? (
-                  <span>{task.displayMessage}</span>
-                ) : task.status === "failed" ? (
-                  <span>{String(task.result?.failureReason || task.result?.error || task.logs?.slice(-1)[0] || "未知失败")}</span>
-                ) : task.status === "cancelled" ? (
-                  <span>{String(task.result?.cancellationMessage || task.logs?.slice(-1)[0] || "任务已取消")}</span>
-                ) : (
-                  <span>{task.logs?.slice(-2).join(" / ") || "-"}</span>
-                )}
-              </td>
-              <td>{new Date(task.updatedAt).toLocaleString()}</td>
+              <td><span className="task-monitor-cell task-monitor-cell--time" title={task.finalizedAt ? new Date(task.finalizedAt).toLocaleString() : "任务尚未结束"}>{finalStatusTime(task)}</span></td>
+              <td><span className="task-monitor-cell" title={ownerPrimary(task)}>{ownerPrimary(task)}</span></td>
+              <td><span className="task-monitor-cell" title={task.providerId || "-"}>{task.providerId || "-"}</span></td>
+              <td><span className="task-monitor-cell" title={task.modelId || "-"}>{task.modelId || "-"}</span></td>
+              <td><span className="task-monitor-cell" title={taskMessage(task)}>{taskMessage(task)}</span></td>
+              <td><span className="task-monitor-cell task-monitor-cell--time" title={new Date(task.updatedAt).toLocaleString()}>{new Date(task.updatedAt).toLocaleString()}</span></td>
               <td>
                 {canCancelTask(task.status) ? (
                   <button type="button" onClick={() => mutate(`/api/admin/tasks/${task.id}`, { action: "cancel" }, "PATCH")}>
@@ -114,7 +104,7 @@ export function TasksPanel(
         </tbody>
       </AdminTable>
       <div className="table-toolbar">
-        <span>共 {taskPage.total} 条，当前第 {taskPage.page} / {pageCount} 页</span>
+        <span>{taskPage.truncated ? "仅显示最近 2,000 条任务记录" : `显示全部 ${taskPage.windowSize} 条最近任务`}，当前第 {taskPage.page} / {pageCount} 页</span>
         <div className="row-actions">
           <button
             type="button"

@@ -235,6 +235,9 @@ function defaultTaskListPage(): TaskListPage {
     page: 1,
     pageSize: 20,
     hasMore: false,
+    windowLimit: 2000,
+    windowSize: 0,
+    truncated: false,
     filters: {
       status: "",
       providerId: "",

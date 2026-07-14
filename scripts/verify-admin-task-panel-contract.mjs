@@ -6,7 +6,7 @@ const modulePath = join(root, "apps", "admin", "src", "admin-task-panel.tsx");
 const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), "utf8");
 const panelSource = existsSync(modulePath) ? readFileSync(modulePath, "utf8") : "";
 
-const requiredColumns = ["任务", "状态", "Provider", "模型", "日志", "更新时间", "操作"];
+const requiredColumns = ["任务", "状态", "最终状态时间", "Provider", "模型", "日志", "更新时间", "操作"];
 
 const checks = [
   {
@@ -45,12 +45,11 @@ const checks = [
       requiredColumns.every((column) => panelSource.includes(`<th>${column}</th>`)),
   },
   {
-    name: "task panel preserves owner display fields",
+    name: "task panel keeps compact owner display",
     pass:
       panelSource.includes("task.ownerRemark") &&
       panelSource.includes("task.ownerName") &&
       panelSource.includes("task.ownerEmail") &&
-      panelSource.includes("task.ownerGroupName") &&
       panelSource.includes("已删除账号"),
   },
   {
@@ -71,10 +70,17 @@ const checks = [
       panelSource.includes("重试"),
   },
   {
-    name: "task panel keeps recent log and timestamp formatting",
+    name: "task panel keeps compact log and timestamp formatting",
     pass:
-      panelSource.includes('task.logs?.slice(-2).join(" / ") || "-"') &&
+      panelSource.includes("task.logs?.at(-1)") &&
       panelSource.includes("new Date(task.updatedAt).toLocaleString()"),
+  },
+  {
+    name: "task panel shows the bounded history window and final status timestamp",
+    pass:
+      panelSource.includes("仅显示最近 2,000 条任务记录") &&
+      panelSource.includes("task.finalizedAt") &&
+      panelSource.includes('title={task.title}'),
   },
   {
     name: "task panel uses shared admin components",

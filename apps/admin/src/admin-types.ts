@@ -577,6 +577,7 @@ export interface TaskRecord {
   logs: string[];
   createdAt?: number;
   updatedAt: number;
+  finalizedAt?: number;
 }
 
 export interface TaskListPage {
@@ -585,6 +586,9 @@ export interface TaskListPage {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  windowLimit: number;
+  windowSize: number;
+  truncated: boolean;
   filters: {
     status: string;
     providerId: string;
