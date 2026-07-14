@@ -163,6 +163,8 @@
     "verify:provider-response-parser-contract": "npx tsx scripts/verify-provider-response-parser-contract.ts",
     "verify:modelscope-image-adapter-contract": "npx tsx scripts/verify-modelscope-image-adapter-contract.ts",
     "verify:apimart-video-adapter-contract": "npx tsx scripts/verify-apimart-video-adapter-contract.ts",
+    "verify:aicopy-video-adapter-contract": "npx tsx scripts/verify-aicopy-video-adapter-contract.ts",
+    "verify:aicopy-sd-model-config": "node scripts/verify-aicopy-sd-model-config.mjs",
     "verify:video-node-backend-inputs-contract": "npx tsx scripts/verify-video-node-backend-inputs-contract.ts",
     "verify:model-catalog": "node scripts/verify-model-catalog.mjs",
     "verify:grsai-draw": "npx tsx scripts/verify-grsai-image-adapter.ts && node scripts/verify-worker-grsai-contract.mjs",

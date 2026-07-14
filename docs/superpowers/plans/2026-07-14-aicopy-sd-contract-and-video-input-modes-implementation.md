@@ -737,7 +737,7 @@ git commit -m "fix: apply aicopy sd contracts only when enabled"
 - Create: `scripts/verify-aicopy-sd-model-config.mjs`
 - Modify: `package.json`
 
-- [ ] **Step 1: Build a dry-run-first configuration tool**
+- [x] **Step 1: Build a dry-run-first configuration tool**
 
 The command interface must be:
 
@@ -748,7 +748,7 @@ node scripts/configure-aicopy-sd-model-capabilities.mjs --provider-id=custom-api
 
 Reject a Provider whose protocol is not `aicopy`. Reject a model whose capability is not `video`. Never select models by Provider name.
 
-- [ ] **Step 2: Apply this exact model configuration merge**
+- [x] **Step 2: Apply this exact model configuration merge**
 
 ```json
 {
@@ -784,7 +784,7 @@ Reject a Provider whose protocol is not `aicopy`. Reject a model whose capabilit
 
 Preserve existing ratio options, polling settings, display names, and enablement. Merge the exact SD request bindings by path and preserve unrelated safe bindings/result paths; rerunning must be idempotent. Do not infer SD models by substring during apply; every model ID must be passed explicitly.
 
-- [ ] **Step 3: Verify dry-run diff and exact scope**
+- [x] **Step 3: Verify dry-run diff and exact scope**
 
 The verifier must prove:
 
@@ -801,7 +801,7 @@ node scripts/verify-aicopy-sd-model-config.mjs
 
 Expected: PASS.
 
-- [ ] **Step 4: Add package scripts and commit**
+- [x] **Step 4: Add package scripts and commit**
 
 ```json
 {
