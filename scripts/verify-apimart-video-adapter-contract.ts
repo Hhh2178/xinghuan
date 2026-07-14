@@ -52,6 +52,18 @@ assert.deepEqual(platoMultipartPayload.input_reference, ["https://example.com/fr
 assert.equal("quality" in platoMultipartPayload, false);
 assert.equal("aspect_ratio" in platoMultipartPayload, false);
 
+const previewSizeAliasPayload = createApimartVideoAdapterPayload({
+  modelId: "grok-imagine-video-1.5-preview",
+  prompt: "让静态画面缓慢推进",
+  ratio: "16:9",
+  duration: 6,
+  resolution: "720p",
+  requestMapping: { ratio: "" },
+  requestValueTemplates: { size: "{preview_video_size}" },
+});
+
+assert.equal(previewSizeAliasPayload.size, "1280x720");
+
 const multipartFields = resolveApimartVideoMultipartFieldNames({
   requestMapping: { images: "input_reference", firstFrame: "first_frame" },
   requestFileFields: ["images", "firstFrame"],

@@ -259,6 +259,7 @@ function applyValueTemplates(
     first_image: Array.isArray(input.images) ? String(input.images[0] || "") : "",
     image_count: String(Array.isArray(input.images) ? input.images.length : 0),
     video_size: videoSize,
+    preview_video_size: videoSize,
   };
   for (const [key, rawTemplate] of Object.entries(templates)) {
     const template = String(rawTemplate || "").trim();
