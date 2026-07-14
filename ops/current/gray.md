@@ -2,9 +2,9 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.6.1`
+- 当前版本：`v0.6.2`
 - 当前 release：`20260714-aifork-contract-access-gray-r2-v061`
-- 当前状态：`2026-07-14 已完成 r1/r2 deploy + runtime verify；API/Worker active，内网与公网 /api/status 均为 v0.6.1/gray`
+- 当前状态：`v0.6.2 灰度发布准备中；生产继续保持 v0.5.22`
 - 当前补修：`AIFork SD 请求契约与结果轮询、后台会话失效跳转、RH 未分组权限持久化`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`

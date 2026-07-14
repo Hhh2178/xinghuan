@@ -4,14 +4,15 @@
 
 ### Gray
 
-- 版本：`v0.6.1`
+- 版本：`v0.6.2`
 - release：`20260714-aifork-contract-access-gray-r2-v061`
-- 当前状态：`2026-07-14 已完成 r1/r2 gray deploy + runtime verify；AIFork SD 视频请求契约、结果 URL 提取、后台会话失效反馈、虚拟 ungrouped 权限持久化均已部署`
+- 当前状态：`v0.6.2 灰度发布准备中；包含任务监控 2,000 条窗口与最终状态时间`
 - 部署内容：`AIFork 模型级请求契约、AIFork 专用轮询、sd2-720p-fast 灰度模型、RH 未分组允许策略与生产回退状态入口同步`
 - 已验证：`API/Worker active，内网/公网 status 均为 v0.6.1/gray；未分组成员的 7 个 RH 应用与 1 个工作流权限过滤已在灰度编译模块验证`
 - 待验收：`画布登录会话下 sd2-720p-fast 的 15 秒、9:16、有音轨真实生成`
 - 部署时间：`2026-07-14`
 - 当前批次记录：
+  - `gray/2026-07-14-ops-task-window-gray.md`
   - `gray/2026-07-14-aifork-contract-access-gray.md`
   - `gray/2026-07-05-auth-login-repository-gray.md`
   - `gray/2026-07-06-task-list-lightweight-gray.md`
