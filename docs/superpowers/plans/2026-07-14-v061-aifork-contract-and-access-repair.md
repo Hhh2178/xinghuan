@@ -113,7 +113,7 @@ requestContract: {
 - [x] Run `npx tsx scripts/verify-aicopy-video-adapter-contract.ts`.
 - [x] Run `node scripts/verify-admin-auth-expiry-contract.mjs`.
 - [x] Run `npm run type-check -w @xinghuan/model-core -w @xinghuan/worker -w @xinghuan/admin -w @xinghuan/api`.
-- [ ] Run the relevant project harness and a production-safe gray deployment verification before proposing production promotion.
+- [x] Run the relevant project harness and a production-safe gray deployment verification before proposing production promotion.
 
 ### Task 7: Persist The Virtual Ungrouped Permission Bucket
 
@@ -123,7 +123,7 @@ requestContract: {
 
 - [x] Remove the foreign key that incorrectly requires every policy group ID to exist in `xh_user_groups`; `ungrouped` is a virtual group created by the existing route and permission runtime.
 - [x] Keep the existing primary key and `updated_by` foreign key, so each virtual or named group still has one policy and editor attribution remains valid.
-- [ ] Deploy the migration to gray, persist an explicit empty deny policy for `ungrouped`, and verify that ungrouped members receive the RunningHub catalog while named groups without a policy remain default-closed.
+- [x] Deploy the migration to gray, persist an explicit empty deny policy for `ungrouped`, and verify in the deployed module that ungrouped members receive the RunningHub catalog while named groups without a policy remain default-closed.
 
 ## Deployment Data Step
 

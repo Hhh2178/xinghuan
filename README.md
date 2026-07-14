@@ -25,12 +25,12 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.22`（生产回退后的稳定版本；`v0.6.1` 正在灰度验证）
+- 当前活跃版本：`v0.6.1`（灰度）；生产稳定版本为 `v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.5.27`
+- 当前灰度版本：`v0.6.1`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260706-task-list-lightweight-gray-r1-v0527`
+- 当前灰度 release：`20260714-aifork-contract-access-gray-r2-v061`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 当前重点：clean worktree 结构治理收尾、harness/documentation contract、延期项计划收口

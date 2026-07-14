@@ -3,8 +3,8 @@
 ## 当前版本
 
 - `v0.5.22`｜🟡 生产回退稳定版本｜2026-07-14｜当前生产版本
-  - 摘要：灰度当前运行 `v0.5.27`，生产因管理员会话失效后的创建组误导状态、成员 RH catalog 全空和 AIFork SD 视频适配问题回退至 `v0.5.22`。`v0.6.1` 正在灰度验证 AIFork 请求契约、RH 可见性与后台会话修复；通过后再重新晋级。ComfyUI 功能开发继续暂停封存。
-  - 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527`
+  - 摘要：灰度当前运行 `v0.6.1`，已部署 AIFork 请求契约、RH 未分组权限持久化与后台会话修复；生产因相关问题继续保持 `v0.5.22`。正式晋级前仍需验收画布中的 15 秒、9:16、有音轨 AIFork 视频。ComfyUI 功能开发继续暂停封存。
+  - 当前 gray release：`20260714-aifork-contract-access-gray-r2-v061`
   - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
   - 文档：[`prd.md`](./v0.1.0/prd.md) / [`spec.md`](./v0.1.0/spec.md) / [`design.md`](./v0.1.0/design.md) / [`entry-ui-google-brief.md`](./v0.1.0/entry-ui-google-brief.md) / [`plan.md`](./v0.1.0/plan.md) / [`provider-model-framework.md`](./v0.1.0/provider-model-framework.md) / [`assistant-hermes-plan.md`](./v0.1.0/assistant-hermes-plan.md) / [`assistant-hermes-implementation-plan.md`](./v0.1.0/assistant-hermes-implementation-plan.md) / [`progress.md`](./v0.1.0/progress.md) / [`decisions.md`](./v0.1.0/decisions.md) / [`release.md`](./v0.1.0/release.md) / [`changelog.md`](./v0.1.0/changelog.md)
 

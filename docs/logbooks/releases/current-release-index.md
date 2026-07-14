@@ -4,14 +4,15 @@
 
 ### Gray
 
-- 版本：`v0.5.27`
-- release：`20260706-task-list-lightweight-gray-r1-v0527`
-- 当前状态：`2026-07-06 已完成 gray deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs，远端 admin task pagination 与 environment sync smoke 已通过`
-- 部署内容：`clean repository boundary wave、task list repository lightweight repair、版本对齐到 v0.5.27、ComfyUI 功能继续冻结`
-- 补充修复：`v0.5.26 灰度暴露 task repository 注入路径仍可能泄漏重字段；v0.5.27 已补仓储边界回归测试并远端验证通过`
-- 本地后续：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期`
-- 部署时间：`2026-07-06 00:04`
+- 版本：`v0.6.1`
+- release：`20260714-aifork-contract-access-gray-r2-v061`
+- 当前状态：`2026-07-14 已完成 r1/r2 gray deploy + runtime verify；AIFork SD 视频请求契约、结果 URL 提取、后台会话失效反馈、虚拟 ungrouped 权限持久化均已部署`
+- 部署内容：`AIFork 模型级请求契约、AIFork 专用轮询、sd2-720p-fast 灰度模型、RH 未分组允许策略与生产回退状态入口同步`
+- 已验证：`API/Worker active，内网/公网 status 均为 v0.6.1/gray；未分组成员的 7 个 RH 应用与 1 个工作流权限过滤已在灰度编译模块验证`
+- 待验收：`画布登录会话下 sd2-720p-fast 的 15 秒、9:16、有音轨真实生成`
+- 部署时间：`2026-07-14`
 - 当前批次记录：
+  - `gray/2026-07-14-aifork-contract-access-gray.md`
   - `gray/2026-07-05-auth-login-repository-gray.md`
   - `gray/2026-07-06-task-list-lightweight-gray.md`
   - `gray/2026-07-05-postgres-pool-tuning-gray.md`

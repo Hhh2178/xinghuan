@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.5.22`（生产回退后的稳定版本；`v0.6.1` 正在灰度验证）
+- 当前活跃版本：`v0.6.1`（gray）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527` (已部署)
+- 当前 gray release：`20260714-aifork-contract-access-gray-r2-v061` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：生产因管理员会话失效后的创建分组误导状态、成员 RH catalog 全空和 AIFork SD 视频适配问题回退到 `v0.5.22`；当前在 `v0.6.1` 灰度完成修复验证后再重新晋级。
+- 最新完成：`v0.6.1` 已在灰度部署 AIFork SD 视频契约、结果轮询、后台会话失效反馈和 `ungrouped` 权限持久化；生产继续保持 `v0.5.22`，等待真实视频与成员 UI 验收。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-06 00:04 发布推进：`v0.5.27` gray release 已切到 `20260706-task-list-lightweight-gray-r1-v0527`，并完成 clean repository boundary wave、task list repository lightweight repair、远端 admin task pagination 与 environment sync smoke 验证，详见 `docs/logbooks/releases/gray/2026-07-06-task-list-lightweight-gray.md`
+- 2026-07-14 发布推进：`v0.6.1` gray release 已切到 `20260714-aifork-contract-access-gray-r2-v061`，并完成 AIFork/RH/access runtime 验证，详见 `docs/logbooks/releases/gray/2026-07-14-aifork-contract-access-gray.md`。
 - 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

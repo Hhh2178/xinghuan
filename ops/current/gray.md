@@ -2,14 +2,15 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.5.27`
-- 当前 release：`20260706-task-list-lightweight-gray-r1-v0527`
-- 当前状态：`2026-07-06 已完成 gray deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs，远端 admin task pagination 与 environment sync smoke 已通过`
-- 当前补修：`2026-07-06-task-list-lightweight-gray.md`
+- 当前版本：`v0.6.1`
+- 当前 release：`20260714-aifork-contract-access-gray-r2-v061`
+- 当前状态：`2026-07-14 已完成 r1/r2 deploy + runtime verify；API/Worker active，内网与公网 /api/status 均为 v0.6.1/gray`
+- 当前补修：`AIFork SD 请求契约与结果轮询、后台会话失效跳转、RH 未分组权限持久化`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-14-aifork-contract-access-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-05-postgres-pool-tuning-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-05-auth-login-repository-gray.md`
   - `../../docs/logbooks/releases/gray/2026-07-06-task-list-lightweight-gray.md`
@@ -59,9 +60,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260705-repository-boundary-gray-r1-v0526`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260714-aifork-contract-access-gray-r1-v061`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260705-repository-boundary-gray-r1-v0526`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260714-aifork-contract-access-gray-r1-v061`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
