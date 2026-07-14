@@ -142,7 +142,7 @@ import { createGroupPermissionPolicyRouteHandler } from "./group-permission-poli
 import { createPermissionRepository, type PermissionFallbackAuthDb } from "./permissions/permission-repository.js";
 import { createPermissionRouteHandler } from "./permissions/permission-routes.js";
 import { createPermissionService } from "./permissions/permission-service.js";
-import { createPermissionSubjectRegistrar } from "./permissions/permission-subject-registrars.js";
+import { createPermissionSubjectRegistrar, runningHubAppSubjectKey, runningHubWorkflowSubjectKey } from "./permissions/permission-subject-registrars.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
 import { createSettingsRepository } from "./settings-repository.js";
@@ -6743,17 +6743,13 @@ function lastTaskFailureLog(logs: string[]) {
   return [...logs].reverse().find((line) => /失败|error|failed/i.test(line)) || "";
 }
 
-function assertCanUseRunningHubCatalogItem(
+async function assertCanUseRunningHubCatalogItem(
   currentUser: CurrentUser | null | undefined,
-  policies: GroupPermissionPolicy[],
   item: RhCatalogItem,
 ) {
-  if (!currentUser || currentUser.role === "admin") return;
-  const groupId = safeText(currentUser.groupId, "ungrouped");
-  const policy = policies.find((entry) => entry.groupId === groupId) || null;
-  if (!canUseRunningHubCatalogItem(policy, item)) {
-    throw new HttpError(403, "RUNNINGHUB_CATALOG_ITEM_FORBIDDEN");
-  }
+  if (!currentUser) throw new HttpError(401, "UNAUTHORIZED");
+  await reconcilePermissionSubjects();
+  await permissionService.assertAllowed(currentUser, item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId), "execute");
 }
 
 async function publicRunningHubCatalog(
@@ -6761,23 +6757,23 @@ async function publicRunningHubCatalog(
   options?: { includeRestricted?: boolean },
 ) {
   const db = await readAdminDb();
-  const policies = options?.includeRestricted ? [] : (await readAuthDb()).groupPermissionPolicies;
-  const providers = db.providers
+  if (currentUser && !options?.includeRestricted) await reconcilePermissionSubjects();
+  const providers = await Promise.all(db.providers
     .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
-    .map((provider) => {
-      const workflows = filterRunningHubCatalogForUser(
+    .map(async (provider) => {
+      const workflows = await filterRunningHubItems(
         normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow")
         .filter((entry) => entry.enabled)
         .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
         currentUser,
-        policies,
+        options?.includeRestricted,
       );
-      const apps = filterRunningHubCatalogForUser(
+      const apps = await filterRunningHubItems(
         normalizeRunningHubCatalogItems(provider.rhApps, "app")
         .filter((entry) => entry.enabled)
         .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
         currentUser,
-        policies,
+        options?.includeRestricted,
       );
       return {
         id: provider.id,
@@ -6786,7 +6782,7 @@ async function publicRunningHubCatalog(
         workflows,
         apps,
       };
-    });
+    }));
   const items = providers.flatMap((provider) => [...provider.workflows, ...provider.apps]);
   return {
     providers,
@@ -6833,10 +6829,9 @@ async function createRunningHubQueuedTask(input: {
     : "video";
   if (!runTargetId) throw new Error(targetType === "app" ? "缺少 webappId/runTargetId" : "缺少 workflowId/runTargetId");
   const matchedCatalogItem = findRunningHubCatalogItemByTarget(input.provider, targetType, runTargetId);
-  const authDb = await readAuthDb();
   if (matchedCatalogItem) {
     const publicCatalogItem = toPublicRunningHubCatalogItem(input.provider, matchedCatalogItem);
-    assertCanUseRunningHubCatalogItem(input.user, authDb.groupPermissionPolicies, publicCatalogItem);
+    await assertCanUseRunningHubCatalogItem(input.user, publicCatalogItem);
   }
   const taskQueueSettingsRecord = await readTaskQueueSettingsRecord().catch(() => null);
   const legacyFallbackConcurrency = Math.max(
@@ -7382,6 +7377,12 @@ async function reconcilePermissionSubjects() {
     nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({ type, label: type, category: "canvas" })),
     providerModels,
   });
+}
+
+async function filterRunningHubItems(items: RhCatalogItem[], currentUser?: CurrentUser | null, includeRestricted?: boolean) {
+  if (includeRestricted || !currentUser) return items;
+  const results = await Promise.all(items.map(async (item) => ({ item, decision: await permissionService.can(currentUser, item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId), "view") })));
+  return results.filter((entry) => entry.decision.allowed).map((entry) => entry.item);
 }
 
 async function adminRunningHubCatalogItems() {
