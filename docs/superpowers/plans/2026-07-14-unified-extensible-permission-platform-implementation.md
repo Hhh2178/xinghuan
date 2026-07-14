@@ -81,7 +81,7 @@ Subject matching must accept the exact key and its parent chain only. A child-sp
 Run: `npx vitest run apps/api/src/permissions/authorization-resolver.test.ts`
 Expected: all resolver precedence tests pass.
 
-- [ ] **Step 6: Commit the isolated resolver**
+- [x] **Step 6: Commit the isolated resolver**
 
 ```bash
 git add packages/shared/src/permission-contract.ts packages/shared/src/index.ts apps/api/src/permissions/authorization-resolver.ts apps/api/src/permissions/authorization-resolver.test.ts
@@ -96,11 +96,11 @@ git commit -m "feat: add permission authorization resolver"
 - Create: `apps/api/src/permissions/permission-repository.test.ts`
 - Modify: `apps/api/src/auth-repository.ts`
 
-- [ ] **Step 1: Write repository mapping tests**
+- [x] **Step 1: Write repository mapping tests**
 
 Test database-row mapping and file fallback behavior for a subject, a group allow, a user deny, and virtual `ungrouped` principal. Verify that `ungrouped` does not require a user-group row.
 
-- [ ] **Step 2: Create the migration**
+- [x] **Step 2: Create the migration**
 
 Create `xh_permission_subjects` and `xh_permission_rules` with:
 
@@ -137,11 +137,11 @@ create table xh_permission_rules (
 
 Add indexes on `(domain, exposure_state)`, `(parent_key)`, and `(principal_type, principal_id, action)`.
 
-- [ ] **Step 3: Implement repository boundaries**
+- [x] **Step 3: Implement repository boundaries**
 
 `permission-repository.ts` must expose `listSubjects`, `upsertSubject`, `retireSubject`, `listRules`, `upsertRule`, `deleteRule`, and `readAuthorizationState`. It must provide the same normalized records for Postgres and file-backed mode; extend `AuthDb` with `permissionSubjects` and `permissionRules` for the fallback path.
 
-- [ ] **Step 4: Run repository tests and migration smoke**
+- [x] **Step 4: Run repository tests and migration smoke**
 
 Run:
 
@@ -152,7 +152,7 @@ npm run type-check -w @xinghuan/api -w @xinghuan/shared
 
 Expected: normalized records match in both modes and TypeScript passes.
 
-- [ ] **Step 5: Commit persistence**
+- [x] **Step 5: Commit persistence**
 
 ```bash
 git add apps/api/db/021_unified_permission_platform.sql apps/api/src/permissions/permission-repository.ts apps/api/src/permissions/permission-repository.test.ts apps/api/src/auth-repository.ts
