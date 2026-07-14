@@ -3,7 +3,7 @@
 ## 当前版本与阶段
 
 - 当前活跃版本：`v0.5.22`（production 已于 2026-07-14 15:44 从 v0.5.27 回退）
-- 当前灰度 release：`20260714-ops-task-window-gray-v062` (发布准备中)
+- 当前灰度 release：`20260714-ops-task-window-gray-v062` (已部署)
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：clean worktree repository boundary 迁移已完成 provider/settings/admin/task/usage summary 五个领域并已完成 gray / production 双环境部署；task repository list summaries 已在仓储边界剥离 `payload/result/logs`；environment-sync-local 抽取明确延期到专门批次。
@@ -39,8 +39,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前准备发布 `v0.6.2`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260714-ops-task-window-gray-v062` (发布准备中)
+  - gray 当前运行 `v0.6.2`，production 当前运行在 `v0.5.22`
+  - gray 当前 release 为 `20260714-ops-task-window-gray-v062` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：
