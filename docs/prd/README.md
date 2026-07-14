@@ -3,8 +3,8 @@
 ## 当前版本
 
 - `v0.5.22`｜🟡 生产回退稳定版本｜2026-07-14｜当前生产版本
-  - 摘要：灰度当前运行 `v0.6.1`，已部署 AIFork 请求契约、RH 未分组权限持久化与后台会话修复；生产因相关问题继续保持 `v0.5.22`。正式晋级前仍需验收画布中的 15 秒、9:16、有音轨 AIFork 视频。ComfyUI 功能开发继续暂停封存。
-  - 当前 gray release：`20260714-aifork-contract-access-gray-r2-v061`
+  - 摘要：灰度准备发布 `v0.6.2`，包含任务监控最近 2,000 条活动窗口、终态时间持久化与紧凑行展示；生产继续保持 `v0.5.22`。灰度发布后须验收状态时间、筛选分页及取消/重试交互。ComfyUI 功能开发继续暂停封存。
+  - 当前 gray release：`20260714-ops-task-window-gray-v062`
   - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
   - 文档：[`prd.md`](./v0.1.0/prd.md) / [`spec.md`](./v0.1.0/spec.md) / [`design.md`](./v0.1.0/design.md) / [`entry-ui-google-brief.md`](./v0.1.0/entry-ui-google-brief.md) / [`plan.md`](./v0.1.0/plan.md) / [`provider-model-framework.md`](./v0.1.0/provider-model-framework.md) / [`assistant-hermes-plan.md`](./v0.1.0/assistant-hermes-plan.md) / [`assistant-hermes-implementation-plan.md`](./v0.1.0/assistant-hermes-implementation-plan.md) / [`progress.md`](./v0.1.0/progress.md) / [`decisions.md`](./v0.1.0/decisions.md) / [`release.md`](./v0.1.0/release.md) / [`changelog.md`](./v0.1.0/changelog.md)
 

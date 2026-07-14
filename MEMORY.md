@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.1`（gray）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.2`（gray 发布准备中）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260714-aifork-contract-access-gray-r2-v061` (已部署)
+- 当前 gray release：`20260714-ops-task-window-gray-v062` (发布准备中)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：`v0.6.1` 已在灰度部署 AIFork SD 视频契约、结果轮询、后台会话失效反馈和 `ungrouped` 权限持久化；生产继续保持 `v0.5.22`，等待真实视频与成员 UI 验收。
+- 最新完成：`v0.6.2` 已完成任务监控最近 2,000 条活动窗口、终态时间持久化与紧凑单行列表的本地验证；生产继续保持 `v0.5.22`，等待灰度运行态与后台交互验收。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-14 发布推进：`v0.6.1` gray release 已切到 `20260714-aifork-contract-access-gray-r2-v061`，并完成 AIFork/RH/access runtime 验证，详见 `docs/logbooks/releases/gray/2026-07-14-aifork-contract-access-gray.md`。
+- 2026-07-14 发布推进：`v0.6.2` gray release 准备切到 `20260714-ops-task-window-gray-v062`，详见 `docs/logbooks/releases/gray/2026-07-14-ops-task-window-gray.md`。
 - 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

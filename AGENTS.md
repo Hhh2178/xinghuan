@@ -26,11 +26,11 @@
 
 ## 当前运行态摘要
 
-- Gray 版本：`v0.6.1`
-- Gray release：`20260714-aifork-contract-access-gray-r2-v061`
+- Gray 版本：`v0.6.2`
+- Gray release：`20260714-ops-task-window-gray-v062`
 - Production 版本：`v0.5.22`
 - Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.1` 已完成服务与权限运行态灰度验证；仍需在登录画布验收 AIFork SD 的 15 秒、9:16、有音轨真实生成后才能晋级生产。
+- `v0.6.2` 正在灰度发布准备；任务监控的最近 2,000 条窗口、终态时间和紧凑行展示须完成灰度验收后才能晋级生产。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 
