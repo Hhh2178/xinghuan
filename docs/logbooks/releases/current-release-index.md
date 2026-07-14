@@ -4,15 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.6.2`
-- release：`20260714-ops-task-window-gray-v062`
-- 当前状态：`v0.6.2 已部署灰度；运行态、迁移与自动化验收通过，待管理员会话人工界面验收`
-- 部署内容：`后台任务监控最近 2,000 条活动窗口、终态首次完成时间持久化与紧凑单行任务列表`
-- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.2/gray，finalized_at 迁移已落库，后台入口和鉴权边界正常`
-- 待验收：`管理员登录会话下的任务表格视觉、筛选分页、取消与重试交互`
+- 版本：`v0.6.3`
+- release：`20260714-user-group-postgres-atomic-v063`
+- 当前状态：`v0.6.3 灰度发布准备中；修复用户组默认权限策略外键失败和旧快照覆盖`
+- 部署内容：`用户组和默认策略原子写入、认证库外键恢复顺序、历史孤立策略过滤`
+- 已验证：`用户组回归测试、相关任务测试和 API 类型检查已通过`
+- 待验收：`灰度迁移、服务状态与管理员会话下创建用户组`
 - 部署时间：`2026-07-14`
 - 当前批次记录：
   - `gray/2026-07-14-ops-task-window-gray.md`
+  - `gray/2026-07-14-user-group-postgres-atomic-v063.md`
   - `gray/2026-07-14-aifork-contract-access-gray.md`
   - `gray/2026-07-05-auth-login-repository-gray.md`
   - `gray/2026-07-06-task-list-lightweight-gray.md`

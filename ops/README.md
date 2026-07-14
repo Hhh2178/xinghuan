@@ -25,10 +25,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.6.2`
-  - release：`20260714-ops-task-window-gray-v062`
-  - 状态：`v0.6.2 已部署灰度；任务监控限定最近 2,000 条活动记录并显示终态时间，运行态验证通过`
-  - 当前补修：`任务终态时间持久化与后台紧凑单行列表，待管理员会话交互验收`
+  - 版本：`v0.6.3`
+  - release：`20260714-user-group-postgres-atomic-v063`
+  - 状态：`v0.6.3 灰度发布准备中；用户组创建将与默认权限策略原子提交`
+  - 当前补修：`PostgreSQL 策略 updated_by 外键恢复顺序和旧认证快照覆盖修复，待灰度验收`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

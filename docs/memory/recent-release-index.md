@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.6.2`
-  - release：`20260714-ops-task-window-gray-v062`
+  - 版本：`v0.6.3`
+  - release：`20260714-user-group-postgres-atomic-v063`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

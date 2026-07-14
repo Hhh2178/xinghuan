@@ -2472,27 +2472,21 @@ async function handleAdminRequest(
         },
       });
       if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("系统生成的用户组 ID 冲突，请重试。");
+      const nextAuthDb: AuthDb = {
+        ...authDb,
+        userGroups: [...authDb.userGroups, group],
+        groupPermissionPolicies: normalizeGroupPermissionPolicies([
+          ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
+          defaultClosedPolicy,
+        ]),
+      };
       if (usePostgresRepository()) {
-        await insertUserGroupPostgres(group);
-        await writeAuthDb({
-          ...authDb,
-          groupPermissionPolicies: normalizeGroupPermissionPolicies([
-            ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
-            defaultClosedPolicy,
-          ]),
-        }, {
+        await writeAuthDb(nextAuthDb, {
           allowPostgresFullReplace: true,
           reason: "user-group-create-default-closed-policy",
         });
       } else {
-        await writeAuthDb({
-          ...authDb,
-          userGroups: [...authDb.userGroups, group],
-          groupPermissionPolicies: normalizeGroupPermissionPolicies([
-            ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
-            defaultClosedPolicy,
-          ]),
-        });
+        await writeAuthDb(nextAuthDb);
       }
       await appendAudit(adminUser, "userGroup.create", "user-group", group.id, `创建用户组 ${group.name}`, requestContext);
       sendT8(response, toAdminUserGroup(group));
@@ -4255,23 +4249,26 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       "select key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at from xh_login_attempts order by updated_at desc",
     ),
   ]);
-  const db: AuthDb = {
-    userGroups: userGroupsResult.rows.map((row) => ({
+  const userGroups = userGroupsResult.rows.map((row) => ({
       id: safeText(row.id),
       name: safeText(row.name),
       description: safeText(row.description),
       sortOrder: Number.isFinite(Number(row.sort_order)) ? Math.floor(Number(row.sort_order)) : 0,
       createdAt: dateToMillis(row.created_at),
       updatedAt: dateToMillis(row.updated_at),
-    })),
-    groupPermissionPolicies: groupPoliciesResult.rows.map((row) =>
-      normalizeGroupPermissionPolicy({
+    }));
+  const addressableGroupIds = new Set(userGroups.map((group) => group.id));
+  const groupPermissionPolicies = groupPoliciesResult.rows
+    .map((row) => normalizeGroupPermissionPolicy({
         groupId: row.group_id,
         updatedAt: dateToMillis(row.updated_at),
         updatedBy: safeText(row.updated_by) || undefined,
         deny: row.deny || {},
-      })
-    ),
+      }))
+    .filter((policy) => policy.groupId === "ungrouped" || addressableGroupIds.has(policy.groupId));
+  const db: AuthDb = {
+    userGroups,
+    groupPermissionPolicies,
     permissionSubjects: [],
     permissionRules: [],
     users: usersResult.rows.map((row) => ({
@@ -4363,18 +4360,6 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
         ],
       );
     }
-    for (const policy of db.groupPermissionPolicies) {
-      await client.query(
-        `insert into xh_group_permission_policies (group_id, deny, updated_by, updated_at)
-         values ($1, $2::jsonb, $3, $4)`,
-        [
-          policy.groupId,
-          JSON.stringify(policy.deny || emptyGroupPermissionDeny()),
-          policy.updatedBy || null,
-          millisToDate(policy.updatedAt),
-        ],
-      );
-    }
     for (const user of db.users) {
       await client.query(
         `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
@@ -4391,6 +4376,18 @@ async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: bo
           Boolean(user.disabled),
           millisToDate(user.createdAt),
           millisToDate(user.updatedAt),
+        ],
+      );
+    }
+    for (const policy of db.groupPermissionPolicies) {
+      await client.query(
+        `insert into xh_group_permission_policies (group_id, deny, updated_by, updated_at)
+         values ($1, $2::jsonb, $3, $4)`,
+        [
+          policy.groupId,
+          JSON.stringify(policy.deny || emptyGroupPermissionDeny()),
+          policy.updatedBy || null,
+          millisToDate(policy.updatedAt),
         ],
       );
     }
@@ -4453,22 +4450,6 @@ async function insertAuthUserPostgres(user: UserRecord) {
       Boolean(user.disabled),
       millisToDate(user.createdAt),
       millisToDate(user.updatedAt),
-    ],
-  );
-}
-
-async function insertUserGroupPostgres(group: UserGroupRecord) {
-  const pool = await getPostgresPool();
-  await pool.query(
-    `insert into xh_user_groups (id, name, description, sort_order, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6)`,
-    [
-      group.id,
-      group.name,
-      group.description,
-      normalizeUserGroupSortOrder(group.sortOrder),
-      millisToDate(group.createdAt),
-      millisToDate(group.updatedAt),
     ],
   );
 }

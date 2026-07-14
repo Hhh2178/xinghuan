@@ -26,11 +26,11 @@
 
 ## 当前运行态摘要
 
-- Gray 版本：`v0.6.2`
-- Gray release：`20260714-ops-task-window-gray-v062`
+- Gray 版本：`v0.6.3`
+- Gray release：`20260714-user-group-postgres-atomic-v063`
 - Production 版本：`v0.5.22`
 - Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.2` 已部署灰度；任务监控的最近 2,000 条窗口、终态时间和紧凑行展示已完成运行态验证，管理员会话交互验收后才能晋级生产。
+- `v0.6.3` 正在灰度发布准备；用户组创建与默认权限策略须完成事务一致性和管理员会话验收后才能晋级生产。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 

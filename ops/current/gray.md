@@ -2,10 +2,10 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.6.2`
-- 当前 release：`20260714-ops-task-window-gray-v062`
-- 当前状态：`v0.6.2 已部署灰度并完成运行态验证；生产继续保持 v0.5.22`
-- 当前补修：`任务监控 2,000 条活动窗口、终态时间持久化与紧凑列表展示；待管理员会话人工验收`
+- 当前版本：`v0.6.3`
+- 当前 release：`20260714-user-group-postgres-atomic-v063`
+- 当前状态：`v0.6.3 灰度发布准备中；生产继续保持 v0.5.22`
+- 当前补修：`用户组与默认权限策略原子写入，修复 updated_by 外键和旧快照覆盖；待灰度验收`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
