@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.3`（gray 发布准备中）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.3`（gray 已部署）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260714-user-group-postgres-atomic-v063` (发布准备中)
+- 当前 gray release：`20260714-user-group-postgres-atomic-v063` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：`v0.6.3` 已完成用户组和默认策略原子写入、策略外键恢复顺序与孤立策略过滤的本地验证；生产继续保持 `v0.5.22`，等待灰度验收。
+- 最新完成：`v0.6.3` 已在灰度部署用户组和默认策略原子写入、策略外键恢复顺序与孤立策略过滤；真实创建与读取验收通过，生产继续保持 `v0.5.22`。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-14 发布推进：`v0.6.3` gray release 准备切到 `20260714-user-group-postgres-atomic-v063`，详见 `docs/logbooks/releases/gray/2026-07-14-user-group-postgres-atomic-v063.md`。
+- 2026-07-14 发布推进：`v0.6.3` gray release 已切到 `20260714-user-group-postgres-atomic-v063`，详见 `docs/logbooks/releases/gray/2026-07-14-user-group-postgres-atomic-v063.md`。
 - 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`
