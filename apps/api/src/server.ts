@@ -391,6 +391,14 @@ const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   upsertResourceItemPostgres,
   readGroupPermissionPolicies: async () => (await readAuthDb()).groupPermissionPolicies,
   filterSharedResourceItemsForUser,
+  canUsePermissionSubject: async (user, subjectKey, action) => {
+    await reconcilePermissionSubjects();
+    return (await permissionService.can(user, subjectKey, action)).allowed;
+  },
+  assertPermissionSubject: async (user, subjectKey, action) => {
+    await reconcilePermissionSubjects();
+    await permissionService.assertAllowed(user, subjectKey, action);
+  },
 });
 
 const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandler({
