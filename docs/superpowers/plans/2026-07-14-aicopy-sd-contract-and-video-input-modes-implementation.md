@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver `v0.6.4` with AICopy protocol-scoped SD request contracts, model-level opt-in, and universal reference-image/first-frame/first-last-frame modes whose image and audio limits are enforced consistently from admin configuration through canvas submission and Worker payload generation.
+**Goal:** Deliver `v0.6.4` with AICopy protocol-scoped SD request contracts, model-level opt-in, and universal reference-image/first-frame/last-frame/first-last-frame modes whose image and audio limits are enforced consistently from admin configuration through canvas submission and Worker payload generation.
 
 **Architecture:** Treat `provider.protocol === "aicopy"` as the only activation boundary for the AICopy transport; provider names and URLs do not select runtime behavior. A video model under that provider may independently opt into the SD supplement through `advancedConfig.aicopyRequestContractEnabled`. Model input capabilities decide which universal image modes are visible, parameter schema decides image/audio limits, a pure input resolver produces ordered media and `modeType`, and both the canvas and API enforce the same rules before the Worker applies the optional request contract.
 
@@ -52,15 +52,18 @@ This explains the reported behavior:
 5. The universal image modes are exactly:
    - `reference`: zero to `referenceImages.max` images; zero images means text-to-video.
    - `first`: exactly one image.
+   - `last`: exactly one image.
    - `firstlast`: exactly two ordered images, first frame then last frame.
 6. Mode availability is model-controlled:
    - `reference` requires `imageReference=true`.
    - `first` requires `firstFrame=true`.
+   - `last` requires `lastFrame=true`.
    - `firstlast` requires both `firstFrame=true` and `lastFrame=true`.
-7. A model with `audioReference=true` may accept up to `referenceAudio.max` audio URLs. AICopy SD defaults to three.
-8. AICopy SD always submits `metadata.enableSound="on"` through a fixed contract binding, even when `audios` is empty.
-9. The browser limit is ergonomic; the API limit is authoritative. Excess or invalid media returns a clear 400 error and is never silently truncated for frame modes.
-10. Production remains `v0.5.22` until gray configuration, request payload, UI, and one controlled generation are accepted.
+7. Admin exposes one `参考图模式` control with `referenceImages.max` in the range `1..16`. The legacy `multiImage` field remains compatibility data and never caps the runtime count.
+8. A model with `audioReference=true` may accept up to `referenceAudio.max` audio URLs. AICopy SD defaults to three.
+9. AICopy SD always submits `metadata.enableSound="on"` through a fixed contract binding, even when `audios` is empty.
+10. The browser limit is ergonomic; the API limit is authoritative. Excess or invalid media returns a clear 400 error and is never silently truncated for frame modes.
+11. Production remains `v0.5.22` until gray configuration, request payload, UI, and one controlled generation are accepted.
 
 ## File Map
 
@@ -185,7 +188,7 @@ git commit -m "fix: scope aicopy sd contracts per model"
 Add these types and metadata fields:
 
 ```ts
-export type VideoInputMode = "reference" | "first" | "firstlast";
+export type VideoInputMode = "reference" | "first" | "last" | "firstlast";
 
 export interface ModelParameterSchema {
   referenceImages?: { type?: string; max?: number };
@@ -355,7 +358,7 @@ const fullCapabilities = {
 
 assert.deepEqual(getBackendFrameModeOptions({
   ...fullCapabilities,
-}).map((item) => item.value), ["reference", "first", "firstlast"]);
+}).map((item) => item.value), ["reference", "first", "last", "firstlast"]);
 
 assert.deepEqual(resolveBackendVideoInputAssignment({
   imageUrls: ["a", "b", "c"],
@@ -416,9 +419,7 @@ export interface BackendVideoInputAssignment {
 Rules:
 
 ```ts
-const referenceLimit = inputCapabilities.multiImage
-  ? Math.max(0, maxReferenceImages)
-  : Math.min(1, Math.max(0, maxReferenceImages));
+const referenceLimit = Math.max(0, maxReferenceImages);
 
 if (frameMode === "first") {
   const firstFrameUrl = imageUrls[0];
@@ -464,7 +465,7 @@ Normalize persisted values as follows:
 auto -> reference
 first -> first
 firstlast -> firstlast
-last -> firstlast when both firstFrame and lastFrame are supported, otherwise reference
+last -> last when lastFrame is supported, otherwise the first available mode
 ```
 
 - [x] **Step 5: Re-run and verify GREEN**
@@ -498,6 +499,7 @@ The select labels must be exactly:
 ```ts
 reference: "参考图"
 first: "首帧"
+last: "尾帧"
 firstlast: "首尾帧"
 ```
 
@@ -510,6 +512,8 @@ Compute:
 ```ts
 const imageLimit = frameMode === "first"
   ? 1
+  : frameMode === "last"
+    ? 1
   : frameMode === "firstlast"
     ? 2
     : backendModel.ui.maxReferenceImages;
@@ -524,6 +528,9 @@ Use explicit Chinese errors:
 ```ts
 if (frameMode === "first" && imageUrls.length !== 1) {
   throw new Error("首帧模式需要且只能使用 1 张图片");
+}
+if (frameMode === "last" && imageUrls.length !== 1) {
+  throw new Error("尾帧模式需要且只能使用 1 张图片");
 }
 if (frameMode === "firstlast" && imageUrls.length !== 2) {
   throw new Error("首尾帧模式需要且只能使用 2 张图片");
@@ -603,6 +610,8 @@ const tenImages = Array.from({ length: 10 }, (_, index) => `https://example.test
 expect(validateVideoInputs({ mode: "first", images: ["a"], capabilities: fullCaps, maxReferenceImages: 9 })).toMatchObject({ modeType: "image2video", images: ["a"] });
 expect(() => validateVideoInputs({ mode: "first", images: [], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("首帧模式需要且只能使用 1 张图片");
 expect(() => validateVideoInputs({ mode: "first", images: ["a", "b"], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("首帧模式需要且只能使用 1 张图片");
+expect(() => validateVideoInputs({ mode: "last", images: [], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("尾帧模式需要且只能使用 1 张图片");
+expect(() => validateVideoInputs({ mode: "last", images: ["a", "b"], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("尾帧模式需要且只能使用 1 张图片");
 expect(() => validateVideoInputs({ mode: "firstlast", images: ["a"], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("首尾帧模式需要且只能使用 2 张图片");
 expect(() => validateVideoInputs({ mode: "firstlast", images: ["a", "b", "c"], capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("首尾帧模式需要且只能使用 2 张图片");
 expect(() => validateVideoInputs({ mode: "reference", images: tenImages, capabilities: fullCaps, maxReferenceImages: 9 })).toThrow("参考图最多允许 9 张");
@@ -623,7 +632,7 @@ Return:
 
 ```ts
 interface ValidatedVideoInputs {
-  mode: "reference" | "first" | "firstlast";
+  mode: "reference" | "first" | "last" | "firstlast";
   modeType: "text2video" | "image2video" | "frames2video";
   images: string[];
   firstFrame?: string;
@@ -712,7 +721,7 @@ The API task builder must copy `advancedConfig.aicopyRequestContractEnabled` int
 
 - [x] **Step 3: Trust normalized mode data, with a compatibility fallback**
 
-Use `task.payload.modeType` when it is one of the three legal runtime values. Only old queued tasks may fall back to inference from `first_frame`, `last_frame`, and `images`.
+Use `task.payload.modeType` when it is one of the three legal transport values (`text2video`, `image2video`, `frames2video`). Only old queued tasks may fall back to inference from `first_frame`, `last_frame`, and `images`.
 
 - [x] **Step 4: Verify Worker behavior**
 
@@ -868,6 +877,7 @@ At 1920x1080 and 2560x1440, with the AI assistant both closed and open, verify:
 - mode selector text never overlaps neighboring controls;
 - reference mode displays `0/9` through `9/9` and rejects the tenth image;
 - first mode displays exactly one image slot and rejects a second image;
+- last mode displays exactly one image slot and rejects a second image;
 - first-last mode displays exactly two ordered slots and rejects a third image;
 - audio appears only when the selected model enables it and stops at `3/3`;
 - switching models immediately recalculates valid modes and limits;
@@ -945,7 +955,7 @@ Verify all of the following through a gray admin and canvas session:
 
 1. A non-AICopy video model has no SD supplement control.
 2. An AICopy Grok model with the switch off does not apply `metadata.enableSound` or SD bindings.
-3. `sd2-720p-fast` with the switch on exposes reference, first, and first-last modes.
+3. `sd2-720p-fast` with the switch on exposes reference, first, last, and first-last modes.
 4. First mode submits one ordered image and `modeType=image2video`.
 5. First-last mode submits two ordered images and `modeType=frames2video`.
 6. Reference mode submits up to nine images and rejects the tenth.
@@ -969,6 +979,6 @@ Record the gray deployment path, service state, status responses, scoped model c
 
 ## Self-Review Results
 
-- Spec coverage: Provider protocol activation, strict model opt-in, three universal modes, exact 1/2/N image limits, reference audio, fixed sound generation, media ordering, HTTP 400 API enforcement, Worker gating, scoped and idempotent data configuration, result delivery to canvas, responsive UI, gray release, and production protection are each assigned to an implementation task.
+- Spec coverage: Provider protocol activation, strict model opt-in, four universal modes, exact 1/1/2/N image limits, configurable reference-image maximum, reference audio, fixed sound generation, media ordering, HTTP 400 API enforcement, Worker gating, scoped and idempotent data configuration, result delivery to canvas, responsive UI, gray release, and production protection are each assigned to an implementation task.
 - Placeholder scan: no deferred implementation markers are present; every task defines concrete files, behavior, commands, and expected results.
-- Type consistency: the plan consistently uses `VideoInputMode = "reference" | "first" | "firstlast"`, `aicopyRequestContractEnabled`, `maxReferenceImages`, `maxReferenceAudios`, and `audioReference` across admin, catalog, canvas, API, and Worker layers.
+- Type consistency: the plan consistently uses `VideoInputMode = "reference" | "first" | "last" | "firstlast"`, `aicopyRequestContractEnabled`, `maxReferenceImages`, `maxReferenceAudios`, and `audioReference` across admin, catalog, canvas, API, and Worker layers.
