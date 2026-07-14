@@ -34,6 +34,10 @@ assertArrayIncludes("requiredPaths", "scripts/verify-auth-login-precision-query-
 assertArrayIncludes("includedPaths", "scripts/verify-auth-login-precision-query-contract.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-single-port.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-single-port.mjs");
+assertArrayIncludes("requiredPaths", "scripts/configure-aicopy-sd-model-capabilities.mjs");
+assertArrayIncludes("includedPaths", "scripts/configure-aicopy-sd-model-capabilities.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-aicopy-sd-model-config.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-aicopy-sd-model-config.mjs");
 assertArrayIncludes("requiredPaths", "apps/api/src/server.ts");
 assertArrayIncludes("requiredPaths", "apps/api/src/provider-generation-task-service.ts");
 assertArrayIncludes("requiredPaths", "apps/worker/src/worker.ts");
@@ -61,6 +65,8 @@ console.log(
         "scripts/verify-auth-current-user-repository-contract.mjs",
         "scripts/verify-auth-login-precision-query-contract.mjs",
         "scripts/verify-single-port.mjs",
+        "scripts/configure-aicopy-sd-model-capabilities.mjs",
+        "scripts/verify-aicopy-sd-model-config.mjs",
       ],
       requiredSources: [
         "apps/api/src/server.ts",
