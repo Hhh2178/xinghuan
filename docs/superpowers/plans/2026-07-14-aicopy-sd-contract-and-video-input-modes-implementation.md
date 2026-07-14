@@ -824,6 +824,8 @@ git commit -m "chore: add scoped aicopy sd model configurator"
 
 - [ ] **Step 1: Run targeted behavior tests**
 
+All offline behavior contracts pass. `verify-external-video-proxy.mjs` is deferred to the deployed gray runtime because it requires a live API and authenticated session.
+
 ```powershell
 npx tsx scripts/verify-aicopy-video-adapter-contract.ts
 npx tsx scripts/verify-video-node-backend-inputs-contract.ts
@@ -835,7 +837,7 @@ node scripts/verify-external-video-proxy.mjs
 
 Expected: every command passes.
 
-- [ ] **Step 2: Run workspace checks**
+- [x] **Step 2: Run workspace checks**
 
 ```powershell
 npm run type-check -w @xinghuan/model-core
@@ -848,7 +850,7 @@ npm run build:single-port
 
 Expected: all pass; existing bundle-size warnings may remain warnings only.
 
-- [ ] **Step 3: Run project governance**
+- [x] **Step 3: Run project governance**
 
 ```powershell
 npm run verify:file-hotspot-budgets

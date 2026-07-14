@@ -67,6 +67,7 @@ import {
   normalizeBackendFrameMode,
   resolveBackendVideoInputAssignment,
   resolveVideoPreviewGroups,
+  type BackendVideoFrameMode,
 } from './videoNodeBackendInputs';
 
 /**
@@ -1109,6 +1110,39 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     ? `上游素材 · 图${Math.min(refsCount, JIMENG_SEEDANCE_LIMITS.images)}/${JIMENG_SEEDANCE_LIMITS.images} 视${Math.min(videoRefsCount, JIMENG_SEEDANCE_LIMITS.videos)}/${JIMENG_SEEDANCE_LIMITS.videos} 音${Math.min(audioRefsCount, JIMENG_SEEDANCE_LIMITS.audios)}/${JIMENG_SEEDANCE_LIMITS.audios}`
     : `上游素材 · 参考图 ${Math.min(refsCount, Math.max(maxMentionRefs, 0))}/${Math.max(maxMentionRefs, 0)}`;
 
+  const handleBackendFrameModeChange = (nextMode: BackendVideoFrameMode) => {
+    const nextLimit = nextMode === 'first'
+      ? 1
+      : nextMode === 'firstlast'
+        ? 2
+        : backendModel?.ui.maxReferenceImages || 0;
+    const imageMaterials = [
+      ...orderedImages,
+      ...localRefMaterials.filter((material) => material.kind === 'image'),
+    ];
+    if (imageMaterials.length <= nextLimit) {
+      update({ frameMode: nextMode });
+      return;
+    }
+    const confirmed = window.confirm(
+      `切换后最多保留 ${nextLimit} 张图片。确认排除其余 ${imageMaterials.length - nextLimit} 张素材吗？`,
+    );
+    if (!confirmed) return;
+
+    const kept = imageMaterials.slice(0, nextLimit);
+    const removed = imageMaterials.slice(nextLimit);
+    const removedIds = new Set(removed.map((material) => material.id));
+    const nextExcludedMaterialIds = removed
+      .filter((material) => material.origin === 'upstream')
+      .reduce((ids, material) => excludeMaterialId(ids, material.id), excludedMaterialIds);
+    update({
+      frameMode: nextMode,
+      excludedMaterialIds: nextExcludedMaterialIds,
+      localRefImages: kept.filter((material) => material.origin === 'local').map((material) => material.url),
+      materialOrder: materialOrder.filter((materialId) => !removedIds.has(materialId)),
+    });
+  };
+
   return (
     <div
       ref={rootRef}
@@ -1549,7 +1583,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             <label className="text-[10px] text-white/50 block mb-1">图片输入模式</label>
             <select
               value={frameMode}
-              onChange={(e) => update({ frameMode: e.target.value })}
+              onChange={(e) => handleBackendFrameModeChange(e.target.value as BackendVideoFrameMode)}
               className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             >
               {backendFrameModeOptions.map((item) => (

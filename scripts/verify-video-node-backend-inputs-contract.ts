@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   getBackendFrameModeOptions,
   getBackendVideoInputValidationError,
@@ -146,6 +147,14 @@ assert.equal(getBackendVideoInputValidationError({
   maxReferenceAudios: 0,
   inputCapabilities: { ...fullCapabilities, imageReference: false, multiImage: false, firstFrame: false, lastFrame: false },
 }), "");
+
+const videoNodeSource = await readFile(
+  new URL("../apps/web/src/components/nodes/VideoNode.tsx", import.meta.url),
+  "utf8",
+);
+assert.match(videoNodeSource, /handleBackendFrameModeChange/);
+assert.match(videoNodeSource, /window\.confirm/);
+assert.match(videoNodeSource, /excludedMaterialIds:[\s\S]*?localRefImages:/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));
 
