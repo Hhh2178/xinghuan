@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SD_BINDINGS = [
@@ -126,7 +128,9 @@ async function main() {
 
     const merged = mergeAicopySdModelConfig(model);
     const summary = summarizeAicopySdModelChange(model, merged);
+    let backupPath = "";
     if (apply && summary.changed) {
+      backupPath = await writeModelBackup(model);
       await client.query(
         `update xh_models
             set input_profile = $2,
@@ -146,13 +150,35 @@ async function main() {
       );
     }
     if (apply) await client.query("commit");
-    console.log(JSON.stringify({ ok: true, mode: apply ? "apply" : "dry-run", provider: { id: providerId, protocol: "aicopy" }, ...summary }, null, 2));
+    console.log(JSON.stringify({ ok: true, mode: apply ? "apply" : "dry-run", provider: { id: providerId, protocol: "aicopy" }, ...summary, ...(backupPath ? { backupPath } : {}) }, null, 2));
   } catch (error) {
     if (apply) await client.query("rollback").catch(() => undefined);
     throw error;
   } finally {
     await client.end().catch(() => undefined);
   }
+}
+
+async function writeModelBackup(model) {
+  const backupDir = process.env.XINGHUAN_CONFIG_BACKUP_DIR
+    || join(process.env.XINGHUAN_DATA_DIR || process.cwd(), "config-backups");
+  await mkdir(backupDir, { recursive: true, mode: 0o700 });
+  const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
+  const backupPath = join(
+    backupDir,
+    `${stamp}-${safeFilePart(model.provider_id)}-${safeFilePart(model.model_id)}.json`,
+  );
+  await writeFile(backupPath, JSON.stringify({
+    id: model.id,
+    providerId: model.provider_id,
+    modelId: model.model_id,
+    capability: model.capability,
+    inputProfile: model.input_profile,
+    inputCapabilities: plainObject(model.input_capabilities),
+    parameterSchema: plainObject(model.parameter_schema),
+    advancedConfig: plainObject(model.advanced_config),
+  }, null, 2), { encoding: "utf8", mode: 0o600, flag: "wx" });
+  return backupPath;
 }
 
 function mergeBindings(value) {
@@ -213,6 +239,10 @@ function booleanArg(value) {
 
 function text(value) {
   return String(value || "").trim();
+}
+
+function safeFilePart(value) {
+  return text(value).replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 96) || "unknown";
 }
 
 async function loadPg() {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   mergeAicopySdModelConfig,
   summarizeAicopySdModelChange,
@@ -48,5 +49,10 @@ assert.deepEqual(second, merged);
 
 const summary = JSON.stringify(summarizeAicopySdModelChange(selected, merged));
 assert.doesNotMatch(summary, /must-not-be-printed|apiKey|cipher/i);
+
+const configuratorSource = await readFile(new URL("./configure-aicopy-sd-model-capabilities.mjs", import.meta.url), "utf8");
+assert.match(configuratorSource, /XINGHUAN_CONFIG_BACKUP_DIR/);
+assert.match(configuratorSource, /mode:\s*0o600/);
+assert.match(configuratorSource, /backupPath/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));
