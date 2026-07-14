@@ -26,9 +26,9 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.6.2`
-  - release：`20260714-aifork-contract-access-gray-r2-v061`
-  - 状态：`2026-07-14 已完成 r1/r2 deploy + runtime verify；AIFork 请求契约、后台会话反馈与 RH 未分组策略已部署`
-  - 当前补修：`sd2-720p-fast 灰度模型已配置，待登录画布完成 15 秒、9:16、有音轨真实生成验收`
+  - release：`20260714-ops-task-window-gray-v062`
+  - 状态：`v0.6.2 灰度发布准备中；任务监控将限定最近 2,000 条活动记录并显示终态时间`
+  - 当前补修：`任务终态时间持久化与后台紧凑单行列表，待完成灰度迁移、运行态及交互验收`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
