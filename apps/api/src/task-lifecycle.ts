@@ -12,6 +12,18 @@ export interface TaskLifecycleRecord {
   logs: string[];
   createdAt: number;
   updatedAt: number;
+  finalizedAt?: number;
+}
+
+const TERMINAL_TASK_STATUSES = new Set(["succeeded", "failed", "cancelled"]);
+
+export function isTerminalTaskStatus(status: string) {
+  return TERMINAL_TASK_STATUSES.has(status);
+}
+
+export function applyTaskFinalization<T extends { status: string; finalizedAt?: number }>(task: T, now = Date.now()): T {
+  if (!isTerminalTaskStatus(task.status) || Number(task.finalizedAt) > 0) return task;
+  return { ...task, finalizedAt: now };
 }
 
 export interface TaskRetryOptions {
@@ -50,8 +62,9 @@ export function applyTaskCancellation<T extends TaskLifecycleRecord>(task: T, ac
 export function createRetriedTask<T extends TaskLifecycleRecord>(task: T, options: TaskRetryOptions): T {
   assertTaskRetryable(task.status);
   const now = options.now ?? Date.now();
+  const { finalizedAt: _finalizedAt, ...retrySource } = task;
   return {
-    ...task,
+    ...retrySource,
     id: options.id,
     status: "queued",
     ownerId: task.ownerId || options.ownerId,
