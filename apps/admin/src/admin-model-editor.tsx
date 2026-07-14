@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Settings2, Trash2 } from "lucide-react";
-import { durationOptionsFromRange } from "@xinghuan/model-core";
+import { durationOptionsFromRange, resolveAicopyRequestContractEnabled } from "@xinghuan/model-core";
 import { type ProviderGenerationExecutionMode } from "@xinghuan/shared";
 import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
 import {
@@ -8,7 +8,7 @@ import {
   syncVideoDurationSchema,
   normalizeVideoDurationTierList,
 } from "./admin-model-editor-video-duration";
-import type { Capability, ModelCapabilityTag, ModelRecord } from "./admin-types";
+import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 
@@ -192,8 +192,8 @@ function inputCapabilityMeta(capability: Capability) {
     {
       key: "audioReference",
       label: "参考音频",
-      description: "允许语音克隆或音频处理节点接入音频样本。",
-      visible: capability === "audio" || capability === "chat",
+      description: capability === "video" ? "允许视频节点接入参考音频。" : "允许语音克隆、音频处理或理解节点接入音频样本。",
+      visible: capability === "audio" || capability === "video" || capability === "chat",
     },
     {
       key: "videoReference",
@@ -337,11 +337,13 @@ function normalizeExecutionMode(model: Pick<ModelRecord, "capability" | "executi
 
 export function ModelEditorRow({
   model,
+  providerProtocol,
   onUpdate,
   onDelete,
   onTest,
 }: {
   model: ModelRecord;
+  providerProtocol: ProviderProtocol;
   onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
   onDelete: (model: ModelRecord) => void;
   onTest: (model: ModelRecord, kind: string, autoApply?: boolean) => Promise<void>;
@@ -360,6 +362,10 @@ export function ModelEditorRow({
   const [videoDurationMax, setVideoDurationMax] = useState("20");
   const [videoDurationStep, setVideoDurationStep] = useState("1");
   const [videoDurationDefault, setVideoDurationDefault] = useState("8");
+  const [aicopyRequestContractEnabled, setAicopyRequestContractEnabled] = useState(
+    resolveAicopyRequestContractEnabled(model.advancedConfig),
+  );
+  const isAicopyVideoModel = providerProtocol === "aicopy" && draft.capability === "video";
 
   useEffect(() => {
     setDraft({
@@ -372,6 +378,7 @@ export function ModelEditorRow({
     setSchemaError("");
     setConfigError("");
     setAdvancedConfigText(JSON.stringify(model.advancedConfig || {}, null, 2));
+    setAicopyRequestContractEnabled(resolveAicopyRequestContractEnabled(model.advancedConfig));
     setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
     const schemaObject = safeJsonObject(model.parameterSchema);
     const voiceSchema = schemaObject.voice && typeof schemaObject.voice === "object" && !Array.isArray(schemaObject.voice)
@@ -408,10 +415,15 @@ export function ModelEditorRow({
       setConfigError("高级配置必须是有效 JSON。");
       return;
     }
-    const requestContractError = validateAicopyRequestContract(advancedConfig);
-    if (requestContractError) {
-      setConfigError(requestContractError);
-      return;
+    if (draft.capability === "video") {
+      advancedConfig.aicopyRequestContractEnabled = isAicopyVideoModel && aicopyRequestContractEnabled;
+      if (advancedConfig.aicopyRequestContractEnabled) {
+        const requestContractError = validateAicopyRequestContract(advancedConfig);
+        if (requestContractError) {
+          setConfigError(requestContractError);
+          return;
+        }
+      }
     }
     const executionMode = normalizeExecutionMode(draft);
     advancedConfig.executionMode = executionMode;
@@ -897,6 +909,30 @@ export function ModelEditorRow({
               </div>
             </section>
           ) : null}
+          {isAicopyVideoModel ? (
+            <section className="schema-guide-card compact">
+              <div className="schema-guide-head">
+                <strong>SD 补充请求契约</strong>
+                <span>仅当前模型启用；同一 Provider 下的其他视频模型不会继承。</span>
+              </div>
+              <label className={aicopyRequestContractEnabled ? "capability-toggle active" : "capability-toggle"}>
+                <input
+                  type="checkbox"
+                  checked={aicopyRequestContractEnabled}
+                  onChange={(event) => setAicopyRequestContractEnabled(event.target.checked)}
+                />
+                <span className="capability-toggle-copy">
+                  <span className="capability-toggle-head">
+                    <strong>启用 SD 补充请求契约</strong>
+                    <span className={aicopyRequestContractEnabled ? "capability-toggle-state active" : "capability-toggle-state"}>
+                      {aicopyRequestContractEnabled ? "已开启" : "未开启"}
+                    </span>
+                  </span>
+                  <small>开启后才会按高级配置中的 requestContract 生成 SD 请求字段。</small>
+                </span>
+              </label>
+            </section>
+          ) : null}
           <label>
             参数 Schema（JSON）
             <textarea
@@ -907,7 +943,7 @@ export function ModelEditorRow({
               spellCheck={false}
             />
           </label>
-          {draft.capability === "video" ? (
+          {isAicopyVideoModel && aicopyRequestContractEnabled ? (
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>AIFork 视频请求契约</strong>
@@ -950,6 +986,7 @@ export function ModelEditorRow({
 /* ── ModelSection ─────────────────────────────────────────────────────── */
 
 export function ModelSection({
+  providerProtocol,
   capability,
   models,
   onAdd,
@@ -957,6 +994,7 @@ export function ModelSection({
   onDelete,
   onTest,
 }: {
+  providerProtocol: ProviderProtocol;
   capability: Capability;
   models: ModelRecord[];
   onAdd: () => void;
@@ -981,6 +1019,7 @@ export function ModelSection({
             <ModelEditorRow
               key={m.id}
               model={m}
+              providerProtocol={providerProtocol}
               onUpdate={onUpdate}
               onDelete={onDelete}
               onTest={onTest}

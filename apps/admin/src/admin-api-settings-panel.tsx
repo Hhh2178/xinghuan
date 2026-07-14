@@ -996,6 +996,7 @@ export function ApiSettingsPanel({
           {(["image", "video", "audio", "chat"] as Capability[]).map((cap) => (
             <ModelSection
               key={cap}
+              providerProtocol={draft.protocol}
               capability={cap}
               models={selectedModels.filter((m) => m.capability === cap)}
               onAdd={() => requestAddManualModel(cap)}

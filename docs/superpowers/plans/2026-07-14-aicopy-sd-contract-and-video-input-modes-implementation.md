@@ -239,7 +239,7 @@ git commit -m "feat: define universal video input mode metadata"
 - Modify: `apps/admin/src/admin-types.ts`
 - Create: `scripts/verify-admin-aicopy-sd-contract-scope.mjs`
 
-- [ ] **Step 1: Write a failing admin scope verifier**
+- [x] **Step 1: Write a failing admin scope verifier**
 
 The verifier must assert all of these source contracts:
 
@@ -258,7 +258,7 @@ node scripts/verify-admin-aicopy-sd-contract-scope.mjs
 
 Expected: FAIL because all video models currently receive the AIFork guide.
 
-- [ ] **Step 2: Pass Provider protocol through the model components**
+- [x] **Step 2: Pass Provider protocol through the model components**
 
 Use this prop flow:
 
@@ -273,7 +273,7 @@ Use this prop flow:
 
 `ModelSection` passes `providerProtocol` to every `ModelEditorRow`.
 
-- [ ] **Step 3: Add the SD supplement switch**
+- [x] **Step 3: Add the SD supplement switch**
 
 Use the strict shared resolver without mutating the stored model. A stale `requestContract` must not implicitly enable the control:
 
@@ -296,7 +296,7 @@ Only when `providerProtocol === "aicopy" && draft.capability === "video"` render
 
 Render the AIFork guide and example only while that switch is enabled.
 
-- [ ] **Step 4: Save and validate the explicit switch**
+- [x] **Step 4: Save and validate the explicit switch**
 
 Before `onUpdate`, write:
 
@@ -306,7 +306,7 @@ advancedConfig.aicopyRequestContractEnabled = aicopyRequestContractEnabled;
 
 Validate `requestContract` only when the switch is true. When false, preserve the stored contract for reversible editing but runtime must ignore it.
 
-- [ ] **Step 5: Expose audio reference for video models**
+- [x] **Step 5: Expose audio reference for video models**
 
 Change the capability metadata condition so `audioReference` is visible for `video` as well as `audio` and `chat`:
 
@@ -316,7 +316,7 @@ visible: capability === "video" || capability === "audio" || capability === "cha
 
 Use the label `参考音频` and description `允许视频模型接入最多由参数 Schema 限定的公网音频素材。`
 
-- [ ] **Step 6: Run admin verification**
+- [x] **Step 6: Run admin verification**
 
 ```powershell
 node scripts/verify-admin-aicopy-sd-contract-scope.mjs
@@ -326,7 +326,7 @@ npm run build -w @xinghuan/admin
 
 Expected: all pass; non-AICopy video models contain no visible AIFork contract panel.
 
-- [ ] **Step 7: Commit admin behavior**
+- [x] **Step 7: Commit admin behavior**
 
 ```powershell
 git add apps/admin/src/admin-api-settings-panel.tsx apps/admin/src/admin-model-editor.tsx apps/admin/src/admin-types.ts scripts/verify-admin-aicopy-sd-contract-scope.mjs
