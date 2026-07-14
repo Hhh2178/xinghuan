@@ -39,7 +39,7 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行在 `v0.6.1`，production 当前运行在 `v0.5.22`（生产仍等待 AIFork 真实视频与成员 UI 验收）
+  - gray 当前准备升级至 `v0.6.2`，production 当前运行在 `v0.5.22`（生产仍等待 AIFork 真实视频与成员 UI 验收）
   - gray 当前 release 为 `20260714-aifork-contract-access-gray-r2-v061` (已部署)
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
