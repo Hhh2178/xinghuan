@@ -1483,7 +1483,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/models" && request.method === "GET") {
-      sendT8(response, await publicModelCatalog());
+      sendT8(response, await publicModelCatalog(currentUser));
       return;
     }
 
@@ -6535,12 +6535,13 @@ function defaultSettings() {
   };
 }
 
-async function publicModelCatalog() {
+async function publicModelCatalog(currentUser?: CurrentUser | null) {
   const db = await readAdminDb();
   const providerMap = new Map(db.providers.map((provider) => [provider.id, provider]));
-  const all = db.models
+  if (currentUser && currentUser.role !== "admin") await reconcilePermissionSubjects();
+  const all = (await Promise.all(db.models
     .filter((model) => model.enabled)
-    .map((model) => {
+    .map(async (model) => {
       const provider = providerMap.get(model.providerId);
       if (!provider || !provider.enabled) return null;
       const protocol = normalizeProviderProtocol(model.protocolOverride || provider.protocol);
@@ -6553,6 +6554,7 @@ async function publicModelCatalog() {
       );
       const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
       const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
+      if (currentUser && currentUser.role !== "admin" && !(await permissionService.can(currentUser, `provider.model/${model.id}`, "view")).allowed) return null;
       return {
         id: model.id,
         providerId: model.providerId,
@@ -6575,8 +6577,7 @@ async function publicModelCatalog() {
         },
         updatedAt: model.updatedAt,
       };
-    })
-    .filter(Boolean);
+    }))).filter(Boolean);
   return {
     all,
     chatModels: all.filter((model) => model?.capability === "chat"),
