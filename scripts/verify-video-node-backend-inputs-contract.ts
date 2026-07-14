@@ -138,6 +138,14 @@ assert.equal(getBackendVideoInputValidationError({
   maxReferenceAudios: 3,
   inputCapabilities: fullCapabilities,
 }), "");
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "reference",
+  imageCount: 0,
+  audioCount: 0,
+  maxReferenceImages: 0,
+  maxReferenceAudios: 0,
+  inputCapabilities: { ...fullCapabilities, imageReference: false, multiImage: false, firstFrame: false, lastFrame: false },
+}), "");
 
 console.log(JSON.stringify({ ok: true }, null, 2));
 

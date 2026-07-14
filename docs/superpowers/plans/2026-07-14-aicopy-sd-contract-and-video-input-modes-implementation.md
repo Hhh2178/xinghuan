@@ -585,7 +585,7 @@ Only stage `MaterialPreviewSection.tsx` if the implementation actually requires 
 - Create: `apps/api/src/video-input-validation.test.ts`
 - Modify: `apps/api/src/external-proxy.ts`
 
-- [ ] **Step 1: Write API validation tests**
+- [x] **Step 1: Write API validation tests**
 
 Create table-driven tests. Validation failures use a dedicated `VideoInputValidationError`; route/service integration must convert it to the repository `HttpError(400, message)` so invalid media never becomes an HTTP 500:
 
@@ -609,7 +609,7 @@ expect(() => validateVideoInputs({ mode: "reference", images: tenImages, capabil
 expect(() => validateVideoInputs({ mode: "first", images: ["a"], capabilities: { ...fullCaps, firstFrame: false }, maxReferenceImages: 9 })).toThrow("当前模型未开启首帧能力");
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 npx vitest run apps/api/src/video-input-validation.test.ts
@@ -617,7 +617,7 @@ npx vitest run apps/api/src/video-input-validation.test.ts
 
 Expected: FAIL because the validation module does not exist.
 
-- [ ] **Step 3: Implement a pure validation module**
+- [x] **Step 3: Implement a pure validation module**
 
 Return:
 
@@ -634,7 +634,7 @@ interface ValidatedVideoInputs {
 
 Validate capabilities before counts. Validate audio count against `maxReferenceAudios`; reject audio when `audioReference=false`.
 
-- [ ] **Step 4: Normalize the queued task payload**
+- [x] **Step 4: Normalize the queued task payload**
 
 In `submitVideoTask`, read `body.images`, `body.audios`, and `params.videoInputMode`, validate non-empty source counts before normalization or slicing, normalize public URLs, call `validateVideoInputs`, and queue:
 
@@ -652,11 +652,13 @@ In `submitVideoTask`, read `body.images`, `body.audios`, and `params.videoInputM
 
 Do not use `.slice(...)` to hide excess reference, frame, or audio inputs. Preserve `first_frame` and `last_frame` for generic Provider compatibility while `images` remains the ordered, contract-neutral media sequence.
 
-- [ ] **Step 5: Reuse validation in the synchronous proxy path**
+- [x] **Step 5: Reuse validation in the synchronous proxy path**
 
 Make `apps/api/src/external-proxy.ts` use the same helper so queued and inline requests cannot disagree.
 
 - [ ] **Step 6: Verify API behavior**
+
+Vitest, API type-check/build, task-service, provider-generation contract, and Worker contract pass locally. The synchronous proxy's live verification is deferred until the gray service is deployed because it requires a running API on port `18200`.
 
 ```powershell
 npx vitest run apps/api/src/video-input-validation.test.ts
@@ -666,7 +668,7 @@ node scripts/verify-external-video-proxy.mjs
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit API enforcement**
+- [x] **Step 7: Commit API enforcement**
 
 ```powershell
 git add apps/api/src/video-input-validation.ts apps/api/src/video-input-validation.test.ts apps/api/src/provider-generation-task-service.ts apps/api/src/external-proxy.ts

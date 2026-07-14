@@ -6,6 +6,7 @@ import {
   createAicopyVideoAdapterPayload,
   extractAicopyTask,
   extractAicopyVideoResult,
+  resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
@@ -38,6 +39,11 @@ import {
   buildProviderMultipartRequestBody,
   isMultipartRequestBodyMode,
 } from "./provider-request-body.js";
+import {
+  normalizeVideoInputMode,
+  validateVideoInputs,
+  VideoInputValidationError,
+} from "./video-input-validation.js";
 
 interface CurrentUserLike {
   id: string;
@@ -91,9 +97,21 @@ interface GenerateExternalProxyDependencies {
   stringMap: (value: unknown) => Record<string, string>;
   looksLikeHtml: (value: string) => boolean;
   clampInteger: (value: unknown, min: number, max: number, fallback: number) => number;
+  invalidRequest?: (message: string) => Error;
 }
 
 export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
+  function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
+    try {
+      return validateVideoInputs(input);
+    } catch (error) {
+      if (error instanceof VideoInputValidationError && deps.invalidRequest) {
+        throw deps.invalidRequest(error.message);
+      }
+      throw error;
+    }
+  }
+
   function clampOptionalInteger(value: unknown, min: number, max: number) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
@@ -647,22 +665,58 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
   const requestedDurationRaw = body.duration ?? params.duration;
   const requestedDuration = normalizeVideoDurationValue(requestedDurationRaw);
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
+    const submittedImages = Array.isArray(body.images)
+      ? body.images.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const submittedAudios = Array.isArray(body.audios)
+      ? body.audios.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const submittedFirstFrame = deps.safeText(body.first_frame || params.first_frame);
+    const submittedLastFrame = deps.safeText(body.last_frame || params.last_frame);
+    const explicitMode = normalizeVideoInputMode(params.videoInputMode || body.videoInputMode);
+    const videoInputMode = explicitMode
+      || (submittedFirstFrame && submittedLastFrame ? "firstlast" : submittedFirstFrame ? "first" : "reference");
+    const orderedSubmittedImages = explicitMode
+      ? (submittedImages.length > 0
+          ? submittedImages
+          : videoInputMode === "firstlast"
+            ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
+            : videoInputMode === "first"
+              ? [submittedFirstFrame].filter(Boolean)
+              : [])
+      : videoInputMode === "firstlast"
+        ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
+        : videoInputMode === "first"
+          ? [submittedFirstFrame].filter(Boolean)
+          : submittedImages;
+    enforceVideoInputs({
+      mode: videoInputMode,
+      images: orderedSubmittedImages,
+      audios: submittedAudios,
+      capabilities: inputCapabilities,
+      maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceAudios: ui.maxReferenceAudios,
+    });
     const images = normalizeProviderReferenceUrls(
-      Array.isArray(body.images) ? body.images.map((item) => String(item || "").trim()).filter(Boolean).slice(0, ui.maxReferenceImages || 1) : [],
+      orderedSubmittedImages,
       publicOrigin,
       user,
     );
     const audios = normalizeProviderReferenceUrls(
-      Array.isArray(body.audios) ? body.audios.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 3) : [],
+      submittedAudios,
       publicOrigin,
       user,
     );
-    const resolvedFirstFrame = inputCapabilities.firstFrame
-      ? normalizeProviderReferenceUrl(deps.safeText(body.first_frame || params.first_frame), publicOrigin, user)
-      : "";
-    const resolvedLastFrame = inputCapabilities.lastFrame
-      ? normalizeProviderReferenceUrl(deps.safeText(body.last_frame || params.last_frame), publicOrigin, user)
-      : "";
+    const validatedInputs = enforceVideoInputs({
+      mode: videoInputMode,
+      images,
+      audios,
+      capabilities: inputCapabilities,
+      maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceAudios: ui.maxReferenceAudios,
+    });
+    const resolvedFirstFrame = validatedInputs.firstFrame || "";
+    const resolvedLastFrame = validatedInputs.lastFrame || "";
     const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
   const duration = ui.durationOptions.length > 0
     ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
@@ -670,7 +724,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const resolution = ui.resolutionOptions.length > 0
       ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
       : "";
-    const modeType = images.length === 0 ? "text2video" : resolvedFirstFrame && resolvedLastFrame ? "frames2video" : "image2video";
+    const modeType = validatedInputs.modeType;
 
     const useAicopyAsyncVideo = shouldUseAicopyVideoAdapter({
       protocol,
@@ -694,11 +748,12 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
         resolution,
         modeType,
-        images,
-        audios,
+        images: validatedInputs.images,
+        audios: validatedInputs.audios,
         requestMapping: deps.stringMap(advancedConfig.requestMapping),
         requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
         requestValueTemplates: deps.stringMap(advancedConfig.requestValueTemplates),
+        requestContractEnabled: resolveAicopyRequestContractEnabled(advancedConfig),
         requestContract: deps.plainObject(advancedConfig.requestContract),
         fixedBody: deps.plainObject(advancedConfig.fixedBody),
       });

@@ -24,5 +24,10 @@ assert.match(serviceSource, /queueName/);
 assert.match(serviceSource, /safePromptText\(body\.prompt,\s*""\s*,\s*8000\)/);
 assert.match(serviceSource, /safePromptText\(body\.prompt,\s*""\s*,\s*16000\)/);
 assert.match(serviceSource, /safeLongText\(body\.text \|\| body\.prompt,\s*""\s*,\s*16000\)/);
+assert.match(serviceSource, /validateVideoInputs/);
+assert.match(serviceSource, /videoInputMode:\s*validatedInputs\.mode/);
+assert.match(serviceSource, /modeType:\s*validatedInputs\.modeType/);
+assert.match(serviceSource, /requestContract:\s*deps\.plainObject\(advancedConfig\.requestContract\)/);
+assert.match(serverSource, /invalidRequest:\s*\(message\) => new HttpError\(400, message\)/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));

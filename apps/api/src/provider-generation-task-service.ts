@@ -3,11 +3,17 @@ import {
   mergeModelParameterSchema,
   parseAdvancedConfig,
   parseInputCapabilities,
+  resolveAicopyRequestContractEnabled,
   uiMetadataFromSchema,
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
 import { createOpenAiAudioChatPayload } from "./audio-provider-adapter.js";
 import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
+import {
+  normalizeVideoInputMode,
+  validateVideoInputs,
+  VideoInputValidationError,
+} from "./video-input-validation.js";
 
 type GenerationCapability = "image" | "video" | "audio";
 
@@ -78,6 +84,7 @@ interface ProviderGenerationTaskServiceDependencies {
   safePromptText: (value: unknown, fallback?: string, maxLength?: number) => string;
   safeSlug: (value: unknown, fallback?: string) => string;
   plainObject: (value: unknown) => Record<string, unknown>;
+  invalidRequest?: (message: string) => Error;
   now?: () => number;
   taskIdFactory?: () => string;
 }
@@ -330,19 +337,52 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
     const requestedDuration = normalizeVideoDurationValue(body.duration ?? params.duration);
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
+    const submittedImages = Array.isArray(body.images)
+      ? body.images.map((item) => deps.safeText(item)).filter(Boolean)
+      : [];
+    const submittedAudios = Array.isArray(body.audios)
+      ? body.audios.map((item) => deps.safeText(item)).filter(Boolean)
+      : [];
+    const submittedFirstFrame = deps.safeText(body.first_frame || params.first_frame);
+    const submittedLastFrame = deps.safeText(body.last_frame || params.last_frame);
+    const explicitMode = normalizeVideoInputMode(params.videoInputMode || body.videoInputMode);
+    const videoInputMode = explicitMode
+      || (submittedFirstFrame && submittedLastFrame ? "firstlast" : submittedFirstFrame ? "first" : "reference");
+    const orderedSubmittedImages = explicitMode
+      ? (submittedImages.length > 0
+          ? submittedImages
+          : videoInputMode === "firstlast"
+            ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
+            : videoInputMode === "first"
+              ? [submittedFirstFrame].filter(Boolean)
+              : [])
+      : videoInputMode === "firstlast"
+        ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
+        : videoInputMode === "first"
+          ? [submittedFirstFrame].filter(Boolean)
+          : submittedImages;
+    enforceVideoInputs({
+      mode: videoInputMode,
+      images: orderedSubmittedImages,
+      audios: submittedAudios,
+      capabilities: inputCapabilities,
+      maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceAudios: ui.maxReferenceAudios,
+    });
     const images = deps.normalizeProviderReferenceUrls(
-      Array.isArray(body.images)
-        ? body.images.map((item) => deps.safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 1)
-        : [],
+      orderedSubmittedImages,
       publicOrigin,
       user,
     );
-    const firstFrame = inputCapabilities.firstFrame
-      ? deps.normalizeProviderReferenceUrl(deps.safeText(body.first_frame || params.first_frame), publicOrigin, user)
-      : "";
-    const lastFrame = inputCapabilities.lastFrame
-      ? deps.normalizeProviderReferenceUrl(deps.safeText(body.last_frame || params.last_frame), publicOrigin, user)
-      : "";
+    const audios = deps.normalizeProviderReferenceUrls(submittedAudios, publicOrigin, user);
+    const validatedInputs = enforceVideoInputs({
+      mode: videoInputMode,
+      images,
+      audios,
+      capabilities: inputCapabilities,
+      maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceAudios: ui.maxReferenceAudios,
+    });
     const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
     const duration = ui.durationOptions.length > 0
       ? (ui.durationOptions.includes(requestedDuration as string | number) ? requestedDuration : ui.defaultDuration)
@@ -358,9 +398,15 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       ratio,
       duration,
       resolution,
-      images,
-      first_frame: firstFrame,
-      last_frame: lastFrame,
+      images: validatedInputs.images,
+      first_frame: validatedInputs.firstFrame || "",
+      last_frame: validatedInputs.lastFrame || "",
+      audios: validatedInputs.audios,
+      videoInputMode: validatedInputs.mode,
+      modeType: validatedInputs.modeType,
+      aicopyRequestContractEnabled: resolveAicopyRequestContractEnabled(advancedConfig),
+      requestContract: deps.plainObject(advancedConfig.requestContract),
+      fixedBody: deps.plainObject(advancedConfig.fixedBody),
       advancedMode: deps.safeText(advancedConfig.mode || params.mode),
       taskCapability: "video",
       executionMode: "worker_queue",
@@ -376,6 +422,17 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       payload,
       requestContext,
     });
+  }
+
+  function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
+    try {
+      return validateVideoInputs(input);
+    } catch (error) {
+      if (error instanceof VideoInputValidationError && deps.invalidRequest) {
+        throw deps.invalidRequest(error.message);
+      }
+      throw error;
+    }
   }
 
   async function submitAudioTask(rawBody: unknown, user: CurrentUserLike, requestContext?: SubmitProviderGenerationTaskInput["requestContext"]) {

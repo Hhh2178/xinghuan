@@ -237,6 +237,7 @@ const { generateExternalImageProxy, generateExternalChatProxy, generateExternalV
   stringMap,
   looksLikeHtml,
   clampInteger,
+  invalidRequest: (message) => new HttpError(400, message),
 });
 
 const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = createProviderGenerationTaskService({
@@ -258,6 +259,7 @@ const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = creat
   safePromptText,
   safeSlug,
   plainObject,
+  invalidRequest: (message) => new HttpError(400, message),
 });
 
 const { cancelTaskWithStrategy } = createTaskCancellationService({

@@ -121,7 +121,7 @@ export function getBackendVideoInputValidationError(input: {
   inputCapabilities: BackendVideoInputCapabilities;
 }): string {
   const { frameMode, imageCount, audioCount, inputCapabilities } = input;
-  if (frameMode === "reference" && !inputCapabilities.imageReference) return "当前模型未开启参考图能力";
+  if (frameMode === "reference" && imageCount > 0 && !inputCapabilities.imageReference) return "当前模型未开启参考图能力";
   if (frameMode === "first" && !inputCapabilities.firstFrame) return "当前模型未开启首帧能力";
   if (frameMode === "firstlast" && (!inputCapabilities.firstFrame || !inputCapabilities.lastFrame)) {
     return "当前模型未开启首尾帧能力";
