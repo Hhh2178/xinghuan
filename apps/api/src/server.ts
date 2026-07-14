@@ -138,6 +138,9 @@ import {
   type GroupPermissionPolicy,
 } from "./group-permission-policy.js";
 import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
+import { createPermissionRepository, type PermissionFallbackAuthDb } from "./permissions/permission-repository.js";
+import { createPermissionRouteHandler } from "./permissions/permission-routes.js";
+import { createPermissionService } from "./permissions/permission-service.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
 import { createSettingsRepository } from "./settings-repository.js";
@@ -294,6 +297,14 @@ const {
 });
 
 const authCurrentUserRepository = createAuthCurrentUserRepository({ usePostgresRepository, readAuthDb, getPostgresPool, dateToMillis, safeText, safeEmail });
+const permissionRepository = createPermissionRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  readAuthDb: async () => (await readAuthDb()) as unknown as PermissionFallbackAuthDb,
+  writeAuthDb: async (db) => writeAuthDb(db as unknown as AuthDb),
+  now: () => Date.now(),
+});
+const permissionService = createPermissionService({ readAuthorizationState: permissionRepository.readAuthorizationState });
 const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
 const settingsRepository = createSettingsRepository({
   usePostgresRepository,
@@ -399,6 +410,20 @@ const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandle
     return { apps: catalog.apps, workflows: catalog.workflows };
   },
   appendAudit,
+});
+
+const handlePermissionRoutes = createPermissionRouteHandler({
+  sendT8,
+  readJsonBody,
+  HttpError,
+  readAuthorizationState: permissionRepository.readAuthorizationState,
+  upsertSubject: permissionRepository.upsertSubject,
+  upsertRule: permissionRepository.upsertRule,
+  deleteRule: permissionRepository.deleteRule,
+  explain: permissionService.explain,
+  appendAudit,
+  createId: () => `perm-${Date.now()}-${randomBytes(6).toString("hex")}`,
+  now: () => Date.now(),
 });
 
 const handleAdminAuditRoutes = createAdminAuditRouteHandler({
@@ -2225,6 +2250,8 @@ async function handleAdminRequest(
   adminUser: CurrentUser,
   requestContext: RequestContext,
 ) {
+  if (await handlePermissionRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
+
   if (url.pathname === "/api/admin/environment-sync/preview" && request.method === "POST") {
     const body = await readJsonBody<{ sourceEnvironment?: EnvironmentSyncTarget; targetEnvironment?: EnvironmentSyncTarget }>(request);
     const result = await environmentSyncService.previewEnvironmentSync({
