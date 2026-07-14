@@ -2,6 +2,7 @@ import {
   parseAssistantMessageBlocks,
   type AssistantChatResult,
   type AnnouncementRecord,
+  CANVAS_NODE_PERMISSION_CATALOG,
   TASK_QUEUE_CAPABILITIES,
   appVersion,
   buildTaskQueueRuntimeDescriptors,
@@ -141,6 +142,7 @@ import { createGroupPermissionPolicyRouteHandler } from "./group-permission-poli
 import { createPermissionRepository, type PermissionFallbackAuthDb } from "./permissions/permission-repository.js";
 import { createPermissionRouteHandler } from "./permissions/permission-routes.js";
 import { createPermissionService } from "./permissions/permission-service.js";
+import { createPermissionSubjectRegistrar } from "./permissions/permission-subject-registrars.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
 import { createSettingsRepository } from "./settings-repository.js";
@@ -305,6 +307,7 @@ const permissionRepository = createPermissionRepository({
   now: () => Date.now(),
 });
 const permissionService = createPermissionService({ readAuthorizationState: permissionRepository.readAuthorizationState });
+const permissionSubjectRegistrar = createPermissionSubjectRegistrar(permissionRepository);
 const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
 const settingsRepository = createSettingsRepository({
   usePostgresRepository,
@@ -424,6 +427,7 @@ const handlePermissionRoutes = createPermissionRouteHandler({
   appendAudit,
   createId: () => `perm-${Date.now()}-${randomBytes(6).toString("hex")}`,
   now: () => Date.now(),
+  reconcileSubjects: reconcilePermissionSubjects,
 });
 
 const handleAdminAuditRoutes = createAdminAuditRouteHandler({
@@ -7363,6 +7367,21 @@ async function analyzeRunningHubCatalogDraft(input: {
     ],
     warnings,
   };
+}
+
+async function reconcilePermissionSubjects() {
+  const [sharedResources, runningHubItems, providerModels] = await Promise.all([
+    readSharedResourceCatalog(),
+    adminRunningHubCatalogItems(),
+    providerRepository.readModelRecords(),
+  ]);
+  await permissionSubjectRegistrar.reconcileFirstWavePermissionSubjects({
+    resourceCategories: sharedResources.categories,
+    resourceItems: sharedResources.items,
+    runningHubItems,
+    nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({ type, label: type, category: "canvas" })),
+    providerModels,
+  });
 }
 
 async function adminRunningHubCatalogItems() {

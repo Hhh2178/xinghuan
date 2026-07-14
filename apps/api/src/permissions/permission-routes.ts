@@ -15,6 +15,7 @@ export function createPermissionRouteHandler(deps: {
   appendAudit: (actor: CurrentUser, action: string, targetType: string, targetId: string, summary: string, context?: any) => Promise<void>;
   createId: () => string;
   now: () => number;
+  reconcileSubjects?: () => Promise<void>;
 }) {
   function requireAdmin(currentUser: CurrentUser | null) {
     if (!currentUser || currentUser.role !== "admin") throw new deps.HttpError(403, "ADMIN_REQUIRED");
@@ -30,6 +31,7 @@ export function createPermissionRouteHandler(deps: {
   }) {
     if (url.pathname === "/api/admin/permission-subjects" && request.method === "GET") {
       const actor = requireAdmin(currentUser);
+      await deps.reconcileSubjects?.();
       const state = await deps.readAuthorizationState();
       deps.sendT8(response, { subjects: state.subjects, rules: state.rules });
       await deps.appendAudit(actor, "permission.subjects.read", "permission-subject", "all", "查看统一权限目录", requestContext);
