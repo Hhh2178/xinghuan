@@ -1,1 +1,1 @@
-{"name":"@xinghuan/model-core","version":"0.6.3","private":true,"type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}},"scripts":{"type-check":"tsc --noEmit","build":"tsc -p tsconfig.build.json"}}
+{"name":"@xinghuan/model-core","version":"0.6.4","private":true,"type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}},"scripts":{"type-check":"tsc --noEmit","build":"tsc -p tsconfig.build.json"}}

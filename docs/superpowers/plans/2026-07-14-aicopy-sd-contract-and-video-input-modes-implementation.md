@@ -898,7 +898,7 @@ Use:
 
 ```text
 version: 0.6.4
-release: 20260714-aicopy-sd-video-input-modes-v064
+release: 20260715-aicopy-sd-video-input-modes-v064
 ```
 
 Update all workspace versions, internal workspace dependency versions, lockfile entries, and `appVersion`.
