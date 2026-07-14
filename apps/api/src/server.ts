@@ -20,6 +20,8 @@ import {
   type AppEnvironment,
   type RhCatalogItem,
   type ProviderGenerationExecutionMode,
+  type PermissionRule,
+  type PermissionSubject,
   type UnifiedCancelState,
   type UnifiedFailureCategory,
   type TaskQueueCapability,
@@ -598,6 +600,8 @@ interface LoginAttemptRecord {
 interface AuthDb {
   userGroups: UserGroupRecord[];
   groupPermissionPolicies: GroupPermissionPolicy[];
+  permissionSubjects: PermissionSubject[];
+  permissionRules: PermissionRule[];
   users: UserRecord[];
   sessions: SessionRecord[];
   loginAttempts: LoginAttemptRecord[];
@@ -4023,11 +4027,13 @@ async function readAuthDb(): Promise<AuthDb> {
   try {
     db = JSON.parse(await readFile(authDbPath, "utf-8")) as AuthDb;
   } catch {
-    db = { userGroups: [], groupPermissionPolicies: [], users: [], sessions: [], loginAttempts: [] };
+    db = { userGroups: [], groupPermissionPolicies: [], permissionSubjects: [], permissionRules: [], users: [], sessions: [], loginAttempts: [] };
   }
   db = {
     userGroups: Array.isArray(db.userGroups) ? db.userGroups : [],
     groupPermissionPolicies: normalizeGroupPermissionPolicies(db.groupPermissionPolicies),
+    permissionSubjects: Array.isArray(db.permissionSubjects) ? db.permissionSubjects : [],
+    permissionRules: Array.isArray(db.permissionRules) ? db.permissionRules : [],
     users: Array.isArray(db.users) ? db.users : [],
     sessions: Array.isArray(db.sessions) ? db.sessions.map(normalizeSessionRecord) : [],
     loginAttempts: Array.isArray(db.loginAttempts) ? db.loginAttempts.map(normalizeLoginAttemptRecord) : [],
@@ -4037,6 +4043,8 @@ async function readAuthDb(): Promise<AuthDb> {
   const cleaned = {
     userGroups: bootstrapped.userGroups,
     groupPermissionPolicies: bootstrapped.groupPermissionPolicies,
+    permissionSubjects: bootstrapped.permissionSubjects,
+    permissionRules: bootstrapped.permissionRules,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),
@@ -4224,6 +4232,8 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
         deny: row.deny || {},
       })
     ),
+    permissionSubjects: [],
+    permissionRules: [],
     users: usersResult.rows.map((row) => ({
       id: row.id,
       email: row.email,
@@ -4266,6 +4276,8 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
   const cleaned: AuthDb = {
     userGroups: bootstrapped.userGroups,
     groupPermissionPolicies: bootstrapped.groupPermissionPolicies,
+    permissionSubjects: bootstrapped.permissionSubjects,
+    permissionRules: bootstrapped.permissionRules,
     users: bootstrapped.users,
     sessions: bootstrapped.sessions.filter((session) => session.expiresAt > now),
     loginAttempts: pruneLoginAttempts(bootstrapped.loginAttempts, now),

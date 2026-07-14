@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import type { PermissionRule, PermissionSubject } from "@xinghuan/shared";
 
 import type { GroupPermissionPolicy } from "./group-permission-policy.js";
 
@@ -53,6 +54,8 @@ export interface LoginAttemptRecord {
 export interface AuthDb {
   userGroups: UserGroupRecord[];
   groupPermissionPolicies: GroupPermissionPolicy[];
+  permissionSubjects?: PermissionSubject[];
+  permissionRules?: PermissionRule[];
   users: UserRecord[];
   sessions: SessionRecord[];
   loginAttempts: LoginAttemptRecord[];
