@@ -66,7 +66,6 @@ import {
   normalizeBackendFrameMode,
   resolveBackendVideoInputAssignment,
   resolveVideoPreviewGroups,
-  type BackendVideoFrameMode,
 } from './videoNodeBackendInputs';
 
 /**
@@ -176,8 +175,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     ? getBackendImageSlotCount(backendVideoCaps, backendModel?.ui.maxReferenceImages || 1)
     : 0;
   const backendShowsImageInputs = isBackendSelected && backendImageSlotCount > 0;
-  const rawFrameMode: BackendVideoFrameMode =
-    d?.frameMode === 'firstlast' ? 'firstlast' : d?.frameMode === 'first' ? 'first' : d?.frameMode === 'last' ? 'last' : 'auto';
+  const rawFrameMode = typeof d?.frameMode === 'string' ? d.frameMode : undefined;
   const backendFrameModeOptions = useMemo(() => {
     if (!isBackendSelected) return [];
     return getBackendFrameModeOptions(backendVideoCaps);

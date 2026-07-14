@@ -339,7 +339,7 @@ git commit -m "feat: add model-scoped aicopy sd controls"
 - Modify: `apps/web/src/components/nodes/videoNodeBackendInputs.ts`
 - Modify: `scripts/verify-video-node-backend-inputs-contract.ts`
 
-- [ ] **Step 1: Replace current expectations with failing exact-mode tests**
+- [x] **Step 1: Replace current expectations with failing exact-mode tests**
 
 Cover these cases:
 
@@ -389,7 +389,7 @@ assert.deepEqual(resolveBackendVideoInputAssignment({
 
 Also assert reference mode keeps at most nine and zero images resolves `text2video`.
 
-- [ ] **Step 2: Run the verifier and confirm RED**
+- [x] **Step 2: Run the verifier and confirm RED**
 
 ```powershell
 npx tsx scripts/verify-video-node-backend-inputs-contract.ts
@@ -397,7 +397,7 @@ npx tsx scripts/verify-video-node-backend-inputs-contract.ts
 
 Expected: FAIL because current values are `auto/first/last/firstlast`, frame images are shifted out of `refs`, and there is no `orderedImages` result.
 
-- [ ] **Step 3: Implement one pure resolver**
+- [x] **Step 3: Implement one pure resolver**
 
 Use these result fields:
 
@@ -456,7 +456,7 @@ return {
 
 The resolver must not silently use a third image in frame modes. It returns the first one or two for preview, while validation reports an excess count before submission.
 
-- [ ] **Step 4: Preserve legacy canvas state safely**
+- [x] **Step 4: Preserve legacy canvas state safely**
 
 Normalize persisted values as follows:
 
@@ -467,7 +467,7 @@ firstlast -> firstlast
 last -> firstlast when both firstFrame and lastFrame are supported, otherwise reference
 ```
 
-- [ ] **Step 5: Re-run and verify GREEN**
+- [x] **Step 5: Re-run and verify GREEN**
 
 ```powershell
 npx tsx scripts/verify-video-node-backend-inputs-contract.ts
@@ -475,7 +475,7 @@ npx tsx scripts/verify-video-node-backend-inputs-contract.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the resolver**
+- [x] **Step 6: Commit the resolver**
 
 ```powershell
 git add apps/web/src/components/nodes/videoNodeBackendInputs.ts scripts/verify-video-node-backend-inputs-contract.ts

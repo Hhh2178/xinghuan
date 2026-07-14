@@ -4,9 +4,10 @@ export interface BackendVideoInputCapabilities {
   multiImage: boolean;
   firstFrame: boolean;
   lastFrame: boolean;
+  audioReference?: boolean;
 }
 
-export type BackendVideoFrameMode = "auto" | "first" | "last" | "firstlast";
+export type BackendVideoFrameMode = "reference" | "first" | "firstlast";
 
 export interface BackendVideoFrameModeOption {
   value: BackendVideoFrameMode;
@@ -15,8 +16,12 @@ export interface BackendVideoFrameModeOption {
 
 export interface BackendVideoInputAssignment {
   refs: string[];
+  orderedImages: string[];
   firstFrameUrl?: string;
   lastFrameUrl?: string;
+  modeType: "text2video" | "image2video" | "frames2video";
+  requiredImageCount: 0 | 1 | 2;
+  maxImageCount: number;
 }
 
 export function getBackendImageSlotCount(
@@ -25,10 +30,12 @@ export function getBackendImageSlotCount(
 ): number {
   const referenceSlots = inputCapabilities.imageReference
     ? inputCapabilities.multiImage
-      ? Math.max(maxReferenceImages || 1, 1)
-      : 1
+      ? Math.max(maxReferenceImages, 0)
+      : Math.min(1, Math.max(maxReferenceImages, 0))
     : 0;
-  return referenceSlots + (inputCapabilities.firstFrame ? 1 : 0) + (inputCapabilities.lastFrame ? 1 : 0);
+  const firstSlots = inputCapabilities.firstFrame ? 1 : 0;
+  const firstLastSlots = inputCapabilities.firstFrame && inputCapabilities.lastFrame ? 2 : 0;
+  return Math.max(referenceSlots, firstSlots, firstLastSlots);
 }
 
 export function getBackendFrameModeOptions(
@@ -36,25 +43,13 @@ export function getBackendFrameModeOptions(
 ): BackendVideoFrameModeOption[] {
   const options: BackendVideoFrameModeOption[] = [];
   if (inputCapabilities.imageReference) {
-    options.push({ value: "auto", label: "全部作参考图" });
+    options.push({ value: "reference", label: "参考图" });
   }
   if (inputCapabilities.firstFrame) {
-    options.push({
-      value: "first",
-      label: inputCapabilities.imageReference ? "首帧 + 其余参考图" : "首帧",
-    });
-  }
-  if (inputCapabilities.lastFrame) {
-    options.push({
-      value: "last",
-      label: inputCapabilities.imageReference ? "尾帧 + 其余参考图" : "尾帧",
-    });
+    options.push({ value: "first", label: "首帧" });
   }
   if (inputCapabilities.firstFrame && inputCapabilities.lastFrame) {
-    options.push({
-      value: "firstlast",
-      label: inputCapabilities.imageReference ? "首帧 + 尾帧 + 其余参考图" : "首帧 + 尾帧",
-    });
+    options.push({ value: "firstlast", label: "首尾帧" });
   }
   return options;
 }
@@ -63,8 +58,12 @@ export function normalizeBackendFrameMode(
   frameMode: string | undefined,
   options: BackendVideoFrameModeOption[],
 ): BackendVideoFrameMode {
-  const requested = frameMode === "first" || frameMode === "last" || frameMode === "firstlast" ? frameMode : "auto";
-  return options.some((item) => item.value === requested) ? requested : (options[0]?.value ?? "auto");
+  const requested: BackendVideoFrameMode = frameMode === "first"
+    ? "first"
+    : frameMode === "firstlast" || frameMode === "last"
+      ? "firstlast"
+      : "reference";
+  return options.some((item) => item.value === requested) ? requested : (options[0]?.value ?? "reference");
 }
 
 export function resolveBackendVideoInputAssignment(input: {
@@ -74,25 +73,43 @@ export function resolveBackendVideoInputAssignment(input: {
   inputCapabilities: BackendVideoInputCapabilities;
 }): BackendVideoInputAssignment {
   const { imageUrls, frameMode, maxReferenceImages, inputCapabilities } = input;
-  const incomingImages = imageUrls.slice(0, Math.max(getBackendImageSlotCount(inputCapabilities, maxReferenceImages), 1));
-  const assignment: BackendVideoInputAssignment = { refs: [...incomingImages] };
+  const referenceLimit = inputCapabilities.multiImage
+    ? Math.max(0, maxReferenceImages)
+    : Math.min(1, Math.max(0, maxReferenceImages));
 
-  if (inputCapabilities.firstFrame && (frameMode === "first" || frameMode === "firstlast") && assignment.refs.length > 0) {
-    assignment.firstFrameUrl = assignment.refs.shift();
+  if (frameMode === "first") {
+    const firstFrameUrl = imageUrls[0];
+    return {
+      refs: [],
+      orderedImages: firstFrameUrl ? [firstFrameUrl] : [],
+      ...(firstFrameUrl ? { firstFrameUrl } : {}),
+      modeType: "image2video",
+      requiredImageCount: 1,
+      maxImageCount: 1,
+    };
   }
-  if (inputCapabilities.lastFrame && (frameMode === "last" || frameMode === "firstlast") && assignment.refs.length > 0) {
-    assignment.lastFrameUrl = assignment.refs.shift();
+  if (frameMode === "firstlast") {
+    const firstFrameUrl = imageUrls[0];
+    const lastFrameUrl = imageUrls[1];
+    return {
+      refs: [],
+      orderedImages: [firstFrameUrl, lastFrameUrl].filter((value): value is string => Boolean(value)),
+      ...(firstFrameUrl ? { firstFrameUrl } : {}),
+      ...(lastFrameUrl ? { lastFrameUrl } : {}),
+      modeType: "frames2video",
+      requiredImageCount: 2,
+      maxImageCount: 2,
+    };
   }
 
-  if (!inputCapabilities.imageReference) {
-    assignment.refs = [];
-  } else if (!inputCapabilities.multiImage) {
-    assignment.refs = assignment.refs.slice(0, 1);
-  } else {
-    assignment.refs = assignment.refs.slice(0, Math.max(maxReferenceImages || assignment.refs.length, 0));
-  }
-
-  return assignment;
+  const refs = inputCapabilities.imageReference ? imageUrls.slice(0, referenceLimit) : [];
+  return {
+    refs,
+    orderedImages: refs,
+    modeType: refs.length > 0 ? "image2video" : "text2video",
+    requiredImageCount: 0,
+    maxImageCount: referenceLimit,
+  };
 }
 
 export function resolveVideoPreviewGroups(input: {

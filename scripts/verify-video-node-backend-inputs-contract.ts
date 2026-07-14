@@ -1,70 +1,92 @@
+import assert from "node:assert/strict";
 import {
   getBackendFrameModeOptions,
+  normalizeBackendFrameMode,
   resolveBackendVideoInputAssignment,
   resolveVideoPreviewGroups,
   type BackendVideoFrameMode,
 } from "../apps/web/src/components/nodes/videoNodeBackendInputs.ts";
 
-const checks: Array<[string, boolean]> = [];
-
-const lastOnlyOptions = getBackendFrameModeOptions({
-  prompt: true,
-  imageReference: false,
-  multiImage: false,
-  firstFrame: false,
-  lastFrame: true,
-});
-check("Last-frame-only backend model exposes last mode", lastOnlyOptions.length === 1 && lastOnlyOptions[0]?.value === "last");
-
-const fullOptions = getBackendFrameModeOptions({
+const fullCapabilities = {
   prompt: true,
   imageReference: true,
   multiImage: true,
   firstFrame: true,
   lastFrame: true,
-});
-check(
-  "Backend frame mode options expose auto/first/last/firstlast",
-  fullOptions.map((item) => item.value).join(",") === "auto,first,last,firstlast",
+  audioReference: true,
+};
+
+assert.deepEqual(
+  getBackendFrameModeOptions(fullCapabilities).map((item) => item.value),
+  ["reference", "first", "firstlast"],
 );
 
-const lastOnlyAssignment = resolveBackendVideoInputAssignment({
-  imageUrls: ["first-image", "second-image"],
-  frameMode: "last",
-  maxReferenceImages: 1,
-  inputCapabilities: {
-    prompt: true,
-    imageReference: false,
-    multiImage: false,
-    firstFrame: false,
-    lastFrame: true,
+assert.deepEqual(
+  resolveBackendVideoInputAssignment({
+    imageUrls: ["a", "b", "c"],
+    frameMode: "first",
+    maxReferenceImages: 9,
+    inputCapabilities: fullCapabilities,
+  }),
+  {
+    refs: [],
+    orderedImages: ["a"],
+    firstFrameUrl: "a",
+    modeType: "image2video",
+    requiredImageCount: 1,
+    maxImageCount: 1,
   },
-});
-check(
-  "Last-frame-only backend model routes first image to last_frame",
-  lastOnlyAssignment.lastFrameUrl === "first-image" &&
-    !lastOnlyAssignment.firstFrameUrl &&
-    lastOnlyAssignment.refs.length === 0,
 );
 
-const firstLastAssignment = resolveBackendVideoInputAssignment({
-  imageUrls: ["frame-1", "frame-2", "ref-1", "ref-2", "ref-3"],
-  frameMode: "firstlast",
-  maxReferenceImages: 2,
-  inputCapabilities: {
-    prompt: true,
-    imageReference: true,
-    multiImage: true,
-    firstFrame: true,
-    lastFrame: true,
+assert.deepEqual(
+  resolveBackendVideoInputAssignment({
+    imageUrls: ["a", "b", "c"],
+    frameMode: "firstlast",
+    maxReferenceImages: 9,
+    inputCapabilities: fullCapabilities,
+  }),
+  {
+    refs: [],
+    orderedImages: ["a", "b"],
+    firstFrameUrl: "a",
+    lastFrameUrl: "b",
+    modeType: "frames2video",
+    requiredImageCount: 2,
+    maxImageCount: 2,
   },
-});
-check(
-  "Backend firstlast mode reserves frame images before reference images",
-  firstLastAssignment.firstFrameUrl === "frame-1" &&
-    firstLastAssignment.lastFrameUrl === "frame-2" &&
-    firstLastAssignment.refs.join(",") === "ref-1,ref-2",
 );
+
+assert.deepEqual(
+  resolveBackendVideoInputAssignment({
+    imageUrls: [],
+    frameMode: "reference",
+    maxReferenceImages: 9,
+    inputCapabilities: fullCapabilities,
+  }),
+  {
+    refs: [],
+    orderedImages: [],
+    modeType: "text2video",
+    requiredImageCount: 0,
+    maxImageCount: 9,
+  },
+);
+
+const referenceAssignment = resolveBackendVideoInputAssignment({
+  imageUrls: Array.from({ length: 10 }, (_, index) => `image-${index + 1}`),
+  frameMode: "reference",
+  maxReferenceImages: 9,
+  inputCapabilities: fullCapabilities,
+});
+assert.equal(referenceAssignment.modeType, "image2video");
+assert.equal(referenceAssignment.orderedImages.length, 9);
+assert.equal(referenceAssignment.maxImageCount, 9);
+
+const options = getBackendFrameModeOptions(fullCapabilities);
+assert.equal(normalizeBackendFrameMode("auto", options), "reference");
+assert.equal(normalizeBackendFrameMode("first", options), "first");
+assert.equal(normalizeBackendFrameMode("firstlast", options), "firstlast");
+assert.equal(normalizeBackendFrameMode("last", options), "firstlast");
 
 const previewGroups = resolveVideoPreviewGroups({
   isBackendSelected: true,
@@ -72,19 +94,8 @@ const previewGroups = resolveVideoPreviewGroups({
   localKind: "seedance",
   showImageMaterials: true,
 });
-check(
-  "Backend-selected video node preview groups stay image-only even if local model is seedance",
-  previewGroups.join(",") === "text,image",
-);
+assert.deepEqual(previewGroups, ["text", "image"]);
 
-for (const [name, ok] of checks) {
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-}
-
-if (checks.some(([, ok]) => !ok)) process.exit(1);
-
-function check(name: string, ok: boolean) {
-  checks.push([name, Boolean(ok)]);
-}
+console.log(JSON.stringify({ ok: true }, null, 2));
 
 void (0 as BackendVideoFrameMode | 0);
