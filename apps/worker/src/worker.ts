@@ -32,6 +32,7 @@ import {
 import {
   createAicopyVideoAdapterPayload,
   extractAicopyTask,
+  resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
 } from "@xinghuan/model-core";
 import {
@@ -812,9 +813,18 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const resolution = safeText(task.payload.resolution);
   const firstFrame = safeText(task.payload.first_frame || task.payload.firstFrame);
   const lastFrame = safeText(task.payload.last_frame || task.payload.lastFrame);
-  const modeType = images.length === 0 ? "text2video" : firstFrame && lastFrame ? "frames2video" : "image2video";
+  const queuedModeType = safeText(task.payload.modeType);
+  const modeType = ["text2video", "image2video", "frames2video"].includes(queuedModeType)
+    ? queuedModeType
+    : images.length === 0
+      ? "text2video"
+      : firstFrame && lastFrame
+        ? "frames2video"
+        : "image2video";
   const advancedMode = safeText(task.payload.advancedMode || task.payload.mode);
   const submitPath = safeText(task.payload.submitPath, "videos/generations");
+  const requestContractEnabled = resolveAicopyRequestContractEnabled(task.payload);
+  const requestContract = plainObject(task.payload.requestContract);
 
   if (shouldUseAicopyVideoAdapter({
     protocol,
@@ -834,7 +844,8 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
       requestValueTemplates: plainObject(task.payload.requestValueTemplates) as Record<string, string>,
-      requestContract: plainObject(task.payload.requestContract),
+      requestContractEnabled,
+      requestContract,
       fixedBody: plainObject(task.payload.fixedBody),
     });
     const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, safeText(task.payload.submitPath, "videos")), {
@@ -864,8 +875,10 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       taskId: taskMeta.taskId,
       statusPath: safeText(task.payload.taskStatusPath, "status"),
       resultVideoPath: safeText(task.payload.resultVideoPath, "data.output"),
-      resultPaths: Array.isArray(plainObject(task.payload.requestContract).resultPaths)
-        ? plainObject(task.payload.requestContract).resultPaths as string[]
+      resultPaths: requestContractEnabled
+        ? Array.isArray(requestContract.resultPaths)
+          ? requestContract.resultPaths as string[]
+          : undefined
         : undefined,
       pollPathTemplate: safeText(task.payload.pollPathTemplate, "videos/{task_id}"),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),

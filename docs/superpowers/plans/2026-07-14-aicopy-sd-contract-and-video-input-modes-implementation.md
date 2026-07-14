@@ -681,7 +681,7 @@ git commit -m "fix: enforce video input modes at api boundary"
 - Modify: `apps/worker/src/worker.ts`
 - Modify: `scripts/verify-aicopy-video-adapter-contract.ts`
 
-- [ ] **Step 1: Add Worker source and payload assertions**
+- [x] **Step 1: Add Worker source and payload assertions**
 
 Assert the Worker passes:
 
@@ -694,7 +694,7 @@ modeType: task.payload.modeType
 
 Add a disabled AICopy Grok fixture containing a stale `requestContract` and prove the contract fields are absent from the built request.
 
-- [ ] **Step 2: Pass explicit enablement into the adapter**
+- [x] **Step 2: Pass explicit enablement into the adapter**
 
 Use:
 
@@ -710,11 +710,11 @@ createAicopyVideoAdapterPayload({
 
 The API task builder must copy `advancedConfig.aicopyRequestContractEnabled` into the queued payload as a strict boolean.
 
-- [ ] **Step 3: Trust normalized mode data, with a compatibility fallback**
+- [x] **Step 3: Trust normalized mode data, with a compatibility fallback**
 
 Use `task.payload.modeType` when it is one of the three legal runtime values. Only old queued tasks may fall back to inference from `first_frame`, `last_frame`, and `images`.
 
-- [ ] **Step 4: Verify Worker behavior**
+- [x] **Step 4: Verify Worker behavior**
 
 ```powershell
 npx tsx scripts/verify-aicopy-video-adapter-contract.ts
@@ -723,7 +723,7 @@ npm run type-check -w @xinghuan/worker
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Worker behavior**
+- [x] **Step 5: Commit Worker behavior**
 
 ```powershell
 git add apps/worker/src/worker.ts scripts/verify-aicopy-video-adapter-contract.ts

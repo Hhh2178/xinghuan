@@ -115,6 +115,11 @@ const workerSource = await readFile(new URL("../apps/worker/src/worker.ts", impo
 const workerPollingSource = await readFile(new URL("../apps/worker/src/worker-media-polling.ts", import.meta.url), "utf8");
 const modelEditorSource = await readFile(new URL("../apps/admin/src/admin-model-editor.tsx", import.meta.url), "utf8");
 assert.match(workerSource, /pollAicopyVideoTask\(/);
+assert.match(workerSource, /resolveAicopyRequestContractEnabled/);
+assert.match(workerSource, /requestContractEnabled/);
+assert.match(workerSource, /task\.payload\.modeType/);
+assert.match(workerSource, /\["text2video", "image2video", "frames2video"\]/);
+assert.match(workerSource, /requestContractEnabled\s*\?[^:]+resultPaths/s);
 assert.match(workerPollingSource, /export async function pollAicopyVideoTask\(/);
 assert.match(modelEditorSource, /validateAicopyRequestContract/);
 assert.match(modelEditorSource, /AIFork 视频请求契约/);
