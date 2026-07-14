@@ -180,7 +180,7 @@ git commit -m "fix: scope aicopy sd contracts per model"
 - Modify: `apps/web/src/services/api.ts`
 - Test: `scripts/verify-video-node-backend-inputs-contract.ts`
 
-- [ ] **Step 1: Define exact shared contracts**
+- [x] **Step 1: Define exact shared contracts**
 
 Add these types and metadata fields:
 
@@ -209,11 +209,11 @@ export interface ModelUiMetadata {
 
 Compute `maxReferenceAudios` with the same finite/clamped policy as images, capped at 8 globally; SD configuration will set it to 3.
 
-- [ ] **Step 2: Update public catalog DTOs**
+- [x] **Step 2: Update public catalog DTOs**
 
 Add `maxReferenceAudios` and preserve all existing optional fields in `apps/web/src/services/api.ts`. The client must not synthesize a provider-specific default.
 
-- [ ] **Step 3: Type-check shared consumers**
+- [x] **Step 3: Type-check shared consumers**
 
 Run:
 
@@ -224,7 +224,7 @@ npm run type-check -w @xinghuan/web
 
 Expected: PASS after every catalog consumer receives the new field or treats it as optional during the transition.
 
-- [ ] **Step 4: Commit shared contracts**
+- [x] **Step 4: Commit shared contracts**
 
 ```powershell
 git add packages/model-core/src/index.ts apps/web/src/services/api.ts

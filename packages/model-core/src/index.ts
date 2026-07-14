@@ -2,6 +2,8 @@ export type ModelCapability = "chat" | "image" | "video" | "audio";
 
 export type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "aicopy" | "modelscope" | "custom" | "grsai_draw";
 
+export type VideoInputMode = "reference" | "first" | "firstlast";
+
 export type ModelCapabilityTag =
   | "text_chat"
   | "image_understanding"
@@ -105,6 +107,7 @@ export interface ModelUiMetadata {
   defaultSize: string;
   supportsReference: boolean;
   maxReferenceImages: number;
+  maxReferenceAudios: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;
   durationMode?: ModelDurationMode;
@@ -289,6 +292,7 @@ export function uiMetadataFromSchema(
     : compactValues(schema.duration?.options, []);
   const resolutionOptions = compactStrings(schema.resolution?.options, capability === "video" ? VIDEO_RESOLUTIONS : []);
   const maxReferenceImages = Number(schema.referenceImages?.max);
+  const maxReferenceAudios = Number(schema.referenceAudio?.max);
   const inputCapabilities = parseInputCapabilities(
     { ...parsePlainObject(inputCapabilitiesValue), parameterSchema: schema },
     capability,
@@ -300,6 +304,7 @@ export function uiMetadataFromSchema(
     defaultSize: stringInList(schema.size?.default, sizes, sizes[0] || ""),
     supportsReference: Boolean(schema.referenceImages),
     maxReferenceImages: Number.isFinite(maxReferenceImages) ? Math.max(0, Math.min(16, maxReferenceImages)) : 0,
+    maxReferenceAudios: Number.isFinite(maxReferenceAudios) ? Math.max(0, Math.min(8, maxReferenceAudios)) : 0,
     durationOptions,
     defaultDuration: durationMode === "range"
       ? (durationRange?.default ?? valueInList(schema.duration?.default, durationOptions, durationOptions[0] || 0))

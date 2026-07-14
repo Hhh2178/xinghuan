@@ -308,6 +308,7 @@ export interface PublicModelUi {
   defaultSize: string;
   supportsReference: boolean;
   maxReferenceImages: number;
+  maxReferenceAudios: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;
   durationMode?: "tiers" | "range";
