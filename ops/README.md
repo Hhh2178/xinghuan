@@ -25,7 +25,7 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.6.1`
+  - 版本：`v0.6.2`
   - release：`20260714-aifork-contract-access-gray-r2-v061`
   - 状态：`2026-07-14 已完成 r1/r2 deploy + runtime verify；AIFork 请求契约、后台会话反馈与 RH 未分组策略已部署`
   - 当前补修：`sd2-720p-fast 灰度模型已配置，待登录画布完成 15 秒、9:16、有音轨真实生成验收`
