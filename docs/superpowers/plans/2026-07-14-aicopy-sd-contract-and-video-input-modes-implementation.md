@@ -48,7 +48,7 @@ This explains the reported behavior:
 1. Provider name and Base URL never activate AICopy behavior. The explicit provider protocol `aicopy` is authoritative.
 2. Selecting protocol `aicopy` exposes AICopy model controls but does not enable the SD supplement for every model.
 3. Each video model has an explicit `aicopyRequestContractEnabled` switch. Default is `false`.
-4. Existing models with a non-empty `requestContract.bindings` remain effectively enabled until they are saved; save writes the explicit boolean.
+4. The explicit boolean is the only model-level activation source. Existing `requestContract.bindings` without `aicopyRequestContractEnabled=true` remain dormant; no model ID, display name, URL, or stale binding may imply activation.
 5. The universal image modes are exactly:
    - `reference`: zero to `referenceImages.max` images; zero images means text-to-video.
    - `first`: exactly one image.
@@ -145,10 +145,7 @@ export function shouldUseAicopyVideoAdapter(input: { protocol?: string }) {
 
 export function resolveAicopyRequestContractEnabled(config: unknown) {
   const row = plainObject(config);
-  if (typeof row.aicopyRequestContractEnabled === "boolean") {
-    return row.aicopyRequestContractEnabled;
-  }
-  return normalizeRequestContract(row.requestContract).bindings.length > 0;
+  return row.aicopyRequestContractEnabled === true;
 }
 
 const requestContract = input.requestContractEnabled
@@ -278,7 +275,7 @@ Use this prop flow:
 
 - [ ] **Step 3: Add the SD supplement switch**
 
-Use the shared compatibility resolver without mutating the stored model:
+Use the strict shared resolver without mutating the stored model. A stale `requestContract` must not implicitly enable the control:
 
 ```ts
 const initialContractEnabled = resolveAicopyRequestContractEnabled(model.advancedConfig);
@@ -518,7 +515,7 @@ const imageLimit = frameMode === "first"
     : backendModel.ui.maxReferenceImages;
 ```
 
-The image material area must display `当前数量/上限`. Reject drag, paste, connection-derived inclusion, or manual addition after the limit; do not merely truncate during submission.
+The image material area must display `当前数量/上限`. Reject direct drag, paste, or manual addition after the limit. Upstream connections may expose more media than a node accepts; in that case display the excess count and disable/reject RUN with the same validation message. Never silently truncate during submission.
 
 - [ ] **Step 3: Require exact frame counts before RUN**
 
@@ -588,7 +585,7 @@ Only stage `MaterialPreviewSection.tsx` if the implementation actually requires 
 
 - [ ] **Step 1: Write API validation tests**
 
-Create table-driven tests:
+Create table-driven tests. Validation failures use a dedicated `VideoInputValidationError`; route/service integration must convert it to the repository `HttpError(400, message)` so invalid media never becomes an HTTP 500:
 
 ```ts
 const fullCaps = {
@@ -637,7 +634,7 @@ Validate capabilities before counts. Validate audio count against `maxReferenceA
 
 - [ ] **Step 4: Normalize the queued task payload**
 
-In `submitVideoTask`, read `body.images`, `body.audios`, and `params.videoInputMode`, normalize public URLs, call `validateVideoInputs`, and queue:
+In `submitVideoTask`, read `body.images`, `body.audios`, and `params.videoInputMode`, validate non-empty source counts before normalization or slicing, normalize public URLs, call `validateVideoInputs`, and queue:
 
 ```ts
 {
@@ -651,7 +648,7 @@ In `submitVideoTask`, read `body.images`, `body.audios`, and `params.videoInputM
 }
 ```
 
-Do not use `.slice(...)` to hide excess frame images.
+Do not use `.slice(...)` to hide excess reference, frame, or audio inputs. Preserve `first_frame` and `last_frame` for generic Provider compatibility while `images` remains the ordered, contract-neutral media sequence.
 
 - [ ] **Step 5: Reuse validation in the synchronous proxy path**
 
@@ -762,15 +759,26 @@ Reject a Provider whose protocol is not `aicopy`. Reject a model whose capabilit
   "parameterSchema": {
     "referenceImages": { "type": "image[]", "max": 9 },
     "referenceAudio": { "type": "audio[]", "max": 3 },
-    "duration": { "type": "range", "min": 4, "max": 15, "step": 1, "default": 8 }
+    "duration": { "type": "range", "min": 4, "max": 15, "step": 1, "default": 15 }
   },
   "advancedConfig": {
-    "aicopyRequestContractEnabled": true
+    "aicopyRequestContractEnabled": true,
+    "requestContract": {
+      "bindings": [
+        { "path": "duration", "source": "duration", "type": "number" },
+        { "path": "metadata.modeType", "source": "modeType", "type": "string" },
+        { "path": "metadata.ratio", "source": "ratio", "type": "string" },
+        { "path": "metadata.enableSound", "value": "on", "type": "string" },
+        { "path": "images", "source": "images", "type": "string[]", "omitWhenEmpty": true },
+        { "path": "audios", "source": "audios", "type": "string[]", "omitWhenEmpty": true }
+      ],
+      "resultPaths": ["result_url", "data.metadata.url", "data.output"]
+    }
   }
 }
 ```
 
-Preserve existing ratio options, request contract, result paths, polling settings, display names, and enablement. Do not infer SD models by substring during apply; every model ID must be passed explicitly.
+Preserve existing ratio options, polling settings, display names, and enablement. Merge the exact SD request bindings by path and preserve unrelated safe bindings/result paths; rerunning must be idempotent. Do not infer SD models by substring during apply; every model ID must be passed explicitly.
 
 - [ ] **Step 3: Verify dry-run diff and exact scope**
 
@@ -937,7 +945,7 @@ Verify all of the following through a gray admin and canvas session:
 6. Reference mode submits up to nine images and rejects the tenth.
 7. With no audio reference, the request still contains `metadata.enableSound="on"` and omits `audios`.
 8. With one valid public audio reference, the request contains one `audios` URL.
-9. The completed task returns a playable canvas video; one controlled real generation confirms requested duration, aspect ratio, and generated audio.
+9. A controlled `15` second, `9:16` generation reaches success, the canvas polling path receives and renders the playable returned video after refresh, and media inspection confirms duration, aspect ratio, and generated audio.
 10. Production status still reports `0.5.22 / production`.
 
 - [ ] **Step 7: Update release evidence and push**
@@ -951,10 +959,10 @@ Record the gray deployment path, service state, status responses, scoped model c
 - Never update every AICopy model in one statement.
 - Never select target models by mutable Provider name.
 - Do not expose API keys, cookies, signed material URLs, or raw user prompts in logs or validation records.
-- Existing queued tasks retain compatibility inference; newly queued tasks use explicit `videoInputMode`, `modeType`, and `aicopyRequestContractEnabled`.
+- Existing queued tasks retain only media-mode compatibility inference. SD request-contract activation is never inferred: tasks without literal `aicopyRequestContractEnabled=true` use the ordinary AICopy transport payload.
 
 ## Self-Review Results
 
-- Spec coverage: Provider protocol activation, model opt-in, three universal modes, exact 1/2/N image limits, reference audio, fixed sound generation, media ordering, API enforcement, Worker gating, scoped data configuration, responsive UI, gray release, and production protection are each assigned to an implementation task.
+- Spec coverage: Provider protocol activation, strict model opt-in, three universal modes, exact 1/2/N image limits, reference audio, fixed sound generation, media ordering, HTTP 400 API enforcement, Worker gating, scoped and idempotent data configuration, result delivery to canvas, responsive UI, gray release, and production protection are each assigned to an implementation task.
 - Placeholder scan: no deferred implementation markers are present; every task defines concrete files, behavior, commands, and expected results.
 - Type consistency: the plan consistently uses `VideoInputMode = "reference" | "first" | "firstlast"`, `aicopyRequestContractEnabled`, `maxReferenceImages`, `maxReferenceAudios`, and `audioReference` across admin, catalog, canvas, API, and Worker layers.
