@@ -28,11 +28,11 @@
 - 当前活跃版本：`v0.5.27`
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前生产版本：`v0.5.22`
+- 当前生产版本：`v0.5.27`
 - 当前灰度 release：`20260706-task-list-lightweight-gray-r1-v0527`
-- 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前生产 release：`20260714-task-list-lightweight-prod-r1-v0527`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：clean worktree 结构治理、harness/documentation contract、灰度链路校验
+- 当前重点：clean worktree 结构治理收尾、harness/documentation contract、延期项计划收口
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

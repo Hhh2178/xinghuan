@@ -66,11 +66,12 @@
 
 ### Production
 
-- 版本：`v0.5.22`
-- release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前状态：`2026-07-02 已完成 production deploy + runtime verify`
-- 当前补修：`环境同步后台分区与 v0.5.22 正式运行态对齐`
+- 版本：`v0.5.27`
+- release：`20260714-task-list-lightweight-prod-r1-v0527`
+- 当前状态：`2026-07-14 11:28 已完成 production deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs 并正式晋级`
+- 当前补修：`clean repository boundary wave、task list repository lightweight repair、正式环境版本对齐到 v0.5.27、ComfyUI 功能继续冻结`
 - 当前批次记录：
+  - `production/2026-07-14-task-list-lightweight-production.md`
   - `production/2026-07-02-envsync-admin-sections-production.md`
   - `production/2026-07-01-performance-toggle-button-sizing-production.md`
   - `production/2026-06-30-group-execution-manager-runtime-rounds-production.md`

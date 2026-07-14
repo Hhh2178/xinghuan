@@ -34,10 +34,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.22`
-  - release：`20260702-envsync-admin-sections-prod-r1-v0522`
-  - 状态：`2026-07-02 已完成 production deploy + runtime verify`
-  - 当前补修：`环境同步后台分区与 v0.5.22 正式运行态对齐`
+  - 版本：`v0.5.27`
+  - release：`20260714-task-list-lightweight-prod-r1-v0527`
+  - 状态：`2026-07-14 11:28 已完成 production deploy + runtime verify；task repository list summaries 已在仓储边界剥离 payload/result/logs 并正式晋级`
+  - 当前补修：`clean repository boundary wave、task list repository lightweight repair、正式环境版本对齐到 v0.5.27`
 
 ## current / archive 分工
 

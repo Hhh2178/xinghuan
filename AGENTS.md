@@ -28,8 +28,8 @@
 
 - Gray 版本：`v0.5.27`
 - Gray release：`20260706-task-list-lightweight-gray-r1-v0527`
-- Production 版本：`v0.5.22`
-- Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- Production 版本：`v0.5.27`
+- Production release：`20260714-task-list-lightweight-prod-r1-v0527`
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 

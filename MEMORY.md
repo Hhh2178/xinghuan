@@ -56,11 +56,12 @@
 ## 当前状态摘要
 
 - 当前活跃版本：`v0.5.27`
-- 当前生产版本：`v0.5.22`
+- 当前生产版本：`v0.5.27`
 - 当前 gray release：`20260706-task-list-lightweight-gray-r1-v0527` (已部署)
-- 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
+- 当前 production release：`20260714-task-list-lightweight-prod-r1-v0527`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：clean repository boundary wave 已完成灰度部署验证；task repository list summaries 已在仓储边界剥离 `payload/result/logs`
+- 最新完成：clean repository boundary wave 与 task list repository lightweight repair 已完成 gray / production 双环境部署验证；task repository list summaries 已在仓储边界剥离 `payload/result/logs`
+- 2026-07-14 11:28 发布推进：`v0.5.27` production release 已切到 `20260714-task-list-lightweight-prod-r1-v0527`，并完成 production deploy + runtime verify，详见 `docs/logbooks/releases/production/2026-07-14-task-list-lightweight-production.md`
 - 2026-07-06 00:04 发布推进：`v0.5.27` gray release 已切到 `20260706-task-list-lightweight-gray-r1-v0527`，并完成 clean repository boundary wave、task list repository lightweight repair、远端 admin task pagination 与 environment sync smoke 验证，详见 `docs/logbooks/releases/gray/2026-07-06-task-list-lightweight-gray.md`
 - 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
