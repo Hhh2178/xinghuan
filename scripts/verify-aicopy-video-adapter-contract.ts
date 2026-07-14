@@ -4,6 +4,7 @@ import {
   createAicopyVideoAdapterPayload,
   extractAicopyTask,
   extractAicopyVideoResult,
+  resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
 } from "../packages/model-core/src/aicopy-video-adapter.js";
 
@@ -50,7 +51,8 @@ const sdPayload = createAicopyVideoAdapterPayload({
   },
   modeType: "image2video",
   audios: [],
-} as any);
+  requestContractEnabled: true,
+});
 
 assert.equal(sdPayload.duration, 15);
 assert.deepEqual(sdPayload.metadata, {
@@ -82,8 +84,32 @@ assert.equal(
     protocol: "openai",
     providerBaseUrl: "https://api.aicopy.top",
   }),
+  false,
+);
+assert.equal(
+  shouldUseAicopyVideoAdapter({
+    protocol: "aicopy",
+    providerBaseUrl: "https://renamed.example.com",
+  }),
   true,
 );
+
+const staleContract = {
+  requestContract: {
+    bindings: [{ path: "metadata.enableSound", value: "on", type: "string" }],
+  },
+};
+assert.equal(resolveAicopyRequestContractEnabled(staleContract), false);
+assert.equal(resolveAicopyRequestContractEnabled({ ...staleContract, aicopyRequestContractEnabled: true }), true);
+
+const disabledContractPayload = createAicopyVideoAdapterPayload({
+  modelId: "grok-imagine-video-1.5-preview",
+  prompt: "test",
+  duration: 6,
+  requestContractEnabled: false,
+  requestContract: staleContract.requestContract,
+});
+assert.equal("metadata" in disabledContractPayload, false);
 
 const workerSource = await readFile(new URL("../apps/worker/src/worker.ts", import.meta.url), "utf8");
 const workerPollingSource = await readFile(new URL("../apps/worker/src/worker-media-polling.ts", import.meta.url), "utf8");

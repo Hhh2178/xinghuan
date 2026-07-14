@@ -86,7 +86,7 @@ This explains the reported behavior:
 - Modify: `scripts/verify-aicopy-video-adapter-contract.ts`
 - Modify: `packages/model-core/src/aicopy-video-adapter.ts`
 
-- [ ] **Step 1: Add failing activation assertions**
+- [x] **Step 1: Add failing activation assertions**
 
 Add these cases before changing production code:
 
@@ -118,7 +118,7 @@ const enabledContractPayload = createAicopyVideoAdapterPayload({
 assert.deepEqual(enabledContractPayload.metadata, { enableSound: "on" });
 ```
 
-- [ ] **Step 2: Run the contract and verify RED**
+- [x] **Step 2: Run the contract and verify RED**
 
 Run:
 
@@ -128,7 +128,7 @@ npx tsx scripts/verify-aicopy-video-adapter-contract.ts
 
 Expected: FAIL because URL fallback still activates AICopy and payload input has no explicit contract switch.
 
-- [ ] **Step 3: Make protocol and model switch authoritative**
+- [x] **Step 3: Make protocol and model switch authoritative**
 
 Change the adapter input and predicate to:
 
@@ -155,7 +155,7 @@ const requestContract = input.requestContractEnabled
 
 Do not use provider name, model name, or Base URL in the predicate.
 
-- [ ] **Step 4: Re-run and verify GREEN**
+- [x] **Step 4: Re-run and verify GREEN**
 
 Run:
 
@@ -166,7 +166,7 @@ npm run type-check -w @xinghuan/model-core
 
 Expected: both commands pass.
 
-- [ ] **Step 5: Commit the activation boundary**
+- [x] **Step 5: Commit the activation boundary**
 
 ```powershell
 git add packages/model-core/src/aicopy-video-adapter.ts scripts/verify-aicopy-video-adapter-contract.ts

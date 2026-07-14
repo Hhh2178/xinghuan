@@ -10,6 +10,7 @@ interface AicopyVideoAdapterPayloadInput {
   requestMapping?: Record<string, string>;
   requestValueTypes?: Record<string, string>;
   requestValueTemplates?: Record<string, string>;
+  requestContractEnabled?: boolean;
   requestContract?: unknown;
   fixedBody?: Record<string, unknown>;
 }
@@ -37,7 +38,9 @@ export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayload
   const images = normalizePreviewImages(input.modelId, input.images);
   const audios = normalizePublicUrls(input.audios);
   const size = previewVideoSizeFromRatio(input.ratio);
-  const requestContract = normalizeRequestContract(input.requestContract);
+  const requestContract = input.requestContractEnabled
+    ? normalizeRequestContract(input.requestContract)
+    : { bindings: [], resultPaths: undefined };
 
   if (requestContract.bindings.length > 0) {
     applyRequestContract(payload, requestContract.bindings, {
@@ -79,9 +82,11 @@ export function shouldUseAicopyVideoAdapter(input: {
   providerBaseUrl?: string;
 }) {
   const protocol = String(input.protocol || "").trim().toLowerCase();
-  const providerBaseUrl = String(input.providerBaseUrl || "").trim().toLowerCase();
-  if (protocol === "aicopy") return true;
-  return providerBaseUrl.includes("api.aicopy.top");
+  return protocol === "aicopy";
+}
+
+export function resolveAicopyRequestContractEnabled(config: unknown) {
+  return plainObject(config).aicopyRequestContractEnabled === true;
 }
 
 export function extractAicopyTask(raw: unknown, options: {
