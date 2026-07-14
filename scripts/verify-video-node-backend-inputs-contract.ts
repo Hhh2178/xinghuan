@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   getBackendFrameModeOptions,
+  getBackendVideoInputValidationError,
   normalizeBackendFrameMode,
   resolveBackendVideoInputAssignment,
   resolveVideoPreviewGroups,
@@ -93,8 +94,50 @@ const previewGroups = resolveVideoPreviewGroups({
   isJimengSeedanceSelected: false,
   localKind: "seedance",
   showImageMaterials: true,
+  showAudioMaterials: true,
 });
-assert.deepEqual(previewGroups, ["text", "image"]);
+assert.deepEqual(previewGroups, ["text", "image", "audio"]);
+
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "first",
+  imageCount: 0,
+  audioCount: 0,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "首帧模式需要且只能使用 1 张图片");
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "firstlast",
+  imageCount: 3,
+  audioCount: 0,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "首尾帧模式需要且只能使用 2 张图片");
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "reference",
+  imageCount: 10,
+  audioCount: 0,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "参考图最多允许 9 张");
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "reference",
+  imageCount: 1,
+  audioCount: 4,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "参考音频最多允许 3 条");
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "reference",
+  imageCount: 1,
+  audioCount: 3,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "");
 
 console.log(JSON.stringify({ ok: true }, null, 2));
 

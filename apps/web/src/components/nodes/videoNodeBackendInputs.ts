@@ -112,15 +112,43 @@ export function resolveBackendVideoInputAssignment(input: {
   };
 }
 
+export function getBackendVideoInputValidationError(input: {
+  frameMode: BackendVideoFrameMode;
+  imageCount: number;
+  audioCount: number;
+  maxReferenceImages: number;
+  maxReferenceAudios: number;
+  inputCapabilities: BackendVideoInputCapabilities;
+}): string {
+  const { frameMode, imageCount, audioCount, inputCapabilities } = input;
+  if (frameMode === "reference" && !inputCapabilities.imageReference) return "当前模型未开启参考图能力";
+  if (frameMode === "first" && !inputCapabilities.firstFrame) return "当前模型未开启首帧能力";
+  if (frameMode === "firstlast" && (!inputCapabilities.firstFrame || !inputCapabilities.lastFrame)) {
+    return "当前模型未开启首尾帧能力";
+  }
+  if (frameMode === "first" && imageCount !== 1) return "首帧模式需要且只能使用 1 张图片";
+  if (frameMode === "firstlast" && imageCount !== 2) return "首尾帧模式需要且只能使用 2 张图片";
+  const referenceLimit = inputCapabilities.multiImage
+    ? Math.max(0, input.maxReferenceImages)
+    : Math.min(1, Math.max(0, input.maxReferenceImages));
+  if (frameMode === "reference" && imageCount > referenceLimit) return `参考图最多允许 ${referenceLimit} 张`;
+  if (audioCount > 0 && !inputCapabilities.audioReference) return "当前模型未开启参考音频能力";
+  if (audioCount > Math.max(0, input.maxReferenceAudios)) return `参考音频最多允许 ${Math.max(0, input.maxReferenceAudios)} 条`;
+  return "";
+}
+
 export function resolveVideoPreviewGroups(input: {
   isBackendSelected: boolean;
   isJimengSeedanceSelected: boolean;
   localKind: string;
   showImageMaterials: boolean;
+  showAudioMaterials?: boolean;
 }): ReadonlyArray<"text" | "image" | "video" | "audio"> {
-  const { isBackendSelected, isJimengSeedanceSelected, localKind, showImageMaterials } = input;
+  const { isBackendSelected, isJimengSeedanceSelected, localKind, showImageMaterials, showAudioMaterials } = input;
   if (isJimengSeedanceSelected) return ["text", "image", "video", "audio"];
-  if (isBackendSelected) return showImageMaterials ? ["text", "image"] : ["text"];
+  if (isBackendSelected) {
+    return ["text", ...(showImageMaterials ? ["image" as const] : []), ...(showAudioMaterials ? ["audio" as const] : [])];
+  }
   if (localKind === "seedance") return ["text", "image", "video", "audio"];
   return showImageMaterials ? ["text", "image"] : ["text"];
 }

@@ -63,6 +63,7 @@ import { resolvePublishedModelSelection } from '../../utils/publishedModelSelect
 import {
   getBackendFrameModeOptions,
   getBackendImageSlotCount,
+  getBackendVideoInputValidationError,
   normalizeBackendFrameMode,
   resolveBackendVideoInputAssignment,
   resolveVideoPreviewGroups,
@@ -166,11 +167,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     multiImage: false,
     firstFrame: false,
     lastFrame: false,
+    audioReference: false,
   };
-  const backendSupportsImageReference = Boolean(backendVideoCaps.imageReference);
-  const backendSupportsMultiImage = Boolean(backendVideoCaps.multiImage);
-  const backendSupportsFirstFrame = Boolean(backendVideoCaps.firstFrame);
-  const backendSupportsLastFrame = Boolean(backendVideoCaps.lastFrame);
+  const backendSupportsAudioReference = Boolean(backendVideoCaps.audioReference);
   const backendImageSlotCount = isBackendSelected
     ? getBackendImageSlotCount(backendVideoCaps, backendModel?.ui.maxReferenceImages || 1)
     : 0;
@@ -181,6 +180,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     return getBackendFrameModeOptions(backendVideoCaps);
   }, [backendVideoCaps, isBackendSelected]);
   const frameMode = normalizeBackendFrameMode(rawFrameMode, backendFrameModeOptions);
+  const backendImageInputLimit = frameMode === 'first'
+    ? 1
+    : frameMode === 'firstlast'
+      ? 2
+      : backendModel?.ui.maxReferenceImages || 0;
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const videoAdvancedProviders = useMemo(
     () => advancedProvidersForNode(advancedProviders, 'video'),
@@ -415,7 +419,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   );
   const maxMentionRefs =
     isBackendSelected
-      ? backendImageSlotCount
+      ? backendImageInputLimit
       : isJimengSeedanceSelected
       ? JIMENG_SEEDANCE_LIMITS.images
       : isFal && falReg
@@ -424,7 +428,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         : falReg.maxRefImages
       : modelDef.maxRefImages;
   const maxMentionVideos = isJimengSeedanceSelected ? JIMENG_SEEDANCE_LIMITS.videos : 0;
-  const maxMentionAudios = isJimengSeedanceSelected ? JIMENG_SEEDANCE_LIMITS.audios : 0;
+  const maxMentionAudios = isBackendSelected && backendSupportsAudioReference
+    ? backendModel?.ui.maxReferenceAudios || 0
+    : isJimengSeedanceSelected
+      ? JIMENG_SEEDANCE_LIMITS.audios
+      : 0;
   const mentionMaterials = useMemo(
     () => [
       ...[...orderedImages, ...localRefMaterials.filter((m) => m.kind === 'image')].slice(0, maxMentionRefs),
@@ -441,9 +449,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       isJimengSeedanceSelected,
       localKind: modelDef.kind,
       showImageMaterials,
+      showAudioMaterials: isBackendSelected && backendSupportsAudioReference,
     }),
-    [isBackendSelected, isJimengSeedanceSelected, modelDef.kind, showImageMaterials],
+    [backendSupportsAudioReference, isBackendSelected, isJimengSeedanceSelected, modelDef.kind, showImageMaterials],
   );
+  const showMaterialPreview = showImageMaterials || (isBackendSelected && backendSupportsAudioReference);
 
   // 收集上游 prompt + 参考图/视频/音频 (按用户拖拽顺序), 合并本地拖入素材
   const collectUpstream = (): { prompt: string; imageUrls: string[]; videoUrls: string[]; audioUrls: string[] } => {
@@ -694,6 +704,21 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       logBus.error('生成中止: 缺少 prompt', src);
       return;
     }
+    if (isBackendSelected && backendModel) {
+      const inputError = getBackendVideoInputValidationError({
+        frameMode,
+        imageCount: imageUrls.length,
+        audioCount: audioUrls.length,
+        maxReferenceImages: backendModel.ui.maxReferenceImages,
+        maxReferenceAudios: backendModel.ui.maxReferenceAudios,
+        inputCapabilities: backendVideoCaps,
+      });
+      if (inputError) {
+        setError(inputError);
+        logBus.error(`生成中止: ${inputError}`, src);
+        return;
+      }
+    }
 
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
@@ -707,14 +732,14 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       });
 
       if (isBackendSelected && backendModel) {
-        const { refs, firstFrameUrl, lastFrameUrl } = resolveBackendVideoInputAssignment({
+        const assignment = resolveBackendVideoInputAssignment({
           imageUrls,
           frameMode,
-          maxReferenceImages: backendModel.ui.maxReferenceImages || 1,
+          maxReferenceImages: backendModel.ui.maxReferenceImages,
           inputCapabilities: backendVideoCaps,
         });
         logBus.info(
-          `${batchLabel} 后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · refs=${refs.length} first=${firstFrameUrl ? 1 : 0} last=${lastFrameUrl ? 1 : 0}`,
+          `${batchLabel} 后台视频模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · mode=${frameMode} images=${assignment.orderedImages.length} audios=${audioUrls.length}`,
           src,
         );
         const r = await submitExternalVideoTask({
@@ -727,10 +752,16 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           duration,
           resolution,
           seed: seed > 0 ? seed : undefined,
-          images: refs,
-          first_frame: firstFrameUrl,
-          last_frame: lastFrameUrl,
-          providerParams: { ...(d?.providerParams || {}), modelRecordId: backendModel.id, sourceNodeId: id },
+          images: assignment.orderedImages,
+          first_frame: assignment.firstFrameUrl,
+          last_frame: assignment.lastFrameUrl,
+          audios: audioUrls,
+          providerParams: {
+            ...(d?.providerParams || {}),
+            modelRecordId: backendModel.id,
+            sourceNodeId: id,
+            videoInputMode: frameMode,
+          },
         });
         if (!r.taskId) throw new Error(`后台视频任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
         patchTaskRun(batchIndex, {
@@ -1031,19 +1062,26 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       const cur = Array.isArray(d?.localRefImages) ? d.localRefImages : [];
       if (cur.indexOf(payload.url) !== -1) return;
       const cap = isBackendSelected
-        ? Math.max(backendImageSlotCount, 1)
+        ? backendImageInputLimit
         : isJimengSeedanceSelected
           ? JIMENG_SEEDANCE_LIMITS.images
           : (modelDef.maxRefImages || 7) + 4;
-      if (cur.length >= cap) return;
+      if (orderedImages.length + cur.length >= cap) {
+        setError(frameMode === 'first' ? '首帧模式需要且只能使用 1 张图片' : frameMode === 'firstlast' ? '首尾帧模式需要且只能使用 2 张图片' : `参考图最多允许 ${cap} 张`);
+        return;
+      }
       update({ localRefImages: [...cur, payload.url] });
     } else if (payload.kind === 'video' && payload.url && isJimengSeedanceSelected) {
       const cur = Array.isArray(d?.localRefVideos) ? d.localRefVideos : [];
       if (cur.indexOf(payload.url) !== -1 || cur.length >= JIMENG_SEEDANCE_LIMITS.videos) return;
       update({ localRefVideos: [...cur, payload.url] });
-    } else if (payload.kind === 'audio' && payload.url && isJimengSeedanceSelected) {
+    } else if (payload.kind === 'audio' && payload.url && (isJimengSeedanceSelected || (isBackendSelected && backendSupportsAudioReference))) {
       const cur = Array.isArray(d?.localRefAudios) ? d.localRefAudios : [];
-      if (cur.indexOf(payload.url) !== -1 || cur.length >= JIMENG_SEEDANCE_LIMITS.audios) return;
+      if (cur.indexOf(payload.url) !== -1) return;
+      if (orderedAudios.length + cur.length >= maxMentionAudios) {
+        setError(`参考音频最多允许 ${maxMentionAudios} 条`);
+        return;
+      }
       update({ localRefAudios: [...cur, payload.url] });
     } else if (payload.kind === 'text' && typeof payload.text === 'string') {
       update({ prompt: payload.text });
@@ -1051,7 +1089,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   };
   const { dropProps, isAccepting } = useMaterialDropTarget({
     id,
-    accepts: isJimengSeedanceSelected ? ['image', 'video', 'audio', 'text'] : showImageMaterials ? ['image', 'text'] : ['text'],
+    accepts: isJimengSeedanceSelected
+      ? ['image', 'video', 'audio', 'text']
+      : isBackendSelected
+        ? [...(showImageMaterials ? ['image' as const] : []), ...(backendSupportsAudioReference ? ['audio' as const] : []), 'text']
+        : showImageMaterials
+          ? ['image', 'text']
+          : ['text'],
     onDrop: handleDrop,
   });
 
@@ -1059,7 +1103,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const refsCount = orderedImages.length + localRefImages.length;
   const videoRefsCount = orderedVideos.length + localRefVideos.length;
   const audioRefsCount = orderedAudios.length + localRefAudios.length;
-  const previewTitle = isJimengSeedanceSelected
+  const previewTitle = isBackendSelected
+    ? `上游素材 · 图${refsCount}/${Math.max(maxMentionRefs, 0)}${backendSupportsAudioReference ? ` 音${audioRefsCount}/${Math.max(maxMentionAudios, 0)}` : ''}`
+    : isJimengSeedanceSelected
     ? `上游素材 · 图${Math.min(refsCount, JIMENG_SEEDANCE_LIMITS.images)}/${JIMENG_SEEDANCE_LIMITS.images} 视${Math.min(videoRefsCount, JIMENG_SEEDANCE_LIMITS.videos)}/${JIMENG_SEEDANCE_LIMITS.videos} 音${Math.min(audioRefsCount, JIMENG_SEEDANCE_LIMITS.audios)}/${JIMENG_SEEDANCE_LIMITS.audios}`
     : `上游素材 · 参考图 ${Math.min(refsCount, Math.max(maxMentionRefs, 0))}/${Math.max(maxMentionRefs, 0)}`;
 
@@ -1498,9 +1544,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           </div>
         )}
 
-        {isBackendSelected && backendFrameModeOptions.length > 0 && (
+        {isBackendSelected && backendFrameModeOptions.length > 1 && (
           <div>
-            <label className="text-[10px] text-white/50 block mb-1">参考图模式</label>
+            <label className="text-[10px] text-white/50 block mb-1">图片输入模式</label>
             <select
               value={frameMode}
               onChange={(e) => update({ frameMode: e.target.value })}
@@ -1553,7 +1599,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 上游素材聚合预览区 (代替原「参考图(上游)」计数提示) */}
-        {showImageMaterials && (
+        {showMaterialPreview && (
           <MaterialPreviewSection
             texts={orderedTexts}
             images={orderedImages}
@@ -1573,7 +1619,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         )}
 
         {/* 本地拖入参考素材 (Ctrl+拖拽自其他节点) */}
-        {showImageMaterials && (localRefImages.length + localRefVideos.length + localRefAudios.length) > 0 && (
+        {showMaterialPreview && (localRefImages.length + localRefVideos.length + localRefAudios.length) > 0 && (
           <div className="rounded border border-emerald-400/30 bg-emerald-500/5 p-1.5 space-y-1">
             <div className="text-[10px] text-emerald-200/80">
               本地拖入 · 图{localRefImages.length} 视{localRefVideos.length} 音{localRefAudios.length}

@@ -491,7 +491,7 @@ git commit -m "feat: enforce universal video image modes"
 - Test: `scripts/verify-canvas-node-render-smoke.mjs`
 - Test: `scripts/verify-video-node-backend-inputs-contract.ts`
 
-- [ ] **Step 1: Render only modes enabled by the model**
+- [x] **Step 1: Render only modes enabled by the model**
 
 The select labels must be exactly:
 
@@ -503,7 +503,7 @@ firstlast: "首尾帧"
 
 Hide the selector when zero or one mode exists; retain the single valid mode in node state.
 
-- [ ] **Step 2: Apply mode-specific UI limits**
+- [x] **Step 2: Apply mode-specific UI limits**
 
 Compute:
 
@@ -517,7 +517,7 @@ const imageLimit = frameMode === "first"
 
 The image material area must display `当前数量/上限`. Reject direct drag, paste, or manual addition after the limit. Upstream connections may expose more media than a node accepts; in that case display the excess count and disable/reject RUN with the same validation message. Never silently truncate during submission.
 
-- [ ] **Step 3: Require exact frame counts before RUN**
+- [x] **Step 3: Require exact frame counts before RUN**
 
 Use explicit Chinese errors:
 
@@ -532,11 +532,11 @@ if (frameMode === "firstlast" && imageUrls.length !== 2) {
 
 Reference mode allows zero through the schema maximum.
 
-- [ ] **Step 4: Enable backend-model audio materials**
+- [x] **Step 4: Enable backend-model audio materials**
 
 Extend `BackendVideoInputCapabilities` with `audioReference`. When the selected backend model enables it, `resolveVideoPreviewGroups` must include `audio`, and VideoNode must send at most `backendModel.ui.maxReferenceAudios` URLs as `audios`.
 
-- [ ] **Step 5: Submit resolved media, not raw media**
+- [x] **Step 5: Submit resolved media, not raw media**
 
 Use:
 
@@ -557,6 +557,8 @@ await submitExternalVideoTask({
 
 - [ ] **Step 6: Verify render and behavior contracts**
 
+Targeted resolver tests, web type-check, web build, and provider-task consumption contract pass locally. Browser render smoke is deferred to the deployed `v0.6.4` gray session because the local gray port is not running and the script's fallback gray credentials are not valid.
+
 ```powershell
 npx tsx scripts/verify-video-node-backend-inputs-contract.ts
 node scripts/verify-canvas-node-render-smoke.mjs
@@ -566,7 +568,7 @@ npm run build -w @xinghuan/web
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit canvas behavior**
+- [x] **Step 7: Commit canvas behavior**
 
 ```powershell
 git add apps/web/src/components/nodes/VideoNode.tsx apps/web/src/components/nodes/videoNodeBackendInputs.ts apps/web/src/components/nodes/MaterialPreviewSection.tsx scripts/verify-canvas-node-render-smoke.mjs scripts/verify-video-node-backend-inputs-contract.ts
