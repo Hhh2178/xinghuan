@@ -24,13 +24,13 @@ Repair the AICopy SD completion boundary, preserve authenticated final-content r
 1. Red/green contract: completed poll response without URL resolves to `/videos/{task_id}/content`.
 2. Red/green materializer: a protected video fixture requires Bearer authorization and the credential is absent from `JSON.stringify(result)`.
 3. Run AICopy adapter, video input, task service, polling split, all workspace type checks, and the single-port build.
-4. Publish gray `v0.6.6`; production remains unchanged.
+4. Publish diagnostic gray `v0.6.6`, then publish final gray `v0.6.7` after preserving `aicopy` in Worker protocol normalization; production remains unchanged.
 5. Configure `sd2-720p-mini` with the explicit AICopy SD contract if its gray record is not already canonical.
 6. Submit one six-second first-frame task using the supplied woman image and prompt `她跳桑巴舞`.
 7. Verify persisted request summary, terminal task state, local materialized video, encoded duration/dimensions/audio, and visual first-frame identity.
 
 ## Paid-Test Guardrail
 
-- One paid task is authorized initially.
+- One initial paid task is authorized.
 - First-frame and generic reference modes both serialize one image as `image2video`; their UI assignment differences remain covered offline.
-- A second paid task is allowed only when the first task cannot distinguish a local contract defect from an upstream execution defect.
+- A second paid task is allowed only after the local protocol-normalization defect is fixed and a free mock proves the exact outbound JSON and automatic result recovery.

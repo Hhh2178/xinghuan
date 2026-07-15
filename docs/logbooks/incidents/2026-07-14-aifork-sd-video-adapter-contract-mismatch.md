@@ -4,7 +4,7 @@ Date: 2026-07-14
 
 ## Status
 
-Code repair and local regression coverage are complete in `v0.6.1`. Gray model configuration and an end-to-end 15-second `9:16` validation remain required before production promotion.
+The request contract and input modes were completed by `v0.6.4`, but a Worker protocol-normalization omission kept downgrading `aicopy` to `openai`. Diagnostic gray `v0.6.6` reproduced the defect with an authorized six-second mini task. Final gray repair is targeted at `v0.6.7`; production remains unchanged.
 
 ## Scope
 
@@ -65,3 +65,10 @@ The completed upstream response places the video at root `result_url` and `data.
 3. Prefer an HTTPS content URL before writing the output back to the canvas.
 4. Add fixtures for Grok Preview, Seedance nine-image, and SD full-series AIFork contracts so one model family cannot silently inherit another model's fields.
 5. Re-run a 15-second `9:16` SD task and verify duration, dimensions, audio track, task completion, and canvas output materialization.
+
+## 2026-07-15 Diagnostic Addendum
+
+- `normalizeProtocol()` in the Worker omitted `aicopy`, even though API normalization, task persistence, Provider records, and model contracts all accepted it.
+- The real mini task therefore applied the top-level image but skipped the dedicated nested `metadata` serializer and AICopy completion path.
+- The completed paid output was recovered through an authenticated `/content?variant=video` request and written to the user's output library without a second submission.
+- A permanent regression now requires Worker protocol normalization to preserve `aicopy`.

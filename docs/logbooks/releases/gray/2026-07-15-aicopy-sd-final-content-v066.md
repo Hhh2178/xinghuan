@@ -4,7 +4,7 @@
 
 - Version: `v0.6.6`
 - Environment: gray only
-- Release: pending
+- Release: `20260715-aicopy-sd-final-content-v066`
 - Production remains `v0.5.22`.
 
 ## Changes
@@ -16,4 +16,4 @@
 
 ## Verification
 
-Local contract, type, and build checks passed. Gray deployment, runtime verification, and the authorized six-second `sd2-720p-mini` task remain pending.
+Gray deployment and runtime verification passed. The authorized `sd2-720p-mini` task exposed a remaining Worker defect: `normalizeProtocol()` omitted `aicopy`, so runtime execution downgraded to `openai`. This release is diagnostic and is superseded by the `v0.6.7` protocol-normalization repair.

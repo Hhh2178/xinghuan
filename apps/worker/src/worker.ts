@@ -1363,7 +1363,7 @@ async function executeGrsaiImageTask(task: TaskRow): Promise<Record<string, unkn
 
 function normalizeProtocol(value: unknown) {
   const protocol = String(value || "").toLowerCase();
-  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol) ? protocol : "openai";
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "aicopy", "modelscope", "custom", "grsai_draw"].includes(protocol) ? protocol : "openai";
 }
 
 function plainObject(value: unknown): Record<string, unknown> {
