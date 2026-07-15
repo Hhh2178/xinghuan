@@ -177,7 +177,7 @@ function normalizeCapability(value: unknown) {
 
 function normalizeProtocol(value: unknown) {
   const protocol = String(value || "").toLowerCase();
-  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)
+  return ["openai", "gemini", "runninghub", "volcengine", "apimart", "aicopy", "modelscope", "custom", "grsai_draw"].includes(protocol)
     ? protocol
     : "openai";
 }

@@ -12,6 +12,7 @@ const checks = [
   ["Worker has image adapter execution", worker.includes("executeImageTask") && (worker.includes("openAiImageGenerationUrl(") || worker.includes("/images/generations"))],
   ["Worker has video adapter execution", worker.includes("executeVideoTask") && (worker.includes("/videos/generations") || worker.includes("apimart-video"))],
   ["Worker protocol normalization preserves AICopy", /function normalizeProtocol[\s\S]*?\[[^\]]*"aicopy"[^\]]*\]/.test(worker)],
+  ["Worker task-store normalization preserves AICopy", /function normalizeProtocol[\s\S]*?\[[^\]]*"aicopy"[^\]]*\]/.test(taskStore)],
   ["Worker has chat adapter execution", worker.includes("executeChatTask") && (worker.includes('openAiEndpoint(task.providerBaseUrl, "chat/completions")') || worker.includes("/chat/completions"))],
   ["Worker records adapter result metadata", worker.includes("imageUrls") && worker.includes("completedAt")],
   ["API task record exposes payload and result", api.includes("payload?: Record<string, unknown>") && api.includes("result?: Record<string, unknown>")],

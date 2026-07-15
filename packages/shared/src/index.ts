@@ -1,6 +1,6 @@
 export const PRODUCT_NAME = "星幻";
 
-export const appVersion = "0.6.7";
+export const appVersion = "0.6.8";
 
 export type AppEnvironment = "local" | "gray" | "production";
 export * from "./provider-generation-task.js";

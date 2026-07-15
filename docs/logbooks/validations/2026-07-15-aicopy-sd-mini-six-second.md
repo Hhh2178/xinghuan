@@ -4,7 +4,7 @@
 
 - Environment: gray
 - Diagnostic version: `v0.6.6`
-- Final candidate: `v0.6.7`
+- Final candidate: `v0.6.8`
 - Model: `sd2-720p-mini`
 - Duration: `6` seconds
 - Prompt: `她跳桑巴舞`
@@ -41,11 +41,11 @@
 
 ## Root Cause
 
-- `apps/worker/src/worker.ts` protocol normalization omitted `aicopy` and converted it to `openai` before adapter selection.
+- Both `apps/worker/src/worker-task-store.ts` and `apps/worker/src/worker.ts` protocol normalization omitted `aicopy`. The task-store boundary converted the persisted protocol to `openai` before adapter selection.
 - The dedicated AICopy serializer, sanitized request summary, and AICopy completion fallback therefore did not run.
 - Plugin source confirms all `sd2-1080p*` and `sd2-720p*` models use the same official request shape and return `/v1/videos/{task_id}/content?variant=video` when completed without an embedded URL.
 - Authenticated read-only inspection of the real upstream task returned `status=completed`, no embedded video URL, and `200 video/mp4` from both `/content` variants.
 
 ## Final Validation
 
-Pending `v0.6.7` gray deployment, free long-lived Worker mock, and an optional second six-second paid task only after the mock proves the official wire payload.
+Pending `v0.6.8` gray deployment, free long-lived Worker mock, and an optional second six-second paid task only after the mock proves the official wire payload.

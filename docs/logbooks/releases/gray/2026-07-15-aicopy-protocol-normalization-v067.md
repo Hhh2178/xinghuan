@@ -1,4 +1,4 @@
-# v0.6.7 AICopy Protocol Normalization Gray Release
+# v0.6.7 AICopy Protocol Normalization Diagnostic Gray Release
 
 ## Release
 
@@ -20,4 +20,4 @@
 - AICopy adapter and completed-without-URL contract: passed.
 - Authenticated output materializer: passed.
 - All workspace type checks: passed.
-- Gray Worker mock and runtime verification: pending deployment.
+- Gray runtime verification passed, but the Worker mock exposed a second normalization boundary in `worker-task-store.ts`. `v0.6.7` is superseded by final repair `v0.6.8`.
