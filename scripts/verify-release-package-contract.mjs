@@ -44,6 +44,16 @@ assertArrayIncludes("requiredPaths", "scripts/configure-aifork-grok-fast-data-ur
 assertArrayIncludes("includedPaths", "scripts/configure-aifork-grok-fast-data-url-references.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-aifork-grok-fast-data-url-references.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-aifork-grok-fast-data-url-references.mjs");
+for (const permissionScript of [
+  "scripts/permission-db-state.ts",
+  "scripts/reconcile-permissions.ts",
+  "scripts/verify-permission-readiness.ts",
+  "scripts/verify-permission-member-catalog.mjs",
+  "scripts/verify-permission-platform-hardening-contract.mjs",
+]) {
+  assertArrayIncludes("requiredPaths", permissionScript);
+  assertArrayIncludes("includedPaths", permissionScript);
+}
 assertArrayIncludes("requiredPaths", "apps/api/src/server.ts");
 assertArrayIncludes("requiredPaths", "apps/api/src/provider-generation-task-service.ts");
 assertArrayIncludes("requiredPaths", "apps/worker/src/worker.ts");
@@ -76,6 +86,11 @@ console.log(
         "scripts/verify-worker-aicopy-final-content.mjs",
         "scripts/configure-aifork-grok-fast-data-url-references.mjs",
         "scripts/verify-aifork-grok-fast-data-url-references.mjs",
+        "scripts/permission-db-state.ts",
+        "scripts/reconcile-permissions.ts",
+        "scripts/verify-permission-readiness.ts",
+        "scripts/verify-permission-member-catalog.mjs",
+        "scripts/verify-permission-platform-hardening-contract.mjs",
       ],
       requiredSources: [
         "apps/api/src/server.ts",
