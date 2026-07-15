@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.6.3`
-  - release：`20260714-user-group-postgres-atomic-v063`
+  - 版本：`v0.6.4`
+  - release：`20260715-aicopy-sd-video-input-modes-v064`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

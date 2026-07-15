@@ -20,6 +20,7 @@ const registryNodes = extractRegistryNodes(nodeRegistryText);
 const expectedNodes = registryNodes.map((node, index) => ({
   id: `smoke-${node.type}`,
   type: node.type,
+  renderType: ["comfyui-app", "comfyui-store", "comfyui-app-maker"].includes(node.type) ? "comfyui" : node.type,
   label: node.label,
   hidden: node.hidden,
   index,
@@ -202,7 +203,7 @@ function initialDataFor(type, label, serialId) {
 
 async function waitForCanvasRender(connection, nodes) {
   const expression = `(() => new Promise((resolve) => {
-    const expected = ${JSON.stringify(nodes.map(({ id, type }) => ({ id, type })))};
+    const expected = ${JSON.stringify(nodes.map(({ id, type, renderType }) => ({ id, type, renderType })))};
     const legacyPhrases = ["贞贞的无限画布", "企鹅共创版", "请先在左侧创建或选择"];
     const startedAt = Date.now();
     const read = () => {
@@ -220,7 +221,7 @@ async function waitForCanvasRender(connection, nodes) {
         visibleNodeCount: rendered.filter((item) => item.visible).length,
         missingIds: expected.filter((item) => !ids.has(item.id)).map((item) => item.id),
         classMismatches: expected
-          .filter((item) => ids.has(item.id) && !String(classesById.get(item.id) || "").includes("react-flow__node-" + item.type))
+          .filter((item) => ids.has(item.id) && !String(classesById.get(item.id) || "").includes("react-flow__node-" + item.renderType))
           .map((item) => item.id + ":" + item.type),
         legacyFound: legacyPhrases.filter((phrase) => bodyText.includes(phrase)),
         loginVisible: bodyText.includes("安全工作区登录") && bodyText.includes("进入工作区"),

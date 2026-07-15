@@ -26,11 +26,11 @@
 
 ## 当前运行态摘要
 
-- Gray 版本：`v0.6.3`
-- Gray release：`20260714-user-group-postgres-atomic-v063`
+- Gray 版本：`v0.6.4`
+- Gray release：`20260715-aicopy-sd-video-input-modes-v064`
 - Production 版本：`v0.5.22`
 - Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.3` 已部署灰度；用户组创建与默认权限策略已完成事务一致性和管理员会话验收，生产仍保持 `v0.5.22`。
+- `v0.6.4` 已部署灰度；AICopy SD 请求契约与四种通用视频输入模式已上线，现有成品验收确认时长正确但比例与声音未被上游应用，已冻结后续付费生成；生产仍保持 `v0.5.22`。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 

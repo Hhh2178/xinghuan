@@ -25,15 +25,15 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.3`（灰度已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.4`（灰度已部署）；生产稳定版本为 `v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.6.3`
+- 当前灰度版本：`v0.6.4`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260714-user-group-postgres-atomic-v063`
+- 当前灰度 release：`20260715-aicopy-sd-video-input-modes-v064`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：clean worktree 结构治理收尾、harness/documentation contract、延期项计划收口
+- 当前重点：AICopy SD 上游契约无费用取证，以及后台全局布局、文字溢出、RH 应用与 RunningHub Key 池信息架构收口
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

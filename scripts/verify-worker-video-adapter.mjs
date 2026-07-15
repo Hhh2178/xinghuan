@@ -1,6 +1,10 @@
 import { createServer } from "node:http";
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const sameOriginHeaders = {
+  origin: baseUrl,
+  referer: `${baseUrl}/`,
+};
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 const videoBytes = Buffer.from("00000018667479706d703432000000006d703432", "hex");
@@ -49,53 +53,51 @@ async function main() {
     assert(Boolean(modelRecord?.id), "model was not imported");
 
     const prompt = "worker video adapter prompt";
-    const created = await fetchJson("/api/admin/tasks", {
+    const created = await fetchJson("/api/proxy/external/video/task", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        title: `worker video adapter ${Date.now()}`,
-        status: "queued",
         providerId,
-        modelId: modelRecord.id,
-        payload: {
-          kind: "video",
-          prompt,
-          ratio: "16:9",
-          duration: 6,
-          resolution: "720p",
+        providerModel: modelId,
+        model: modelId,
+        prompt,
+        aspect_ratio: "16:9",
+        duration: 6,
+        resolution: "720p",
+        providerParams: {
+          modelRecordId: modelRecord.id,
         },
       }),
     });
-    const taskId = created.data?.id;
+    const taskId = created.data?.taskId || created.data?.id;
     assert(Boolean(taskId), "task was not created");
 
     let task = null;
     for (let attempt = 0; attempt < 45; attempt += 1) {
       await sleep(1000);
-      const tasks = await fetchJson("/api/admin/tasks");
-      task = tasks.data?.find((item) => item.id === taskId);
+      const status = await fetchJson(`/api/proxy/external/video/task/${encodeURIComponent(taskId)}`);
+      task = status.data;
       if (task?.status === "succeeded") break;
-      if (task?.status === "failed") throw new Error(`task failed: ${(task.logs || []).join(" | ")}`);
+      if (task?.status === "failed") throw new Error(`task failed: ${task.error || (task.logs || []).join(" | ")}`);
     }
 
     assert(task?.status === "succeeded", `task did not succeed, current status=${task?.status || "missing"}`);
-    assert(task?.result?.adapter === "openai-video", "worker did not use video adapter");
-    assert(task?.result?.modelId === modelId, "worker result model mismatch");
-    assert(Array.isArray(task?.result?.videoUrls) && task.result.videoUrls[0]?.startsWith("http://"), "worker video result missing remote url");
-    assert(Array.isArray(task?.result?.materializedVideoUrls) && task.result.materializedVideoUrls[0]?.startsWith("/files/output/"), "worker video result missing materialized local url");
+    assert(task?.raw?.adapter === "openai-video", "worker did not use video adapter");
+    assert(Array.isArray(task?.remoteVideoUrls) && task.remoteVideoUrls[0]?.startsWith("http://"), "worker video result missing remote url");
+    assert(Array.isArray(task?.videoUrls) && task.videoUrls[0]?.startsWith("/files/output/"), "worker video result missing materialized local url");
     assert(upstreamRequest?.body?.model === modelId, "upstream model mismatch");
     assert(upstreamRequest?.body?.prompt === prompt, "upstream prompt mismatch");
     assert(upstreamRequest?.authorization === "Bearer verify-worker-video-key", "upstream auth mismatch");
 
-    const savedAsset = await fetch(`${baseUrl}${task.result.materializedVideoUrls[0]}`, { headers: { cookie } });
+    const savedAsset = await fetch(`${baseUrl}${task.videoUrls[0]}`, { headers: { ...sameOriginHeaders, cookie } });
     assert(savedAsset.ok && /^video\//i.test(savedAsset.headers.get("content-type") || ""), "materialized worker video is not readable");
 
     console.log(JSON.stringify({
       ok: true,
       taskId,
       status: task.status,
-      adapter: task.result.adapter,
-      localVideoUrl: task.result.materializedVideoUrls[0],
+      adapter: task.raw.adapter,
+      localVideoUrl: task.videoUrls[0],
       upstream: {
         model: upstreamRequest.body.model,
         prompt: upstreamRequest.body.prompt,
@@ -159,6 +161,7 @@ function withCookie(options = {}) {
   return {
     ...options,
     headers: {
+      ...sameOriginHeaders,
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
     },

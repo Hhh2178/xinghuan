@@ -192,7 +192,8 @@ async function main() {
     assert(genericAsyncSubmit?.url === "/v1/videos", "generic async submit endpoint mismatch");
     assert(genericAsyncSubmit?.body?.seconds === "6", "generic async duration mapping mismatch");
     assert(genericAsyncSubmit?.body?.size === "1280x720", "generic async size mapping mismatch");
-    assert(Array.isArray(genericAsyncSubmit?.body?.images) && genericAsyncSubmit.body.images.length === 2, "generic async images mapping mismatch");
+    assert(Array.isArray(genericAsyncSubmit?.body?.images) && genericAsyncSubmit.body.images.length === 1, "generic async images mapping mismatch");
+    assert(isSignedProviderReferenceUrl(genericAsyncSubmit.body.images[0]), "generic async reference image was not signed");
     assert(genericAsyncStatus?.url === "/v1/videos/task_preview_456", "generic async poll endpoint mismatch");
 
     await fetchJson(`/api/admin/models/${modelRecord.id}`, {

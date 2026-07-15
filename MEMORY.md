@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.3`（gray 已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.4`（gray 已部署）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260714-user-group-postgres-atomic-v063` (已部署)
+- 当前 gray release：`20260715-aicopy-sd-video-input-modes-v064` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：`v0.6.3` 已在灰度部署用户组和默认策略原子写入、策略外键恢复顺序与孤立策略过滤；真实创建与读取验收通过，生产继续保持 `v0.5.22`。
+- 最新完成：`v0.6.4` 已在灰度部署 AICopy SD 模型请求契约与参考图、首帧、尾帧、首尾帧四种视频输入模式；现有成品确认 15 秒正确，但输出为横屏且无音轨，后续付费生成已冻结，生产继续保持 `v0.5.22`。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-14 发布推进：`v0.6.3` gray release 已切到 `20260714-user-group-postgres-atomic-v063`，详见 `docs/logbooks/releases/gray/2026-07-14-user-group-postgres-atomic-v063.md`。
-- 当前工作重心：environment-sync-local 专门抽取计划、F1 task realtime decision；ComfyUI 功能开发已暂停封存
+- 2026-07-15 发布推进：`v0.6.4` gray release 已切到 `20260715-aicopy-sd-video-input-modes-v064`，详见 `docs/logbooks/releases/gray/2026-07-15-aicopy-sd-video-input-modes-v064.md`。
+- 当前工作重心：AICopy SD 上游契约无费用取证；后台全局布局、文字溢出、RH 应用与 RunningHub Key 池信息架构整改；ComfyUI 功能开发继续暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

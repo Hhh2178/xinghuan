@@ -4,14 +4,15 @@
 
 ### Gray
 
-- 版本：`v0.6.3`
-- release：`20260714-user-group-postgres-atomic-v063`
-- 当前状态：`v0.6.3 已部署灰度；用户组创建、策略持久化与数据完整性验收通过`
-- 部署内容：`用户组和默认策略原子写入、认证库外键恢复顺序、历史孤立策略过滤`
-- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.3/gray；管理员会话创建、读取默认策略和数据库原子持久化已端到端通过`
-- 待验收：`用户在灰度后台的常规业务操作观察`
-- 部署时间：`2026-07-14`
+- 版本：`v0.6.4`
+- release：`20260715-aicopy-sd-video-input-modes-v064`
+- 当前状态：`v0.6.4 已部署灰度；AICopy SD 请求契约与四种通用视频输入模式已上线，生产保持 v0.5.22`
+- 部署内容：`AICopy 协议与模型级 SD 契约隔离、参考图/首帧/尾帧/首尾帧输入、API 校验、Worker 轮询与结果路径治理`
+- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.4/gray；离线契约、Mock 上游、真实队列和 49 节点渲染 smoke 通过；现有成品时长为 15 秒`
+- 待验收：`AICopy 上游未应用 9:16 与声音参数；在供应商契约确认前冻结付费生成测试`
+- 部署时间：`2026-07-15`
 - 当前批次记录：
+  - `gray/2026-07-15-aicopy-sd-video-input-modes-v064.md`
   - `gray/2026-07-14-ops-task-window-gray.md`
   - `gray/2026-07-14-user-group-postgres-atomic-v063.md`
   - `gray/2026-07-14-aifork-contract-access-gray.md`

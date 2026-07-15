@@ -13,6 +13,7 @@
 
 ## 最近高频入口
 
+- 2026-07-15 AICopy SD 契约与四种视频输入模式：`docs/logbooks/daily/2026/2026-07/2026-07-15.md`
 - 当前月份说明：`docs/logbooks/daily/2026/2026-07/README.md`
 - 当前月份高频事项：`docs/logbooks/daily/2026/2026-07/recent-highlights.md`
 - 当前发布索引：`docs/logbooks/releases/current-release-index.md`
