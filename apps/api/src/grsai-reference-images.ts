@@ -21,5 +21,6 @@ export async function prepareProviderReferenceImages(input: PrepareProviderRefer
     ownerId: input.ownerId,
     values: input.values,
     limit: input.values.length,
+    processing: input.advancedConfig.referenceImageProcessing,
   });
 }

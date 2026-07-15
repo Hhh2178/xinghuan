@@ -830,9 +830,10 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
     ? await prepareInlineImageReferences({
         dataDir,
         ownerId: task.ownerId,
-        values: images,
-        limit: images.length,
-      })
+      values: images,
+      limit: images.length,
+      processing: task.payload.referenceImageProcessing,
+    })
     : images;
   const firstFrameIndex = firstFrame ? images.indexOf(firstFrame) : -1;
   const lastFrameIndex = lastFrame ? images.indexOf(lastFrame) : -1;
@@ -878,7 +879,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       modeType: safeText(requestMetadata.modeType),
       soundEnabled: safeText(requestMetadata.enableSound).toLowerCase() === "on",
       imageCount: submittedImages.length,
+      referenceImagePayloadChars: submittedImages.reduce((total, image) => total + safeText(image).length, 0),
       referenceImageTransport: inlineReferenceImages ? "data_url" : "url",
+      referenceImageProcessing: inlineReferenceImages ? plainObject(task.payload.referenceImageProcessing) : {},
       audioCount: Array.isArray(submitPayload.audios) ? submitPayload.audios.length : 0,
       requestContractEnabled,
     };

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import sharp from "sharp";
 
 import { prepareGrsaiReferenceImages, prepareInlineImageReferences } from "./grsai-reference-images";
 
@@ -43,5 +44,33 @@ describe("grsai reference images", () => {
       ownerId,
       values: ["https://unrelated.example.test/image.png"],
     })).rejects.toThrow("不是当前账号的本地素材");
+  });
+
+  it("optionally matches the Grok plugin JPEG 1024/85 preprocessing contract", async ({ task }) => {
+    const dataDir = join(process.cwd(), "runtime", "test-fixtures", task.id);
+    const ownerId = "user-grok";
+    const imageDir = join(dataDir, "users", ownerId, "input");
+    await mkdir(imageDir, { recursive: true });
+    const source = await sharp({
+      create: { width: 941, height: 1672, channels: 3, background: { r: 44, g: 88, b: 132 } },
+    }).png().toBuffer();
+    await writeFile(join(imageDir, "portrait.png"), source);
+
+    const prepared = await prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: ["input/portrait.png", `data:image/png;base64,${source.toString("base64")}`],
+      processing: { format: "jpeg", maxDimension: 1024, quality: 85 },
+    });
+
+    expect(prepared[0]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(prepared[1]).toMatch(/^data:image\/jpeg;base64,/);
+    const output = Buffer.from(prepared[0].split(",")[1], "base64");
+    const metadata = await sharp(output).metadata();
+    expect(metadata.format).toBe("jpeg");
+    expect(metadata.width).toBe(576);
+    expect(metadata.height).toBe(1024);
+    expect(output.byteLength).toBeLessThan(source.byteLength);
+    expect(Buffer.from(prepared[1].split(",")[1], "base64").byteLength).toBe(output.byteLength);
   });
 });

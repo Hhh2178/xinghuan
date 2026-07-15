@@ -17,9 +17,10 @@
 
 ## 灰度真实结果
 
-- 画布任务 ID：待部署后填写。
-- 上游任务 ID：待部署后填写。
-- 生成 POST 次数：待部署后填写。
-- 最终任务状态：待部署后填写。
-- 输出视频：待部署后填写。
-- 画布回收：待部署后填写。
+- 画布任务 ID：`task-1784112843014-0fe7jg`。
+- 上游任务 ID：`task_4Fp4DBYvlFaTdw7Bjx79XGQqeuHd5qRX`。
+- 生成 POST 次数：`1`。
+- 实际摘要：`duration=6`、`ratio=9:16`、`imageCount=3`、`requestContractEnabled=true`。
+- 最终任务状态：`failed`，45%。
+- 失败原因：`Video input reference 3 failed: Asset upload returned 403`。
+- 结论：字段契约修复生效，但原始 PNG Data URL 未按插件压缩；该批次不满足验收，后续修复进入 `v0.6.12`。

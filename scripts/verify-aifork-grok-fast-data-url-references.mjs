@@ -33,6 +33,7 @@ assert.equal(isAiforkGrokFastTarget(
 
 const merged = mergeAiforkGrokFastDataUrlReferences(selected);
 assert.equal(merged.referenceImageTransport, "data_url");
+assert.deepEqual(merged.referenceImageProcessing, { format: "jpeg", maxDimension: 1024, quality: 85 });
 assert.equal(merged.requestContractEnabled, true);
 assert.deepEqual(merged.requestContract, AIFORK_GROK_FAST_REQUEST_CONTRACT);
 assert.deepEqual(merged.requestMapping, selected.advanced_config.requestMapping);

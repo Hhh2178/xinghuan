@@ -25,10 +25,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.6.11`
-  - release：`20260715-aifork-grok-fast-contract-v0611`
-  - 状态：`v0.6.11 已部署灰度；AIFork Grok FAST 使用插件一致的独立通用请求契约`
-  - 当前补修：`FAST 使用 duration/video_length/aspect_ratio/video_config/reference_images；Data URL 仅对目标模型启用，SD 和其他模型链路不变`
+  - 版本：`v0.6.12`
+  - release：`20260715-aifork-grok-fast-preprocess-v0612`
+  - 状态：`v0.6.12 已部署灰度；AIFork Grok FAST 使用插件一致的请求契约与图片预处理`
+  - 当前补修：`FAST 使用 duration/video_length/aspect_ratio/video_config/reference_images，并按 JPEG/1024/85 压缩；SD 和其他模型链路不变`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

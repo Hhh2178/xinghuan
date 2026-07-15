@@ -25,6 +25,7 @@ export function mergeAiforkGrokFastDataUrlReferences(row) {
   return {
     ...plainObject(row.advanced_config),
     referenceImageTransport: "data_url",
+    referenceImageProcessing: { format: "jpeg", maxDimension: 1024, quality: 85 },
     requestContractEnabled: true,
     requestContract: structuredClone(AIFORK_GROK_FAST_REQUEST_CONTRACT),
   };
@@ -40,6 +41,7 @@ export function summarizeAiforkGrokFastDataUrlReferences(row, advancedConfig) {
     beforeFingerprint: fingerprint(before),
     afterFingerprint: fingerprint(advancedConfig),
     referenceImageTransport: advancedConfig.referenceImageTransport,
+    referenceImageProcessing: plainObject(advancedConfig.referenceImageProcessing),
     requestContractEnabled: advancedConfig.requestContractEnabled === true,
     requestBindingPaths: Array.isArray(advancedConfig.requestContract?.bindings)
       ? advancedConfig.requestContract.bindings.map((binding) => text(binding?.path)).filter(Boolean)

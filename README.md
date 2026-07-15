@@ -25,12 +25,12 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.11`（灰度已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.12`（灰度已部署）；生产稳定版本为 `v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.6.11`
+- 当前灰度版本：`v0.6.12`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260715-aifork-grok-fast-contract-v0611`
+- 当前灰度 release：`20260715-aifork-grok-fast-preprocess-v0612`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
 - 当前重点：Provider 幂等轮询瞬时错误重试已灰度；AIFork Grok FAST 的多参考图可按模型使用 Data URL，其他模型保持原链路

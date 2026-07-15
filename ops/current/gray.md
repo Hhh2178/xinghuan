@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.6.11`
-- 当前 release：`20260715-aifork-grok-fast-contract-v0611`
-- 当前状态：`v0.6.11 已部署灰度；AIFork Grok FAST 使用插件一致的通用请求契约，生产继续保持 v0.5.22`
-- 当前补修：`FAST 以 Data URL 发送最多 6 张 reference_images，同时发送 duration、video_length、aspect_ratio、resolution 与 video_config`
+- 当前版本：`v0.6.12`
+- 当前 release：`20260715-aifork-grok-fast-preprocess-v0612`
+- 当前状态：`v0.6.12 已部署灰度；AIFork Grok FAST 使用插件一致的通用请求契约和图片预处理，生产继续保持 v0.5.22`
+- 当前补修：`FAST 的 reference_images 提交前按最长边 1024、JPEG 85 压缩；配置仅在目标模型生效`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-15-aifork-grok-fast-preprocess-v0612.md`
+  - `../../docs/logbooks/validations/2026-07-15-aifork-grok-fast-preprocess-v0612.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-aifork-grok-fast-contract-v0611.md`
   - `../../docs/logbooks/validations/2026-07-15-aifork-grok-fast-contract-v0611.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
@@ -73,9 +75,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-provider-poll-retry-grok-data-url-v0610`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260715-aifork-grok-fast-contract-v0611`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-provider-poll-retry-grok-data-url-v0610`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260715-aifork-grok-fast-contract-v0611`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

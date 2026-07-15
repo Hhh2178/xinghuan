@@ -2,10 +2,10 @@
 
 ## 当前高频恢复入口
 
-- AIFork Grok FAST 请求契约灰度：
+- AIFork Grok FAST 请求契约与图片预处理灰度：
   - `2026-07-15`
-  - 当前 gray：`v0.6.11` / `20260715-aifork-grok-fast-contract-v0611`
-  - FAST 改用插件一致的 `duration/video_length/aspect_ratio/video_config/reference_images`，并与 SD 补充契约隔离。
+  - 当前 gray：`v0.6.12` / `20260715-aifork-grok-fast-preprocess-v0612`
+  - FAST 改用插件一致的请求契约，并将参考图按 JPEG/1024/85 预处理；与 SD 补充契约隔离。
   - 真实三图任务证据见对应 validation；production 保持 `v0.5.22`。
 
 - Provider 轮询重试与 Grok FAST Data URL 灰度：

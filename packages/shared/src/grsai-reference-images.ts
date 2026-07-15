@@ -11,6 +11,13 @@ export interface PrepareGrsaiReferenceImagesInput {
 export interface PrepareInlineImageReferencesInput extends PrepareGrsaiReferenceImagesInput {
   maxBytesPerImage?: number;
   maxTotalBytes?: number;
+  processing?: unknown;
+}
+
+interface InlineImageProcessing {
+  format: "jpeg";
+  maxDimension: number;
+  quality: number;
 }
 
 export async function prepareGrsaiReferenceImages(input: PrepareGrsaiReferenceImagesInput) {
@@ -30,6 +37,7 @@ export async function prepareInlineImageReferences(input: PrepareInlineImageRefe
   const limit = Math.max(0, Math.min(16, Number(input.limit) || input.values.length || 0));
   const maxBytesPerImage = positiveInteger(input.maxBytesPerImage, 20 * 1024 * 1024);
   const maxTotalBytes = positiveInteger(input.maxTotalBytes, 64 * 1024 * 1024);
+  const processing = normalizeInlineImageProcessing(input.processing);
   const prepared: string[] = [];
   let totalBytes = 0;
   for (const [index, value] of input.values.entries()) {
@@ -37,20 +45,22 @@ export async function prepareInlineImageReferences(input: PrepareInlineImageRefe
     const text = safeText(value);
     if (!text) continue;
     if (/^data:image\//i.test(text)) {
-      const byteLength = dataUrlByteLength(text);
-      if (!byteLength) throw new Error(`参考图 ${index + 1} 不是受支持的 Base64 Data URL`);
-      if (byteLength > maxBytesPerImage) throw new Error(`参考图 ${index + 1} 超过 Data URL 单图大小限制`);
-      totalBytes += byteLength;
+      const parsed = parseImageDataUrl(text);
+      if (!parsed) throw new Error(`参考图 ${index + 1} 不是受支持的 Base64 Data URL`);
+      if (parsed.buffer.byteLength > maxBytesPerImage) throw new Error(`参考图 ${index + 1} 超过 Data URL 单图大小限制`);
+      const encoded = await encodeInlineImage(parsed.buffer, parsed.mime, text, processing);
+      totalBytes += encoded.byteLength;
       if (totalBytes > maxTotalBytes) throw new Error("参考图总大小超过 Data URL 请求限制");
-      prepared.push(text);
+      prepared.push(encoded.dataUrl);
       continue;
     }
     const local = await readLocalImageReference(text, input.dataDir, input.ownerId);
     if (!local) throw new Error(`参考图 ${index + 1} 不是当前账号的本地素材，无法转换为 Data URL`);
     if (local.byteLength > maxBytesPerImage) throw new Error(`参考图 ${index + 1} 超过 Data URL 单图大小限制`);
-    totalBytes += local.byteLength;
+    const encoded = await encodeInlineImage(local.buffer, local.mime, local.dataUrl, processing);
+    totalBytes += encoded.byteLength;
     if (totalBytes > maxTotalBytes) throw new Error("参考图总大小超过 Data URL 请求限制");
-    prepared.push(local.dataUrl);
+    prepared.push(encoded.dataUrl);
   }
   return prepared;
 }
@@ -72,6 +82,44 @@ async function readLocalImageReference(value: string, dataDir: string, ownerId: 
   return {
     dataUrl: `data:${mime};base64,${buffer.toString("base64")}`,
     byteLength: buffer.byteLength,
+    buffer,
+    mime,
+  };
+}
+
+async function encodeInlineImage(
+  buffer: Buffer,
+  mime: string,
+  originalDataUrl: string,
+  processing: InlineImageProcessing | null,
+) {
+  if (!processing) return { dataUrl: originalDataUrl, byteLength: buffer.byteLength };
+  const sharp = (await import("sharp")).default;
+  const encoded = await sharp(buffer, { failOn: "error" })
+    .rotate()
+    .resize({
+      width: processing.maxDimension,
+      height: processing.maxDimension,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .flatten({ background: { r: 0, g: 0, b: 0 } })
+    .jpeg({ quality: processing.quality, mozjpeg: true })
+    .toBuffer();
+  return {
+    dataUrl: `data:image/jpeg;base64,${encoded.toString("base64")}`,
+    byteLength: encoded.byteLength,
+  };
+}
+
+function normalizeInlineImageProcessing(value: unknown): InlineImageProcessing | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (String(row.format || "").trim().toLowerCase() !== "jpeg") return null;
+  return {
+    format: "jpeg",
+    maxDimension: clampInteger(row.maxDimension, 1024, 64, 4096),
+    quality: clampInteger(row.quality, 85, 1, 100),
   };
 }
 
@@ -124,12 +172,19 @@ function positiveInteger(value: unknown, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
-function dataUrlByteLength(value: string) {
+function parseImageDataUrl(value: string) {
   const matched = value.match(/^data:image\/(?:png|jpe?g|webp|gif);base64,([A-Za-z0-9+/=\s]+)$/i);
-  if (!matched) return 0;
+  if (!matched) return null;
   const base64 = matched[1].replace(/\s+/g, "");
-  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
-  return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+  const buffer = Buffer.from(base64, "base64");
+  if (!buffer.byteLength) return null;
+  const mimeMatch = value.match(/^data:(image\/(?:png|jpe?g|webp|gif));base64,/i);
+  return { buffer, mime: mimeMatch?.[1].toLowerCase() || "image/jpeg" };
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.floor(parsed))) : fallback;
 }
 
 function safeText(value: unknown, fallback = "") {

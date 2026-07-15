@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.11`（gray 已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.12`（gray 已部署）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260715-aifork-grok-fast-contract-v0611` (已部署)
+- 当前 gray release：`20260715-aifork-grok-fast-preprocess-v0612` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：`v0.6.11` 已将 AIFork Grok FAST 从 Preview 的 `seconds/size/images` 映射切到插件一致的通用请求契约；生产继续保持 `v0.5.22`。
+- 最新完成：`v0.6.12` 已在 FAST 通用请求契约上增加模型级 JPEG 1024/85 预处理，匹配真实插件的参考图处理；生产继续保持 `v0.5.22`。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-15 发布推进：`v0.6.11` gray release 已切到 `20260715-aifork-grok-fast-contract-v0611`，详见 `docs/logbooks/releases/gray/2026-07-15-aifork-grok-fast-contract-v0611.md`。
+- 2026-07-15 发布推进：`v0.6.12` gray release 已切到 `20260715-aifork-grok-fast-preprocess-v0612`，详见 `docs/logbooks/releases/gray/2026-07-15-aifork-grok-fast-preprocess-v0612.md`。
 - 当前工作重心：AICopy SD 灰度验收已收口；后台第二阶段已完成灰度验收；ComfyUI 功能开发继续暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`
