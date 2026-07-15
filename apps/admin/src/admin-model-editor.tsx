@@ -15,7 +15,10 @@ import {
 import {
   legacyMultiImageFromReferenceLimit,
   readVideoReferenceImageMax,
+  readVideoReferenceImageTransport,
   syncVideoReferenceImageSchema,
+  syncVideoReferenceImageTransport,
+  type VideoReferenceImageTransport,
 } from "./admin-model-editor-video-reference";
 import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
@@ -372,6 +375,9 @@ export function ModelEditorRow({
   const [videoDurationStep, setVideoDurationStep] = useState("1");
   const [videoDurationDefault, setVideoDurationDefault] = useState("8");
   const [videoReferenceImageMax, setVideoReferenceImageMax] = useState("1");
+  const [videoReferenceImageTransport, setVideoReferenceImageTransport] = useState<VideoReferenceImageTransport>(
+    readVideoReferenceImageTransport(model.advancedConfig || {}),
+  );
   const [aicopyRequestContractEnabled, setAicopyRequestContractEnabled] = useState(
     resolveAicopyRequestContractEnabled(model.advancedConfig),
   );
@@ -389,6 +395,7 @@ export function ModelEditorRow({
     setConfigError("");
     setAdvancedConfigText(JSON.stringify(model.advancedConfig || {}, null, 2));
     setAicopyRequestContractEnabled(resolveAicopyRequestContractEnabled(model.advancedConfig));
+    setVideoReferenceImageTransport(readVideoReferenceImageTransport(model.advancedConfig || {}));
     setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
     const schemaObject = safeJsonObject(model.parameterSchema);
     const voiceSchema = schemaObject.voice && typeof schemaObject.voice === "object" && !Array.isArray(schemaObject.voice)
@@ -492,6 +499,11 @@ export function ModelEditorRow({
         ...inputCapabilities,
         multiImage: legacyMultiImageFromReferenceLimit(inputCapabilities.imageReference, maxReferenceImages),
       };
+      advancedConfig = syncVideoReferenceImageTransport(
+        advancedConfig,
+        inputCapabilities.imageReference,
+        videoReferenceImageTransport,
+      );
       parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     }
     setSchemaError("");
@@ -890,21 +902,35 @@ export function ModelEditorRow({
                     </span>
                     <small>{item.description}</small>
                     {draft.capability === "video" && item.key === "imageReference" && normalizedCaps.imageReference ? (
-                      <span className="capability-reference-limit" onClick={(event) => event.preventDefault()}>
-                        <span>最大参考图数量</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={16}
-                          step={1}
-                          value={videoReferenceImageMax}
-                          aria-label="最大参考图数量"
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => {
-                            const value = Math.max(1, Math.min(16, Math.floor(Number(event.target.value) || 1)));
-                            setVideoReferenceImageMax(String(value));
-                          }}
-                        />
+                      <span className="capability-reference-settings" onClick={(event) => event.preventDefault()}>
+                        <span className="capability-reference-limit">
+                          <span>最大参考图数量</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={16}
+                            step={1}
+                            value={videoReferenceImageMax}
+                            aria-label="最大参考图数量"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              const value = Math.max(1, Math.min(16, Math.floor(Number(event.target.value) || 1)));
+                              setVideoReferenceImageMax(String(value));
+                            }}
+                          />
+                        </span>
+                        <span className="capability-reference-transport">
+                          <span>参考图传输方式</span>
+                          <select
+                            value={videoReferenceImageTransport}
+                            aria-label="参考图传输方式"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setVideoReferenceImageTransport(event.target.value === "data_url" ? "data_url" : "url")}
+                          >
+                            <option value="url">公网 URL</option>
+                            <option value="data_url">Data URL</option>
+                          </select>
+                        </span>
                       </span>
                     ) : null}
                   </span>

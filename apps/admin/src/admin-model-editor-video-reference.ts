@@ -1,5 +1,7 @@
 const MAX_REFERENCE_IMAGES = 16;
 
+export type VideoReferenceImageTransport = "url" | "data_url";
+
 export function readVideoReferenceImageMax(schema: Record<string, unknown>, fallback = 1) {
   const referenceImages = schema.referenceImages && typeof schema.referenceImages === "object" && !Array.isArray(schema.referenceImages)
     ? schema.referenceImages as Record<string, unknown>
@@ -31,6 +33,21 @@ export function syncVideoReferenceImageSchema(
 
 export function legacyMultiImageFromReferenceLimit(enabled: boolean, maxReferenceImages: number) {
   return enabled && clampReferenceImageMax(maxReferenceImages) > 1;
+}
+
+export function readVideoReferenceImageTransport(advancedConfig: Record<string, unknown>): VideoReferenceImageTransport {
+  return advancedConfig.referenceImageTransport === "data_url" ? "data_url" : "url";
+}
+
+export function syncVideoReferenceImageTransport(
+  advancedConfig: Record<string, unknown>,
+  enabled: boolean,
+  transport: VideoReferenceImageTransport,
+) {
+  const next = { ...advancedConfig };
+  if (!enabled || transport === "url") delete next.referenceImageTransport;
+  else next.referenceImageTransport = "data_url";
+  return next;
 }
 
 function clampReferenceImageMax(value: number) {

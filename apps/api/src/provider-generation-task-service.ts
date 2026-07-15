@@ -410,6 +410,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       modeType: validatedInputs.modeType,
       aicopyRequestContractEnabled: resolveAicopyRequestContractEnabled(advancedConfig),
       requestContract: deps.plainObject(advancedConfig.requestContract),
+      referenceImageTransport: advancedConfig.referenceImageTransport === "data_url" ? "data_url" : "url",
       fixedBody: deps.plainObject(advancedConfig.fixedBody),
       advancedMode: deps.safeText(advancedConfig.mode || params.mode),
       taskCapability: "video",

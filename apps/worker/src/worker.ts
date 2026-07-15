@@ -16,7 +16,7 @@ import { createDecipheriv, createHash } from "node:crypto";
 import { join } from "node:path";
 import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
-import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
+import { prepareGrsaiReferenceImages, prepareInlineImageReferences } from "./grsai-reference-images.js";
 import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
 import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
 import {
@@ -825,6 +825,21 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const submitPath = safeText(task.payload.submitPath, "videos/generations");
   const requestContractEnabled = resolveAicopyRequestContractEnabled(task.payload);
   const requestContract = plainObject(task.payload.requestContract);
+  const inlineReferenceImages = safeText(task.payload.referenceImageTransport).toLowerCase() === "data_url";
+  const requestImages = inlineReferenceImages
+    ? await prepareInlineImageReferences({
+        dataDir,
+        ownerId: task.ownerId,
+        values: images,
+        limit: images.length,
+      })
+    : images;
+  const firstFrameIndex = firstFrame ? images.indexOf(firstFrame) : -1;
+  const lastFrameIndex = lastFrame ? images.indexOf(lastFrame) : -1;
+  if (inlineReferenceImages && firstFrame && firstFrameIndex < 0) throw new Error("首帧不在已验证的参考图序列中");
+  if (inlineReferenceImages && lastFrame && lastFrameIndex < 0) throw new Error("尾帧不在已验证的参考图序列中");
+  const requestFirstFrame = firstFrame ? requestImages[firstFrameIndex] || firstFrame : "";
+  const requestLastFrame = lastFrame ? requestImages[lastFrameIndex] || lastFrame : "";
 
   if (shouldUseAicopyVideoAdapter({
     protocol,
@@ -839,7 +854,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
       resolution,
       modeType,
-      images,
+      images: requestImages,
       audios,
       requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
@@ -857,6 +872,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       modeType: safeText(requestMetadata.modeType),
       soundEnabled: safeText(requestMetadata.enableSound).toLowerCase() === "on",
       imageCount: Array.isArray(submitPayload.images) ? submitPayload.images.length : 0,
+      referenceImageTransport: inlineReferenceImages ? "data_url" : "url",
       audioCount: Array.isArray(submitPayload.audios) ? submitPayload.audios.length : 0,
       requestContractEnabled,
     };
@@ -932,9 +948,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       ratio,
       duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
       resolution,
-      images,
-      firstFrame: firstFrame || undefined,
-      lastFrame: lastFrame || undefined,
+      images: requestImages,
+      firstFrame: requestFirstFrame || undefined,
+      lastFrame: requestLastFrame || undefined,
       requestMapping,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
       requestValueTemplates: plainObject(task.payload.requestValueTemplates) as Record<string, string>,
@@ -1003,9 +1019,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   if (ratio) payload.aspect_ratio = ratio;
   if (typeof duration === "string" || typeof duration === "number") payload.duration = duration;
   if (resolution) payload.resolution = resolution;
-  if (images.length > 0) payload.image = images;
-  if (firstFrame) payload.first_frame = firstFrame;
-  if (lastFrame) payload.last_frame = lastFrame;
+  if (requestImages.length > 0) payload.image = requestImages;
+  if (requestFirstFrame) payload.first_frame = requestFirstFrame;
+  if (requestLastFrame) payload.last_frame = requestLastFrame;
 
   const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, submitPath), {
     method: "POST",

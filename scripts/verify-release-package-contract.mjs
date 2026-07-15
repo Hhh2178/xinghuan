@@ -38,6 +38,12 @@ assertArrayIncludes("requiredPaths", "scripts/configure-aicopy-sd-model-capabili
 assertArrayIncludes("includedPaths", "scripts/configure-aicopy-sd-model-capabilities.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-aicopy-sd-model-config.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-aicopy-sd-model-config.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-worker-aicopy-final-content.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-worker-aicopy-final-content.mjs");
+assertArrayIncludes("requiredPaths", "scripts/configure-aifork-grok-fast-data-url-references.mjs");
+assertArrayIncludes("includedPaths", "scripts/configure-aifork-grok-fast-data-url-references.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-aifork-grok-fast-data-url-references.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-aifork-grok-fast-data-url-references.mjs");
 assertArrayIncludes("requiredPaths", "apps/api/src/server.ts");
 assertArrayIncludes("requiredPaths", "apps/api/src/provider-generation-task-service.ts");
 assertArrayIncludes("requiredPaths", "apps/worker/src/worker.ts");
@@ -67,6 +73,9 @@ console.log(
         "scripts/verify-single-port.mjs",
         "scripts/configure-aicopy-sd-model-capabilities.mjs",
         "scripts/verify-aicopy-sd-model-config.mjs",
+        "scripts/verify-worker-aicopy-final-content.mjs",
+        "scripts/configure-aifork-grok-fast-data-url-references.mjs",
+        "scripts/verify-aifork-grok-fast-data-url-references.mjs",
       ],
       requiredSources: [
         "apps/api/src/server.ts",

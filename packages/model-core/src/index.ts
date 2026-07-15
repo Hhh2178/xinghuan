@@ -57,6 +57,7 @@ export interface ModelAdvancedConfig {
   mode?: string;
   submitPath?: string;
   requestMapping?: Record<string, string>;
+  referenceImageTransport?: "url" | "data_url";
   fixedBody?: Record<string, unknown>;
   taskStatusPath?: string;
   taskIdPath?: string;

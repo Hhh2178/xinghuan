@@ -11,7 +11,7 @@ import {
   type ProviderProtocol as CatalogProtocol,
 } from "@xinghuan/model-core";
 import { createGrsaiImageClient } from "./grsai-image-adapter.js";
-import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
+import { prepareGrsaiReferenceImages, prepareProviderReferenceImages } from "./grsai-reference-images.js";
 import {
   normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
   normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
@@ -701,8 +701,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       maxReferenceImages: ui.maxReferenceImages,
       maxReferenceAudios: ui.maxReferenceAudios,
     });
+    const requestImageValues = await prepareProviderReferenceImages({ advancedConfig, dataDir: deps.dataDir, ownerId: user.id, values: orderedSubmittedImages });
     const images = normalizeProviderReferenceUrls(
-      orderedSubmittedImages,
+      requestImageValues,
       publicOrigin,
       user,
     );

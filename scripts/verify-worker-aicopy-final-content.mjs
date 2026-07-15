@@ -12,7 +12,7 @@ let verified = false;
 async function main() {
   const upstream = await startMockAicopyServer();
   const providerId = `verify-aicopy-final-${Date.now()}`;
-  const modelId = "sd2-720p-mini-mock";
+  const modelId = "grok-imagine-video-1.5-fast";
   try {
     const login = await fetchJson("/api/auth/login", {
       method: "POST",
@@ -45,15 +45,15 @@ async function main() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         protocolOverride: "aicopy",
-        inputProfile: "prompt,image_reference,first_frame",
-        inputCapabilities: { prompt: true, imageReference: true, firstFrame: true },
+        inputProfile: "prompt,image_reference,multi_image",
+        inputCapabilities: { prompt: true, imageReference: true, multiImage: true },
         parameterSchema: JSON.stringify({
           aspectRatios: ["9:16"],
           defaultAspectRatio: "9:16",
-          duration: { type: "range", min: 4, max: 15, step: 1, default: 6 },
+          duration: { type: "select", options: [6, 10], default: 6 },
           resolutions: ["720p"],
           defaultResolution: "720p",
-          referenceImages: { type: "image[]", max: 1 },
+          referenceImages: { type: "image[]", max: 6 },
         }),
         advancedConfig: {
           submitPath: "videos",
@@ -61,27 +61,25 @@ async function main() {
           contentPathTemplate: "videos/{task_id}/content",
           taskIdPath: "id",
           taskStatusPath: "status",
-          aicopyRequestContractEnabled: true,
-          requestContract: {
-            bindings: [
-              { path: "duration", source: "duration", type: "number" },
-              { path: "metadata.modeType", source: "modeType", type: "string" },
-              { path: "metadata.ratio", source: "ratio", type: "string" },
-              { path: "metadata.enableSound", value: "on", type: "string" },
-              { path: "images", source: "images", type: "string[]", omitWhenEmpty: true },
-            ],
-            resultPaths: ["result_url", "data.metadata.url", "data.output"],
-          },
+          aicopyRequestContractEnabled: false,
+          referenceImageTransport: "data_url",
+          requestMapping: { ratio: "size", duration: "seconds", images: "images", resolution: "" },
+          requestValueTypes: { duration: "string" },
+          requestValueTemplates: { size: "{preview_video_size}" },
         },
       }),
     });
     assert(updatedModel.data?.protocolOverride === "aicopy", `protocol override mismatch: ${updatedModel.data?.protocolOverride || "empty"}`);
 
-    const upload = new FormData();
-    upload.set("file", new Blob([png1x1], { type: "image/png" }), "aicopy-reference.png");
-    const uploaded = await fetchJson("/api/files/upload", { method: "POST", body: upload });
-    const imageUrl = String(uploaded.data?.url || "");
-    assert(imageUrl.startsWith("/files/input/"), "reference upload failed");
+    const imageUrls = [];
+    for (const index of [1, 2, 3]) {
+      const upload = new FormData();
+      upload.set("file", new Blob([png1x1], { type: "image/png" }), `aifork-reference-${index}.png`);
+      const uploaded = await fetchJson("/api/files/upload", { method: "POST", body: upload });
+      const imageUrl = String(uploaded.data?.url || "");
+      assert(imageUrl.startsWith("/files/input/"), `reference upload ${index} failed`);
+      imageUrls.push(imageUrl);
+    }
 
     const created = await fetchJson("/api/proxy/external/video/task", {
       method: "POST",
@@ -95,9 +93,8 @@ async function main() {
         ratio: "9:16",
         duration: 6,
         resolution: "720p",
-        images: [imageUrl],
-        first_frame: imageUrl,
-        providerParams: { modelRecordId: modelRecord.id, videoInputMode: "first" },
+        images: imageUrls,
+        providerParams: { modelRecordId: modelRecord.id, videoInputMode: "reference" },
       }),
     });
     const taskId = String(created.data?.taskId || created.data?.id || "");
@@ -114,15 +111,14 @@ async function main() {
     assert(task.raw?.adapter === "aicopy-video", "AICopy adapter was not used");
     assert(task.videoUrls?.[0]?.startsWith("/files/output/"), "final content was not materialized");
     assert(upstream.submitCount === 1, "unexpected AICopy submit count");
-    assert(upstream.pollCount >= 1, "AICopy poll endpoint was not called");
+    assert(upstream.pollCount === 2, "AICopy transient 502 should recover on the second poll");
     assert(upstream.contentCount === 1, "AICopy content endpoint was not fetched once");
     assert(upstream.submitAuthorization === "Bearer verify-aicopy-key", "submit authorization mismatch");
     assert(upstream.contentAuthorization === "Bearer verify-aicopy-key", "content authorization mismatch");
-    assert(upstream.body?.duration === 6, "duration was not serialized");
-    assert(upstream.body?.metadata?.modeType === "image2video", "modeType was not serialized");
-    assert(upstream.body?.metadata?.ratio === "9:16", "ratio was not serialized");
-    assert(upstream.body?.metadata?.enableSound === "on", "sound flag was not serialized");
-    assert(Array.isArray(upstream.body?.images) && upstream.body.images.length === 1, "image was not serialized");
+    assert(upstream.body?.seconds === "6", "duration was not serialized as seconds");
+    assert(upstream.body?.size === "720x1280", "ratio was not serialized as preview size");
+    assert(Array.isArray(upstream.body?.images) && upstream.body.images.length === 3, "three images were not serialized");
+    assert(upstream.body.images.every((value) => /^data:image\/png;base64,/.test(value)), "images were not inlined as Data URLs");
     verified = true;
 
     console.log(JSON.stringify({
@@ -135,9 +131,10 @@ async function main() {
         submitCount: upstream.submitCount,
         pollCount: upstream.pollCount,
         contentCount: upstream.contentCount,
-        duration: upstream.body.duration,
-        metadata: upstream.body.metadata,
+        seconds: upstream.body.seconds,
+        size: upstream.body.size,
         imageCount: upstream.body.images.length,
+        imageTransport: "data_url",
       },
     }, null, 2));
   } finally {
@@ -173,6 +170,11 @@ function startMockAicopyServer() {
       }
       if (request.method === "GET" && request.url === "/v1/videos/task_mock_final_content") {
         state.pollCount += 1;
+        if (state.pollCount === 1) {
+          response.writeHead(502, { "content-type": "text/html" });
+          response.end("<html><body><h1>502 Bad Gateway</h1></body></html>");
+          return;
+        }
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ id: "task_mock_final_content", status: "completed", progress: 100 }));
         return;

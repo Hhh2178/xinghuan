@@ -28,6 +28,8 @@ assert.match(serviceSource, /validateVideoInputs/);
 assert.match(serviceSource, /videoInputMode:\s*validatedInputs\.mode/);
 assert.match(serviceSource, /modeType:\s*validatedInputs\.modeType/);
 assert.match(serviceSource, /requestContract:\s*deps\.plainObject\(advancedConfig\.requestContract\)/);
+assert.match(serviceSource, /referenceImageTransport:\s*advancedConfig\.referenceImageTransport === "data_url"/);
+assert.doesNotMatch(serviceSource, /prepareInlineImageReferences/);
 assert.match(serverSource, /invalidRequest:\s*\(message\) => new HttpError\(400, message\)/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));

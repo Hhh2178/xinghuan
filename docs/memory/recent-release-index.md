@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.6.9`
-  - release：`20260715-aicopy-sd-toggle-contract-defaults-v069`
+  - 版本：`v0.6.10`
+  - release：`20260715-provider-poll-retry-grok-data-url-v0610`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const worker = await readFile(new URL("../apps/worker/src/worker.ts", import.meta.url), "utf8");
 const mediaPolling = await readFile(new URL("../apps/worker/src/worker-media-polling.ts", import.meta.url), "utf8");
+const transientRetry = await readFile(new URL("../apps/worker/src/worker-transient-poll-retry.ts", import.meta.url), "utf8");
 
 assert.match(worker, /from "\.\/worker-media-polling\.js"/, "worker.ts should import extracted media polling helpers");
 assert.match(worker, /pollApimartVideoTask/, "worker.ts should keep delegating video polling through extracted helper");
@@ -29,5 +30,11 @@ assert.match(mediaPolling, /export function isFailedAsyncStatus\(/, "media polli
 assert.match(mediaPolling, /export function readPathText\(/, "media polling helper should export polling path reader");
 assert.match(mediaPolling, /runtimeStage:\s*"polling"/, "media polling helper should preserve polling runtime heartbeat stage");
 assert.match(mediaPolling, /buildUpstreamBusinessFailurePatch/, "media polling helper should preserve upstream business failure normalization");
+assert.match(mediaPolling, /fetchPollResponseWithRetry/, "media polling should delegate transient transport retry");
+assert.ok((mediaPolling.match(/fetchPollResponseWithRetry\(/g) || []).length >= 5, "all five Worker media polling GET paths should use transient retry");
+assert.match(transientRetry, /408/);
+assert.match(transientRetry, /425/);
+assert.match(transientRetry, /429/);
+assert.match(transientRetry, /status >= 500/);
 
 console.log("PASS worker media polling split contract");

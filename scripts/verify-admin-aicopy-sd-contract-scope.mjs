@@ -27,6 +27,9 @@ assert.match(modelEditorSource, /advancedConfig\s*=\s*mergeAicopySdRequestContra
 assert.match(modelEditorSource, /capability === "audio" \|\| capability === "video"/);
 assert.match(modelEditorSource, /"参考图模式"/);
 assert.match(modelEditorSource, /最大参考图数量/);
+assert.match(modelEditorSource, /参考图传输方式/);
+assert.match(modelEditorSource, /Data URL/);
+assert.match(modelEditorSource, /syncVideoReferenceImageTransport/);
 assert.match(modelEditorSource, /referenceImages/);
 assert.match(modelEditorSource, /readVideoReferenceImageMax/);
 assert.match(videoReferenceSource, /Math\.min\(MAX_REFERENCE_IMAGES/);

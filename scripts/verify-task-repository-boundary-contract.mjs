@@ -5,8 +5,8 @@ const server = await readFile(new URL("../apps/api/src/server.ts", import.meta.u
 const routes = await readFile(new URL("../apps/api/src/admin-task-list-routes.ts", import.meta.url), "utf8");
 const repository = await readFile(new URL("../apps/api/src/task-repository.ts", import.meta.url), "utf8");
 
-const listPage = repository.match(/async function readTaskListPage\([\s\S]*?\n  async function readTaskRecord/)?.[0] || "";
-const readTaskRecord = repository.match(/async function readTaskRecord\([\s\S]*?\n  async function writeTaskRecord/)?.[0] || "";
+const listPage = repository.match(/async function readTaskListPage\([\s\S]*?\n {2}async function readTaskRecord/)?.[0] || "";
+const readTaskRecord = repository.match(/async function readTaskRecord\([\s\S]*?\n {2}async function writeTaskRecord/)?.[0] || "";
 
 assert.match(server, /createTaskRepository\(/, "server.ts should instantiate task repository");
 assert.match(server, /readTaskListPage:\s*taskRepository\.readTaskListPage/, "admin task routes should receive repository task list reader");

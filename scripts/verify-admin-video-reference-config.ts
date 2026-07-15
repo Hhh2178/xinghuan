@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import {
   legacyMultiImageFromReferenceLimit,
   readVideoReferenceImageMax,
+  readVideoReferenceImageTransport,
   syncVideoReferenceImageSchema,
+  syncVideoReferenceImageTransport,
 } from "../apps/admin/src/admin-model-editor-video-reference.ts";
 
 assert.equal(readVideoReferenceImageMax({ referenceImages: { max: 9 } }), 9);
@@ -23,5 +25,13 @@ assert.deepEqual(syncVideoReferenceImageSchema({
 assert.equal(legacyMultiImageFromReferenceLimit(true, 1), false);
 assert.equal(legacyMultiImageFromReferenceLimit(true, 2), true);
 assert.equal(legacyMultiImageFromReferenceLimit(false, 9), false);
+assert.equal(readVideoReferenceImageTransport({}), "url");
+assert.equal(readVideoReferenceImageTransport({ referenceImageTransport: "data_url" }), "data_url");
+assert.deepEqual(syncVideoReferenceImageTransport({ mode: "async_video_task" }, true, "data_url"), {
+  mode: "async_video_task",
+  referenceImageTransport: "data_url",
+});
+assert.deepEqual(syncVideoReferenceImageTransport({ referenceImageTransport: "data_url" }, true, "url"), {});
+assert.deepEqual(syncVideoReferenceImageTransport({ referenceImageTransport: "data_url" }, false, "data_url"), {});
 
 console.log(JSON.stringify({ ok: true }, null, 2));

@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.6.9`
-- 当前 release：`20260715-aicopy-sd-toggle-contract-defaults-v069`
-- 当前状态：`v0.6.9 已部署灰度；AICopy SD 模型开关会自动补齐官方请求契约，生产继续保持 v0.5.22`
-- 当前补修：`FAST、普通 720P 与 mini 已统一六条绑定；免费 Mock 和配置幂等复核通过，本批次未调用付费模型`
+- 当前版本：`v0.6.10`
+- 当前 release：`20260715-provider-poll-retry-grok-data-url-v0610`
+- 当前状态：`v0.6.10 已部署灰度；Provider 幂等轮询具备受控瞬时错误重试，生产继续保持 v0.5.22`
+- 当前补修：`AIFork Grok FAST 以模型级 Data URL 传输最多 6 张参考图；免费重试 Mock、三图 Mock 和 1080P 后台验收通过，本批次未调用付费模型`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
+  - `../../docs/logbooks/validations/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-sd-toggle-contract-defaults-v069.md`
   - `../../docs/logbooks/validations/2026-07-15-aicopy-sd-toggle-contract-defaults.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-task-store-normalization-v068.md`

@@ -1,6 +1,6 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
@@ -103,6 +103,7 @@
     "verify:worker-failure-glue-split-contract": "node scripts/verify-worker-failure-glue-split-contract.mjs",
     "verify:worker-deferred-requeue-split-contract": "node scripts/verify-worker-deferred-requeue-split-contract.mjs",
     "verify:worker-media-polling-split-contract": "node scripts/verify-worker-media-polling-split-contract.mjs",
+    "verify:worker-transient-poll-retry": "npx tsx scripts/verify-worker-transient-poll-retry.ts",
     "verify:api-admin-system-route-split-contract": "node scripts/verify-api-admin-system-route-split-contract.mjs",
     "verify:api-admin-assistant-settings-route-split-contract": "node scripts/verify-api-admin-assistant-settings-route-split-contract.mjs",
     "verify:api-admin-provider-route-split-contract": "node scripts/verify-api-admin-provider-route-split-contract.mjs",
@@ -165,6 +166,7 @@
     "verify:apimart-video-adapter-contract": "npx tsx scripts/verify-apimart-video-adapter-contract.ts",
     "verify:aicopy-video-adapter-contract": "npx tsx scripts/verify-aicopy-video-adapter-contract.ts",
     "verify:aicopy-sd-model-config": "node scripts/verify-aicopy-sd-model-config.mjs",
+    "verify:aifork-grok-fast-data-url-references": "node scripts/verify-aifork-grok-fast-data-url-references.mjs",
     "verify:video-node-backend-inputs-contract": "npx tsx scripts/verify-video-node-backend-inputs-contract.ts",
     "verify:admin-video-reference-config": "npx tsx scripts/verify-admin-video-reference-config.ts",
     "verify:model-catalog": "node scripts/verify-model-catalog.mjs",

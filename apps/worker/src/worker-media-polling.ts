@@ -13,6 +13,10 @@ import {
   buildUpstreamBusinessFailurePatch,
   createWorkerTaskError,
 } from "./worker-task-lifecycle.js";
+import {
+  fetchPollResponseWithRetry,
+  type TransientPollRetryEvent,
+} from "./worker-transient-poll-retry.js";
 
 type RuntimeHeartbeatPatch = Record<string, unknown>;
 
@@ -26,6 +30,37 @@ function safeText(value: unknown, fallback = "") {
 
 function wait(ms: number): Promise<void> {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function transientRetryHeartbeat(
+  taskId: string,
+  onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>,
+) {
+  return async (event: TransientPollRetryEvent) => {
+    await onHeartbeat?.({
+      heartbeatAt: new Date().toISOString(),
+      upstreamTaskId: taskId,
+      taskId,
+      runtimeStage: "polling",
+      pollRetryCount: event.attempt,
+      pollRetryLimit: event.maxRetries,
+      lastPollHttpStatus: event.statusCode || 0,
+      lastPollTransientError: event.error,
+      nextPollRetryDelayMs: event.delayMs,
+    });
+  };
+}
+
+function recoveredRetryPatch(retryCount: number, statusCode: number) {
+  return retryCount > 0
+    ? {
+        pollRetryCount: retryCount,
+        lastPollHttpStatus: statusCode,
+        lastPollTransientError: "",
+        nextPollRetryDelayMs: 0,
+        pollRetryRecoveredAt: new Date().toISOString(),
+      }
+    : {};
 }
 
 export async function pollApimartVideoTask(options: {
@@ -43,18 +78,25 @@ export async function pollApimartVideoTask(options: {
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
+  const deadlineAt = typeof options.timeoutMs === "number" && options.timeoutMs > 0
+    ? startedAt + options.timeoutMs
+    : undefined;
   for (;;) {
     if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
       throw new Error("视频生成轮询超时");
     }
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const pollPath = safeText(options.pollPathTemplate, "tasks/{task_id}").replace("{task_id}", encodeURIComponent(options.taskId));
-    const response = await fetch(openAiEndpoint(options.baseUrl, pollPath), {
-      method: "GET",
-      headers: providerHeaders(options.apiKey),
-      signal: AbortSignal.timeout(120000),
+    const polledResponse = await fetchPollResponseWithRetry({
+      request: () => fetch(openAiEndpoint(options.baseUrl, pollPath), {
+        method: "GET",
+        headers: providerHeaders(options.apiKey),
+        signal: AbortSignal.timeout(120000),
+      }),
+      deadlineAt,
+      onRetry: transientRetryHeartbeat(options.taskId, options.onHeartbeat),
     });
-    const text = await response.text();
+    const { response, text } = polledResponse;
     if (!response.ok) throw new Error(`视频任务轮询失败 ${response.status}: ${text.slice(0, 500)}`);
     const raw = text ? JSON.parse(text) : {};
     const result = extractApimartVideoResult(raw, {
@@ -68,6 +110,7 @@ export async function pollApimartVideoTask(options: {
       taskId: options.taskId,
       upstreamStatus: status || "pending",
       runtimeStage: "polling",
+      ...recoveredRetryPatch(polledResponse.retryCount, response.status),
     });
     if (result.videoUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return result;
     if (options.finalResultPathTemplate) {
@@ -110,18 +153,25 @@ export async function pollAicopyVideoTask(options: {
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
+  const deadlineAt = typeof options.timeoutMs === "number" && options.timeoutMs > 0
+    ? startedAt + options.timeoutMs
+    : undefined;
   for (;;) {
     if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
       throw new Error("视频生成轮询超时");
     }
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const pollPath = safeText(options.pollPathTemplate, "videos/{task_id}").replace("{task_id}", encodeURIComponent(options.taskId));
-    const response = await fetch(openAiEndpoint(options.baseUrl, pollPath), {
-      method: "GET",
-      headers: providerHeaders(options.apiKey),
-      signal: AbortSignal.timeout(120000),
+    const polledResponse = await fetchPollResponseWithRetry({
+      request: () => fetch(openAiEndpoint(options.baseUrl, pollPath), {
+        method: "GET",
+        headers: providerHeaders(options.apiKey),
+        signal: AbortSignal.timeout(120000),
+      }),
+      deadlineAt,
+      onRetry: transientRetryHeartbeat(options.taskId, options.onHeartbeat),
     });
-    const text = await response.text();
+    const { response, text } = polledResponse;
     if (!response.ok) throw new Error(`视频任务轮询失败 ${response.status}: ${text.slice(0, 500)}`);
     const raw = text ? JSON.parse(text) : {};
     const result = extractAicopyVideoResult(raw, {
@@ -136,6 +186,7 @@ export async function pollAicopyVideoTask(options: {
       taskId: options.taskId,
       upstreamStatus: status || "pending",
       runtimeStage: "polling",
+      ...recoveredRetryPatch(polledResponse.retryCount, response.status),
     });
     if (result.videoUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return result;
     if (isCompletedAsyncStatus(status)) {
@@ -163,12 +214,14 @@ export async function fetchFinalApimartVideoResult(options: {
   finalResultPathTemplate: string;
 }) {
   const finalPath = safeText(options.finalResultPathTemplate).replace("{task_id}", encodeURIComponent(options.taskId));
-  const response = await fetch(openAiEndpoint(options.baseUrl, finalPath), {
-    method: "GET",
-    headers: providerHeaders(options.apiKey),
-    signal: AbortSignal.timeout(120000),
+  const polledResponse = await fetchPollResponseWithRetry({
+    request: () => fetch(openAiEndpoint(options.baseUrl, finalPath), {
+      method: "GET",
+      headers: providerHeaders(options.apiKey),
+      signal: AbortSignal.timeout(120000),
+    }),
   });
-  const text = await response.text();
+  const { response, text } = polledResponse;
   if (!response.ok) throw new Error(`最终视频结果查询失败 ${response.status}: ${text.slice(0, 500)}`);
   const raw = text ? JSON.parse(text) : {};
   return extractApimartVideoResult(raw, {
@@ -193,12 +246,16 @@ export async function pollApimartImageTask(options: {
     if (Date.now() > deadline) throw new Error("APIMart 图像生成轮询超时");
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(options.taskId));
-    const response = await fetch(openAiEndpoint(options.baseUrl, statusPath), {
-      method: "GET",
-      headers: providerHeaders(options.apiKey),
-      signal: AbortSignal.timeout(120000),
+    const polledResponse = await fetchPollResponseWithRetry({
+      request: () => fetch(openAiEndpoint(options.baseUrl, statusPath), {
+        method: "GET",
+        headers: providerHeaders(options.apiKey),
+        signal: AbortSignal.timeout(120000),
+      }),
+      deadlineAt: Number.isFinite(deadline) ? deadline : undefined,
+      onRetry: transientRetryHeartbeat(options.taskId, options.onHeartbeat),
     });
-    const text = await response.text();
+    const { response, text } = polledResponse;
     if (!response.ok) throw new Error(`APIMart 图像轮询失败 ${response.status}: ${text.slice(0, 500)}`);
     const raw = text ? JSON.parse(text) : {};
     const data = raw && typeof raw === "object" && !Array.isArray(raw)
@@ -218,6 +275,7 @@ export async function pollApimartImageTask(options: {
       taskId: options.taskId,
       upstreamStatus: status || "pending",
       runtimeStage: "polling",
+      ...recoveredRetryPatch(polledResponse.retryCount, response.status),
     });
     if (extracted.imageUrls.length > 0) return extracted;
     if (["failed", "error", "cancelled", "canceled"].includes(status)) {
@@ -240,6 +298,9 @@ export async function pollModelScopeImageTask(options: {
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
 }) {
   const startedAt = Date.now();
+  const deadlineAt = typeof options.timeoutMs === "number" && options.timeoutMs > 0
+    ? startedAt + options.timeoutMs
+    : undefined;
   const pollPathTemplate = safeText(options.pollPathTemplate, "tasks/{task_id}");
   for (;;) {
     if (typeof options.timeoutMs === "number" && options.timeoutMs > 0 && Date.now() - startedAt > options.timeoutMs) {
@@ -247,12 +308,16 @@ export async function pollModelScopeImageTask(options: {
     }
     if (options.pollIntervalMs > 0) await wait(options.pollIntervalMs);
     const statusPath = pollPathTemplate.replace("{task_id}", encodeURIComponent(options.taskId));
-    const response = await fetch(openAiEndpoint(options.baseUrl, statusPath), {
-      method: "GET",
-      headers: modelScopeHeaders(options.apiKey, "poll"),
-      signal: AbortSignal.timeout(120000),
+    const polledResponse = await fetchPollResponseWithRetry({
+      request: () => fetch(openAiEndpoint(options.baseUrl, statusPath), {
+        method: "GET",
+        headers: modelScopeHeaders(options.apiKey, "poll"),
+        signal: AbortSignal.timeout(120000),
+      }),
+      deadlineAt,
+      onRetry: transientRetryHeartbeat(options.taskId, options.onHeartbeat),
     });
-    const text = await response.text();
+    const { response, text } = polledResponse;
     if (!response.ok) throw new Error(`ModelScope 图像轮询失败 ${response.status}: ${text.slice(0, 500)}`);
     const raw = text ? JSON.parse(text) : {};
     const extracted = extractImageOutputs(raw);
@@ -264,6 +329,7 @@ export async function pollModelScopeImageTask(options: {
       taskId: options.taskId,
       upstreamStatus: status || "pending",
       runtimeStage: "polling",
+      ...recoveredRetryPatch(polledResponse.retryCount, response.status),
     });
     if (extracted.imageUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return extracted;
     if (isFailedAsyncStatus(status)) {

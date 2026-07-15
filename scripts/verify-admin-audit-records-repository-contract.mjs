@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 const server = await readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8");
 const routes = await readFile(new URL("../apps/api/src/admin-audit-routes.ts", import.meta.url), "utf8");
 const repository = await readFile(new URL("../apps/api/src/admin-repository.ts", import.meta.url), "utf8");
-const appendAuditRecord = repository.match(/async function appendAuditRecord\([\s\S]*?\n  }\n}\n\nfunction toCount/)?.[0] || "";
-const readAuditRecords = repository.match(/async function readAuditRecords\([\s\S]*?\n  }\n\n  async function appendAuditRecord/)?.[0] || "";
+const appendAuditRecord = repository.match(/async function appendAuditRecord\([\s\S]*?\n {2}}\n}\n\nfunction toCount/)?.[0] || "";
+const readAuditRecords = repository.match(/async function readAuditRecords\([\s\S]*?\n {2}}\n\n {2}async function appendAuditRecord/)?.[0] || "";
 
 assert.match(server, /createAdminRepository\(/, "server.ts should instantiate the admin repository");
 assert.match(server, /readAuditRecords:\s*adminRepository\.readAuditRecords/, "admin audit route should receive repository audit reader");

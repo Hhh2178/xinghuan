@@ -2,6 +2,12 @@
 
 ## 当前高频恢复入口
 
+- Provider 轮询重试与 Grok FAST Data URL 灰度：
+  - `2026-07-15`
+  - 当前 gray：`v0.6.10` / `20260715-provider-poll-retry-grok-data-url-v0610`
+  - 幂等 GET 瞬时错误可受控重试，生成 POST 不重试；FAST 最多 6 张参考图按模型使用 Data URL。
+  - 免费轮询 Mock、三图 Mock 和 1080P 助手开关验收通过；production 保持 `v0.5.22`。
+
 - Clean worktree 迁移与结构治理当前口径：
   - `2026-07-05`
   - 当前活跃分支：`xinghuan-integration-clean`

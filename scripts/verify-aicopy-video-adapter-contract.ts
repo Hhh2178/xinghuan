@@ -66,6 +66,44 @@ assert.deepEqual(sdPayload.metadata, {
 assert.deepEqual(sdPayload.images, ["https://example.com/first-frame.png"]);
 assert.equal("audios" in sdPayload, false);
 
+const genericGrokPayload = createAicopyVideoAdapterPayload({
+  modelId: "grok-imagine-1.0-video",
+  prompt: "镜头缓慢推进，人物自然转身",
+  duration: 6,
+  ratio: "16:9",
+  resolution: "720p",
+  images: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
+  requestContractEnabled: true,
+  requestContract: {
+    bindings: [
+      { path: "duration", source: "duration", type: "number" },
+      { path: "video_length", source: "duration", type: "number" },
+      { path: "aspect_ratio", source: "ratio", type: "string" },
+      { path: "resolution", source: "resolution", type: "string" },
+      { path: "video_config.video_length", source: "duration", type: "number" },
+      { path: "video_config.aspect_ratio", source: "ratio", type: "string" },
+      { path: "video_config.resolution", source: "resolution", type: "string" },
+      { path: "video_config.preset", value: "normal", type: "string" },
+      { path: "reference_images", source: "images", type: "string[]" },
+    ],
+  },
+});
+assert.deepEqual(genericGrokPayload, {
+  model: "grok-imagine-1.0-video",
+  prompt: "镜头缓慢推进，人物自然转身",
+  duration: 6,
+  video_length: 6,
+  aspect_ratio: "16:9",
+  resolution: "720p",
+  video_config: {
+    video_length: 6,
+    aspect_ratio: "16:9",
+    resolution: "720p",
+    preset: "normal",
+  },
+  reference_images: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
+});
+
 const sdResult = extractAicopyVideoResult({
   status: "completed",
   result_url: "https://api.aicopy.top/v1/videos/task_example/content",
