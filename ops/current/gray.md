@@ -5,7 +5,7 @@
 - 当前版本：`v0.6.12`
 - 当前 release：`20260715-aifork-grok-fast-preprocess-v0612`
 - 当前状态：`v0.6.12 已部署灰度；AIFork Grok FAST 使用插件一致的通用请求契约和图片预处理，生产继续保持 v0.5.22`
-- 当前补修：`FAST 的 reference_images 提交前按最长边 1024、JPEG 85 压缩；配置仅在目标模型生效`
+- 当前补修：`FAST 的 reference_images 提交前按最长边 1024、JPEG 85 压缩；真实三图 6 秒 9:16 任务已成功并完成本地物料化`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`

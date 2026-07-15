@@ -8,8 +8,8 @@
 - release：`20260715-aifork-grok-fast-preprocess-v0612`
 - 当前状态：`v0.6.12 已部署灰度；AIFork Grok FAST 使用插件一致的通用请求契约和参考图预处理，生产保持 v0.5.22`
 - 部署内容：`FAST 独立启用 duration/video_length/aspect_ratio/video_config/reference_images；参考图按 JPEG/1024/85 处理；SD 补充契约保持隔离`
-- 已验证：`公网 URL 和 Data URL 预处理回归、全工作区类型检查、构建和 71 项测试通过；灰度真实 FAST 三图任务结果见本批次验证记录`
-- 待验收：`用户可继续检查成片内容质量；协议、任务终态与画布回收由本批次完成`
+- 已验证：`公网 URL 和 Data URL 预处理回归、全工作区类型检查、构建和 71 项测试通过；灰度真实 FAST 三图任务成功，竖屏 6 秒视频与 AAC 音轨已物料化`
+- 待验收：`用户可继续检查成片内容质量；协议、第三张素材、任务终态、画布轮询停止与本地回收均已通过`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
   - `gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
