@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PermissionRule, PermissionSubject } from "@xinghuan/shared";
 import { createPermissionService, PermissionDeniedError } from "./permission-service.js";
 
@@ -51,5 +51,25 @@ describe("permission service", () => {
     });
 
     await expect(service.assertAllowed({ id: "member-a", role: "member" }, subject.subjectKey, "view")).rejects.toEqual(new PermissionDeniedError());
+  });
+
+  it("shares one authorization snapshot across concurrent catalog decisions", async () => {
+    const readAuthorizationState = vi.fn(async () => ({
+      subjects: [subject],
+      rules: [groupAllow],
+    }));
+    const service = createPermissionService({ readAuthorizationState });
+    const member = { id: "member-a", role: "member" as const, groupId: "group-a" };
+
+    await Promise.all([
+      service.can(member, subject.subjectKey, "execute"),
+      service.can(member, subject.subjectKey, "execute"),
+      service.can(member, subject.subjectKey, "execute"),
+    ]);
+
+    expect(readAuthorizationState).toHaveBeenCalledTimes(1);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    await service.can(member, subject.subjectKey, "execute");
+    expect(readAuthorizationState).toHaveBeenCalledTimes(2);
   });
 });

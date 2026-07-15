@@ -115,6 +115,11 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
     context?: RequestContextLike | any,
   ) => Promise<void>;
   nodeTypes?: NodeCapabilityDefinition[];
+  resolveNodeTypeAllowed?: (
+    user: CurrentUserLike,
+    nodeType: string,
+    legacyAllowed: boolean,
+  ) => Promise<boolean>;
 }) {
   const {
     readJsonBody,
@@ -194,7 +199,34 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
   }) {
     if (url.pathname === "/api/me/permissions" && request.method === "GET") {
       const authDb = await readAuthDb();
-      sendT8(response, buildEffectivePermissions(requireUser(currentUser), authDb.groupPermissionPolicies));
+      const user = requireUser(currentUser);
+      const effective = buildEffectivePermissions(user, authDb.groupPermissionPolicies);
+      if (user.role === "admin" || !deps.resolveNodeTypeAllowed) {
+        sendT8(response, effective);
+        return true;
+      }
+      const currentNodeTypeIds = new Set(nodeTypes.map((item) => item.id));
+      const retainedUnknownDenials = effective.deny.nodeTypes.filter(
+        (nodeType) => nodeType !== "*" && !currentNodeTypeIds.has(nodeType),
+      );
+      const decisions = await Promise.all(nodeTypes.map(async (nodeType) => ({
+        nodeType: nodeType.id,
+        allowed: await deps.resolveNodeTypeAllowed!(
+          user,
+          nodeType.id,
+          !effective.deny.nodeTypes.includes("*") && !effective.deny.nodeTypes.includes(nodeType.id),
+        ),
+      })));
+      sendT8(response, {
+        ...effective,
+        deny: {
+          ...effective.deny,
+          nodeTypes: [
+            ...retainedUnknownDenials,
+            ...decisions.filter((decision) => !decision.allowed).map((decision) => decision.nodeType),
+          ],
+        },
+      });
       return true;
     }
 

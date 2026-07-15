@@ -35,6 +35,8 @@ const internalStatusUrl = String(firstArg(args["internal-status-url"]) || defaul
 const publicStatusUrl = String(firstArg(args["public-status-url"]) || defaults.publicStatusUrl);
 const expectedVersion = String(firstArg(args["expected-version"]) || "").trim();
 const expectedEnvironment = String(firstArg(args["expected-environment"]) || "").trim();
+const expectedPermissionMode = String(firstArg(args["expected-permission-mode"]) || "").trim();
+const expectedPermissionReady = String(firstArg(args["expected-permission-ready"]) || "").trim();
 const dryRun = flagEnabled(args["dry-run"]);
 const target = sshTarget(user, host);
 
@@ -43,6 +45,7 @@ const commands = {
   appService: ["ssh", ["-i", sshKeyPath, "-p", port, target, `systemctl is-active ${shellQuote(serviceName)}`]],
   workerService: ["ssh", ["-i", sshKeyPath, "-p", port, target, `systemctl is-active ${shellQuote(workerServiceName)}`]],
   internalStatus: ["ssh", ["-i", sshKeyPath, "-p", port, target, `curl -fsS ${shellQuote(internalStatusUrl)}`]],
+  permissionReadiness: ["ssh", ["-i", sshKeyPath, "-p", port, target, `bash -lc ${shellQuote(`set -a; . ${remoteRoot}/shared/canvas-next.env; set +a; cd ${remoteRoot}/current; npx --no-install tsx scripts/verify-permission-readiness.ts --expect-ready=${expectedPermissionReady || "true"}`)}`]],
 };
 
 let currentRelease = "";
@@ -50,6 +53,7 @@ let appService = "";
 let workerService = "";
 let internalStatus = null;
 let publicStatus = null;
+let permissionReadiness = null;
 
 if (!dryRun) {
   currentRelease = (await runCommand(commands.currentRelease[0], commands.currentRelease[1], { inherit: false, capture: true })).stdout.trim();
@@ -59,6 +63,9 @@ if (!dryRun) {
   const response = await fetch(publicStatusUrl, { signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw new Error(`PUBLIC_STATUS_HTTP_${response.status}`);
   publicStatus = await response.json();
+  if (expectedPermissionReady) {
+    permissionReadiness = JSON.parse((await runCommand(commands.permissionReadiness[0], commands.permissionReadiness[1], { inherit: false, capture: true })).stdout.trim());
+  }
 }
 
 const checks = {
@@ -72,10 +79,22 @@ const checks = {
     !dryRun && expectedEnvironment
       ? internalStatus?.data?.environment === expectedEnvironment && publicStatus?.data?.environment === expectedEnvironment
       : null,
+  expectedPermissionModeMatched:
+    !dryRun && expectedPermissionMode
+      ? internalStatus?.data?.permissionMode === expectedPermissionMode && publicStatus?.data?.permissionMode === expectedPermissionMode
+      : null,
+  expectedPermissionReadinessMatched:
+    !dryRun && expectedPermissionReady
+      ? permissionReadiness?.ready === (expectedPermissionReady === "true")
+      : null,
 };
 
+const failedChecks = Object.entries(checks)
+  .filter(([, value]) => value === false)
+  .map(([name]) => name);
+
 printJson({
-  ok: true,
+  ok: failedChecks.length === 0,
   stage: "verify-gray-runtime",
   dryRun,
   target,
@@ -83,10 +102,16 @@ printJson({
   internalStatusUrl,
   expectedVersion: expectedVersion || null,
   expectedEnvironment: expectedEnvironment || null,
+  expectedPermissionMode: expectedPermissionMode || null,
+  expectedPermissionReady: expectedPermissionReady || null,
   currentRelease: dryRun ? null : currentRelease,
   appService: dryRun ? null : appService,
   workerService: dryRun ? null : workerService,
   internalStatus,
   publicStatus,
+  permissionReadiness,
   checks,
+  failedChecks,
 });
+
+if (failedChecks.length > 0) process.exitCode = 1;

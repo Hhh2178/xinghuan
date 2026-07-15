@@ -22,6 +22,8 @@ function createHandler() {
       appendAudit: vi.fn(),
       createId: () => "rule-1",
       now: () => 100,
+      readHealth: async () => ({ mode: "shadow", readiness: { ready: false } }),
+      principalExists: async () => true,
     }),
     subjects,
     rules,
@@ -32,15 +34,92 @@ describe("permission routes", () => {
   it("lets an admin publish a subject and assign a group rule", async () => {
     const { handler, sendT8, subjects, rules } = createHandler();
     const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
-    await handler({ request: { method: "PUT", body: { exposureState: "published", revision: 1 } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"), currentUser: admin });
-    await handler({ request: { method: "POST", body: { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin });
+    await handler({ request: { method: "PUT", body: { exposureState: "published", revision: 1, reason: "release" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"), currentUser: admin });
+    await handler({ request: { method: "POST", body: { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", reason: "grant" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin });
     expect(subjects[0].exposureState).toBe("published");
     expect(rules).toMatchObject([{ principalType: "group", principalId: "group-a", effect: "allow" }]);
     expect(sendT8).toHaveBeenCalledTimes(2);
   });
 
+  it("requires an audit reason for permission mutations", async () => {
+    const { handler } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    await expect(handler({ request: { method: "POST", body: { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin })).rejects.toMatchObject({ statusCode: 400, message: "PERMISSION_CHANGE_REASON_REQUIRED" });
+  });
+
+  it("requires an audit reason when deleting a rule", async () => {
+    const { handler } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    await expect(handler({ request: { method: "DELETE", body: {} } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules/rule-1"), currentUser: admin })).rejects.toMatchObject({ statusCode: 400, message: "PERMISSION_CHANGE_REASON_REQUIRED" });
+  });
+
+  it("rejects a stale rule revision", async () => {
+    const { handler } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    const body = { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", reason: "grant" };
+    await handler({ request: { method: "POST", body } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin });
+    await expect(handler({ request: { method: "POST", body: { ...body, effect: "deny", revision: 0 } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });
+  });
+
+  it("maps repository revision races to 409 after the preflight check", async () => {
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    const base = createHandler();
+    const handler = createPermissionRouteHandler({
+      sendT8: base.sendT8,
+      readJsonBody: async (request: any) => request.body,
+      HttpError: class HttpError extends Error { constructor(public statusCode: number, message: string) { super(message); } },
+      readAuthorizationState: async () => ({ subjects: base.subjects, rules: base.rules }),
+      upsertSubject: async () => { throw new Error("PERMISSION_SUBJECT_REVISION_CONFLICT"); },
+      upsertRule: async () => { throw new Error("PERMISSION_RULE_REVISION_CONFLICT"); },
+      deleteRule: async () => { throw new Error("PERMISSION_RULE_REVISION_CONFLICT"); },
+      explain: async () => ({ allowed: false, reason: "no-matching-rule" as const }),
+      appendAudit: vi.fn(),
+      createId: () => "rule-1",
+      now: () => 100,
+      principalExists: async () => true,
+    });
+
+    await expect(handler({ request: { method: "PUT", body: { exposureState: "published", revision: 1, reason: "release" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_SUBJECT_REVISION_CONFLICT" });
+    await expect(handler({ request: { method: "POST", body: { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", reason: "grant" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });
+    base.rules.push({ id: "rule-delete", principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", revision: 1 });
+    await expect(handler({ request: { method: "DELETE", body: { revision: 1, reason: "remove" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules/rule-delete"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });
+  });
+
+  it("rejects a stale rule revision before deletion", async () => {
+    const { handler, rules } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    rules.push({ id: "rule-delete", principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", revision: 2 });
+
+    await expect(handler({ request: { method: "DELETE", body: { revision: 1, reason: "remove" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules/rule-delete"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });
+  });
+
   it("rejects a member before returning administrator subject data", async () => {
     const { handler } = createHandler();
     await expect(handler({ request: { method: "GET" } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects"), currentUser: { id: "member-a", email: "member@test", name: "Member", role: "member" } })).rejects.toMatchObject({ statusCode: 403, message: "ADMIN_REQUIRED" });
+  });
+
+  it("returns admin-only runtime health without exposing it to members", async () => {
+    const { handler, sendT8 } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    await handler({ request: { method: "GET" } as any, response: {} as any, url: new URL("http://test/api/admin/permission-health"), currentUser: admin });
+    expect(sendT8).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mode: "shadow" }));
+    await expect(handler({ request: { method: "GET" } as any, response: {} as any, url: new URL("http://test/api/admin/permission-health"), currentUser: { id: "member-a", email: "member@test", name: "Member", role: "member" } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("returns batch effective decisions for the unified admin panel", async () => {
+    const { handler, sendT8 } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+    await handler({
+      request: { method: "POST", body: { user: { id: "member-a", role: "member" }, checks: [{ subjectKey: subject.subjectKey, action: "view" }, { subjectKey: subject.subjectKey, action: "execute" }] } } as any,
+      response: {} as any,
+      url: new URL("http://test/api/admin/permission-explain"),
+      currentUser: admin,
+    });
+    expect(sendT8).toHaveBeenCalledWith(expect.anything(), {
+      decisions: [
+        expect.objectContaining({ subjectKey: subject.subjectKey, action: "view", allowed: true }),
+        expect.objectContaining({ subjectKey: subject.subjectKey, action: "execute", allowed: false }),
+      ],
+    });
   });
 });

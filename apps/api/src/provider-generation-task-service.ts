@@ -20,6 +20,7 @@ type GenerationCapability = "image" | "video" | "audio";
 interface CurrentUserLike {
   id: string;
   role: "admin" | "member";
+  groupId?: string;
 }
 
 interface ProviderLike {
@@ -69,6 +70,10 @@ interface ProviderGenerationTaskServiceDependencies {
     requestedModelId: string,
     modelRecordId: string,
   ) => Promise<{ provider: ProviderLike; model: ModelLike }>;
+  authorizeModelExecution?: (
+    user: CurrentUserLike,
+    model: ModelLike,
+  ) => Promise<void>;
   normalizeProviderReferenceUrls: (values: string[], publicOrigin: string, user: CurrentUserLike) => string[];
   normalizeProviderReferenceUrl: (value: string, publicOrigin: string, user: CurrentUserLike) => string;
   readTaskRecord: (taskId: string) => Promise<AdminTaskRecordLike | null>;
@@ -262,6 +267,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像任务 Adapter: ${protocol}`);
@@ -324,6 +330,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
@@ -456,6 +463,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入音频任务 Adapter: ${protocol}`);

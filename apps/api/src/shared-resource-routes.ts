@@ -93,8 +93,18 @@ type SharedResourceRouteDeps = {
     user: CurrentUser | null | undefined,
     policies: import("./group-permission-policy.js").GroupPermissionPolicy[],
   ) => T[];
-  canUsePermissionSubject?: (user: CurrentUser, subjectKey: string, action: "view" | "use") => Promise<boolean>;
-  assertPermissionSubject?: (user: CurrentUser, subjectKey: string, action: "use") => Promise<void>;
+  canUsePermissionSubject?: (
+    user: CurrentUser,
+    subjectKey: string,
+    action: "view" | "use",
+    legacyAllowed: boolean,
+  ) => Promise<boolean>;
+  assertPermissionSubject?: (
+    user: CurrentUser,
+    subjectKey: string,
+    action: "use",
+    legacyAllowed: boolean,
+  ) => Promise<void>;
 };
 
 export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) {
@@ -254,9 +264,19 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
         const kind = normalizeResourceKind(url.searchParams.get("kind"));
         const db = await readSharedResourceDb();
         const policies = await readGroupPermissionPolicies();
+        const legacyVisibleItems = filterSharedResourceItemsForUser(db.items, currentUser, policies);
+        const legacyVisibleItemIds = new Set(legacyVisibleItems.map((item) => item.id));
         const visibleItems = currentUser && currentUser.role !== "admin" && canUsePermissionSubject
-          ? (await Promise.all(db.items.map(async (item) => ({ item, allowed: await canUsePermissionSubject(currentUser, `resource.item/${item.id}`, "view") })))).filter((entry) => entry.allowed).map((entry) => entry.item)
-          : filterSharedResourceItemsForUser(db.items, currentUser, policies);
+          ? (await Promise.all(db.items.map(async (item) => ({
+              item,
+              allowed: await canUsePermissionSubject(
+                currentUser,
+                `resource.item/${item.id}`,
+                "view",
+                legacyVisibleItemIds.has(item.id),
+              ),
+            })))).filter((entry) => entry.allowed).map((entry) => entry.item)
+          : legacyVisibleItems;
         const visibleCategoryIds = new Set(visibleItems.map((item) => safeText(item.categoryId)).filter(Boolean));
         sendT8(
           response,
@@ -349,11 +369,21 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
       const categoryId = safeText(url.searchParams.get("categoryId"), "");
       const q = safeText(url.searchParams.get("q"), "").toLowerCase();
       const favorite = url.searchParams.get("favorite") === "1";
+      const legacyVisibleItems = filterSharedResourceItemsForUser(db.items, currentUser, policies);
+      const legacyVisibleItemIds = new Set(legacyVisibleItems.map((item) => item.id));
       sendT8(
         response,
         (currentUser && currentUser.role !== "admin" && canUsePermissionSubject
-          ? (await Promise.all(db.items.map(async (item) => ({ item, allowed: await canUsePermissionSubject(currentUser, `resource.item/${item.id}`, "view") })))).filter((entry) => entry.allowed).map((entry) => entry.item)
-          : filterSharedResourceItemsForUser(db.items, currentUser, policies)).filter((item) => {
+          ? (await Promise.all(db.items.map(async (item) => ({
+              item,
+              allowed: await canUsePermissionSubject(
+                currentUser,
+                `resource.item/${item.id}`,
+                "view",
+                legacyVisibleItemIds.has(item.id),
+              ),
+            })))).filter((entry) => entry.allowed).map((entry) => entry.item)
+          : legacyVisibleItems).filter((item) => {
           if (kind && item.kind !== kind) return false;
           if (categoryId && item.categoryId !== categoryId) return false;
           if (favorite && !item.favorite) return false;
@@ -391,7 +421,12 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     if (sharedCopyToPersonalMatch && request.method === "POST") {
       const id = decodeURIComponent(sharedCopyToPersonalMatch[1]);
       const user = requireUser(currentUser);
-      await assertPermissionSubject?.(user, `resource.item/${id}`, "use");
+      const db = await readSharedResourceDb();
+      const source = db.items.find((item) => item.id === id);
+      if (!source) throw new Error("公共资源不存在");
+      const policies = await readGroupPermissionPolicies();
+      const legacyAllowed = filterSharedResourceItemsForUser([source], user, policies).length > 0;
+      await assertPermissionSubject?.(user, `resource.item/${id}`, "use", legacyAllowed);
       sendT8(response, await copySharedResourceToPersonal(id, user));
       return true;
     }

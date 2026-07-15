@@ -15,8 +15,12 @@ import { prepareGrsaiReferenceImages, prepareProviderReferenceImages } from "./g
 import {
   normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
   normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
-  type ProviderFileScope,
 } from "./provider-file-access.js";
+import type {
+  ExternalProxyProvider as ProviderLike,
+  ExternalProxyUser as CurrentUserLike,
+  GenerateExternalProxyDependencies,
+} from "./external-proxy-types.js";
 import {
   extractChatContent,
   extractImageOutputs,
@@ -44,61 +48,6 @@ import {
   validateVideoInputs,
   VideoInputValidationError,
 } from "./video-input-validation.js";
-
-interface CurrentUserLike {
-  id: string;
-  email: string;
-  name: string;
-  role: "admin" | "member";
-}
-
-interface ProviderLike {
-  id: string;
-  name: string;
-  baseUrl: string;
-  protocol?: unknown;
-  enabled: boolean;
-  apiKey?: string;
-}
-
-interface ModelLike {
-  id: string;
-  providerId: string;
-  modelId: string;
-  displayName: string;
-  capability: "chat" | "image" | "video" | "audio";
-  capabilityTags?: string[];
-  enabled: boolean;
-  inputCapabilities?: Record<string, unknown>;
-  parameterSchema: string;
-  advancedConfig?: Record<string, unknown>;
-  protocolOverride?: string;
-}
-
-interface GenerateExternalProxyDependencies {
-  dataDir: string;
-  providerFileScope?: ProviderFileScope;
-  normalizeProviderProtocol: (value: unknown) => string;
-  normalizeCapability: (value: unknown) => string;
-  providerModelHeaders: (apiKey: string, protocol: string) => Record<string, string>;
-  providerPlainApiKey: (provider: { apiKey?: string; protocol?: unknown; baseUrl?: unknown }) => string;
-  readAdminDb: () => Promise<{ providers: ProviderLike[]; models: ModelLike[] }>;
-  saveRemoteImageToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
-  saveRemoteVideoToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
-  saveRemoteAudioToOutput: (sourceUrl: string, user: CurrentUserLike) => Promise<{ url: string }>;
-  saveBase64File: (body: { dataUrl?: string; prefix?: string }, user: CurrentUserLike) => Promise<{ url: string }>;
-  saveBase64AudioFile: (body: { dataUrl?: string; prefix?: string }, user: CurrentUserLike) => Promise<{ url: string }>;
-  secretKey: () => Buffer;
-  safeSlug: (value: unknown, fallback?: string) => string;
-  safeText: (value: unknown, fallback?: string) => string;
-  safeLongText: (value: unknown, fallback?: string, maxLength?: number) => string;
-  safePromptText: (value: unknown, fallback?: string, maxLength?: number) => string;
-  plainObject: (value: unknown) => Record<string, unknown>;
-  stringMap: (value: unknown) => Record<string, string>;
-  looksLikeHtml: (value: string) => boolean;
-  clampInteger: (value: unknown, min: number, max: number, fallback: number) => number;
-  invalidRequest?: (message: string) => Error;
-}
 
 export function createExternalProxyHandlers(deps: GenerateExternalProxyDependencies) {
   function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
@@ -534,6 +483,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const params = deps.plainObject(body.providerParams);
     const modelRecordId = deps.safeText(params.modelRecordId);
     const { provider, model } = await findEnabledImageModel(providerId, requestedModelId, modelRecordId);
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像生成 Adapter: ${protocol}`);
@@ -600,6 +550,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
@@ -651,6 +602,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频生成 Adapter: ${protocol}`);
@@ -920,6 +872,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       deps.safeText(body.providerModel || body.model),
       deps.safeText(params.modelRecordId),
     );
+    await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
     if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入音频模型 Adapter: ${protocol}`);

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { NODE_GROUPS } from '../config/nodeRegistry';
+import { filterNodeCatalogByPermissions } from '../services/permission-state';
 
 // vite.config.ts 中通过 define 注入的编译期常量（与 package.json version 同步）
 declare const __APP_VERSION__: string;
@@ -231,9 +232,10 @@ const SOCCER_ICON_BY_TYPE: Record<string, string> = {
 
 interface SidebarProps {
   onAddNode: (type: NodeType) => void;
+  deniedNodeTypes?: string[];
 }
 
-export default function Sidebar({ onAddNode }: SidebarProps) {
+export default function Sidebar({ onAddNode, deniedNodeTypes = [] }: SidebarProps) {
   const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
     () => resolveThemeTemplate(templateId),
@@ -347,9 +349,10 @@ export default function Sidebar({ onAddNode }: SidebarProps) {
 
   // 搜索过滤
   const filterNodes = (nodes: NodeMeta[]) => {
-    if (!keyword.trim()) return nodes;
+    const allowedNodes = filterNodeCatalogByPermissions(nodes, deniedNodeTypes);
+    if (!keyword.trim()) return allowedNodes;
     const k = keyword.toLowerCase();
-    return nodes.filter(
+    return allowedNodes.filter(
       (n) =>
         n.label.toLowerCase().includes(k) ||
         n.type.toLowerCase().includes(k) ||

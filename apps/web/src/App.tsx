@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CyberTransitionStage from './components/CyberTransitionStage';
 import EmptyCanvasPreviewShell from './components/EmptyCanvasPreviewShell';
 import * as api from './services/api';
+import { deniedWorkflowNodeTypes, isNodeTypeAllowed } from './services/permission-state';
 import brandStellarGlitchLogo from './assets/brand-stellar-glitch-logo.png';
 import type { NodeType } from './types/canvas';
 import type { AuthUser, GenerationLibraryItem, ResourceItem } from './services/api';
@@ -197,6 +198,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'error'>('checking');
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [deniedNodeTypes, setDeniedNodeTypes] = useState<string[]>([]);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const previewMode = getDevPreviewMode();
@@ -328,9 +330,15 @@ function App() {
 
   // 预加载 settings
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setDeniedNodeTypes([]);
+      return;
+    }
     loadSettings();
     loadModelCatalog();
+    api.getEffectivePermissions()
+      .then((permissions) => setDeniedNodeTypes(permissions.deny.nodeTypes || []))
+      .catch(() => setDeniedNodeTypes(currentUser.role === 'admin' ? [] : ['*']));
   }, [currentUser, loadSettings, loadModelCatalog]);
 
   useEffect(() => {
@@ -394,32 +402,46 @@ function App() {
     : `${utilityButtonClassName} bg-sky-500/10 border-sky-500/30 text-sky-200 hover:bg-sky-500/20`;
 
   const handleAddNode = (type: NodeType) => {
-    addNodeRef.current?.(type);
+    if (isNodeTypeAllowed(type, deniedNodeTypes)) addNodeRef.current?.(type);
+  };
+
+  const addPermittedNode: AddNodeFn = (type, options) => {
+    if (!isNodeTypeAllowed(type, deniedNodeTypes)) {
+      throw new Error(`当前账号无权新增节点：${type}`);
+    }
+    addNodeRef.current?.(type, options);
   };
 
   const handleInsertResource = async (item: ResourceItem) => {
     const portraitData = portraitResourceToNodeData(item);
     if (portraitData) {
-      addNodeRef.current?.('portrait-master', { data: portraitData });
+      addPermittedNode('portrait-master', { data: portraitData });
       void api.updateResourceItem(item.id, { touch: true });
       return;
     }
     if (item.kind === 'pose') {
       const poseData = await poseResourceToNodeData(item);
       if (!poseData) throw new Error('姿势资源格式无效');
-      addNodeRef.current?.('pose-master', { data: poseData });
+      addPermittedNode('pose-master', { data: poseData });
       void api.updateResourceItem(item.id, { touch: true });
       return;
     }
     if (item.kind === 'workflow') {
       const fragment = await workflowResourceToFragment(item);
       if (!fragment) throw new Error('工作流资源格式无效');
+      const deniedTypes = deniedWorkflowNodeTypes(
+        fragment.nodes.map((node) => String(node.type || '')),
+        deniedNodeTypes,
+      );
+      if (deniedTypes.length > 0) {
+        throw new Error(`工作流包含当前账号无权新增的节点：${deniedTypes.join(', ')}`);
+      }
       insertWorkflowRef.current?.(fragment, { title: item.title || '工作流' });
       void api.updateResourceItem(item.id, { touch: true });
       return;
     }
     if (item.kind === 'set' && item.materialSetKind && item.materialSetItems?.length) {
-      addNodeRef.current?.('material-set', {
+      addPermittedNode('material-set', {
         data: materialSetItemsToData(
           item.materialSetKind as MaterialSetKind,
           item.materialSetItems as MaterialSetItem[],
@@ -440,7 +462,7 @@ function App() {
     } else if (item.kind === 'audio') {
       data.audioUrl = item.fileUrl;
     }
-    addNodeRef.current?.('upload', { data });
+    addPermittedNode('upload', { data });
   };
 
   const handleInsertGeneration = async (item: GenerationLibraryItem) => {
@@ -460,7 +482,7 @@ function App() {
       data.audioUrl = item.fileUrl;
       data.audioUrls = [item.fileUrl];
     }
-    addNodeRef.current?.('upload', { data });
+    addPermittedNode('upload', { data });
   };
 
   const handleLogout = async () => {
@@ -633,7 +655,7 @@ function App() {
 
       {/* 主体两栏布局 */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar onAddNode={handleAddNode} />
+        <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} />
         <ErrorBoundary fallbackTitle="画布渲染出错了，已被错误边界捕获">
           <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />
         </ErrorBoundary>

@@ -136,13 +136,26 @@ import {
   filterSharedResourceItemsForUser,
   normalizeGroupPermissionPolicies,
   normalizeGroupPermissionPolicy,
+  policyForUser,
   type GroupPermissionPolicy,
 } from "./group-permission-policy.js";
 import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
 import { createPermissionRepository, type PermissionFallbackAuthDb } from "./permissions/permission-repository.js";
 import { createPermissionRouteHandler } from "./permissions/permission-routes.js";
-import { createPermissionService } from "./permissions/permission-service.js";
-import { createPermissionSubjectRegistrar, runningHubAppSubjectKey, runningHubWorkflowSubjectKey } from "./permissions/permission-subject-registrars.js";
+import { createPermissionService, PermissionDeniedError } from "./permissions/permission-service.js";
+import {
+  createPermissionSubjectRegistrar,
+  canvasNodeSubjectKey,
+  providerModelSubjectKey,
+  runningHubAppSubjectKey,
+  runningHubWorkflowSubjectKey,
+} from "./permissions/permission-subject-registrars.js";
+import {
+  createPermissionRuntime,
+  normalizePermissionRuntimeMode,
+} from "./permissions/permission-runtime.js";
+import { createPermissionShadowMetrics } from "./permissions/permission-shadow-metrics.js";
+import { evaluatePermissionReadiness } from "./permissions/permission-readiness.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
 import { createSettingsRepository } from "./settings-repository.js";
@@ -167,6 +180,10 @@ import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
 const host = process.env.XINGHUAN_API_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XINGHUAN_API_PORT ?? "18300", 10);
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
+const permissionRuntimeMode = normalizePermissionRuntimeMode(
+  process.env.XINGHUAN_PERMISSION_MODE,
+  environment === "gray" ? "shadow" : "legacy",
+);
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 const environmentSyncToken = safeText(process.env.XINGHUAN_ENVIRONMENT_SYNC_TOKEN || ""), comfyuiConnectorToken = safeText(process.env.XINGHUAN_COMFYUI_CONNECTOR_TOKEN || "");
 const environmentSyncBaseUrls: Record<"gray" | "production", string> = {
@@ -223,6 +240,9 @@ const { generateExternalImageProxy, generateExternalChatProxy, generateExternalV
   providerModelHeaders,
   providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
   readAdminDb,
+  authorizeModelExecution: async (user, model) => {
+    await assertCanExecuteProviderModel(user as CurrentUser, model.id);
+  },
   saveRemoteImageToOutput,
   saveRemoteVideoToOutput,
   saveRemoteAudioToOutput,
@@ -245,6 +265,9 @@ const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = creat
   normalizeProviderProtocol,
   providerPlainApiKey: (provider) => providerPlainApiKey(provider as Partial<AdminProviderRecord> & { apiKey?: string }),
   findEnabledProviderModel,
+  authorizeModelExecution: async (user, model) => {
+    await assertCanExecuteProviderModel(user as CurrentUser, model.id);
+  },
   normalizeProviderReferenceUrls: (values, publicOrigin, user) =>
     normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, { secret: secretKey(), scope: environment }),
   normalizeProviderReferenceUrl: (value, publicOrigin, user) =>
@@ -310,6 +333,14 @@ const permissionRepository = createPermissionRepository({
 });
 const permissionService = createPermissionService({ readAuthorizationState: permissionRepository.readAuthorizationState });
 const permissionSubjectRegistrar = createPermissionSubjectRegistrar(permissionRepository);
+const permissionShadowMetrics = createPermissionShadowMetrics();
+const permissionRuntime = createPermissionRuntime({
+  mode: permissionRuntimeMode,
+  canUnified: permissionService.can,
+  onShadowMismatch: ({ subjectKey, action, legacyAllowed, unified }) => {
+    permissionShadowMetrics.record({ subjectKey, action, legacyAllowed, unified });
+  },
+});
 const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
 const settingsRepository = createSettingsRepository({
   usePostgresRepository,
@@ -393,13 +424,24 @@ const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   upsertResourceItemPostgres,
   readGroupPermissionPolicies: async () => (await readAuthDb()).groupPermissionPolicies,
   filterSharedResourceItemsForUser,
-  canUsePermissionSubject: async (user, subjectKey, action) => {
+  canUsePermissionSubject: async (user, subjectKey, action, legacyAllowed) => {
     await reconcilePermissionSubjects();
-    return (await permissionService.can(user, subjectKey, action)).allowed;
+    return (await permissionRuntime.decide({
+      user,
+      subjectKey,
+      action,
+      legacyAllowed,
+    })).allowed;
   },
-  assertPermissionSubject: async (user, subjectKey, action) => {
+  assertPermissionSubject: async (user, subjectKey, action, legacyAllowed) => {
     await reconcilePermissionSubjects();
-    await permissionService.assertAllowed(user, subjectKey, action);
+    const decision = await permissionRuntime.decide({
+      user,
+      subjectKey,
+      action,
+      legacyAllowed,
+    });
+    if (!decision.allowed) throw new PermissionDeniedError();
   },
 });
 
@@ -422,6 +464,20 @@ const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandle
     const catalog = await publicRunningHubCatalog(null, { includeRestricted: true });
     return { apps: catalog.apps, workflows: catalog.workflows };
   },
+  nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({
+    id: type,
+    label: type,
+    group: "canvas",
+  })),
+  resolveNodeTypeAllowed: async (user, nodeType, legacyAllowed) => {
+    await reconcilePermissionSubjects();
+    return (await permissionRuntime.decide({
+      user,
+      subjectKey: canvasNodeSubjectKey(nodeType),
+      action: "view",
+      legacyAllowed,
+    })).allowed;
+  },
   appendAudit,
 });
 
@@ -438,6 +494,18 @@ const handlePermissionRoutes = createPermissionRouteHandler({
   createId: () => `perm-${Date.now()}-${randomBytes(6).toString("hex")}`,
   now: () => Date.now(),
   reconcileSubjects: reconcilePermissionSubjects,
+  readHealth: async () => ({
+    mode: permissionRuntimeMode,
+    readiness: await readPermissionReadinessReport(),
+    shadowMismatches: permissionShadowMetrics.snapshot(),
+  }),
+  principalExists: async (principalType, principalId) => {
+    const authDb = await readAuthDb();
+    if (principalType === "group") {
+      return principalId === "ungrouped" || authDb.userGroups.some((group) => group.id === principalId);
+    }
+    return authDb.users.some((user) => user.id === principalId);
+  },
 });
 
 const handleAdminAuditRoutes = createAdminAuditRouteHandler({
@@ -1176,6 +1244,7 @@ const server = createServer(async (request, response) => {
       service: "xinghuan-api",
       version: appVersion,
       environment,
+      permissionMode: permissionRuntimeMode,
       dataDir,
     });
     return;
@@ -2254,9 +2323,22 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, host, () => {
-  console.log(`xinghuan-api listening on http://${host}:${port}`);
+void startApiServer().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 });
+
+async function startApiServer() {
+  if (permissionRuntimeMode === "enforced") {
+    const report = await readPermissionReadinessReport();
+    if (!report.ready) {
+      throw new Error(`PERMISSION_RUNTIME_NOT_READY:${report.failures.map((failure) => failure.code).join(",")}`);
+    }
+  }
+  server.listen(port, host, () => {
+    console.log(`xinghuan-api listening on http://${host}:${port} permissionMode=${permissionRuntimeMode}`);
+  });
+}
 
 async function handleAdminRequest(
   request: import("node:http").IncomingMessage,
@@ -6540,7 +6622,12 @@ async function publicModelCatalog(currentUser?: CurrentUser | null) {
       );
       const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
       const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
-      if (currentUser && currentUser.role !== "admin" && !(await permissionService.can(currentUser, `provider.model/${model.id}`, "view")).allowed) return null;
+      if (currentUser && currentUser.role !== "admin" && !(await permissionRuntime.decide({
+        user: currentUser,
+        subjectKey: providerModelSubjectKey(model.id),
+        action: "view",
+        legacyAllowed: true,
+      })).allowed) return null;
       return {
         id: model.id,
         providerId: model.providerId,
@@ -6584,6 +6671,17 @@ async function findEnabledProviderModel(capability: ModelCapability, providerId:
   });
   if (!model) throw new Error(`模型不存在、未启用或不是 ${capability} 模型`);
   return { provider, model };
+}
+
+async function assertCanExecuteProviderModel(user: CurrentUser, modelRecordId: string) {
+  await reconcilePermissionSubjects();
+  const decision = await permissionRuntime.decide({
+    user,
+    subjectKey: providerModelSubjectKey(modelRecordId),
+    action: "execute",
+    legacyAllowed: true,
+  });
+  if (!decision.allowed) throw new PermissionDeniedError();
 }
 
 async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publicOrigin: string) {
@@ -6744,7 +6842,18 @@ async function assertCanUseRunningHubCatalogItem(
 ) {
   if (!currentUser) throw new HttpError(401, "UNAUTHORIZED");
   await reconcilePermissionSubjects();
-  await permissionService.assertAllowed(currentUser, item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId), "execute");
+  const authDb = await readAuthDb();
+  const legacyAllowed = canUseRunningHubCatalogItem(
+    policyForUser(currentUser, authDb.groupPermissionPolicies),
+    item,
+  );
+  const decision = await permissionRuntime.decide({
+    user: currentUser,
+    subjectKey: item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId),
+    action: "execute",
+    legacyAllowed,
+  });
+  if (!decision.allowed) throw new PermissionDeniedError();
 }
 
 async function publicRunningHubCatalog(
@@ -7376,8 +7485,32 @@ async function reconcilePermissionSubjects() {
 
 async function filterRunningHubItems(items: RhCatalogItem[], currentUser?: CurrentUser | null, includeRestricted?: boolean) {
   if (includeRestricted || !currentUser) return items;
-  const results = await Promise.all(items.map(async (item) => ({ item, decision: await permissionService.can(currentUser, item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId), "view") })));
+  const authDb = await readAuthDb();
+  const legacyPolicy = policyForUser(currentUser, authDb.groupPermissionPolicies);
+  const results = await Promise.all(items.map(async (item) => ({
+    item,
+    decision: await permissionRuntime.decide({
+      user: currentUser,
+      subjectKey: item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId),
+      action: "view",
+      legacyAllowed: canUseRunningHubCatalogItem(legacyPolicy, item),
+    }),
+  })));
   return results.filter((entry) => entry.decision.allowed).map((entry) => entry.item);
+}
+
+async function readPermissionReadinessReport() {
+  await reconcilePermissionSubjects();
+  const [authorizationState, authDb] = await Promise.all([
+    permissionRepository.readAuthorizationState(),
+    readAuthDb(),
+  ]);
+  return evaluatePermissionReadiness({
+    subjects: authorizationState.subjects,
+    rules: authorizationState.rules,
+    groupIds: authDb.userGroups.map((group) => group.id),
+    users: authDb.users,
+  });
 }
 
 async function adminRunningHubCatalogItems() {

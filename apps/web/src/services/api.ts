@@ -13,6 +13,8 @@ import type {
 } from '../types/canvas';
 import type { ThemeTemplate } from '../theme/types';
 import type { MediaKind } from '../utils/mediaCollection';
+import type { AuthUser, EffectivePermissions } from './auth-api-types';
+export type { AuthUser, EffectivePermissions } from './auth-api-types';
 
 const BASE = '/api';
 
@@ -49,13 +51,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, errMsg, payload);
   }
   return res.json();
-}
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'member';
 }
 
 export interface AssistantChatAttachment {
@@ -106,6 +101,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     `${BASE}/auth/me`,
   );
   return res.data?.authenticated ? res.data.user : null;
+}
+
+export async function getEffectivePermissions(): Promise<EffectivePermissions> {
+  const res = await request<{ success: boolean; data: EffectivePermissions }>(
+    `${BASE}/me/permissions`,
+  );
+  return res.data;
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {

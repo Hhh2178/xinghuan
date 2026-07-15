@@ -1,18 +1,15 @@
 import { Activity, KeyRound, ShieldCheck, Users2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { adminPermissionApi } from "./admin-api-client";
 import { AdminWorkspaceBand } from "./admin-common-components";
 import { AdminUserAccountsSection } from "./admin-user-accounts-section";
 import { AdminUserGroupsSection } from "./admin-user-groups-section";
 import { AdminUserSessionsSection } from "./admin-user-sessions-section";
-import { AdminPermissionsPanel } from "./admin-permissions-panel";
 import type {
   AdminGroupPermissionPolicy,
-  AdminPermissionCatalog,
   AdminSessionRecord,
   AdminUser,
   AdminUserGroup,
-  GroupPermissionDeny,
 } from "./admin-types";
 
 type AdminMutate = (
@@ -22,6 +19,12 @@ type AdminMutate = (
   options?: { suppressGlobalError?: boolean; rethrow?: boolean },
 ) => Promise<void> | void;
 type UsersViewTab = "overview" | "accounts" | "groups" | "permissions" | "sessions";
+
+const PermissionPlatformPanel = lazy(() =>
+  import("./permission-platform/panel").then((module) => ({
+    default: module.PermissionPlatformPanel,
+  })),
+);
 
 const USER_TABS: Array<{ id: UsersViewTab; label: string }> = [
   { id: "overview", label: "总览" },
@@ -45,10 +48,8 @@ export function UsersPanel({
   mutate: AdminMutate;
 }) {
   const [activeTab, setActiveTab] = useState<UsersViewTab>("overview");
-  const [permissionCatalog, setPermissionCatalog] = useState<AdminPermissionCatalog | null>(null);
   const [permissionPolicies, setPermissionPolicies] = useState<AdminGroupPermissionPolicy[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
-  const [permissionsError, setPermissionsError] = useState("");
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const enabledCount = users.filter((user) => !user.disabled).length;
   const adminCount = users.filter((user) => user.role === "admin").length;
@@ -88,17 +89,12 @@ export function UsersPanel({
 
   async function loadPermissionsData() {
     setPermissionsLoading(true);
-    setPermissionsError("");
     try {
-      const [catalog, policies] = await Promise.all([
-        adminPermissionApi.readCatalog(),
-        adminPermissionApi.listPolicies(),
-      ]);
-      setPermissionCatalog(catalog);
+      const policies = await adminPermissionApi.listPolicies();
       setPermissionPolicies(policies);
       setPermissionsLoaded(true);
-    } catch (nextError) {
-      setPermissionsError(nextError instanceof Error ? nextError.message : String(nextError));
+    } catch {
+      setPermissionsLoaded(false);
     } finally {
       setPermissionsLoading(false);
     }
@@ -111,18 +107,9 @@ export function UsersPanel({
   }, [activeTab, permissionsLoaded]);
 
   useEffect(() => {
-    setPermissionCatalog(null);
     setPermissionPolicies([]);
     setPermissionsLoaded(false);
   }, [userGroups.length]);
-
-  async function handleSavePolicy(groupId: string, deny: GroupPermissionDeny) {
-    const saved = await adminPermissionApi.updatePolicy(groupId, { deny });
-    setPermissionPolicies((current) => {
-      const others = current.filter((item) => item.groupId !== groupId);
-      return [...others, saved].sort((left, right) => left.groupId.localeCompare(right.groupId, "zh-CN"));
-    });
-  }
 
   return (
     <section className="panel-stack users-page users-page--starlight">
@@ -276,14 +263,9 @@ export function UsersPanel({
       ) : null}
 
       {activeTab === "permissions" ? (
-        <AdminPermissionsPanel
-          catalog={permissionCatalog}
-          policies={permissionPolicies}
-          loading={permissionsLoading}
-          error={permissionsError}
-          onReload={loadPermissionsData}
-          onSavePolicy={handleSavePolicy}
-        />
+        <Suspense fallback={<div className="starlight-page-loading">正在加载统一权限平台...</div>}>
+          <PermissionPlatformPanel users={users} userGroups={userGroups} />
+        </Suspense>
       ) : null}
 
       {activeTab === "sessions" ? <AdminUserSessionsSection sessions={sessions} mutate={mutate} /> : null}

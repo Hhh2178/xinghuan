@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.6.12`
-  - release：`20260715-aifork-grok-fast-preprocess-v0612`
+  - 版本：`v0.6.13`
+  - release：`20260715-permission-platform-hardening-v0613`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`

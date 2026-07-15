@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.6.12`（已部署）
+- 当前灰度版本：`v0.6.13`（发布中）
 - 当前生产版本：`v0.5.22`（production 已于 2026-07-14 15:44 从 v0.5.27 回退）
-- 当前灰度 release：`20260715-aifork-grok-fast-preprocess-v0612` (已部署)
+- 当前灰度 release：`20260715-permission-platform-hardening-v0613`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：AIFork Grok FAST 已启用独立通用请求契约，并在提交前按插件规则把参考图压缩为最长边 1024 的 JPEG 85；SD 补充契约和其他 Provider/模型链路保持隔离。
+- 最新推进：统一权限平台已补齐 shadow/enforced 状态机、数据协调、统一后台、发布门禁和原子 revision；gray 真实成员验收通过后再完成 enforced 切换。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,8 +40,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行 `v0.6.12`，production 当前运行在 `v0.5.22`
-  - gray 当前 release 为 `20260715-aifork-grok-fast-preprocess-v0612` (已部署)
+  - gray 目标运行 `v0.6.13`，production 当前运行在 `v0.5.22`
+  - gray 当前 release 目标为 `20260715-permission-platform-hardening-v0613`
   - production 当前 release 为 `20260702-envsync-admin-sections-prod-r1-v0522`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

@@ -176,13 +176,23 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
     return next;
   }
 
-  async function deleteRule(id: string): Promise<void> {
+  async function deleteRule(id: string, revision: number): Promise<void> {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
-      await pool.query("delete from xh_permission_rules where id = $1", [id]);
+      const result = await pool.query(
+        "delete from xh_permission_rules where id = $1 and revision = $2 returning id",
+        [id, revision],
+      );
+      if (result.rows.length === 0) {
+        throw new Error("PERMISSION_RULE_REVISION_CONFLICT");
+      }
       return;
     }
     const db = await readFileDb();
+    const current = readRuleRecords(db).find((item) => item.id === id);
+    if (!current || current.revision !== revision) {
+      throw new Error("PERMISSION_RULE_REVISION_CONFLICT");
+    }
     await writeFileDb({
       ...db,
       permissionRules: readRuleRecords(db).filter((item) => item.id !== id),
@@ -221,13 +231,25 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
     record: PermissionSubjectRecord,
   ): Promise<void> {
     const pool = await deps.getPostgresPool();
-    await pool.query(
+    const result = await pool.query(
       `insert into xh_permission_subjects (subject_key, domain, subject_type, parent_key, source_id, exposure_state, display_name, metadata, revision, created_at, updated_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
        on conflict (subject_key) do update set
          domain = excluded.domain, subject_type = excluded.subject_type, parent_key = excluded.parent_key, source_id = excluded.source_id,
          exposure_state = excluded.exposure_state, display_name = excluded.display_name, metadata = excluded.metadata,
-         revision = excluded.revision, updated_at = excluded.updated_at`,
+         revision = excluded.revision, updated_at = excluded.updated_at
+       where xh_permission_subjects.revision = excluded.revision - 1
+          or (
+            xh_permission_subjects.revision = excluded.revision
+            and xh_permission_subjects.domain is not distinct from excluded.domain
+            and xh_permission_subjects.subject_type is not distinct from excluded.subject_type
+            and xh_permission_subjects.parent_key is not distinct from excluded.parent_key
+            and xh_permission_subjects.source_id is not distinct from excluded.source_id
+            and xh_permission_subjects.exposure_state is not distinct from excluded.exposure_state
+            and xh_permission_subjects.display_name is not distinct from excluded.display_name
+            and xh_permission_subjects.metadata is not distinct from excluded.metadata
+          )
+       returning subject_key`,
       [
         record.subjectKey,
         record.domain,
@@ -242,18 +264,23 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
         new Date(record.updatedAt),
       ],
     );
+    if (result.rows.length === 0) {
+      throw new Error("PERMISSION_SUBJECT_REVISION_CONFLICT");
+    }
   }
 
   async function upsertRulePostgres(
     record: PermissionRuleRecord,
   ): Promise<void> {
     const pool = await deps.getPostgresPool();
-    await pool.query(
+    const result = await pool.query(
       `insert into xh_permission_rules (id, principal_type, principal_id, subject_key, action, effect, reason, created_by, revision, created_at, updated_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        on conflict (principal_type, principal_id, subject_key, action) do update set
          effect = excluded.effect, reason = excluded.reason, created_by = excluded.created_by,
-         revision = excluded.revision, updated_at = excluded.updated_at`,
+         revision = excluded.revision, updated_at = excluded.updated_at
+       where xh_permission_rules.revision = excluded.revision - 1
+       returning id`,
       [
         record.id,
         record.principalType,
@@ -268,6 +295,9 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
         new Date(record.updatedAt),
       ],
     );
+    if (result.rows.length === 0) {
+      throw new Error("PERMISSION_RULE_REVISION_CONFLICT");
+    }
   }
 
   async function readFileDb(): Promise<PermissionFallbackAuthDb> {
