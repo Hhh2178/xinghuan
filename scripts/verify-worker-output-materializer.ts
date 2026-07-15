@@ -3,7 +3,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { materializeTaskOutputs } from "../apps/worker/src/output-materials.js";
+import {
+  attachOutputFetchContext,
+  materializeTaskOutputs,
+} from "../apps/worker/src/output-materials.js";
 
 const png1x1 =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l0e6kgAAAABJRU5ErkJggg==";
@@ -23,6 +26,19 @@ async function main() {
     result: { videoUrls: [`${mediaServer.origin}/demo.mp4`] },
     expectedKind: "video",
   });
+  const privateVideoResult = attachOutputFetchContext(
+    { videoUrls: [`${mediaServer.origin}/private.mp4`] },
+    {
+      origin: mediaServer.origin,
+      headers: { authorization: "Bearer private-video-key" },
+    },
+  );
+  assert(!JSON.stringify(privateVideoResult).includes("private-video-key"), "output fetch credentials leaked into JSON");
+  const privateVideo = await verifyMaterialization({
+    title: "Worker 鉴权视频输出素材落库验证",
+    result: privateVideoResult,
+    expectedKind: "video",
+  });
   const audio = await verifyMaterialization({
     title: "Worker 音频输出素材落库验证",
     result: { audioUrls: [wav1x1] },
@@ -37,6 +53,7 @@ async function main() {
         ok: true,
         image,
         video,
+        privateVideo,
         audio,
       },
       null,
@@ -182,6 +199,16 @@ async function startMockMediaServer() {
   return await new Promise<{ server: import("node:http").Server; origin: string }>((resolve) => {
     const server = createServer((request, response) => {
       if (request.url === "/demo.mp4") {
+        response.writeHead(200, { "content-type": "video/mp4" });
+        response.end(videoBytes);
+        return;
+      }
+      if (request.url === "/private.mp4") {
+        if (request.headers.authorization !== "Bearer private-video-key") {
+          response.writeHead(401, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: "unauthorized" }));
+          return;
+        }
         response.writeHead(200, { "content-type": "video/mp4" });
         response.end(videoBytes);
         return;

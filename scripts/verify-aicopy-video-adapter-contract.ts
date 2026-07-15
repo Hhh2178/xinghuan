@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import {
   createAicopyVideoAdapterPayload,
   extractAicopyTask,
@@ -7,6 +8,7 @@ import {
   resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
 } from "../packages/model-core/src/aicopy-video-adapter.js";
+import { pollAicopyVideoTask } from "../apps/worker/src/worker-media-polling.js";
 
 const payload = createAicopyVideoAdapterPayload({
   modelId: "grok-imagine-video-1.5-preview",
@@ -72,6 +74,26 @@ const sdResult = extractAicopyVideoResult({
 } as any);
 assert.deepEqual(sdResult.videoUrls, ["https://api.aicopy.top/v1/videos/task_example/content"]);
 
+const completedWithoutUrlServer = await startCompletedWithoutUrlServer();
+try {
+  const completedWithoutUrl = await pollAicopyVideoTask({
+    baseUrl: `${completedWithoutUrlServer.origin}/v1`,
+    apiKey: "test-key",
+    taskId: "task_final_lookup",
+    statusPath: "status",
+    resultVideoPath: "data.output",
+    pollPathTemplate: "videos/{task_id}",
+    pollIntervalMs: 0,
+    timeoutMs: 5_000,
+  });
+  assert.equal(completedWithoutUrl.status, "completed");
+  assert.deepEqual(completedWithoutUrl.videoUrls, [
+    `${completedWithoutUrlServer.origin}/v1/videos/task_final_lookup/content`,
+  ]);
+} finally {
+  completedWithoutUrlServer.server.close();
+}
+
 assert.equal(
   shouldUseAicopyVideoAdapter({
     protocol: "aicopy",
@@ -126,3 +148,22 @@ assert.match(modelEditorSource, /AIFork 视频请求契约/);
 assert.match(workerSource, /async function executeVideoTask[\s\S]*?\["openai", "apimart", "aicopy", "modelscope", "custom"\]/);
 
 console.log(JSON.stringify({ ok: true }, null, 2));
+
+function startCompletedWithoutUrlServer() {
+  return new Promise<{ server: import("node:http").Server; origin: string }>((resolve) => {
+    const server = createServer((request, response) => {
+      if (request.url === "/v1/videos/task_final_lookup") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ id: "task_final_lookup", status: "completed", progress: 100 }));
+        return;
+      }
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("AICOPY_POLL_MOCK_START_FAILED");
+      resolve({ server, origin: `http://127.0.0.1:${address.port}` });
+    });
+  });
+}

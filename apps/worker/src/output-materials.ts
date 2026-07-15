@@ -75,6 +75,29 @@ interface SavedOutput {
   sourceUrl: string;
 }
 
+interface OutputFetchContext {
+  origin: string;
+  headers: Record<string, string>;
+}
+
+const outputFetchContextSymbol = Symbol("xinghuan.outputFetchContext");
+
+export function attachOutputFetchContext<T extends Record<string, unknown>>(
+  result: T,
+  context: OutputFetchContext,
+): T {
+  const origin = normalizeHttpOrigin(context.origin);
+  const headers = normalizeOutputFetchHeaders(context.headers);
+  if (!origin || Object.keys(headers).length === 0) return result;
+  Object.defineProperty(result, outputFetchContextSymbol, {
+    value: { origin, headers } satisfies OutputFetchContext,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  return result;
+}
+
 export async function materializeTaskOutputs({ dataDir, task, result }: MaterializeTaskOutputsArgs) {
   if (!safeText(task.ownerId)) throw new Error("任务缺少 ownerId，无法写入输出素材");
 
@@ -126,7 +149,13 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   }
 
   for (const [index, sourceUrl] of videoUrls.entries()) {
-    const saved = await materializeVideoOutput(sourceUrl, dirs.outputDir, task.id, index);
+    const saved = await materializeVideoOutput(
+      sourceUrl,
+      dirs.outputDir,
+      task.id,
+      index,
+      outputFetchHeadersForUrl(result, sourceUrl),
+    );
     resourceItems.push({
       id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       kind: "video",
@@ -355,7 +384,13 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
   };
 }
 
-async function materializeVideoOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {
+async function materializeVideoOutput(
+  sourceUrl: string,
+  outputDir: string,
+  taskId: string,
+  index: number,
+  headers?: Record<string, string>,
+): Promise<SavedOutput> {
   const localOutput = await tryResolveLocalOutput(sourceUrl, outputDir);
   if (localOutput) return localOutput;
 
@@ -363,7 +398,10 @@ async function materializeVideoOutput(sourceUrl: string, outputDir: string, task
     throw new Error(`暂不支持的输出视频 URL: ${sourceUrl.slice(0, 120)}`);
   }
 
-  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
+  const upstream = await fetch(sourceUrl, {
+    ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
+    signal: AbortSignal.timeout(180000),
+  });
   if (!upstream.ok) throw new Error(`下载输出视频失败 ${upstream.status}`);
   const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   if (!mime.startsWith("video/")) throw new Error(`输出素材不是视频: ${mime || "unknown"}`);
@@ -378,6 +416,33 @@ async function materializeVideoOutput(sourceUrl: string, outputDir: string, task
     mime,
     sourceUrl,
   };
+}
+
+function outputFetchHeadersForUrl(result: Record<string, unknown>, sourceUrl: string) {
+  const context = (result as Record<PropertyKey, unknown>)[outputFetchContextSymbol] as OutputFetchContext | undefined;
+  if (!context) return undefined;
+  const sourceOrigin = normalizeHttpOrigin(sourceUrl);
+  return sourceOrigin && sourceOrigin === context.origin ? context.headers : undefined;
+}
+
+function normalizeHttpOrigin(value: unknown) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeOutputFetchHeaders(value: Record<string, string>) {
+  const headers: Record<string, string> = {};
+  for (const [rawName, rawValue] of Object.entries(value || {})) {
+    const name = rawName.trim().toLowerCase();
+    const headerValue = String(rawValue || "").trim();
+    if (!headerValue || !["authorization", "x-api-key"].includes(name)) continue;
+    headers[name] = headerValue;
+  }
+  return headers;
 }
 
 async function materializeAudioOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {

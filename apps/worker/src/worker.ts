@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages } from "./grsai-reference-images.js";
-import { materializeTaskOutputs } from "./output-materials.js";
+import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
 import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
 import {
   createOpenAiAudioChatPayload,
@@ -848,6 +848,22 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       requestContract,
       fixedBody: plainObject(task.payload.fixedBody),
     });
+    const requestMetadata = plainObject(submitPayload.metadata);
+    const providerRequestSummary = {
+      adapter: "aicopy-video",
+      modelId: task.providerModelId,
+      duration: submitPayload.duration,
+      ratio: safeText(requestMetadata.ratio),
+      modeType: safeText(requestMetadata.modeType),
+      soundEnabled: safeText(requestMetadata.enableSound).toLowerCase() === "on",
+      imageCount: Array.isArray(submitPayload.images) ? submitPayload.images.length : 0,
+      audioCount: Array.isArray(submitPayload.audios) ? submitPayload.audios.length : 0,
+      requestContractEnabled,
+    };
+    await touchTaskRuntime(task.id, {
+      providerRequestSummary,
+      submitDiagnostic: `AICopy request mode=${providerRequestSummary.modeType || "unknown"} ratio=${providerRequestSummary.ratio || "unknown"} duration=${String(providerRequestSummary.duration ?? "unknown")} images=${providerRequestSummary.imageCount} audios=${providerRequestSummary.audioCount} sound=${providerRequestSummary.soundEnabled ? "on" : "off"}`,
+    });
     const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, safeText(task.payload.submitPath, "videos")), {
       method: "POST",
       headers: buildProviderJsonHeaders(apiKey),
@@ -881,12 +897,13 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
           : undefined
         : undefined,
       pollPathTemplate: safeText(task.payload.pollPathTemplate, "videos/{task_id}"),
+      contentPathTemplate: safeText(task.payload.contentPathTemplate, "videos/{task_id}/content"),
       pollIntervalMs: clampNumber(task.payload.pollIntervalMs, 2000, 500, 10000),
       timeoutMs: clampOptionalNumber(task.payload.timeoutMs || task.payload.maxPollMs, 5000, 1800000),
       onHeartbeat: (patch) => touchTaskRuntime(task.id, patch),
     });
     if (polled.videoUrls.length === 0) throw new Error("异步视频任务未返回可用视频 URL");
-    return {
+    return attachOutputFetchContext({
       adapter: "aicopy-video",
       providerId: task.providerId,
       modelId: task.providerModelId,
@@ -894,7 +911,12 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       videoUrls: polled.videoUrls,
       remoteVideoUrls: polled.videoUrls,
       videoCount: polled.videoUrls.length,
-    };
+      providerRequestSummary,
+      providerState: safeText(polled.status || "completed"),
+    }, {
+      origin: task.providerBaseUrl,
+      headers: providerHeaders(apiKey),
+    });
   }
 
   if (shouldUseApimartVideoAdapter({

@@ -104,6 +104,7 @@ export async function pollAicopyVideoTask(options: {
   resultVideoPath: string;
   resultPaths?: string[];
   pollPathTemplate: string;
+  contentPathTemplate?: string;
   pollIntervalMs: number;
   timeoutMs?: number;
   onHeartbeat?: (patch: RuntimeHeartbeatPatch) => Promise<void>;
@@ -137,6 +138,15 @@ export async function pollAicopyVideoTask(options: {
       runtimeStage: "polling",
     });
     if (result.videoUrls.length > 0 && (!status || isCompletedAsyncStatus(status))) return result;
+    if (isCompletedAsyncStatus(status)) {
+      const contentPath = safeText(options.contentPathTemplate, "videos/{task_id}/content")
+        .replace("{task_id}", encodeURIComponent(options.taskId));
+      return {
+        ...result,
+        videoUrls: [openAiEndpoint(options.baseUrl, contentPath)],
+        usedContentFallback: true,
+      };
+    }
     if (isFailedAsyncStatus(status)) {
       const failureDetail = safeText(result.failureReason, status || "unknown");
       throw createWorkerTaskError(`视频任务失败: ${failureDetail}`, buildUpstreamBusinessFailurePatch(failureDetail));
