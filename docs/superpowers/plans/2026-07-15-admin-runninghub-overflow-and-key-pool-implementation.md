@@ -84,3 +84,10 @@ All commands must pass without using a paid model request.
 - Modify current gray/runtime entry files required by the release harness.
 
 Run all staged-source, hotspot, release consistency, worktree cleanliness, project, workspace, and release harness gates. Commit, push `origin/xinghuan-integration-clean`, and confirm local/remote commit equality.
+
+## Completion Record
+
+- Tasks 1-3 completed through witnessed failing contracts and passing implementation.
+- Task 4 completed with Admin/all-workspace type checks, single-port build, project harness, and workspace harness.
+- Task 5 completed in gray `v0.6.5` across `1920x1080` and `2560x1440`, with the AI assistant open and closed.
+- Task 6 release and validation records completed; production remains unchanged at `v0.5.22`.

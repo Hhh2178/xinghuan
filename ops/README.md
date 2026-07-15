@@ -25,10 +25,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.6.4`
-  - release：`20260715-aicopy-sd-video-input-modes-v064`
-  - 状态：`v0.6.4 已部署灰度；AICopy SD 请求契约与四种通用视频输入模式已上线`
-  - 当前补修：`现有成品为 15 秒，但 9:16 与声音未被上游应用；冻结付费复测并继续无费用契约取证`
+  - 版本：`v0.6.5`
+  - release：`20260715-admin-runninghub-overflow-key-pool-v065`
+  - 状态：`v0.6.5 已部署灰度；RH 目录长文本与 Provider 级 Key 池层级已完成四组合验收`
+  - 当前补修：`AICopy 现有成品为 15 秒，但 9:16 与声音未被上游应用；继续冻结付费复测并做无费用契约取证`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

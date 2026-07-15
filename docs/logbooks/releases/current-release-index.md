@@ -4,15 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.6.4`
-- release：`20260715-aicopy-sd-video-input-modes-v064`
-- 当前状态：`v0.6.4 已部署灰度；AICopy SD 请求契约与四种通用视频输入模式已上线，生产保持 v0.5.22`
-- 部署内容：`AICopy 协议与模型级 SD 契约隔离、参考图/首帧/尾帧/首尾帧输入、API 校验、Worker 轮询与结果路径治理`
-- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.4/gray；离线契约、Mock 上游、真实队列和 49 节点渲染 smoke 通过；现有成品时长为 15 秒`
-- 待验收：`AICopy 上游未应用 9:16 与声音参数；在供应商契约确认前冻结付费生成测试`
+- 版本：`v0.6.5`
+- release：`20260715-admin-runninghub-overflow-key-pool-v065`
+- 当前状态：`v0.6.5 已部署灰度；RH 目录文字轨道和 Provider 级 Key 池信息架构已完成，生产保持 v0.5.22`
+- 部署内容：`RH Key 池提升到 Provider 全局层、目录卡长文本约束、Admin 防溢出边界与 1080P/2K 助手开关兼容`
+- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.5/gray；四种视口组合均为 0px 页面横向溢出和 0 张卡片重叠`
+- 待验收：`AICopy 上游仍未应用 9:16 与声音参数；在供应商契约确认前继续冻结付费生成测试`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
   - `gray/2026-07-15-aicopy-sd-video-input-modes-v064.md`
+  - `gray/2026-07-15-admin-runninghub-overflow-key-pool-v065.md`
   - `gray/2026-07-14-ops-task-window-gray.md`
   - `gray/2026-07-14-user-group-postgres-atomic-v063.md`
   - `gray/2026-07-14-aifork-contract-access-gray.md`

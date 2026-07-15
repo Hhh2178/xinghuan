@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 **Scope:** Admin global overflow guardrails, RunningHub catalog cards, Provider-level RH Key pool information architecture
-**Status:** Approved for implementation
+**Status:** Implemented and gray-verified in `v0.6.5`
 **Target gray version:** `v0.6.5`
 
 ## 1. Evidence And Problem Boundary

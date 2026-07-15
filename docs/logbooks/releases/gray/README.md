@@ -6,6 +6,8 @@
 
 ## 当前 active gray release
 
+- `2026-07-15-admin-runninghub-overflow-key-pool-v065.md`
+- `2026-07-15-aicopy-sd-video-input-modes-v064.md`
 - `2026-07-06-task-list-lightweight-gray.md`
 - `2026-06-30-group-execution-manager-and-tech-theme-lockdown-gray.md`
 - `2026-06-28-admin-assistant-environment-sync-overlap-gray.md`
