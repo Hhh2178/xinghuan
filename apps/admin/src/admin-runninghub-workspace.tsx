@@ -142,6 +142,9 @@ export function AdminRunningHubWorkspace({
   const selectedItem = scopedItems.find((item) => item.catalogId === selectedCatalogId) || null;
   const workflowCount = items.filter((item) => item.kind === "workflow").length;
   const appCount = items.filter((item) => item.kind === "app").length;
+  const resolvedProviderLabel = items.find((item) => item.providerId === resolvedProviderId)?.providerName?.trim()
+    || resolvedProviderId
+    || "未选择 Provider";
   const analyzeTargetKind = analyzeDraft?.detectedKind === "app"
     ? "app"
     : analyzeDraft?.detectedKind === "workflow"
@@ -355,6 +358,98 @@ export function AdminRunningHubWorkspace({
         </article>
       </div>
 
+      <section className="api-card admin-runninghub-key-pool-panel">
+        <div className="admin-runninghub-workspace__section-head admin-runninghub-key-pool-panel__head">
+          <div className="admin-runninghub-key-pool-panel__copy">
+            <span className="admin-runninghub-key-pool-panel__kicker">Provider 级共享 Key 池</span>
+            <strong>RH Key 池管理</strong>
+            <span>当前 Provider：{resolvedProviderLabel} · {keyPoolSummary.enabledCount} 个启用 · 总并发 {keyPoolSummary.totalConcurrency}</span>
+            <small>统一作用于该 RunningHub Provider 下的全部工作流和 AI 应用，不属于当前选中的单个条目。</small>
+          </div>
+          <button
+            type="button"
+            className="ghost-action"
+            onClick={() => setKeyPoolOpen((current) => !current)}
+            aria-expanded={keyPoolOpen}
+            aria-controls="admin-runninghub-key-pool-body"
+          >
+            {keyPoolOpen ? "收起 Key 池" : "展开 Key 池"}
+          </button>
+        </div>
+        {keyPoolOpen ? (
+          <div id="admin-runninghub-key-pool-body" className="admin-runninghub-key-pool-panel__body">
+            <div className="admin-runninghub-key-pool-panel__toolbar">
+              <button
+                type="button"
+                className="ghost-action"
+                onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft([...current, createEmptyRunningHubKeyPoolDraftItem()]))}
+                disabled={!resolvedProviderId}
+              >
+                <Plus aria-hidden="true" /> 新增 Key
+              </button>
+              <button type="button" className="ghost-action" onClick={() => void handleSaveKeyPool()} disabled={keyPoolSaving || !resolvedProviderId}>
+                {keyPoolSaving ? "保存中..." : "保存 Key 池"}
+              </button>
+            </div>
+            <div className="admin-runninghub-key-pool-panel__list">
+              {keyPoolDraft.length ? keyPoolDraft.map((item) => (
+                <div key={item.id} className="admin-runninghub-key-pool-row">
+                  <div className="admin-runninghub-key-pool-row__head">
+                    <div className="admin-runninghub-key-pool-row__copy">
+                      <strong>{item.note.trim() || item.apiKeyPreview || item.id}</strong>
+                      <span>{item.isDefault ? `默认 Key · ${item.apiKeyPreview || "新 Key 尚未保存"}` : item.apiKeyPreview || "新 Key 尚未保存"}</span>
+                    </div>
+                    <div className="admin-runninghub-analyze-card__actions">
+                      <button
+                        type="button"
+                        className="ghost-action"
+                        onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft(current, item.id))}
+                      >
+                        {item.isDefault ? "默认 Key" : "设为默认"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-action"
+                        onClick={() => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, enabled: !row.enabled } : row))}
+                      >
+                        {item.enabled ? "停用" : "启用"}
+                      </button>
+                      <button type="button" className="ghost-action" onClick={() => void handleDeleteKeyPoolItem(item.id)}>删除</button>
+                    </div>
+                  </div>
+                  <div className="admin-runninghub-analyze-panel__form admin-runninghub-key-pool-row__form">
+                    <label>
+                      <span>备注</span>
+                      <input value={item.note} onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, note: event.target.value } : row))} />
+                    </label>
+                    <label>
+                      <span>最大并发</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={item.maxConcurrency}
+                        onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, maxConcurrency: Math.max(1, Number(event.target.value || 1)) } : row))}
+                      />
+                    </label>
+                    <label className="admin-runninghub-analyze-panel__full-row">
+                      <span>API Key</span>
+                      <input
+                        value={item.apiKey || ""}
+                        onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, apiKey: event.target.value } : row))}
+                        placeholder={item.apiKeyPreview ? `已保存 (${item.apiKeyPreview})，留空表示不覆盖` : "请输入 API Key"}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )) : <div className="admin-runninghub-editor__empty-note">当前还没有 RH Key。点击“新增 Key”开始配置号池。</div>}
+            </div>
+          </div>
+        ) : (
+          <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、设为默认、启用、停用和删除单个 RH Key。</div>
+        )}
+      </section>
+
       <div className="admin-runninghub-workspace__sticky-shell">
         <div className="admin-runninghub-workspace__filters">
           <label className="admin-runninghub-workspace__search">
@@ -394,23 +489,29 @@ export function AdminRunningHubWorkspace({
                       ? item.fields.filter((field) => String(field.nodeId || "").trim() && String(field.fieldName || "").trim()).length
                       : 0;
                     const schemaPropertyCount = countSchemaProperties(item.parameterSchema);
+                    const summary = `${item.kind === "workflow" ? "工作流" : "AI 应用"} · ${item.taskCapability || "video"} · 绑定 ${validFieldCount} · Schema ${schemaPropertyCount}`;
+                    const warning = validFieldCount <= 0
+                      ? allowsEmptyInputs
+                        ? "显式无入参工作流，可直接启用并运行"
+                        : schemaPropertyCount > 0
+                          ? "已有结构化参数草案，但仍待补 RH 绑定字段"
+                          : "待补输入槽，启用后节点不会展开参数区"
+                      : "";
                     return (
                       <>
-                  <div className="admin-runninghub-list-item__icon">
-                    {item.kind === "workflow" ? <Workflow aria-hidden="true" /> : <Boxes aria-hidden="true" />}
-                  </div>
-                  <div className="admin-runninghub-list-item__copy">
-                    <strong>{item.title || item.catalogId}</strong>
-                    <span>{item.note?.trim() || "未补充备注"}</span>
-                    <small>{item.kind === "workflow" ? "工作流" : "AI 应用"} · {item.taskCapability || "video"} · 绑定 {validFieldCount} · Schema {schemaPropertyCount}</small>
-                    {validFieldCount <= 0
-                      ? <small className="text-amber-300">{allowsEmptyInputs ? "显式无入参工作流，可直接启用并运行" : schemaPropertyCount > 0 ? "已有结构化参数草案，但仍待补 RH 绑定字段" : "待补输入槽，启用后节点不会展开参数区"}</small>
-                      : null}
-                  </div>
-                  <div className="admin-runninghub-list-item__meta">
-                    <em>{item.enabled ? "启用" : "停用"}</em>
-                    <small>{item.providerName}</small>
-                  </div>
+                        <div className="admin-runninghub-list-item__icon">
+                          {item.kind === "workflow" ? <Workflow aria-hidden="true" /> : <Boxes aria-hidden="true" />}
+                        </div>
+                        <div className="admin-runninghub-list-item__copy">
+                          <strong className="admin-runninghub-list-item__title" title={item.title || item.catalogId}>{item.title || item.catalogId}</strong>
+                          <span className="admin-runninghub-list-item__note" title={item.note?.trim() || "未补充备注"}>{item.note?.trim() || "未补充备注"}</span>
+                          <small className="admin-runninghub-list-item__summary" title={summary}>{summary}</small>
+                          {warning ? <small className="admin-runninghub-list-item__warning text-amber-300" title={warning}>{warning}</small> : null}
+                          <div className="admin-runninghub-list-item__footer">
+                            <em>{item.enabled ? "启用" : "停用"}</em>
+                            <small title={item.providerName}>{item.providerName}</small>
+                          </div>
+                        </div>
                       </>
                     );
                   })()}
@@ -442,88 +543,6 @@ export function AdminRunningHubWorkspace({
             onDuplicate={(catalogId) => handleCreate(activeTab, catalogId)}
             onToggleEnabled={handleToggleEnabled}
           />
-
-          <section className="api-card admin-runninghub-key-pool-panel">
-            <div className="admin-runninghub-workspace__section-head">
-              <div>
-                <strong>RH Key 池管理</strong>
-                <span>{keyPoolSummary.enabledCount} 个启用 / 总并发 {keyPoolSummary.totalConcurrency}</span>
-              </div>
-              <div className="admin-runninghub-analyze-card__actions">
-                <button type="button" className="ghost-action" onClick={() => setKeyPoolOpen((current) => !current)}>
-                  {keyPoolOpen ? "收起" : "展开"}
-                </button>
-                <button
-                  type="button"
-                  className="ghost-action"
-                  onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft([...current, createEmptyRunningHubKeyPoolDraftItem()]))}
-                  disabled={!resolvedProviderId}
-                >
-                  <Plus aria-hidden="true" /> 新增 Key
-                </button>
-                <button type="button" className="ghost-action" onClick={() => void handleSaveKeyPool()} disabled={keyPoolSaving || !resolvedProviderId}>
-                  {keyPoolSaving ? "保存中..." : "保存 Key 池"}
-                </button>
-              </div>
-            </div>
-            {keyPoolOpen ? (
-              <div className="admin-runninghub-analyze-panel__form">
-                {keyPoolDraft.length ? keyPoolDraft.map((item) => (
-                  <div key={item.id} className="admin-runninghub-analyze-card">
-                    <div className="admin-runninghub-workspace__section-head">
-                      <div>
-                        <strong>{item.note.trim() || item.apiKeyPreview || item.id}</strong>
-                        <span>{item.isDefault ? `默认 Key · ${item.apiKeyPreview || "新 Key 尚未保存"}` : item.apiKeyPreview || "新 Key 尚未保存"}</span>
-                      </div>
-                      <div className="admin-runninghub-analyze-card__actions">
-                        <button
-                          type="button"
-                          className="ghost-action"
-                          onClick={() => setKeyPoolDraft((current) => normalizeDefaultRunningHubKeyPoolDraft(current, item.id))}
-                        >
-                          {item.isDefault ? "默认 Key" : "设为默认"}
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-action"
-                          onClick={() => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, enabled: !row.enabled } : row))}
-                        >
-                          {item.enabled ? "停用" : "启用"}
-                        </button>
-                        <button type="button" className="ghost-action" onClick={() => void handleDeleteKeyPoolItem(item.id)}>删除</button>
-                      </div>
-                    </div>
-                    <div className="admin-runninghub-analyze-panel__form">
-                      <label>
-                        <span>备注</span>
-                        <input value={item.note} onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, note: event.target.value } : row))} />
-                      </label>
-                      <label>
-                        <span>最大并发</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={999}
-                          value={item.maxConcurrency}
-                          onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, maxConcurrency: Math.max(1, Number(event.target.value || 1)) } : row))}
-                        />
-                      </label>
-                      <label className="admin-runninghub-analyze-panel__full-row">
-                        <span>API Key</span>
-                        <input
-                          value={item.apiKey || ""}
-                          onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, apiKey: event.target.value } : row))}
-                          placeholder={item.apiKeyPreview ? `已保存 (${item.apiKeyPreview})，留空表示不覆盖` : "请输入 API Key"}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )) : <div className="admin-runninghub-editor__empty-note">当前还没有 RH Key。点击“新增 Key”开始配置号池。</div>}
-              </div>
-            ) : (
-              <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、设为默认、启用、停用和删除单个 RH Key。该 Key 池同时作用于当前 RunningHub Provider 下的工作流与 AI 应用。</div>
-            )}
-          </section>
 
           <section className="api-card admin-runninghub-analyze-panel">
             <div className="admin-runninghub-workspace__section-head">

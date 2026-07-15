@@ -595,6 +595,14 @@ button:disabled {
   padding: 20px;
 }
 
+.admin-main > *,
+.admin-runninghub-workspace > *,
+.admin-runninghub-workspace__layout > *,
+.admin-runninghub-workspace__editor-stack > *,
+.admin-runninghub-key-pool-panel > * {
+  min-width: 0;
+}
+
 .admin-main--fixed-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -2066,6 +2074,81 @@ button:disabled {
   margin-bottom: 12px;
 }
 
+.admin-runninghub-key-pool-panel {
+  min-width: 0;
+  padding: 16px;
+  border-color: rgba(45, 212, 191, 0.24);
+  background: rgba(8, 13, 20, 0.9);
+}
+
+.admin-runninghub-key-pool-panel__head {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.admin-runninghub-key-pool-panel__copy,
+.admin-runninghub-key-pool-row__copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.admin-runninghub-key-pool-panel__copy strong,
+.admin-runninghub-key-pool-row__copy strong {
+  color: #f8fafc;
+}
+
+.admin-runninghub-key-pool-panel__copy small,
+.admin-runninghub-key-pool-row__copy span {
+  color: #94a3b8;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-runninghub-key-pool-panel__kicker {
+  color: #5eead4;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-runninghub-key-pool-panel__body,
+.admin-runninghub-key-pool-panel__list {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-runninghub-key-pool-panel__toolbar,
+.admin-runninghub-key-pool-row__head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-runninghub-key-pool-panel__toolbar {
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.admin-runninghub-key-pool-row {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.admin-runninghub-key-pool-row__form {
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
 .admin-runninghub-workspace__list-body {
   display: grid;
   align-content: start;
@@ -2092,7 +2175,7 @@ button:disabled {
   grid-template-columns: 36px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-  min-height: 88px;
+  min-height: 132px;
   padding: 10px;
   border: 1px solid rgba(56, 189, 248, 0.16);
   border-radius: 8px;
@@ -2129,7 +2212,6 @@ button:disabled {
 }
 
 .admin-runninghub-list-item__copy,
-.admin-runninghub-list-item__meta,
 .admin-runninghub-editor__meta {
   min-width: 0;
   display: grid;
@@ -2137,33 +2219,68 @@ button:disabled {
 }
 
 .admin-runninghub-list-item__copy {
+  min-height: 110px;
   align-content: start;
 }
 
-.admin-runninghub-list-item__copy span {
+.admin-runninghub-list-item__title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.admin-runninghub-list-item__note {
+  min-height: 33px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: #93c5fd;
   font-size: 11px;
   line-height: 1.5;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
-.admin-runninghub-list-item__meta {
-  grid-column: 2;
-  justify-items: start;
-  gap: 6px;
+.admin-runninghub-list-item__summary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .admin-runninghub-list-item small {
   color: #94a3b8;
   font-size: 11px;
   line-height: 1.5;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
-.admin-runninghub-list-item__meta small {
+.admin-runninghub-list-item__warning {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #fbbf24;
+}
+
+.admin-runninghub-list-item__footer {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 7px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.admin-runninghub-list-item__footer small {
+  min-width: 0;
+  overflow: hidden;
   color: #7dd3fc;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .admin-runninghub-list-item em {
