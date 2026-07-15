@@ -1,4 +1,5 @@
 const baseUrl = String(process.env.XINGHUAN_VERIFY_BASE_URL || "http://127.0.0.1:18200").replace(/\/$/, "");
+const requestOrigin = new URL(baseUrl).origin;
 const adminEmail = String(process.env.XINGHUAN_VERIFY_EMAIL || process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL || "").trim();
 const adminPassword = String(process.env.XINGHUAN_VERIFY_PASSWORD || process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD || "").trim();
 const testAccountOverride = process.argv.includes("--test-account-override");
@@ -183,7 +184,7 @@ async function verifyAccountOverride(user, adminCookie) {
 async function upsertRule(adminCookie, input) {
   const response = await requestJson("/api/admin/permission-rules", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify(input),
   }, adminCookie);
   return response.data;
@@ -204,7 +205,7 @@ function modelIds(response) {
 async function login(email, password) {
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: requestOrigin },
     body: JSON.stringify({ email, password }),
   });
   const payload = await response.json();
@@ -217,7 +218,7 @@ async function login(email, password) {
 async function requestJson(pathname, options = {}, cookie = "") {
   const response = await fetch(`${baseUrl}${pathname}`, {
     ...options,
-    headers: { ...(options.headers || {}), ...(cookie ? { cookie } : {}) },
+    headers: { origin: requestOrigin, ...(options.headers || {}), ...(cookie ? { cookie } : {}) },
   });
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
