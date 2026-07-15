@@ -76,6 +76,7 @@ async function verifyAccountOverride(user, adminCookie) {
     subject.domain === "provider" &&
     subject.subjectType === "model" &&
     subject.exposureState === "published" &&
+    subject.metadata?.enabled === true &&
     rules.some((rule) => rule.principalType === "group" && rule.principalId === user.groupId && rule.subjectKey === subject.subjectKey && rule.action === "view" && rule.effect === "allow") &&
     !rules.some((rule) => rule.principalType === "user" && rule.principalId === user.id && rule.subjectKey === subject.subjectKey && rule.action === "view")
   ));
