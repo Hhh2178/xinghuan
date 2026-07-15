@@ -48,4 +48,14 @@
 
 ## Final Validation
 
-Pending `v0.6.8` gray deployment, free long-lived Worker mock, and an optional second six-second paid task only after the mock proves the official wire payload.
+- Gray `v0.6.8` deployment completed; API and Worker are active and both public/internal status endpoints report `0.6.8 / gray`.
+- Free long-running Worker mock passed with one submit, one poll, one authenticated content download, local output materialization, and final `succeeded` state.
+- Captured mock request: `duration=6`, `modeType=image2video`, `ratio=9:16`, `enableSound=on`, `images=1`.
+- Final local task: `task-1784097065594-z22i7n`.
+- Final task completed automatically without manual recovery.
+- Final output: H.264 `720x1254`, 30 fps, exactly `6.000000` seconds, 180 frames.
+- Final audio: AAC stereo, 44.1 kHz, approximately 6.08 seconds; measured mean/max volume `-19.6 dB / -3.6 dB`.
+- Visual acceptance: supplied identity, clothing, pink background, and samba movement were preserved.
+- User acceptance: result confirmed normal on `2026-07-15`.
+- Verdict: duration, vertical ratio, generated sound, first-frame reference, completion polling, authenticated download, and local materialization all passed.
+- Paid-test gate is closed; do not submit further paid AICopy validation tasks for this batch.

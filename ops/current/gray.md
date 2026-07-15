@@ -2,14 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.6.5`
-- 当前 release：`20260715-admin-runninghub-overflow-key-pool-v065`
-- 当前状态：`v0.6.5 已部署灰度；RH 目录卡文字堆叠和 Provider 级 Key 池层级已完成，生产继续保持 v0.5.22`
-- 当前补修：`AICopy 现有成品时长 15 秒通过，但输出为横屏且无音轨；继续冻结付费复测，等待供应商契约确认`
+- 当前版本：`v0.6.8`
+- 当前 release：`20260715-aicopy-task-store-normalization-v068`
+- 当前状态：`v0.6.8 已部署灰度；AICopy Worker 两处协议归一化、终态内容回收和鉴权下载已修复，生产继续保持 v0.5.22`
+- 当前补修：`6 秒 9:16 有声视频真实链路已通过并由用户确认正常；停止继续付费复测`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-task-store-normalization-v068.md`
+  - `../../docs/logbooks/validations/2026-07-15-aicopy-sd-mini-six-second.md`
+  - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-protocol-normalization-v067.md`
+  - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-sd-final-content-v066.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-admin-runninghub-overflow-key-pool-v065.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-aicopy-sd-video-input-modes-v064.md`
   - `../../docs/logbooks/releases/gray/2026-07-14-user-group-postgres-atomic-v063.md`
@@ -63,9 +67,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-aicopy-sd-video-input-modes-v064`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260715-admin-runninghub-overflow-key-pool-v065`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-aicopy-sd-video-input-modes-v064`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260715-aicopy-protocol-normalization-v067`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

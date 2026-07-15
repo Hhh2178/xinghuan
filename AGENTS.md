@@ -26,11 +26,11 @@
 
 ## 当前运行态摘要
 
-- Gray 版本：`v0.6.5`
-- Gray release：`20260715-admin-runninghub-overflow-key-pool-v065`
+- Gray 版本：`v0.6.8`
+- Gray release：`20260715-aicopy-task-store-normalization-v068`
 - Production 版本：`v0.5.22`
 - Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.5` 已部署灰度；RH 目录长文本轨道与 Provider 级 Key 池层级已完成四组合验收。AICopy SD 付费复测继续冻结，生产仍保持 `v0.5.22`。
+- `v0.6.8` 已部署灰度；AICopy Worker 的两处协议归一化边界、终态内容回收和鉴权下载已修复，6 秒 `9:16` 有声视频付费验收通过。生产仍保持 `v0.5.22`。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 

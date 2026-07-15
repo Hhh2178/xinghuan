@@ -4,14 +4,18 @@
 
 ### Gray
 
-- 版本：`v0.6.5`
-- release：`20260715-admin-runninghub-overflow-key-pool-v065`
-- 当前状态：`v0.6.5 已部署灰度；RH 目录文字轨道和 Provider 级 Key 池信息架构已完成，生产保持 v0.5.22`
-- 部署内容：`RH Key 池提升到 Provider 全局层、目录卡长文本约束、Admin 防溢出边界与 1080P/2K 助手开关兼容`
-- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.5/gray；四种视口组合均为 0px 页面横向溢出和 0 张卡片重叠`
-- 待验收：`AICopy 上游仍未应用 9:16 与声音参数；在供应商契约确认前继续冻结付费生成测试`
+- 版本：`v0.6.8`
+- release：`20260715-aicopy-task-store-normalization-v068`
+- 当前状态：`v0.6.8 已部署灰度；AICopy Worker 两处协议归一化、终态内容回收和鉴权下载已修复，生产保持 v0.5.22`
+- 部署内容：`保留 aicopy 协议、completed 无 URL 回退、同源鉴权下载、脱敏请求摘要及真实 Worker 回归`
+- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.8/gray；6 秒 9:16 H.264 视频和 AAC 双声道音轨通过，用户确认成片正常`
+- 待验收：`本批次无待验收项；停止继续付费复测`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
+  - `gray/2026-07-15-aicopy-task-store-normalization-v068.md`
+  - `../validations/2026-07-15-aicopy-sd-mini-six-second.md`
+  - `gray/2026-07-15-aicopy-protocol-normalization-v067.md`
+  - `gray/2026-07-15-aicopy-sd-final-content-v066.md`
   - `gray/2026-07-15-aicopy-sd-video-input-modes-v064.md`
   - `gray/2026-07-15-admin-runninghub-overflow-key-pool-v065.md`
   - `gray/2026-07-14-ops-task-window-gray.md`

@@ -25,15 +25,15 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.5`（灰度已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.8`（灰度已部署）；生产稳定版本为 `v0.5.22`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.6.5`
+- 当前灰度版本：`v0.6.8`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.5.22`
-- 当前灰度 release：`20260715-admin-runninghub-overflow-key-pool-v065`
+- 当前灰度 release：`20260715-aicopy-task-store-normalization-v068`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：AICopy SD 上游契约无费用取证；后台 RH 目录文字与 Provider 级 Key 池信息架构已完成灰度收口
+- 当前重点：AICopy SD Worker 协议、终态回收和鉴权下载已完成灰度收口；6 秒 `9:16` 有声视频已通过付费验收
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

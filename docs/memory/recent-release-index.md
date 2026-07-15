@@ -3,8 +3,8 @@
 ## 当前 active release
 
 - gray：
-  - 版本：`v0.6.5`
-  - release：`20260715-admin-runninghub-overflow-key-pool-v065`
+  - 版本：`v0.6.8`
+  - release：`20260715-aicopy-task-store-normalization-v068`
 - production：
   - 版本：`v0.5.22`
   - release：`20260702-envsync-admin-sections-prod-r1-v0522`
