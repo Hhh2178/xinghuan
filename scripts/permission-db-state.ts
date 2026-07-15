@@ -45,20 +45,19 @@ export async function connectPermissionDatabase() {
 export async function readPermissionDatabaseState(
   client: Client,
 ): Promise<PermissionDatabaseState> {
-  const [subjectResult, ruleResult, groupResult, userResult, policyResult] =
-    await Promise.all([
-      client.query(
-        "select subject_key, domain, subject_type, parent_key, source_id, exposure_state, display_name, metadata, revision from xh_permission_subjects order by subject_key",
-      ),
-      client.query(
-        "select id, principal_type, principal_id, subject_key, action, effect, revision from xh_permission_rules order by id",
-      ),
-      client.query("select id from xh_user_groups order by id"),
-      client.query("select id, role, group_id from xh_users where disabled = false order by id"),
-      client.query(
-        "select group_id, deny from xh_group_permission_policies order by group_id",
-      ),
-    ]);
+  const subjectResult = await client.query(
+    "select subject_key, domain, subject_type, parent_key, source_id, exposure_state, display_name, metadata, revision from xh_permission_subjects order by subject_key",
+  );
+  const ruleResult = await client.query(
+    "select id, principal_type, principal_id, subject_key, action, effect, revision from xh_permission_rules order by id",
+  );
+  const groupResult = await client.query("select id from xh_user_groups order by id");
+  const userResult = await client.query(
+    "select id, role, group_id from xh_users where disabled = false order by id",
+  );
+  const policyResult = await client.query(
+    "select group_id, deny from xh_group_permission_policies order by group_id",
+  );
 
   return {
     subjects: subjectResult.rows.map((row) => ({
