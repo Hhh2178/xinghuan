@@ -16,7 +16,9 @@
 
 ## Verification
 
-- Focused adapter, Admin, and type checks: passed.
-- Full workspace checks and single-port build: pending release preparation.
-- Gray runtime and free Worker mock: pending deployment.
+- Focused adapter, Admin, type, and three-model serializer checks: passed.
+- Full workspace checks and single-port build: passed.
+- Gray API and Worker are active; public and internal status endpoints report `0.6.9 / gray`.
+- Free Worker mock passed through submit, poll, authenticated content download, output materialization, and final `succeeded` state.
+- FAST and plain 720P post-deploy configuration dry-runs are idempotent; temporary verification Provider cleanup was confirmed.
 - No paid model request will be submitted by this release process.

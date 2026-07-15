@@ -32,6 +32,9 @@
 - AICopy adapter contract regression: passed.
 - Admin AICopy SD scope regression: passed.
 - Mini/FAST/plain 720P serializer matrix: passed with duration 6, ratio `9:16`, `image2video`, sound on, and one image.
-- Workspace type checks and single-port build: pending release preparation.
-- Free long-running Worker mock: pending gray deployment.
+- Workspace type checks and single-port build: passed.
+- Gray API and Worker are active; public and internal status endpoints report `0.6.9 / gray`.
+- Free long-running Worker mock passed with one submit, one poll, one authenticated content download, local materialization, and final `succeeded` state.
+- Captured mock request contained duration 6, `image2video`, ratio `9:16`, sound on, and one image.
+- Post-deploy dry-run returned `changed=false` for FAST and plain 720P; temporary verification Provider count returned zero.
 - Paid provider generation: intentionally not run.

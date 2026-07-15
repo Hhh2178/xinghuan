@@ -5,7 +5,7 @@
 - 当前版本：`v0.6.9`
 - 当前 release：`20260715-aicopy-sd-toggle-contract-defaults-v069`
 - 当前状态：`v0.6.9 已部署灰度；AICopy SD 模型开关会自动补齐官方请求契约，生产继续保持 v0.5.22`
-- 当前补修：`FAST、普通 720P 与 mini 已统一六条绑定；本批次仅使用免费 Mock 验证`
+- 当前补修：`FAST、普通 720P 与 mini 已统一六条绑定；免费 Mock 和配置幂等复核通过，本批次未调用付费模型`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
