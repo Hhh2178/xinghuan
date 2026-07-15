@@ -7468,19 +7468,30 @@ async function analyzeRunningHubCatalogDraft(input: {
   };
 }
 
+let permissionSubjectReconciliation: Promise<void> | null = null;
+
 async function reconcilePermissionSubjects() {
-  const [sharedResources, runningHubItems, providerModels] = await Promise.all([
-    readSharedResourceCatalog(),
-    adminRunningHubCatalogItems(),
-    providerRepository.readModelRecords(),
-  ]);
-  await permissionSubjectRegistrar.reconcileFirstWavePermissionSubjects({
-    resourceCategories: sharedResources.categories,
-    resourceItems: sharedResources.items,
-    runningHubItems,
-    nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({ type, label: type, category: "canvas" })),
-    providerModels,
-  });
+  if (permissionSubjectReconciliation) return permissionSubjectReconciliation;
+  const current = (async () => {
+    const [sharedResources, runningHubItems, providerModels] = await Promise.all([
+      readSharedResourceCatalog(),
+      adminRunningHubCatalogItems(),
+      providerRepository.readModelRecords(),
+    ]);
+    await permissionSubjectRegistrar.reconcileFirstWavePermissionSubjects({
+      resourceCategories: sharedResources.categories,
+      resourceItems: sharedResources.items,
+      runningHubItems,
+      nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({ type, label: type, category: "canvas" })),
+      providerModels,
+    });
+  })();
+  permissionSubjectReconciliation = current;
+  try {
+    await current;
+  } finally {
+    if (permissionSubjectReconciliation === current) permissionSubjectReconciliation = null;
+  }
 }
 
 async function filterRunningHubItems(items: RhCatalogItem[], currentUser?: CurrentUser | null, includeRestricted?: boolean) {

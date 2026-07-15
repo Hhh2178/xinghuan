@@ -45,6 +45,7 @@ const checks = [
   ["rule updates and deletes use atomic revision guards", /where xh_permission_rules\.revision = excluded\.revision - 1[\s\S]*returning id/.test(repository) && /delete from xh_permission_rules where id = \$1 and revision = \$2 returning id/.test(repository)],
   ["repository revision races map to HTTP 409", routes.includes("writeWithRevisionConflict") && routes.includes("new deps.HttpError(409, conflictCode)")],
   ["enforced startup has readiness gate", server.includes("PERMISSION_RUNTIME_NOT_READY")],
+  ["subject reconciliation is single-flight", server.includes("permissionSubjectReconciliation") && server.includes("permissionSubjectReconciliation === current")],
   ["model catalog uses permission runtime", /publicModelCatalog[\s\S]*permissionRuntime\.decide/.test(server)],
   ["RH catalog uses permission runtime", /filterRunningHubItems[\s\S]*permissionRuntime\.decide/.test(server)],
   ["sync proxy authorizes model execution", externalProxy.includes("authorizeModelExecution")],
