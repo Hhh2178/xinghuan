@@ -982,3 +982,11 @@ Record the gray deployment path, service state, status responses, scoped model c
 - Spec coverage: Provider protocol activation, strict model opt-in, four universal modes, exact 1/1/2/N image limits, configurable reference-image maximum, reference audio, fixed sound generation, media ordering, HTTP 400 API enforcement, Worker gating, scoped and idempotent data configuration, result delivery to canvas, responsive UI, gray release, and production protection are each assigned to an implementation task.
 - Placeholder scan: no deferred implementation markers are present; every task defines concrete files, behavior, commands, and expected results.
 - Type consistency: the plan consistently uses `VideoInputMode = "reference" | "first" | "last" | "firstlast"`, `aicopyRequestContractEnabled`, `maxReferenceImages`, `maxReferenceAudios`, and `audioReference` across admin, catalog, canvas, API, and Worker layers.
+
+## 2026-07-15 Four-Mode Extension Status
+
+- [x] Added independent `last` mode to shared types, canvas assignment, API validation, and queued/synchronous request normalization.
+- [x] Removed `multiImage` as an authoritative runtime limit; `referenceImages.max` now controls reference mode.
+- [x] Replaced the video-model `参考图` and `多参考图` cards with one `参考图模式` card and a `1..16` maximum control.
+- [x] Added pure admin schema tests, canvas mode tests, API count tests, Provider adapter regressions, type checks, and a full single-port build.
+- [ ] Repackage and redeploy gray `v0.6.4`, then complete authenticated UI and controlled-generation acceptance.

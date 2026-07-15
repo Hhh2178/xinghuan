@@ -181,7 +181,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     return getBackendFrameModeOptions(backendVideoCaps);
   }, [backendVideoCaps, isBackendSelected]);
   const frameMode = normalizeBackendFrameMode(rawFrameMode, backendFrameModeOptions);
-  const backendImageInputLimit = frameMode === 'first'
+  const backendImageInputLimit = frameMode === 'first' || frameMode === 'last'
     ? 1
     : frameMode === 'firstlast'
       ? 2
@@ -1068,7 +1068,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           ? JIMENG_SEEDANCE_LIMITS.images
           : (modelDef.maxRefImages || 7) + 4;
       if (orderedImages.length + cur.length >= cap) {
-        setError(frameMode === 'first' ? '首帧模式需要且只能使用 1 张图片' : frameMode === 'firstlast' ? '首尾帧模式需要且只能使用 2 张图片' : `参考图最多允许 ${cap} 张`);
+        setError(frameMode === 'first' ? '首帧模式需要且只能使用 1 张图片' : frameMode === 'last' ? '尾帧模式需要且只能使用 1 张图片' : frameMode === 'firstlast' ? '首尾帧模式需要且只能使用 2 张图片' : `参考图最多允许 ${cap} 张`);
         return;
       }
       update({ localRefImages: [...cur, payload.url] });
@@ -1111,7 +1111,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     : `上游素材 · 参考图 ${Math.min(refsCount, Math.max(maxMentionRefs, 0))}/${Math.max(maxMentionRefs, 0)}`;
 
   const handleBackendFrameModeChange = (nextMode: BackendVideoFrameMode) => {
-    const nextLimit = nextMode === 'first'
+    const nextLimit = nextMode === 'first' || nextMode === 'last'
       ? 1
       : nextMode === 'firstlast'
         ? 2

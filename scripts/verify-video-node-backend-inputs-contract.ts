@@ -20,7 +20,24 @@ const fullCapabilities = {
 
 assert.deepEqual(
   getBackendFrameModeOptions(fullCapabilities).map((item) => item.value),
-  ["reference", "first", "firstlast"],
+  ["reference", "first", "last", "firstlast"],
+);
+
+assert.deepEqual(
+  resolveBackendVideoInputAssignment({
+    imageUrls: ["a", "b"],
+    frameMode: "last",
+    maxReferenceImages: 9,
+    inputCapabilities: fullCapabilities,
+  }),
+  {
+    refs: [],
+    orderedImages: ["a"],
+    lastFrameUrl: "a",
+    modeType: "image2video",
+    requiredImageCount: 1,
+    maxImageCount: 1,
+  },
 );
 
 assert.deepEqual(
@@ -88,7 +105,15 @@ const options = getBackendFrameModeOptions(fullCapabilities);
 assert.equal(normalizeBackendFrameMode("auto", options), "reference");
 assert.equal(normalizeBackendFrameMode("first", options), "first");
 assert.equal(normalizeBackendFrameMode("firstlast", options), "firstlast");
-assert.equal(normalizeBackendFrameMode("last", options), "firstlast");
+assert.equal(normalizeBackendFrameMode("last", options), "last");
+
+const legacySingleReferenceAssignment = resolveBackendVideoInputAssignment({
+  imageUrls: ["a", "b", "c"],
+  frameMode: "reference",
+  maxReferenceImages: 3,
+  inputCapabilities: { ...fullCapabilities, multiImage: false },
+});
+assert.deepEqual(legacySingleReferenceAssignment.orderedImages, ["a", "b", "c"]);
 
 const previewGroups = resolveVideoPreviewGroups({
   isBackendSelected: true,
@@ -99,6 +124,14 @@ const previewGroups = resolveVideoPreviewGroups({
 });
 assert.deepEqual(previewGroups, ["text", "image", "audio"]);
 
+assert.equal(getBackendVideoInputValidationError({
+  frameMode: "last",
+  imageCount: 0,
+  audioCount: 0,
+  maxReferenceImages: 9,
+  maxReferenceAudios: 3,
+  inputCapabilities: fullCapabilities,
+}), "尾帧模式需要且只能使用 1 张图片");
 assert.equal(getBackendVideoInputValidationError({
   frameMode: "first",
   imageCount: 0,

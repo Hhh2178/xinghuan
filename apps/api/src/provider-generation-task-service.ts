@@ -347,7 +347,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const submittedLastFrame = deps.safeText(body.last_frame || params.last_frame);
     const explicitMode = normalizeVideoInputMode(params.videoInputMode || body.videoInputMode);
     const videoInputMode = explicitMode
-      || (submittedFirstFrame && submittedLastFrame ? "firstlast" : submittedFirstFrame ? "first" : "reference");
+      || (submittedFirstFrame && submittedLastFrame ? "firstlast" : submittedFirstFrame ? "first" : submittedLastFrame ? "last" : "reference");
     const orderedSubmittedImages = explicitMode
       ? (submittedImages.length > 0
           ? submittedImages
@@ -355,11 +355,15 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
             ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
             : videoInputMode === "first"
               ? [submittedFirstFrame].filter(Boolean)
-              : [])
+              : videoInputMode === "last"
+                ? [submittedLastFrame].filter(Boolean)
+                : [])
       : videoInputMode === "firstlast"
         ? [submittedFirstFrame, submittedLastFrame].filter(Boolean)
         : videoInputMode === "first"
           ? [submittedFirstFrame].filter(Boolean)
+          : videoInputMode === "last"
+            ? [submittedLastFrame].filter(Boolean)
           : submittedImages;
     enforceVideoInputs({
       mode: videoInputMode,

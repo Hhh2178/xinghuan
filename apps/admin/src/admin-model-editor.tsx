@@ -8,6 +8,11 @@ import {
   syncVideoDurationSchema,
   normalizeVideoDurationTierList,
 } from "./admin-model-editor-video-duration";
+import {
+  legacyMultiImageFromReferenceLimit,
+  readVideoReferenceImageMax,
+  syncVideoReferenceImageSchema,
+} from "./admin-model-editor-video-reference";
 import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -147,7 +152,7 @@ function deriveInputProfile(
   inputCapabilities: ReturnType<typeof normalizeInputCapabilities>,
 ) {
   const parts: string[] = ["prompt"];
-  if (inputCapabilities.imageReference || capability === "image" || capability === "video") {
+  if (inputCapabilities.imageReference) {
     parts.push("image_reference");
   }
   if (inputCapabilities.videoReference) parts.push("video_reference");
@@ -167,15 +172,15 @@ function inputCapabilityMeta(capability: Capability) {
   }> = [
     {
       key: "imageReference",
-      label: "参考图",
-      description: capability === "video" ? "允许视频节点接入静态参考图。" : "允许节点接入单张参考图。",
+      label: capability === "video" ? "参考图模式" : "参考图",
+      description: capability === "video" ? "允许视频节点按模型上限接入有序参考图。" : "允许节点接入单张参考图。",
       visible: capability === "image" || capability === "video",
     },
     {
       key: "multiImage",
       label: "多参考图",
       description: "允许节点显示多图输入并按顺序分配。",
-      visible: capability === "image" || capability === "video",
+      visible: capability === "image",
     },
     {
       key: "firstFrame",
@@ -362,6 +367,7 @@ export function ModelEditorRow({
   const [videoDurationMax, setVideoDurationMax] = useState("20");
   const [videoDurationStep, setVideoDurationStep] = useState("1");
   const [videoDurationDefault, setVideoDurationDefault] = useState("8");
+  const [videoReferenceImageMax, setVideoReferenceImageMax] = useState("1");
   const [aicopyRequestContractEnabled, setAicopyRequestContractEnabled] = useState(
     resolveAicopyRequestContractEnabled(model.advancedConfig),
   );
@@ -396,6 +402,10 @@ export function ModelEditorRow({
     setVideoDurationMax(String(videoDuration.range?.max || 20));
     setVideoDurationStep(String(videoDuration.range?.step || 1));
     setVideoDurationDefault(String(videoDuration.range?.default || 8));
+    setVideoReferenceImageMax(String(readVideoReferenceImageMax(
+      schemaObject,
+      model.inputCapabilities?.multiImage ? 4 : 1,
+    )));
   }, [model.id, model.updatedAt]);
 
   async function saveModel() {
@@ -415,6 +425,7 @@ export function ModelEditorRow({
       setConfigError("高级配置必须是有效 JSON。");
       return;
     }
+    let inputCapabilities = normalizeInputCapabilities(draft);
     if (draft.capability === "video") {
       advancedConfig.aicopyRequestContractEnabled = isAicopyVideoModel && aicopyRequestContractEnabled;
       if (advancedConfig.aicopyRequestContractEnabled) {
@@ -466,11 +477,20 @@ export function ModelEditorRow({
       } else {
         setVideoDurationDefault(String(syncedDuration.default || videoDurationDefault));
       }
+      const maxReferenceImages = Math.max(1, Math.min(16, Math.floor(Number(videoReferenceImageMax) || 1)));
+      parameterSchemaObject = syncVideoReferenceImageSchema(
+        parameterSchemaObject,
+        inputCapabilities.imageReference,
+        maxReferenceImages,
+      );
+      inputCapabilities = {
+        ...inputCapabilities,
+        multiImage: legacyMultiImageFromReferenceLimit(inputCapabilities.imageReference, maxReferenceImages),
+      };
       parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     }
     setSchemaError("");
     setConfigError("");
-    const inputCapabilities = normalizeInputCapabilities(draft);
     await onUpdate(model, {
       displayName: draft.displayName.trim() || draft.modelId.trim(),
       modelId: draft.modelId.trim(),
@@ -864,6 +884,24 @@ export function ModelEditorRow({
                       </span>
                     </span>
                     <small>{item.description}</small>
+                    {draft.capability === "video" && item.key === "imageReference" && normalizedCaps.imageReference ? (
+                      <span className="capability-reference-limit" onClick={(event) => event.preventDefault()}>
+                        <span>最大参考图数量</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={16}
+                          step={1}
+                          value={videoReferenceImageMax}
+                          aria-label="最大参考图数量"
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => {
+                            const value = Math.max(1, Math.min(16, Math.floor(Number(event.target.value) || 1)));
+                            setVideoReferenceImageMax(String(value));
+                          }}
+                        />
+                      </span>
+                    ) : null}
                   </span>
                 </label>
               ))}

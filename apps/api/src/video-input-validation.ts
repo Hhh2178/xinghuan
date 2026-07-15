@@ -17,7 +17,7 @@ export interface ValidatedVideoInputs {
 }
 
 export function normalizeVideoInputMode(value: unknown): VideoInputMode | undefined {
-  return value === "reference" || value === "first" || value === "firstlast" ? value : undefined;
+  return value === "reference" || value === "first" || value === "last" || value === "firstlast" ? value : undefined;
 }
 
 export function validateVideoInputs(input: {
@@ -38,19 +38,23 @@ export function validateVideoInputs(input: {
   if (mode === "first" && !capabilities.firstFrame) {
     throw new VideoInputValidationError("当前模型未开启首帧能力");
   }
+  if (mode === "last" && !capabilities.lastFrame) {
+    throw new VideoInputValidationError("当前模型未开启尾帧能力");
+  }
   if (mode === "firstlast" && (!capabilities.firstFrame || !capabilities.lastFrame)) {
     throw new VideoInputValidationError("当前模型未开启首尾帧能力");
   }
   if (mode === "first" && images.length !== 1) {
     throw new VideoInputValidationError("首帧模式需要且只能使用 1 张图片");
   }
+  if (mode === "last" && images.length !== 1) {
+    throw new VideoInputValidationError("尾帧模式需要且只能使用 1 张图片");
+  }
   if (mode === "firstlast" && images.length !== 2) {
     throw new VideoInputValidationError("首尾帧模式需要且只能使用 2 张图片");
   }
 
-  const maxReferenceImages = capabilities.multiImage
-    ? nonNegativeInteger(input.maxReferenceImages)
-    : Math.min(1, nonNegativeInteger(input.maxReferenceImages));
+  const maxReferenceImages = nonNegativeInteger(input.maxReferenceImages);
   if (mode === "reference" && images.length > maxReferenceImages) {
     throw new VideoInputValidationError(`参考图最多允许 ${maxReferenceImages} 张`);
   }
@@ -64,6 +68,9 @@ export function validateVideoInputs(input: {
 
   if (mode === "first") {
     return { mode, modeType: "image2video", images, firstFrame: images[0], audios };
+  }
+  if (mode === "last") {
+    return { mode, modeType: "image2video", images, lastFrame: images[0], audios };
   }
   if (mode === "firstlast") {
     return {
