@@ -55,7 +55,7 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.13`（gray 发布中）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.13`（gray enforced 已部署）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
 - 当前 gray release：`20260715-permission-platform-hardening-v0613`
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`

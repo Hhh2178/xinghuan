@@ -27,7 +27,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.6.13`
   - release：`20260715-permission-platform-hardening-v0613`
-  - 状态：`统一权限平台按 shadow、协调、readiness、真实成员探针、enforced 顺序推进`
+  - 状态：`统一权限平台已在 gray enforced，readiness 与真实成员/账号覆盖验收通过`
   - 当前补修：`目录与执行一致性、统一后台、迁移门禁和 PostgreSQL revision 并发保护`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`

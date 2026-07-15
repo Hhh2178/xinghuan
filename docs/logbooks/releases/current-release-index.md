@@ -6,10 +6,10 @@
 
 - 版本：`v0.6.13`
 - release：`20260715-permission-platform-hardening-v0613`
-- 当前状态：`v0.6.13 统一权限平台进入 gray 发布；先 shadow 协调旧权限，再通过 readiness 和真实成员探针切换 enforced；生产保持 v0.5.22`
+- 当前状态：`v0.6.13 统一权限平台已在 gray enforced；readiness、真实未分组/命名组和双向账号覆盖验收通过；生产保持 v0.5.22`
 - 部署内容：`权限三态运行时、幂等迁移、统一后台、Subject/Rule 原子 revision、目录与执行一致性、release readiness 门禁`
-- 已验证：`构建、103 项测试、Lint、project harness、权限契约与预发布审查通过`
-- 待验收：`gray 备份、reconciliation、readiness、真实未分组/命名组/账号覆盖和 enforced 运行态`
+- 已验证：`构建、103 项测试、Lint、project/workspace/release harness、备份、幂等 reconciliation、readiness、真实成员目录与双向账号覆盖通过`
+- 待验收：`可由用户继续进行后台视觉检查；运行、数据和权限行为已通过`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
   - `gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`

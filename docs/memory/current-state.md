@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.6.13`（发布中）
+- 当前灰度版本：`v0.6.13`（enforced 已部署）
 - 当前生产版本：`v0.5.22`（production 已于 2026-07-14 15:44 从 v0.5.27 回退）
 - 当前灰度 release：`20260715-permission-platform-hardening-v0613`
 - 当前生产 release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新推进：统一权限平台已补齐 shadow/enforced 状态机、数据协调、统一后台、发布门禁和原子 revision；gray 真实成员验收通过后再完成 enforced 切换。
+- 最新完成：统一权限平台已在 gray enforced；数据协调幂等、readiness、真实未分组/命名组与双向账号覆盖验收通过。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

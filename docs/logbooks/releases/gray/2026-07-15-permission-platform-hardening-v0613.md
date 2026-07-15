@@ -38,3 +38,12 @@
 - 构建通过；27 个测试文件、103 项测试通过。
 - Lint 0 error；project harness、权限 hardening contract、热点与暂存文件护栏通过。
 - Production 本轮禁止修改。
+
+## 灰度结果
+
+- 权限表备份已保存于服务器 shared backups，文件大小 `32,967 bytes`，未进入 Git 或聊天。
+- reconciliation apply：117 个 Subject 更新、932 条规则写入、0 unresolved；第二次计划为 0 变更，幂等通过。
+- readiness：124 Subjects、117 published、7 restricted、932 rules、4 principals、0 failures。
+- shadow 与 enforced 下，未分组和命名组成员均看到 54 个模型、11 个图像模型、16 个视频模型、7 个 RH 条目、1 个公共资源。
+- 账号 deny 覆盖组 allow、账号 allow 覆盖组 deny、移除覆盖后的组 deny、两次基线恢复均通过。
+- 当前 API/Worker active，内外网均为 `v0.6.13 / gray / enforced`；未调用付费生成模型。

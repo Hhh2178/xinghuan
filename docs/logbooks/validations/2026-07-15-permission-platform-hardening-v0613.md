@@ -18,4 +18,17 @@
 
 ## 灰度运行态
 
-- 待部署后补充服务、版本、模式、备份、迁移、真实账号与浏览器证据。
+- release 指针：`/opt/apps/xinghuan-canvas-next/releases/20260715-permission-platform-hardening-v0613`。
+- API/Worker：`active / active`；内网与公网状态均为 `0.6.13 / gray / enforced`。
+- 迁移前：124 restricted、0 published、0 rules；readiness 按预期失败。
+- 迁移后：117 published、7 restricted、932 rules、4 principals；readiness `true` 且无 failures。
+- reconciliation 第二次 dry-run：`subjectUpdates=0 / ruleUpserts=0 / unresolved=0`。
+- shadow 与 enforced 的未分组、命名组目录计数一致：模型 54、图像 11、视频 16、RH 7、资源 1、拒绝节点 0。
+- 双向账号覆盖和 revision 回滚全部通过，回滚后规则总数仍为 932。
+- 首次 enforced 启动发现 single-flight 变量 TDZ，自动回滚 shadow；修复并重新部署后 enforced 启动和 release verify 通过。
+- 本机浏览器自动化后端未能启动；本批次不记录虚假的截图或控制台证据。
+
+## 结论
+
+- 统一权限已在 gray 成为权威来源，真实普通成员目录非空，账号覆盖优先级与回滚正确。
+- Production 保持 `v0.5.22`，未修改生产服务、数据库或路由。
