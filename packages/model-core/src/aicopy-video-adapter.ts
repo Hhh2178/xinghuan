@@ -28,6 +28,49 @@ export interface AicopyRequestContract {
   resultPaths?: string[];
 }
 
+export interface AicopySdAdvancedConfig extends Record<string, unknown> {
+  aicopyRequestContractEnabled: true;
+  requestContract: {
+    bindings: AicopyRequestBinding[];
+    resultPaths: string[];
+  } & Record<string, unknown>;
+}
+
+const AICOPY_SD_REQUEST_BINDINGS: AicopyRequestBinding[] = [
+  { path: "duration", source: "duration", type: "number" },
+  { path: "metadata.modeType", source: "modeType", type: "string" },
+  { path: "metadata.ratio", source: "ratio", type: "string" },
+  { path: "metadata.enableSound", value: "on", type: "string" },
+  { path: "images", source: "images", type: "string[]", omitWhenEmpty: true },
+  { path: "audios", source: "audios", type: "string[]", omitWhenEmpty: true },
+];
+
+const AICOPY_SD_RESULT_PATHS = ["result_url", "data.metadata.url", "data.output"];
+
+export function mergeAicopySdRequestContractDefaults(value: unknown): AicopySdAdvancedConfig {
+  const advancedConfig = plainObject(value);
+  const currentContract = plainObject(advancedConfig.requestContract);
+  const currentBindings = Array.isArray(currentContract.bindings)
+    ? currentContract.bindings.filter((binding) => binding && typeof binding === "object" && !Array.isArray(binding)) as AicopyRequestBinding[]
+    : [];
+  const canonicalPaths = new Set(AICOPY_SD_REQUEST_BINDINGS.map((binding) => binding.path));
+  const currentResultPaths = Array.isArray(currentContract.resultPaths)
+    ? currentContract.resultPaths.map((path) => String(path || "").trim()).filter(Boolean)
+    : [];
+  return {
+    ...advancedConfig,
+    aicopyRequestContractEnabled: true,
+    requestContract: {
+      ...currentContract,
+      bindings: [
+        ...AICOPY_SD_REQUEST_BINDINGS.map((binding) => ({ ...binding })),
+        ...currentBindings.filter((binding) => !canonicalPaths.has(String(binding.path || "").trim())),
+      ],
+      resultPaths: [...new Set([...AICOPY_SD_RESULT_PATHS, ...currentResultPaths])],
+    },
+  };
+}
+
 export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayloadInput) {
   const payload: Record<string, unknown> = {
     model: input.modelId,

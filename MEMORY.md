@@ -55,14 +55,14 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.8`（gray 已部署）；生产稳定版本为 `v0.5.22`
+- 当前活跃版本：`v0.6.9`（gray 已部署）；生产稳定版本为 `v0.5.22`
 - 当前生产版本：`v0.5.22`
-- 当前 gray release：`20260715-aicopy-task-store-normalization-v068` (已部署)
+- 当前 gray release：`20260715-aicopy-sd-toggle-contract-defaults-v069` (已部署)
 - 当前 production release：`20260702-envsync-admin-sections-prod-r1-v0522`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：`v0.6.8` 已在灰度修复 AICopy Worker 两处协议归一化边界、终态内容回收与鉴权下载；6 秒 `9:16` 有声视频已完成用户验收，生产继续保持 `v0.5.22`。
+- 最新完成：`v0.6.9` 已让 AICopy SD 模型开关自动补齐官方请求契约；FAST、普通 720P 与 mini 已统一六条绑定，生产继续保持 `v0.5.22`。
 - 2026-07-14 15:44 运行态调整：production 已回退至 `20260702-envsync-admin-sections-prod-r1-v0522`，详见 `docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`。
-- 2026-07-15 发布推进：`v0.6.8` gray release 已切到 `20260715-aicopy-task-store-normalization-v068`，详见 `docs/logbooks/releases/gray/2026-07-15-aicopy-task-store-normalization-v068.md`。
+- 2026-07-15 发布推进：`v0.6.9` gray release 已切到 `20260715-aicopy-sd-toggle-contract-defaults-v069`，详见 `docs/logbooks/releases/gray/2026-07-15-aicopy-sd-toggle-contract-defaults-v069.md`。
 - 当前工作重心：AICopy SD 灰度验收已收口；后台第二阶段已完成灰度验收；ComfyUI 功能开发继续暂停封存
 - 当前状态细节统一看 `docs/memory/current-state.md`、`docs/memory/deployment-state.md`、`docs/logbooks/releases/current-release-index.md`
 - 当前策略：长期判断继续写入 `docs/memory/`，日常推进继续写入 `docs/logbooks/`

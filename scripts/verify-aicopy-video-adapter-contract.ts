@@ -5,6 +5,7 @@ import {
   createAicopyVideoAdapterPayload,
   extractAicopyTask,
   extractAicopyVideoResult,
+  mergeAicopySdRequestContractDefaults,
   resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
 } from "../packages/model-core/src/aicopy-video-adapter.js";
@@ -123,6 +124,49 @@ const staleContract = {
 };
 assert.equal(resolveAicopyRequestContractEnabled(staleContract), false);
 assert.equal(resolveAicopyRequestContractEnabled({ ...staleContract, aicopyRequestContractEnabled: true }), true);
+
+const mergedSdDefaults = mergeAicopySdRequestContractDefaults({
+  requestContract: {
+    bindings: [
+      { path: "metadata.ratio", value: "stale" },
+      { path: "custom.trace", value: true, type: "boolean" },
+    ],
+    resultPaths: ["custom.output"],
+  },
+});
+assert.equal(mergedSdDefaults.aicopyRequestContractEnabled, true);
+assert.deepEqual(
+  mergedSdDefaults.requestContract.bindings.map((binding) => binding.path),
+  ["duration", "metadata.modeType", "metadata.ratio", "metadata.enableSound", "images", "audios", "custom.trace"],
+);
+assert.equal(
+  mergedSdDefaults.requestContract.bindings.find((binding) => binding.path === "metadata.ratio")?.source,
+  "ratio",
+);
+assert.deepEqual(
+  mergedSdDefaults.requestContract.resultPaths,
+  ["result_url", "data.metadata.url", "data.output", "custom.output"],
+);
+
+for (const modelId of ["sd2-720p-mini", "sd2-720p-fast", "sd2-720p"]) {
+  const matrixPayload = createAicopyVideoAdapterPayload({
+    modelId,
+    prompt: "她跳桑巴舞",
+    duration: 6,
+    ratio: "9:16",
+    modeType: "image2video",
+    images: ["https://example.com/first-frame.png"],
+    requestContractEnabled: true,
+    requestContract: mergedSdDefaults.requestContract,
+  });
+  assert.equal(matrixPayload.duration, 6, `${modelId} duration mismatch`);
+  assert.deepEqual(matrixPayload.metadata, {
+    modeType: "image2video",
+    ratio: "9:16",
+    enableSound: "on",
+  }, `${modelId} metadata mismatch`);
+  assert.deepEqual(matrixPayload.images, ["https://example.com/first-frame.png"], `${modelId} images mismatch`);
+}
 
 const disabledContractPayload = createAicopyVideoAdapterPayload({
   modelId: "grok-imagine-video-1.5-preview",

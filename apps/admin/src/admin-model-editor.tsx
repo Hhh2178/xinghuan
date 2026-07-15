@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Settings2, Trash2 } from "lucide-react";
-import { durationOptionsFromRange, resolveAicopyRequestContractEnabled } from "@xinghuan/model-core";
+import {
+  durationOptionsFromRange,
+  mergeAicopySdRequestContractDefaults,
+  resolveAicopyRequestContractEnabled,
+} from "@xinghuan/model-core";
 import { type ProviderGenerationExecutionMode } from "@xinghuan/shared";
 import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
 import {
@@ -429,6 +433,7 @@ export function ModelEditorRow({
     if (draft.capability === "video") {
       advancedConfig.aicopyRequestContractEnabled = isAicopyVideoModel && aicopyRequestContractEnabled;
       if (advancedConfig.aicopyRequestContractEnabled) {
+        advancedConfig = mergeAicopySdRequestContractDefaults(advancedConfig);
         const requestContractError = validateAicopyRequestContract(advancedConfig);
         if (requestContractError) {
           setConfigError(requestContractError);
@@ -966,7 +971,7 @@ export function ModelEditorRow({
                       {aicopyRequestContractEnabled ? "已开启" : "未开启"}
                     </span>
                   </span>
-                  <small>开启后才会按高级配置中的 requestContract 生成 SD 请求字段。</small>
+                  <small>开启并保存后自动补齐官方 SD 请求字段；高级配置可继续追加模型专属字段。</small>
                 </span>
               </label>
             </section>

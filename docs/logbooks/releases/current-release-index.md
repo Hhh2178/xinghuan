@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.6.8`
-- release：`20260715-aicopy-task-store-normalization-v068`
-- 当前状态：`v0.6.8 已部署灰度；AICopy Worker 两处协议归一化、终态内容回收和鉴权下载已修复，生产保持 v0.5.22`
-- 部署内容：`保留 aicopy 协议、completed 无 URL 回退、同源鉴权下载、脱敏请求摘要及真实 Worker 回归`
-- 已验证：`灰度 API/Worker active，公网/内网 status 为 v0.6.8/gray；6 秒 9:16 H.264 视频和 AAC 双声道音轨通过，用户确认成片正常`
-- 待验收：`本批次无待验收项；停止继续付费复测`
+- 版本：`v0.6.9`
+- release：`20260715-aicopy-sd-toggle-contract-defaults-v069`
+- 当前状态：`v0.6.9 已部署灰度；AICopy SD 模型开关会自动补齐官方请求契约，生产保持 v0.5.22`
+- 部署内容：`后台保存时合并六条官方 SD 绑定、保留非冲突自定义字段，并修复 FAST 与普通 720P 灰度模型配置`
+- 已验证：`三模型序列化矩阵、Admin 开关回归、免费 Worker Mock、配置幂等复核及 gray runtime verify 通过`
+- 待验收：`可由用户继续使用 FAST 或普通 720P 进行业务生成确认；本批次不主动调用付费模型`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
+  - `gray/2026-07-15-aicopy-sd-toggle-contract-defaults-v069.md`
+  - `../validations/2026-07-15-aicopy-sd-toggle-contract-defaults.md`
   - `gray/2026-07-15-aicopy-task-store-normalization-v068.md`
   - `../validations/2026-07-15-aicopy-sd-mini-six-second.md`
   - `gray/2026-07-15-aicopy-protocol-normalization-v067.md`
