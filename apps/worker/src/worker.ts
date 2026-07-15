@@ -864,14 +864,20 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       fixedBody: plainObject(task.payload.fixedBody),
     });
     const requestMetadata = plainObject(submitPayload.metadata);
+    const requestVideoConfig = plainObject(submitPayload.video_config);
+    const submittedImages = Array.isArray(submitPayload.reference_images)
+      ? submitPayload.reference_images
+      : Array.isArray(submitPayload.images)
+        ? submitPayload.images
+        : [];
     const providerRequestSummary = {
       adapter: "aicopy-video",
       modelId: task.providerModelId,
-      duration: submitPayload.duration,
-      ratio: safeText(requestMetadata.ratio),
+      duration: submitPayload.duration ?? submitPayload.video_length,
+      ratio: safeText(requestMetadata.ratio || submitPayload.aspect_ratio || requestVideoConfig.aspect_ratio),
       modeType: safeText(requestMetadata.modeType),
       soundEnabled: safeText(requestMetadata.enableSound).toLowerCase() === "on",
-      imageCount: Array.isArray(submitPayload.images) ? submitPayload.images.length : 0,
+      imageCount: submittedImages.length,
       referenceImageTransport: inlineReferenceImages ? "data_url" : "url",
       audioCount: Array.isArray(submitPayload.audios) ? submitPayload.audios.length : 0,
       requestContractEnabled,

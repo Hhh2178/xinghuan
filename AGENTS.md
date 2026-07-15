@@ -26,11 +26,11 @@
 
 ## 当前运行态摘要
 
-- Gray 版本：`v0.6.10`
-- Gray release：`20260715-provider-poll-retry-grok-data-url-v0610`
+- Gray 版本：`v0.6.11`
+- Gray release：`20260715-aifork-grok-fast-contract-v0611`
 - Production 版本：`v0.5.22`
 - Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.10` 已部署灰度；Provider 幂等轮询具备受控瞬时错误重试，AIFork Grok FAST 可按模型显式使用 Data URL 多参考图。生产仍保持 `v0.5.22`。
+- `v0.6.11` 已部署灰度；AIFork Grok FAST 使用独立通用请求契约，按插件字段发送 Data URL 多参考图。生产仍保持 `v0.5.22`。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 

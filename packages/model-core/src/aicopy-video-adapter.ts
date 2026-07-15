@@ -129,6 +129,12 @@ export function shouldUseAicopyVideoAdapter(input: {
 }
 
 export function resolveAicopyRequestContractEnabled(config: unknown) {
+  const advancedConfig = plainObject(config);
+  return advancedConfig.requestContractEnabled === true
+    || advancedConfig.aicopyRequestContractEnabled === true;
+}
+
+export function resolveAicopySdRequestContractEnabled(config: unknown) {
   return plainObject(config).aicopyRequestContractEnabled === true;
 }
 

@@ -34,6 +34,8 @@
 
 ## 边界
 
+> 后续纠正：真实三图复测证明 403 的直接根因是 FAST 仍沿用 Preview 的 `seconds/size/images` 请求契约，而不是单纯的参考图传输方式。修复见 `2026-07-15-aifork-grok-fast-contract-v0611.md`。
+
 - 本批次没有再次提交昂贵的真实模型生成请求。
 - 原始 FAST 多图失败已证明发生在 AIFork 向 Grok 内部素材接口上传第 3 张参考图的阶段；我方签名 URL、图片格式、尺寸、TTL 和三张素材的上游下载均正常。
 - `Data URL` 是模型级显式能力，不会改变其他 Provider、其他模型或默认 URL 链路。

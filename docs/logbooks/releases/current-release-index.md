@@ -4,16 +4,18 @@
 
 ### Gray
 
-- 版本：`v0.6.10`
-- release：`20260715-provider-poll-retry-grok-data-url-v0610`
-- 当前状态：`v0.6.10 已部署灰度；Provider 幂等轮询具备受控瞬时错误重试，AIFork Grok FAST 可按模型使用 Data URL 多参考图，生产保持 v0.5.22`
-- 部署内容：`仅对幂等 GET 增加瞬时错误重试；生成 POST 不重试；模型输入能力增加 URL/Data URL 传输方式并对目标 FAST 模型显式开启`
-- 已验证：`全量测试与构建、免费 502 恢复 Mock、免费三图 Data URL Mock、灰度配置幂等、1080P 助手开关布局和控制台检查均通过`
-- 待验收：`可由用户在业务窗口继续验证 FAST 多参考图；本批次不主动调用付费模型`
+- 版本：`v0.6.11`
+- release：`20260715-aifork-grok-fast-contract-v0611`
+- 当前状态：`v0.6.11 已部署灰度；AIFork Grok FAST 使用插件一致的通用请求契约，生产保持 v0.5.22`
+- 部署内容：`FAST 独立启用 duration/video_length/aspect_ratio/video_config/reference_images；Data URL 只在目标模型启用；SD 补充契约保持隔离`
+- 已验证：`精确请求体回归、全工作区类型检查、构建和 70 项测试通过；灰度真实 FAST 三图任务结果见本批次验证记录`
+- 待验收：`用户可继续检查成片内容质量；协议、任务终态与画布回收由本批次完成`
 - 部署时间：`2026-07-15`
 - 当前批次记录：
   - `gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
   - `../validations/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
+  - `gray/2026-07-15-aifork-grok-fast-contract-v0611.md`
+  - `../validations/2026-07-15-aifork-grok-fast-contract-v0611.md`
   - `gray/2026-07-15-aicopy-sd-toggle-contract-defaults-v069.md`
   - `../validations/2026-07-15-aicopy-sd-toggle-contract-defaults.md`
   - `gray/2026-07-15-aicopy-task-store-normalization-v068.md`

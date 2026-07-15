@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  AIFORK_GROK_FAST_REQUEST_CONTRACT,
   isAiforkGrokFastTarget,
   mergeAiforkGrokFastDataUrlReferences,
   summarizeAiforkGrokFastDataUrlReferences,
@@ -32,6 +33,8 @@ assert.equal(isAiforkGrokFastTarget(
 
 const merged = mergeAiforkGrokFastDataUrlReferences(selected);
 assert.equal(merged.referenceImageTransport, "data_url");
+assert.equal(merged.requestContractEnabled, true);
+assert.deepEqual(merged.requestContract, AIFORK_GROK_FAST_REQUEST_CONTRACT);
 assert.deepEqual(merged.requestMapping, selected.advanced_config.requestMapping);
 assert.equal(selected.parameter_schema.referenceImages.max, 6);
 
@@ -40,6 +43,7 @@ assert.deepEqual(second, merged);
 
 const summary = JSON.stringify(summarizeAiforkGrokFastDataUrlReferences(selected, merged));
 assert.doesNotMatch(summary, /must-not-be-printed|token|secret|cipher/i);
+assert.match(summary, /reference_images/);
 
 const source = await readFile(new URL("./configure-aifork-grok-fast-data-url-references.mjs", import.meta.url), "utf8");
 assert.match(source, /XINGHUAN_CONFIG_BACKUP_DIR/);

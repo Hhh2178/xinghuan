@@ -6,10 +6,27 @@ import { pathToFileURL } from "node:url";
 export const AIFORK_API_HOST = "api.aicopy.top";
 export const AIFORK_GROK_FAST_MODEL_ID = "grok-imagine-video-1.5-fast";
 
+export const AIFORK_GROK_FAST_REQUEST_CONTRACT = {
+  bindings: [
+    { path: "duration", source: "duration", type: "number" },
+    { path: "video_length", source: "duration", type: "number" },
+    { path: "aspect_ratio", source: "ratio", type: "string" },
+    { path: "resolution", source: "resolution", type: "string" },
+    { path: "video_config.video_length", source: "duration", type: "number" },
+    { path: "video_config.aspect_ratio", source: "ratio", type: "string" },
+    { path: "video_config.resolution", source: "resolution", type: "string" },
+    { path: "video_config.preset", value: "normal", type: "string" },
+    { path: "reference_images", source: "images", type: "string[]", omitWhenEmpty: true },
+  ],
+  resultPaths: ["result_url", "data.metadata.url", "data.output"],
+};
+
 export function mergeAiforkGrokFastDataUrlReferences(row) {
   return {
     ...plainObject(row.advanced_config),
     referenceImageTransport: "data_url",
+    requestContractEnabled: true,
+    requestContract: structuredClone(AIFORK_GROK_FAST_REQUEST_CONTRACT),
   };
 }
 
@@ -23,6 +40,10 @@ export function summarizeAiforkGrokFastDataUrlReferences(row, advancedConfig) {
     beforeFingerprint: fingerprint(before),
     afterFingerprint: fingerprint(advancedConfig),
     referenceImageTransport: advancedConfig.referenceImageTransport,
+    requestContractEnabled: advancedConfig.requestContractEnabled === true,
+    requestBindingPaths: Array.isArray(advancedConfig.requestContract?.bindings)
+      ? advancedConfig.requestContract.bindings.map((binding) => text(binding?.path)).filter(Boolean)
+      : [],
   };
 }
 

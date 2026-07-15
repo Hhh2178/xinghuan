@@ -104,6 +104,55 @@ assert.deepEqual(genericGrokPayload, {
   reference_images: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
 });
 
+const fastGrokPayload = createAicopyVideoAdapterPayload({
+  modelId: "grok-imagine-video-1.5-fast",
+  prompt: "她跳桑巴舞",
+  duration: 6,
+  ratio: "9:16",
+  resolution: "720p",
+  images: [
+    "data:image/png;base64,AAAA",
+    "data:image/png;base64,BBBB",
+    "data:image/png;base64,CCCC",
+  ],
+  requestContractEnabled: true,
+  requestContract: {
+    bindings: [
+      { path: "duration", source: "duration", type: "number" },
+      { path: "video_length", source: "duration", type: "number" },
+      { path: "aspect_ratio", source: "ratio", type: "string" },
+      { path: "resolution", source: "resolution", type: "string" },
+      { path: "video_config.video_length", source: "duration", type: "number" },
+      { path: "video_config.aspect_ratio", source: "ratio", type: "string" },
+      { path: "video_config.resolution", source: "resolution", type: "string" },
+      { path: "video_config.preset", value: "normal", type: "string" },
+      { path: "reference_images", source: "images", type: "string[]", omitWhenEmpty: true },
+    ],
+  },
+});
+assert.deepEqual(fastGrokPayload, {
+  model: "grok-imagine-video-1.5-fast",
+  prompt: "她跳桑巴舞",
+  duration: 6,
+  video_length: 6,
+  aspect_ratio: "9:16",
+  resolution: "720p",
+  video_config: {
+    video_length: 6,
+    aspect_ratio: "9:16",
+    resolution: "720p",
+    preset: "normal",
+  },
+  reference_images: [
+    "data:image/png;base64,AAAA",
+    "data:image/png;base64,BBBB",
+    "data:image/png;base64,CCCC",
+  ],
+});
+assert.equal("seconds" in fastGrokPayload, false);
+assert.equal("size" in fastGrokPayload, false);
+assert.equal("images" in fastGrokPayload, false);
+
 const sdResult = extractAicopyVideoResult({
   status: "completed",
   result_url: "https://api.aicopy.top/v1/videos/task_example/content",
@@ -162,6 +211,7 @@ const staleContract = {
 };
 assert.equal(resolveAicopyRequestContractEnabled(staleContract), false);
 assert.equal(resolveAicopyRequestContractEnabled({ ...staleContract, aicopyRequestContractEnabled: true }), true);
+assert.equal(resolveAicopyRequestContractEnabled({ ...staleContract, requestContractEnabled: true }), true);
 
 const mergedSdDefaults = mergeAicopySdRequestContractDefaults({
   requestContract: {

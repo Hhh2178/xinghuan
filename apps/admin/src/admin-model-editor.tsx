@@ -4,6 +4,7 @@ import {
   durationOptionsFromRange,
   mergeAicopySdRequestContractDefaults,
   resolveAicopyRequestContractEnabled,
+  resolveAicopySdRequestContractEnabled,
 } from "@xinghuan/model-core";
 import { type ProviderGenerationExecutionMode } from "@xinghuan/shared";
 import { capabilityLabel, modelCapabilityTagLabel } from "./admin-view-model";
@@ -282,6 +283,12 @@ function validateAicopyRequestContract(value: Record<string, unknown>) {
   return "";
 }
 
+function isAicopySdContractModelId(value: unknown) {
+  const modelId = String(value || "").trim().toLowerCase();
+  return /^sd2-(?:720p|1080p)(?:-|$)/.test(modelId)
+    || modelId.startsWith("官方稳定seedance-2.0-720p-");
+}
+
 function normalizeVoicePresetList(value: string) {
   return value
     .split(/[\n,，]/)
@@ -379,9 +386,10 @@ export function ModelEditorRow({
     readVideoReferenceImageTransport(model.advancedConfig || {}),
   );
   const [aicopyRequestContractEnabled, setAicopyRequestContractEnabled] = useState(
-    resolveAicopyRequestContractEnabled(model.advancedConfig),
+    resolveAicopySdRequestContractEnabled(model.advancedConfig),
   );
   const isAicopyVideoModel = providerProtocol === "aicopy" && draft.capability === "video";
+  const isAicopySdVideoModel = isAicopyVideoModel && isAicopySdContractModelId(draft.modelId);
 
   useEffect(() => {
     setDraft({
@@ -394,7 +402,7 @@ export function ModelEditorRow({
     setSchemaError("");
     setConfigError("");
     setAdvancedConfigText(JSON.stringify(model.advancedConfig || {}, null, 2));
-    setAicopyRequestContractEnabled(resolveAicopyRequestContractEnabled(model.advancedConfig));
+    setAicopyRequestContractEnabled(resolveAicopySdRequestContractEnabled(model.advancedConfig));
     setVideoReferenceImageTransport(readVideoReferenceImageTransport(model.advancedConfig || {}));
     setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
     const schemaObject = safeJsonObject(model.parameterSchema);
@@ -438,9 +446,11 @@ export function ModelEditorRow({
     }
     let inputCapabilities = normalizeInputCapabilities(draft);
     if (draft.capability === "video") {
-      advancedConfig.aicopyRequestContractEnabled = isAicopyVideoModel && aicopyRequestContractEnabled;
+      advancedConfig.aicopyRequestContractEnabled = isAicopySdVideoModel && aicopyRequestContractEnabled;
       if (advancedConfig.aicopyRequestContractEnabled) {
         advancedConfig = mergeAicopySdRequestContractDefaults(advancedConfig);
+      }
+      if (resolveAicopyRequestContractEnabled(advancedConfig)) {
         const requestContractError = validateAicopyRequestContract(advancedConfig);
         if (requestContractError) {
           setConfigError(requestContractError);
@@ -978,7 +988,7 @@ export function ModelEditorRow({
               </div>
             </section>
           ) : null}
-          {isAicopyVideoModel ? (
+          {isAicopySdVideoModel ? (
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>SD 补充请求契约</strong>
@@ -1012,7 +1022,7 @@ export function ModelEditorRow({
               spellCheck={false}
             />
           </label>
-          {isAicopyVideoModel && aicopyRequestContractEnabled ? (
+          {isAicopySdVideoModel && aicopyRequestContractEnabled ? (
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>AIFork 视频请求契约</strong>

@@ -1,5 +1,7 @@
 # v0.6.10 Provider 轮询重试与 Grok FAST Data URL 验证
 
+> 后续纠正：真实公网 URL 与 Data URL 三图任务均失败，证明传输方式不是充分修复。FAST 的直接问题是错误复用了 Preview 的 `seconds/size/images` 字段；`v0.6.11` 已改为插件一致的通用请求契约，见 `2026-07-15-aifork-grok-fast-contract-v0611.md`。
+
 ## 范围
 
 - 环境：gray
