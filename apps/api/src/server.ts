@@ -333,6 +333,7 @@ const permissionRepository = createPermissionRepository({
 });
 const permissionService = createPermissionService({ readAuthorizationState: permissionRepository.readAuthorizationState });
 const permissionSubjectRegistrar = createPermissionSubjectRegistrar(permissionRepository);
+let permissionSubjectReconciliation: Promise<void> | null = null;
 const permissionShadowMetrics = createPermissionShadowMetrics();
 const permissionRuntime = createPermissionRuntime({
   mode: permissionRuntimeMode,
@@ -7467,8 +7468,6 @@ async function analyzeRunningHubCatalogDraft(input: {
     warnings,
   };
 }
-
-let permissionSubjectReconciliation: Promise<void> | null = null;
 
 async function reconcilePermissionSubjects() {
   if (permissionSubjectReconciliation) return permissionSubjectReconciliation;
