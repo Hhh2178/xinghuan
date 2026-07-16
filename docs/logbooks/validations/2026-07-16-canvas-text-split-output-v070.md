@@ -13,6 +13,7 @@
 - release 指针：`/opt/apps/xinghuan-canvas-next/releases/20260716-canvas-text-split-output-gray-r2-v070`。
 - API/Worker：`active / active`。
 - 内网与公网状态：`0.7.0 / gray / enforced`。
+- 公网 `OutputNode` chunk 返回 200，并包含 `ignoreUpstreamMaterials` 与 `directOutputText` 部署签名。
 - 权限数据库：`xinghuan_canvas_gray`。
 - 权限 readiness：`ready=true`，metrics 为 `126 / 118 / 7 / 1 / 940 / 4`，failures 为空。
 

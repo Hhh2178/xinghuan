@@ -23,7 +23,7 @@
 - 数据库迁移 `applied=0 / skipped=22`。
 - 内网和公网 `/api/status` 均为 `0.7.0 / gray / enforced`。
 - 权限 readiness 为 ready，`126 / 118 / 7 / 1 / 940 / 4`，failures 为空。
-- GitHub 连接在发布时不可达，本地分支暂时领先远端 1 个提交；不影响固定 commit 的 Gray 发布包和运行态，恢复连接后补推。
+- GitHub 连接在发布时不可达，代码与发布记录尚未同步到远端分支；不影响固定 commit 的 Gray 发布包和运行态，恢复连接后补推。
 - 未修改 production 服务、数据库、路由或 release 指针。
 
 ## 已知项
