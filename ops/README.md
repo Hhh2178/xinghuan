@@ -6,6 +6,8 @@
 
 > 本文件是运维兼容入口。当前运行态、发布证据和回滚判断请优先跟随 `current/` 与 `../docs/logbooks/releases/`。
 
+当前运行态的机器可读权威文件是 `current/release-state.json`，环境拓扑是 `../config/environments.json`。
+
 `ops/README.md` 继续保留为运维兼容入口，但“当前运行态”和“历史材料”已经拆成更清晰的两层：
 
 - 当前值守入口：`current/`

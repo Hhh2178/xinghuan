@@ -9,6 +9,12 @@
 3. `production.md`
 4. `release-entrypoints.md`
 
+## Canonical state
+
+- 非密环境拓扑：`../../config/environments.json`
+- 当前 gray / production 部署状态：`release-state.json`
+- 历史发布和验证证据：`../../docs/logbooks/releases/`、`../../docs/logbooks/validations/`
+
 ## 使用边界
 
 - 这里放当前 gray / production 的运行态摘要、部署入口和最近放行材料。

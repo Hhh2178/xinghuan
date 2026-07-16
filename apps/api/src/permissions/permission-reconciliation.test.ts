@@ -231,4 +231,28 @@ describe("permission reconciliation", () => {
       action: "view",
     }));
   });
+
+  it("plans removal of rules that target retired subjects", () => {
+    const retiredSubject = { ...subjects[1], exposureState: "retired" as const, revision: 3 };
+    const retiredRule: PermissionRule = {
+      id: "legacy-retired-rule",
+      principalType: "group",
+      principalId: "group-a",
+      subjectKey: retiredSubject.subjectKey,
+      action: "view",
+      effect: "allow",
+      revision: 2,
+    };
+    const plan = buildPermissionReconciliationPlan({
+      subjects: [retiredSubject],
+      rules: [retiredRule],
+      groupIds: [],
+      legacyPolicies: [{ groupId: "ungrouped", deny: { runningHubAppCatalogIds: [], runningHubWorkflowCatalogIds: [], sharedResourceCategoryIds: [], sharedResourceItemIds: [], nodeTypes: [] } }],
+      missingPolicy: "deny",
+    });
+
+    expect(plan.ruleDeletes).toEqual([retiredRule]);
+    expect(plan.metrics.ruleDeletes).toBe(1);
+    expect(plan.ruleUpserts).toEqual([]);
+  });
 });

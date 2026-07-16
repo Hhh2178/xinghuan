@@ -12,6 +12,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - 运维入口：`ops/README.md`
 - 执行入口：`package.json`
 - 脚本目录：`scripts/`
+- 状态权威源：`config/environments.json`、`ops/current/release-state.json`
 
 ## 建议阅读顺序
 
@@ -25,6 +26,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - Release harness：负责 gray / production 的 prepare、package、deploy、runtime verify 与 logbook 同步。
 - Integration harness：负责 RunningHub、ComfyUI、Provider 等外部接入的子工程模板、env 模板和独立 contract。
 - Documentation harness：负责 `docs/governance/`、`docs/systems/`、`docs/logbooks/` 与主入口同步。
+- Authority harness：负责产品版本、环境拓扑、当前 release state 和证据链接的一致性。
 
 ## 当前根级聚合命令
 
@@ -33,6 +35,9 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - `npm run harness:verify:workspace`
 - `npm run harness:verify:release`
 - `npm run harness:verify:comfyui`
+- `npm run verify:authority-state`
+- `npm run harness:run -- --profile=quick`
+- `npm run harness:run -- --profile=project`
 
 ## Documentation Contract Commands
 
@@ -46,5 +51,6 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
+- Harness runner 将每次 profile 运行写入 ignored `.harness/runs/*.json`；release/validation logbook 仍是正式审计证据。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。
 - 本目录只记录执行地图和接入约定，不复制系统设计正文、发布记录或长期状态。

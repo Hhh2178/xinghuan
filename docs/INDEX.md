@@ -54,6 +54,13 @@
 - `docs/logbooks/validations/`
 - `docs/logbooks/incidents/`
 
+### 当前状态与环境权威源
+
+- 产品版本：根 `package.json`
+- 非密环境拓扑：`config/environments.json`
+- 当前部署状态：`ops/current/release-state.json`
+- 状态校验：`npm run verify:authority-state`
+
 ### 专项设计、演进记录、历史方案
 
 看 `docs/records/README.md`，以及已有的 `docs/superpowers/specs/`、`docs/superpowers/plans/`。

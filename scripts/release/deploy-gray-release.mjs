@@ -1,5 +1,4 @@
 import {
-  defaultGrayConfig,
   ensureFileExists,
   firstArg,
   flagEnabled,
@@ -12,12 +11,13 @@ import {
   shellQuote,
   sshTarget,
   tmpArchivePath,
+  loadEnvironmentConfig,
 } from "./_shared.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/deploy-gray-release.mjs --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--dry-run=true]
+  node scripts/release/deploy-gray-release.mjs --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--dry-run=true]
 
 Examples:
   node scripts/release/deploy-gray-release.mjs --release=20260623-demo-gray-r1-v049 --archive=dist-release/20260623-demo-gray-r1-v049.tar.gz --ssh-key=../Tencent_Cloud_Server.pem
@@ -25,18 +25,19 @@ Examples:
   process.exit(0);
 }
 
-const defaults = defaultGrayConfig();
+const environment = String(firstArg(args.env) || "gray").trim();
+const defaults = await loadEnvironmentConfig(environment);
 const releaseId = requiredArg(args, "release");
 const archivePath = await ensureFileExists(requiredArg(args, "archive"));
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
 const host = String(firstArg(args.host) || defaults.host);
-const port = String(firstArg(args.port) || defaults.port);
-const user = String(firstArg(args.user) || defaults.user);
+const port = String(firstArg(args.port) || defaults.sshPort);
+const user = String(firstArg(args.user) || defaults.sshUser);
 const remoteRoot = String(firstArg(args["remote-root"]) || defaults.remoteRoot);
 const remoteTmpDir = String(firstArg(args["remote-tmp"]) || "/tmp");
 const serviceName = String(firstArg(args.service) || defaults.serviceName);
 const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
-const sharedEnvFile = String(firstArg(args["shared-env-file"]) || `${remoteRoot}/shared/canvas-next.env`);
+const sharedEnvFile = String(firstArg(args["shared-env-file"]) || defaults.sharedEnvFile);
 const dryRun = flagEnabled(args["dry-run"]);
 
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
@@ -85,7 +86,8 @@ if (!dryRun) {
 
 printJson({
   ok: true,
-  stage: "deploy-gray-release",
+  stage: "deploy-release",
+  environment,
   dryRun,
   releaseId,
   archivePath,

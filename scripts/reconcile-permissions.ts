@@ -56,6 +56,15 @@ async function main() {
           ],
         );
       }
+      for (const rule of plan.ruleDeletes) {
+        const result = await client.query(
+          "delete from xh_permission_rules where id = $1 and revision = $2 returning id",
+          [rule.id, rule.revision],
+        );
+        if (result.rowCount !== 1) {
+          throw new Error(`PERMISSION_RULE_REVISION_CONFLICT:${rule.id}`);
+        }
+      }
       await client.query("commit");
     } catch (error) {
       await client.query("rollback");
@@ -70,6 +79,7 @@ async function main() {
     const idempotent =
       secondPlan.subjectUpdates.length === 0 &&
       secondPlan.ruleUpserts.length === 0 &&
+      secondPlan.ruleDeletes.length === 0 &&
       secondPlan.unresolvedPrincipalIds.length === 0;
     printResult({ currentDatabase, apply, missingPolicy, plan, idempotent });
     if (!idempotent) process.exitCode = 1;

@@ -10,29 +10,22 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `README.md`
-5. `MEMORY.md`
-6. `ops/README.md`
-7. `DEVLOG.md`
+3. `docs/memory/current-state.md`
+4. `docs/systems/README.md`
+5. `ops/current/README.md`
+6. `README.md`
 
-## 当前工作根
+`MEMORY.md`、`DEVLOG.md` 和 `ops/README.md` 是兼容入口，只在追溯旧信息或按索引跳转时读取。
 
-当前无限画布 2.0 默认工作入口：
+## 仓库与运行态边界
 
-- `D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
-
-当前工作树是主仓库 `D:/codex/无限画布2.0` 挂出的 Git worktree。`D:/codex/服务器/无限画布/` 只作为旧主干和历史方案参考，不作为当前 2.0 的主说明来源。
-
-## 当前运行态摘要
-
-- Gray 版本：`v0.6.13`
-- Gray release：`20260715-permission-platform-hardening-v0613`
-- Production 版本：`v0.6.13`
-- Production release：`20260716-permission-platform-hardening-prod-r1-v0613`
-- `v0.6.13` 已在灰度和生产启用统一权限 enforced；两套环境分别完成协调、readiness 和真实成员目录验收。
-- 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
-- ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
+- 当前仓库根必须通过 `git rev-parse --show-toplevel` 确认，不在本文件复制绝对 worktree 路径。
+- `D:/codex/服务器/无限画布/` 只作为旧主干和历史参考，不是 2.0 默认编码入口。
+- 产品版本以根 `package.json` 为准。
+- 环境拓扑以 `config/environments.json` 为准。
+- 当前部署状态以 `ops/current/release-state.json` 为准。
+- 人类可读摘要以 `docs/memory/current-state.md` 和 `docs/logbooks/releases/current-release-index.md` 为准。
+- 不在 `AGENTS.md` 维护版本号、release ID、临时冻结项或逐日进度。
 
 ## 文档权威层级
 
@@ -47,15 +40,24 @@
 
 根入口文件只保留摘要和跳转。系统细节、运行历史、发布证据和逐日推进必须写入对应权威目录。
 
+## 记录与更新职责
+
+- 代码或配置行为变化：更新对应 `docs/systems/<system>/`。
+- 长期决策变化：更新 `docs/memory/` 或治理文档。
+- 当日执行证据：追加到 `docs/logbooks/daily/`。
+- 发布、验证、事故：分别写入 `docs/logbooks/releases/`、`validations/`、`incidents/`。
+- 当前部署变化：先更新 `ops/current/release-state.json`，再生成或校验人类可读投影。
+- 历史 logbook 只追加，不回写为当前状态。
+
 ## AI / 自动化执行规则
 
 - 开工先看 `git status --short`，确认工作树是否干净，以及脏改动是否属于本轮任务。
 - 先通过 `docs/INDEX.md` 判断要找的是治理规则、系统知识、长期记忆、台账证据，还是历史方案。
 - 涉及具体系统时，先读 `docs/systems/<system>/`，再读代码。
-- 做完真实改动后，同步检查对应系统文档、台账和必要的入口摘要。
+- 做完真实改动后，同步检查对应系统文档、logbook 和必要的状态投影。
 - 发现热点文件继续膨胀时，先判断应该新增模块、hook、helper 或 section，而不是默认继续往原文件堆。
 - `1200+` 行 source 文件属于 watchlist；触碰既有热点时必须同步对应计划、台账或发布记录，并保持在既定预算内。
-- 不要只依赖聊天上下文判断版本、部署态或历史结论；以当前 worktree 文件和运行态证据为准。
+- 不要只依赖聊天上下文判断版本、部署态或历史结论；以 canonical state、当前 worktree 和运行态证据为准。
 
 ## 安全规则
 
@@ -68,7 +70,8 @@
 
 ## 提交与发布护栏
 
-- `.githooks/pre-commit` 会执行提交前治理检查；不要通过跳过 hook 的方式绕过热点、release logbook 或运行产物护栏。
+- 新 worktree 必须先执行 `npm run setup:codegraph-hooks`，并确认 `git config --worktree --get core.hooksPath` 返回 `.githooks`。
+- `.githooks/pre-commit` 和 CI 使用同一 Harness interface；不要跳过 Hook 或绕过失败检查。
 - 发布前必须确认工作树与运行产物边界：
   - `npm run verify:no-runtime-artifacts-staged`
   - `npm run verify:staged-source-size-guard`
@@ -83,6 +86,16 @@
   - `npm run harness:verify:project`
   - `npm run harness:verify:workspace`
   - `npm run harness:verify:release`
+
+## 停止并确认
+
+遇到以下情况必须停止扩大变更范围并重新核对：
+
+- canonical state 与服务器运行态不一致；
+- 需要修改或输出 secrets；
+- 需要触碰其他项目、生产数据或未授权服务；
+- 现有用户改动与本任务在同一文件中无法安全合并；
+- Harness 失败但原因无法在当前 scope 内确认。
 
 ## 详细规则入口
 

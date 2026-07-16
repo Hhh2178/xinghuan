@@ -1,0 +1,24 @@
+name: harness
+
+on:
+  push:
+    branches: [main, master, xinghuan-integration-clean]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  project-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run harness:run -- --profile=project
+      - run: npm run harness:verify:workspace
+      - run: npm run harness:verify:release

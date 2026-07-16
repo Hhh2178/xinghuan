@@ -1,4 +1,4 @@
-import { access, stat } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,6 +121,14 @@ export function defaultGrayConfig() {
     serviceName: "xinghuan-canvas-next.service",
     workerServiceName: "xinghuan-canvas-next-worker.service",
   };
+}
+
+export async function loadEnvironmentConfig(environment = "gray") {
+  const configPath = resolve(rootDir, "config/environments.json");
+  const config = JSON.parse(await readFile(configPath, "utf8"));
+  const entry = config?.environments?.[environment];
+  if (!entry) throw new Error(`UNKNOWN_RELEASE_ENVIRONMENT:${environment}`);
+  return { environment, ...entry };
 }
 
 export function archiveOutputPath(releaseId) {

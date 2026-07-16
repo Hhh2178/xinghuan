@@ -17,10 +17,12 @@ export type MissingLegacyPolicyMode = "allow" | "deny" | "unresolved";
 export interface PermissionReconciliationPlan {
   subjectUpdates: PermissionSubject[];
   ruleUpserts: PermissionRule[];
+  ruleDeletes: PermissionRule[];
   unresolvedPrincipalIds: string[];
   metrics: {
     subjectUpdates: number;
     ruleUpserts: number;
+    ruleDeletes: number;
     unresolvedPrincipals: number;
   };
 }
@@ -75,6 +77,9 @@ export function buildPermissionReconciliationPlan(input: {
 
   const subjectUpdates: PermissionSubject[] = [];
   const ruleUpserts: PermissionRule[] = [];
+  const ruleDeletes = input.rules.filter((rule) =>
+    input.subjects.some((subject) => subject.subjectKey === rule.subjectKey && subject.exposureState === "retired"),
+  );
   const existingRules = new Map(
     input.rules.map((rule) => [ruleIdentity(rule), rule]),
   );
@@ -121,10 +126,12 @@ export function buildPermissionReconciliationPlan(input: {
     ruleUpserts,
     unresolvedPrincipalIds,
     metrics: {
-      subjectUpdates: subjectUpdates.length,
-      ruleUpserts: ruleUpserts.length,
-      unresolvedPrincipals: unresolvedPrincipalIds.length,
-    },
+    subjectUpdates: subjectUpdates.length,
+    ruleUpserts: ruleUpserts.length,
+    ruleDeletes: ruleDeletes.length,
+    unresolvedPrincipals: unresolvedPrincipalIds.length,
+  },
+    ruleDeletes,
   };
 }
 

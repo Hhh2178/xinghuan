@@ -20,6 +20,7 @@ releases/
 !docs/logbooks/releases/**/*.md
 dist-release/
 .codegraph/
+.harness/
 .playwright-cli/
 apps/api/data/users/
 apps/api/data/

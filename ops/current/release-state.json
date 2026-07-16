@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-16",
+  "sourceBranch": "xinghuan-integration-clean",
+  "sourceCommit": "df3970bd51d2198dc1fb9eb1af1af5a7556f13b6",
+  "environments": {
+    "gray": {
+      "version": "0.6.13",
+      "releaseId": "20260715-permission-platform-hardening-v0613",
+      "deployedAt": "2026-07-15",
+      "permissionMode": "enforced",
+      "readiness": { "subjects": 124, "publishedSubjects": 117, "restrictedSubjects": 7, "rules": 932, "principals": 4, "failures": 0 },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-15-permission-platform-hardening-v0613.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-15-permission-platform-hardening-v0613.md",
+      "rollbackReleaseId": "20260715-aifork-grok-fast-preprocess-v0612"
+    },
+    "production": {
+      "version": "0.6.13",
+      "releaseId": "20260716-permission-platform-hardening-prod-r1-v0613",
+      "deployedAt": "2026-07-16",
+      "permissionMode": "enforced",
+      "readiness": { "subjects": 127, "publishedSubjects": 120, "restrictedSubjects": 7, "rules": 478, "principals": 2, "failures": 0 },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-16-permission-platform-hardening-production.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-16-permission-platform-hardening-production.md",
+      "rollbackReleaseId": "20260702-envsync-admin-sections-prod-r1-v0522"
+    }
+  }
+}
