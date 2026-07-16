@@ -261,6 +261,14 @@ export function PermissionPlatformPanel({
         </div>
       ) : null}
 
+      <div className="permission-platform__default-policy" role="note">
+        <ShieldCheck aria-hidden="true" />
+        <div>
+          <strong>普通成员默认开放已发布的前台创作与消费能力</strong>
+          <span>此处只需维护显式关闭项；公共资源上传、分类、编辑、删除和发布属于管理员治理能力，不进入用户组或账号授权目录。</span>
+        </div>
+      </div>
+
       {error ? <div className="inline-error">{error}</div> : null}
 
       <div className="permission-platform__workspace">

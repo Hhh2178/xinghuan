@@ -45,7 +45,10 @@ describe("resolvePermission", () => {
     expect(result.ruleId).toBe("exact-deny");
   });
 
-  it("denies members when no rule matches", () => {
-    expect(resolvePermission({ user: member, subject: subject(), action: "execute", rules: [] }).allowed).toBe(false);
+  it("allows published frontend capabilities when no rule matches", () => {
+    expect(resolvePermission({ user: member, subject: subject(), action: "execute", rules: [] })).toMatchObject({
+      allowed: true,
+      reason: "published-default-allow",
+    });
   });
 });

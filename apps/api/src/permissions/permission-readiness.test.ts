@@ -45,8 +45,6 @@ describe("permission readiness", () => {
     expect(report.ready).toBe(false);
     expect(report.failures.map((failure) => failure.code)).toEqual(expect.arrayContaining([
       "NO_PUBLISHED_SUBJECTS",
-      "NO_PERMISSION_RULES",
-      "MISSING_PRINCIPAL_COVERAGE",
     ]));
   });
 
@@ -88,7 +86,7 @@ describe("permission readiness", () => {
     expect(report.failures).toContainEqual(expect.objectContaining({ code: "INVALID_USER_GROUP_REFERENCE" }));
   });
 
-  it("rejects partial action coverage even when every principal has a rule", () => {
+  it("accepts published subjects without explicit allow coverage", () => {
     const report = evaluatePermissionReadiness({
       subjects: [subject()],
       rules: [rule(), rule({ id: "rule-ungrouped", principalId: "ungrouped" })],
@@ -96,10 +94,17 @@ describe("permission readiness", () => {
       users: [{ id: "member-a", role: "member", groupId: "group-a" }],
     });
 
-    expect(report.failures).toContainEqual(expect.objectContaining({
-      code: "MISSING_SUBJECT_ACTION_COVERAGE",
-      count: 2,
-    }));
+    expect(report.failures).not.toContainEqual(expect.objectContaining({ code: "MISSING_SUBJECT_ACTION_COVERAGE" }));
+  });
+
+  it("accepts an empty rule set when published capabilities default to allow", () => {
+    const report = evaluatePermissionReadiness({
+      subjects: [subject()],
+      rules: [],
+      groupIds: ["group-a"],
+      users: [{ id: "member-a", role: "member", groupId: "group-a" }],
+    });
+    expect(report.ready).toBe(true);
   });
 
   it("rejects rules for missing principals and retired subjects", () => {

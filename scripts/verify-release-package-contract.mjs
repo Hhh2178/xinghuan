@@ -47,6 +47,7 @@ assertArrayIncludes("includedPaths", "scripts/verify-aifork-grok-fast-data-url-r
 for (const permissionScript of [
   "scripts/permission-db-state.ts",
   "scripts/reconcile-permissions.ts",
+  "scripts/migrate-default-open-permissions.ts",
   "scripts/verify-permission-readiness.ts",
   "scripts/verify-permission-member-catalog.mjs",
   "scripts/verify-permission-platform-hardening-contract.mjs",
@@ -88,6 +89,7 @@ console.log(
         "scripts/verify-aifork-grok-fast-data-url-references.mjs",
         "scripts/permission-db-state.ts",
         "scripts/reconcile-permissions.ts",
+        "scripts/migrate-default-open-permissions.ts",
         "scripts/verify-permission-readiness.ts",
         "scripts/verify-permission-member-catalog.mjs",
         "scripts/verify-permission-platform-hardening-contract.mjs",

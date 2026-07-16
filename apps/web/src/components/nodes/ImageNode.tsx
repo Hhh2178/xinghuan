@@ -1318,9 +1318,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                     </select>
                   </div>
                 )}
-                <div className="col-span-full text-[10px] leading-relaxed text-cyan-100/50">
-                  {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
-                </div>
               </div>
             )}
           </div>

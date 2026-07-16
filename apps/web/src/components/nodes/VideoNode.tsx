@@ -1243,13 +1243,6 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
                 </div>
               )}
             </div>
-            {isBackendSelected && backendModel && (
-              <>
-                <div className="text-[10px] leading-relaxed text-cyan-100/50">
-                  {backendModel.provider.name} / {backendModel.protocol} / {backendModel.inputProfile}
-                </div>
-              </>
-            )}
           </div>
         )}
 

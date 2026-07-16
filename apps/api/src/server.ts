@@ -158,6 +158,11 @@ import { createPermissionShadowMetrics } from "./permissions/permission-shadow-m
 import { evaluatePermissionReadiness } from "./permissions/permission-readiness.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
+import {
+  findCanvasSnapshotOwnershipConflicts,
+  planCanvasSnapshotRecovery,
+  type CanvasSnapshotRecoveryCandidate,
+} from "./canvas-snapshot-recovery.js";
 import { createSettingsRepository } from "./settings-repository.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
@@ -2566,17 +2571,11 @@ async function handleAdminRequest(
         createdAt: now,
         updatedAt: now,
       };
-      const defaultClosedPolicy = normalizeGroupPermissionPolicy({
+      const defaultOpenPolicy = normalizeGroupPermissionPolicy({
         groupId: group.id,
         updatedAt: now,
         updatedBy: adminUser.id,
-        deny: {
-          sharedResourceCategoryIds: ["*"],
-          sharedResourceItemIds: ["*"],
-          runningHubAppCatalogIds: ["*"],
-          runningHubWorkflowCatalogIds: ["*"],
-          nodeTypes: ["*"],
-        },
+        deny: emptyGroupPermissionDeny(),
       });
       if (authDb.userGroups.some((item) => item.id === group.id)) throw new Error("系统生成的用户组 ID 冲突，请重试。");
       const nextAuthDb: AuthDb = {
@@ -2584,13 +2583,13 @@ async function handleAdminRequest(
         userGroups: [...authDb.userGroups, group],
         groupPermissionPolicies: normalizeGroupPermissionPolicies([
           ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== group.id),
-          defaultClosedPolicy,
+          defaultOpenPolicy,
         ]),
       };
       if (usePostgresRepository()) {
         await writeAuthDb(nextAuthDb, {
           allowPostgresFullReplace: true,
-          reason: "user-group-create-default-closed-policy",
+          reason: "user-group-create-default-open-policy",
         });
       } else {
         await writeAuthDb(nextAuthDb);
@@ -3844,9 +3843,16 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
       [user.id],
     );
     const dirs = userDataDirs(user);
-    if (result.rows.length > 0) {
+    const databaseItems = result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
+    const orphanSnapshots = await discoverOrphanCanvasSnapshots(user, databaseItems.map((item) => item.id));
+    if (orphanSnapshots.length > 0) {
+      const recoveredItems = await insertRecoveredCanvasSnapshots(user, orphanSnapshots);
       await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
-      return result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
+      return [...databaseItems, ...recoveredItems].sort((left, right) => right.updatedAt - left.updatedAt);
+    }
+    if (databaseItems.length > 0) {
+      await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
+      return databaseItems;
     }
     if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) return [];
     const fileList = await readCanvasListFromFile(user);
@@ -3940,9 +3946,6 @@ async function readCanvasData(id: string, user: CurrentUser): Promise<CanvasData
     const foreign = await pool.query("select id from xh_canvases where id = $1 limit 1", [id]);
     if (foreign.rows[0]) {
       throw new HttpError(403, "CANVAS_OWNERSHIP_MISMATCH");
-    }
-    if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) {
-      return emptyCanvasData();
     }
     const fileData = await readCanvasDataFromFile(id, user);
     if (fileData.nodes.length > 0 || fileData.edges.length > 0 || fileData.nextNodeSerialId !== 1) {
@@ -4290,6 +4293,93 @@ async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: 
 
 async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord, expectedRevision?: number) {
   return settingsRepository.writeAssistantSettingsRecord(settings, expectedRevision);
+}
+
+async function discoverOrphanCanvasSnapshots(user: CurrentUser, databaseIds: string[]): Promise<CanvasSnapshotRecoveryCandidate[]> {
+  const dirs = userDataDirs(user);
+  await ensureDataDirs(user);
+  const entries = await readdir(dirs.canvasDir, { withFileTypes: true });
+  const snapshots: CanvasSnapshotRecoveryCandidate[] = [];
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.isFile() || !entry.name.endsWith(".json") || entry.name === "canvas-list.json") continue;
+    const id = entry.name.slice(0, -5);
+    if (!id || safeFilename(`${id}.json`) !== entry.name) continue;
+    try {
+      const path = join(dirs.canvasDir, entry.name);
+      const [raw, info] = await Promise.all([readFile(path, "utf8"), stat(path)]);
+      const data = normalizeCanvasData(JSON.parse(raw));
+      snapshots.push({
+        id,
+        nodes: data.nodes,
+        edges: data.edges,
+        viewport: data.viewport,
+        nextNodeSerialId: data.nextNodeSerialId,
+        revision: Math.max(1, Number(data.revision) || 1),
+        modifiedAt: Math.max(1, Math.floor(info.mtimeMs)),
+      });
+    } catch {
+      // Invalid snapshots remain untouched for manual inspection.
+    }
+  }
+  return planCanvasSnapshotRecovery({ databaseIds, snapshots });
+}
+
+async function insertRecoveredCanvasSnapshots(user: CurrentUser, snapshots: CanvasSnapshotRecoveryCandidate[]): Promise<CanvasListItem[]> {
+  if (snapshots.length === 0) return [];
+  const pool = await getPostgresPool();
+  const client = await pool.connect();
+  const recovered: CanvasListItem[] = [];
+  try {
+    await client.query("begin");
+    const snapshotIds = snapshots.map((snapshot) => snapshot.id);
+    const ownershipResult = await client.query(
+      "select id, owner_id from xh_canvases where id = any($1::text[]) for update",
+      [snapshotIds],
+    );
+    const ownershipConflicts = findCanvasSnapshotOwnershipConflicts({
+      ownerId: user.id,
+      snapshotIds,
+      existingOwners: ownershipResult.rows.map((row) => ({ id: String(row.id), ownerId: String(row.owner_id) })),
+    });
+    if (ownershipConflicts.length > 0) {
+      throw new Error(`CANVAS_SNAPSHOT_OWNER_CONFLICT:${ownershipConflicts.join(",")}`);
+    }
+    const existingIds = new Set(ownershipResult.rows.map((row) => String(row.id)));
+    for (const [index, snapshot] of snapshots.entries()) {
+      if (existingIds.has(snapshot.id)) continue;
+      const name = `恢复画布 ${index + 1}`;
+      const data = normalizeCanvasData(snapshot);
+      const result = await client.query(
+        `insert into xh_canvases (id, owner_id, project_id, name, node_count, data, revision, created_at, updated_at)
+         values ($1, $2, null, $3, $4, $5::jsonb, $6, $7, $7)
+         on conflict (id) do nothing
+         returning id`,
+        [snapshot.id, user.id, name, data.nodes.length, JSON.stringify(data), snapshot.revision, millisToDate(snapshot.modifiedAt)],
+      );
+      if (!result.rowCount) {
+        const racedOwner = await client.query("select owner_id from xh_canvases where id = $1", [snapshot.id]);
+        if (String(racedOwner.rows[0]?.owner_id || "") !== user.id) {
+          throw new Error(`CANVAS_SNAPSHOT_OWNER_CONFLICT:${snapshot.id}`);
+        }
+        continue;
+      }
+      recovered.push(sanitizeCanvasListItem({
+        id: snapshot.id,
+        name,
+        nodeCount: data.nodes.length,
+        revision: snapshot.revision,
+        createdAt: snapshot.modifiedAt,
+        updatedAt: snapshot.modifiedAt,
+      }));
+    }
+    await client.query("commit");
+    return recovered;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function usePostgresRepository() {

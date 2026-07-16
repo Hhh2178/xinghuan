@@ -13,6 +13,7 @@ Auth 与 Users 系统负责登录、会话、多用户隔离、ownership、revis
 
 1. `session-and-csrf.md`
 2. `revision-and-ownership-guard.md`
+3. `permissions-and-administrator-boundary.md`
 
 ## 相关系统
 

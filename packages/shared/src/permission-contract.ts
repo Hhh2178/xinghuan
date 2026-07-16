@@ -38,6 +38,6 @@ export interface PermissionedUser {
 
 export interface PermissionDecision {
   allowed: boolean;
-  reason: "admin" | "subject-not-published" | "account-rule" | "group-rule" | "no-matching-rule";
+  reason: "admin" | "subject-not-published" | "account-rule" | "group-rule" | "published-default-allow" | "no-matching-rule";
   ruleId?: string;
 }

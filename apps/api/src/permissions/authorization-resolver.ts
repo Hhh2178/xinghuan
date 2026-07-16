@@ -14,7 +14,7 @@ export function resolvePermission(input: {
   if (accountRule) return { allowed: accountRule.effect === "allow", reason: "account-rule", ruleId: accountRule.id };
   const groupRule = findBestRule("group", input.user.groupId || UNGROUPED, input.subject, input.action, input.rules);
   if (groupRule) return { allowed: groupRule.effect === "allow", reason: "group-rule", ruleId: groupRule.id };
-  return { allowed: false, reason: "no-matching-rule" };
+  return { allowed: true, reason: "published-default-allow" };
 }
 
 function findBestRule(

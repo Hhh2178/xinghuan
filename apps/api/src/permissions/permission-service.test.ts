@@ -24,10 +24,20 @@ const groupAllow: PermissionRule = {
   revision: 1,
 };
 
+const groupDenies: PermissionRule[] = (["view", "execute"] as const).map((action) => ({
+  id: `group-deny-${action}`,
+  principalType: "group",
+  principalId: "group-a",
+  subjectKey: subject.subjectKey,
+  action,
+  effect: "deny",
+  revision: 1,
+}));
+
 describe("permission service", () => {
   it("uses the same denial for a hidden catalog item and direct execution", async () => {
     const service = createPermissionService({
-      readAuthorizationState: async () => ({ subjects: [subject], rules: [] }),
+      readAuthorizationState: async () => ({ subjects: [subject], rules: groupDenies }),
     });
     const member = { id: "member-a", role: "member" as const, groupId: "group-a" };
 
@@ -35,7 +45,7 @@ describe("permission service", () => {
     await expect(service.assertAllowed(member, subject.subjectKey, "execute")).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
   });
 
-  it("allows a published action only when its matching rule exists", async () => {
+  it("reports the matching explicit allow rule when one exists", async () => {
     const service = createPermissionService({
       readAuthorizationState: async () => ({ subjects: [subject], rules: [groupAllow] }),
     });
@@ -47,7 +57,10 @@ describe("permission service", () => {
 
   it("does not expose subject metadata through denial errors", async () => {
     const service = createPermissionService({
-      readAuthorizationState: async () => ({ subjects: [subject], rules: [] }),
+      readAuthorizationState: async () => ({
+        subjects: [subject],
+        rules: [{ ...groupDenies[0], id: "ungrouped-deny-view", principalId: "ungrouped" }],
+      }),
     });
 
     await expect(service.assertAllowed({ id: "member-a", role: "member" }, subject.subjectKey, "view")).rejects.toEqual(new PermissionDeniedError());

@@ -3,17 +3,10 @@ import type {
   PermissionSubject,
   PermissionedUser,
 } from "@xinghuan/shared";
-import {
-  isPermissionLeaf,
-  requiredPermissionActions,
-} from "./permission-subject-actions.js";
 
 export type PermissionReadinessFailureCode =
   | "NO_PERMISSION_SUBJECTS"
   | "NO_PUBLISHED_SUBJECTS"
-  | "NO_PERMISSION_RULES"
-  | "MISSING_PRINCIPAL_COVERAGE"
-  | "MISSING_SUBJECT_ACTION_COVERAGE"
   | "INVALID_USER_GROUP_REFERENCE"
   | "ORPHAN_PERMISSION_RULE"
   | "ORPHAN_PERMISSION_PRINCIPAL"
@@ -52,11 +45,6 @@ export function evaluatePermissionReadiness(input: {
   const validGroupIds = new Set(groupIds);
   const validUserIds = new Set(input.users.map((user) => user.id));
   const requiredPrincipalIds = [...groupIds, "ungrouped"];
-  const coveredPrincipalIds = new Set(
-    input.rules
-      .filter((rule) => rule.principalType === "group")
-      .map((rule) => rule.principalId),
-  );
   const failures: PermissionReadinessFailure[] = [];
 
   if (subjects.length === 0) {
@@ -78,25 +66,6 @@ export function evaluatePermissionReadiness(input: {
     });
   }
 
-  if (input.rules.length === 0) {
-    failures.push({
-      code: "NO_PERMISSION_RULES",
-      message: "No unified permission rules exist.",
-      count: 0,
-    });
-  }
-
-  const missingPrincipalIds = requiredPrincipalIds.filter(
-    (principalId) => !coveredPrincipalIds.has(principalId),
-  );
-  if (missingPrincipalIds.length > 0) {
-    failures.push({
-      code: "MISSING_PRINCIPAL_COVERAGE",
-      message: "One or more groups do not have an explicit unified baseline.",
-      count: missingPrincipalIds.length,
-      principalIds: missingPrincipalIds,
-    });
-  }
 
   const invalidUserGroupIds = [...new Set(
     input.users
@@ -154,34 +123,6 @@ export function evaluatePermissionReadiness(input: {
       message: "One or more rules still reference a retired subject.",
       count: retiredRuleSubjectKeys.length,
       subjectKeys: retiredRuleSubjectKeys,
-    });
-  }
-
-  const missingSubjectActionCoverage: string[] = [];
-  const publishedLeaves = subjects.filter(
-    (subject) => subject.exposureState === "published" && isPermissionLeaf(subject),
-  );
-  for (const principalId of requiredPrincipalIds) {
-    for (const subject of publishedLeaves) {
-      const matchingSubjectKeys = new Set([subject.subjectKey, ...subject.parentKeys]);
-      for (const action of requiredPermissionActions(subject)) {
-        const covered = input.rules.some((rule) => (
-          rule.principalType === "group" &&
-          rule.principalId === principalId &&
-          rule.action === action &&
-          matchingSubjectKeys.has(rule.subjectKey)
-        ));
-        if (!covered) {
-          missingSubjectActionCoverage.push(`${principalId}:${subject.subjectKey}:${action}`);
-        }
-      }
-    }
-  }
-  if (missingSubjectActionCoverage.length > 0) {
-    failures.push({
-      code: "MISSING_SUBJECT_ACTION_COVERAGE",
-      message: "Published subjects are missing explicit group action coverage.",
-      count: missingSubjectActionCoverage.length,
     });
   }
 

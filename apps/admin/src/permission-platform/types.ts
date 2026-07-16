@@ -29,7 +29,7 @@ export interface PermissionDecision {
   subjectKey: string;
   action: PermissionAction;
   allowed: boolean;
-  reason: "admin" | "subject-not-published" | "account-rule" | "group-rule" | "no-matching-rule";
+  reason: "admin" | "subject-not-published" | "account-rule" | "group-rule" | "published-default-allow" | "no-matching-rule";
   ruleId?: string;
 }
 

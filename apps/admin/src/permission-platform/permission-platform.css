@@ -68,6 +68,21 @@
 .permission-platform__failures div { display: grid; gap: 3px; min-width: 0; }
 .permission-platform__failures span { overflow-wrap: anywhere; color: #d6d3d1; font-size: 12px; }
 
+.permission-platform__default-policy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 3px solid #22c55e;
+  background: rgba(20, 83, 45, 0.18);
+  color: #bbf7d0;
+}
+
+.permission-platform__default-policy svg { width: 18px; flex: 0 0 auto; }
+.permission-platform__default-policy div { display: grid; gap: 3px; min-width: 0; }
+.permission-platform__default-policy span { color: #cbd5e1; font-size: 12px; line-height: 1.5; }
+
 .permission-platform__workspace {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);

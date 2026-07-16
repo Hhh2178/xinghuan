@@ -95,13 +95,7 @@ export function policyForUser(
     groupId,
     updatedAt: 0,
     updatedBy: undefined,
-    deny: {
-      sharedResourceCategoryIds: ["*"],
-      sharedResourceItemIds: ["*"],
-      runningHubAppCatalogIds: ["*"],
-      runningHubWorkflowCatalogIds: ["*"],
-      nodeTypes: ["*"],
-    },
+    deny: emptyGroupPermissionDeny(),
   };
 }
 

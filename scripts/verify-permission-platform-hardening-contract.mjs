@@ -17,6 +17,8 @@ const [
   environmentExample,
   packageJson,
   memberCatalogVerify,
+  authorizationResolver,
+  memberAdminBoundary,
 ] = await Promise.all([
   read("apps/api/src/permissions/permission-runtime.ts"),
   read("apps/api/src/permissions/permission-readiness.ts"),
@@ -33,13 +35,16 @@ const [
   read("config/canvas-next.env.example"),
   read("package.json"),
   read("scripts/verify-permission-member-catalog.mjs"),
+  read("apps/api/src/permissions/authorization-resolver.ts"),
+  read("scripts/verify-member-admin-boundary-contract.mjs"),
 ]);
 
 const checks = [
   ["runtime defines legacy shadow enforced", /"legacy"[\s\S]*"shadow"[\s\S]*"enforced"/.test(runtime)],
   ["shadow keeps legacy authoritative", /authority:\s*"legacy"[\s\S]*unified/.test(runtime)],
   ["readiness rejects zero published subjects", readiness.includes("NO_PUBLISHED_SUBJECTS")],
-  ["readiness requires subject action coverage", readiness.includes("MISSING_SUBJECT_ACTION_COVERAGE")],
+  ["published subjects default allow without matching rules", authorizationResolver.includes('reason: "published-default-allow"')],
+  ["readiness does not require explicit rule or coverage matrices", !readiness.includes("NO_PERMISSION_RULES") && !readiness.includes("MISSING_PRINCIPAL_COVERAGE") && !readiness.includes("MISSING_SUBJECT_ACTION_COVERAGE")],
   ["reconciliation preserves legacy identifiers", reconciliation.includes("legacySubjectIdentifiers")],
   ["subject updates use atomic revision guards", /where xh_permission_subjects\.revision = excluded\.revision - 1[\s\S]*metadata is not distinct from excluded\.metadata[\s\S]*returning subject_key/.test(repository)],
   ["rule updates and deletes use atomic revision guards", /where xh_permission_rules\.revision = excluded\.revision - 1[\s\S]*returning id/.test(repository) && /delete from xh_permission_rules where id = \$1 and revision = \$2 returning id/.test(repository)],
@@ -57,6 +62,8 @@ const checks = [
   ["gray environment defaults to shadow", environmentExample.includes("XINGHUAN_PERMISSION_MODE=shadow")],
   ["package exposes reconciliation command", packageJson.includes('"permissions:reconcile"')],
   ["package exposes readiness command", packageJson.includes('"permissions:verify"')],
+  ["package exposes guarded default-open migration", packageJson.includes('"permissions:migrate-default-open"')],
+  ["member authorization catalog excludes administrator management actions", memberAdminBoundary.includes("assert.doesNotMatch(actions") && memberAdminBoundary.includes('"manage"')],
   ["gray acceptance verifies both account override directions", memberCatalogVerify.includes("denyOverAllow") && memberCatalogVerify.includes("allowOverDeny")],
   ["gray acceptance cleanup carries rule revision", memberCatalogVerify.includes("revision: rule.revision")],
 ];
