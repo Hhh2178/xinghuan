@@ -15,11 +15,11 @@ export const NODE_REGISTRY: NodeMeta[] = [
   { type: 'material-set', label: '素材集', category: 'input', description: '把多个同类型文本 / 图像 / 视频 / 音频打包成可排序素材集，可直接传给生成与 RH 节点', icon: 'Images', color: 'teal' },
   { type: 'output', label: '输出素材', category: 'input', description: '起于上游任意节点的 文本/图像/视频/音频 结果预览(原始宽高比 + 文本双击编辑)', icon: 'MonitorPlay', color: 'teal' },
 
-  // ========== Core 核心节点(6) ==========
+  // ========== Core 核心节点(5 个可新建，1 个历史兼容) ==========
   { type: 'text', label: '文本', category: 'core', description: '提示词文本节点', icon: 'Type', color: 'sky' },
   { type: 'image', label: '图像', category: 'core', description: 'GPT Image 2 / Nano Banana Pro / Nano Banana 2 (多 TAB 模型切换)', icon: 'Image', color: 'amber' },
   { type: 'video', label: '视频', category: 'core', description: 'Veo 3.1 / Grok Video', icon: 'Video', color: 'rose' },
-  { type: 'seedance', label: 'SD2.0', category: 'core', description: 'Seedance 2.0 视频分镜', icon: 'Film', color: 'fuchsia' },
+  { type: 'seedance', label: 'SD2.0', category: 'core', description: '历史 Seedance 2.0 节点，仅保留旧画布兼容', icon: 'Film', color: 'fuchsia', hidden: true },
   { type: 'audio', label: '语音生成', category: 'core', description: '基于后台发布的音频模型完成语音生成与音色克隆；旧 Suno 仅作历史兼容', icon: 'Music', color: 'violet' },
   { type: 'llm', label: 'LLM', category: 'core', description: 'GPT-5 / Claude 4.5 / Gemini 2.5(独立 Key)', icon: 'Brain', color: 'emerald' },
 
