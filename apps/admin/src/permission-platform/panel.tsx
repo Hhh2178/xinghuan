@@ -231,7 +231,7 @@ export function PermissionPlatformPanel({
         <div>
           <span>就绪状态</span>
           <strong className={health?.readiness.ready ? "is-ready" : "is-blocked"}>
-            {health?.readiness.ready ? "可切换" : "未就绪"}
+            {health?.readiness.ready ? (health.mode === "enforced" ? "正常" : "可切换") : "未就绪"}
           </strong>
         </div>
         <div>
