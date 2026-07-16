@@ -28,9 +28,9 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.0`
-  - release：`20260716-canvas-workflow-capabilities-gray-r1-v070`
-  - 状态：`画布工作流能力已在 gray 部署；API/Worker、内外网状态与权限 readiness 通过`
-  - 当前补修：`代码/标签节点、组循环与重试、模板弹层、文本分割自动运行、组锁定和任务完整日志`
+  - release：`20260716-canvas-text-split-output-gray-r2-v070`
+  - 状态：`文本分割输出隔离修复已在 gray 部署；API/Worker、内外网状态与权限 readiness 通过`
+  - 当前补修：`TextSplit 自动 OutputNode 只显示对应规则分段，不再混入源节点完整文本`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

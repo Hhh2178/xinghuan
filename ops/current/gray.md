@@ -3,13 +3,15 @@
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.0`
-- 当前 release：`20260716-canvas-workflow-capabilities-gray-r1-v070`
-- 当前状态：`v0.7.0 画布工作流能力已部署 gray；API/Worker、内外网状态与权限 readiness 通过，production 保持 v0.6.13`
-- 当前补修：`代码节点、标签节点、组循环与重试、模板弹层、文本分割自动运行、组锁定和任务完整日志`
+- 当前 release：`20260716-canvas-text-split-output-gray-r2-v070`
+- 当前状态：`v0.7.0 文本分割输出隔离修复已部署 gray；API/Worker、内外网状态与权限 readiness 通过，production 保持 v0.6.13`
+- 当前补修：`TextSplit 自动 OutputNode 只消费自身分段，不再同时展示源节点完整文本`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-16-canvas-text-split-output-v070.md`
+  - `../../docs/logbooks/validations/2026-07-16-canvas-text-split-output-v070.md`
   - `../../docs/logbooks/releases/gray/2026-07-16-canvas-workflow-capabilities-v070.md`
   - `../../docs/logbooks/validations/2026-07-16-canvas-workflow-capabilities-v070.md`
   - `../../docs/logbooks/releases/gray/2026-07-15-permission-platform-hardening-v0613.md`
@@ -79,9 +81,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-permission-platform-hardening-v0613`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260716-canvas-workflow-capabilities-gray-r1-v070`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260715-permission-platform-hardening-v0613`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260716-canvas-workflow-capabilities-gray-r1-v070`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

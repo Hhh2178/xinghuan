@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-16",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "b6c23aefe48abb3ba1dd4871a49ee4807652c666",
+  "sourceCommit": "4ecb470d5fea35bb5c374ba3638c30525d2d1702",
   "environments": {
     "gray": {
       "version": "0.7.0",
-      "releaseId": "20260716-canvas-workflow-capabilities-gray-r1-v070",
+      "releaseId": "20260716-canvas-text-split-output-gray-r2-v070",
       "deployedAt": "2026-07-16",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 126, "publishedSubjects": 117, "restrictedSubjects": 9, "retiredSubjects": 0, "rules": 932, "principals": 4, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-16-canvas-workflow-capabilities-v070.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-16-canvas-workflow-capabilities-v070.md",
-      "rollbackReleaseId": "20260715-permission-platform-hardening-v0613"
+      "readiness": { "subjects": 126, "publishedSubjects": 118, "restrictedSubjects": 7, "retiredSubjects": 1, "rules": 940, "principals": 4, "failures": 0 },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-16-canvas-text-split-output-v070.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-16-canvas-text-split-output-v070.md",
+      "rollbackReleaseId": "20260716-canvas-workflow-capabilities-gray-r1-v070"
     },
     "production": {
       "version": "0.6.13",
