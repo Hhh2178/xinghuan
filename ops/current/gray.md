@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.0`
 - 当前 release：`20260716-canvas-text-split-output-gray-r2-v070`
-- 当前状态：`v0.7.0 文本分割输出隔离修复已部署 gray；API/Worker、内外网状态、权限 readiness 与公网前端部署签名通过，production 保持 v0.6.13`
+- 当前状态：`v0.7.0 文本分割输出隔离修复已部署 gray；API/Worker、内外网状态、权限 readiness、公网前端部署签名与远端分支同步通过，production 保持 v0.6.13`
 - 当前补修：`TextSplit 自动 OutputNode 只消费自身分段，不再同时展示源节点完整文本`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`

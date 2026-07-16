@@ -8,7 +8,7 @@
 - release：`20260716-canvas-text-split-output-gray-r2-v070`
 - 当前状态：`v0.7.0 文本分割输出隔离修复已在 gray 部署；production 保持 v0.6.13`
 - 部署内容：`TextSplit 自动 OutputNode 只显示各自规则分段，保留画布连线但不再混入源节点全文`
-- 已验证：`125 项测试、Web 构建、project/workspace/release harness、API/Worker、内外网状态、权限 readiness 与公网前端部署签名通过`
+- 已验证：`125 项测试、全量构建、project/workspace/release harness、API/Worker、内外网状态、权限 readiness、公网前端部署签名与远端分支同步通过`
 - 待验收：`使用真实灰度账号重跑文本分割，确认每个输出素材框只包含对应分段；不调用付费模型`
 - 部署时间：`2026-07-16`
 - 当前批次记录：
