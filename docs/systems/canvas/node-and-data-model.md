@@ -33,6 +33,7 @@
   - 每轮保持拓扑顺序；节点失败时最多额外重试 3 次，最终失败终止当前批次。
 - `text-split`
   - 蓝色“启动”和 `useRunTrigger` 复用默认运行逻辑，按分段顺序创建并连线独立 `output` 节点。
+  - 自动创建的 `output` 节点只消费自身 `directOutputText`，不沿展示连线重复收集 TextSplitNode 的完整分段集合。
   - 灰黑色“打散文本节点”是显式兼容路径，只创建独立 `text` 节点，不参与默认组运行。
   - 自动输出带 `autoCreatedBy: text-split-run`、来源节点和顺序标识；两条路径重新运行时都会替换该来源的上一批自动产物。
 

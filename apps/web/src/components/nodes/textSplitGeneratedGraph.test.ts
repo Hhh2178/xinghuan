@@ -22,6 +22,7 @@ describe('buildTextSplitGeneratedGraph', () => {
 
     expect(result.nodes.map((node) => node.type)).toEqual(['output', 'output']);
     expect(result.nodes.map((node) => (node.data as any).directOutputText)).toEqual(['第一段', '第二段']);
+    expect(result.nodes.map((node) => (node.data as any).ignoreUpstreamMaterials)).toEqual([true, true]);
     expect(result.nodes.map((node) => (node.data as any).textSplitIndex)).toEqual([0, 1]);
     expect(result.edges.map((edge) => [edge.source, edge.target])).toEqual([
       ['split-1', result.nodes[0].id],

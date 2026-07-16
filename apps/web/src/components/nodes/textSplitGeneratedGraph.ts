@@ -66,7 +66,7 @@ export function buildTextSplitGeneratedGraph({
       position: { x: rects[index].x + offset.dx, y: rects[index].y + offset.dy },
       data: {
         ...(mode === 'output'
-          ? { directOutputText: segment, outputText: '' }
+          ? { directOutputText: segment, outputText: '', ignoreUpstreamMaterials: true }
           : { prompt: segment }),
         autoCreatedBy: marker,
         sourceTextSplitId: sourceNode.id,

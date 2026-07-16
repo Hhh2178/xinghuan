@@ -40,6 +40,7 @@ import {
   computeOutputPreviewFrameHeight,
 } from './outputPreviewLayout';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
+import { shouldCollectOutputNodeUpstream } from './outputNodeMaterialMode';
 // v1.2.10.5: 节点落点防重叠 —— 双击编辑产出 N 节点 3 列宫格整组避让
 import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
 
@@ -269,7 +270,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       arr.push(s);
     };
 
-    const directOnlyOutput = Boolean(d.rhDuckDecoded);
+    const directOnlyOutput = !shouldCollectOutputNodeUpstream(d);
     if (!directOnlyOutput) {
       const list = Array.isArray(upstreamNodes) ? upstreamNodes : [];
       for (const n of list) {
@@ -440,7 +441,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
     }
 
     return out;
-  }, [upstreamNodes, upstreamSig, handleMap, d.pickKind, d.pickIndex, d.directImageUrl, d.directImageUrls, d.directVideoUrl, d.directVideoUrls, d.directAudioUrl, d.directAudioUrls, d.directOutputText, d.directTextSegments, d.rhDuckDecoded]);
+  }, [upstreamNodes, upstreamSig, handleMap, d.pickKind, d.pickIndex, d.directImageUrl, d.directImageUrls, d.directVideoUrl, d.directVideoUrls, d.directAudioUrl, d.directAudioUrls, d.directTextSegments, d.directOutputText, d.rhDuckDecoded, d.ignoreUpstreamMaterials]);
 
   // 文本编辑
   const overrideText: string = typeof d.outputText === 'string' ? d.outputText : '';
