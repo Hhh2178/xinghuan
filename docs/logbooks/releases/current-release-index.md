@@ -6,7 +6,7 @@
 
 - 版本：`v0.6.13`
 - release：`20260715-permission-platform-hardening-v0613`
-- 当前状态：`v0.6.13 统一权限平台已在 gray enforced；readiness、真实未分组/命名组和双向账号覆盖验收通过；生产保持 v0.5.22`
+- 当前状态：`v0.6.13 统一权限平台已在 gray / production enforced；两套环境 readiness 和真实成员目录验收通过`
 - 部署内容：`权限三态运行时、幂等迁移、统一后台、Subject/Rule 原子 revision、目录与执行一致性、release readiness 门禁`
 - 已验证：`构建、103 项测试、Lint、project/workspace/release harness、备份、幂等 reconciliation、readiness、真实成员目录与双向账号覆盖通过`
 - 待验收：`可由用户继续进行后台视觉检查；运行、数据和权限行为已通过`
@@ -85,11 +85,13 @@
 
 ### Production
 
-- 版本：`v0.5.22`
-- release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前状态：`2026-07-14 15:44 因 admin 会话失效后的创建分组误导状态、成员 RH catalog 全空，以及 AIFork SD 视频适配问题回退；API/Worker 与内网/公网状态接口已验证为 v0.5.22`
-- 当前补修：`保留 v0.5.27 release 供排查；完成 RH 可见性、管理员会话失效处理和 AIFork SD 适配验证后再重新发布`
+- 版本：`v0.6.13`
+- release：`20260716-permission-platform-hardening-prod-r1-v0613`
+- 当前状态：`统一权限平台已按 shadow、reconciliation、readiness、enforced 顺序完成生产晋级；API/Worker 与内网/公网状态通过`
+- 当前补修：`继续观察历史任务失败趋势与 revision conflict；自动浏览器截图验收仍未完成`
 - 当前批次记录：
+  - `production/2026-07-16-permission-platform-hardening-production.md`
+  - `../validations/2026-07-16-permission-platform-hardening-production.md`
   - `../incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`
   - `production/2026-07-14-task-list-lightweight-production.md`
   - `production/2026-07-02-envsync-admin-sections-production.md`

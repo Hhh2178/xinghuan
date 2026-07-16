@@ -34,10 +34,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.5.22`
-  - release：`20260702-envsync-admin-sections-prod-r1-v0522`
-  - 状态：`2026-07-14 15:44 已从 v0.5.27 回退；API/Worker active，内网与公网状态接口已验证为 v0.5.22`
-  - 当前补修：`AIFork SD 视频适配、RH catalog 可见性和管理员会话失效处理正在 v0.6.1 灰度验证，未通过前不恢复生产晋级`
+  - 版本：`v0.6.13`
+  - release：`20260716-permission-platform-hardening-prod-r1-v0613`
+  - 状态：`统一权限平台已在 production enforced；readiness、真实未分组成员目录和账号覆盖验收通过`
+  - 当前补修：`继续观察历史任务失败趋势与 revision conflict；自动浏览器截图验收仍未完成`
 
 ## current / archive 分工
 

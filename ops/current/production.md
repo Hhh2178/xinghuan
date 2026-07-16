@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.5.22`
-- 当前 release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- 当前状态：`2026-07-14 15:44 已从 v0.5.27 回退；API/Worker active，内网与公网 /api/status 均已验证为 v0.5.22`
-- 当前补修：`v0.5.27 release 保留排查；需完成管理员会话失效处理、RH catalog 可见性和 AIFork SD 视频适配修复后再晋级`
+- 当前版本：`v0.6.13`
+- 当前 release：`20260716-permission-platform-hardening-prod-r1-v0613`
+- 当前状态：`统一权限平台已在 production enforced；API/Worker active，内网与公网状态、readiness 和真实未分组成员目录已验证`
+- 当前补修：`继续观察历史任务失败趋势与 revision conflict；浏览器自动化截图验收仍未完成`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-16-permission-platform-hardening-production.md`
+  - `../../docs/logbooks/validations/2026-07-16-permission-platform-hardening-production.md`
   - `../../docs/logbooks/incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`
   - `../../docs/logbooks/releases/production/2026-07-14-task-list-lightweight-production.md`
   - `../../docs/logbooks/releases/production/2026-07-02-envsync-admin-sections-production.md`
@@ -26,7 +28,8 @@
 
 - 当前 production `canvas.env` 仍指向数据库：`xinghuan_canvas_next`
 - `XINGHUAN_EXPECTED_DATABASE_NAME` 当前也为：`xinghuan_canvas_next`
-- 这代表生产运行位当前仍与历史共享库口径一致，尚未切到独立命名的 production 库
+- gray 实际使用 `xinghuan_canvas_gray`，production 与 gray 当前为独立数据库；production 保留历史库名 `xinghuan_canvas_next`
+- 统一权限数据：127 Subjects、120 published、7 restricted、478 rules、2 principals、0 readiness failures
 - `v0.5.1` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/xinghuan_canvas_next_before_v051_20260624_213115.dump`
 

@@ -28,9 +28,9 @@
 
 - Gray 版本：`v0.6.13`
 - Gray release：`20260715-permission-platform-hardening-v0613`
-- Production 版本：`v0.5.22`
-- Production release：`20260702-envsync-admin-sections-prod-r1-v0522`
-- `v0.6.13` 已在灰度启用统一权限 enforced，幂等协调、readiness 和真实成员覆盖验收通过；生产仍保持 `v0.5.22`。
+- Production 版本：`v0.6.13`
+- Production release：`20260716-permission-platform-hardening-prod-r1-v0613`
+- `v0.6.13` 已在灰度和生产启用统一权限 enforced；两套环境分别完成协调、readiness 和真实成员目录验收。
 - 当前状态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
 - ComfyUI 功能开发已暂停封存；仅允许 crash、security、rollback、docs 级别例外。
 
