@@ -19,7 +19,8 @@
       "releaseId": "20260716-permission-platform-hardening-prod-r1-v0613",
       "deployedAt": "2026-07-16",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 127, "publishedSubjects": 120, "restrictedSubjects": 7, "rules": 478, "principals": 2, "failures": 0 },
+      "readiness": { "subjects": 127, "publishedSubjects": 120, "restrictedSubjects": 7, "rules": 478, "principals": 2, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 129, "publishedSubjects": 118, "restrictedSubjects": 9, "retiredSubjects": 2, "rules": 478, "principals": 2, "failures": 2, "failureCodes": ["RETIRED_SUBJECT_RULE"], "observedAt": "2026-07-16", "status": "requires-reconciliation" },
       "releaseRecord": "docs/logbooks/releases/production/2026-07-16-permission-platform-hardening-production.md",
       "validationRecord": "docs/logbooks/validations/2026-07-16-permission-platform-hardening-production.md",
       "rollbackReleaseId": "20260702-envsync-admin-sections-prod-r1-v0522"

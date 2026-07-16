@@ -8,6 +8,7 @@ const rootPackage = await readJson("package.json");
 const environments = await readJson("config/environments.json");
 const releaseState = await readJson("ops/current/release-state.json");
 const failures = [];
+const warnings = [];
 
 const requiredEnvironments = ["gray", "production"];
 for (const environment of requiredEnvironments) {
@@ -29,6 +30,7 @@ for (const environment of requiredEnvironments) {
     catch { failures.push(`MISSING_EVIDENCE:${environment}:${evidencePath}`); }
   }
   if (state.readiness?.failures !== 0) failures.push(`READINESS_FAILURES:${environment}`);
+  if (state.runtimeReadiness?.failures > 0) warnings.push(`RUNTIME_READINESS_REQUIRES_RECONCILIATION:${environment}:${state.runtimeReadiness.failures}`);
 }
 
 if (environments.schemaVersion !== 1 || releaseState.schemaVersion !== 1) failures.push("UNSUPPORTED_STATE_SCHEMA");
@@ -39,6 +41,7 @@ console.log(JSON.stringify({
   environments: requiredEnvironments,
   sourceCommit: releaseState.sourceCommit,
   failures,
+  warnings,
 }, null, 2));
 
 if (failures.length > 0) process.exitCode = 1;
