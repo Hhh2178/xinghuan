@@ -5,13 +5,15 @@
 ### Gray
 
 - 版本：`v0.7.0`
-- release：`20260716-canvas-text-split-output-gray-r2-v070`
-- 当前状态：`v0.7.0 文本分割输出隔离修复已在 gray 部署；production 保持 v0.6.13`
-- 部署内容：`TextSplit 自动 OutputNode 只显示各自规则分段，保留画布连线但不再混入源节点全文`
-- 已验证：`125 项测试、全量构建、project/workspace/release harness、API/Worker、内外网状态、权限 readiness、公网前端部署签名与远端分支同步通过`
-- 待验收：`使用真实灰度账号重跑文本分割，确认每个输出素材框只包含对应分段；不调用付费模型`
+- release：`20260716-default-open-canvas-recovery-gray-r2-v070`
+- 当前状态：`默认开放权限、管理员硬边界与孤立画布恢复已在 gray 部署并验收；production 保持 v0.6.13`
+- 部署内容：`恢复测试账号 4 个画布；已发布前台能力默认允许、显式关闭；公共资源治理保持管理员专属；节点摘要和服务商 sticky 修复`
+- 已验证：`135 项测试、全量构建、三层 Harness、API/Worker/readiness、真实成员/API/Admin 页面、换组 ownership 与 Production 隔离通过`
+- 待验收：`无阻断项；继续观察 Gray 使用反馈，不晋级 Production`
 - 部署时间：`2026-07-16`
 - 当前批次记录：
+  - `gray/2026-07-16-default-open-canvas-recovery-v070.md`
+  - `../validations/2026-07-16-default-open-canvas-recovery-v070.md`
   - `gray/2026-07-16-canvas-text-split-output-v070.md`
   - `../validations/2026-07-16-canvas-text-split-output-v070.md`
   - `gray/2026-07-16-canvas-workflow-capabilities-v070.md`
