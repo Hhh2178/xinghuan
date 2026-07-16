@@ -24,6 +24,8 @@
 - 产品版本以根 `package.json` 为准。
 - 环境拓扑以 `config/environments.json` 为准。
 - 当前部署状态以 `ops/current/release-state.json` 为准。
+- Gray 人类可读运行态入口：`ops/current/gray.md`。
+- Production 人类可读运行态入口：`ops/current/production.md`。
 - 人类可读摘要以 `docs/memory/current-state.md` 和 `docs/logbooks/releases/current-release-index.md` 为准。
 - 不在 `AGENTS.md` 维护版本号、release ID、临时冻结项或逐日进度。
 
