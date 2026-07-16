@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.6.13`
-- release：`20260715-permission-platform-hardening-v0613`
-- 当前状态：`v0.6.13 统一权限平台已在 gray / production enforced；两套环境 readiness 和真实成员目录验收通过`
-- 部署内容：`权限三态运行时、幂等迁移、统一后台、Subject/Rule 原子 revision、目录与执行一致性、release readiness 门禁`
-- 已验证：`构建、103 项测试、Lint、project/workspace/release harness、备份、幂等 reconciliation、readiness、真实成员目录与双向账号覆盖通过`
-- 待验收：`可由用户继续进行后台视觉检查；运行、数据和权限行为已通过`
-- 部署时间：`2026-07-15`
+- 版本：`v0.7.0`
+- release：`20260716-canvas-workflow-capabilities-gray-r1-v070`
+- 当前状态：`v0.7.0 画布工作流能力已在 gray 部署；production 保持 v0.6.13`
+- 部署内容：`代码节点、标签节点、组循环与节点重试、工作流模板弹层、文本分割自动输出、组锁定修复、任务完整日志`
+- 已验证：`112 项测试、构建、Lint 0 error、project/workspace harness、API/Worker、内外网状态、权限 readiness、登录页与控制台通过`
+- 待验收：`使用真实灰度账号完成登录后的节点交互与业务体验验收；不调用付费模型`
+- 部署时间：`2026-07-16`
 - 当前批次记录：
+  - `gray/2026-07-16-canvas-workflow-capabilities-v070.md`
+  - `../validations/2026-07-16-canvas-workflow-capabilities-v070.md`
   - `gray/2026-07-15-provider-poll-retry-grok-data-url-v0610.md`
   - `gray/2026-07-15-permission-platform-hardening-v0613.md`
   - `../validations/2026-07-15-permission-platform-hardening-v0613.md`

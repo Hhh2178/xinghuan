@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.6.13`（enforced 已部署）
+- 当前灰度版本：`v0.7.0`（enforced 已部署）
 - 当前生产版本：`v0.6.13`（enforced 已部署）
-- 当前灰度 release：`20260715-permission-platform-hardening-v0613`
+- 当前灰度 release：`20260716-canvas-workflow-capabilities-gray-r1-v070`
 - 当前生产 release：`20260716-permission-platform-hardening-prod-r1-v0613`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：统一权限平台已在 gray / production enforced；production reconciliation、readiness、真实未分组成员目录与账号 deny 覆盖验收通过。
+- 最新完成：画布工作流能力 `v0.7.0` 已部署 gray，API/Worker、内外网状态、权限 readiness 与公网登录页验收通过；production 保持 `v0.6.13`。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,8 +40,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 与 production 当前均运行 `v0.6.13 / enforced`
-  - gray 当前 release 目标为 `20260715-permission-platform-hardening-v0613`
+  - gray 当前运行 `v0.7.0 / enforced`，production 保持 `v0.6.13 / enforced`
+  - gray 当前 release 为 `20260716-canvas-workflow-capabilities-gray-r1-v070`
   - production 当前 release 为 `20260716-permission-platform-hardening-prod-r1-v0613`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

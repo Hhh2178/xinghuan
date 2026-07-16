@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-16",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "df3970bd51d2198dc1fb9eb1af1af5a7556f13b6",
+  "sourceCommit": "b6c23aefe48abb3ba1dd4871a49ee4807652c666",
   "environments": {
     "gray": {
-      "version": "0.6.13",
-      "releaseId": "20260715-permission-platform-hardening-v0613",
-      "deployedAt": "2026-07-15",
+      "version": "0.7.0",
+      "releaseId": "20260716-canvas-workflow-capabilities-gray-r1-v070",
+      "deployedAt": "2026-07-16",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 124, "publishedSubjects": 117, "restrictedSubjects": 7, "rules": 932, "principals": 4, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-15-permission-platform-hardening-v0613.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-15-permission-platform-hardening-v0613.md",
-      "rollbackReleaseId": "20260715-aifork-grok-fast-preprocess-v0612"
+      "readiness": { "subjects": 126, "publishedSubjects": 117, "restrictedSubjects": 9, "retiredSubjects": 0, "rules": 932, "principals": 4, "failures": 0 },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-16-canvas-workflow-capabilities-v070.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-16-canvas-workflow-capabilities-v070.md",
+      "rollbackReleaseId": "20260715-permission-platform-hardening-v0613"
     },
     "production": {
       "version": "0.6.13",

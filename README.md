@@ -25,15 +25,15 @@
 
 ## 当前状态摘要
 
-- 当前活跃版本：`v0.6.13`（gray / production 均为 enforced）
+- 当前候选版本：`v0.7.0`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.6.13`
+- 当前灰度版本：`v0.7.0`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.6.13`
-- 当前灰度 release：`20260715-permission-platform-hardening-v0613`
+- 当前灰度 release：`20260716-canvas-workflow-capabilities-gray-r1-v070`
 - 当前生产 release：`20260716-permission-platform-hardening-prod-r1-v0613`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：统一权限平台已完成 gray / production 数据协调、readiness 与 enforced 切换，继续观察历史任务失败和 revision conflict 指标
+- 当前重点：画布工作流能力已部署 gray 并进入人工体验验收；production 保持 v0.6.13
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。
