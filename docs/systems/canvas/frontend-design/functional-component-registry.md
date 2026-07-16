@@ -18,6 +18,8 @@ This registry tracks reusable behavior for future canvas nodes. It is intentiona
 | `GroupNodeRetryRunner` | `useCanvasRuntime.ts::runNodeWithRetries` | canvas runtime | Initial attempt plus at most three retries, then fail the batch | Every group or canvas batch execution |
 | `WorkflowTemplateSource` | `WorkflowTemplateModal.tsx`, shared resource API | shared resource service | Load categories and `kind=workflow` items from the same source as the resource library | Every workflow template browser |
 | `LockedGroupPositionGuard` | `groupBoxGuards.ts` | existing helper | Filter position changes and restore drag-start position for locked members | Every React Flow position update path |
+| `ViewportFloatingPanel` | `ViewportFloatingPanel.tsx` | existing component | Measure pointer overlays, prefer cursor-right placement, flip/clamp to viewport and scroll oversized content | Every canvas context menu or pointer-anchored action panel |
+| `TextSplitGeneratedGraph` | `textSplitGeneratedGraph.ts` | existing helper | Build ordered OutputNode or explicit TextNode batches, source edges and replacement IDs | Text segmentation manual, loop and group execution paths |
 
 ## New Node Rule
 

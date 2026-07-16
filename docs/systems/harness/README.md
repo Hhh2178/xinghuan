@@ -15,6 +15,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - 状态权威源：`config/environments.json`、`ops/current/release-state.json`
 - 候选产品版本权威源：根 `package.json`；shared runtime 和 web build 只读取该文件，不维护第二个手写版本常量
 - 已部署环境版本权威源：`ops/current/release-state.json`；gray / production 可以在分阶段发布时暂时落后于候选版本，但不得超前
+- `verify:authority-state` 对低于候选版本的环境给出 warning，对高于候选版本的环境失败；不得用强制相等阻断 gray / production 分阶段发布
 
 ## 建议阅读顺序
 

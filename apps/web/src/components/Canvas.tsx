@@ -130,6 +130,7 @@ import { CanvasOverlayLayer } from './canvas/CanvasOverlayLayer';
 import { useCanvasSelectionMenus } from './canvas/useCanvasSelectionMenus';
 import { useCanvasBulkReconnect } from './canvas/useCanvasBulkReconnect';
 import { useCanvasSendFlow } from './canvas/useCanvasSendFlow';
+import ViewportFloatingPanel from './canvas/ViewportFloatingPanel';
 import type { AuthUser } from '../services/api';
 import {
   CANVAS_MAX_ZOOM,
@@ -3743,14 +3744,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
                 closeContextMenu();
               }}
             />
-            <div
+            <ViewportFloatingPanel
+              anchor={contextMenu}
+              width={200}
               data-canvas-floating-ui="node-menu"
-              className="fixed z-40 overflow-hidden t8-context-menu t8-context-menu--selection"
-              style={{
-                left: Math.min(contextMenu.x, window.innerWidth - 220),
-                top: Math.min(contextMenu.y, window.innerHeight - 220),
-                width: 200,
-              }}
+              className="z-40 overflow-hidden t8-context-menu t8-context-menu--selection"
             >
               <div
                 className="t8-context-menu__header"
@@ -3983,7 +3981,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
                 <Trash2 size={13} />
                 <span>删除 ({shortcutText('canvas.delete')})</span>
               </button>
-            </div>
+            </ViewportFloatingPanel>
           </>
         );
       })()}
@@ -3991,7 +3989,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       {/* 画布空白区右键菜单: 快速添加节点 */}
       {paneMenu && (() => {
         const QUICK_NODES = NODE_REGISTRY.filter(
-          (n) => n.category === 'input' || n.category === 'core'
+          (n) => !n.hidden && (n.category === 'input' || n.category === 'core')
         );
         const COLOR_HEX: Record<string, string> = {
           sky: '#7dd3fc', amber: '#fcd34d', rose: '#fda4af', fuchsia: '#f0abfc',
@@ -4011,14 +4009,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
                 closePaneMenu();
               }}
             />
-            <div
+            <ViewportFloatingPanel
+              anchor={paneMenu}
+              width={200}
               data-canvas-floating-ui="pane-menu"
-              className="fixed z-40 overflow-hidden t8-context-menu t8-context-menu--quick-add"
-              style={{
-                left: Math.min(paneMenu.x, window.innerWidth - 220),
-                top: Math.min(paneMenu.y, window.innerHeight - 360),
-                width: 200,
-              }}
+              className="z-40 overflow-hidden t8-context-menu t8-context-menu--quick-add"
             >
               <div className="t8-context-menu__header">
                 快速添加节点
@@ -4048,7 +4043,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
                   </button>
                 );
               })}
-            </div>
+            </ViewportFloatingPanel>
           </>
         );
       })()}

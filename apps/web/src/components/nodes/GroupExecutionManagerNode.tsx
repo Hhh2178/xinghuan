@@ -113,7 +113,7 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
           background: isPixel ? '#A8E6C9' : isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.02)',
         }}
       >
-        <div className="w-6 h-6 rounded flex items-center justify-center" style={{ background: '#38bdf822', color: '#38bdf8' }}>
+        <div className="w-6 h-6 rounded flex items-center justify-center" style={{ background: '#fb923c22', color: '#fb923c' }}>
           <Workflow size={13} />
         </div>
         <div className="flex-1 min-w-0">

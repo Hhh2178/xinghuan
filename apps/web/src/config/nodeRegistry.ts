@@ -50,7 +50,7 @@ export const NODE_REGISTRY: NodeMeta[] = [
 
   // ========== Utility 工具节点(13) ==========
   // 其中 4 个暂时隐藏: browser / frame-extractor / remove-bg / upscale
-  { type: 'group-execution-manager', label: '组执行管理器', category: 'utility', description: '全局组执行调度节点：控制组顺序、跳过与整体执行编排', icon: 'Workflow', color: 'cyan' },
+  { type: 'group-execution-manager', label: '组执行管理器', category: 'utility', description: '全局组执行调度节点：控制组顺序、跳过与整体执行编排', icon: 'Workflow', color: 'orange' },
   { type: 'drawing-board', label: '画板', category: 'utility', description: '图层画板：接上游图片后手绘、标注、组合并输出图像', icon: 'Pencil', color: 'orange' },
   { type: 'browser', label: '浏览器', category: 'utility', description: '网页内嵌', icon: 'Globe2', color: 'orange', hidden: true },
   { type: 'image-compare', label: '图像对比', category: 'utility', description: '双图滑杆 / 并排 / 叠加 / 热力 / 聚焦对比', icon: 'GitCompare', color: 'orange' },
@@ -73,11 +73,11 @@ export const NODE_REGISTRY: NodeMeta[] = [
   // ========== Auxiliary 辅助节点(6) ==========
   // 其中 2 个暂时隐藏: edit / video-output
   { type: 'edit', label: '编辑', category: 'auxiliary', description: '图像编辑/局部', icon: 'Edit3', color: 'slate', hidden: true },
-  { type: 'idea', label: '灵感', category: 'auxiliary', description: '灵感记录', icon: 'Lightbulb', color: 'slate' },
+  { type: 'idea', label: '灵感笔记', category: 'auxiliary', description: '灵感笔记', icon: 'Lightbulb', color: 'slate' },
   { type: 'label', label: '标签', category: 'auxiliary', description: '无输入输出的画布标签板，支持文本、字号、颜色和固定', icon: 'Tag', color: 'slate' },
   { type: 'bp', label: 'BP 蓝图', category: 'auxiliary', description: 'Blueprint 蓝图', icon: 'Map', color: 'slate' },
   { type: 'relay', label: '中继', category: 'auxiliary', description: '数据中转', icon: 'ArrowRightLeft', color: 'slate' },
-  { type: 'remove-ai-watermark', label: '去AI水印', category: 'auxiliary', description: '基于 remove-ai-watermarks 的可见/隐形水印、局部擦除、元数据清理与鉴别', icon: 'ShieldOff', color: 'slate' },
+  { type: 'remove-ai-watermark', label: '去AI水印', category: 'auxiliary', description: '历史去水印节点，仅保留旧画布兼容', icon: 'ShieldOff', color: 'slate', hidden: true },
   { type: 'video-output', label: '视频输出', category: 'auxiliary', description: '视频结果展示', icon: 'MonitorPlay', color: 'slate', hidden: true },
 
   // ========== Toolbox 工具箱(5) ==========

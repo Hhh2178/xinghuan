@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Handle,
   Position,
@@ -10,10 +10,10 @@ import {
 import {
   ArrowDown,
   ArrowUp,
-  Copy,
   Download,
   Link2,
   ListOrdered,
+  Play,
   Scissors,
   SplitSquareVertical,
   Star,
@@ -33,6 +33,7 @@ import {
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useUpstreamMaterials } from './useUpstreamMaterials';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
+import { buildTextSplitGeneratedGraph, type TextSplitGeneratedMode } from './textSplitGeneratedGraph';
 
 const MODE_OPTIONS = Object.entries(TEXT_SPLIT_MODE_LABEL) as Array<[TextSplitMode, string]>;
 const TEXT_SPLIT_PRESET_SCHEMA = 't8-text-split-presets';
@@ -140,7 +141,6 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
   const upstream = useUpstreamMaterials(id);
   const d = (data as any) || {};
 
-  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState('');
   const [segmentDrafts, setSegmentDrafts] = useState<Record<number, string>>({});
   const jsonInputRef = useRef<HTMLInputElement | null>(null);
@@ -258,6 +258,38 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
   const joinedText = segments.join('\n\n');
   const totalChars = segments.reduce((sum, s) => sum + s.length, 0);
 
+  const showMessage = useCallback((text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(''), 1800);
+  }, []);
+
+  const applyGeneratedGraph = useCallback((generatedMode: TextSplitGeneratedMode, successMessage: string) => {
+    if (segments.length === 0) throw new Error('TEXT_SPLIT_EMPTY_SEGMENTS');
+    const sourceNode = rf.getNode(id);
+    if (!sourceNode) throw new Error('TEXT_SPLIT_SOURCE_NOT_FOUND');
+    const graph = buildTextSplitGeneratedGraph({
+      sourceNode,
+      segments,
+      mode: generatedMode,
+      existingNodes: rf.getNodes(),
+    });
+    rf.setNodes((currentNodes) => [
+      ...currentNodes.filter((node) => !graph.replaceNodeIds.has(node.id)),
+      ...graph.nodes,
+    ]);
+    rf.setEdges((currentEdges) => [
+      ...currentEdges.filter((edge) => !graph.replaceNodeIds.has(edge.source) && !graph.replaceNodeIds.has(edge.target)),
+      ...graph.edges,
+    ]);
+    update({
+      status: 'success',
+      error: '',
+      lastOutputCount: generatedMode === 'output' ? graph.nodes.length : undefined,
+      lastScatterCount: generatedMode === 'text' ? graph.nodes.length : undefined,
+    });
+    showMessage(successMessage.replace('{count}', String(graph.nodes.length)));
+  }, [id, rf, segments, showMessage, update]);
+
   useEffect(() => {
     if (!rawOverrides) return;
     if (overrideSignature === splitInputSignature) return;
@@ -332,8 +364,6 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
 
     const nodes = rf.getNodes();
     const edges = rf.getEdges();
-    const current = nodes.find((node) => node.id === id);
-    if (!current) return;
     const loopEdge = edges.find((edge) => {
       if (edge.target !== id) return false;
       const source = nodes.find((node) => node.id === edge.source);
@@ -359,45 +389,8 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
     if (autoScatterSigRef.current === sig) return;
     autoScatterSigRef.current = sig;
 
-    const existingAutoIds = new Set(
-      nodes
-        .filter((node) => {
-          const nd = (node.data as any) || {};
-          return nd.autoCreatedBy === 'text-split-loop-scatter' && nd.sourceTextSplitId === id;
-        })
-        .map((node) => node.id)
-    );
-    const placementNodes = nodes.filter((node) => !existingAutoIds.has(node.id));
-    const size = defaultSizeOf('text');
-    const baseX = current.position.x + (current.measured?.width || 500) + 80;
-    const baseY = current.position.y;
-    const rects: PlacementRect[] = segments.map((_, i) => ({
-      x: baseX + (i % 2) * (size.w + 36),
-      y: baseY + Math.floor(i / 2) * (size.h + 36),
-      w: size.w,
-      h: size.h,
-    }));
-    const offset = placeBatchNodes(rects, placementNodes, {
-      excludeIds: new Set([id]),
-      source: `placement:text-split-loop-scatter:${id}`,
-    });
-    const textNodes: Node[] = segments.map((segment, i) => ({
-      id: `text-split-auto-${id}-${i}`,
-      type: 'text',
-      position: { x: rects[i].x + offset.dx, y: rects[i].y + offset.dy },
-      data: {
-        prompt: segment,
-        autoCreatedBy: 'text-split-loop-scatter',
-        sourceTextSplitId: id,
-        textSplitIndex: i,
-      },
-      selected: false,
-    }));
-    rf.setNodes((nds) => [...nds.filter((node) => !existingAutoIds.has(node.id)), ...textNodes]);
-    rf.setEdges((eds) => eds.filter((edge) => !existingAutoIds.has(edge.source) && !existingAutoIds.has(edge.target)));
-    setMessage('循环完成，已自动打散文本节点');
-    window.setTimeout(() => setMessage(''), 1800);
-  }, [id, rf, segments, joinedText, upstream.texts]);
+    applyGeneratedGraph('output', '循环完成，已按顺序生成 {count} 个输出素材节点');
+  }, [applyGeneratedGraph, id, rf, segments, joinedText, upstream.texts]);
 
   const resetOverrides = (patch: Record<string, any>) => update({ ...patch, segmentsOverride: undefined, segmentsOverrideSig: undefined });
 
@@ -448,69 +441,27 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
     update({ segmentsOverride: segments.filter((_, i) => i !== index), segmentsOverrideSig: splitInputSignature });
   };
 
-  const copyAll = async () => {
-    if (!joinedText) return;
+  const runOutputs = async () => {
+    update({ status: 'running', error: '' });
     try {
-      await navigator.clipboard?.writeText(joinedText);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
+      applyGeneratedGraph('output', '已按顺序生成 {count} 个输出素材节点');
+    } catch (error: any) {
+      update({ status: 'error', error: error?.message || '输出素材生成失败' });
+      throw error;
     }
-  };
-
-  const scatterTextNodes = () => {
-    if (segments.length === 0) throw new Error('TEXT_SPLIT_EMPTY_SEGMENTS');
-    const current = rf.getNode(id);
-    const baseX = (current?.position.x || 0) + (current?.measured?.width || 500) + 80;
-    const baseY = current?.position.y || 0;
-    const size = defaultSizeOf('text');
-    const rects: PlacementRect[] = segments.map((_, i) => ({
-      x: baseX + (i % 2) * (size.w + 36),
-      y: baseY + Math.floor(i / 2) * (size.h + 36),
-      w: size.w,
-      h: size.h,
-    }));
-    const existingAutoIds = new Set(
-      rf.getNodes()
-        .filter((node) => (node.data as any)?.autoCreatedBy === 'text-split-run' && (node.data as any)?.sourceTextSplitId === id)
-        .map((node) => node.id),
-    );
-    const placementNodes = rf.getNodes().filter((node) => !existingAutoIds.has(node.id));
-    const offset = placeBatchNodes(rects, placementNodes, {
-      excludeIds: new Set([id]),
-      source: `placement:text-split:${id}`,
-    });
-    const ts = Date.now();
-    const nodes: Node[] = segments.map((segment, i) => ({
-      id: `text-split-${id}-${ts}-${i}`,
-      type: 'text',
-      position: { x: rects[i].x + offset.dx, y: rects[i].y + offset.dy },
-      data: {
-        prompt: segment,
-        autoCreatedBy: 'text-split-run',
-        sourceTextSplitId: id,
-        textSplitIndex: i,
-      },
-      selected: false,
-    }));
-    rf.setNodes((currentNodes) => [...currentNodes.filter((node) => !existingAutoIds.has(node.id)), ...nodes]);
-    rf.setEdges((currentEdges) => currentEdges.filter((edge) => !existingAutoIds.has(edge.source) && !existingAutoIds.has(edge.target)));
-    update({ status: 'success', error: '', lastScatterCount: nodes.length });
-    showMessage(`已按顺序输出 ${nodes.length} 个文本节点`);
   };
 
   const runScatter = async () => {
     update({ status: 'running', error: '' });
     try {
-      scatterTextNodes();
+      applyGeneratedGraph('text', '已按顺序生成 {count} 个文本节点');
     } catch (error: any) {
       update({ status: 'error', error: error?.message || '文本打散失败' });
       throw error;
     }
   };
 
-  useRunTrigger(id, runScatter);
+  useRunTrigger(id, runOutputs);
 
   const currentConfig = () => ({
     splitMode: mode,
@@ -527,11 +478,6 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
     prefix,
     suffix,
   });
-
-  const showMessage = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(''), 1800);
-  };
 
   const saveFavorite = () => {
     const fallbackName = segmentLabel(segments[0] || TEXT_SPLIT_MODE_LABEL[mode]);
@@ -1043,12 +989,12 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
         <div className="mt-3 grid grid-cols-3 gap-2">
           <button
             type="button"
-            className="t8-btn min-h-9 px-2 text-[11px]"
+            className="t8-btn t8-btn-primary min-h-9 px-2 text-[11px]"
             disabled={segments.length === 0}
-            onClick={copyAll}
+            onClick={() => void runOutputs().catch(() => undefined)}
           >
-            <Copy size={14} />
-            {copied ? '已复制' : '复制全部'}
+            <Play size={14} />
+            启动
           </button>
           <button
             type="button"
@@ -1061,7 +1007,7 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
           </button>
           <button
             type="button"
-            className="t8-btn t8-btn-primary min-h-9 px-2 text-[11px]"
+            className="t8-btn min-h-9 px-2 text-[11px]"
             disabled={segments.length === 0}
             onClick={createLoopChain}
           >

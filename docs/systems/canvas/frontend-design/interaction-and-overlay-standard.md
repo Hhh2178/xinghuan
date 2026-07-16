@@ -6,6 +6,8 @@
 - Save to library and publish to public library actions must show permission state.
 - Destructive actions must be separated from routine actions.
 - Permission-gated actions should remain visible when useful, but disabled with a clear reason.
+- Pointer menus should prefer opening to the cursor's right, flip left when horizontal space is insufficient, and clamp their measured height inside a 12 px viewport inset.
+- Menus taller than the available viewport must keep their header and actions reachable through internal vertical scrolling; fixed height estimates are not an acceptable positioning contract.
 
 ## Selectors
 
@@ -18,6 +20,7 @@
 - Dialogs handle destructive, multi-step, or permission-sensitive actions.
 - Popovers handle lightweight selection and inspection.
 - Long forms should use a dialog or side panel rather than expanding a node into an unreadable block.
+- Canvas pointer overlays should reuse `ViewportFloatingPanel` so context and quick-add menus share one measured viewport-boundary implementation.
 
 ## Error States
 

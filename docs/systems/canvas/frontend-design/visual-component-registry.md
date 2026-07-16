@@ -16,7 +16,7 @@ This registry defines visual building blocks that future canvas nodes should use
 | `CanvasEmptyState` | Canvas | scattered empty panels | `apps/web/src/components/nodes/common/` | No workflow, no output, no upstream input states | Use for empty node sections |
 | `WorkflowTopologyCard` | Canvas resources | `components/resource-library/WorkflowTopologyCard.tsx` | current shared location | Shared workflow thumbnail or topology fallback | Resource library and template modal must reuse it |
 | `CodeNode` | Canvas nodes | `components/nodes/CodeNode.tsx` | current node location | Orange utility node with Python editor, presets, run state and output preview | Keep utility color, header density and port treatment aligned with existing tool nodes |
-| `LabelNode` | Canvas nodes | `components/nodes/LabelNode.tsx` | current node location | Slate auxiliary annotation board with typography and lock controls | Keep portless and visually aligned with auxiliary nodes |
+| `LabelNode` | Canvas nodes | `components/nodes/LabelNode.tsx` | current node location | Slate auxiliary annotation board with typography, free width/height resize and lock controls | Keep portless, persist size, hide resize handles while locked and stay visually aligned with auxiliary nodes |
 
 ## Extraction Rule
 

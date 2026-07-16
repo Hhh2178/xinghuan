@@ -53,7 +53,15 @@
 - 更新 `docs/systems/canvas/`、节点注册表、daily log。
 - 运行 focused tests、全量 tests、type-check、project Harness、CodeGraph sync。
 - 启动本地服务，用浏览器验证模板页、两种节点、组循环和锁定交互。
-- 提交推送；先灰度后生产。
+- 提交推送并发布灰度；production 保持当前版本不变。
+
+## Phase 8：画布交互验收修正
+
+- 标签节点复用四角缩放控件，独立调整并持久化宽高；固定状态同时禁用缩放。
+- “灵感”统一改为“灵感笔记”；去 AI 水印仅隐藏新建入口并保留旧画布组件；组执行管理器使用工具节点橙色。
+- 抽出 `ViewportFloatingPanel`，按真实尺寸让右键快捷栏和多选便捷栏翻转、钳制并在必要时滚动。
+- 抽出 `textSplitGeneratedGraph`：默认启动/组运行生成并连线 OutputNode，显式打散生成 TextNode，重跑替换上一批来源产物。
+- 验证：focused Vitest、Canvas workflow contract、Web type-check/build、Harness、CodeGraph sync、灰度运行态检查。
 
 ## 回滚
 

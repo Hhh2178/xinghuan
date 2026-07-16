@@ -4,7 +4,7 @@ import { Lightbulb } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
 
 /**
- * IdeaNode - 灵感记录
+ * IdeaNode - 灵感笔记
  * 简单的笔记卡片,可以记录创意/参考链接,作为提示词来源(输出 prompt)
  */
 const COLOR = '#94a3b8';
@@ -46,7 +46,7 @@ const IdeaNode = (p: NodeProps) => {
           <Lightbulb size={13} />
         </div>
         <div className="flex-1">
-          <div className="text-sm font-semibold text-white">灵感</div>
+          <div className="text-sm font-semibold text-white">灵感笔记</div>
           <div className="text-[10px] text-white/40">{prompt ? `${prompt.length} 字` : '空'}</div>
         </div>
       </div>

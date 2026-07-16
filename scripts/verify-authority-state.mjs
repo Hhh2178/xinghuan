@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareSemanticVersions } from "./authority-state-version.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const readJson = async (relativePath) => JSON.parse(await readFile(resolve(root, relativePath), "utf8"));
@@ -23,7 +24,13 @@ for (const environment of requiredEnvironments) {
   for (const field of ["version", "releaseId", "deployedAt", "permissionMode", "releaseRecord", "validationRecord", "rollbackReleaseId"]) {
     if (state[field] === undefined || state[field] === "") failures.push(`MISSING_RELEASE_STATE_FIELD:${environment}:${field}`);
   }
-  if (state.version !== rootPackage.version) failures.push(`VERSION_DRIFT:${environment}:${state.version}:${rootPackage.version}`);
+  try {
+    const versionOrder = compareSemanticVersions(state.version, rootPackage.version);
+    if (versionOrder > 0) failures.push(`ENVIRONMENT_VERSION_AHEAD:${environment}:${state.version}:${rootPackage.version}`);
+    if (versionOrder < 0) warnings.push(`CANDIDATE_VERSION_AHEAD:${environment}:${state.version}:${rootPackage.version}`);
+  } catch {
+    failures.push(`INVALID_VERSION:${environment}:${state.version}:${rootPackage.version}`);
+  }
   if (!/^[0-9a-f]{40}$/.test(releaseState.sourceCommit || "")) failures.push("INVALID_SOURCE_COMMIT");
   for (const evidencePath of [state.releaseRecord, state.validationRecord]) {
     try { await readFile(resolve(root, evidencePath), "utf8"); }
