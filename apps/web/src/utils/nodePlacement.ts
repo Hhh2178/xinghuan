@@ -61,6 +61,7 @@ export const NODE_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   loop: { w: 320, h: 240 },
   'pick-from-set': { w: 280, h: 200 },
   'text-split': { w: 760, h: 520 },
+  code: { w: 560, h: 560 },
   resize: { w: 280, h: 220 },
   combine: { w: 280, h: 220 },
   'remove-bg': { w: 280, h: 220 },
@@ -75,6 +76,7 @@ export const NODE_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   'portrait-master': { w: 560, h: 360 },
   'pose-master': { w: 900, h: 720 },
   'remove-ai-watermark': { w: 380, h: 520 },
+  label: { w: 360, h: 180 },
   groupBox: { w: 480, h: 320 },
 };
 

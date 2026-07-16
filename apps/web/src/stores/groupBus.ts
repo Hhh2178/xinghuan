@@ -9,6 +9,7 @@ import { create } from 'zustand';
 export interface GroupExecuteRequest {
   groupId: string;
   memberIds: string[];
+  executionCount: number;
   ts: number;
 }
 
@@ -25,7 +26,7 @@ interface GroupBusState {
   executeReq: GroupExecuteRequest | null;
   deleteReq: GroupDeleteRequest | null;
   runAllReq: GroupRunAllRequest | null;
-  requestExecute: (groupId: string, memberIds: string[]) => void;
+  requestExecute: (groupId: string, memberIds: string[], executionCount?: number) => void;
   requestDelete: (groupId: string) => void;
   requestRunAll: () => void;
   clearExecute: () => void;
@@ -37,8 +38,8 @@ export const useGroupBusStore = create<GroupBusState>((set) => ({
   executeReq: null,
   deleteReq: null,
   runAllReq: null,
-  requestExecute: (groupId, memberIds) =>
-    set({ executeReq: { groupId, memberIds, ts: Date.now() } }),
+  requestExecute: (groupId, memberIds, executionCount = 1) =>
+    set({ executeReq: { groupId, memberIds, executionCount: Math.max(1, Math.min(99, Math.floor(Number(executionCount) || 1))), ts: Date.now() } }),
   requestDelete: (groupId) =>
     set({ deleteReq: { groupId, ts: Date.now() } }),
   requestRunAll: () =>

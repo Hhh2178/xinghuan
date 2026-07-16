@@ -573,7 +573,7 @@ export type ErrData = {
 };
 export type Result<T> = OkData<T> | ErrData;
 
-async function safeRequest<T>(url: string, init?: RequestInit): Promise<Result<T>> {
+export async function safeRequest<T>(url: string, init?: RequestInit): Promise<Result<T>> {
   try {
     const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },

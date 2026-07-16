@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useRunBusStore } from '../stores/runBus';
 import { registerTaskCompletionSoundNode } from '../stores/taskCompletionSound';
 
@@ -22,6 +23,7 @@ export function useRunTrigger(
   runFn: () => Promise<void> | void,
   completionSoundNodeType?: string,
 ) {
+  const { getNode } = useReactFlow();
   const currentRunId = useRunBusStore((s) => s.currentRunId);
   const inMulti = useRunBusStore((s) => s.runningIds.includes(nodeId));
   const markDone = useRunBusStore((s) => s.markDone);
@@ -55,6 +57,10 @@ export function useRunTrigger(
     (async () => {
       try {
         await runFnRef.current();
+        const nodeData = (getNode(nodeId)?.data || {}) as Record<string, unknown>;
+        if (nodeData.status === 'error') {
+          throw new Error(String(nodeData.error || 'NODE_REPORTED_ERROR'));
+        }
         if (seq === runSeqRef.current && isStillRequested()) markDone(nodeId, true);
       } catch (e: any) {
         if (seq === runSeqRef.current && isStillRequested()) markDone(nodeId, false, e?.message);
@@ -62,5 +68,5 @@ export function useRunTrigger(
         if (seq === runSeqRef.current) activeRunNodeIds.delete(nodeId);
       }
     })();
-  }, [isMyTurn, nodeId, markDone]);
+  }, [getNode, isMyTurn, nodeId, markDone]);
 }

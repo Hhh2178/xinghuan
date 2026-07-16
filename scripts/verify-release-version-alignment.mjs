@@ -23,6 +23,7 @@ const localChecks = [
       `export const appVersion = '${expectedVersion}'`,
       `export const appVersion="${expectedVersion}"`,
       `export const appVersion='${expectedVersion}'`,
+      `rootPackage.version`,
     ]],
   },
   {

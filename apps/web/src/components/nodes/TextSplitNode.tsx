@@ -32,6 +32,7 @@ import {
 } from '../../utils/textSplit';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useUpstreamMaterials } from './useUpstreamMaterials';
+import { useRunTrigger } from '../../hooks/useRunTrigger';
 
 const MODE_OPTIONS = Object.entries(TEXT_SPLIT_MODE_LABEL) as Array<[TextSplitMode, string]>;
 const TEXT_SPLIT_PRESET_SCHEMA = 't8-text-split-presets';
@@ -459,7 +460,7 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
   };
 
   const scatterTextNodes = () => {
-    if (segments.length === 0) return;
+    if (segments.length === 0) throw new Error('TEXT_SPLIT_EMPTY_SEGMENTS');
     const current = rf.getNode(id);
     const baseX = (current?.position.x || 0) + (current?.measured?.width || 500) + 80;
     const baseY = current?.position.y || 0;
@@ -470,7 +471,13 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
       w: size.w,
       h: size.h,
     }));
-    const offset = placeBatchNodes(rects, rf.getNodes(), {
+    const existingAutoIds = new Set(
+      rf.getNodes()
+        .filter((node) => (node.data as any)?.autoCreatedBy === 'text-split-run' && (node.data as any)?.sourceTextSplitId === id)
+        .map((node) => node.id),
+    );
+    const placementNodes = rf.getNodes().filter((node) => !existingAutoIds.has(node.id));
+    const offset = placeBatchNodes(rects, placementNodes, {
       excludeIds: new Set([id]),
       source: `placement:text-split:${id}`,
     });
@@ -479,11 +486,31 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
       id: `text-split-${id}-${ts}-${i}`,
       type: 'text',
       position: { x: rects[i].x + offset.dx, y: rects[i].y + offset.dy },
-      data: { prompt: segment },
+      data: {
+        prompt: segment,
+        autoCreatedBy: 'text-split-run',
+        sourceTextSplitId: id,
+        textSplitIndex: i,
+      },
       selected: false,
     }));
-    rf.addNodes(nodes);
+    rf.setNodes((currentNodes) => [...currentNodes.filter((node) => !existingAutoIds.has(node.id)), ...nodes]);
+    rf.setEdges((currentEdges) => currentEdges.filter((edge) => !existingAutoIds.has(edge.source) && !existingAutoIds.has(edge.target)));
+    update({ status: 'success', error: '', lastScatterCount: nodes.length });
+    showMessage(`已按顺序输出 ${nodes.length} 个文本节点`);
   };
+
+  const runScatter = async () => {
+    update({ status: 'running', error: '' });
+    try {
+      scatterTextNodes();
+    } catch (error: any) {
+      update({ status: 'error', error: error?.message || '文本打散失败' });
+      throw error;
+    }
+  };
+
+  useRunTrigger(id, runScatter);
 
   const currentConfig = () => ({
     splitMode: mode,
@@ -1027,7 +1054,7 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
             type="button"
             className="t8-btn min-h-9 px-2 text-[11px]"
             disabled={segments.length === 0}
-            onClick={scatterTextNodes}
+            onClick={() => void runScatter().catch(() => undefined)}
           >
             <Scissors size={14} />
             打散文本节点

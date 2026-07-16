@@ -65,6 +65,7 @@ export interface TaskListItemShape {
   ownerDeleted?: boolean;
   providerId?: string;
   modelId?: string;
+  logs: string[];
   displayStatus?: string;
   displayMessage?: string;
   displayTone?: "muted" | "warning" | "success" | "danger";
@@ -234,6 +235,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 t.status,
                 t.provider_id,
                 t.model_id,
+                t.logs,
                 t.created_at,
                 t.updated_at,
                 t.finalized_at,
@@ -382,13 +384,13 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
   }
 
   function toSafeTaskListItem(item: TaskListItemShape | (TaskListItemShape & Record<string, unknown>)): TaskListItemShape {
-    const { payload: _payload, result: _result, logs: _logs, ...summary } = item as TaskListItemShape & {
+    const { payload: _payload, result: _result, ...summary } = item as TaskListItemShape & {
       payload?: unknown;
       result?: unknown;
-      logs?: unknown;
     };
     return {
       ...summary,
+      logs: Array.isArray(summary.logs) ? summary.logs.map((line) => String(line)).filter(Boolean) : [],
       finalizedAt: summary.finalizedAt || (isTerminalTaskStatus(summary.status) ? summary.updatedAt : undefined),
     };
   }

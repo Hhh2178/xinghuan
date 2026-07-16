@@ -25,6 +25,7 @@ export interface GroupExecutionGroupBlock {
   memberIds: string[];
   executableIds: string[];
   skipped: boolean;
+  executionCount: number;
 }
 
 export interface GroupExecutionPlan {
@@ -136,6 +137,7 @@ export function resolveGroupExecutionPlan(
         memberIds,
         executableIds: topologicalSort(subNodes, subEdges, executableNodeTypes),
         skipped: managerData.skippedGroupIds.includes(groupId),
+        executionCount: normalizeExecutionCount((groupNode.data as any)?.executionCount),
       } satisfies GroupExecutionGroupBlock;
     })
     .filter((item): item is GroupExecutionGroupBlock => Boolean(item));
@@ -164,7 +166,7 @@ export function resolveManagedExecutionOrder(plan: GroupExecutionPlan): string[]
   return [
     ...plan.groupBlocks
       .filter((block) => !block.skipped)
-      .flatMap((block) => block.executableIds),
+      .flatMap((block) => Array.from({ length: block.executionCount }, () => block.executableIds).flat()),
     ...plan.standaloneIds,
   ];
 }

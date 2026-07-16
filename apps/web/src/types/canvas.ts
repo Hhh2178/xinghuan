@@ -37,6 +37,7 @@ export type NodeType =
   | 'loop'
   | 'pick-from-set'
   | 'text-split'
+  | 'code'
   | 'resize'
   | 'combine'
   | 'remove-bg'
@@ -47,6 +48,7 @@ export type NodeType =
   // Auxiliary (5)
   | 'edit'
   | 'idea'
+  | 'label'
   | 'bp'
   | 'relay'
   | 'remove-ai-watermark'

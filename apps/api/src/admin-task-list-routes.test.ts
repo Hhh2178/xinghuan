@@ -85,7 +85,7 @@ function createBaseDeps(overrides: Record<string, unknown> = {}) {
 }
 
 describe("admin task list routes", () => {
-  it("returns list summary items without heavy task fields while preserving capability filters", async () => {
+  it("returns complete logs without payload or result while preserving capability filters", async () => {
     const { deps, sent } = createBaseDeps();
     const handler = createAdminTaskListRouteHandler(deps as any);
 
@@ -109,12 +109,12 @@ describe("admin task list routes", () => {
     });
     expect(page.items[0]).not.toHaveProperty("payload");
     expect(page.items[0]).not.toHaveProperty("result");
-    expect(page.items[0]).not.toHaveProperty("logs");
+    expect(page.items[0]).toHaveProperty("logs", ["hidden log"]);
   });
 
   it("uses injected task repository page reader when provided", async () => {
     const readTaskListPage = vi.fn(async () => ({
-      items: [{ id: "task-repo", title: "Repository task", status: "queued", createdAt: 1, updatedAt: 1 }],
+      items: [{ id: "task-repo", title: "Repository task", status: "queued", logs: ["full log"], createdAt: 1, updatedAt: 1 }],
       total: 1,
       page: 1,
       pageSize: 10,
@@ -144,7 +144,7 @@ describe("admin task list routes", () => {
     expect(deps.readAdminDb).not.toHaveBeenCalled();
   });
 
-  it("does not select payload result or logs for postgres list rows", async () => {
+  it("selects logs but not payload or result for postgres list rows", async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("count(*)")) return { rows: [{ total: 1 }] };
       return {
@@ -155,6 +155,7 @@ describe("admin task list routes", () => {
           status: "queued",
           provider_id: "provider-1",
           model_id: "model-1",
+          logs: ["full postgres log"],
           created_at: new Date(2000),
           updated_at: new Date(2000),
           owner_name: "Alice",
@@ -179,6 +180,7 @@ describe("admin task list routes", () => {
         ownerGroupName: row.owner_group_name,
         providerId: row.provider_id,
         modelId: row.model_id,
+        logs: row.logs,
         createdAt: 2000,
         updatedAt: 2000,
       }),
@@ -196,10 +198,10 @@ describe("admin task list routes", () => {
     expect(listSql).toBeTruthy();
     expect(listSql).not.toMatch(/\bt\.payload\b/);
     expect(listSql).not.toMatch(/\bt\.result\b/);
-    expect(listSql).not.toMatch(/\bt\.logs\b/);
+    expect(listSql).toMatch(/\bt\.logs\b/);
     const page = sent[0].data as { items: Array<Record<string, unknown>> };
     expect(page.items[0]).not.toHaveProperty("payload");
     expect(page.items[0]).not.toHaveProperty("result");
-    expect(page.items[0]).not.toHaveProperty("logs");
+    expect(page.items[0]).toHaveProperty("logs", ["full postgres log"]);
   });
 });

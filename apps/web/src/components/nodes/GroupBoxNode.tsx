@@ -16,6 +16,7 @@ export interface GroupBoxData {
   width: number;
   height: number;
   locked?: boolean;
+  executionCount?: number;
 }
 
 const HEADER_H = 40;
@@ -34,6 +35,7 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
   const width = d?.width ?? 320;
   const height = d?.height ?? 200;
   const locked = d?.locked !== false;
+  const executionCount = Math.max(1, Math.min(99, Math.floor(Number(d?.executionCount) || 1)));
 
   const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
@@ -556,6 +558,23 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
           {locked ? <Lock size={12} /> : <Unlock size={12} />}
         </button>
 
+        <label
+          className="nodrag nopan flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px]"
+          title="组循环执行次数"
+          style={{ background: btnBg, color: subTextColor }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <span>次数</span>
+          <input
+            type="number"
+            min={1}
+            max={99}
+            value={executionCount}
+            onChange={(e) => updateData({ executionCount: Math.max(1, Math.min(99, Math.floor(Number(e.target.value) || 1))) })}
+            className="nodrag nopan h-5 w-10 rounded border border-white/15 bg-black/20 px-1 text-center text-[10px] outline-none"
+          />
+        </label>
+
         {/* 执行按钮(右上角) */}
         <button
           className="nodrag t8-group-box__button t8-group-box__button--run"
@@ -563,9 +582,9 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
           onClick={(e) => {
             e.stopPropagation();
             // 按“当前几何包含关系”重新计算成员 → 节点拖入/拖出后执行也以实际为准
-            requestExecute(id, liveMemberIds);
+            requestExecute(id, liveMemberIds, executionCount);
           }}
-          title="执行组内所有节点"
+          title={`执行组内所有节点 · ${executionCount} 次`}
           style={{
             width: 26,
             height: 26,

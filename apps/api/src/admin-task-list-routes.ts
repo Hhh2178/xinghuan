@@ -20,8 +20,11 @@ interface AdminTaskListPage {
 }
 
 function toAdminTaskListSummary(task: any) {
-  const { payload: _payload, result: _result, logs: _logs, ...summary } = task || {};
-  return summary;
+  const { payload: _payload, result: _result, ...summary } = task || {};
+  return {
+    ...summary,
+    logs: Array.isArray(summary.logs) ? summary.logs.map((line: unknown) => String(line)).filter(Boolean) : [],
+  };
 }
 
 type SendT8 = (
@@ -145,6 +148,7 @@ export function createAdminTaskListRouteHandler(deps: {
                 t.status,
                 t.provider_id,
                 t.model_id,
+                t.logs,
                 t.created_at,
                 t.updated_at,
                 u.name as owner_name,

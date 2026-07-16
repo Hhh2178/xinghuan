@@ -121,7 +121,6 @@ import CanvasAssistant from './CanvasAssistant';
 import MaterialDragOverlay from './MaterialDragOverlay';
 import SendMaterialsModal from './SendMaterialsModal';
 import { useCanvasHistory } from '../hooks/useCanvasHistory';
-import type { CanvasTemplate } from '../config/canvasTemplates';
 import { useCanvasPersistence } from './canvas/useCanvasPersistence';
 import { useCanvasConnectionPanMode } from './canvas/useCanvasConnectionPanMode';
 import { CanvasFlowOverlays } from './canvas/CanvasFlowOverlays';
@@ -136,6 +135,7 @@ import {
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
   findLockedGroupForNode,
+  filterLockedNodePositionChanges,
   getGroupBoxLiveMemberIds,
   isGroupBoxLocked,
   isGroupBoxNode,
@@ -178,6 +178,9 @@ import FramePairNode from './nodes/FramePairNode';
 const LoopNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LoopNode')));
 import PickFromSetNode from './nodes/PickFromSetNode';
 const TextSplitNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/TextSplitNode')));
+const CodeNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/CodeNode')));
+import LabelNode from './nodes/LabelNode';
+import { DEFAULT_CODE_NODE_SOURCE } from './nodes/codeNodeDefaults';
 import MaterialSetNode from './nodes/MaterialSetNode';
 import UploadNode from './nodes/UploadNode';
 const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/OutputNode')));
@@ -270,6 +273,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   loop: LazyLoopNode,
   'pick-from-set': PickFromSetNode,
   'text-split': LazyTextSplitNode,
+  code: withLazyNode(CodeNode),
   'material-set': MaterialSetNode,
   resize: ResizeNode,
   combine: CombineNode,
@@ -280,6 +284,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   // Auxiliary (5)
   edit: ImageNode, // 复用 ImageNode,默认偏向 edit 能力
   idea: IdeaNode,
+  label: LabelNode,
   bp: BpNode,
   relay: RelayNode,
   'remove-ai-watermark': RemoveAiWatermarkNode,
@@ -463,6 +468,20 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     textSplitFavorites: [],
     textSegments: [],
     segments: [],
+  },
+  code: {
+    code: DEFAULT_CODE_NODE_SOURCE,
+    presets: [],
+    activePresetId: '',
+    status: 'idle',
+    error: '',
+  },
+  label: {
+    text: '标签',
+    fontSize: 28,
+    textColor: '#e2e8f0',
+    backgroundColor: '#1f2937',
+    locked: false,
   },
   'multi-angle-visual': {
     kind: 'multi-angle-visual',
@@ -699,6 +718,7 @@ const EXECUTABLE_NODE_TYPES = new Set<string>([
   'upload',
   // v1.2.8 工具节点 (循环器 / 从合集获取)
   'loop', 'pick-from-set',
+  'text-split', 'code',
   // v1.4.8: 工具箱文本节点也可点击 RUN 直接外挂 OutputNode
   'cinematic', 'video-motion', 'multi-angle-visual', 'portrait-master', 'pose-master',
   'remove-ai-watermark',
@@ -1987,17 +2007,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     []
   );
 
-  // ===== 应用模板 =====
-  const handleApplyTemplate = useCallback((tpl: CanvasTemplate) => {
-    const built = tpl.build();
-    // 偏移现有 nodes 数量,避免重叠
-    setNodes((prev) => [
-      ...prev.map((n) => ({ ...n, selected: false })),
-      ...assignActiveNodeSerials(built.nodes.map((n) => ({ ...n, selected: true })), prev),
-    ]);
-    setEdges((prev) => [...prev, ...built.edges]);
-  }, [assignActiveNodeSerials]);
-
   // ===== ALT+拖动复制节点 =====
   // 思路: dragStart 时在原位插入占位克隆(临时ID),用户拖动过程中原位看起来有节点不动;
   // dragStop 时做 ID 互换: 占位克隆 → 恢复原始ID(保留连线), 被拖走的原节点 → 分配新ID(sanitize)
@@ -2115,6 +2124,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           width: groupW,
           height: groupH,
           locked: true,
+          executionCount: 1,
         },
         // 置于普通节点之下(负 1000 避免选中时 zIndex 被括号调高)
         zIndex: -1000,
@@ -2143,7 +2153,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
 
   useEffect(() => {
     if (!executeReq) return;
-    handleRunGroup(executeReq.memberIds);
+    handleRunGroup(executeReq.memberIds, executeReq.executionCount);
     clearExecuteReq();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executeReq?.ts]);
@@ -2301,6 +2311,14 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
 
   const onNodeDragStop = useCallback((_e: any, node: Node) => {
     setGuides({ vertical: [], horizontal: [] });
+    const lockedDrag = lockedNodeDragRef.current;
+    if (lockedDrag && lockedDrag.nodeId === node.id) {
+      setNodes((prev) => prev.map((candidate) => candidate.id === node.id
+        ? { ...candidate, position: { ...lockedDrag.position }, dragging: false }
+        : candidate));
+      lockedNodeDragRef.current = null;
+      return;
+    }
     lockedNodeDragRef.current = null;
 
     // ===== ALT+拖动结束: ID 互换 =====
@@ -2451,14 +2469,16 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   // xyflow 事件
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      const removedIds = changes
+      const lockedDrag = lockedNodeDragRef.current;
+      const guardedChanges = filterLockedNodePositionChanges(changes, lockedDrag?.nodeId);
+      const removedIds = guardedChanges
         .filter((c) => c.type === 'remove' && typeof (c as any).id === 'string')
         .map((c) => (c as any).id as string);
       if (removedIds.length > 0) {
         markManualNodeDeletion(removedIds, nodesRef.current);
       }
       // 检测拖拽状态,避免拖拽中频繁压栈
-      for (const c of changes) {
+      for (const c of guardedChanges) {
         if (c.type === 'position') {
           if ((c as any).dragging === true) {
             isDraggingRef.current = true;
@@ -2468,7 +2488,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         }
       }
       setNodes((nds) => {
-        const next = applyNodeChanges(changes, nds);
+        const next = applyNodeChanges(guardedChanges, nds);
         // 同步选中数(用 next 计算更准确)
         const selCount = next.reduce((acc, n) => acc + (n.selected ? 1 : 0), 0);
         setSelectedCount(selCount);
@@ -3439,7 +3459,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         onDelete={handleDeleteSelected}
         onExport={handleExport}
         onImport={handleImportClick}
-        onApplyTemplate={handleApplyTemplate}
         onFindNodeById={focusNodeBySerialId}
         onRunAll={handleRunAll}
         onCancelRun={handleCancelRun}

@@ -16,6 +16,30 @@
 - `apps/web/src/components/nodes/`
 - `apps/web/src/utils/comfyuiApps.ts`
 
+## 通用工作流节点能力
+
+- `code`
+  - 工具节点，使用既有橙色语义和通用节点壳。
+  - 接收结构化上游文本、图像、视频和音频输入，通过 `POST /api/code-node/execute` 执行受控 Python。
+  - 代码与预设保存在节点数据中，随画布和共享工作流序列化；运行态输出在导出工作流时清理。
+  - 服务端使用独立 Python 进程、隔离参数、AST 限制、5 秒超时、64 KB 代码上限、256 KB 输出上限和默认 2 路并发限制；Linux 运行态额外设置 CPU、地址空间、文件大小和文件描述符上限。该边界不等价于容器级隔离，生产启用前仍需灰度验证专用低权限用户与资源观测。
+- `label`
+  - 辅助节点，使用既有灰蓝语义，无输入和输出端口。
+  - 文本、字号、文字色、背景色和固定状态随节点保存。
+  - 固定状态同时控制 React Flow `draggable`，不参与批量或组运行。
+- `group-box.executionCount`
+  - 每个组独立保存 1 到 99 次循环次数，旧数据缺省为 1。
+  - 每轮保持拓扑顺序；节点失败时最多额外重试 3 次，最终失败终止当前批次。
+- `text-split`
+  - 手动按钮和 `useRunTrigger` 复用同一打散逻辑。
+  - 输出节点带 `autoCreatedBy: text-split-run` 和来源节点标识，重新运行时按顺序替换该来源的旧自动输出。
+
+## 模板数据边界
+
+- 工具栏模板入口只负责打开 `WorkflowTemplateModal`。
+- 模板弹层与资源库统一读取公共资源 `kind=workflow`，不再保留静态模板数组。
+- 缩略图优先使用资源 `thumbUrl`；缺失时由共享 `WorkflowTopologyCard` 渲染拓扑预览。
+
 ## ComfyUI 节点模型
 
 - `comfyui`

@@ -1,6 +1,8 @@
+import rootPackage from "../../../package.json" with { type: "json" };
+
 export const PRODUCT_NAME = "星幻";
 
-export const appVersion = "0.6.13";
+export const appVersion = String(rootPackage.version || "").trim() || "0.0.0";
 
 export type AppEnvironment = "local" | "gray" | "production";
 export * from "./provider-generation-task.js";

@@ -173,6 +173,7 @@ import { createTaskRepository } from "./task-repository.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
+import { handleCodeNodeRoutes } from "./code-node-routes.js";
 import { createSharedResourceRouteHandler } from "./shared-resource-routes.js";
 import { cleanImportedNodeData, sanitizeCanvasNodes } from "./canvas-node-migration.js";
 import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
@@ -1197,7 +1198,7 @@ async function readAnnouncementRecords() {
 }
 
 function summarizeAdminTaskListRecord(task: AdminTaskRecord) {
-  const { payload: _payload, result: _result, logs: _logs, ...summary } = task;
+  const { payload: _payload, result: _result, ...summary } = task;
   return summary;
 }
 
@@ -1401,6 +1402,27 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleGroupPermissionPolicyRoutes({ request, response, url, currentUser, requestContext })) return;
+
+    if (await handleCodeNodeRoutes({
+      request,
+      response,
+      url,
+      currentUser,
+      deps: {
+        readJsonBody,
+        sendT8,
+        assertCanExecute: async (user) => {
+          await reconcilePermissionSubjects();
+          const decision = await permissionRuntime.decide({
+            user: currentUser!,
+            subjectKey: canvasNodeSubjectKey('code'),
+            action: 'execute',
+            legacyAllowed: true,
+          });
+          if (!decision.allowed) throw new PermissionDeniedError();
+        },
+      },
+    })) return;
 
     if (request.method === "GET" && url.pathname.startsWith("/files/input/")) {
       await sendStaticFile(response, userDataDirs(currentUser!).inputDir, url.pathname.slice("/files/input/".length));

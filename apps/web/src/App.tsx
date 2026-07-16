@@ -38,6 +38,7 @@ import {
 const Sidebar = lazy(createLazyImportWithReloadRecovery(() => import('./components/Sidebar')));
 const Canvas = lazy(createLazyImportWithReloadRecovery(() => import('./components/Canvas')));
 const ResourceLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/ResourceLibraryDrawer')));
+const WorkflowTemplateModal = lazy(createLazyImportWithReloadRecovery(() => import('./components/WorkflowTemplateModal')));
 const GenerationLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/GenerationLibraryDrawer')));
 const MaterialContextMenu = lazy(createLazyImportWithReloadRecovery(() => import('./components/MaterialContextMenu')));
 const RHToolsProvider = lazy(() =>
@@ -200,12 +201,19 @@ function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [deniedNodeTypes, setDeniedNodeTypes] = useState<string[]>([]);
   const [resourceOpen, setResourceOpen] = useState(false);
+  const [workflowTemplatesOpen, setWorkflowTemplatesOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const previewMode = getDevPreviewMode();
   const announcements = useAnnouncements(Boolean(currentUser));
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
   const addNodeRef = useRef<AddNodeFn | null>(null);
   const insertWorkflowRef = useRef<InsertWorkflowFn | null>(null);
+
+  useEffect(() => {
+    const openTemplates = () => setWorkflowTemplatesOpen(true);
+    window.addEventListener('penguin:open-workflow-templates', openTemplates);
+    return () => window.removeEventListener('penguin:open-workflow-templates', openTemplates);
+  }, []);
 
   useEffect(() => {
     if (!resourceOpen && !generationLibraryOpen) return;
@@ -666,6 +674,11 @@ function App() {
         onClose={() => setResourceOpen(false)}
         onInsertMaterial={handleInsertResource}
         currentUser={currentUser}
+      />
+      <WorkflowTemplateModal
+        open={workflowTemplatesOpen}
+        onClose={() => setWorkflowTemplatesOpen(false)}
+        onInsert={handleInsertResource}
       />
       <GenerationLibraryDrawer
         open={generationLibraryOpen}

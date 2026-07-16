@@ -45,6 +45,11 @@ assertIncludes(
   "verify:component-registry-docs-contract",
   "project harness chain must include component registry docs contract",
 );
+assertIncludes(
+  scripts["harness:verify:project"],
+  "verify:canvas-workflow-capabilities-contract",
+  "project harness chain must include canvas workflow capabilities contract",
+);
 
 console.log("harness doc sync contract: ok");
 

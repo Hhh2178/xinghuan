@@ -78,5 +78,14 @@ export function cleanupNodeRuntimeForWorkflowTemplate(nodeType: unknown, data: u
     }
   }
 
+  if (String(nodeType || '').toLowerCase() === 'code') {
+    for (const key of ['outputText', 'text', 'prompt', 'textSegments', 'segments', 'durationMs']) {
+      if (key in next) {
+        delete next[key];
+        changed = true;
+      }
+    }
+  }
+
   return changed ? next : data;
 }

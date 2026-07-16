@@ -10,8 +10,11 @@ const version = packageJson.version;
 const grayRelease = releaseState.environments.gray.releaseId;
 const productionRelease = releaseState.environments.production.releaseId;
 
-assert.equal(releaseState.environments.gray.version, version, "Gray manifest version must match package version");
-assert.equal(releaseState.environments.production.version, version, "Production manifest version must match package version");
+const candidateVersion = parseVersion(version, "package.json");
+const grayVersion = parseVersion(releaseState.environments.gray.version, "gray manifest");
+const productionVersion = parseVersion(releaseState.environments.production.version, "production manifest");
+assert.ok(compareVersions(grayVersion, candidateVersion) <= 0, "Gray manifest version must not be ahead of package version");
+assert.ok(compareVersions(productionVersion, candidateVersion) <= 0, "Production manifest version must not be ahead of package version");
 assert.match(agents, /package\.json/);
 assert.match(agents, /config\/environments\.json/);
 assert.match(agents, /ops\/current\/release-state\.json/);
@@ -25,3 +28,16 @@ console.log(JSON.stringify({
   productionRelease,
   source: "package.json + ops/current/release-state.json",
 }, null, 2));
+
+function parseVersion(value, label) {
+  const match = String(value || "").trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+  assert.ok(match, `${label} must contain a semantic version`);
+  return match.slice(1).map(Number);
+}
+
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}

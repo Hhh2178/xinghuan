@@ -28,6 +28,9 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 
 ## 当前重点
 
+- 代码节点归入工具节点橙色体系，标签节点归入辅助节点灰蓝体系；节点面板归属以 `nodeRegistry.ts` 为唯一权威。
+- 公共工作流模板弹层与资源库共用 `kind=workflow` 数据、缩略图和插入链路，不维护静态模板副本。
+- 组框支持独立循环次数，节点失败最多额外重试 3 次；文本分割手动运行和组运行共用同一 runner。
 - 继续把前台热点超级文件拆成 `sections / helpers / runtime hooks`
 - `Canvas.tsx` 已完成第一批真实下沉：
   - `useCanvasPersistence.ts`

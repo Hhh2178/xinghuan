@@ -57,7 +57,7 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
       status: row.status === "succeeded" || row.status === "running" || row.status === "failed" || row.status === "cancelled"
         ? row.status
         : "queued",
-      logs: [],
+      logs: Array.isArray(row.logs) ? row.logs.map(String) : [],
       createdAt: 1,
       updatedAt: 1,
     }),
@@ -80,6 +80,7 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
       displayTone: task.displayTone,
       runtimeStage: task.runtimeStage,
       providerState: task.providerState,
+      logs: task.logs,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
     }),
@@ -92,7 +93,7 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
 }
 
 describe("task repository", () => {
-  it("reads a postgres task list page without selecting task payload result or logs", async () => {
+  it("reads a postgres task list page with logs but without payload or result", async () => {
     const query = vi.fn(async (sql: string, params: unknown[]) => {
       if (sql.includes("limit 2001")) return { rows: [{ total: 2 }] };
       if (sql.includes("count(*)")) {
@@ -104,9 +105,9 @@ describe("task repository", () => {
       expect(sql).toContain("select t.id");
       expect(sql).not.toContain("t.payload");
       expect(sql).not.toContain("t.result");
-      expect(sql).not.toContain("t.logs");
+      expect(sql).toContain("t.logs");
       expect(params).toEqual(["queued", "provider-1", "image", 1, 0]);
-      return { rows: [{ id: "task-1", title: "Task One", status: "queued" }] };
+      return { rows: [{ id: "task-1", title: "Task One", status: "queued", logs: ["full log"] }] };
     });
     const repo = createTaskRepository(createDeps({
       usePostgresRepository: () => true,
@@ -118,10 +119,11 @@ describe("task repository", () => {
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         displayMessage: task.displayMessage,
+        logs: task.logs,
       }),
       withUnifiedRuntimeDiagnostic: (task) => ({
         ...task,
-        logs: [],
+        logs: task.logs,
         result: {},
         displayMessage: "diagnostic",
       }),
@@ -135,13 +137,13 @@ describe("task repository", () => {
       capability: "image",
     });
     expect(page).toMatchObject({
-      items: [{ id: "task-1", title: "Task One", status: "queued", displayMessage: "diagnostic" }],
+      items: [{ id: "task-1", title: "Task One", status: "queued", displayMessage: "diagnostic", logs: ["full log"] }],
       total: 2,
       hasMore: true,
     });
     expect(page.items[0]).not.toHaveProperty("payload");
     expect(page.items[0]).not.toHaveProperty("result");
-    expect(page.items[0]).not.toHaveProperty("logs");
+    expect(page.items[0]).toHaveProperty("logs", ["full log"]);
   });
 
   it("reads a postgres task detail with heavy fields by id", async () => {
@@ -211,6 +213,7 @@ describe("task repository", () => {
         status: task.status,
         ownerEmail: task.ownerEmail,
         ownerGroupName: task.ownerGroupName,
+        logs: task.logs,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
       }),
@@ -230,7 +233,7 @@ describe("task repository", () => {
     expect(enrichAdminTaskRecord).toHaveBeenCalledTimes(2);
   });
 
-  it("strips heavy task fields from file-backed list items even when the summarizer leaks them", async () => {
+  it("strips payload and result while preserving logs from file-backed list items", async () => {
     const repo = createTaskRepository(createDeps({
       readTaskRecords: async () => [
         taskRecord({
@@ -262,7 +265,7 @@ describe("task repository", () => {
     expect(page.items[0]).toMatchObject({ id: "task-heavy", title: "Heavy" });
     expect(page.items[0]).not.toHaveProperty("payload");
     expect(page.items[0]).not.toHaveProperty("result");
-    expect(page.items[0]).not.toHaveProperty("logs");
+    expect(page.items[0]).toHaveProperty("logs", ["hidden log"]);
   });
 
   it("keeps file-backed task lists within the newest 2000 activity records", async () => {

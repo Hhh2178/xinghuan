@@ -53,7 +53,7 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:project"],
-  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run harness:verify:quick",
+  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run verify:canvas-workflow-capabilities-contract && npm run harness:verify:quick",
   "project harness should expose project verification chain with documentation contracts",
 );
 assert.match(
@@ -85,6 +85,11 @@ assert.match(
   scripts["harness:verify:project"],
   /verify:harness-doc-sync-contract/,
   "project harness should include harness doc sync contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:canvas-workflow-capabilities-contract/,
+  "project harness should include canvas workflow capabilities contract",
 );
 
 assert.match(

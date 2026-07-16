@@ -37,7 +37,7 @@ const managerNodes = [
     id: 'group-1',
     type: 'groupBox',
     position: { x: 0, y: 0 },
-    data: { name: '第一组', memberIds: ['a1', 'a2'], width: 300, height: 200, locked: true },
+    data: { name: '第一组', memberIds: ['a1', 'a2'], width: 300, height: 200, locked: true, executionCount: 2 },
   },
   {
     id: 'group-2',
@@ -60,8 +60,8 @@ assert.equal(plan.managerEnabled, true, 'manager should default to enabled when 
 assert.equal(plan.executionCount, 3, 'execution count should be normalized and preserved');
 assert.deepEqual(
   resolveManagedExecutionOrder(plan),
-  ['a1', 'a2', 'outside'],
-  'managed execution should respect group order, skip flags, and append standalone nodes',
+  ['a1', 'a2', 'a1', 'a2', 'outside'],
+  'managed execution should respect group order, per-group count, skip flags, and append standalone nodes',
 );
 
 console.log('verify-group-execution-manager-contract: ok');

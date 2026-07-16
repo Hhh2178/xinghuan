@@ -32,7 +32,6 @@ import { useThemeStore } from '../stores/theme';
 import { useLogStore } from '../stores/logs';
 import { useTaskCompletionSoundStore } from '../stores/taskCompletionSound';
 import { useShortcutStore } from '../stores/shortcuts';
-import { CANVAS_TEMPLATES, type CanvasTemplate } from '../config/canvasTemplates';
 import {
   DEFAULT_SHORTCUTS,
   formatShortcutCombo,
@@ -56,7 +55,6 @@ interface CanvasToolbarProps {
   onDelete: () => void;
   onExport: () => void;
   onImport: () => void;
-  onApplyTemplate: (tpl: CanvasTemplate) => void;
   onFindNodeById: () => void;
   // 批量运行
   onRunAll: () => void;
@@ -82,7 +80,6 @@ export default function CanvasToolbar({
   onDelete,
   onExport,
   onImport,
-  onApplyTemplate,
   onFindNodeById,
   onRunAll,
   onCancelRun,
@@ -97,7 +94,6 @@ export default function CanvasToolbar({
   const isDark = theme === 'dark';
   const isPixel = style === 'pixel';
   const termOpen = useLogStore((s) => s.open);
-  const termUnread = useLogStore((s) => s.unread);
   const toggleTerm = useLogStore((s) => s.toggleOpen);
   const completionSoundEnabled = useTaskCompletionSoundStore((s) => s.enabled);
   const toggleCompletionSound = useTaskCompletionSoundStore((s) => s.toggleEnabled);
@@ -106,12 +102,10 @@ export default function CanvasToolbar({
   const clearActionShortcuts = useShortcutStore((s) => s.clearActionShortcuts);
   const resetShortcutAction = useShortcutStore((s) => s.resetAction);
   const resetAllShortcuts = useShortcutStore((s) => s.resetAll);
-  const [tplOpen, setTplOpen] = useState(false);
   const [alignOpen, setAlignOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [recordingActionId, setRecordingActionId] = useState<string | null>(null);
   const [shortcutMessage, setShortcutMessage] = useState<string>('');
-  const tplRef = useRef<HTMLDivElement>(null);
   const alignRef = useRef<HTMLDivElement>(null);
   const groupedShortcutActions = useMemo(() => {
     const groups = new Map<string, ShortcutAction[]>();
@@ -122,18 +116,6 @@ export default function CanvasToolbar({
   }, []);
 
   const shortcutText = (actionId: string) => formatShortcutList(shortcuts[actionId]);
-
-  // 点击外部关闭模板下拉
-  useEffect(() => {
-    if (!tplOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (tplRef.current && !tplRef.current.contains(e.target as Node)) {
-        setTplOpen(false);
-      }
-    };
-    window.addEventListener('mousedown', onClick);
-    return () => window.removeEventListener('mousedown', onClick);
-  }, [tplOpen]);
 
   useEffect(() => {
     if (!alignOpen) return;
@@ -459,67 +441,14 @@ export default function CanvasToolbar({
         <div className={sep} />
 
         {/* 模板 */}
-        <div className="relative" ref={tplRef}>
-          <button
-            className={baseBtn}
-            onClick={() => setTplOpen((v) => !v)}
-            title="工作流模板"
-          >
-            <Sparkles size={16} />
-          </button>
-          {tplOpen && (
-            <div
-              className={
-                isPixel
-                  ? 'absolute right-0 mt-1.5 w-64 px-card overflow-hidden'
-                  : `absolute right-0 mt-1.5 w-64 rounded-lg shadow-xl border overflow-hidden ${
-                      isDark ? 'bg-zinc-900 border-white/10' : 'bg-white border-black/10'
-                    }`
-              }
-            >
-              <div
-                className={
-                  isPixel
-                    ? 'px-3 py-2 text-[11px] font-semibold uppercase tracking-wider px-group-title bg-[var(--px-muted)] border-b-2 border-[var(--px-ink)]'
-                    : `px-3 py-2 text-[11px] font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-white/50 bg-white/5' : 'text-zinc-500 bg-black/5'
-                      }`
-                }
-              >
-                选择模板插入画布
-              </div>
-              <div className="max-h-72 overflow-y-auto">
-                {CANVAS_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => {
-                      onApplyTemplate(tpl);
-                      setTplOpen(false);
-                    }}
-                    className={
-                      isPixel
-                        ? 'w-full text-left px-3 py-2 hover:bg-[var(--px-muted)]'
-                        : `w-full text-left px-3 py-2 ${
-                            isDark ? 'hover:bg-white/10 text-zinc-100' : 'hover:bg-black/5 text-zinc-800'
-                          }`
-                    }
-                  >
-                    <div className="text-xs font-medium">{tpl.name}</div>
-                    <div
-                      className={
-                        isPixel
-                          ? 'text-[10px] mt-0.5 text-[var(--px-ink-soft)]'
-                          : `text-[10px] mt-0.5 ${isDark ? 'text-white/50' : 'text-zinc-500'}`
-                      }
-                    >
-                      {tpl.description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <button
+          className={baseBtn}
+          onClick={() => window.dispatchEvent(new CustomEvent('penguin:open-workflow-templates'))}
+          title="工作流模板"
+          aria-label="打开工作流模板"
+        >
+          <Sparkles size={16} />
+        </button>
 
         {/* 帮助 */}
         <button
@@ -545,20 +474,9 @@ export default function CanvasToolbar({
               : ''
           }`}
           onClick={toggleTerm}
-          title={termOpen ? '关闭终端' : `打开终端${termUnread > 0 ? ` (${termUnread} 未读)` : ''}`}
+          title={termOpen ? '关闭终端' : '打开终端'}
         >
           <TerminalIcon size={15} />
-          {!termOpen && termUnread > 0 && (
-            <span
-              className={
-                isPixel
-                  ? 'absolute -top-1 -right-1 text-[9px] leading-none px-1 py-0.5 rounded-full border-2 border-[var(--px-ink)] bg-[var(--px-pink)] text-[var(--px-ink)] font-bold'
-                  : 'absolute -top-1 -right-1 text-[9px] leading-none px-1 py-0.5 rounded bg-rose-500 text-white'
-              }
-            >
-              {termUnread}
-            </span>
-          )}
         </button>
       </div>
 

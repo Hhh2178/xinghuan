@@ -6371,6 +6371,7 @@ td {
 .task-monitor-row td { vertical-align: middle; }
 .task-monitor-cell { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-monitor-cell--time { min-width: 156px; max-width: 156px; color: #cbd5e1; }
+.task-monitor-log { min-width: 280px; max-width: 520px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #dbeafe; font: inherit; line-height: 1.55; }
 
 .confirm-icon {
   display: grid;

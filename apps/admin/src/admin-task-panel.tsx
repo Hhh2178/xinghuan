@@ -15,7 +15,8 @@ function ownerPrimary(task: TaskRecord) {
 }
 
 function taskMessage(task: TaskRecord) {
-  return task.displayMessage || task.logs?.at(-1) || "-";
+  const logs = Array.isArray(task.logs) ? task.logs.map((line) => String(line).trim()).filter(Boolean) : [];
+  return logs.length > 0 ? logs.join("\n") : task.displayMessage || "-";
 }
 
 function finalStatusTime(task: TaskRecord) {
@@ -74,7 +75,7 @@ export function TasksPanel(
         </select>
       </FormPanel>
       <AdminTable title="任务监控">
-        <thead><tr><th>任务</th><th>状态</th><th>最终状态时间</th><th>发起账号</th><th>Provider</th><th>模型</th><th>日志</th><th>更新时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>任务</th><th>状态</th><th>最终状态时间</th><th>发起账号</th><th>Provider</th><th>模型</th><th>日志</th><th>操作</th></tr></thead>
         <tbody>
           {taskPage.items.map((task) => (
             <tr key={task.id} className="task-monitor-row">
@@ -84,8 +85,7 @@ export function TasksPanel(
               <td><span className="task-monitor-cell" title={ownerPrimary(task)}>{ownerPrimary(task)}</span></td>
               <td><span className="task-monitor-cell" title={task.providerId || "-"}>{task.providerId || "-"}</span></td>
               <td><span className="task-monitor-cell" title={task.modelId || "-"}>{task.modelId || "-"}</span></td>
-              <td><span className="task-monitor-cell" title={taskMessage(task)}>{taskMessage(task)}</span></td>
-              <td><span className="task-monitor-cell task-monitor-cell--time" title={new Date(task.updatedAt).toLocaleString()}>{new Date(task.updatedAt).toLocaleString()}</span></td>
+              <td><pre className="task-monitor-log">{taskMessage(task)}</pre></td>
               <td>
                 {canCancelTask(task.status) ? (
                   <button type="button" onClick={() => mutate(`/api/admin/tasks/${task.id}`, { action: "cancel" }, "PATCH")}>

@@ -1,4 +1,4 @@
-import type { Node } from '@xyflow/react';
+import type { Node, NodeChange } from '@xyflow/react';
 
 import type { GroupBoxData } from '../nodes/GroupBoxNode';
 
@@ -50,4 +50,12 @@ export function findLockedGroupForNode(nodes: Node[], nodeId: string): Node | nu
     }
   }
   return null;
+}
+
+export function filterLockedNodePositionChanges(
+  changes: NodeChange[],
+  lockedNodeId: string | null | undefined,
+): NodeChange[] {
+  if (!lockedNodeId) return changes;
+  return changes.filter((change) => !(change.type === 'position' && (change as any).id === lockedNodeId));
 }

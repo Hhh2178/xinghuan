@@ -38,6 +38,12 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:18300",
         changeOrigin: true,
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyRequest, request) => {
+            proxyRequest.setHeader("x-forwarded-host", request.headers.host || "127.0.0.1:18310");
+            proxyRequest.setHeader("x-forwarded-proto", "http");
+          });
+        },
       },
       "/files": {
         target: "http://127.0.0.1:18300",
