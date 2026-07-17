@@ -4,6 +4,11 @@
 
 ## 当前高频恢复入口
 
+- 组执行失败重试与 Provider/模型目录排序发布：
+  - `2026-07-17`
+  - 组执行管理器支持 0-10 次节点失败重试，后台支持 Provider 和模型前台展示排序。
+  - Gray 与 Production 使用同一发布包，数据差集、权限 readiness、排序 API 和 Playwright 验收通过。
+
 - Agent / Harness authority model 治理重构：
   - `2026-07-16`
   - 完成 AGENTS 路由收敛、环境与 release state 权威文件、通用 release interface、Harness evidence runner。
@@ -44,7 +49,7 @@
 ## 对应入口
 
 - 当前月份说明：`README.md`
-- 当日记录：`2026-07-16.md`
+- 当日记录：`2026-07-17.md`
 - 历史当日记录：`2026-07-15.md`、`2026-07-05.md`
 - 主计划：`docs/superpowers/plans/2026-07-05-clean-worktree-migration-maintenance-master-plan.md`
 - 当前状态：`docs/memory/current-state.md`

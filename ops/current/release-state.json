@@ -1,29 +1,29 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-16",
+  "updatedAt": "2026-07-17",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "df0883889b774c1d0fb42d564aa828bf4cc273a1",
+  "sourceCommit": "90450cb78907c299ec9e5f36aa49feece52165f9",
   "environments": {
     "gray": {
       "version": "0.7.0",
-      "releaseId": "20260716-default-open-canvas-recovery-gray-r2-v070",
-      "deployedAt": "2026-07-16",
+      "releaseId": "20260717-group-retry-catalog-order-gray-r1-v070",
+      "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 127, "publishedSubjects": 123, "restrictedSubjects": 3, "retiredSubjects": 1, "rules": 942, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-16-default-open-canvas-recovery-v070.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-16-default-open-canvas-recovery-v070.md",
-      "rollbackReleaseId": "20260716-default-open-canvas-recovery-gray-r1-v070"
+      "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-group-retry-catalog-order-v070.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-group-retry-catalog-order-gray-v070.md",
+      "rollbackReleaseId": "20260716-default-open-canvas-recovery-gray-r2-v070"
     },
     "production": {
-      "version": "0.6.13",
-      "releaseId": "20260716-permission-platform-hardening-prod-r1-v0613",
-      "deployedAt": "2026-07-16",
+      "version": "0.7.0",
+      "releaseId": "20260717-group-retry-catalog-order-prod-r1-v070",
+      "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 127, "publishedSubjects": 120, "restrictedSubjects": 7, "rules": 478, "principals": 2, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 129, "publishedSubjects": 118, "restrictedSubjects": 9, "retiredSubjects": 2, "rules": 478, "principals": 2, "failures": 2, "failureCodes": ["RETIRED_SUBJECT_RULE"], "observedAt": "2026-07-16", "status": "requires-reconciliation" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-16-permission-platform-hardening-production.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-16-permission-platform-hardening-production.md",
-      "rollbackReleaseId": "20260702-envsync-admin-sections-prod-r1-v0522"
+      "readiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 14, "retiredSubjects": 4, "rules": 462, "principals": 2, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 14, "retiredSubjects": 4, "rules": 462, "principals": 2, "failures": 0, "failureCodes": [], "observedAt": "2026-07-17", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-17-group-retry-catalog-order-production.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-group-retry-catalog-order-production-v070.md",
+      "rollbackReleaseId": "20260716-permission-platform-hardening-prod-r1-v0613"
     }
   }
 }

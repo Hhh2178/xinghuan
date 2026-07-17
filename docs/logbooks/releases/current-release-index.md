@@ -5,13 +5,15 @@
 ### Gray
 
 - 版本：`v0.7.0`
-- release：`20260716-default-open-canvas-recovery-gray-r2-v070`
-- 当前状态：`默认开放权限、管理员硬边界与孤立画布恢复已在 gray 部署并验收；production 保持 v0.6.13`
-- 部署内容：`恢复测试账号 4 个画布；已发布前台能力默认允许、显式关闭；公共资源治理保持管理员专属；节点摘要和服务商 sticky 修复`
-- 已验证：`135 项测试、全量构建、三层 Harness、API/Worker/readiness、真实成员/API/Admin 页面、换组 ownership 与 Production 隔离通过`
-- 待验收：`无阻断项；继续观察 Gray 使用反馈，不晋级 Production`
-- 部署时间：`2026-07-16`
+- release：`20260717-group-retry-catalog-order-gray-r1-v070`
+- 当前状态：`组执行失败重试和 Provider/模型前台排序已部署 Gray 并完成验收`
+- 部署内容：`组节点失败重试 0-10；管理员 Provider/模型排序；公共目录按保存顺序输出`
+- 已验证：`143 项测试、全量构建、数据差集、API/Worker/readiness、管理员换序恢复、成员 403 与 Playwright 页面通过`
+- 待验收：`无阻断项；已使用同一发布包晋级 Production`
+- 部署时间：`2026-07-17`
 - 当前批次记录：
+  - `gray/2026-07-17-group-retry-catalog-order-v070.md`
+  - `../validations/2026-07-17-group-retry-catalog-order-gray-v070.md`
   - `gray/2026-07-16-default-open-canvas-recovery-v070.md`
   - `../validations/2026-07-16-default-open-canvas-recovery-v070.md`
   - `gray/2026-07-16-canvas-text-split-output-v070.md`
@@ -91,11 +93,13 @@
 
 ### Production
 
-- 版本：`v0.6.13`
-- release：`20260716-permission-platform-hardening-prod-r1-v0613`
-- 当前状态：`统一权限平台已按 shadow、reconciliation、readiness、enforced 顺序完成生产晋级；API/Worker 与内网/公网状态通过`
-- 当前补修：`继续观察历史任务失败趋势与 revision conflict；自动浏览器截图验收仍未完成`
+- 版本：`v0.7.0`
+- release：`20260717-group-retry-catalog-order-prod-r1-v070`
+- 当前状态：`组执行失败重试和 Provider/模型前台排序已从 Gray 晋级；数据完整性和运行态验收通过`
+- 当前补修：`已备份并清理 retired Subject 旧规则；继续观察历史任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `production/2026-07-17-group-retry-catalog-order-production.md`
+  - `../validations/2026-07-17-group-retry-catalog-order-production-v070.md`
   - `production/2026-07-16-permission-platform-hardening-production.md`
   - `../validations/2026-07-16-permission-platform-hardening-production.md`
   - `../incidents/2026-07-14-production-rollback-auth-and-rh-catalog.md`

@@ -29,11 +29,11 @@
 - 当前灰度：`canvas-next.hhh2121.xyz`
 - 当前灰度版本：`v0.7.0`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前生产版本：`v0.6.13`
-- 当前灰度 release：`20260716-canvas-text-split-output-gray-r2-v070`
-- 当前生产 release：`20260716-permission-platform-hardening-prod-r1-v0613`
+- 当前生产版本：`v0.7.0`
+- 当前灰度 release：`20260717-group-retry-catalog-order-gray-r1-v070`
+- 当前生产 release：`20260717-group-retry-catalog-order-prod-r1-v070`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：文本分割输出隔离修复已部署 gray 并进入人工体验验收；production 保持 v0.6.13
+- 当前重点：组节点失败重试和 Provider/模型前台排序已完成 Gray 验收并晋级 Production
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

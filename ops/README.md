@@ -28,18 +28,18 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.0`
-  - release：`20260716-default-open-canvas-recovery-gray-r2-v070`
-  - 状态：`默认开放权限、管理员硬边界和孤立画布恢复已在 gray 部署并完成真实页面验收`
-  - 当前补修：`测试账号 4 个画布已恢复；普通成员默认开放已发布前台能力，管理员公共资源治理保持隔离`
+  - release：`20260717-group-retry-catalog-order-gray-r1-v070`
+  - 状态：`组节点失败重试与 Provider/模型前台排序已部署并完成数据、API 和页面验收`
+  - 当前补修：`retired Subject 旧规则已备份清理；默认开放权限和管理员公共资源边界保持不变`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.6.13`
-  - release：`20260716-permission-platform-hardening-prod-r1-v0613`
-  - 状态：`统一权限平台已在 production enforced；readiness、真实未分组成员目录和账号覆盖验收通过`
-  - 当前补修：`继续观察历史任务失败趋势与 revision conflict；自动浏览器截图验收仍未完成`
+  - 版本：`v0.7.0`
+  - release：`20260717-group-retry-catalog-order-prod-r1-v070`
+  - 状态：`组节点失败重试与 Provider/模型前台排序已由 Gray 晋级；完整性、readiness 和 Playwright 验收通过`
+  - 当前补修：`继续观察历史任务失败趋势与 revision conflict`
 
 ## current / archive 分工
 
