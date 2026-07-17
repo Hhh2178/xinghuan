@@ -1,6 +1,7 @@
 import type { Pool, QueryResultRow } from "pg";
 import type { TaskStatus } from "@xinghuan/shared";
 import { applyTaskFinalization, isTerminalTaskStatus } from "./task-lifecycle.js";
+import { TASK_OWNER_ID_SQL } from "./task-owner-identity.js";
 
 const TASK_LIST_WINDOW_LIMIT = 2000;
 
@@ -230,7 +231,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       const itemsResult = await pool.query<TaskListPostgresRow>(
         `with recent_tasks as (select * from xh_tasks order by updated_at desc, created_at desc, id desc limit ${TASK_LIST_WINDOW_LIMIT})
          select t.id,
-                t.owner_id,
+                ${TASK_OWNER_ID_SQL} as owner_id,
                 t.title,
                 t.status,
                 t.provider_id,
@@ -244,9 +245,9 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 u.remark as owner_remark,
                 u.group_id as owner_group_id,
                 g.name as owner_group_name,
-                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+                case when ${TASK_OWNER_ID_SQL} is not null and u.id is null then true else false end as owner_deleted
          from recent_tasks t
-         left join xh_users u on u.id = t.owner_id
+         left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
          ${whereSql}
          order by t.updated_at desc, t.created_at desc, t.id desc
@@ -280,7 +281,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       const pool = await deps.getPostgresPool();
       const result = await pool.query<TaskDetailPostgresRow>(
         `select t.id,
-                t.owner_id,
+                ${TASK_OWNER_ID_SQL} as owner_id,
                 t.title,
                 t.status,
                 t.provider_id,
@@ -296,9 +297,9 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 u.remark as owner_remark,
                 u.group_id as owner_group_id,
                 g.name as owner_group_name,
-                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+                case when ${TASK_OWNER_ID_SQL} is not null and u.id is null then true else false end as owner_deleted
          from xh_tasks t
-         left join xh_users u on u.id = t.owner_id
+         left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
          where t.id = $1
          limit 1`,
@@ -322,7 +323,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       const pool = await deps.getPostgresPool();
       await pool.query(
         `update xh_tasks
-         set owner_id = $2,
+         set owner_id = coalesce($2, owner_id),
              title = $3,
              status = $4,
              provider_id = $5,
@@ -350,7 +351,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       return;
     }
     const tasks = await deps.readTaskRecords();
-    await deps.writeTaskRecords(tasks.map((item) => (item.id === task.id ? task : item)));
+    await deps.writeTaskRecords(tasks.map((item) => (item.id === task.id ? { ...task, ownerId: task.ownerId || item.ownerId } : item)));
   }
 
   function taskMatchesQuery(task: TaskRecordShape, query: TaskListQuery) {

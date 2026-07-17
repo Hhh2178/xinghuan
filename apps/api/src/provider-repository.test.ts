@@ -110,6 +110,17 @@ describe("provider repository", () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects postgres whole-catalog replacement", async () => {
+    const getPostgresPool = vi.fn(async () => ({ query: vi.fn() } as never));
+    const repo = createProviderRepository(createDeps({
+      usePostgresRepository: () => true,
+      getPostgresPool,
+    }));
+
+    await expect(repo.writeAdminDb({ providers: [], models: [] })).rejects.toThrow("targeted repository writes");
+    expect(getPostgresPool).not.toHaveBeenCalled();
+  });
+
   it("finds postgres provider by natural key without loading models", async () => {
     const query = vi.fn(async (sql: string) => {
       expect(sql).toContain("from xh_providers");

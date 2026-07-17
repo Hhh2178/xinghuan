@@ -2,18 +2,16 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-describe("PostgreSQL authentication full replace", () => {
-  it("restores users before policies that reference updated_by", async () => {
+describe("PostgreSQL authentication writes", () => {
+  it("does not expose a runtime full-replace implementation", async () => {
     const serverSource = await readFile(fileURLToPath(new URL("./server.ts", import.meta.url)), "utf8");
-    const usersRestore = serverSource.indexOf("for (const user of db.users)", serverSource.indexOf("async function writeAuthDbPostgres"));
-    const policiesRestore = serverSource.indexOf("for (const policy of db.groupPermissionPolicies)", serverSource.indexOf("async function writeAuthDbPostgres"));
-
-    expect(usersRestore).toBeGreaterThan(-1);
-    expect(policiesRestore).toBeGreaterThan(-1);
-    expect(usersRestore).toBeLessThan(policiesRestore);
+    expect(serverSource).not.toContain("async function writeAuthDbPostgres");
+    expect(serverSource).not.toContain("async function writeAdminDbPostgres");
+    expect(serverSource).not.toContain('await client.query("delete from xh_users")');
+    expect(serverSource).not.toContain('await client.query("delete from xh_tasks")');
   });
 
-  it("creates a group and its default policy from the same replacement snapshot", async () => {
+  it("creates a group and its default policy through the targeted repository", async () => {
     const serverSource = await readFile(fileURLToPath(new URL("./server.ts", import.meta.url)), "utf8");
     const routeStart = serverSource.indexOf('if (url.pathname === "/api/admin/user-groups")');
     const postgresBranchStart = serverSource.indexOf("if (usePostgresRepository())", routeStart);
@@ -21,8 +19,8 @@ describe("PostgreSQL authentication full replace", () => {
     const createRoute = serverSource.slice(routeStart, postgresBranchEnd);
     const postgresBranch = serverSource.slice(postgresBranchStart, postgresBranchEnd);
 
-    expect(postgresBranch).not.toContain("insertUserGroupPostgres(group)");
     expect(createRoute).toContain("userGroups: [...authDb.userGroups, group]");
-    expect(postgresBranch).toContain("writeAuthDb(nextAuthDb");
+    expect(postgresBranch).toContain("authDirectoryWriteRepository.createUserGroupWithPolicy");
+    expect(postgresBranch).not.toContain("writeAuthDb(");
   });
 });

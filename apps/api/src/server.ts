@@ -101,6 +101,7 @@ import {
   extractAudioProviderResult,
 } from "./audio-provider-adapter.js";
 import { createAuthCurrentUserRepository } from "./auth-repository.js";
+import { createAuthDirectoryWriteRepository } from "./auth-directory-write-repository.js";
 import {
   applyTaskCancellation,
   assertTaskCancellable,
@@ -331,6 +332,7 @@ const {
 });
 
 const authCurrentUserRepository = createAuthCurrentUserRepository({ usePostgresRepository, readAuthDb, getPostgresPool, dateToMillis, safeText, safeEmail });
+const authDirectoryWriteRepository = createAuthDirectoryWriteRepository({ getPostgresPool });
 const permissionRepository = createPermissionRepository({
   usePostgresRepository,
   getPostgresPool,
@@ -371,7 +373,7 @@ const adminRepository = createAdminRepository({
   usePostgresRepository,
   getPostgresPool,
   readAdminDb,
-  writeAdminDb: async (db, options) => writeAdminDb(db as AdminDb, options),
+  writeAdminDb: async (db) => writeAdminDb(db as AdminDb),
   dateToMillis,
   millisToDate,
   safeText,
@@ -459,12 +461,18 @@ const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandle
   HttpError,
   safeText,
   readAuthDb,
-  writeAuthDb: async (updater, options) => {
+  writeGroupPermissionPolicy: async (policy) => {
+    if (usePostgresRepository()) {
+      await authDirectoryWriteRepository.upsertGroupPermissionPolicy(policy);
+      return;
+    }
     const authDb = await readAuthDb();
-    const nextAuthDb = updater(authDb) as AuthDb;
-    await writeAuthDb(nextAuthDb, {
-      allowPostgresFullReplace: true,
-      reason: options?.reason || "group-permission-policy-routes",
+    await writeAuthDb({
+      ...authDb,
+      groupPermissionPolicies: normalizeGroupPermissionPolicies([
+        ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== policy.groupId),
+        policy,
+      ]),
     });
   },
   readSharedResourceCatalog,
@@ -2591,10 +2599,7 @@ async function handleAdminRequest(
         ]),
       };
       if (usePostgresRepository()) {
-        await writeAuthDb(nextAuthDb, {
-          allowPostgresFullReplace: true,
-          reason: "user-group-create-default-open-policy",
-        });
+        await authDirectoryWriteRepository.createUserGroupWithPolicy(group, defaultOpenPolicy);
       } else {
         await writeAuthDb(nextAuthDb);
       }
@@ -4239,13 +4244,9 @@ async function readAuthDb(): Promise<AuthDb> {
   return cleaned;
 }
 
-async function writeAuthDb(db: AuthDb, options?: { allowPostgresFullReplace?: boolean; reason?: string }) {
+async function writeAuthDb(db: AuthDb) {
   if (usePostgresRepository()) {
-    if (!options?.allowPostgresFullReplace) {
-      throw new Error("writeAuthDb full replace is disabled in postgres mode");
-    }
-    await writeAuthDbPostgres(db, { allowFullReplace: true, reason: options.reason || "writeAuthDb" });
-    return;
+    throw new Error("writeAuthDb is unavailable in postgres mode; use a targeted repository write");
   }
   await ensureDataDirs();
   await writeFile(authDbPath, JSON.stringify(db, null, 2), "utf-8");
@@ -4318,13 +4319,9 @@ async function readAdminDb(): Promise<AdminDb> {
   return visibleSanitized.db;
 }
 
-async function writeAdminDb(db: AdminDb, options?: { allowPostgresFullReplace?: boolean; reason?: string }) {
+async function writeAdminDb(db: AdminDb) {
   if (usePostgresRepository()) {
-    if (!options?.allowPostgresFullReplace) {
-      throw new Error("writeAdminDb full replace is disabled in postgres mode");
-    }
-    await writeAdminDbPostgres(db, { allowFullReplace: true, reason: options.reason || "writeAdminDb" });
-    return;
+    throw new Error("writeAdminDb is unavailable in postgres mode; use a targeted repository write");
   }
   await ensureDataDirs();
   await writeFile(adminDbPath, JSON.stringify(db, null, 2), "utf-8");
@@ -4567,106 +4564,6 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
     await pruneLoginAttemptsPostgres(now);
   }
   return cleaned;
-}
-
-async function writeAuthDbPostgres(db: AuthDb, options?: { allowFullReplace?: boolean; reason?: string }) {
-  if (!options?.allowFullReplace) {
-    throw new Error("writeAuthDbPostgres full replace requires explicit allowFullReplace");
-  }
-  const pool = await getPostgresPool();
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query("delete from xh_group_permission_policies");
-    await client.query("delete from xh_login_attempts");
-    await client.query("delete from xh_sessions");
-    await client.query("delete from xh_users");
-    await client.query("delete from xh_user_groups");
-    for (const userGroup of db.userGroups) {
-      await client.query(
-        `insert into xh_user_groups (id, name, description, sort_order, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [
-          userGroup.id,
-          userGroup.name,
-          userGroup.description,
-          Number.isFinite(userGroup.sortOrder) ? Math.floor(userGroup.sortOrder) : 0,
-          millisToDate(userGroup.createdAt),
-          millisToDate(userGroup.updatedAt),
-        ],
-      );
-    }
-    for (const user of db.users) {
-      await client.query(
-        `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
-          user.id,
-          user.email,
-          user.name,
-          user.role,
-          user.passwordHash,
-          user.passwordCipher || null,
-          user.groupId || null,
-          safeText(user.remark),
-          Boolean(user.disabled),
-          millisToDate(user.createdAt),
-          millisToDate(user.updatedAt),
-        ],
-      );
-    }
-    for (const policy of db.groupPermissionPolicies) {
-      await client.query(
-        `insert into xh_group_permission_policies (group_id, deny, updated_by, updated_at)
-         values ($1, $2::jsonb, $3, $4)`,
-        [
-          policy.groupId,
-          JSON.stringify(policy.deny || emptyGroupPermissionDeny()),
-          policy.updatedBy || null,
-          millisToDate(policy.updatedAt),
-        ],
-      );
-    }
-    for (const session of db.sessions) {
-      await client.query(
-        `insert into xh_sessions (id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          session.id,
-          session.userId,
-          millisToDate(session.createdAt),
-          millisToDate(session.expiresAt),
-          millisToDate(session.lastSeenAt || session.createdAt),
-          session.ip || null,
-          session.userAgent || null,
-          session.revokedAt ? millisToDate(session.revokedAt) : null,
-        ],
-      );
-    }
-    for (const attempt of db.loginAttempts) {
-      await client.query(
-        `insert into xh_login_attempts (key, scope, email, ip, failure_count, first_failed_at, last_failed_at, blocked_until, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          attempt.key,
-          attempt.scope,
-          attempt.email,
-          attempt.ip,
-          attempt.failureCount,
-          millisToDate(attempt.firstFailedAt),
-          millisToDate(attempt.lastFailedAt),
-          attempt.blockedUntil ? millisToDate(attempt.blockedUntil) : null,
-          millisToDate(attempt.updatedAt),
-        ],
-      );
-    }
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 async function insertAuthUserPostgres(user: UserRecord) {
@@ -5094,148 +4991,6 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
     return seeded;
   }
   return db;
-}
-
-async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: boolean; reason?: string }) {
-  if (!options?.allowFullReplace) {
-    throw new Error("writeAdminDbPostgres full replace requires explicit allowFullReplace");
-  }
-  const pool = await getPostgresPool();
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query("delete from xh_system_settings");
-    await client.query("delete from xh_assistant_settings");
-    await client.query("delete from xh_audit_logs");
-    await client.query("delete from xh_tasks");
-    await client.query("delete from xh_models");
-    await client.query("delete from xh_providers");
-    for (const provider of db.providers.map(normalizeProviderSecret)) {
-      await client.query(
-        `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb, $16, $17, $18)`,
-        [
-          provider.id,
-          normalizeCatalogSortOrder(provider.sortOrder),
-          provider.name,
-          provider.baseUrl,
-          normalizeProviderProtocol(provider.protocol),
-          provider.enabled,
-          provider.apiKey || null,
-          provider.apiKeyPreview || null,
-          provider.lastProbeStatus || null,
-          provider.lastProbeMessage || null,
-          provider.lastFetchedAt ? millisToDate(provider.lastFetchedAt) : null,
-          JSON.stringify(normalizeRunningHubEntries(provider.rhApps, "app")),
-          JSON.stringify(normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
-          JSON.stringify(normalizeRunningHubKeyPool(provider.rhKeyPool)),
-          JSON.stringify(normalizeModelScopeLoras(provider.msLoras)),
-          provider.note || null,
-          millisToDate(provider.createdAt),
-          millisToDate(provider.updatedAt),
-        ],
-      );
-    }
-    for (const model of db.models) {
-      const normalizedModel = normalizeAdminModelRecord(model);
-      await client.query(
-        `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
-        [
-          normalizedModel.id,
-          normalizeCatalogSortOrder(normalizedModel.sortOrder),
-          normalizedModel.providerId,
-          normalizedModel.modelId,
-          normalizedModel.displayName,
-          normalizedModel.capability,
-          normalizedModel.enabled,
-          normalizedModel.inputProfile,
-          JSON.stringify(plainObject(normalizedModel.inputCapabilities)),
-          JSON.stringify(normalizedModel.capabilityTags || []),
-          JSON.stringify(normalizeModelTestState(normalizedModel.testState)),
-          JSON.stringify(parseJsonObject(normalizedModel.parameterSchema)),
-          JSON.stringify(plainObject(normalizedModel.advancedConfig)),
-          normalizedModel.protocolOverride || null,
-          millisToDate(normalizedModel.createdAt),
-          millisToDate(normalizedModel.updatedAt),
-        ],
-      );
-    }
-    for (const task of db.tasks) {
-      await client.query(
-        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11)`,
-        [
-          task.id,
-          task.ownerId || null,
-          task.title,
-          task.status,
-          task.providerId || null,
-          task.modelId || null,
-          JSON.stringify(plainObject(task.payload)),
-          JSON.stringify(plainObject(task.result)),
-          JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
-          millisToDate(task.createdAt),
-          millisToDate(task.updatedAt),
-        ],
-      );
-    }
-    for (const audit of db.auditLogs || []) {
-      await client.query(
-        `insert into xh_audit_logs (id, actor_id, actor_email, action, target_type, target_id, summary, request_id, ip, user_agent, created_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
-          audit.id,
-          audit.actorId || null,
-          audit.actorEmail,
-          audit.action,
-          audit.targetType,
-          audit.targetId,
-          audit.summary,
-          audit.requestId || null,
-          audit.ip || null,
-          audit.userAgent || null,
-          millisToDate(audit.createdAt),
-        ],
-      );
-    }
-    const assistantSettings = normalizeAssistantSettings(db.assistantSettings);
-    await client.query(
-      `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
-       values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)`,
-      [
-        "default",
-        JSON.stringify(assistantSettings.frontend),
-        JSON.stringify(assistantSettings.backend),
-        JSON.stringify(assistantSettings.integration),
-        Number.isFinite(assistantSettings.revision) && assistantSettings.revision > 0 ? Math.floor(assistantSettings.revision) : 1,
-        millisToDate(assistantSettings.updatedAt),
-      ],
-    );
-    const taskQueueSettings = normalizeTaskQueueSettings(db.taskQueueSettings);
-    await client.query(
-      `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
-       values ($1, $2::jsonb, $3, $4)`,
-      [
-        "default",
-        JSON.stringify(taskQueueSettings),
-        Number.isFinite(db.taskQueueSettingsRevision) && Number(db.taskQueueSettingsRevision) > 0
-          ? Math.floor(Number(db.taskQueueSettingsRevision))
-          : 1,
-        millisToDate(
-          Number.isFinite(db.taskQueueSettingsUpdatedAt) && Number(db.taskQueueSettingsUpdatedAt) > 0
-            ? Number(db.taskQueueSettingsUpdatedAt)
-            : Date.now(),
-        ),
-      ],
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {

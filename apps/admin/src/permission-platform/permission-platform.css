@@ -250,6 +250,16 @@
 .permission-subject-row__exposure.is-published { border-color: rgba(134, 239, 172, 0.3); color: #bbf7d0; }
 .permission-subject-row__exposure.is-retired { color: #94a3b8; }
 
+.permission-subject-row__message {
+  grid-column: 2;
+  color: #86efac;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.permission-subject-row__message.is-error { color: #fca5a5; }
+
 .permission-subject-row__actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
@@ -268,6 +278,7 @@
   .permission-platform__workspace { grid-template-columns: 220px minmax(0, 1fr); }
   .permission-subject-row { grid-template-columns: minmax(190px, 1fr) 90px; }
   .permission-subject-row__actions { grid-column: 1 / -1; }
+  .permission-subject-row__message { grid-column: 2; }
 }
 
 @media (max-width: 980px) {
@@ -280,5 +291,6 @@
   .permission-platform__health { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .permission-platform__icon-button { width: 100%; min-height: 40px; }
   .permission-subject-row { grid-template-columns: 1fr; }
+  .permission-subject-row__message { grid-column: 1; text-align: left; }
   .permission-subject-row__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

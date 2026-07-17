@@ -196,8 +196,9 @@ describe("admin task list routes", () => {
 
     const listSql = query.mock.calls.find(([sql]) => String(sql).includes("from xh_tasks t"))?.[0] as string;
     expect(listSql).toBeTruthy();
-    expect(listSql).not.toMatch(/\bt\.payload\b/);
-    expect(listSql).not.toMatch(/\bt\.result\b/);
+    expect(listSql).not.toMatch(/\bt\.payload\s*,/);
+    expect(listSql).not.toMatch(/\bt\.result\s*,/);
+    expect(listSql).toContain("t.payload->>'userId'");
     expect(listSql).toMatch(/\bt\.logs\b/);
     const page = sent[0].data as { items: Array<Record<string, unknown>> };
     expect(page.items[0]).not.toHaveProperty("payload");

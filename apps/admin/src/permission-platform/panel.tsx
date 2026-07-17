@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { AdminUser, AdminUserGroup } from "../admin-types";
+import { AdminApiError } from "../admin-api-client";
 import { permissionPlatformApi } from "./api";
 import type {
   PermissionAction,
@@ -58,6 +59,7 @@ export function PermissionPlatformPanel({
   const [error, setError] = useState("");
   const [visibleLimit, setVisibleLimit] = useState(80);
   const [effectiveDecisions, setEffectiveDecisions] = useState<Record<string, PermissionDecision>>({});
+  const [subjectMessages, setSubjectMessages] = useState<Record<string, { tone: "success" | "error"; text: string }>>({});
 
   const memberUsers = useMemo(
     () => users.filter((user) => user.role !== "admin" && !user.disabled),
@@ -168,15 +170,35 @@ export function PermissionPlatformPanel({
     const nextState = subject.exposureState === "published" ? "restricted" : "published";
     setSavingKey(`subject:${subject.subjectKey}`);
     setError("");
+    setSubjectMessages((current) => ({ ...current, [subject.subjectKey]: { tone: "success", text: "" } }));
     try {
-      const updated = await permissionPlatformApi.updateSubject(subject, nextState, reason.trim());
+      let updated: PermissionSubject;
+      try {
+        updated = await permissionPlatformApi.updateSubject(subject, nextState, reason.trim());
+      } catch (nextError) {
+        if (!(nextError instanceof AdminApiError) || nextError.code !== "PERMISSION_SUBJECT_REVISION_CONFLICT") throw nextError;
+        const refreshed = await permissionPlatformApi.readState();
+        setState(refreshed);
+        const latest = refreshed.subjects.find((item) => item.subjectKey === subject.subjectKey);
+        if (!latest) throw new Error("权限对象已不存在，状态已刷新");
+        updated = latest.exposureState === nextState
+          ? latest
+          : await permissionPlatformApi.updateSubject(latest, nextState, reason.trim());
+      }
       setState((current) => ({
         ...current,
         subjects: current.subjects.map((item) => item.subjectKey === updated.subjectKey ? updated : item),
       }));
+      setSubjectMessages((current) => ({
+        ...current,
+        [subject.subjectKey]: { tone: "success", text: nextState === "published" ? "已发布" : "已设为受限" },
+      }));
       setHealth(await permissionPlatformApi.readHealth());
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      setSubjectMessages((current) => ({
+        ...current,
+        [subject.subjectKey]: { tone: "error", text: nextError instanceof Error ? nextError.message : String(nextError) },
+      }));
     } finally {
       setSavingKey("");
     }
@@ -328,6 +350,7 @@ export function PermissionPlatformPanel({
                 fallbackGroupId={fallbackGroupId}
                 effectiveDecisions={effectiveDecisions}
                 savingKey={savingKey}
+                message={subjectMessages[subject.subjectKey]}
                 onUpdateSubject={updateSubject}
                 onUpdateRule={updateRule}
               />
@@ -353,6 +376,7 @@ function PermissionSubjectRow({
   fallbackGroupId,
   effectiveDecisions,
   savingKey,
+  message,
   onUpdateSubject,
   onUpdateRule,
 }: {
@@ -363,6 +387,7 @@ function PermissionSubjectRow({
   fallbackGroupId: string;
   effectiveDecisions: Record<string, PermissionDecision>;
   savingKey: string;
+  message?: { tone: "success" | "error"; text: string };
   onUpdateSubject: (subject: PermissionSubject) => Promise<void>;
   onUpdateRule: (subject: PermissionSubject, action: PermissionAction, value: RuleDraftValue) => Promise<void>;
 }) {
@@ -386,6 +411,12 @@ function PermissionSubjectRow({
         {subject.exposureState === "published" ? <Check aria-hidden="true" /> : <Ban aria-hidden="true" />}
         {exposureLabel(subject.exposureState)}
       </button>
+
+      {message?.text ? (
+        <span className={`permission-subject-row__message is-${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>
+          {message.text}
+        </span>
+      ) : null}
 
       <div className="permission-subject-row__actions">
         {ACTIONS.filter((action) => supportedActions(subject).includes(action.id)).map((action) => {

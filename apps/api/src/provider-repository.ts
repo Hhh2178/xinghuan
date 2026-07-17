@@ -54,70 +54,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
 
   async function writeAdminDb(db: AdminDb) {
     if (deps.usePostgresRepository()) {
-      const pool = await deps.getPostgresPool();
-      const client = await pool.connect();
-      try {
-        await client.query("begin");
-        await client.query("delete from xh_models");
-        await client.query("delete from xh_providers");
-        for (const provider of db.providers.map(deps.normalizeProviderSecret)) {
-          await client.query(
-            `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18)`,
-            [
-              provider.id,
-              normalizeCatalogSortOrder(provider.sortOrder),
-              provider.name,
-              provider.baseUrl,
-              deps.normalizeProviderProtocol(provider.protocol),
-              provider.enabled,
-              provider.apiKey || "",
-              provider.apiKeyPreview || "",
-              provider.lastProbeStatus || "",
-              provider.lastProbeMessage || "",
-              provider.lastFetchedAt ? deps.millisToDate(provider.lastFetchedAt) : null,
-              JSON.stringify(deps.normalizeRunningHubEntries(provider.rhApps, "app")),
-              JSON.stringify(deps.normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
-              JSON.stringify(deps.normalizeRunningHubKeyPool(provider.rhKeyPool)),
-              JSON.stringify(deps.normalizeModelScopeLoras(provider.msLoras)),
-              provider.note || "",
-              deps.millisToDate(provider.createdAt),
-              deps.millisToDate(provider.updatedAt),
-            ],
-          );
-        }
-        for (const model of db.models.map(deps.normalizeAdminModelRecord)) {
-          await client.query(
-            `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15,$16)`,
-            [
-              model.id,
-              normalizeCatalogSortOrder(model.sortOrder),
-              model.providerId,
-              model.modelId,
-              model.displayName,
-              deps.normalizeCapability(model.capability),
-              model.enabled,
-              model.inputProfile,
-              JSON.stringify(deps.plainObject(model.inputCapabilities)),
-              JSON.stringify(model.capabilityTags || []),
-              JSON.stringify(model.testState || {}),
-              model.parameterSchema || "{}",
-              JSON.stringify(deps.plainObject(model.advancedConfig)),
-              model.protocolOverride || "",
-              deps.millisToDate(model.createdAt),
-              deps.millisToDate(model.updatedAt),
-            ],
-          );
-        }
-        await client.query("commit");
-      } catch (error) {
-        await client.query("rollback");
-        throw error;
-      } finally {
-        client.release();
-      }
-      return;
+      throw new Error("provider writeAdminDb is unavailable in postgres mode; use targeted repository writes");
     }
     await deps.ensureDataDirs();
     await writeFile(deps.adminDbPath, JSON.stringify(db, null, 2), "utf-8");

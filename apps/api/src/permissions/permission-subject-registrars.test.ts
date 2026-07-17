@@ -95,4 +95,36 @@ describe("permission subject registrar", () => {
 
     expect(stored.find((item) => item.subjectKey === "runninghub.app/rh-a")).toMatchObject({ exposureState: "published", displayName: "New title" });
   });
+
+  it("does not increment revision when postgres jsonb returns metadata keys in a different order", async () => {
+    const stored = [
+      subject({
+        subjectKey: "provider.model/model-a",
+        sourceId: "model:model-a",
+        displayName: "Image Model",
+        metadata: { enabled: true, managedBy: "first-wave", capability: "image" },
+        revision: 7,
+      }),
+    ];
+    const upserted: PermissionSubject[] = [];
+    const registrar = createPermissionSubjectRegistrar({
+      listSubjects: async () => stored,
+      upsertSubject: async (next) => {
+        upserted.push(next);
+        return next;
+      },
+      now: () => 300,
+    });
+
+    await registrar.reconcileFirstWavePermissionSubjects({
+      resourceCategories: [],
+      resourceItems: [],
+      runningHubItems: [],
+      nodeTypes: [],
+      providerModels: [{ id: "model-a", displayName: "Image Model", capability: "image", enabled: true }],
+    });
+
+    expect(upserted.find((item) => item.subjectKey === "provider.model/model-a")).toBeUndefined();
+    expect(stored[0].revision).toBe(7);
+  });
 });

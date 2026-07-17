@@ -58,6 +58,9 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
         ? row.status
         : "queued",
       logs: Array.isArray(row.logs) ? row.logs.map(String) : [],
+      ownerId: row.owner_id || undefined,
+      ownerName: row.owner_name || undefined,
+      ownerEmail: row.owner_email || undefined,
       createdAt: 1,
       updatedAt: 1,
     }),
@@ -103,8 +106,8 @@ describe("task repository", () => {
         return { rows: [{ total: 2 }] };
       }
       expect(sql).toContain("select t.id");
-      expect(sql).not.toContain("t.payload");
-      expect(sql).not.toContain("t.result");
+      expect(sql).not.toMatch(/\bt\.payload\s*,/);
+      expect(sql).not.toMatch(/\bt\.result\s*,/);
       expect(sql).toContain("t.logs");
       expect(params).toEqual(["queued", "provider-1", "image", 1, 0]);
       return { rows: [{ id: "task-1", title: "Task One", status: "queued", logs: ["full log"] }] };
@@ -163,6 +166,34 @@ describe("task repository", () => {
     await expect(repo.readTaskRecord("task-1")).resolves.toMatchObject({ id: "task-1", title: "Task One" });
   });
 
+  it("recovers a missing task owner from embedded userId for admin display", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("limit 2001")) return { rows: [{ total: 1 }] };
+      if (sql.includes("count(*)")) return { rows: [{ total: 1 }] };
+      expect(sql).toContain("coalesce(nullif(t.owner_id");
+      expect(sql).toContain("t.payload->>'userId'");
+      expect(sql).toContain("t.result->>'userId'");
+      return {
+        rows: [{
+          id: "task-legacy",
+          title: "Legacy task",
+          status: "succeeded",
+          owner_id: "recovered-user",
+          owner_email: "recovered@example.test",
+          logs: [],
+        }],
+      };
+    });
+    const repo = createTaskRepository(createDeps({
+      usePostgresRepository: () => true,
+      getPostgresPool: async () => ({ query } as any),
+    }));
+
+    const page = await repo.readTaskListPage({ page: 1, pageSize: 20, status: "", providerId: "", capability: "" });
+
+    expect(page.items[0]).toMatchObject({ ownerId: "recovered-user", ownerEmail: "recovered@example.test" });
+  });
+
   it("writes postgres task records and logs without loading the full admin db", async () => {
     const query = vi.fn(async (sql: string) => {
       expect(sql).toMatch(/insert into xh_tasks|update xh_tasks/);
@@ -179,6 +210,7 @@ describe("task repository", () => {
     await repo.writeTaskRecord(taskRecord({ id: "task-1", title: "Task One", status: "running", payload: {}, result: {}, logs: ["created"] }));
     await repo.appendTaskLog("task-1", "queued");
     expect(query).toHaveBeenCalledTimes(3);
+    expect(String(query.mock.calls[1][0])).toContain("owner_id = coalesce($2, owner_id)");
     expect(readTaskRecords).not.toHaveBeenCalled();
   });
 

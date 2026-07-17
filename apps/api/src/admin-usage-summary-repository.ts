@@ -1,6 +1,7 @@
 import type { Pool, QueryResultRow } from "pg";
 import type { AdminUsageSummaryQuery } from "./admin-audit-routes.js";
 import type { AdminUsageTaskRecord } from "./admin-usage-analytics.js";
+import { TASK_OWNER_ID_SQL } from "./task-owner-identity.js";
 
 export interface AdminUsageSummaryRecordSet {
   tasks: AdminUsageTaskRecord[];
@@ -85,7 +86,7 @@ export function createAdminUsageSummaryRepository(deps: AdminUsageSummaryReposit
       pool.query<AdminUsageSummaryTaskPostgresRow>(
         `select t.id,
                 t.status,
-                t.owner_id,
+                ${TASK_OWNER_ID_SQL} as owner_id,
                 t.provider_id,
                 p.name as provider_name,
                 t.model_id,
@@ -137,9 +138,9 @@ export function createAdminUsageSummaryRepository(deps: AdminUsageSummaryReposit
                 u.remark as owner_remark,
                 u.group_id as owner_group_id,
                 g.name as owner_group_name,
-                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+                case when ${TASK_OWNER_ID_SQL} is not null and u.id is null then true else false end as owner_deleted
          from xh_tasks t
-         left join xh_users u on u.id = t.owner_id
+         left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
          left join xh_models m on m.id = t.model_id
          left join xh_providers p on p.id = coalesce(m.provider_id, t.provider_id)

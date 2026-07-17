@@ -1,4 +1,5 @@
 import type { PermissionSubject } from "@xinghuan/shared";
+import { isDeepStrictEqual } from "node:util";
 
 const MANAGED_BY = "first-wave";
 
@@ -186,5 +187,5 @@ function sameStrings(left: string[], right: string[]) {
 }
 
 function sameMetadata(left: Record<string, unknown>, right: Record<string, unknown>) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return isDeepStrictEqual(left, right);
 }

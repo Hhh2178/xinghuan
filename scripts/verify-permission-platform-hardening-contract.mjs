@@ -48,7 +48,7 @@ const checks = [
   ["reconciliation preserves legacy identifiers", reconciliation.includes("legacySubjectIdentifiers")],
   ["subject updates use atomic revision guards", /where xh_permission_subjects\.revision = excluded\.revision - 1[\s\S]*metadata is not distinct from excluded\.metadata[\s\S]*returning subject_key/.test(repository)],
   ["rule updates and deletes use atomic revision guards", /where xh_permission_rules\.revision = excluded\.revision - 1[\s\S]*returning id/.test(repository) && /delete from xh_permission_rules where id = \$1 and revision = \$2 returning id/.test(repository)],
-  ["repository revision races map to HTTP 409", routes.includes("writeWithRevisionConflict") && routes.includes("new deps.HttpError(409, conflictCode)")],
+  ["repository revision races map to HTTP 409 with current revision context", routes.includes("writeWithRevisionConflict") && routes.includes("new deps.HttpError(409, conflictCode, conflictPayload ? await conflictPayload() : undefined)") && routes.includes("currentRevision: current.revision")],
   ["enforced startup has readiness gate", server.includes("PERMISSION_RUNTIME_NOT_READY")],
   ["subject reconciliation is single-flight", server.includes("permissionSubjectReconciliation") && server.includes("permissionSubjectReconciliation === current") && server.indexOf("let permissionSubjectReconciliation") < server.indexOf("void startApiServer()")],
   ["model catalog uses permission runtime", /publicModelCatalog[\s\S]*permissionRuntime\.decide/.test(server)],

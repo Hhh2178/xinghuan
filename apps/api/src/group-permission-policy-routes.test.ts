@@ -31,7 +31,7 @@ describe("GET /api/me/permissions", () => {
           },
         }],
       }),
-      writeAuthDb: async () => undefined,
+      writeGroupPermissionPolicy: async () => undefined,
       readSharedResourceCatalog: async () => ({ categories: [], items: [] }),
       readRunningHubPermissionCatalog: async () => ({ apps: [], workflows: [] }),
       appendAudit: async () => undefined,

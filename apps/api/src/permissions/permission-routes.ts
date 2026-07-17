@@ -27,12 +27,13 @@ export function createPermissionRouteHandler(deps: {
   async function writeWithRevisionConflict<T>(
     operation: () => Promise<T>,
     conflictCode: "PERMISSION_SUBJECT_REVISION_CONFLICT" | "PERMISSION_RULE_REVISION_CONFLICT",
+    conflictPayload?: () => Promise<Record<string, unknown>>,
   ) {
     try {
       return await operation();
     } catch (error) {
       if (error instanceof Error && error.message === conflictCode) {
-        throw new deps.HttpError(409, conflictCode);
+        throw new deps.HttpError(409, conflictCode, conflictPayload ? await conflictPayload() : undefined);
       }
       throw error;
     }
@@ -69,13 +70,19 @@ export function createPermissionRouteHandler(deps: {
       const state = await deps.readAuthorizationState();
       const current = state.subjects.find((item) => item.subjectKey === subjectKey);
       if (!current) throw new deps.HttpError(404, "PERMISSION_SUBJECT_NOT_FOUND");
-      if (Number(body.revision) !== current.revision) throw new deps.HttpError(409, "PERMISSION_SUBJECT_REVISION_CONFLICT");
+      if (Number(body.revision) !== current.revision) {
+        throw new deps.HttpError(409, "PERMISSION_SUBJECT_REVISION_CONFLICT", { currentRevision: current.revision });
+      }
       const reason = text(body.reason);
       if (!reason) throw new deps.HttpError(400, "PERMISSION_CHANGE_REASON_REQUIRED");
       const exposureState = body.exposureState === "published" || body.exposureState === "retired" ? body.exposureState : "restricted";
       const updated = await writeWithRevisionConflict(
         () => deps.upsertSubject({ ...current, exposureState, revision: current.revision + 1 }),
         "PERMISSION_SUBJECT_REVISION_CONFLICT",
+        async () => {
+          const latest = (await deps.readAuthorizationState()).subjects.find((item) => item.subjectKey === subjectKey);
+          return latest ? { currentRevision: latest.revision } : {};
+        },
       );
       deps.sendT8(response, updated);
       await deps.appendAudit(actor, "permission.subject.update", "permission-subject", subjectKey, `更新权限 subject ${subjectKey} 为 ${exposureState}：${reason}`, requestContext);

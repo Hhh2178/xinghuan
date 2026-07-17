@@ -143,7 +143,7 @@ export function createAdminTaskListRouteHandler(deps: {
       const pageParams = [...params, query.pageSize, offset];
       const itemsResult = await pool.query(
         `select t.id,
-                t.owner_id,
+                ${TASK_OWNER_ID_SQL} as owner_id,
                 t.title,
                 t.status,
                 t.provider_id,
@@ -156,9 +156,9 @@ export function createAdminTaskListRouteHandler(deps: {
                 u.remark as owner_remark,
                 u.group_id as owner_group_id,
                 g.name as owner_group_name,
-                case when t.owner_id is not null and u.id is null then true else false end as owner_deleted
+                case when ${TASK_OWNER_ID_SQL} is not null and u.id is null then true else false end as owner_deleted
          from xh_tasks t
-         left join xh_users u on u.id = t.owner_id
+         left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
          ${whereSql}
          order by t.created_at desc
@@ -338,3 +338,4 @@ export function createAdminTaskListRouteHandler(deps: {
     return false;
   };
 }
+import { TASK_OWNER_ID_SQL } from "./task-owner-identity.js";

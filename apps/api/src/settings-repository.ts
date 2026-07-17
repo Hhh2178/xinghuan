@@ -97,13 +97,9 @@ export function createSettingsRepository(deps: SettingsRepositoryDeps) {
     }
   }
 
-  async function writeSettingsDb(db: SettingsDb, options?: { allowPostgresFullReplace?: boolean }) {
+  async function writeSettingsDb(db: SettingsDb) {
     if (deps.usePostgresRepository()) {
-      if (!options?.allowPostgresFullReplace) {
-        throw new Error("writeSettingsDb full replace is disabled in postgres mode");
-      }
-      await writeSettingsDbPostgres(db);
-      return;
+      throw new Error("writeSettingsDb is unavailable in postgres mode; use targeted repository writes");
     }
     await deps.ensureDataDirs();
     await writeFile(deps.adminDbPath, JSON.stringify(db, null, 2), "utf-8");
@@ -134,46 +130,6 @@ export function createSettingsRepository(deps: SettingsRepositoryDeps) {
       taskQueueSettingsRevision: Number(systemRow?.revision) || 1,
       taskQueueSettingsUpdatedAt: systemRow?.updated_at ? deps.dateToMillis(systemRow.updated_at) : Date.now(),
     };
-  }
-
-  async function writeSettingsDbPostgres(db: SettingsDb) {
-    const pool = await deps.getPostgresPool();
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
-      await client.query("delete from xh_assistant_settings");
-      await client.query("delete from xh_system_settings");
-      const assistantSettings = deps.normalizeAssistantSettings(db.assistantSettings, deps.defaultAssistantSettings());
-      const taskQueueSettings = deps.normalizeTaskQueueSettings(db.taskQueueSettings, deps.defaultTaskQueueSettings());
-      await client.query(
-        `insert into xh_assistant_settings (id, frontend, backend, integration, revision, updated_at)
-         values ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6)`,
-        [
-          "default",
-          JSON.stringify(assistantSettings.frontend),
-          JSON.stringify(assistantSettings.backend),
-          JSON.stringify(assistantSettings.integration),
-          positiveIntegerOrDefault(assistantSettings.revision, 1),
-          deps.millisToDate(assistantSettings.updatedAt),
-        ],
-      );
-      await client.query(
-        `insert into xh_system_settings (id, task_queue_settings, revision, updated_at)
-         values ($1, $2::jsonb, $3, $4)`,
-        [
-          "default",
-          JSON.stringify(taskQueueSettings),
-          positiveIntegerOrDefault(db.taskQueueSettingsRevision, 1),
-          deps.millisToDate(positiveNumberOrDefault(db.taskQueueSettingsUpdatedAt, Date.now())),
-        ],
-      );
-      await client.query("commit");
-    } catch (error) {
-      await client.query("rollback").catch(() => undefined);
-      throw error;
-    } finally {
-      client.release();
-    }
   }
 
   async function readAssistantSettingsRecord(): Promise<AssistantSettingsRecord> {

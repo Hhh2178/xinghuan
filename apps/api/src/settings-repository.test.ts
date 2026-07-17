@@ -123,6 +123,17 @@ describe("settings repository", () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects postgres whole-settings replacement", async () => {
+    const getPostgresPool = vi.fn(async () => ({ query: vi.fn() } as any));
+    const repo = createSettingsRepository(createDeps({
+      usePostgresRepository: () => true,
+      getPostgresPool,
+    }));
+
+    await expect(repo.writeSettingsDb({})).rejects.toThrow("targeted repository writes");
+    expect(getPostgresPool).not.toHaveBeenCalled();
+  });
+
   it("reads and writes file-backed settings db round-trip", async () => {
     const dir = await mkdtemp(join(tmpdir(), "settings-repo-"));
     const adminDbPath = join(dir, "admin.json");

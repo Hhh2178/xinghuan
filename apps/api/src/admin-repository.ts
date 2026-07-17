@@ -74,7 +74,7 @@ export interface AdminRepositoryDeps {
     }>;
   }>;
   readAdminDb: () => Promise<AdminDbShape>;
-  writeAdminDb: (db: AdminDbShape, options?: { allowPostgresFullReplace?: boolean; reason?: string }) => Promise<void>;
+  writeAdminDb: (db: AdminDbShape) => Promise<void>;
   dateToMillis: (value: unknown) => number;
   millisToDate: (value: number | undefined) => Date;
   safeText: (value: unknown, fallback?: string) => string;
@@ -163,16 +163,7 @@ export function createAdminRepository(deps: AdminRepositoryDeps) {
       return;
     }
     const db = await deps.readAdminDb();
-    await deps.writeAdminDb(
-      {
-        ...db,
-        announcements,
-      },
-      {
-        allowPostgresFullReplace: true,
-        reason: "announcement.write",
-      },
-    );
+    await deps.writeAdminDb({ ...db, announcements });
   }
 
   async function readAnnouncementRecordsPostgres(): Promise<AnnouncementRecord[]> {

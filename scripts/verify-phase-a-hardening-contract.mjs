@@ -22,7 +22,7 @@ const checks = [
   [
     "Auth login/logout use targeted postgres session writes",
     /if \(usePostgresRepository\(\)\) \{\s*await createSessionRecordPostgres\(session\);/i.test(api) &&
-      /if \(usePostgresRepository\(\)\) \{\s*await deleteSessionRecordPostgres\(sessionId\);/i.test(api),
+      /if \(usePostgresRepository\(\)\) \{\s*await revokeSessionRecordPostgres\(sessionId, revokedAt\);/i.test(api),
   ],
   [
     "Auth postgres bootstrap cleanup avoids full rewrite on read",
@@ -31,11 +31,11 @@ const checks = [
   ],
   [
     "Resource routes use postgres-specific targeted writes",
-    /sendT8\(response, await upsertResourceCategoryPostgres\(category, currentUser!\)\);/i.test(api) &&
-      /sendT8\(response, await updateResourceCategoryPostgres\(id, safeText\(body\.name, "未分类"\), currentUser!\)\);/i.test(api) &&
-      /await deleteResourceCategoryPostgres\(id, currentUser!\);/i.test(api) &&
-      /sendT8\(response, await updateResourceItemPostgres\(id, patch, currentUser!\)\);/i.test(api) &&
-      /await deleteResourceItemPostgres\(id, currentUser!\);/i.test(api),
+      /sendT8\(response, await upsertResourceCategoryPostgres\(category, currentUser!\)\);/i.test(api) &&
+      /await updateResourceCategoryPostgres\([\s\S]*?currentUser![\s\S]*?resourceRevisionFromPayload/i.test(api) &&
+      /await deleteResourceCategoryPostgresWithItemRevision\(id, currentUser!, resourceRevisionFromPayload\(body\)\);/i.test(api) &&
+      /await updateResourceItemPostgres\(id, patch, currentUser!, resourceRevisionFromPayload\(patch\)\)/i.test(api) &&
+      /await deleteResourceItemPostgres\(id, currentUser!, resourceRevisionFromPayload\(body\)\);/i.test(api),
   ],
   [
     "Resource postgres upserts reject cross-owner conflicts",
@@ -45,9 +45,9 @@ const checks = [
   ],
   [
     "Provider and model admin routes avoid full admin-db rewrites on postgres hot paths",
-    /if \(usePostgresRepository\(\)\) \{\s*await insertProviderRecordPostgres\(provider\);/i.test(api) &&
-      /if \(usePostgresRepository\(\)\) \{\s*await upsertProviderRecordPostgres\(updated\);/i.test(api) &&
-      /if \(usePostgresRepository\(\)\) \{\s*await deleteProviderRecordPostgres\(id\);/i.test(api) &&
+    /insertProviderRecord: async \(provider\) => providerRepository\.insertProviderRecord/i.test(api) &&
+      /updateProviderRecord: async \(providerId, transform\) => providerRepository\.updateProviderRecord/i.test(api) &&
+      /deleteProviderRecord: providerRepository\.deleteProviderRecord/i.test(api) &&
       /if \(usePostgresRepository\(\)\) \{\s*await insertModelRecordPostgres\(normalizedModel\);/i.test(api) &&
       /if \(usePostgresRepository\(\)\) \{\s*await upsertModelRecordPostgres\(updatedModel\);/i.test(api) &&
       /if \(usePostgresRepository\(\)\) \{\s*await upsertModelRecordPostgres\(updated\);/i.test(api) &&
@@ -58,14 +58,13 @@ const checks = [
     /if \(usePostgresRepository\(\)\) \{\s*for \(const model of touchedModels\) \{\s*await upsertModelRecordPostgres\(model\);/i.test(api),
   ],
   [
-    "Postgres full-replace valves are explicitly disabled by default",
-    /async function writeAuthDb\(db: AuthDb, options\?: \{ allowPostgresFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(usePostgresRepository\(\)\) \{\s*if \(!options\?\.allowPostgresFullReplace\)/i.test(api) &&
-      /async function writeAdminDb\(db: AdminDb, options\?: \{ allowPostgresFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(usePostgresRepository\(\)\) \{\s*if \(!options\?\.allowPostgresFullReplace\)/i.test(api),
+    "Postgres runtime full-replace writes are unavailable",
+    /async function writeAuthDb\(db: AuthDb\) \{\s*if \(usePostgresRepository\(\)\) \{\s*throw new Error\("writeAuthDb is unavailable in postgres mode/i.test(api) &&
+      /async function writeAdminDb\(db: AdminDb\) \{\s*if \(usePostgresRepository\(\)\) \{\s*throw new Error\("writeAdminDb is unavailable in postgres mode/i.test(api),
   ],
   [
-    "Direct postgres full-replace helpers also require explicit allow flags",
-    /async function writeAuthDbPostgres\(db: AuthDb, options\?: \{ allowFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(!options\?\.allowFullReplace\)/i.test(api) &&
-      /async function writeAdminDbPostgres\(db: AdminDb, options\?: \{ allowFullReplace\?: boolean; reason\?: string \}\) \{\s*if \(!options\?\.allowFullReplace\)/i.test(api),
+    "Direct postgres full-replace helpers are absent",
+    !/function writeAuthDbPostgres|function writeAdminDbPostgres/i.test(api),
   ],
   [
     "Admin postgres cold bootstrap no longer uses destructive full replace",

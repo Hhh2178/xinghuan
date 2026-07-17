@@ -103,7 +103,7 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
   HttpError: HttpErrorLike;
   safeText: (value: unknown, fallback?: string) => string;
   readAuthDb: () => Promise<AuthDbLike>;
-  writeAuthDb: (updater: (authDb: AuthDbLike) => AuthDbLike, options?: { reason?: string }) => Promise<void>;
+  writeGroupPermissionPolicy: (policy: GroupPermissionPolicy) => Promise<void>;
   readSharedResourceCatalog: () => Promise<SharedResourceCatalog>;
   readRunningHubPermissionCatalog: () => Promise<{ apps: RhCatalogItem[]; workflows: RhCatalogItem[] }>;
   appendAudit: (
@@ -127,7 +127,7 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
     HttpError,
     safeText,
     readAuthDb,
-    writeAuthDb,
+    writeGroupPermissionPolicy,
     readSharedResourceCatalog,
     readRunningHubPermissionCatalog,
     appendAudit,
@@ -263,10 +263,7 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
           ...authDb.groupPermissionPolicies.filter((item) => item.groupId !== groupId),
           nextPolicy,
         ]);
-        await writeAuthDb(
-          (currentAuthDb) => ({ ...currentAuthDb, groupPermissionPolicies: nextPolicies }),
-          { reason: "group-permission-policy-update" },
-        );
+        await writeGroupPermissionPolicy(nextPolicy);
         sendT8(response, buildPolicyResponse(group, { ...authDb, groupPermissionPolicies: nextPolicies }));
         const denyCount =
           nextPolicy.deny.sharedResourceCategoryIds.length +

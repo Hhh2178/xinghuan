@@ -49,6 +49,13 @@
 - 查看 ComfyUI 机器 heartbeat 与健康状态
 - 区分查看“机器本地地址”和“后端执行地址”，避免把 `8188` 与隧道 / 反向代理地址混为一谈
 
+## 权限治理交互
+
+- Subject 发布状态使用 revision 并发保护。
+- metadata 同步必须语义幂等，JSON 对象键顺序变化不得增加 revision。
+- `409 PERMISSION_SUBJECT_REVISION_CONFLICT` 返回最新 revision；后台刷新当前 Subject，并仅在目标状态仍未达成时安全重试一次。
+- 发布/受限操作的成功或失败必须显示在对应 Subject 行内，不能只在页面顶部显示全局错误。
+
 ## 边界说明
 
 - ComfyUI 主编辑面在后台，不回退到画布节点里治理。
