@@ -59,6 +59,8 @@ check("usage dashboard renders account selector", usageDashboardSource.includes(
 check("usage dashboard renders selected account summary", usageDashboardSource.includes("账号下钻"));
 check("usage dashboard renders account model usage table", usageDashboardSource.includes("账号模型使用明细"));
 check("usage dashboard renders account RH usage table", usageDashboardSource.includes("账号 RH 条目使用明细"));
+check("account ranking includes the complete account directory", usageDashboardSource.includes("buildUsageAccountRanking"));
+check("account ranking uses an internal scroll container", usageDashboardSource.includes("usage-list--account-ranking"));
 check("usage dashboard keeps global model totals table", usageDashboardSource.includes("模型总使用次数"));
 check("usage dashboard keeps global RH totals table", usageDashboardSource.includes("RH 条目总使用次数"));
 

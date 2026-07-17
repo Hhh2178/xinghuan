@@ -8,6 +8,7 @@ import type {
   UsageSelectedUserRunningHubRow,
   UsageSelectedUserSummary,
 } from "./admin-types";
+import { buildUsageAccountRanking } from "./admin-usage-account-ranking";
 
 function percentage(value: number, total: number) {
   if (!total) return "0.0%";
@@ -169,7 +170,8 @@ export function AdminUsageDashboard({
     ]
     : [];
   const topGroups = usageSummary ? summarizeTop(usageSummary.groups.map((item) => ({ label: item.groupName, total: item.total }))) : [];
-  const topUsers = usageSummary ? summarizeTop(usageSummary.users.map((item) => ({ label: item.email, total: item.total }))) : [];
+  const accountRanking = buildUsageAccountRanking(usageSummary?.users || [], users, usageFilters.groupId);
+  const topUsers = accountRanking.slice(0, 5).map((item) => ({ label: item.email, total: item.total }));
 
   return (
     <section className="usage-dashboard usage-dashboard--starlight">
@@ -540,15 +542,15 @@ export function AdminUsageDashboard({
               </div>
             </article>
 
-            <article className="usage-panel">
+            <article className="usage-panel usage-panel--account-ranking">
               <header>
                 <h3>账号排行榜</h3>
                 <span>Top Accounts</span>
               </header>
-              <div className="usage-list">
-                {topUsers.map((item) => (
-                  <div key={item.label} className="usage-list-row">
-                    <strong>{item.label}</strong>
+              <div className="usage-list usage-list--account-ranking" aria-label="全部账号使用次数排行榜">
+                {accountRanking.map((item) => (
+                  <div key={item.userId} className="usage-list-row">
+                    <strong title={item.email}>{item.email}</strong>
                     <div className="usage-bar">
                       <i style={{ width: percentage(item.total, total) }} />
                     </div>
