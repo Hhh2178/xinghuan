@@ -26,6 +26,12 @@ interface TextSplitGeneratedGraph {
   replaceNodeIds: Set<string>;
 }
 
+interface ReconcileTextSplitGeneratedGraphOptions {
+  existingNodes: Node[];
+  existingEdges: Edge[];
+  generated: TextSplitGeneratedGraph;
+}
+
 export function buildTextSplitGeneratedGraph({
   sourceNode,
   segments,
@@ -50,20 +56,25 @@ export function buildTextSplitGeneratedGraph({
     w: size.w,
     h: size.h,
   }));
-  const placementNodes = existingNodes.filter((node) => !replaceNodeIds.has(node.id));
-  const offset = placeBatchNodes(rects, placementNodes, {
+  const nodeIds = segments.map((_, index) => mode === 'output'
+    ? `output-auto-text-split-${sourceNode.id}-${index}`
+    : `text-split-manual-${sourceNode.id}-${index}`);
+  const existingNodeById = new Map(existingNodes.map((node) => [node.id, node]));
+  const nextNodeIds = new Set(nodeIds);
+  const newRects = rects.filter((_, index) => !existingNodeById.has(nodeIds[index]));
+  const placementNodes = existingNodes.filter((node) => !replaceNodeIds.has(node.id) || nextNodeIds.has(node.id));
+  const offset = placeBatchNodes(newRects, placementNodes, {
     excludeIds: new Set([sourceNode.id]),
     source: `placement:text-split-${mode}:${sourceNode.id}`,
   });
 
   const nodes: Node[] = segments.map((segment, index) => {
-    const nodeId = mode === 'output'
-      ? `output-auto-text-split-${sourceNode.id}-${index}`
-      : `text-split-manual-${sourceNode.id}-${index}`;
+    const nodeId = nodeIds[index];
+    const existingNode = existingNodeById.get(nodeId);
     return {
       id: nodeId,
       type: mode === 'output' ? 'output' : 'text',
-      position: { x: rects[index].x + offset.dx, y: rects[index].y + offset.dy },
+      position: existingNode?.position || { x: rects[index].x + offset.dx, y: rects[index].y + offset.dy },
       data: {
         ...(mode === 'output'
           ? { directOutputText: segment, outputText: '', ignoreUpstreamMaterials: true }
@@ -86,4 +97,45 @@ export function buildTextSplitGeneratedGraph({
     : [];
 
   return { nodes, edges, replaceNodeIds };
+}
+
+export function reconcileTextSplitGeneratedGraph({
+  existingNodes,
+  existingEdges,
+  generated,
+}: ReconcileTextSplitGeneratedGraphOptions): { nodes: Node[]; edges: Edge[] } {
+  const generatedNodeById = new Map(generated.nodes.map((node) => [node.id, node]));
+  const generatedEdgeById = new Map(generated.edges.map((edge) => [edge.id, edge]));
+  const staleNodeIds = new Set(
+    [...generated.replaceNodeIds].filter((nodeId) => !generatedNodeById.has(nodeId)),
+  );
+  const seenNodeIds = new Set<string>();
+  const nodes = existingNodes.flatMap((node) => {
+    if (staleNodeIds.has(node.id)) return [];
+    const replacement = generatedNodeById.get(node.id);
+    if (!replacement) return [node];
+    seenNodeIds.add(node.id);
+    return [{
+      ...node,
+      type: replacement.type,
+      data: { ...(node.data || {}), ...(replacement.data || {}) },
+    }];
+  });
+  for (const node of generated.nodes) {
+    if (!seenNodeIds.has(node.id)) nodes.push(node);
+  }
+
+  const seenEdgeIds = new Set<string>();
+  const edges = existingEdges.flatMap((edge) => {
+    if (staleNodeIds.has(edge.source) || staleNodeIds.has(edge.target)) return [];
+    const replacement = generatedEdgeById.get(edge.id);
+    if (!replacement) return [edge];
+    seenEdgeIds.add(edge.id);
+    return edge.source === replacement.source && edge.target === replacement.target ? [edge] : [replacement];
+  });
+  for (const edge of generated.edges) {
+    if (!seenEdgeIds.has(edge.id)) edges.push(edge);
+  }
+
+  return { nodes, edges };
 }

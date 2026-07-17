@@ -33,7 +33,11 @@ import {
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useUpstreamMaterials } from './useUpstreamMaterials';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
-import { buildTextSplitGeneratedGraph, type TextSplitGeneratedMode } from './textSplitGeneratedGraph';
+import {
+  buildTextSplitGeneratedGraph,
+  reconcileTextSplitGeneratedGraph,
+  type TextSplitGeneratedMode,
+} from './textSplitGeneratedGraph';
 
 const MODE_OPTIONS = Object.entries(TEXT_SPLIT_MODE_LABEL) as Array<[TextSplitMode, string]>;
 const TEXT_SPLIT_PRESET_SCHEMA = 't8-text-split-presets';
@@ -273,14 +277,16 @@ const TextSplitNode = ({ id, data, selected }: NodeProps) => {
       mode: generatedMode,
       existingNodes: rf.getNodes(),
     });
-    rf.setNodes((currentNodes) => [
-      ...currentNodes.filter((node) => !graph.replaceNodeIds.has(node.id)),
-      ...graph.nodes,
-    ]);
-    rf.setEdges((currentEdges) => [
-      ...currentEdges.filter((edge) => !graph.replaceNodeIds.has(edge.source) && !graph.replaceNodeIds.has(edge.target)),
-      ...graph.edges,
-    ]);
+    rf.setNodes((currentNodes) => reconcileTextSplitGeneratedGraph({
+      existingNodes: currentNodes,
+      existingEdges: [],
+      generated: graph,
+    }).nodes);
+    rf.setEdges((currentEdges) => reconcileTextSplitGeneratedGraph({
+      existingNodes: [],
+      existingEdges: currentEdges,
+      generated: graph,
+    }).edges);
     update({
       status: 'success',
       error: '',
