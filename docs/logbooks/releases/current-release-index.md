@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.1`
-- release：`20260717-permission-owner-textsplit-gray-r2-v071`
-- 当前状态：`权限与任务归属完整性、文本拆分拓扑保留已部署 Gray 并完成验收`
-- 部署内容：`用户目录定点写入；权限 revision 冲突保护；任务 owner 快照回退；文本拆分重跑保留位置、顺序与下游连线`
-- 已验证：`158 项测试、全量构建、数据 ID 哈希、API/Worker/readiness、成员权限、审计账号/分组模型与 RH 使用统计、Playwright 页面通过`
+- 版本：`v0.7.2`
+- release：`20260717-audit-rankings-gray-r2-v072`
+- 当前状态：`审计账号与分组排行榜完整目录、顶部紧凑排列与内部滚动已部署 Gray 并完成验收`
+- 部署内容：`账号显示全部当前目录与历史行；分组显示全部目录组与未分组行；成功次数降序；外层面板尺寸不变`
+- 已验证：`163 项测试、全量构建、API/Worker/readiness、真实页面 29 个账号与 5 个分组、布局计算和控制台通过`
 - 待验收：`无 Gray 阻断项；Production 保持 v0.7.0，尚未晋级`
 - 部署时间：`2026-07-17`
 - 当前批次记录：
+  - `gray/2026-07-17-audit-rankings-v072.md`
+  - `../validations/2026-07-17-audit-rankings-gray-v072.md`
   - `gray/2026-07-17-permission-owner-textsplit-v071.md`
   - `../validations/2026-07-17-permission-owner-textsplit-gray-v071.md`
   - `gray/2026-07-17-group-retry-catalog-order-v070.md`

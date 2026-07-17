@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-17",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "afc325232a7d78a453e4d76ca050fe69c233bd6b",
+  "sourceCommit": "ec47e189af9c93a345d458f652af4182b9537cd9",
   "environments": {
     "gray": {
-      "version": "0.7.1",
-      "releaseId": "20260717-permission-owner-textsplit-gray-r2-v071",
+      "version": "0.7.2",
+      "releaseId": "20260717-audit-rankings-gray-r2-v072",
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-permission-owner-textsplit-v071.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-permission-owner-textsplit-gray-v071.md",
-      "rollbackReleaseId": "20260717-permission-owner-textsplit-gray-r1-v071"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-audit-rankings-v072.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-audit-rankings-gray-v072.md",
+      "rollbackReleaseId": "20260717-audit-account-ranking-gray-r1-v072"
     },
     "production": {
       "version": "0.7.0",
