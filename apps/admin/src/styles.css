@@ -1535,13 +1535,15 @@ button:disabled {
   gap: 10px;
 }
 
-.usage-panel--account-ranking {
+.usage-panel--account-ranking,
+.usage-panel--group-ranking {
   min-height: 0;
   overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.usage-list--account-ranking {
+.usage-list--account-ranking,
+.usage-list--group-ranking {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -1552,22 +1554,26 @@ button:disabled {
   overscroll-behavior: contain;
 }
 
-.usage-list--account-ranking .usage-list-row strong {
+.usage-list--account-ranking .usage-list-row strong,
+.usage-list--group-ranking .usage-list-row strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.usage-list--account-ranking::-webkit-scrollbar {
+.usage-list--account-ranking::-webkit-scrollbar,
+.usage-list--group-ranking::-webkit-scrollbar {
   width: 8px;
 }
 
-.usage-list--account-ranking::-webkit-scrollbar-track {
+.usage-list--account-ranking::-webkit-scrollbar-track,
+.usage-list--group-ranking::-webkit-scrollbar-track {
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.5);
 }
 
-.usage-list--account-ranking::-webkit-scrollbar-thumb {
+.usage-list--account-ranking::-webkit-scrollbar-thumb,
+.usage-list--group-ranking::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
   background: rgba(56, 189, 248, 0.52);

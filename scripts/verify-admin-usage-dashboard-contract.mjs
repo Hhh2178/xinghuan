@@ -61,6 +61,8 @@ check("usage dashboard renders account model usage table", usageDashboardSource.
 check("usage dashboard renders account RH usage table", usageDashboardSource.includes("账号 RH 条目使用明细"));
 check("account ranking includes the complete account directory", usageDashboardSource.includes("buildUsageAccountRanking"));
 check("account ranking uses an internal scroll container", usageDashboardSource.includes("usage-list--account-ranking"));
+check("group ranking includes the complete group directory", usageDashboardSource.includes("buildUsageGroupRanking"));
+check("group ranking uses an internal scroll container", usageDashboardSource.includes("usage-list--group-ranking"));
 check("usage dashboard keeps global model totals table", usageDashboardSource.includes("模型总使用次数"));
 check("usage dashboard keeps global RH totals table", usageDashboardSource.includes("RH 条目总使用次数"));
 
