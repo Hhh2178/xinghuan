@@ -45,6 +45,12 @@
 - 模板弹层与资源库统一读取公共资源 `kind=workflow`，不再保留静态模板数组。
 - 缩略图优先使用资源 `thumbUrl`；缺失时由共享 `WorkflowTopologyCard` 渲染拓扑预览。
 
+## 模型目录展示顺序
+
+- `/api/models` 先按 Provider `sortOrder`，再按模型 `sortOrder` 输出。
+- 图像、视频、音频和 LLM 节点共享该目录顺序，不在各节点维护独立排序副本。
+- 后台重排仅改变展示顺序，不改变模型 ID、权限 Subject、执行路由或历史画布选择。
+
 ## ComfyUI 节点模型
 
 - `comfyui`

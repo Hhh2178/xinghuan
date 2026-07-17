@@ -28,6 +28,7 @@ export interface ModelScopeLora {
 
 export interface AdminProviderRecord {
   id: string;
+  sortOrder?: number;
   name: string;
   baseUrl: string;
   protocol?: ProviderProtocol;
@@ -48,6 +49,7 @@ export interface AdminProviderRecord {
 
 export interface AdminModelRecord {
   id: string;
+  sortOrder?: number;
   providerId: string;
   modelId: string;
   displayName: string;

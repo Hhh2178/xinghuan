@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { applyCatalogDisplayOrder, normalizeCatalogSortOrder, sortByCatalogDisplayOrder } from "./catalog-display-order.js";
 import {
   MODEL_SELECT,
   PROVIDER_SELECT,
@@ -30,8 +31,8 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       const [providersResult, modelsResult] = await Promise.all([
-        pool.query<AdminProviderPostgresRow>(`${PROVIDER_SELECT} order by updated_at desc`),
-        pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} order by updated_at desc`),
+        pool.query<AdminProviderPostgresRow>(`${PROVIDER_SELECT} order by sort_order asc, created_at desc, id asc`),
+        pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} order by sort_order asc, created_at desc, id asc`),
       ]);
       return {
         providers: providersResult.rows.map((row) => toAdminProviderRecordFromRow(row, deps)),
@@ -40,7 +41,12 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     }
     await deps.ensureDataDirs();
     try {
-      return JSON.parse(await readFile(deps.adminDbPath, "utf-8")) as AdminDb;
+      const db = JSON.parse(await readFile(deps.adminDbPath, "utf-8")) as AdminDb;
+      return {
+        ...db,
+        providers: sortByCatalogDisplayOrder(db.providers || []),
+        models: sortByCatalogDisplayOrder((db.models || []).map(deps.normalizeAdminModelRecord)),
+      };
     } catch {
       return { providers: [], models: [] };
     }
@@ -56,10 +62,11 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
         await client.query("delete from xh_providers");
         for (const provider of db.providers.map(deps.normalizeProviderSecret)) {
           await client.query(
-            `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17)`,
+            `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18)`,
             [
               provider.id,
+              normalizeCatalogSortOrder(provider.sortOrder),
               provider.name,
               provider.baseUrl,
               deps.normalizeProviderProtocol(provider.protocol),
@@ -81,10 +88,11 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
         }
         for (const model of db.models.map(deps.normalizeAdminModelRecord)) {
           await client.query(
-            `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-             values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,$15)`,
+            `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15,$16)`,
             [
               model.id,
+              normalizeCatalogSortOrder(model.sortOrder),
               model.providerId,
               model.modelId,
               model.displayName,
@@ -118,7 +126,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
   async function readProviderRecords(): Promise<AdminProviderRecord[]> {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
-      const result = await pool.query<AdminProviderPostgresRow>(`${PROVIDER_SELECT} order by updated_at desc`);
+      const result = await pool.query<AdminProviderPostgresRow>(`${PROVIDER_SELECT} order by sort_order asc, created_at desc, id asc`);
       return result.rows.map((row) => toAdminProviderRecordFromRow(row, deps));
     }
     return (await readAdminDb()).providers;
@@ -129,7 +137,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       const result = await pool.query<AdminProviderPostgresRow>(
-        `${PROVIDER_SELECT} where lower(protocol) = lower($1) order by updated_at desc`,
+        `${PROVIDER_SELECT} where lower(protocol) = lower($1) order by sort_order asc, created_at desc, id asc`,
         [normalizedProtocol],
       );
       return result.rows.map((row) => toAdminProviderRecordFromRow(row, deps));
@@ -160,7 +168,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
   async function readModelRecords(): Promise<AdminModelRecord[]> {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
-      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} order by updated_at desc`);
+      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} order by sort_order asc, created_at desc, id asc`);
       return result.rows.map((row) => toAdminModelRecordFromRow(row, deps));
     }
     return (await readAdminDb()).models.map(deps.normalizeAdminModelRecord);
@@ -169,7 +177,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
   async function readEnabledModelRecords(): Promise<AdminModelRecord[]> {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
-      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} where enabled = true order by updated_at desc`);
+      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} where enabled = true order by sort_order asc, created_at desc, id asc`);
       return result.rows.map((row) => toAdminModelRecordFromRow(row, deps));
     }
     return (await readModelRecords()).filter((model) => model.enabled);
@@ -179,7 +187,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     const normalizedProviderId = deps.safeText(providerId);
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
-      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} where provider_id = $1 order by updated_at desc`, [normalizedProviderId]);
+      const result = await pool.query<AdminModelPostgresRow>(`${MODEL_SELECT} where provider_id = $1 order by sort_order asc, created_at desc, id asc`, [normalizedProviderId]);
       return result.rows.map((row) => toAdminModelRecordFromRow(row, deps));
     }
     return (await readModelRecords()).filter((model) => model.providerId === normalizedProviderId);
@@ -289,11 +297,12 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     const pool = await deps.getPostgresPool();
     const normalized = deps.normalizeProviderSecret(provider);
     await pool.query(
-      `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17)
-       on conflict (id) do update set name = excluded.name, base_url = excluded.base_url, protocol = excluded.protocol, enabled = excluded.enabled, api_key_cipher = excluded.api_key_cipher, api_key_preview = excluded.api_key_preview, last_probe_status = excluded.last_probe_status, last_probe_message = excluded.last_probe_message, last_fetched_at = excluded.last_fetched_at, rh_apps = excluded.rh_apps, rh_workflows = excluded.rh_workflows, rh_key_pool = excluded.rh_key_pool, ms_loras = excluded.ms_loras, note = excluded.note, updated_at = excluded.updated_at`,
+      `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18)
+       on conflict (id) do update set sort_order = excluded.sort_order, name = excluded.name, base_url = excluded.base_url, protocol = excluded.protocol, enabled = excluded.enabled, api_key_cipher = excluded.api_key_cipher, api_key_preview = excluded.api_key_preview, last_probe_status = excluded.last_probe_status, last_probe_message = excluded.last_probe_message, last_fetched_at = excluded.last_fetched_at, rh_apps = excluded.rh_apps, rh_workflows = excluded.rh_workflows, rh_key_pool = excluded.rh_key_pool, ms_loras = excluded.ms_loras, note = excluded.note, updated_at = excluded.updated_at`,
       [
         normalized.id,
+        normalizeCatalogSortOrder(normalized.sortOrder),
         normalized.name,
         normalized.baseUrl,
         deps.normalizeProviderProtocol(normalized.protocol),
@@ -424,6 +433,83 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     return current;
   }
 
+  async function reorderProviderRecords(orderedIds: string[]): Promise<AdminProviderRecord[]> {
+    const current = await readProviderRecords();
+    const reordered = sortByCatalogDisplayOrder(applyCatalogDisplayOrder(current, orderedIds));
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const client = await pool.connect();
+      try {
+        await client.query('begin');
+        for (const provider of reordered) {
+          await client.query('update xh_providers set sort_order = $2 where id = $1', [
+            provider.id,
+            normalizeCatalogSortOrder(provider.sortOrder),
+          ]);
+        }
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      } finally {
+        client.release();
+      }
+      return reordered;
+    }
+    const db = await readAdminDb();
+    const orderById = new Map(reordered.map((provider) => [provider.id, provider.sortOrder]));
+    await writeAdminDb({
+      ...db,
+      providers: db.providers.map((provider) => ({
+        ...provider,
+        sortOrder: orderById.get(provider.id) ?? provider.sortOrder,
+      })),
+    });
+    return reordered;
+  }
+
+  async function reorderModelRecords(input: {
+    providerId: string;
+    capability: string;
+    orderedIds: string[];
+  }): Promise<AdminModelRecord[]> {
+    const providerId = deps.safeText(input.providerId);
+    const capability = deps.normalizeCapability(input.capability);
+    const allModels = await readModelRecords();
+    const scoped = allModels.filter((model) => model.providerId === providerId && deps.normalizeCapability(model.capability) === capability);
+    const reordered = sortByCatalogDisplayOrder(applyCatalogDisplayOrder(scoped, input.orderedIds));
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const client = await pool.connect();
+      try {
+        await client.query('begin');
+        for (const model of reordered) {
+          await client.query(
+            'update xh_models set sort_order = $2 where id = $1 and provider_id = $3 and capability = $4',
+            [model.id, normalizeCatalogSortOrder(model.sortOrder), providerId, capability],
+          );
+        }
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      } finally {
+        client.release();
+      }
+      return reordered;
+    }
+    const db = await readAdminDb();
+    const orderById = new Map(reordered.map((model) => [model.id, model.sortOrder]));
+    await writeAdminDb({
+      ...db,
+      models: db.models.map((model) => ({
+        ...model,
+        sortOrder: orderById.get(model.id) ?? model.sortOrder,
+      })),
+    });
+    return reordered;
+  }
+
   async function upsertModelRecordByProviderName(providerName: string, model: AdminModelRecord): Promise<AdminModelRecord> {
     const provider = await findProviderRecordByNaturalKey(providerName);
     if (!provider) throw new Error(`目标环境缺少服务商 ${providerName}，无法写入模型`);
@@ -437,11 +523,12 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     const pool = await deps.getPostgresPool();
     const normalized = deps.normalizeAdminModelRecord(model);
     await pool.query(
-      `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,$15)
-       on conflict (id) do update set provider_id = excluded.provider_id, model_id = excluded.model_id, display_name = excluded.display_name, capability = excluded.capability, enabled = excluded.enabled, input_profile = excluded.input_profile, input_capabilities = excluded.input_capabilities, capability_tags = excluded.capability_tags, test_state = excluded.test_state, parameter_schema = excluded.parameter_schema, advanced_config = excluded.advanced_config, protocol_override = excluded.protocol_override, updated_at = excluded.updated_at`,
+      `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15,$16)
+       on conflict (id) do update set sort_order = excluded.sort_order, provider_id = excluded.provider_id, model_id = excluded.model_id, display_name = excluded.display_name, capability = excluded.capability, enabled = excluded.enabled, input_profile = excluded.input_profile, input_capabilities = excluded.input_capabilities, capability_tags = excluded.capability_tags, test_state = excluded.test_state, parameter_schema = excluded.parameter_schema, advanced_config = excluded.advanced_config, protocol_override = excluded.protocol_override, updated_at = excluded.updated_at`,
       [
         normalized.id,
+        normalizeCatalogSortOrder(normalized.sortOrder),
         normalized.providerId,
         normalized.modelId,
         normalized.displayName,
@@ -484,6 +571,8 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     insertModelRecord,
     updateModelRecord,
     deleteModelRecord,
+    reorderProviderRecords,
+    reorderModelRecords,
     upsertModelRecordByProviderName,
     upsertProviderRecordPostgres,
     upsertModelRecordPostgres,

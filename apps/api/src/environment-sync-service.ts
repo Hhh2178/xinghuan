@@ -27,6 +27,7 @@ export interface EnvironmentSyncUserRecord {
 
 export interface EnvironmentSyncProviderRecord {
   id: string;
+  sortOrder?: number;
   name: string;
   baseUrl: string;
   protocol: string;
@@ -44,6 +45,7 @@ export interface EnvironmentSyncProviderRecord {
 
 export interface EnvironmentSyncModelRecord {
   id: string;
+  sortOrder?: number;
   providerId: string;
   providerName: string;
   modelId: string;
@@ -427,6 +429,7 @@ function userComparableSignature(user: EnvironmentSyncUserRecord) {
 function providerComparableSignature(provider: EnvironmentSyncProviderRecord) {
   return JSON.stringify({
     name: provider.name,
+    sortOrder: normalizeComparableOrder(provider.sortOrder),
     baseUrl: provider.baseUrl,
     protocol: provider.protocol,
     enabled: Boolean(provider.enabled),
@@ -456,6 +459,7 @@ function providerBundleSignature(
 function comparableModelRecord(model: EnvironmentSyncModelRecord): EnvironmentSyncModelRecord {
   return {
     ...model,
+    sortOrder: normalizeComparableOrder(model.sortOrder),
     providerName: String(model.providerName || "").trim(),
     modelId: String(model.modelId || "").trim(),
     displayName: String(model.displayName || "").trim(),
@@ -470,6 +474,11 @@ function comparableModelRecord(model: EnvironmentSyncModelRecord): EnvironmentSy
     advancedConfig: cloneComparableObject(model.advancedConfig),
     protocolOverride: String(model.protocolOverride || "").trim(),
   };
+}
+
+function normalizeComparableOrder(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 }
 
 function cloneComparableObject(value: unknown): Record<string, unknown> {

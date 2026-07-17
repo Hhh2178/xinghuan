@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { api } from "./admin-api-client";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
@@ -138,6 +138,43 @@ export function ApiSettingsPanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function moveProvider(providerId: string, direction: -1 | 1) {
+    const index = providers.findIndex((provider) => provider.id === providerId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= providers.length) return;
+    const next = [...providers];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    await run(
+      () => api<ProviderRecord[]>("/api/admin/providers/reorder", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ orderedIds: next.map((provider) => provider.id) }),
+      }),
+      "正在调整平台前台顺序...",
+    );
+  }
+
+  async function moveModel(model: ModelRecord, direction: -1 | 1) {
+    const scope = selectedModels.filter((item) => item.capability === model.capability);
+    const index = scope.findIndex((item) => item.id === model.id);
+    const targetIndex = index + direction;
+    if (!selected || index < 0 || targetIndex < 0 || targetIndex >= scope.length) return;
+    const next = [...scope];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    await run(
+      () => api<ModelRecord[]>("/api/admin/models/reorder", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          providerId: selected.id,
+          capability: model.capability,
+          orderedIds: next.map((item) => item.id),
+        }),
+      }),
+      "正在调整模型前台顺序...",
+    );
   }
 
   async function saveProvider() {
@@ -508,27 +545,31 @@ export function ApiSettingsPanel({
         <aside className="provider-rail">
           <div className="rail-title">平台列表</div>
           <div className="provider-list">
-            {providers.map((provider) => (
-              <button
-                key={provider.id}
-                type="button"
-                className={
-                  provider.id === selected?.id
-                    ? "provider-item active"
-                    : "provider-item"
-                }
-                onClick={() => setSelectedId(provider.id)}
-              >
-                <span className="provider-grip">::</span>
-                <span className="provider-key">
-                  <KeyRound aria-hidden="true" />
+            {providers.map((provider, index) => (
+              <div className="provider-order-row" key={provider.id}>
+                <button
+                  type="button"
+                  className={provider.id === selected?.id ? "provider-item active" : "provider-item"}
+                  onClick={() => setSelectedId(provider.id)}
+                >
+                  <span className="provider-key">
+                    <KeyRound aria-hidden="true" />
+                  </span>
+                  <span className="provider-copy">
+                    <strong>{provider.name}</strong>
+                    <small>{provider.baseUrl || "未配置地址"}</small>
+                  </span>
+                  <em>{provider.protocol || "openai"}</em>
+                </button>
+                <span className="catalog-order-actions">
+                  <button type="button" title="上移平台" onClick={() => moveProvider(provider.id, -1)} disabled={busy || index === 0}>
+                    <ArrowUp aria-hidden="true" />
+                  </button>
+                  <button type="button" title="下移平台" onClick={() => moveProvider(provider.id, 1)} disabled={busy || index === providers.length - 1}>
+                    <ArrowDown aria-hidden="true" />
+                  </button>
                 </span>
-                <span className="provider-copy">
-                  <strong>{provider.name}</strong>
-                  <small>{provider.baseUrl || "未配置地址"}</small>
-                </span>
-                <em>{provider.protocol || "openai"}</em>
-              </button>
+              </div>
             ))}
           </div>
           <div className="provider-rail-footer">
@@ -1003,6 +1044,8 @@ export function ApiSettingsPanel({
               onUpdate={updateModel}
               onDelete={requestDeleteModel}
               onTest={testModel}
+              onMove={moveModel}
+              reorderDisabled={busy}
             />
           ))}
         </div>

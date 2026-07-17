@@ -69,10 +69,11 @@ try {
 
   for (const provider of adminDb.providers) {
     await client.query(
-      `insert into xh_providers (id, name, base_url, enabled, api_key_cipher, api_key_preview, note, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `insert into xh_providers (id, sort_order, name, base_url, enabled, api_key_cipher, api_key_preview, note, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         provider.id,
+        normalizeSortOrder(provider.sortOrder),
         provider.name,
         provider.baseUrl || "",
         Boolean(provider.enabled),
@@ -92,10 +93,11 @@ try {
       continue;
     }
     await client.query(
-      `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12)`,
+      `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, parameter_schema, advanced_config, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13)`,
       [
         model.id,
+        normalizeSortOrder(model.sortOrder),
         model.providerId,
         model.modelId,
         model.displayName,
@@ -187,6 +189,11 @@ function parseJsonObject(value) {
 
 function normalizeCapability(value) {
   return ["text", "image", "video", "audio"].includes(value) ? value : "text";
+}
+
+function normalizeSortOrder(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 }
 
 function normalizeTaskStatus(value) {

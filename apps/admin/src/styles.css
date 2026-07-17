@@ -3317,9 +3317,16 @@ td {
   width: 100%;
 }
 
+.provider-order-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 6px;
+  align-items: stretch;
+}
+
 .provider-item {
   display: grid;
-  grid-template-columns: 18px 36px minmax(0, 1fr) max-content;
+  grid-template-columns: 36px minmax(0, 1fr) max-content;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -3335,13 +3342,6 @@ td {
 .provider-item.active {
   border-color: rgba(45, 212, 191, 0.58);
   background: rgba(20, 184, 166, 0.18);
-}
-
-.provider-grip {
-  flex: 0 0 auto;
-  min-width: 18px;
-  color: #64748b;
-  font-weight: 900;
 }
 
 .provider-key {
@@ -3388,6 +3388,40 @@ td {
   font-style: normal;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.catalog-order-actions {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.catalog-order-actions button {
+  display: grid;
+  min-width: 28px;
+  min-height: 26px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 6px;
+  color: #7dd3fc;
+  background: rgba(8, 47, 73, 0.38);
+}
+
+.catalog-order-actions button:hover:not(:disabled) {
+  border-color: rgba(45, 212, 191, 0.56);
+  color: #99f6e4;
+  background: rgba(13, 148, 136, 0.2);
+}
+
+.catalog-order-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.catalog-order-actions svg {
+  width: 13px;
+  height: 13px;
 }
 
 .provider-add,
@@ -4146,6 +4180,17 @@ td {
 .model-list {
   display: grid;
   gap: 8px;
+}
+
+.model-order-entry {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.model-order-actions {
+  min-height: 64px;
 }
 
 .model-row {

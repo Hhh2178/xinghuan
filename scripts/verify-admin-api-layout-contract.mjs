@@ -44,13 +44,12 @@ const checks = [
     pass: stylesSource.includes("--admin-sticky-offset"),
   },
   {
-    name: "provider rail stays in normal document flow without overlay positioning",
+    name: "provider rail stays sticky within the viewport",
     pass:
       providerRailBlock.includes("display: grid") &&
-      !providerRailBlock.includes("position:") &&
-      !providerRailBlock.includes("top:") &&
-      !providerRailBlock.includes("z-index:") &&
-      !providerRailBlock.includes("max-height: calc(100vh"),
+      providerRailBlock.includes("position: sticky") &&
+      providerRailBlock.includes("top: var(--admin-sticky-offset)") &&
+      providerRailBlock.includes("max-height: calc(100vh"),
   },
   {
     name: "users create column uses shared sticky offset",
@@ -134,8 +133,8 @@ const checks = [
   {
     name: "provider list status icon keeps fixed dimensions",
     pass:
-      stylesSource.includes("grid-template-columns: 18px 36px minmax(0, 1fr) max-content;") &&
-      stylesSource.includes(".provider-grip {\n  flex: 0 0 auto;") &&
+      stylesSource.includes("grid-template-columns: 36px minmax(0, 1fr) max-content;") &&
+      stylesSource.includes(".provider-order-row {\n  display: grid;") &&
       stylesSource.includes(".provider-key {\n  display: grid;\n  flex: 0 0 34px;") &&
       stylesSource.includes(".provider-item em {\n  flex: 0 0 auto;"),
   },

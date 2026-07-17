@@ -285,6 +285,7 @@ export interface AdminSessionRecord {
 
 export interface ProviderRecord {
   id: string;
+  sortOrder: number;
   name: string;
   baseUrl: string;
   protocol: ProviderProtocol;
@@ -486,6 +487,7 @@ export interface ModelScopeLora {
 
 export interface ModelRecord {
   id: string;
+  sortOrder: number;
   providerId: string;
   modelId: string;
   displayName: string;

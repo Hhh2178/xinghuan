@@ -158,6 +158,7 @@ import { createPermissionShadowMetrics } from "./permissions/permission-shadow-m
 import { evaluatePermissionReadiness } from "./permissions/permission-readiness.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
+import { normalizeCatalogSortOrder, sortByCatalogDisplayOrder } from "./catalog-display-order.js";
 import {
   findCanvasSnapshotOwnershipConflicts,
   planCanvasSnapshotRecovery,
@@ -743,6 +744,7 @@ type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "api
 
 interface AdminProviderRecord {
   id: string;
+  sortOrder?: number;
   name: string;
   baseUrl: string;
   protocol?: ProviderProtocol;
@@ -785,6 +787,7 @@ interface ModelScopeLora {
 
 interface AdminModelRecord {
   id: string;
+  sortOrder?: number;
   providerId: string;
   modelId: string;
   displayName: string;
@@ -2484,6 +2487,7 @@ async function handleAdminRequest(
       insertProviderRecord: async (provider) => providerRepository.insertProviderRecord(provider as AdminProviderRecord),
       updateProviderRecord: async (providerId, transform) => providerRepository.updateProviderRecord(providerId, (provider) => transform(provider) as AdminProviderRecord),
       deleteProviderRecord: providerRepository.deleteProviderRecord,
+      reorderProviderRecords: providerRepository.reorderProviderRecords,
       normalizeProviderProtocol,
       normalizeRunningHubEntries,
       normalizeRunningHubKeyPool,
@@ -2980,9 +2984,15 @@ async function handleAdminRequest(
       const advancedConfig = parseAdvancedConfig(body.advancedConfig);
       const executionMode = normalizeProviderGenerationExecutionMode(body.executionMode, advancedConfig, capability);
       advancedConfig.executionMode = executionMode;
+      const providerId = safeSlug(body.providerId, "provider");
       const model: AdminModelRecord = {
         id: safeSlug(body.id, `model-${now}`),
-        providerId: safeSlug(body.providerId, "provider"),
+        sortOrder: Number.isFinite(Number(body.sortOrder))
+          ? Math.trunc(Number(body.sortOrder))
+          : db.models
+              .filter((item) => item.providerId === providerId && normalizeCapability(item.capability) === capability)
+              .reduce((max, item) => Math.max(max, normalizeCatalogSortOrder(item.sortOrder)), -10) + 10,
+        providerId,
         modelId: safeText(body.modelId, "model"),
         displayName: safeText(body.displayName, "新模型"),
         capability,
@@ -3009,6 +3019,21 @@ async function handleAdminRequest(
       sendT8(response, normalizedModel);
       return true;
     }
+  }
+
+  if (url.pathname === "/api/admin/models/reorder" && request.method === "POST") {
+    const body = await readJsonBody<{ providerId?: string; capability?: string; orderedIds?: string[] }>(request);
+    const providerId = safeSlug(body.providerId, "");
+    const capability = normalizeCapability(body.capability);
+    if (!providerId) throw new Error("缺少 Provider ID");
+    const models = await providerRepository.reorderModelRecords({
+      providerId,
+      capability,
+      orderedIds: Array.isArray(body.orderedIds) ? body.orderedIds : [],
+    });
+    await appendAudit(adminUser, "models.reorder", "model", `${providerId}:${capability}`, "调整模型前台展示顺序", requestContext);
+    sendT8(response, models);
+    return true;
   }
 
   const modelTestMatch = url.pathname.match(/^\/api\/admin\/models\/([^/]+)\/test$/);
@@ -3069,6 +3094,9 @@ async function handleAdminRequest(
       nextAdvancedConfig.executionMode = nextExecutionMode;
       const next: AdminModelRecord = {
         ...model,
+        sortOrder: body.sortOrder === undefined || !Number.isFinite(Number(body.sortOrder))
+          ? model.sortOrder
+          : Math.trunc(Number(body.sortOrder)),
         providerId: body.providerId === undefined ? model.providerId : safeSlug(body.providerId, model.providerId),
         modelId: body.modelId === undefined ? model.modelId : safeText(body.modelId, model.modelId),
         displayName: body.displayName === undefined ? model.displayName : safeText(body.displayName, model.displayName),
@@ -3263,6 +3291,7 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
     })),
     providers: adminDb.providers.map((provider) => ({
       id: provider.id,
+      sortOrder: normalizeCatalogSortOrder(provider.sortOrder),
       name: provider.name,
       baseUrl: provider.baseUrl,
       protocol: normalizeProviderProtocol(provider.protocol),
@@ -3280,6 +3309,7 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
     models: adminDb.models
       .map((model) => ({
         id: model.id,
+        sortOrder: normalizeCatalogSortOrder(model.sortOrder),
         providerId: model.providerId,
         providerName: providerNameById.get(model.providerId) || "",
         modelId: model.modelId,
@@ -3468,6 +3498,7 @@ function normalizeEnvironmentSyncProviderRecord(value: unknown) {
   const apiKey = safeText(source.apiKey);
   return {
     id: safeSlug(source.id, `provider-${Date.now()}`),
+    sortOrder: normalizeCatalogSortOrder(source.sortOrder),
     name,
     baseUrl: safeText(source.baseUrl),
     protocol: normalizeProviderProtocol(source.protocol),
@@ -3494,6 +3525,7 @@ function normalizeEnvironmentSyncModelRecord(value: unknown) {
   advancedConfig.executionMode = executionMode;
   return {
     id: safeSlug(source.id, `model-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    sortOrder: normalizeCatalogSortOrder(source.sortOrder),
     providerId: safeSlug(source.providerId, "provider"),
     providerName,
     modelId,
@@ -3575,6 +3607,7 @@ async function upsertEnvironmentSyncUser(user: {
 
 async function upsertEnvironmentSyncProvider(provider: {
   id: string;
+  sortOrder?: number;
   name: string;
   baseUrl: string;
   protocol: string;
@@ -3592,6 +3625,7 @@ async function upsertEnvironmentSyncProvider(provider: {
   const existing = await findProviderRecordByNaturalKey(provider.name);
   const nextProvider: AdminProviderRecord = {
     id: existing?.id || provider.id,
+    sortOrder: normalizeCatalogSortOrder(provider.sortOrder, normalizeCatalogSortOrder(existing?.sortOrder)),
     name: provider.name,
     baseUrl: provider.baseUrl,
     protocol: normalizeProviderProtocol(provider.protocol),
@@ -3623,6 +3657,7 @@ async function upsertEnvironmentSyncProvider(provider: {
 
 async function upsertEnvironmentSyncProviderModel(model: {
   id: string;
+  sortOrder?: number;
   providerId: string;
   providerName: string;
   modelId: string;
@@ -3647,6 +3682,7 @@ async function upsertEnvironmentSyncProviderModel(model: {
   const existing = await findModelRecordByNaturalKey(provider.id, model.capability, model.modelId);
   const normalizedModel = normalizeAdminModelRecord({
     id: existing?.id || model.id,
+    sortOrder: normalizeCatalogSortOrder(model.sortOrder, normalizeCatalogSortOrder(existing?.sortOrder)),
     providerId: provider.id,
     modelId: model.modelId,
     displayName: model.displayName,
@@ -4246,15 +4282,18 @@ async function readAdminDb(): Promise<AdminDb> {
   let secretMigrated = false;
   const providers = Array.isArray(db.providers)
     ? db.providers.map((provider) => {
-        const normalized = normalizeProviderSecret(provider);
+        const normalized = normalizeProviderSecret({
+          ...provider,
+          sortOrder: normalizeCatalogSortOrder(provider.sortOrder),
+        });
         if (normalized !== provider) secretMigrated = true;
         return normalized;
       })
     : [];
   const normalizedDb = {
     announcements: Array.isArray(db.announcements) ? db.announcements : [],
-    providers,
-    models: Array.isArray(db.models) ? db.models.map((model) => normalizeAdminModelRecord(model)) : [],
+    providers: sortByCatalogDisplayOrder(providers),
+    models: sortByCatalogDisplayOrder(Array.isArray(db.models) ? db.models.map((model) => normalizeAdminModelRecord(model)) : []),
     tasks: Array.isArray(db.tasks) ? db.tasks : [],
     auditLogs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
     assistantSettings: normalizeAssistantSettings(db.assistantSettings),
@@ -4946,9 +4985,9 @@ async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRec
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
   const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult, systemSettingsResult] = await Promise.all([
-    pool.query("select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers order by created_at desc"),
+    pool.query("select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers order by sort_order asc, created_at desc, id asc"),
     pool.query(
-      "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by created_at desc",
+      "select id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by sort_order asc, created_at desc, id asc",
     ),
     pool.query("select id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at from xh_tasks order by created_at desc"),
     pool.query(
@@ -4961,6 +5000,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
     providers: providersResult.rows.map((row) =>
       normalizeProviderSecret({
         id: row.id,
+        sortOrder: normalizeCatalogSortOrder(row.sort_order),
         name: row.name,
         baseUrl: row.base_url || "",
         protocol: normalizeProviderProtocol(row.protocol),
@@ -4982,6 +5022,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
     models: modelsResult.rows.map((row) =>
       normalizeAdminModelRecord({
         id: row.id,
+        sortOrder: normalizeCatalogSortOrder(row.sort_order),
         providerId: row.provider_id,
         modelId: row.model_id,
         displayName: row.display_name,
@@ -5071,10 +5112,11 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
     await client.query("delete from xh_providers");
     for (const provider of db.providers.map(normalizeProviderSecret)) {
       await client.query(
-        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)`,
+        `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb, $16, $17, $18)`,
         [
           provider.id,
+          normalizeCatalogSortOrder(provider.sortOrder),
           provider.name,
           provider.baseUrl,
           normalizeProviderProtocol(provider.protocol),
@@ -5097,10 +5139,11 @@ async function writeAdminDbPostgres(db: AdminDb, options?: { allowFullReplace?: 
     for (const model of db.models) {
       const normalizedModel = normalizeAdminModelRecord(model);
       await client.query(
-        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)`,
+        `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)`,
         [
           normalizedModel.id,
+          normalizeCatalogSortOrder(normalizedModel.sortOrder),
           normalizedModel.providerId,
           normalizedModel.modelId,
           normalizedModel.displayName,
@@ -5202,11 +5245,12 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
     await client.query("begin");
     for (const provider of db.providers.map(normalizeProviderSecret)) {
       await client.query(
-        `insert into xh_providers (id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)
+        `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)
          on conflict (id) do nothing`,
         [
           provider.id,
+          normalizeCatalogSortOrder(provider.sortOrder),
           provider.name,
           provider.baseUrl,
           normalizeProviderProtocol(provider.protocol),
@@ -5228,11 +5272,12 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
     for (const model of db.models) {
       const normalizedModel = normalizeAdminModelRecord(model);
       await client.query(
-        `insert into xh_models (id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15)
+        `insert into xh_models (id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16)
          on conflict (id) do nothing`,
         [
           normalizedModel.id,
+          normalizeCatalogSortOrder(normalizedModel.sortOrder),
           normalizedModel.providerId,
           normalizedModel.modelId,
           normalizedModel.displayName,
@@ -5614,6 +5659,7 @@ function normalizeAdminModelRecord(model: AdminModelRecord): AdminModelRecord {
   advancedConfig.executionMode = executionMode;
   return {
     ...model,
+    sortOrder: normalizeCatalogSortOrder(model.sortOrder),
     capability,
     enabled: Boolean(model.enabled),
     executionMode,
@@ -6038,6 +6084,7 @@ function defaultAdminDb(): AdminDb {
     providers: [
       {
         id: "modelscope",
+        sortOrder: 0,
         name: "ModelScope",
         baseUrl: "https://api-inference.modelscope.cn/v1",
         protocol: "modelscope",
@@ -6057,6 +6104,7 @@ function defaultAdminDb(): AdminDb {
       },
       {
         id: "runninghub",
+        sortOrder: 10,
         name: "RunningHub",
         baseUrl: "https://www.runninghub.cn",
         protocol: "runninghub",
@@ -6069,6 +6117,7 @@ function defaultAdminDb(): AdminDb {
       },
       {
         id: "grsai",
+        sortOrder: 20,
         name: "GRSAI",
         baseUrl: "https://api.grsai.com",
         protocol: "openai",
@@ -6079,6 +6128,7 @@ function defaultAdminDb(): AdminDb {
       },
       {
         id: "toapis",
+        sortOrder: 30,
         name: "ToAPIs",
         baseUrl: "https://api.toapis.com",
         protocol: "openai",
@@ -6091,6 +6141,7 @@ function defaultAdminDb(): AdminDb {
     models: [
       {
         id: "grsai-gpt-image-2",
+        sortOrder: 0,
         providerId: "grsai",
         modelId: "gpt-image-2",
         displayName: "GRSAI gpt-image-2",
@@ -6103,6 +6154,7 @@ function defaultAdminDb(): AdminDb {
       },
       {
         id: "toapis-grok-video",
+        sortOrder: 0,
         providerId: "toapis",
         modelId: "grok-video",
         displayName: "ToAPIs Grok Video",
@@ -6718,9 +6770,20 @@ function defaultSettings() {
 
 async function publicModelCatalog(currentUser?: CurrentUser | null) {
   const db = await readAdminDb();
-  const providerMap = new Map(db.providers.map((provider) => [provider.id, provider]));
+  const orderedProviders = sortByCatalogDisplayOrder(db.providers);
+  const providerMap = new Map(orderedProviders.map((provider) => [provider.id, provider]));
+  const providerOrder = new Map(orderedProviders.map((provider, index) => [provider.id, index]));
+  const orderedModels = [...db.models].sort((left, right) => {
+    const providerDelta = (providerOrder.get(left.providerId) ?? Number.MAX_SAFE_INTEGER)
+      - (providerOrder.get(right.providerId) ?? Number.MAX_SAFE_INTEGER);
+    if (providerDelta !== 0) return providerDelta;
+    const modelOrderDelta = normalizeCatalogSortOrder(left.sortOrder) - normalizeCatalogSortOrder(right.sortOrder);
+    if (modelOrderDelta !== 0) return modelOrderDelta;
+    const createdDelta = normalizeCatalogSortOrder(right.createdAt) - normalizeCatalogSortOrder(left.createdAt);
+    return createdDelta || left.id.localeCompare(right.id);
+  });
   if (currentUser && currentUser.role !== "admin") await reconcilePermissionSubjects();
-  const all = (await Promise.all(db.models
+  const all = (await Promise.all(orderedModels
     .filter((model) => model.enabled)
     .map(async (model) => {
       const provider = providerMap.get(model.providerId);
@@ -6743,6 +6806,7 @@ async function publicModelCatalog(currentUser?: CurrentUser | null) {
       })).allowed) return null;
       return {
         id: model.id,
+        sortOrder: normalizeCatalogSortOrder(model.sortOrder),
         providerId: model.providerId,
         modelId: model.modelId,
         displayName: model.displayName,
@@ -6757,6 +6821,7 @@ async function publicModelCatalog(currentUser?: CurrentUser | null) {
         ui: uiMetadataFromSchema(parameterSchema, capability, inputCapabilities),
         provider: {
           id: provider.id,
+          sortOrder: normalizeCatalogSortOrder(provider.sortOrder),
           name: provider.name,
           protocol: normalizeProviderProtocol(provider.protocol),
           enabled: true,
@@ -8895,6 +8960,7 @@ function toPublicProvider(provider: AdminProviderRecord) {
   const rhKeyPoolSummary = summarizeRunningHubKeyPool(rhKeyPool);
   return {
     id: provider.id,
+    sortOrder: normalizeCatalogSortOrder(provider.sortOrder),
     name: provider.name,
     baseUrl: provider.baseUrl,
     protocol: normalizeProviderProtocol(provider.protocol),

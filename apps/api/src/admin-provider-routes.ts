@@ -22,6 +22,7 @@ export interface RequestContextShape {
 
 export interface AdminProviderRecordShape {
   id: string;
+  sortOrder?: number;
   name: string;
   baseUrl: string;
   protocol?: unknown;
@@ -64,6 +65,7 @@ export interface AdminProviderRouteDeps {
   insertProviderRecord: (provider: AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
   updateProviderRecord: (providerId: string, transform: (provider: AdminProviderRecordShape) => AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
   deleteProviderRecord: (providerId: string) => Promise<AdminProviderRecordShape>;
+  reorderProviderRecords: (orderedIds: string[]) => Promise<AdminProviderRecordShape[]>;
   normalizeProviderProtocol: (value: unknown) => string;
   normalizeRunningHubEntries: (value: unknown, kind: "app" | "workflow") => unknown;
   normalizeRunningHubKeyPool: (value: unknown) => unknown;
@@ -100,8 +102,11 @@ export async function handleAdminProviderRoutes(input: {
       const body = await readJsonBody<Partial<AdminProviderRecordShape>>(request);
       const now = Date.now();
       const apiKey = safeText(body.apiKey);
+      const providers = await deps.readProviderRecords();
+      const nextSortOrder = providers.reduce((max, provider) => Math.max(max, Number(provider.sortOrder) || 0), -10) + 10;
       const provider: AdminProviderRecordShape = {
         id: safeSlug(body.id, `provider-${now}`),
+        sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.trunc(Number(body.sortOrder)) : nextSortOrder,
         name: safeText(body.name, "新服务商"),
         baseUrl: safeText(body.baseUrl),
         protocol: deps.normalizeProviderProtocol(body.protocol),
@@ -121,6 +126,14 @@ export async function handleAdminProviderRoutes(input: {
       deps.sendT8(response, deps.toPublicProvider(provider));
       return true;
     }
+  }
+
+  if (url.pathname === `${PROVIDER_PATH}/reorder` && request.method === "POST") {
+    const body = await readJsonBody<{ orderedIds?: string[] }>(request);
+    const providers = await deps.reorderProviderRecords(Array.isArray(body.orderedIds) ? body.orderedIds : []);
+    await deps.appendAudit(adminUser, "providers.reorder", "provider", "providers-list", "调整 Provider 前台展示顺序", requestContext);
+    deps.sendT8(response, providers.map(deps.toPublicProvider));
+    return true;
   }
 
   if (url.pathname === `${PROVIDER_PATH}/probe` && request.method === "POST") {
@@ -174,6 +187,9 @@ export async function handleAdminProviderRoutes(input: {
         baseUrl: body.baseUrl === undefined ? provider.baseUrl : safeText(body.baseUrl),
         protocol: body.protocol === undefined ? provider.protocol : deps.normalizeProviderProtocol(body.protocol),
         enabled: body.enabled === undefined ? provider.enabled : Boolean(body.enabled),
+        sortOrder: body.sortOrder === undefined || !Number.isFinite(Number(body.sortOrder))
+          ? provider.sortOrder
+          : Math.trunc(Number(body.sortOrder)),
         rhApps: body.rhApps === undefined ? provider.rhApps : deps.normalizeRunningHubEntries(body.rhApps, "app"),
         rhWorkflows: body.rhWorkflows === undefined ? provider.rhWorkflows : deps.normalizeRunningHubEntries(body.rhWorkflows, "workflow"),
         rhKeyPool: body.rhKeyPool === undefined ? provider.rhKeyPool : deps.normalizeRunningHubKeyPool(body.rhKeyPool),

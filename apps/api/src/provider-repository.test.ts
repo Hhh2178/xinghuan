@@ -33,6 +33,7 @@ function createDeps(overrides: Partial<Parameters<typeof createProviderRepositor
 function providerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "p1",
+    sort_order: 0,
     name: "Provider One",
     base_url: "https://example.test",
     protocol: "openai",
@@ -56,6 +57,7 @@ function providerRow(overrides: Record<string, unknown> = {}) {
 function modelRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "m1",
+    sort_order: 0,
     provider_id: "p1",
     model_id: "gpt-test",
     display_name: "GPT Test",
@@ -176,5 +178,92 @@ describe("provider repository", () => {
       tasks: [{ providerId: "", modelId: "" }],
     });
     await rm(dir, { recursive: true, force: true });
+  });
+
+  it("persists provider and scoped model display order in file mode", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "provider-repo-order-"));
+    const adminDbPath = join(dir, "admin.json");
+    const repo = createProviderRepository(createDeps({ adminDbPath }));
+    await repo.writeAdminDb({
+      providers: [
+        { id: "p1", name: "One", baseUrl: "", enabled: true, sortOrder: 0, createdAt: 2, updatedAt: 2 },
+        { id: "p2", name: "Two", baseUrl: "", enabled: true, sortOrder: 10, createdAt: 1, updatedAt: 1 },
+      ],
+      models: [
+        { id: "m1", providerId: "p1", modelId: "one", displayName: "One", capability: "image", enabled: true, sortOrder: 0, inputProfile: "prompt", parameterSchema: "{}", createdAt: 2, updatedAt: 2 },
+        { id: "m2", providerId: "p1", modelId: "two", displayName: "Two", capability: "image", enabled: true, sortOrder: 10, inputProfile: "prompt", parameterSchema: "{}", createdAt: 1, updatedAt: 1 },
+      ],
+    });
+
+    await repo.reorderProviderRecords(["p2", "p1"]);
+    await repo.reorderModelRecords({ providerId: "p1", capability: "image", orderedIds: ["m2", "m1"] });
+
+    const loaded = await repo.readAdminDb();
+    expect(loaded.providers.map((provider) => provider.id)).toEqual(["p2", "p1"]);
+    expect(loaded.models.map((model) => model.id)).toEqual(["m2", "m1"]);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("updates postgres provider display order in one transaction", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from xh_providers")) {
+        return { rows: [providerRow({ id: "p1", sort_order: 0 }), providerRow({ id: "p2", sort_order: 10 })] };
+      }
+      return { rows: [] };
+    });
+    const release = vi.fn();
+    const repo = createProviderRepository(createDeps({
+      usePostgresRepository: () => true,
+      getPostgresPool: async () => ({ query, connect: async () => ({ query, release }) } as never),
+    }));
+
+    await expect(repo.reorderProviderRecords(["p2", "p1"])).resolves.toEqual([
+      expect.objectContaining({ id: "p2", sortOrder: 0 }),
+      expect.objectContaining({ id: "p1", sortOrder: 10 }),
+    ]);
+    expect(query).toHaveBeenCalledWith("begin");
+    expect(query).toHaveBeenCalledWith("commit");
+    expect(query).toHaveBeenCalledWith("update xh_providers set sort_order = $2 where id = $1", ["p2", 0]);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists sort order through postgres provider and model upserts", async () => {
+    const query = vi.fn(async () => ({ rows: [] }));
+    const repo = createProviderRepository(createDeps({
+      usePostgresRepository: () => true,
+      getPostgresPool: async () => ({ query } as never),
+    }));
+
+    await repo.upsertProviderRecordPostgres({
+      id: "p1",
+      sortOrder: 40,
+      name: "Provider One",
+      baseUrl: "https://example.test",
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 2,
+    });
+    await repo.upsertModelRecordPostgres({
+      id: "m1",
+      sortOrder: 30,
+      providerId: "p1",
+      modelId: "gpt-test",
+      displayName: "GPT Test",
+      capability: "chat",
+      enabled: true,
+      inputProfile: "prompt",
+      parameterSchema: "{}",
+      createdAt: 1,
+      updatedAt: 2,
+    });
+
+    const providerCall = query.mock.calls[0] as unknown as [string, unknown[]];
+    const modelCall = query.mock.calls[1] as unknown as [string, unknown[]];
+    expect(providerCall[0]).toContain("sort_order");
+    expect(providerCall[1]).toHaveLength(18);
+    expect(providerCall[1][1]).toBe(40);
+    expect(modelCall[0]).toContain("sort_order");
+    expect(modelCall[1]).toHaveLength(16);
+    expect(modelCall[1][1]).toBe(30);
   });
 });

@@ -4,9 +4,11 @@ import type {
   AdminProviderRecord,
   ProviderRepositoryDeps,
 } from "./provider-repository-types.js";
+import { normalizeCatalogSortOrder } from "./catalog-display-order.js";
 
 export interface AdminProviderPostgresRow extends QueryResultRow {
   id: unknown;
+  sort_order: unknown;
   name: unknown;
   base_url: unknown;
   protocol: unknown;
@@ -27,6 +29,7 @@ export interface AdminProviderPostgresRow extends QueryResultRow {
 
 export interface AdminModelPostgresRow extends QueryResultRow {
   id: unknown;
+  sort_order: unknown;
   provider_id: unknown;
   model_id: unknown;
   display_name: unknown;
@@ -46,6 +49,7 @@ export interface AdminModelPostgresRow extends QueryResultRow {
 export function toAdminProviderRecordFromRow(row: AdminProviderPostgresRow, deps: ProviderRepositoryDeps): AdminProviderRecord {
   return {
     id: deps.safeText(row.id),
+    sortOrder: normalizeCatalogSortOrder(row.sort_order),
     name: deps.safeText(row.name),
     baseUrl: deps.safeText(row.base_url),
     protocol: deps.normalizeProviderProtocol(row.protocol),
@@ -68,6 +72,7 @@ export function toAdminProviderRecordFromRow(row: AdminProviderPostgresRow, deps
 export function toAdminModelRecordFromRow(row: AdminModelPostgresRow, deps: ProviderRepositoryDeps): AdminModelRecord {
   return deps.normalizeAdminModelRecord({
     id: deps.safeText(row.id),
+    sortOrder: normalizeCatalogSortOrder(row.sort_order),
     providerId: deps.safeText(row.provider_id),
     modelId: deps.safeText(row.model_id),
     displayName: deps.safeText(row.display_name),
@@ -86,7 +91,7 @@ export function toAdminModelRecordFromRow(row: AdminModelPostgresRow, deps: Prov
 }
 
 export const PROVIDER_SELECT =
-  "select id, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers";
+  "select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers";
 
 export const MODEL_SELECT =
-  "select id, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models";
+  "select id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models";

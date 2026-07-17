@@ -298,6 +298,7 @@ export type ModelCapability = 'chat' | 'image' | 'video' | 'audio';
 
 export interface PublicProviderRef {
   id: string;
+  sortOrder: number;
   name: string;
   protocol: string;
   enabled: boolean;
@@ -335,6 +336,7 @@ export interface PublicModelUi {
 
 export interface PublicModelRecord {
   id: string;
+  sortOrder: number;
   providerId: string;
   modelId: string;
   displayName: string;

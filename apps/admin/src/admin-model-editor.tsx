@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import {
   durationOptionsFromRange,
   mergeAicopySdRequestContractDefaults,
@@ -1072,6 +1072,8 @@ export function ModelSection({
   onUpdate,
   onDelete,
   onTest,
+  onMove,
+  reorderDisabled,
 }: {
   providerProtocol: ProviderProtocol;
   capability: Capability;
@@ -1080,6 +1082,8 @@ export function ModelSection({
   onUpdate: (model: ModelRecord, patch: Partial<ModelRecord>) => Promise<void>;
   onDelete: (model: ModelRecord) => void;
   onTest: (model: ModelRecord, kind: string, autoApply?: boolean) => Promise<void>;
+  onMove: (model: ModelRecord, direction: -1 | 1) => Promise<void>;
+  reorderDisabled: boolean;
 }) {
   return (
     <section className="api-card model-section">
@@ -1094,15 +1098,24 @@ export function ModelSection({
       </div>
       <div className="model-list">
         {models.length ? (
-          models.map((m) => (
-            <ModelEditorRow
-              key={m.id}
-              model={m}
-              providerProtocol={providerProtocol}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              onTest={onTest}
-            />
+          models.map((m, index) => (
+            <div className="model-order-entry" key={m.id}>
+              <span className="catalog-order-actions model-order-actions">
+                <button type="button" title="上移模型" onClick={() => onMove(m, -1)} disabled={reorderDisabled || index === 0}>
+                  <ArrowUp aria-hidden="true" />
+                </button>
+                <button type="button" title="下移模型" onClick={() => onMove(m, 1)} disabled={reorderDisabled || index === models.length - 1}>
+                  <ArrowDown aria-hidden="true" />
+                </button>
+              </span>
+              <ModelEditorRow
+                model={m}
+                providerProtocol={providerProtocol}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onTest={onTest}
+              />
+            </div>
           ))
         ) : (
           <div className="empty-models">暂无模型</div>
