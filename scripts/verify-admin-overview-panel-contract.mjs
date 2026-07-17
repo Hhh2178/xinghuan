@@ -15,7 +15,7 @@ const checks = [
   },
   {
     name: "main imports overview panel",
-    pass: mainSource.includes('from "./admin-overview-panel"') || mainSource.includes('from "./admin-overview-panel.js"'),
+    pass: mainSource.includes('from "./admin-overview-panel"') || mainSource.includes('from "./admin-overview-panel.js"') || mainSource.includes('import("./admin-overview-panel")'),
   },
   {
     name: "main no longer inlines Overview",

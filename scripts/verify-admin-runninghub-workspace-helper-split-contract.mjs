@@ -6,6 +6,8 @@ async function run() {
   const helper = await readFile(new URL("../apps/admin/src/admin-runninghub-workspace-helpers.tsx", import.meta.url), "utf8");
 
   assert.match(workspace, /from "\.\/admin-runninghub-workspace-helpers"/, "workspace should import extracted RH workspace helpers");
+  assert.match(workspace, /activeView\?: AdminRhViewId/, "workspace should support controlled RH subpage navigation");
+  assert.match(workspace, /activeView === "keys"/, "workspace should isolate the Provider key pool subpage");
   assert.match(helper, /export function mergeDraftSectionsToCreatePayload\(/, "helper should own create-payload merge logic");
   assert.match(helper, /export function mergeDraftSectionsToUpdatePayload\(/, "helper should own update-payload merge logic");
   assert.match(helper, /export function renderAnalyzeSectionPreview\(/, "helper should own analyze preview rendering");

@@ -18,9 +18,11 @@ import type { ComfyuiInstanceRecord, ComfyuiWorkflowDraft } from "./admin-types"
 interface ComfyuiDetailProps {
   instanceId: string;
   onBack: () => void;
+  activeTab?: DetailTab;
+  onTabChange?: (tab: DetailTab) => void;
 }
 
-type DetailTab = "config" | "workflows" | "logs";
+export type DetailTab = "config" | "workflows" | "logs";
 
 const DETAIL_TABS: Array<{
   id: DetailTab;
@@ -67,8 +69,10 @@ function baseUrlSourceText(value?: ComfyuiInstanceRecord["baseUrlSource"]) {
   return value === "connector" ? "跟随 connector" : "手工固定";
 }
 
-export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
-  const [activeTab, setActiveTab] = useState<DetailTab>("config");
+export function AdminComfyuiDetail({ instanceId, onBack, activeTab: controlledTab, onTabChange }: ComfyuiDetailProps) {
+  const [localActiveTab, setLocalActiveTab] = useState<DetailTab>(controlledTab || "config");
+  const activeTab = controlledTab || localActiveTab;
+  const selectTab = (tab: DetailTab) => { setLocalActiveTab(tab); onTabChange?.(tab); };
   const [instance, setInstance] = useState<ComfyuiInstanceRecord | null>(null);
   const [availableInstances, setAvailableInstances] = useState<ComfyuiInstanceRecord[]>([]);
   const [workflows, setWorkflows] = useState<ComfyuiWorkflowDraft[]>([]);
@@ -254,7 +258,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
       setWorkflowJsonText("");
       setWorkflowImportLabel("未选择 JSON 文件");
       setSelectedWorkflowId(created.id);
-      setActiveTab("workflows");
+      selectTab("workflows");
       setMessage(`已创建工作流：${created.title}`);
       await loadWorkflows();
     } catch (error) {
@@ -378,7 +382,7 @@ export function AdminComfyuiDetail({ instanceId, onBack }: ComfyuiDetailProps) {
               key={tab.id}
               type="button"
               className={activeTab === tab.id ? "tab-button active" : "tab-button"}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
               disabled={!instance && tab.id !== "config"}
             >
               <Icon aria-hidden="true" />

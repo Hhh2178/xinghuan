@@ -28,7 +28,7 @@
 | `--admin-page-gap` | `18px` | Page section gap |
 | `--admin-sticky-offset` | `120px` | Sticky panel offset |
 | `--admin-assistant-dock-width` | `clamp(320px, 29vw, 420px)` | Assistant dock width |
-| Sidebar nav item height | `64px` | Domain navigation |
+| Sidebar nav item height | `52px` | Ten-domain navigation |
 | Topbar pill height | `32px` | Environment/version/status pills |
 | Workspace band padding | `18px` | Page band content |
 | Workspace band gap | `12px` | Page band internal rhythm |
@@ -52,6 +52,17 @@
 | Button icon | `16px` to `18px` | Inline action icon |
 | KPI icon | `20px` to `24px` | Metric cards |
 | Panel title icon | `18px` to `20px` | Form and data panel headers |
+
+## Motion Tokens
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--admin-motion-fast` | `100ms` | Press and focus feedback |
+| `--admin-motion-standard` | `180ms` | Navigation and control state changes |
+| `--admin-motion-panel` | `240ms` | Panel and route content transitions |
+| `--admin-ease-standard` | project cubic-bezier | Shared easing |
+
+All decorative transitions must be disabled under `prefers-reduced-motion: reduce`; state changes must remain understandable without movement.
 
 ## Ant Design Pilot Mapping
 

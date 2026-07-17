@@ -41,10 +41,12 @@ export function ApiSettingsPanel({
   providers,
   models,
   refresh,
+  activeView = "providers",
 }: {
   providers: ProviderRecord[];
   models: ModelRecord[];
   refresh: () => Promise<void>;
+  activeView?: "providers" | "models";
 }) {
   const [selectedId, setSelectedId] = useState(providers[0]?.id || "");
   const selected =
@@ -584,6 +586,7 @@ export function ApiSettingsPanel({
         </aside>
 
         <div className="api-settings-content">
+          <div hidden={activeView !== "providers"}>
           <div className="api-settings-inline-status">
             <div className="api-settings-inline-status__copy">
               <span>当前 Provider</span>
@@ -1024,7 +1027,9 @@ export function ApiSettingsPanel({
             ) : null}
           </div>
 
-          {msVisible ? (
+          </div>
+
+          {activeView === "models" && msVisible ? (
             <ModelScopeLoraPanel
               loras={draft.msLoras}
               imageModels={fetched?.imageModels || []}
@@ -1034,7 +1039,7 @@ export function ApiSettingsPanel({
             />
           ) : null}
 
-          {(["image", "video", "audio", "chat"] as Capability[]).map((cap) => (
+          {activeView === "models" ? (["image", "video", "audio", "chat"] as Capability[]).map((cap) => (
             <ModelSection
               key={cap}
               providerProtocol={draft.protocol}
@@ -1047,7 +1052,7 @@ export function ApiSettingsPanel({
               onMove={moveModel}
               reorderDisabled={busy}
             />
-          ))}
+          )) : null}
         </div>
       </div>
 

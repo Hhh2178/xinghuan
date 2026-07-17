@@ -33,7 +33,7 @@ assert.match(card, /object-fit: contain|<img|<video|<audio/, "resource cards sho
 
 assert.match(styles, /\.admin-public-resources-grid[\s\S]*repeat\(auto-fill,\s*250px\)/, "resource-content cards should use fixed-width columns");
 assert.match(styles, /\.admin-public-resources-grid[\s\S]*justify-content:\s*start/, "resource-content grid should keep fixed cards left aligned");
-assert.doesNotMatch(styles, /\.admin-public-resources-grid[\s\S]*minmax\(220px,\s*1fr\)/, "resource-content cards should not stretch a single card across the row");
+assert.doesNotMatch(styles, /\.admin-public-resources-grid\s*\{[^}]*minmax\(220px,\s*1fr\)/, "resource-content cards should not stretch a single card across the row");
 assert.match(styles, /\.admin-public-resource-card[\s\S]*width:\s*250px/, "resource cards should have fixed desktop width");
 assert.match(styles, /\.admin-public-resources-category-card/, "styles should define resource category cards");
 assert.match(styles, /\.admin-workspace-band/, "styles should define unified workspace band");

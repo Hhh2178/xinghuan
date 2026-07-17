@@ -1,11 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  adminWorkspaces,
   adminNavItems,
   taskTone,
   statusText,
   titleFor,
   capabilityLabel,
+  pathForRhView,
+  pathForAnalyticsView,
+  pathForCapabilitiesView,
+  pathForSystemView,
+  pathForUsersView,
+  pathForWorkspaceTab,
+  resolveAdminPath,
 } from "../apps/admin/src/admin-view-model.js";
 
 const root = process.cwd();
@@ -14,6 +22,8 @@ const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), 
 
 const navIds = adminNavItems.map((item) => item.id).join(",");
 const navLabels = adminNavItems.map((item) => item.label).join(",");
+const workspaceIds = adminWorkspaces.map((item) => item.id).join(",");
+const workspaceLabels = adminWorkspaces.map((item) => item.label).join(",");
 
 const checks = [
   {
@@ -35,8 +45,36 @@ const checks = [
   {
     name: "navigation order and labels stay stable",
     pass:
-      navIds === "overview,users,providers,runninghub-workspace,public-resources,assistant,announcement,tasks,audit,system,environment-sync" &&
-      navLabels === "总览,用户,API 设置,RH 工作台,公共资源,AI 助手,公告,任务,审计,系统,环境同步",
+      navIds === "overview,users,providers,runninghub-workspace,comfyui,public-resources,assistant,announcement,tasks,audit,system,environment-sync" &&
+      navLabels === "总览,用户,API 设置,RH 工作台,ComfyUI,公共资源,AI 助手,公告,任务,审计,系统,环境同步",
+  },
+  {
+    name: "ten admin domains stay explicit and ordered",
+    pass:
+      workspaceIds === "overview,organization,security,capabilities,rh,comfyui,content,runtime,analytics,system" &&
+      workspaceLabels === "运营总览,账号与组织,权限与安全,Provider 与模型,RH 管理,ComfyUI 管理,内容与资源,任务与运行,数据分析与审计,系统与发布",
+  },
+  {
+    name: "admin paths resolve to domain and legacy page adapters",
+    pass:
+      pathForWorkspaceTab("rh", "runninghub-workspace") === "/admin/rh" &&
+      pathForRhView("workflows") === "/admin/rh/workflows" &&
+      resolveAdminPath("/admin/rh/apps").rhView === "apps" &&
+      resolveAdminPath("/admin/rh/keys").rhView === "keys" &&
+      pathForCapabilitiesView("models") === "/admin/capabilities/models" &&
+      resolveAdminPath("/admin/capabilities/models").capabilitiesView === "models" &&
+      pathForAnalyticsView("audit") === "/admin/analytics/audit" &&
+      resolveAdminPath("/admin/analytics/audit").analyticsView === "audit" &&
+      pathForSystemView("runtime-settings") === "/admin/system/runtime-settings" &&
+      resolveAdminPath("/admin/system/runtime-settings").systemView === "runtime-settings" &&
+      resolveAdminPath("/admin/comfyui/instances/demo/workflows").comfyuiDetailTab === "workflows" &&
+      pathForWorkspaceTab("comfyui", "comfyui") === "/admin/comfyui" &&
+      resolveAdminPath("/admin/security").workspaceId === "security" &&
+      resolveAdminPath("/admin/security").tabId === "users" &&
+      resolveAdminPath("/admin/security").usersView === "permissions" &&
+      resolveAdminPath("/admin/organization/accounts").usersView === "accounts" &&
+      pathForUsersView("sessions") === "/admin/organization/sessions" &&
+      resolveAdminPath("/admin/system/environment-sync").tabId === "environment-sync",
   },
   {
     name: "titleFor returns label and fallback",

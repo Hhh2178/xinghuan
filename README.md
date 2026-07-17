@@ -25,15 +25,15 @@
 
 ## 当前状态摘要
 
-- 当前候选版本：`v0.7.2`
+- 当前候选版本：`v0.8.0`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.7.0`
+- 当前灰度版本：`v0.7.2`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前生产版本：`v0.7.0`
+- 当前生产版本：`v0.7.2`
 - 当前灰度 release：`20260717-group-retry-catalog-order-gray-r1-v070`
 - 当前生产 release：`20260717-group-retry-catalog-order-prod-r1-v070`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：组节点失败重试和 Provider/模型前台排序已完成 Gray 验收并晋级 Production
+- 当前重点：Admin 十域信息架构、稳定深链、按域加载和页面分包进入 v0.8.0 Gray 发布；Production 继续保持 v0.7.2
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

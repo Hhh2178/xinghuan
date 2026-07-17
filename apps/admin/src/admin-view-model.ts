@@ -9,6 +9,7 @@ import {
   PanelsTopLeft,
   ScrollText,
   ServerCog,
+  ShieldCheck,
   Workflow,
   Users,
   type LucideIcon,
@@ -30,11 +31,21 @@ export type AdminTabId =
   | "system"
   | "environment-sync";
 export type AdminWorkspaceId =
-  | "command-center"
-  | "capability-console"
-  | "resource-content"
-  | "governance-center"
-  | "ops-center";
+  | "overview"
+  | "organization"
+  | "security"
+  | "capabilities"
+  | "rh"
+  | "comfyui"
+  | "content"
+  | "runtime"
+  | "analytics"
+  | "system";
+export type AdminUsersViewId = "overview" | "accounts" | "groups" | "permissions" | "sessions";
+export type AdminRhViewId = "workflows" | "apps" | "keys";
+export type AdminAnalyticsViewId = "usage" | "audit";
+export type AdminSystemViewId = "health" | "runtime-settings" | "environment-sync";
+export type AdminCapabilitiesViewId = "providers" | "models" | "admin-assistant";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 export type RefreshPolicyKind = "live" | "manual" | "guarded";
@@ -46,6 +57,10 @@ export interface AdminWorkspace {
   description: string;
   icon: LucideIcon;
   tabs: AdminTabId[];
+  tabPaths: Partial<Record<AdminTabId, string>>;
+  tabLabels?: Partial<Record<AdminTabId, string>>;
+  tabDescriptions?: Partial<Record<AdminTabId, string>>;
+  usersView?: AdminUsersViewId;
 }
 
 export interface AdminRefreshPolicy {
@@ -72,44 +87,113 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
 
 export const adminWorkspaces: AdminWorkspace[] = [
   {
-    id: "command-center",
+    id: "overview",
     label: "运营总览",
     subtitle: "Command Center",
     description: "平台健康、任务态势、用量趋势、风险告警和最近变更。",
     icon: LayoutDashboard,
     tabs: ["overview"],
+    tabPaths: { overview: "/admin/overview" },
   },
   {
-    id: "capability-console",
-    label: "能力配置",
-    subtitle: "Capability Console",
-    description: "Provider、模型、RunningHub、节点能力和 AI 助手接入。",
+    id: "organization",
+    label: "账号与组织",
+    subtitle: "Organization",
+    description: "账号、用户组、成员关系和后台会话治理。",
+    icon: Users,
+    tabs: ["users"],
+    tabPaths: { users: "/admin/organization" },
+    tabLabels: { users: "组织总览" },
+    tabDescriptions: { users: "管理账号、用户组、成员关系和后台会话。" },
+    usersView: "overview",
+  },
+  {
+    id: "security",
+    label: "权限与安全",
+    subtitle: "Access & Security",
+    description: "权限策略、对象授权、安全边界和敏感操作治理。",
+    icon: ShieldCheck,
+    tabs: ["users"],
+    tabPaths: { users: "/admin/security" },
+    tabLabels: { users: "权限策略" },
+    tabDescriptions: { users: "管理用户组权限、对象授权和访问边界。" },
+    usersView: "permissions",
+  },
+  {
+    id: "capabilities",
+    label: "Provider 与模型",
+    subtitle: "Provider & Model",
+    description: "Provider 接入、模型目录、能力标签、路由和后台 AI 助手配置。",
     icon: KeyRound,
-    tabs: ["providers", "runninghub-workspace", "comfyui", "assistant"],
+    tabs: ["providers", "assistant"],
+    tabPaths: {
+      providers: "/admin/capabilities/providers",
+      assistant: "/admin/capabilities/admin-assistant",
+    },
+    tabLabels: { providers: "Provider 与模型", assistant: "后台 AI 助手" },
   },
   {
-    id: "resource-content",
-    label: "资源与内容",
-    subtitle: "Resource & Content",
-    description: "公共资源、公告、分类与标签治理，以及完整素材预览与上传管理。",
+    id: "rh",
+    label: "RH 管理",
+    subtitle: "RunningHub",
+    description: "RH 工作流、AI 应用、Key 池、调用测试和运行记录。",
+    icon: PanelsTopLeft,
+    tabs: ["runninghub-workspace"],
+    tabPaths: { "runninghub-workspace": "/admin/rh" },
+    tabLabels: { "runninghub-workspace": "RH 工作台" },
+  },
+  {
+    id: "comfyui",
+    label: "ComfyUI 管理",
+    subtitle: "ComfyUI",
+    description: "ComfyUI 实例、连接器、工作流、共享发布和运行观测。",
+    icon: Workflow,
+    tabs: ["comfyui"],
+    tabPaths: { comfyui: "/admin/comfyui" },
+  },
+  {
+    id: "content",
+    label: "内容与资源",
+    subtitle: "Content & Resources",
+    description: "公共资源、公告、分类与标签的统一内容治理。",
     icon: Library,
     tabs: ["public-resources", "announcement"],
+    tabPaths: {
+      "public-resources": "/admin/content/public-resources",
+      announcement: "/admin/content/announcements",
+    },
   },
   {
-    id: "governance-center",
-    label: "组织与治理",
-    subtitle: "Governance Center",
-    description: "账号、用户组、权限、会话、成功用量与审计日志。",
-    icon: Users,
-    tabs: ["users", "audit"],
+    id: "runtime",
+    label: "任务与运行",
+    subtitle: "Tasks & Runtime",
+    description: "任务、队列、失败重试、实时状态和运行日志。",
+    icon: Activity,
+    tabs: ["tasks"],
+    tabPaths: { tasks: "/admin/runtime/tasks" },
   },
   {
-    id: "ops-center",
+    id: "analytics",
+    label: "数据分析与审计",
+    subtitle: "Analytics & Audit",
+    description: "用量、排行、趋势、审计日志和事件调查。",
+    icon: ScrollText,
+    tabs: ["audit"],
+    tabPaths: { audit: "/admin/analytics" },
+    tabLabels: { audit: "分析与审计" },
+  },
+  {
+    id: "system",
     label: "系统与发布",
-    subtitle: "Ops Center",
-    description: "系统健康、任务队列、运行参数、环境同步与发布状态。",
+    subtitle: "System & Release",
+    description: "系统健康、运行参数、环境同步、版本和发布状态。",
     icon: ServerCog,
-    tabs: ["tasks", "system", "environment-sync"],
+    tabs: ["system", "environment-sync"],
+    tabPaths: {
+      system: "/admin/system/health",
+      "environment-sync": "/admin/system/environment-sync",
+    },
+    tabLabels: { system: "系统健康", "environment-sync": "环境同步" },
   },
 ];
 
@@ -143,16 +227,179 @@ export const adminRefreshPolicies: Record<AdminTabId, AdminRefreshPolicy> = {
   "environment-sync": { kind: "manual", label: "手动刷新", intervalLabel: "预览后", description: "环境差异必须先预览，再人工确认同步。" },
 };
 
-export function workspaceForTab(tabId: AdminTabId): AdminWorkspace {
-  return adminWorkspaces.find((workspace) => workspace.tabs.includes(tabId)) || adminWorkspaces[0];
+export function workspaceForTab(tabId: AdminTabId, preferredWorkspaceId?: AdminWorkspaceId): AdminWorkspace {
+  const preferredWorkspace = preferredWorkspaceId
+    ? adminWorkspaces.find((workspace) => workspace.id === preferredWorkspaceId && workspace.tabs.includes(tabId))
+    : undefined;
+  return preferredWorkspace || adminWorkspaces.find((workspace) => workspace.tabs.includes(tabId)) || adminWorkspaces[0];
 }
+
+export interface AdminUsersView {
+  id: AdminUsersViewId;
+  workspaceId: "organization" | "security";
+  label: string;
+  description: string;
+  path: string;
+}
+
+export interface AdminRhView {
+  id: AdminRhViewId;
+  label: string;
+  description: string;
+  path: string;
+}
+
+export const adminUsersViews: AdminUsersView[] = [
+  { id: "overview", workspaceId: "organization", label: "组织总览", description: "查看账号、用户组和会话整体态势。", path: "/admin/organization" },
+  { id: "accounts", workspaceId: "organization", label: "账号管理", description: "创建、启停和维护账号基础信息。", path: "/admin/organization/accounts" },
+  { id: "groups", workspaceId: "organization", label: "用户组", description: "维护用户组、成员归属和分组基础信息。", path: "/admin/organization/groups" },
+  { id: "sessions", workspaceId: "organization", label: "会话管理", description: "巡检活跃会话、来源设备和下线状态。", path: "/admin/organization/sessions" },
+  { id: "permissions", workspaceId: "security", label: "权限策略", description: "管理用户组权限、对象授权和访问边界。", path: "/admin/security" },
+];
+
+export const adminRhViews: AdminRhView[] = [
+  { id: "workflows", label: "工作流", description: "维护 RH 工作流目录、参数结构、测试和启停状态。", path: "/admin/rh/workflows" },
+  { id: "apps", label: "AI 应用", description: "维护 RH AI 应用目录、输入配置、测试和启停状态。", path: "/admin/rh/apps" },
+  { id: "keys", label: "Key 池", description: "管理 Provider 级共享 Key、默认项和并发额度。", path: "/admin/rh/keys" },
+];
+
+export const adminAnalyticsViews = [
+  { id: "usage", label: "用量分析", description: "查看用量、排行、能力分布和趋势。", path: "/admin/analytics/usage" },
+  { id: "audit", label: "审计日志", description: "检索后台操作、请求来源和对象变更。", path: "/admin/analytics/audit" },
+] satisfies Array<{ id: AdminAnalyticsViewId; label: string; description: string; path: string }>;
+
+export const adminSystemViews = [
+  { id: "health", label: "系统健康", description: "查看数据库、Redis、Worker、队列和观测状态。", path: "/admin/system/health" },
+  { id: "runtime-settings", label: "运行参数", description: "维护任务并发和 RH 平台治理开关。", path: "/admin/system/runtime-settings" },
+  { id: "environment-sync", label: "环境同步", description: "预览并确认 gray 与 production 的配置差异。", path: "/admin/system/environment-sync" },
+] satisfies Array<{ id: AdminSystemViewId; label: string; description: string; path: string }>;
+
+export const adminCapabilitiesViews = [
+  { id: "providers", label: "Provider 接入", description: "维护接入地址、协议、密钥和健康验证。", path: "/admin/capabilities/providers" },
+  { id: "models", label: "模型目录", description: "维护模型能力、参数结构、排序和连通测试。", path: "/admin/capabilities/models" },
+  { id: "admin-assistant", label: "后台 AI 助手", description: "配置后台助手模型、内核和上下文边界。", path: "/admin/capabilities/admin-assistant" },
+] satisfies Array<{ id: AdminCapabilitiesViewId; label: string; description: string; path: string }>;
 
 export function tabsForWorkspace(workspaceId: AdminWorkspaceId) {
   const workspace = adminWorkspaces.find((item) => item.id === workspaceId);
   if (!workspace) return [];
   return workspace.tabs
-    .map((tabId) => adminNavItems.find((item) => item.id === tabId))
+    .map((tabId) => {
+      const item = adminNavItems.find((candidate) => candidate.id === tabId);
+      if (!item) return undefined;
+      return { ...item, label: workspace.tabLabels?.[tabId] || item.label };
+    })
     .filter((item): item is { id: AdminTabId; label: string; icon: LucideIcon } => Boolean(item));
+}
+
+export function pathForWorkspaceTab(workspaceId: AdminWorkspaceId, tabId?: AdminTabId) {
+  const workspace = adminWorkspaces.find((item) => item.id === workspaceId) || adminWorkspaces[0];
+  const resolvedTab = tabId && workspace.tabs.includes(tabId) ? tabId : workspace.tabs[0];
+  return workspace.tabPaths[resolvedTab] || "/admin/overview";
+}
+
+export function descriptionForWorkspaceTab(workspaceId: AdminWorkspaceId, tabId: AdminTabId) {
+  const workspace = adminWorkspaces.find((item) => item.id === workspaceId);
+  return workspace?.tabDescriptions?.[tabId] || adminTabDescriptions[tabId];
+}
+
+export function pathForUsersView(viewId: AdminUsersViewId) {
+  return adminUsersViews.find((item) => item.id === viewId)?.path || "/admin/organization";
+}
+
+export function usersViewsForWorkspace(workspaceId: AdminWorkspaceId) {
+  return adminUsersViews.filter((item) => item.workspaceId === workspaceId);
+}
+
+export function pathForRhView(viewId: AdminRhViewId) {
+  return adminRhViews.find((item) => item.id === viewId)?.path || "/admin/rh/workflows";
+}
+
+export function pathForAnalyticsView(viewId: AdminAnalyticsViewId) {
+  return adminAnalyticsViews.find((item) => item.id === viewId)?.path || "/admin/analytics/usage";
+}
+
+export function pathForSystemView(viewId: AdminSystemViewId) {
+  return adminSystemViews.find((item) => item.id === viewId)?.path || "/admin/system/health";
+}
+
+export function pathForCapabilitiesView(viewId: AdminCapabilitiesViewId) {
+  return adminCapabilitiesViews.find((item) => item.id === viewId)?.path || "/admin/capabilities/providers";
+}
+
+export function resolveAdminPath(pathname: string): {
+  workspaceId: AdminWorkspaceId;
+  tabId: AdminTabId;
+  usersView?: AdminUsersViewId;
+  rhView?: AdminRhViewId;
+  analyticsView?: AdminAnalyticsViewId;
+  systemView?: AdminSystemViewId;
+  comfyuiInstanceId?: string;
+  comfyuiDetailTab?: "config" | "workflows" | "logs";
+  capabilitiesView?: AdminCapabilitiesViewId;
+} {
+  const normalizedPath = pathname.replace(/\/$/, "") || "/admin";
+  const usersView = normalizedPath.startsWith("/admin/security")
+    ? "permissions"
+    : normalizedPath.startsWith("/admin/organization/accounts")
+      ? "accounts"
+      : normalizedPath.startsWith("/admin/organization/groups")
+        ? "groups"
+        : normalizedPath.startsWith("/admin/organization/sessions")
+          ? "sessions"
+          : normalizedPath.startsWith("/admin/organization")
+            ? "overview"
+            : undefined;
+  const rhView = normalizedPath.startsWith("/admin/rh/keys")
+    ? "keys"
+    : normalizedPath.startsWith("/admin/rh/apps")
+      ? "apps"
+      : normalizedPath.startsWith("/admin/rh")
+        ? "workflows"
+        : undefined;
+  const analyticsView = normalizedPath.startsWith("/admin/analytics/audit")
+    ? "audit"
+    : normalizedPath.startsWith("/admin/analytics")
+      ? "usage"
+      : undefined;
+  const systemView = normalizedPath.startsWith("/admin/system/environment-sync")
+    ? "environment-sync"
+    : normalizedPath.startsWith("/admin/system/runtime-settings")
+      ? "runtime-settings"
+      : normalizedPath.startsWith("/admin/system")
+        ? "health"
+        : undefined;
+  const comfyuiMatch = normalizedPath.match(/^\/admin\/comfyui\/instances\/([^/]+)(?:\/(config|workflows|logs))?/);
+  const comfyuiInstanceId = comfyuiMatch?.[1] ? decodeURIComponent(comfyuiMatch[1]) : undefined;
+  const comfyuiDetailTab = comfyuiMatch?.[2] as "config" | "workflows" | "logs" | undefined;
+  const capabilitiesView = normalizedPath.startsWith("/admin/capabilities/models")
+    ? "models"
+    : normalizedPath.startsWith("/admin/capabilities/admin-assistant")
+      ? "admin-assistant"
+      : normalizedPath.startsWith("/admin/capabilities")
+        ? "providers"
+        : undefined;
+  const candidates = adminWorkspaces.flatMap((workspace) =>
+    workspace.tabs.map((tabId) => ({
+      workspaceId: workspace.id,
+      tabId,
+      path: workspace.tabPaths[tabId] || "",
+    })),
+  ).sort((left, right) => right.path.length - left.path.length);
+  const match = candidates.find((candidate) =>
+    candidate.path && (normalizedPath === candidate.path || normalizedPath.startsWith(`${candidate.path}/`)),
+  ) || (systemView ? {
+    workspaceId: "system" as const,
+    tabId: systemView === "environment-sync" ? "environment-sync" as const : "system" as const,
+    path: normalizedPath,
+  } : capabilitiesView ? {
+    workspaceId: "capabilities" as const,
+    tabId: capabilitiesView === "admin-assistant" ? "assistant" as const : "providers" as const,
+    path: normalizedPath,
+  } : undefined);
+  return match
+    ? { workspaceId: match.workspaceId, tabId: match.tabId, usersView, rhView, analyticsView, systemView, comfyuiInstanceId, comfyuiDetailTab, capabilitiesView }
+    : { workspaceId: "overview", tabId: "overview" };
 }
 
 export function refreshPolicyFor(tabId: AdminTabId): AdminRefreshPolicy {

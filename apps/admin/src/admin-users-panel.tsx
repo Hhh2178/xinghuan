@@ -11,6 +11,7 @@ import type {
   AdminUser,
   AdminUserGroup,
 } from "./admin-types";
+import type { AdminUsersViewId } from "./admin-view-model";
 
 type AdminMutate = (
   path: string,
@@ -18,7 +19,7 @@ type AdminMutate = (
   method?: string,
   options?: { suppressGlobalError?: boolean; rethrow?: boolean },
 ) => Promise<void> | void;
-type UsersViewTab = "overview" | "accounts" | "groups" | "permissions" | "sessions";
+type UsersViewTab = AdminUsersViewId;
 
 const PermissionPlatformPanel = lazy(() =>
   import("./permission-platform/panel").then((module) => ({
@@ -35,19 +36,28 @@ const USER_TABS: Array<{ id: UsersViewTab; label: string }> = [
 ];
 
 export function UsersPanel({
+  initialView = "overview",
+  activeView,
+  onViewChange,
+  showLocalNavigation = true,
   users,
   userGroups,
   sessions,
   onOpenAudit,
   mutate,
 }: {
+  initialView?: UsersViewTab;
+  activeView?: UsersViewTab;
+  onViewChange?: (viewId: UsersViewTab) => void;
+  showLocalNavigation?: boolean;
   users: AdminUser[];
   userGroups: AdminUserGroup[];
   sessions: AdminSessionRecord[];
   onOpenAudit?: () => void;
   mutate: AdminMutate;
 }) {
-  const [activeTab, setActiveTab] = useState<UsersViewTab>("overview");
+  const [activeTab, setActiveTab] = useState<UsersViewTab>(initialView);
+  const currentView = activeView || activeTab;
   const [permissionPolicies, setPermissionPolicies] = useState<AdminGroupPermissionPolicy[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
@@ -87,6 +97,16 @@ export function UsersPanel({
     [permissionPolicies],
   );
 
+  useEffect(() => {
+    if (activeView) return;
+    setActiveTab(initialView);
+  }, [activeView, initialView]);
+
+  function selectView(viewId: UsersViewTab) {
+    setActiveTab(viewId);
+    onViewChange?.(viewId);
+  }
+
   async function loadPermissionsData() {
     setPermissionsLoading(true);
     try {
@@ -101,10 +121,10 @@ export function UsersPanel({
   }
 
   useEffect(() => {
-    if (activeTab !== "permissions" && activeTab !== "overview") return;
+    if (currentView !== "permissions" && currentView !== "overview") return;
     if (permissionsLoaded) return;
     void loadPermissionsData();
-  }, [activeTab, permissionsLoaded]);
+  }, [currentView, permissionsLoaded]);
 
   useEffect(() => {
     setPermissionPolicies([]);
@@ -118,7 +138,7 @@ export function UsersPanel({
         kicker="Governance Center"
         title="账号、分组与权限治理"
         description="这里负责账号创建、用户组维护、分组权限隐藏策略以及后台会话治理，不再把所有功能挤在同一条窄侧栏里。"
-        currentLabel={USER_TABS.find((tab) => tab.id === activeTab)?.label || "总览"}
+        currentLabel={USER_TABS.find((tab) => tab.id === currentView)?.label || "总览"}
         currentDescription={`${users.length} 个账号 · ${userGroups.length} 个用户组 · ${activeSessionCount} 个活跃会话`}
         actions={
           <div className="users-band__metrics">
@@ -153,20 +173,20 @@ export function UsersPanel({
         </div>
       </div>
 
-      <div className="users-view-tabs" role="tablist" aria-label="账号治理导航">
+      {showLocalNavigation ? <div className="users-view-tabs" role="tablist" aria-label="账号治理导航">
         {USER_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
-            className={activeTab === tab.id ? "active" : ""}
-            onClick={() => setActiveTab(tab.id)}
+            className={currentView === tab.id ? "active" : ""}
+            onClick={() => selectView(tab.id)}
           >
             {tab.label}
           </button>
         ))}
-      </div>
+      </div> : null}
 
-      {activeTab === "overview" ? (
+      {currentView === "overview" ? (
         <div className="users-governance-overview">
           <div className="users-governance-overview__hero api-card">
             <div>
@@ -183,7 +203,7 @@ export function UsersPanel({
           </div>
 
           <div className="users-governance-quick-grid">
-            <button type="button" className="users-governance-quick-card" onClick={() => setActiveTab("accounts")}>
+            <button type="button" className="users-governance-quick-card" onClick={() => selectView("accounts")}>
               <div className="users-governance-quick-card__head">
                 <Users2 aria-hidden="true" />
                 <strong>账号管理</strong>
@@ -196,7 +216,7 @@ export function UsersPanel({
               </div>
             </button>
 
-            <button type="button" className="users-governance-quick-card" onClick={() => setActiveTab("groups")}>
+            <button type="button" className="users-governance-quick-card" onClick={() => selectView("groups")}>
               <div className="users-governance-quick-card__head">
                 <Users2 aria-hidden="true" />
                 <strong>用户组管理</strong>
@@ -209,7 +229,7 @@ export function UsersPanel({
               </div>
             </button>
 
-            <button type="button" className="users-governance-quick-card" onClick={() => setActiveTab("permissions")}>
+            <button type="button" className="users-governance-quick-card" onClick={() => selectView("permissions")}>
               <div className="users-governance-quick-card__head">
                 <ShieldCheck aria-hidden="true" />
                 <strong>权限策略</strong>
@@ -222,7 +242,7 @@ export function UsersPanel({
               </div>
             </button>
 
-            <button type="button" className="users-governance-quick-card" onClick={() => setActiveTab("sessions")}>
+            <button type="button" className="users-governance-quick-card" onClick={() => selectView("sessions")}>
               <div className="users-governance-quick-card__head">
                 <Activity aria-hidden="true" />
                 <strong>会话管理</strong>
@@ -251,9 +271,9 @@ export function UsersPanel({
         </div>
       ) : null}
 
-      {activeTab === "accounts" ? <AdminUserAccountsSection users={users} userGroups={userGroups} mutate={mutate} /> : null}
+      {currentView === "accounts" ? <AdminUserAccountsSection users={users} userGroups={userGroups} mutate={mutate} /> : null}
 
-      {activeTab === "groups" ? (
+      {currentView === "groups" ? (
         <AdminUserGroupsSection
           users={users}
           userGroups={userGroups}
@@ -262,13 +282,13 @@ export function UsersPanel({
         />
       ) : null}
 
-      {activeTab === "permissions" ? (
+      {currentView === "permissions" ? (
         <Suspense fallback={<div className="starlight-page-loading">正在加载统一权限平台...</div>}>
           <PermissionPlatformPanel users={users} userGroups={userGroups} />
         </Suspense>
       ) : null}
 
-      {activeTab === "sessions" ? <AdminUserSessionsSection sessions={sessions} mutate={mutate} /> : null}
+      {currentView === "sessions" ? <AdminUserSessionsSection sessions={sessions} mutate={mutate} /> : null}
     </section>
   );
 }

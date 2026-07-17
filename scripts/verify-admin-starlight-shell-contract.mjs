@@ -4,18 +4,27 @@ import { join } from "node:path";
 const root = process.cwd();
 const viewModelPath = join(root, "apps", "admin", "src", "admin-view-model.ts");
 const mainPath = join(root, "apps", "admin", "src", "main.tsx");
+const navigationPath = join(root, "apps", "admin", "src", "use-admin-navigation.ts");
+const workspaceBandPath = join(root, "apps", "admin", "src", "admin-shell-workspace-band.tsx");
 const stylesPath = join(root, "apps", "admin", "src", "styles.css");
 
 const viewModel = readFileSync(viewModelPath, "utf8");
 const main = readFileSync(mainPath, "utf8");
+const navigation = readFileSync(navigationPath, "utf8");
+const workspaceBand = readFileSync(workspaceBandPath, "utf8");
 const styles = readFileSync(stylesPath, "utf8");
 
 const requiredWorkspaceIds = [
-  "command-center",
-  "capability-console",
-  "resource-content",
-  "governance-center",
-  "ops-center",
+  "overview",
+  "organization",
+  "security",
+  "capabilities",
+  "rh",
+  "comfyui",
+  "content",
+  "runtime",
+  "analytics",
+  "system",
 ];
 
 const checks = [
@@ -24,16 +33,21 @@ const checks = [
     pass: existsSync(viewModelPath),
   },
   {
-    name: "workspace model defines all five domains",
+    name: "workspace model defines all ten domains",
     pass: requiredWorkspaceIds.every((id) => viewModel.includes(`id: "${id}"`)),
   },
   {
     name: "workspace labels use product language",
     pass:
       viewModel.includes('label: "运营总览"') &&
-      viewModel.includes('label: "能力配置"') &&
-      viewModel.includes('label: "资源与内容"') &&
-      viewModel.includes('label: "组织与治理"') &&
+      viewModel.includes('label: "账号与组织"') &&
+      viewModel.includes('label: "权限与安全"') &&
+      viewModel.includes('label: "Provider 与模型"') &&
+      viewModel.includes('label: "RH 管理"') &&
+      viewModel.includes('label: "ComfyUI 管理"') &&
+      viewModel.includes('label: "内容与资源"') &&
+      viewModel.includes('label: "任务与运行"') &&
+      viewModel.includes('label: "数据分析与审计"') &&
       viewModel.includes('label: "系统与发布"'),
   },
   {
@@ -55,7 +69,17 @@ const checks = [
       main.includes("starlight-sidebar") &&
       main.includes("starlight-topbar") &&
       main.includes("starlight-domain-nav") &&
-      main.includes("admin-workspace-band"),
+      workspaceBand.includes("AdminWorkspaceBand") &&
+      workspaceBand.includes("admin-workspace-band"),
+  },
+  {
+    name: "shell synchronizes stable admin URLs",
+    pass:
+      main.includes("useAdminNavigation") &&
+      navigation.includes("resolveAdminPath") &&
+      navigation.includes("pathForWorkspaceTab") &&
+      navigation.includes("window.history.pushState") &&
+      navigation.includes('window.addEventListener("popstate"'),
   },
   {
     name: "main keeps existing business panels",
@@ -72,7 +96,7 @@ const checks = [
   },
   {
     name: "lazy loading boundary is present",
-    pass: main.includes("Suspense") && main.includes("starlight-page-loading"),
+    pass: main.includes("Suspense") && main.includes("lazy(") && main.includes("starlight-page-loading") && main.includes("AdminRouteErrorBoundary"),
   },
   {
     name: "refresh controls are visible in shell",
@@ -84,9 +108,14 @@ const checks = [
       styles.includes("--starlight-bg") &&
       styles.includes("--starlight-cyan") &&
       styles.includes("--starlight-panel") &&
+      styles.includes("--admin-motion-standard") &&
       styles.includes(".starlight-shell") &&
       styles.includes(".starlight-domain-nav") &&
       styles.includes(".admin-workspace-band"),
+  },
+  {
+    name: "reduced motion is supported",
+    pass: styles.includes("prefers-reduced-motion: reduce"),
   },
 ];
 

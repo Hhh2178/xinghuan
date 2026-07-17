@@ -19,6 +19,10 @@
   --admin-scroll-thumb-hover: rgba(45, 212, 191, 0.62);
   --admin-scroll-track: rgba(15, 23, 42, 0.38);
   --admin-assistant-dock-width: clamp(320px, 29vw, 420px);
+  --admin-motion-fast: 100ms;
+  --admin-motion-standard: 180ms;
+  --admin-motion-panel: 240ms;
+  --admin-ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 * {
@@ -46,6 +50,16 @@ select {
 
 button {
   cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--starlight-cyan);
+  outline-offset: 2px;
 }
 
 button:disabled {
@@ -92,7 +106,7 @@ button:disabled {
 
 .starlight-domain-nav button {
   width: 100%;
-  min-height: 64px;
+  min-height: 52px;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
@@ -103,7 +117,11 @@ button:disabled {
   background: transparent;
   color: #dbe8ec;
   text-align: left;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    border-color var(--admin-motion-standard) var(--admin-ease-standard),
+    background var(--admin-motion-standard) var(--admin-ease-standard),
+    color var(--admin-motion-standard) var(--admin-ease-standard),
+    transform var(--admin-motion-fast) var(--admin-ease-standard);
 }
 
 .starlight-domain-nav button svg {
@@ -129,8 +147,12 @@ button:disabled {
 .starlight-domain-nav button small {
   color: var(--starlight-muted);
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
+}
+
+.starlight-domain-nav button:active {
+  transform: translateY(1px);
 }
 
 .starlight-domain-nav button:hover,
@@ -7893,7 +7915,7 @@ td {
 }
 
 .admin-sidebar .starlight-domain-nav button {
-  min-height: 64px;
+  min-height: 52px;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
@@ -7904,6 +7926,32 @@ td {
   border-radius: 4px;
   background: transparent;
   color: #dbe8ec;
+}
+
+.starlight-route-error {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--danger, #ff6b7a) 42%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--starlight-panel) 92%, #5b1722);
+}
+
+.starlight-route-error span,
+.starlight-route-error p { color: var(--starlight-muted); }
+
+.starlight-route-error button { justify-self: start; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .admin-sidebar .starlight-domain-nav button:hover,

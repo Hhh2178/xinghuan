@@ -15,7 +15,7 @@ const checks = [
   },
   {
     name: "main imports task panel",
-    pass: mainSource.includes('from "./admin-task-panel"') || mainSource.includes('from "./admin-task-panel.js"'),
+    pass: mainSource.includes('from "./admin-task-panel"') || mainSource.includes('from "./admin-task-panel.js"') || mainSource.includes('import("./admin-task-panel")'),
   },
   {
     name: "main no longer inlines TasksPanel",

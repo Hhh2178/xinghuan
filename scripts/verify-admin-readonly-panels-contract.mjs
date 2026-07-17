@@ -61,7 +61,7 @@ const checks = [
   },
   {
     name: "main imports readonly panels",
-    pass: mainSource.includes('from "./admin-readonly-panels"') || mainSource.includes('from "./admin-readonly-panels.js"'),
+    pass: mainSource.includes('from "./admin-readonly-panels"') || mainSource.includes('from "./admin-readonly-panels.js"') || mainSource.includes('import("./admin-readonly-panels")'),
   },
   {
     name: "main no longer inlines readonly panels",

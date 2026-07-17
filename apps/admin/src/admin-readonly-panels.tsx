@@ -73,6 +73,7 @@ function formatSlotCount(queues: RuntimeQueueState[]) {
 }
 
 export function AuditPanel({
+  activeView = "usage",
   auditLogs,
   usageSummary,
   usageSummaryLoading,
@@ -85,6 +86,7 @@ export function AuditPanel({
   onUsageFiltersChange,
   onSelectedUsageUserIdChange,
 }: {
+  activeView?: "usage" | "audit";
   auditLogs: AuditRecord[];
   usageSummary: AdminUsageSummary | null;
   usageSummaryLoading: boolean;
@@ -109,7 +111,7 @@ export function AuditPanel({
 }) {
   return (
     <>
-      <AdminUsageDashboard
+      {activeView === "usage" ? <AdminUsageDashboard
         usageSummary={usageSummary}
         usageSummaryLoading={usageSummaryLoading}
         usageSummaryError={usageSummaryError}
@@ -120,8 +122,8 @@ export function AuditPanel({
         providers={providers}
         onUsageFiltersChange={onUsageFiltersChange}
         onSelectedUsageUserIdChange={onSelectedUsageUserIdChange}
-      />
-      <DataTable
+      /> : null}
+      {activeView === "audit" ? <DataTable
         title="审计日志"
         columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}
         rows={auditLogs.map((item) => [
@@ -133,16 +135,18 @@ export function AuditPanel({
           `${item.ip || "-"}${item.userAgent ? ` | ${item.userAgent.slice(0, 80)}` : ""}`,
           item.summary,
         ])}
-      />
+      /> : null}
     </>
   );
 }
 
 export function SystemPanel({
+  activeView = "health",
   system,
   saving = false,
   onSave,
 }: {
+  activeView?: "health" | "runtime-settings";
   system: SystemInfo | null;
   saving?: boolean;
   onSave?: (payload: { taskQueueSettings: SystemInfo["taskQueueSettings"]; revision: number }) => Promise<void>;
@@ -268,8 +272,8 @@ export function SystemPanel({
 
   return (
     <>
-      <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} />
-      <FormPanel title="任务并发设置" icon={Settings2}>
+      {activeView === "health" ? <DataTable title="系统状态" columns={["项目", "值"]} rows={rows} /> : null}
+      {activeView === "runtime-settings" ? <FormPanel title="任务并发设置" icon={Settings2}>
         <label>
           图片总并发
           <input
@@ -425,7 +429,7 @@ export function SystemPanel({
             {saving || submitting ? "保存中..." : "保存并发设置"}
           </button>
         </div>
-      </FormPanel>
+      </FormPanel> : null}
     </>
   );
 }

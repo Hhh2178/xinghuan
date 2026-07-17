@@ -1,20 +1,23 @@
-import { useState } from "react";
 import { AdminComfyuiOverview } from "./admin-comfyui-overview";
-import { AdminComfyuiDetail } from "./admin-comfyui-detail";
+import { AdminComfyuiDetail, type DetailTab } from "./admin-comfyui-detail";
 
-export function AdminComfyuiInstancesPanel() {
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
-
-  if (selectedInstanceId) {
+export function AdminComfyuiInstancesPanel({ instanceId = "", detailTab = "config", onNavigate }: {
+  instanceId?: string;
+  detailTab?: DetailTab;
+  onNavigate?: (instanceId?: string, detailTab?: DetailTab) => void;
+}) {
+  if (instanceId) {
     return (
       <AdminComfyuiDetail
-        instanceId={selectedInstanceId}
-        onBack={() => setSelectedInstanceId(null)}
+        instanceId={instanceId}
+        activeTab={detailTab}
+        onTabChange={(tab) => onNavigate?.(instanceId, tab)}
+        onBack={() => onNavigate?.()}
       />
     );
   }
 
-  return <AdminComfyuiOverview onSelectInstance={(id) => setSelectedInstanceId(id)} />;
+  return <AdminComfyuiOverview onSelectInstance={(id) => onNavigate?.(id, "config")} />;
 }
 
 export default AdminComfyuiInstancesPanel;

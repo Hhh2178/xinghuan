@@ -4,6 +4,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const modulePath = join(root, "apps", "admin", "src", "admin-common-components.tsx");
 const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), "utf8");
+const workspaceBandSource = readFileSync(join(root, "apps", "admin", "src", "admin-shell-workspace-band.tsx"), "utf8");
 const componentSource = existsSync(modulePath) ? readFileSync(modulePath, "utf8") : "";
 
 const checks = [
@@ -12,8 +13,8 @@ const checks = [
     pass: existsSync(modulePath),
   },
   {
-    name: "main imports common components",
-    pass: mainSource.includes('from "./admin-common-components"') || mainSource.includes('from "./admin-common-components.js"'),
+    name: "admin shell imports common components",
+    pass: workspaceBandSource.includes('from "./admin-common-components"') || workspaceBandSource.includes('from "./admin-common-components.js"'),
   },
   {
     name: "main does not inline common table/form/status components",
@@ -35,9 +36,9 @@ const checks = [
     name: "table and form class names stay stable",
     pass:
       componentSource.includes('className="data-panel"') &&
-      componentSource.includes('className="table-wrap"') &&
+      componentSource.includes('"table-wrap"') &&
       componentSource.includes('className="form-panel"') &&
-      componentSource.includes('className="form-grid"'),
+      componentSource.includes('bodyClassName = "form-grid"'),
   },
   {
     name: "status pill keeps tone class contract",

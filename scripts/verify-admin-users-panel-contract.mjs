@@ -7,6 +7,7 @@ const accountsSectionPath = join(root, "apps", "admin", "src", "admin-user-accou
 const groupsSectionPath = join(root, "apps", "admin", "src", "admin-user-groups-section.tsx");
 const sessionsSectionPath = join(root, "apps", "admin", "src", "admin-user-sessions-section.tsx");
 const mainSource = readFileSync(join(root, "apps", "admin", "src", "main.tsx"), "utf8");
+const navigationSource = readFileSync(join(root, "apps", "admin", "src", "use-admin-navigation.ts"), "utf8");
 const panelSource = existsSync(modulePath) ? readFileSync(modulePath, "utf8") : "";
 const accountsSectionSource = existsSync(accountsSectionPath) ? readFileSync(accountsSectionPath, "utf8") : "";
 const groupsSectionSource = existsSync(groupsSectionPath) ? readFileSync(groupsSectionPath, "utf8") : "";
@@ -19,7 +20,7 @@ const checks = [
   },
   {
     name: "main imports users panel",
-    pass: mainSource.includes('from "./admin-users-panel"') || mainSource.includes('from "./admin-users-panel.js"'),
+    pass: mainSource.includes('from "./admin-users-panel"') || mainSource.includes('from "./admin-users-panel.js"') || mainSource.includes('import("./admin-users-panel")'),
   },
   {
     name: "main no longer inlines UsersPanel",
@@ -32,6 +33,15 @@ const checks = [
   {
     name: "module exports UsersPanel",
     pass: /export\s+function\s+UsersPanel\s*\(/.test(panelSource),
+  },
+  {
+    name: "users views support controlled URL navigation",
+    pass:
+      panelSource.includes("activeView?: UsersViewTab") &&
+      panelSource.includes("onViewChange?: (viewId: UsersViewTab)") &&
+      panelSource.includes("const currentView = activeView || activeTab") &&
+      mainSource.includes("navigateUsersView") &&
+      navigationSource.includes("pathForUsersView"),
   },
   {
     name: "users panel preserves create user form",

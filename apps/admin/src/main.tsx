@@ -1,22 +1,14 @@
 import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-react";
-import { StrictMode, Suspense, useEffect, useState } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
 import { adminAnnouncementApi, adminAuditApi, AdminApiError, api, isAuthRequiredError } from "./admin-api-client";
-import { AdminAnnouncementPanel } from "./admin-announcement-panel";
-import { ApiSettingsPanel } from "./admin-api-settings-panel";
 import { AdminAssistantPanel } from "./admin-assistant-panel";
-import { AdminAssistantSettingsPanel } from "./admin-assistant-settings-panel";
-import { AdminBandTabButton, AdminWorkspaceBand } from "./admin-common-components";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
-import { AdminEnvironmentSyncPanel } from "./admin-environment-sync-panel";
-import { AdminComfyuiInstancesPanel } from "./admin-comfyui-instances-panel";
-import { Overview } from "./admin-overview-panel";
-import { AdminPublicResourcesPanel } from "./admin-public-resources-panel";
+import { readAdminShellSnapshot, readAdminWorkspaceSnapshot } from "./admin-data-loaders";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
-import { AuditPanel, SystemPanel } from "./admin-readonly-panels";
-import { AdminRunningHubWorkspace } from "./admin-runninghub-workspace";
-import { TasksPanel } from "./admin-task-panel";
+import { AdminShellWorkspaceBand } from "./admin-shell-workspace-band";
+import { AdminRouteErrorBoundary } from "./admin-route-error-boundary";
 import type {
   AdminUser as AdminUserShape,
   AdminUserGroup as AdminUserGroupShape,
@@ -35,20 +27,24 @@ import type {
   AdminAnnouncementRecord as AdminAnnouncementRecordShape,
   Summary as SummaryShape,
   SystemInfo as SystemInfoShape,
-  TabId,
   TaskListPage as TaskListPageShape,
   TaskRecord as TaskRecordShape,
   UsageCapability as UsageCapabilityShape,
 } from "./admin-types";
-import { UsersPanel } from "./admin-users-panel";
 import {
-  adminTabDescriptions,
+  adminCapabilitiesViews,
+  adminAnalyticsViews,
+  adminRhViews,
+  adminSystemViews,
   adminWorkspaces,
+  descriptionForWorkspaceTab,
   refreshPolicyFor,
   tabsForWorkspace,
   titleFor,
+  usersViewsForWorkspace,
   workspaceForTab,
 } from "./admin-view-model";
+import { useAdminNavigation } from "./use-admin-navigation";
 import "./styles.css";
 
 void ConfirmActionDialog;
@@ -56,6 +52,19 @@ void ManualModelDialog;
 
 const ADMIN_ASSISTANT_STORAGE_KEY = "xinghuan.adminAssistant.open";
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
+
+const Overview = lazy(() => import("./admin-overview-panel").then((module) => ({ default: module.Overview })));
+const UsersPanel = lazy(() => import("./admin-users-panel").then((module) => ({ default: module.UsersPanel })));
+const ApiSettingsPanel = lazy(() => import("./admin-api-settings-panel").then((module) => ({ default: module.ApiSettingsPanel })));
+const AdminRunningHubWorkspace = lazy(() => import("./admin-runninghub-workspace").then((module) => ({ default: module.AdminRunningHubWorkspace })));
+const AdminComfyuiInstancesPanel = lazy(() => import("./admin-comfyui-instances-panel"));
+const AdminPublicResourcesPanel = lazy(() => import("./admin-public-resources-panel").then((module) => ({ default: module.AdminPublicResourcesPanel })));
+const AdminAssistantSettingsPanel = lazy(() => import("./admin-assistant-settings-panel").then((module) => ({ default: module.AdminAssistantSettingsPanel })));
+const AdminAnnouncementPanel = lazy(() => import("./admin-announcement-panel").then((module) => ({ default: module.AdminAnnouncementPanel })));
+const TasksPanel = lazy(() => import("./admin-task-panel").then((module) => ({ default: module.TasksPanel })));
+const AuditPanel = lazy(() => import("./admin-readonly-panels").then((module) => ({ default: module.AuditPanel })));
+const SystemPanel = lazy(() => import("./admin-readonly-panels").then((module) => ({ default: module.SystemPanel })));
+const AdminEnvironmentSyncPanel = lazy(() => import("./admin-environment-sync-panel").then((module) => ({ default: module.AdminEnvironmentSyncPanel })));
 
 export type Capability = CapabilityShape;
 export type ConfirmAction = ConfirmActionShape;
@@ -260,7 +269,24 @@ function taskPagePath(page: number, pageSize: number, filters: TaskListPage["fil
 function AdminApp() {
   const [authStatus, setAuthStatus] = useState<"checking" | "ready">("checking");
   const [currentUser, setCurrentUser] = useState<AuthUserShape | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const {
+    activeTab,
+    activeWorkspaceId,
+    activeUsersView,
+    activeRhView,
+    activeAnalyticsView,
+    activeSystemView,
+    activeComfyuiInstanceId,
+    activeComfyuiDetailTab,
+    activeCapabilitiesView,
+    navigateAdmin,
+    navigateRhView,
+    navigateAnalyticsView,
+    navigateSystemView,
+    navigateComfyuiInstance,
+    navigateCapabilitiesView,
+    navigateUsersView,
+  } = useAdminNavigation();
   const [assistantOpen, setAssistantOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = window.localStorage.getItem(ADMIN_ASSISTANT_STORAGE_KEY);
@@ -314,41 +340,12 @@ function AdminApp() {
     return true;
   }
 
-  async function loadAdminData() {
+  async function runAdminLoad(work: () => Promise<void>) {
     if (!isAdmin) return;
     setBusy(true);
     setError("");
     try {
-      const [
-        nextSummary,
-        nextAssistantSettings,
-        nextUsers,
-        nextUserGroups,
-        nextSessions,
-        nextProviders,
-        nextModels,
-        nextAuditLogs,
-        nextSystem,
-      ] = await Promise.all([
-        api<Summary>("/api/admin/summary"),
-        api<AssistantSettings>("/api/admin/assistant/settings"),
-        api<AdminUserShape[]>("/api/admin/users"),
-        api<AdminUserGroupShape[]>("/api/admin/user-groups"),
-        api<AdminSessionRecordShape[]>("/api/admin/sessions"),
-        api<ProviderRecordShape[]>("/api/admin/providers"),
-        api<ModelRecordShape[]>("/api/admin/models"),
-        api<AuditRecord[]>("/api/admin/audit"),
-        api<SystemInfo>("/api/admin/system"),
-      ]);
-      setSummary(nextSummary);
-      setAssistantSettings(nextAssistantSettings);
-      setUsers(nextUsers);
-      setUserGroups(nextUserGroups);
-      setSessions(nextSessions);
-      setProviders(nextProviders);
-      setModels(nextModels);
-      setAuditLogs(nextAuditLogs);
-      setSystem(nextSystem);
+      await work();
       setLastRefreshAt(Date.now());
     } catch (nextError) {
       if (!handleAuthRequired(nextError)) {
@@ -359,10 +356,37 @@ function AdminApp() {
     }
   }
 
+  async function loadShellData() {
+    await runAdminLoad(async () => {
+      const snapshot = await readAdminShellSnapshot();
+      setSummary(snapshot.summary);
+      setAssistantSettings(snapshot.assistantSettings);
+    });
+  }
+
+  async function loadWorkspaceData(workspaceId = activeWorkspaceId) {
+    await runAdminLoad(async () => {
+      const snapshot = await readAdminWorkspaceSnapshot(
+        workspaceId,
+        taskPagePath(taskPage.page, taskPage.pageSize, taskPage.filters),
+      );
+      if (snapshot.users) setUsers(snapshot.users);
+      if (snapshot.userGroups) setUserGroups(snapshot.userGroups);
+      if (snapshot.sessions) setSessions(snapshot.sessions);
+      if (snapshot.providers) setProviders(snapshot.providers);
+      if (snapshot.models) setModels(snapshot.models);
+      if (snapshot.taskPage) setTaskPage(snapshot.taskPage);
+      if (snapshot.auditLogs) setAuditLogs(snapshot.auditLogs);
+      if (snapshot.announcements) setAnnouncements(snapshot.announcements);
+      if (snapshot.system) setSystem(snapshot.system);
+    });
+  }
+
   async function loadAnnouncements() {
     if (!isAdmin) return;
     const nextAnnouncements = await adminAnnouncementApi.listAnnouncements();
     setAnnouncements(nextAnnouncements);
+    setLastRefreshAt(Date.now());
   }
 
   async function loadTaskPage(page = taskPage.page, pageSize = taskPage.pageSize, filters = taskPage.filters) {
@@ -408,16 +432,21 @@ function AdminApp() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    void loadAdminData();
-    void loadTaskPage();
-    void loadAnnouncements();
+    void loadShellData();
   }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
+    void loadWorkspaceData(activeWorkspaceId);
+  }, [activeWorkspaceId, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || activeWorkspaceId !== "analytics" || activeAnalyticsView !== "usage") return;
     void loadUsageSummary();
   }, [
     isAdmin,
+    activeWorkspaceId,
+    activeAnalyticsView,
     usageFilters.range,
     usageFilters.groupId,
     usageFilters.capability,
@@ -490,7 +519,7 @@ function AdminApp() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await Promise.all([loadAdminData(), loadTaskPage()]);
+      await loadWorkspaceData(activeWorkspaceId);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : String(nextError);
       const authRequired = handleAuthRequired(nextError);
@@ -511,8 +540,19 @@ function AdminApp() {
     return <ForbiddenView user={currentUser} onLogout={handleLogout} />;
   }
 
-  const activeWorkspace = workspaceForTab(activeTab);
+  const activeWorkspace = workspaceForTab(activeTab, activeWorkspaceId);
   const activeWorkspaceTabs = tabsForWorkspace(activeWorkspace.id);
+  const activeUsersPage = activeTab === "users"
+    ? usersViewsForWorkspace(activeWorkspace.id).find((item) => item.id === activeUsersView)
+    : undefined;
+  const activeRhPage = activeWorkspace.id === "rh" ? adminRhViews.find((item) => item.id === activeRhView) : undefined;
+  const activeAnalyticsPage = activeWorkspace.id === "analytics" ? adminAnalyticsViews.find((item) => item.id === activeAnalyticsView) : undefined;
+  const activeSystemPage = activeWorkspace.id === "system" ? adminSystemViews.find((item) => item.id === activeSystemView) : undefined;
+  const activeCapabilitiesPage = activeWorkspace.id === "capabilities" ? adminCapabilitiesViews.find((item) => item.id === activeCapabilitiesView) : undefined;
+  const activeSubpages = activeTab === "users" ? usersViewsForWorkspace(activeWorkspace.id) : activeWorkspace.id === "rh" ? adminRhViews : activeWorkspace.id === "analytics" ? adminAnalyticsViews : activeWorkspace.id === "system" ? adminSystemViews : activeWorkspace.id === "capabilities" ? adminCapabilitiesViews : [];
+  const activeSubpageId = activeTab === "users" ? activeUsersView : activeWorkspace.id === "rh" ? activeRhView : activeWorkspace.id === "analytics" ? activeAnalyticsView : activeWorkspace.id === "system" ? activeSystemView : activeWorkspace.id === "capabilities" ? activeCapabilitiesView : undefined;
+  const currentPageLabel = activeUsersPage?.label || activeRhPage?.label || activeAnalyticsPage?.label || activeSystemPage?.label || activeCapabilitiesPage?.label || activeWorkspaceTabs.find((item) => item.id === activeTab)?.label || titleFor(activeTab);
+  const currentPageDescription = activeUsersPage?.description || activeRhPage?.description || activeAnalyticsPage?.description || activeSystemPage?.description || activeCapabilitiesPage?.description || descriptionForWorkspaceTab(activeWorkspace.id, activeTab);
   const refreshPolicy = refreshPolicyFor(activeTab);
   const lastRefreshLabel = lastRefreshAt ? new Date(lastRefreshAt).toLocaleTimeString("zh-CN", { hour12: false }) : "等待首次同步";
 
@@ -535,7 +575,8 @@ function AdminApp() {
                 type="button"
                 className={selected ? "active" : ""}
                 key={workspace.id}
-                onClick={() => setActiveTab(workspace.tabs[0])}
+                onClick={() => navigateAdmin(workspace.id)}
+                aria-current={selected ? "page" : undefined}
               >
                 <Icon aria-hidden="true" />
                 <span>
@@ -548,8 +589,8 @@ function AdminApp() {
         </nav>
         <div className="starlight-sidebar__footer">
           <span>当前页面</span>
-          <strong>{titleFor(activeTab)}</strong>
-          <small>{adminTabDescriptions[activeTab]}</small>
+          <strong>{currentPageLabel}</strong>
+          <small>{currentPageDescription}</small>
         </div>
       </aside>
 
@@ -558,7 +599,7 @@ function AdminApp() {
           <header className="starlight-topbar admin-topbar">
             <div>
               <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>
-              <h1>{titleFor(activeTab)}</h1>
+              <h1>{currentPageLabel}</h1>
             </div>
             <div className="topbar-actions">
               <span className={`starlight-refresh-policy starlight-refresh-policy--${refreshPolicy.kind}`} title={refreshPolicy.description}>
@@ -599,41 +640,29 @@ function AdminApp() {
 
           {error ? <div className="error-banner">{error}</div> : null}
 
-          <AdminWorkspaceBand
-            kicker={activeWorkspace.subtitle}
-            title={activeWorkspace.label}
-            description={activeWorkspace.description}
-            currentLabel={titleFor(activeTab)}
-            currentDescription={adminTabDescriptions[activeTab]}
-            actions={
-              <div className="admin-workspace-band__meta-pills" aria-label="当前工作区状态">
-                <span>{refreshPolicy.label}</span>
-                <span>{refreshPolicy.intervalLabel}</span>
-              </div>
-            }
-            footer={
-              <div className="admin-workspace-band__tab-row" role="tablist" aria-label={`${activeWorkspace.label}页面`}>
-                {activeWorkspaceTabs.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <AdminBandTabButton
-                      key={item.id}
-                      active={activeTab === item.id}
-                      onClick={() => setActiveTab(item.id)}
-                      aria-pressed={activeTab === item.id}
-                    >
-                      <Icon aria-hidden="true" />
-                      <span>
-                        <strong>{item.label}</strong>
-                        <small>{adminTabDescriptions[item.id]}</small>
-                      </span>
-                    </AdminBandTabButton>
-                  );
-                })}
-              </div>
-            }
+          <AdminShellWorkspaceBand
+            workspace={activeWorkspace}
+            workspaceTabs={activeWorkspaceTabs}
+            activeTab={activeTab}
+            currentLabel={currentPageLabel}
+            currentDescription={currentPageDescription}
+            refreshLabel={refreshPolicy.label}
+            refreshIntervalLabel={refreshPolicy.intervalLabel}
+            subpages={activeSubpages}
+            activeSubpage={activeSubpageId}
+            onNavigateTab={(tabId) => navigateAdmin(activeWorkspace.id, tabId)}
+            onNavigateSubpage={(subpageId) => activeTab === "users"
+              ? navigateUsersView(subpageId as typeof activeUsersView)
+              : activeWorkspace.id === "rh"
+                ? navigateRhView(subpageId as typeof activeRhView)
+                : activeWorkspace.id === "analytics"
+                  ? navigateAnalyticsView(subpageId as typeof activeAnalyticsView)
+                  : activeWorkspace.id === "system"
+                    ? navigateSystemView(subpageId as typeof activeSystemView)
+                    : navigateCapabilitiesView(subpageId as typeof activeCapabilitiesView)}
           />
 
+          <AdminRouteErrorBoundary resetKey={`${activeWorkspace.id}:${activeTab}:${activeSubpageId || "root"}`}>
           <Suspense fallback={<div className="starlight-page-loading"><Loader2 className="spin" aria-hidden="true" /> 正在加载后台模块...</div>}>
           {activeTab === "overview" ? (
             <Overview
@@ -645,25 +674,30 @@ function AdminApp() {
           ) : null}
           {activeTab === "users" ? (
             <UsersPanel
+              initialView={activeWorkspace.usersView}
+              activeView={activeUsersView}
+              onViewChange={navigateUsersView}
+              showLocalNavigation={false}
               users={users}
               userGroups={userGroups}
               sessions={sessions}
               mutate={mutate}
-              onOpenAudit={() => setActiveTab("audit")}
+              onOpenAudit={() => navigateAdmin("analytics", "audit")}
             />
           ) : null}
           {activeTab === "providers" ? (
             <ApiSettingsPanel
               providers={providers}
               models={models}
-              refresh={loadAdminData}
+              activeView={activeCapabilitiesView === "models" ? "models" : "providers"}
+              refresh={() => loadWorkspaceData("capabilities")}
             />
           ) : null}
           {activeTab === "runninghub-workspace" ? (
-            <AdminRunningHubWorkspace />
+            <AdminRunningHubWorkspace activeView={activeRhView} onViewChange={navigateRhView} showLocalNavigation={false} />
           ) : null}
           {activeTab === "comfyui" ? (
-            <AdminComfyuiInstancesPanel />
+            <AdminComfyuiInstancesPanel instanceId={activeComfyuiInstanceId} detailTab={activeComfyuiDetailTab} onNavigate={navigateComfyuiInstance} />
           ) : null}
           {activeTab === "public-resources" ? (
             <AdminPublicResourcesPanel />
@@ -775,6 +809,7 @@ function AdminApp() {
           ) : null}
           {activeTab === "audit" ? (
             <AuditPanel
+              activeView={activeAnalyticsView}
               auditLogs={auditLogs}
               usageSummary={usageSummary}
               usageSummaryLoading={usageSummaryLoading}
@@ -790,6 +825,7 @@ function AdminApp() {
           ) : null}
           {activeTab === "system" ? (
             <SystemPanel
+              activeView={activeSystemView === "runtime-settings" ? "runtime-settings" : "health"}
               system={system}
               saving={busy}
               onSave={async ({ taskQueueSettings, revision }) => {
@@ -801,7 +837,7 @@ function AdminApp() {
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({ taskQueueSettings, revision }),
                   });
-                  await loadAdminData();
+                  await loadWorkspaceData("system");
                 } catch (nextError) {
                   if (nextError instanceof AdminApiError && nextError.code === "ADMIN_SETTINGS_REVISION_CONFLICT") {
                     const latestSystem = await api<SystemInfo>("/api/admin/system");
@@ -823,6 +859,7 @@ function AdminApp() {
             />
           ) : null}
           </Suspense>
+          </AdminRouteErrorBoundary>
         </main>
 
         <AdminAssistantPanel

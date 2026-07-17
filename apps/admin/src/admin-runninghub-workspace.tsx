@@ -25,12 +25,19 @@ import type {
   RunningHubAnalyzeDraft,
   RunningHubAnalyzeDraftSection,
 } from "./admin-types";
+import type { AdminRhViewId } from "./admin-view-model";
 
 type RunningHubStatusFilter = "all" | "enabled" | "disabled";
 export function AdminRunningHubWorkspace({
   selectedProviderId = "",
+  activeView = "workflows",
+  onViewChange,
+  showLocalNavigation = true,
 }: {
   selectedProviderId?: string;
+  activeView?: AdminRhViewId;
+  onViewChange?: (viewId: AdminRhViewId) => void;
+  showLocalNavigation?: boolean;
 }) {
   const [items, setItems] = useState<RunningHubAdminItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -55,6 +62,12 @@ export function AdminRunningHubWorkspace({
   const [keyPoolOpen, setKeyPoolOpen] = useState(false);
   const [keyPoolSaving, setKeyPoolSaving] = useState(false);
   const [keyPoolDraft, setKeyPoolDraft] = useState<RunningHubKeyPoolDraftItem[]>([]);
+
+  useEffect(() => {
+    if (activeView === "workflows") setActiveTab("workflow");
+    if (activeView === "apps") setActiveTab("app");
+    if (activeView === "keys") setKeyPoolOpen(true);
+  }, [activeView]);
 
   const resolvedProviderId = selectedProviderId || items.find((item) => item.catalogId === selectedCatalogId)?.providerId || items[0]?.providerId || "";
 
@@ -358,7 +371,7 @@ export function AdminRunningHubWorkspace({
         </article>
       </div>
 
-      <section className="api-card admin-runninghub-key-pool-panel">
+      {activeView === "keys" ? <section className="api-card admin-runninghub-key-pool-panel">
         <div className="admin-runninghub-workspace__section-head admin-runninghub-key-pool-panel__head">
           <div className="admin-runninghub-key-pool-panel__copy">
             <span className="admin-runninghub-key-pool-panel__kicker">Provider 级共享 Key 池</span>
@@ -448,18 +461,18 @@ export function AdminRunningHubWorkspace({
         ) : (
           <div className="admin-runninghub-editor__empty-note">默认折叠。展开后可新增、编辑、设为默认、启用、停用和删除单个 RH Key。</div>
         )}
-      </section>
+      </section> : null}
 
-      <div className="admin-runninghub-workspace__sticky-shell">
+      {activeView !== "keys" ? <><div className="admin-runninghub-workspace__sticky-shell">
         <div className="admin-runninghub-workspace__filters">
           <label className="admin-runninghub-workspace__search">
             <Search aria-hidden="true" />
             <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索标题、备注、目录 ID" />
           </label>
-          <div className="admin-runninghub-workspace__tabs" role="tablist" aria-label="RunningHub 分类">
-            <button type="button" className={activeTab === "workflow" ? "active" : ""} onClick={() => setActiveTab("workflow")}>工作流</button>
-            <button type="button" className={activeTab === "app" ? "active" : ""} onClick={() => setActiveTab("app")}>AI 应用</button>
-          </div>
+          {showLocalNavigation ? <div className="admin-runninghub-workspace__tabs" role="tablist" aria-label="RunningHub 分类">
+            <button type="button" className={activeTab === "workflow" ? "active" : ""} onClick={() => { setActiveTab("workflow"); onViewChange?.("workflows"); }}>工作流</button>
+            <button type="button" className={activeTab === "app" ? "active" : ""} onClick={() => { setActiveTab("app"); onViewChange?.("apps"); }}>AI 应用</button>
+          </div> : null}
           <div className="admin-runninghub-workspace__status-filter" role="tablist" aria-label="RunningHub 状态筛选">
             <button type="button" className={statusFilter === "all" ? "active" : ""} onClick={() => setStatusFilter("all")}>全部</button>
             <button type="button" className={statusFilter === "enabled" ? "active" : ""} onClick={() => setStatusFilter("enabled")}>启用</button>
@@ -660,6 +673,7 @@ export function AdminRunningHubWorkspace({
           </section>
         </div>
       </div>
+      </> : null}
     </section>
   );
 }
