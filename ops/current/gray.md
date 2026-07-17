@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.2`
-- 当前 release：`20260717-audit-rankings-gray-r2-v072`
-- 当前状态：`审计账号与分组排行榜已改为完整目录、顶部紧凑排列和面板内滚动，并完成真实页面验收`
-- 当前补修：`账号包含零用量与历史归属行；分组包含零用量目录组和未分组行；模型、RH 与账号下钻统计保持不变`
+- 当前版本：`v0.8.0`
+- 当前 release：`20260717-admin-ten-domain-gray-r1-v080`
+- 当前状态：`Admin 十域信息架构、稳定深链、按域加载、页面分包与统一交互动效已部署并通过严格运行态验证`
+- 当前补修：`线上登录态 Chrome 控制超时未形成新截图；本地十域深链 QA、Gray API/Worker/status/readiness 已通过`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-v080.md`
+  - `../../docs/logbooks/validations/2026-07-17-admin-information-architecture-gray-v080.md`
   - `../../docs/logbooks/releases/gray/2026-07-17-audit-rankings-v072.md`
   - `../../docs/logbooks/validations/2026-07-17-audit-rankings-gray-v072.md`
   - `../../docs/logbooks/releases/gray/2026-07-17-permission-owner-textsplit-v071.md`
@@ -89,9 +91,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260717-audit-account-ranking-gray-r1-v072`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-audit-rankings-gray-r2-v072`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260717-audit-account-ranking-gray-r1-v072`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-audit-rankings-gray-r2-v072`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

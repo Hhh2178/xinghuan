@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.2`
-- release：`20260717-audit-rankings-gray-r2-v072`
-- 当前状态：`审计账号与分组排行榜完整目录、顶部紧凑排列与内部滚动已部署 Gray 并完成验收`
-- 部署内容：`账号显示全部当前目录与历史行；分组显示全部目录组与未分组行；成功次数降序；外层面板尺寸不变`
-- 已验证：`163 项测试、全量构建、API/Worker/readiness、真实页面 29 个账号与 5 个分组、布局计算和控制台通过`
-- 待验收：`无 Gray 阻断项；Production 保持 v0.7.0，尚未晋级`
+- 版本：`v0.8.0`
+- release：`20260717-admin-ten-domain-gray-r1-v080`
+- 当前状态：`Admin 十域信息架构、稳定深链、按域加载、页面分包与统一交互动效已部署 Gray`
+- 部署内容：`十个一级业务域；RH 与 ComfyUI 分离；关键二级页稳定 URL；路由错误隔离；统一焦点和减少动画`
+- 已验证：`163 项测试、全量 type-check/构建、Harness、1440×1000 本地深链 QA、Gray API/Worker/status/readiness 严格验证`
+- 待验收：`无 Gray 运行态阻断项；线上登录态 Chrome 控制超时未形成新截图；Production 保持 v0.7.2，尚未晋级`
 - 部署时间：`2026-07-17`
 - 当前批次记录：
+  - `gray/2026-07-17-admin-ten-domain-v080.md`
+  - `../validations/2026-07-17-admin-information-architecture-gray-v080.md`
   - `gray/2026-07-17-audit-rankings-v072.md`
   - `../validations/2026-07-17-audit-rankings-gray-v072.md`
   - `gray/2026-07-17-permission-owner-textsplit-v071.md`

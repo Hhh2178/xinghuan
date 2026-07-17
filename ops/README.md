@@ -27,10 +27,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.2`
-  - release：`20260717-audit-rankings-gray-r2-v072`
-  - 状态：`审计账号与分组排行榜完整目录、顶部紧凑排列和内部滚动已部署并通过真实页面验收`
-  - 当前补修：`账号和分组均显示零用量目录项；保留历史未知账号与未分组统计`
+  - 版本：`v0.8.0`
+  - release：`20260717-admin-ten-domain-gray-r1-v080`
+  - 状态：`Admin 十域信息架构、稳定深链、按域加载和页面分包已部署并通过严格运行态验证`
+  - 当前补修：`线上登录态 Chrome 控制超时未形成新截图；本地完整 UI 与 Gray 运行态证据已落盘`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

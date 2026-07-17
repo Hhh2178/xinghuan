@@ -2,7 +2,7 @@
 
 > **验证范围：** 十域导航、二级页面稳定 URL、按域加载、页面分包、错误隔离、视觉/动效合同与 Gray v0.8.0。
 > **证据类型：** 本地自动验证与 Playwright mock-auth 页面验证。
-> **当前结论：** 本地实现与 Harness 已通过；Gray 部署与线上验收完成后补最终运行态证据。
+> **当前结论：** 本地实现、Harness、Gray 部署和严格运行态验证均通过；线上登录态浏览器控制超时，未将其记作页面验收通过。
 
 ## 2026-07-17
 
@@ -32,6 +32,13 @@
 - Playwright mock-auth 在 1440×1000 下确认十域完整；`/admin/capabilities/models`、`/admin/rh/keys`、`/admin/system/runtime-settings` 深链及前进/后退恢复通过。
 - 浏览器控制台中唯一 404 来自 mock 未配置 `/api/admin/system`；路由、页面标题、二级导航和错误隔离均正常。
 - 发布版本确定为 `v0.8.0`，反映本次用户可见的信息架构升级。
+- Push Hook 完成 45 个测试文件、163 项测试、全部 workspace type-check 与生产构建。
+- Gray prepare、deploy 和两次 verify 已完成；首次严格 verify 遇到一次瞬时 SSH 断开，原命令重试后完整通过。
+- release symlink 为 `/opt/apps/xinghuan-canvas-next/releases/20260717-admin-ten-domain-gray-r1-v080`。
+- API / Worker 均为 `active`；内网和公网状态均为 `0.8.0 / gray / enforced`。
+- 权限 readiness 为 `ready=true`：127 Subjects、121 published、3 restricted、3 retired、926 rules、5 principals、0 failures。
+- 数据库迁移为 `applied: 0 / skipped: 23`，本批次无 schema 与数据写入变更。
+- 尝试复用现有 Gray 登录态 Chrome 标签进行线上 UI 复核时，浏览器控制通道在页面导航阶段超时并重置；因此本记录只认定本地完整 UI 与 Gray 运行态通过，不声称新的线上登录页面截图通过。
 
 ## 已通过命令
 
@@ -49,8 +56,11 @@
 - `npm run verify:admin-overview-panel-contract`
 - `npm run verify:admin-task-panel-contract`
 - Playwright CLI deep-link QA (`1440x1000`)
+- `npm run release:gray:prepare -- --release=20260717-admin-ten-domain-gray-r1-v080`
+- `npm run release:gray:deploy -- --env=gray --release=20260717-admin-ten-domain-gray-r1-v080 --archive=dist-release/20260717-admin-ten-domain-gray-r1-v080.tar.gz --ssh-key=<local-key-path>`
+- `npm run release:gray:verify -- --env=gray --release=20260717-admin-ten-domain-gray-r1-v080 --strict --ssh-key=<local-key-path>`
 
-## 待 Gray 验证
+## 非阻断说明
 
-- `release:gray:prepare / deploy / verify`。
-- Gray 真实账号的十域导航、关键深链、控制台与 API 运行态。
+- `verify:admin-session-governance` 是需要运行中 API 与测试账号、并会撤销会话的破坏性集成脚本；本地无 API 时连接失败，本批次未在 Gray 真实账号上执行。
+- npm audit 仍报告 1 项既有 low 风险依赖问题，不是本次变更新增，也不阻断 Gray。

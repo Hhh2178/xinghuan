@@ -44,11 +44,11 @@
 | I6. Provider、RH 与 ComfyUI 拆分 | complete | Provider/模型、RH 三页、ComfyUI 实例子视图深链 |
 | I7. 内容、运行、分析与系统拆分 | complete | 内容双页、任务域、用量/审计、健康/参数/环境同步 |
 | I8. 全局前端收口 | complete | 动态 import、路由错误边界、动效 Token、焦点与减少动画 |
-| I9. Harness 与 Gray 发布 | in_progress | 全量验证、浏览器验收、版本、部署与线上证据 |
+| I9. Harness 与 Gray 发布 | complete | 全量验证、本地浏览器验收、v0.8.0 部署与 Gray 运行态证据 |
 
 ## 剩余实施批次
 
-- I9：完成 Harness、浏览器验收、版本与 Gray 发布证据。
+- 本计划的实现和 Gray 发布已完成；Production 晋级不在本次授权范围内。
 
 ## 错误记录
 
@@ -76,3 +76,5 @@
 | Overview / Tasks 面板合同未接受路由级动态 import | 两个合同同步接受动态 import，仍验证模块拆分、类型与业务行为 |
 | `verify:admin-session-governance` 连接本地 `127.0.0.1:18200` 失败 | 该脚本是需要运行中 API 和测试账号的破坏性会话撤销集成验证；保留到受控服务/Gray 验证，不归类为静态合同失败 |
 | `npm version 0.8.0 --workspaces` 先改了包版本，但旧内部依赖使 npm 尝试访问私有包注册表并返回 404 | 用 `npm pkg set` 将全部 `@xinghuan/*` workspace 依赖同步到 0.8.0，再由 `npm install --package-lock-only` 正常重建 lockfile |
+| 首次 Gray 严格 verify 遇到瞬时 SSH `Connection closed` | 保持 release 不变重试同一只读验证命令，API、Worker、状态与 readiness 全部通过 |
+| 复用现有 Gray 登录态 Chrome 标签时浏览器控制通道超时并重置 | 不伪造线上 UI 结论；保留本地完整深链 QA 与 Gray 严格运行态证据，在线登录态截图列为非阻断说明 |
