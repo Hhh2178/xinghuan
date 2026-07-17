@@ -2,35 +2,28 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-17",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "1c78243c3ce0466af9f60d4281ce8f6bddf504cf",
-  "versionTransition": {
-    "environment": "gray",
-    "from": "0.8.0",
-    "to": "0.7.3",
-    "authorizedBy": "user",
-    "reason": "Explicit version-policy correction before Gray redeploy"
-  },
+  "sourceCommit": "b6a8c273c04fd55885a7023b6448e8d009f5700d",
   "environments": {
     "gray": {
-      "version": "0.8.0",
-      "releaseId": "20260717-admin-ten-domain-gray-r1-v080",
+      "version": "0.7.3",
+      "releaseId": "20260717-admin-ten-domain-version-correction-gray-r1-v073",
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-v080.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-admin-information-architecture-gray-v080.md",
-      "rollbackReleaseId": "20260717-audit-rankings-gray-r2-v072"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-version-correction-v073.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-gray-v073.md",
+      "rollbackReleaseId": "20260717-admin-ten-domain-gray-r1-v080"
     },
     "production": {
-      "version": "0.7.2",
-      "releaseId": "20260717-audit-rankings-prod-r1-v072",
+      "version": "0.7.3",
+      "releaseId": "20260717-admin-ten-domain-version-correction-prod-r1-v073",
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
       "readiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-17", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-17-audit-rankings-production-v072.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-audit-rankings-production-v072.md",
-      "rollbackReleaseId": "20260717-group-retry-catalog-order-prod-r1-v070"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-17-admin-ten-domain-version-correction-production-v073.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-production-v073.md",
+      "rollbackReleaseId": "20260717-audit-rankings-prod-r1-v072"
     }
   }
 }

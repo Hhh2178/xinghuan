@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.8.0`
-- release：`20260717-admin-ten-domain-gray-r1-v080`
-- 当前状态：`Admin 十域信息架构、稳定深链、按域加载、页面分包与统一交互动效已部署 Gray`
+- 版本：`v0.7.3`
+- release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
+- 当前状态：`Admin 十域能力保持不变；版本口径已按用户授权修正并完成 Gray 严格验收`
 - 部署内容：`十个一级业务域；RH 与 ComfyUI 分离；关键二级页稳定 URL；路由错误隔离；统一焦点和减少动画`
 - 已验证：`163 项测试、全量 type-check/构建、Harness、1440×1000 本地深链 QA、Gray API/Worker/status/readiness 严格验证`
-- 待验收：`无 Gray 运行态阻断项；线上登录态 Chrome 控制超时未形成新截图；Production 保持 v0.7.2，尚未晋级`
+- 待验收：`无 Gray 运行态阻断项；同一制品已晋级 Production`
 - 部署时间：`2026-07-17`
 - 当前批次记录：
+  - `gray/2026-07-17-admin-ten-domain-version-correction-v073.md`
+  - `../validations/2026-07-17-admin-ten-domain-version-correction-gray-v073.md`
   - `gray/2026-07-17-admin-ten-domain-v080.md`
   - `../validations/2026-07-17-admin-information-architecture-gray-v080.md`
   - `gray/2026-07-17-audit-rankings-v072.md`
@@ -99,11 +101,13 @@
 
 ### Production
 
-- 版本：`v0.7.2`
-- release：`20260717-audit-rankings-prod-r1-v072`
-- 当前状态：`审计账号与分组完整排行榜已从 Gray 晋级；运行态、观测、readiness 和真实页面验收通过`
+- 版本：`v0.7.3`
+- release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
+- 当前状态：`与 Gray 相同的 v0.7.3 制品已晋级；运行态、服务与权限 readiness 验收通过`
 - 当前补修：`账号与分组显示零用量目录项并支持内部滚动；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `production/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
+  - `../validations/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
   - `production/2026-07-17-audit-rankings-production-v072.md`
   - `../validations/2026-07-17-audit-rankings-production-v072.md`
   - `production/2026-07-17-group-retry-catalog-order-production.md`

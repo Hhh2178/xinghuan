@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.8.0`（enforced 已部署）
-- 当前生产版本：`v0.7.2`（enforced 已部署）
-- 当前灰度 release：`20260717-admin-ten-domain-gray-r1-v080`
-- 当前生产 release：`20260717-audit-rankings-prod-r1-v072`
+- 当前灰度版本：`v0.7.3`（enforced 已部署）
+- 当前生产版本：`v0.7.3`（enforced 已部署）
+- 当前灰度 release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
+- 当前生产 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Admin 已从五个宽泛工作域重构为十个一级业务域，并以 v0.8.0 部署 Gray；Production 保持 v0.7.2。
+- 最新完成：Admin 十域能力保持不变；版本口径按用户授权修正为 v0.7.3，并以同一制品完成 Gray 与 Production 发布。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,9 +40,9 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行 `v0.8.0 / enforced`，production 当前运行 `v0.7.2 / enforced`
-  - gray 当前 release 为 `20260717-admin-ten-domain-gray-r1-v080`
-  - production 当前 release 为 `20260717-audit-rankings-prod-r1-v072`
+  - gray 与 production 当前均运行 `v0.7.3 / enforced`
+  - gray 当前 release 为 `20260717-admin-ten-domain-version-correction-gray-r1-v073`
+  - production 当前 release 为 `20260717-admin-ten-domain-version-correction-prod-r1-v073`
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：
