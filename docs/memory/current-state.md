@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.0`（enforced 已部署）
+- 当前灰度版本：`v0.7.1`（enforced 已部署）
 - 当前生产版本：`v0.7.0`（enforced 已部署）
-- 当前灰度 release：`20260717-group-retry-catalog-order-gray-r1-v070`
+- 当前灰度 release：`20260717-permission-owner-textsplit-gray-r2-v071`
 - 当前生产 release：`20260717-group-retry-catalog-order-prod-r1-v070`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：组执行失败重试和 Provider/模型前台排序已通过 Gray 数据完整性与功能验收，并使用同一发布包晋级 Production。
+- 最新完成：权限与任务归属完整性、文本拆分重跑拓扑保留已部署 Gray；审计页账号/分组的模型与 RH 使用统计已用真实数据验收。Production 仍保持 v0.7.0。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,8 +40,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 与 production 当前均运行 `v0.7.0 / enforced`
-  - gray 当前 release 为 `20260717-group-retry-catalog-order-gray-r1-v070`
+  - gray 当前运行 `v0.7.1 / enforced`，production 仍运行 `v0.7.0 / enforced`
+  - gray 当前 release 为 `20260717-permission-owner-textsplit-gray-r2-v071`
   - production 当前 release 为 `20260717-group-retry-catalog-order-prod-r1-v070`
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

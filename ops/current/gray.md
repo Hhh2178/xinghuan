@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.0`
-- 当前 release：`20260717-group-retry-catalog-order-gray-r1-v070`
-- 当前状态：`组节点失败重试与 Provider/模型前台排序已部署并通过数据完整性、API 和页面验收`
-- 当前补修：`清理并备份 16 条 retired Subject 旧规则；默认开放权限和管理员公共资源硬边界保持不变`
+- 当前版本：`v0.7.1`
+- 当前 release：`20260717-permission-owner-textsplit-gray-r2-v071`
+- 当前状态：`权限与归属完整性、文本拆分拓扑保留已部署；审计页账号/分组模型与 RH 使用统计已完成真实数据验收`
+- 当前补修：`用户目录改为定点写入，任务 owner 保留内嵌 userId；文本拆分重跑保留节点位置、顺序和下游连线`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-17-permission-owner-textsplit-v071.md`
+  - `../../docs/logbooks/validations/2026-07-17-permission-owner-textsplit-gray-v071.md`
   - `../../docs/logbooks/releases/gray/2026-07-16-default-open-canvas-recovery-v070.md`
   - `../../docs/logbooks/releases/gray/2026-07-17-group-retry-catalog-order-v070.md`
   - `../../docs/logbooks/validations/2026-07-17-group-retry-catalog-order-gray-v070.md`
@@ -85,9 +87,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260716-default-open-canvas-recovery-gray-r2-v070`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-permission-owner-textsplit-gray-r1-v071`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260716-default-open-canvas-recovery-gray-r2-v070`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-permission-owner-textsplit-gray-r1-v071`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

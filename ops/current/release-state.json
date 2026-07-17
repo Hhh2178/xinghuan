@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-17",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "90450cb78907c299ec9e5f36aa49feece52165f9",
+  "sourceCommit": "afc325232a7d78a453e4d76ca050fe69c233bd6b",
   "environments": {
     "gray": {
-      "version": "0.7.0",
-      "releaseId": "20260717-group-retry-catalog-order-gray-r1-v070",
+      "version": "0.7.1",
+      "releaseId": "20260717-permission-owner-textsplit-gray-r2-v071",
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-group-retry-catalog-order-v070.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-group-retry-catalog-order-gray-v070.md",
-      "rollbackReleaseId": "20260716-default-open-canvas-recovery-gray-r2-v070"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-permission-owner-textsplit-v071.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-permission-owner-textsplit-gray-v071.md",
+      "rollbackReleaseId": "20260717-permission-owner-textsplit-gray-r1-v071"
     },
     "production": {
       "version": "0.7.0",

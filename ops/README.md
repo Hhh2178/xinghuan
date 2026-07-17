@@ -27,10 +27,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.0`
-  - release：`20260717-group-retry-catalog-order-gray-r1-v070`
-  - 状态：`组节点失败重试与 Provider/模型前台排序已部署并完成数据、API 和页面验收`
-  - 当前补修：`retired Subject 旧规则已备份清理；默认开放权限和管理员公共资源边界保持不变`
+  - 版本：`v0.7.1`
+  - release：`20260717-permission-owner-textsplit-gray-r2-v071`
+  - 状态：`权限与任务归属完整性、文本拆分拓扑保留已部署；审计页账号/分组模型与 RH 使用统计通过真实数据验收`
+  - 当前补修：`用户目录定点写入、任务 owner 快照回退、文本拆分稳定 ID 重建`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
