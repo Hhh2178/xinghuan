@@ -214,6 +214,20 @@ describe("task repository", () => {
     expect(readTaskRecords).not.toHaveBeenCalled();
   });
 
+  it("preserves the existing owner when a file-backed runtime update omits ownerId", async () => {
+    const writeTaskRecords = vi.fn(async () => undefined);
+    const repo = createTaskRepository(createDeps({
+      readTaskRecords: async () => [taskRecord({ id: "task-1", ownerId: "owner-a", title: "Original" })],
+      writeTaskRecords,
+    }));
+
+    await repo.writeTaskRecord(taskRecord({ id: "task-1", title: "Updated", status: "running" }));
+
+    expect(writeTaskRecords).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "task-1", title: "Updated", ownerId: "owner-a" }),
+    ]);
+  });
+
   it("reads a file-backed task list page with filtering sorting enrichment and pagination", async () => {
     const enrichAdminTaskRecord = vi.fn((
       task: TaskRecordShape,

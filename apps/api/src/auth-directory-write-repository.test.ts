@@ -42,4 +42,37 @@ describe("auth directory write repository", () => {
     expect(sql).toContain("on conflict (group_id) do update");
     expect(sql).not.toMatch(/delete from xh_(users|sessions|canvases|assets|projects)/);
   });
+
+  it("rolls back and releases the client when the default policy write fails", async () => {
+    const { repository, query, release } = repositoryHarness();
+    query.mockImplementation(async (statement: string) => {
+      if (statement.includes("insert into xh_group_permission_policies")) throw new Error("POLICY_WRITE_FAILED");
+      return { rows: [], rowCount: 1 };
+    });
+
+    await expect(repository.createUserGroupWithPolicy(
+      { id: "group-a", name: "Group A", description: "", sortOrder: 1, createdAt: 10, updatedAt: 10 },
+      { groupId: "group-a", deny: { nodeTypes: [] }, updatedBy: "admin-a", updatedAt: 10 },
+    )).rejects.toThrow("POLICY_WRITE_FAILED");
+
+    const statements = query.mock.calls.map(([statement]) => String(statement));
+    expect(statements).toContain("rollback");
+    expect(statements).not.toContain("commit");
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the original transaction error and releases the client when rollback also fails", async () => {
+    const { repository, query, release } = repositoryHarness();
+    query.mockImplementation(async (statement: string) => {
+      if (statement.includes("insert into xh_group_permission_policies")) throw new Error("POLICY_WRITE_FAILED");
+      if (statement === "rollback") throw new Error("ROLLBACK_FAILED");
+      return { rows: [], rowCount: 1 };
+    });
+
+    await expect(repository.createUserGroupWithPolicy(
+      { id: "group-a", name: "Group A", description: "", sortOrder: 1, createdAt: 10, updatedAt: 10 },
+      { groupId: "group-a", deny: { nodeTypes: [] }, updatedBy: "admin-a", updatedAt: 10 },
+    )).rejects.toThrow("POLICY_WRITE_FAILED");
+    expect(release).toHaveBeenCalledOnce();
+  });
 });

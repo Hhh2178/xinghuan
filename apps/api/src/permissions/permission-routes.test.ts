@@ -4,6 +4,12 @@ import { createPermissionRouteHandler } from "./permission-routes.js";
 
 const subject: PermissionSubject = { subjectKey: "runninghub.app/example", domain: "runninghub", subjectType: "app", parentKeys: ["runninghub.app/*"], sourceId: "app:example", exposureState: "restricted", displayName: "Example", metadata: {}, revision: 1 };
 
+class TestHttpError extends Error {
+  constructor(public statusCode: number, message: string, public payload?: Record<string, unknown>) {
+    super(message);
+  }
+}
+
 function createHandler() {
   const subjects = [subject];
   const rules: PermissionRule[] = [];
@@ -13,7 +19,7 @@ function createHandler() {
     handler: createPermissionRouteHandler({
       sendT8,
       readJsonBody: async (request: any) => request.body,
-      HttpError: class HttpError extends Error { constructor(public statusCode: number, message: string) { super(message); } },
+      HttpError: TestHttpError,
       readAuthorizationState: async () => ({ subjects, rules }),
       upsertSubject: async (next) => { subjects[0] = next; return next; },
       upsertRule: async (next) => { rules.push(next); return next; },
@@ -53,6 +59,22 @@ describe("permission routes", () => {
     await expect(handler({ request: { method: "DELETE", body: {} } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules/rule-1"), currentUser: admin })).rejects.toMatchObject({ statusCode: 400, message: "PERMISSION_CHANGE_REASON_REQUIRED" });
   });
 
+  it("returns the current subject revision when preflight rejects a stale update", async () => {
+    const { handler } = createHandler();
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+
+    await expect(handler({
+      request: { method: "PUT", body: { exposureState: "published", revision: 0, reason: "release" } } as any,
+      response: {} as any,
+      url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"),
+      currentUser: admin,
+    })).rejects.toMatchObject({
+      statusCode: 409,
+      message: "PERMISSION_SUBJECT_REVISION_CONFLICT",
+      payload: { currentRevision: 1 },
+    });
+  });
+
   it("rejects a stale rule revision", async () => {
     const { handler } = createHandler();
     const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
@@ -67,7 +89,7 @@ describe("permission routes", () => {
     const handler = createPermissionRouteHandler({
       sendT8: base.sendT8,
       readJsonBody: async (request: any) => request.body,
-      HttpError: class HttpError extends Error { constructor(public statusCode: number, message: string) { super(message); } },
+      HttpError: TestHttpError,
       readAuthorizationState: async () => ({ subjects: base.subjects, rules: base.rules }),
       upsertSubject: async () => { throw new Error("PERMISSION_SUBJECT_REVISION_CONFLICT"); },
       upsertRule: async () => { throw new Error("PERMISSION_RULE_REVISION_CONFLICT"); },
@@ -79,7 +101,7 @@ describe("permission routes", () => {
       principalExists: async () => true,
     });
 
-    await expect(handler({ request: { method: "PUT", body: { exposureState: "published", revision: 1, reason: "release" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_SUBJECT_REVISION_CONFLICT" });
+    await expect(handler({ request: { method: "PUT", body: { exposureState: "published", revision: 1, reason: "release" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-subjects/runninghub.app%2Fexample"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_SUBJECT_REVISION_CONFLICT", payload: { currentRevision: 1 } });
     await expect(handler({ request: { method: "POST", body: { principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", reason: "grant" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });
     base.rules.push({ id: "rule-delete", principalType: "group", principalId: "group-a", subjectKey: subject.subjectKey, action: "view", effect: "allow", revision: 1 });
     await expect(handler({ request: { method: "DELETE", body: { revision: 1, reason: "remove" } } as any, response: {} as any, url: new URL("http://test/api/admin/permission-rules/rule-delete"), currentUser: admin })).rejects.toMatchObject({ statusCode: 409, message: "PERMISSION_RULE_REVISION_CONFLICT" });

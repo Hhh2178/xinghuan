@@ -153,4 +153,29 @@ describe('buildTextSplitGeneratedGraph', () => {
     expect(result.edges).toContainEqual(downstreamEdges[1]);
     expect(result.edges.some((edge) => edge.source === first.nodes[2].id || edge.target === first.nodes[2].id)).toBe(false);
   });
+
+  it('preserves manual text nodes and their downstream topology on rerun', () => {
+    const first = buildTextSplitGeneratedGraph({
+      sourceNode,
+      segments: ['first'],
+      mode: 'text',
+      existingNodes: [sourceNode],
+    });
+    const textNode = { ...first.nodes[0], position: { x: 1200, y: 360 } };
+    const consumer: Node = { id: 'consumer-1', type: 'image', position: { x: 1800, y: 360 }, data: {} };
+    const downstreamEdge: Edge = { id: 'text-consumer', source: textNode.id, target: consumer.id };
+    const existingNodes = [sourceNode, textNode, consumer];
+
+    const generated = buildTextSplitGeneratedGraph({
+      sourceNode,
+      segments: ['updated'],
+      mode: 'text',
+      existingNodes,
+    });
+    const result = reconcileTextSplitGeneratedGraph({ existingNodes, existingEdges: [downstreamEdge], generated });
+
+    expect(result.nodes.map((node) => node.id)).toEqual(existingNodes.map((node) => node.id));
+    expect(result.nodes[1]).toMatchObject({ position: { x: 1200, y: 360 }, data: { prompt: 'updated' } });
+    expect(result.edges).toEqual([downstreamEdge]);
+  });
 });
