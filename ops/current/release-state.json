@@ -15,15 +15,15 @@
       "rollbackReleaseId": "20260717-audit-account-ranking-gray-r1-v072"
     },
     "production": {
-      "version": "0.7.0",
-      "releaseId": "20260717-group-retry-catalog-order-prod-r1-v070",
+      "version": "0.7.2",
+      "releaseId": "20260717-audit-rankings-prod-r1-v072",
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 14, "retiredSubjects": 4, "rules": 462, "principals": 2, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 14, "retiredSubjects": 4, "rules": 462, "principals": 2, "failures": 0, "failureCodes": [], "observedAt": "2026-07-17", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-17-group-retry-catalog-order-production.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-group-retry-catalog-order-production-v070.md",
-      "rollbackReleaseId": "20260716-permission-platform-hardening-prod-r1-v0613"
+      "readiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-17", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-17-audit-rankings-production-v072.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-17-audit-rankings-production-v072.md",
+      "rollbackReleaseId": "20260717-group-retry-catalog-order-prod-r1-v070"
     }
   }
 }

@@ -36,10 +36,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.0`
-  - release：`20260717-group-retry-catalog-order-prod-r1-v070`
-  - 状态：`组节点失败重试与 Provider/模型前台排序已由 Gray 晋级；完整性、readiness 和 Playwright 验收通过`
-  - 当前补修：`继续观察历史任务失败趋势与 revision conflict`
+  - 版本：`v0.7.2`
+  - release：`20260717-audit-rankings-prod-r1-v072`
+  - 状态：`审计账号与分组完整排行榜已由 Gray 晋级；运行态、观测、readiness 和真实页面验收通过`
+  - 当前补修：`继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工
 

@@ -97,11 +97,13 @@
 
 ### Production
 
-- 版本：`v0.7.0`
-- release：`20260717-group-retry-catalog-order-prod-r1-v070`
-- 当前状态：`组执行失败重试和 Provider/模型前台排序已从 Gray 晋级；数据完整性和运行态验收通过`
-- 当前补修：`已备份并清理 retired Subject 旧规则；继续观察历史任务失败趋势与 revision conflict`
+- 版本：`v0.7.2`
+- release：`20260717-audit-rankings-prod-r1-v072`
+- 当前状态：`审计账号与分组完整排行榜已从 Gray 晋级；运行态、观测、readiness 和真实页面验收通过`
+- 当前补修：`账号与分组显示零用量目录项并支持内部滚动；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `production/2026-07-17-audit-rankings-production-v072.md`
+  - `../validations/2026-07-17-audit-rankings-production-v072.md`
   - `production/2026-07-17-group-retry-catalog-order-production.md`
   - `../validations/2026-07-17-group-retry-catalog-order-production-v070.md`
   - `production/2026-07-16-permission-platform-hardening-production.md`
