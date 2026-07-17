@@ -40,7 +40,8 @@ async function main() {
   assert(typeof page1.data.hasMore === "boolean", "hasMore missing");
   assert((failedOnly.data.items || []).every((item) => item.status === "failed"), "status filter mismatch");
   for (const page of [page1, page2, failedOnly, imageOnly]) {
-    assert((page.data.items || []).every((item) => !("payload" in item) && !("result" in item) && !("logs" in item)), "task list leaked heavy fields");
+    assert((page.data.items || []).every((item) => !("payload" in item) && !("result" in item)), "task list leaked payload or result");
+    assert((page.data.items || []).every((item) => Array.isArray(item.logs)), "task list omitted complete logs");
   }
   const seededImageItems = (imageOnly.data.items || []).filter((item) => seededImageTitles.has(item.title));
   assert(seededImageItems.length > 0, "capability filter did not return seeded image tasks");
