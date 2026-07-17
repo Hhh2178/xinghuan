@@ -1886,6 +1886,7 @@ const server = createServer(async (request, response) => {
       const payload: Record<string, unknown> = {
         taskCapability,
         executionMode: "worker_queue",
+        userId: currentUser!.id,
         targetType,
         pageId: safeText(body.pageId),
         webappId: safeText(body.webappId),
@@ -1910,6 +1911,7 @@ const server = createServer(async (request, response) => {
           capability: taskCapability,
           rhTargetType: targetType,
           rhRunTargetId: runTargetId,
+          userId: currentUser!.id,
           pageId: safeText(body.pageId),
           webappId: safeText(body.webappId),
           workflowId: safeText(body.workflowId),
