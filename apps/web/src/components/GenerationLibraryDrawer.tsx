@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock3, Download, Eye, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
+import { BookmarkPlus, Clock3, Download, Eye, Image as ImageIcon, Music, Plus, Search, Sparkles, Trash2, Video, X } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useThemeStore } from '../stores/theme';
 import * as api from '../services/api';
@@ -155,6 +155,18 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
     }
   };
 
+  const promoteItem = async (item: GenerationLibraryItem) => {
+    const res = await api.promoteGenerationLibraryItem(item.id);
+    const promoted = resultData<{ artifact: GenerationLibraryItem }>(res);
+    if (!promoted?.artifact) {
+      setMsg((res as any)?.error || '保存到资源库失败');
+      return;
+    }
+    setItems((previous) => previous.map((entry) => entry.id === item.id ? promoted.artifact : entry));
+    setMsg('已保存到资源库');
+    window.dispatchEvent(new CustomEvent('penguin:resources-changed'));
+  };
+
   if (!open) return null;
 
   return (
@@ -291,6 +303,16 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
                     aria-label="插入画布"
                   >
                     <Plus size={15} />
+                  </button>
+                  <button
+                    onClick={() => void promoteItem(item)}
+                    disabled={item.status === 'promoted'}
+                    className="nodrag nopan t8-mini-icon-button resource-card-action"
+                    style={{ ...miniActionBase, opacity: item.status === 'promoted' ? 0.45 : 1 }}
+                    title={item.status === 'promoted' ? '已保存到资源库' : '保存到资源库'}
+                    aria-label="保存到资源库"
+                  >
+                    <BookmarkPlus size={13} />
                   </button>
                   <button
                     onClick={() => deleteItem(item)}

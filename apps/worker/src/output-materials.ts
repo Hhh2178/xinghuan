@@ -1,48 +1,19 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
-import { resolvePostgresPoolConfig } from "@xinghuan/shared";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { dirname, extname, join } from "node:path";
+import {
+  GENERATION_ARTIFACT_TTL_MS,
+  buildGenerationArtifactDedupeKey,
+  buildTaskGenerationArtifactId,
+  generationArtifactStorageKey,
+  resolvePostgresPoolConfig,
+  type GenerationArtifact,
+  type GenerationArtifactKind,
+} from "@xinghuan/shared";
 
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
 let postgresPoolPromise: Promise<import("pg").Pool> | null = null;
-
-interface ResourceCategory {
-  id: string;
-  kind: ResourceKind;
-  name: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
-type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
-
-interface ResourceItem {
-  id: string;
-  kind: ResourceKind;
-  title: string;
-  url?: string;
-  sourceUrl?: string;
-  originalName?: string;
-  fileUrl?: string;
-  fileRel?: string;
-  mime?: string;
-  size?: number;
-  categoryId?: string;
-  tags: string[];
-  favorite: boolean;
-  createdAt: number;
-  updatedAt: number;
-  sourceNodeId?: string;
-  sourceCanvasId?: string;
-  taskId?: string;
-  providerId?: string;
-  modelId?: string;
-}
-
-interface ResourceDb {
-  categories: ResourceCategory[];
-  items: ResourceItem[];
-}
+const generationFileQueues = new Map<string, Promise<unknown>>();
 
 interface MaterializeTaskPayload {
   sourceNodeId?: unknown;
@@ -106,8 +77,10 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   const audioUrls = readStringList(result.audioUrls);
   if (imageUrls.length === 0 && videoUrls.length === 0 && audioUrls.length === 0) {
     return {
-      resourceItems: [] as ResourceItem[],
+      artifacts: [] as GenerationArtifact[],
+      resourceItems: [] as GenerationArtifact[],
       resultPatch: {
+        generationArtifactIds: [],
         resourceItemIds: [],
         resourceCount: 0,
         materializedImageUrls: [],
@@ -120,32 +93,11 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   const dirs = userDataDirs(dataDir, task.ownerId);
   await ensureUserDataDirs(dirs);
   const createdAt = Date.now();
-  const resourceItems: ResourceItem[] = [];
+  const artifacts: GenerationArtifact[] = [];
 
   for (const [index, sourceUrl] of imageUrls.entries()) {
     const saved = await materializeImageOutput(sourceUrl, dirs.outputDir, task.id, index);
-    resourceItems.push({
-      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      kind: "image",
-      title: buildResourceTitle(task.title, index, imageUrls.length),
-      url: saved.sourceUrl,
-      sourceUrl: saved.sourceUrl,
-      originalName: saved.filename,
-      fileUrl: saved.fileUrl,
-      fileRel: saved.fileUrl,
-      mime: saved.mime,
-      size: saved.size,
-      categoryId: "",
-      tags: buildTaskTags(task),
-      favorite: false,
-      createdAt,
-      updatedAt: createdAt,
-      sourceNodeId: safeText(task.payload.sourceNodeId),
-      sourceCanvasId: safeText(task.payload.sourceCanvasId),
-      taskId: task.id,
-      providerId: task.providerId,
-      modelId: task.providerModelId || task.modelRecordId,
-    });
+    artifacts.push(buildTaskArtifact(task, saved, "image", index, createdAt, buildResourceTitle(task.title, index, imageUrls.length)));
   }
 
   for (const [index, sourceUrl] of videoUrls.entries()) {
@@ -156,78 +108,78 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       index,
       outputFetchHeadersForUrl(result, sourceUrl),
     );
-    resourceItems.push({
-      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      kind: "video",
-      title: buildResourceTitle(task.title, imageUrls.length + index, imageUrls.length + videoUrls.length),
-      url: saved.sourceUrl,
-      sourceUrl: saved.sourceUrl,
-      originalName: saved.filename,
-      fileUrl: saved.fileUrl,
-      fileRel: saved.fileUrl,
-      mime: saved.mime,
-      size: saved.size,
-      categoryId: "",
-      tags: buildTaskTags(task),
-      favorite: false,
+    artifacts.push(buildTaskArtifact(
+      task,
+      saved,
+      "video",
+      index,
       createdAt,
-      updatedAt: createdAt,
-      sourceNodeId: safeText(task.payload.sourceNodeId),
-      sourceCanvasId: safeText(task.payload.sourceCanvasId),
-      taskId: task.id,
-      providerId: task.providerId,
-      modelId: task.providerModelId || task.modelRecordId,
-    });
+      buildResourceTitle(task.title, imageUrls.length + index, imageUrls.length + videoUrls.length),
+    ));
   }
 
   for (const [index, sourceUrl] of audioUrls.entries()) {
     const saved = await materializeAudioOutput(sourceUrl, dirs.outputDir, task.id, index);
-    resourceItems.push({
-      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      kind: "audio",
-      title: buildResourceTitle(task.title, imageUrls.length + videoUrls.length + index, imageUrls.length + videoUrls.length + audioUrls.length),
-      url: saved.sourceUrl,
-      sourceUrl: saved.sourceUrl,
-      originalName: saved.filename,
-      fileUrl: saved.fileUrl,
-      fileRel: saved.fileUrl,
-      mime: saved.mime,
-      size: saved.size,
-      categoryId: "",
-      tags: buildTaskTags(task),
-      favorite: false,
+    artifacts.push(buildTaskArtifact(
+      task,
+      saved,
+      "audio",
+      index,
       createdAt,
-      updatedAt: createdAt,
-      sourceNodeId: safeText(task.payload.sourceNodeId),
-      sourceCanvasId: safeText(task.payload.sourceCanvasId),
-      taskId: task.id,
-      providerId: task.providerId,
-      modelId: task.providerModelId || task.modelRecordId,
-    });
+      buildResourceTitle(task.title, imageUrls.length + videoUrls.length + index, imageUrls.length + videoUrls.length + audioUrls.length),
+    ));
   }
 
-  if (usePostgresResourceRepository()) {
-    await writeTaskOutputResourcesToPostgres(task.ownerId, task.id, resourceItems);
+  if (usePostgresArtifactRepository()) {
+    await writeTaskGenerationArtifactsToPostgres(task.ownerId, artifacts);
   } else {
-    const db = await readResourceDb(dirs.resourceDbPath);
-    const retainedItems = db.items.filter((item) => safeText(item.taskId) !== task.id);
-    await writeResourceDb(
-      {
-        categories: Array.isArray(db.categories) ? db.categories : [],
-        items: [...resourceItems, ...retainedItems],
-      },
-      dirs.resourceDbPath,
-    );
+    await writeTaskGenerationArtifactsToFile(dirs.generationLibraryDbPath, task.id, artifacts);
   }
 
   return {
-    resourceItems,
+    artifacts,
+    resourceItems: artifacts,
     resultPatch: {
-      resourceItemIds: resourceItems.map((item) => item.id),
-      resourceCount: resourceItems.length,
-      materializedImageUrls: resourceItems.filter((item) => item.kind === "image").map((item) => item.fileUrl || item.url).filter(Boolean),
-      materializedVideoUrls: resourceItems.filter((item) => item.kind === "video").map((item) => item.fileUrl || item.url).filter(Boolean),
-      materializedAudioUrls: resourceItems.filter((item) => item.kind === "audio").map((item) => item.fileUrl || item.url).filter(Boolean),
+      generationArtifactIds: artifacts.map((item) => item.id),
+      resourceItemIds: artifacts.map((item) => item.id),
+      resourceCount: artifacts.length,
+      materializedImageUrls: artifacts.filter((item) => item.kind === "image").map((item) => item.fileUrl).filter(Boolean),
+      materializedVideoUrls: artifacts.filter((item) => item.kind === "video").map((item) => item.fileUrl).filter(Boolean),
+      materializedAudioUrls: artifacts.filter((item) => item.kind === "audio").map((item) => item.fileUrl).filter(Boolean),
+    },
+  };
+}
+
+function buildTaskArtifact(
+  task: MaterializeTask,
+  saved: SavedOutput,
+  kind: GenerationArtifactKind,
+  index: number,
+  createdAt: number,
+  title: string,
+): GenerationArtifact {
+  return {
+    id: buildTaskGenerationArtifactId({ taskId: task.id, kind, index }),
+    kind,
+    status: "active",
+    title,
+    storageKey: generationArtifactStorageKey(saved.fileUrl),
+    url: saved.sourceUrl,
+    fileUrl: saved.fileUrl,
+    sourceUrl: saved.sourceUrl,
+    mime: saved.mime,
+    size: saved.size,
+    createdAt,
+    updatedAt: createdAt,
+    expiresAt: createdAt + GENERATION_ARTIFACT_TTL_MS,
+    sourceNodeId: safeText(task.payload.sourceNodeId),
+    sourceCanvasId: safeText(task.payload.sourceCanvasId),
+    taskId: task.id,
+    providerId: task.providerId,
+    modelId: task.providerModelId || task.modelRecordId,
+    metadata: {
+      dedupeKey: buildGenerationArtifactDedupeKey({ taskId: task.id, kind, storageKey: generationArtifactStorageKey(saved.fileUrl) }),
+      registrationSource: "worker",
     },
   };
 }
@@ -239,7 +191,7 @@ function userDataDirs(dataDir: string, ownerId: string) {
   return {
     outputDir,
     resourceDir,
-    resourceDbPath: join(resourceDir, "resource-library.json"),
+    generationLibraryDbPath: join(resourceDir, "generation-library.json"),
   };
 }
 
@@ -248,23 +200,7 @@ async function ensureUserDataDirs(dirs: ReturnType<typeof userDataDirs>) {
   await mkdir(dirs.resourceDir, { recursive: true });
 }
 
-async function readResourceDb(resourceDbPath: string): Promise<ResourceDb> {
-  try {
-    const parsed = JSON.parse(await readFile(resourceDbPath, "utf-8")) as ResourceDb;
-    return {
-      categories: Array.isArray(parsed?.categories) ? parsed.categories : [],
-      items: Array.isArray(parsed?.items) ? parsed.items : [],
-    };
-  } catch {
-    return { categories: [], items: [] };
-  }
-}
-
-async function writeResourceDb(db: ResourceDb, resourceDbPath: string) {
-  await writeFile(resourceDbPath, JSON.stringify(db, null, 2), "utf-8");
-}
-
-function usePostgresResourceRepository() {
+function usePostgresArtifactRepository() {
   return storageDriver === "postgres" && Boolean(databaseUrl);
 }
 
@@ -285,49 +221,72 @@ async function getPostgresPool() {
   return postgresPoolPromise;
 }
 
-function resourceItemMetadata(item: ResourceItem) {
-  return {
-    sourceUrl: item.sourceUrl || "",
-    originalName: item.originalName || "",
-    fileUrl: item.fileUrl || "",
-    fileRel: item.fileRel || "",
-    sourceNodeId: item.sourceNodeId || "",
-    sourceCanvasId: item.sourceCanvasId || "",
-    taskId: item.taskId || "",
-    providerId: item.providerId || "",
-    modelId: item.modelId || "",
-  };
-}
-
 function millisToDate(value: number | undefined) {
   return new Date(typeof value === "number" && Number.isFinite(value) ? value : Date.now());
 }
 
-async function writeTaskOutputResourcesToPostgres(ownerId: string, taskId: string, resourceItems: ResourceItem[]) {
+async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts: GenerationArtifact[]) {
   const pool = await getPostgresPool();
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("delete from xh_assets where owner_id = $1 and metadata ->> 'taskId' = $2", [ownerId, taskId]);
-    for (const item of resourceItems) {
+    const taskId = safeText(artifacts[0]?.taskId);
+    const artifactIds = artifacts.map((item) => item.id);
+    if (taskId) {
       await client.query(
-        `insert into xh_assets (id, owner_id, project_id, kind, title, url, mime, size_bytes, metadata, category_id, tags, favorite, last_used_at, created_at, updated_at)
-         values ($1, $2, null, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14)`,
+        `update xh_generation_artifacts
+         set status = 'deleted', deleted_at = now(), updated_at = now()
+         where owner_id = $1 and source_task_id = $2 and status <> 'promoted' and not (id = any($3::text[]))`,
+        [ownerId, taskId, artifactIds],
+      );
+    }
+    for (const item of artifacts) {
+      const dedupeKey = safeText(item.metadata?.dedupeKey, buildGenerationArtifactDedupeKey({
+        taskId: item.taskId,
+        kind: item.kind,
+        storageKey: item.storageKey,
+      }));
+      await client.query(
+        `insert into xh_generation_artifacts (
+           id, owner_id, kind, status, title, storage_key, file_url, source_url, mime, size_bytes,
+           source_task_id, source_canvas_id, source_node_id, provider_id, model_id, dedupe_key, metadata,
+           created_at, updated_at, expires_at
+         ) values ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $17, $18)
+         on conflict (owner_id, dedupe_key) do update set
+           title = excluded.title,
+           storage_key = excluded.storage_key,
+           file_url = excluded.file_url,
+           source_url = excluded.source_url,
+           mime = excluded.mime,
+           size_bytes = excluded.size_bytes,
+           source_canvas_id = excluded.source_canvas_id,
+           source_node_id = excluded.source_node_id,
+           provider_id = excluded.provider_id,
+           model_id = excluded.model_id,
+           metadata = xh_generation_artifacts.metadata || excluded.metadata,
+           status = case when xh_generation_artifacts.status = 'promoted' then 'promoted' else 'active' end,
+           deleted_at = null,
+           updated_at = excluded.updated_at,
+           expires_at = greatest(xh_generation_artifacts.expires_at, excluded.expires_at)`,
         [
           item.id,
           ownerId,
           item.kind,
-          safeText(item.title, "资源"),
-          item.url || "",
+          safeText(item.title, "生成产物"),
+          item.storageKey,
+          item.fileUrl,
+          item.sourceUrl || item.url || item.fileUrl,
           item.mime || "",
           Number(item.size) || 0,
-          JSON.stringify(resourceItemMetadata(item)),
-          item.categoryId || null,
-          JSON.stringify(Array.isArray(item.tags) ? item.tags.map((tag) => safeText(tag)).filter(Boolean) : []),
-          Boolean(item.favorite),
-          null,
+          item.taskId || null,
+          item.sourceCanvasId || null,
+          item.sourceNodeId || null,
+          item.providerId || null,
+          item.modelId || null,
+          dedupeKey,
+          JSON.stringify(item.metadata || {}),
           millisToDate(item.createdAt),
-          millisToDate(item.updatedAt),
+          millisToDate(item.expiresAt),
         ],
       );
     }
@@ -432,6 +391,47 @@ function normalizeHttpOrigin(value: unknown) {
   } catch {
     return "";
   }
+}
+
+async function writeTaskGenerationArtifactsToFile(path: string, taskId: string, artifacts: GenerationArtifact[]) {
+  return withGenerationFileLock(path, async () => {
+    const db = await readGenerationFileDb(path);
+    const preserved = db.items.filter((item) => safeText(item.taskId) !== taskId || item.status === "promoted");
+    const promotedById = new Map(
+      db.items.filter((item) => item.status === "promoted").map((item) => [item.id, item]),
+    );
+    const nextArtifacts = artifacts.map((item) => {
+      const previous = promotedById.get(item.id);
+      return previous ? { ...item, status: "promoted" as const, promotedAssetId: previous.promotedAssetId } : item;
+    });
+    await atomicWriteJson(path, { items: [...nextArtifacts, ...preserved.filter((item) => !nextArtifacts.some((next) => next.id === item.id))] });
+  });
+}
+
+async function readGenerationFileDb(path: string): Promise<{ items: GenerationArtifact[] }> {
+  try {
+    const parsed = JSON.parse(await readFile(path, "utf8"));
+    return { items: Array.isArray(parsed?.items) ? parsed.items : [] };
+  } catch {
+    return { items: [] };
+  }
+}
+
+function withGenerationFileLock<T>(path: string, operation: () => Promise<T>) {
+  const previous = generationFileQueues.get(path) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(operation);
+  generationFileQueues.set(path, next);
+  void next.finally(() => {
+    if (generationFileQueues.get(path) === next) generationFileQueues.delete(path);
+  });
+  return next;
+}
+
+async function atomicWriteJson(path: string, value: unknown) {
+  await mkdir(dirname(path), { recursive: true });
+  const temporary = join(dirname(path), `.${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`);
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(temporary, path);
 }
 
 function normalizeOutputFetchHeaders(value: Record<string, string>) {

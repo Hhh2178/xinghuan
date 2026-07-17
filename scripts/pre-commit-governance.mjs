@@ -39,6 +39,14 @@ const steps = [
     args: ["scripts/verify-documentation-entry-contract.mjs"],
   },
   {
+    label: "verify-domain-context-and-adr-contract",
+    args: ["scripts/verify-domain-context-and-adr-contract.mjs"],
+  },
+  {
+    label: "verify-generation-artifact-framework-contract",
+    args: ["scripts/verify-generation-artifact-framework-contract.mjs"],
+  },
+  {
     label: "verify-visual-design-docs-contract",
     args: ["scripts/verify-visual-design-docs-contract.mjs"],
   },

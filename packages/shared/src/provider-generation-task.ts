@@ -94,6 +94,7 @@ export interface ProviderGenerationTaskPayloadSummary {
 }
 
 export interface ProviderGenerationTaskResult extends UnifiedRuntimeDiagnostic {
+  generationArtifactIds: string[];
   resourceItemIds: string[];
   resourceCount: number;
   materializedImageUrls: string[];

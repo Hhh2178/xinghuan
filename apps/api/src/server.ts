@@ -111,6 +111,10 @@ import {
 import { createTaskCancellationService } from "./task-cancellation-service.js";
 import { createExternalProxyHandlers } from "./external-proxy.js";
 import { createMaterialAccessService } from "./material-access-service.js";
+import { createGenerationArtifactRepository } from "./generation-artifact-repository.js";
+import { createGenerationArtifactLifecycle } from "./generation-artifact-lifecycle.js";
+import { createLocalArtifactStore } from "./artifact-store.js";
+import { handleGenerationArtifactRoutes } from "./generation-artifact-routes.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 import { createEnvironmentSyncService, type EnvironmentSyncSnapshot, type EnvironmentSyncWriteRequest } from "./environment-sync-service.js";
 import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
@@ -204,7 +208,6 @@ const expectedDatabaseName = safeText(process.env.XINGHUAN_EXPECTED_DATABASE_NAM
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const taskQueueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
-const GENERATION_LIBRARY_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const LOGIN_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_LIMIT_MAX_FAILURES = 5;
 const LOGIN_LIMIT_BLOCK_MS = 15 * 60 * 1000;
@@ -591,7 +594,6 @@ interface CanvasData {
 }
 
 type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
-type GenerationLibraryKind = "image" | "video" | "audio";
 
 interface ResourceCategory {
   id: string;
@@ -642,34 +644,6 @@ interface ResourceItem {
 interface ResourceDb {
   categories: ResourceCategory[];
   items: ResourceItem[];
-}
-
-interface GenerationLibraryItem {
-  id: string;
-  kind: GenerationLibraryKind;
-  title: string;
-  url: string;
-  fileUrl: string;
-  mime?: string;
-  size?: number;
-  filename?: string;
-  previewUrl?: string;
-  downloadUrl?: string;
-  openUrl?: string;
-  canDownload?: boolean;
-  isExpired?: boolean;
-  createdAt: number;
-  updatedAt: number;
-  expiresAt: number;
-  sourceNodeId?: string;
-  sourceCanvasId?: string;
-  taskId?: string;
-  providerId?: string;
-  modelId?: string;
-}
-
-interface GenerationLibraryDb {
-  items: GenerationLibraryItem[];
 }
 
 interface UserRecord {
@@ -1209,6 +1183,19 @@ const materialAccessService = createMaterialAccessService({
   userDataDirs: (user) => userDataDirsForId(user.id),
 });
 
+const generationArtifactRepository = createGenerationArtifactRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  generationLibraryPath: (ownerId) => userDataDirsForId(ownerId).generationLibraryDbPath,
+  resourceLibraryPath: (ownerId) => userDataDirsForId(ownerId).resourceDbPath,
+});
+
+const generationArtifactLifecycle = createGenerationArtifactLifecycle({
+  repository: generationArtifactRepository,
+  artifactStore: createLocalArtifactStore({ outputDir: (ownerId) => userDataDirsForId(ownerId).outputDir }),
+  createId: () => `gen-${Date.now()}-${randomBytes(5).toString("hex")}`,
+});
+
 async function readAnnouncementRecords() {
   return adminRepository.readAnnouncementRecords();
 }
@@ -1482,43 +1469,17 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    const generationLibraryContentMatch = url.pathname.match(/^\/api\/materials\/generation-library\/([^/]+)\/content$/);
-    if (generationLibraryContentMatch && request.method === "GET") {
-      if (!currentUser) throw new HttpError(401, "AUTH_REQUIRED");
-      const db = await readGenerationLibraryDb(currentUser, { cleanup: true });
-      const itemId = decodeURIComponent(generationLibraryContentMatch[1]);
-      const item = db.items.find((entry) => entry.id === itemId);
-      if (!item) throw new HttpError(404, "MATERIAL_NOT_FOUND");
-
-      let resolved;
-      try {
-        resolved = materialAccessService.resolveGenerationLibraryMaterial({ item, user: currentUser });
-      } catch (error) {
-        throw new HttpError(403, "MATERIAL_ACCESS_DENIED", {
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-      if (resolved.isExpired) throw new HttpError(410, "MATERIAL_EXPIRED");
-
-      let body: Buffer;
-      try {
-        body = await readFile(resolved.absolutePath);
-      } catch {
-        throw new HttpError(404, "MATERIAL_NOT_FOUND");
-      }
-
-      const disposition = safeText(url.searchParams.get("disposition"), "inline") === "attachment" ? "attachment" : "inline";
-      response.statusCode = 200;
-      response.setHeader("content-type", resolved.mime || "application/octet-stream");
-      response.setHeader("content-length", String(body.length));
-      response.setHeader("cache-control", "private, max-age=300");
-      if (disposition === "attachment") {
-        response.setHeader(
-          "Content-Disposition",
-          `attachment; filename*=UTF-8''${encodeURIComponent(resolved.filename)}`,
-        );
-      }
-      response.end(body);
+    if (await handleGenerationArtifactRoutes({
+      request,
+      response,
+      url,
+      ownerId: currentUser!.id,
+      lifecycle: generationArtifactLifecycle,
+      materialAccessService,
+      readJsonBody,
+      sendT8,
+      toHttpError: (error) => new HttpError(error.statusCode, error.message),
+    })) {
       return;
     }
 
@@ -2174,49 +2135,6 @@ const server = createServer(async (request, response) => {
           }
           await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
         }
-        sendT8(response, null);
-        return;
-      }
-    }
-
-    if (url.pathname === "/api/generation-library/items") {
-      const db = await readGenerationLibraryDb(currentUser!, { cleanup: true });
-      if (request.method === "GET") {
-        const kind = normalizeGenerationLibraryKind(url.searchParams.get("kind"));
-        const q = safeText(url.searchParams.get("q"), "").toLowerCase();
-        sendT8(
-          response,
-          db.items
-            .filter((item) => {
-              if (kind && item.kind !== kind) return false;
-              if (q && !`${item.title} ${item.mime || ""} ${item.url}`.toLowerCase().includes(q)) return false;
-              return true;
-            })
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .map((item) => ({
-              ...item,
-              ...materialAccessService.buildGenerationLibraryAccessDescriptor({
-                request,
-                item,
-              }),
-            })),
-        );
-        return;
-      }
-      if (request.method === "POST") {
-        sendT8(response, await addGenerationLibraryItem(await readJsonBody(request), currentUser!, db));
-        return;
-      }
-    }
-
-    const generationLibraryItemMatch = url.pathname.match(/^\/api\/generation-library\/items\/([^/]+)$/);
-    if (generationLibraryItemMatch) {
-      const id = decodeURIComponent(generationLibraryItemMatch[1]);
-      const db = await readGenerationLibraryDb(currentUser!, { cleanup: true });
-      if (request.method === "DELETE") {
-        const item = db.items.find((entry) => entry.id === id);
-        await writeGenerationLibraryDb({ items: db.items.filter((entry) => entry.id !== id) }, currentUser!);
-        if (item) await deleteGenerationLibraryLocalFile(item, currentUser!);
         sendT8(response, null);
         return;
       }
@@ -10948,7 +10866,9 @@ async function saveBase64File(body: { dataUrl?: string; prefix?: string }, user:
   const filename = `${safeFilename(body.prefix, "draw")}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const buffer = Buffer.from(match[2], "base64");
   await writeFile(join(dirs.outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
+  const saved = { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
+  await registerApiOutputArtifact(user, "image", saved);
+  return saved;
 }
 
 async function saveBase64AudioFile(body: { dataUrl?: string; prefix?: string }, user: CurrentUser) {
@@ -10960,7 +10880,9 @@ async function saveBase64AudioFile(body: { dataUrl?: string; prefix?: string }, 
   const filename = `${safeFilename(body.prefix, "audio")}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const buffer = Buffer.from(match[2], "base64");
   await writeFile(join(dirs.outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
+  const saved = { filename, url: `/files/output/${filename}`, size: buffer.length, mime: match[1] };
+  await registerApiOutputArtifact(user, "audio", saved);
+  return saved;
 }
 
 async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
@@ -10977,7 +10899,9 @@ async function saveRemoteImageToOutput(sourceUrl: string, user: CurrentUser) {
   const buffer = Buffer.from(await upstream.arrayBuffer());
   const filename = `external_image_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime: effectiveMime };
+  const saved = { filename, url: `/files/output/${filename}`, size: buffer.length, mime: effectiveMime };
+  await registerApiOutputArtifact(user, "image", saved, sourceUrl);
+  return saved;
 }
 
 async function saveRemoteAudioToOutput(sourceUrl: string, user: CurrentUser) {
@@ -10991,7 +10915,9 @@ async function saveRemoteAudioToOutput(sourceUrl: string, user: CurrentUser) {
   const buffer = Buffer.from(await upstream.arrayBuffer());
   const filename = `external_audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+  const saved = { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+  await registerApiOutputArtifact(user, "audio", saved, sourceUrl);
+  return saved;
 }
 
 async function saveRemoteVideoToOutput(sourceUrl: string, user: CurrentUser) {
@@ -11005,7 +10931,27 @@ async function saveRemoteVideoToOutput(sourceUrl: string, user: CurrentUser) {
   const buffer = Buffer.from(await upstream.arrayBuffer());
   const filename = `external_video_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(join(userDataDirs(user).outputDir, filename), buffer);
-  return { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+  const saved = { filename, url: `/files/output/${filename}`, size: buffer.length, mime };
+  await registerApiOutputArtifact(user, "video", saved, sourceUrl);
+  return saved;
+}
+
+async function registerApiOutputArtifact(
+  user: CurrentUser,
+  kind: "image" | "video" | "audio",
+  saved: { filename: string; url: string; size: number; mime: string },
+  sourceUrl = "",
+) {
+  return generationArtifactRepository.registerOwned(user.id, {
+    kind,
+    title: saved.filename,
+    storageKey: saved.filename,
+    fileUrl: saved.url,
+    sourceUrl: sourceUrl || saved.url,
+    mime: saved.mime,
+    size: saved.size,
+    metadata: { registrationSource: "api-output" },
+  });
 }
 
 function videoExtensionFromMime(mime: string) {
@@ -11510,114 +11456,4 @@ function pickResourcePatch(patch: Partial<ResourceItem>) {
       : {}),
     ...(patch.favorite !== undefined ? { favorite: Boolean(patch.favorite) } : {}),
   };
-}
-
-function normalizeGenerationLibraryKind(value: unknown): GenerationLibraryKind | "" {
-  const kind = safeText(value).toLowerCase();
-  return ["image", "video", "audio"].includes(kind) ? (kind as GenerationLibraryKind) : "";
-}
-
-async function readGenerationLibraryDb(
-  user: CurrentUser,
-  options: { cleanup?: boolean } = {},
-): Promise<GenerationLibraryDb> {
-  await ensureDataDirs(user);
-  let db: GenerationLibraryDb;
-  try {
-    const raw = JSON.parse(await readFile(userDataDirs(user).generationLibraryDbPath, "utf-8")) as GenerationLibraryDb;
-    db = { items: Array.isArray(raw.items) ? raw.items.map(sanitizeGenerationLibraryItem).filter(Boolean) as GenerationLibraryItem[] : [] };
-  } catch {
-    db = { items: [] };
-  }
-  if (!options.cleanup) return db;
-  const now = Date.now();
-  const active: GenerationLibraryItem[] = [];
-  const expired: GenerationLibraryItem[] = [];
-  for (const item of db.items) {
-    if (item.expiresAt <= now) expired.push(item);
-    else active.push(item);
-  }
-  if (expired.length > 0) {
-    await writeGenerationLibraryDb({ items: active }, user);
-    for (const item of expired) {
-      await deleteGenerationLibraryLocalFile(item, user);
-    }
-    return { items: active };
-  }
-  return db;
-}
-
-function sanitizeGenerationLibraryItem(item: unknown): GenerationLibraryItem | null {
-  if (!item || typeof item !== "object") return null;
-  const raw = item as Partial<GenerationLibraryItem>;
-  const kind = normalizeGenerationLibraryKind(raw.kind);
-  const url = safeText(raw.url || raw.fileUrl);
-  if (!kind || !url) return null;
-  const createdAt = Number(raw.createdAt) || Date.now();
-  const expiresAt = Number(raw.expiresAt) || createdAt + GENERATION_LIBRARY_TTL_MS;
-  return {
-    id: safeText(raw.id, `gen-${createdAt}-${safeSlug(url).slice(0, 8)}`),
-    kind,
-    title: safeText(raw.title, basename(url)),
-    url,
-    fileUrl: safeText(raw.fileUrl, url),
-    mime: safeText(raw.mime, inferMime(url)),
-    size: Number(raw.size) || 0,
-    createdAt,
-    updatedAt: Number(raw.updatedAt) || createdAt,
-    expiresAt,
-    sourceNodeId: safeText(raw.sourceNodeId),
-    sourceCanvasId: safeText(raw.sourceCanvasId),
-    taskId: safeText(raw.taskId),
-    providerId: safeText(raw.providerId),
-    modelId: safeText(raw.modelId),
-  };
-}
-
-async function writeGenerationLibraryDb(db: GenerationLibraryDb, user: CurrentUser) {
-  await ensureDataDirs(user);
-  await writeFile(userDataDirs(user).generationLibraryDbPath, JSON.stringify({ items: db.items }, null, 2), "utf-8");
-}
-
-async function addGenerationLibraryItem(raw: unknown, user: CurrentUser, existingDb?: GenerationLibraryDb) {
-  const payload = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const kind = normalizeGenerationLibraryKind(payload.kind);
-  const url = safeText(payload.url || payload.fileUrl);
-  if (!kind || !url) throw new Error("生成库素材缺少类型或 URL");
-  const now = Date.now();
-  const expiresAt = now + GENERATION_LIBRARY_TTL_MS;
-  const db = existingDb || await readGenerationLibraryDb(user, { cleanup: true });
-  const duplicateIndex = db.items.findIndex((item) => item.kind === kind && item.url === url);
-  const existing = duplicateIndex >= 0 ? db.items[duplicateIndex] : null;
-  const item: GenerationLibraryItem = {
-    id: existing ? existing.id : `gen-${now}-${Math.random().toString(36).slice(2, 8)}`,
-    kind,
-    title: safeText(payload.title, basename(url)),
-    url,
-    fileUrl: url,
-    mime: safeText(payload.mime, inferMime(url)),
-    size: Number(payload.size) || 0,
-    createdAt: existing ? existing.createdAt : now,
-    updatedAt: now,
-    expiresAt: existing ? existing.expiresAt : expiresAt,
-    sourceNodeId: safeText(payload.sourceNodeId),
-    sourceCanvasId: safeText(payload.sourceCanvasId),
-    taskId: safeText(payload.taskId),
-    providerId: safeText(payload.providerId),
-    modelId: safeText(payload.modelId),
-  };
-  const nextItems = duplicateIndex >= 0
-    ? [item, ...db.items.filter((_, index) => index !== duplicateIndex)]
-    : [item, ...db.items];
-  await writeGenerationLibraryDb({ items: nextItems }, user);
-  return { ...item, duplicate: duplicateIndex >= 0 };
-}
-
-async function deleteGenerationLibraryLocalFile(item: GenerationLibraryItem, user: CurrentUser) {
-  const dirs = userDataDirs(user);
-  const url = safeText(item.fileUrl || item.url);
-  if (!url.startsWith("/files/output/")) return;
-  const filename = decodeURIComponent(url.slice("/files/output/".length));
-  if (!filename || filename.includes("/") || filename.includes("\\") || filename.includes("..")) return;
-  await unlink(join(dirs.outputDir, filename)).catch(() => undefined);
 }

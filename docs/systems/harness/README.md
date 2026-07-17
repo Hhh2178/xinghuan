@@ -8,6 +8,8 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 
 - 规则入口：`AGENTS.md`
 - 文档入口：`docs/INDEX.md`
+- 领域入口：`CONTEXT.md`
+- 架构决策入口：`docs/adr/README.md`
 - 系统入口：`docs/systems/README.md`
 - 运维入口：`ops/README.md`
 - 执行入口：`package.json`
@@ -29,6 +31,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - Release harness：负责 gray / production 的 prepare、package、deploy、runtime verify 与 logbook 同步。
 - Integration harness：负责 RunningHub、ComfyUI、Provider 等外部接入的子工程模板、env 模板和独立 contract。
 - Documentation harness：负责 `docs/governance/`、`docs/systems/`、`docs/logbooks/` 与主入口同步。
+- Domain/ADR harness：负责领域词汇、架构决策状态、索引登记和 Agent 阅读/更新职责同步。
 - Authority harness：负责产品版本、环境拓扑、当前 release state 和证据链接的一致性。
 
 ## 当前根级聚合命令
@@ -47,6 +50,9 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 ## Documentation Contract Commands
 
 - `npm run verify:documentation-entry-contract`
+- `npm run verify:domain-context-and-adr-contract`
+- `npm run verify:generation-artifact-framework-contract`
+- `npm run verify:generation-artifact-operations`
 - `npm run verify:visual-design-docs-contract`
 - `npm run verify:design-token-docs-contract`
 - `npm run verify:component-registry-docs-contract`
@@ -56,6 +62,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
+- 领域词汇或 ADR 生命周期变化时，必须同步 `CONTEXT.md`、`docs/adr/README.md`、治理规范和 `verify:domain-context-and-adr-contract`。
 - 每次 Gray / Production 运行态验证成功后，Release harness 必须 dry-run 并恢复服务器“每环境最近三个 Release”的保留上限。
 - Harness runner 将每次 profile 运行写入 ignored `.harness/runs/*.json`；release/validation logbook 仍是正式审计证据。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。

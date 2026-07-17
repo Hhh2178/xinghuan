@@ -6,14 +6,17 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `README.md`
-5. `MEMORY.md`
-6. `ops/README.md`
+3. `CONTEXT.md`
+4. `docs/systems/README.md`
+5. `README.md`
+6. `MEMORY.md`
+7. `ops/README.md`
 
 ## 文档导航
 
 - 总索引：`docs/INDEX.md`
+- 领域语言与不变量：`CONTEXT.md`
+- 架构决策索引：`docs/adr/README.md`
 - 协作与归档规则：`docs/governance/`
 - 系统知识：`docs/systems/`
 - 长期记忆：`docs/memory/`
@@ -55,6 +58,8 @@
 
 - `AGENTS.md`：AI 协作规则、默认阅读顺序和安全边界。
 - `docs/INDEX.md`：第一跳总索引。
+- `CONTEXT.md`：领域语言、实体边界和跨系统不变量。
+- `docs/adr/README.md`：架构决策状态与历史索引。
 - `docs/systems/README.md`：系统知识地图。
 - `MEMORY.md`：长期记忆兼容入口。
 - `DEVLOG.md`：旧开发台账兼容入口。

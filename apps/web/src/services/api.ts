@@ -14,7 +14,9 @@ import type {
 import type { ThemeTemplate } from '../theme/types';
 import type { MediaKind } from '../utils/mediaCollection';
 import type { AuthUser, EffectivePermissions } from './auth-api-types';
+import type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
 export type { AuthUser, EffectivePermissions } from './auth-api-types';
+export type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
 
 const BASE = '/api';
 
@@ -865,46 +867,6 @@ export function deleteResourceItem(id: string, revision?: number) {
 }
 
 // ========== 生成库：短期生成素材，默认保留 3 天 ==========
-export type GenerationLibraryKind = 'image' | 'video' | 'audio';
-
-export interface GenerationLibraryItem {
-  id: string;
-  kind: GenerationLibraryKind;
-  title: string;
-  url: string;
-  fileUrl: string;
-  mime?: string;
-  size?: number;
-  filename?: string;
-  previewUrl?: string;
-  downloadUrl?: string;
-  openUrl?: string;
-  canDownload?: boolean;
-  isExpired?: boolean;
-  createdAt: number;
-  updatedAt: number;
-  expiresAt: number;
-  sourceNodeId?: string;
-  sourceCanvasId?: string;
-  taskId?: string;
-  providerId?: string;
-  modelId?: string;
-  duplicate?: boolean;
-}
-
-export interface AddGenerationLibraryItemPayload {
-  kind: GenerationLibraryKind;
-  url: string;
-  title?: string;
-  mime?: string;
-  size?: number;
-  sourceNodeId?: string;
-  sourceCanvasId?: string;
-  taskId?: string;
-  providerId?: string;
-  modelId?: string;
-}
-
 export function getGenerationLibraryItems(params: {
   kind?: GenerationLibraryKind;
   q?: string;
@@ -927,6 +889,13 @@ export function deleteGenerationLibraryItem(id: string) {
   return safeRequest<void>(`${BASE}/generation-library/items/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+export function promoteGenerationLibraryItem(id: string) {
+  return safeRequest<{ artifact: GenerationLibraryItem; asset: ResourceItem }>(
+    `${BASE}/generation-library/items/${encodeURIComponent(id)}/promote`,
+    { method: 'POST' },
+  );
 }
 
 // ========== Eagle 本地库 ==========

@@ -11,6 +11,8 @@ const scripts = rootPackage.scripts ?? {};
 
 for (const [name, command] of Object.entries({
   "verify:documentation-entry-contract": "node scripts/verify-documentation-entry-contract.mjs",
+  "verify:domain-context-and-adr-contract": "node scripts/verify-domain-context-and-adr-contract.mjs",
+  "verify:generation-artifact-framework-contract": "node scripts/verify-generation-artifact-framework-contract.mjs",
   "verify:visual-design-docs-contract": "node scripts/verify-visual-design-docs-contract.mjs",
   "verify:design-token-docs-contract": "node scripts/verify-design-token-docs-contract.mjs",
   "verify:component-registry-docs-contract": "node scripts/verify-component-registry-docs-contract.mjs",
@@ -24,6 +26,8 @@ for (const [name, command] of Object.entries({
 
 for (const scriptFile of [
   "verify-documentation-entry-contract.mjs",
+  "verify-domain-context-and-adr-contract.mjs",
+  "verify-generation-artifact-framework-contract.mjs",
   "verify-visual-design-docs-contract.mjs",
   "verify-system-doc-template-contract.mjs",
 ]) {

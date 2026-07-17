@@ -506,8 +506,8 @@ async function processTask(taskId: string) {
     }
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
     const completionLogs =
-      materialized.resourceItems.length > 0
-        ? [`${workerId} 执行完成`, `${workerId} 已写入 ${materialized.resourceItems.length} 条输出素材`]
+      materialized.artifacts.length > 0
+        ? [`${workerId} 执行完成`, `${workerId} 已登记 ${materialized.artifacts.length} 条生成产物`]
         : [`${workerId} 执行完成`];
     const completionResult = await updateTask(taskId, "succeeded", completionLogs, {
       ...clearTransientRuntimeFields(task.result),

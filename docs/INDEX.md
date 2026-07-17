@@ -6,13 +6,21 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `docs/systems/README.md`
-4. `README.md`
-5. `MEMORY.md`
-6. `ops/README.md`
-7. `DEVLOG.md`
+3. `CONTEXT.md`
+4. `docs/systems/README.md`
+5. `README.md`
+6. `MEMORY.md`
+7. `ops/README.md`
+8. `DEVLOG.md`
 
 ## 先判断你要找什么
+
+### 领域词汇、跨系统不变量、架构决策
+
+- 领域语言与实体边界：`CONTEXT.md`
+- 架构决策索引：`docs/adr/README.md`
+- Context / ADR 治理规范：`docs/governance/domain-context-and-adr-standard.md`
+- 系统已实现事实仍以 `docs/systems/` 为准；`Proposed` ADR 不代表已经上线。
 
 ### 协作规则、入口顺序、归档规则
 
@@ -26,6 +34,7 @@
 - `docs/governance/collaboration-and-workflow.md`
 - `docs/governance/codegraph-and-repo-navigation.md`
 - `docs/governance/archive-policy.md`
+- `docs/governance/domain-context-and-adr-standard.md`
 
 ### 系统地图、协议、接口、执行链路
 
@@ -69,6 +78,19 @@
 - 超级文件拆分台账：`docs/records/architecture/2026-06-24-hotspot-superfile-decomposition-ledger.md`
 - `1200+` source 文件 watchlist 也统一记录在这份台账中
 - ComfyUI 当前阶段封存：`docs/records/providers/2026-07-04-comfyui-phase-archive-v0525.md`
+- 生成产物生命周期治理规格：`docs/superpowers/specs/2026-07-17-generation-artifact-lifecycle-governance.md`
+- 生成库服务端权威实施计划：`docs/superpowers/plans/2026-07-17-generation-library-authority-migration.md`
+
+### 权威源责任速查
+
+| 内容 | 权威源 |
+| --- | --- |
+| 领域词汇与跨系统不变量 | `CONTEXT.md` |
+| 当前系统实现 | `docs/systems/` |
+| 架构选择及其理由 | `docs/adr/` |
+| 实施步骤 | `docs/superpowers/plans/` |
+| 当前部署状态 | `ops/current/release-state.json` |
+| 执行与验证证据 | `docs/logbooks/` |
 
 ## 当前核心系统导航
 
@@ -130,6 +152,7 @@
 
 - `README.md`：当前状态摘要与入口跳转
 - `AGENTS.md`：项目总纲、协作方式、治理规则
+- `CONTEXT.md`：领域语言和跨系统不变量，不承接运行态与方案历史
 - `MEMORY.md`：长期记忆兼容入口
 - `DEVLOG.md`：旧台账兼容入口，后续逐步切到 `docs/logbooks/daily/`
 - `ops/README.md`：当前运行态与放行材料入口

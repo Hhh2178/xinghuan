@@ -725,16 +725,6 @@ const EXECUTABLE_NODE_TYPES = new Set<string>([
   'remove-ai-watermark',
 ]);
 
-const GENERATION_LIBRARY_NODE_TYPES = new Set<string>([
-  'image', 'edit',
-  'multi-angle-3d', 'panorama-720', 'penguin-portrait',
-  'video', 'seedance', 'audio', 'llm', 'runninghub', 'runninghub-wallet',
-  'rh-tools', 'rh-toolbox', 'comfyui', 'comfyui-store',
-  'resize', 'upscale', 'grid-crop', 'grid-editor', 'remove-bg', 'combine', 'image-compare', 'drawing-board',
-  'frame-extractor', 'frame-pair',
-  'remove-ai-watermark',
-]);
-
 // 网格吸附步长 / 对齐阈值(世界坐标)
 const SNAP_GRID: [number, number] = [20, 20];
 const ALIGN_THRESHOLD = 6;
@@ -2794,46 +2784,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     const serialId = parseNodeSerialInput(raw);
     logBus.success(`已连接 NodeID #${serialId}`, '发送到ID');
   }, [onConnect, picker]);
-
-  // ===== 自动登记生成库 =====
-  // 生成库是短期产物池，和长期资源库分离；节点一旦出现新的图片/视频/音频 URL，就静默登记。
-  const generationLibraryRegisteredRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!loaded || !activeId) return;
-    const pending: Array<api.AddGenerationLibraryItemPayload> = [];
-    for (const node of nodes) {
-      const type = String(node.type || '');
-      if (!GENERATION_LIBRARY_NODE_TYPES.has(type)) continue;
-      const data = (node.data || {}) as Record<string, any>;
-      if (data.__loopAccumulate) continue;
-      for (const kind of ['image', 'video', 'audio'] as const) {
-        for (const item of getMediaItemsFromData(data, kind)) {
-          if (!item.url || !item.url.startsWith('/files/output/')) continue;
-          const key = `${activeId}:${node.id}:${kind}:${item.url}`;
-          if (generationLibraryRegisteredRef.current.has(key)) continue;
-          generationLibraryRegisteredRef.current.add(key);
-          pending.push({
-            kind,
-            url: item.url,
-            title: item.name || fileNameFromUrl(item.url),
-            mime: item.mime,
-            size: item.size,
-            sourceNodeId: node.id,
-            sourceCanvasId: activeId,
-            taskId: typeof data.taskId === 'string' ? data.taskId : undefined,
-            providerId: typeof data.providerId === 'string' ? data.providerId : undefined,
-            modelId: typeof data.providerModel === 'string' ? data.providerModel : typeof data.model === 'string' ? data.model : undefined,
-          });
-        }
-      }
-    }
-    if (pending.length === 0) return;
-    void Promise.all(pending.map((item) => api.addGenerationLibraryItem(item))).then(() => {
-      window.dispatchEvent(new CustomEvent('penguin:generation-library-changed'));
-    }).catch((error) => {
-      logBus.warn(error?.message || '生成库登记失败', '生成库');
-    });
-  }, [activeId, loaded, nodes]);
 
   // ===== 自动创建输出素材节点 =====
   // 生成类节点 (image/video/audio/seedance/llm/runninghub 等) 输出字段有值后,

@@ -1,5 +1,5 @@
 [Unit]
-Description=Xinghuan Canvas Output Material Prune
+Description=Xinghuan Canvas Generation Artifact Reconciliation
 After=network.target
 
 [Service]

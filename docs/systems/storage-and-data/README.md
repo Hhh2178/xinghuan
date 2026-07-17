@@ -8,6 +8,8 @@ Storage 与 Data 系统负责 PostgreSQL、Redis、文件输出目录、生成�
 
 1. `postgres-and-redis-boundaries.md`
 2. `material-and-output-storage.md`
+3. 根 `CONTEXT.md` 中的 Generation Artifact / Resource Asset 术语
+4. `docs/adr/0001-generation-artifact-authority-and-lifecycle.md`（Accepted；部署状态仍以 ops/current 为准）
 
 ## 相关系统
 

@@ -6,8 +6,17 @@ const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageScriptPath = resolve(rootDir, "scripts/package-release.mjs");
 const source = await readFile(packageScriptPath, "utf8");
 
+assertArrayIncludes("requiredPaths", "CONTEXT.md");
+assertArrayIncludes("includedPaths", "CONTEXT.md");
+assertArrayIncludes("requiredPaths", "docs/adr");
+assertArrayIncludes("includedPaths", "docs/adr");
+
 assertArrayIncludes("requiredPaths", "scripts/prune-old-output-materials.mjs");
 assertArrayIncludes("includedPaths", "scripts/prune-old-output-materials.mjs");
+assertArrayIncludes("requiredPaths", "scripts/migrate-generation-library-artifacts.mjs");
+assertArrayIncludes("includedPaths", "scripts/migrate-generation-library-artifacts.mjs");
+assertArrayIncludes("requiredPaths", "scripts/reconcile-generation-artifacts.mjs");
+assertArrayIncludes("includedPaths", "scripts/reconcile-generation-artifacts.mjs");
 assertArrayIncludes("requiredPaths", "scripts/capture-release-preflight.mjs");
 assertArrayIncludes("includedPaths", "scripts/capture-release-preflight.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-task-cancellation-phase-d.mjs");

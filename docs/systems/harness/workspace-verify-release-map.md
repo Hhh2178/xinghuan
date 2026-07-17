@@ -49,6 +49,9 @@
 常用命令：
 
 - `npm run verify:documentation-entry-contract`
+- `npm run verify:domain-context-and-adr-contract`
+- `npm run verify:generation-artifact-framework-contract`
+- `npm run verify:generation-artifact-operations`
 - `npm run verify:visual-design-docs-contract`
 - `npm run verify:design-token-docs-contract`
 - `npm run verify:component-registry-docs-contract`
@@ -58,6 +61,7 @@
 适用场景：
 
 - 修改 `AGENTS.md`、`README.md`、`MEMORY.md`、`DEVLOG.md` 或 `ops/README.md`
+- 修改 `CONTEXT.md`、`docs/adr/` 或领域/架构治理规则
 - 修改 canvas/admin 视觉规范
 - 修改 canvas/admin token 或组件注册表
 - 新增或调整系统接口文档模板

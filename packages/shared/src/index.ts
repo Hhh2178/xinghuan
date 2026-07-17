@@ -24,6 +24,7 @@ export * from "./comfyui-workflow.js";
 export * from "./postgres-pool-config.js";
 export * from "./permission-contract.js";
 export * from "./canvas-node-permission-catalog.js";
+export * from "./generation-artifact.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

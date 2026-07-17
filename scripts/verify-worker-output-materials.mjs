@@ -22,7 +22,7 @@ async function main() {
     });
     assert(login.data?.authenticated === true, "login failed");
 
-    const beforeItems = await fetchJson("/api/resources/items?kind=image");
+    const beforeItems = await fetchJson("/api/generation-library/items?kind=image");
     const beforeIds = new Set((beforeItems.data || []).map((item) => item.id));
 
     const provider = await fetchJson("/api/admin/providers", {
@@ -82,26 +82,26 @@ async function main() {
 
     assert(task?.status === "succeeded", `task did not succeed, current status=${task?.status || "missing"}`);
 
-    const afterItems = await fetchJson("/api/resources/items?kind=image");
+    const afterItems = await fetchJson("/api/generation-library/items?kind=image");
     const createdItems = (afterItems.data || []).filter((item) => !beforeIds.has(item.id));
-    const resourceItem = createdItems.find((item) => item.taskId === taskId || item.sourceNodeId === sourceNodeId);
+    const artifact = createdItems.find((item) => item.taskId === taskId || item.sourceNodeId === sourceNodeId);
 
-    assert(createdItems.length > 0, "worker did not create any new image resource items");
-    assert(resourceItem, "worker did not create a resource item linked to the task output");
-    assert(resourceItem.fileUrl?.startsWith("/files/output/"), "resource item fileUrl was not materialized to local output");
-    assert(resourceItem.sourceNodeId === sourceNodeId, "resource item sourceNodeId mismatch");
-    assert(resourceItem.sourceCanvasId === sourceCanvasId, "resource item sourceCanvasId mismatch");
+    assert(createdItems.length > 0, "worker did not create any new image generation artifacts");
+    assert(artifact, "worker did not create an artifact linked to the task output");
+    assert(artifact.fileUrl?.startsWith("/files/output/"), "artifact fileUrl was not materialized to local output");
+    assert(artifact.sourceNodeId === sourceNodeId, "artifact sourceNodeId mismatch");
+    assert(artifact.sourceCanvasId === sourceCanvasId, "artifact sourceCanvasId mismatch");
 
-    const savedFile = await fetchText(resourceItem.fileUrl);
+    const savedFile = await fetchText(artifact.previewUrl || artifact.fileUrl);
     assert(savedFile.status === 200, `materialized file is not readable, status=${savedFile.status}`);
 
     console.log(JSON.stringify({
       ok: true,
       taskId,
-      resourceItemId: resourceItem.id,
-      fileUrl: resourceItem.fileUrl,
-      sourceNodeId: resourceItem.sourceNodeId,
-      sourceCanvasId: resourceItem.sourceCanvasId,
+      generationArtifactId: artifact.id,
+      fileUrl: artifact.fileUrl,
+      sourceNodeId: artifact.sourceNodeId,
+      sourceCanvasId: artifact.sourceCanvasId,
     }, null, 2));
   } finally {
     if (cookie) {

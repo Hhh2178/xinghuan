@@ -6,6 +6,7 @@
 
 - 协作流程
 - 文档分类规则
+- 领域上下文与架构决策治理
 - 阅读顺序
 - CodeGraph 与 `rg` 的使用边界
 - 归档与清理规则
@@ -19,14 +20,15 @@
 ## 推荐阅读顺序
 
 1. `documentation-governance-standard.md`
-2. `engineering-guardrails.md`
-3. `hotspot-risk-scorecard.md`
-4. `hotspot-decomposition-workflow.md`
-5. `release-version-and-retention-policy.md`
-6. `collaboration-and-workflow.md`
-7. `codegraph-and-repo-navigation.md`
-8. `archive-policy.md`
-9. `templates/README.md`
+2. `domain-context-and-adr-standard.md`
+3. `engineering-guardrails.md`
+4. `hotspot-risk-scorecard.md`
+5. `hotspot-decomposition-workflow.md`
+6. `release-version-and-retention-policy.md`
+7. `collaboration-and-workflow.md`
+8. `codegraph-and-repo-navigation.md`
+9. `archive-policy.md`
+10. `templates/README.md`
 
 ## 正式规范与兼容关系
 
@@ -43,6 +45,7 @@
 ## 更新规则
 
 - 新的治理规则、模板和归档政策优先写当前目录
+- 领域词汇写 `CONTEXT.md`，架构决定写 `docs/adr/`；生命周期规则见 `domain-context-and-adr-standard.md`
 - 旧治理正文与 atlas 文件只保留兼容层内容
 
 ## 模板目录

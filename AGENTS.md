@@ -10,10 +10,11 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `docs/memory/current-state.md`
-4. `docs/systems/README.md`
-5. `ops/current/README.md`
-6. `README.md`
+3. `CONTEXT.md`
+4. `docs/memory/current-state.md`
+5. `docs/systems/README.md`
+6. `ops/current/README.md`
+7. `README.md`
 
 `MEMORY.md`、`DEVLOG.md` 和 `ops/README.md` 是兼容入口，只在追溯旧信息或按索引跳转时读取。
 
@@ -33,6 +34,8 @@
 
 - 项目概览：`README.md`
 - 文档总索引：`docs/INDEX.md`
+- 领域语言与跨系统不变量：`CONTEXT.md`
+- 架构决策及其理由：`docs/adr/`
 - 根入口职责：`docs/governance/root-entry-responsibility-matrix.md`
 - 协作和归档规则：`docs/governance/`
 - 系统知识：`docs/systems/`
@@ -45,7 +48,9 @@
 ## 记录与更新职责
 
 - 代码或配置行为变化：更新对应 `docs/systems/<system>/`。
-- 长期决策变化：更新 `docs/memory/` 或治理文档。
+- 新增、改名或改变领域概念含义：更新 `CONTEXT.md`。
+- 跨系统架构选择、替代方案或状态变化：新增或更新 `docs/adr/`，并同步 ADR 索引。
+- 长期阶段判断变化：更新 `docs/memory/`；治理规则变化：更新 `docs/governance/`。
 - 当日执行证据：追加到 `docs/logbooks/daily/`。
 - 发布、验证、事故：分别写入 `docs/logbooks/releases/`、`validations/`、`incidents/`。
 - 当前部署变化：先更新 `ops/current/release-state.json`，再生成或校验人类可读投影。
@@ -55,6 +60,7 @@
 
 - 开工先看 `git status --short`，确认工作树是否干净，以及脏改动是否属于本轮任务。
 - 先通过 `docs/INDEX.md` 判断要找的是治理规则、系统知识、长期记忆、台账证据，还是历史方案。
+- 涉及领域模型、ownership、数据权威或生命周期时，先读 `CONTEXT.md` 和 `docs/adr/README.md`；Proposed ADR 不代表已实现。
 - 涉及具体系统时，先读 `docs/systems/<system>/`，再读代码。
 - 做完真实改动后，同步检查对应系统文档、logbook 和必要的状态投影。
 - 发现热点文件继续膨胀时，先判断应该新增模块、hook、helper 或 section，而不是默认继续往原文件堆。
@@ -104,6 +110,7 @@
 - 需要修改或输出 secrets；
 - 需要触碰其他项目、生产数据或未授权服务；
 - 现有用户改动与本任务在同一文件中无法安全合并；
+- 需求与 `CONTEXT.md` 跨系统不变量或 Accepted ADR 冲突，且尚未形成替代 ADR；
 - Harness 失败但原因无法在当前 scope 内确认。
 
 ## 详细规则入口
@@ -115,3 +122,4 @@
 - 发布 gate：`docs/systems/observability-and-ops/release-gates.md`
 - Harness 执行地图：`docs/systems/harness/README.md`
 - 根入口职责矩阵：`docs/governance/root-entry-responsibility-matrix.md`
+- Domain Context 与 ADR 规范：`docs/governance/domain-context-and-adr-standard.md`

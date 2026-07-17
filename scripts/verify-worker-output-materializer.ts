@@ -44,6 +44,7 @@ async function main() {
     result: { audioUrls: [wav1x1] },
     expectedKind: "audio",
   });
+  const mixedRetry = await verifyMixedMediaRetryIdentity(mediaServer.origin);
 
   mediaServer.server.close();
 
@@ -55,11 +56,35 @@ async function main() {
         video,
         privateVideo,
         audio,
+        mixedRetry,
       },
       null,
       2,
     ),
   );
+}
+
+async function verifyMixedMediaRetryIdentity(origin: string) {
+  if (storageContext().driver === "postgres") return { skipped: "covered by file adapter without creating production task rows" };
+  const dataDir = await mkdtemp(join(tmpdir(), "xinghuan-worker-mixed-retry-"));
+  const task = {
+    id: "task-mixed-retry",
+    ownerId: "usr-mixed-retry",
+    title: "Mixed retry",
+    providerId: "provider-test",
+    providerName: "Provider Test",
+    modelRecordId: "model-record-test",
+    providerModelId: "model-test",
+    modelDisplayName: "Model Test",
+    payload: {},
+  };
+  const first = await materializeTaskOutputs({ dataDir, task, result: { imageUrls: [png1x1], videoUrls: [`${origin}/demo.mp4`] } });
+  const second = await materializeTaskOutputs({ dataDir, task, result: { videoUrls: [`${origin}/demo.mp4`] } });
+  const firstVideo = first.artifacts.find((item) => item.kind === "video");
+  const secondVideo = second.artifacts.find((item) => item.kind === "video");
+  assert(firstVideo?.id === secondVideo?.id, "mixed-media retry changed the stable video artifact ID");
+  assert(second.resultPatch.generationArtifactIds[0] === secondVideo?.id, "task result references a non-canonical artifact ID");
+  return { videoArtifactId: secondVideo?.id };
 }
 
 async function verifyMaterialization({
@@ -92,46 +117,46 @@ async function verifyMaterialization({
   const materialized = await materializeTaskOutputs({ dataDir, task, result });
   const duplicated = await materializeTaskOutputs({ dataDir, task, result });
 
-  assert(materialized.resourceItems.length === 1, `${expectedKind} resource item count mismatch`);
-  assert(materialized.resourceItems[0]?.kind === expectedKind, `${expectedKind} resource kind mismatch`);
-  assert(materialized.resourceItems[0]?.taskId === task.id, `${expectedKind} resource taskId mismatch`);
-  assert(materialized.resourceItems[0]?.sourceNodeId === task.payload.sourceNodeId, `${expectedKind} resource sourceNodeId mismatch`);
-  assert(materialized.resourceItems[0]?.sourceCanvasId === task.payload.sourceCanvasId, `${expectedKind} resource sourceCanvasId mismatch`);
-  assert(duplicated.resourceItems.length === 1, `${expectedKind} duplicate materialization did not return single resource item`);
+  assert(materialized.artifacts.length === 1, `${expectedKind} artifact count mismatch`);
+  assert(materialized.artifacts[0]?.kind === expectedKind, `${expectedKind} artifact kind mismatch`);
+  assert(materialized.artifacts[0]?.taskId === task.id, `${expectedKind} artifact taskId mismatch`);
+  assert(materialized.artifacts[0]?.sourceNodeId === task.payload.sourceNodeId, `${expectedKind} artifact sourceNodeId mismatch`);
+  assert(materialized.artifacts[0]?.sourceCanvasId === task.payload.sourceCanvasId, `${expectedKind} artifact sourceCanvasId mismatch`);
+  assert(duplicated.artifacts.length === 1, `${expectedKind} duplicate materialization did not return single artifact`);
 
   if (expectedKind === "image") {
-    assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "image resource fileUrl was not materialized");
-    const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
+    assert(materialized.artifacts[0]?.fileUrl?.startsWith("/files/output/"), "image artifact fileUrl was not materialized");
+    const outputPath = join(dataDir, "users", task.ownerId, materialized.artifacts[0].fileUrl.replace(/^\/files\//, ""));
     await readFile(outputPath);
   } else if (expectedKind === "video") {
-    assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "video resource fileUrl was not materialized");
-    assert(/^https?:\/\//i.test(materialized.resourceItems[0]?.url || ""), "video resource url mismatch");
-    assert(materialized.resourceItems[0]?.sourceUrl === materialized.resourceItems[0]?.url, "video resource sourceUrl mismatch");
-    const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
+    assert(materialized.artifacts[0]?.fileUrl?.startsWith("/files/output/"), "video artifact fileUrl was not materialized");
+    assert(/^https?:\/\//i.test(materialized.artifacts[0]?.url || ""), "video artifact url mismatch");
+    assert(materialized.artifacts[0]?.sourceUrl === materialized.artifacts[0]?.url, "video artifact sourceUrl mismatch");
+    const outputPath = join(dataDir, "users", task.ownerId, materialized.artifacts[0].fileUrl.replace(/^\/files\//, ""));
     await readFile(outputPath);
   } else {
-    assert(materialized.resourceItems[0]?.fileUrl?.startsWith("/files/output/"), "audio resource fileUrl was not materialized");
-    assert(/^data:audio\//i.test(materialized.resourceItems[0]?.url || ""), "audio resource url mismatch");
-    assert(materialized.resourceItems[0]?.sourceUrl === materialized.resourceItems[0]?.url, "audio resource sourceUrl mismatch");
-    const outputPath = join(dataDir, "users", task.ownerId, materialized.resourceItems[0].fileUrl.replace(/^\/files\//, ""));
+    assert(materialized.artifacts[0]?.fileUrl?.startsWith("/files/output/"), "audio artifact fileUrl was not materialized");
+    assert(/^data:audio\//i.test(materialized.artifacts[0]?.url || ""), "audio artifact url mismatch");
+    assert(materialized.artifacts[0]?.sourceUrl === materialized.artifacts[0]?.url, "audio artifact sourceUrl mismatch");
+    const outputPath = join(dataDir, "users", task.ownerId, materialized.artifacts[0].fileUrl.replace(/^\/files\//, ""));
     await readFile(outputPath);
   }
 
   if (storage.driver === "postgres") {
-    await assertPostgresResource(storage.databaseUrl, task.ownerId, task.id, duplicated.resourceItems[0].id);
+    await assertPostgresArtifact(storage.databaseUrl, task.ownerId, task.id, duplicated.artifacts[0].id);
   } else {
-    const resourceDbPath = join(dataDir, "users", task.ownerId, "resources", "resource-library.json");
-    const db = JSON.parse(await readFile(resourceDbPath, "utf-8"));
-    assert(Array.isArray(db.items) && db.items.length === 1, `${expectedKind} resource db dedupe failed`);
-    assert(db.items[0]?.id === duplicated.resourceItems[0]?.id, `${expectedKind} resource db item id mismatch`);
+    const generationDbPath = join(dataDir, "users", task.ownerId, "resources", "generation-library.json");
+    const db = JSON.parse(await readFile(generationDbPath, "utf-8"));
+    assert(Array.isArray(db.items) && db.items.length === 1, `${expectedKind} generation db dedupe failed`);
+    assert(db.items[0]?.id === duplicated.artifacts[0]?.id, `${expectedKind} generation db item id mismatch`);
   }
 
   return {
     dataDir,
     storageDriver: storage.driver,
     ownerId: task.ownerId,
-    resourceItemId: materialized.resourceItems[0].id,
-    kind: materialized.resourceItems[0].kind,
+    generationArtifactId: materialized.artifacts[0].id,
+    kind: materialized.artifacts[0].kind,
   };
 }
 
@@ -167,15 +192,15 @@ async function resolveVerifyOwnerId(storage: ReturnType<typeof storageContext>) 
   }
 }
 
-async function assertPostgresResource(databaseUrl: string, ownerId: string, taskId: string, expectedId: string) {
+async function assertPostgresArtifact(databaseUrl: string, ownerId: string, taskId: string, expectedId: string) {
   const pool = await createPool(databaseUrl);
   try {
     const result = await pool.query(
-      "select id from xh_assets where owner_id = $1 and metadata ->> 'taskId' = $2 order by created_at desc",
+      "select id from xh_generation_artifacts where owner_id = $1 and source_task_id = $2 order by created_at desc",
       [ownerId, taskId],
     );
-    assert(result.rows.length === 1, "postgres resource db dedupe failed");
-    assert(String(result.rows[0]?.id || "") === expectedId, "postgres resource db item id mismatch");
+    assert(result.rows.length === 1, "postgres generation artifact dedupe failed");
+    assert(String(result.rows[0]?.id || "") === expectedId, "postgres generation artifact id mismatch");
   } finally {
     await pool.end();
   }

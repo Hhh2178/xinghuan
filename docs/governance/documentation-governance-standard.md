@@ -2,7 +2,7 @@
 
 生效日期：`2026-06-23`
 
-适用范围：`D:/codex/无限画布2.0-worktrees/xinghuan-milestone-b`
+适用范围：本仓库当前 active worktree（以 `git rev-parse --show-toplevel` 为准）
 
 ## 目标
 
@@ -44,6 +44,14 @@
 - `docs/governance/`
   - 作用：协作规则、入口顺序、归档政策、仓库导航方法、模板。
   - 当前正式规范以本目录为准。
+
+### 2.1 领域上下文与架构决策层
+
+- `CONTEXT.md`
+  - 作用：领域词汇、实体边界、跨系统不变量。
+- `docs/adr/`
+  - 作用：长期架构决定、替代方案、代价和状态历史。
+- 两者的责任和生命周期以 `docs/governance/domain-context-and-adr-standard.md` 为准。
 
 ### 3. 系统知识层
 
@@ -87,6 +95,8 @@
 - 每天做了什么：`docs/logbooks/daily/`
 - 某次发布 / 验证 / 事故：`docs/logbooks/releases/`、`docs/logbooks/validations/`、`docs/logbooks/incidents/`
 - 协作和归档规则：`docs/governance/`
+- 领域词汇与跨系统不变量：`CONTEXT.md`
+- 架构选择及其理由：`docs/adr/`
 
 如果某个事实已经有主记录，其他入口只能做摘要引用，不能再复制成长正文。
 
@@ -346,9 +356,11 @@
 当前最低要求：
 
 - `AGENTS.md`
+- `CONTEXT.md`
 - `MEMORY.md`
 - `DEVLOG.md`
 - `docs/INDEX.md`
+- `docs/adr/`
 - `docs/governance/`
 
 否则“已发灰度，但服务器 release 不包含对应治理文档”应视为文档发布未真正生效。

@@ -53,13 +53,23 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:project"],
-  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run verify:canvas-workflow-capabilities-contract && npm run verify:catalog-display-order-contract && npm run harness:verify:quick",
+  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:domain-context-and-adr-contract && npm run verify:generation-artifact-framework-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run verify:canvas-workflow-capabilities-contract && npm run verify:catalog-display-order-contract && npm run harness:verify:quick",
   "project harness should expose project verification chain with documentation contracts",
 );
 assert.match(
   scripts["harness:verify:project"],
   /verify:documentation-entry-contract/,
   "project harness should include documentation entry contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:domain-context-and-adr-contract/,
+  "project harness should include domain context and ADR contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:generation-artifact-framework-contract/,
+  "project harness should include generation artifact framework contract",
 );
 assert.match(
   scripts["harness:verify:project"],
@@ -126,6 +136,16 @@ assert.match(
   harnessReadme,
   /verify:documentation-entry-contract/,
   "harness README should document documentation entry contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:domain-context-and-adr-contract/,
+  "harness README should document domain context and ADR contract",
+);
+assert.match(
+  harnessReadme,
+  /verify:generation-artifact-framework-contract/,
+  "harness README should document generation artifact framework contract",
 );
 assert.match(
   harnessReadme,
