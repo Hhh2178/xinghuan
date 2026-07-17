@@ -17,7 +17,7 @@ import {
 const args = parseArgs(process.argv.slice(2));
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/deploy-gray-release.mjs --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--dry-run=true]
+  node scripts/release/deploy-gray-release.mjs --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--migrate-generation-artifacts=true] [--dry-run=true]
 
 Examples:
   node scripts/release/deploy-gray-release.mjs --release=20260623-demo-gray-r1-v049 --archive=dist-release/20260623-demo-gray-r1-v049.tar.gz --ssh-key=../Tencent_Cloud_Server.pem
@@ -39,6 +39,7 @@ const serviceName = String(firstArg(args.service) || defaults.serviceName);
 const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
 const sharedEnvFile = String(firstArg(args["shared-env-file"]) || defaults.sharedEnvFile);
 const dryRun = flagEnabled(args["dry-run"]);
+const migrateGenerationArtifacts = flagEnabled(args["migrate-generation-artifacts"]);
 
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
 const remoteArchive = tmpArchivePath(remoteTmpDir, archivePath);
@@ -53,6 +54,12 @@ const remoteScript = [
   `cd ${shellQuote(releaseDir)}`,
   "npm ci",
   `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run db:migrate`,
+  ...(migrateGenerationArtifacts
+    ? [
+        `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run generation-artifacts:migrate:dry-run`,
+        `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run generation-artifacts:migrate`,
+      ]
+    : []),
   `ln -sfn ${shellQuote(releaseDir)} ${shellQuote(`${remoteRoot}/current`)}`,
   `sudo systemctl restart ${shellQuote(serviceName)}`,
   `sudo systemctl restart ${shellQuote(workerServiceName)}`,
@@ -89,6 +96,7 @@ printJson({
   stage: "deploy-release",
   environment,
   dryRun,
+  migrateGenerationArtifacts,
   releaseId,
   archivePath,
   target,

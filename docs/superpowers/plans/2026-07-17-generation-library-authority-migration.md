@@ -96,6 +96,10 @@ Rollback:
 
 - 所有运维命令默认 dry-run；旧 JSON 不删除；物理清理最后启用。
 
+Release ordering:
+
+- 首次切换目标环境时，部署脚本必须带 `--migrate-generation-artifacts=true`，在切换 `current` 前完成 schema、历史 JSON dry-run 和幂等回填。
+
 ## Phase 6 — Documentation And Harness
 
 Touched files:

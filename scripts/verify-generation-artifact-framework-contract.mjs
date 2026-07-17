@@ -14,6 +14,7 @@ const files = {
   api: await read("apps/web/src/services/api.ts"),
   migrationScript: await read("scripts/migrate-generation-library-artifacts.mjs"),
   reconcileScript: await read("scripts/reconcile-generation-artifacts.mjs"),
+  deployScript: await read("scripts/release/deploy-gray-release.mjs"),
   packageJson: JSON.parse(await read("package.json")),
 };
 
@@ -40,6 +41,11 @@ assert.doesNotMatch(files.canvas, /generationLibraryRegisteredRef/, "Canvas must
 assert.match(files.api, /promoteGenerationLibraryItem/, "web API must expose explicit promotion");
 assert.match(files.migrationScript, /const apply = process\.argv\.includes\("--apply"\)/, "legacy migration must default to dry-run");
 assert.match(files.reconcileScript, /apply = Boolean\(options\.apply\)/, "reconciliation must default to dry-run");
+assert.match(files.deployScript, /migrate-generation-artifacts/, "release deploy must expose an explicit legacy migration gate");
+assert.ok(
+  files.deployScript.indexOf("generation-artifacts:migrate:dry-run") < files.deployScript.indexOf("generation-artifacts:migrate`"),
+  "release deploy must dry-run legacy migration before apply",
+);
 
 const scripts = files.packageJson.scripts || {};
 assert.equal(scripts["verify:generation-artifact-framework-contract"], "node scripts/verify-generation-artifact-framework-contract.mjs");

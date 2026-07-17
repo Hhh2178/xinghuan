@@ -23,6 +23,7 @@
 - 默认三天期限写入 `expires_at`。
 - `npm run generation-artifacts:migrate:dry-run`：扫描历史 JSON，不写数据库。
 - `npm run generation-artifacts:migrate`：显式幂等回填；不删除或覆盖历史 JSON。
+- 首次发布使用 `release:gray:deploy -- --migrate-generation-artifacts=true`，保证 schema 与回填在服务切换前完成。
 - `npm run generation-artifacts:reconcile:dry-run`：报告到期、缺失和物理文件候选。
 - `npm run generation-artifacts:reconcile`：显式推进状态；只删除已到期、未晋级且没有资源引用的文件。
 - reconciliation 同时报告未登记输出文件；只报告不删除。已经进入 `expired` 但物理删除失败的文件会在下一次运行继续重试。
