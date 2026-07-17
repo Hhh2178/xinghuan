@@ -5,12 +5,13 @@ async function read(relativePath) {
   return readFile(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 }
 
-const [registry, ports, codeNode, labelNode, groupExecutionManagerNode, codeRoutes, server, toolbar, modal, textSplit, textSplitGraph, runtime, guards, canvas, codeNodeApi] = await Promise.all([
+const [registry, ports, codeNode, labelNode, groupExecutionManagerNode, groupExecutionManager, codeRoutes, server, toolbar, modal, textSplit, textSplitGraph, runtime, guards, canvas, codeNodeApi] = await Promise.all([
   read('apps/web/src/config/nodeRegistry.ts'),
   read('apps/web/src/config/portTypes.ts'),
   read('apps/web/src/components/nodes/CodeNode.tsx'),
   read('apps/web/src/components/nodes/LabelNode.tsx'),
   read('apps/web/src/components/nodes/GroupExecutionManagerNode.tsx'),
+  read('apps/web/src/components/canvas/groupExecutionManager.ts'),
   read('apps/api/src/code-node-routes.ts'),
   read('apps/api/src/server.ts'),
   read('apps/web/src/components/CanvasToolbar.tsx'),
@@ -37,6 +38,11 @@ assert.match(labelNode, /keepAspectRatio=\{false\}/, 'Label node resizing must a
 assert.match(labelNode, /width:\s*p\.width/, 'Label node must persist its resized width.');
 assert.match(labelNode, /height:\s*p\.height/, 'Label node must persist its resized height.');
 assert.match(groupExecutionManagerNode, /color: '#fb923c'/, 'Group execution manager header icon must use the orange utility color.');
+assert.match(groupExecutionManagerNode, /节点失败重试/, 'Group execution manager must expose the node failure retry control.');
+assert.match(groupExecutionManagerNode, /min=\{0\}/, 'Group execution retry control must allow zero retries.');
+assert.match(groupExecutionManagerNode, /max=\{10\}/, 'Group execution retry control must cap retries at ten.');
+assert.match(groupExecutionManager, /DEFAULT_GROUP_FAILURE_RETRY_COUNT = 3/, 'Legacy group managers must default to three retries.');
+assert.match(groupExecutionManager, /MAX_GROUP_FAILURE_RETRY_COUNT = 10/, 'Group manager retry count must cap at ten.');
 assert.match(codeRoutes, /\/api\/code-node\/execute/, 'Code execution route is missing.');
 assert.match(server, /handleCodeNodeRoutes/, 'API server must mount the code execution route.');
 assert.match(await read('apps/api/src/code-node-runtime.ts'), /RLIMIT_AS/, 'Linux code runtime memory limit is missing.');
@@ -51,8 +57,8 @@ assert.match(textSplitGraph, /TEXT_SPLIT_RUN_MARKER = 'text-split-run'/, 'Text s
 assert.match(textSplitGraph, /type: mode === 'output' \? 'output' : 'text'/, 'Text split default runs must generate output nodes.');
 assert.match(canvas, /!n\.hidden/, 'Canvas quick-add menus must exclude hidden legacy nodes.');
 assert.match(runtime, /runNodeWithRetries/, 'Canvas runtime must retry failed nodes.');
-assert.match(runtime, /options\.maxRetries \?\? 3/, 'Node retry helper must default to three additional attempts.');
-assert.match(runtime, /maxRetries: 3/, 'Canvas batch execution must use three additional attempts.');
+assert.match(runtime, /normalizeGroupFailureRetryCount\(options\.maxRetries\)/, 'Node retry helper must normalize configured retries.');
+assert.match(runtime, /plan\.failureRetryCount/, 'Managed canvas execution must use the manager retry setting.');
 assert.match(guards, /filterLockedNodePositionChanges/, 'Locked group position changes must be filtered.');
 assert.match(canvas, /filterLockedNodePositionChanges\(changes, lockedDrag\?\.nodeId\)/, 'Canvas must apply the locked-position guard.');
 

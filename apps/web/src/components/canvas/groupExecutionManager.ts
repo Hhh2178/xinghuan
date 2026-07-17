@@ -4,11 +4,14 @@ import { topologicalSort } from '../../utils/topologicalSort';
 import { getGroupBoxLiveMemberIds, isGroupBoxNode } from './groupBoxGuards';
 
 export const GROUP_EXECUTION_MANAGER_NODE_TYPE = 'group-execution-manager' as const;
+export const DEFAULT_GROUP_FAILURE_RETRY_COUNT = 3;
+export const MAX_GROUP_FAILURE_RETRY_COUNT = 10;
 
 export interface GroupExecutionManagerData {
   title: string;
   enabled: boolean;
   executionCount: number;
+  failureRetryCount: number;
   groupOrder: string[];
   skippedGroupIds: string[];
   groups?: Array<{
@@ -32,6 +35,7 @@ export interface GroupExecutionPlan {
   managerPresent: boolean;
   managerEnabled: boolean;
   executionCount: number;
+  failureRetryCount: number;
   groupBlocks: GroupExecutionGroupBlock[];
   standaloneIds: string[];
 }
@@ -54,6 +58,12 @@ function normalizeExecutionCount(value: unknown) {
   return Math.max(1, Math.min(99, Math.floor(numeric)));
 }
 
+export function normalizeGroupFailureRetryCount(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_GROUP_FAILURE_RETRY_COUNT;
+  return Math.max(0, Math.min(MAX_GROUP_FAILURE_RETRY_COUNT, Math.floor(numeric)));
+}
+
 export function normalizeGroupExecutionManagerData(
   data: Partial<GroupExecutionManagerData> | null | undefined,
   groupIds: string[],
@@ -70,6 +80,7 @@ export function normalizeGroupExecutionManagerData(
     title: typeof data?.title === 'string' && data.title.trim() ? data.title : '全局组执行管理',
     enabled: data?.enabled !== false,
     executionCount: normalizeExecutionCount(data?.executionCount),
+    failureRetryCount: normalizeGroupFailureRetryCount(data?.failureRetryCount),
     groupOrder: order,
     skippedGroupIds,
     note: typeof data?.note === 'string' ? data.note : '',
@@ -157,6 +168,7 @@ export function resolveGroupExecutionPlan(
     managerPresent: Boolean(managerNode),
     managerEnabled: managerData.enabled,
     executionCount: managerData.executionCount,
+    failureRetryCount: managerData.failureRetryCount,
     groupBlocks,
     standaloneIds,
   };

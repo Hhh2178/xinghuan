@@ -1488,6 +1488,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       JSON.stringify(current?.groups || []) === JSON.stringify(managerData.groups || []) &&
       Boolean(current?.enabled ?? true) === Boolean(managerData.enabled) &&
       Number(current?.executionCount ?? 1) === Number(managerData.executionCount) &&
+      Number(current?.failureRetryCount ?? 3) === Number(managerData.failureRetryCount) &&
       String(current?.title || '') === String(managerData.title || '') &&
       String(current?.note || '') === String(managerData.note || '');
     if (same) return;

@@ -1,11 +1,14 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { ArrowDownAZ, Ban, Play, Repeat, ToggleLeft, ToggleRight, Workflow } from 'lucide-react';
+import { ArrowDownAZ, Ban, Play, RefreshCw, Repeat, ToggleLeft, ToggleRight, Workflow } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
 import { resolveThemeTemplate } from '../../theme/defaultTemplates';
 import { useGroupBusStore } from '../../stores/groupBus';
 import { useUpdateNodeData } from './useUpdateNodeData';
-import type { GroupExecutionManagerData } from '../canvas/groupExecutionManager';
+import {
+  normalizeGroupFailureRetryCount,
+  type GroupExecutionManagerData,
+} from '../canvas/groupExecutionManager';
 
 interface ManagerItem {
   groupId: string;
@@ -31,6 +34,7 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
   const skippedGroupIds = new Set(Array.isArray(d.skippedGroupIds) ? d.skippedGroupIds : []);
   const enabled = d.enabled !== false;
   const executionCount = Number.isFinite(Number(d.executionCount)) ? Math.max(1, Math.floor(Number(d.executionCount))) : 1;
+  const failureRetryCount = normalizeGroupFailureRetryCount(d.failureRetryCount);
   const requestRunAll = useGroupBusStore((state) => state.requestRunAll);
 
   const normalizedGroups = useMemo(() => {
@@ -190,6 +194,26 @@ const GroupExecutionManagerNode = ({ id, data, selected }: NodeProps) => {
             </div>
           </label>
         </div>
+        <label className="block">
+          <div className="text-[10px] font-semibold opacity-70 mb-1">节点失败重试</div>
+          <div className="relative">
+            <RefreshCw size={12} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
+            <input
+              type="number"
+              min={0}
+              max={10}
+              value={failureRetryCount}
+              onChange={(e) => update({ failureRetryCount: normalizeGroupFailureRetryCount(e.target.value) })}
+              className="w-full rounded pl-7 pr-12 py-1.5 text-xs outline-none border"
+              style={{
+                background: isDark ? 'rgba(255,255,255,.04)' : '#fff',
+                color: isDark ? '#fff' : '#111',
+                borderColor: isPixel ? '#1A1410' : isDark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.12)',
+              }}
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] opacity-60 pointer-events-none">次</span>
+          </div>
+        </label>
         <button
           type="button"
           onClick={() => requestRunAll()}

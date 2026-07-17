@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 
-import { resolveGroupExecutionPlan, resolveManagedExecutionOrder } from '../apps/web/src/components/canvas/groupExecutionManager';
+import {
+  normalizeGroupExecutionManagerData,
+  resolveGroupExecutionPlan,
+  resolveManagedExecutionOrder,
+} from '../apps/web/src/components/canvas/groupExecutionManager';
 import { topologicalSort } from '../apps/web/src/utils/topologicalSort';
 
 const executableTypes = new Set(['text', 'image', 'output']);
@@ -29,6 +33,7 @@ const managerNodes = [
     data: {
       enabled: true,
       executionCount: 3,
+      failureRetryCount: 7,
       groupOrder: ['group-2', 'group-1'],
       skippedGroupIds: ['group-2'],
     },
@@ -58,6 +63,10 @@ const plan = resolveGroupExecutionPlan(managerNodes as any, managerEdges as any,
 assert.equal(plan.managerPresent, true, 'manager node should be discovered');
 assert.equal(plan.managerEnabled, true, 'manager should default to enabled when configured');
 assert.equal(plan.executionCount, 3, 'execution count should be normalized and preserved');
+assert.equal(plan.failureRetryCount, 7, 'failure retry count should be normalized and preserved');
+assert.equal(normalizeGroupExecutionManagerData({}, []).failureRetryCount, 3, 'legacy managers should keep three retries');
+assert.equal(normalizeGroupExecutionManagerData({ failureRetryCount: -2 }, []).failureRetryCount, 0, 'retry count should not be negative');
+assert.equal(normalizeGroupExecutionManagerData({ failureRetryCount: 99 }, []).failureRetryCount, 10, 'retry count should cap at ten');
 assert.deepEqual(
   resolveManagedExecutionOrder(plan),
   ['a1', 'a2', 'a1', 'a2', 'outside'],

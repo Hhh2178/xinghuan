@@ -5,6 +5,8 @@ import type { LastDoneInfo } from '../../stores/runBus';
 import { logBus } from '../../stores/logs';
 import { topologicalSort } from '../../utils/topologicalSort';
 import {
+  DEFAULT_GROUP_FAILURE_RETRY_COUNT,
+  normalizeGroupFailureRetryCount,
   resolveGroupExecutionPlan,
   resolveManagedExecutionOrder,
 } from './groupExecutionManager';
@@ -25,7 +27,7 @@ export async function runNodeWithRetries(
     retryDelay?: () => Promise<void>;
   } = {},
 ) {
-  const maxRetries = Math.max(0, Math.floor(options.maxRetries ?? 3));
+  const maxRetries = normalizeGroupFailureRetryCount(options.maxRetries);
   let completed: LastDoneInfo | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     if (options.shouldCancel?.()) return null;
@@ -50,7 +52,7 @@ export function useCanvasRuntime({
   const batchDone = useRunBusStore((state) => state.batchDoneCount);
 
   const runNodesByOrder = useCallback(
-    async (order: string[]) => {
+    async (order: string[], failureRetryCount = DEFAULT_GROUP_FAILURE_RETRY_COUNT) => {
       if (order.length === 0) return 0;
       const { triggerRun, setBatchProgress } = useRunBusStore.getState();
       const managerMode = useRunBusStore.getState().mode === 'batch' && useRunBusStore.getState().batchTotal > 0;
@@ -80,9 +82,9 @@ export function useCanvasRuntime({
               triggerRun(id, 'batch');
             });
           }, {
-            maxRetries: 3,
+            maxRetries: failureRetryCount,
             shouldCancel: () => cancelRunRef.current,
-            onRetry: (retry, failure) => logBus.warn(`节点执行失败，正在重试 ${retry}/3：${failure.error || id}`, '组执行'),
+            onRetry: (retry, failure) => logBus.warn(`节点执行失败，正在重试 ${retry}/${failureRetryCount}：${failure.error || id}`, '组执行'),
             retryDelay: () => new Promise((resolve) => window.setTimeout(resolve, 80)),
           });
           if (!managerMode) {
@@ -122,7 +124,10 @@ export function useCanvasRuntime({
           }
           break;
         }
-        await runNodesByOrder(order);
+        await runNodesByOrder(
+          order,
+          shouldUseManager ? plan.failureRetryCount : DEFAULT_GROUP_FAILURE_RETRY_COUNT,
+        );
         if (cancelRunRef.current) break;
         completedRounds += 1;
         setBatchProgress(totalRounds, completedRounds);

@@ -30,7 +30,9 @@
   - 固定状态同时控制 React Flow `draggable`，不参与批量或组运行。
 - `group-box.executionCount`
   - 每个组独立保存 1 到 99 次循环次数，旧数据缺省为 1。
-  - 每轮保持拓扑顺序；节点失败时最多额外重试 3 次，最终失败终止当前批次。
+  - 每轮保持拓扑顺序；节点失败达到管理器配置的重试上限后终止当前批次。
+- `group-execution-manager.failureRetryCount`
+  - 控制管理器批量执行时每个失败节点的额外重试次数，范围 `0-10`，默认 `3`；达到上限仍失败时终止当前批次。
 - `text-split`
   - 蓝色“启动”和 `useRunTrigger` 复用默认运行逻辑，按分段顺序创建并连线独立 `output` 节点。
   - 自动创建的 `output` 节点只消费自身 `directOutputText`，不沿展示连线重复收集 TextSplitNode 的完整分段集合。

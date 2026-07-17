@@ -20,4 +20,20 @@ describe('runNodeWithRetries', () => {
     })).rejects.toThrow('NODE_RUN_FAILED_AFTER_RETRIES:node-a:failed');
     expect(attempts).toBe(4);
   });
+
+  it('honors a configured retry count and caps it at ten', async () => {
+    let noRetryAttempts = 0;
+    await expect(runNodeWithRetries('node-a', async () => {
+      noRetryAttempts += 1;
+      return { id: 'node-a', ok: false, ts: noRetryAttempts, error: 'failed' };
+    }, { maxRetries: 0 })).rejects.toThrow('NODE_RUN_FAILED_AFTER_RETRIES');
+    expect(noRetryAttempts).toBe(1);
+
+    let cappedAttempts = 0;
+    await expect(runNodeWithRetries('node-b', async () => {
+      cappedAttempts += 1;
+      return { id: 'node-b', ok: false, ts: cappedAttempts, error: 'failed' };
+    }, { maxRetries: 99 })).rejects.toThrow('NODE_RUN_FAILED_AFTER_RETRIES');
+    expect(cappedAttempts).toBe(11);
+  });
 });

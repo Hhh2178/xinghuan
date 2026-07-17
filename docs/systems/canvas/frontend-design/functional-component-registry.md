@@ -15,7 +15,7 @@ This registry tracks reusable behavior for future canvas nodes. It is intentiona
 | `PermissionGate` | scattered permission checks | `packages/shared` plus UI wrapper | Action visibility and disabled reason | Any permission-sensitive action |
 | `UpstreamMaterialResolver` | `useUpstreamMaterials.ts` | existing hook plus docs | Resolve connected media/materials | Any node consuming upstream assets |
 | `NodeRunTrigger` | `useRunTrigger.ts` | existing hook | Share manual, batch and group-triggered node execution completion state | Any synchronous utility node that can run in a group |
-| `GroupNodeRetryRunner` | `useCanvasRuntime.ts::runNodeWithRetries` | canvas runtime | Initial attempt plus at most three retries, then fail the batch | Every group or canvas batch execution |
+| `GroupNodeRetryRunner` | `useCanvasRuntime.ts::runNodeWithRetries` | canvas runtime | Initial attempt plus `0-10` configured retries (legacy default `3`), then fail the batch | Every group or canvas batch execution |
 | `WorkflowTemplateSource` | `WorkflowTemplateModal.tsx`, shared resource API | shared resource service | Load categories and `kind=workflow` items from the same source as the resource library | Every workflow template browser |
 | `LockedGroupPositionGuard` | `groupBoxGuards.ts` | existing helper | Filter position changes and restore drag-start position for locked members | Every React Flow position update path |
 | `ViewportFloatingPanel` | `ViewportFloatingPanel.tsx` | existing component | Measure pointer overlays, prefer cursor-right placement, flip/clamp to viewport and scroll oversized content | Every canvas context menu or pointer-anchored action panel |
