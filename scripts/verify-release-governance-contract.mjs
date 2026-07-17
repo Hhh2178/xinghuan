@@ -27,6 +27,7 @@ assert.match(retentionScript, /confirm-retention/);
 assert.match(retentionScript, /REFUSE_DELETE_CURRENT/);
 assert.match(retentionScript, /REFUSE_CANDIDATE_OUTSIDE_RELEASE_ROOT/);
 assert.match(retentionScript, /find \"\$resolved\" -depth -delete/);
+assert.match(retentionScript, /if \[ \"\$apply\" = true \] && \[ \"\$expected\" -gt \"\$retention\" \]/);
 assert.doesNotMatch(retentionScript, /rm\s+-rf/);
 assert.match(authorityScript, /AUTHORIZED_VERSION_CORRECTION_PENDING/);
 assert.match(currentEntryScript, /user-authorized correction/);

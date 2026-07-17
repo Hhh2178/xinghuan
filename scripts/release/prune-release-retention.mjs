@@ -90,7 +90,9 @@ fi
 
 remaining="$(find "$release_root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
 expected="${"${#releases[@]}"}"
-[ "$expected" -le "$retention" ] || expected="$retention"
+if [ "$apply" = true ] && [ "$expected" -gt "$retention" ]; then
+  expected="$retention"
+fi
 [ "$remaining" -eq "$expected" ] || { echo "RETENTION_COUNT_MISMATCH|$remaining|$expected"; exit 48; }
 [ -d "$current_release" ] || { echo "CURRENT_RELEASE_MISSING|$current_release"; exit 49; }
 echo "RESULT|$apply|$remaining|$current_release"
@@ -113,4 +115,3 @@ printJson({
   remoteRoot,
   inventory: lines,
 });
-
