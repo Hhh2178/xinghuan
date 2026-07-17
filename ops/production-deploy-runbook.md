@@ -171,3 +171,17 @@ curl -fsS https://canvas.hhh2121.xyz/api/status
 ```
 
 3. 不删除失败 release；先保留用于排查。
+
+## 发布成功后的 Release 保留
+
+Production 全部运行态、数据库目标、权限 readiness 和域名验收通过后，执行：
+
+```powershell
+npm run release:retention:prune -- --env=production --ssh-key=<path-to-key>
+npm run release:retention:prune -- --env=production --ssh-key=<path-to-key> --apply=true --confirm-retention=3
+```
+
+- 必须先检查 dry-run 清单，再执行 apply。
+- 只保留服务器修改时间最新的三个 Release，且 `current` 必须位于其中。
+- 不得触碰 `/opt/apps/xinghuan-canvas/shared/`、数据库备份、环境文件和用户数据。
+- 失败 Release 在调查完成前保留证据；调查结束后恢复为三个。

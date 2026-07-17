@@ -229,6 +229,8 @@
 - `npm run verify:staged-source-size-guard`
 - `npm run verify:release-worktree-clean`
 - `npm run verify:engineering-governance-contract`
+- `npm run verify:release-governance-contract`
+- `npm run release:retention:prune`
 - `npm run release:gray:prepare`
   - 当前会执行热点预算、1200+ watchlist 与工程治理 contract
 - `npm run release:gray:deploy`
@@ -250,3 +252,4 @@
   - 根目录 `releases/`、`dist-release/` 继续作为忽略的运行产物
   - `docs/logbooks/releases/` 必须保留为可提交的文档目录
 - 如果部署脚本或发布流程变化，必须确认这些护栏仍然真实被调用，而不是只留在文档里。
+- 版本递增和服务器 Release 保留的长期规则以 `release-version-and-retention-policy.md` 为准；每套环境验证成功后只保留最近三个 Release。

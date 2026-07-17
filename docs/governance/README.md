@@ -22,10 +22,11 @@
 2. `engineering-guardrails.md`
 3. `hotspot-risk-scorecard.md`
 4. `hotspot-decomposition-workflow.md`
-5. `collaboration-and-workflow.md`
-6. `codegraph-and-repo-navigation.md`
-7. `archive-policy.md`
-8. `templates/README.md`
+5. `release-version-and-retention-policy.md`
+6. `collaboration-and-workflow.md`
+7. `codegraph-and-repo-navigation.md`
+8. `archive-policy.md`
+9. `templates/README.md`
 
 ## 正式规范与兼容关系
 
@@ -57,6 +58,7 @@
 - 热点优先级评分与双轨治理：`hotspot-risk-scorecard.md`
 - 热点拆分批次如何执行、如何形成 clean commit：`hotspot-decomposition-workflow.md`
 - 发布记录与当前值守入口必须同步 staged 的规则也在：`engineering-guardrails.md`
+- Gray 默认 PATCH 递增与服务器最近三个 Release 保留规则：`release-version-and-retention-policy.md`
 - 对应脚本：
   - `npm run verify:release-logbook-sync-staged`
   - `npm run verify:current-release-entry-consistency`
@@ -67,3 +69,4 @@
   - `npm run verify:hotspot-doc-sync-staged`
   - `npm run verify:release-worktree-clean`
   - `npm run verify:engineering-governance-contract`
+  - `npm run verify:release-governance-contract`

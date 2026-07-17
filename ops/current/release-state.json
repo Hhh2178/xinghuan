@@ -3,6 +3,13 @@
   "updatedAt": "2026-07-17",
   "sourceBranch": "xinghuan-integration-clean",
   "sourceCommit": "1c78243c3ce0466af9f60d4281ce8f6bddf504cf",
+  "versionTransition": {
+    "environment": "gray",
+    "from": "0.8.0",
+    "to": "0.7.3",
+    "authorizedBy": "user",
+    "reason": "Explicit version-policy correction before Gray redeploy"
+  },
   "environments": {
     "gray": {
       "version": "0.8.0",

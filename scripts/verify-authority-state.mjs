@@ -26,7 +26,9 @@ for (const environment of requiredEnvironments) {
   }
   try {
     const versionOrder = compareSemanticVersions(state.version, rootPackage.version);
-    if (versionOrder > 0) failures.push(`ENVIRONMENT_VERSION_AHEAD:${environment}:${state.version}:${rootPackage.version}`);
+    const authorizedCorrection = isAuthorizedVersionCorrection(releaseState.versionTransition, environment, state.version, rootPackage.version);
+    if (versionOrder > 0 && !authorizedCorrection) failures.push(`ENVIRONMENT_VERSION_AHEAD:${environment}:${state.version}:${rootPackage.version}`);
+    if (versionOrder > 0 && authorizedCorrection) warnings.push(`AUTHORIZED_VERSION_CORRECTION_PENDING:${environment}:${state.version}:${rootPackage.version}`);
     if (versionOrder < 0) warnings.push(`CANDIDATE_VERSION_AHEAD:${environment}:${state.version}:${rootPackage.version}`);
   } catch {
     failures.push(`INVALID_VERSION:${environment}:${state.version}:${rootPackage.version}`);
@@ -52,3 +54,10 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (failures.length > 0) process.exitCode = 1;
+
+function isAuthorizedVersionCorrection(transition, environment, deployedVersion, candidateVersion) {
+  return transition?.authorizedBy === "user"
+    && transition?.environment === environment
+    && transition?.from === deployedVersion
+    && transition?.to === candidateVersion;
+}

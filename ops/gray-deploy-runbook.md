@@ -29,6 +29,8 @@
 npm run release:gray:prepare -- --release=<release-id>
 npm run release:gray:deploy -- --release=<release-id> --archive=dist-release/<release-id>.tar.gz --ssh-key=<path-to-key>
 npm run release:gray:verify -- --ssh-key=<path-to-key> --expected-version=<version> --expected-environment=gray
+npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key>
+npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key> --apply=true --confirm-retention=3
 ```
 
 如果是 RunningHub 相关专题发布，推荐直接使用带 preset 的准备命令：
@@ -41,6 +43,8 @@ npm run release:gray:prepare -- --release=<release-id> --preset=runninghub
 
 - 这三步只覆盖代码层、架构层和运行态层验证。
 - gray 页面视觉验收和真实业务体验验收默认由用户负责。
+- Release 清理必须在运行态验证成功之后执行；先 dry-run，确认 current 位于最近三个，再 apply。
+- 清理范围只允许 `/opt/apps/xinghuan-canvas-next/releases/`，不得触碰 `shared/`、备份和用户数据。
 - 若需要手工发布，仍可继续使用下方原始步骤。
 
 1. 在 worktree 执行构建：

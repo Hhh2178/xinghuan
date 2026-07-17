@@ -31,6 +31,10 @@ const steps = [
     args: ["scripts/verify-current-release-entry-consistency.mjs"],
   },
   {
+    label: "verify-release-governance-contract",
+    args: ["scripts/verify-release-governance-contract.mjs"],
+  },
+  {
     label: "verify-documentation-entry-contract",
     args: ["scripts/verify-documentation-entry-contract.mjs"],
   },

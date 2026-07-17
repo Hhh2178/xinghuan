@@ -27,6 +27,8 @@ assert.match(packageJson, /"verify:no-runtime-artifacts-staged": "node scripts\/
 assert.match(packageJson, /"verify:staged-source-size-guard": "node scripts\/verify-staged-source-size-guard\.mjs"/);
 assert.match(packageJson, /"verify:release-worktree-clean": "node scripts\/verify-release-worktree-clean\.mjs"/);
 assert.match(packageJson, /"verify:engineering-governance-contract": "node scripts\/verify-engineering-governance-contract\.mjs"/);
+assert.match(packageJson, /"verify:release-governance-contract": "node scripts\/verify-release-governance-contract\.mjs"/);
+assert.match(packageJson, /"release:retention:prune": "node scripts\/release\/prune-release-retention\.mjs"/);
 assert.match(grayPresets, /verify:file-hotspot-budgets/);
 assert.match(grayPresets, /verify:hotspot-watchlist-contract/);
 assert.match(grayPresets, /verify:engineering-governance-contract/);
@@ -44,6 +46,8 @@ assert.match(agents, /verify:staged-source-size-guard/);
 assert.match(agents, /pre-commit/i);
 assert.match(agents, /1200\+/);
 assert.match(agents, /verify:release-worktree-clean/);
+assert.match(agents, /release-version-and-retention-policy\.md/);
+assert.match(agents, /最近三个.*Release|Release.*最近三个/s);
 assert.match(governanceReadme, /engineering-guardrails\.md/);
 assert.match(agents, /hotspot-risk-scorecard\.md/);
 assert.match(governanceReadme, /hotspot-risk-scorecard\.md/);

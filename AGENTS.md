@@ -84,10 +84,17 @@
 - release logbook 与当前运行态入口必须同步：
   - `npm run verify:release-logbook-sync-staged`
   - `npm run verify:current-release-entry-consistency`
+- Release 版本与服务器保留必须遵循 `docs/governance/release-version-and-retention-policy.md`：
+  - 每次达到 Gray 推送级别的变更，默认只在当前 Gray 版本上递增 `0.0.1`。
+  - Agent 不得自行递增 MINOR 或 MAJOR；只有用户明确要求具体版本或更高级别递增时才允许。
+  - Production 晋级复用 Gray 已验收版本，不额外递增。
+  - Gray 与 Production 各自只保留最近三个 Release；新 Release 运行态验证通过后，先 dry-run，再通过 `npm run release:retention:prune` 清理多余目录。
+  - 受 Harness 保护的保留脚本是服务器 Release 清理的唯一例外入口；仍禁止通用递归删除、通配符删除以及触碰 `shared/`、备份、数据库和用户数据。
 - 项目 harness 入口：
   - `npm run harness:verify:project`
   - `npm run harness:verify:workspace`
   - `npm run harness:verify:release`
+  - `npm run verify:release-governance-contract`
 
 ## 停止并确认
 

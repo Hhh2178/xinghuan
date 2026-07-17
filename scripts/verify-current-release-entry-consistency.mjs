@@ -13,7 +13,8 @@ const productionRelease = releaseState.environments.production.releaseId;
 const candidateVersion = parseVersion(version, "package.json");
 const grayVersion = parseVersion(releaseState.environments.gray.version, "gray manifest");
 const productionVersion = parseVersion(releaseState.environments.production.version, "production manifest");
-assert.ok(compareVersions(grayVersion, candidateVersion) <= 0, "Gray manifest version must not be ahead of package version");
+const grayCorrection = isAuthorizedVersionCorrection(releaseState.versionTransition, "gray", releaseState.environments.gray.version, version);
+assert.ok(compareVersions(grayVersion, candidateVersion) <= 0 || grayCorrection, "Gray manifest version must not be ahead of package version without a user-authorized correction");
 assert.ok(compareVersions(productionVersion, candidateVersion) <= 0, "Production manifest version must not be ahead of package version");
 assert.match(agents, /package\.json/);
 assert.match(agents, /config\/environments\.json/);
@@ -40,4 +41,11 @@ function compareVersions(left, right) {
     if (left[index] !== right[index]) return left[index] - right[index];
   }
   return 0;
+}
+
+function isAuthorizedVersionCorrection(transition, environment, deployedVersion, candidateVersion) {
+  return transition?.authorizedBy === "user"
+    && transition?.environment === environment
+    && transition?.from === deployedVersion
+    && transition?.to === candidateVersion;
 }
