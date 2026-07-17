@@ -37,6 +37,10 @@ assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-task-se
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-task-service.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-provider-generation-worker.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-provider-generation-worker.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-worker-output-materials.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-worker-output-materials.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-canvas-resource-api.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-canvas-resource-api.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-auth-current-user-repository-contract.mjs");
 assertArrayIncludes("includedPaths", "scripts/verify-auth-current-user-repository-contract.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-auth-login-precision-query-contract.mjs");
@@ -88,6 +92,8 @@ console.log(
         "scripts/verify-worker-observability-contract.mjs",
         "scripts/verify-provider-generation-task-service.mjs",
         "scripts/verify-provider-generation-worker.mjs",
+        "scripts/verify-worker-output-materials.mjs",
+        "scripts/verify-canvas-resource-api.mjs",
         "scripts/verify-auth-current-user-repository-contract.mjs",
         "scripts/verify-auth-login-precision-query-contract.mjs",
         "scripts/verify-single-port.mjs",

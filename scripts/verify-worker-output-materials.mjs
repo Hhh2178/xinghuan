@@ -1,6 +1,10 @@
 import { createServer } from "node:http";
 
 const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
+const sameOriginHeaders = {
+  origin: baseUrl,
+  referer: `${baseUrl}/`,
+};
 const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ?? "admin@xinghuan.local";
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 const png1x1 =
@@ -59,6 +63,7 @@ async function main() {
         modelId: modelRecord.id,
         payload: {
           kind: "image",
+          taskCapability: "image",
           prompt: "worker output material prompt",
           size: "1024x1024",
           aspectRatio: "1:1",
@@ -74,8 +79,8 @@ async function main() {
     let task = null;
     for (let attempt = 0; attempt < 45; attempt += 1) {
       await sleep(1000);
-      const tasks = await fetchJson("/api/admin/tasks");
-      task = tasks.data?.find((item) => item.id === taskId);
+      const tasks = await fetchJson("/api/admin/tasks?page=1&pageSize=50");
+      task = tasks.data?.items?.find((item) => item.id === taskId);
       if (task?.status === "succeeded") break;
       if (task?.status === "failed") throw new Error(`task failed: ${(task.logs || []).join(" | ")}`);
     }
@@ -95,10 +100,34 @@ async function main() {
     const savedFile = await fetchText(artifact.previewUrl || artifact.fileUrl);
     assert(savedFile.status === 200, `materialized file is not readable, status=${savedFile.status}`);
 
+    const firstPromotion = await fetchJson(`/api/generation-library/items/${encodeURIComponent(artifact.id)}/promote`, {
+      method: "POST",
+    });
+    const secondPromotion = await fetchJson(`/api/generation-library/items/${encodeURIComponent(artifact.id)}/promote`, {
+      method: "POST",
+    });
+    const promotedAsset = firstPromotion.data?.asset;
+    assert(Boolean(promotedAsset?.id), "artifact promotion did not create a resource asset");
+    assert(secondPromotion.data?.asset?.id === promotedAsset.id, "artifact promotion was not idempotent");
+    assert(secondPromotion.data?.artifact?.promotedAssetId === promotedAsset.id, "artifact promotion linkage mismatch");
+
+    await fetchJson(`/api/generation-library/items/${encodeURIComponent(artifact.id)}`, { method: "DELETE" });
+    const afterDeleteItems = await fetchJson("/api/generation-library/items?kind=image");
+    assert(!(afterDeleteItems.data || []).some((item) => item.id === artifact.id), "deleted artifact remains visible");
+
+    const resources = await fetchJson("/api/resources/items?kind=image");
+    const persistedAsset = (resources.data || []).find((item) => item.id === promotedAsset.id);
+    assert(Boolean(persistedAsset), "promoted resource asset disappeared after artifact deletion");
+    const protectedFile = await fetchText(persistedAsset.url || promotedAsset.url || artifact.fileUrl);
+    assert(protectedFile.status === 200, `promoted resource binary was deleted, status=${protectedFile.status}`);
+
     console.log(JSON.stringify({
       ok: true,
       taskId,
       generationArtifactId: artifact.id,
+      promotedAssetId: promotedAsset.id,
+      promotionIdempotent: true,
+      promotedBinaryProtected: true,
       fileUrl: artifact.fileUrl,
       sourceNodeId: artifact.sourceNodeId,
       sourceCanvasId: artifact.sourceCanvasId,
@@ -148,6 +177,7 @@ function withCookie(options = {}) {
   return {
     ...options,
     headers: {
+      ...sameOriginHeaders,
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
     },
