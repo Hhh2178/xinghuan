@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-17",
+  "updatedAt": "2026-07-18",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "b6a8c273c04fd55885a7023b6448e8d009f5700d",
+  "sourceCommit": "e11c86a13a0a5bcfd14b08dcca963d8857be97c3",
   "environments": {
     "gray": {
-      "version": "0.7.3",
-      "releaseId": "20260717-admin-ten-domain-version-correction-gray-r1-v073",
-      "deployedAt": "2026-07-17",
+      "version": "0.7.4",
+      "releaseId": "20260718-generation-artifact-authority-gray-r4-v074",
+      "deployedAt": "2026-07-18",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-version-correction-v073.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-gray-v073.md",
-      "rollbackReleaseId": "20260717-admin-ten-domain-gray-r1-v080"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-18-generation-artifact-authority-v074.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-18-generation-artifact-authority-gray-v074.md",
+      "rollbackReleaseId": "20260717-admin-ten-domain-version-correction-gray-r1-v073"
     },
     "production": {
       "version": "0.7.3",

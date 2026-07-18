@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.3`
-- release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
-- 当前状态：`Admin 十域能力保持不变；版本口径已按用户授权修正并完成 Gray 严格验收`
-- 部署内容：`十个一级业务域；RH 与 ComfyUI 分离；关键二级页稳定 URL；路由错误隔离；统一焦点和减少动画`
-- 已验证：`163 项测试、全量 type-check/构建、Harness、1440×1000 本地深链 QA、Gray API/Worker/status/readiness 严格验证`
-- 待验收：`无 Gray 运行态阻断项；同一制品已晋级 Production`
-- 部署时间：`2026-07-17`
+- 版本：`v0.7.4`
+- release：`20260718-generation-artifact-authority-gray-r4-v074`
+- 当前状态：`Generation Artifact authority migration 已完成 Gray 多维验收；Production 推送暂停`
+- 部署内容：`生成库 PostgreSQL 权威化、Worker 物料化、Promotion 幂等与 Asset 文件保护、匿名路由保护、reconciliation 零写入保护`
+- 已验证：`168 项测试与全 workspace 构建；真实 Worker/Canvas/Resource；25 路 Promotion、20 路 Promote/Delete 竞态；公网/内网压测；浏览器冷启动；9.5 分钟 canary；服务与数据库审计`
+- 待验收：`无 Gray 运行态阻断项；修复 retention 对 canonical rollback 的保护后，再等待用户明确放行 Production`
+- 部署时间：`2026-07-18`
 - 当前批次记录：
+  - `gray/2026-07-18-generation-artifact-authority-v074.md`
+  - `../validations/2026-07-18-generation-artifact-authority-gray-v074.md`
   - `gray/2026-07-17-admin-ten-domain-version-correction-v073.md`
   - `../validations/2026-07-17-admin-ten-domain-version-correction-gray-v073.md`
   - `gray/2026-07-17-admin-ten-domain-v080.md`

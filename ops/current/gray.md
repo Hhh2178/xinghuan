@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.3`
-- 当前 release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
-- 当前状态：`Admin 十域能力保持不变；版本口径已按用户授权从 v0.8.0 修正为 v0.7.3，并通过严格运行态验证`
-- 当前补修：`线上登录态 Chrome 控制超时未形成新截图；本地十域深链 QA、Gray API/Worker/status/readiness 已通过`
+- 当前版本：`v0.7.4`
+- 当前 release：`20260718-generation-artifact-authority-gray-r4-v074`
+- 当前状态：`Generation Artifact 已成为生成库权威数据源；Gray 已通过功能、并发、性能、资源、零写入 reconciliation 与 9.5 分钟稳定性验收`
+- 当前补修：`匿名路由空用户保护、release verifier 打包及 reconciliation Asset 引用写放大均已修复；Production 继续保持 v0.7.3，等待用户明确放行`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-18-generation-artifact-authority-v074.md`
+  - `../../docs/logbooks/validations/2026-07-18-generation-artifact-authority-gray-v074.md`
   - `../../docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-version-correction-v073.md`
   - `../../docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-gray-v073.md`
   - `../../docs/logbooks/releases/gray/2026-07-17-admin-ten-domain-v080.md`
@@ -93,9 +95,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260717-admin-ten-domain-gray-r1-v080`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-admin-ten-domain-version-correction-gray-r1-v073`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260717-admin-ten-domain-gray-r1-v080`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260717-admin-ten-domain-version-correction-gray-r1-v073`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

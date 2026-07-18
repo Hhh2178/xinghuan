@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.3`（enforced 已部署）
+- 当前灰度版本：`v0.7.4`（enforced 已部署并完成多维验收）
 - 当前生产版本：`v0.7.3`（enforced 已部署）
-- 当前灰度 release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
+- 当前灰度 release：`20260718-generation-artifact-authority-gray-r4-v074`
 - 当前生产 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Admin 十域能力保持不变；版本口径按用户授权修正为 v0.7.3，并以同一制品完成 Gray 与 Production 发布。
+- 最新完成：Generation Artifact authority migration 已在 Gray 完成真实 Worker、并发竞态、reconciliation 零写入、浏览器与 API 性能、资源和 9.5 分钟稳定性验收；Production 仍为 v0.7.3，暂停推送等待用户明确放行。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

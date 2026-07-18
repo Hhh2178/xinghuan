@@ -27,10 +27,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.3`
-  - release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
-  - 状态：`Admin 十域能力保持不变；版本口径已按用户授权修正并通过严格运行态验证`
-  - 当前补修：`线上登录态 Chrome 控制超时未形成新截图；本地完整 UI 与 Gray 运行态证据已落盘`
+  - 版本：`v0.7.4`
+  - release：`20260718-generation-artifact-authority-gray-r4-v074`
+  - 状态：`Generation Artifact authority migration 已通过功能、并发、性能、资源和稳定性验收`
+  - 当前补修：`retention apply 暂停，需先保护 canonical v0.7.3 rollback；Production 仍为 v0.7.3，等待用户明确放行`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
@@ -38,7 +38,7 @@
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.7.3`
   - release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
-  - 状态：`与 Gray 相同的 v0.7.3 制品已晋级；运行态与 readiness 验收通过`
+  - 状态：`继续运行 v0.7.3；Generation Artifact v0.7.4 尚未推送`
   - 当前补修：`继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工
