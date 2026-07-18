@@ -4,7 +4,7 @@
 
 - 当前灰度版本：`v0.7.5`（流式响应热修候选，runtime 待验）
 - 当前生产版本：`v0.7.3`（v0.7.4 稳定性失败后已回滚）
-- 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r1-v075`
+- 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
 - 当前生产 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：Production v0.7.4 压测复现客户端断开内容流后的 `ERR_HTTP_HEADERS_SENT` 崩溃并主动回滚；v0.7.5 已完成 TDD 修复与本地回归，下一步只先推 Gray。

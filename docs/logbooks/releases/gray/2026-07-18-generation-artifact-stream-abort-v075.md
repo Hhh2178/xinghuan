@@ -2,7 +2,7 @@
 
 ## 发布信息
 
-- release：`20260718-generation-artifact-stream-abort-gray-r1-v075`
+- release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
 - source branch：`xinghuan-integration-clean`
 - 版本：`0.7.5`
 - 回滚：`20260718-generation-artifact-authority-gray-r4-v074`
@@ -17,3 +17,4 @@
 
 - 本地 RED 已稳定复现 Production 栈，GREEN 后 API 持续存活。
 - 46 个测试文件、168 项测试和关键治理门禁通过；Gray runtime 验收将在部署后补齐。
+- r1 真实 Gray 已通过 500 次认证内容流中断；r2 修正 release verifier 直接使用已打包 dist，CI 仍在回归前显式构建 API。

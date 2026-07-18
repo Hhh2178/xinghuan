@@ -28,7 +28,7 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.5`
-  - release：`20260718-generation-artifact-stream-abort-gray-r1-v075`
+  - release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
   - 状态：`流式响应断开崩溃热修已本地通过，等待 Gray runtime 验收`
   - 当前补修：`retention 已同时保护 current 与 canonical v0.7.3 rollback，并完成 Gray 三 Release 收口`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`

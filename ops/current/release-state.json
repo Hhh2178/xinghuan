@@ -6,7 +6,7 @@
   "environments": {
     "gray": {
       "version": "0.7.5",
-      "releaseId": "20260718-generation-artifact-stream-abort-gray-r1-v075",
+      "releaseId": "20260718-generation-artifact-stream-abort-gray-r2-v075",
       "deployedAt": "2026-07-18",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },

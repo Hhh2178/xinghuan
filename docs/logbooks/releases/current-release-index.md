@@ -5,7 +5,7 @@
 ### Gray
 
 - 版本：`v0.7.5`
-- release：`20260718-generation-artifact-stream-abort-gray-r1-v075`
+- release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
 - 当前状态：`Generation Artifact authority 保持；流式响应断开崩溃热修已本地通过，等待 Gray runtime 验收`
 - 部署内容：`response 已发送保护、客户端中断内容流回归，以及 v0.7.4 的全部 authority 能力`
 - 已验证：`168 项测试与全 workspace 构建；真实 Worker/Canvas/Resource；25 路 Promotion、20 路 Promote/Delete 竞态；公网/内网压测；浏览器冷启动；9.5 分钟 canary；服务与数据库审计`
