@@ -107,11 +107,13 @@
 
 ### Production
 
-- 版本：`v0.7.5`
-- release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
-- 当前状态：`流中断热修已复用 Gray r2 同一制品晋级；严格 runtime、真实故障路径、负载与 canary 全部通过`
-- 当前补修：`继续观察既有任务失败趋势、revision conflict 和 legacy reconciliation 候选；本次未批量治理`
+- 版本：`v0.7.6`
+- release：`20260718-permission-image-node-repair-prod-r1-v076`
+- 当前状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性门禁通过`
+- 当前补修：`继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
 - 当前批次记录：
+  - `production/2026-07-18-permission-image-node-repair-production-v076.md`
+  - `../validations/2026-07-18-permission-image-node-repair-production-v076.md`
   - `production/2026-07-18-generation-artifact-stream-abort-production-v075.md`
   - `../validations/2026-07-18-generation-artifact-stream-abort-production-v075.md`
   - `../incidents/2026-07-18-generation-artifact-production-stream-abort-rollback.md`

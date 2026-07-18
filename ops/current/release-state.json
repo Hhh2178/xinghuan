@@ -15,15 +15,15 @@
       "rollbackReleaseId": "20260718-generation-artifact-stream-abort-gray-r2-v075"
     },
     "production": {
-      "version": "0.7.5",
-      "releaseId": "20260718-generation-artifact-stream-abort-prod-r1-v075",
+      "version": "0.7.6",
+      "releaseId": "20260718-permission-image-node-repair-prod-r1-v076",
       "deployedAt": "2026-07-18",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 10, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 116, "restrictedSubjects": 10, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-18", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-18-generation-artifact-stream-abort-production-v075.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-18-generation-artifact-stream-abort-production-v075.md",
-      "rollbackReleaseId": "20260717-admin-ten-domain-version-correction-prod-r1-v073"
+      "readiness": { "subjects": 134, "publishedSubjects": 112, "restrictedSubjects": 14, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 112, "restrictedSubjects": 14, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-18", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-18-permission-image-node-repair-production-v076.md",
+      "rollbackReleaseId": "20260718-generation-artifact-stream-abort-prod-r1-v075"
     }
   }
 }

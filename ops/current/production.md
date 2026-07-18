@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.5`
-- 当前 release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
-- 当前状态：`流中断崩溃热修已复用 Gray r2 同一制品晋级；严格 runtime、真实故障路径、负载与 canary 全部通过`
-- 当前补修：`继续观察既有任务失败趋势、revision conflict 和 legacy reconciliation 候选；本次未批量治理`
+- 当前版本：`v0.7.6`
+- 当前 release：`20260718-permission-image-node-repair-prod-r1-v076`
+- 当前状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性门禁通过`
+- 当前补修：`继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md`
+  - `../../docs/logbooks/validations/2026-07-18-permission-image-node-repair-production-v076.md`
   - `../../docs/logbooks/releases/production/2026-07-18-generation-artifact-stream-abort-production-v075.md`
   - `../../docs/logbooks/validations/2026-07-18-generation-artifact-stream-abort-production-v075.md`
   - `../../docs/logbooks/incidents/2026-07-18-generation-artifact-production-stream-abort-rollback.md`
@@ -40,7 +42,9 @@
 - 当前 production `canvas.env` 仍指向数据库：`xinghuan_canvas_next`
 - `XINGHUAN_EXPECTED_DATABASE_NAME` 当前也为：`xinghuan_canvas_next`
 - gray 实际使用 `xinghuan_canvas_gray`，production 与 gray 当前为独立数据库；production 保留历史库名 `xinghuan_canvas_next`
-- 统一权限数据：134 Subjects、116 published、10 restricted、8 retired、452 rules、11 principals、0 readiness failures
+- 统一权限数据：134 Subjects、112 published、14 restricted、8 retired、452 rules、11 principals、0 readiness failures
+- `v0.7.6` 晋级前数据库备份：
+  - `/opt/apps/xinghuan-canvas/shared/backups/20260718-before-permission-image-node-repair-v076-r1.dump`
 - `v0.7.2` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/20260717-audit-rankings-prod-pre-v072.dump`
 - `v0.7.3` 晋级前数据库备份：
@@ -55,7 +59,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260717-admin-ten-domain-version-correction-prod-r1-v073`
+  - `/opt/apps/xinghuan-canvas/releases/20260718-generation-artifact-stream-abort-prod-r1-v075`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`
