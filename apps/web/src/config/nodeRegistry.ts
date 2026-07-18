@@ -63,7 +63,7 @@ export const NODE_REGISTRY: NodeMeta[] = [
   { type: 'pick-from-set', label: '从合集获取', category: 'utility', description: '从上游多素材中按序号取出单一素材，kind 可在节点内切换', icon: 'Filter', color: 'orange' },
   { type: 'text-split', label: '文本分割', category: 'utility', description: '将长提示词/分镜按段落、行、智能分镜、正则、自定义分隔符或字数切成多段文本，支持收藏与循环器链路', icon: 'SplitSquareVertical', color: 'orange' },
   { type: 'code', label: '代码', category: 'utility', description: '使用受控 Python 代码处理上游数据，支持节点内预设保存、切换与覆盖', icon: 'Code2', color: 'orange' },
-  { type: 'resize', label: '尺寸调整', category: 'utility', description: '图像尺寸调整', icon: 'Maximize2', color: 'orange' },
+  { type: 'resize', label: '图像尺寸调整', category: 'utility', description: '调整图片尺寸；视频需先经过抽帧节点', icon: 'Maximize2', color: 'orange' },
   { type: 'combine', label: '合并', category: 'utility', description: '图像合并', icon: 'Combine', color: 'orange' },
   { type: 'remove-bg', label: '抠图', category: 'utility', description: '去除背景', icon: 'Eraser', color: 'orange', hidden: true },
   { type: 'upscale', label: '放大', category: 'utility', description: '图像放大', icon: 'ZoomIn', color: 'orange', hidden: true },

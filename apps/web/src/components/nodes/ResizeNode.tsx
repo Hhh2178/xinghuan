@@ -59,7 +59,7 @@ const ResizeNode = (p: NodeProps) => {
       id={p.id}
       data={p.data}
       selected={p.selected}
-      title="尺寸调整"
+      title="图像尺寸调整"
       subtitle={`${width}×${height} · ${fit}`}
       icon={<Maximize2 size={13} />}
       colorHex="#fb923c"

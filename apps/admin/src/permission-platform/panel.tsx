@@ -9,8 +9,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { AdminUser, AdminUserGroup } from "../admin-types";
-import { AdminApiError } from "../admin-api-client";
 import { permissionPlatformApi } from "./api";
+import {
+  decisionKey,
+  nextScopedEffect,
+  scopedAccessState,
+  supportedActions,
+  type ScopedAccessState,
+} from "./access";
 import type {
   PermissionAction,
   PermissionDecision,
@@ -162,48 +168,6 @@ export function PermissionPlatformPanel({
     };
   }, [principalType, principalId, fallbackGroupId, state.subjects, state.rules, renderedSubjects]);
 
-  async function updateSubject(subject: PermissionSubject) {
-    if (!reason.trim()) {
-      setError("请填写变更原因");
-      return;
-    }
-    const nextState = subject.exposureState === "published" ? "restricted" : "published";
-    setSavingKey(`subject:${subject.subjectKey}`);
-    setError("");
-    setSubjectMessages((current) => ({ ...current, [subject.subjectKey]: { tone: "success", text: "" } }));
-    try {
-      let updated: PermissionSubject;
-      try {
-        updated = await permissionPlatformApi.updateSubject(subject, nextState, reason.trim());
-      } catch (nextError) {
-        if (!(nextError instanceof AdminApiError) || nextError.code !== "PERMISSION_SUBJECT_REVISION_CONFLICT") throw nextError;
-        const refreshed = await permissionPlatformApi.readState();
-        setState(refreshed);
-        const latest = refreshed.subjects.find((item) => item.subjectKey === subject.subjectKey);
-        if (!latest) throw new Error("权限对象已不存在，状态已刷新");
-        updated = latest.exposureState === nextState
-          ? latest
-          : await permissionPlatformApi.updateSubject(latest, nextState, reason.trim());
-      }
-      setState((current) => ({
-        ...current,
-        subjects: current.subjects.map((item) => item.subjectKey === updated.subjectKey ? updated : item),
-      }));
-      setSubjectMessages((current) => ({
-        ...current,
-        [subject.subjectKey]: { tone: "success", text: nextState === "published" ? "已发布" : "已设为受限" },
-      }));
-      setHealth(await permissionPlatformApi.readHealth());
-    } catch (nextError) {
-      setSubjectMessages((current) => ({
-        ...current,
-        [subject.subjectKey]: { tone: "error", text: nextError instanceof Error ? nextError.message : String(nextError) },
-      }));
-    } finally {
-      setSavingKey("");
-    }
-  }
-
   async function updateRule(subject: PermissionSubject, action: PermissionAction, value: RuleDraftValue) {
     if (!principalId) return;
     if (!reason.trim()) {
@@ -236,6 +200,69 @@ export function PermissionPlatformPanel({
       setHealth(await permissionPlatformApi.readHealth());
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setSavingKey("");
+    }
+  }
+
+  async function updateScopedAccess(subject: PermissionSubject, effect: PermissionEffect) {
+    if (!principalId || subject.exposureState !== "published") return;
+    if (!reason.trim()) {
+      setError("请填写变更原因");
+      return;
+    }
+    const actions = supportedActions(subject);
+    const currentRules = actions.map((action) => directRule(
+      state.rules,
+      principalType,
+      principalId,
+      subject.subjectKey,
+      action,
+    ));
+    const key = `scope:${subject.subjectKey}`;
+    setSavingKey(key);
+    setError("");
+    setSubjectMessages((current) => ({ ...current, [subject.subjectKey]: { tone: "success", text: "" } }));
+    try {
+      const savedRules = await Promise.all(actions.map(async (action, index) => {
+        const current = currentRules[index];
+        if (current?.effect === effect) return current;
+        return permissionPlatformApi.upsertRule({
+          principalType,
+          principalId,
+          subjectKey: subject.subjectKey,
+          action,
+          effect,
+          reason: reason.trim(),
+          revision: current?.revision,
+        });
+      }));
+      setState((current) => ({
+        ...current,
+        rules: [
+          ...current.rules.filter((rule) => !(
+            rule.principalType === principalType &&
+            rule.principalId === principalId &&
+            rule.subjectKey === subject.subjectKey &&
+            actions.includes(rule.action)
+          )),
+          ...savedRules,
+        ],
+      }));
+      const principalLabel = principalType === "user" ? "当前账号" : "当前用户组";
+      setSubjectMessages((current) => ({
+        ...current,
+        [subject.subjectKey]: {
+          tone: "success",
+          text: `${principalLabel}已${effect === "allow" ? "允许" : "禁止"}`,
+        },
+      }));
+      setHealth(await permissionPlatformApi.readHealth());
+    } catch (nextError) {
+      setSubjectMessages((current) => ({
+        ...current,
+        [subject.subjectKey]: { tone: "error", text: nextError instanceof Error ? nextError.message : String(nextError) },
+      }));
     } finally {
       setSavingKey("");
     }
@@ -289,6 +316,11 @@ export function PermissionPlatformPanel({
           <strong>普通成员默认开放已发布的前台创作与消费能力</strong>
           <span>此处只需维护显式关闭项；公共资源上传、分类、编辑、删除和发布属于管理员治理能力，不进入用户组或账号授权目录。</span>
         </div>
+      </div>
+
+      <div className="permission-platform__scope-guide" role="note">
+        <ShieldCheck aria-hidden="true" />
+        <span>少数账号可用：先选择用户组并设为“禁止”，再选择单账号设为“允许”。中间按钮和右侧动作只修改当前选择的组或账号，不会改变其他账号；“全局目录”状态仅作提示。</span>
       </div>
 
       {error ? <div className="inline-error">{error}</div> : null}
@@ -351,8 +383,8 @@ export function PermissionPlatformPanel({
                 effectiveDecisions={effectiveDecisions}
                 savingKey={savingKey}
                 message={subjectMessages[subject.subjectKey]}
-                onUpdateSubject={updateSubject}
                 onUpdateRule={updateRule}
+                onUpdateScopedAccess={updateScopedAccess}
               />
             ))}
             {renderedSubjects.length < visibleSubjects.length ? (
@@ -377,8 +409,8 @@ function PermissionSubjectRow({
   effectiveDecisions,
   savingKey,
   message,
-  onUpdateSubject,
   onUpdateRule,
+  onUpdateScopedAccess,
 }: {
   subject: PermissionSubject;
   rules: PermissionRule[];
@@ -388,28 +420,34 @@ function PermissionSubjectRow({
   effectiveDecisions: Record<string, PermissionDecision>;
   savingKey: string;
   message?: { tone: "success" | "error"; text: string };
-  onUpdateSubject: (subject: PermissionSubject) => Promise<void>;
   onUpdateRule: (subject: PermissionSubject, action: PermissionAction, value: RuleDraftValue) => Promise<void>;
+  onUpdateScopedAccess: (subject: PermissionSubject, effect: PermissionEffect) => Promise<void>;
 }) {
+  const accessState = scopedAccessState(subject, effectiveDecisions);
+  const scopeSavingKey = `scope:${subject.subjectKey}`;
   return (
     <article className="permission-subject-row">
       <div className="permission-subject-row__identity">
         <div>
           <strong>{subject.displayName || subject.sourceId}</strong>
           <span>{DOMAIN_LABELS[subject.domain] || subject.domain} · {subject.subjectType}</span>
+          <span className={`permission-subject-row__catalog is-${subject.exposureState}`}>
+            {subject.exposureState === "published" ? <Check aria-hidden="true" /> : <Ban aria-hidden="true" />}
+            全局目录：{exposureLabel(subject.exposureState)}
+          </span>
         </div>
         <code title={subject.subjectKey}>{subject.subjectKey}</code>
       </div>
 
       <button
         type="button"
-        className={`permission-subject-row__exposure is-${subject.exposureState}`}
-        onClick={() => void onUpdateSubject(subject)}
-        disabled={subject.exposureState === "retired" || savingKey === `subject:${subject.subjectKey}`}
-        title={subject.exposureState === "published" ? "限制普通成员访问" : "发布权限对象"}
+        className={`permission-subject-row__scope is-${accessState}`}
+        onClick={() => void onUpdateScopedAccess(subject, nextScopedEffect(accessState))}
+        disabled={accessState === "loading" || accessState === "global-restricted" || savingKey === scopeSavingKey}
+        title={scopeButtonTitle(accessState, principalType)}
       >
-        {subject.exposureState === "published" ? <Check aria-hidden="true" /> : <Ban aria-hidden="true" />}
-        {exposureLabel(subject.exposureState)}
+        {accessState === "allowed" ? <Check aria-hidden="true" /> : <Ban aria-hidden="true" />}
+        {scopeButtonLabel(accessState, principalType)}
       </button>
 
       {message?.text ? (
@@ -439,7 +477,7 @@ function PermissionSubjectRow({
               <select
                 value={direct?.effect || "inherit"}
                 className={decision ? `is-${decision.allowed ? "allow" : "deny"}` : "is-inherit"}
-                disabled={!principalId || savingKey === `${subject.subjectKey}:${action.id}`}
+                disabled={!principalId || subject.exposureState !== "published" || savingKey === scopeSavingKey || savingKey === `${subject.subjectKey}:${action.id}`}
                 onChange={(event) => void onUpdateRule(subject, action.id, event.target.value as RuleDraftValue)}
               >
                 <option value="inherit">继承{inherited ? ` · ${inherited.effect === "allow" ? "允许" : "禁止"}` : ""}</option>
@@ -467,10 +505,6 @@ function directRule(
     rule.subjectKey === subjectKey &&
     rule.action === action
   ));
-}
-
-function decisionKey(subjectKey: string, action: PermissionAction) {
-  return `${subjectKey}\u0000${action}`;
 }
 
 function inheritedRule(
@@ -511,11 +545,17 @@ function exposureLabel(state: PermissionSubject["exposureState"]) {
   return "受限";
 }
 
-function supportedActions(subject: PermissionSubject): PermissionAction[] {
-  if (subject.domain === "provider") return ["view", "execute"];
-  if (subject.domain === "runninghub") return ["view", "execute"];
-  if (subject.domain === "canvas") return ["view", "use"];
-  if (subject.domain === "resource" && subject.subjectType.includes("category")) return ["view"];
-  if (subject.domain === "resource") return ["view", "use"];
-  return ["view"];
+function scopeButtonLabel(state: ScopedAccessState, principalType: PermissionPrincipalType) {
+  if (state === "global-restricted") return "全局受限";
+  if (state === "loading") return "读取中";
+  const principal = principalType === "user" ? "账号" : "用户组";
+  if (state === "allowed") return `${principal}允许`;
+  if (state === "denied") return `${principal}禁止`;
+  return `${principal}部分允许`;
+}
+
+function scopeButtonTitle(state: ScopedAccessState, principalType: PermissionPrincipalType) {
+  if (state === "global-restricted") return "该对象未进入全局授权目录，组或账号规则无法覆盖";
+  const principal = principalType === "user" ? "当前账号" : "当前用户组";
+  return `切换${principal}的全部支持动作，不影响其他组或账号`;
 }

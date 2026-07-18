@@ -18,6 +18,11 @@
 
 ## 通用工作流节点能力
 
+- 节点序号徽标使用单一稳定宿主包装节点组件，宿主以 `display: contents` 保持原布局；不得再用 Fragment 把节点主体和徽标作为 ReactFlow 下的并列根节点，避免运行态条件渲染触发 DOM `insertBefore` 冲突。
+- 图像操作节点只消费图片。若旧连线或上游上传类型变化后传入视频、音频或文本，运行态必须返回可操作的类型不匹配提示，不得向用户暴露 `UPSTREAM_IMAGE_NOT_FOUND` 等内部错误码。
+- 视频需要调整画面尺寸时，当前标准链路是先经过“首尾帧获取”或“视频抽帧”得到图片，再连接“图像尺寸调整”；该节点不承担视频转码职责。
+- `/api/image/resize`、`upscale`、`crop`、`combine` 由主 API 的独立图片操作路由承接；输入仅解析当前用户自己的 input/output 文件或图片 data URL，输出写回该用户 output 并登记为生成素材。
+
 - `code`
   - 工具节点，使用既有橙色语义和通用节点壳。
   - 接收结构化上游文本、图像、视频和音频输入，通过 `POST /api/code-node/execute` 执行受控 Python。

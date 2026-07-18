@@ -39,6 +39,20 @@ describe("resolvePermission", () => {
     expect(result.ruleId).toBe("user-allow");
   });
 
+  it("keeps other group members denied when one account is explicitly allowed", () => {
+    const rules = [
+      rule({ effect: "deny" }),
+      rule({ id: "user-allow", principalType: "user", principalId: "user-a", effect: "allow" }),
+    ];
+    expect(resolvePermission({ user: member, subject: subject(), action: "execute", rules }).allowed).toBe(true);
+    expect(resolvePermission({
+      user: { ...member, id: "user-b" },
+      subject: subject(),
+      action: "execute",
+      rules,
+    }).allowed).toBe(false);
+  });
+
   it("prefers a more specific deny over a parent group allow", () => {
     const result = resolvePermission({ user: member, subject: subject(), action: "execute", rules: [rule({ subjectKey: "runninghub.app/*", effect: "allow" }), rule({ id: "exact-deny", effect: "deny" })] });
     expect(result.allowed).toBe(false);

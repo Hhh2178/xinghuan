@@ -3079,6 +3079,10 @@ html[data-theme-visual="op"] .t8-group-box__handle {
   background: #000;
 }
 
+.t8-node-serial-host {
+  display: contents;
+}
+
 .t8-node-serial-badge {
   --t8-node-serial-offset-x: 9px;
   --t8-node-serial-offset-y: -10px;

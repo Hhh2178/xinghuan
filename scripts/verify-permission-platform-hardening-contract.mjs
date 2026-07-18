@@ -57,6 +57,8 @@ const checks = [
   ["queued task service authorizes model execution", providerTaskService.includes("authorizeModelExecution")],
   ["admin uses unified lazy panel", adminUsers.includes("lazy(() =>") && adminUsers.includes("PermissionPlatformPanel")],
   ["admin panel supports account principal", adminPanel.includes('setPrincipalType("user")')],
+  ["principal matrix cannot mutate global subject exposure", !adminPanel.includes("onUpdateSubject") && adminPanel.includes("updateScopedAccess")],
+  ["principal matrix explains group deny and account allow workflow", adminPanel.includes("少数账号可用") && adminPanel.includes("不会改变其他账号")],
   ["web loads effective node permissions", webApp.includes("getEffectivePermissions")],
   ["gray verify supports permission readiness", grayVerify.includes("expected-permission-ready")],
   ["gray environment defaults to shadow", environmentExample.includes("XINGHUAN_PERMISSION_MODE=shadow")],

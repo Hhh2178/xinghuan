@@ -233,7 +233,7 @@
   white-space: nowrap;
 }
 
-.permission-subject-row__exposure {
+.permission-subject-row__scope {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -246,9 +246,38 @@
   color: #cbd5e1;
 }
 
-.permission-subject-row__exposure svg { width: 14px; }
-.permission-subject-row__exposure.is-published { border-color: rgba(134, 239, 172, 0.3); color: #bbf7d0; }
-.permission-subject-row__exposure.is-retired { color: #94a3b8; }
+.permission-subject-row__scope svg { width: 14px; }
+.permission-subject-row__scope.is-allowed { border-color: rgba(134, 239, 172, 0.3); color: #bbf7d0; }
+.permission-subject-row__scope.is-denied { border-color: rgba(248, 113, 113, 0.35); color: #fecaca; }
+.permission-subject-row__scope.is-partial { border-color: rgba(250, 204, 21, 0.35); color: #fde68a; }
+.permission-subject-row__scope.is-global-restricted,
+.permission-subject-row__scope.is-loading { color: #94a3b8; }
+
+.permission-subject-row__catalog {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.permission-subject-row__catalog svg { width: 12px; height: 12px; }
+.permission-subject-row__catalog.is-published { color: #86efac; }
+
+.permission-platform__scope-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 6px;
+  background: rgba(30, 64, 175, 0.08);
+  color: #bfdbfe;
+  font-size: 12px;
+}
+
+.permission-platform__scope-guide svg { width: 16px; flex: 0 0 auto; }
 
 .permission-subject-row__message {
   grid-column: 2;

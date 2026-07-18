@@ -5,6 +5,7 @@ import { useUpdateNodeData } from './useUpdateNodeData';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useHasAutoOutput } from './useHasAutoOutput';
 import { useUpstreamMaterials } from './useUpstreamMaterials';
+import { missingImageInputMessage } from './imageOpInput';
 
 /**
  * ImageOpNode - 图像变换节点的通用外壳
@@ -55,7 +56,9 @@ export function ImageOpFrame(props: ImageOpNodeProps) {
     setError(null);
     const imgs = explicitInputImages.length > 0 ? explicitInputImages : upstreamImageUrls;
     if (imgs.length === 0) {
-      setError('UPSTREAM_IMAGE_NOT_FOUND');
+      const message = missingImageInputMessage(upstream);
+      setError(message);
+      update({ status: 'error', error: message });
       return;
     }
     update({ status: 'running', error: null });

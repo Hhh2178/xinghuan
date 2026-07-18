@@ -185,6 +185,7 @@ import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
 import { handleCodeNodeRoutes } from "./code-node-routes.js";
+import { handleImageOperationRoutes } from "./image-operation-routes.js";
 import { createSharedResourceRouteHandler } from "./shared-resource-routes.js";
 import { cleanImportedNodeData, sanitizeCanvasNodes } from "./canvas-node-migration.js";
 import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
@@ -1424,6 +1425,19 @@ const server = createServer(async (request, response) => {
           });
           if (!decision.allowed) throw new PermissionDeniedError();
         },
+      },
+    })) return;
+
+    if (await handleImageOperationRoutes({
+      request,
+      response,
+      url,
+      currentUser: currentUser!,
+      deps: {
+        readJsonBody,
+        sendJson,
+        userDataDirs: (user) => userDataDirsForId(user.id),
+        registerOutput: (user, saved, sourceUrl) => registerApiOutputArtifact(user as CurrentUser, "image", saved, sourceUrl),
       },
     })) return;
 

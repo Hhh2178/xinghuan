@@ -327,9 +327,11 @@ function useNodeSerialBadgeAnchor(badgeRef: RefObject<HTMLElement | null>, enabl
   useLayoutEffect(() => {
     if (!enabled) return;
     const badgeEl = badgeRef.current;
-    const parentEl = badgeEl?.parentElement;
-    if (!badgeEl || !parentEl || typeof window === 'undefined') return;
+    const hostEl = badgeEl?.parentElement;
+    const parentEl = badgeEl?.offsetParent instanceof HTMLElement ? badgeEl.offsetParent : hostEl;
+    if (!badgeEl || !hostEl || !parentEl || typeof window === 'undefined') return;
     const badge = badgeEl;
+    const host = hostEl;
     const parent = parentEl;
 
     let frame = 0;
@@ -373,7 +375,7 @@ function useNodeSerialBadgeAnchor(badgeRef: RefObject<HTMLElement | null>, enabl
     }
 
     resizeObserver?.observe(parent);
-    mutationObserver?.observe(parent, { childList: true });
+    mutationObserver?.observe(host, { childList: true });
     window.addEventListener('resize', schedule);
     applyAnchor();
     schedule();
@@ -403,10 +405,10 @@ function NodeSerialBadge({ data }: { data: unknown }) {
 
 function withNodeSerialBadge(Component: ComponentType<any>): ComponentType<any> {
   const WrappedNode = (props: any) => (
-    <>
+    <div className="t8-node-serial-host">
       <Component {...props} />
       <NodeSerialBadge data={props?.data} />
-    </>
+    </div>
   );
   WrappedNode.displayName = `NodeSerialBadge(${Component.displayName || Component.name || 'Node'})`;
   return WrappedNode;
