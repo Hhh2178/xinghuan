@@ -25,3 +25,4 @@
 - request-chain 与 system-observability 门禁通过；近 24 小时 requestId 覆盖率 100%。
 - 部署后 3 轮公网/内网 status 与首页 canary 零错误，API/Worker `NRestarts=0`。
 - Worker 切换时旧进程优雅退出超过 systemd 时限，被 systemd 终止一次；新进程随后稳定 active，`NRestarts=0`，功能与 runtime gate 均通过。
+- Production retention 通过受保护脚本保留当前 `v0.7.6`、回滚 `v0.7.5` 和事故证据 `v0.7.4`，移除旧 `v0.7.3` Release，释放 `307,826,688` bytes；`shared/`、备份和用户材料未触碰。

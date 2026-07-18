@@ -19,3 +19,4 @@
 
 - 系统面板显示近 24 小时 65 个失败任务、32 个 canvas revision conflict，属于既有累计运行趋势，不是本次 v0.7.6 发布新增故障。
 - 用户浏览器视觉以及管理员真实执行“组 deny + 单账号 allow”的交互体验仍待最终确认；resolver、scoped-write contract 与线上 member catalog 已覆盖自动化边界。
+- Retention dry-run 与 apply 均确认 current/rollback 为 `v0.7.6` / `v0.7.5`；最终 Production Release 数量为 3，移除旧 `v0.7.3` 并释放 `307,826,688` bytes，未触碰 shared 数据、备份或用户材料。

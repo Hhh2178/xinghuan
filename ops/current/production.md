@@ -5,7 +5,7 @@
 - 当前版本：`v0.7.6`
 - 当前 release：`20260718-permission-image-node-repair-prod-r1-v076`
 - 当前状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性门禁通过`
-- 当前补修：`继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
+- 当前补修：`回滚锚点为 v0.7.5；Production retention 已收口为 3 个 Release；继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md`
