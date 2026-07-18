@@ -34,6 +34,11 @@ assert.match(files.artifactStore, /interface ArtifactStore/, "artifact binary ac
 assert.match(files.lifecycle, /artifactStore\.resolveOwned/, "lifecycle must delegate binary resolution to ArtifactStore");
 assert.match(files.routes, /promoteOwned/, "routes must expose promotion");
 assert.match(files.server, /handleGenerationArtifactRoutes/, "server must delegate generation artifact routes");
+assert.match(
+  files.server,
+  /if \(currentUser && await handleGenerationArtifactRoutes\(\{[\s\S]*?ownerId: currentUser\.id,/,
+  "anonymous requests must not dereference a generation artifact owner",
+);
 assert.doesNotMatch(files.server, /function readGenerationLibraryDb/, "server must not own legacy generation JSON lifecycle");
 assert.match(files.worker, /writeTaskGenerationArtifactsToPostgres/, "worker must register generation artifacts");
 assert.doesNotMatch(files.worker, /insert into xh_assets/, "worker must not auto-promote task outputs into resource assets");

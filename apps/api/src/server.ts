@@ -1469,11 +1469,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (await handleGenerationArtifactRoutes({
+    if (currentUser && await handleGenerationArtifactRoutes({
       request,
       response,
       url,
-      ownerId: currentUser!.id,
+      ownerId: currentUser.id,
       lifecycle: generationArtifactLifecycle,
       materialAccessService,
       readJsonBody,
