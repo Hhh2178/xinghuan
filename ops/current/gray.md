@@ -4,8 +4,8 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.5`
 - 当前 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-- 当前状态：`Generation Artifact authority 保持不变；新增流式响应客户端中断保护，Gray runtime 验收待部署后补齐`
-- 当前补修：`修复 response headers 已发送后顶层 catch 二次写入导致 API 退出；Production 已回滚并保持 v0.7.3`
+- 当前状态：`Generation Artifact authority 保持不变；流式响应客户端中断保护已通过 Gray 严格 runtime、真实链路、负载与持续稳定性验收`
+- 当前补修：`修复 response headers 已发送后顶层 catch 二次写入导致 API 退出；Production 晋级前仍保持 v0.7.3`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`

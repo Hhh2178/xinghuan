@@ -15,6 +15,7 @@
 
 ## 状态
 
-- 本地 RED 已稳定复现 Production 栈，GREEN 后 API 持续存活。
-- 46 个测试文件、168 项测试和关键治理门禁通过；Gray runtime 验收将在部署后补齐。
-- r1 真实 Gray 已通过 500 次认证内容流中断；r2 修正 release verifier 直接使用已打包 dist，CI 仍在回归前显式构建 API。
+- 制品：`dist-release/20260718-generation-artifact-stream-abort-v075-r2.tar.gz`，SHA-256：`261fd44b75a2662b9510697207f743f81ebd893917b7d0413f2dce69688e35d8`。
+- 本地 RED 已稳定复现 Production 栈，GREEN 后 API 持续存活；46 个测试文件、168 项测试和关键治理门禁通过。
+- r2 release 目录内 `npm run verify:api-aborted-response` 直接使用已打包 dist 并通过 100 次中断回归，CI 仍在回归前显式构建 API。
+- Gray 严格 runtime/readiness、真实 Worker/Canvas/Resource、500 次真实认证内容流中断、5900 请求混合负载和 9 分 49 秒持续探针全部通过；API 与 Worker `NRestarts=0`，journal warning 为 0。

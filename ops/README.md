@@ -29,7 +29,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.5`
   - release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-  - 状态：`流式响应断开崩溃热修已本地通过，等待 Gray runtime 验收`
+  - 状态：`流式响应断开崩溃热修已通过 Gray 严格 runtime、真实链路、并发负载与持续稳定性验收`
   - 当前补修：`retention 已同时保护 current 与 canonical v0.7.3 rollback，并完成 Gray 三 Release 收口`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
@@ -39,7 +39,7 @@
   - 版本：`v0.7.3`
   - release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
   - 状态：`v0.7.4 压测触发 API 退出后已回滚；严格 runtime/readiness 恢复通过`
-  - 当前补修：`等待 v0.7.5 Gray 热修验收；继续观察既有任务失败趋势与 revision conflict`
+  - 当前补修：`v0.7.5 Gray 热修已验收，等待同一制品 Production 晋级；继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工
 
