@@ -7,7 +7,8 @@ import { reconcileGenerationArtifacts } from "./reconcile-generation-artifacts.m
 async function main() {
   const migration = await verifyMigration();
   const reconciliation = await verifyReconciliation();
-  console.log(JSON.stringify({ ok: true, migration, reconciliation }, null, 2));
+  const postgresAssetProtection = await verifyPostgresAssetProtection();
+  console.log(JSON.stringify({ ok: true, migration, reconciliation, postgresAssetProtection }, null, 2));
 }
 
 async function verifyMigration() {
@@ -83,6 +84,43 @@ async function verifyReconciliation() {
   assert(await exists(join(outputDir, "promoted.png")), "promoted file was deleted");
   assert(await exists(join(outputDir, "orphan.png")), "orphan report deleted an unregistered output");
   return { candidates: applied.candidates.length, updated: applied.updatedIds.length, deletedFiles: applied.deletedFiles.length, orphanFiles: applied.orphanFiles.length };
+}
+
+async function verifyPostgresAssetProtection() {
+  const dataDir = await mkdtemp(join(tmpdir(), "generation-artifact-postgres-protection-"));
+  const ownerId = "owner-protected";
+  const outputDir = join(dataDir, "users", ownerId, "output");
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(join(outputDir, "shared.png"), "protected", "utf8");
+
+  let writes = 0;
+  const pool = {
+    async query(sql: string) {
+      if (sql.includes("from xh_generation_artifacts")) {
+        return { rows: [{
+          id: "artifact-protected",
+          owner_id: ownerId,
+          status: "deleted",
+          file_url: "/files/output/shared.png",
+          storage_key: "shared.png",
+          promoted_asset_id: null,
+          expires_at: new Date(1_000),
+          created_at: new Date(1_000),
+        }] };
+      }
+      if (sql.includes("from xh_assets")) return { rows: [{ count: 1 }] };
+      if (sql.startsWith("update xh_generation_artifacts")) writes += 1;
+      return { rows: [] };
+    },
+  };
+
+  const dryRun = await reconcileGenerationArtifacts({ dataDir, storageDriver: "postgres", databaseUrl: "test", now: 5_000, apply: false, pool });
+  const applied = await reconcileGenerationArtifacts({ dataDir, storageDriver: "postgres", databaseUrl: "test", now: 5_000, apply: true, pool });
+  assert(dryRun.candidates.length === 0 && applied.candidates.length === 0, "asset-protected binary remained a deletion candidate");
+  assert(dryRun.protectedFiles.includes("/files/output/shared.png"), "asset-protected binary was not reported");
+  assert(writes === 0, "asset-protected reconciliation wrote artifact metadata");
+  assert(await exists(join(outputDir, "shared.png")), "asset-protected reconciliation deleted the binary");
+  return { protectedFiles: applied.protectedFiles.length, writes };
 }
 
 function artifact(id: string, storageKey: string, expiresAt: number) {

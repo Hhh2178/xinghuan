@@ -10,13 +10,13 @@ export async function reconcileGenerationArtifacts(options = {}) {
   const now = options.now ?? Date.now();
   const apply = Boolean(options.apply);
   if ((options.storageDriver || storageDriver) === "postgres" && (options.databaseUrl || databaseUrl)) {
-    return reconcilePostgres({ dataDir, now, apply, databaseUrl: options.databaseUrl || databaseUrl });
+    return reconcilePostgres({ dataDir, now, apply, databaseUrl: options.databaseUrl || databaseUrl, pool: options.pool });
   }
   return reconcileFiles({ dataDir, now, apply });
 }
 
-async function reconcilePostgres({ dataDir, now, apply, databaseUrl }) {
-  const pool = await createPool(databaseUrl);
+async function reconcilePostgres({ dataDir, now, apply, databaseUrl, pool: injectedPool }) {
+  const pool = injectedPool || await createPool(databaseUrl);
   const summary = baseSummary("postgres", dataDir, now, apply);
   try {
     const result = await pool.query(
@@ -30,6 +30,10 @@ async function reconcilePostgres({ dataDir, now, apply, databaseUrl }) {
     for (const row of result.rows) {
       const candidate = await evaluate(row, dataDir, now);
       if (!candidate.action) continue;
+      if (candidate.deleteBinary && await hasResourceAssetReference(pool, row, candidate)) {
+        if (!summary.protectedFiles.includes(candidate.fileUrl)) summary.protectedFiles.push(candidate.fileUrl);
+        continue;
+      }
       summary.candidates.push(candidate);
       if (!apply) continue;
       const claimed = await pool.query(
@@ -42,12 +46,7 @@ async function reconcilePostgres({ dataDir, now, apply, databaseUrl }) {
       );
       if (!claimed.rows[0]) continue;
       if (candidate.deleteBinary) {
-        const refs = await pool.query(
-          `select count(*)::int as count from xh_assets
-           where owner_id = $1 and (id = $2 or metadata ->> 'fileUrl' = $3 or metadata ->> 'fileRel' = $3)`,
-          [candidate.ownerId, text(row.promoted_asset_id), candidate.fileUrl],
-        );
-        if (Number(refs.rows[0]?.count) === 0 && candidate.absolutePath) {
+        if (!await hasResourceAssetReference(pool, row, candidate) && candidate.absolutePath) {
           const removed = await unlink(candidate.absolutePath).then(() => true).catch(() => false);
           if (removed) summary.deletedFiles.push(candidate.fileUrl);
           else summary.deletionFailures.push(candidate.fileUrl);
@@ -61,7 +60,7 @@ async function reconcilePostgres({ dataDir, now, apply, databaseUrl }) {
     }
     return summary;
   } finally {
-    await pool.end();
+    if (!injectedPool) await pool.end();
   }
 }
 
@@ -215,9 +214,19 @@ function baseSummary(driver, dataDir, now, apply) {
     updatedIds: [],
     deletedFiles: [],
     deletionFailures: [],
+    protectedFiles: [],
     orphanFiles: [],
     corruptFiles: [],
   };
+}
+
+async function hasResourceAssetReference(pool, row, candidate) {
+  const refs = await pool.query(
+    `select count(*)::int as count from xh_assets
+     where owner_id = $1 and (id = $2 or metadata ->> 'fileUrl' = $3 or metadata ->> 'fileRel' = $3)`,
+    [candidate.ownerId, text(row.promoted_asset_id), candidate.fileUrl],
+  );
+  return Number(refs.rows[0]?.count) > 0;
 }
 
 async function findOutputOrphans(dataDir, ownerId, registered) {
