@@ -3,11 +3,11 @@
 ## 当前版本与阶段
 
 - 当前灰度版本：`v0.7.5`（流式响应热修已完成 Gray 全门禁验收）
-- 当前生产版本：`v0.7.3`（v0.7.4 稳定性失败后已回滚）
+- 当前生产版本：`v0.7.5`（流式响应热修已复用 Gray r2 同一制品晋级并通过全门禁）
 - 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-- 当前生产 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
+- 当前生产 release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Production v0.7.4 流中断崩溃已回滚；v0.7.5 r2 已完成 Gray 严格 runtime、真实链路、500 次流中断、5900 请求负载和 9 分 49 秒持续稳定性验收。
+- 最新完成：Production v0.7.5 已完成严格 runtime、真实链路、500 次流中断、5000 请求负载和 9 分 45 秒持续稳定性验收；API/Worker 零重启。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,9 +40,9 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 当前运行 `v0.7.5 / enforced`，production 当前运行 `v0.7.3 / enforced`
+  - gray 与 production 当前均运行 `v0.7.5 / enforced`
   - gray 当前 release 为 `20260718-generation-artifact-stream-abort-gray-r2-v075`
-  - production 当前 release 为 `20260717-admin-ten-domain-version-correction-prod-r1-v073`
+  - production 当前 release 为 `20260718-generation-artifact-stream-abort-prod-r1-v075`
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

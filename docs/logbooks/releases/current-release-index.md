@@ -9,7 +9,7 @@
 - 当前状态：`Generation Artifact authority 保持；流式响应断开崩溃热修已通过 Gray runtime、真实链路、并发负载与持续稳定性验收`
 - 部署内容：`response 已发送保护、客户端中断内容流回归，以及 v0.7.4 的全部 authority 能力`
 - 已验证：`168 项测试与全 workspace 构建；r2 打包回归；真实 Worker/Canvas/Resource；500 次真实认证流中断；5900 请求并发负载；9 分 49 秒 canary；服务与 journal 审计`
-- 待验收：`v0.7.5 Gray runtime、压测与 canary；Production 当前维持 v0.7.3`
+- 待验收：`无；v0.7.5 已完成 Gray 与 Production 晋级验收`
 - 部署时间：`2026-07-18`
 - 当前批次记录：
   - `gray/2026-07-18-generation-artifact-stream-abort-v075.md`
@@ -105,11 +105,13 @@
 
 ### Production
 
-- 版本：`v0.7.3`
-- release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
-- 当前状态：`v0.7.4 压测触发 API 退出后已回滚；v0.7.3 runtime/readiness 复核通过`
-- 当前补修：`等待 v0.7.5 Gray 热修验收；继续观察既有任务失败趋势与 revision conflict`
+- 版本：`v0.7.5`
+- release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
+- 当前状态：`流中断热修已复用 Gray r2 同一制品晋级；严格 runtime、真实故障路径、负载与 canary 全部通过`
+- 当前补修：`继续观察既有任务失败趋势、revision conflict 和 legacy reconciliation 候选；本次未批量治理`
 - 当前批次记录：
+  - `production/2026-07-18-generation-artifact-stream-abort-production-v075.md`
+  - `../validations/2026-07-18-generation-artifact-stream-abort-production-v075.md`
   - `../incidents/2026-07-18-generation-artifact-production-stream-abort-rollback.md`
   - `production/2026-07-18-generation-artifact-authority-production-v074.md`
   - `../validations/2026-07-18-generation-artifact-authority-production-v074.md`

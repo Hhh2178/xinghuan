@@ -28,15 +28,15 @@
 
 ## 当前状态摘要
 
-- 当前候选版本：`v0.7.3`
+- 当前候选版本：`v0.7.5`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.7.3`
+- 当前灰度版本：`v0.7.5`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前生产版本：`v0.7.3`
-- 当前灰度 release：`20260717-admin-ten-domain-version-correction-gray-r1-v073`
-- 当前生产 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
+- 当前生产版本：`v0.7.5`
+- 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
+- 当前生产 release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
 - 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：Admin 十域能力保持不变；Gray 与 Production 已按用户明确授权统一为 v0.7.3，后续 Gray 默认仅递增 PATCH
+- 当前重点：流中断崩溃热修已在 Gray 与 Production 完成同制品验收；继续观察既有运行趋势与 legacy reconciliation 候选，后续 Gray 默认仅递增 PATCH
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

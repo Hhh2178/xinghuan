@@ -36,10 +36,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.3`
-  - release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
-  - 状态：`v0.7.4 压测触发 API 退出后已回滚；严格 runtime/readiness 恢复通过`
-  - 当前补修：`v0.7.5 Gray 热修已验收，等待同一制品 Production 晋级；继续观察既有任务失败趋势与 revision conflict`
+  - 版本：`v0.7.5`
+  - release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
+  - 状态：`流中断热修已复用 Gray r2 同一制品晋级；严格 runtime、真实流中断、负载与 canary 验收通过`
+  - 当前补修：`继续观察既有任务失败趋势、revision conflict 和 legacy reconciliation 候选；本次未批量治理`
 
 ## current / archive 分工
 
