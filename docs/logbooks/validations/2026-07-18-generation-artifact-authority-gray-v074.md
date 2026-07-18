@@ -2,7 +2,7 @@
 
 ## 结论
 
-- 状态：`PASS_WITH_OBSERVATION`。Gray 无运行态阻断项；Production 继续暂停。
+- 状态：`PASS_WITH_OBSERVATION`。Gray 无运行态阻断项；按用户要求，Production 继续暂停且未执行任何切换。
 - 严格 runtime gate 返回 `0.7.4 / gray / enforced / readiness=true`，API 与 Worker 均 active。
 - 匿名首页返回 200，匿名生成库返回 401，缺 Origin 登录返回 403，外部 Artifact URL 返回 400。
 
@@ -16,7 +16,7 @@
 
 ## Reconciliation 与数据
 
-- 最终数据库 57 条 Artifact；全表 dry-run 前后指纹均为 `e04ed80b09301a47691e6ca416e49f3c`。
+- 初次验收数据库 57 条 Artifact；全表 dry-run 前后指纹均为 `e04ed80b09301a47691e6ca416e49f3c`。
 - reconciliation：0 candidates、2 protected files、0 updates、0 deleted files、0 deletion failures。
 - null owner、重复 dedupe、Task owner mismatch、Asset owner mismatch、Verifier 非终态任务、Verifier Provider 残留、Worker/Artifact cardinality error 均为 0。
 - Artifact 表约 196608 bytes，列表查询执行时间 0.08ms；数据库连接 2，active 1，无长查询；Redis chat/image/video/audio 队列均为 0。
@@ -43,3 +43,15 @@
 - 修复后的 dry-run 将 r4、r3 和 canonical v0.7.3 标记为 KEEP，只将 r2、r1、旧 v0.8.0 与 v0.7.2 标记为 PRUNE。
 - apply 通过受 Harness 保护的入口完成，删除 4 个明确 Release；复核剩余数量为 3，current 与 rollback 均存在。
 - 清理后 Gray runtime gate、API/Worker active、permission readiness 与公网 status 全部通过；Production status 仍为 v0.7.3。
+
+## 扩展多场景验证
+
+- 公网混合流量新增 6250 请求：顺序、10、50、100 并发场景中出现 1 次 15 秒超时，其余 6249 次均为 200；随后将 API/首页与静态资源拆分复测，API/首页 5000 请求和主 JS 资源 800 请求均零错误，未复现该超时，判定为公网链路瞬时抖动并保留 observation。
+- 内网认证生成库新增 4750 请求，覆盖无筛选、image/video/audio 与无命中搜索：100 并发达到 1071.18 req/s，p50/p95/p99 为 87.76/134.88/143.17ms，全部返回 200。
+- 5 路真实 Worker 验证并行执行，5 个任务全部 succeeded；Artifact 登记、Promotion 幂等、删除与 promoted binary 保护全部通过，临时 Provider 残留为 0。
+- 同一 Artifact 的 100 Promotion + 100 Delete 高争用在 505.93ms 内完成：1 次 Promotion 200、99 次 Promotion 404、100 次 Delete 200，只生成 1 个 Asset；最终 Artifact content 为 404，被 Asset 引用时文件仍为 200。
+- CSRF 边界返回预期的 403 `CSRF_ORIGIN_MISMATCH`；管理员/成员画布与资源隔离、跨用户读写拒绝、成员后台拒绝及临时数据清理全部通过。
+- 15 分 3 秒持续探针每 15 秒检查 status、首页、主 JS、图标 JS 与匿名生成库，共 260 项检查；200/401 状态完全符合预期，零错误、零重启、journal warning 为 0。
+- 压力期间 API 峰值内存约 219 MiB，结束后稳定在约 135 MiB；Worker 当前/峰值约 80/119 MiB。服务均保持 active，`NRestarts=0`，Redis Gray 队列为空，数据库无等待锁。
+- 扩展验证产生的 6 个临时 Asset 已逐项删除，用户可见资源库无测试 Asset 残留；对应文件通过逐项 Artifact 删除清理。数据库保留 6 条终态审计行，最终 63 条 Artifact 全部为终态，dry-run 前后指纹均为 `3b09704c4684722179f1feba045d092b`。
+- 最终 reconciliation 为 0 candidates、0 writes、0 deleted files、0 deletion failures、2 protected files、0 corrupt files；Production current 复核仍为 `20260717-admin-ten-domain-version-correction-prod-r1-v073` / `v0.7.3`。
