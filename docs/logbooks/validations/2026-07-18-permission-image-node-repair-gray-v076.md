@@ -8,6 +8,7 @@
 - 真实 Gray 图片链路通过：认证登录、上传 PNG、`POST /api/image/resize`、下载输出 PNG 均返回 200；两个测试 Artifact 已通过正式删除 API 清理。
 - 本地 176 项测试、全 workspace type-check、API/Web/Admin production build、critical/important harness 全部通过。
 - 本地 Chrome 将 51 个注册节点全部渲染，错误边界、runtime error 与 network failure 均为 0。
+- Retention dry-run 与 apply 均确认 current/rollback 为 `v0.7.6 r1` / `v0.7.5 r2`；最终 Gray Release 数量为 3，释放 923,869,184 bytes，服务保持 active。
 
 ## 已知验收边界
 

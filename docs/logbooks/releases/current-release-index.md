@@ -8,7 +8,7 @@
 - release：`20260718-permission-image-node-repair-gray-r1-v076`
 - 当前状态：`权限账号覆盖、ReactFlow 节点宿主与图片尺寸处理修复已部署 Gray`
 - 部署内容：`账号/组 scoped permission 写入、稳定节点序号 DOM 宿主、用户隔离的 resize/upscale/crop/combine API 与可操作输入错误提示`
-- 已验证：`176 项测试、全 workspace 类型检查、API/Web/Admin 构建、51 节点 Chrome smoke、Gray runtime/readiness 与真实上传图片 resize 链路`
+- 已验证：`176 项测试、全 workspace 类型检查、API/Web/Admin 构建、51 节点 Chrome smoke、Gray runtime/readiness、真实上传图片 resize 链路与三 Release retention 收口`
 - 待验收：`用户浏览器视觉与真实权限管理操作确认；自动 account override verifier 因无安全模型前置条件未改动线上规则`
 - 部署时间：`2026-07-18`
 - 当前批次记录：

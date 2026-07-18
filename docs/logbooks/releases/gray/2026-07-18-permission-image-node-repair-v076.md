@@ -20,3 +20,4 @@
 - 制品：`dist-release/20260718-permission-image-node-repair-gray-r1-v076.tar.gz`；1,850,600 bytes；SHA-256 `f98dc5fb45f3c68038c2653f2d026d9675fc081fd2bbc3ecc83a1047e3d4cd36`。
 - Gray 已切换到本 release；API 与 Worker active，内外网均返回 `0.7.6 / gray / enforced`，permission readiness 为 ready。
 - Production 保持 `0.7.5`，未切换、未迁移、未重启。
+- Gray retention 已按受保护脚本收口为 3 个 Release：保留 current v0.7.6、rollback v0.7.5 r2 与 v0.7.5 r1；移除 3 个更旧目录并释放 923,869,184 bytes，未触碰 shared 数据、备份或用户素材。

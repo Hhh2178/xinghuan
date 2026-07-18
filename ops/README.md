@@ -30,7 +30,7 @@
   - 版本：`v0.7.6`
   - release：`20260718-permission-image-node-repair-gray-r1-v076`
   - 状态：`权限账号覆盖、节点 DOM 宿主与图片尺寸处理修复已通过 Gray 严格 runtime 和真实图片链路验收`
-  - 当前补修：`回滚锚点为已验收的 v0.7.5；Production 继续保持 v0.7.5`
+  - 当前补修：`回滚锚点为已验收的 v0.7.5；Gray retention 已收口为 3 个 Release；Production 继续保持 v0.7.5`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
