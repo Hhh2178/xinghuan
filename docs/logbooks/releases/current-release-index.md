@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.4`
-- release：`20260718-generation-artifact-authority-gray-r4-v074`
-- 当前状态：`Generation Artifact authority migration 已完成 Gray 多维验收；Production 推送暂停`
-- 部署内容：`生成库 PostgreSQL 权威化、Worker 物料化、Promotion 幂等与 Asset 文件保护、匿名路由保护、reconciliation 零写入保护`
+- 版本：`v0.7.5`
+- release：`20260718-generation-artifact-stream-abort-gray-r1-v075`
+- 当前状态：`Generation Artifact authority 保持；流式响应断开崩溃热修已本地通过，等待 Gray runtime 验收`
+- 部署内容：`response 已发送保护、客户端中断内容流回归，以及 v0.7.4 的全部 authority 能力`
 - 已验证：`168 项测试与全 workspace 构建；真实 Worker/Canvas/Resource；25 路 Promotion、20 路 Promote/Delete 竞态；公网/内网压测；浏览器冷启动；9.5 分钟 canary；服务与数据库审计`
-- 待验收：`Gray retention 已安全收口且无运行态阻断项；Production 等待用户明确放行`
+- 待验收：`v0.7.5 Gray runtime、压测与 canary；Production 当前维持 v0.7.3`
 - 部署时间：`2026-07-18`
 - 当前批次记录：
+  - `gray/2026-07-18-generation-artifact-stream-abort-v075.md`
+  - `../validations/2026-07-18-generation-artifact-stream-abort-gray-v075.md`
   - `gray/2026-07-18-generation-artifact-authority-v074.md`
   - `../validations/2026-07-18-generation-artifact-authority-gray-v074.md`
   - `gray/2026-07-17-admin-ten-domain-version-correction-v073.md`
@@ -105,9 +107,12 @@
 
 - 版本：`v0.7.3`
 - release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
-- 当前状态：`与 Gray 相同的 v0.7.3 制品已晋级；运行态、服务与权限 readiness 验收通过`
-- 当前补修：`账号与分组显示零用量目录项并支持内部滚动；继续观察既有任务失败趋势与 revision conflict`
+- 当前状态：`v0.7.4 压测触发 API 退出后已回滚；v0.7.3 runtime/readiness 复核通过`
+- 当前补修：`等待 v0.7.5 Gray 热修验收；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `../incidents/2026-07-18-generation-artifact-production-stream-abort-rollback.md`
+  - `production/2026-07-18-generation-artifact-authority-production-v074.md`
+  - `../validations/2026-07-18-generation-artifact-authority-production-v074.md`
   - `production/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
   - `../validations/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
   - `production/2026-07-17-audit-rankings-production-v072.md`

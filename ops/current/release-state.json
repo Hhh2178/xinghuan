@@ -5,14 +5,14 @@
   "sourceCommit": "e11c86a13a0a5bcfd14b08dcca963d8857be97c3",
   "environments": {
     "gray": {
-      "version": "0.7.4",
-      "releaseId": "20260718-generation-artifact-authority-gray-r4-v074",
+      "version": "0.7.5",
+      "releaseId": "20260718-generation-artifact-stream-abort-gray-r1-v075",
       "deployedAt": "2026-07-18",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-18-generation-artifact-authority-v074.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-18-generation-artifact-authority-gray-v074.md",
-      "rollbackReleaseId": "20260717-admin-ten-domain-version-correction-gray-r1-v073"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-18-generation-artifact-stream-abort-v075.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-18-generation-artifact-stream-abort-gray-v075.md",
+      "rollbackReleaseId": "20260718-generation-artifact-authority-gray-r4-v074"
     },
     "production": {
       "version": "0.7.3",
@@ -20,7 +20,7 @@
       "deployedAt": "2026-07-17",
       "permissionMode": "enforced",
       "readiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-17", "status": "ready" },
+      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 120, "restrictedSubjects": 10, "retiredSubjects": 4, "rules": 466, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-18", "status": "ready" },
       "releaseRecord": "docs/logbooks/releases/production/2026-07-17-admin-ten-domain-version-correction-production-v073.md",
       "validationRecord": "docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-production-v073.md",
       "rollbackReleaseId": "20260717-audit-rankings-prod-r1-v072"

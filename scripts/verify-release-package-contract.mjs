@@ -17,6 +17,8 @@ assertArrayIncludes("requiredPaths", "scripts/migrate-generation-library-artifac
 assertArrayIncludes("includedPaths", "scripts/migrate-generation-library-artifacts.mjs");
 assertArrayIncludes("requiredPaths", "scripts/reconcile-generation-artifacts.mjs");
 assertArrayIncludes("includedPaths", "scripts/reconcile-generation-artifacts.mjs");
+assertArrayIncludes("requiredPaths", "scripts/verify-api-aborted-response.mjs");
+assertArrayIncludes("includedPaths", "scripts/verify-api-aborted-response.mjs");
 assertArrayIncludes("requiredPaths", "scripts/capture-release-preflight.mjs");
 assertArrayIncludes("includedPaths", "scripts/capture-release-preflight.mjs");
 assertArrayIncludes("requiredPaths", "scripts/verify-task-cancellation-phase-d.mjs");

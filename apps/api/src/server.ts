@@ -2260,6 +2260,14 @@ const server = createServer(async (request, response) => {
     sendJson(response, { ok: false, success: false, error: "NOT_FOUND" }, 404);
   } catch (error) {
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    if (response.headersSent || response.writableEnded || response.destroyed) {
+      logApiEvent("request.response_stream_failed", requestContext, {
+        statusCode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (!response.destroyed) response.destroy();
+      return;
+    }
     if (error instanceof HttpError) {
       await appendObservabilityConflictAudit(error, requestContext).catch((auditError) => {
         logApiEvent("observability.audit_failed", requestContext, {

@@ -4,10 +4,13 @@
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.7.3`
 - 当前 release：`20260717-admin-ten-domain-version-correction-prod-r1-v073`
-- 当前状态：`与 Gray 相同的 v0.7.3 制品已晋级；Admin 十域能力、API/Worker 与权限 readiness 验收通过`
-- 当前补修：`账号与分组显示零用量目录项，保留历史归属统计；继续观察既有任务失败趋势与 revision conflict`
+- 当前状态：`v0.7.4 压测发现流式响应崩溃后已主动回滚；v0.7.3 runtime 与权限 readiness 复核通过`
+- 当前补修：`v0.7.5 先进入 Gray 验证；继续观察既有任务失败趋势与 revision conflict`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/incidents/2026-07-18-generation-artifact-production-stream-abort-rollback.md`
+  - `../../docs/logbooks/releases/production/2026-07-18-generation-artifact-authority-production-v074.md`
+  - `../../docs/logbooks/validations/2026-07-18-generation-artifact-authority-production-v074.md`
   - `../../docs/logbooks/releases/production/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
   - `../../docs/logbooks/validations/2026-07-17-admin-ten-domain-version-correction-production-v073.md`
   - `../../docs/logbooks/releases/production/2026-07-17-audit-rankings-production-v072.md`
@@ -40,6 +43,8 @@
   - `/opt/apps/xinghuan-canvas/shared/backups/20260717-audit-rankings-prod-pre-v072.dump`
 - `v0.7.3` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/20260717-admin-ten-domain-version-correction-prod-pre-v073.dump`
+- `v0.7.4` 晋级前数据库备份：
+  - `/opt/apps/xinghuan-canvas/shared/backups/20260718-pre-v074-generation-artifact-authority.dump`
 - `v0.5.1` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/xinghuan_canvas_next_before_v051_20260624_213115.dump`
 
