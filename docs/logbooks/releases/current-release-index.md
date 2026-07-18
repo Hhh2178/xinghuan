@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.5`
-- release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-- 当前状态：`Generation Artifact authority 保持；流式响应断开崩溃热修已通过 Gray runtime、真实链路、并发负载与持续稳定性验收`
-- 部署内容：`response 已发送保护、客户端中断内容流回归，以及 v0.7.4 的全部 authority 能力`
-- 已验证：`168 项测试与全 workspace 构建；r2 打包回归；真实 Worker/Canvas/Resource；500 次真实认证流中断；5900 请求并发负载；9 分 49 秒 canary；服务与 journal 审计`
-- 待验收：`无；v0.7.5 已完成 Gray 与 Production 晋级验收`
+- 版本：`v0.7.6`
+- release：`20260718-permission-image-node-repair-gray-r1-v076`
+- 当前状态：`权限账号覆盖、ReactFlow 节点宿主与图片尺寸处理修复已部署 Gray`
+- 部署内容：`账号/组 scoped permission 写入、稳定节点序号 DOM 宿主、用户隔离的 resize/upscale/crop/combine API 与可操作输入错误提示`
+- 已验证：`176 项测试、全 workspace 类型检查、API/Web/Admin 构建、51 节点 Chrome smoke、Gray runtime/readiness 与真实上传图片 resize 链路`
+- 待验收：`用户浏览器视觉与真实权限管理操作确认；自动 account override verifier 因无安全模型前置条件未改动线上规则`
 - 部署时间：`2026-07-18`
 - 当前批次记录：
+  - `gray/2026-07-18-permission-image-node-repair-v076.md`
+  - `../validations/2026-07-18-permission-image-node-repair-gray-v076.md`
   - `gray/2026-07-18-generation-artifact-stream-abort-v075.md`
   - `../validations/2026-07-18-generation-artifact-stream-abort-gray-v075.md`
   - `gray/2026-07-18-generation-artifact-authority-v074.md`

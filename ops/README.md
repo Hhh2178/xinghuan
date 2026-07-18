@@ -27,10 +27,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.5`
-  - release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-  - 状态：`流式响应断开崩溃热修已通过 Gray 严格 runtime、真实链路、并发负载与持续稳定性验收`
-  - 当前补修：`retention 已同时保护 current 与 canonical v0.7.3 rollback，并完成 Gray 三 Release 收口`
+  - 版本：`v0.7.6`
+  - release：`20260718-permission-image-node-repair-gray-r1-v076`
+  - 状态：`权限账号覆盖、节点 DOM 宿主与图片尺寸处理修复已通过 Gray 严格 runtime 和真实图片链路验收`
+  - 当前补修：`回滚锚点为已验收的 v0.7.5；Production 继续保持 v0.7.5`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

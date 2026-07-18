@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.5`
-- 当前 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-- 当前状态：`Generation Artifact authority 保持不变；流式响应客户端中断保护已通过 Gray 严格 runtime、真实链路、负载与持续稳定性验收`
-- 当前补修：`修复 response headers 已发送后顶层 catch 二次写入导致 API 退出；Production 晋级前仍保持 v0.7.3`
+- 当前版本：`v0.7.6`
+- 当前 release：`20260718-permission-image-node-repair-gray-r1-v076`
+- 当前状态：`权限账号覆盖、ReactFlow 节点宿主与图片尺寸处理修复已通过 Gray 严格 runtime 和真实图片链路验收`
+- 当前补修：`组拒绝后账号允许不再改变全局发布状态；恢复用户隔离的图片操作 API；Production 保持 v0.7.5`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-18-permission-image-node-repair-v076.md`
+  - `../../docs/logbooks/validations/2026-07-18-permission-image-node-repair-gray-v076.md`
   - `../../docs/logbooks/releases/gray/2026-07-18-generation-artifact-stream-abort-v075.md`
   - `../../docs/logbooks/validations/2026-07-18-generation-artifact-stream-abort-gray-v075.md`
   - `../../docs/logbooks/releases/gray/2026-07-18-generation-artifact-authority-v074.md`

@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.5`（流式响应热修已完成 Gray 全门禁验收）
+- 当前灰度版本：`v0.7.6`（权限账号覆盖、节点 DOM 与图片尺寸处理修复已完成 Gray runtime 验收）
 - 当前生产版本：`v0.7.5`（流式响应热修已复用 Gray r2 同一制品晋级并通过全门禁）
-- 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
+- 当前灰度 release：`20260718-permission-image-node-repair-gray-r1-v076`
 - 当前生产 release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Production v0.7.5 已完成严格 runtime、真实链路、500 次流中断、5000 请求负载和 9 分 45 秒持续稳定性验收；API/Worker 零重启。
+- 最新完成：Gray v0.7.6 已完成严格 runtime/readiness 与真实上传图片尺寸调整链路验收；API/Worker active、零重启，Production 仍为 v0.7.5。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
