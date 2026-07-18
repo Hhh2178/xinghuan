@@ -33,6 +33,8 @@ npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key>
 npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key> --apply=true --confirm-retention=3
 ```
 
+Retention 会从 `ops/current/release-state.json` 读取 Gray `rollbackReleaseId`；dry-run 必须同时将 `current` 与该回滚 Release 标记为 `KEEP`，否则不得执行 apply。
+
 如果是 RunningHub 相关专题发布，推荐直接使用带 preset 的准备命令：
 
 ```powershell

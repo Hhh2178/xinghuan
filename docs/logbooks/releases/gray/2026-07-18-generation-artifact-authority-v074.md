@@ -21,4 +21,5 @@
 
 - API、Worker、内外网 status、enforced permission readiness 全部通过。
 - Gray 功能、并发、性能、资源、稳定性与数据一致性验收通过，详见对应 validation logbook。
+- Retention 修复后保留 r4、r3 与 canonical v0.7.3 rollback，清理 4 个旧 Release，磁盘使用率由 75% 降至 73%；清理后 runtime gate 再次通过。
 - Production 未备份、未部署、未切换，继续等待用户明确放行。

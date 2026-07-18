@@ -36,3 +36,10 @@
 - Gray retention dry-run 准备保留 r4/r3/r2 并删除 canonical rollback v0.7.3，因此未执行 apply。Production 放行前需先修复保留脚本，使 current 与 rollback 同时受保护。
 - 临时过期验证最初命中已有 dedupe 测试记录；已从仍存在的 Promotion Asset metadata 恢复原 Artifact ID 和 `deleted` 终态，最终行数、一致性审计及 reconciliation 指纹均重新通过。
 - Nginx 两条 Gray error 均早于本轮 canary：一条外部访问规则拦截，一条部署切换瞬间 upstream refused；本轮持续检查未复现。
+
+## Retention Follow-up
+
+- 新增 rollback safety contract：脚本从 canonical state 读取 `rollbackReleaseId`，回滚目录缺失时拒绝继续，并禁止删除 current 或 rollback。
+- 修复后的 dry-run 将 r4、r3 和 canonical v0.7.3 标记为 KEEP，只将 r2、r1、旧 v0.8.0 与 v0.7.2 标记为 PRUNE。
+- apply 通过受 Harness 保护的入口完成，删除 4 个明确 Release；复核剩余数量为 3，current 与 rollback 均存在。
+- 清理后 Gray runtime gate、API/Worker active、permission readiness 与公网 status 全部通过；Production status 仍为 v0.7.3。

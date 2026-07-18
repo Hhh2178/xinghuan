@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import {
   ensureFileExists,
   firstArg,
@@ -25,6 +27,9 @@ The default mode is a read-only dry run. Apply is accepted only with --confirm-r
 
 const environment = String(firstArg(args.env) || "gray").trim();
 const defaults = await loadEnvironmentConfig(environment);
+const releaseState = JSON.parse(await readFile(new URL("../../ops/current/release-state.json", import.meta.url), "utf8"));
+const rollbackReleaseId = String(releaseState.environments?.[environment]?.rollbackReleaseId || "").trim();
+if (!rollbackReleaseId) throw new Error(`ROLLBACK_RELEASE_ID_MISSING:${environment}`);
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
 const host = String(firstArg(args.host) || defaults.host);
 const port = String(firstArg(args.port) || defaults.sshPort);
@@ -43,6 +48,7 @@ const remoteScript = `
 set -euo pipefail
 release_root=${shellQuote(releaseRoot)}
 current_link=${shellQuote(currentLink)}
+rollback_release_id=${shellQuote(rollbackReleaseId)}
 retention=${RELEASE_RETENTION_COUNT}
 apply=${apply ? "true" : "false"}
 
@@ -52,38 +58,67 @@ case "$current_release" in
   *) echo "REFUSE_CURRENT_OUTSIDE_RELEASE_ROOT|$current_release"; exit 41 ;;
 esac
 
+rollback_release="$release_root/$rollback_release_id"
+[ -d "$rollback_release" ] || { echo "REFUSE_ROLLBACK_MISSING|$rollback_release"; exit 42; }
+rollback_release="$(readlink -f -- "$rollback_release")"
+case "$rollback_release" in
+  "$release_root"/*) ;;
+  *) echo "REFUSE_ROLLBACK_OUTSIDE_RELEASE_ROOT|$rollback_release"; exit 43 ;;
+esac
+
 mapfile -t releases < <(find "$release_root" -mindepth 1 -maxdepth 1 -type d -printf '%T@|%p\n' | sort -t'|' -k1,1nr | cut -d'|' -f2-)
 if [ "${"${#releases[@]}"}" -eq 0 ]; then
-  echo "REFUSE_EMPTY_RELEASE_SET"; exit 42
+  echo "REFUSE_EMPTY_RELEASE_SET"; exit 44
 fi
 
-current_retained=false
-for index in "${"${!releases[@]}"}"; do
-  release="${"${releases[$index]}"}"
+declare -A retained=()
+retained["$current_release"]=1
+retained["$rollback_release"]=1
+retained_count="${"${#retained[@]}"}"
+for release in "${"${releases[@]}"}"; do
+  [ "$retained_count" -lt "$retention" ] || break
   resolved="$(readlink -f -- "$release")"
   case "$resolved" in
     "$release_root"/*) ;;
-    *) echo "REFUSE_CANDIDATE_OUTSIDE_RELEASE_ROOT|$resolved"; exit 43 ;;
+    *) echo "REFUSE_CANDIDATE_OUTSIDE_RELEASE_ROOT|$resolved"; exit 45 ;;
   esac
-  if [ "$index" -lt "$retention" ]; then
+  if [ -z "${"${retained[$resolved]:-}"}" ]; then
+    retained["$resolved"]=1
+    retained_count=$((retained_count + 1))
+  fi
+done
+
+current_retained=false
+rollback_retained=false
+for release in "${"${releases[@]}"}"; do
+  resolved="$(readlink -f -- "$release")"
+  case "$resolved" in
+    "$release_root"/*) ;;
+    *) echo "REFUSE_CANDIDATE_OUTSIDE_RELEASE_ROOT|$resolved"; exit 46 ;;
+  esac
+  if [ -n "${"${retained[$resolved]:-}"}" ]; then
     echo "KEEP|$resolved"
     [ "$resolved" = "$current_release" ] && current_retained=true
+    [ "$resolved" = "$rollback_release" ] && rollback_retained=true
     continue
   fi
-  [ "$resolved" != "$current_release" ] || { echo "REFUSE_DELETE_CURRENT|$resolved"; exit 44; }
+  [ "$resolved" != "$current_release" ] || { echo "REFUSE_DELETE_CURRENT|$resolved"; exit 47; }
+  [ "$resolved" != "$rollback_release" ] || { echo "REFUSE_DELETE_ROLLBACK|$resolved"; exit 48; }
   bytes="$(du -s -B1 "$resolved" | awk '{print $1}')"
   echo "PRUNE|$bytes|$resolved"
 done
 
-[ "$current_retained" = true ] || { echo "REFUSE_CURRENT_NOT_IN_LATEST_THREE|$current_release"; exit 45; }
+[ "$current_retained" = true ] || { echo "REFUSE_CURRENT_NOT_RETAINED|$current_release"; exit 49; }
+[ "$rollback_retained" = true ] || { echo "REFUSE_ROLLBACK_NOT_RETAINED|$rollback_release"; exit 50; }
 
 if [ "$apply" = true ]; then
-  for index in "${"${!releases[@]}"}"; do
-    [ "$index" -ge "$retention" ] || continue
-    resolved="$(readlink -f -- "${"${releases[$index]}"}")"
-    [ "$resolved" != "$current_release" ] || { echo "REFUSE_DELETE_CURRENT|$resolved"; exit 46; }
+  for release in "${"${releases[@]}"}"; do
+    resolved="$(readlink -f -- "$release")"
+    [ -z "${"${retained[$resolved]:-}"}" ] || continue
+    [ "$resolved" != "$current_release" ] || { echo "REFUSE_DELETE_CURRENT|$resolved"; exit 51; }
+    [ "$resolved" != "$rollback_release" ] || { echo "REFUSE_DELETE_ROLLBACK|$resolved"; exit 52; }
     find "$resolved" -depth -delete
-    [ ! -e "$resolved" ] || { echo "DELETE_INCOMPLETE|$resolved"; exit 47; }
+    [ ! -e "$resolved" ] || { echo "DELETE_INCOMPLETE|$resolved"; exit 53; }
     echo "DELETED|$resolved"
   done
 fi
@@ -93,9 +128,10 @@ expected="${"${#releases[@]}"}"
 if [ "$apply" = true ] && [ "$expected" -gt "$retention" ]; then
   expected="$retention"
 fi
-[ "$remaining" -eq "$expected" ] || { echo "RETENTION_COUNT_MISMATCH|$remaining|$expected"; exit 48; }
-[ -d "$current_release" ] || { echo "CURRENT_RELEASE_MISSING|$current_release"; exit 49; }
-echo "RESULT|$apply|$remaining|$current_release"
+[ "$remaining" -eq "$expected" ] || { echo "RETENTION_COUNT_MISMATCH|$remaining|$expected"; exit 54; }
+[ -d "$current_release" ] || { echo "CURRENT_RELEASE_MISSING|$current_release"; exit 55; }
+[ -d "$rollback_release" ] || { echo "ROLLBACK_RELEASE_MISSING|$rollback_release"; exit 56; }
+echo "RESULT|$apply|$remaining|$current_release|$rollback_release"
 `;
 
 const target = sshTarget(user, host);
@@ -111,6 +147,7 @@ printJson({
   environment,
   apply,
   retention: RELEASE_RETENTION_COUNT,
+  rollbackReleaseId,
   target,
   remoteRoot,
   inventory: lines,

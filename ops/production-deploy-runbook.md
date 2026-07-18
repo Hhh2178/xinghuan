@@ -182,6 +182,6 @@ npm run release:retention:prune -- --env=production --ssh-key=<path-to-key> --ap
 ```
 
 - 必须先检查 dry-run 清单，再执行 apply。
-- 只保留服务器修改时间最新的三个 Release，且 `current` 必须位于其中。
+- 保留三个 Release：`current` 与 `ops/current/release-state.json` 中 Production `rollbackReleaseId` 必须位于其中，剩余名额按服务器修改时间选择。
 - 不得触碰 `/opt/apps/xinghuan-canvas/shared/`、数据库备份、环境文件和用户数据。
 - 失败 Release 在调查完成前保留证据；调查结束后恢复为三个。

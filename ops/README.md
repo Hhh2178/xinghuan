@@ -30,7 +30,7 @@
   - 版本：`v0.7.4`
   - release：`20260718-generation-artifact-authority-gray-r4-v074`
   - 状态：`Generation Artifact authority migration 已通过功能、并发、性能、资源和稳定性验收`
-  - 当前补修：`retention apply 暂停，需先保护 canonical v0.7.3 rollback；Production 仍为 v0.7.3，等待用户明确放行`
+  - 当前补修：`retention 已同时保护 current 与 canonical v0.7.3 rollback，并完成 Gray 三 Release 收口；Production 仍为 v0.7.3，等待用户明确放行`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

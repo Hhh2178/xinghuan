@@ -21,13 +21,13 @@
 ## 服务器 Release 保留宪法
 
 1. Gray 与 Production 各自最多保留最近三个已经落盘的 Release 目录。
-2. 保留顺序以服务器 Release 目录修改时间降序为准，必须包含当前 `current` 指向的 Release。
+2. 保留集合必须包含当前 `current` 指向的 Release，以及 `ops/current/release-state.json` 对应环境声明的 `rollbackReleaseId`；剩余名额再按服务器 Release 目录修改时间降序补足。
 3. 清理只能在新 Release 完成运行态验证后执行。执行顺序固定为：dry-run、核对 current 与候选、apply、复核数量和服务状态。
 4. 标准入口：
    - `npm run release:retention:prune -- --env=gray --ssh-key=<path>`
    - `npm run release:retention:prune -- --env=gray --ssh-key=<path> --apply=true --confirm-retention=3`
    - Production 将 `--env` 改为 `production`。
-5. 脚本必须拒绝删除 `current`、拒绝越出 `<remoteRoot>/releases/`、拒绝非3的确认值，并逐个处理明确候选。
+5. 脚本必须拒绝删除 `current` 或 `rollbackReleaseId`、在回滚目录缺失时拒绝继续、拒绝越出 `<remoteRoot>/releases/`、拒绝非3的确认值，并逐个处理明确候选。
 6. 该保留规则只适用于服务器 `<remoteRoot>/releases/`。以下路径永久排除：`shared/`、`shared/data/`、`shared/backups/`、环境文件、数据库目录、日志和用户素材。
 7. 失败 Release 在事故调查期间可以临时保留，但调查结束后必须恢复到三个；不能为了满足数量限制而先删除故障证据。
 8. 禁止用通用 `rm -rf`、通配符或未验证变量执行清理；只有项目内受 Harness 保护的保留脚本属于授权入口。
@@ -38,4 +38,3 @@
 - Release Harness：`npm run harness:verify:release`
 - 每次真实清理必须在当日日志或对应发布记录中写明环境、保留项、删除数量、释放空间和复核结果。
 - Production 清理前必须再次确认当前 Release、回滚能力和数据库备份不在目标范围。
-

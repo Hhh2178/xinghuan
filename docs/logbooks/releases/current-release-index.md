@@ -9,7 +9,7 @@
 - 当前状态：`Generation Artifact authority migration 已完成 Gray 多维验收；Production 推送暂停`
 - 部署内容：`生成库 PostgreSQL 权威化、Worker 物料化、Promotion 幂等与 Asset 文件保护、匿名路由保护、reconciliation 零写入保护`
 - 已验证：`168 项测试与全 workspace 构建；真实 Worker/Canvas/Resource；25 路 Promotion、20 路 Promote/Delete 竞态；公网/内网压测；浏览器冷启动；9.5 分钟 canary；服务与数据库审计`
-- 待验收：`无 Gray 运行态阻断项；修复 retention 对 canonical rollback 的保护后，再等待用户明确放行 Production`
+- 待验收：`Gray retention 已安全收口且无运行态阻断项；Production 等待用户明确放行`
 - 部署时间：`2026-07-18`
 - 当前批次记录：
   - `gray/2026-07-18-generation-artifact-authority-v074.md`
