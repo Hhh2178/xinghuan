@@ -283,12 +283,6 @@ function validateAicopyRequestContract(value: Record<string, unknown>) {
   return "";
 }
 
-function isAicopySdContractModelId(value: unknown) {
-  const modelId = String(value || "").trim().toLowerCase();
-  return /^sd2-(?:720p|1080p)(?:-|$)/.test(modelId)
-    || modelId.startsWith("官方稳定seedance-2.0-720p-");
-}
-
 function normalizeVoicePresetList(value: string) {
   return value
     .split(/[\n,，]/)
@@ -389,7 +383,6 @@ export function ModelEditorRow({
     resolveAicopySdRequestContractEnabled(model.advancedConfig),
   );
   const isAicopyVideoModel = providerProtocol === "aicopy" && draft.capability === "video";
-  const isAicopySdVideoModel = isAicopyVideoModel && isAicopySdContractModelId(draft.modelId);
 
   useEffect(() => {
     setDraft({
@@ -446,7 +439,7 @@ export function ModelEditorRow({
     }
     let inputCapabilities = normalizeInputCapabilities(draft);
     if (draft.capability === "video") {
-      advancedConfig.aicopyRequestContractEnabled = isAicopySdVideoModel && aicopyRequestContractEnabled;
+      advancedConfig.aicopyRequestContractEnabled = isAicopyVideoModel && aicopyRequestContractEnabled;
       if (advancedConfig.aicopyRequestContractEnabled) {
         advancedConfig = mergeAicopySdRequestContractDefaults(advancedConfig);
       }
@@ -988,11 +981,11 @@ export function ModelEditorRow({
               </div>
             </section>
           ) : null}
-          {isAicopySdVideoModel ? (
+          {isAicopyVideoModel ? (
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>SD 补充请求契约</strong>
-                <span>仅当前模型启用；同一 Provider 下的其他视频模型不会继承。</span>
+                <span>所有 AICOPY 协议视频模型均可按需启用；配置只作用于当前模型。</span>
               </div>
               <label className={aicopyRequestContractEnabled ? "capability-toggle active" : "capability-toggle"}>
                 <input
@@ -1022,7 +1015,7 @@ export function ModelEditorRow({
               spellCheck={false}
             />
           </label>
-          {isAicopySdVideoModel && aicopyRequestContractEnabled ? (
+          {isAicopyVideoModel && aicopyRequestContractEnabled ? (
             <section className="schema-guide-card compact">
               <div className="schema-guide-head">
                 <strong>AIFork 视频请求契约</strong>
