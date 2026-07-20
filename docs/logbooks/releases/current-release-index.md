@@ -11,6 +11,7 @@
 - 已验证：`定向 AICOPY adapter、SD 配置、视频输入契约及全 workspace type-check/build 通过`
 - 待验收：`Gray runtime、API/Worker active、真实参考素材请求；本轮不执行 Production 晋级与 retention/prune`
 - 部署时间：`2026-07-20`
+- 本轮制品源提交：`e921a3e`
 - 当前批次记录：
   - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`

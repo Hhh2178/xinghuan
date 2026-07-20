@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-20",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "e08c290bd7625de88037e1da646a46d17172b488",
+  "sourceCommit": "e921a3e",
   "environments": {
     "gray": {
       "version": "0.7.9",

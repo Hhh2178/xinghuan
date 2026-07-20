@@ -6,6 +6,7 @@
 - 当前 release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
 - 当前状态：`AICOPY SD 混合媒体契约与参考素材链路修复，待 Gray 运行验收`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
+- 本轮制品源提交：`e921a3e`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`

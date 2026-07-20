@@ -1,7 +1,7 @@
 # AICOPY SD 混合媒体契约 Gray v0.7.9 发布
 
 - release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
-- source commit：待提交后填写
+- source commit：`e921a3e`
 - 制品：`dist-release/20260720-aicopy-sd-media-contract-gray-r1-v079.tar.gz`
 - 回滚：`20260720-aicopy-video-contract-scope-gray-r1-v078`
 
