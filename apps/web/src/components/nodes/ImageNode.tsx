@@ -298,6 +298,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   // 子模型变体(对齐 gpt-image-2-web 的 g_model/n_model)
   const apiModel = isBackendSelected && backendModel ? backendModel.modelId : (d?.apiModel || modelDef.apiModel);
   const generationCount = clampGenerationCount(d?.generationCount ?? d?.falN ?? d?.providerParams?.n ?? 1);
+  const accumulateOutputs = d?.accumulateOutputs === true;
 
   // ========== FAL 渠道识别及参数(不影响其他模型) ==========
   const isFal = isFalModel(apiModel);
@@ -1173,13 +1174,15 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       update({
         status: 'generating',
         error: null,
-        imageUrl: undefined,
-        imageUrls: [],
+        imageUrl: accumulateOutputs ? d?.imageUrl : undefined,
+        imageUrls: accumulateOutputs ? (Array.isArray(d?.imageUrls) ? d.imageUrls : []) : [],
         remoteImageUrls: [],
         progress: generationCount > 1 ? `1/${generationCount}` : '0%',
         taskRuns: initialTaskRuns,
       });
-      const aggregatedImageUrls: string[] = [];
+      const aggregatedImageUrls: string[] = accumulateOutputs
+        ? (Array.isArray(d?.imageUrls) ? d.imageUrls.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0) : [])
+        : [];
       const aggregatedRemoteImageUrls: string[] = [];
       const taskIds: string[] = [];
       let lastTaskId: string | undefined = undefined;
@@ -2365,6 +2368,15 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         </div>}
 
         {/* 生成按钮(包含异步进度) */}
+        <label className="flex items-center gap-1.5 text-[10px] text-white/60 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={accumulateOutputs}
+            onChange={(e) => update({ accumulateOutputs: e.target.checked })}
+            className="accent-amber-400"
+          />
+          输出累积（跨次生成追加）
+        </label>
         <button
           onClick={handleGenerate}
           disabled={isBusy}
