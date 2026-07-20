@@ -20,8 +20,8 @@
       "releaseId": "20260720-permission-media-contract-prod-r1-v0710",
       "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 134, "publishedSubjects": 109, "restrictedSubjects": 17, "retiredSubjects": 8, "rules": 506, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 109, "restrictedSubjects": 17, "retiredSubjects": 8, "rules": 506, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
+      "readiness": { "subjects": 140, "publishedSubjects": 121, "restrictedSubjects": 13, "retiredSubjects": 6, "rules": 2772, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 140, "publishedSubjects": 121, "restrictedSubjects": 13, "retiredSubjects": 6, "rules": 2772, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
       "releaseRecord": "docs/logbooks/releases/production/2026-07-20-permission-media-contract-prod-v0710.md",
       "validationRecord": "docs/logbooks/validations/2026-07-20-permission-media-contract-prod-v0710.md",
       "rollbackReleaseId": "20260720-aicopy-video-contract-scope-prod-r1-v078"

@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.7.10`
 - 当前 release：`20260720-permission-media-contract-prod-r1-v0710`
-- 当前状态：`权限目录与 AICOPY 媒体参考契约由 Gray 验收制品晋级，待 Production runtime 验收`
+- 当前状态：`权限目录与 AICOPY 媒体参考契约由 Gray 验收制品晋级，Production runtime 验证通过`
 - 当前补修：`本轮不执行 retention/prune；回滚锚点为 v0.7.8`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
