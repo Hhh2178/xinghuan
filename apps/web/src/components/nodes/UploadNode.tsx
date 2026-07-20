@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { memo, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent } from 'react';
 import { useEffect } from 'react';
 import { Handle, Position, useReactFlow, type Node, type Edge, type NodeProps } from '@xyflow/react';
 import {
@@ -22,6 +22,8 @@ import ImageEditModal, { type ImageEditProduceMeta } from './ImageEditModal';
 import ResizableCorners from './ResizableCorners';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { shouldAutoCreateUploadOutputs } from './uploadRunPolicy';
+import { computeOutputGridLayout } from './outputPreviewLayout';
+import { constrainMediaNodeResize, fitMediaNodeFromWidth, mediaAspectRatio } from './mediaNodeSize';
 import CollectionSplitButton from '../CollectionSplitButton';
 import ImageHoverPreview from '../ImageHoverPreview';
 import LoopingVideo from '../LoopingVideo';
@@ -115,7 +117,7 @@ function inferUploadKindFromData(data: Record<string, any>): UploadKind | null {
   return null;
 }
 
-const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
+const UploadNode = ({ id, data, selected, width }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, style, templateId } = useThemeStore();
@@ -134,6 +136,8 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
   const rhDuckUploadIds = useHiddenFeatureStore((s) => s.rhDuckUploadIds);
   const clearRhDuckUpload = useHiddenFeatureStore((s) => s.clearRhDuckUpload);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const rf = useReactFlow();
 
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +145,7 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
   const [dragActive, setDragActive] = useState(false);
   // 图像编辑弹窗 src URL（与 OutputNode 双击逻辑保持一致）
   const [editingUrl, setEditingUrl] = useState<string | null>(null);
+  const [mediaMeta, setMediaMeta] = useState<Record<string, { width: number; height: number }>>({});
 
   const d = data as any;
   const inferredUploadKind = inferUploadKindFromData(d);
@@ -156,13 +161,80 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
   );
   const yyhPortraitUploadMode = Boolean(isYyhVisual && d?.yyhPortraitHidden);
 
-  // 节点本地尺寸 state: 默认 (260, 高度由内容撑开 — 上传后图/视频会撑高 root)
+  // 节点本地尺寸 state: 默认宽度 260，高度由内容撑开；上传后图/视频会撑高 root。
   // 拖角后由 ResizableCorners onResize 同步具体 px (保证 measured 准确 + keepAspectRatio 生效 + handleBounds 准确)
   const persistedSize = (d as any)?.size;
+  const sizeModeRef = useRef<'auto' | 'manual'>(persistedSize ? 'manual' : 'auto');
+  const singleChromeRef = useRef({ horizontal: 20, vertical: 144 });
   const [size, setSize] = useState<{ w: number; h?: number }>({
     w: Math.max(220, Number(persistedSize?.w) || Number(width) || 260),
-    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(140, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(140, Number(height)) : undefined,
+    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(180, Number(persistedSize.h)) : undefined,
   });
+  const singleVisualItem = mediaItems.length === 1 && (uploadType === 'image' || uploadType === 'video')
+    ? mediaItems[0]
+    : undefined;
+  const singleMediaMeta = singleVisualItem ? mediaMeta[singleVisualItem.url] : undefined;
+  const singleAspectRatio = singleMediaMeta
+    ? mediaAspectRatio(singleMediaMeta.width, singleMediaMeta.height)
+    : undefined;
+  const multiLayout = mediaItems.length >= 2 && (uploadType === 'image' || uploadType === 'video')
+    ? computeOutputGridLayout({
+        count: mediaItems.length,
+        nodeWidth: size.w,
+        nodeHeight: size.h,
+        media: mediaItems.map((item) => mediaMeta[item.url]),
+      })
+    : undefined;
+
+  const singleConstraint = (aspectRatio: number) => ({
+    aspectRatio,
+    horizontalChrome: singleChromeRef.current.horizontal,
+    verticalChrome: singleChromeRef.current.vertical,
+    minWidth: 220,
+    minHeight: 180,
+    maxWidth: 980,
+    maxHeight: 980,
+  });
+
+  const rememberMediaMeta = (
+    itemUrl: string,
+    mediaWidth: number,
+    mediaHeight: number,
+    element: HTMLElement,
+  ) => {
+    const aspectRatio = mediaAspectRatio(mediaWidth, mediaHeight);
+    if (!aspectRatio) return;
+    setMediaMeta((current) => current[itemUrl]?.width === mediaWidth && current[itemUrl]?.height === mediaHeight
+      ? current
+      : { ...current, [itemUrl]: { width: mediaWidth, height: mediaHeight } });
+    if (mediaItems.length !== 1 || itemUrl !== singleVisualItem?.url) return;
+
+    window.requestAnimationFrame(() => {
+      const root = rootRef.current;
+      const header = headerRef.current;
+      const body = bodyRef.current;
+      if (!root || !header || !body) return;
+      const rootWidth = root.getBoundingClientRect().width;
+      const mediaRect = element.getBoundingClientRect();
+      const horizontal = Math.max(0, rootWidth - mediaRect.width);
+      const vertical = Math.max(0, header.getBoundingClientRect().height + body.scrollHeight - mediaRect.height + 4);
+      singleChromeRef.current = { horizontal, vertical };
+      const next = fitMediaNodeFromWidth(size.w, {
+        ...singleConstraint(aspectRatio),
+        horizontalChrome: horizontal,
+        verticalChrome: vertical,
+      });
+      const rounded = { w: Math.round(next.w), h: Math.round(next.h) };
+      setSize(rounded);
+      update({
+        size: {
+          ...rounded,
+          mode: sizeModeRef.current,
+          mediaAspectRatio: aspectRatio,
+        },
+      });
+    });
+  };
 
   useEffect(() => {
     if (uploadType === null && inferredUploadKind) {
@@ -512,13 +584,30 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
         selected={selected}
         minWidth={220}
         minHeight={180}
+        maxWidth={980}
+        maxHeight={980}
         accent={effectiveHandleColor}
+        keepAspectRatio={false}
         onResize={(_e, p) => {
-          setSize({ w: p.width, h: p.height });
-          syncNodeInternals();
+          const next = singleAspectRatio
+            ? constrainMediaNodeResize({ w: p.width, h: p.height }, singleConstraint(singleAspectRatio))
+            : { w: p.width, h: p.height };
+          setSize({ w: next.w, h: next.h });
         }}
         onResizeEnd={(_e, p) => {
-          update({ size: { w: Math.round(p.width), h: Math.round(p.height) } });
+          const next = singleAspectRatio
+            ? constrainMediaNodeResize({ w: p.width, h: p.height }, singleConstraint(singleAspectRatio))
+            : { w: p.width, h: p.height };
+          const rounded = { w: Math.round(next.w), h: Math.round(next.h) };
+          sizeModeRef.current = 'manual';
+          setSize(rounded);
+          update({
+            size: {
+              ...rounded,
+              mode: 'manual',
+              mediaAspectRatio: singleAspectRatio,
+            },
+          });
           syncNodeInternals();
         }}
       />
@@ -569,6 +658,7 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
 
       {/* 头部 */}
       <div
+        ref={headerRef}
         className={`flex items-center gap-2 px-3 py-2 border-b ${
           isDark ? 'border-white/10' : 'border-black/10'
         }`}
@@ -602,7 +692,7 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
 
       {/* body 高度逻辑: root 默认 height=auto 时 body 也 auto 跟随内容 (图/视频) 自然高;
           root 拖角后有具体 px 时, body flex-1 撑满剩余 + min-h-0 允许内容 overflow */}
-      <div className={`p-2.5 space-y-2 ${size.h ? 'flex-1 min-h-0 overflow-auto' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={bodyRef} className={`p-2.5 space-y-2 ${size.h && !singleVisualItem ? 'flex-1 min-h-0 overflow-auto' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
         {/* 隐藏的文件输入: accept 三合一, 上传后自动按 MIME 识别 kind */}
         <input
           ref={fileInputRef}
@@ -661,15 +751,40 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
             </div>
 
             {uploadType === 'image' && (
-              <div className={mediaItems.length >= 2 ? 'grid grid-cols-2 gap-1.5' : 'space-y-1'}>
+              <div
+                className={mediaItems.length >= 2 ? '' : 'space-y-1'}
+                style={multiLayout ? {
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${multiLayout.columns}, minmax(0, 1fr))`,
+                  gridAutoRows: `${multiLayout.cardHeight}px`,
+                  gap: 6,
+                } : undefined}
+              >
                 {mediaItems.map((item, i) => (
                   <div key={`${item.url}-${i}`} className="group/upload-image space-y-0.5">
-                    <div className="relative">
+                    <div
+                      className="relative min-h-0"
+                      style={multiLayout ? { height: multiLayout.mediaHeight } : undefined}
+                    >
                       <img
                         src={item.url}
                         alt={item.name || `图像 ${i + 1}`}
-                        className="w-full h-auto rounded block cursor-zoom-in"
-                        style={{ background: '#0008', objectFit: 'contain', maxHeight: mediaItems.length >= 2 ? 120 : 480 }}
+                        className="w-full rounded block cursor-zoom-in"
+                        style={{
+                          background: '#0008',
+                          objectFit: 'contain',
+                          height: multiLayout
+                            ? '100%'
+                            : singleAspectRatio
+                              ? Math.max(1, (size.w - singleChromeRef.current.horizontal) / singleAspectRatio)
+                              : 'auto',
+                        } as CSSProperties}
+                        onLoad={(event) => rememberMediaMeta(
+                          item.url,
+                          event.currentTarget.naturalWidth,
+                          event.currentTarget.naturalHeight,
+                          event.currentTarget,
+                        )}
                         data-drag-source
                         data-drag-kind="image"
                         data-drag-url={item.url}
@@ -701,24 +816,48 @@ const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
             )}
 
             {uploadType === 'video' && (
-              <div className="space-y-1.5">
+               <div
+                 className={multiLayout ? '' : 'space-y-1.5'}
+                 style={multiLayout ? {
+                   display: 'grid',
+                   gridTemplateColumns: `repeat(${multiLayout.columns}, minmax(0, 1fr))`,
+                   gridAutoRows: `${multiLayout.cardHeight}px`,
+                   gap: 6,
+                 } : undefined}
+               >
                 {mediaItems.map((item, i) => (
                   <div key={`${item.url}-${i}`} className="space-y-0.5">
-                    <LoopingVideo
-                      src={item.url}
-                      controls
-                      className="w-full h-auto rounded block"
-                      style={{ background: '#000', objectFit: 'contain', maxHeight: mediaItems.length >= 2 ? 180 : 480 }}
-                      data-drag-source
-                      data-drag-kind="video"
-                      data-drag-url={item.url}
-                      data-drag-preview={item.url}
-                      data-drag-node-id={id}
-                      data-resource-title={item.name}
-                      onMouseDown={(e) =>
-                        beginMaterialDrag(e, { kind: 'video', url: item.url, sourceNodeId: id, previewUrl: item.url })
-                      }
-                    />
+                    <div className="min-h-0" style={multiLayout ? { height: multiLayout.mediaHeight } : undefined}>
+                      <LoopingVideo
+                        src={item.url}
+                        controls
+                        className="w-full rounded block"
+                        style={{
+                          background: '#000',
+                          objectFit: 'contain',
+                          height: multiLayout
+                            ? '100%'
+                            : singleAspectRatio
+                              ? Math.max(1, (size.w - singleChromeRef.current.horizontal) / singleAspectRatio)
+                              : 'auto',
+                        }}
+                        onLoadedMetadata={(event) => rememberMediaMeta(
+                          item.url,
+                          event.currentTarget.videoWidth,
+                          event.currentTarget.videoHeight,
+                          event.currentTarget,
+                        )}
+                        data-drag-source
+                        data-drag-kind="video"
+                        data-drag-url={item.url}
+                        data-drag-preview={item.url}
+                        data-drag-node-id={id}
+                        data-resource-title={item.name}
+                        onMouseDown={(e) =>
+                          beginMaterialDrag(e, { kind: 'video', url: item.url, sourceNodeId: id, previewUrl: item.url })
+                        }
+                      />
+                    </div>
                     <div className={`flex items-center gap-1 text-[10px] ${isDark ? 'text-white/45' : 'text-zinc-500'}`}>
                       <span className="truncate flex-1" title={item.name}>{item.name || `视频 ${i + 1}`}</span>
                       {item.size ? <span className="opacity-70">{formatMediaSize(item.size)}</span> : null}

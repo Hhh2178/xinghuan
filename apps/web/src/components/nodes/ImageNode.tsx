@@ -46,6 +46,12 @@ import { logBus } from '../../stores/logs';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
+import {
+  mergeUniqueUrls,
+  resumableTaskRuns,
+  taskRunIds,
+  type PersistedGenerationTaskRun,
+} from './generationTaskResume';
 import { useApiKeysStore } from '../../stores/apiKeys';
 import { useModelCatalogStore } from '../../stores/modelCatalog';
 import type { PublicModelRecord } from '../../services/api';
@@ -128,17 +134,7 @@ const clampGenerationCount = (value: unknown, fallback = 1) => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(4, Math.round(parsed)));
 };
-type TaskRunState = {
-  taskId?: string;
-  batchIndex: number;
-  kind: "image";
-  status: "queued" | "submitting" | "polling" | "running" | "success" | "error" | "cancelled";
-  progress: string;
-  error?: string;
-  outputCount: number;
-  startedAt?: number | null;
-  finishedAt?: number | null;
-};
+type TaskRunState = PersistedGenerationTaskRun & { kind: 'image' };
 const imageGenerationErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   if (error && typeof error === 'object') {
@@ -166,6 +162,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   // MJ 上传时区分 sref 还是 oref(共用 fileInputRef)
   const mjUploadKindRef = useRef<'sref' | 'oref'>('sref');
   const pollTimers = useRef<Set<number>>(new Set());
+  const resumeStartedRef = useRef(false);
 
   const [error, setError] = useState<string | null>(null);
   const src = `image:${id.slice(0, 6)}`;
@@ -516,6 +513,121 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     });
   };
 
+  useEffect(() => {
+    if (resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    const saved = (data as any) || {};
+    if (saved.status !== 'generating' && saved.status !== 'polling') return;
+    const runs = resumableTaskRuns(saved.taskRuns, ['external-image', 'mj-image', 'fal-image', 'legacy-image']);
+    if (runs.length === 0) return;
+
+    update({ status: 'polling', error: null, progress: saved.progress || '5%' });
+    void (async () => {
+      let imageUrls = mergeUniqueUrls(saved.imageUrls, [saved.imageUrl]);
+      let remoteImageUrls = mergeUniqueUrls(saved.remoteImageUrls);
+      const settled = await Promise.allSettled(runs.map(async (run) => {
+        let result: { imageUrls: string[]; remoteImageUrls: string[] };
+        try {
+          if (run.resumeKind === 'external-image') {
+            result = await startExternalImageTaskPolling(run.taskId!, run.batchIndex);
+          } else if (run.resumeKind === 'mj-image') {
+            const speed = String(run.resumeParams?.speed || 'fast') as MjSpeed;
+            const intervalMs = Math.max(1000, Number(run.resumeParams?.intervalMs) || 3000);
+            const maxPoll = Math.max(10, Number(run.resumeParams?.maxPoll) || minPollCountForTimeout(intervalMs));
+            let urls: string[] = [];
+            for (let attempt = 0; attempt < maxPoll; attempt += 1) {
+              await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+              const queried = await queryMjTask(run.taskId!, speed);
+              if (queried.status === 'FAILURE') throw new Error(queried.failReason || 'MJ 任务失败');
+              if (queried.status === 'SUCCESS') {
+                urls = mergeUniqueUrls(queried.imageUrls, [queried.imageUrl]);
+                break;
+              }
+              patchTaskRun(run.batchIndex, { status: 'polling', progress: queried.progress || '15%' });
+            }
+            if (urls.length === 0) throw new Error('MJ 恢复轮询超时或没有返回图片');
+            result = { imageUrls: urls, remoteImageUrls: [] };
+          } else if (run.resumeKind === 'fal-image') {
+            const params = run.resumeParams || {};
+            const intervalMs = 3000;
+            const maxPoll = minPollCountForTimeout(intervalMs);
+            let urls: string[] = [];
+            for (let attempt = 0; attempt < maxPoll; attempt += 1) {
+              await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+              const queried = await queryImageFal({
+                requestId: run.taskId!,
+                responseUrl: String(params.responseUrl || ''),
+                endpoint: String(params.endpoint || ''),
+              });
+              const nextStatus = String(queried.status || '').toLowerCase();
+              if (nextStatus === 'completed') {
+                urls = mergeUniqueUrls(queried.urls);
+                break;
+              }
+              if (nextStatus === 'failed') throw new Error(queried.error || 'FAL 图像任务失败');
+            }
+            if (urls.length === 0) throw new Error('FAL 图像恢复轮询超时或没有返回图片');
+            result = { imageUrls: urls, remoteImageUrls: [] };
+          } else {
+            const resumeModel = String(run.resumeParams?.apiModel || saved.apiModel || '');
+            const maxPoll = 1800;
+            let urls: string[] = [];
+            for (let attempt = 0; attempt < maxPoll; attempt += 1) {
+              await new Promise((resolve) => window.setTimeout(resolve, 2000));
+              const queried = await queryImageStatus(run.taskId!, resumeModel);
+              const nextStatus = String(queried.status || '').toLowerCase();
+              if (nextStatus === 'completed' || nextStatus === 'success' || nextStatus === 'done') {
+                urls = mergeUniqueUrls(queried.urls);
+                break;
+              }
+              if (nextStatus === 'failed' || nextStatus === 'failure' || nextStatus === 'error') {
+                throw new Error(queried.error || '图像任务失败');
+              }
+              patchTaskRun(run.batchIndex, { status: 'polling', progress: queried.progress || '5%' });
+            }
+            if (urls.length === 0) throw new Error('图像恢复轮询超时或没有返回图片');
+            result = { imageUrls: urls, remoteImageUrls: [] };
+          }
+          patchTaskRun(run.batchIndex, { status: 'success', progress: '100%', outputCount: result.imageUrls.length, finishedAt: Date.now() });
+        } catch (resumeError) {
+          patchTaskRun(run.batchIndex, { status: 'error', error: imageGenerationErrorMessage(resumeError), finishedAt: Date.now() });
+          throw resumeError;
+        }
+        imageUrls = mergeUniqueUrls(imageUrls, result.imageUrls);
+        remoteImageUrls = mergeUniqueUrls(remoteImageUrls, result.remoteImageUrls);
+        update({
+          status: 'polling',
+          imageUrl: imageUrls[0],
+          imageUrls: [...imageUrls],
+          remoteImageUrls: [...remoteImageUrls],
+          taskId: run.taskId,
+          taskIds: taskRunIds(taskRunsRef.current),
+        });
+      }));
+      const failures = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+      const finishedAt = Date.now();
+      if (imageUrls.length > 0) {
+        update({
+          status: 'success',
+          progress: '100%',
+          imageUrl: imageUrls[0],
+          imageUrls,
+          remoteImageUrls,
+          taskIds: taskRunIds(taskRunsRef.current),
+          finishedAt,
+          lastDurationMs: typeof saved.startedAt === 'number' ? Math.max(0, finishedAt - saved.startedAt) : null,
+          error: failures.length > 0 ? `${failures.length} 个恢复任务失败` : null,
+        });
+        return;
+      }
+      const message = failures[0]?.reason instanceof Error ? failures[0].reason.message : '恢复图像任务失败';
+      setError(message);
+      update({ status: 'error', error: message, finishedAt });
+    })();
+    // Recovery intentionally consumes only the persisted mount snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 切换模型时,如果当前比例/尺寸不在新模型选项里则重置
   const switchModel = (mId: string) => {
     const newDef = IMAGE_MODELS.find((m) => m.id === mId) || IMAGE_MODELS[0];
@@ -738,6 +850,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         patchTaskRun(batchIndex, {
           status: 'polling',
           taskId: submit.taskId,
+          resumeKind: 'external-image',
           progress: submit.progress || '5%',
           startedAt: Date.now(),
         });
@@ -808,6 +921,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         patchTaskRun(batchIndex, {
           status: 'polling',
           taskId: submit.taskId,
+          resumeKind: 'external-image',
           progress: submit.progress || '5%',
           startedAt: Date.now(),
         });
@@ -872,13 +986,20 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           remix: true,
         });
         const taskId = submit.taskId;
-        update({ progress: '15%', taskId });
         const interval = Math.max(1, Math.min(30, mjPollInt || 3)) * 1000;
         const maxPoll = Math.max(
           10,
           minPollCountForTimeout(interval),
           Math.min(3600, mjMaxPoll || 1200),
         );
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId,
+          resumeKind: 'mj-image',
+          resumeParams: { speed: mjSpeed, intervalMs: interval, maxPoll },
+          progress: '15%',
+        });
+        update({ progress: '15%', taskId });
         for (let i = 0; i < maxPoll; i += 1) {
           await new Promise((r) => setTimeout(r, interval));
           const q = await queryMjTask(taskId, mjSpeed);
@@ -945,6 +1066,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
         const { requestId, responseUrl, endpoint } = submit;
         if (!requestId || !responseUrl) throw new Error('FAL 提交后未获得 request_id/response_url');
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: requestId,
+          resumeKind: 'fal-image',
+          resumeParams: { responseUrl, endpoint },
+          progress: '5%',
+        });
         update({ progress: '5%', taskId: requestId, falResponseUrl: responseUrl, falEndpoint: endpoint });
         const interval = 3000;
         const maxPoll = minPollCountForTimeout(interval);
@@ -996,6 +1124,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
       const taskId = submit.taskId;
       if (!taskId) throw new Error('未获取到 taskId 且无同步结果');
+      patchTaskRun(batchIndex, {
+        status: 'polling',
+        taskId,
+        resumeKind: 'legacy-image',
+        resumeParams: { apiModel },
+        progress: submit.progress || '5%',
+      });
       update({ progress: submit.progress || '5%', taskId });
       const maxPoll = 1800;
       const interval = 2000;
@@ -1131,7 +1266,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   };
 
   const cancelKnownTasks = async () => {
-    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    const ids = mergeUniqueUrls(taskIds, [taskId], taskRunIds(taskRunsRef.current));
     await Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'image', model: apiModel })));
   };
 

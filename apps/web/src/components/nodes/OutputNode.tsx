@@ -40,7 +40,8 @@ import {
   computeOutputPreviewFrameHeight,
 } from './outputPreviewLayout';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
-import { shouldCollectOutputNodeUpstream } from './outputNodeMaterialMode';
+import { readPersistedOutputMediaSnapshot, shouldCollectOutputNodeUpstream } from './outputNodeMaterialMode';
+import { constrainMediaNodeResize, fitMediaNodeFromWidth, mediaAspectRatio } from './mediaNodeSize';
 // v1.2.10.5: 节点落点防重叠 —— 双击编辑产出 N 节点 3 列宫格整组避让
 import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
 
@@ -127,7 +128,7 @@ interface Collected {
   audios: string[];
 }
 
-const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
+const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, templateId } = useThemeStore();
@@ -151,9 +152,10 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
   // 拖角后由 ResizableCorners onResize 同步具体 px — 保证节点始终有具体尺寸 → wrapper measured 准确
   // → keepAspectRatio 生效 (同比例缩放) + handleBounds 准确 (连线稳定)
   const persistedSize = (d as any)?.size;
+  const sizeModeRef = useRef<'auto' | 'manual'>(persistedSize ? 'manual' : 'auto');
   const [size, setSize] = useState<{ w: number; h?: number }>({
     w: Math.max(260, Number(persistedSize?.w) || Number(width) || 320),
-    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(160, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(160, Number(height)) : undefined,
+    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(160, Number(persistedSize.h)) : undefined,
   });
   const [mediaMeta, setMediaMeta] = useState<Record<string, { width: number; height: number }>>({});
 
@@ -392,6 +394,16 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
       d.directTextSegments.forEach((t: any) => pushUniqueText(out.texts, t));
     }
 
+    // Canvas persistence stores the resolved Output snapshot on the node itself.
+    // During refresh an upstream source may not be available yet; never let that
+    // temporary empty derivation erase a completed output from the saved canvas.
+    if (out.images.length === 0 && out.videos.length === 0 && out.audios.length === 0) {
+      const persisted = readPersistedOutputMediaSnapshot(d);
+      persisted.images.forEach((url) => pushUnique(out.images, url));
+      persisted.videos.forEach((url) => pushUnique(out.videos, url));
+      persisted.audios.forEach((url) => pushUnique(out.audios, url));
+    }
+
     // 兜底: 一些节点把视频/音频塞在 imageUrl, 通过扩展名识别再纠正
     out.images = out.images.filter((u) => {
       if (isVideoUrl(u)) {
@@ -446,7 +458,9 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
     }
 
     return out;
-  }, [upstreamNodes, upstreamSig, handleMap, d.pickKind, d.pickIndex, d.directImageUrl, d.directImageUrls, d.directVideoUrl, d.directVideoUrls, d.directAudioUrl, d.directAudioUrls, d.directTextSegments, d.directOutputText, d.rhDuckDecoded, d.ignoreUpstreamMaterials]);
+    // Every data field read above is listed explicitly to avoid recomputing on unrelated node edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upstreamNodes, upstreamSig, handleMap, d.pickKind, d.pickIndex, d.directImageUrl, d.directImageUrls, d.directVideoUrl, d.directVideoUrls, d.directAudioUrl, d.directAudioUrls, d.directTextSegments, d.directOutputText, d.imageUrl, d.imageUrls, d.urls, d.videoUrl, d.videoUrls, d.audioUrl, d.audioUrl_1, d.audioUrls, d.rhDuckDecoded, d.ignoreUpstreamMaterials]);
 
   // 文本编辑
   const overrideText: string = typeof d.outputText === 'string' ? d.outputText : '';
@@ -462,6 +476,18 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
   const singleVideoUrl = collected.videos.length === 1 && collected.images.length === 0 ? collected.videos[0] : '';
   const singleMediaUrl = singleImageUrl || singleVideoUrl;
   const singleMediaMeta = singleMediaUrl ? mediaMeta[singleMediaUrl] : undefined;
+  const singleAspectRatio = singleMediaMeta
+    ? mediaAspectRatio(singleMediaMeta.width, singleMediaMeta.height)
+    : undefined;
+  const singleMediaConstraint = useMemo(() => singleAspectRatio ? {
+    aspectRatio: singleAspectRatio,
+    horizontalChrome: 20,
+    verticalChrome: 116,
+    minWidth: 260,
+    minHeight: 160,
+    maxWidth: 980,
+    maxHeight: 980,
+  } : undefined, [singleAspectRatio]);
   const singleMediaFrameHeight = singleMediaUrl
     ? computeOutputPreviewFrameHeight({
         nodeWidth: size.w,
@@ -503,6 +529,28 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
   const rootHeight = contentFitHeight
     ? Math.max(size.h ?? 0, contentFitHeight)
     : size.h;
+
+  useEffect(() => {
+    if (!singleMediaConstraint || !singleAspectRatio) return;
+    const constrainedAspectRatio = singleAspectRatio;
+    const next = fitMediaNodeFromWidth(size.w, singleMediaConstraint);
+    const rounded = { w: Math.round(next.w), h: Math.round(next.h) };
+    if (Math.round(size.h || 0) !== rounded.h) setSize(rounded);
+    const savedRatio = Number(d.size?.mediaAspectRatio);
+    if (
+      Math.round(Number(d.size?.w) || 0) !== rounded.w ||
+      Math.round(Number(d.size?.h) || 0) !== rounded.h ||
+      Math.abs(savedRatio - constrainedAspectRatio) > 0.0001
+    ) {
+      update({
+        size: {
+          ...rounded,
+          mode: sizeModeRef.current,
+          mediaAspectRatio: constrainedAspectRatio,
+        },
+      });
+    }
+  }, [d.size?.h, d.size?.mediaAspectRatio, d.size?.w, singleAspectRatio, singleMediaConstraint, singleMediaUrl, size.h, size.w, update]);
 
   const enterEdit = () => {
     setDraft(displayText);
@@ -823,12 +871,25 @@ const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
         accent={effectiveAccent}
         keepAspectRatio={false}
         onResize={(_e, p) => {
-          setSize({ w: p.width, h: p.height });
-          syncNodeInternals();
+          const next = singleMediaConstraint
+            ? constrainMediaNodeResize({ w: p.width, h: p.height }, singleMediaConstraint)
+            : { w: p.width, h: p.height };
+          setSize({ w: next.w, h: next.h });
         }}
         onResizeEnd={(_e, p) => {
-          setSize({ w: p.width, h: p.height });
-          update({ size: { w: Math.round(p.width), h: Math.round(p.height) } });
+          const next = singleMediaConstraint
+            ? constrainMediaNodeResize({ w: p.width, h: p.height }, singleMediaConstraint)
+            : { w: p.width, h: p.height };
+          const rounded = { w: Math.round(next.w), h: Math.round(next.h) };
+          sizeModeRef.current = 'manual';
+          setSize(rounded);
+          update({
+            size: {
+              ...rounded,
+              mode: 'manual',
+              mediaAspectRatio: singleAspectRatio,
+            },
+          });
           syncNodeInternals();
         }}
       />

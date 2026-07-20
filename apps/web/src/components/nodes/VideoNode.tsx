@@ -45,6 +45,12 @@ import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
+import {
+  mergeUniqueUrls,
+  resumableTaskRuns,
+  taskRunIds,
+  type PersistedGenerationTaskRun,
+} from './generationTaskResume';
 import { useApiKeysStore } from '../../stores/apiKeys';
 import { useModelCatalogStore } from '../../stores/modelCatalog';
 import type { PublicModelRecord } from '../../services/api';
@@ -121,17 +127,7 @@ const durationOptionsFromRange = (range?: { min: number; max: number; step: numb
   }
   return out;
 };
-type TaskRunState = {
-  taskId?: string;
-  batchIndex: number;
-  kind: "video";
-  status: "queued" | "submitting" | "polling" | "running" | "success" | "error" | "cancelled";
-  progress: string;
-  error?: string;
-  outputCount: number;
-  startedAt?: number | null;
-  finishedAt?: number | null;
-};
+type TaskRunState = PersistedGenerationTaskRun & { kind: 'video' };
 
 const VideoNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
@@ -141,6 +137,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
   const pollTimers = useRef<Set<number>>(new Set());
+  const resumeStartedRef = useRef(false);
   const src = `video:${id.slice(0, 6)}`;
 
   // 主题适配 (默认科技风深色, 传递给聚合预览区)
@@ -663,6 +660,75 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     });
   };
 
+  useEffect(() => {
+    if (resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    const saved = (data as any) || {};
+    if (saved.status !== 'submitting' && saved.status !== 'polling') return;
+    const runs = resumableTaskRuns(saved.taskRuns, ['external-video', 'fal-video', 'legacy-video']);
+    if (runs.length === 0) return;
+
+    update({ status: 'polling', error: null, progress: saved.progress || '5%' });
+    void (async () => {
+      let videoUrls = mergeUniqueUrls(saved.videoUrls, [saved.videoUrl]);
+      let remoteVideoUrls = mergeUniqueUrls(saved.remoteVideoUrls);
+      const settled = await Promise.allSettled(runs.map(async (run) => {
+        let result: { videoUrls: string[]; remoteVideoUrls: string[] };
+        try {
+          if (run.resumeKind === 'external-video') {
+            result = await startExternalVideoTaskPolling(run.taskId!, run.batchIndex);
+          } else if (run.resumeKind === 'fal-video') {
+            const params = run.resumeParams || {};
+            const polled = await startFalPolling({
+              requestId: run.taskId!,
+              responseUrl: String(params.responseUrl || ''),
+              endpoint: String(params.endpoint || ''),
+            });
+            result = { videoUrls: [polled.videoUrl], remoteVideoUrls: [] };
+          } else {
+            const polled = await startPolling(run.taskId!);
+            result = { videoUrls: [polled.videoUrl], remoteVideoUrls: [] };
+          }
+          patchTaskRun(run.batchIndex, { status: 'success', progress: '100%', outputCount: result.videoUrls.length, finishedAt: Date.now() });
+        } catch (resumeError) {
+          patchTaskRun(run.batchIndex, { status: 'error', error: videoGenerationErrorMessage(resumeError), finishedAt: Date.now() });
+          throw resumeError;
+        }
+        videoUrls = mergeUniqueUrls(videoUrls, result.videoUrls);
+        remoteVideoUrls = mergeUniqueUrls(remoteVideoUrls, result.remoteVideoUrls);
+        update({
+          status: 'polling',
+          videoUrl: videoUrls[0] || null,
+          videoUrls: [...videoUrls],
+          remoteVideoUrls: [...remoteVideoUrls],
+          taskId: run.taskId,
+          taskIds: taskRunIds(taskRunsRef.current),
+        });
+      }));
+      const failures = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+      const finishedAt = Date.now();
+      if (videoUrls.length > 0) {
+        update({
+          status: 'success',
+          progress: '100%',
+          videoUrl: videoUrls[0],
+          videoUrls,
+          remoteVideoUrls,
+          taskIds: taskRunIds(taskRunsRef.current),
+          finishedAt,
+          lastDurationMs: typeof saved.startedAt === 'number' ? Math.max(0, finishedAt - saved.startedAt) : null,
+          error: failures.length > 0 ? `${failures.length} 个恢复任务失败` : null,
+        });
+        return;
+      }
+      const message = failures[0]?.reason instanceof Error ? failures[0].reason.message : '恢复视频任务失败';
+      setError(message);
+      update({ status: 'error', error: message, finishedAt });
+    })();
+    // Recovery intentionally consumes only the persisted mount snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const falPollRef = useRef<{ responseUrl?: string; endpoint?: string; requestId?: string } | null>(null);
 
   const startFalPolling = (params = falPollRef.current): Promise<{ videoUrl: string }> => {
@@ -778,6 +844,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         patchTaskRun(batchIndex, {
           status: 'polling',
           taskId: r.taskId,
+          resumeKind: 'external-video',
           progress: r.progress || '5%',
           startedAt: Date.now(),
         });
@@ -824,6 +891,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           patchTaskRun(batchIndex, {
             status: 'polling',
             taskId: r.taskId,
+            resumeKind: 'external-video',
             progress: r.progress || '5%',
             startedAt: Date.now(),
           });
@@ -911,6 +979,15 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           return { videoUrls: [r.videoUrl], remoteVideoUrls: [], taskId: r.requestId || null };
         }
         falPollRef.current = { responseUrl: r.responseUrl, endpoint: r.endpoint, requestId: r.requestId };
+        if (r.requestId) {
+          patchTaskRun(batchIndex, {
+            status: 'polling',
+            taskId: r.requestId,
+            resumeKind: 'fal-video',
+            resumeParams: { responseUrl: r.responseUrl, endpoint: r.endpoint },
+            progress: '15%',
+          });
+        }
         update({ status: 'polling', lastPrompt: finalPrompt, progress: '15%' });
         const polled = await startFalPolling();
         return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.requestId || null };
@@ -947,6 +1024,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
       logBus.info(`${batchLabel} 提交任务: kind=${modelDef.kind} model=${apiModel} refs=${images?.length || 0}`, src);
       const r = await submitVideo(payload);
+      patchTaskRun(batchIndex, {
+        status: 'polling',
+        taskId: r.taskId,
+        resumeKind: 'legacy-video',
+        resumeParams: { apiModel },
+        progress: '0%',
+      });
       update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: '0%' });
       const polled = await startPolling(r.taskId);
       return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.taskId };
@@ -1045,7 +1129,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
-    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    const ids = mergeUniqueUrls(taskIds, [taskId], taskRunIds(taskRunsRef.current));
     Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'video', model: apiModel })))
       .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });

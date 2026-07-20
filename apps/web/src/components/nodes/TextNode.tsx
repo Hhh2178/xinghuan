@@ -1,10 +1,11 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { Handle, Position, useUpdateNodeInternals, type NodeProps, type ResizeParams } from '@xyflow/react';
+import { memo, useCallback, useState } from 'react';
+import { Handle, Position, type NodeProps, type ResizeParams } from '@xyflow/react';
 import { Hash, Type } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import ResizableCorners from './ResizableCorners';
 import { getCornerResizeBehavior } from '../../utils/nodeResizeBehavior';
 import { normalizeRhNodeId } from '../../utils/rhTextBinding';
+import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 
 /**
  * 文本节点 - 提示词输入
@@ -19,9 +20,7 @@ import { normalizeRhNodeId } from '../../utils/rhTextBinding';
  */
 const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
   const update = useUpdateNodeData(id);
-  const updateNodeInternals = useUpdateNodeInternals();
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const syncRafRef = useRef<{ first?: number; second?: number }>({});
+  const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const text = ((data as any)?.prompt as string) || '';
   const rhNodeIdRaw = String((data as any)?.rhNodeId ?? '');
   const rhNodeId = normalizeRhNodeId(rhNodeIdRaw);
@@ -33,48 +32,14 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
     h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(140, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(140, Number(height)) : undefined,
   });
 
-  const syncNodeInternals = useCallback(() => {
-    if (syncRafRef.current.first) window.cancelAnimationFrame(syncRafRef.current.first);
-    if (syncRafRef.current.second) window.cancelAnimationFrame(syncRafRef.current.second);
-
-    syncRafRef.current.first = window.requestAnimationFrame(() => {
-      updateNodeInternals(id);
-      syncRafRef.current.second = window.requestAnimationFrame(() => updateNodeInternals(id));
-    });
-
-    return () => {
-      if (syncRafRef.current.first) window.cancelAnimationFrame(syncRafRef.current.first);
-      if (syncRafRef.current.second) window.cancelAnimationFrame(syncRafRef.current.second);
-      syncRafRef.current = {};
-    };
-  }, [id, updateNodeInternals]);
-
-  useLayoutEffect(() => {
-    const el = rootRef.current;
-    if (!el) return syncNodeInternals();
-
-    const cleanup = syncNodeInternals();
-    const observer = new ResizeObserver(() => {
-      syncNodeInternals();
-    });
-    observer.observe(el);
-
-    return () => {
-      cleanup();
-      observer.disconnect();
-    };
-  }, [syncNodeInternals]);
-
-  useLayoutEffect(() => syncNodeInternals(), [selected, size.w, size.h, syncNodeInternals]);
-
   const handleResize = useCallback(
     (_e: unknown, params: ResizeParams) => {
       setSize({ w: params.width, h: params.height });
-      syncNodeInternals();
     },
-    [syncNodeInternals],
+    [],
   );
   const handleResizeEnd = useCallback((_e: unknown, params: ResizeParams) => {
+    setSize({ w: params.width, h: params.height });
     update({ size: { w: Math.round(params.width), h: Math.round(params.height) } });
     syncNodeInternals();
   }, [syncNodeInternals, update]);
@@ -89,7 +54,7 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
   return (
     <div
       ref={rootRef}
-      className={`relative rounded-xl border-2 transition-all flex flex-col ${
+      className={`relative rounded-xl border-2 transition-colors flex flex-col ${
         selected ? 'border-sky-400 shadow-2xl shadow-sky-500/20' : 'border-white/15 hover:border-white/30'
       }`}
       style={{

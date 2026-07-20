@@ -24,6 +24,12 @@ import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
+import {
+  mergeUniqueUrls,
+  resumableTaskRuns,
+  taskRunIds,
+  type PersistedGenerationTaskRun,
+} from './generationTaskResume';
 import { useApiKeysStore } from '../../stores/apiKeys';
 import {
   advancedProviderModelOptions,
@@ -69,6 +75,7 @@ const clampGenerationCount = (value: unknown, fallback = 1) => {
   if (!Number.isFinite(num)) return fallback;
   return Math.min(4, Math.max(1, Math.trunc(num)));
 };
+type TaskRunState = PersistedGenerationTaskRun & { kind: 'video' };
 
 const SeedanceNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
@@ -77,6 +84,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
   const pollTimers = useRef<Set<number>>(new Set());
+  const resumeStartedRef = useRef(false);
   const src = `seedance:${id.slice(0, 6)}`;
 
   // 主题适配
@@ -123,6 +131,9 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d.status || 'idle';
   const taskId: string | undefined = d.taskId;
   const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
+  const taskRuns: TaskRunState[] = Array.isArray(d?.taskRuns) ? d.taskRuns : [];
+  const taskRunsRef = useRef<TaskRunState[]>(taskRuns);
+  taskRunsRef.current = taskRuns;
   const videoUrl: string | undefined = d.videoUrl;
   const progress: string = d.progress || '';
   const startedAt: number | undefined = typeof d?.startedAt === 'number' ? d.startedAt : undefined;
@@ -202,6 +213,13 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           : null,
     });
   };
+  const patchTaskRun = (batchIndex: number, patch: Partial<TaskRunState>) => {
+    const next = taskRunsRef.current.map((item) => (
+      item.batchIndex === batchIndex ? { ...item, ...patch } : item
+    ));
+    taskRunsRef.current = next;
+    update({ taskRuns: next });
+  };
 
   // === 本地拖入参考素材 (跨节点 Ctrl 拖拽) ===
   const localRefImages: string[] = Array.isArray(d?.localRefImages) ? d.localRefImages : [];
@@ -278,7 +296,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   // v1.2.9.11: 返回 Promise，调用方 await 直到任务真正成功/失败/超时才 resolve/reject。
   //   在循环器中使用时，不 await 会导致 useRunTrigger 提前 markDone → LoopNode 读不到 videoUrl → result=null → failCount++。
-  const startPolling = (tid: string): Promise<{ videoUrl: string }> => {
+  const startPolling = (tid: string, batchIndex?: number): Promise<{ videoUrl: string }> => {
     return new Promise<{ videoUrl: string }>((resolve, reject) => {
       let elapsed = 0;
       const POLL_MS = Math.max(2, pollInt) * 1000;
@@ -307,14 +325,23 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
             logBus.success(`任务完成 → ${r.videoUrl}`, src);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'success', progress: '100%', outputCount: 1, finishedAt: Date.now() });
+            }
             resolve({ videoUrl: r.videoUrl });
           } else if (r.status === 'failed') {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
             const msg = r.failReason || '生成失败';
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'error', error: msg, finishedAt: Date.now() });
+            }
             logBus.error(`生成失败: ${msg}`, src);
             reject(new Error(msg));
           } else {
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'polling', progress: `${pct}%` });
+            }
             update({ status: 'polling', progress: `${pct}%` });
           }
         } catch (e: any) {
@@ -326,6 +353,51 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       pollTimers.current.add(timer);
     });
   };
+
+  useEffect(() => {
+    if (resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    const saved = (data as any) || {};
+    if (saved.status !== 'submitting' && saved.status !== 'polling') return;
+    const runs = resumableTaskRuns(saved.taskRuns, ['seedance']);
+    if (runs.length === 0) return;
+
+    update({ status: 'polling', error: null, progress: saved.progress || '15%' });
+    void (async () => {
+      let videoUrls = mergeUniqueUrls(saved.videoUrls, [saved.videoUrl]);
+      const settled = await Promise.allSettled(runs.map(async (run) => {
+        const result = await startPolling(run.taskId!, run.batchIndex);
+        videoUrls = mergeUniqueUrls(videoUrls, [result.videoUrl]);
+        update({
+          status: 'polling',
+          videoUrl: videoUrls[0] || null,
+          videoUrls: [...videoUrls],
+          taskId: run.taskId,
+          taskIds: taskRunIds(taskRunsRef.current),
+        });
+      }));
+      const failures = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+      const finishedAt = Date.now();
+      if (videoUrls.length > 0) {
+        update({
+          status: 'success',
+          progress: '100%',
+          videoUrl: videoUrls[0],
+          videoUrls,
+          taskIds: taskRunIds(taskRunsRef.current),
+          finishedAt,
+          lastDurationMs: typeof saved.startedAt === 'number' ? Math.max(0, finishedAt - saved.startedAt) : null,
+          error: failures.length > 0 ? `${failures.length} 个恢复任务失败` : null,
+        });
+        return;
+      }
+      const message = failures[0]?.reason instanceof Error ? failures[0].reason.message : '恢复 Seedance 任务失败';
+      setError(message);
+      update({ status: 'error', error: message, finishedAt });
+    })();
+    // Recovery intentionally consumes only the persisted mount snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGenerate = async () => {
     setError(null);
@@ -339,6 +411,16 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
     }
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
+    const initialTaskRuns: TaskRunState[] = Array.from({ length: generationCount }, (_, batchIndex) => ({
+      batchIndex,
+      kind: 'video',
+      status: 'queued',
+      progress: '0%',
+      outputCount: 0,
+      startedAt: Date.now(),
+      finishedAt: null,
+    }));
+    taskRunsRef.current = initialTaskRuns;
     update({
       status: 'submitting',
       error: null,
@@ -346,6 +428,8 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       videoUrls: [],
       remoteVideoUrls: [],
       taskId: null,
+      taskIds: [],
+      taskRuns: initialTaskRuns,
       progress: generationCount > 1 ? `1/${generationCount}` : '',
     });
 
@@ -434,9 +518,15 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
         );
 
         const r = await submitSeedance(payload);
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: r.taskId,
+          resumeKind: 'seedance',
+          progress: '15%',
+        });
         update({ status: 'polling', taskId: r.taskId, lastPrompt: finalPrompt, progress: generationCount > 1 ? `${batchIndex + 1}/${generationCount}` : '15%' });
         logBus.info(`${batchLabel} 异步任务已提交 taskId=${r.taskId}, 进入轮询…`, src);
-        const polled = await startPolling(r.taskId);
+        const polled = await startPolling(r.taskId, batchIndex);
         return { videoUrls: [polled.videoUrl], remoteVideoUrls: [], taskId: r.taskId };
       };
 
@@ -445,7 +535,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       const taskIds: string[] = [];
       let lastTaskId: string | null = null;
 
-      const appendSeedanceGenerationResult = (result: Awaited<ReturnType<typeof runSingleSeedanceGeneration>>) => {
+      const appendSeedanceGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleSeedanceGeneration>>) => {
         for (const url of result.videoUrls) {
           if (url && !aggregatedVideoUrls.includes(url)) aggregatedVideoUrls.push(url);
         }
@@ -456,6 +546,13 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
           lastTaskId = result.taskId;
           if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
         }
+        patchTaskRun(batchIndex, {
+          status: 'success',
+          taskId: result.taskId || undefined,
+          progress: '100%',
+          outputCount: result.videoUrls.length,
+          finishedAt: Date.now(),
+        });
         update({
           status: 'polling',
           progress: generationCount > 1 ? `${aggregatedVideoUrls.length}/${generationCount}` : '95%',
@@ -470,8 +567,11 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
       const runConcurrentSeedanceGenerations = async () => {
         const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
           runSingleSeedanceGeneration(batchIndex).then((result) => {
-            appendSeedanceGenerationResult(result);
+            appendSeedanceGenerationResult(batchIndex, result);
             return result;
+          }).catch((error) => {
+            patchTaskRun(batchIndex, { status: 'error', error: error?.message || '生成失败', finishedAt: Date.now() });
+            throw error;
           })
         );
         return Promise.allSettled(jobs);
@@ -489,6 +589,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
         remoteVideoUrls: aggregatedRemoteVideoUrls,
         taskId: lastTaskId,
         taskIds,
+        taskRuns: taskRunsRef.current,
         lastPrompt: finalPrompt,
         progress: '100%',
       });
@@ -506,7 +607,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
-    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    const ids = mergeUniqueUrls(taskIds, [taskId], taskRunIds(taskRunsRef.current));
     Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'seedance', model })))
       .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
@@ -607,6 +708,7 @@ const SeedanceNode = ({ id, data, selected }: NodeProps) => {
         lastDurationMs={lastDurationMs}
         accent="#d946ef"
         taskId={taskId}
+        taskRuns={taskRuns}
       />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>

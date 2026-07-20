@@ -13,13 +13,13 @@ describe("uiMetadataFromSchema video reference audio metadata", () => {
     expect(ui.inputCapabilities.audioReference).toBe(true);
   });
 
-  it("caps the public audio limit at eight", () => {
+  it("caps the public audio limit at ten", () => {
     const ui = uiMetadataFromSchema(
       { referenceAudio: { type: "audio[]", max: 99 } },
       "video",
       { audioReference: true },
     );
 
-    expect(ui.maxReferenceAudios).toBe(8);
+    expect(ui.maxReferenceAudios).toBe(10);
   });
 });

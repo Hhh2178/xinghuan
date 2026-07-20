@@ -236,6 +236,11 @@
 - `apps/web/src/data/portraitMasterOptions.ts`
   - 状态：超大静态数据文件
   - 下一步：按主题或能力拆分成多个 options registry 文件
+- `apps/web/src/components/nodes/AudioNode.tsx`
+  - 状态：音频参数、参考素材、Provider/Suno 运行态与结果预览混合；本轮因逐批任务恢复超过 1200 行
+  - 当前行数：`1267`
+  - 本轮下沉：`generationTaskResume.ts` 负责恢复描述符筛选、任务 ID 与结果去重
+  - 下一步：拆 `provider config / reference material section / submit-poll runner / output preview`
 
 ### 最近已退出 watchlist
 

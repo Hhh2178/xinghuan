@@ -29,6 +29,12 @@ import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMat
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import {
+  mergeUniqueUrls,
+  resumableTaskRuns,
+  taskRunIds,
+  type PersistedGenerationTaskRun,
+} from './generationTaskResume';
+import {
   countExcludedMaterials,
   excludeMaterialId,
   filterExcludedMaterials,
@@ -72,6 +78,7 @@ const clampGenerationCount = (value: unknown, fallback = 1) => {
   if (!Number.isFinite(num)) return fallback;
   return Math.min(4, Math.max(1, Math.trunc(num)));
 };
+type TaskRunState = PersistedGenerationTaskRun & { kind: 'audio' };
 
 const AudioNode = ({ id, data, selected }: NodeProps) => {
   const update = useUpdateNodeData(id);
@@ -81,6 +88,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const [uploading, setUploading] = useState(false);
   const pollTimer = useRef<number | null>(null);
   const pollTimers = useRef<Set<number>>(new Set());
+  const resumeStartedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const src = `audio:${id.slice(0, 6)}`;
 
@@ -152,6 +160,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
   const taskIds: string[] = Array.isArray(d?.taskIds) ? d.taskIds.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0) : [];
+  const taskRuns: TaskRunState[] = Array.isArray(d?.taskRuns) ? d.taskRuns : [];
+  const taskRunsRef = useRef<TaskRunState[]>(taskRuns);
+  taskRunsRef.current = taskRuns;
   const tracks: Array<{ id?: string; clipId?: string; audioUrl: string; remoteUrl?: string; imageUrl?: string; title?: string; tags?: string }>
     = d?.tracks || [];
   const pollProgress: string = d?.progress || '';
@@ -274,8 +285,15 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           : null,
     });
   };
+  const patchTaskRun = (batchIndex: number, patch: Partial<TaskRunState>) => {
+    const next = taskRunsRef.current.map((item) => (
+      item.batchIndex === batchIndex ? { ...item, ...patch } : item
+    ));
+    taskRunsRef.current = next;
+    update({ taskRuns: next });
+  };
 
-  const startExternalAudioTaskPolling = (tid: string): Promise<{ audioUrls: string[]; remoteAudioUrls: string[] }> => {
+  const startExternalAudioTaskPolling = (tid: string, batchIndex?: number): Promise<{ audioUrls: string[]; remoteAudioUrls: string[] }> => {
     return new Promise<{ audioUrls: string[]; remoteAudioUrls: string[] }>((resolve, reject) => {
       let elapsed = 0;
       const timer = window.setInterval(async () => {
@@ -294,6 +312,9 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
             logBus.success(`后台音频任务完成 → ${audioUrls[0]}`, src);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, { status: 'success', progress: '100%', outputCount: audioUrls.length, finishedAt: Date.now() });
+            }
             resolve({ audioUrls, remoteAudioUrls });
             return;
           }
@@ -306,10 +327,19 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           if (r.status === 'failed' || r.status === 'cancelled') {
             window.clearInterval(timer);
             pollTimers.current.delete(timer);
+            if (typeof batchIndex === 'number') {
+              patchTaskRun(batchIndex, {
+                status: r.status === 'cancelled' ? 'cancelled' : 'error',
+                error: r.error,
+                finishedAt: Date.now(),
+              });
+            }
             reject(new Error(r.error || (r.status === 'cancelled' ? '任务已取消' : '后台音频任务失败')));
             return;
           }
-          update({ status: 'polling', taskId: tid, progress: r.progress || (r.status === 'running' ? '45%' : '5%') });
+          const nextProgress = r.progress || (r.status === 'running' ? '45%' : '5%');
+          if (typeof batchIndex === 'number') patchTaskRun(batchIndex, { status: 'polling', progress: nextProgress });
+          update({ status: 'polling', taskId: tid, progress: nextProgress });
         } catch (e: any) {
           console.warn('后台音频任务轮询出错', e?.message);
         }
@@ -317,6 +347,54 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       pollTimers.current.add(timer);
     });
   };
+
+  useEffect(() => {
+    if (resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    const saved = (data as any) || {};
+    if (saved.status !== 'submitting' && saved.status !== 'polling') return;
+    const runs = resumableTaskRuns(saved.taskRuns, ['external-audio']);
+    if (runs.length === 0) return;
+
+    update({ status: 'polling', error: null, progress: saved.progress || '5%' });
+    void (async () => {
+      let audioUrls = mergeUniqueUrls(saved.audioUrls, [saved.audioUrl, saved.audioUrl_1]);
+      let remoteAudioUrls = mergeUniqueUrls(saved.remoteAudioUrls);
+      const settled = await Promise.allSettled(runs.map(async (run) => {
+        const result = await startExternalAudioTaskPolling(run.taskId!, run.batchIndex);
+        audioUrls = mergeUniqueUrls(audioUrls, result.audioUrls);
+        remoteAudioUrls = mergeUniqueUrls(remoteAudioUrls, result.remoteAudioUrls);
+      }));
+      const failures = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
+      const finishedAt = Date.now();
+      if (audioUrls.length > 0) {
+        const savedTracks = Array.isArray(saved.tracks) ? saved.tracks.filter((track: any) => track?.audioUrl) : [];
+        const savedTrackUrls = new Set(savedTracks.map((track: any) => track.audioUrl));
+        const restoredTracks = audioUrls
+          .filter((url) => !savedTrackUrls.has(url))
+          .map((audioUrl, index) => ({ id: `restored-${Date.now()}-${index}`, audioUrl, remoteUrl: remoteAudioUrls[index] }));
+        update({
+          status: 'success',
+          progress: '100%',
+          tracks: [...savedTracks, ...restoredTracks],
+          audioUrl: audioUrls[0] || '',
+          audioUrl_1: audioUrls[1] || '',
+          audioUrls,
+          remoteAudioUrls,
+          taskIds: taskRunIds(taskRunsRef.current),
+          finishedAt,
+          lastDurationMs: typeof saved.startedAt === 'number' ? Math.max(0, finishedAt - saved.startedAt) : null,
+          error: failures.length > 0 ? `${failures.length} 个恢复任务失败` : null,
+        });
+        return;
+      }
+      const message = failures[0]?.reason instanceof Error ? failures[0].reason.message : '恢复音频任务失败';
+      setError(message);
+      update({ status: 'error', error: message, finishedAt });
+    })();
+    // Recovery intentionally consumes only the persisted mount snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // === 本地拖入参考音频 (跨节点 Ctrl 拖拽) ===
   const localRefAudio: string = typeof d?.localRefAudio === 'string' ? d.localRefAudio : '';
@@ -426,8 +504,14 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       providerParams: { modelRecordId: backendAudioModel.id, sourceNodeId: id },
     });
     if (!submit.taskId) throw new Error(`后台音频任务没有返回任务号：${backendAudioModel.provider.name} / ${backendAudioModel.modelId}`);
+    patchTaskRun(0, {
+      status: 'polling',
+      taskId: submit.taskId,
+      resumeKind: 'external-audio',
+      progress: submit.progress || '5%',
+    });
     update({ status: 'polling', taskId: submit.taskId, progress: submit.progress || '5%' });
-    const polled = await startExternalAudioTaskPolling(submit.taskId);
+    const polled = await startExternalAudioTaskPolling(submit.taskId, 0);
     const audioUrls = polled.audioUrls || [];
     if (audioUrls.length === 0) throw new Error('音频生成完成但未返回音频文件');
     const nextTracks = audioUrls.map((audioUrl, index) => ({
@@ -443,7 +527,8 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       audioUrl_1: audioUrls[1] || '',
       audioUrls,
       taskId: submit.taskId,
-      taskIds: [],
+      taskIds: [submit.taskId],
+      taskRuns: taskRunsRef.current,
       lastPrompt: finalPrompt,
       progress: '100%',
     });
@@ -508,7 +593,18 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
     }
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
-    update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined, audioUrl_1: '', audioUrls: [], clipIds: [], taskId: null, progress: generationCount > 1 ? `1/${generationCount}` : '0/?' });
+    const taskRunCount = audioEngine === 'provider' ? 1 : generationCount;
+    const initialTaskRuns: TaskRunState[] = Array.from({ length: taskRunCount }, (_, batchIndex) => ({
+      batchIndex,
+      kind: 'audio',
+      status: 'queued',
+      progress: '0%',
+      outputCount: 0,
+      startedAt: Date.now(),
+      finishedAt: null,
+    }));
+    taskRunsRef.current = initialTaskRuns;
+    update({ status: 'submitting', error: null, tracks: [], audioUrl: undefined, audioUrl_1: '', audioUrls: [], clipIds: [], taskId: null, taskIds: [], taskRuns: initialTaskRuns, progress: generationCount > 1 ? `1/${generationCount}` : '0/?' });
     try {
       if (audioEngine === 'provider') {
         await handleProviderGenerate(finalPrompt, runtimeStartedAt);
@@ -539,8 +635,15 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
           continue_at: mode === 'extend' ? continueAt : undefined,
         });
         logBus.success(`${batchLabel} taskId=${r.taskId} clips=${(r.clipIds || []).join(',') || '?'}`, src);
-        update({ status: 'polling', taskId: r.taskId, clipIds: r.clipIds, lastPrompt: finalPrompt, progress: generationCount > 1 ? `${batchIndex + 1}/${generationCount}` : '0/?' });
         const idsToPoll = r.clipIds && r.clipIds.length > 0 ? r.clipIds : [r.taskId];
+        patchTaskRun(batchIndex, {
+          status: 'polling',
+          taskId: r.taskId,
+          resumeKind: 'suno',
+          resumeParams: { clipIds: idsToPoll },
+          progress: '0/?',
+        });
+        update({ status: 'polling', taskId: r.taskId, clipIds: r.clipIds, lastPrompt: finalPrompt, progress: generationCount > 1 ? `${batchIndex + 1}/${generationCount}` : '0/?' });
         const polled = await startPolling(idsToPoll);
         return { tracks: polled.tracks, taskId: r.taskId, clipIds: r.clipIds || idsToPoll };
       };
@@ -551,7 +654,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       const taskIds: string[] = [];
       let lastTaskId: string | null = null;
 
-      const appendAudioGenerationResult = (result: Awaited<ReturnType<typeof runSingleAudioGeneration>>) => {
+      const appendAudioGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleAudioGeneration>>) => {
         for (const clipId of result.clipIds) {
           if (clipId && !aggregatedClipIds.includes(clipId)) aggregatedClipIds.push(clipId);
         }
@@ -562,6 +665,13 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         }
         lastTaskId = result.taskId;
         if (result.taskId && !taskIds.includes(result.taskId)) taskIds.push(result.taskId);
+        patchTaskRun(batchIndex, {
+          status: 'success',
+          taskId: result.taskId,
+          progress: '100%',
+          outputCount: result.tracks.length,
+          finishedAt: Date.now(),
+        });
         update({
           status: 'polling',
           tracks: [...aggregatedTracks],
@@ -578,8 +688,11 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
       const runConcurrentAudioGenerations = async () => {
         const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
           runSingleAudioGeneration(batchIndex).then((result) => {
-            appendAudioGenerationResult(result);
+            appendAudioGenerationResult(batchIndex, result);
             return result;
+          }).catch((error) => {
+            patchTaskRun(batchIndex, { status: 'error', error: error?.message || '生成失败', finishedAt: Date.now() });
+            throw error;
           })
         );
         return Promise.allSettled(jobs);
@@ -598,6 +711,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         clipIds: aggregatedClipIds,
         taskId: lastTaskId,
         taskIds,
+        taskRuns: taskRunsRef.current,
         lastPrompt: finalPrompt,
         progress: '100%',
       });
@@ -615,7 +729,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
 
   const handleStop = () => {
     stopPoll();
-    const ids = Array.from(new Set([...(taskIds || []), taskId].filter(Boolean) as string[]));
+    const ids = mergeUniqueUrls(taskIds, [taskId], taskRunIds(taskRunsRef.current));
     Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'audio', model: version })))
       .catch((error) => logBus.warn(`取消上游任务失败: ${error?.message || error}`, src));
     update({ status: 'idle', progress: '', startedAt: null, finishedAt: null, lastDurationMs: null });
@@ -712,6 +826,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
         lastDurationMs={lastDurationMs}
         accent={audioColor}
         taskId={taskId}
+        taskRuns={taskRuns}
       />
 
       <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
