@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.7`
-- 当前 release：`20260720-model-publication-sd-scope-gray-r1-v077`
-- 当前状态：`启用模型跟随目录全局发布，SD 系列由全部普通用户组 deny，单账号 allow 可覆盖组拒绝`
+- 当前版本：`v0.7.8`
+- 当前 release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
+- 当前状态：`所有 AICOPY 协议视频模型均显示可选的 SD 补充请求契约，配置仅作用于当前模型`
 - 当前补修：`普通用户可见 10 个视频模型且只缺少 3 个 SD；Grok/Seedance 正常可见；真实双账号覆盖测试和严格 runtime/readiness 均通过；retention 已收口为 3 个 Release`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-20-aicopy-video-contract-scope-v078.md`
+  - `../../docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`
   - `../../docs/logbooks/releases/gray/2026-07-20-model-publication-sd-scope-v077.md`
   - `../../docs/logbooks/validations/2026-07-20-model-publication-sd-scope-gray-v077.md`
   - `../../docs/logbooks/releases/gray/2026-07-18-permission-image-node-repair-v076.md`
@@ -101,7 +103,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260718-permission-image-node-repair-gray-r1-v076`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260720-model-publication-sd-scope-gray-r1-v077`
 - deploy 前上一版锚点：
   - `/opt/apps/xinghuan-canvas-next/releases/20260718-permission-image-node-repair-gray-r1-v076`
 - 回滚后需重启：

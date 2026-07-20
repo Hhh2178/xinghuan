@@ -27,18 +27,18 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.7`
-  - release：`20260720-model-publication-sd-scope-gray-r1-v077`
-  - 状态：`启用模型全局发布与 SD scoped deny 已通过全量成员和账号覆盖验收`
+  - 版本：`v0.7.8`
+  - release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
+  - 状态：`所有 AICOPY 视频模型均显示可选 SD 补充请求契约，配置按模型隔离`
   - 当前补修：`普通用户只隐藏 3 个 SD 视频模型；回滚锚点为 v0.7.6；retention 保留 current/rollback/上一稳定版共 3 个 Release`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.7`
-  - release：`20260720-model-publication-sd-scope-prod-r1-v077`
-  - 状态：`启用模型全局发布与 SD scoped deny 已通过全量成员和账号覆盖验收`
+  - 版本：`v0.7.8`
+  - release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
+  - 状态：`所有 AICOPY 视频模型均显示可选 SD 补充请求契约，配置按模型隔离`
   - 当前补修：`普通用户只隐藏 3 个 SD 视频模型，Grok/Seedance 已恢复；回滚锚点为 v0.7.6；retention 保留 3 个 Release；继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工

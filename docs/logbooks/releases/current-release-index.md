@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.7`
-- release：`20260720-model-publication-sd-scope-gray-r1-v077`
-- 当前状态：`启用模型目录控制全局发布，SD 系列使用 scoped deny`
-- 部署内容：`Provider 模型 exposure 自动对齐 enabled；全部普通用户组和 ungrouped 拒绝 3 个 SD 视频模型；账号 allow 保持最高优先级`
+- 版本：`v0.7.8`
+- release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
+- 当前状态：`AICOPY 视频补充请求契约入口按协议能力展示`
+- 部署内容：`移除旧 SD 模型 ID 白名单；所有 AICOPY 视频模型显示入口，配置仍按当前模型隔离`
 - 已验证：`178 项测试、全 workspace 类型检查与构建、Harness、27 个普通账号差集、真实双账号覆盖、Gray runtime/readiness 与三 Release retention 收口`
 - 待验收：`无本批次阻塞项`
 - 部署时间：`2026-07-20`
 - 当前批次记录：
+  - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
+  - `../validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`
   - `gray/2026-07-20-model-publication-sd-scope-v077.md`
   - `../validations/2026-07-20-model-publication-sd-scope-gray-v077.md`
   - `gray/2026-07-18-permission-image-node-repair-v076.md`
@@ -109,11 +111,13 @@
 
 ### Production
 
-- 版本：`v0.7.7`
-- release：`20260720-model-publication-sd-scope-prod-r1-v077`
-- 当前状态：`启用模型目录控制全局发布，SD 系列使用 scoped deny；Grok/Seedance 已恢复`
+- 版本：`v0.7.8`
+- release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
+- 当前状态：`AICOPY 视频补充请求契约入口按协议能力展示，复用 Gray 同一制品`
 - 当前补修：`26 个普通账号和真实账号覆盖验收通过；回滚锚点为 v0.7.6；三 Release retention 已收口；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `production/2026-07-20-aicopy-video-contract-scope-production-v078.md`
+  - `../validations/2026-07-20-aicopy-video-contract-scope-production-v078.md`
   - `production/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `../validations/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `production/2026-07-18-permission-image-node-repair-production-v076.md`

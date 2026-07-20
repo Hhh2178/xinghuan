@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.7`
-- 当前 release：`20260720-model-publication-sd-scope-prod-r1-v077`
-- 当前状态：`启用模型跟随目录全局发布，SD 系列由全部普通用户组 deny，单账号 allow 可覆盖组拒绝`
+- 当前版本：`v0.7.8`
+- 当前 release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
+- 当前状态：`所有 AICOPY 协议视频模型均显示可选的 SD 补充请求契约，配置仅作用于当前模型`
 - 当前补修：`普通用户可见 11 个视频模型且只缺少 3 个 SD；此前误隐藏的 Grok/Seedance 已恢复；retention 已收口为 3 个 Release；继续观察既有任务失败趋势与 revision conflict`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-20-aicopy-video-contract-scope-production-v078.md`
+  - `../../docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-production-v078.md`
   - `../../docs/logbooks/releases/production/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `../../docs/logbooks/validations/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `../../docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md`
@@ -61,7 +63,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260718-permission-image-node-repair-prod-r1-v076`
+  - `/opt/apps/xinghuan-canvas/releases/20260720-model-publication-sd-scope-prod-r1-v077`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`
