@@ -2,14 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.10`
-- 当前 release：`20260720-permission-media-contract-prod-r1-v0710`
-- 当前状态：`权限目录与 AICOPY 媒体参考契约由 Gray 验收制品晋级，Production runtime 验证通过`
+- 当前版本：`v0.7.11`
+- 当前 release：`20260720-workflow-media-boundary-prod-r1-v0711`
+- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出由 Gray 验收制品晋级，待 Production runtime 验证`
 - 当前补修：`本轮不执行 retention/prune；回滚锚点为 v0.7.8`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
-  - `../../docs/logbooks/releases/production/2026-07-20-permission-media-contract-prod-v0710.md`
-  - `../../docs/logbooks/validations/2026-07-20-permission-media-contract-prod-v0710.md`
+  - `../../docs/logbooks/releases/production/2026-07-20-workflow-media-boundary-prod-v0711.md`
+  - `../../docs/logbooks/validations/2026-07-20-workflow-media-boundary-prod-v0711.md`
   - `../../docs/logbooks/releases/production/2026-07-20-aicopy-video-contract-scope-production-v078.md`
   - `../../docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-production-v078.md`
   - `../../docs/logbooks/releases/production/2026-07-20-model-publication-sd-scope-production-v077.md`

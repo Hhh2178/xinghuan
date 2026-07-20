@@ -4,14 +4,14 @@
 
 ### Production
 
-- 版本：`v0.7.10`
-- release：`20260720-permission-media-contract-prod-r1-v0710`
-- 当前状态：`Production runtime 验证通过`
-- 部署内容：`复用 Gray 已验收的权限目录与 AICOPY 媒体参考契约制品`
-- 回滚：`20260720-aicopy-video-contract-scope-prod-r1-v078`
+- 版本：`v0.7.11`
+- release：`20260720-workflow-media-boundary-prod-r1-v0711`
+- 当前状态：`待 Production runtime 验证`
+- 部署内容：`复用 Gray 已验收的工作流媒体边界、节点尺寸和批量视频制品`
+- 回滚：`20260720-permission-media-contract-prod-r1-v0710`
 - 当前批次记录：
-  - `production/2026-07-20-permission-media-contract-prod-v0710.md`
-  - `../validations/2026-07-20-permission-media-contract-prod-v0710.md`
+  - `production/2026-07-20-workflow-media-boundary-prod-v0711.md`
+  - `../validations/2026-07-20-workflow-media-boundary-prod-v0711.md`
 
 ### Gray
 
