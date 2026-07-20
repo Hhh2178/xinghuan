@@ -33,6 +33,13 @@
 - 权限矩阵中间的快捷按钮和右侧动作下拉框只写入当前选中主体的规则，不得修改 `exposureState`。
 - “少数账号可用”的标准配置顺序是：Subject 保持全局发布，先对目标用户组写入 `deny`，再对例外账号写入 `allow`；账号规则优先于用户组规则，组内其他账号继续保持禁止。
 
+## 模型全局发布权威
+
+- Provider 模型的启用状态是模型全局发布的唯一权威：启用模型对应 Subject 必须为 `published`，停用模型对应 Subject 为 `restricted`，删除模型由目录 reconciliation 标记为 `retired`。
+- 模型权限矩阵只写组或账号的 `view / execute` scoped rules；不得通过权限 Subject API 手工改写模型的全局曝光状态。
+- 新启用模型和历史上误留为 `restricted` 的启用模型，会在目录 reconciliation 时自动修复为 `published`。
+- “普通成员屏蔽、管理员可见”必须通过全部目标组（含 `ungrouped`）的 `deny` 表达；如需少数成员例外，再写账号 `allow`。
+
 ## 默认关闭存量迁移
 
 - `permissions:migrate-default-open` 默认只 dry-run。

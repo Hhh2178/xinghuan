@@ -70,6 +70,9 @@ export function createPermissionRouteHandler(deps: {
       const state = await deps.readAuthorizationState();
       const current = state.subjects.find((item) => item.subjectKey === subjectKey);
       if (!current) throw new deps.HttpError(404, "PERMISSION_SUBJECT_NOT_FOUND");
+      if (current.domain === "provider" && current.subjectType === "model") {
+        throw new deps.HttpError(409, "PERMISSION_SUBJECT_EXPOSURE_MANAGED_BY_CATALOG");
+      }
       if (Number(body.revision) !== current.revision) {
         throw new deps.HttpError(409, "PERMISSION_SUBJECT_REVISION_CONFLICT", { currentRevision: current.revision });
       }

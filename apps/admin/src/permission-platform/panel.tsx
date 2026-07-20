@@ -434,6 +434,7 @@ function PermissionSubjectRow({
           <span className={`permission-subject-row__catalog is-${subject.exposureState}`}>
             {subject.exposureState === "published" ? <Check aria-hidden="true" /> : <Ban aria-hidden="true" />}
             全局目录：{exposureLabel(subject.exposureState)}
+            {subject.domain === "provider" && subject.subjectType === "model" ? " · 跟随模型启用状态" : ""}
           </span>
         </div>
         <code title={subject.subjectKey}>{subject.subjectKey}</code>

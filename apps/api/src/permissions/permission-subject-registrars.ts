@@ -138,7 +138,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     sourceId: `model:${item.id}`,
     displayName: item.displayName,
     metadata: { capability: item.capability, enabled: item.enabled },
-  }));
+  }, item.enabled ? "published" : "restricted"));
   return [...parents, ...categories, ...items, ...runningHub, ...nodes, ...models];
 }
 
@@ -153,21 +153,28 @@ function parentSubject(
   return managedSubject({ subjectKey, domain, subjectType, parentKeys: parentKey ? [parentKey] : [], sourceId, displayName, metadata: { parent: true } });
 }
 
-function managedSubject(input: Omit<PermissionSubject, "exposureState" | "revision">): PermissionSubject {
+function managedSubject(
+  input: Omit<PermissionSubject, "exposureState" | "revision">,
+  exposureState: PermissionSubject["exposureState"] = "restricted",
+): PermissionSubject {
   return {
     ...input,
-    exposureState: "restricted",
+    exposureState,
     metadata: { ...input.metadata, managedBy: MANAGED_BY },
     revision: 1,
   };
 }
 
 function mergeExistingSubject(existing: PermissionSubject, source: PermissionSubject): PermissionSubject {
+  const exposureState = source.domain === "provider" && source.subjectType === "model"
+    ? source.exposureState
+    : existing.exposureState;
   const sourceChanged = existing.domain !== source.domain || existing.subjectType !== source.subjectType || existing.sourceId !== source.sourceId ||
-    existing.displayName !== source.displayName || !sameStrings(existing.parentKeys, source.parentKeys) || !sameMetadata(existing.metadata, source.metadata);
+    existing.displayName !== source.displayName || existing.exposureState !== exposureState ||
+    !sameStrings(existing.parentKeys, source.parentKeys) || !sameMetadata(existing.metadata, source.metadata);
   return {
     ...source,
-    exposureState: existing.exposureState,
+    exposureState,
     revision: sourceChanged ? existing.revision + 1 : existing.revision,
   };
 }

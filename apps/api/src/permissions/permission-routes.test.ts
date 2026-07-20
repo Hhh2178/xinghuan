@@ -47,6 +47,30 @@ describe("permission routes", () => {
     expect(sendT8).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects manual global exposure changes for catalog-managed provider models", async () => {
+    const { handler, subjects } = createHandler();
+    subjects[0] = {
+      ...subject,
+      subjectKey: "provider.model/model-a",
+      domain: "provider",
+      subjectType: "model",
+      sourceId: "model:model-a",
+      exposureState: "published",
+      metadata: { managedBy: "first-wave", enabled: true },
+    };
+    const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };
+
+    await expect(handler({
+      request: { method: "PUT", body: { exposureState: "restricted", revision: 1, reason: "hide" } } as any,
+      response: {} as any,
+      url: new URL("http://test/api/admin/permission-subjects/provider.model%2Fmodel-a"),
+      currentUser: admin,
+    })).rejects.toMatchObject({
+      statusCode: 409,
+      message: "PERMISSION_SUBJECT_EXPOSURE_MANAGED_BY_CATALOG",
+    });
+  });
+
   it("requires an audit reason for permission mutations", async () => {
     const { handler } = createHandler();
     const admin = { id: "admin-a", email: "admin@test", name: "Admin", role: "admin" as const };

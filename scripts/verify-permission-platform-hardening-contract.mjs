@@ -19,6 +19,7 @@ const [
   memberCatalogVerify,
   authorizationResolver,
   memberAdminBoundary,
+  subjectRegistrar,
 ] = await Promise.all([
   read("apps/api/src/permissions/permission-runtime.ts"),
   read("apps/api/src/permissions/permission-readiness.ts"),
@@ -37,6 +38,7 @@ const [
   read("scripts/verify-permission-member-catalog.mjs"),
   read("apps/api/src/permissions/authorization-resolver.ts"),
   read("scripts/verify-member-admin-boundary-contract.mjs"),
+  read("apps/api/src/permissions/permission-subject-registrars.ts"),
 ]);
 
 const checks = [
@@ -58,6 +60,9 @@ const checks = [
   ["admin uses unified lazy panel", adminUsers.includes("lazy(() =>") && adminUsers.includes("PermissionPlatformPanel")],
   ["admin panel supports account principal", adminPanel.includes('setPrincipalType("user")')],
   ["principal matrix cannot mutate global subject exposure", !adminPanel.includes("onUpdateSubject") && adminPanel.includes("updateScopedAccess")],
+  ["enabled provider models own global publication", subjectRegistrar.includes('item.enabled ? "published" : "restricted"') && subjectRegistrar.includes('source.domain === "provider" && source.subjectType === "model"')],
+  ["provider model exposure rejects manual mutation", routes.includes("PERMISSION_SUBJECT_EXPOSURE_MANAGED_BY_CATALOG")],
+  ["admin explains catalog-managed model exposure", adminPanel.includes("跟随模型启用状态")],
   ["principal matrix explains group deny and account allow workflow", adminPanel.includes("少数账号可用") && adminPanel.includes("不会改变其他账号")],
   ["web loads effective node permissions", webApp.includes("getEffectivePermissions")],
   ["gray verify supports permission readiness", grayVerify.includes("expected-permission-ready")],

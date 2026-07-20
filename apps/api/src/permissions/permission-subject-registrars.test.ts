@@ -23,7 +23,48 @@ function subject(overrides: Partial<PermissionSubject> = {}): PermissionSubject 
 }
 
 describe("permission subject registrar", () => {
-  it("registers all first-wave entries as restricted and retires removed managed entries", async () => {
+  it("publishes enabled provider models and repairs stale restricted catalog state", async () => {
+    const stored = [
+      subject({
+        subjectKey: "provider.model/model-a",
+        sourceId: "model:model-a",
+        exposureState: "restricted",
+        displayName: "Image Model",
+        metadata: { managedBy: "first-wave", capability: "image", enabled: true },
+        revision: 4,
+      }),
+    ];
+    const registrar = createPermissionSubjectRegistrar({
+      listSubjects: async () => stored,
+      upsertSubject: async (next) => {
+        const index = stored.findIndex((item) => item.subjectKey === next.subjectKey);
+        if (index >= 0) stored[index] = next;
+        else stored.push(next);
+        return next;
+      },
+    });
+
+    await registrar.reconcileFirstWavePermissionSubjects({
+      resourceCategories: [],
+      resourceItems: [],
+      runningHubItems: [],
+      nodeTypes: [],
+      providerModels: [
+        { id: "model-a", displayName: "Image Model", capability: "image", enabled: true },
+        { id: "model-b", displayName: "Video Model", capability: "video", enabled: true },
+      ],
+    });
+
+    expect(stored.find((item) => item.subjectKey === providerModelSubjectKey("model-a"))).toMatchObject({
+      exposureState: "published",
+      revision: 5,
+    });
+    expect(stored.find((item) => item.subjectKey === providerModelSubjectKey("model-b"))).toMatchObject({
+      exposureState: "published",
+    });
+  });
+
+  it("registers non-model first-wave entries as restricted, publishes enabled models, and retires removed managed entries", async () => {
     const stored = [subject()];
     const registrar = createPermissionSubjectRegistrar({
       listSubjects: async () => stored,
@@ -54,7 +95,7 @@ describe("permission subject registrar", () => {
       metadata: expect.objectContaining({ enabled: true }),
     });
     expect(stored.find((item) => item.subjectKey === providerModelSubjectKey("model-a"))).toMatchObject({
-      exposureState: "restricted",
+      exposureState: "published",
     });
     expect(stored.find((item) => item.subjectKey === "provider.model/deleted")).toMatchObject({
       exposureState: "retired",
