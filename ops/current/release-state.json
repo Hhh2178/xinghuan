@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-20",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "96b196e",
+  "sourceCommit": "4e3e3be",
   "environments": {
     "gray": {
-      "version": "0.7.10",
-      "releaseId": "20260720-permission-media-contract-gray-r1-v0710",
+      "version": "0.7.11",
+      "releaseId": "20260720-workflow-media-boundary-gray-r1-v0711",
       "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-permission-media-contract-gray-v0710.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-20-permission-media-contract-gray-v0710.md",
-      "rollbackReleaseId": "20260720-aicopy-sd-media-contract-gray-r1-v079"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-workflow-media-boundary-gray-v0711.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-20-workflow-media-boundary-gray-v0711.md",
+      "rollbackReleaseId": "20260720-permission-media-contract-gray-r1-v0710"
     },
     "production": {
       "version": "0.7.10",

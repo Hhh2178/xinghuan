@@ -27,9 +27,9 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.10`
-  - release：`20260720-permission-media-contract-gray-r1-v0710`
-  - 状态：`权限目录可编辑性与 AICOPY 媒体参考契约修复，待 Gray runtime 验证`
+  - 版本：`v0.7.11`
+  - release：`20260720-workflow-media-boundary-gray-r1-v0711`
+  - 状态：`工作流媒体边界、节点尺寸和批量视频输出修复，待 Gray runtime 验证`
   - 当前补修：`Gray runtime 验证通过；Production 保持 v0.7.8；不执行 retention/prune`
   - 本轮制品源提交：`96b196e`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`

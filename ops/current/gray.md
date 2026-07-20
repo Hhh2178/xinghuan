@@ -2,17 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.10`
-- 当前 release：`20260720-permission-media-contract-gray-r1-v0710`
-- 当前状态：`权限目录可编辑性与 AICOPY 媒体参考契约修复，Gray runtime 验证通过`
+- 当前版本：`v0.7.11`
+- 当前 release：`20260720-workflow-media-boundary-gray-r1-v0711`
+- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出修复，待 Gray runtime 验证`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
-- 本轮制品源提交：`96b196e`
+- Production 当前 release：`20260720-permission-media-contract-prod-r1-v0710`
+- 本轮制品源提交：`4e3e3be`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
-  - `../../docs/logbooks/releases/gray/2026-07-20-permission-media-contract-gray-v0710.md`
-  - `../../docs/logbooks/validations/2026-07-20-permission-media-contract-gray-v0710.md`
+  - `../../docs/logbooks/releases/gray/2026-07-20-workflow-media-boundary-gray-v0711.md`
+  - `../../docs/logbooks/validations/2026-07-20-workflow-media-boundary-gray-v0711.md`
   - `../../docs/logbooks/releases/gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../../docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`
   - `../../docs/logbooks/releases/gray/2026-07-20-model-publication-sd-scope-v077.md`
