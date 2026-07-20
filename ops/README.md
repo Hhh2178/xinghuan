@@ -27,19 +27,19 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.11`
-  - release：`20260720-workflow-media-boundary-gray-r1-v0711`
+  - 版本：`v0.7.13`
+  - release：`20260720-media-node-runtime-resume-gray-r2-v0713`
   - 状态：`Grok 批次逐项输出、输出刷新保留和可选跨次累积，Gray runtime 与视觉验证通过`
-  - 当前补修：`Gray runtime 验证通过；Production 保持 v0.7.11；不执行 retention/prune`
+  - 当前补修：`Gray runtime 与视觉验证通过；Production 已晋级 v0.7.13；不执行 retention/prune`
   - 本轮制品源提交：`96b196e`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.11`
-  - release：`20260720-workflow-media-boundary-prod-r1-v0711`
-  - 状态：`工作流媒体边界、节点尺寸和批量视频输出由 Gray 验收制品晋级，Production runtime 验证通过`
+  - 版本：`v0.7.13`
+  - release：`20260720-media-node-runtime-resume-prod-r1-v0713`
+  - 状态：`媒体输出保留、Grok 批次逐项输出和可选跨次累积已由 Gray 验收制品晋级，Production runtime 验证通过`
   - 当前补修：`普通用户只隐藏 3 个 SD 视频模型，Grok/Seedance 已恢复；回滚锚点为 v0.7.7；retention 保留 v0.7.8/v0.7.7/v0.7.6；继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工

@@ -4,11 +4,14 @@
 
 ### Production
 
-- 版本：`v0.7.11`
-- release：`20260720-workflow-media-boundary-prod-r1-v0711`
+- 版本：`v0.7.13`
+- release：`20260720-media-node-runtime-resume-prod-r1-v0713`
 - 当前状态：`Production runtime 验证通过`
-- 部署内容：`复用 Gray 已验收的工作流媒体边界、节点尺寸和批量视频制品`
-- 回滚：`20260720-permission-media-contract-prod-r1-v0710`
+- 部署内容：`复用 Gray 已验收的媒体输出保留、Grok 批次逐项输出和可选跨次累积制品`
+- 回滚：`20260720-workflow-media-boundary-prod-r1-v0711`
+- 当前批次记录：
+  - `production/2026-07-20-media-node-runtime-resume-prod-v0713.md`
+  - `../validations/2026-07-20-media-node-runtime-resume-prod-v0713.md`
 - 当前批次记录：
   - `production/2026-07-20-workflow-media-boundary-prod-v0711.md`
   - `../validations/2026-07-20-workflow-media-boundary-prod-v0711.md`

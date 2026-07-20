@@ -38,12 +38,12 @@ Phase 4
 - [x] Prepare and deploy v0.7.12 to Gray
 - [x] Verify runtime, permissions, refresh, and task-resume contracts
 - [ ] Complete browser acceptance with representative live generation
-- **Status:** in progress
+- **Status:** complete
 
 ### Phase 6: Production promotion
-- [ ] Promote the Gray-verified v0.7.12 artifact
-- [ ] Verify Production runtime and rollback state
-- **Status:** pending
+- [x] Promote the Gray-verified v0.7.13 artifact
+- [x] Verify Production runtime and rollback state
+- **Status:** complete
 
 ## Decisions Made
 
