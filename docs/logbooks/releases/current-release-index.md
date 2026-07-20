@@ -4,14 +4,16 @@
 
 ### Gray
 
-- 版本：`v0.7.6`
-- release：`20260718-permission-image-node-repair-gray-r1-v076`
-- 当前状态：`权限账号覆盖、ReactFlow 节点宿主与图片尺寸处理修复已部署 Gray`
-- 部署内容：`账号/组 scoped permission 写入、稳定节点序号 DOM 宿主、用户隔离的 resize/upscale/crop/combine API 与可操作输入错误提示`
-- 已验证：`176 项测试、全 workspace 类型检查、API/Web/Admin 构建、51 节点 Chrome smoke、Gray runtime/readiness、真实上传图片 resize 链路与三 Release retention 收口`
-- 待验收：`用户浏览器视觉与真实权限管理操作确认；自动 account override verifier 因无安全模型前置条件未改动线上规则`
-- 部署时间：`2026-07-18`
+- 版本：`v0.7.7`
+- release：`20260720-model-publication-sd-scope-gray-r1-v077`
+- 当前状态：`启用模型目录控制全局发布，SD 系列使用 scoped deny`
+- 部署内容：`Provider 模型 exposure 自动对齐 enabled；全部普通用户组和 ungrouped 拒绝 3 个 SD 视频模型；账号 allow 保持最高优先级`
+- 已验证：`178 项测试、全 workspace 类型检查与构建、Harness、27 个普通账号差集、真实双账号覆盖、Gray runtime/readiness`
+- 待验收：`无本批次阻塞项`
+- 部署时间：`2026-07-20`
 - 当前批次记录：
+  - `gray/2026-07-20-model-publication-sd-scope-v077.md`
+  - `../validations/2026-07-20-model-publication-sd-scope-gray-v077.md`
   - `gray/2026-07-18-permission-image-node-repair-v076.md`
   - `../validations/2026-07-18-permission-image-node-repair-gray-v076.md`
   - `gray/2026-07-18-generation-artifact-stream-abort-v075.md`
@@ -107,11 +109,13 @@
 
 ### Production
 
-- 版本：`v0.7.6`
-- release：`20260718-permission-image-node-repair-prod-r1-v076`
-- 当前状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性门禁通过`
-- 当前补修：`回滚锚点为 v0.7.5；Production retention 已收口为 3 个 Release；继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
+- 版本：`v0.7.7`
+- release：`20260720-model-publication-sd-scope-prod-r1-v077`
+- 当前状态：`启用模型目录控制全局发布，SD 系列使用 scoped deny；Grok/Seedance 已恢复`
+- 当前补修：`26 个普通账号和真实账号覆盖验收通过；回滚锚点为 v0.7.6；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
+  - `production/2026-07-20-model-publication-sd-scope-production-v077.md`
+  - `../validations/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `production/2026-07-18-permission-image-node-repair-production-v076.md`
   - `../validations/2026-07-18-permission-image-node-repair-production-v076.md`
   - `production/2026-07-18-generation-artifact-stream-abort-production-v075.md`

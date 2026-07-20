@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.6`（权限账号覆盖、节点 DOM 与图片尺寸处理修复已完成 Gray runtime 验收）
-- 当前生产版本：`v0.7.6`（权限账号覆盖、节点 DOM 与图片尺寸处理修复已复用 Gray 同一制品晋级）
-- 当前灰度 release：`20260718-permission-image-node-repair-gray-r1-v076`
-- 当前生产 release：`20260718-permission-image-node-repair-prod-r1-v076`
+- 当前灰度版本：`v0.7.7`（启用模型全局发布与 SD scoped deny 已完成全量成员验收）
+- 当前生产版本：`v0.7.7`（复用 Gray 制品，Grok/Seedance 已恢复普通用户可见）
+- 当前灰度 release：`20260720-model-publication-sd-scope-gray-r1-v077`
+- 当前生产 release：`20260720-model-publication-sd-scope-prod-r1-v077`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 与 Production v0.7.6 均完成严格 runtime/readiness 与真实上传图片尺寸调整链路验收；Production API/Worker active、零重启，回滚锚点为 v0.7.5。
+- 最新完成：Gray 与 Production v0.7.7 均完成严格 runtime/readiness、全量普通账号模型差集和单账号 allow 覆盖组 deny 验收；两环境 API/Worker active、零重启，回滚锚点为 v0.7.6。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

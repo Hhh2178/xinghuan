@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.6`
-- 当前 release：`20260718-permission-image-node-repair-prod-r1-v076`
-- 当前状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性门禁通过`
-- 当前补修：`回滚锚点为 v0.7.5；Production retention 已收口为 3 个 Release；继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
+- 当前版本：`v0.7.7`
+- 当前 release：`20260720-model-publication-sd-scope-prod-r1-v077`
+- 当前状态：`启用模型跟随目录全局发布，SD 系列由全部普通用户组 deny，单账号 allow 可覆盖组拒绝`
+- 当前补修：`普通用户可见 11 个视频模型且只缺少 3 个 SD；此前误隐藏的 Grok/Seedance 已恢复；继续观察既有任务失败趋势与 revision conflict`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-20-model-publication-sd-scope-production-v077.md`
+  - `../../docs/logbooks/validations/2026-07-20-model-publication-sd-scope-production-v077.md`
   - `../../docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md`
   - `../../docs/logbooks/validations/2026-07-18-permission-image-node-repair-production-v076.md`
   - `../../docs/logbooks/releases/production/2026-07-18-generation-artifact-stream-abort-production-v075.md`
@@ -59,7 +61,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260718-generation-artifact-stream-abort-prod-r1-v075`
+  - `/opt/apps/xinghuan-canvas/releases/20260718-permission-image-node-repair-prod-r1-v076`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

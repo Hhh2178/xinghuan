@@ -1,29 +1,30 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-18",
+  "updatedAt": "2026-07-20",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "c9eaf5a4be2127463721e2343264db624917ce00",
+  "sourceCommit": "2d80c8f5a6d6dc6ac6ec3981822bd4682383c48b",
   "environments": {
     "gray": {
-      "version": "0.7.6",
-      "releaseId": "20260718-permission-image-node-repair-gray-r1-v076",
-      "deployedAt": "2026-07-18",
+      "version": "0.7.7",
+      "releaseId": "20260720-model-publication-sd-scope-gray-r1-v077",
+      "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 127, "publishedSubjects": 121, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 926, "principals": 5, "failures": 0 },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-18-permission-image-node-repair-v076.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-18-permission-image-node-repair-gray-v076.md",
-      "rollbackReleaseId": "20260718-generation-artifact-stream-abort-gray-r2-v075"
+      "readiness": { "subjects": 127, "publishedSubjects": 118, "restrictedSubjects": 6, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
+      "runtimeReadiness": { "subjects": 127, "publishedSubjects": 118, "restrictedSubjects": 6, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-model-publication-sd-scope-v077.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-20-model-publication-sd-scope-gray-v077.md",
+      "rollbackReleaseId": "20260718-permission-image-node-repair-gray-r1-v076"
     },
     "production": {
-      "version": "0.7.6",
-      "releaseId": "20260718-permission-image-node-repair-prod-r1-v076",
-      "deployedAt": "2026-07-18",
+      "version": "0.7.7",
+      "releaseId": "20260720-model-publication-sd-scope-prod-r1-v077",
+      "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 134, "publishedSubjects": 112, "restrictedSubjects": 14, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 112, "restrictedSubjects": 14, "retiredSubjects": 8, "rules": 452, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-18", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-18-permission-image-node-repair-production-v076.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-18-permission-image-node-repair-production-v076.md",
-      "rollbackReleaseId": "20260718-generation-artifact-stream-abort-prod-r1-v075"
+      "readiness": { "subjects": 134, "publishedSubjects": 109, "restrictedSubjects": 17, "retiredSubjects": 8, "rules": 506, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 134, "publishedSubjects": 109, "restrictedSubjects": 17, "retiredSubjects": 8, "rules": 506, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-20-model-publication-sd-scope-production-v077.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-20-model-publication-sd-scope-production-v077.md",
+      "rollbackReleaseId": "20260718-permission-image-node-repair-prod-r1-v076"
     }
   }
 }

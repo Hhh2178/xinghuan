@@ -27,19 +27,19 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.6`
-  - release：`20260718-permission-image-node-repair-gray-r1-v076`
-  - 状态：`权限账号覆盖、节点 DOM 宿主与图片尺寸处理修复已通过 Gray 严格 runtime 和真实图片链路验收`
-  - 当前补修：`回滚锚点为已验收的 v0.7.5；Gray retention 已收口为 3 个 Release`
+  - 版本：`v0.7.7`
+  - release：`20260720-model-publication-sd-scope-gray-r1-v077`
+  - 状态：`启用模型全局发布与 SD scoped deny 已通过全量成员和账号覆盖验收`
+  - 当前补修：`普通用户只隐藏 3 个 SD 视频模型；回滚锚点为 v0.7.6`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.6`
-  - release：`20260718-permission-image-node-repair-prod-r1-v076`
-  - 状态：`权限账号覆盖、ReactFlow 节点 DOM 宿主与图片尺寸处理修复已复用 Gray 同一制品晋级；严格 runtime、真实图片链路与可观测性验收通过`
-  - 当前补修：`回滚锚点为 v0.7.5；Production retention 已收口为 3 个 Release；继续观察既有任务失败趋势与 revision conflict；用户浏览器视觉和真实权限管理交互仍待最终确认`
+  - 版本：`v0.7.7`
+  - release：`20260720-model-publication-sd-scope-prod-r1-v077`
+  - 状态：`启用模型全局发布与 SD scoped deny 已通过全量成员和账号覆盖验收`
+  - 当前补修：`普通用户只隐藏 3 个 SD 视频模型，Grok/Seedance 已恢复；回滚锚点为 v0.7.6；继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工
 
