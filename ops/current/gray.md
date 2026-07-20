@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.11`
 - 当前 release：`20260720-workflow-media-boundary-gray-r1-v0711`
-- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出修复，待 Gray runtime 验证`
+- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出修复，Gray runtime 验证通过`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
 - Production 当前 release：`20260720-permission-media-contract-prod-r1-v0710`
 - 本轮制品源提交：`4e3e3be`

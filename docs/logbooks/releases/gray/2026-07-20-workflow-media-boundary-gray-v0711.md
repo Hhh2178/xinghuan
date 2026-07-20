@@ -11,3 +11,8 @@
 - OutputNode 收集和透传 `videoUrls[]`，保留批量视频结果和下游引用。
 
 本轮只部署 Gray，Production 保持 v0.7.10；不执行 retention/prune。
+
+## Gray 验证
+
+- API/Worker active，公网与内网状态均为 `0.7.11 / gray / enforced`。
+- 权限 readiness ready，subjects `128`，published `122`，restricted `3`，retired `3`，rules `932`，failures `0`。
