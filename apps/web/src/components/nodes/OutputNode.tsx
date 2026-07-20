@@ -127,7 +127,7 @@ interface Collected {
   audios: string[];
 }
 
-const OutputNode = ({ id, data, selected }: NodeProps) => {
+const OutputNode = ({ id, data, selected, width, height }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, templateId } = useThemeStore();
@@ -150,7 +150,11 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
   // 节点本地尺寸 state: 默认 (320, 高度由内容撑开)
   // 拖角后由 ResizableCorners onResize 同步具体 px — 保证节点始终有具体尺寸 → wrapper measured 准确
   // → keepAspectRatio 生效 (同比例缩放) + handleBounds 准确 (连线稳定)
-  const [size, setSize] = useState<{ w: number; h?: number }>({ w: 320 });
+  const persistedSize = (d as any)?.size;
+  const [size, setSize] = useState<{ w: number; h?: number }>({
+    w: Math.max(260, Number(persistedSize?.w) || Number(width) || 320),
+    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(160, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(160, Number(height)) : undefined,
+  });
   const [mediaMeta, setMediaMeta] = useState<Record<string, { width: number; height: number }>>({});
 
   // 订阅连入本节点 target handle 的连接变化
@@ -334,6 +338,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
 
       // 视频
         pushUnique(out.videos, ud.videoUrl);
+        if (Array.isArray(ud.videoUrls)) ud.videoUrls.forEach((u: any) => pushUnique(out.videos, u));
 
       // === v1.2.9.14: Suno 双端口语义 (与 FramePair 同模式) ===
       // AudioNode (Suno) 同时具备 audioUrl + audioUrl_1 字段时按 sourceHandle 过滤,
@@ -730,6 +735,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       imageUrls: collected.images.slice(),
       urls: collected.images.slice(),
       videoUrl: collected.videos[0] || '',
+      videoUrls: collected.videos.slice(),
       audioUrl: collected.audios[0] || '',
       audioUrl_1: collected.audios[1] || '', // 透传 Suno 双轨副轨避免串联丢失
       textSegments: hasNonText ? [] : collected.texts.slice(),
@@ -743,6 +749,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       imageUrls: Array.isArray(d.imageUrls) ? d.imageUrls : [],
       urls: Array.isArray(d.urls) ? d.urls : [],
       videoUrl: d.videoUrl || '',
+      videoUrls: Array.isArray(d.videoUrls) ? d.videoUrls : [],
       audioUrl: d.audioUrl || '',
       audioUrl_1: d.audioUrl_1 || '',
       textSegments: Array.isArray(d.textSegments) ? d.textSegments : [],
@@ -754,6 +761,7 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
       cur.reply !== next.reply ||
       cur.imageUrl !== next.imageUrl ||
       cur.videoUrl !== next.videoUrl ||
+      JSON.stringify(cur.videoUrls) !== JSON.stringify(next.videoUrls) ||
       cur.audioUrl !== next.audioUrl ||
       cur.audioUrl_1 !== next.audioUrl_1 ||
       JSON.stringify(cur.imageUrls) !== JSON.stringify(next.imageUrls) ||
@@ -818,7 +826,11 @@ const OutputNode = ({ id, data, selected }: NodeProps) => {
           setSize({ w: p.width, h: p.height });
           syncNodeInternals();
         }}
-        onResizeEnd={syncNodeInternals}
+        onResizeEnd={(_e, p) => {
+          setSize({ w: p.width, h: p.height });
+          update({ size: { w: Math.round(p.width), h: Math.round(p.height) } });
+          syncNodeInternals();
+        }}
       />
       {/* 选中时浮动「Edit」按钮 — 仅图像类型可用，与双击预览图等价 */}
       {canEditImage && (

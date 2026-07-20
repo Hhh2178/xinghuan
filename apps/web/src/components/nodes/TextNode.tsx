@@ -17,7 +17,7 @@ import { normalizeRhNodeId } from '../../utils/rhTextBinding';
  *       测量异常 (measured.width=0 → NodeResizeControl 算出 aspectRatio=0 → 只能纵向拉大) 的问题。
  *       同时 root 始终有具体 px → wrapper measured 准确 → handleBounds 准确, 连线稳定。
  */
-const TextNode = ({ id, data, selected }: NodeProps) => {
+const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const updateNodeInternals = useUpdateNodeInternals();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -27,7 +27,11 @@ const TextNode = ({ id, data, selected }: NodeProps) => {
   const rhNodeId = normalizeRhNodeId(rhNodeIdRaw);
   const resizeBehavior = getCornerResizeBehavior('text');
   // 节点本地尺寸 state: 默认 (260, 由内容撑高) → 拖角后由 ResizableCorners onResize 同步具体 px
-  const [size, setSize] = useState<{ w: number; h?: number }>({ w: 260 });
+  const persistedSize = (data as any)?.size;
+  const [size, setSize] = useState<{ w: number; h?: number }>({
+    w: Math.max(220, Number(persistedSize?.w) || Number(width) || 260),
+    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(140, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(140, Number(height)) : undefined,
+  });
 
   const syncNodeInternals = useCallback(() => {
     if (syncRafRef.current.first) window.cancelAnimationFrame(syncRafRef.current.first);
@@ -70,6 +74,10 @@ const TextNode = ({ id, data, selected }: NodeProps) => {
     },
     [syncNodeInternals],
   );
+  const handleResizeEnd = useCallback((_e: unknown, params: ResizeParams) => {
+    update({ size: { w: Math.round(params.width), h: Math.round(params.height) } });
+    syncNodeInternals();
+  }, [syncNodeInternals, update]);
   const handleRhNodeIdChange = useCallback(
     (value: string) => {
       const digits = value.replace(/\D+/g, '');
@@ -100,7 +108,7 @@ const TextNode = ({ id, data, selected }: NodeProps) => {
         accent="#38bdf8"
         keepAspectRatio={resizeBehavior.keepAspectRatio}
         onResize={handleResize}
-        onResizeEnd={() => syncNodeInternals()}
+        onResizeEnd={handleResizeEnd}
       />
       <Handle
         type="source"

@@ -115,7 +115,7 @@ function inferUploadKindFromData(data: Record<string, any>): UploadKind | null {
   return null;
 }
 
-const UploadNode = ({ id, data, selected }: NodeProps) => {
+const UploadNode = ({ id, data, selected, width, height }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, style, templateId } = useThemeStore();
@@ -158,7 +158,11 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
 
   // 节点本地尺寸 state: 默认 (260, 高度由内容撑开 — 上传后图/视频会撑高 root)
   // 拖角后由 ResizableCorners onResize 同步具体 px (保证 measured 准确 + keepAspectRatio 生效 + handleBounds 准确)
-  const [size, setSize] = useState<{ w: number; h?: number }>({ w: 260 });
+  const persistedSize = (d as any)?.size;
+  const [size, setSize] = useState<{ w: number; h?: number }>({
+    w: Math.max(220, Number(persistedSize?.w) || Number(width) || 260),
+    h: Number.isFinite(Number(persistedSize?.h)) ? Math.max(140, Number(persistedSize.h)) : Number.isFinite(Number(height)) ? Math.max(140, Number(height)) : undefined,
+  });
 
   useEffect(() => {
     if (uploadType === null && inferredUploadKind) {
@@ -513,7 +517,10 @@ const UploadNode = ({ id, data, selected }: NodeProps) => {
           setSize({ w: p.width, h: p.height });
           syncNodeInternals();
         }}
-        onResizeEnd={syncNodeInternals}
+        onResizeEnd={(_e, p) => {
+          update({ size: { w: Math.round(p.width), h: Math.round(p.height) } });
+          syncNodeInternals();
+        }}
       />
       {/* 选中时浮动「Edit」按钮 — 仅图像类型可用，与双击预览图等价 */}
       {selected && canEditImage && (
