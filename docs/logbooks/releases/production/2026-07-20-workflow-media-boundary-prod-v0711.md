@@ -12,3 +12,8 @@
 - OutputNode 保留批量视频数组和下游引用。
 
 本次复用 Gray 已验收版本，不执行 retention/prune。
+
+## Production 验证
+
+- API/Worker active；公网与内网状态均为 `0.7.11 / production / enforced`。
+- 权限 readiness ready，subjects `142`，published `125`，restricted `11`，retired `6`，rules `2772`，failures `0`。
