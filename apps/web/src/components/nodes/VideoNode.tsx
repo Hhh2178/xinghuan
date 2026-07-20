@@ -75,6 +75,7 @@ import {
   resolveVideoPreviewGroups,
   type BackendVideoFrameMode,
 } from './videoNodeBackendInputs';
+import { appendGeneratedVideoUrls } from './videoGenerationAccumulation';
 
 /**
  * VideoNode - 异步视频生成(完全对齐 gpt-image-2-web)
@@ -216,6 +217,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   // 各参数(跳过着调用 update 默认值)
   const ratio: string = d?.ratio || backendModel?.ui.defaultAspectRatio || modelDef.defaultRatio;
   const generationCount = clampGenerationCount(d?.generationCount ?? 1);
+  const accumulateOutputs = d?.accumulateOutputs === true;
   const duration: number | string = d?.duration ?? backendModel?.ui.defaultDuration ?? modelDef.defaultDuration ?? (modelDef.durations?.[0] || 0);
   const resolution: string = d?.resolution || backendModel?.ui.defaultResolution || (isJimengSeedanceSelected ? '720p' : modelDef.defaultResolution || '');
   const seed: number = typeof d?.seed === 'number' ? d.seed : 0;
@@ -1045,9 +1047,19 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       startedAt: Date.now(),
       finishedAt: null,
     }));
-    update({ status: 'submitting', error: null, videoUrl: null, videoUrls: [], taskId: null, taskRuns: initialTaskRuns });
+    const existingVideoUrls = accumulateOutputs
+      ? appendGeneratedVideoUrls(d?.videoUrls, d?.videoUrl)
+      : [];
+    update({
+      status: 'submitting',
+      error: null,
+      videoUrl: existingVideoUrls[0] || null,
+      videoUrls: existingVideoUrls,
+      taskId: null,
+      taskRuns: initialTaskRuns,
+    });
     try {
-      const aggregatedVideoUrls: string[] = [];
+      const aggregatedVideoUrls: string[] = [...existingVideoUrls];
       const aggregatedRemoteVideoUrls: string[] = [];
       const taskIds: string[] = [];
       let lastTaskId: string | null = null;
@@ -1461,6 +1473,16 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             ))}
           </select>
         </div>
+
+        <label className="flex items-center gap-1.5 text-[10px] text-white/60 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={accumulateOutputs}
+            onChange={(e) => update({ accumulateOutputs: e.target.checked })}
+            className="accent-rose-400"
+          />
+          输出累积（跨次生成追加）
+        </label>
 
         {/* === FAL 专属参数面板 === */}
         {showBuiltinFalControls && falReg?.paramKind === 'veo-fal' && (

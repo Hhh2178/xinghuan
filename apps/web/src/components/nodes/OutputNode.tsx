@@ -40,7 +40,7 @@ import {
   computeOutputPreviewFrameHeight,
 } from './outputPreviewLayout';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
-import { readPersistedOutputMediaSnapshot, shouldCollectOutputNodeUpstream } from './outputNodeMaterialMode';
+import { mergePersistedOutputMediaSnapshot, shouldCollectOutputNodeUpstream } from './outputNodeMaterialMode';
 import { constrainMediaNodeResize, fitMediaNodeFromWidth, mediaAspectRatio } from './mediaNodeSize';
 // v1.2.10.5: 节点落点防重叠 —— 双击编辑产出 N 节点 3 列宫格整组避让
 import { placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
@@ -394,15 +394,15 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
       d.directTextSegments.forEach((t: any) => pushUniqueText(out.texts, t));
     }
 
-    // Canvas persistence stores the resolved Output snapshot on the node itself.
-    // During refresh an upstream source may not be available yet; never let that
-    // temporary empty derivation erase a completed output from the saved canvas.
-    if (out.images.length === 0 && out.videos.length === 0 && out.audios.length === 0) {
-      const persisted = readPersistedOutputMediaSnapshot(d);
-      persisted.images.forEach((url) => pushUnique(out.images, url));
-      persisted.videos.forEach((url) => pushUnique(out.videos, url));
-      persisted.audios.forEach((url) => pushUnique(out.audios, url));
-    }
+    // Restore each media kind independently: an image reference can hydrate before
+    // a previously generated video, and must not erase the saved video snapshot.
+    const persisted = mergePersistedOutputMediaSnapshot(
+      { images: out.images, videos: out.videos, audios: out.audios },
+      d,
+    );
+    out.images = persisted.images;
+    out.videos = persisted.videos;
+    out.audios = persisted.audios;
 
     // 兜底: 一些节点把视频/音频塞在 imageUrl, 通过扩展名识别再纠正
     out.images = out.images.filter((u) => {

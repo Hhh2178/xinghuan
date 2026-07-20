@@ -22,6 +22,18 @@ export function readPersistedOutputMediaSnapshot(data: unknown): PersistedOutput
   };
 }
 
+export function mergePersistedOutputMediaSnapshot(
+  collected: PersistedOutputMediaSnapshot,
+  data: unknown,
+): PersistedOutputMediaSnapshot {
+  const persisted = readPersistedOutputMediaSnapshot(data);
+  return {
+    images: collected.images.length > 0 ? collected.images : persisted.images,
+    videos: collected.videos.length > 0 ? collected.videos : persisted.videos,
+    audios: collected.audios.length > 0 ? collected.audios : persisted.audios,
+  };
+}
+
 function collectUrls(...values: unknown[]): string[] {
   const output: string[] = [];
   const push = (value: unknown) => {
