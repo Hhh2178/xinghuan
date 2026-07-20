@@ -9,7 +9,7 @@
 - 当前状态：`AICOPY 视频补充请求契约入口按协议能力展示`
 - 部署内容：`移除旧 SD 模型 ID 白名单；所有 AICOPY 视频模型显示入口，配置仍按当前模型隔离`
 - 已验证：`178 项测试、全 workspace 类型检查与构建、Harness、27 个普通账号差集、真实双账号覆盖、Gray runtime/readiness 与三 Release retention 收口`
-- 待验收：`无本批次阻塞项`
+- 待验收：`无本批次阻塞项；retention 已保留 current/rollback/v0.7.6 共 3 个 Release`
 - 部署时间：`2026-07-20`
 - 当前批次记录：
   - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
@@ -114,7 +114,7 @@
 - 版本：`v0.7.8`
 - release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
 - 当前状态：`AICOPY 视频补充请求契约入口按协议能力展示，复用 Gray 同一制品`
-- 当前补修：`26 个普通账号和真实账号覆盖验收通过；回滚锚点为 v0.7.6；三 Release retention 已收口；继续观察既有任务失败趋势与 revision conflict`
+- 当前补修：`AICOPY 视频入口生产制品检查通过；回滚锚点为 v0.7.7；三 Release retention 已收口；继续观察既有任务失败趋势与 revision conflict`
 - 当前批次记录：
   - `production/2026-07-20-aicopy-video-contract-scope-production-v078.md`
   - `../validations/2026-07-20-aicopy-video-contract-scope-production-v078.md`

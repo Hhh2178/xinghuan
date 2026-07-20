@@ -11,3 +11,4 @@
 - Production 复用 Gray 同一制品；24 个迁移全部 skipped，没有修改模型或权限数据。
 - 内外网为 `0.7.8 / production / enforced`，API/Worker active。
 - 生产 Admin bundle 已验证包含“所有 AICOPY 协议视频模型均可按需启用”的新入口说明。
+- Retention 保留 v0.7.8 current、v0.7.7 rollback 与 v0.7.6，删除旧 v0.7.5 Release 并释放 `316,452,864` bytes；shared/备份/用户素材未触碰。
