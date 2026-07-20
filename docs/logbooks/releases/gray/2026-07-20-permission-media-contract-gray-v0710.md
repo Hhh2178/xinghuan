@@ -14,3 +14,10 @@
 
 - 本轮只发布 Gray；Production 保持 v0.7.8。
 - 不执行 Release retention/prune，不删除旧 Release。
+
+## Gray 验证结果
+
+- 当前 release：`20260720-permission-media-contract-gray-r1-v0710`；API/Worker `active`。
+- 公网与内网 `/api/status`：`0.7.10 / gray / enforced`。
+- 权限 readiness：`ready=true`，subjects `128`，published `122`，restricted `3`，retired `3`，failures `0`。
+- Gray 已迁移四个 SD 模型：按次模型使用 `sd2-per-request`；三个按秒模型使用 `sd2-per-second`；混合媒体上限 `referenceVideos/referenceAudio=10`，默认 `2`。
