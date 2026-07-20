@@ -66,10 +66,10 @@ export function mergeAicopySdModelConfig(row, options = {}) {
     ...currentSchema,
     aspectRatio: aspectRatioSchemaForProfile(profile, row.model_id, currentSchema.aspectRatio),
     resolution: resolutionSchemaForProfile(profile, row.model_id, currentSchema.resolution),
-    referenceImages: { ...plainObject(currentSchema.referenceImages), type: "image[]", max: 9 },
+    referenceImages: { ...plainObject(currentSchema.referenceImages), type: "image[]", max: imageLimitForProfile(profile) },
     ...(supportsMixedMedia ? {
-      referenceVideos: { ...plainObject(currentSchema.referenceVideos), type: "video[]", max: 3 },
-      referenceAudio: { ...plainObject(currentSchema.referenceAudio), type: "audio[]", max: 3 },
+      referenceVideos: { ...plainObject(currentSchema.referenceVideos), type: "video[]", max: 10, default: 2 },
+      referenceAudio: { ...plainObject(currentSchema.referenceAudio), type: "audio[]", max: 10, default: 2 },
     } : {}),
     duration: durationSchemaForProfile(profile, currentSchema.duration),
   };
@@ -238,6 +238,10 @@ function durationSchemaForProfile(profile, currentValue) {
   if (profile === "sd-channel-431") return { ...current, type: "select", options: [10, 15], default: 15 };
   if (profile === "sd2-per-request" || profile === "sd-channel-900") return { ...current, type: "select", options: [15], default: 15 };
   return { ...current, type: "range", min: 4, max: 15, step: 1, default: 15 };
+}
+
+function imageLimitForProfile(profile) {
+  return profile === "sd-channel-431" ? 4 : 9;
 }
 
 function aspectRatioSchemaForProfile(profile, modelId, currentValue) {

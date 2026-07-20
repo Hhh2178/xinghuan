@@ -21,6 +21,12 @@ import {
   syncVideoReferenceImageTransport,
   type VideoReferenceImageTransport,
 } from "./admin-model-editor-video-reference";
+import {
+  DEFAULT_VIDEO_REFERENCE_MEDIA_MAX,
+  readVideoReferenceMediaMax,
+  syncVideoReferenceMediaSchema,
+  clampReferenceMediaMax,
+} from "./admin-model-editor-video-media-reference";
 import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -210,9 +216,9 @@ function inputCapabilityMeta(capability: Capability) {
     },
     {
       key: "videoReference",
-      label: "视频理解",
-      description: "允许 LLM 节点向该模型发送视频输入。",
-      visible: capability === "chat",
+      label: capability === "video" ? "参考视频" : "视频理解",
+      description: capability === "video" ? "允许视频节点接入参考视频。" : "允许 LLM 节点向该模型发送视频输入。",
+      visible: capability === "chat" || capability === "video",
     },
   ];
   return items.filter((item) => item.visible);
@@ -377,6 +383,8 @@ export function ModelEditorRow({
   const [videoDurationStep, setVideoDurationStep] = useState("1");
   const [videoDurationDefault, setVideoDurationDefault] = useState("8");
   const [videoReferenceImageMax, setVideoReferenceImageMax] = useState("1");
+  const [videoReferenceMax, setVideoReferenceMax] = useState(String(DEFAULT_VIDEO_REFERENCE_MEDIA_MAX));
+  const [audioReferenceMax, setAudioReferenceMax] = useState(String(DEFAULT_VIDEO_REFERENCE_MEDIA_MAX));
   const [videoReferenceImageTransport, setVideoReferenceImageTransport] = useState<VideoReferenceImageTransport>(
     readVideoReferenceImageTransport(model.advancedConfig || {}),
   );
@@ -419,6 +427,8 @@ export function ModelEditorRow({
       schemaObject,
       model.inputCapabilities?.multiImage ? 4 : 1,
     )));
+    setVideoReferenceMax(String(readVideoReferenceMediaMax(schemaObject, "referenceVideos")));
+    setAudioReferenceMax(String(readVideoReferenceMediaMax(schemaObject, "referenceAudio")));
   }, [model.id, model.updatedAt]);
 
   async function saveModel() {
@@ -498,6 +508,18 @@ export function ModelEditorRow({
         parameterSchemaObject,
         inputCapabilities.imageReference,
         maxReferenceImages,
+      );
+      parameterSchemaObject = syncVideoReferenceMediaSchema(
+        parameterSchemaObject,
+        "referenceVideos",
+        inputCapabilities.videoReference,
+        clampReferenceMediaMax(Number(videoReferenceMax)),
+      );
+      parameterSchemaObject = syncVideoReferenceMediaSchema(
+        parameterSchemaObject,
+        "referenceAudio",
+        inputCapabilities.audioReference,
+        clampReferenceMediaMax(Number(audioReferenceMax)),
       );
       inputCapabilities = {
         ...inputCapabilities,
@@ -934,6 +956,40 @@ export function ModelEditorRow({
                             <option value="url">公网 URL</option>
                             <option value="data_url">Data URL</option>
                           </select>
+                        </span>
+                      </span>
+                    ) : null}
+                    {draft.capability === "video" && item.key === "videoReference" && normalizedCaps.videoReference ? (
+                      <span className="capability-reference-settings" onClick={(event) => event.preventDefault()}>
+                        <span className="capability-reference-limit">
+                          <span>最大参考视频数量</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={videoReferenceMax}
+                            aria-label="最大参考视频数量"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setVideoReferenceMax(String(clampReferenceMediaMax(Number(event.target.value))))}
+                          />
+                        </span>
+                      </span>
+                    ) : null}
+                    {draft.capability === "video" && item.key === "audioReference" && normalizedCaps.audioReference ? (
+                      <span className="capability-reference-settings" onClick={(event) => event.preventDefault()}>
+                        <span className="capability-reference-limit">
+                          <span>最大参考音频数量</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={audioReferenceMax}
+                            aria-label="最大参考音频数量"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setAudioReferenceMax(String(clampReferenceMediaMax(Number(event.target.value))))}
+                          />
                         </span>
                       </span>
                     ) : null}

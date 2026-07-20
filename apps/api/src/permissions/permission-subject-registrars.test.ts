@@ -64,7 +64,7 @@ describe("permission subject registrar", () => {
     });
   });
 
-  it("registers non-model first-wave entries as restricted, publishes enabled models, and retires removed managed entries", async () => {
+  it("publishes permission-manageable entries, restricts disabled models, and retires removed managed entries", async () => {
     const stored = [subject()];
     const registrar = createPermissionSubjectRegistrar({
       listSubjects: async () => stored,
@@ -87,11 +87,11 @@ describe("permission subject registrar", () => {
 
     expect(report.registered).toBeGreaterThan(5);
     expect(stored.find((item) => item.subjectKey === resourceItemSubjectKey("asset-a"))).toMatchObject({
-      exposureState: "restricted",
+      exposureState: "published",
       parentKeys: ["resource.category/cat-a", "resource.category/*", "resource/*"],
     });
     expect(stored.find((item) => item.subjectKey === runningHubAppSubjectKey("rh-a"))).toMatchObject({
-      exposureState: "restricted",
+      exposureState: "published",
       metadata: expect.objectContaining({ enabled: true }),
     });
     expect(stored.find((item) => item.subjectKey === providerModelSubjectKey("model-a"))).toMatchObject({
@@ -135,6 +135,31 @@ describe("permission subject registrar", () => {
     });
 
     expect(stored.find((item) => item.subjectKey === "runninghub.app/rh-a")).toMatchObject({ exposureState: "published", displayName: "New title" });
+  });
+
+  it("repairs stale restricted resource entries so their child rules are editable", async () => {
+    const stored = [subject({
+      subjectKey: resourceItemSubjectKey("asset-a"),
+      domain: "resource",
+      subjectType: "item",
+      parentKeys: ["resource/*"],
+      sourceId: "item:asset-a",
+      exposureState: "restricted",
+    })];
+    const registrar = createPermissionSubjectRegistrar({
+      listSubjects: async () => stored,
+      upsertSubject: async (next) => { stored[0] = next; return next; },
+    });
+
+    await registrar.reconcileFirstWavePermissionSubjects({
+      resourceCategories: [],
+      resourceItems: [{ id: "asset-a", kind: "image", title: "Cover" }],
+      runningHubItems: [],
+      nodeTypes: [],
+      providerModels: [],
+    });
+
+    expect(stored[0].exposureState).toBe("published");
   });
 
   it("does not increment revision when postgres jsonb returns metadata keys in a different order", async () => {

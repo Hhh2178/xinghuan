@@ -102,7 +102,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     sourceId: `category:${item.id}`,
     displayName: item.name,
     metadata: { kind: item.kind },
-  }));
+  }, "published"));
   const items = sources.resourceItems.map((item) => managedSubject({
     subjectKey: resourceItemSubjectKey(item.id),
     domain: "resource",
@@ -111,7 +111,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     sourceId: `item:${item.id}`,
     displayName: item.title,
     metadata: { kind: item.kind, categoryId: item.categoryId || "" },
-  }));
+  }, "published"));
   const runningHub = sources.runningHubItems.map((item) => managedSubject({
     subjectKey: item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId),
     domain: "runninghub",
@@ -120,7 +120,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     sourceId: `${item.kind}:${item.catalogId}`,
     displayName: item.title,
     metadata: { enabled: item.enabled },
-  }));
+  }, "published"));
   const nodes = sources.nodeTypes.map((item) => managedSubject({
     subjectKey: canvasNodeSubjectKey(item.type),
     domain: "canvas",
@@ -129,7 +129,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     sourceId: `node:${item.type}`,
     displayName: item.label,
     metadata: { category: item.category },
-  }));
+  }, "published"));
   const models = sources.providerModels.map((item) => managedSubject({
     subjectKey: providerModelSubjectKey(item.id),
     domain: "provider",
@@ -150,7 +150,7 @@ function parentSubject(
   displayName: string,
   parentKey?: string,
 ) {
-  return managedSubject({ subjectKey, domain, subjectType, parentKeys: parentKey ? [parentKey] : [], sourceId, displayName, metadata: { parent: true } });
+  return managedSubject({ subjectKey, domain, subjectType, parentKeys: parentKey ? [parentKey] : [], sourceId, displayName, metadata: { parent: true } }, "published");
 }
 
 function managedSubject(
@@ -166,9 +166,11 @@ function managedSubject(
 }
 
 function mergeExistingSubject(existing: PermissionSubject, source: PermissionSubject): PermissionSubject {
+  // Directory entries must stay editable by scoped rules. Provider models are
+  // the only entries whose global visibility follows their enabled state.
   const exposureState = source.domain === "provider" && source.subjectType === "model"
     ? source.exposureState
-    : existing.exposureState;
+    : source.exposureState;
   const sourceChanged = existing.domain !== source.domain || existing.subjectType !== source.subjectType || existing.sourceId !== source.sourceId ||
     existing.displayName !== source.displayName || existing.exposureState !== exposureState ||
     !sameStrings(existing.parentKeys, source.parentKeys) || !sameMetadata(existing.metadata, source.metadata);

@@ -2,9 +2,9 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.9`（AICOPY SD 混合媒体请求契约与参考素材链路修复）
+- 当前灰度版本：`v0.7.10`（权限目录可编辑性与 AICOPY 媒体参考契约修复）
 - 当前生产版本：`v0.7.8`（复用 Gray 同一制品晋级）
-- 当前灰度 release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
+- 当前灰度 release：`20260720-permission-media-contract-gray-r1-v0710`
 - 当前生产 release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
 - 当前工作分支：`xinghuan-integration-clean`
 - 最新完成：Gray v0.7.9 已把 SD 按次/按秒混合媒体契约和参考视频链路修复上线；Production 暂保持 v0.7.8，回滚锚点为 Gray v0.7.8。

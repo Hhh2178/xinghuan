@@ -85,6 +85,19 @@ describe("validateVideoInputs", () => {
     })).toMatchObject({ videos: ["motion-a.mp4", "motion-b.mp4"] });
   });
 
+  it("accepts up to ten reference videos and audios", () => {
+    expect(validateVideoInputs({
+      mode: "reference",
+      images: [],
+      videos: Array.from({ length: 10 }, (_, index) => `video-${index}`),
+      audios: Array.from({ length: 10 }, (_, index) => `audio-${index}`),
+      capabilities: fullCapabilities,
+      maxReferenceImages: 9,
+      maxReferenceVideos: 10,
+      maxReferenceAudios: 10,
+    })).toMatchObject({ videos: expect.arrayContaining(["video-9"]), audios: expect.arrayContaining(["audio-9"]) });
+  });
+
   it("uses the schema maximum even when the legacy multi-image flag is false", () => {
     expect(validateVideoInputs({
       mode: "reference",

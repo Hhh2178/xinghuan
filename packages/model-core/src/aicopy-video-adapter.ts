@@ -60,7 +60,8 @@ export function mergeAicopySdRequestContractDefaults(value: unknown): AicopySdAd
   const currentResultPaths = Array.isArray(currentContract.resultPaths)
     ? currentContract.resultPaths.map((path) => String(path || "").trim()).filter(Boolean)
     : [];
-  const requestContractProfile = String(advancedConfig.requestContractProfile || "").trim();
+  const requestContractProfile = String(advancedConfig.requestContractProfile || "").trim()
+    || (currentBindings.some((binding) => String(binding.path || "").trim() === "input.media") ? "sd2-per-request" : "");
   if (requestContractProfile && requestContractProfile !== "sd2-per-second") {
     return {
       ...advancedConfig,

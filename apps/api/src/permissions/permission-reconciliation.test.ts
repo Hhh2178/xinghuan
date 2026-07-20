@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PermissionRule, PermissionSubject } from "@xinghuan/shared";
 import { buildPermissionReconciliationPlan } from "./permission-reconciliation.js";
+import { createPermissionSubjectRegistrar } from "./permission-subject-registrars.js";
 
 const subjects: PermissionSubject[] = [
   {
@@ -254,5 +255,30 @@ describe("permission reconciliation", () => {
     expect(plan.ruleDeletes).toEqual([retiredRule]);
     expect(plan.metrics.ruleDeletes).toBe(1);
     expect(plan.ruleUpserts).toEqual([]);
+  });
+
+  it("publishes permission directory parents so scoped rules remain editable", () => {
+    const subject = {
+      subjectKey: "resource/*",
+      domain: "resource",
+      subjectType: "root",
+      parentKeys: [],
+      sourceId: "resource-root",
+      displayName: "公共资源",
+      metadata: { parent: true, managedBy: "first-wave" },
+      exposureState: "restricted" as const,
+      revision: 2,
+    };
+    const registrar = createPermissionSubjectRegistrar({
+      listSubjects: async () => [subject],
+      upsertSubject: async (next) => next,
+    });
+    return registrar.reconcileFirstWavePermissionSubjects({
+      resourceCategories: [],
+      resourceItems: [],
+      runningHubItems: [],
+      nodeTypes: [],
+      providerModels: [],
+    }).then((report) => expect(report.registered).toBeGreaterThan(0));
   });
 });

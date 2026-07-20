@@ -76,8 +76,8 @@ export interface ModelParameterSchema {
   aspectRatio?: { type?: string; options?: string[]; default?: string };
   size?: { type?: string; options?: string[]; default?: string };
   referenceImages?: { type?: string; max?: number };
-  referenceVideos?: { type?: string; max?: number; formats?: string[] };
-  referenceAudio?: { type?: string; max?: number; formats?: string[] };
+  referenceVideos?: { type?: string; max?: number; default?: number; formats?: string[] };
+  referenceAudio?: { type?: string; max?: number; default?: number; formats?: string[] };
   duration?: {
     type?: string;
     options?: Array<string | number>;
@@ -308,8 +308,8 @@ export function uiMetadataFromSchema(
     defaultSize: stringInList(schema.size?.default, sizes, sizes[0] || ""),
     supportsReference: Boolean(schema.referenceImages),
     maxReferenceImages: Number.isFinite(maxReferenceImages) ? Math.max(0, Math.min(16, maxReferenceImages)) : 0,
-    maxReferenceVideos: Number.isFinite(maxReferenceVideos) ? Math.max(0, Math.min(8, maxReferenceVideos)) : 0,
-    maxReferenceAudios: Number.isFinite(maxReferenceAudios) ? Math.max(0, Math.min(8, maxReferenceAudios)) : 0,
+    maxReferenceVideos: Number.isFinite(maxReferenceVideos) ? Math.max(0, Math.min(10, maxReferenceVideos)) : 0,
+    maxReferenceAudios: Number.isFinite(maxReferenceAudios) ? Math.max(0, Math.min(10, maxReferenceAudios)) : 0,
     durationOptions,
     defaultDuration: durationMode === "range"
       ? (durationRange?.default ?? valueInList(schema.duration?.default, durationOptions, durationOptions[0] || 0))

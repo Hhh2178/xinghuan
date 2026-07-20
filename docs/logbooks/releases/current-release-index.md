@@ -4,14 +4,14 @@
 
 ### Gray
 
-- 版本：`v0.7.9`
-- release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
-- 当前状态：`AICOPY SD 混合媒体请求契约与参考素材链路修复，待 Gray 运行验收`
-- 部署内容：`按次/按秒/渠道 profile 分流媒体字段；参考视频全链路传递；Prompt UTF-8 字节限制与上游错误解包`
-- 已验证：`定向 AICOPY adapter、SD 配置、视频输入契约及全 workspace type-check/build 通过`
-- 已验证：`Gray runtime、API/Worker active、权限 readiness 0 failures；本轮不执行 Production 晋级与 retention/prune`
+- 版本：`v0.7.10`
+- release：`20260720-permission-media-contract-gray-r1-v0710`
+- 当前状态：`权限目录可编辑性与 AICOPY 媒体参考契约修复，待 Gray 运行验收`
+- 部署内容：`公共资源及可治理目录对象发布；参考视频/音频 max=10 default=2；SD input.media[] 契约兼容`
+- 已验证：`定向权限、AICOPY adapter、SD 配置、视频输入测试通过`
+- 已验证：`待 Gray runtime 验证；本轮不执行 Production 晋级与 retention/prune`
 - 部署时间：`2026-07-20`
-- 本轮制品源提交：`e921a3e`
+- 本轮制品源提交：`96b196e`
 - 当前批次记录：
   - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`

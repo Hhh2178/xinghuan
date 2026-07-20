@@ -6591,6 +6591,22 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
     user,
     { secret: secretKey(), scope: environment },
   );
+  const videos = normalizeProviderReferenceUrlsForAccess(
+    Array.isArray(body.videos)
+      ? body.videos.map((item) => safeText(item)).filter(Boolean).slice(0, ui.maxReferenceVideos || 10)
+      : [],
+    publicOrigin,
+    user,
+    { secret: secretKey(), scope: environment },
+  );
+  const audios = normalizeProviderReferenceUrlsForAccess(
+    Array.isArray(body.audios)
+      ? body.audios.map((item) => safeText(item)).filter(Boolean).slice(0, ui.maxReferenceAudios || 10)
+      : [],
+    publicOrigin,
+    user,
+    { secret: secretKey(), scope: environment },
+  );
   const firstFrame = inputCapabilities.firstFrame
     ? normalizeProviderReferenceUrlForAccess(safeText(body.first_frame || params.first_frame), publicOrigin, user, { secret: secretKey(), scope: environment })
     : "";
@@ -6615,6 +6631,8 @@ async function submitExternalVideoTask(rawBody: unknown, user: CurrentUser, publ
     duration,
     resolution,
     images,
+    videos,
+    audios,
     first_frame: firstFrame,
     last_frame: lastFrame,
     advancedMode: safeText(advancedConfig.mode || params.mode),

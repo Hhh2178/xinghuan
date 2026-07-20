@@ -30,7 +30,8 @@ assert.equal(merged.inputCapabilities.firstFrame, true);
 assert.equal(merged.inputCapabilities.lastFrame, true);
 assert.equal(merged.inputCapabilities.audioReference, true);
 assert.equal(merged.parameterSchema.referenceImages.max, 9);
-assert.equal(merged.parameterSchema.referenceAudio.max, 3);
+assert.equal(merged.parameterSchema.referenceAudio.max, 10);
+assert.equal(merged.parameterSchema.referenceAudio.default, 2);
 assert.equal(merged.parameterSchema.duration.default, 15);
 assert.equal(merged.advancedConfig.aicopyRequestContractEnabled, true);
 assert.equal(merged.advancedConfig.requestContract.bindings.find((item) => item.path === "metadata.enableSound")?.value, "on");
@@ -52,7 +53,8 @@ const perRequest = mergeAicopySdModelConfig({
   model_id: "sd-720-fast-渠道9:16（按次）",
 }, { profile: "sd2-per-request" });
 assert.equal(perRequest.inputCapabilities.videoReference, true);
-assert.equal(perRequest.parameterSchema.referenceVideos.max, 3);
+assert.equal(perRequest.parameterSchema.referenceVideos.max, 10);
+assert.equal(perRequest.parameterSchema.referenceVideos.default, 2);
 assert.deepEqual(
   perRequest.advancedConfig.requestContract.bindings.map((item) => item.path),
   ["input.prompt", "input.media", "seconds", "size", "custom.trace"],
@@ -63,6 +65,9 @@ const channel431 = mergeAicopySdModelConfig({
   ...selected,
   model_id: "sd-720-fast-渠道2（按秒）",
 }, { profile: "sd-channel-431" });
+assert.equal(channel431.parameterSchema.referenceImages.max, 4);
+assert.equal(channel431.parameterSchema.referenceVideos.max, 10);
+assert.equal(channel431.parameterSchema.referenceAudio.max, 10);
 assert.deepEqual(
   channel431.advancedConfig.requestContract.bindings.map((item) => item.path),
   [
