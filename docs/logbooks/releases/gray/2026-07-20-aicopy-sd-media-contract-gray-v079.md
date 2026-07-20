@@ -3,6 +3,8 @@
 - release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
 - source commit：`e921a3e`
 - 制品：`dist-release/20260720-aicopy-sd-media-contract-gray-r1-v079.tar.gz`
+- 大小：`1,854,979` bytes
+- SHA-256：`553bb557d61685ab19770f928a5cff03996434760f9a68887165493b8b6ef590`
 - 回滚：`20260720-aicopy-video-contract-scope-gray-r1-v078`
 
 ## 变更
@@ -17,4 +19,5 @@
 - AICOPY adapter contract：PASS
 - AICOPY SD model config：PASS
 - video input validation：14 tests PASS
-- 完整 type-check/build 与 Gray runtime verify 在发布前执行并记录到验证单。
+- 完整 type-check/build 与 Gray runtime verify 已通过；API/Worker active，公网/内网均为 `0.7.9 / gray / enforced`，权限 readiness 0 failures。
+- 发布后未执行 retention/prune，旧 Release 全部保留。

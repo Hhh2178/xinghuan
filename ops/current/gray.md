@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.9`
 - 当前 release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
-- 当前状态：`AICOPY SD 混合媒体契约与参考素材链路修复，待 Gray 运行验收`
+- 当前状态：`AICOPY SD 混合媒体契约与参考素材链路修复，Gray runtime 验证通过`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
 - 本轮制品源提交：`e921a3e`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
