@@ -37,9 +37,9 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.8`
-  - release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
-  - 状态：`所有 AICOPY 视频模型均显示可选 SD 补充请求契约，配置按模型隔离`
+  - 版本：`v0.7.10`
+  - release：`20260720-permission-media-contract-prod-r1-v0710`
+  - 状态：`权限目录与 AICOPY 媒体参考契约由 Gray 验收制品晋级，待 Production runtime 验收`
   - 当前补修：`普通用户只隐藏 3 个 SD 视频模型，Grok/Seedance 已恢复；回滚锚点为 v0.7.7；retention 保留 v0.7.8/v0.7.7/v0.7.6；继续观察既有任务失败趋势与 revision conflict`
 
 ## current / archive 分工
