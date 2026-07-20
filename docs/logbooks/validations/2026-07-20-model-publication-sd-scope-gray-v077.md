@@ -9,3 +9,4 @@
 - 全量 27 个普通账号验证一致：管理员有 13 个视频模型，普通账号有 10 个；差集严格等于 3 个 SD 模型，所有非 SD 模型可见。
 - 临时为一个账号设置 SD allow 后，该账号恢复访问，而另一个账号保持拒绝；清理临时规则后两者均恢复组 deny 基线。
 - ungrouped 与 named group 目录验证均通过：48 models、11 image、10 video、7 RunningHub、2 resources、0 denied node types。
+- Retention dry-run/apply 均保护 current/rollback，最终保留 3 个 Release；删除 1 个明确旧 Release 并释放 `308,023,296` bytes。

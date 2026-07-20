@@ -10,3 +10,4 @@
 - 临时账号 allow 覆盖组 deny 的真实测试通过，另一账号不受影响；临时规则已清理并恢复基线。
 - ungrouped 与 named group 目录验证均通过：43 models、8 image、11 video、10 RunningHub、0 resources、0 denied node types。
 - request-chain 与 system observability 校验通过，近 24 小时 requestId 覆盖率 100%。系统仍报告既有 7 天任务失败累计和 24 小时 6 次 canvas revision conflict 为 critical；本次发布未扩大服务重启或权限 readiness failures。
+- Retention dry-run/apply 均保护 current/rollback，最终保留 3 个 Release；删除 1 个明确旧 Release 并释放 `308,019,200` bytes。

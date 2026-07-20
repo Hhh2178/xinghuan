@@ -24,3 +24,4 @@
 - 24 个迁移均已存在，无迁移重复执行。
 - Gray 已切换到本 release；API/Worker active 且 `NRestarts=0`，严格 runtime/readiness 返回 `0.7.7 / gray / enforced / ready`。
 - 普通用户目录有 48 个模型、10 个视频模型；仅 3 个 SD 视频模型被隐藏，所有非 SD 视频模型正常可见。
+- Retention 保留 current v0.7.7、rollback v0.7.6 与 v0.7.5 r2；删除旧 `20260718-generation-artifact-stream-abort-gray-r1-v075` Release，释放 `308,023,296` bytes。shared 数据、备份与用户素材未触碰，代码可由 Git/历史制品恢复。
