@@ -29,7 +29,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.11`
   - release：`20260720-workflow-media-boundary-gray-r1-v0711`
-  - 状态：`媒体节点尺寸、画布刷新保留和生成任务续接修复，Gray runtime 验证通过`
+  - 状态：`Grok 批次逐项输出、输出刷新保留和可选跨次累积，Gray runtime 与视觉验证通过`
   - 当前补修：`Gray runtime 验证通过；Production 保持 v0.7.11；不执行 retention/prune`
   - 本轮制品源提交：`96b196e`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`

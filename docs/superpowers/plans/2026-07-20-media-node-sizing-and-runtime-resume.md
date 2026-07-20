@@ -77,7 +77,7 @@ size: {
 5. 执行专项测试、全量 type-check、build、Harness 和 CodeGraph sync。
 6. 递增 PATCH 到 `0.7.12`，更新系统文档、daily logbook 和发布状态材料。
 7. 发布 Gray，验证尺寸、刷新保留、任务续接、API/Worker、权限 readiness 和公网状态。**已完成**。
-8. Gray 通过后使用同版本制品晋级 Production，并重复运行态验证。**待 Gray 浏览器验收完成后执行**。
+8. Gray 通过后使用同版本制品晋级 Production，并重复运行态验证。**Gray 已通过，待执行**。
 
 ## 回归场景
 
