@@ -27,10 +27,10 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.8`
-  - release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
-  - 状态：`所有 AICOPY 视频模型均显示可选 SD 补充请求契约，配置按模型隔离`
-  - 当前补修：`普通用户只隐藏 3 个 SD 视频模型；回滚锚点为 v0.7.7；retention 保留 v0.7.8/v0.7.7/v0.7.6`
+  - 版本：`v0.7.9`
+  - release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
+  - 状态：`AICOPY SD 混合媒体契约与参考素材链路修复，待 Gray 运行验收`
+  - 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

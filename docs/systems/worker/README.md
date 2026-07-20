@@ -58,6 +58,8 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 当前下一步收口重点已更新为：
   - `remaining runtime glue`
   - `provider capability entry seam`
+- AICOPY 视频 Worker 只消费已验证的 `images / videos / audios / videoInputMode / requestContract`，具体 SD 按次、按秒差异由 `packages/model-core` 请求契约解释；Worker 不按模型名硬编码请求体。
+- AICOPY 提交失败时会递归解包上游 JSON `message/error.message`，任务日志保存最内层业务原因；未取得上游 task ID 的校验失败不应被误判为已创建服务商任务。
 
 ## 工程治理要求
 

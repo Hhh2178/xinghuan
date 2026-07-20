@@ -76,6 +76,7 @@ export interface ModelParameterSchema {
   aspectRatio?: { type?: string; options?: string[]; default?: string };
   size?: { type?: string; options?: string[]; default?: string };
   referenceImages?: { type?: string; max?: number };
+  referenceVideos?: { type?: string; max?: number; formats?: string[] };
   referenceAudio?: { type?: string; max?: number; formats?: string[] };
   duration?: {
     type?: string;
@@ -108,6 +109,7 @@ export interface ModelUiMetadata {
   defaultSize: string;
   supportsReference: boolean;
   maxReferenceImages: number;
+  maxReferenceVideos: number;
   maxReferenceAudios: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;
@@ -293,6 +295,7 @@ export function uiMetadataFromSchema(
     : compactValues(schema.duration?.options, []);
   const resolutionOptions = compactStrings(schema.resolution?.options, capability === "video" ? VIDEO_RESOLUTIONS : []);
   const maxReferenceImages = Number(schema.referenceImages?.max);
+  const maxReferenceVideos = Number(schema.referenceVideos?.max);
   const maxReferenceAudios = Number(schema.referenceAudio?.max);
   const inputCapabilities = parseInputCapabilities(
     { ...parsePlainObject(inputCapabilitiesValue), parameterSchema: schema },
@@ -305,6 +308,7 @@ export function uiMetadataFromSchema(
     defaultSize: stringInList(schema.size?.default, sizes, sizes[0] || ""),
     supportsReference: Boolean(schema.referenceImages),
     maxReferenceImages: Number.isFinite(maxReferenceImages) ? Math.max(0, Math.min(16, maxReferenceImages)) : 0,
+    maxReferenceVideos: Number.isFinite(maxReferenceVideos) ? Math.max(0, Math.min(8, maxReferenceVideos)) : 0,
     maxReferenceAudios: Number.isFinite(maxReferenceAudios) ? Math.max(0, Math.min(8, maxReferenceAudios)) : 0,
     durationOptions,
     defaultDuration: durationMode === "range"

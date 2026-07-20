@@ -11,6 +11,8 @@ import { createOpenAiAudioChatPayload } from "./audio-provider-adapter.js";
 import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
 import {
   normalizeVideoInputMode,
+  resolveVideoPromptByteLimit,
+  validateVideoPromptBytes,
   validateVideoInputs,
   VideoInputValidationError,
 } from "./video-input-validation.js";
@@ -340,12 +342,16 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
     const inputCapabilities = parseInputCapabilities(model.inputCapabilities, "video");
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    validateVideoPromptBytes(prompt, resolveVideoPromptByteLimit(protocol, advancedConfig.maxPromptBytes));
     const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
     const requestedDuration = normalizeVideoDurationValue(body.duration ?? params.duration);
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
     const submittedImages = Array.isArray(body.images)
       ? body.images.map((item) => deps.safeText(item)).filter(Boolean)
+      : [];
+    const submittedVideos = Array.isArray(body.videos)
+      ? body.videos.map((item) => deps.safeText(item)).filter(Boolean)
       : [];
     const submittedAudios = Array.isArray(body.audios)
       ? body.audios.map((item) => deps.safeText(item)).filter(Boolean)
@@ -375,9 +381,11 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     enforceVideoInputs({
       mode: videoInputMode,
       images: orderedSubmittedImages,
+      videos: submittedVideos,
       audios: submittedAudios,
       capabilities: inputCapabilities,
       maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceVideos: ui.maxReferenceVideos,
       maxReferenceAudios: ui.maxReferenceAudios,
     });
     const images = deps.normalizeProviderReferenceUrls(
@@ -385,13 +393,16 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       publicOrigin,
       user,
     );
+    const videos = deps.normalizeProviderReferenceUrls(submittedVideos, publicOrigin, user);
     const audios = deps.normalizeProviderReferenceUrls(submittedAudios, publicOrigin, user);
     const validatedInputs = enforceVideoInputs({
       mode: videoInputMode,
       images,
+      videos,
       audios,
       capabilities: inputCapabilities,
       maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceVideos: ui.maxReferenceVideos,
       maxReferenceAudios: ui.maxReferenceAudios,
     });
     const ratio = ui.aspectRatios.length > 0 ? (ui.aspectRatios.includes(requestedRatio) ? requestedRatio : ui.defaultAspectRatio) : "";
@@ -410,6 +421,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       duration,
       resolution,
       images: validatedInputs.images,
+      videos: validatedInputs.videos,
       first_frame: validatedInputs.firstFrame || "",
       last_frame: validatedInputs.lastFrame || "",
       audios: validatedInputs.audios,
@@ -437,7 +449,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     });
   }
 
-  function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
+function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
     try {
       return validateVideoInputs(input);
     } catch (error) {
@@ -592,6 +604,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     readProviderGenerationTaskStatus,
   };
 }
+
 
 function normalizeVideoDurationValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);

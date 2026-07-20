@@ -169,7 +169,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     firstFrame: false,
     lastFrame: false,
     audioReference: false,
+    videoReference: false,
   };
+  const backendSupportsVideoReference = Boolean(backendVideoCaps.videoReference);
   const backendSupportsAudioReference = Boolean(backendVideoCaps.audioReference);
   const backendImageSlotCount = isBackendSelected
     ? getBackendImageSlotCount(backendVideoCaps, backendModel?.ui.maxReferenceImages || 1)
@@ -428,7 +430,11 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         ? 1
         : falReg.maxRefImages
       : modelDef.maxRefImages;
-  const maxMentionVideos = isJimengSeedanceSelected ? JIMENG_SEEDANCE_LIMITS.videos : 0;
+  const maxMentionVideos = isBackendSelected && backendSupportsVideoReference
+    ? backendModel?.ui.maxReferenceVideos || 0
+    : isJimengSeedanceSelected
+      ? JIMENG_SEEDANCE_LIMITS.videos
+      : 0;
   const maxMentionAudios = isBackendSelected && backendSupportsAudioReference
     ? backendModel?.ui.maxReferenceAudios || 0
     : isJimengSeedanceSelected
@@ -450,11 +456,12 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       isJimengSeedanceSelected,
       localKind: modelDef.kind,
       showImageMaterials,
+      showVideoMaterials: isBackendSelected && backendSupportsVideoReference,
       showAudioMaterials: isBackendSelected && backendSupportsAudioReference,
     }),
-    [backendSupportsAudioReference, isBackendSelected, isJimengSeedanceSelected, modelDef.kind, showImageMaterials],
+    [backendSupportsAudioReference, backendSupportsVideoReference, isBackendSelected, isJimengSeedanceSelected, modelDef.kind, showImageMaterials],
   );
-  const showMaterialPreview = showImageMaterials || (isBackendSelected && backendSupportsAudioReference);
+  const showMaterialPreview = showImageMaterials || (isBackendSelected && (backendSupportsVideoReference || backendSupportsAudioReference));
 
   // 收集上游 prompt + 参考图/视频/音频 (按用户拖拽顺序), 合并本地拖入素材
   const collectUpstream = (): { prompt: string; imageUrls: string[]; videoUrls: string[]; audioUrls: string[] } => {
@@ -709,8 +716,10 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
       const inputError = getBackendVideoInputValidationError({
         frameMode,
         imageCount: imageUrls.length,
+        videoCount: videoUrls.length,
         audioCount: audioUrls.length,
         maxReferenceImages: backendModel.ui.maxReferenceImages,
+        maxReferenceVideos: backendModel.ui.maxReferenceVideos,
         maxReferenceAudios: backendModel.ui.maxReferenceAudios,
         inputCapabilities: backendVideoCaps,
       });
@@ -754,6 +763,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
           resolution,
           seed: seed > 0 ? seed : undefined,
           images: assignment.orderedImages,
+          videos: videoUrls.slice(0, backendModel.ui.maxReferenceVideos),
           first_frame: assignment.firstFrameUrl,
           last_frame: assignment.lastFrameUrl,
           audios: audioUrls,
@@ -1072,9 +1082,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         return;
       }
       update({ localRefImages: [...cur, payload.url] });
-    } else if (payload.kind === 'video' && payload.url && isJimengSeedanceSelected) {
+    } else if (payload.kind === 'video' && payload.url && (isJimengSeedanceSelected || (isBackendSelected && backendSupportsVideoReference))) {
       const cur = Array.isArray(d?.localRefVideos) ? d.localRefVideos : [];
-      if (cur.indexOf(payload.url) !== -1 || cur.length >= JIMENG_SEEDANCE_LIMITS.videos) return;
+      if (cur.indexOf(payload.url) !== -1) return;
+      if (orderedVideos.length + cur.length >= maxMentionVideos) {
+        setError(`参考视频最多允许 ${maxMentionVideos} 条`);
+        return;
+      }
       update({ localRefVideos: [...cur, payload.url] });
     } else if (payload.kind === 'audio' && payload.url && (isJimengSeedanceSelected || (isBackendSelected && backendSupportsAudioReference))) {
       const cur = Array.isArray(d?.localRefAudios) ? d.localRefAudios : [];
@@ -1091,9 +1105,9 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const { dropProps, isAccepting } = useMaterialDropTarget({
     id,
     accepts: isJimengSeedanceSelected
-      ? ['image', 'video', 'audio', 'text']
+        ? ['image', 'video', 'audio', 'text']
       : isBackendSelected
-        ? [...(showImageMaterials ? ['image' as const] : []), ...(backendSupportsAudioReference ? ['audio' as const] : []), 'text']
+        ? [...(showImageMaterials ? ['image' as const] : []), ...(backendSupportsVideoReference ? ['video' as const] : []), ...(backendSupportsAudioReference ? ['audio' as const] : []), 'text']
         : showImageMaterials
           ? ['image', 'text']
           : ['text'],
@@ -1105,7 +1119,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const videoRefsCount = orderedVideos.length + localRefVideos.length;
   const audioRefsCount = orderedAudios.length + localRefAudios.length;
   const previewTitle = isBackendSelected
-    ? `上游素材 · 图${refsCount}/${Math.max(maxMentionRefs, 0)}${backendSupportsAudioReference ? ` 音${audioRefsCount}/${Math.max(maxMentionAudios, 0)}` : ''}`
+    ? `上游素材 · 图${refsCount}/${Math.max(maxMentionRefs, 0)}${backendSupportsVideoReference ? ` 视${videoRefsCount}/${Math.max(maxMentionVideos, 0)}` : ''}${backendSupportsAudioReference ? ` 音${audioRefsCount}/${Math.max(maxMentionAudios, 0)}` : ''}`
     : isJimengSeedanceSelected
     ? `上游素材 · 图${Math.min(refsCount, JIMENG_SEEDANCE_LIMITS.images)}/${JIMENG_SEEDANCE_LIMITS.images} 视${Math.min(videoRefsCount, JIMENG_SEEDANCE_LIMITS.videos)}/${JIMENG_SEEDANCE_LIMITS.videos} 音${Math.min(audioRefsCount, JIMENG_SEEDANCE_LIMITS.audios)}/${JIMENG_SEEDANCE_LIMITS.audios}`
     : `上游素材 · 参考图 ${Math.min(refsCount, Math.max(maxMentionRefs, 0))}/${Math.max(maxMentionRefs, 0)}`;

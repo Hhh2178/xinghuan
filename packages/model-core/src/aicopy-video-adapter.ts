@@ -5,7 +5,9 @@ interface AicopyVideoAdapterPayloadInput {
   duration?: string | number;
   resolution?: string;
   modeType?: string;
+  videoInputMode?: string;
   images?: string[];
+  videos?: string[];
   audios?: string[];
   requestMapping?: Record<string, string>;
   requestValueTypes?: Record<string, string>;
@@ -17,9 +19,9 @@ interface AicopyVideoAdapterPayloadInput {
 
 export interface AicopyRequestBinding {
   path: string;
-  source?: "model" | "prompt" | "duration" | "ratio" | "resolution" | "modeType" | "images" | "audios";
+  source?: "model" | "prompt" | "duration" | "ratio" | "resolution" | "modeType" | "referenceMode" | "images" | "videos" | "audios" | "media";
   value?: unknown;
-  type?: "string" | "number" | "boolean" | "string[]";
+  type?: "string" | "number" | "boolean" | "string[]" | "media[]";
   omitWhenEmpty?: boolean;
 }
 
@@ -42,6 +44,7 @@ const AICOPY_SD_REQUEST_BINDINGS: AicopyRequestBinding[] = [
   { path: "metadata.ratio", source: "ratio", type: "string" },
   { path: "metadata.enableSound", value: "on", type: "string" },
   { path: "images", source: "images", type: "string[]", omitWhenEmpty: true },
+  { path: "videos", source: "videos", type: "string[]", omitWhenEmpty: true },
   { path: "audios", source: "audios", type: "string[]", omitWhenEmpty: true },
 ];
 
@@ -57,6 +60,18 @@ export function mergeAicopySdRequestContractDefaults(value: unknown): AicopySdAd
   const currentResultPaths = Array.isArray(currentContract.resultPaths)
     ? currentContract.resultPaths.map((path) => String(path || "").trim()).filter(Boolean)
     : [];
+  const requestContractProfile = String(advancedConfig.requestContractProfile || "").trim();
+  if (requestContractProfile && requestContractProfile !== "sd2-per-second") {
+    return {
+      ...advancedConfig,
+      aicopyRequestContractEnabled: true,
+      requestContract: {
+        ...currentContract,
+        bindings: currentBindings,
+        resultPaths: [...new Set([...AICOPY_SD_RESULT_PATHS, ...currentResultPaths])],
+      },
+    };
+  }
   return {
     ...advancedConfig,
     aicopyRequestContractEnabled: true,
@@ -79,7 +94,9 @@ export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayload
   const mapping = { ratio: "size", duration: "seconds", images: "images", ...plainObject(input.requestMapping) } as Record<string, string>;
   const valueTypes = plainObject(input.requestValueTypes) as Record<string, string>;
   const images = normalizePreviewImages(input.modelId, input.images);
+  const videos = normalizePublicUrls(input.videos);
   const audios = normalizePublicUrls(input.audios);
+  const media = createReferenceMedia(images, videos, audios);
   const size = previewVideoSizeFromRatio(input.ratio);
   const requestContract = input.requestContractEnabled
     ? normalizeRequestContract(input.requestContract)
@@ -93,8 +110,11 @@ export function createAicopyVideoAdapterPayload(input: AicopyVideoAdapterPayload
       ratio: input.ratio,
       resolution: input.resolution,
       modeType: input.modeType,
+      referenceMode: resolveReferenceMode(input.videoInputMode, images.length),
       images,
+      videos,
       audios,
+      media,
     });
   } else {
     assignMapped(payload, mapping.ratio, size);
@@ -181,7 +201,7 @@ export function extractAicopyVideoResult(raw: unknown, options: {
     status: readStringAtPath(raw, options.statusPath || "status")
       || readStringAtPath(raw, "data.status")
       || readStringAtPath(raw, "data.0.status"),
-    failureReason: extractFailureReason(raw),
+    failureReason: extractAicopyFailureReason(raw),
     videoUrls,
     raw,
   };
@@ -220,6 +240,11 @@ function castMappedValue(value: unknown, typeHint: string | undefined) {
     if (!Array.isArray(value)) return value === undefined || value === null ? [] : [String(value)];
     return value.map((item) => String(item)).filter(Boolean);
   }
+  if (type === "media[]") {
+    return Array.isArray(value)
+      ? value.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+      : [];
+  }
   return value;
 }
 
@@ -254,14 +279,14 @@ function normalizeRequestBinding(value: unknown): AicopyRequestBinding | null {
 
 function normalizeRequestSource(value: unknown): AicopyRequestBinding["source"] | undefined {
   const source = String(value || "").trim();
-  return ["model", "prompt", "duration", "ratio", "resolution", "modeType", "images", "audios"].includes(source)
+  return ["model", "prompt", "duration", "ratio", "resolution", "modeType", "referenceMode", "images", "videos", "audios", "media"].includes(source)
     ? source as NonNullable<AicopyRequestBinding["source"]>
     : undefined;
 }
 
 function normalizeRequestValueType(value: unknown): AicopyRequestBinding["type"] | undefined {
   const type = String(value || "").trim();
-  return ["string", "number", "boolean", "string[]"].includes(type)
+  return ["string", "number", "boolean", "string[]", "media[]"].includes(type)
     ? type as NonNullable<AicopyRequestBinding["type"]>
     : undefined;
 }
@@ -304,6 +329,22 @@ function assignNestedValue(target: Record<string, unknown>, path: string, value:
 
 function normalizePublicUrls(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
+}
+
+function createReferenceMedia(images: string[], videos: string[], audios: string[]) {
+  return [
+    ...images.map((url) => ({ type: "reference_image", url })),
+    ...videos.map((url) => ({ type: "reference_video", url })),
+    ...audios.map((url) => ({ type: "reference_audio", url })),
+  ];
+}
+
+function resolveReferenceMode(videoInputMode: unknown, imageCount: number) {
+  const mode = String(videoInputMode || "").trim().toLowerCase();
+  if (mode === "firstlast") return "start_end";
+  if (mode === "first") return "start_frame";
+  if (mode === "reference" && imageCount > 0) return "image_reference";
+  return "";
 }
 
 function normalizeResultPaths(value: unknown) {
@@ -394,7 +435,8 @@ function nestedStringValues(value: unknown): string[] {
   return [];
 }
 
-function extractFailureReason(raw: unknown) {
+export function extractAicopyFailureReason(raw: unknown, depth = 0): string {
+  if (depth > 5) return "";
   const directPaths = [
     "error.message",
     "error",
@@ -409,9 +451,25 @@ function extractFailureReason(raw: unknown) {
   ];
   for (const path of directPaths) {
     const text = readReasonAtPath(raw, path);
-    if (text) return text;
+    if (!text) continue;
+    const nested = parseJsonObject(text);
+    if (nested) {
+      const nestedReason = extractAicopyFailureReason(nested, depth + 1);
+      if (nestedReason) return nestedReason;
+    }
+    return text;
   }
   return "";
+}
+
+function parseJsonObject(value: string) {
+  const text = value.trim();
+  if ((!text.startsWith("{") || !text.endsWith("}")) && (!text.startsWith("[") || !text.endsWith("]"))) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function readReasonAtPath(value: unknown, path: string) {

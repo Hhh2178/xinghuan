@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import {
   createAicopyVideoAdapterPayload,
+  extractAicopyFailureReason,
   extractAicopyTask,
   extractAicopyVideoResult,
   mergeAicopySdRequestContractDefaults,
@@ -65,6 +66,86 @@ assert.deepEqual(sdPayload.metadata, {
 });
 assert.deepEqual(sdPayload.images, ["https://example.com/first-frame.png"]);
 assert.equal("audios" in sdPayload, false);
+
+const sdPerRequestPayload = createAicopyVideoAdapterPayload({
+  modelId: "sd-720-fast-渠道9:16（按次）",
+  prompt: "参考所有素材生成竖屏视频",
+  duration: 15,
+  images: ["https://example.com/character.png"],
+  videos: ["https://example.com/motion.mp4"],
+  audios: ["https://example.com/voice.mp3"],
+  requestContractEnabled: true,
+  requestContract: {
+    bindings: [
+      { path: "input.prompt", source: "prompt", type: "string" },
+      { path: "input.media", source: "media", type: "media[]" },
+      { path: "seconds", value: "15", type: "string" },
+      { path: "size", value: "720x1280", type: "string" },
+    ],
+  },
+});
+assert.deepEqual(sdPerRequestPayload.input, {
+  prompt: "参考所有素材生成竖屏视频",
+  media: [
+    { type: "reference_image", url: "https://example.com/character.png" },
+    { type: "reference_video", url: "https://example.com/motion.mp4" },
+    { type: "reference_audio", url: "https://example.com/voice.mp3" },
+  ],
+});
+assert.equal(sdPerRequestPayload.seconds, "15");
+assert.equal(sdPerRequestPayload.size, "720x1280");
+
+const sdPerSecondPayload = createAicopyVideoAdapterPayload({
+  modelId: "sd2-720p-fast",
+  prompt: "保持主体连续",
+  duration: 12,
+  ratio: "16:9",
+  modeType: "image2video",
+  images: ["https://example.com/ref.png"],
+  videos: ["https://example.com/motion.mp4"],
+  audios: ["https://example.com/music.wav"],
+  requestContractEnabled: true,
+  requestContract: {
+    bindings: [
+      { path: "duration", source: "duration", type: "number" },
+      { path: "metadata.modeType", source: "modeType", type: "string" },
+      { path: "metadata.ratio", source: "ratio", type: "string" },
+      { path: "images", source: "images", type: "string[]" },
+      { path: "videos", source: "videos", type: "string[]" },
+      { path: "audios", source: "audios", type: "string[]" },
+    ],
+  },
+});
+assert.deepEqual(sdPerSecondPayload.videos, ["https://example.com/motion.mp4"]);
+
+const sdChannel431Payload = createAicopyVideoAdapterPayload({
+  modelId: "sd-720-max-渠道2（按秒）",
+  prompt: "让角色沿街走动",
+  duration: 15,
+  ratio: "21:9",
+  resolution: "720p",
+  videoInputMode: "firstlast",
+  images: ["https://example.com/first.png", "https://example.com/last.png"],
+  videos: ["https://example.com/motion.mp4"],
+  audios: ["https://example.com/voice.wav"],
+  requestContractEnabled: true,
+  requestContract: {
+    bindings: [
+      { path: "duration", source: "duration", type: "number" },
+      { path: "video_config.aspect_ratio", source: "ratio", type: "string" },
+      { path: "video_config.resolution_name", source: "resolution", type: "string" },
+      { path: "video_config.reference_mode", source: "referenceMode", type: "string", omitWhenEmpty: true },
+      { path: "reference_images", source: "images", type: "string[]" },
+      { path: "input.prompt", source: "prompt", type: "string" },
+      { path: "input.media", source: "media", type: "media[]" },
+    ],
+  },
+});
+assert.deepEqual(sdChannel431Payload.video_config, {
+  aspect_ratio: "21:9",
+  resolution_name: "720p",
+  reference_mode: "start_end",
+});
 
 const genericGrokPayload = createAicopyVideoAdapterPayload({
   modelId: "grok-imagine-1.0-video",
@@ -162,6 +243,19 @@ const sdResult = extractAicopyVideoResult({
 } as any);
 assert.deepEqual(sdResult.videoUrls, ["https://api.aicopy.top/v1/videos/task_example/content"]);
 
+const nestedFailureReason = extractAicopyFailureReason({
+  code: "fail_to_fetch_task",
+  message: JSON.stringify({
+    code: "fail_to_fetch_task",
+    message: JSON.stringify({
+      error: {
+        message: "prompt too long: 4944 bytes (limit: 4096 bytes)",
+      },
+    }),
+  }),
+});
+assert.equal(nestedFailureReason, "prompt too long: 4944 bytes (limit: 4096 bytes)");
+
 const completedWithoutUrlServer = await startCompletedWithoutUrlServer();
 try {
   const completedWithoutUrl = await pollAicopyVideoTask({
@@ -225,7 +319,7 @@ const mergedSdDefaults = mergeAicopySdRequestContractDefaults({
 assert.equal(mergedSdDefaults.aicopyRequestContractEnabled, true);
 assert.deepEqual(
   mergedSdDefaults.requestContract.bindings.map((binding) => binding.path),
-  ["duration", "metadata.modeType", "metadata.ratio", "metadata.enableSound", "images", "audios", "custom.trace"],
+  ["duration", "metadata.modeType", "metadata.ratio", "metadata.enableSound", "images", "videos", "audios", "custom.trace"],
 );
 assert.equal(
   mergedSdDefaults.requestContract.bindings.find((binding) => binding.path === "metadata.ratio")?.source,
@@ -234,6 +328,20 @@ assert.equal(
 assert.deepEqual(
   mergedSdDefaults.requestContract.resultPaths,
   ["result_url", "data.metadata.url", "data.output", "custom.output"],
+);
+
+const preservedPerRequestContract = mergeAicopySdRequestContractDefaults({
+  requestContractProfile: "sd2-per-request",
+  requestContract: {
+    bindings: [
+      { path: "input.prompt", source: "prompt", type: "string" },
+      { path: "input.media", source: "media", type: "media[]" },
+    ],
+  },
+});
+assert.deepEqual(
+  preservedPerRequestContract.requestContract.bindings.map((binding) => binding.path),
+  ["input.prompt", "input.media"],
 );
 
 for (const modelId of ["sd2-720p-mini", "sd2-720p-fast", "sd2-720p"]) {

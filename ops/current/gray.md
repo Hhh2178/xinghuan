@@ -2,14 +2,16 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.8`
-- 当前 release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
-- 当前状态：`所有 AICOPY 协议视频模型均显示可选的 SD 补充请求契约，配置仅作用于当前模型`
-- 当前补修：`普通用户仍只缺少 3 个 SD；AICOPY 视频契约入口按模型隔离；retention 保留 v0.7.8/v0.7.7/v0.7.6`
+- 当前版本：`v0.7.9`
+- 当前 release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
+- 当前状态：`AICOPY SD 混合媒体契约与参考素材链路修复，待 Gray 运行验收`
+- 当前补修：`本轮只推 Gray；Production 保持 v0.7.8；不执行 retention/prune`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-20-aicopy-sd-media-contract-gray-v079.md`
+  - `../../docs/logbooks/validations/2026-07-20-aicopy-sd-media-contract-gray-v079.md`
   - `../../docs/logbooks/releases/gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../../docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`
   - `../../docs/logbooks/releases/gray/2026-07-20-model-publication-sd-scope-v077.md`

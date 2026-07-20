@@ -4,16 +4,18 @@
 
 ### Gray
 
-- 版本：`v0.7.8`
-- release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
-- 当前状态：`AICOPY 视频补充请求契约入口按协议能力展示`
-- 部署内容：`移除旧 SD 模型 ID 白名单；所有 AICOPY 视频模型显示入口，配置仍按当前模型隔离`
-- 已验证：`178 项测试、全 workspace 类型检查与构建、Harness、27 个普通账号差集、真实双账号覆盖、Gray runtime/readiness 与三 Release retention 收口`
-- 待验收：`无本批次阻塞项；retention 已保留 current/rollback/v0.7.6 共 3 个 Release`
+- 版本：`v0.7.9`
+- release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
+- 当前状态：`AICOPY SD 混合媒体请求契约与参考素材链路修复，待 Gray 运行验收`
+- 部署内容：`按次/按秒/渠道 profile 分流媒体字段；参考视频全链路传递；Prompt UTF-8 字节限制与上游错误解包`
+- 已验证：`定向 AICOPY adapter、SD 配置、视频输入契约及全 workspace type-check/build 通过`
+- 待验收：`Gray runtime、API/Worker active、真实参考素材请求；本轮不执行 Production 晋级与 retention/prune`
 - 部署时间：`2026-07-20`
 - 当前批次记录：
   - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`
+  - `gray/2026-07-20-aicopy-sd-media-contract-gray-v079.md`
+  - `../validations/2026-07-20-aicopy-sd-media-contract-gray-v079.md`
   - `gray/2026-07-20-model-publication-sd-scope-v077.md`
   - `../validations/2026-07-20-model-publication-sd-scope-gray-v077.md`
   - `gray/2026-07-18-permission-image-node-repair-v076.md`

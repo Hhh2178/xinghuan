@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.8`（AICOPY 视频补充请求契约入口按协议能力展示）
+- 当前灰度版本：`v0.7.9`（AICOPY SD 混合媒体请求契约与参考素材链路修复）
 - 当前生产版本：`v0.7.8`（复用 Gray 同一制品晋级）
-- 当前灰度 release：`20260720-aicopy-video-contract-scope-gray-r1-v078`
+- 当前灰度 release：`20260720-aicopy-sd-media-contract-gray-r1-v079`
 - 当前生产 release：`20260720-aicopy-video-contract-scope-prod-r1-v078`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 与 Production v0.7.8 已把 SD 补充请求契约入口从旧模型 ID 白名单扩展到全部 AICOPY 视频模型；两环境 API/Worker active，回滚锚点为 v0.7.7。
+- 最新完成：Gray v0.7.9 已把 SD 按次/按秒混合媒体契约和参考视频链路修复上线；Production 暂保持 v0.7.8，回滚锚点为 Gray v0.7.8。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

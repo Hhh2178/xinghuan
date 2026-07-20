@@ -313,6 +313,7 @@ export interface PublicModelUi {
   defaultSize: string;
   supportsReference: boolean;
   maxReferenceImages: number;
+  maxReferenceVideos: number;
   maxReferenceAudios: number;
   durationOptions: Array<string | number>;
   defaultDuration: string | number;

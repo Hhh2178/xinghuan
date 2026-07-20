@@ -47,6 +47,36 @@ const second = mergeAicopySdModelConfig({
 });
 assert.deepEqual(second, merged);
 
+const perRequest = mergeAicopySdModelConfig({
+  ...selected,
+  model_id: "sd-720-fast-渠道9:16（按次）",
+}, { profile: "sd2-per-request" });
+assert.equal(perRequest.inputCapabilities.videoReference, true);
+assert.equal(perRequest.parameterSchema.referenceVideos.max, 3);
+assert.deepEqual(
+  perRequest.advancedConfig.requestContract.bindings.map((item) => item.path),
+  ["input.prompt", "input.media", "seconds", "size", "custom.trace"],
+);
+assert.equal(perRequest.advancedConfig.requestContract.bindings.find((item) => item.path === "size")?.value, "720x1280");
+
+const channel431 = mergeAicopySdModelConfig({
+  ...selected,
+  model_id: "sd-720-fast-渠道2（按秒）",
+}, { profile: "sd-channel-431" });
+assert.deepEqual(
+  channel431.advancedConfig.requestContract.bindings.map((item) => item.path),
+  [
+    "duration",
+    "video_config.aspect_ratio",
+    "video_config.resolution_name",
+    "video_config.reference_mode",
+    "reference_images",
+    "input.prompt",
+    "input.media",
+    "custom.trace",
+  ],
+);
+
 const summary = JSON.stringify(summarizeAicopySdModelChange(selected, merged));
 assert.doesNotMatch(summary, /must-not-be-printed|apiKey|cipher/i);
 

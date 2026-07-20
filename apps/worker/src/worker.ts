@@ -31,6 +31,7 @@ import {
 } from "./worker-apimart-video-adapter.js";
 import {
   createAicopyVideoAdapterPayload,
+  extractAicopyFailureReason,
   extractAicopyTask,
   resolveAicopyRequestContractEnabled,
   shouldUseAicopyVideoAdapter,
@@ -806,6 +807,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   const prompt = safeText(task.payload.prompt);
   if (!prompt) throw new Error("视频任务缺少 prompt");
   const images = Array.isArray(task.payload.images) ? task.payload.images.map((item) => safeText(item)).filter(Boolean).slice(0, 16) : [];
+  const videos = Array.isArray(task.payload.videos) ? task.payload.videos.map((item) => safeText(item)).filter(Boolean).slice(0, 8) : [];
   const audioPayload = Array.isArray(task.payload.audios) ? task.payload.audios : task.payload.audioUrls;
   const audios = Array.isArray(audioPayload) ? audioPayload.map((item) => safeText(item)).filter(Boolean).slice(0, 3) : [];
   const ratio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio || task.payload.ratio);
@@ -855,7 +857,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
       resolution,
       modeType,
+      videoInputMode: safeText(task.payload.videoInputMode),
       images: requestImages,
+      videos,
       audios,
       requestMapping: plainObject(task.payload.requestMapping) as Record<string, string>,
       requestValueTypes: plainObject(task.payload.requestValueTypes) as Record<string, string>,
@@ -871,6 +875,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       : Array.isArray(submitPayload.images)
         ? submitPayload.images
         : [];
+    const submittedMedia = plainObject(submitPayload.input).media;
     const providerRequestSummary = {
       adapter: "aicopy-video",
       modelId: task.providerModelId,
@@ -883,11 +888,13 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       referenceImageTransport: inlineReferenceImages ? "data_url" : "url",
       referenceImageProcessing: inlineReferenceImages ? plainObject(task.payload.referenceImageProcessing) : {},
       audioCount: Array.isArray(submitPayload.audios) ? submitPayload.audios.length : 0,
+      videoCount: Array.isArray(submitPayload.videos) ? submitPayload.videos.length : videos.length,
+      mediaCount: Array.isArray(submittedMedia) ? submittedMedia.length : 0,
       requestContractEnabled,
     };
     await touchTaskRuntime(task.id, {
       providerRequestSummary,
-      submitDiagnostic: `AICopy request mode=${providerRequestSummary.modeType || "unknown"} ratio=${providerRequestSummary.ratio || "unknown"} duration=${String(providerRequestSummary.duration ?? "unknown")} images=${providerRequestSummary.imageCount} audios=${providerRequestSummary.audioCount} sound=${providerRequestSummary.soundEnabled ? "on" : "off"}`,
+      submitDiagnostic: `AICopy request mode=${providerRequestSummary.modeType || "unknown"} ratio=${providerRequestSummary.ratio || "unknown"} duration=${String(providerRequestSummary.duration ?? "unknown")} images=${providerRequestSummary.imageCount} videos=${providerRequestSummary.videoCount} audios=${providerRequestSummary.audioCount} media=${providerRequestSummary.mediaCount} sound=${providerRequestSummary.soundEnabled ? "on" : "off"}`,
     });
     const upstream = await fetch(openAiEndpoint(task.providerBaseUrl, safeText(task.payload.submitPath, "videos")), {
       method: "POST",
@@ -896,7 +903,11 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       signal: AbortSignal.timeout(180000),
     });
     const text = await upstream.text();
-    if (!upstream.ok) throw new Error(`上游视频生成失败 ${upstream.status}: ${text.slice(0, 500)}`);
+    if (!upstream.ok) {
+      let reason = text.slice(0, 500);
+      try { reason = extractAicopyFailureReason(JSON.parse(text)) || reason; } catch { /* preserve raw response */ }
+      throw new Error(`上游视频生成失败 ${upstream.status}: ${reason.slice(0, 500)}`);
+    }
     const raw = text ? JSON.parse(text) : {};
     const taskMeta = extractAicopyTask(raw, {
       taskIdPath: safeText(task.payload.taskIdPath, "task_id"),

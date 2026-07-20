@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateVideoInputs } from "./video-input-validation.js";
+import { validateVideoInputs, validateVideoPromptBytes } from "./video-input-validation.js";
 
 const fullCapabilities = {
   prompt: true,
@@ -8,6 +8,7 @@ const fullCapabilities = {
   firstFrame: true,
   lastFrame: true,
   audioReference: true,
+  videoReference: true,
 };
 
 describe("validateVideoInputs", () => {
@@ -71,6 +72,19 @@ describe("validateVideoInputs", () => {
     })).toThrow("参考音频最多允许 3 条");
   });
 
+  it("preserves validated reference videos", () => {
+    expect(validateVideoInputs({
+      mode: "reference",
+      images: [],
+      videos: ["motion-a.mp4", "motion-b.mp4"],
+      audios: [],
+      capabilities: fullCapabilities,
+      maxReferenceImages: 9,
+      maxReferenceVideos: 3,
+      maxReferenceAudios: 3,
+    })).toMatchObject({ videos: ["motion-a.mp4", "motion-b.mp4"] });
+  });
+
   it("uses the schema maximum even when the legacy multi-image flag is false", () => {
     expect(validateVideoInputs({
       mode: "reference",
@@ -102,5 +116,12 @@ describe("validateVideoInputs", () => {
       maxReferenceImages: 0,
       maxReferenceAudios: 0,
     })).toMatchObject({ modeType: "text2video", images: [] });
+  });
+});
+
+describe("validateVideoPromptBytes", () => {
+  it("counts UTF-8 bytes instead of JavaScript characters", () => {
+    expect(() => validateVideoPromptBytes("中".repeat(1366), 4096)).toThrow("4098 字节，超过当前模型 4096 字节限制");
+    expect(validateVideoPromptBytes("中".repeat(1365), 4096)).toBe(4095);
   });
 });

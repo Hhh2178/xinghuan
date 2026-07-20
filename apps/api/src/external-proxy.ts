@@ -4,6 +4,7 @@ import {
   parseInputCapabilities,
   uiMetadataFromSchema,
   createAicopyVideoAdapterPayload,
+  extractAicopyFailureReason,
   extractAicopyTask,
   extractAicopyVideoResult,
   resolveAicopyRequestContractEnabled,
@@ -45,6 +46,8 @@ import {
 } from "./provider-request-body.js";
 import {
   normalizeVideoInputMode,
+  resolveVideoPromptByteLimit,
+  validateVideoPromptBytes,
   validateVideoInputs,
   VideoInputValidationError,
 } from "./video-input-validation.js";
@@ -612,6 +615,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
     const inputCapabilities = parseInputCapabilities(model.inputCapabilities, "video");
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    validateVideoPromptBytes(prompt, resolveVideoPromptByteLimit(protocol, advancedConfig.maxPromptBytes));
     const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
   const requestedDurationRaw = body.duration ?? params.duration;
@@ -619,6 +623,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const requestedResolution = deps.safeText(body.resolution || params.resolution);
     const submittedImages = Array.isArray(body.images)
       ? body.images.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const submittedVideos = Array.isArray(body.videos)
+      ? body.videos.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
     const submittedAudios = Array.isArray(body.audios)
       ? body.audios.map((item) => String(item || "").trim()).filter(Boolean)
@@ -648,14 +655,21 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     enforceVideoInputs({
       mode: videoInputMode,
       images: orderedSubmittedImages,
+      videos: submittedVideos,
       audios: submittedAudios,
       capabilities: inputCapabilities,
       maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceVideos: ui.maxReferenceVideos,
       maxReferenceAudios: ui.maxReferenceAudios,
     });
     const requestImageValues = await prepareProviderReferenceImages({ advancedConfig, dataDir: deps.dataDir, ownerId: user.id, values: orderedSubmittedImages });
     const images = normalizeProviderReferenceUrls(
       requestImageValues,
+      publicOrigin,
+      user,
+    );
+    const videos = normalizeProviderReferenceUrls(
+      submittedVideos,
       publicOrigin,
       user,
     );
@@ -667,9 +681,11 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const validatedInputs = enforceVideoInputs({
       mode: videoInputMode,
       images,
+      videos,
       audios,
       capabilities: inputCapabilities,
       maxReferenceImages: ui.maxReferenceImages,
+      maxReferenceVideos: ui.maxReferenceVideos,
       maxReferenceAudios: ui.maxReferenceAudios,
     });
     const resolvedFirstFrame = validatedInputs.firstFrame || "";
@@ -705,7 +721,9 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
         duration: typeof duration === "string" || typeof duration === "number" ? duration : undefined,
         resolution,
         modeType,
+        videoInputMode,
         images: validatedInputs.images,
+        videos: validatedInputs.videos,
         audios: validatedInputs.audios,
         requestMapping: deps.stringMap(advancedConfig.requestMapping),
         requestValueTypes: deps.stringMap(advancedConfig.requestValueTypes),
@@ -722,7 +740,11 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       });
       const submitText = await submitResponse.text();
       if (deps.looksLikeHtml(submitText)) throw new Error("上游返回网页 HTML，请检查 Base URL 是否为 API 地址");
-      if (!submitResponse.ok) throw new Error(`上游视频生成失败 ${submitResponse.status}: ${submitText.slice(0, 500)}`);
+      if (!submitResponse.ok) {
+        let reason = submitText.slice(0, 500);
+        try { reason = extractAicopyFailureReason(JSON.parse(submitText)) || reason; } catch { /* preserve raw response */ }
+        throw new Error(`上游视频生成失败 ${submitResponse.status}: ${reason.slice(0, 500)}`);
+      }
       const submitRaw = parseUpstreamJson(submitText, "扩展视频提交接口", submitResponse.headers.get("content-type") || "");
       const task = extractAicopyTask(submitRaw, {
         taskIdPath: deps.safeText(advancedConfig.taskIdPath, "task_id"),

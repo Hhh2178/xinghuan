@@ -24,3 +24,11 @@
 - 后台以 Provider 的 `protocol=aicopy` 与模型 `capability=video` 判断是否展示 SD 补充请求契约，不依赖模型 ID、名称或旧模型白名单。
 - 新增任意 AICOPY 视频模型时都会显示该入口；是否启用仍由模型自己的 `advancedConfig.aicopyRequestContractEnabled` 决定，不在同一 Provider 内自动继承。
 - 开启后才合并标准请求 bindings/result paths；关闭时不得向 Grok 等不需要 SD 字段的模型写入补充契约。
+- AICOPY SD 视频不能再用一套默认 body 覆盖所有模型；`advancedConfig.requestContractProfile` 当前区分：
+  - `sd2-per-second`：顶层 `duration / metadata / images / videos / audios`。
+  - `sd2-per-request`：`input.prompt / input.media`，并按模型固定 `seconds=15` 与横竖屏 `size`。
+  - `sd-channel-431`：`video_config / reference_images` 与 `input.media` 并存。
+  - `sd-channel-900`：固定 15 秒、720p，媒体仅使用顶层 `images`。
+- `requestContract` 的数据源支持 `videos`、`referenceMode` 和结构化 `media`；`media` 按图片、视频、音频顺序生成 `reference_image / reference_video / reference_audio` 对象，首尾帧仍由图片顺序保证。
+- 非默认 profile 在后台保存时必须保留自己的 bindings，不能再次合并 `sd2-per-second` 默认字段。
+- AICOPY 视频提示词默认按 UTF-8 4096 字节限制在 API 入队前校验；上游嵌套 JSON 错误必须解包到最内层可读原因，避免把 `fail_to_fetch_task` 套娃文本直接展示给用户。

@@ -9,9 +9,34 @@ const SD_BINDINGS = [
   { path: "metadata.ratio", source: "ratio", type: "string" },
   { path: "metadata.enableSound", value: "on", type: "string" },
   { path: "images", source: "images", type: "string[]", omitWhenEmpty: true },
+  { path: "videos", source: "videos", type: "string[]", omitWhenEmpty: true },
   { path: "audios", source: "audios", type: "string[]", omitWhenEmpty: true },
 ];
 const SD_RESULT_PATHS = ["result_url", "data.metadata.url", "data.output"];
+const SD_PROFILE_BINDINGS = {
+  "sd2-per-second": SD_BINDINGS,
+  "sd2-per-request": [
+    { path: "input.prompt", source: "prompt", type: "string" },
+    { path: "input.media", source: "media", type: "media[]", omitWhenEmpty: true },
+    { path: "seconds", value: "15", type: "string" },
+  ],
+  "sd-channel-431": [
+    { path: "duration", source: "duration", type: "number" },
+    { path: "video_config.aspect_ratio", source: "ratio", type: "string" },
+    { path: "video_config.resolution_name", source: "resolution", type: "string" },
+    { path: "video_config.reference_mode", source: "referenceMode", type: "string", omitWhenEmpty: true },
+    { path: "reference_images", source: "images", type: "string[]", omitWhenEmpty: true },
+    { path: "input.prompt", source: "prompt", type: "string" },
+    { path: "input.media", source: "media", type: "media[]", omitWhenEmpty: true },
+  ],
+  "sd-channel-900": [
+    { path: "seconds", value: "15", type: "string" },
+    { path: "metadata.ratio", source: "ratio", type: "string" },
+    { path: "metadata.resolution", source: "resolution", type: "string" },
+    { path: "images", source: "images", type: "string[]", omitWhenEmpty: true },
+  ],
+};
+const KNOWN_SD_BINDING_PATHS = new Set(Object.values(SD_PROFILE_BINDINGS).flat().map((item) => item.path).concat("size"));
 const SD_INPUT_PROFILE = [
   "prompt",
   "image_reference",
@@ -19,9 +44,13 @@ const SD_INPUT_PROFILE = [
   "first_frame",
   "last_frame",
   "audio_reference",
+  "video_reference",
 ];
 
-export function mergeAicopySdModelConfig(row) {
+export function mergeAicopySdModelConfig(row, options = {}) {
+  const profile = normalizeProfile(options.profile);
+  const supportsMixedMedia = profile !== "sd-channel-900";
+  const bindings = profileBindings(profile, row.model_id);
   const inputCapabilities = {
     ...plainObject(row.input_capabilities),
     prompt: true,
@@ -29,36 +58,40 @@ export function mergeAicopySdModelConfig(row) {
     multiImage: true,
     firstFrame: true,
     lastFrame: true,
-    audioReference: true,
+    audioReference: supportsMixedMedia,
+    videoReference: supportsMixedMedia,
   };
   const currentSchema = plainObject(row.parameter_schema);
   const parameterSchema = {
     ...currentSchema,
+    aspectRatio: aspectRatioSchemaForProfile(profile, row.model_id, currentSchema.aspectRatio),
+    resolution: resolutionSchemaForProfile(profile, row.model_id, currentSchema.resolution),
     referenceImages: { ...plainObject(currentSchema.referenceImages), type: "image[]", max: 9 },
-    referenceAudio: { ...plainObject(currentSchema.referenceAudio), type: "audio[]", max: 3 },
-    duration: {
-      ...plainObject(currentSchema.duration),
-      type: "range",
-      min: 4,
-      max: 15,
-      step: 1,
-      default: 15,
-    },
+    ...(supportsMixedMedia ? {
+      referenceVideos: { ...plainObject(currentSchema.referenceVideos), type: "video[]", max: 3 },
+      referenceAudio: { ...plainObject(currentSchema.referenceAudio), type: "audio[]", max: 3 },
+    } : {}),
+    duration: durationSchemaForProfile(profile, currentSchema.duration),
   };
+  if (!supportsMixedMedia) {
+    delete parameterSchema.referenceVideos;
+    delete parameterSchema.referenceAudio;
+  }
   const currentAdvancedConfig = plainObject(row.advanced_config);
   const currentContract = plainObject(currentAdvancedConfig.requestContract);
   const advancedConfig = {
     ...currentAdvancedConfig,
     aicopyRequestContractEnabled: true,
+    requestContractProfile: profile,
     requestContract: {
       ...currentContract,
-      bindings: mergeBindings(currentContract.bindings),
+      bindings: mergeBindings(currentContract.bindings, bindings),
       resultPaths: uniqueStrings([...SD_RESULT_PATHS, ...arrayValue(currentContract.resultPaths)]),
     },
   };
   const inputProfile = uniqueStrings([
-    ...SD_INPUT_PROFILE,
-    ...String(row.input_profile || "").split(","),
+    ...SD_INPUT_PROFILE.filter((item) => supportsMixedMedia || !["audio_reference", "video_reference"].includes(item)),
+    ...String(row.input_profile || "").split(",").filter((item) => supportsMixedMedia || !["audio_reference", "video_reference"].includes(item.trim())),
   ]).join(",");
 
   return { inputProfile, inputCapabilities, parameterSchema, advancedConfig };
@@ -80,13 +113,15 @@ export function summarizeAicopySdModelChange(row, merged) {
     afterFingerprint: fingerprint(merged),
     capabilities: {
       referenceImages: merged.parameterSchema.referenceImages.max,
-      referenceAudios: merged.parameterSchema.referenceAudio.max,
+      referenceAudios: merged.parameterSchema.referenceAudio?.max || 0,
+      referenceVideos: merged.parameterSchema.referenceVideos?.max || 0,
       firstFrame: merged.inputCapabilities.firstFrame,
       lastFrame: merged.inputCapabilities.lastFrame,
       audioReference: merged.inputCapabilities.audioReference,
     },
     duration: merged.parameterSchema.duration,
     requestContractEnabled: merged.advancedConfig.aicopyRequestContractEnabled === true,
+    requestContractProfile: merged.advancedConfig.requestContractProfile,
     requestBindingPaths: arrayValue(merged.advancedConfig.requestContract?.bindings).map((item) => String(item?.path || "")).filter(Boolean),
     resultPaths: arrayValue(merged.advancedConfig.requestContract?.resultPaths).map(String),
   };
@@ -96,6 +131,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const providerId = text(args["provider-id"]);
   const modelId = text(args["model-id"]);
+  const profile = normalizeProfile(args.profile);
   const apply = booleanArg(args.apply);
   if (!providerId || !modelId) throw new Error("--provider-id and --model-id are required");
   if (apply && booleanArg(args["dry-run"])) throw new Error("--apply and --dry-run cannot both be true");
@@ -126,7 +162,7 @@ async function main() {
     if (!model) throw new Error("MODEL_NOT_FOUND");
     if (text(model.capability).toLowerCase() !== "video") throw new Error("MODEL_CAPABILITY_NOT_VIDEO");
 
-    const merged = mergeAicopySdModelConfig(model);
+    const merged = mergeAicopySdModelConfig(model, { profile });
     const summary = summarizeAicopySdModelChange(model, merged);
     let backupPath = "";
     if (apply && summary.changed) {
@@ -181,13 +217,55 @@ async function writeModelBackup(model) {
   return backupPath;
 }
 
-function mergeBindings(value) {
+function mergeBindings(value, bindings) {
   const current = arrayValue(value).filter((item) => item && typeof item === "object" && !Array.isArray(item));
-  const canonicalPaths = new Set(SD_BINDINGS.map((item) => item.path));
   return [
-    ...SD_BINDINGS.map((item) => ({ ...item })),
-    ...current.filter((item) => !canonicalPaths.has(String(item.path || "").trim())),
+    ...bindings.map((item) => ({ ...item })),
+    ...current.filter((item) => !KNOWN_SD_BINDING_PATHS.has(String(item.path || "").trim())),
   ];
+}
+
+function profileBindings(profile, modelId) {
+  const bindings = SD_PROFILE_BINDINGS[profile].map((item) => ({ ...item }));
+  if (profile !== "sd2-per-request") return bindings;
+  const size = text(modelId).includes("9:16") ? "720x1280" : text(modelId).includes("16:9") ? "1280x720" : "";
+  if (!size) throw new Error("SD2_PER_REQUEST_MODEL_RATIO_NOT_FOUND");
+  return [...bindings, { path: "size", value: size, type: "string" }];
+}
+
+function durationSchemaForProfile(profile, currentValue) {
+  const current = plainObject(currentValue);
+  if (profile === "sd-channel-431") return { ...current, type: "select", options: [10, 15], default: 15 };
+  if (profile === "sd2-per-request" || profile === "sd-channel-900") return { ...current, type: "select", options: [15], default: 15 };
+  return { ...current, type: "range", min: 4, max: 15, step: 1, default: 15 };
+}
+
+function aspectRatioSchemaForProfile(profile, modelId, currentValue) {
+  const current = plainObject(currentValue);
+  if (profile === "sd2-per-request") {
+    const ratio = text(modelId).includes("9:16") ? "9:16" : text(modelId).includes("16:9") ? "16:9" : "";
+    if (!ratio) throw new Error("SD2_PER_REQUEST_MODEL_RATIO_NOT_FOUND");
+    return { ...current, type: "select", options: [ratio], default: ratio };
+  }
+  const options = profile === "sd-channel-431"
+    ? ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]
+    : ["16:9", "9:16", "1:1"];
+  const currentDefault = text(current.default);
+  return { ...current, type: "select", options, default: options.includes(currentDefault) ? currentDefault : options[0] };
+}
+
+function resolutionSchemaForProfile(profile, modelId, currentValue) {
+  const current = plainObject(currentValue);
+  const resolution = profile === "sd2-per-second" && text(modelId).toLowerCase().includes("1080p") ? "1080p" : "720p";
+  return { ...current, type: "select", options: [resolution], default: resolution };
+}
+
+function normalizeProfile(value) {
+  const profile = text(value) || "sd2-per-second";
+  if (!Object.prototype.hasOwnProperty.call(SD_PROFILE_BINDINGS, profile)) {
+    throw new Error(`UNSUPPORTED_SD_PROFILE:${profile}`);
+  }
+  return profile;
 }
 
 function plainObject(value) {

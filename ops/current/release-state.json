@@ -5,15 +5,15 @@
   "sourceCommit": "e08c290bd7625de88037e1da646a46d17172b488",
   "environments": {
     "gray": {
-      "version": "0.7.8",
-      "releaseId": "20260720-aicopy-video-contract-scope-gray-r1-v078",
+      "version": "0.7.9",
+      "releaseId": "20260720-aicopy-sd-media-contract-gray-r1-v079",
       "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
       "readiness": { "subjects": 127, "publishedSubjects": 118, "restrictedSubjects": 6, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 127, "publishedSubjects": 118, "restrictedSubjects": 6, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-aicopy-video-contract-scope-v078.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md",
-      "rollbackReleaseId": "20260720-model-publication-sd-scope-gray-r1-v077"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-aicopy-sd-media-contract-gray-v079.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-20-aicopy-sd-media-contract-gray-v079.md",
+      "rollbackReleaseId": "20260720-aicopy-video-contract-scope-gray-r1-v078"
     },
     "production": {
       "version": "0.7.8",
