@@ -6,3 +6,4 @@
 - 权限 readiness：subjects `140`，published `121`，restricted `13`，retired `6`，rules `2772`，principals `11`，failures `0`。
 - 启动前发现旧 retired subject rule 导致 readiness gate 拒绝；已完成生产库权限 reconcile，dry-run 后 apply，最终幂等通过。
 - 回滚锚点：`20260720-aicopy-video-contract-scope-prod-r1-v078`。
+- Production 模型配置已同步：按次模型 `sd2-per-request`，三个按秒模型 `sd2-per-second`；参考视频/音频均为 `max=10`、`default=2`。
