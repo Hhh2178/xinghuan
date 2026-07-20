@@ -76,8 +76,8 @@ size: {
 4. 梳理图像、视频、音频及扩展平台任务轮询，补齐未完成任务恢复。
 5. 执行专项测试、全量 type-check、build、Harness 和 CodeGraph sync。
 6. 递增 PATCH 到 `0.7.12`，更新系统文档、daily logbook 和发布状态材料。
-7. 发布 Gray，验证尺寸、刷新保留、任务续接、API/Worker、权限 readiness 和公网状态。
-8. Gray 通过后使用同版本制品晋级 Production，并重复运行态验证。
+7. 发布 Gray，验证尺寸、刷新保留、任务续接、API/Worker、权限 readiness 和公网状态。**已完成**。
+8. Gray 通过后使用同版本制品晋级 Production，并重复运行态验证。**待 Gray 浏览器验收完成后执行**。
 
 ## 回归场景
 
@@ -97,4 +97,3 @@ size: {
 - Production 复用 Gray 已验证版本，不额外递增版本。
 - 本轮不执行 retention/prune。
 - 不修改其他项目、代理服务、数据库内容或密钥。
-

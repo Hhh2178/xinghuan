@@ -15,14 +15,17 @@
 
 ### Gray
 
-- 版本：`v0.7.11`
-- release：`20260720-workflow-media-boundary-gray-r1-v0711`
-- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出修复，Gray runtime 验证通过`
+- 版本：`v0.7.12`
+- release：`20260720-media-node-runtime-resume-gray-r1-v0712`
+- 当前状态：`媒体节点尺寸、画布刷新保留和生成任务续接修复，Gray runtime 验证通过`
 - 部署内容：`公共资源及可治理目录对象发布；参考视频/音频 max=10 default=2；SD input.media[] 契约兼容`
 - 已验证：`定向权限、AICOPY adapter、SD 配置、视频输入测试通过`
 - 已验证：`Gray runtime、权限 readiness 与模型契约迁移通过；本轮不执行 Production 晋级与 retention/prune`
 - 部署时间：`2026-07-20`
-- 本轮制品源提交：`4e3e3be`
+- 本轮制品源提交：`54332d3`
+- 当前批次记录：
+  - `gray/2026-07-20-media-node-runtime-resume-gray-v0712.md`
+  - `../validations/2026-07-20-media-node-runtime-resume-gray-v0712.md`
 - 当前批次记录：
   - `gray/2026-07-20-aicopy-video-contract-scope-v078.md`
   - `../validations/2026-07-20-aicopy-video-contract-scope-gray-v078.md`

@@ -5,15 +5,15 @@
   "sourceCommit": "4e3e3be",
   "environments": {
     "gray": {
-      "version": "0.7.11",
-      "releaseId": "20260720-workflow-media-boundary-gray-r1-v0711",
+      "version": "0.7.12",
+      "releaseId": "20260720-media-node-runtime-resume-gray-r1-v0712",
       "deployedAt": "2026-07-20",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-workflow-media-boundary-gray-v0711.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-20-workflow-media-boundary-gray-v0711.md",
-      "rollbackReleaseId": "20260720-permission-media-contract-gray-r1-v0710"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-20-media-node-runtime-resume-gray-v0712.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-20-media-node-runtime-resume-gray-v0712.md",
+      "rollbackReleaseId": "20260720-workflow-media-boundary-gray-r1-v0711"
     },
     "production": {
       "version": "0.7.11",

@@ -2,9 +2,9 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.11`
-- 当前 release：`20260720-workflow-media-boundary-gray-r1-v0711`
-- 当前状态：`工作流媒体边界、节点尺寸和批量视频输出修复，Gray runtime 验证通过`
+- 当前版本：`v0.7.12`
+- 当前 release：`20260720-media-node-runtime-resume-gray-r1-v0712`
+- 当前状态：`媒体节点尺寸、画布刷新保留和生成任务续接修复，Gray runtime 验证通过`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.11；不执行 retention/prune`
 - Production 当前 release：`20260720-workflow-media-boundary-prod-r1-v0711`
 - 本轮制品源提交：`54332d3`
