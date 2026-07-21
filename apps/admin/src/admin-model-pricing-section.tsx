@@ -61,14 +61,22 @@ export function AdminModelPricingSection({ modelId }: { modelId: string }) {
 
   return (
     <section className="model-pricing-card" aria-label="计费与费用统计">
-      <header>
-        <div>
+      <header className="model-pricing-head">
+        <div className="model-pricing-heading">
           <strong>计费与费用统计</strong>
           <span>价格按任务创建时版本快照；默认人民币，暂不换算。</span>
         </div>
-        <label className="model-pricing-toggle">
-          <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-          <span>{enabled ? "参与计费" : "停止计费"}</span>
+        <label className={`model-pricing-toggle${enabled ? " active" : ""}`}>
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+            aria-label="参与计费"
+          />
+          <span className="model-pricing-toggle__track" aria-hidden="true">
+            <span className="model-pricing-toggle__thumb" />
+          </span>
+          <span className="model-pricing-toggle__label">{enabled ? "参与计费" : "停止计费"}</span>
         </label>
       </header>
       <div className="model-pricing-grid">
@@ -89,8 +97,8 @@ export function AdminModelPricingSection({ modelId }: { modelId: string }) {
         </label>
       </div>
       <div className="model-pricing-foot">
-        <small>{status}{effectiveFrom ? ` · 生效于 ${new Date(effectiveFrom).toLocaleString()}` : ""}</small>
-        <button type="button" className="primary" disabled={saving} onClick={() => void save()}>{saving ? "保存中..." : "创建价格版本"}</button>
+        <small role="status">{status}{effectiveFrom ? ` · 生效于 ${new Date(effectiveFrom).toLocaleString()}` : ""}</small>
+        <button type="button" className="primary-action" disabled={saving} onClick={() => void save()}>{saving ? "保存中..." : "创建价格版本"}</button>
       </div>
       <p className="model-pricing-rule">成功任务计费；用户取消且上游未确认取消（包括未配置取消端口）仍计费。上游确认取消成功不计费。</p>
     </section>

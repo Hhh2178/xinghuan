@@ -44,6 +44,21 @@
 | Panel title | `16px` to `18px`, `600` | Data and form panels |
 | Status pill | `11px`, mono or compact text | Version/environment/status labels |
 
+## Form And Action Tokens
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| Standard field height | `44px` | Model/configuration forms and primary editing surfaces |
+| Compact field/action height | `38px` | Dense tables, toolbars and secondary actions |
+| Field radius | `8px` | Inputs, selects and action buttons |
+| Field label | `13px`, `800` | Configuration form labels |
+| Help/status text | `12px`, `1.6` line height | Field help, save state and rule descriptions |
+| Boolean switch | `48 × 28px`, `20px` thumb | Enabled/disabled configuration state; native checkbox stays visually hidden but keyboard accessible |
+
+Primary form actions must use the shared `primary-action` class. Native browser button and checkbox rendering must not be exposed inside Admin configuration surfaces.
+
+Expanded model subpanels use the same surface family as `schema-guide-card`: `16px` padding, `14px` radius, cyan border at `0.16` opacity, and the shared dark-blue layered background. A feature-specific panel may change content hierarchy, but not introduce a new accent palette.
+
 ## Icon Tokens
 
 | Token | Value | Usage |
