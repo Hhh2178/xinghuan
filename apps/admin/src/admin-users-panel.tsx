@@ -1,6 +1,7 @@
 import { Activity, KeyRound, ShieldCheck, Users2 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { adminPermissionApi } from "./admin-api-client";
+import { createAdminLazyImportWithRecovery } from "./admin-lazy-import-recovery";
 import { AdminWorkspaceBand } from "./admin-common-components";
 import { AdminUserAccountsSection } from "./admin-user-accounts-section";
 import { AdminUserGroupsSection } from "./admin-user-groups-section";
@@ -21,11 +22,12 @@ type AdminMutate = (
 ) => Promise<void> | void;
 type UsersViewTab = AdminUsersViewId;
 
-const PermissionPlatformPanel = lazy(() =>
+const PermissionPlatformPanel = lazy(createAdminLazyImportWithRecovery(() =>
   import("./permission-platform/panel").then((module) => ({
     default: module.PermissionPlatformPanel,
   })),
-);
+  { recoveryId: "permission-platform" },
+));
 
 const USER_TABS: Array<{ id: UsersViewTab; label: string }> = [
   { id: "overview", label: "总览" },

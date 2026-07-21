@@ -57,7 +57,7 @@ const checks = [
   ["RH catalog uses permission runtime", /filterRunningHubItems[\s\S]*permissionRuntime\.decide/.test(server)],
   ["sync proxy authorizes model execution", externalProxy.includes("authorizeModelExecution")],
   ["queued task service authorizes model execution", providerTaskService.includes("authorizeModelExecution")],
-  ["admin uses unified lazy panel", adminUsers.includes("lazy(() =>") && adminUsers.includes("PermissionPlatformPanel")],
+  ["admin uses recoverable unified lazy panel", adminUsers.includes("lazy(createAdminLazyImportWithRecovery(() =>") && adminUsers.includes('recoveryId: "permission-platform"') && adminUsers.includes("PermissionPlatformPanel")],
   ["admin panel supports account principal", adminPanel.includes('setPrincipalType("user")')],
   ["principal matrix cannot mutate global subject exposure", !adminPanel.includes("onUpdateSubject") && adminPanel.includes("updateScopedAccess")],
   ["enabled provider models own global publication", subjectRegistrar.includes('item.enabled ? "published" : "restricted"') && subjectRegistrar.includes('source.domain === "provider" && source.subjectType === "model"')],

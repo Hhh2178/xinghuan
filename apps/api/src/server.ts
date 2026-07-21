@@ -179,6 +179,8 @@ import { createAdminAuditRouteHandler } from "./admin-audit-routes.js";
 import { createAdminRepository } from "./admin-repository.js";
 import { createAdminUsageSummaryRepository } from "./admin-usage-summary-repository.js";
 import { createAdminUsageSummaryService } from "./admin-usage-summary-service.js";
+import { createTaskCostRepository } from "./task-cost-repository.js";
+import { createAdminCostRouteHandler } from "./admin-cost-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createAnnouncementStore } from "./announcement-store.js";
@@ -381,6 +383,15 @@ const adminRepository = createAdminRepository({
   dateToMillis,
   millisToDate,
   safeText,
+});
+const taskCostRepository = createTaskCostRepository({ usePostgresRepository, getPostgresPool });
+const handleAdminCostRoutes = createAdminCostRouteHandler({
+  sendT8,
+  readJsonBody,
+  readModelPricing: taskCostRepository.readModelPricing,
+  writeModelPricing: taskCostRepository.writeModelPricing,
+  readCostSummary: taskCostRepository.readCostSummary,
+  appendAudit,
 });
 const taskRepository = createTaskRepository({
   usePostgresRepository,
@@ -3100,6 +3111,7 @@ async function handleAdminRequest(
   if (await handleAdminTaskListRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
   if (await handleAdminAuditRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
+  if (await handleAdminCostRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
   if (url.pathname === "/api/admin/assistant/analyze-provider" && request.method === "POST") {
     const body = await readJsonBody<AssistantAnalyzeRequest>(request);

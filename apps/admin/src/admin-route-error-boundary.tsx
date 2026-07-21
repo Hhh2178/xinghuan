@@ -27,7 +27,7 @@ export class AdminRouteErrorBoundary extends Component<{
         <span>当前页面暂时无法显示</span>
         <strong>业务域渲染失败，其他后台页面仍可继续使用。</strong>
         <p>{this.state.error.message}</p>
-        <button type="button" onClick={() => this.setState({ error: null })}>重试当前页面</button>
+        <button type="button" onClick={() => window.location.reload()}>重新加载当前页面</button>
       </section>
     );
   }

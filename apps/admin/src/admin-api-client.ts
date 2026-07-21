@@ -63,6 +63,37 @@ export const adminAuditApi = {
   },
 };
 
+export const adminCostApi = {
+  readModelPricing: () => api<import("./admin-types").ModelPricingRecord[]>("/api/admin/model-pricing"),
+  writeModelPricing: (modelId: string, payload: {
+    enabled: boolean;
+    billingUnit: "per_request" | "per_second";
+    unitPrice: string;
+    currency: string;
+    note: string;
+  }) => api<import("./admin-types").ModelPricingRecord>(`/api/admin/model-pricing/${encodeURIComponent(modelId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }),
+  readCostSummary: (filters: {
+    from: number;
+    to: number;
+    currency?: string;
+    groupId?: string;
+    userId?: string;
+    providerId?: string;
+    modelId?: string;
+  }) => {
+    const query = new URLSearchParams({ from: String(filters.from), to: String(filters.to), currency: filters.currency || "CNY" });
+    if (filters.groupId) query.set("groupId", filters.groupId);
+    if (filters.userId) query.set("userId", filters.userId);
+    if (filters.providerId) query.set("providerId", filters.providerId);
+    if (filters.modelId) query.set("modelId", filters.modelId);
+    return api<import("./admin-types").AdminCostSummary>(`/api/admin/analytics/cost-summary?${query}`);
+  },
+};
+
 export const adminPermissionApi = {
   listPolicies: () =>
     api<import("./admin-types").AdminGroupPermissionPolicy[]>("/api/admin/group-permission-policies"),

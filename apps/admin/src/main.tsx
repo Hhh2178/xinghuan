@@ -9,6 +9,7 @@ import { readAdminShellSnapshot, readAdminWorkspaceSnapshot } from "./admin-data
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { AdminShellWorkspaceBand } from "./admin-shell-workspace-band";
 import { AdminRouteErrorBoundary } from "./admin-route-error-boundary";
+import { createAdminLazyImportWithRecovery } from "./admin-lazy-import-recovery";
 import type {
   AdminUser as AdminUserShape,
   AdminUserGroup as AdminUserGroupShape,
@@ -53,18 +54,18 @@ void ManualModelDialog;
 const ADMIN_ASSISTANT_STORAGE_KEY = "xinghuan.adminAssistant.open";
 const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 
-const Overview = lazy(() => import("./admin-overview-panel").then((module) => ({ default: module.Overview })));
-const UsersPanel = lazy(() => import("./admin-users-panel").then((module) => ({ default: module.UsersPanel })));
-const ApiSettingsPanel = lazy(() => import("./admin-api-settings-panel").then((module) => ({ default: module.ApiSettingsPanel })));
-const AdminRunningHubWorkspace = lazy(() => import("./admin-runninghub-workspace").then((module) => ({ default: module.AdminRunningHubWorkspace })));
-const AdminComfyuiInstancesPanel = lazy(() => import("./admin-comfyui-instances-panel"));
-const AdminPublicResourcesPanel = lazy(() => import("./admin-public-resources-panel").then((module) => ({ default: module.AdminPublicResourcesPanel })));
-const AdminAssistantSettingsPanel = lazy(() => import("./admin-assistant-settings-panel").then((module) => ({ default: module.AdminAssistantSettingsPanel })));
-const AdminAnnouncementPanel = lazy(() => import("./admin-announcement-panel").then((module) => ({ default: module.AdminAnnouncementPanel })));
-const TasksPanel = lazy(() => import("./admin-task-panel").then((module) => ({ default: module.TasksPanel })));
-const AuditPanel = lazy(() => import("./admin-readonly-panels").then((module) => ({ default: module.AuditPanel })));
-const SystemPanel = lazy(() => import("./admin-readonly-panels").then((module) => ({ default: module.SystemPanel })));
-const AdminEnvironmentSyncPanel = lazy(() => import("./admin-environment-sync-panel").then((module) => ({ default: module.AdminEnvironmentSyncPanel })));
+const Overview = lazy(createAdminLazyImportWithRecovery(() => import("./admin-overview-panel").then((module) => ({ default: module.Overview })), { recoveryId: "overview" }));
+const UsersPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-users-panel").then((module) => ({ default: module.UsersPanel })), { recoveryId: "users" }));
+const ApiSettingsPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-api-settings-panel").then((module) => ({ default: module.ApiSettingsPanel })), { recoveryId: "providers" }));
+const AdminRunningHubWorkspace = lazy(createAdminLazyImportWithRecovery(() => import("./admin-runninghub-workspace").then((module) => ({ default: module.AdminRunningHubWorkspace })), { recoveryId: "runninghub" }));
+const AdminComfyuiInstancesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-comfyui-instances-panel"), { recoveryId: "comfyui" }));
+const AdminPublicResourcesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-public-resources-panel").then((module) => ({ default: module.AdminPublicResourcesPanel })), { recoveryId: "resources" }));
+const AdminAssistantSettingsPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-assistant-settings-panel").then((module) => ({ default: module.AdminAssistantSettingsPanel })), { recoveryId: "assistant" }));
+const AdminAnnouncementPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-announcement-panel").then((module) => ({ default: module.AdminAnnouncementPanel })), { recoveryId: "announcements" }));
+const TasksPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-task-panel").then((module) => ({ default: module.TasksPanel })), { recoveryId: "tasks" }));
+const AuditPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-readonly-panels").then((module) => ({ default: module.AuditPanel })), { recoveryId: "analytics" }));
+const SystemPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-readonly-panels").then((module) => ({ default: module.SystemPanel })), { recoveryId: "system" }));
+const AdminEnvironmentSyncPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-environment-sync-panel").then((module) => ({ default: module.AdminEnvironmentSyncPanel })), { recoveryId: "environment-sync" }));
 
 export type Capability = CapabilityShape;
 export type ConfirmAction = ConfirmActionShape;
@@ -819,6 +820,7 @@ function AdminApp() {
               users={users}
               userGroups={userGroups}
               providers={providers}
+              models={models}
               onUsageFiltersChange={handleUsageFiltersChange}
               onSelectedUsageUserIdChange={setSelectedUsageUserId}
             />

@@ -504,6 +504,43 @@ export interface ModelRecord {
   updatedAt: number;
 }
 
+export interface ModelPricingRecord {
+  id: string;
+  modelId: string;
+  providerId: string;
+  enabled: boolean;
+  billingUnit: "per_request" | "per_second";
+  unitPrice: string;
+  currency: string;
+  note: string;
+  effectiveFrom: number;
+  createdAt: number;
+}
+
+export interface AdminCostRankingRow {
+  id: string;
+  label: string;
+  amount: string;
+  chargedTasks: number;
+}
+
+export interface AdminCostSummary {
+  range: { from: number; to: number };
+  currency: string;
+  totals: {
+    amount: string;
+    chargedTasks: number;
+    billedRequests: number;
+    billedSeconds: number;
+    unpricedTasks: number;
+  };
+  providers: AdminCostRankingRow[];
+  models: AdminCostRankingRow[];
+  groups: AdminCostRankingRow[];
+  accounts: AdminCostRankingRow[];
+  daily: Array<{ day: string; amount: string; chargedTasks: number }>;
+}
+
 export interface VideoDurationRange {
   min: number;
   max: number;

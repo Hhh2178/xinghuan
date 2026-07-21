@@ -10,6 +10,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 2. `protocol-and-capabilities.md`
 3. `ui-and-information-architecture.md`
 4. `frontend-design/README.md`
+5. `cost-accounting-and-module-recovery.md`
 
 ## 关键代码入口
 
@@ -18,6 +19,9 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - URL / History 状态：`apps/admin/src/use-admin-navigation.ts`
 - 工作区二级导航：`apps/admin/src/admin-shell-workspace-band.tsx`
 - 路由错误隔离：`apps/admin/src/admin-route-error-boundary.tsx`
+- 动态模块加载恢复：`apps/admin/src/admin-lazy-import-recovery.ts`
+- 费用分析：`apps/admin/src/admin-cost-dashboard.tsx`
+- 模型计费配置：`apps/admin/src/admin-model-pricing-section.tsx`
 - RunningHub 工作台：`apps/admin/src/admin-runninghub-workspace.tsx`
 - RunningHub 编辑器：`apps/admin/src/admin-runninghub-item-editor.tsx`
 - API 设置面板：`apps/admin/src/admin-api-settings-panel.tsx`

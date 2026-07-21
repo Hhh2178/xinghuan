@@ -27,6 +27,7 @@ import {
   syncVideoReferenceMediaSchema,
   clampReferenceMediaMax,
 } from "./admin-model-editor-video-media-reference";
+import { AdminModelPricingSection } from "./admin-model-pricing-section";
 import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -624,6 +625,7 @@ export function ModelEditorRow({
       </div>
       {expanded ? (
         <div className="model-advanced">
+          <AdminModelPricingSection modelId={model.id} />
           <section className="schema-guide-card">
             <div className="schema-guide-grid">
               <div>

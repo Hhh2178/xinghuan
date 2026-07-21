@@ -2,11 +2,13 @@ import { Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
 import { AdminUsageDashboard } from "./admin-usage-dashboard";
+import { AdminCostDashboard } from "./admin-cost-dashboard";
 import type {
   AdminUsageSummary,
   AdminUser,
   AdminUserGroup,
   AuditRecord,
+  ModelRecord,
   ProviderRecord,
   SystemInfo,
   UsageCapability,
@@ -83,10 +85,11 @@ export function AuditPanel({
   users,
   userGroups,
   providers,
+  models,
   onUsageFiltersChange,
   onSelectedUsageUserIdChange,
 }: {
-  activeView?: "usage" | "audit";
+  activeView?: "usage" | "costs" | "audit";
   auditLogs: AuditRecord[];
   usageSummary: AdminUsageSummary | null;
   usageSummaryLoading: boolean;
@@ -101,6 +104,7 @@ export function AuditPanel({
   users: AdminUser[];
   userGroups: AdminUserGroup[];
   providers: ProviderRecord[];
+  models: ModelRecord[];
   onUsageFiltersChange: (next: {
     range: "today" | "7d" | "30d";
     groupId: string;
@@ -123,6 +127,7 @@ export function AuditPanel({
         onUsageFiltersChange={onUsageFiltersChange}
         onSelectedUsageUserIdChange={onSelectedUsageUserIdChange}
       /> : null}
+      {activeView === "costs" ? <AdminCostDashboard users={users} userGroups={userGroups} providers={providers} models={models} /> : null}
       {activeView === "audit" ? <DataTable
         title="审计日志"
         columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}

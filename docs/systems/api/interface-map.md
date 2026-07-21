@@ -10,6 +10,9 @@
 - `/api/admin/models`
 - `/api/admin/audit`
 - `/api/admin/audit/usage-summary`
+- `/api/admin/model-pricing`
+- `/api/admin/model-pricing/:modelId`
+- `/api/admin/analytics/cost-summary`
 - `/api/admin/group-permission-policies`
 - `/api/admin/group-permission-policies/:groupId`
 - `/api/admin/permission-catalog`
@@ -82,6 +85,13 @@
   - 图片 / 视频 / LLM 会下钻到模型显示名与模型 ID。
   - RunningHub 会下钻到后台 catalog 条目标题、catalogId 和 runTargetId。
   - 历史 RH 任务优先使用 `rhCatalogId / rhCatalogTitle / rhCatalogKind` 快照；缺失时回退 `providerId + kind + runTargetId` 匹配。
+
+## 模型价格与费用统计
+
+- `GET /api/admin/model-pricing`：读取各模型最新价格版本。
+- `PUT /api/admin/model-pricing/:modelId`：创建新价格版本；默认 CNY，支持按次/按秒。
+- `GET /api/admin/analytics/cost-summary`：从费用台账按日期、组、账号、Provider、模型和币种聚合。
+- 金额字段为六位小数字符串，不在 API 层换算币种。
 
 ## 画布与任务类接口
 

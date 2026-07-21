@@ -22,6 +22,7 @@
 | ADR | 标题 | 状态 | 日期 | 范围 |
 | --- | --- | --- | --- | --- |
 | [0001](0001-generation-artifact-authority-and-lifecycle.md) | 生成产物权威源与生命周期 | Accepted | 2026-07-17 | API / Worker / Storage / Canvas |
+| [0002](0002-task-cost-ledger-and-pricing-snapshots.md) | 任务费用台账与价格版本快照 | Accepted | 2026-07-21 | Admin / API / Worker / Storage |
 
 ## 模板
 

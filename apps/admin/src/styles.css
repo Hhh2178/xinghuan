@@ -25,6 +25,50 @@
   --admin-ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Model pricing and cost analytics */
+.model-pricing-card { border: 1px solid rgba(54, 211, 197, .42); background: linear-gradient(135deg, rgba(8, 48, 51, .78), rgba(8, 18, 31, .95)); border-radius: 12px; padding: 18px; display: grid; gap: 14px; }
+.model-pricing-card > header, .model-pricing-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.model-pricing-card > header > div { display: grid; gap: 4px; }
+.model-pricing-card > header strong { color: #e7fffb; font-size: 16px; }
+.model-pricing-card > header span, .model-pricing-card small, .model-pricing-rule { color: #92b7bd; }
+.model-pricing-toggle { display: flex; align-items: center; gap: 8px; color: #7cebdc; white-space: nowrap; }
+.model-pricing-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.model-pricing-grid label { display: grid; gap: 7px; color: #bad1d5; font-size: 12px; }
+.model-pricing-grid input, .model-pricing-grid select { width: 100%; }
+.model-pricing-foot .primary { min-width: 132px; }
+.model-pricing-rule { margin: 0; padding-top: 12px; border-top: 1px solid rgba(117, 226, 213, .15); font-size: 12px; line-height: 1.7; }
+
+.cost-dashboard { display: grid; gap: 16px; }
+.cost-filter-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.cost-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.cost-kpi-card.warning { border-color: rgba(250, 193, 76, .5); background: rgba(76, 51, 8, .24); }
+.cost-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.cost-ranking-bars { display: grid; gap: 12px; }
+.cost-ranking-row { display: grid; grid-template-columns: minmax(100px, 150px) 1fr minmax(108px, auto); align-items: center; gap: 12px; }
+.cost-ranking-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d9edf0; }
+.cost-ranking-row > span { text-align: right; color: #78eadb; font-variant-numeric: tabular-nums; }
+.cost-bar-track { height: 12px; border-radius: 999px; overflow: hidden; background: rgba(80, 112, 126, .2); }
+.cost-bar-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #23c7b8, #48a7ff); box-shadow: 0 0 16px rgba(35, 199, 184, .28); }
+.cost-daily-panel { grid-column: 1 / -1; }
+.cost-daily-bars { min-height: 230px; display: flex; align-items: stretch; gap: 10px; padding-top: 20px; overflow-x: auto; }
+.cost-daily-column { flex: 1 0 52px; min-width: 52px; display: grid; grid-template-rows: 22px 1fr 22px; text-align: center; gap: 6px; color: #8faeb5; }
+.cost-daily-column > span { font-size: 11px; font-variant-numeric: tabular-nums; }
+.cost-daily-column > div { position: relative; min-height: 150px; border-radius: 7px 7px 3px 3px; background: rgba(65, 95, 110, .14); overflow: hidden; }
+.cost-daily-column i { position: absolute; left: 7px; right: 7px; bottom: 0; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #66d8ff, #1ac7ad); }
+.cost-unpriced-note { margin: 0; padding: 13px 15px; border: 1px solid rgba(247, 187, 67, .32); border-radius: 10px; color: #e5c37e; background: rgba(84, 55, 7, .2); }
+
+@media (max-width: 1180px) {
+  .model-pricing-grid, .cost-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cost-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .model-pricing-grid, .cost-filter-grid, .cost-kpi-grid, .cost-chart-grid { grid-template-columns: 1fr; }
+  .model-pricing-card > header, .model-pricing-foot { align-items: flex-start; flex-direction: column; }
+  .cost-ranking-row { grid-template-columns: minmax(90px, 120px) 1fr; }
+  .cost-ranking-row > span { grid-column: 2; text-align: left; }
+}
+
 * {
   box-sizing: border-box;
 }
