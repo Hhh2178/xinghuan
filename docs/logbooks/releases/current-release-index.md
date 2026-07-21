@@ -19,13 +19,15 @@
 ### Gray
 
 - 版本：`v0.7.17`
-- release：`20260721-canvas-node-cost-badge-gray-r1-v0717`
-- 当前状态：`生成节点费用提示已部署；runtime/readiness、成员费用 API 与无价格隐藏验收通过`
-- 部署内容：`图片、视频、LLM、音频节点费用角标；模型/服务商切换实时重算；任务费用结算摘要`
-- 已验证：`63 files / 221 tests、全量 build/CI/harness/release gates、Gray 严格 runtime/readiness、远端成员接口与无价格隐藏契约`
+- release：`20260721-node-cost-badge-placement-gray-r2-v0717`
+- 当前状态：`费用角标框外贴边补修已部署；runtime/readiness 与真实页面几何验收通过`
+- 部署内容：`费用角标移到节点框外左上方，左侧对齐、底边贴合，不再覆盖节点标题`
+- 已验证：`63 files / 221 tests、全量 build/CI/harness/release gates、Gray 严格 runtime/readiness、真实页面左侧差值 0px 与边缘间隙 0px`
 - 部署时间：`2026-07-21`
-- 本轮制品源提交：`bbdad88`
+- 本轮制品源提交：`e45c4dc`
 - 当前批次记录：
+  - `gray/2026-07-21-node-cost-badge-placement-gray-v0717.md`
+  - `../validations/2026-07-21-node-cost-badge-placement-gray-v0717.md`
   - `gray/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `../validations/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `gray/2026-07-21-admin-cost-accounting-gray-v0715.md`

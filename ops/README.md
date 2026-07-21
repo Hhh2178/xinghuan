@@ -28,10 +28,10 @@
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.17`
-  - release：`20260721-canvas-node-cost-badge-gray-r1-v0717`
-  - 状态：`生成节点费用提示、模型/服务商切换实时重算与成员费用摘要已部署；runtime/readiness 和活体 API 验收通过`
+  - release：`20260721-node-cost-badge-placement-gray-r2-v0717`
+  - 状态：`生成节点费用角标已移到节点框外左上方并贴边对齐；runtime/readiness 和真实页面几何验收通过`
   - 当前补修：`本轮只推 Gray；Production 保持 v0.7.13`
-  - 本轮制品源提交：`bbdad88`
+  - 本轮制品源提交：`e45c4dc`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`Gray 当前无生效价格版本，带金额业务验收待运营配置真实价格后执行；ComfyUI 功能继续冻结`
 - Production：
