@@ -19,15 +19,17 @@
 ### Gray
 
 - 版本：`v0.7.17`
-- release：`20260721-node-cost-badge-placement-gray-r2-v0717`
-- 当前状态：`费用角标框外贴边补修已部署；runtime/readiness 与真实页面几何验收通过`
-- 部署内容：`费用角标移到节点框外左上方，左侧对齐、底边贴合，不再覆盖节点标题`
-- 已验证：`63 files / 221 tests、全量 build/CI/harness/release gates、Gray 严格 runtime/readiness、真实页面左侧差值 0px 与边缘间隙 0px`
+- release：`20260721-admin-system-health-gray-r1-v0717`
+- 当前状态：`后台系统健康可视化与环境隔离 runtime 聚合已部署；runtime/readiness 和真实页面验收通过`
+- 部署内容：`统一后台设计规范；重构系统健康页；修复跨环境 Worker 槽位混算、失败累计窗口误判和 DB/Redis 差异表达`
+- 已验证：`67 files / 230 tests、verify:quick、全量 build、Gray 严格 runtime/readiness、三档桌面布局、范围/刷新/Inspector 和零控制台错误`
 - 部署时间：`2026-07-21`
-- 本轮制品源提交：`e45c4dc`
+- 本轮制品源提交：`d8aff9d`
 - 当前批次记录：
   - `gray/2026-07-21-node-cost-badge-placement-gray-v0717.md`
   - `../validations/2026-07-21-node-cost-badge-placement-gray-v0717.md`
+  - `gray/2026-07-21-admin-system-health-gray-v0717.md`
+  - `../validations/2026-07-21-admin-system-health-gray-v0717.md`
   - `gray/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `../validations/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `gray/2026-07-21-admin-cost-accounting-gray-v0715.md`
