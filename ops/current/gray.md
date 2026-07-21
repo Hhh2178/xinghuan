@@ -5,9 +5,9 @@
 - 当前版本：`v0.7.13`
 - 当前 release：`20260720-media-node-runtime-resume-gray-r2-v0713`
 - 当前状态：`Grok 批次逐项输出、输出刷新保留和可选跨次累积，Gray runtime 与视觉验证通过`
-- 当前补修：`本轮只推 Gray；Production 保持 v0.7.11；不执行 retention/prune`
-- Production 当前 release：`20260720-workflow-media-boundary-prod-r1-v0711`
-- 本轮制品源提交：`54332d3`
+- 当前补修：`本轮只推 Gray；Production 保持 v0.7.13`
+- Production 当前 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
+- 本轮制品源提交：`4e3e3be`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
