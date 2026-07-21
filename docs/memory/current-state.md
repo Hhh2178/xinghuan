@@ -4,10 +4,10 @@
 
 - 当前灰度版本：`v0.7.17`（画布生成节点费用提示）
 - 当前生产版本：`v0.7.13`（媒体输出保留与批次追加）
-- 当前灰度 release：`20260721-node-cost-badge-placement-gray-r2-v0717`
+- 当前灰度 release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
 - 当前生产 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 继续保持 v0.7.17，费用角标已从节点标题区移到节点框外左上方，左边缘对齐且底边贴住节点顶边；Production 保持 v0.7.13。
+- 最新完成：Gray 继续保持 v0.7.17，系统健康页视觉已按 Provider 页面语言重构，公共资源已拆为独立一级工作域；Production 保持 v0.7.13。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

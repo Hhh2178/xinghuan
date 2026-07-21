@@ -19,13 +19,15 @@
 ### Gray
 
 - 版本：`v0.7.17`
-- release：`20260721-admin-system-health-gray-r1-v0717`
-- 当前状态：`后台系统健康可视化与环境隔离 runtime 聚合已部署；runtime/readiness 和真实页面验收通过`
-- 部署内容：`统一后台设计规范；重构系统健康页；修复跨环境 Worker 槽位混算、失败累计窗口误判和 DB/Redis 差异表达`
-- 已验证：`67 files / 230 tests、verify:quick、全量 build、Gray 严格 runtime/readiness、三档桌面布局、范围/刷新/Inspector 和零控制台错误`
+- release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
+- 当前状态：`健康页视觉精修与公共资源独立工作域已部署；runtime/readiness、路由和服务日志验证通过`
+- 部署内容：`一体化运行态势、可解释趋势与容量图、固定执行拓扑；公共资源从内容发布中拆为独立一级工作域`
+- 已验证：`67 files / 230 tests、verify:quick、全量 build、pre-push CI、Gray 严格 runtime/readiness、三个页面路由与零 error 级服务日志`
 - 部署时间：`2026-07-21`
-- 本轮制品源提交：`d8aff9d`
+- 本轮制品源提交：`daaee45`
 - 当前批次记录：
+  - `gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
+  - `../validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
   - `gray/2026-07-21-node-cost-badge-placement-gray-v0717.md`
   - `../validations/2026-07-21-node-cost-badge-placement-gray-v0717.md`
   - `gray/2026-07-21-admin-system-health-gray-v0717.md`

@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-21",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "d8aff9d75a100633b463d3a052548f84cdb35620",
+  "sourceCommit": "daaee454eaffae2513f760d716023afeea65579c",
   "environments": {
     "gray": {
       "version": "0.7.17",
-      "releaseId": "20260721-admin-system-health-gray-r1-v0717",
+      "releaseId": "20260721-admin-health-visual-resource-domain-gray-r1-v0717",
       "deployedAt": "2026-07-21",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-21-admin-system-health-gray-v0717.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-system-health-gray-v0717.md",
-      "rollbackReleaseId": "20260721-node-cost-badge-placement-gray-r2-v0717"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md",
+      "rollbackReleaseId": "20260721-admin-system-health-gray-r1-v0717"
     },
     "production": {
       "version": "0.7.13",
