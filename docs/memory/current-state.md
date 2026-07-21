@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.14`（上传节点缩放尺寸单位修复）
+- 当前灰度版本：`v0.7.15`（后台费用计费与动态模块恢复）
 - 当前生产版本：`v0.7.13`（媒体输出保留与批次追加）
-- 当前灰度 release：`20260721-upload-node-zoom-sizing-gray-r1-v0714`
+- 当前灰度 release：`20260721-admin-cost-accounting-gray-r1-v0715`
 - 当前生产 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray v0.7.14 已修复 Upload 单图/单视频节点在低画布缩放率刷新后的高度放大与压缩；Production 保持 v0.7.13。
+- 最新完成：Gray v0.7.15 已加入 CNY 模型价格版本、任务费用快照/台账、服务商/模型/用户组/账号费用柱状统计，并修复后台动态子页面偶发永久加载；Production 保持 v0.7.13。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.14`
-  - release：`20260721-upload-node-zoom-sizing-gray-r1-v0714`
-  - 状态：`上传节点缩放尺寸修复已部署；runtime/readiness 通过，登录后视觉刷新验收待完成`
+  - 版本：`v0.7.15`
+  - release：`20260721-admin-cost-accounting-gray-r1-v0715`
+  - 状态：`费用计费、快照、统计及后台模块恢复已部署；runtime/readiness、迁移、管理员 API 与真实 UI 验收通过`
   - 当前补修：`本轮只推 Gray；Production 保持 v0.7.13`
-  - 本轮制品源提交：`2690e09`
+  - 本轮制品源提交：`2396f80`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
 - Production：

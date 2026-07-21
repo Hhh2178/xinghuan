@@ -18,15 +18,16 @@
 
 ### Gray
 
-- 版本：`v0.7.14`
-- release：`20260721-upload-node-zoom-sizing-gray-r1-v0714`
-- 当前状态：`上传图像/视频节点缩放尺寸修复已部署，runtime/readiness 通过；登录后视觉刷新验收待完成`
-- 部署内容：`Upload 单媒体节点统一用 layout CSS pixels 计算并持久化高度，旧错误尺寸在 metadata 加载后自愈`
-- 已验证：`类型检查、Web production build、54 files / 199 tests、Gray release gate、严格 runtime/readiness`
+- 版本：`v0.7.15`
+- release：`20260721-admin-cost-accounting-gray-r1-v0715`
+- 当前状态：`费用计费与后台模块恢复已部署；runtime/readiness、迁移、管理员 API 与真实 UI 验收通过`
+- 部署内容：`CNY 模型价格版本、不可变任务费用快照/台账、四维费用柱状统计及动态模块超时恢复`
+- 已验证：`全量 build、58 files / 207 tests、CI/harness/release gates、Gray 严格 runtime/readiness、数据库与管理员只读 API、真实费用分析 UI`
 - 部署时间：`2026-07-21`
-- 本轮制品源提交：`2690e09`
-- 本轮修复提交：`8cb8fc4`
+- 本轮制品源提交：`2396f80`
 - 当前批次记录：
+  - `gray/2026-07-21-admin-cost-accounting-gray-v0715.md`
+  - `../validations/2026-07-21-admin-cost-accounting-gray-v0715.md`
   - `gray/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`
   - `../validations/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`
   - `gray/2026-07-20-media-node-runtime-resume-gray-v0713.md`

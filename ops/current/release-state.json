@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-21",
   "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "2690e09130a9971fd1cae228848a824843006983",
+  "sourceCommit": "2396f8086a34fc26a43a24fbbcd06100590a1297",
   "environments": {
     "gray": {
-      "version": "0.7.14",
-      "releaseId": "20260721-upload-node-zoom-sizing-gray-r1-v0714",
+      "version": "0.7.15",
+      "releaseId": "20260721-admin-cost-accounting-gray-r1-v0715",
       "deployedAt": "2026-07-21",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-21-upload-node-zoom-sizing-gray-v0714.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-21-upload-node-zoom-sizing-gray-v0714.md",
-      "rollbackReleaseId": "20260720-media-node-runtime-resume-gray-r2-v0713"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-21-admin-cost-accounting-gray-v0715.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-cost-accounting-gray-v0715.md",
+      "rollbackReleaseId": "20260721-upload-node-zoom-sizing-gray-r1-v0714"
     },
     "production": {
       "version": "0.7.13",
