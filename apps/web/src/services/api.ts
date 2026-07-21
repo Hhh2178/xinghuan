@@ -306,6 +306,13 @@ export interface PublicProviderRef {
   enabled: boolean;
 }
 
+export interface PublicModelPricing {
+  enabled: true;
+  billingUnit: 'per_request' | 'per_second';
+  unitPrice: string;
+  currency: string;
+}
+
 export interface PublicModelUi {
   aspectRatios: string[];
   defaultAspectRatio: string;
@@ -361,6 +368,7 @@ export interface PublicModelRecord {
   parameterSchema: Record<string, any>;
   ui: PublicModelUi;
   provider: PublicProviderRef;
+  pricing?: PublicModelPricing;
   updatedAt: number;
 }
 
@@ -375,6 +383,24 @@ export interface PublicModelCatalog {
 export async function getModelCatalog(): Promise<PublicModelCatalog> {
   const res = await request<{ success: boolean; data: PublicModelCatalog }>(`${BASE}/models`);
   return res.data || { all: [], chatModels: [], imageModels: [], videoModels: [], audioModels: [] };
+}
+
+export interface TaskCostSummary {
+  visible: boolean;
+  status: 'pending' | 'charged' | 'not_charged' | 'unpriced' | 'mixed';
+  taskIds: string[];
+  modelIds: string[];
+  billingUnits: Array<'per_request' | 'per_second'>;
+  totals: Array<{ currency: string; amount: string }>;
+  chargeReasons: string[];
+}
+
+export async function getTaskCostSummary(taskIds: string[]): Promise<TaskCostSummary> {
+  const normalized = [...new Set(taskIds.map((item) => String(item || '').trim()).filter(Boolean))];
+  const res = await request<{ success: boolean; data: TaskCostSummary }>(
+    `${BASE}/task-costs/summary?taskIds=${encodeURIComponent(normalized.join(','))}`,
+  );
+  return res.data;
 }
 
 export interface AdvancedProviderTestResult {

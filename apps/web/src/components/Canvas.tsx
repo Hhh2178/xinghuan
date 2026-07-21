@@ -149,6 +149,7 @@ const LLMNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LL
 const VideoNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/VideoNode')));
 const SeedanceNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/SeedanceNode')));
 import AudioNode from './nodes/AudioNode';
+import { NodeCostBadge } from './nodes/common/NodeCostBadge';
 const RunningHubNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RunningHubNode')));
 import RhConfigNode from './nodes/RhConfigNode';
 const RHToolsNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RHToolsNode')));
@@ -313,6 +314,7 @@ function findNodeSerialAnchorTarget(badgeEl: HTMLElement): HTMLElement | null {
     if (child === badgeEl) continue;
     if (child.classList.contains('react-flow__handle')) continue;
     if (child.classList.contains('t8-node-serial-badge')) continue;
+    if (child.classList.contains('t8-node-cost-badge')) continue;
     return child;
   }
   return null;
@@ -403,10 +405,11 @@ function NodeSerialBadge({ data }: { data: unknown }) {
   );
 }
 
-function withNodeSerialBadge(Component: ComponentType<any>): ComponentType<any> {
+function withNodeSerialBadge(Component: ComponentType<any>, nodeType?: string): ComponentType<any> {
   const WrappedNode = (props: any) => (
     <div className="t8-node-serial-host">
       <Component {...props} />
+      <NodeCostBadge data={props?.data} nodeType={nodeType} />
       <NodeSerialBadge data={props?.data} />
     </div>
   );
@@ -1013,12 +1016,12 @@ function centerOfMaterialNodes(nodes: Node[]): { x: number; y: number } | null {
 
 // 把所有节点类型都注册到对应组件(已实现的用业务组件,其余用 Placeholder)
 const nodeTypes = NODE_REGISTRY.reduce<Record<string, any>>((acc, m) => {
-  acc[m.type] = withNodeSerialBadge(SPECIFIC_NODES[m.type] || PlaceholderNode);
+  acc[m.type] = withNodeSerialBadge(SPECIFIC_NODES[m.type] || PlaceholderNode, m.type);
   return acc;
 }, {});
 // 节点组容器(不在 NODE_REGISTRY 中,作为独立的视觉容器节点类型)
-nodeTypes.groupBox = withNodeSerialBadge(GroupBoxNode);
-nodeTypes[GROUP_EXECUTION_MANAGER_NODE_TYPE] = withNodeSerialBadge(GroupExecutionManagerNode);
+nodeTypes.groupBox = withNodeSerialBadge(GroupBoxNode, 'groupBox');
+nodeTypes[GROUP_EXECUTION_MANAGER_NODE_TYPE] = withNodeSerialBadge(GroupExecutionManagerNode, GROUP_EXECUTION_MANAGER_NODE_TYPE);
 
 // SHIFT 批量移线 phantom 节点: 拖拽期间充当边的临时锐点,跟随鼠标移动
 function BulkPhantomNode() {

@@ -10,3 +10,5 @@
 - Admin-only component styling does not leak into canvas nodes.
 - Machine-first workflow selection is used when workflows belong to machine instances.
 - Errors preserve user input and show actionable next steps.
+- Priced generation nodes show a compact top-left cost badge; unpriced/disabled models show neither the badge nor its coin icon.
+- Provider/model switching updates the preview immediately, while completed tasks retain their immutable snapshot amount after reload.

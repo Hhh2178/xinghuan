@@ -181,6 +181,7 @@ import { createAdminUsageSummaryRepository } from "./admin-usage-summary-reposit
 import { createAdminUsageSummaryService } from "./admin-usage-summary-service.js";
 import { createTaskCostRepository } from "./task-cost-repository.js";
 import { createAdminCostRouteHandler } from "./admin-cost-routes.js";
+import { createTaskCostRouteHandler } from "./task-cost-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createAnnouncementStore } from "./announcement-store.js";
@@ -392,6 +393,11 @@ const handleAdminCostRoutes = createAdminCostRouteHandler({
   writeModelPricing: taskCostRepository.writeModelPricing,
   readCostSummary: taskCostRepository.readCostSummary,
   appendAudit,
+});
+const handleTaskCostRoutes = createTaskCostRouteHandler({
+  sendT8,
+  readTaskCostSummary: taskCostRepository.readTaskCostSummary,
+  invalidRequest: (message) => new HttpError(400, message),
 });
 const taskRepository = createTaskRepository({
   usePostgresRepository,
@@ -1579,6 +1585,8 @@ const server = createServer(async (request, response) => {
       }
     }
 
+    if (await handleTaskCostRoutes({ request, response, url, currentUser: currentUser! })) return;
+
     if (url.pathname === "/api/models" && request.method === "GET") {
       sendT8(response, await publicModelCatalog(currentUser));
       return;
@@ -1643,8 +1651,9 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/api/proxy/external/llm" && request.method === "POST") {
       const rawBody = await readJsonBody(request);
       const llmResult = await generateExternalChatProxy(rawBody, currentUser!, providerFilePublicOrigin(request));
-      await insertTaskRecord(createSucceededExternalChatTask(rawBody, llmResult, currentUser!, requestContext));
-      sendT8(response, llmResult);
+      const task = createSucceededExternalChatTask(rawBody, llmResult, currentUser!, requestContext);
+      await insertTaskRecord(task);
+      sendT8(response, { ...llmResult, taskId: task.id });
       return;
     }
 
@@ -6479,6 +6488,11 @@ function defaultSettings() {
 
 async function publicModelCatalog(currentUser?: CurrentUser | null) {
   const db = await readAdminDb();
+  const pricingByModelId = new Map(
+    (usePostgresRepository() ? await taskCostRepository.readModelPricing() : [])
+      .filter((pricing) => pricing.enabled)
+      .map((pricing) => [pricing.modelId, pricing]),
+  );
   const orderedProviders = sortByCatalogDisplayOrder(db.providers);
   const providerMap = new Map(orderedProviders.map((provider) => [provider.id, provider]));
   const providerOrder = new Map(orderedProviders.map((provider, index) => [provider.id, index]));
@@ -6507,6 +6521,7 @@ async function publicModelCatalog(currentUser?: CurrentUser | null) {
       );
       const inputCapabilities = parseInputCapabilities(model.inputCapabilities, capability);
       const capabilityTags = normalizeModelCapabilityTags(model.capabilityTags, capability, model.modelId);
+      const pricing = pricingByModelId.get(model.id);
       if (currentUser && currentUser.role !== "admin" && !(await permissionRuntime.decide({
         user: currentUser,
         subjectKey: providerModelSubjectKey(model.id),
@@ -6535,6 +6550,12 @@ async function publicModelCatalog(currentUser?: CurrentUser | null) {
           protocol: normalizeProviderProtocol(provider.protocol),
           enabled: true,
         },
+        pricing: pricing ? {
+          enabled: true,
+          billingUnit: pricing.billingUnit,
+          unitPrice: pricing.unitPrice,
+          currency: pricing.currency,
+        } : undefined,
         updatedAt: model.updatedAt,
       };
     }))).filter(Boolean);

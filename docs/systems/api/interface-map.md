@@ -91,6 +91,8 @@
 - `GET /api/admin/model-pricing`：读取各模型最新价格版本。
 - `PUT /api/admin/model-pricing/:modelId`：创建新价格版本；默认 CNY，支持按次/按秒。
 - `GET /api/admin/analytics/cost-summary`：从费用台账按日期、组、账号、Provider、模型和币种聚合。
+- `GET /api/models`：对当前用户可见的模型附带当前有效且启用的 `pricing` 摘要；未配置或已禁用时省略，用于画布实时报价。
+- `GET /api/task-costs/summary?taskIds=...`：按当前登录用户 owner 过滤并汇总最多 100 个任务费用，只返回节点展示所需状态、金额、币种、计费单位和模型快照 ID。
 - 金额字段为六位小数字符串，不在 API 层换算币种。
 
 ## 画布与任务类接口
@@ -104,6 +106,7 @@
 - `/api/proxy/external/llm`
   - 当前仍是同步返回内容给前端。
   - 同时会补写一条 `xh_tasks` 成功任务记录，能力标记为 `chat`，用于后台成功用量统计。
+  - 响应同时返回该成功任务的 `taskId`，供画布读取任务费用快照。
 
 ## RunningHub 关键接口
 

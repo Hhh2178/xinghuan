@@ -10,6 +10,7 @@ This registry defines visual building blocks that future canvas nodes should use
 | `CanvasParamRow` | Canvas | RH/ComfyUI param sections | `apps/web/src/components/nodes/common/` | Label/control/helper/error/default row | Required for exposed parameters |
 | `CanvasSelectorBar` | Canvas | ComfyUI/RH selectors | `apps/web/src/components/nodes/common/` | Machine/provider/workflow/model selector | Use for any selectable execution target |
 | `CanvasRuntimeCard` | Canvas | `NodeRuntimeCard.tsx` | `@xinghuan/ui` after second stable consumer | Queue/running/success/error state | Use for long-running node tasks |
+| `NodeCostBadge` | Canvas | `components/nodes/common/NodeCostBadge.tsx` | current shared location | Current model quote and immutable task-cost settlement metadata | Use for priced backend catalog generation nodes; hide entirely without valid pricing |
 | `CanvasOutputPreview` | Canvas | output preview helpers | `apps/web/src/components/nodes/common/` | Generated result preview and output summary | Use for generation nodes |
 | `CanvasContextMenuAction` | Canvas | context menu CSS/classes | `@xinghuan/ui` after stabilization | Menu icon/text/permission/danger states | Use for right-click actions |
 | `CanvasPermissionHint` | Canvas | scattered disabled text | `apps/web/src/components/nodes/common/` | Permission-denied or admin-only hints | Use when an action exists but is blocked |

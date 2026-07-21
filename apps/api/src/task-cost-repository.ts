@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool, QueryResultRow } from "pg";
 
 import { buildAdminCostSummary, type AdminCostItemRecord } from "./admin-cost-analytics.js";
+import { buildMemberTaskCostSummary, emptyMemberTaskCostSummary, type MemberTaskCostItem } from "./task-cost-display.js";
 import { normalizeModelPricingInput, type ModelPricingInput } from "./task-cost-domain.js";
 
 export interface AdminCostFilters {
@@ -28,6 +29,18 @@ interface CostRow extends QueryResultRow {
   group_name_snapshot: string;
   owner_id_snapshot: string | null;
   owner_email_snapshot: string;
+}
+
+interface MemberCostRow extends QueryResultRow {
+  task_id: string;
+  pricing_version_id: string | null;
+  model_id_snapshot: string | null;
+  status: MemberTaskCostItem["status"];
+  amount: string;
+  currency: string;
+  billing_unit: MemberTaskCostItem["billingUnit"] | null;
+  quantity: number;
+  charge_reason: string;
 }
 
 export function createTaskCostRepository(deps: { getPostgresPool: () => Promise<Pool>; usePostgresRepository: () => boolean }) {
@@ -138,11 +151,40 @@ export function createTaskCostRepository(deps: { getPostgresPool: () => Promise<
     });
   }
 
+  async function readTaskCostSummary(taskIds: string[], ownerId: string) {
+    const normalizedTaskIds = [...new Set(taskIds.map((item) => String(item || "").trim()).filter(Boolean))].slice(0, 100);
+    if (!deps.usePostgresRepository() || normalizedTaskIds.length === 0 || !ownerId) return emptyMemberTaskCostSummary();
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query<MemberCostRow>(
+      `select ci.task_id, ci.pricing_version_id, ci.model_id_snapshot,
+              ci.status, ci.amount::text, ci.currency, ci.billing_unit,
+              ci.quantity, ci.charge_reason
+         from xh_task_cost_items ci
+         join xh_tasks t on t.id = ci.task_id
+        where ci.task_id = any($1::text[])
+          and t.owner_id = $2
+          and ci.cost_item_type = 'provider_cost'
+        order by ci.created_at asc`,
+      [normalizedTaskIds, ownerId],
+    );
+    return buildMemberTaskCostSummary(result.rows.map((row) => ({
+      taskId: String(row.task_id || ""),
+      pricingVersionId: String(row.pricing_version_id || ""),
+      modelId: String(row.model_id_snapshot || ""),
+      status: row.status,
+      amount: String(row.amount || "0"),
+      currency: String(row.currency || "CNY").trim(),
+      billingUnit: row.billing_unit || "",
+      quantity: Number(row.quantity || 0),
+      chargeReason: String(row.charge_reason || ""),
+    })));
+  }
+
   function assertPostgres() {
     if (!deps.usePostgresRepository()) throw new Error("费用计费需要 PostgreSQL 存储");
   }
 
-  return { readModelPricing, writeModelPricing, readCostSummary };
+  return { readModelPricing, writeModelPricing, readCostSummary, readTaskCostSummary };
 }
 
 function addFilter(where: string[], params: unknown[], column: string, value?: string) {

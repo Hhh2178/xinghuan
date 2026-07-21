@@ -3113,6 +3113,53 @@ html[data-theme-visual="op"] .t8-group-box__handle {
     0 6px 14px rgba(0, 0, 0, 0.28);
 }
 
+.t8-node-cost-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-8px, -10px);
+  z-index: 62;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 138px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #f4b942 52%, transparent);
+  background: color-mix(in srgb, var(--t8-bg-panel-elevated, #111827) 90%, #6b470d 10%);
+  color: #f4c86a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--t8-bg-canvas, transparent) 70%, transparent),
+    0 6px 14px rgba(0, 0, 0, 0.28);
+  transition: border-color 180ms ease, color 180ms ease, background-color 180ms ease;
+}
+
+.t8-node-cost-badge svg {
+  flex: 0 0 auto;
+}
+
+.t8-node-cost-badge--pending {
+  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 48%, transparent);
+  color: color-mix(in srgb, var(--t8-accent, #38bdf8) 78%, #ffffff 22%);
+}
+
+.t8-node-cost-badge--settled {
+  border-color: color-mix(in srgb, #69f7c7 42%, transparent);
+  color: #8cf4cf;
+}
+
+.t8-node-cost-badge--attention {
+  border-color: color-mix(in srgb, #f59e0b 66%, transparent);
+  color: #fbbf24;
+}
+
 .react-flow__node.t8-nearest-node-pulse {
   z-index: 1000 !important;
 }

@@ -648,6 +648,7 @@ export interface GenerateLlmResult {
   imageUrls?: string[];
   raw: any;
   model: string;
+  taskId?: string;
 }
 
 export async function generateLlm(req: GenerateLlmRequest): Promise<GenerateLlmResult> {
@@ -685,6 +686,7 @@ export async function generateExternalLlm(req: GenerateExternalLlmRequest): Prom
     imageUrls: Array.isArray(payload.imageUrls) ? payload.imageUrls : undefined,
     raw: payload.raw,
     model: req.model,
+    taskId: payload.taskId,
   };
 }
 

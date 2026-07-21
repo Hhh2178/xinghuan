@@ -455,7 +455,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     const llmVideoOptions = { llmVideoMode, videoMaxWidth, videoMaxHeight, videoMaxBase64Mb, videoCrf, videoFrameCount };
 
     taskCompletionSound.primeAudio();
-    update({ status: 'generating', error: null });
+    update({ status: 'generating', error: null, taskId: null, taskIds: [] });
     if (ignoredImageCount > 0 || ignoredVideoCount > 0) {
       const skipped = [
         ignoredImageCount > 0 ? `图片 ${ignoredImageCount}` : '',
@@ -547,6 +547,8 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
           prompt: replyText,
           generatedImages: imgs.length ? [...generatedImages, ...imgs] : generatedImages,
           imageUrls: imgs.length ? imgs : undefined,
+          taskId: res.taskId || undefined,
+          taskIds: res.taskId ? [res.taskId] : [],
           // 同上: 记录被消化的上游文本(非流式分支)
           consumedTexts: orderedTexts.map((t) => t.url).filter((s) => !!s),
         });
