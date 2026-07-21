@@ -18,16 +18,17 @@
 
 ### Gray
 
-- 版本：`v0.7.13`
-- release：`20260720-media-node-runtime-resume-gray-r2-v0713`
-- 当前状态：`Grok 批次逐项输出、输出刷新保留和可选跨次累积，Gray runtime 与视觉验证通过`
-- 部署内容：`公共资源及可治理目录对象发布；参考视频/音频 max=10 default=2；SD input.media[] 契约兼容`
-- 已验证：`定向权限、AICOPY adapter、SD 配置、视频输入测试通过`
-- 已验证：`Gray runtime、权限 readiness 与模型契约迁移通过；本轮不执行 Production 晋级与 retention/prune`
-- 部署时间：`2026-07-20`
-- 本轮制品源提交：`54332d3`
-- 本轮修复提交：`e00bd89`、`a5f9601`
+- 版本：`v0.7.14`
+- release：`20260721-upload-node-zoom-sizing-gray-r1-v0714`
+- 当前状态：`上传图像/视频节点缩放尺寸修复已部署，runtime/readiness 通过；登录后视觉刷新验收待完成`
+- 部署内容：`Upload 单媒体节点统一用 layout CSS pixels 计算并持久化高度，旧错误尺寸在 metadata 加载后自愈`
+- 已验证：`类型检查、Web production build、54 files / 199 tests、Gray release gate、严格 runtime/readiness`
+- 部署时间：`2026-07-21`
+- 本轮制品源提交：`2690e09`
+- 本轮修复提交：`8cb8fc4`
 - 当前批次记录：
+  - `gray/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`
+  - `../validations/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`
   - `gray/2026-07-20-media-node-runtime-resume-gray-v0713.md`
   - `../validations/2026-07-20-media-node-runtime-resume-gray-v0713.md`
 - 当前批次记录：
