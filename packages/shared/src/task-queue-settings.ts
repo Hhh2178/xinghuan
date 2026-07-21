@@ -117,6 +117,14 @@ export function taskQueueNameForCapability(baseQueueName: string, capability: Ta
   return `${base}:${capability}`;
 }
 
+export function taskQueueWorkerRuntimeKey(environment: unknown, workerId: unknown) {
+  return `xinghuan:worker-runtime:${runtimeKeyPart(environment, "local")}:${runtimeKeyPart(workerId, "worker")}`;
+}
+
+export function taskQueueWorkerRuntimePattern(environment: unknown) {
+  return `xinghuan:worker-runtime:${runtimeKeyPart(environment, "local")}:*`;
+}
+
 export function buildTaskQueueRuntimeDescriptors(baseQueueName: string, settings: TaskQueueSettings): TaskQueueRuntimeDescriptor[] {
   return TASK_QUEUE_CAPABILITIES.map((capability) => ({
     capability,
@@ -127,4 +135,13 @@ export function buildTaskQueueRuntimeDescriptors(baseQueueName: string, settings
 
 function isRecord(value: unknown): value is Record<string, any> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function runtimeKeyPart(value: unknown, fallback: string) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || fallback;
 }

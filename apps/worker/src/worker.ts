@@ -6,6 +6,7 @@ import {
   normalizeTaskQueueSettings,
   resolvePostgresPoolConfig,
   taskQueueNameForCapability,
+  taskQueueWorkerRuntimeKey,
   type AppEnvironment,
   type TaskQueueRuntimeDescriptor,
   type TaskQueueCapability,
@@ -90,6 +91,7 @@ const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const queueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
 const pollTimeoutSeconds = Number.parseInt(process.env.XINGHUAN_WORKER_POLL_TIMEOUT_SECONDS || "5", 10);
 const workerId = process.env.XINGHUAN_WORKER_ID || `worker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const workerRuntimeKey = taskQueueWorkerRuntimeKey(environment, workerId);
 const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUNNING_MS || `${30 * 60 * 1000}`, 10);
 const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
 const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
@@ -350,11 +352,11 @@ async function persistRuntimeQueueSlots() {
     }
   }
   if (runtimeSlots.length === 0) {
-    await redisControl.del(`xinghuan:worker-runtime:${workerId}`).catch(() => undefined);
+    await redisControl.del(workerRuntimeKey).catch(() => undefined);
     return;
   }
   await redisControl
-    .set(`xinghuan:worker-runtime:${workerId}`, JSON.stringify(runtimeSlots), {
+    .set(workerRuntimeKey, JSON.stringify(runtimeSlots), {
       expiration: {
         type: "EX",
         value: Math.max(10, Math.ceil(Math.max(1000, taskQueueRefreshIntervalMs) / 1000) * 3),

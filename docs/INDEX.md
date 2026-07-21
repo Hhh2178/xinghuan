@@ -6,12 +6,13 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `CONTEXT.md`
-4. `docs/systems/README.md`
-5. `README.md`
-6. `MEMORY.md`
-7. `ops/README.md`
-8. `DEVLOG.md`
+3. `DESIGN.md`
+4. `CONTEXT.md`
+5. `docs/systems/README.md`
+6. `README.md`
+7. `MEMORY.md`
+8. `ops/README.md`
+9. `DEVLOG.md`
 
 ## 先判断你要找什么
 
@@ -104,6 +105,9 @@
 
 - 后台能力边界：`docs/systems/admin/README.md`
 - 协议与信息架构：`docs/systems/admin/protocol-and-capabilities.md`
+- 全项目设计总入口：`DESIGN.md`
+- 后台视觉与交互规范：`docs/systems/admin/frontend-design/`
+- 系统健康可视化：`docs/systems/admin/frontend-design/system-health-visualization-standard.md`
 
 ### API
 

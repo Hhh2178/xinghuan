@@ -691,6 +691,10 @@ export interface SystemInfo {
     error: string;
   };
   observability: {
+    environment?: string;
+    generatedAt?: number;
+    freshness?: { status: "fresh" | "stale" | "unknown"; generatedAt?: number };
+    range?: { key: "1h" | "24h" | "7d" | "30d"; bucket: "minute" | "hour" | "day"; durationMs: number; from: number; to: number };
     tasks: {
       total: number;
       queued: number;
@@ -700,11 +704,19 @@ export interface SystemInfo {
       cancelled: number;
       failedLast1h: number;
       failedLast24h: number;
+      finalizedLast24h: number;
       failedLast7d: number;
+      finalizedLast7d: number;
       failedLast30d: number;
+      finalizedLast30d: number;
       health: {
-        status: "healthy" | "warning" | "critical";
+        status: "healthy" | "warning" | "critical" | "unknown";
         summary: string;
+        reason?: string;
+        sampleSize?: number;
+        failureRatePercent?: number;
+        baselinePercent?: number;
+        thresholdPercent?: number;
       };
       trend: {
         failed24hDailyAverageBaseline: number;
@@ -713,7 +725,12 @@ export interface SystemInfo {
         failed24hVs30dDailyAverage: number;
         failed7dDailyAverage: number;
         failed7dVs30dDailyAverage: number;
+        failureRate24hPercent?: number;
+        failureRate7dPercent?: number;
+        failureRate30dPercent?: number;
       };
+      range?: { key: "1h" | "24h" | "7d" | "30d"; bucket: "minute" | "hour" | "day"; durationMs: number; from: number; to: number };
+      series?: Array<{ at: number; succeeded: number; failed: number; cancelled: number }>;
     };
     audits: {
       total: number;
@@ -754,12 +771,19 @@ export interface SystemInfo {
       };
       latestCreatedAt?: number;
     };
+    queueConsistency?: {
+      databaseQueued: number;
+      redisQueued: number;
+      mismatch: number;
+      status: "healthy" | "warning";
+      summary: string;
+    };
     alerts: {
       activeCount: number;
-      highestSeverity: "healthy" | "warning" | "critical";
+      highestSeverity: "healthy" | "info" | "warning" | "critical";
       items: Array<{
         code: string;
-        severity: "warning" | "critical";
+        severity: "info" | "warning" | "critical";
         source: string;
         summary: string;
         action: string;

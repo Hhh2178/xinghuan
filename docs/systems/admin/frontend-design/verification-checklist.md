@@ -9,3 +9,11 @@
 - Ant Design usage is wrapped by project theme/tokens during pilot.
 - Default Ant Design light surfaces do not leak into production admin pages.
 - Permission-disabled controls remain readable and explain why the action is unavailable.
+- Page has one identity/header zone and does not repeat the same title in workspace cards.
+- New colors, font sizes, radius and spacing reuse `DESIGN.md` and `design-tokens.md`.
+- Charts show unit, range, aggregation bucket, freshness and data source semantics.
+- Charts define loading, empty, error, stale and insufficient-sample states.
+- Critical/warning states explain threshold, baseline, duration and impact.
+- Health data is scoped to one environment and exact queue namespace.
+- Every actionable metric has a stable drill-down target that preserves filters.
+- Trend endpoints return aggregated buckets instead of full task payload/result/log history.

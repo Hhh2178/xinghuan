@@ -16,20 +16,22 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 
 ## 推荐阅读顺序
 
-1. `README.md`
-2. `visual-style-and-stitch-baseline.md`
-3. `design-tokens.md`
-4. `visual-component-registry.md`
-5. `functional-component-registry.md`
-6. `component-library-policy.md`
-7. `ant-design-pilot-component-map.md`
-8. `layout-and-density-standard.md`
-9. `form-table-drawer-standard.md`
-10. `icon-text-alignment-standard.md`
-11. `page-map-and-functions.md`
-12. `realtime-loading-and-refresh.md`
-13. `change-guidelines.md`
-14. `verification-checklist.md`
+1. 根级 `DESIGN.md`
+2. `README.md`
+3. `visual-style-and-stitch-baseline.md`
+4. `design-tokens.md`
+5. `layout-and-density-standard.md`
+6. `form-table-drawer-standard.md`
+7. `system-health-visualization-standard.md`
+8. `visual-component-registry.md`
+9. `functional-component-registry.md`
+10. `component-library-policy.md`
+11. `ant-design-pilot-component-map.md`
+12. `icon-text-alignment-standard.md`
+13. `page-map-and-functions.md`
+14. `realtime-loading-and-refresh.md`
+15. `change-guidelines.md`
+16. `verification-checklist.md`
 
 ## 与其他文档的关系
 
@@ -46,6 +48,7 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 
 - 新增后台页面时，必须补 `page-map-and-functions.md`。
 - 新增自动刷新、实时状态或长任务交互时，必须补 `realtime-loading-and-refresh.md`。
+- 调整系统健康指标、阈值、图表、告警或下钻时，必须补 `system-health-visualization-standard.md`。
 - 调整视觉语言、导航、卡片、表格、Inspector 或状态色时，必须补 `visual-style-and-stitch-baseline.md`。
 - 调整组件库、表格、表单、抽屉、图标文字对齐或后台密度时，必须补本目录对应标准文件。
 - 新增可复用后台组件或功能模块时，必须先检查 `visual-component-registry.md` 与 `functional-component-registry.md`。

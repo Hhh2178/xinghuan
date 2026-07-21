@@ -6,6 +6,8 @@ import {
   TASK_QUEUE_MAX_CONCURRENCY,
   buildTaskQueueRuntimeDescriptors,
   normalizeTaskQueueSettings,
+  taskQueueWorkerRuntimeKey,
+  taskQueueWorkerRuntimePattern,
 } from "./task-queue-settings";
 
 describe("task queue settings", () => {
@@ -35,5 +37,10 @@ describe("task queue settings", () => {
       { capability: "audio", queue: "canvas:jobs:audio", concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY },
       { capability: "video", queue: "canvas:jobs:video", concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY },
     ]);
+  });
+
+  it("namespaces worker runtime keys by environment", () => {
+    expect(taskQueueWorkerRuntimeKey("gray", "worker-1")).toBe("xinghuan:worker-runtime:gray:worker-1");
+    expect(taskQueueWorkerRuntimePattern("production")).toBe("xinghuan:worker-runtime:production:*");
   });
 });

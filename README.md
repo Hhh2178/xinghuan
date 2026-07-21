@@ -6,15 +6,17 @@
 
 1. `AGENTS.md`
 2. `docs/INDEX.md`
-3. `CONTEXT.md`
-4. `docs/systems/README.md`
-5. `README.md`
-6. `MEMORY.md`
-7. `ops/README.md`
+3. `DESIGN.md`
+4. `CONTEXT.md`
+5. `docs/systems/README.md`
+6. `README.md`
+7. `MEMORY.md`
+8. `ops/README.md`
 
 ## 文档导航
 
 - 总索引：`docs/INDEX.md`
+- 视觉设计总入口：`DESIGN.md`
 - 领域语言与不变量：`CONTEXT.md`
 - 架构决策索引：`docs/adr/README.md`
 - 协作与归档规则：`docs/governance/`

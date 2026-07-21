@@ -60,7 +60,7 @@ export interface AdminSystemSettingsRouteDeps {
   withEffectiveRunningHubConcurrency: (taskQueueSettings: TaskQueueSettings, providers: any[]) => TaskQueueSettings;
   readDatabaseStatus: () => Promise<DatabaseStatusShape>;
   readRedisStatus: (taskQueueSettings: TaskQueueSettings) => Promise<RedisStatusShape>;
-  readSystemObservability: (database: DatabaseStatusShape, redis: RedisStatusShape) => Promise<unknown>;
+  readSystemObservability: (database: DatabaseStatusShape, redis: RedisStatusShape, range?: string) => Promise<unknown>;
   readStorageStats: () => Promise<unknown>;
   environment: string;
   dataDir: string;
@@ -92,7 +92,7 @@ export async function handleAdminSystemSettingsRoutes(input: {
     dataDir: deps.dataDir,
     database,
     redis,
-    observability: await deps.readSystemObservability(database, redis),
+    observability: await deps.readSystemObservability(database, redis, url.searchParams.get("range") || undefined),
     taskQueueSettings: effectiveTaskQueueSettings,
     taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
     taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,

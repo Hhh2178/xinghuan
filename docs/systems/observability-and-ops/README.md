@@ -8,6 +8,14 @@ Observability 与 Ops 系统负责 release gate、请求链路观测、系统观
 
 1. `release-gates.md`
 2. `gray-and-production-operations.md`
+3. `../admin/frontend-design/system-health-visualization-standard.md`
+
+## 系统健康数据边界
+
+- `/api/admin/system` 的 Worker runtime、queue 和容量只能读取当前 environment namespace 与 exact queue。
+- 任务趋势使用有界的服务端聚合桶；failed 与 cancelled 分开，样本不足或数据源不可用显示 `unknown`，不得伪装成 0/healthy。
+- 页面范围固定为 `1h / 24h / 7d / 30d`；页面不可见暂停轮询，快速切换范围取消旧请求。
+- Provider 历史探测与磁盘容量尚未接入时明确显示 unavailable/unknown，不生成假数据。
 
 ## 相关系统
 

@@ -33,6 +33,9 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
   - 稳定响应拼装已下沉到 `admin-system-response-adapter.ts`
   - 稳定 provider CRUD / probe / fetch-models 路由已下沉到 `admin-provider-routes.ts`
   - `GET /api/admin/system` 已继续下沉到 `admin-system-settings-routes.ts`
+  - 系统健康读取支持 `range=1h|24h|7d|30d`；趋势只返回服务端聚合桶，不向后台发送任务 payload/result/logs
+  - task health 使用失败率、7d/30d 同粒度基线与最小样本量；cancelled 与 failed 分离，数据不足返回 `unknown`
+  - DB queued 与 Redis queue depth 的差异只形成一致性告警，健康 GET 不隐式修改任务状态
   - queue settings 读写边界已继续下沉到 `admin-queue-settings-routes.ts`
   - `GET/PATCH /api/admin/assistant/settings` 已下沉到 `admin-assistant-settings-routes.ts`
   - system/queue response glue 已统一到 `api-response-adapters.ts`

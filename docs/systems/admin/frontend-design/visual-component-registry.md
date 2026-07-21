@@ -14,6 +14,14 @@ This registry defines admin visual components and their intended home. Some entr
 | `AdminEmptyState` | scattered `.empty-state` | `apps/admin/src/components/common/` | Empty and no-permission states | Use for missing data or denied access |
 | `AdminToolbar` | scattered toolbar classes | `apps/admin/src/components/common/` | Filters, batch actions, refresh | Use above tables |
 | `AdminInspectorDrawer` | scattered detail panels | `apps/admin/src/components/common/` | Inspect/edit side panel | Use for table row details and secondary edits |
+| `AdminHealthSummaryRail` | system health alert rows | `apps/admin/src/components/observability/` | Critical/warning summary, impact and recommended action | Use at the top of health and operations pages |
+| `AdminHealthDomainCard` | system health rows | `apps/admin/src/components/observability/` | API/DB/Redis/Worker/Storage status and key metrics | Use for domain health summaries |
+| `AdminServiceTopology` | not formalized | `apps/admin/src/components/observability/` | Stable request and task execution topology | Use for system relationship and link health |
+| `AdminMetricTrendChart` | usage/cost chart patterns | `apps/admin/src/components/observability/` | Time-series value, baseline, threshold and stale interval | Use for throughput, latency, success and wait trends |
+| `AdminQueueCapacityChart` | runtime queue summaries | `apps/admin/src/components/observability/` | Queue depth, wait and configured/effective capacity | Use for capability queues and worker capacity |
+| `AdminProviderHealthHeatmap` | not formalized | `apps/admin/src/components/observability/` | Provider/model health comparison with sample size | Use for provider and capability comparisons |
+| `AdminIncidentTimeline` | audit/event lists | `apps/admin/src/components/observability/` | Alerts, deploys, config changes, restarts and recovery | Use for health-correlated events |
+| `AdminObservabilityInspector` | scattered technical tables | `apps/admin/src/components/observability/` | Metrics, thresholds, related events and technical details | Use for health chart/card drill-down |
 
 ## Ant Design Boundary
 

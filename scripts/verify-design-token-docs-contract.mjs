@@ -24,6 +24,8 @@ for (const token of [
   "--admin-page-gap",
   "Navigation icon",
   "Ant Design Pilot Mapping",
+  "--admin-chart-grid",
+  "--admin-chart-stale",
 ]) {
   assertIncludes(adminTokens, token, `admin design tokens must include ${token}`);
 }

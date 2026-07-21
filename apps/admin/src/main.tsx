@@ -10,6 +10,7 @@ import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { AdminShellWorkspaceBand } from "./admin-shell-workspace-band";
 import { AdminRouteErrorBoundary } from "./admin-route-error-boundary";
 import { createAdminLazyImportWithRecovery } from "./admin-lazy-import-recovery";
+import { useAdminSystemHealth } from "./use-admin-system-health";
 import type {
   AdminUser as AdminUserShape,
   AdminUserGroup as AdminUserGroupShape,
@@ -333,6 +334,19 @@ function AdminApp() {
   }, [assistantOpen]);
 
   const isAdmin = currentUser?.role === "admin";
+  const {
+    range: systemHealthRange,
+    refreshing: systemRefreshing,
+    load: loadSystemHealth,
+    changeRange: changeSystemHealthRange,
+  } = useAdminSystemHealth({
+    isAdmin,
+    isActive: activeWorkspaceId === "system" && activeSystemView === "health",
+    setSystem,
+    setCurrentUser,
+    setError,
+    setLastRefreshAt,
+  });
 
   function handleAuthRequired(nextError: unknown) {
     if (!isAuthRequiredError(nextError)) return false;
@@ -370,6 +384,7 @@ function AdminApp() {
       const snapshot = await readAdminWorkspaceSnapshot(
         workspaceId,
         taskPagePath(taskPage.page, taskPage.pageSize, taskPage.filters),
+        systemHealthRange,
       );
       if (snapshot.users) setUsers(snapshot.users);
       if (snapshot.userGroups) setUserGroups(snapshot.userGroups);
@@ -830,6 +845,9 @@ function AdminApp() {
               activeView={activeSystemView === "runtime-settings" ? "runtime-settings" : "health"}
               system={system}
               saving={busy}
+              refreshing={systemRefreshing}
+              onHealthRangeChange={changeSystemHealthRange}
+              onHealthRefresh={() => void loadSystemHealth(systemHealthRange)}
               onSave={async ({ taskQueueSettings, revision }) => {
                 setBusy(true);
                 setError("");

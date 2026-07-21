@@ -79,6 +79,22 @@ Expanded model subpanels use the same surface family as `schema-guide-card`: `16
 
 All decorative transitions must be disabled under `prefers-reduced-motion: reduce`; state changes must remain understandable without movement.
 
+## Data Visualization Tokens
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--admin-chart-grid` | `rgba(154, 167, 173, 0.14)` | 普通图表网格线 |
+| `--admin-chart-baseline` | `rgba(244, 247, 251, 0.36)` | 零线、基线、参考线 |
+| `--admin-chart-series-primary` | `#66fcf1` | 默认主序列，不替代健康语义色 |
+| `--admin-chart-series-secondary` | `#66d8ff` | 默认比较序列 |
+| `--admin-chart-stale` | `#7f8c8d` | 数据过期或停止更新 |
+| `--admin-chart-unknown` | `#8b93a1` | 样本不足或未知状态 |
+| Chart point budget | `<= 500` | 单图默认最大数据点数 |
+| Realtime refresh | `15s` | 实时健康摘要；页面不可见时暂停 |
+| Trend refresh | `60s` | 聚合趋势图刷新周期 |
+
+图表中的健康、警告、危险必须复用 Core Color Tokens。普通系列色不得伪装成语义状态。
+
 ## Ant Design Pilot Mapping
 
 Ant Design 6 may be piloted only after its theme tokens are mapped back to this table:

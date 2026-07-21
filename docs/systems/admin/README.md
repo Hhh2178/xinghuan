@@ -6,11 +6,12 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 
 ## 建议阅读顺序
 
-1. `architecture.md`
-2. `protocol-and-capabilities.md`
-3. `ui-and-information-architecture.md`
-4. `frontend-design/README.md`
-5. `cost-accounting-and-module-recovery.md`
+1. 根级 `DESIGN.md`
+2. `architecture.md`
+3. `protocol-and-capabilities.md`
+4. `ui-and-information-architecture.md`
+5. `frontend-design/README.md`
+6. `cost-accounting-and-module-recovery.md`
 
 ## 关键代码入口
 

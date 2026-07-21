@@ -62,6 +62,7 @@
     "verify:admin-governance-center-phase2": "node scripts/verify-admin-governance-center-phase2-contract.mjs",
     "verify:admin-common-components-contract": "node scripts/verify-admin-common-components-contract.mjs",
     "verify:admin-readonly-panels-contract": "node scripts/verify-admin-readonly-panels-contract.mjs",
+    "verify:admin-system-health-visualization-contract": "node scripts/verify-admin-system-health-visualization-contract.mjs",
     "verify:admin-usage-dashboard-contract": "node scripts/verify-admin-usage-dashboard-contract.mjs",
     "verify:admin-manual-model-dialog-contract": "node scripts/verify-admin-manual-model-dialog-contract.mjs",
     "verify:admin-overview-panel-contract": "node scripts/verify-admin-overview-panel-contract.mjs",

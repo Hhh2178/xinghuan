@@ -42,6 +42,7 @@ export async function readAdminShellSnapshot(): Promise<AdminShellSnapshot> {
 export async function readAdminWorkspaceSnapshot(
   workspaceId: AdminWorkspaceId,
   taskPath: string,
+  systemHealthRange: "1h" | "24h" | "7d" | "30d" = "24h",
 ): Promise<AdminWorkspaceSnapshot> {
   if (workspaceId === "overview") {
     const [providers, models, taskPage] = await Promise.all([
@@ -82,7 +83,7 @@ export async function readAdminWorkspaceSnapshot(
     return { auditLogs, users, userGroups, providers };
   }
   if (workspaceId === "system") {
-    return { system: await api<SystemInfo>("/api/admin/system") };
+    return { system: await api<SystemInfo>(`/api/admin/system?range=${systemHealthRange}`) };
   }
   return {};
 }

@@ -4,7 +4,7 @@
 
 - 普通 Provider 任务按能力类别拆队列
 - RunningHub 按 RH Key 池窗口独立治理
-- Worker 运行态会把实际槽位上报到 Redis
+- Worker 运行态会把实际槽位上报到 Redis；key 必须包含 environment namespace，API 只扫描当前环境并按 exact queue 汇总
 - RunningHub 任务进入 worker 后，按 `preferredRhKeyId -> 其他 default Key -> 其他启用 Key` 顺序实时尝试抢占
 - 只有全部启用 Key 都满载时，才会保留 `rhQueueReason=all_keys_busy` 并继续排队
 - 如果 RH Provider 没有任何可用 Key，worker 直接按 `model_config` 失败，不伪装成排队
@@ -32,6 +32,7 @@
 
 1. `/api/admin/system` 返回的 `effectiveConcurrency`
 2. Worker runtime key 是否存在
+   - Gray：只检查 Gray namespace；Production：只检查 Production namespace，禁止使用全局 `KEYS` 混算
 3. 是否误落到 RunningHub RH Key 池窗口限制
 4. RH Provider 是否真的存在可用 Key，queued 态只看 `preferredRhKeyId`，真正开跑后才会写 `assignedRhKeyId`
 

@@ -26,7 +26,6 @@ import {
   type UnifiedCancelState,
   type UnifiedFailureCategory,
   type TaskQueueCapability,
-  type TaskQueueWorkerRuntimeSlot,
   type TaskQueueSettings,
   type TaskStatus,
 } from "@xinghuan/shared";
@@ -184,6 +183,13 @@ import { createAdminCostRouteHandler } from "./admin-cost-routes.js";
 import { createTaskCostRouteHandler } from "./task-cost-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
+import { readEnvironmentWorkerRuntimeSlots, summarizeWorkerRuntimeQueue } from "./worker-runtime-observability.js";
+import {
+  decorateTaskObservabilitySummary,
+  evaluateQueueConsistency,
+  normalizeSystemHealthRange,
+  type TaskObservabilityHealthStatus,
+} from "./task-observability-domain.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
@@ -10264,7 +10270,7 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
   try {
     const client = await getRedisClient();
     const pong = await client.ping();
-    const runtimeSlots = await readWorkerRuntimeSlots(client);
+    const runtimeSlots = await readEnvironmentWorkerRuntimeSlots(client, environment);
     const adminDb = await readAdminDb();
     const runninghubPoolKeys = adminDb.providers
       .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
@@ -10281,14 +10287,12 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
     );
     const queueStates = await Promise.all(
       queues.map(async (item) => {
-        const capabilityRuntimeSlots = runtimeSlots.filter((slot) => slot.capability === item.capability);
+        const runtimeSummary = summarizeWorkerRuntimeQueue(runtimeSlots, item.queue);
         return {
           ...item,
           userConcurrency: taskQueueSettings[item.capability].userConcurrency,
           depth: await client.lLen(item.queue),
-          effectiveConcurrency: capabilityRuntimeSlots.filter((slot) => slot.state === "active").length,
-          workerCount: new Set(capabilityRuntimeSlots.map((slot) => slot.workerId).filter(Boolean)).size,
-          slotCount: capabilityRuntimeSlots.length,
+          ...runtimeSummary,
         };
       }),
     );
@@ -10327,41 +10331,6 @@ async function readRedisStatus(taskQueueSettings: TaskQueueSettings) {
   }
 }
 
-async function readWorkerRuntimeSlots(client: Awaited<ReturnType<typeof getRedisClient>>): Promise<TaskQueueWorkerRuntimeSlot[]> {
-  const keys = await client.keys("xinghuan:worker-runtime:*").catch(() => []);
-  if (!Array.isArray(keys) || keys.length === 0) return [];
-  const rawValues = await Promise.all(keys.map((key) => client.get(key).catch(() => null)));
-  const slots: TaskQueueWorkerRuntimeSlot[] = [];
-  for (const rawValue of rawValues) {
-    if (!rawValue) continue;
-    try {
-      const parsed = JSON.parse(rawValue);
-      if (!Array.isArray(parsed)) continue;
-      for (const item of parsed) {
-        const slot = normalizeWorkerRuntimeSlot(item);
-        if (slot) slots.push(slot);
-      }
-    } catch {
-      continue;
-    }
-  }
-  return slots;
-}
-
-function normalizeWorkerRuntimeSlot(value: unknown): TaskQueueWorkerRuntimeSlot | null {
-  const source = plainObject(value);
-  const capability = safeText(source.capability) as TaskQueueCapability;
-  if (!TASK_QUEUE_CAPABILITIES.includes(capability)) return null;
-  return {
-    workerId: safeText(source.workerId),
-    capability,
-    queue: safeText(source.queue, taskQueueNameForCapability(taskQueueName, capability)),
-    slotIndex: Math.max(0, Number(source.slotIndex) || 0),
-    state: safeText(source.state) === "stopping" ? "stopping" : "active",
-    updatedAt: Number(source.updatedAt) || Date.now(),
-  };
-}
-
 async function readSystemObservability(
   database: {
     configured: boolean;
@@ -10375,21 +10344,30 @@ async function readSystemObservability(
     configured: boolean;
     status: string;
     error: string;
+    depth: number;
   },
+  rangeInput?: string,
 ) {
   const [tasks, audits] = await Promise.all([
-    readTaskObservabilitySummary(),
+    readTaskObservabilitySummary(rangeInput),
     readAuditObservabilitySummary(),
   ]);
+  const queueConsistency = evaluateQueueConsistency({ databaseQueued: tasks.queued, redisQueued: redis.depth });
+  const generatedAt = Date.now();
   return {
+    environment,
+    generatedAt,
+    freshness: { status: "fresh", generatedAt },
+    range: tasks.range,
     tasks,
     audits,
-    alerts: buildObservabilityAlerts({ database, redis, tasks, audits }),
+    queueConsistency,
+    alerts: buildObservabilityAlerts({ database, redis, tasks, audits, queueConsistency }),
   };
 }
 
 type ObservabilityHealthStatus = "healthy" | "warning" | "critical";
-type ObservabilityAlertSeverity = Exclude<ObservabilityHealthStatus, "healthy">;
+type ObservabilityAlertSeverity = "info" | "warning" | "critical";
 
 function toObservabilityHealth(
   status: ObservabilityHealthStatus,
@@ -10428,7 +10406,7 @@ function buildObservabilityAlerts(input: {
   };
   tasks: {
     health: {
-      status: ObservabilityHealthStatus;
+      status: TaskObservabilityHealthStatus;
       summary: string;
     };
   };
@@ -10444,6 +10422,7 @@ function buildObservabilityAlerts(input: {
       };
     };
   };
+  queueConsistency: ReturnType<typeof evaluateQueueConsistency>;
 }) {
   const items: Array<ReturnType<typeof toObservabilityAlert>> = [];
   if (input.database.configured && input.database.status !== "connected") {
@@ -10482,11 +10461,22 @@ function buildObservabilityAlerts(input: {
       ),
     );
   }
+  if (input.queueConsistency.status === "warning") {
+    items.push(
+      toObservabilityAlert(
+        "queue_state_mismatch",
+        "warning",
+        "queue",
+        input.queueConsistency.summary,
+        "检查 queued 任务与 Redis 队列状态，按受控 reconciliation 流程处理",
+      ),
+    );
+  }
   if (input.tasks.health.status !== "healthy") {
     items.push(
       toObservabilityAlert(
         "task_failures",
-        input.tasks.health.status,
+        input.tasks.health.status === "unknown" ? "info" : input.tasks.health.status,
         "tasks",
         input.tasks.health.summary,
         "检查失败任务日志、上游响应和队列积压情况",
@@ -10519,54 +10509,23 @@ function buildObservabilityAlerts(input: {
     activeCount: items.length,
     highestSeverity: items.some((item) => item.severity === "critical")
       ? "critical"
-      : items.length > 0
+      : items.some((item) => item.severity === "warning")
         ? "warning"
-        : "healthy",
+        : items.some((item) => item.severity === "info")
+          ? "info"
+          : "healthy",
     items,
   };
 }
 
-async function readTaskObservabilitySummary() {
-  const decorate = (summary: {
-    total: number;
-    queued: number;
-    running: number;
-    succeeded: number;
-    failed: number;
-    cancelled: number;
-    failedLast1h: number;
-    failedLast24h: number;
-    failedLast7d: number;
-    failedLast30d: number;
-  }) => {
-    const failed24hDailyAverageBaseline = Math.round(summary.failedLast7d / 7);
-    const failed30dDailyAverageBaseline = Math.round(summary.failedLast30d / 30);
-    const failed7dDailyAverage = Math.round(summary.failedLast7d / 7);
-    const failed24hVs7dDailyAverage = summary.failedLast24h - failed24hDailyAverageBaseline;
-    const failed24hVs30dDailyAverage = summary.failedLast24h - failed30dDailyAverageBaseline;
-    const failed7dVs30dDailyAverage = failed7dDailyAverage - failed30dDailyAverageBaseline;
-    const health = summary.failedLast24h === 0
-      ? toObservabilityHealth("healthy", "24h 失败任务为 0")
-      : summary.failedLast7d > summary.failedLast24h * 3
-        ? toObservabilityHealth("critical", "7d 失败累计显著高于 24h，需检查持续性问题")
-        : toObservabilityHealth("warning", "24h 内出现失败任务，建议继续观察")
-    ;
-    return {
-      ...summary,
-      health,
-      trend: {
-        failed24hDailyAverageBaseline,
-        failed30dDailyAverageBaseline,
-        failed24hVs7dDailyAverage,
-        failed24hVs30dDailyAverage,
-        failed7dDailyAverage,
-        failed7dVs30dDailyAverage,
-      },
-    };
-  };
+async function readTaskObservabilitySummary(rangeInput?: string) {
+  const range = normalizeSystemHealthRange(rangeInput);
+  const generatedAt = Date.now();
+  const rangeStart = generatedAt - range.durationMs;
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
-    const result = await pool.query(
+    const intervalByRange = { "1h": "1 hour", "24h": "24 hour", "7d": "7 day", "30d": "30 day" } as const;
+    const [result, seriesResult] = await Promise.all([pool.query(
       `select
          count(*) as total,
          count(*) filter (where status = 'queued') as queued,
@@ -10577,12 +10536,26 @@ async function readTaskObservabilitySummary() {
        count(*) filter (where status = 'failed' and updated_at >= now() - interval '1 hour') as failed_last_1h,
        count(*) filter (where status = 'failed' and updated_at >= now() - interval '24 hour') as failed_last_24h
        ,
+       count(*) filter (where status in ('succeeded', 'failed', 'cancelled') and updated_at >= now() - interval '24 hour') as finalized_last_24h,
        count(*) filter (where status = 'failed' and updated_at >= now() - interval '7 day') as failed_last_7d,
-       count(*) filter (where status = 'failed' and updated_at >= now() - interval '30 day') as failed_last_30d
+       count(*) filter (where status in ('succeeded', 'failed', 'cancelled') and updated_at >= now() - interval '7 day') as finalized_last_7d,
+       count(*) filter (where status = 'failed' and updated_at >= now() - interval '30 day') as failed_last_30d,
+       count(*) filter (where status in ('succeeded', 'failed', 'cancelled') and updated_at >= now() - interval '30 day') as finalized_last_30d
       from xh_tasks`,
-    );
+    ), pool.query(
+      `select date_trunc('${range.bucket}', updated_at) as bucket,
+              count(*) filter (where status = 'succeeded') as succeeded,
+              count(*) filter (where status = 'failed') as failed,
+              count(*) filter (where status = 'cancelled') as cancelled
+         from xh_tasks
+        where updated_at >= now() - interval '${intervalByRange[range.key]}'
+          and status in ('succeeded', 'failed', 'cancelled')
+        group by 1
+        order by 1 asc`,
+    )]);
     const row = result.rows[0] || {};
-    return decorate({
+    return {
+      ...decorateTaskObservabilitySummary({
       total: Number(row.total) || 0,
       queued: Number(row.queued) || 0,
       running: Number(row.running) || 0,
@@ -10591,14 +10564,26 @@ async function readTaskObservabilitySummary() {
       cancelled: Number(row.cancelled) || 0,
       failedLast1h: Number(row.failed_last_1h) || 0,
       failedLast24h: Number(row.failed_last_24h) || 0,
+      finalizedLast24h: Number(row.finalized_last_24h) || 0,
       failedLast7d: Number(row.failed_last_7d) || 0,
+      finalizedLast7d: Number(row.finalized_last_7d) || 0,
       failedLast30d: Number(row.failed_last_30d) || 0,
-    });
+      finalizedLast30d: Number(row.finalized_last_30d) || 0,
+      }),
+      range: { ...range, from: rangeStart, to: generatedAt },
+      series: seriesResult.rows.map((item) => ({
+        at: dateToMillis(item.bucket),
+        succeeded: Number(item.succeeded) || 0,
+        failed: Number(item.failed) || 0,
+        cancelled: Number(item.cancelled) || 0,
+      })),
+    };
   }
   const db = await readAdminDb();
   const tasks = Array.isArray(db.tasks) ? db.tasks : [];
   const now = Date.now();
-  return decorate({
+  const finalizedTasks = tasks.filter((task) => task.status === "succeeded" || task.status === "failed" || task.status === "cancelled");
+  const summary = decorateTaskObservabilitySummary({
     total: tasks.length,
     queued: tasks.filter((task) => task.status === "queued").length,
     running: tasks.filter((task) => task.status === "running").length,
@@ -10607,9 +10592,29 @@ async function readTaskObservabilitySummary() {
     cancelled: tasks.filter((task) => task.status === "cancelled").length,
     failedLast1h: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 60 * 60 * 1000).length,
     failedLast24h: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 24 * 60 * 60 * 1000).length,
+    finalizedLast24h: finalizedTasks.filter((task) => now - Number(task.updatedAt || 0) <= 24 * 60 * 60 * 1000).length,
     failedLast7d: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 7 * 24 * 60 * 60 * 1000).length,
+    finalizedLast7d: finalizedTasks.filter((task) => now - Number(task.updatedAt || 0) <= 7 * 24 * 60 * 60 * 1000).length,
     failedLast30d: tasks.filter((task) => task.status === "failed" && now - Number(task.updatedAt || 0) <= 30 * 24 * 60 * 60 * 1000).length,
+    finalizedLast30d: finalizedTasks.filter((task) => now - Number(task.updatedAt || 0) <= 30 * 24 * 60 * 60 * 1000).length,
   });
+  const buckets = new Map<number, { at: number; succeeded: number; failed: number; cancelled: number }>();
+  const bucketMs = range.bucket === "minute" ? 60_000 : range.bucket === "hour" ? 3_600_000 : 86_400_000;
+  for (const task of finalizedTasks) {
+    const updatedAt = Number(task.updatedAt || 0);
+    if (updatedAt < rangeStart) continue;
+    const at = Math.floor(updatedAt / bucketMs) * bucketMs;
+    const item = buckets.get(at) || { at, succeeded: 0, failed: 0, cancelled: 0 };
+    if (task.status === "succeeded") item.succeeded += 1;
+    if (task.status === "failed") item.failed += 1;
+    if (task.status === "cancelled") item.cancelled += 1;
+    buckets.set(at, item);
+  }
+  return {
+    ...summary,
+    range: { ...range, from: rangeStart, to: generatedAt },
+    series: [...buckets.values()].sort((left, right) => left.at - right.at),
+  };
 }
 
 async function readAuditObservabilitySummary() {
