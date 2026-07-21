@@ -13,6 +13,26 @@ export interface MediaNodeConstraint {
   maxHeight?: number;
 }
 
+export interface MediaNodeLayoutMetrics {
+  rootWidth: number;
+  headerHeight: number;
+  bodyScrollHeight: number;
+  mediaWidth: number;
+  mediaHeight: number;
+  borderCompensation?: number;
+}
+
+export function measureMediaNodeChrome(metrics: MediaNodeLayoutMetrics) {
+  const borderCompensation = Math.max(0, metrics.borderCompensation ?? 0);
+  return {
+    horizontal: Math.max(0, metrics.rootWidth - metrics.mediaWidth),
+    vertical: Math.max(
+      0,
+      metrics.headerHeight + metrics.bodyScrollHeight - metrics.mediaHeight + borderCompensation,
+    ),
+  };
+}
+
 export function mediaAspectRatio(width: number, height: number): number | undefined {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return undefined;
   return width / height;

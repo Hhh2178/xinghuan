@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { constrainMediaNodeResize, fitMediaNodeFromWidth, mediaAspectRatio } from './mediaNodeSize';
+import {
+  constrainMediaNodeResize,
+  fitMediaNodeFromWidth,
+  measureMediaNodeChrome,
+  mediaAspectRatio,
+} from './mediaNodeSize';
 
 const chrome = {
   horizontalChrome: 20,
@@ -11,6 +16,29 @@ const chrome = {
 };
 
 describe('single media node sizing', () => {
+  it('measures chrome in layout pixels so canvas zoom cannot corrupt persisted height', () => {
+    const chromeAtTwelvePercentZoom = measureMediaNodeChrome({
+      rootWidth: 220,
+      headerHeight: 41,
+      bodyScrollHeight: 496,
+      mediaWidth: 196,
+      mediaHeight: 386,
+      borderCompensation: 4,
+    });
+
+    expect(chromeAtTwelvePercentZoom).toEqual({ horizontal: 24, vertical: 155 });
+    expect(fitMediaNodeFromWidth(220, {
+      ...chromeAtTwelvePercentZoom,
+      horizontalChrome: chromeAtTwelvePercentZoom.horizontal,
+      verticalChrome: chromeAtTwelvePercentZoom.vertical,
+      aspectRatio: 941 / 1672,
+      minWidth: 220,
+      minHeight: 180,
+      maxWidth: 980,
+      maxHeight: 980,
+    }).h).toBeCloseTo(503.4, 0);
+  });
+
   it('fits portrait media without changing its preview ratio', () => {
     const size = fitMediaNodeFromWidth(320, { ...chrome, aspectRatio: 2 / 3 });
     expect(size).toEqual({ w: 320, h: 566 });

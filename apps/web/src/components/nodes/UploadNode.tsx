@@ -23,7 +23,12 @@ import ResizableCorners from './ResizableCorners';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { shouldAutoCreateUploadOutputs } from './uploadRunPolicy';
 import { computeOutputGridLayout } from './outputPreviewLayout';
-import { constrainMediaNodeResize, fitMediaNodeFromWidth, mediaAspectRatio } from './mediaNodeSize';
+import {
+  constrainMediaNodeResize,
+  fitMediaNodeFromWidth,
+  measureMediaNodeChrome,
+  mediaAspectRatio,
+} from './mediaNodeSize';
 import CollectionSplitButton from '../CollectionSplitButton';
 import ImageHoverPreview from '../ImageHoverPreview';
 import LoopingVideo from '../LoopingVideo';
@@ -164,7 +169,9 @@ const UploadNode = ({ id, data, selected, width }: NodeProps) => {
   // 节点本地尺寸 state: 默认宽度 260，高度由内容撑开；上传后图/视频会撑高 root。
   // 拖角后由 ResizableCorners onResize 同步具体 px (保证 measured 准确 + keepAspectRatio 生效 + handleBounds 准确)
   const persistedSize = (d as any)?.size;
-  const sizeModeRef = useRef<'auto' | 'manual'>(persistedSize ? 'manual' : 'auto');
+  const sizeModeRef = useRef<'auto' | 'manual'>(
+    persistedSize?.mode === 'auto' ? 'auto' : persistedSize ? 'manual' : 'auto',
+  );
   const singleChromeRef = useRef({ horizontal: 20, vertical: 144 });
   const [size, setSize] = useState<{ w: number; h?: number }>({
     w: Math.max(220, Number(persistedSize?.w) || Number(width) || 260),
@@ -214,10 +221,17 @@ const UploadNode = ({ id, data, selected, width }: NodeProps) => {
       const header = headerRef.current;
       const body = bodyRef.current;
       if (!root || !header || !body) return;
-      const rootWidth = root.getBoundingClientRect().width;
-      const mediaRect = element.getBoundingClientRect();
-      const horizontal = Math.max(0, rootWidth - mediaRect.width);
-      const vertical = Math.max(0, header.getBoundingClientRect().height + body.scrollHeight - mediaRect.height + 4);
+      // offset/client/scroll metrics all use layout CSS pixels and therefore stay
+      // stable when React Flow scales the canvas. Viewport rects are zoomed and
+      // must never be mixed with scrollHeight when persisting node dimensions.
+      const { horizontal, vertical } = measureMediaNodeChrome({
+        rootWidth: root.offsetWidth,
+        headerHeight: header.offsetHeight,
+        bodyScrollHeight: body.scrollHeight,
+        mediaWidth: element.offsetWidth,
+        mediaHeight: element.offsetHeight,
+        borderCompensation: 4,
+      });
       singleChromeRef.current = { horizontal, vertical };
       const next = fitMediaNodeFromWidth(size.w, {
         ...singleConstraint(aspectRatio),

@@ -46,6 +46,7 @@
 
 - 普通画布保存、自动保存、刷新恢复和前端版本切换必须保留节点媒体、尺寸及生成任务运行态；只有工作流 manifest 构建可以在深拷贝上清理这些字段。
 - Upload 与 Output 的单图/单视频使用素材固有比例计算初始尺寸，手动四角拉伸继续锁定该比例；多素材使用响应式网格与 `object-fit: contain` 完整展示。
+- Upload 单媒体节点计算预览外 chrome 时统一使用未受 React Flow 缩放影响的 layout CSS pixels（`offset*` / `scrollHeight`）；禁止把 viewport rect 与 layout metrics 混算后写入 `data.size`。媒体 metadata 在刷新后会按当前素材比例重新校正旧尺寸。
 - 异步生成节点在每个批次拿到远程任务号后立即持久化 `taskRuns[]`。每项至少包含 `batchIndex`、`taskId`、`resumeKind`、`status`，旧协议所需查询参数放入 `resumeParams`。
 - 节点刷新挂载时只恢复查询原任务，不调用提交接口；批量任务逐项查询，完成结果与已保存 URL 去重合并，失败或取消按批次记录终态。
 - 当前恢复路由覆盖后台图像、视频、音频任务，MJ、图像/视频 FAL、旧图像/视频轮询及 Seedance。已禁用的旧 Suno 链路不在运行态启动恢复。
