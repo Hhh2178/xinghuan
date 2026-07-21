@@ -18,14 +18,16 @@
 
 ### Gray
 
-- 版本：`v0.7.15`
-- release：`20260721-admin-cost-accounting-gray-r1-v0715`
-- 当前状态：`费用计费与后台模块恢复已部署；runtime/readiness、迁移、管理员 API 与真实 UI 验收通过`
-- 部署内容：`CNY 模型价格版本、不可变任务费用快照/台账、四维费用柱状统计及动态模块超时恢复`
-- 已验证：`全量 build、58 files / 207 tests、CI/harness/release gates、Gray 严格 runtime/readiness、数据库与管理员只读 API、真实费用分析 UI`
+- 版本：`v0.7.17`
+- release：`20260721-canvas-node-cost-badge-gray-r1-v0717`
+- 当前状态：`生成节点费用提示已部署；runtime/readiness、成员费用 API 与无价格隐藏验收通过`
+- 部署内容：`图片、视频、LLM、音频节点费用角标；模型/服务商切换实时重算；任务费用结算摘要`
+- 已验证：`63 files / 221 tests、全量 build/CI/harness/release gates、Gray 严格 runtime/readiness、远端成员接口与无价格隐藏契约`
 - 部署时间：`2026-07-21`
-- 本轮制品源提交：`2396f80`
+- 本轮制品源提交：`bbdad88`
 - 当前批次记录：
+  - `gray/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
+  - `../validations/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `gray/2026-07-21-admin-cost-accounting-gray-v0715.md`
   - `../validations/2026-07-21-admin-cost-accounting-gray-v0715.md`
   - `gray/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`

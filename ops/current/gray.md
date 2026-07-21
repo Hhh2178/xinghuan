@@ -2,16 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.15`
-- 当前 release：`20260721-admin-cost-accounting-gray-r1-v0715`
-- 当前状态：`模型价格版本、任务费用快照、费用分析和后台动态模块恢复已部署；Gray runtime、权限、迁移、管理员 API 与真实 UI 验收通过`
+- 当前版本：`v0.7.17`
+- 当前 release：`20260721-canvas-node-cost-badge-gray-r1-v0717`
+- 当前状态：`生成节点费用提示、实时模型/服务商价格重算与成员费用摘要已部署；Gray runtime、权限和活体 API 验收通过`
 - 当前补修：`本轮只推 Gray；Production 保持 v0.7.13，不执行 Production 部署`
 - Production 当前 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
-- 本轮制品源提交：`2396f80`
+- 本轮制品源提交：`bbdad88`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
-- 当前本地待补修：`environment-sync-local 抽取延期到专门批次；F1 realtime implementation 已延期；ComfyUI 功能继续冻结`
+- 当前本地待补修：`Gray 当前无生效价格版本，因此费用角标按设计隐藏；待运营配置真实价格后再做带金额的业务验收；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
+  - `../../docs/logbooks/validations/2026-07-21-canvas-node-cost-badge-gray-v0717.md`
   - `../../docs/logbooks/releases/gray/2026-07-21-admin-cost-accounting-gray-v0715.md`
   - `../../docs/logbooks/validations/2026-07-21-admin-cost-accounting-gray-v0715.md`
   - `../../docs/logbooks/releases/gray/2026-07-21-upload-node-zoom-sizing-gray-v0714.md`

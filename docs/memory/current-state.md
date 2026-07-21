@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.15`（后台费用计费与动态模块恢复）
+- 当前灰度版本：`v0.7.17`（画布生成节点费用提示）
 - 当前生产版本：`v0.7.13`（媒体输出保留与批次追加）
-- 当前灰度 release：`20260721-admin-cost-accounting-gray-r1-v0715`
+- 当前灰度 release：`20260721-canvas-node-cost-badge-gray-r1-v0717`
 - 当前生产 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray v0.7.15 已加入 CNY 模型价格版本、任务费用快照/台账、服务商/模型/用户组/账号费用柱状统计，并修复后台动态子页面偶发永久加载；Production 保持 v0.7.13。
+- 最新完成：Gray v0.7.17 已在图片、视频、LLM、音频生成节点加入费用提示；模型或服务商切换时即时按当前价格重算，未配置价格时完全隐藏；Production 保持 v0.7.13。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
