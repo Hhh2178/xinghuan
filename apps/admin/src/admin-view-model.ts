@@ -37,6 +37,7 @@ export type AdminWorkspaceId =
   | "capabilities"
   | "rh"
   | "comfyui"
+  | "resources"
   | "content"
   | "runtime"
   | "analytics"
@@ -152,16 +153,22 @@ export const adminWorkspaces: AdminWorkspace[] = [
     tabPaths: { comfyui: "/admin/comfyui" },
   },
   {
-    id: "content",
-    label: "内容与资源",
-    subtitle: "Content & Resources",
-    description: "公共资源、公告、分类与标签的统一内容治理。",
+    id: "resources",
+    label: "公共资源",
+    subtitle: "Shared Resources",
+    description: "公共素材上传、分类、预览、编辑与开放范围治理。",
     icon: Library,
-    tabs: ["public-resources", "announcement"],
-    tabPaths: {
-      "public-resources": "/admin/content/public-resources",
-      announcement: "/admin/content/announcements",
-    },
+    tabs: ["public-resources"],
+    tabPaths: { "public-resources": "/admin/resources" },
+  },
+  {
+    id: "content",
+    label: "内容发布",
+    subtitle: "Content Publishing",
+    description: "公告、强提醒、置顶与展示策略治理。",
+    icon: Bell,
+    tabs: ["announcement"],
+    tabPaths: { announcement: "/admin/content/announcements" },
   },
   {
     id: "runtime",
@@ -340,6 +347,9 @@ export function resolveAdminPath(pathname: string): {
   capabilitiesView?: AdminCapabilitiesViewId;
 } {
   const normalizedPath = pathname.replace(/\/$/, "") || "/admin";
+  if (normalizedPath === "/admin/content/public-resources" || normalizedPath.startsWith("/admin/content/public-resources/")) {
+    return { workspaceId: "resources", tabId: "public-resources" };
+  }
   const usersView = normalizedPath.startsWith("/admin/security")
     ? "permissions"
     : normalizedPath.startsWith("/admin/organization/accounts")

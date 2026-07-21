@@ -67,6 +67,9 @@ export async function readAdminWorkspaceSnapshot(
     ]);
     return { providers, models };
   }
+  if (workspaceId === "resources") {
+    return {};
+  }
   if (workspaceId === "content") {
     return { announcements: await adminAnnouncementApi.listAnnouncements() };
   }

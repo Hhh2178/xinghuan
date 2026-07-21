@@ -49,10 +49,10 @@ const checks = [
       navLabels === "总览,用户,API 设置,RH 工作台,ComfyUI,公共资源,AI 助手,公告,任务,审计,系统,环境同步",
   },
   {
-    name: "ten admin domains stay explicit and ordered",
+    name: "eleven admin domains stay explicit and ordered",
     pass:
-      workspaceIds === "overview,organization,security,capabilities,rh,comfyui,content,runtime,analytics,system" &&
-      workspaceLabels === "运营总览,账号与组织,权限与安全,Provider 与模型,RH 管理,ComfyUI 管理,内容与资源,任务与运行,数据分析与审计,系统与发布",
+      workspaceIds === "overview,organization,security,capabilities,rh,comfyui,resources,content,runtime,analytics,system" &&
+      workspaceLabels === "运营总览,账号与组织,权限与安全,Provider 与模型,RH 管理,ComfyUI 管理,公共资源,内容发布,任务与运行,数据分析与审计,系统与发布",
   },
   {
     name: "admin paths resolve to domain and legacy page adapters",
@@ -69,6 +69,9 @@ const checks = [
       resolveAdminPath("/admin/system/runtime-settings").systemView === "runtime-settings" &&
       resolveAdminPath("/admin/comfyui/instances/demo/workflows").comfyuiDetailTab === "workflows" &&
       pathForWorkspaceTab("comfyui", "comfyui") === "/admin/comfyui" &&
+      pathForWorkspaceTab("resources", "public-resources") === "/admin/resources" &&
+      resolveAdminPath("/admin/resources").workspaceId === "resources" &&
+      resolveAdminPath("/admin/content/public-resources").workspaceId === "resources" &&
       resolveAdminPath("/admin/security").workspaceId === "security" &&
       resolveAdminPath("/admin/security").tabId === "users" &&
       resolveAdminPath("/admin/security").usersView === "permissions" &&

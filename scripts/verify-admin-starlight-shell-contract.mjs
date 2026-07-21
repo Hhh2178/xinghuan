@@ -21,6 +21,7 @@ const requiredWorkspaceIds = [
   "capabilities",
   "rh",
   "comfyui",
+  "resources",
   "content",
   "runtime",
   "analytics",
@@ -33,7 +34,7 @@ const checks = [
     pass: existsSync(viewModelPath),
   },
   {
-    name: "workspace model defines all ten domains",
+    name: "workspace model defines all eleven domains",
     pass: requiredWorkspaceIds.every((id) => viewModel.includes(`id: "${id}"`)),
   },
   {
@@ -45,7 +46,8 @@ const checks = [
       viewModel.includes('label: "Provider 与模型"') &&
       viewModel.includes('label: "RH 管理"') &&
       viewModel.includes('label: "ComfyUI 管理"') &&
-      viewModel.includes('label: "内容与资源"') &&
+      viewModel.includes('label: "公共资源"') &&
+      viewModel.includes('label: "内容发布"') &&
       viewModel.includes('label: "任务与运行"') &&
       viewModel.includes('label: "数据分析与审计"') &&
       viewModel.includes('label: "系统与发布"'),
