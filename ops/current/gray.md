@@ -5,8 +5,8 @@
 - 当前版本：`v0.7.17`
 - 当前 release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
 - 当前状态：`后台健康页视觉精修与公共资源独立工作域已部署；Gray runtime、权限、页面路由与服务日志验证通过`
-- 当前补修：`本轮只推 Gray；Production 保持 v0.7.13，不执行 Production 部署`
-- Production 当前 release：`20260720-media-node-runtime-resume-prod-r1-v0713`
+- 当前补修：`本轮 Gray 已验收内容现已晋级 Production v0.7.17；Gray 保持当前 release 不变`
+- Production 当前 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 本轮制品源提交：`daaee45`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`

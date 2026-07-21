@@ -30,17 +30,17 @@
   - 版本：`v0.7.17`
   - release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
   - 状态：`后台健康页视觉精修与公共资源独立工作域已部署；runtime/readiness、路由和服务日志验证通过`
-  - 当前补修：`本轮只推 Gray；Production 保持 v0.7.13`
+  - 当前补修：`本轮 Gray 已验收内容现已晋级 Production v0.7.17`
   - 本轮制品源提交：`daaee45`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.13`
-  - release：`20260720-media-node-runtime-resume-prod-r1-v0713`
-  - 状态：`媒体输出保留、Grok 批次逐项输出和可选跨次累积已由 Gray 验收制品晋级，Production runtime 验证通过`
-  - 当前补修：`普通用户只隐藏 3 个 SD 视频模型，Grok/Seedance 已恢复；回滚锚点为 v0.7.7；retention 保留 v0.7.8/v0.7.7/v0.7.6；继续观察既有任务失败趋势与 revision conflict`
+  - 版本：`v0.7.17`
+  - release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+  - 状态：`后台健康页视觉精修、公共资源独立工作域及费用能力已由 Gray 验收制品晋级，Production 严格 runtime/readiness、数据库、路由和日志验证通过`
+  - 当前补修：`回滚锚点为 v0.7.13；继续观察既有 24h 任务失败率与 revision conflict；依赖审计项单独治理`
 
 ## current / archive 分工
 

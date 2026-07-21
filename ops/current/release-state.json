@@ -16,15 +16,15 @@
       "rollbackReleaseId": "20260721-admin-system-health-gray-r1-v0717"
     },
     "production": {
-      "version": "0.7.13",
-      "releaseId": "20260720-media-node-runtime-resume-prod-r1-v0713",
-      "deployedAt": "2026-07-20",
+      "version": "0.7.17",
+      "releaseId": "20260721-admin-health-visual-resource-domain-prod-r1-v0717",
+      "deployedAt": "2026-07-21",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 142, "publishedSubjects": 125, "restrictedSubjects": 11, "retiredSubjects": 6, "rules": 2772, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 142, "publishedSubjects": 125, "restrictedSubjects": 11, "retiredSubjects": 6, "rules": 2772, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-20", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-20-media-node-runtime-resume-prod-v0713.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-20-media-node-runtime-resume-prod-v0713.md",
-      "rollbackReleaseId": "20260720-workflow-media-boundary-prod-r1-v0711"
+      "readiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
+      "rollbackReleaseId": "20260720-media-node-runtime-resume-prod-r1-v0713"
     }
   }
 }

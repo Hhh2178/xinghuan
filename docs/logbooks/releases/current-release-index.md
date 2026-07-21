@@ -4,14 +4,14 @@
 
 ### Production
 
-- 版本：`v0.7.13`
-- release：`20260720-media-node-runtime-resume-prod-r1-v0713`
-- 当前状态：`Production runtime 验证通过`
-- 部署内容：`复用 Gray 已验收的媒体输出保留、Grok 批次逐项输出和可选跨次累积制品`
-- 回滚：`20260720-workflow-media-boundary-prod-r1-v0711`
+- 版本：`v0.7.17`
+- release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- 当前状态：`Production runtime/readiness、数据库、关键路由和服务日志验证通过`
+- 部署内容：`复用 Gray 已验收的后台健康页视觉精修、公共资源独立工作域、费用统计与画布节点费用提示制品`
+- 回滚：`20260720-media-node-runtime-resume-prod-r1-v0713`
 - 当前批次记录：
-  - `production/2026-07-20-media-node-runtime-resume-prod-v0713.md`
-  - `../validations/2026-07-20-media-node-runtime-resume-prod-v0713.md`
+  - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
+  - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
 - 当前批次记录：
   - `production/2026-07-20-workflow-media-boundary-prod-v0711.md`
   - `../validations/2026-07-20-workflow-media-boundary-prod-v0711.md`
