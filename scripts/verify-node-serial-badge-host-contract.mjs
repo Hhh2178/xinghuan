@@ -11,5 +11,10 @@ assert.match(
 );
 assert.match(canvas, /badgeEl\?\.offsetParent instanceof HTMLElement/, 'badge anchoring must use the actual positioned ancestor');
 assert.match(styles, /\.t8-node-serial-host\s*\{\s*display:\s*contents;/, 'serial host must not change node layout');
+assert.match(
+  styles,
+  /\.t8-node-cost-badge\s*\{[\s\S]*?bottom:\s*100%;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*none;/,
+  'cost badge must sit outside the node, left aligned and flush with the top edge',
+);
 
 console.log('PASS node serial badge stable host contract');
