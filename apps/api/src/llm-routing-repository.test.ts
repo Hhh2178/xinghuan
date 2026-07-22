@@ -34,6 +34,22 @@ describe("LLM routing repository", () => {
     })).resolves.toBe("decision-1");
   });
 
+  it("casts route-health counters before using them in an upsert", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("select state, consecutive_technical_failures")) return { rows: [] };
+      if (sql.includes("insert into xh_llm_route_entry_health")) {
+        expect(sql).toContain("$3::integer");
+        expect(sql).toContain("$4::integer");
+        expect(sql).toContain("$7::integer");
+      }
+      return { rows: [] };
+    });
+    const client = { query, release: vi.fn() };
+    const repository = createLlmRoutingRepository({ getPostgresPool: async () => ({ connect: async () => client } as any) });
+
+    await expect(repository.recordOutcome({ entryId: "entry-1", outcome: "success", latencyMs: 42, failureThreshold: 3 })).resolves.toBe("healthy");
+  });
+
   it("projects an expired circuit as half-open using the published route policy", async () => {
     const query = vi.fn(async () => ({ rows: [{
       pool_id: "pool-1", pool_version_id: "pool-v1", policy_snapshot: { cooldownMs: 1_000 }, entry_id: "entry-probe",

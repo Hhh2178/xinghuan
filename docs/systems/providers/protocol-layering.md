@@ -37,5 +37,6 @@
 ## 当前典型样本
 
 - ModelScope 图像协议兼容
+- OpenAI-compatible Chat 适配覆盖 `openai`、`apimart`、`aicopy`、`modelscope` 与 `custom`；Gemini 继续使用独立原生媒体路径。
 - RunningHub 条目治理
 - ComfyUI Connector + 实例专属工作流 + 推送到共享区

@@ -555,7 +555,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     );
     await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入语言模型 Adapter: ${protocol}`);
     }
     const apiKey = deps.providerPlainApiKey(provider);

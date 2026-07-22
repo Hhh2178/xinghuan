@@ -107,18 +107,18 @@ export function createLlmRoutingRepository(deps: { getPostgresPool: () => Promis
         `insert into xh_llm_route_entry_health
           (route_entry_id, state, consecutive_technical_failures, success_count, technical_failure_count, quality_failure_count,
            p95_latency_ms, circuit_opened_at, last_success_at, last_failure_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, case when $2 = 'circuit_open' then now() else null end,
-           case when $4 = 1 then now() else null end, case when $5 = 1 then now() else null end, now())
+         values ($1, $2, $3::integer, $4::integer, $5::integer, $6::integer, $7::integer, case when $2 = 'circuit_open' then now() else null end,
+           case when $4::integer = 1 then now() else null end, case when $5::integer = 1 then now() else null end, now())
          on conflict (route_entry_id) do update set
            state = excluded.state,
-           consecutive_technical_failures = case when $4 = 1 then 0 when $5 = 1 then xh_llm_route_entry_health.consecutive_technical_failures + 1 else xh_llm_route_entry_health.consecutive_technical_failures end,
-           success_count = xh_llm_route_entry_health.success_count + $4,
-           technical_failure_count = xh_llm_route_entry_health.technical_failure_count + $5,
-           quality_failure_count = xh_llm_route_entry_health.quality_failure_count + $6,
-           p95_latency_ms = $7,
+           consecutive_technical_failures = case when $4::integer = 1 then 0 when $5::integer = 1 then xh_llm_route_entry_health.consecutive_technical_failures + 1 else xh_llm_route_entry_health.consecutive_technical_failures end,
+           success_count = xh_llm_route_entry_health.success_count + $4::integer,
+           technical_failure_count = xh_llm_route_entry_health.technical_failure_count + $5::integer,
+           quality_failure_count = xh_llm_route_entry_health.quality_failure_count + $6::integer,
+           p95_latency_ms = $7::integer,
            circuit_opened_at = case when excluded.state = 'circuit_open' then coalesce(xh_llm_route_entry_health.circuit_opened_at, now()) else null end,
-           last_success_at = case when $4 = 1 then now() else xh_llm_route_entry_health.last_success_at end,
-           last_failure_at = case when $5 = 1 then now() else xh_llm_route_entry_health.last_failure_at end,
+           last_success_at = case when $4::integer = 1 then now() else xh_llm_route_entry_health.last_success_at end,
+           last_failure_at = case when $5::integer = 1 then now() else xh_llm_route_entry_health.last_failure_at end,
            updated_at = now()`,
         [input.entryId, state, input.outcome === "success" ? 0 : failures + technicalIncrement, input.outcome === "success" ? 1 : 0, technicalIncrement, qualityIncrement, Math.max(0, Math.floor(input.latencyMs))],
       );
