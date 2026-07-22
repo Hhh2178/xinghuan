@@ -1305,7 +1305,7 @@ async function executeChatTask(task: TaskRow, signal?: AbortSignal): Promise<Rec
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  if (!["openai", "gemini", "apimart", "modelscope", "custom"].includes(protocol)) {
+  if (!["openai", "gemini", "apimart", "modelscope", "custom", "aicopy"].includes(protocol)) {
     throw new Error(`当前 Worker 语言模型 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);

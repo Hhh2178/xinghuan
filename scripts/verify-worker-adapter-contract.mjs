@@ -14,6 +14,7 @@ const checks = [
   ["Worker protocol normalization preserves AICopy", /function normalizeProtocol[\s\S]*?\[[^\]]*"aicopy"[^\]]*\]/.test(worker)],
   ["Worker task-store normalization preserves AICopy", /function normalizeProtocol[\s\S]*?\[[^\]]*"aicopy"[^\]]*\]/.test(taskStore)],
   ["Worker has chat adapter execution", worker.includes("executeChatTask") && (worker.includes('openAiEndpoint(task.providerBaseUrl, "chat/completions")') || worker.includes("/chat/completions"))],
+  ["Worker Chat adapter accepts AICopy OpenAI-compatible providers", /async function executeChatTask[\s\S]*?\["openai", "gemini", "apimart", "modelscope", "custom", "aicopy"\]/.test(worker)],
   ["Worker records adapter result metadata", worker.includes("imageUrls") && worker.includes("completedAt")],
   ["API task record exposes payload and result", api.includes("payload?: Record<string, unknown>") && api.includes("result?: Record<string, unknown>")],
   ["API postgres task repository persists payload and result", /insert into xh_tasks[\s\S]*payload[\s\S]*result/i.test(api) && /select[\s\S]*payload[\s\S]*result[\s\S]*from xh_tasks/i.test(api)],
