@@ -66,6 +66,8 @@ const requiredPaths = [
   "packages/canvas-core/dist",
   "packages/model-core/package.json",
   "packages/model-core/dist",
+  "packages/agent-core/package.json",
+  "packages/agent-core/dist",
   "packages/ui/package.json",
   "packages/ui/dist",
 ];
@@ -129,6 +131,8 @@ const includedPaths = [
   "packages/canvas-core/dist",
   "packages/model-core/package.json",
   "packages/model-core/dist",
+  "packages/agent-core/package.json",
+  "packages/agent-core/dist",
   "packages/ui/package.json",
   "packages/ui/dist",
   "AGENTS.md",

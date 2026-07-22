@@ -76,6 +76,10 @@ assertArrayIncludes("requiredPaths", "apps/worker/src/worker.ts");
 assertArrayIncludes("requiredPaths", "apps/worker/src/output-materials.ts");
 assertArrayIncludes("includedPaths", "apps/api/src");
 assertArrayIncludes("includedPaths", "apps/worker/src");
+assertArrayIncludes("requiredPaths", "packages/agent-core/package.json");
+assertArrayIncludes("requiredPaths", "packages/agent-core/dist");
+assertArrayIncludes("includedPaths", "packages/agent-core/package.json");
+assertArrayIncludes("includedPaths", "packages/agent-core/dist");
 
 console.log(
   JSON.stringify(
