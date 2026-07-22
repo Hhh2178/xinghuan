@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.17`
-- 当前 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-- 当前状态：`Gray 已验收的后台健康页视觉精修、公共资源独立工作域及费用能力已晋级，Production runtime、权限、数据库、路由与日志验证通过`
-- 当前补修：`复用 Gray 已验收 v0.7.17 制品；回滚锚点为 v0.7.13；继续观察既有任务失败率与 revision conflict`
+- 当前版本：`v0.7.18`
+- 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
+- 当前状态：`复用 Gray 已验收的画布 revision 协调与基线化观测制品；Production runtime、权限、数据库、路由、Nginx 与日志验证通过`
+- 当前补修：`启动前发现 2 条 retired subject rule 引用，已通过受控 reconciliation 事务修复并幂等验证；任务失败率与 revision conflict 继续观察`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-22-canvas-revision-observability-production-v0718.md`
+  - `../../docs/logbooks/validations/2026-07-22-canvas-revision-observability-production-v0718.md`
   - `../../docs/logbooks/releases/production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../../docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../../docs/logbooks/releases/production/2026-07-20-workflow-media-boundary-prod-v0711.md`
@@ -67,7 +69,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260720-media-node-runtime-resume-prod-r1-v0713`
+  - `/opt/apps/xinghuan-canvas/releases/20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

@@ -3,11 +3,11 @@
 ## 当前版本与阶段
 
 - 当前灰度版本：`v0.7.18`（画布 revision 协调与基线化观测）
-- 当前生产版本：`v0.7.17`（后台健康页视觉精修、公共资源拆域与费用能力）
+- 当前生产版本：`v0.7.18`（画布 revision 协调与基线化观测）
 - 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
-- 当前生产 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 已部署并验收 v0.7.18；画布保存通过 Web Locks 与 BroadcastChannel 协调，revision conflict 健康按 7d/30d 基线评估。Production 仍保持 v0.7.17，未部署本轮制品。
+- 最新完成：Gray 已部署并验收 v0.7.18，Production 已复用同一制品完成晋级；Production 启动前权限 retired-subject rule 漂移已由受控 reconciliation 修复并通过 readiness 验证。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -41,7 +41,7 @@
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
 - gray 当前运行 `v0.7.18 / enforced`，release 为 `20260722-canvas-revision-observability-gray-r1-v0718`
-- production 当前运行 `v0.7.17 / enforced`，release 为 `20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- production 当前运行 `v0.7.18 / enforced`，release 为 `20260722-canvas-revision-observability-prod-r1-v0718`
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

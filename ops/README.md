@@ -37,10 +37,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.17`
-  - release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-  - 状态：`后台健康页视觉精修、公共资源独立工作域及费用能力已由 Gray 验收制品晋级，Production 严格 runtime/readiness、数据库、路由和日志验证通过`
-  - 当前补修：`回滚锚点为 v0.7.13；继续观察既有 24h 任务失败率与 revision conflict；依赖审计项单独治理`
+  - 版本：`v0.7.18`
+  - release：`20260722-canvas-revision-observability-prod-r1-v0718`
+  - 状态：`画布 revision 协调与基线化观测已由 Gray 验收制品晋级，Production runtime/readiness、数据库、路由、Nginx 和日志验证通过`
+  - 当前补修：`启动前 retired subject rule 漂移已通过受控 reconciliation 修复；继续观察任务失败率与 revision conflict；依赖审计项单独治理`
 
 ## current / archive 分工
 

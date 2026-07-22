@@ -4,11 +4,14 @@
 
 ### Production
 
-- 版本：`v0.7.17`
-- release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-- 当前状态：`Production runtime/readiness、数据库、关键路由和服务日志验证通过`
-- 部署内容：`复用 Gray 已验收的后台健康页视觉精修、公共资源独立工作域、费用统计与画布节点费用提示制品`
-- 回滚：`20260720-media-node-runtime-resume-prod-r1-v0713`
+- 版本：`v0.7.18`
+- release：`20260722-canvas-revision-observability-prod-r1-v0718`
+- 当前状态：`Production runtime/readiness、数据库、关键路由、Nginx 和服务日志验证通过`
+- 部署内容：`复用 Gray 已验收的画布 revision 协调与基线化 revision conflict 观测制品`
+- 回滚：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- 当前批次记录：
+  - `production/2026-07-22-canvas-revision-observability-production-v0718.md`
+  - `../validations/2026-07-22-canvas-revision-observability-production-v0718.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
