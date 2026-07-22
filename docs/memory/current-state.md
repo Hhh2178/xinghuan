@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.17`（画布生成节点费用提示）
+- 当前灰度版本：`v0.7.18`（画布 revision 协调与基线化观测）
 - 当前生产版本：`v0.7.17`（后台健康页视觉精修、公共资源拆域与费用能力）
-- 当前灰度 release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
+- 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
 - 当前生产 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 已验收的 v0.7.17 制品晋级 Production；系统健康页视觉按 Provider 页面语言重构，公共资源成为独立一级工作域，生产 runtime/readiness、数据库、关键路由和服务日志验证通过。
+- 最新完成：Gray 已部署并验收 v0.7.18；画布保存通过 Web Locks 与 BroadcastChannel 协调，revision conflict 健康按 7d/30d 基线评估。Production 仍保持 v0.7.17，未部署本轮制品。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述
@@ -40,9 +40,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-  - gray 与 production 当前均运行 `v0.7.6 / enforced`
-  - gray 当前 release 为 `20260718-generation-artifact-stream-abort-gray-r2-v075`
-  - production 当前 release 为 `20260718-permission-image-node-repair-prod-r1-v076`
+- gray 当前运行 `v0.7.18 / enforced`，release 为 `20260722-canvas-revision-observability-gray-r1-v0718`
+- production 当前运行 `v0.7.17 / enforced`，release 为 `20260721-admin-health-visual-resource-domain-prod-r1-v0717`
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
   - ComfyUI 后台实例池管理界面重构已完成并部署到灰度（2026-07-03）：

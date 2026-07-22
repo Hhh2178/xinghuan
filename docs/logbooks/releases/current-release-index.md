@@ -18,13 +18,16 @@
 
 ### Gray
 
-- 版本：`v0.7.17`
-- release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
-- 当前状态：`健康页视觉精修与公共资源独立工作域已部署；runtime/readiness、路由和服务日志验证通过`
-- 部署内容：`一体化运行态势、可解释趋势与容量图、固定执行拓扑；公共资源从内容发布中拆为独立一级工作域`
-- 已验证：`67 files / 230 tests、verify:quick、全量 build、pre-push CI、Gray 严格 runtime/readiness、三个页面路由与零 error 级服务日志`
-- 部署时间：`2026-07-21`
-- 本轮制品源提交：`daaee45`
+- 版本：`v0.7.18`
+- release：`20260722-canvas-revision-observability-gray-r1-v0718`
+- 当前状态：`画布 revision 协调与基线化观测已部署；runtime/readiness、服务 smoke 和双标签页面验证通过`
+- 部署内容：`Web Locks + BroadcastChannel 画布保存协调；revision conflict 使用 7d/30d 日均基线和影响对象数评估`
+- 已验证：`69 files / 237 tests、全 workspace type-check/build、CI、Gray runtime/readiness、system observability、revision conflict、任务分页、环境同步和双标签浏览器`
+- 部署时间：`2026-07-22`
+- 本轮制品源提交：`5fd2b5d`
+- 当前批次记录：
+  - `gray/2026-07-22-canvas-revision-observability-gray-v0718.md`
+  - `../validations/2026-07-22-canvas-revision-observability-gray-v0718.md`
 - 当前批次记录：
   - `gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`

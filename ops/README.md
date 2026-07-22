@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.17`
-  - release：`20260721-admin-health-visual-resource-domain-gray-r1-v0717`
-  - 状态：`后台健康页视觉精修与公共资源独立工作域已部署；runtime/readiness、路由和服务日志验证通过`
-  - 当前补修：`本轮 Gray 已验收内容现已晋级 Production v0.7.17`
-  - 本轮制品源提交：`daaee45`
+  - 版本：`v0.7.18`
+  - release：`20260722-canvas-revision-observability-gray-r1-v0718`
+  - 状态：`画布 revision 协调与基线化观测已部署；runtime/readiness、服务 smoke 和双标签页面验证通过`
+  - 当前补修：`revision conflict 当前为基线化 warning；任务失败小样本 critical 保留观察，不删除真实记录`
+  - 本轮制品源提交：`5fd2b5d`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
