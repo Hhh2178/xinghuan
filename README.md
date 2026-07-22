@@ -32,14 +32,14 @@
 
 - 当前候选版本：`v0.7.19`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.7.18`
+- 当前灰度版本：`v0.7.19`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.7.18`
-- 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
+- 当前灰度 release：`20260722-canvas-agent-runtime-gray-r1-v0719`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前开发分支：`feature/canvas-agent-runtime`
-- 当前重点：本地候选已完成 Canvas Agent Runtime Phase 1-6，并在 Phase 7 接入 Canvas Run Worker、PostgreSQL lease、独立 chat 队列、批次质量选择及下游输入绑定；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已作为不调用 Provider 的原生确定性步骤进入服务端 Run Plan。`text-split` 的前端预览与 Worker 共用同一算法，支持分镜、正则、编号、字符切块和手工覆写。视频理解不依赖 FFmpeg，采用两条受控路径：当前启用的 Gemini 路径将 owner-scoped 视频字节上传至 Gemini Files API，并用其临时 `fileUri` 分析完整视频；未来仅对明确支持主动拉取媒体的 Provider 允许单产物、只读、短时签名 URL 直传。后者需要独立媒体访问网关、传输上限、撤销与审计快照，当前默认未启用，内部鉴权 URL 和任意客户端 URL 均不得外发。隔离 PostgreSQL 多 Worker 与 API/Redis/Worker 联合验收均已在本机通过，后者覆盖 SSE 重连、启动、暂停/恢复、取消和任务结算；认证 UI Playwright 验收流程已建立，仍缺一次性测试账号与环境。
-- 下一阶段方向：完成认证 UI runbook 的真实登录态视觉验收，再执行 Gray 发布就绪验证。当前未推送、未部署，Gray 与 Production 仍运行 `v0.7.18`
+- 当前重点：内部 Canvas Agent Runtime、持久化 Canvas Run、仅 LLM 路由池、质量评估与恢复治理已部署至 Gray。真实压测已完成 3 个分组 `text -> Grok 4.5 LLM` Run 与 2 个 `text -> nano-banana-fast` 生图 Run，5 个均成功；任务执行链、节点参数和生成 Provider 的既有语义未替换。悬浮助手默认携带经脱敏的当前画布上下文，工作台的“协作/托管”标签不再互相遮挡。视频理解继续不依赖 FFmpeg：Gemini 原生完整视频路径使用 owner-scoped 二进制上传至 Files API；受控 URL 直传仍默认关闭。
+- 下一阶段方向：持续观察 Gray 的 Agent 运行、失败恢复、预算和用户体验数据；Production 仍运行 `v0.7.18`，本轮未部署、未重启、未改配置，也未推送 GitHub。
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

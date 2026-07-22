@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-22",
-  "sourceBranch": "xinghuan-integration-clean",
-  "sourceCommit": "5fd2b5da468053fc87fd8db82eaa402fa91311b1",
+  "sourceBranch": "feature/canvas-agent-runtime",
+  "sourceCommit": "40953b4112b99865d04f0222394df4fb5cbf8204",
   "environments": {
     "gray": {
-      "version": "0.7.18",
-      "releaseId": "20260722-canvas-revision-observability-gray-r1-v0718",
+      "version": "0.7.19",
+      "releaseId": "20260722-canvas-agent-runtime-gray-r1-v0719",
       "deployedAt": "2026-07-22",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-22-canvas-revision-observability-gray-v0718.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-22-canvas-revision-observability-gray-v0718.md",
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-22-canvas-agent-runtime-gray-v0719.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-22-canvas-agent-runtime-gray-v0719.md",
       "rollbackReleaseId": "20260721-admin-health-visual-resource-domain-gray-r1-v0717"
     },
     "production": {

@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.18`
-- release：`20260722-canvas-revision-observability-gray-r1-v0718`
-- 当前状态：`画布 revision 协调与基线化观测已部署；runtime/readiness、服务 smoke 和双标签页面验证通过`
-- 部署内容：`Web Locks + BroadcastChannel 画布保存协调；revision conflict 使用 7d/30d 日均基线和影响对象数评估`
-- 已验证：`69 files / 237 tests、全 workspace type-check/build、CI、Gray runtime/readiness、system observability、revision conflict、任务分页、环境同步和双标签浏览器`
+- 版本：`v0.7.19`
+- release：`20260722-canvas-agent-runtime-gray-r1-v0719`
+- 当前状态：`内部 Canvas Agent Runtime 已部署；持久化 Canvas Run、LLM 路由池、质量选择、恢复和审计在 Gray 运行，API/Worker active`
+- 部署内容：`Hermes-free Agent Runtime、Canvas Run Worker、仅 LLM 路由池、图片/视频质量评估、受控恢复、悬浮助手和画布托管工作台`
+- 已验证：`99 files / 347 tests、完整 Project Harness、Gray runtime verifier、3 个 Grok LLM Run、2 个 nano-banana-fast 生图 Run、Assistant agent 模式与事件账本`
 - 部署时间：`2026-07-22`
-- 本轮制品源提交：`5fd2b5d`
+- 本轮制品源提交：`40953b4`
 - 当前批次记录：
-  - `gray/2026-07-22-canvas-revision-observability-gray-v0718.md`
-  - `../validations/2026-07-22-canvas-revision-observability-gray-v0718.md`
+  - `gray/2026-07-22-canvas-agent-runtime-gray-v0719.md`
+  - `../validations/2026-07-22-canvas-agent-runtime-gray-v0719.md`
 - 当前批次记录：
   - `gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
