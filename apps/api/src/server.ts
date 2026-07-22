@@ -47,6 +47,7 @@ import { basename, extname, join, resolve } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
+import { summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
 import {
   inferMime,
   safeEmail,
@@ -9726,14 +9727,7 @@ function summarizeAssistantAttachment(item: AssistantChatAttachment) {
     summary: safeText(item.summary).slice(0, 240),
   };
   if (kind === "workflow") {
-    const nodes = Array.isArray(payload.nodes) ? payload.nodes : [];
-    const edges = Array.isArray(payload.edges) ? payload.edges : [];
-    summary.nodeCount = nodes.length;
-    summary.edgeCount = edges.length;
-    summary.nodeTypes = nodes
-      .slice(0, 12)
-      .map((node) => safeText(plainObject(node).type))
-      .filter(Boolean);
+    Object.assign(summary, summarizeWorkflowAssistantAttachment(payload));
   }
   if (kind === "node") {
     summary.nodeId = safeText(payload.id || payload.nodeId).slice(0, 80);

@@ -50,6 +50,42 @@ function compact(item: AssistantChatAttachment): AssistantChatAttachment {
   return { ...item, payload };
 }
 
+function workflowAttachment(nodes: Node[], edges: Edge[], canvasId: string): AssistantChatAttachment {
+  return {
+    id: `workflow-${canvasId}`,
+    kind: 'workflow',
+    title: '当前画布',
+    summary: `${nodes.length} 节点 / ${edges.length} 连线`,
+    payload: {
+      canvasId,
+      nodes: nodes.slice(0, 40).map((node) => ({ id: node.id, type: String(node.type || ''), data: workflowData(node.data) })),
+      edges: edges.slice(0, 80).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+    },
+  };
+}
+
+function workflowData(value: unknown) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const allowed = new Set(['label', 'title', 'prompt', 'text', 'messages', 'backendProviderId', 'backendModelId', 'providerModel', 'taskCapability', 'groupOrder', 'skippedGroupIds', 'memberIds', 'generationAlternatives', 'agentQualityEvaluation', 'agentQualityProfileKey', 'agentSelectionPolicy', 'agentSelectionMaximum', 'agentParameterRepair', 'providerParams', 'size', 'ratio', 'aspectRatio']);
+  return Object.fromEntries(Object.entries(source)
+    .filter(([key]) => allowed.has(key) && !/key|secret|token|cookie|password|authorization/i.test(key))
+    .map(([key, item]) => [key, workflowValue(item, 0)])
+    .filter((entry): entry is [string, unknown] => entry[1] !== undefined));
+}
+
+function workflowValue(value: unknown, depth: number): unknown {
+  if (depth > 3 || value === null || value === undefined) return undefined;
+  if (typeof value === 'string') return value.slice(0, 1200);
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => workflowValue(item, depth + 1)).filter((item) => item !== undefined);
+  if (typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !/key|secret|token|cookie|password|authorization/i.test(key))
+    .slice(0, 20)
+    .map(([key, item]) => [key.slice(0, 120), workflowValue(item, depth + 1)])
+    .filter((entry): entry is [string, unknown] => entry[1] !== undefined));
+  return undefined;
+}
+
 async function fileToDataUrl(file: File) {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -68,6 +104,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
   const [status, setStatus] = useState('就绪');
   const [sessionId, setSessionId] = useState(conversationId);
   const selected = useMemo(() => nodes.filter((node) => node.selected), [nodes]);
+  const currentWorkflow = useMemo(() => canvasId ? workflowAttachment(nodes, edges, canvasId) : null, [canvasId, edges, nodes]);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +114,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
 
   const suggestions = useMemo(() => {
     const items: AssistantChatAttachment[] = [];
+    if (settings.frontend.allowWorkflowAttachment && currentWorkflow) items.push(currentWorkflow);
     if (settings.frontend.allowWorkflowAttachment && selected.length > 0 && canvasId) {
       const ids = new Set(selected.map((node) => node.id));
       const selectedEdges = edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
@@ -107,7 +145,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
       }
     }
     return items;
-  }, [canvasId, edges, selected, settings]);
+  }, [canvasId, currentWorkflow, edges, selected, settings]);
 
   const addAttachment = useCallback((item: AssistantChatAttachment) => {
     const next = compact(item);
@@ -133,6 +171,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     const text = draft.trim();
     if (busy || (!text && attachments.length === 0)) return;
     const outgoing = attachments.map(compact);
+    if (currentWorkflow && !outgoing.some((item) => item.kind === 'workflow')) outgoing.unshift(compact(currentWorkflow));
     const userText = text || `请分析这 ${outgoing.length} 个上下文。`;
     const assistantId = `assistant-${crypto.randomUUID()}`;
     setMessages((current) => [...current, { id: `user-${crypto.randomUUID()}`, role: 'user', text: userText }, { id: assistantId, role: 'assistant', text: '', streaming: true, process: [] }]);
@@ -154,7 +193,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     } finally {
       setBusy(false);
     }
-  }, [attachments, busy, draft, sessionId]);
+  }, [attachments, busy, currentWorkflow, draft, sessionId]);
 
   const reset = useCallback(() => {
     setMessages([]);
