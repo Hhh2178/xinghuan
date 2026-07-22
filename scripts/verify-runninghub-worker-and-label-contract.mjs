@@ -18,7 +18,7 @@ const apiCatalog = await readFile(new URL("../apps/api/src/runninghub-catalog.ts
 const adminTypes = await readFile(new URL("../apps/admin/src/admin-types.ts", import.meta.url), "utf8");
 const sharedRunninghub = await readFile(new URL("../packages/shared/src/runninghub.ts", import.meta.url), "utf8");
 
-assert.match(worker, /async function executeTask\(task: TaskRow\): Promise<Record<string, unknown>> \{[\s\S]*const protocol = normalizeProtocol\(task\.providerProtocol\);[\s\S]*if \(protocol === "runninghub"\) return executeRunningHubTask\(task\);[\s\S]*if \(task\.capability === "image"\) return executeImageTask\(task\);/);
+assert.match(worker, /async function executeTask\(task: TaskRow(?:, signal\?: AbortSignal)?\): Promise<Record<string, unknown>> \{[\s\S]*const protocol = normalizeProtocol\(task\.providerProtocol\);[\s\S]*if \(protocol === "runninghub"\) return executeRunningHubTask\(task\);[\s\S]*if \(task\.capability === "image"\) return executeImageTask\(task\);/);
 assert.match(worker, /createWorkerDeferredRequeue\(\{/);
 assert.match(worker, /workerDeferredRequeue\.requeueDeferredTaskAfterRelease\(/);
 assert.match(deferredRequeue, /function capabilityToQueueCapability\(capability: string\): TaskQueueCapability \| null \{[\s\S]*if \(capability === "chat"\) return "video";/);
