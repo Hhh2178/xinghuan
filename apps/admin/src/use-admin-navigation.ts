@@ -5,6 +5,7 @@ import {
   pathForAnalyticsView,
   pathForSystemView,
   pathForCapabilitiesView,
+  pathForAgentRuntimeView,
   pathForUsersView,
   pathForWorkspaceTab,
   resolveAdminPath,
@@ -13,6 +14,7 @@ import {
   type AdminAnalyticsViewId,
   type AdminSystemViewId,
   type AdminCapabilitiesViewId,
+  type AdminAgentRuntimeViewId,
   type AdminUsersViewId,
   type AdminWorkspaceId,
 } from "./admin-view-model";
@@ -30,6 +32,7 @@ export function useAdminNavigation() {
   const [activeComfyuiInstanceId, setActiveComfyuiInstanceId] = useState(initialRoute.comfyuiInstanceId || "");
   const [activeComfyuiDetailTab, setActiveComfyuiDetailTab] = useState<"config" | "workflows" | "logs">(initialRoute.comfyuiDetailTab || "config");
   const [activeCapabilitiesView, setActiveCapabilitiesView] = useState<AdminCapabilitiesViewId>(initialRoute.capabilitiesView || "providers");
+  const [activeAgentRuntimeView, setActiveAgentRuntimeView] = useState<AdminAgentRuntimeViewId>(initialRoute.agentRuntimeView || "overview");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -44,6 +47,7 @@ export function useAdminNavigation() {
       setActiveComfyuiInstanceId(route.comfyuiInstanceId || "");
       setActiveComfyuiDetailTab(route.comfyuiDetailTab || "config");
       if (route.capabilitiesView) setActiveCapabilitiesView(route.capabilitiesView);
+      if (route.agentRuntimeView) setActiveAgentRuntimeView(route.agentRuntimeView);
     };
     window.addEventListener("popstate", syncRouteFromLocation);
     if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
@@ -64,6 +68,7 @@ export function useAdminNavigation() {
     if (workspace.id === "system") setActiveSystemView(nextTab === "environment-sync" ? "environment-sync" : "health");
     if (workspace.id === "comfyui") { setActiveComfyuiInstanceId(""); setActiveComfyuiDetailTab("config"); }
     if (workspace.id === "capabilities") setActiveCapabilitiesView(nextTab === "assistant" ? "admin-assistant" : "providers");
+    if (workspace.id === "automation") setActiveAgentRuntimeView("overview");
     if (typeof window !== "undefined" && window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }
@@ -118,6 +123,12 @@ export function useAdminNavigation() {
     }
   }
 
+  function navigateAgentRuntimeView(viewId: AdminAgentRuntimeViewId) {
+    const nextPath = pathForAgentRuntimeView(viewId);
+    setActiveWorkspaceId("automation"); setActiveTab("agent-runtime"); setActiveAgentRuntimeView(viewId);
+    if (typeof window !== "undefined" && window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
+  }
+
   return {
     activeTab,
     activeWorkspaceId,
@@ -128,6 +139,7 @@ export function useAdminNavigation() {
     activeComfyuiInstanceId,
     activeComfyuiDetailTab,
     activeCapabilitiesView,
+    activeAgentRuntimeView,
     navigateAdmin,
     navigateUsersView,
     navigateRhView,
@@ -135,5 +147,6 @@ export function useAdminNavigation() {
     navigateSystemView,
     navigateComfyuiInstance,
     navigateCapabilitiesView,
+    navigateAgentRuntimeView,
   };
 }

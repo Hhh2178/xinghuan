@@ -25,8 +25,8 @@ const requiredSnippets = [
   'chainTemplate = "async_task_poll_result";',
   "classifyUpstreamModel(modelId)",
   'videoDetected',
-  "safeText((hermes as any).chainTemplate) || fallback.chainTemplate",
-  "safeText((hermes as any).chainTemplateVersion) || fallback.chainTemplateVersion",
+  "safeText((analysis as any).chainTemplate) || fallback.chainTemplate",
+  "safeText((analysis as any).chainTemplateVersion) || fallback.chainTemplateVersion",
 ];
 
 const missing = requiredSnippets.filter((snippet) => !serverSource.includes(snippet));

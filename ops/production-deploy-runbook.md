@@ -178,10 +178,10 @@ Production 全部运行态、数据库目标、权限 readiness 和域名验收�
 
 ```powershell
 npm run release:retention:prune -- --env=production --ssh-key=<path-to-key>
-npm run release:retention:prune -- --env=production --ssh-key=<path-to-key> --apply=true --confirm-retention=3
+npm run release:retention:prune -- --env=production --ssh-key=<path-to-key> --apply=true --confirm-retention=5
 ```
 
 - 必须先检查 dry-run 清单，再执行 apply。
-- 保留三个 Release：`current` 与 `ops/current/release-state.json` 中 Production `rollbackReleaseId` 必须位于其中，剩余名额按服务器修改时间选择。
+- 保留五个 Release：`current` 与 `ops/current/release-state.json` 中 Production `rollbackReleaseId` 必须位于其中，剩余名额按服务器修改时间选择。
 - 不得触碰 `/opt/apps/xinghuan-canvas/shared/`、数据库备份、环境文件和用户数据。
-- 失败 Release 在调查完成前保留证据；调查结束后恢复为三个。
+- 失败 Release 在调查完成前保留证据；调查结束后恢复为五个。

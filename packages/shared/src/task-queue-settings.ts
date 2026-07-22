@@ -1,4 +1,4 @@
-export type TaskQueueCapability = "image" | "audio" | "video";
+export type TaskQueueCapability = "image" | "audio" | "video" | "chat";
 
 export interface TaskQueueCapabilityConfig {
   concurrency: number;
@@ -14,6 +14,7 @@ export interface TaskQueueSettings {
   image: TaskQueueCapabilityConfig;
   audio: TaskQueueCapabilityConfig;
   video: TaskQueueCapabilityConfig;
+  chat: TaskQueueCapabilityConfig;
   runninghub: RunningHubQueueSettings;
 }
 
@@ -39,7 +40,7 @@ export interface TaskQueueRuntimeQueueStatus extends TaskQueueRuntimeDescriptor 
   workerCount?: number;
 }
 
-export const TASK_QUEUE_CAPABILITIES: TaskQueueCapability[] = ["image", "audio", "video"];
+export const TASK_QUEUE_CAPABILITIES: TaskQueueCapability[] = ["image", "audio", "video", "chat"];
 export const TASK_QUEUE_DEFAULT_CONCURRENCY = 100;
 export const TASK_QUEUE_MAX_CONCURRENCY = 999;
 export const TASK_QUEUE_MIN_CONCURRENCY = 1;
@@ -65,6 +66,7 @@ export function defaultTaskQueueSettings(): TaskQueueSettings {
     image: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
     audio: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
     video: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
+    chat: { concurrency: 20, userConcurrency: 4 },
     runninghub: { concurrency: 2, enabled: true },
   };
 }
@@ -100,6 +102,16 @@ export function normalizeTaskQueueSettings(value: unknown, base: TaskQueueSettin
       userConcurrency: clampTaskQueueUserConcurrency(
         isRecord(source.video) ? source.video.userConcurrency : undefined,
         base.video.userConcurrency,
+      ),
+    },
+    chat: {
+      concurrency: clampTaskQueueConcurrency(
+        isRecord(source.chat) ? source.chat.concurrency : undefined,
+        base.chat.concurrency,
+      ),
+      userConcurrency: clampTaskQueueUserConcurrency(
+        isRecord(source.chat) ? source.chat.userConcurrency : undefined,
+        base.chat.userConcurrency,
       ),
     },
     runninghub: {

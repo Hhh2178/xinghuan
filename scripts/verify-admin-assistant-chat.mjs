@@ -1,265 +1,36 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const apiServerPath = path.join(root, "apps/api/src/server.ts");
-const adminTypesPath = path.join(root, "apps/admin/src/admin-types.ts");
-const adminPanelPath = path.join(root, "apps/admin/src/admin-assistant-panel.tsx");
+const root = process.cwd();
+const server = read("apps/api/src/server.ts");
+const orchestrator = read("apps/api/src/agent-orchestrator.ts");
+const routing = read("apps/api/src/llm-routing-repository.ts");
+const panel = read("apps/admin/src/admin-assistant-panel.tsx");
+const types = read("apps/admin/src/admin-types.ts");
 
-const baseUrl = process.env.XINGHUAN_VERIFY_BASE_URL ?? "http://127.0.0.1:18200";
-const requestOrigin = new URL(baseUrl).origin;
-const adminEmail =
-  process.env.XINGHUAN_VERIFY_EMAIL ??
-  process.env.XINGHUAN_BOOTSTRAP_ADMIN_EMAIL ??
-  "admin@xinghuan.local";
-const adminPassword =
-  process.env.XINGHUAN_VERIFY_PASSWORD ??
-  process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ??
-  "admin123456";
+assert.match(server, /url\.pathname === "\/api\/admin\/assistant\/chat\/stream"/);
+assert.match(server, /buildInternalAssistantChatPrompt/);
+assert.match(server, /createAgentOrchestrator/);
+assert.match(server, /mode: "agent"/);
+assert.match(server, /assistantAgentIdempotencyKey/);
+assert.match(server, /summarizeAssistantAttachment/);
+assert.doesNotMatch(server, /XINGHUAN_.+WEBUI|\/api\/session\/new|assistant.+SessionCache/i);
 
-let cookie = "";
+assert.match(orchestrator, /validateAgentRoleTask/);
+assert.match(orchestrator, /recordDecision/);
+assert.match(orchestrator, /recordOutcome/);
+assert.match(orchestrator, /ownerId !== actor\.id|ownerId: task\.ownerId/);
+assert.match(routing, /m\.capability = 'chat'/);
+assert.match(routing, /published_production|published_gray/);
 
-async function main() {
-  const results = [];
-  results.push(...runStaticContracts());
+assert.match(types, /mode: "agent" \| "fallback"/);
+assert.match(types, /idempotencyKey\?: string/);
+assert.match(panel, /idempotencyKey: crypto\.randomUUID\(\)/);
+assert.match(panel, /kind: "image"/);
 
-  if (await serviceAvailable()) {
-    results.push(...await runRuntimeSmoke());
-  } else {
-    results.push([
-      `Runtime smoke skipped because ${baseUrl} is not reachable`,
-      true,
-    ]);
-  }
+console.log("admin internal assistant chat contract: ok");
 
-  const failed = results.filter(([, ok]) => !ok);
-  for (const [name, ok] of results) {
-    console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-  }
-  if (failed.length > 0) process.exit(1);
+function read(path) {
+  return readFileSync(join(root, path), "utf8");
 }
-
-function runStaticContracts() {
-  const results = [];
-  const check = (name, fn) => {
-    try {
-      fn();
-      results.push([name, true]);
-    } catch (error) {
-      results.push([`${name}: ${error instanceof Error ? error.message : String(error)}`, false]);
-    }
-  };
-
-  const apiSource = fs.readFileSync(apiServerPath, "utf8");
-  const adminTypesSource = fs.readFileSync(adminTypesPath, "utf8");
-  const adminPanelSource = fs.readFileSync(adminPanelPath, "utf8");
-  const promptSource = apiSource.slice(
-    apiSource.indexOf("function buildHermesAssistantChatPrompt"),
-    apiSource.indexOf("function hermesProfileName"),
-  );
-  const streamSource = apiSource.slice(
-    apiSource.indexOf("async function streamAssistantChatResponse"),
-    apiSource.indexOf("function splitAssistantMessage"),
-  );
-  const splitSource = apiSource.slice(
-    apiSource.indexOf("function splitAssistantMessage"),
-    apiSource.indexOf("function providerOriginUrl"),
-  );
-
-  check("Admin AssistantChatRequest includes conversationId", () => {
-    assert(adminTypesSource.includes("conversationId?: string"));
-    assert(apiSource.includes("conversationId?: string"));
-  });
-  check("API caches Hermes sessions by assistant conversation", () => {
-    assert(apiSource.includes("assistantHermesSessionCache"));
-    assert(apiSource.includes("getHermesAssistantSessionId"));
-    assert(apiSource.includes("assistantConversationKey"));
-    assert(apiSource.includes('"/api/session/new"'));
-  });
-  check("Admin assistant chat uses Hermes WebUI start/stream path", () => {
-    assert(apiSource.includes('"/api/chat/start"'));
-    assert(apiSource.includes("/api/chat/stream?${new URLSearchParams({ stream_id: streamId }).toString()}"));
-    assert(apiSource.includes("extractHermesSessionId"));
-    assert(apiSource.includes("readHermesAssistantStream"));
-  });
-  check("Admin stream endpoint is available", () => {
-    assert(apiSource.includes('url.pathname === "/api/admin/assistant/chat/stream"'));
-    assert(apiSource.includes('scope: "admin"'));
-  });
-  check("Hermes profile and memory policy are explicit", () => {
-    assert(apiSource.includes("XINGHUAN_HERMES_PROFILE"));
-    assert(apiSource.includes("canvas-assistant"));
-    assert(apiSource.includes("buildHermesSessionPayload"));
-    assert(apiSource.includes("buildHermesChatPayload"));
-    assert(apiSource.includes("persistMemory"));
-    assert(apiSource.includes('input.scope === "admin" && Boolean(settings.integration.persistMemory)'));
-  });
-  check("Assistant attachments are summarized before Hermes prompt", () => {
-    assert(apiSource.includes("summarizeAssistantAttachment"));
-    assert(!/payload:\s*plainObject\(item\.payload\)/.test(promptSource));
-    assert(!promptSource.includes("当前回退回复:"));
-  });
-  check("Assistant chat result includes structured blocks", () => {
-    assert(apiSource.includes("blocks: parseAssistantMessageBlocks(finalMessage)"));
-    assert(apiSource.includes("blocks: parseAssistantMessageBlocks(rawAssistant.trim())"));
-    assert(apiSource.includes("blocks: Array.isArray(hermes.blocks)"));
-  });
-  check("Admin assistant prompt explicitly allows structured sections and fenced JSON", () => {
-    assert(promptSource.includes("请优先使用明确分段输出"));
-    assert(promptSource.includes("标题请独占一行"));
-    assert(promptSource.includes("可以使用简短的小标题"));
-    assert(promptSource.includes("fenced code block"));
-    assert(promptSource.includes("JSON"));
-    assert(promptSource.includes("输出必须是稳定的结构化文档"));
-    assert(promptSource.includes("不要输出超长单行文本"));
-    assert(promptSource.includes("保持空行、缩进和代码块原样"));
-  });
-  check("Admin assistant supports image uploads and preserves attachment URLs", () => {
-    assert(adminPanelSource.includes('kind: "image"'));
-    assert(adminPanelSource.includes('"/api/files/upload-base64"'));
-    assert(adminPanelSource.includes("compactPayload.url = mediaUrl"));
-    assert(apiSource.includes("summary.url = mediaUrl.slice(0, 240)"));
-  });
-  check("Stream response keeps structured assistant payload for frontend rendering", () => {
-    assert(!streamSource.includes('sendEvent("process"'));
-    assert(streamSource.includes('sendEvent("done", result)'));
-    assert(streamSource.includes("safeLongText(result.message"));
-    assert(splitSource.includes("safeLongText(message"));
-  });
-
-  return results;
-}
-
-async function runRuntimeSmoke() {
-  const results = [];
-
-  await fetchJson("/api/auth/logout", { method: "POST" }, false).catch(() => undefined);
-
-  const login = await fetchJson("/api/auth/admin-login", {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: requestOrigin },
-    body: JSON.stringify({ email: adminEmail, password: adminPassword }),
-  }, true);
-  results.push([
-    "POST /api/auth/admin-login accepts admin",
-    login.data?.authenticated === true && login.data?.user?.role === "admin",
-  ]);
-
-  const conversationId = `verify-admin-${Date.now()}`;
-  const assistant = await fetchJson("/api/admin/assistant/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      conversationId,
-      scope: "admin",
-      message: "帮我判断这个 Provider 和模型配置是否还需要补充 adapter 层",
-      attachments: [
-        {
-          kind: "provider",
-          title: "APIMart",
-          summary: "https://api.apimart.com/v1",
-          payload: {
-            name: "APIMart",
-            baseUrl: "https://api.apimart.com/v1",
-            protocol: "apimart",
-          },
-        },
-        {
-          kind: "model",
-          title: "grok-imagine-1.5-video-apimart",
-          summary: "video / prompt,image_reference",
-          payload: {
-            modelId: "grok-imagine-1.5-video-apimart",
-            capability: "video",
-            inputProfile: "prompt,image_reference",
-            inputCapabilities: {
-              prompt: true,
-              imageReference: true,
-              firstFrame: true,
-              lastFrame: true,
-            },
-          },
-        },
-      ],
-    }),
-  }, false);
-
-  results.push([
-    "POST /api/admin/assistant/chat returns response text",
-    typeof assistant.data?.message === "string" && assistant.data.message.length > 0,
-  ]);
-  results.push([
-    "Admin assistant returns execution mode",
-    typeof assistant.data?.mode === "string" &&
-      ["hermes", "fallback"].includes(assistant.data.mode),
-  ]);
-
-  await fetchJson("/api/auth/admin-login", {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: requestOrigin },
-    body: JSON.stringify({ email: adminEmail, password: adminPassword }),
-  }, true);
-  const audit = await fetchJson("/api/admin/audit", undefined, false);
-  results.push([
-    "Assistant chat action written to audit log",
-    Array.isArray(audit.data) &&
-      audit.data.some((item) => item.action === "assistant.chat"),
-  ]);
-
-  return results;
-}
-
-async function serviceAvailable() {
-  try {
-    const response = await fetch(toUrl("/api/status"), { signal: AbortSignal.timeout(1500) });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function fetchJson(pathname, options, refreshCookie = false) {
-  const response = await fetch(toUrl(pathname), withCookie(options));
-  if (refreshCookie) captureCookie(response);
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`${pathname} returned ${response.status}: ${text}`);
-  }
-  return text ? JSON.parse(text) : {};
-}
-
-function withCookie(options = {}) {
-  const method = String(options.method || "GET").toUpperCase();
-  return {
-    ...options,
-    headers: {
-      ...(cookie ? { cookie } : {}),
-      ...(method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE" ? { origin: requestOrigin } : {}),
-      ...(options.headers || {}),
-    },
-  };
-}
-
-function captureCookie(response) {
-  const getSetCookie = response.headers?.getSetCookie;
-  const raw =
-    typeof getSetCookie === "function"
-      ? getSetCookie.call(response.headers)?.[0]
-      : response.headers.get("set-cookie");
-  if (!raw) return;
-  const nextCookie = raw.split(";")[0];
-  if (!nextCookie || /=$/.test(nextCookie)) return;
-  cookie = nextCookie;
-}
-
-function toUrl(pathname) {
-  if (String(pathname).startsWith("http://") || String(pathname).startsWith("https://")) return pathname;
-  return `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
-}
-
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});

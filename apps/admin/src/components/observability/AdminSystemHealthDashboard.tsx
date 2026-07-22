@@ -308,7 +308,8 @@ function ChartEmpty({ text }: { text: string }) {
   return <div className="admin-health-chart-empty"><CircleHelp aria-hidden="true" /><span>{text}</span></div>;
 }
 
-function capabilityName(capability: "image" | "audio" | "video") {
+function capabilityName(capability: "image" | "audio" | "video" | "chat") {
+  if (capability === "chat") return "Agent LLM";
   return capability === "image" ? "图片" : capability === "audio" ? "音频" : "视频";
 }
 

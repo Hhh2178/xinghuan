@@ -35,6 +35,7 @@ import type {
 } from "./admin-types";
 import {
   adminCapabilitiesViews,
+  adminAgentRuntimeViews,
   adminAnalyticsViews,
   adminRhViews,
   adminSystemViews,
@@ -53,7 +54,6 @@ void ConfirmActionDialog;
 void ManualModelDialog;
 
 const ADMIN_ASSISTANT_STORAGE_KEY = "xinghuan.adminAssistant.open";
-const DEFAULT_ASSISTANT_MODEL = "Agnes-2.0-Flash";
 
 const Overview = lazy(createAdminLazyImportWithRecovery(() => import("./admin-overview-panel").then((module) => ({ default: module.Overview })), { recoveryId: "overview" }));
 const UsersPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-users-panel").then((module) => ({ default: module.UsersPanel })), { recoveryId: "users" }));
@@ -62,6 +62,7 @@ const AdminRunningHubWorkspace = lazy(createAdminLazyImportWithRecovery(() => im
 const AdminComfyuiInstancesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-comfyui-instances-panel"), { recoveryId: "comfyui" }));
 const AdminPublicResourcesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-public-resources-panel").then((module) => ({ default: module.AdminPublicResourcesPanel })), { recoveryId: "resources" }));
 const AdminAssistantSettingsPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-assistant-settings-panel").then((module) => ({ default: module.AdminAssistantSettingsPanel })), { recoveryId: "assistant" }));
+const AdminAgentGovernanceWorkspace = lazy(createAdminLazyImportWithRecovery(() => import("./admin-agent-governance-workspace").then((module) => ({ default: module.AdminAgentGovernanceWorkspace })), { recoveryId: "agent-runtime" }));
 const AdminAnnouncementPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-announcement-panel").then((module) => ({ default: module.AdminAnnouncementPanel })), { recoveryId: "announcements" }));
 const TasksPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-task-panel").then((module) => ({ default: module.TasksPanel })), { recoveryId: "tasks" }));
 const AuditPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-readonly-panels").then((module) => ({ default: module.AuditPanel })), { recoveryId: "analytics" }));
@@ -225,12 +226,10 @@ function defaultAssistantSettings(): AssistantSettings {
       allowAuditContext: true,
     },
     integration: {
-      kernel: "hermes",
-      endpoint: "已配置（服务器内地址已隐藏）",
-      endpointConfigured: true,
-      workspace: "gray",
-      model: DEFAULT_ASSISTANT_MODEL,
-      profile: "canvas-assistant",
+      runtime: "internal",
+      assistantAgentKey: "assistant-planner",
+      providerAnalysisAgentKey: "provider-analysis-planner",
+      knowledgeProfile: "public-canvas",
       persistMemory: false,
       strictMode: true,
     },
@@ -281,12 +280,14 @@ function AdminApp() {
     activeComfyuiInstanceId,
     activeComfyuiDetailTab,
     activeCapabilitiesView,
+    activeAgentRuntimeView,
     navigateAdmin,
     navigateRhView,
     navigateAnalyticsView,
     navigateSystemView,
     navigateComfyuiInstance,
     navigateCapabilitiesView,
+    navigateAgentRuntimeView,
     navigateUsersView,
   } = useAdminNavigation();
   const [assistantOpen, setAssistantOpen] = useState(() => {
@@ -565,10 +566,11 @@ function AdminApp() {
   const activeAnalyticsPage = activeWorkspace.id === "analytics" ? adminAnalyticsViews.find((item) => item.id === activeAnalyticsView) : undefined;
   const activeSystemPage = activeWorkspace.id === "system" ? adminSystemViews.find((item) => item.id === activeSystemView) : undefined;
   const activeCapabilitiesPage = activeWorkspace.id === "capabilities" ? adminCapabilitiesViews.find((item) => item.id === activeCapabilitiesView) : undefined;
-  const activeSubpages = activeTab === "users" ? usersViewsForWorkspace(activeWorkspace.id) : activeWorkspace.id === "rh" ? adminRhViews : activeWorkspace.id === "analytics" ? adminAnalyticsViews : activeWorkspace.id === "system" ? adminSystemViews : activeWorkspace.id === "capabilities" ? adminCapabilitiesViews : [];
-  const activeSubpageId = activeTab === "users" ? activeUsersView : activeWorkspace.id === "rh" ? activeRhView : activeWorkspace.id === "analytics" ? activeAnalyticsView : activeWorkspace.id === "system" ? activeSystemView : activeWorkspace.id === "capabilities" ? activeCapabilitiesView : undefined;
-  const currentPageLabel = activeUsersPage?.label || activeRhPage?.label || activeAnalyticsPage?.label || activeSystemPage?.label || activeCapabilitiesPage?.label || activeWorkspaceTabs.find((item) => item.id === activeTab)?.label || titleFor(activeTab);
-  const currentPageDescription = activeUsersPage?.description || activeRhPage?.description || activeAnalyticsPage?.description || activeSystemPage?.description || activeCapabilitiesPage?.description || descriptionForWorkspaceTab(activeWorkspace.id, activeTab);
+  const activeAgentRuntimePage = activeWorkspace.id === "automation" ? adminAgentRuntimeViews.find((item) => item.id === activeAgentRuntimeView) : undefined;
+  const activeSubpages = activeTab === "users" ? usersViewsForWorkspace(activeWorkspace.id) : activeWorkspace.id === "rh" ? adminRhViews : activeWorkspace.id === "analytics" ? adminAnalyticsViews : activeWorkspace.id === "system" ? adminSystemViews : activeWorkspace.id === "capabilities" ? adminCapabilitiesViews : activeWorkspace.id === "automation" ? adminAgentRuntimeViews : [];
+  const activeSubpageId = activeTab === "users" ? activeUsersView : activeWorkspace.id === "rh" ? activeRhView : activeWorkspace.id === "analytics" ? activeAnalyticsView : activeWorkspace.id === "system" ? activeSystemView : activeWorkspace.id === "capabilities" ? activeCapabilitiesView : activeWorkspace.id === "automation" ? activeAgentRuntimeView : undefined;
+  const currentPageLabel = activeUsersPage?.label || activeRhPage?.label || activeAnalyticsPage?.label || activeSystemPage?.label || activeCapabilitiesPage?.label || activeAgentRuntimePage?.label || activeWorkspaceTabs.find((item) => item.id === activeTab)?.label || titleFor(activeTab);
+  const currentPageDescription = activeUsersPage?.description || activeRhPage?.description || activeAnalyticsPage?.description || activeSystemPage?.description || activeCapabilitiesPage?.description || activeAgentRuntimePage?.description || descriptionForWorkspaceTab(activeWorkspace.id, activeTab);
   const refreshPolicy = refreshPolicyFor(activeTab);
   const lastRefreshLabel = lastRefreshAt ? new Date(lastRefreshAt).toLocaleTimeString("zh-CN", { hour12: false }) : "等待首次同步";
 
@@ -675,6 +677,8 @@ function AdminApp() {
                   ? navigateAnalyticsView(subpageId as typeof activeAnalyticsView)
                   : activeWorkspace.id === "system"
                     ? navigateSystemView(subpageId as typeof activeSystemView)
+                    : activeWorkspace.id === "automation"
+                      ? navigateAgentRuntimeView(subpageId as typeof activeAgentRuntimeView)
                     : navigateCapabilitiesView(subpageId as typeof activeCapabilitiesView)}
           />
 
@@ -745,6 +749,9 @@ function AdminApp() {
                 }
               }}
             />
+          ) : null}
+          {activeTab === "agent-runtime" ? (
+            <AdminAgentGovernanceWorkspace activeView={activeAgentRuntimeView} models={models} />
           ) : null}
           {activeTab === "announcement" ? (
             <AdminAnnouncementPanel

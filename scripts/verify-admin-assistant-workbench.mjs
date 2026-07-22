@@ -11,7 +11,7 @@ const adminPassword =
   process.env.XINGHUAN_VERIFY_PASSWORD ??
   process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ??
   "admin123456";
-const requireHermes = process.env.XINGHUAN_VERIFY_REQUIRE_HERMES === "1";
+const requireAgent = process.env.XINGHUAN_VERIFY_REQUIRE_AGENT === "1";
 const requireLiveServer = process.env.XINGHUAN_VERIFY_LIVE_ADMIN === "1";
 
 let cookie = "";
@@ -88,8 +88,8 @@ async function main() {
     Array.isArray(payload?.checklist) && payload.checklist.length > 0,
   ]);
   results.push([
-    requireHermes ? "Assistant result runs through Hermes mode" : "Assistant result returns execution mode",
-    (requireHermes ? payload?.mode === "hermes" : typeof payload?.mode === "string" && payload.mode.length > 0) &&
+    requireAgent ? "Assistant result runs through Agent mode" : "Assistant result returns execution mode",
+    (requireAgent ? payload?.mode === "agent" : ["agent", "fallback"].includes(payload?.mode)) &&
       typeof payload?.rawAssistant === "string" &&
       payload.rawAssistant.length > 0,
   ]);

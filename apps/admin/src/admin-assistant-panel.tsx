@@ -24,7 +24,7 @@ interface AssistantMessage {
   role: "user" | "assistant";
   text: string;
   blocks?: AssistantMessageBlock[];
-  mode?: "hermes" | "fallback";
+  mode?: "agent" | "fallback";
   streaming?: boolean;
   process?: AssistantProcessEntry[];
 }
@@ -341,6 +341,7 @@ export function AdminAssistantPanel({
           attachments: outgoingAttachments,
           scope: "admin",
           conversationId: conversationId,
+          idempotencyKey: crypto.randomUUID(),
         }),
       });
       if (!response.ok || !response.body) {

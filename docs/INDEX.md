@@ -51,6 +51,7 @@
 - `docs/systems/storage-and-data/`
 - `docs/systems/observability-and-ops/`
 - `docs/systems/harness/`
+- `docs/systems/agent-runtime/`
 
 ### 长期有效的项目记忆
 
@@ -151,6 +152,12 @@
 - 项目执行分层：`docs/systems/harness/README.md`
 - workspace / verify / release 地图：`docs/systems/harness/workspace-verify-release-map.md`
 - 子 harness 接入约定：`docs/systems/harness/subharness-convention.md`
+
+### Agent Runtime
+
+- 当前基线与迁移入口：`docs/systems/agent-runtime/README.md`
+- Accepted 架构：`docs/adr/0003-canvas-agent-runtime-and-llm-routing.md`
+- 目标规格：`docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md`
 
 ## 与旧入口的关系
 

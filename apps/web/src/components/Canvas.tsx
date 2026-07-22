@@ -188,6 +188,7 @@ import UploadNode from './nodes/UploadNode';
 const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/OutputNode')));
 import GroupBoxNode from './nodes/GroupBoxNode';
 import GroupExecutionManagerNode from './nodes/GroupExecutionManagerNode';
+import CanvasAgentNode from './nodes/CanvasAgentNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
 import type { NodeType, NodeMeta } from '../types/canvas';
@@ -283,6 +284,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   upscale: UpscaleNode,
   'grid-crop': GridCropNode,
   'grid-editor': GridEditorNode,
+  'canvas-agent': CanvasAgentNode,
   // Auxiliary (5)
   edit: ImageNode, // 复用 ImageNode,默认偏向 edit 能力
   idea: IdeaNode,

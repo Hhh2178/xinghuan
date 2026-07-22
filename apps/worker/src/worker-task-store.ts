@@ -25,7 +25,26 @@ export interface TaskRow {
   logs: string[];
 }
 
+export type TaskClaimOutcome = "claimed" | "already_claimed" | "cancelled" | "missing";
+
 export function createWorkerTaskStore(pool: Pool) {
+  async function claimQueuedTask(taskId: string, logLine: string): Promise<TaskClaimOutcome> {
+    const claimed = await pool.query(
+      `update xh_tasks
+       set status = 'running',
+           logs = coalesce(logs, '[]'::jsonb) || $2::jsonb,
+           updated_at = now()
+       where id = $1 and status = 'queued'
+       returning id`,
+      [taskId, JSON.stringify([logLine])],
+    );
+    if (claimed.rowCount && claimed.rowCount > 0) return "claimed";
+
+    const current = await pool.query<{ status: string }>("select status from xh_tasks where id = $1", [taskId]);
+    if (!current.rows[0]) return "missing";
+    return current.rows[0].status === "cancelled" ? "cancelled" : "already_claimed";
+  }
+
   async function readTask(taskId: string): Promise<TaskRow | null> {
     const result = await pool.query(
       `select
@@ -155,6 +174,7 @@ export function createWorkerTaskStore(pool: Pool) {
   }
 
   return {
+    claimQueuedTask,
     readTask,
     updateTask,
     appendTaskLog,

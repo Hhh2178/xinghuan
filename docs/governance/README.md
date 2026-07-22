@@ -61,7 +61,7 @@
 - 热点优先级评分与双轨治理：`hotspot-risk-scorecard.md`
 - 热点拆分批次如何执行、如何形成 clean commit：`hotspot-decomposition-workflow.md`
 - 发布记录与当前值守入口必须同步 staged 的规则也在：`engineering-guardrails.md`
-- Gray 默认 PATCH 递增与服务器最近三个 Release 保留规则：`release-version-and-retention-policy.md`
+- Gray 默认 PATCH 递增与服务器最近五个 Release 保留规则：`release-version-and-retention-policy.md`
 - 对应脚本：
   - `npm run verify:release-logbook-sync-staged`
   - `npm run verify:current-release-entry-consistency`

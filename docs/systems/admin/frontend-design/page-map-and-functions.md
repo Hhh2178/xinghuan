@@ -303,7 +303,7 @@
 - 创作侧助手配置。
 - 后台助手配置。
 - 外部服务接入配置。
-- Hermes / fallback。
+- 内部 Agent / 受限 fallback。
 - 默认模型、profile、workspace。
 - 上下文读取权限。
 
@@ -665,6 +665,19 @@
 - 回滚说明入口。
 
 ## 9. 新增功能挂载规则
+
+### 智能体与自动化
+
+稳定入口：`/admin/automation/*`。
+
+- `overview`：环境开关与运行指标。
+- `roles`：Agent 定义、配置版本与 publication。
+- `llm-routes`：仅 LLM 路由池、候选健康、模拟、发布与回滚。
+- `tools` / `nodes`：固定工具策略与节点执行能力目录。
+- `knowledge` / `quality` / `recovery`：知识、媒体质量和生成失败恢复。
+- `runs` / `approvals` / `audit`：Canvas/Agent 运行、审批和动作账本。
+
+桌面使用紧凑 master-detail 与数据表；窄屏域导航横向滚动，治理表单和控制行改为单列，不允许把正文推到导航之后的多屏之外。
 
 新增 Provider、模型、RH、节点能力：
 

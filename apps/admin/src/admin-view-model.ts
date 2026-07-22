@@ -7,6 +7,7 @@ import {
   Library,
   LayoutDashboard,
   PanelsTopLeft,
+  Route,
   ScrollText,
   ServerCog,
   ShieldCheck,
@@ -25,6 +26,7 @@ export type AdminTabId =
   | "comfyui"
   | "public-resources"
   | "assistant"
+  | "agent-runtime"
   | "announcement"
   | "tasks"
   | "audit"
@@ -35,6 +37,7 @@ export type AdminWorkspaceId =
   | "organization"
   | "security"
   | "capabilities"
+  | "automation"
   | "rh"
   | "comfyui"
   | "resources"
@@ -47,6 +50,7 @@ export type AdminRhViewId = "workflows" | "apps" | "keys";
 export type AdminAnalyticsViewId = "usage" | "costs" | "audit";
 export type AdminSystemViewId = "health" | "runtime-settings" | "environment-sync";
 export type AdminCapabilitiesViewId = "providers" | "models" | "admin-assistant";
+export type AdminAgentRuntimeViewId = "overview" | "roles" | "llm-routes" | "tools" | "nodes" | "knowledge" | "quality" | "recovery" | "runs" | "approvals" | "audit";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 export type RefreshPolicyKind = "live" | "manual" | "guarded";
@@ -79,6 +83,7 @@ export const adminNavItems: Array<{ id: AdminTabId; label: string; icon: LucideI
   { id: "comfyui", label: "ComfyUI", icon: Workflow },
   { id: "public-resources", label: "公共资源", icon: Library },
   { id: "assistant", label: "AI 助手", icon: Bot },
+  { id: "agent-runtime", label: "智能体治理", icon: Route },
   { id: "announcement", label: "公告", icon: Bell },
   { id: "tasks", label: "任务", icon: Activity },
   { id: "audit", label: "审计", icon: ScrollText },
@@ -132,6 +137,16 @@ export const adminWorkspaces: AdminWorkspace[] = [
       assistant: "/admin/capabilities/admin-assistant",
     },
     tabLabels: { providers: "Provider 与模型", assistant: "后台 AI 助手" },
+  },
+  {
+    id: "automation",
+    label: "智能体与自动化",
+    subtitle: "Agent Operations",
+    description: "Agent 角色、LLM 路由、工具、知识、质量、运行、审批和审计治理。",
+    icon: Route,
+    tabs: ["agent-runtime"],
+    tabPaths: { "agent-runtime": "/admin/automation" },
+    tabLabels: { "agent-runtime": "智能体治理" },
   },
   {
     id: "rh",
@@ -212,6 +227,7 @@ export const adminTabDescriptions: Record<AdminTabId, string> = {
   comfyui: "ComfyUI 机器实例、工作流草稿、暴露参数、默认值和共享发布。",
   "public-resources": "公共素材上传、分类、卡片预览、编辑和权限摘要。",
   assistant: "创作侧与后台 AI 助手、接入内核和上下文权限。",
+  "agent-runtime": "Agent 角色、仅 LLM 路由池、工具策略、知识、质量、运行和审批。",
   announcement: "公告草稿、发布、强提醒、置顶和弹窗策略。",
   tasks: "任务列表、队列状态、取消、重试和日志查看。",
   audit: "成功用量驾驶舱和后台审计日志。",
@@ -227,6 +243,7 @@ export const adminRefreshPolicies: Record<AdminTabId, AdminRefreshPolicy> = {
   comfyui: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "ComfyUI 实例与工作流草稿保存前不自动覆盖。" },
   "public-resources": { kind: "manual", label: "手动刷新", intervalLabel: "按需", description: "资源上传和编辑完成后局部刷新列表。" },
   assistant: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "AI 助手配置使用 revision 冲突保护。" },
+  "agent-runtime": { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "版本化配置只在明确保存或发布后更新。" },
   announcement: { kind: "guarded", label: "受保护刷新", intervalLabel: "按需", description: "公告草稿编辑期间不自动覆盖。" },
   tasks: { kind: "live", label: "自动刷新", intervalLabel: "3-5 秒", description: "queued / running 任务和日志保持热刷新。" },
   audit: { kind: "manual", label: "手动刷新", intervalLabel: "按需", description: "用量统计按筛选条件重新计算。" },
@@ -288,6 +305,20 @@ export const adminCapabilitiesViews = [
   { id: "admin-assistant", label: "后台 AI 助手", description: "配置后台助手模型、内核和上下文边界。", path: "/admin/capabilities/admin-assistant" },
 ] satisfies Array<{ id: AdminCapabilitiesViewId; label: string; description: string; path: string }>;
 
+export const adminAgentRuntimeViews = [
+  { id: "overview", label: "运行总览", description: "查看环境开关、活跃运行、异常路由和待审批。", path: "/admin/automation/overview" },
+  { id: "roles", label: "角色", description: "维护 Agent 定义、配置版本和环境发布。", path: "/admin/automation/roles" },
+  { id: "llm-routes", label: "LLM 路由", description: "维护仅供 Agent 使用的 LLM 路由池、健康和模拟。", path: "/admin/automation/llm-routes" },
+  { id: "tools", label: "工具权限", description: "维护固定工具目录和平台、用户组、用户策略。", path: "/admin/automation/tools" },
+  { id: "nodes", label: "节点能力", description: "查看服务端可执行节点与迁移状态。", path: "/admin/automation/nodes" },
+  { id: "knowledge", label: "知识库", description: "维护公开与内部知识集合、版本和环境发布。", path: "/admin/automation/knowledge" },
+  { id: "quality", label: "质量策略", description: "维护图片与视频的评分、阈值和发布版本。", path: "/admin/automation/quality" },
+  { id: "recovery", label: "失败恢复", description: "查看失败分类、有限重试、参数修复和备选生成模型决策。", path: "/admin/automation/recovery" },
+  { id: "runs", label: "运行记录", description: "查看 Canvas Run 与 Agent Run 的实时状态。", path: "/admin/automation/runs" },
+  { id: "approvals", label: "审批", description: "处理结构修改、模型切换和高风险动作。", path: "/admin/automation/approvals" },
+  { id: "audit", label: "动作审计", description: "查看 Agent Action、工具调用结果和错误。", path: "/admin/automation/audit" },
+] satisfies Array<{ id: AdminAgentRuntimeViewId; label: string; description: string; path: string }>;
+
 export function tabsForWorkspace(workspaceId: AdminWorkspaceId) {
   const workspace = adminWorkspaces.find((item) => item.id === workspaceId);
   if (!workspace) return [];
@@ -335,6 +366,10 @@ export function pathForCapabilitiesView(viewId: AdminCapabilitiesViewId) {
   return adminCapabilitiesViews.find((item) => item.id === viewId)?.path || "/admin/capabilities/providers";
 }
 
+export function pathForAgentRuntimeView(viewId: AdminAgentRuntimeViewId) {
+  return adminAgentRuntimeViews.find((item) => item.id === viewId)?.path || "/admin/automation/overview";
+}
+
 export function resolveAdminPath(pathname: string): {
   workspaceId: AdminWorkspaceId;
   tabId: AdminTabId;
@@ -345,6 +380,7 @@ export function resolveAdminPath(pathname: string): {
   comfyuiInstanceId?: string;
   comfyuiDetailTab?: "config" | "workflows" | "logs";
   capabilitiesView?: AdminCapabilitiesViewId;
+  agentRuntimeView?: AdminAgentRuntimeViewId;
 } {
   const normalizedPath = pathname.replace(/\/$/, "") || "/admin";
   if (normalizedPath === "/admin/content/public-resources" || normalizedPath.startsWith("/admin/content/public-resources/")) {
@@ -392,6 +428,9 @@ export function resolveAdminPath(pathname: string): {
       : normalizedPath.startsWith("/admin/capabilities")
         ? "providers"
         : undefined;
+  const agentRuntimeView = normalizedPath.startsWith("/admin/automation/")
+    ? adminAgentRuntimeViews.find((item) => normalizedPath === item.path || normalizedPath.startsWith(`${item.path}/`))?.id
+    : normalizedPath === "/admin/automation" ? "overview" : undefined;
   const candidates = adminWorkspaces.flatMap((workspace) =>
     workspace.tabs.map((tabId) => ({
       workspaceId: workspace.id,
@@ -411,7 +450,7 @@ export function resolveAdminPath(pathname: string): {
     path: normalizedPath,
   } : undefined);
   return match
-    ? { workspaceId: match.workspaceId, tabId: match.tabId, usersView, rhView, analyticsView, systemView, comfyuiInstanceId, comfyuiDetailTab, capabilitiesView }
+    ? { workspaceId: match.workspaceId, tabId: match.tabId, usersView, rhView, analyticsView, systemView, comfyuiInstanceId, comfyuiDetailTab, capabilitiesView, agentRuntimeView }
     : { workspaceId: "overview", tabId: "overview" };
 }
 

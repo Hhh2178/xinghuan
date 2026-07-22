@@ -25,7 +25,7 @@ async function main() {
       "Admin assistant settings page exposes frontend, backend, integration and explicit save actions",
       settingsSource.includes("创作侧助手") &&
         settingsSource.includes("后台审计助手") &&
-        settingsSource.includes("外部服务接入") &&
+        settingsSource.includes("内部 Agent 接入") &&
         settingsSource.includes("保存 AI 助手配置") &&
         settingsSource.includes("重置未保存修改"),
     ],
@@ -64,9 +64,9 @@ async function main() {
     ],
     [
       "Admin assistant UI hides implementation labels and process output",
-      !panelSource.includes(">Hermes<") &&
+      panelSource.includes('mode?: "agent" | "fallback"') &&
         !panelSource.includes(">Fallback<") &&
-        !settingsSource.includes(">Hermes<") &&
+        settingsSource.includes("项目内 Agent Runtime") &&
         !settingsSource.includes(">Fallback<") &&
         !panelSource.includes("<summary>过程</summary>") &&
         !panelSource.includes("assistant-process-block"),
@@ -95,7 +95,7 @@ async function main() {
     ],
     [
       "Admin assistant settings copy avoids debug and acceptance wording",
-      ["测试", "验收", "前端助手", "Hermes", "Fallback", "过程"].every(
+      ["测试", "验收", "前端助手", "Fallback", "过程"].every(
         (banned) => !panelSource.includes(`>${banned}<`) && !settingsSource.includes(`>${banned}<`),
       ),
     ],

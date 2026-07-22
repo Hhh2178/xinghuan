@@ -63,6 +63,22 @@
 
 对生成产物和资源素材提供预览、下载、打开等稳定 URL 语义的访问边界。访问层必须校验用户归属，且不因一次 GET 请求改变业务状态。
 
+### Canvas Run（画布运行）
+
+一次基于特定 Canvas Project revision 和配置快照创建的服务端可恢复执行。它保存用户分组顺序、节点拓扑、步骤、预算和终态；运行开始后的画布编辑不隐式改变已有 Canvas Run。
+
+### Agent Run（智能体运行）
+
+一次由内部 Agent Runtime 执行的有界规划、监督或恢复过程。Agent Run 属于单一 owner，使用受控工具、预算、配置版本和审计记录，不等同于聊天消息或浏览器会话。
+
+### LLM Routing Pool（LLM 路由池）
+
+为 planner、图片理解、视频理解、检查和恢复等 Agent LLM 角色提供版本化候选顺序、健康、熔断和回退策略的配置。它不管理图片、视频或音频生成模型；这些生成模型仍由对应节点和 Provider Model Catalog 管理。
+
+### Artifact Evaluation（产物评估）
+
+对 Generation Artifact 的图片或视频质量、任务目标匹配和技术有效性形成的结构化评分与证据。评估不改变产物本身；将候选传给下游必须通过显式 Artifact Selection 或运行时输入绑定记录。
+
 ### Gray / Production（灰度 / 生产）
 
 两个独立部署环境。Gray 用于发布前运行态验证，Production 承载正式业务。环境拓扑和当前版本分别以 `config/environments.json` 与 `ops/current/release-state.json` 为准。
@@ -74,6 +90,8 @@
 - GET 读取保持只读；清理、修复、迁移和状态推进必须通过显式命令或受控服务执行。
 - 短期生成产物和长期资源素材必须使用不同生命周期。
 - 业务写入必须支持并发安全和幂等；不能依赖进程内变量或无锁 JSON 覆盖来维持正确性。
+- Canvas Run、Agent Run、路由决策、质量选择和自动恢复必须可追踪到 owner、revision、配置版本和审计事件。
+- Agent 运行时输入选择默认不得静默修改 Canvas Project；结构性变化必须形成显式 proposal 并创建新 revision。
 - 费用金额必须使用十进制定点语义；价格与归属历史必须来自任务费用快照，不得被当前配置反向改写。
 - 当前实现与目标方案必须分开记录；Proposed ADR 不代表已经上线。
 
@@ -84,3 +102,4 @@
 - Worker 输出物料化：`docs/systems/worker/output-materialization.md`
 - 架构决策索引：`docs/adr/README.md`
 - 生成产物权威与生命周期提案：`docs/adr/0001-generation-artifact-authority-and-lifecycle.md`
+- Canvas Agent Runtime 与 LLM 路由决定：`docs/adr/0003-canvas-agent-runtime-and-llm-routing.md`

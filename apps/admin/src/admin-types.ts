@@ -674,7 +674,7 @@ export interface SystemInfo {
     queue: string;
     depth: number;
     queues?: Array<{
-      capability: "image" | "audio" | "video";
+      capability: "image" | "audio" | "video" | "chat";
       queue: string;
       concurrency: number;
       userConcurrency?: number;
@@ -1026,7 +1026,7 @@ export interface AssistantDraft {
 }
 
 export interface AssistantAnalysisResult {
-  mode: "hermes" | "fallback";
+  mode: "agent" | "fallback";
   summary: string;
   recommendedLayer: "default" | "advanced" | "adapter";
   protocol: string;
@@ -1073,6 +1073,7 @@ export interface AssistantChatRequest {
   attachments?: AssistantChatAttachment[];
   scope?: "canvas" | "admin";
   conversationId?: string;
+  idempotencyKey?: string;
 }
 
 export interface AssistantChatResult extends SharedAssistantChatResult {}
@@ -1109,13 +1110,11 @@ export interface AssistantBackendSettings {
 }
 
 export interface AssistantIntegrationSettings {
-  kernel: "hermes" | "fallback";
-  endpoint: string;
-  endpointConfigured?: boolean;
-  workspace: string;
-  model: string;
-  profile: string;
-  persistMemory: boolean;
+  runtime: "internal";
+  assistantAgentKey: string;
+  providerAnalysisAgentKey: string;
+  knowledgeProfile: string;
+  persistMemory: false;
   strictMode: boolean;
 }
 

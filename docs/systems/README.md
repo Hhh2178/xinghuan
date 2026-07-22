@@ -16,6 +16,7 @@
 - `storage-and-data/`
 - `observability-and-ops/`
 - `harness/`
+- `agent-runtime/`（当前基线与分阶段迁移入口）
 
 ## 推荐阅读顺序
 
@@ -77,3 +78,7 @@
 ### Harness
 
 - 关注：workspace / verify / release / integration 执行分层、根脚本聚合入口、子 harness 接入约定
+
+### Agent Runtime
+
+- 关注：当前 assistant/浏览器 runtime 基线、服务端 Canvas Run 迁移、受控 Agent Runtime 与仅 LLM 路由池

@@ -13,11 +13,11 @@ const [agents, policy, grayRunbook, productionRunbook, retentionScript, authorit
   read("../package.json"),
 ]);
 
-assert.match(agents, /最近三个.*Release|Release.*最近三个/s);
+assert.match(agents, /最近五个.*Release|Release.*最近五个/s);
 assert.match(agents, /0\.0\.1/);
 assert.match(agents, /MINOR.*MAJOR|MAJOR.*MINOR/s);
 assert.match(agents, /release-version-and-retention-policy\.md/);
-assert.match(policy, /各自最多保留最近三个/);
+assert.match(policy, /各自最多保留最近五个/);
 assert.match(policy, /默认只在当前 Gray 版本上增加一个 PATCH/);
 assert.match(policy, /shared\/data/);
 assert.match(policy, /rollbackReleaseId/);
@@ -25,7 +25,7 @@ assert.match(grayRunbook, /release:retention:prune/);
 assert.match(grayRunbook, /rollbackReleaseId/);
 assert.match(productionRunbook, /release:retention:prune/);
 assert.match(productionRunbook, /rollbackReleaseId/);
-assert.match(retentionScript, /RELEASE_RETENTION_COUNT = 3/);
+assert.match(retentionScript, /RELEASE_RETENTION_COUNT = 5/);
 assert.match(retentionScript, /confirm-retention/);
 assert.match(retentionScript, /rollbackReleaseId/);
 assert.match(retentionScript, /REFUSE_ROLLBACK_MISSING/);
@@ -43,4 +43,4 @@ assert.equal(scripts["release:retention:prune"], "node scripts/release/prune-rel
 assert.equal(scripts["verify:release-governance-contract"], "node scripts/verify-release-governance-contract.mjs");
 assert.match(scripts["harness:verify:release"], /verify:release-governance-contract/);
 
-console.log(JSON.stringify({ ok: true, retention: 3, grayVersionIncrement: "patch-only-by-default" }, null, 2));
+console.log(JSON.stringify({ ok: true, retention: 5, grayVersionIncrement: "patch-only-by-default" }, null, 2));

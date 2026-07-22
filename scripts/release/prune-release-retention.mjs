@@ -14,14 +14,14 @@ import {
   sshTarget,
 } from "./_shared.mjs";
 
-const RELEASE_RETENTION_COUNT = 3;
+const RELEASE_RETENTION_COUNT = 5;
 const args = parseArgs(process.argv.slice(2));
 
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/prune-release-retention.mjs --env=<gray|production> --ssh-key=<path> [--apply=true --confirm-retention=3]
+  node scripts/release/prune-release-retention.mjs --env=<gray|production> --ssh-key=<path> [--apply=true --confirm-retention=5]
 
-The default mode is a read-only dry run. Apply is accepted only with --confirm-retention=3.`);
+The default mode is a read-only dry run. Apply is accepted only with --confirm-retention=5.`);
   process.exit(0);
 }
 

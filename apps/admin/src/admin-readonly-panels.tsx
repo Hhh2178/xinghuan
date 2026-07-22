@@ -19,6 +19,7 @@ const TASK_QUEUE_DEFAULTS = {
   image: { concurrency: 100, userConcurrency: 8 },
   audio: { concurrency: 100, userConcurrency: 8 },
   video: { concurrency: 100, userConcurrency: 8 },
+  chat: { concurrency: 20, userConcurrency: 4 },
   runninghub: { concurrency: 2, enabled: true },
 } satisfies NonNullable<SystemInfo["taskQueueSettings"]>;
 
@@ -233,6 +234,42 @@ export function SystemPanel({
                 video: {
                   ...(current?.video || system?.taskQueueSettings?.video || TASK_QUEUE_DEFAULTS.video),
                   userConcurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.video.userConcurrency),
+                },
+              }))
+            }
+          />
+        </label>
+        <label>
+          Agent LLM 总并发
+          <input
+            type="number"
+            min={1}
+            max={999}
+            value={values?.chat.concurrency ?? TASK_QUEUE_DEFAULTS.chat.concurrency}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
+                chat: {
+                  ...(current?.chat || system?.taskQueueSettings?.chat || TASK_QUEUE_DEFAULTS.chat),
+                  concurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.chat.concurrency),
+                },
+              }))
+            }
+          />
+        </label>
+        <label>
+          Agent LLM 单用户并发
+          <input
+            type="number"
+            min={1}
+            max={999}
+            value={values?.chat.userConcurrency ?? TASK_QUEUE_DEFAULTS.chat.userConcurrency}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
+                chat: {
+                  ...(current?.chat || system?.taskQueueSettings?.chat || TASK_QUEUE_DEFAULTS.chat),
+                  userConcurrency: Number(event.target.value || TASK_QUEUE_DEFAULTS.chat.userConcurrency),
                 },
               }))
             }

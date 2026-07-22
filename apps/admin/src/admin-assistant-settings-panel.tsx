@@ -2,7 +2,6 @@ import { Bot, MonitorCog, Network, RotateCcw, Save, ShieldCheck, Sparkles } from
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AssistantSettings } from "./admin-types";
 
-const MASKED_ENDPOINT_TEXT = "已配置（服务器内地址已隐藏）";
 
 function cloneAssistantSettings(settings: AssistantSettings): AssistantSettings {
   return JSON.parse(JSON.stringify(settings)) as AssistantSettings;
@@ -79,11 +78,11 @@ export function AdminAssistantSettingsPanel({
         <div className="assistant-settings-hero__copy">
           <span className="assistant-settings-hero__kicker">AI 助手工作台</span>
           <h2>统一管理后台与创作侧的会话、上下文和接入策略</h2>
-          <p>这里负责控制入口文案、可挂载上下文、默认行为，以及 Hermes 接入和严格模式等运行参数。</p>
+          <p>这里负责控制入口文案、可挂载上下文、内部 Agent 角色和严格模式等运行参数。</p>
         </div>
         <div className="assistant-settings-hero__chips">
-          <MetricChip label="接入内核" value={draft.integration.kernel === "hermes" ? "外部服务" : "内置回复"} />
-          <MetricChip label="Profile" value={draft.integration.profile || "未填写"} />
+          <MetricChip label="运行内核" value="项目内 Agent" />
+          <MetricChip label="知识配置" value={draft.integration.knowledgeProfile || "未填写"} />
           <MetricChip label="记忆策略" value={draft.integration.persistMemory ? "持久化" : "非持久化"} />
           <MetricChip label="最近更新" value={new Date(settings.updatedAt).toLocaleString()} />
         </div>
@@ -274,8 +273,8 @@ export function AdminAssistantSettingsPanel({
         </AssistantSettingsCard>
 
         <AssistantSettingsCard
-          title="外部服务接入"
-          description="管理 Hermes / 内置回复的接入方式、Profile 和安全策略。"
+          title="内部 Agent 接入"
+          description="管理项目内 Agent 角色、知识配置和安全策略。"
           icon={Network}
           spanTwo
         >
@@ -283,63 +282,51 @@ export function AdminAssistantSettingsPanel({
             <SettingsSection title="运行内核" description="决定后台和前端助手的回复来源。">
               <FieldRow
                 label="接入内核"
-                description="外部服务用于完整协作链路，内置回复作为兜底。"
+                description="助手统一由项目内 Agent Runtime 执行，未发布路由时使用受限兜底回复。"
                 control={(
-                  <select
-                    value={draft.integration.kernel}
-                    onChange={(event) =>
-                      updateIntegration("kernel", event.target.value === "hermes" ? "hermes" : "fallback")
-                    }
-                  >
-                    <option value="hermes">外部服务</option>
-                    <option value="fallback">内置回复</option>
-                  </select>
+                  <input value="项目内 Agent Runtime" disabled />
                 )}
               />
               <FieldRow
-                label="服务地址"
-                description="服务地址已做掩码处理，如需调整可直接手动填写。"
+                label="对话 Agent"
+                description="悬浮助手和后台对话使用的 Agent 定义 key。"
                 control={(
                   <input
-                    value={
-                      draft.integration.endpointConfigured && draft.integration.endpoint
-                        ? MASKED_ENDPOINT_TEXT
-                        : draft.integration.endpoint
-                    }
-                    onChange={(event) => updateIntegration("endpoint", event.target.value)}
+                    value={draft.integration.assistantAgentKey}
+                    onChange={(event) => updateIntegration("assistantAgentKey", event.target.value)}
                     placeholder="服务器内地址已隐藏；如需改接入可手动填写"
                   />
                 )}
               />
               <FieldRow
-                label="工作空间"
+                label="Provider 分析 Agent"
                 description="用于区分灰度、测试或正式环境会话。"
                 control={(
                   <input
-                    value={draft.integration.workspace}
-                    onChange={(event) => updateIntegration("workspace", event.target.value)}
+                    value={draft.integration.providerAnalysisAgentKey}
+                    onChange={(event) => updateIntegration("providerAnalysisAgentKey", event.target.value)}
                   />
                 )}
               />
             </SettingsSection>
-            <SettingsSection title="Profile 与安全策略" description="决定默认模型、Profile 和安全边界。">
+            <SettingsSection title="知识与安全策略" description="决定知识配置、LLM 路由归属和安全边界。">
               <FieldRow
-                label="默认模型"
-                description="未显式指定时的默认模型标识。"
+                label="知识配置"
+                description="公开产品知识和节点能力知识使用的配置标识。"
                 control={(
                   <input
-                    value={draft.integration.model}
-                    onChange={(event) => updateIntegration("model", event.target.value)}
+                    value={draft.integration.knowledgeProfile}
+                    onChange={(event) => updateIntegration("knowledgeProfile", event.target.value)}
                   />
                 )}
               />
               <FieldRow
-                label="Profile"
-                description="Hermes 中用于区分后台助手身份与记忆策略。"
+                label="模型选择"
+                description="具体 LLM 由角色对应的已发布路由池决定。"
                 control={(
                   <input
-                    value={draft.integration.profile}
-                    onChange={(event) => updateIntegration("profile", event.target.value)}
+                    value="由 LLM 路由池按角色决定"
+                    disabled
                   />
                 )}
               />
@@ -352,8 +339,8 @@ export function AdminAssistantSettingsPanel({
               <ToggleRow
                 label="持久化记忆"
                 description="仅在后台场景确实需要长会话记忆时开启。"
-                checked={draft.integration.persistMemory}
-                onChange={(checked) => updateIntegration("persistMemory", checked)}
+                checked={false}
+                onChange={() => undefined}
               />
             </SettingsSection>
           </div>

@@ -44,13 +44,11 @@ interface AssistantBackendSettingsShape {
 }
 
 interface AssistantIntegrationSettingsShape {
-  kernel: "hermes" | "fallback";
-  endpoint: string;
-  endpointConfigured?: boolean;
-  workspace: string;
-  model: string;
-  profile: string;
-  persistMemory: boolean;
+  runtime: "internal";
+  assistantAgentKey: string;
+  providerAnalysisAgentKey: string;
+  knowledgeProfile: string;
+  persistMemory: false;
   strictMode: boolean;
 }
 

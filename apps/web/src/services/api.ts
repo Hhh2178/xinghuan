@@ -64,7 +64,7 @@ export interface AssistantChatAttachment {
 }
 
 export interface AssistantChatResult {
-  mode: 'hermes' | 'fallback';
+  mode: 'agent' | 'fallback';
   message: string;
   rawAssistant: string;
 }
@@ -86,13 +86,11 @@ export interface PublicAssistantSettings {
     persistMemory: false;
   };
   integration: {
-    kernel: 'hermes' | 'fallback';
-    endpoint: string;
-    endpointConfigured?: boolean;
-    workspace: string;
-    model: string;
-    profile: string;
-    persistMemory: boolean;
+    runtime: 'internal';
+    assistantAgentKey: string;
+    providerAnalysisAgentKey: string;
+    knowledgeProfile: string;
+    persistMemory: false;
     strictMode: boolean;
   };
   updatedAt: number;
@@ -132,6 +130,7 @@ export async function chatWithAssistant(payload: {
   attachments?: AssistantChatAttachment[];
   scope?: 'canvas' | 'admin';
   conversationId?: string;
+  idempotencyKey?: string;
 }): Promise<AssistantChatResult> {
   const res = await request<{ success: boolean; data: AssistantChatResult }>(`${BASE}/assistant/chat`, {
     method: 'POST',
@@ -146,6 +145,7 @@ export async function streamAssistantChat(
     attachments?: AssistantChatAttachment[];
     scope?: 'canvas' | 'admin';
     conversationId?: string;
+    idempotencyKey?: string;
   },
   handlers: {
     onStatus?: (status: string) => void;

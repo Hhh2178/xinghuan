@@ -16,6 +16,7 @@ describe("task queue settings", () => {
       image: { concurrency: "invalid", userConcurrency: -5 },
       audio: { concurrency: 2000, userConcurrency: 3 },
       video: { concurrency: 2.4, userConcurrency: "invalid" },
+      chat: { concurrency: 12, userConcurrency: 2 },
       runninghub: { concurrency: 0, enabled: false },
     });
 
@@ -25,6 +26,7 @@ describe("task queue settings", () => {
     expect(settings.audio.userConcurrency).toBe(3);
     expect(settings.video.concurrency).toBe(2);
     expect(settings.video.userConcurrency).toBe(TASK_QUEUE_DEFAULT_USER_CONCURRENCY);
+    expect(settings.chat).toEqual({ concurrency: 12, userConcurrency: 2 });
     expect(settings.runninghub.concurrency).toBe(1);
     expect(settings.runninghub.enabled).toBe(false);
   });
@@ -36,6 +38,7 @@ describe("task queue settings", () => {
       { capability: "image", queue: "canvas:jobs:image", concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY },
       { capability: "audio", queue: "canvas:jobs:audio", concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY },
       { capability: "video", queue: "canvas:jobs:video", concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY },
+      { capability: "chat", queue: "canvas:jobs:chat", concurrency: 20 },
     ]);
   });
 

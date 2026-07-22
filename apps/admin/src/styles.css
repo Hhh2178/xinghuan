@@ -9503,3 +9503,137 @@ td {
 @media (prefers-reduced-motion: reduce) {
   .admin-health-refresh .is-spinning { animation: none; }
 }
+
+/* Agent governance is a dense operational workspace, separate from assistant presentation UI. */
+.agent-governance-workspace { display: grid; gap: 14px; min-width: 0; padding: 0 20px 28px; }
+.agent-governance-toolbar,
+.agent-action-head,
+.agent-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.agent-governance-toolbar { min-height: 54px; padding: 10px 0; border-bottom: 1px solid var(--starlight-border); }
+.agent-governance-toolbar > div,
+.agent-section-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+.agent-governance-toolbar strong,
+.agent-section-head strong { color: var(--starlight-text); font-size: 14px; }
+.agent-governance-toolbar span,
+.agent-section-head span { color: var(--starlight-muted); font-size: 12px; }
+.agent-governance-stack { display: grid; gap: 14px; min-width: 0; }
+.agent-section-description { margin: -8px 0 0; color: var(--starlight-muted); font-size: 11px; }
+.agent-metric-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px; }
+.agent-metric { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; min-height: 64px; padding: 10px 12px; border: 1px solid var(--starlight-border); border-radius: 6px; background: var(--starlight-panel); }
+.agent-metric svg { width: 18px; color: var(--starlight-cyan); }
+.agent-metric span { color: var(--starlight-muted); font-size: 11px; }
+.agent-metric strong { font: 700 19px "JetBrains Mono", monospace; }
+.agent-metric--warning { border-color: color-mix(in srgb, var(--starlight-warning) 55%, var(--starlight-border)); }
+.agent-metric--warning svg { color: var(--starlight-warning); }
+.agent-control-table,
+.agent-entity-list,
+.agent-tool-list,
+.agent-approval-list { display: grid; gap: 8px; }
+.agent-control-row { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(420px, 3fr) auto; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--starlight-border); border-radius: 6px; background: var(--starlight-panel); }
+.agent-control-environment { display: flex; align-items: center; gap: 8px; }
+.agent-control-environment small { color: var(--starlight-muted); font: 10px "JetBrains Mono", monospace; }
+.agent-control-toggles { display: grid; grid-template-columns: repeat(4, minmax(90px, 1fr)); gap: 8px; }
+.agent-control-toggles label { display: flex; align-items: center; gap: 7px; color: var(--starlight-muted); font-size: 12px; }
+.agent-control-toggles input { accent-color: var(--starlight-cyan); }
+.agent-action-head { min-height: 38px; }
+.agent-action-head > strong { font-size: 13px; }
+.agent-inline-form { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) auto; align-items: end; gap: 10px; padding: 12px; border: 1px solid var(--starlight-border); border-radius: 6px; background: var(--starlight-panel); }
+.agent-field { display: grid; gap: 5px; min-width: 0; }
+.agent-field > span { color: var(--starlight-muted); font-size: 10px; }
+.agent-field input,
+.agent-field select,
+.agent-field textarea,
+.agent-inline-actions select,
+.agent-tool-meta select { width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--starlight-border); border-radius: 5px; color: var(--starlight-text); background: var(--starlight-bg); }
+.agent-field textarea { min-height: 74px; resize: vertical; }
+.agent-entity { display: grid; gap: 10px; padding: 13px 14px; border: 1px solid var(--starlight-border); border-radius: 6px; background: var(--starlight-panel); }
+.agent-entity > header,
+.agent-entity > header > div { display: flex; align-items: center; gap: 8px; }
+.agent-entity > header { justify-content: space-between; }
+.agent-entity > header svg { width: 17px; color: var(--starlight-cyan); }
+.agent-entity p,
+.agent-simulator p { margin: 0; color: var(--starlight-muted); font-size: 12px; line-height: 18px; }
+.agent-entity code,
+.agent-tool-row code,
+.agent-data-table code { overflow-wrap: anywhere; color: var(--starlight-cyan); font: 10px "JetBrains Mono", monospace; }
+.agent-version-list { display: grid; gap: 6px; }
+.agent-version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 6px 8px; border-top: 1px solid var(--starlight-border); }
+.agent-version-row > div { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.agent-inline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.agent-inline-actions button,
+.agent-version-row button { min-height: 28px; padding: 4px 8px; border: 1px solid var(--starlight-border); border-radius: 4px; color: var(--starlight-text); background: var(--starlight-bg); font-size: 11px; }
+.scope-note { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-left: 3px solid var(--starlight-cyan); color: var(--starlight-muted); background: color-mix(in srgb, var(--starlight-cyan) 7%, transparent); font-size: 12px; }
+.scope-note svg { width: 17px; flex: 0 0 auto; color: var(--starlight-cyan); }
+.agent-split-layout { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); min-height: 380px; border: 1px solid var(--starlight-border); border-radius: 6px; overflow: hidden; }
+.agent-rail { display: grid; align-content: start; border-right: 1px solid var(--starlight-border); background: var(--starlight-bg); }
+.agent-rail button { display: grid; grid-template-columns: 18px minmax(0, 1fr) 16px; align-items: center; gap: 9px; padding: 11px; border: 0; border-bottom: 1px solid var(--starlight-border); color: var(--starlight-muted); text-align: left; background: transparent; }
+.agent-rail button.active { color: var(--starlight-text); background: var(--starlight-panel); box-shadow: inset 3px 0 var(--starlight-cyan); }
+.agent-rail button svg { width: 16px; }
+.agent-rail button span { display: grid; min-width: 0; gap: 3px; }
+.agent-rail button strong,
+.agent-rail button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-rail button small { font-size: 10px; }
+.agent-inspector { display: grid; align-content: start; gap: 12px; min-width: 0; padding: 14px; background: var(--starlight-panel); }
+.agent-simulator { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--starlight-border); }
+.agent-simulator p { grid-column: 1 / -1; }
+.agent-tool-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 11px 13px; border-bottom: 1px solid var(--starlight-border); }
+.agent-tool-row:first-child { border-top: 1px solid var(--starlight-border); }
+.agent-tool-row > div:first-child { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px; }
+.agent-tool-row p { grid-column: 1 / -1; margin: 0; color: var(--starlight-muted); font-size: 11px; }
+.agent-tool-meta { display: flex; align-items: center; gap: 8px; }
+.agent-tool-meta select { min-width: 112px; }
+.agent-two-forms { display: grid; grid-template-columns: .8fr 1.2fr; gap: 10px; }
+.agent-two-forms .agent-inline-form { grid-template-columns: 1fr; }
+.agent-data-table table { width: 100%; min-width: 680px; border-collapse: collapse; }
+.agent-data-table th,
+.agent-data-table td { padding: 9px 10px; border-bottom: 1px solid var(--starlight-border); text-align: left; font-size: 11px; vertical-align: middle; }
+.agent-data-table th { color: var(--starlight-muted); font-weight: 500; background: var(--starlight-bg); }
+.agent-data-table td > strong,
+.agent-data-table td > small { display: block; }
+.agent-data-table td > small { margin-top: 3px; color: var(--starlight-muted); }
+.agent-status,
+.agent-environment { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; border: 1px solid var(--starlight-border); border-radius: 3px; color: var(--starlight-muted); font-size: 9px; white-space: nowrap; }
+.agent-status--approved,
+.agent-status--enabled,
+.agent-status--healthy,
+.agent-status--succeeded,
+.agent-status--native-server { border-color: color-mix(in srgb, var(--starlight-success) 55%, var(--starlight-border)); color: var(--starlight-success); }
+.agent-status--review,
+.agent-status--pending,
+.agent-status--degraded,
+.agent-status--awaiting-approval { border-color: color-mix(in srgb, var(--starlight-warning) 55%, var(--starlight-border)); color: var(--starlight-warning); }
+.agent-status--failed,
+.agent-status--rejected,
+.agent-status--circuit-open { border-color: color-mix(in srgb, var(--starlight-danger) 55%, var(--starlight-border)); color: var(--starlight-danger); }
+.agent-environment--gray { color: var(--starlight-cyan); }
+.agent-environment--production { color: var(--starlight-warning); }
+.agent-approval-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(180px, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--starlight-border); border-radius: 6px; background: var(--starlight-panel); }
+.agent-approval-row > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.agent-approval-row span,
+.agent-approval-row p { color: var(--starlight-muted); font-size: 11px; }
+.agent-empty { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 140px; color: var(--starlight-muted); }
+.agent-empty svg { width: 18px; }
+
+@media (max-width: 1280px) {
+  .agent-metric-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+  .agent-inline-form { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+  .agent-control-row { grid-template-columns: 1fr; }
+  .agent-control-toggles { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .admin-sidebar { display: grid; gap: 8px; padding: 10px 12px; }
+  .admin-sidebar .starlight-brand { min-height: 52px; }
+  .admin-sidebar .starlight-domain-nav { display: flex; flex-direction: row; gap: 6px; padding: 2px 0 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .admin-sidebar .starlight-domain-nav button { flex: 0 0 190px; min-height: 54px; padding: 8px 10px; }
+  .admin-sidebar .starlight-sidebar__footer { display: none; }
+  .agent-governance-workspace { padding-inline: 12px; }
+  .agent-metric-grid,
+  .agent-two-forms { grid-template-columns: 1fr; }
+  .agent-split-layout { grid-template-columns: 1fr; }
+  .agent-rail { max-height: 220px; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--starlight-border); }
+  .agent-tool-row,
+  .agent-approval-row { grid-template-columns: 1fr; }
+  .agent-control-toggles,
+  .agent-inline-form { grid-template-columns: 1fr; }
+}

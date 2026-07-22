@@ -47,7 +47,7 @@ assert.match(agents, /pre-commit/i);
 assert.match(agents, /1200\+/);
 assert.match(agents, /verify:release-worktree-clean/);
 assert.match(agents, /release-version-and-retention-policy\.md/);
-assert.match(agents, /最近三个.*Release|Release.*最近三个/s);
+assert.match(agents, /最近五个.*Release|Release.*最近五个/s);
 assert.match(governanceReadme, /engineering-guardrails\.md/);
 assert.match(agents, /hotspot-risk-scorecard\.md/);
 assert.match(governanceReadme, /hotspot-risk-scorecard\.md/);

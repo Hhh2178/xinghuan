@@ -835,7 +835,7 @@ export function ApiSettingsPanel({
             {assistantResult ? (
               <div className="assistant-draft-preview">
                   <section className="assistant-draft-section assistant-draft-section--summary">
-                    <span>{assistantResult.mode === "hermes" ? "Hermes 分析" : "本地分析"}</span>
+                    <span>{assistantResult.mode === "agent" ? "Agent 分析" : "本地分析"}</span>
                     <p>{assistantResult.summary}</p>
                   </section>
                 <div className="assistant-draft-grid">

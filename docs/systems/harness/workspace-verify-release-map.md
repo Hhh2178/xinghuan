@@ -89,7 +89,7 @@
 - 推送 gray 前的本地准备
 - gray 运行态验证后同步 release 记录
 - production 晋级前确认版本、包、文档和运行入口一致
-- gray / production 验证通过后先 dry-run，再将服务器 Release 恢复为最近三个
+- gray / production 验证通过后先 dry-run，再将服务器 Release 恢复为最近五个
 
 ## Integration harness
 

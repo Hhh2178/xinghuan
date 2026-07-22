@@ -10,6 +10,7 @@ import {
   pathForRhView,
   pathForAnalyticsView,
   pathForCapabilitiesView,
+  pathForAgentRuntimeView,
   pathForSystemView,
   pathForUsersView,
   pathForWorkspaceTab,
@@ -45,14 +46,14 @@ const checks = [
   {
     name: "navigation order and labels stay stable",
     pass:
-      navIds === "overview,users,providers,runninghub-workspace,comfyui,public-resources,assistant,announcement,tasks,audit,system,environment-sync" &&
-      navLabels === "总览,用户,API 设置,RH 工作台,ComfyUI,公共资源,AI 助手,公告,任务,审计,系统,环境同步",
+      navIds === "overview,users,providers,runninghub-workspace,comfyui,public-resources,assistant,agent-runtime,announcement,tasks,audit,system,environment-sync" &&
+      navLabels === "总览,用户,API 设置,RH 工作台,ComfyUI,公共资源,AI 助手,智能体治理,公告,任务,审计,系统,环境同步",
   },
   {
-    name: "eleven admin domains stay explicit and ordered",
+    name: "twelve admin domains stay explicit and ordered",
     pass:
-      workspaceIds === "overview,organization,security,capabilities,rh,comfyui,resources,content,runtime,analytics,system" &&
-      workspaceLabels === "运营总览,账号与组织,权限与安全,Provider 与模型,RH 管理,ComfyUI 管理,公共资源,内容发布,任务与运行,数据分析与审计,系统与发布",
+      workspaceIds === "overview,organization,security,capabilities,automation,rh,comfyui,resources,content,runtime,analytics,system" &&
+      workspaceLabels === "运营总览,账号与组织,权限与安全,Provider 与模型,智能体与自动化,RH 管理,ComfyUI 管理,公共资源,内容发布,任务与运行,数据分析与审计,系统与发布",
   },
   {
     name: "admin paths resolve to domain and legacy page adapters",
@@ -63,6 +64,8 @@ const checks = [
       resolveAdminPath("/admin/rh/keys").rhView === "keys" &&
       pathForCapabilitiesView("models") === "/admin/capabilities/models" &&
       resolveAdminPath("/admin/capabilities/models").capabilitiesView === "models" &&
+      pathForAgentRuntimeView("llm-routes") === "/admin/automation/llm-routes" &&
+      resolveAdminPath("/admin/automation/approvals").agentRuntimeView === "approvals" &&
       pathForAnalyticsView("audit") === "/admin/analytics/audit" &&
       resolveAdminPath("/admin/analytics/audit").analyticsView === "audit" &&
       pathForSystemView("runtime-settings") === "/admin/system/runtime-settings" &&

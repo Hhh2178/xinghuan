@@ -63,7 +63,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
 - 领域词汇或 ADR 生命周期变化时，必须同步 `CONTEXT.md`、`docs/adr/README.md`、治理规范和 `verify:domain-context-and-adr-contract`。
-- 每次 Gray / Production 运行态验证成功后，Release harness 必须 dry-run 并恢复服务器“每环境最近三个 Release”的保留上限。
+- 每次 Gray / Production 运行态验证成功后，Release harness 必须 dry-run 并恢复服务器“每环境最近五个 Release”的保留上限。
 - Harness runner 将每次 profile 运行写入 ignored `.harness/runs/*.json`；release/validation logbook 仍是正式审计证据。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。
 - 本目录只记录执行地图和接入约定，不复制系统设计正文、发布记录或长期状态。

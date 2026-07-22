@@ -30,15 +30,16 @@
 
 ## 当前状态摘要
 
-- 当前候选版本：`v0.7.5`
+- 当前候选版本：`v0.7.19`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.7.5`
+- 当前灰度版本：`v0.7.18`
 - 当前生产：`canvas.hhh2121.xyz`
-- 当前生产版本：`v0.7.5`
-- 当前灰度 release：`20260718-generation-artifact-stream-abort-gray-r2-v075`
-- 当前生产 release：`20260718-generation-artifact-stream-abort-prod-r1-v075`
-- 当前工作分支：`xinghuan-integration-clean`
-- 当前重点：流中断崩溃热修已在 Gray 与 Production 完成同制品验收；继续观察既有运行趋势与 legacy reconciliation 候选，后续 Gray 默认仅递增 PATCH
+- 当前生产版本：`v0.7.18`
+- 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
+- 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
+- 当前开发分支：`feature/canvas-agent-runtime`
+- 当前重点：本地候选已完成 Canvas Agent Runtime Phase 1-6，并在 Phase 7 接入 Canvas Run Worker、PostgreSQL lease、独立 chat 队列、批次质量选择及下游输入绑定；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已作为不调用 Provider 的原生确定性步骤进入服务端 Run Plan。`text-split` 的前端预览与 Worker 共用同一算法，支持分镜、正则、编号、字符切块和手工覆写。视频理解不依赖 FFmpeg，采用两条受控路径：当前启用的 Gemini 路径将 owner-scoped 视频字节上传至 Gemini Files API，并用其临时 `fileUri` 分析完整视频；未来仅对明确支持主动拉取媒体的 Provider 允许单产物、只读、短时签名 URL 直传。后者需要独立媒体访问网关、传输上限、撤销与审计快照，当前默认未启用，内部鉴权 URL 和任意客户端 URL 均不得外发。隔离 PostgreSQL 多 Worker 与 API/Redis/Worker 联合验收均已在本机通过，后者覆盖 SSE 重连、启动、暂停/恢复、取消和任务结算；认证 UI Playwright 验收流程已建立，仍缺一次性测试账号与环境。
+- 下一阶段方向：完成认证 UI runbook 的真实登录态视觉验收，再执行 Gray 发布就绪验证。当前未推送、未部署，Gray 与 Production 仍运行 `v0.7.18`
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

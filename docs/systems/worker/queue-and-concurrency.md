@@ -18,6 +18,14 @@
   - 自动汇总所有启用 RH Key 的 `maxConcurrency`
   - 占用窗口按 `providerId + keyId` 分开计数
   - 系统页再汇总为 RH 平台当前占用
+- Canvas Run 使用 PostgreSQL run 更新时间与 step sequence 做跨运行轮转；每次只领取一个 ready step，再交给现有能力队列，因此不会绕开平台和用户并发窗口。
+- `lease_expires_at` 只负责 Coordinator 崩溃接管，Redis 仍只保存队列和短期窗口，不保存 Run 权威状态。
+
+## Canvas Run 公平领取
+
+- `xh_canvas_run_dispatch_cursors` 是 Canvas Run generation 与 quality coordinator 的 owner 轮转权威游标；它不记录任务终态，也不替代租约。
+- Worker 在短 PostgreSQL 事务内锁定对应 scope cursor，以 `last_owner_id` 为环状起点选择下一位有 ready work 的 owner，选中 Step 后才更新 cursor。
+- 这个顺序只决定哪位 owner 获得下一次 Canvas Run 领取机会；后续仍受现有用户、Provider 和 capability 队列并发窗口约束。
 
 ## 当前关键文件
 

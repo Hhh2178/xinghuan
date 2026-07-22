@@ -51,6 +51,7 @@ import {
   providerJsonHeaders as buildProviderJsonHeaders,
 } from "./worker-provider-utils.js";
 import { createRunningHubClient } from "./worker-runninghub-client.js";
+import { materializeRunningHubNodeInfo } from "./worker-runninghub-media-adapter.js";
 import { createWorkerCancelSync } from "./worker-cancel-sync.js";
 import {
   createWorkerDeferredRequeue,
@@ -82,6 +83,10 @@ import {
 } from "./worker-runninghub-dispatch.js";
 import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
+import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
+import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
+import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
+import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
 
 const environment = (process.env.XINGHUAN_APP_ENV ?? "local") as AppEnvironment;
 const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
@@ -96,6 +101,7 @@ const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUN
 const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
 const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
 const taskQueueRefreshIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_QUEUE_REFRESH_INTERVAL_MS || "5000", 10);
+const canvasRunWorkerEnabled = process.env.XINGHUAN_CANVAS_RUN_WORKER_ENABLED === "true";
 
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
@@ -116,7 +122,28 @@ const pool = new Pool({
   }),
 });
 const redisControl = createClient({ url: redisUrl });
+const canvasRunCoordinator = createCanvasRunCoordinator({
+  pool,
+  redis: redisControl,
+  workerId,
+  environment,
+  queueName,
+  enabled: canvasRunWorkerEnabled,
+  pollIntervalMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_POLL_INTERVAL_MS || "1000", 10),
+  leaseMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_STEP_LEASE_MS || "30000", 10),
+});
+const canvasRunQualityCoordinator = createCanvasRunQualityCoordinator({
+  pool,
+  redis: redisControl,
+  workerId,
+  environment,
+  queueName,
+  dataDir,
+  enabled: canvasRunWorkerEnabled,
+  pollIntervalMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_POLL_INTERVAL_MS || "1000", 10),
+});
 const {
+  claimQueuedTask,
   readTask,
   updateTask,
   appendTaskLog,
@@ -161,9 +188,13 @@ redisControl.on("error", (error) => {
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
+  canvasRunCoordinator.stop();
+  canvasRunQualityCoordinator.stop();
 });
 process.on("SIGINT", () => {
   stopping = true;
+  canvasRunCoordinator.stop();
+  canvasRunQualityCoordinator.stop();
 });
 
 interface QueueLoopController {
@@ -374,7 +405,10 @@ async function runWorkerRuntime() {
       );
     });
   }, Math.max(1000, taskQueueRefreshIntervalMs));
-  const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : [];
+  const backgroundLoops = [
+    ...(staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : []),
+    ...(canvasRunWorkerEnabled ? [canvasRunCoordinator.run(), canvasRunQualityCoordinator.run()] : []),
+  ];
   while (!stopping) {
     await wait(1000);
   }
@@ -422,8 +456,11 @@ async function processTask(taskId: string) {
   }
 
   const taskQueueSettings = await readTaskQueueSettings();
-  const capabilitySettings = task.capability === "image" || task.capability === "audio" || task.capability === "video"
-    ? taskQueueSettings[task.capability]
+  const queueCapability = TASK_QUEUE_CAPABILITIES.includes(task.capability as TaskQueueCapability)
+    ? task.capability as TaskQueueCapability
+    : null;
+  const capabilitySettings = queueCapability
+    ? taskQueueSettings[queueCapability]
     : null;
   const runningHubDispatchDeps = buildRunningHubDispatchDeps(task, taskQueueSettings);
   const userWindow = capabilitySettings ? await acquireUserExecutionWindow(task, capabilitySettings.userConcurrency) : { acquired: true as const };
@@ -464,8 +501,8 @@ async function processTask(taskId: string) {
     return;
   }
 
-  const claimResult = await updateTask(taskId, "running", [`${workerId} 已领取任务`]);
-  if (await workerCancelSync.handleCancelledClaim({
+  const claimResult = await claimQueuedTask(taskId, `${workerId} 已领取任务`);
+  if (claimResult === "cancelled" && await workerCancelSync.handleCancelledClaim({
     taskId,
     capability: task.capability,
     trace,
@@ -474,13 +511,11 @@ async function processTask(taskId: string) {
       await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
       await releaseUserExecutionWindow(task);
     },
-  })) {
-    return;
-  }
-  if (claimResult === "missing") {
+  })) return;
+  if (claimResult !== "claimed") {
     await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
     await releaseUserExecutionWindow(task);
-    console.warn(`xinghuan-worker skipped missing task during claim ${taskId}`);
+    logWorkerEvent("task.skipped", { ...trace, taskId, status: claimResult, message: "claim did not acquire queued task" });
     return;
   }
   logWorkerEvent("task.claimed", { ...trace, taskId, capability: task.capability });
@@ -497,9 +532,12 @@ async function processTask(taskId: string) {
     progress: "45%",
     queueHint: "任务已提交，正在生成",
   });
+  const cancellationMonitor = task.capability === "chat" && normalizeProtocol(task.providerProtocol) === "gemini"
+    ? createWorkerTaskCancellationMonitor({ taskId, intervalMs: 1_000, isTaskCancelled })
+    : null;
   let requeueAfterRelease = false;
   try {
-    const result = await executeTask(task);
+    const result = await executeTask(task, cancellationMonitor?.signal);
     if (await workerCancelSync.dropResultIfCancelled({
       taskId,
       capability: task.capability,
@@ -587,6 +625,7 @@ async function processTask(taskId: string) {
     });
     return;
   } finally {
+    cancellationMonitor?.stop();
     await releaseRunningHubExecutionWindow(runningHubDispatchDeps);
     await releaseUserExecutionWindow(task);
     if (requeueAfterRelease) {
@@ -612,7 +651,7 @@ async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise
 }
 
 async function releaseUserExecutionWindow(task: TaskRow) {
-  if (!task.ownerId || !["image", "audio", "video"].includes(task.capability)) return;
+  if (!task.ownerId || !TASK_QUEUE_CAPABILITIES.includes(task.capability as TaskQueueCapability)) return;
   const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
   const current = Number(await redisControl.get(key).catch(() => "0")) || 0;
   if (current <= 0) return;
@@ -620,7 +659,7 @@ async function releaseUserExecutionWindow(task: TaskRow) {
   if (Number(next) <= 0) await redisControl.del(key).catch(() => undefined);
 }
 
-async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
+async function executeTask(task: TaskRow, signal?: AbortSignal): Promise<Record<string, unknown>> {
   if (!task.providerId && !task.modelRecordId) {
     return { adapter: "noop", note: "未绑定 Provider/Model，按后台队列健康检查任务完成" };
   }
@@ -629,7 +668,7 @@ async function executeTask(task: TaskRow): Promise<Record<string, unknown>> {
   if (task.capability === "image") return executeImageTask(task);
   if (task.capability === "video") return executeVideoTask(task);
   if (task.capability === "audio") return executeAudioTask(task);
-  if (task.capability === "chat") return executeChatTask(task);
+  if (task.capability === "chat") return executeChatTask(task, signal);
   throw new Error(`当前 Worker Adapter 暂不支持能力: ${task.capability || "unknown"}`);
 }
 
@@ -1086,7 +1125,7 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
   if (!runTargetId) {
     throw new Error(targetType === "app" ? "RunningHub 任务缺少 webappId/runTargetId" : "RunningHub 任务缺少 workflowId/runTargetId");
   }
-  const nodeInfoList = Array.isArray(task.payload.nodeInfoList)
+  const rawNodeInfoList = Array.isArray(task.payload.nodeInfoList)
     ? task.payload.nodeInfoList
         .map((item) => (item && typeof item === "object" ? plainObject(item) : {}))
         .filter((item) => safeText(item.nodeId) && safeText(item.fieldName))
@@ -1096,6 +1135,13 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
           fieldValue: item.fieldValue,
         }))
     : [];
+  const nodeInfoList = await materializeRunningHubNodeInfo({
+    dataDir,
+    ownerId: task.ownerId,
+    baseUrl: task.providerBaseUrl,
+    apiKey,
+    nodeInfoList: rawNodeInfoList,
+  });
   const runningHubClient = createRunningHubClient({
     apiKey,
     baseUrl: task.providerBaseUrl,
@@ -1250,7 +1296,7 @@ function collectRunningHubUrls(value: unknown, seen = new Set<string>()): string
   return [];
 }
 
-async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> {
+async function executeChatTask(task: TaskRow, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
     return executeRunningHubTask(task);
@@ -1259,7 +1305,7 @@ async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> 
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
   if (!task.providerBaseUrl) throw new Error("Provider 缺少 Base URL");
   if (!task.providerModelId) throw new Error("任务缺少 Provider 模型 ID");
-  if (!["openai", "apimart", "modelscope", "custom"].includes(protocol)) {
+  if (!["openai", "gemini", "apimart", "modelscope", "custom"].includes(protocol)) {
     throw new Error(`当前 Worker 语言模型 Adapter 暂不支持协议: ${protocol}`);
   }
   const apiKey = decryptSecret(task.apiKeyCipher);
@@ -1271,6 +1317,26 @@ async function executeChatTask(task: TaskRow): Promise<Record<string, unknown>> 
       ? [{ role: "user", content: safeText(task.payload.prompt) }]
       : [];
   if (messages.length === 0) throw new Error("语言模型任务缺少 messages");
+
+  if (protocol === "gemini") {
+    const nativeVideo = plainObject(task.payload.nativeVideo);
+    const result = await executeGeminiChatTask({
+      dataDir,
+      ownerId: task.ownerId,
+      baseUrl: task.providerBaseUrl,
+      apiKey,
+      modelId: task.providerModelId,
+      messages,
+      nativeVideo: safeText(nativeVideo.fileUrl) ? {
+        fileUrl: safeText(nativeVideo.fileUrl),
+        mimeType: safeText(nativeVideo.mimeType),
+      } : undefined,
+      temperature: Number(task.payload.temperature),
+      maxTokens: Number(task.payload.max_tokens || task.payload.maxTokens),
+      signal,
+    });
+    return { ...result, providerId: task.providerId, modelId: task.providerModelId };
+  }
 
   const payload: Record<string, unknown> = {
     model: task.providerModelId,

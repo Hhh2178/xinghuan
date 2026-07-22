@@ -7,7 +7,8 @@
 - 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 与 Production 均稳定运行 v0.7.18；本地候选 v0.7.19 已完成 sharp/Vite/esbuild/brace-expansion 安全升级，`npm audit` 为 0，14 项图片安全场景与 69 files / 246 tests、全 workspace build 通过，尚未推送 Gray。
+- 最新完成：Gray 与 Production 均稳定运行 v0.7.18；本地候选 v0.7.19 在 `feature/canvas-agent-runtime` 完成 Canvas Agent Runtime Phase 1-6，并于 Phase 7 接入 Canvas Run Worker、PostgreSQL lease、独立 chat 队列、批次质量选择和 Gemini Files API 原生完整视频/已有帧双路径。短期受控 URL 传输仅保留为后续 Provider 网关能力，当前默认关闭；隔离 PostgreSQL 多 Worker 验收已通过公平 cursor、过期 lease 接管、投递恢复与重复 delivery 原子 claim 四项测试，API/Redis/Worker 联合验收另行通过持久化 SSE/重连、启动、暂停/恢复、取消和任务结算。本机认证 UI 已通过计划创建和三种视口检查，Gray 放行仍未完成，分支未推送、未部署。
+- 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

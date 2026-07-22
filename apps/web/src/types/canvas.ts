@@ -45,6 +45,7 @@ export type NodeType =
   | 'grid-crop'
   | 'grid-editor'
   | 'group-execution-manager'
+  | 'canvas-agent'
   // Auxiliary (5)
   | 'edit'
   | 'idea'
