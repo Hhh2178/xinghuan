@@ -45,6 +45,8 @@
 ## 画布媒体与运行任务恢复
 
 - 普通画布保存、自动保存、刷新恢复和前端版本切换必须保留节点媒体、尺寸及生成任务运行态；只有工作流 manifest 构建可以在深拷贝上清理这些字段。
+- 同一浏览器的多标签画布保存通过 Web Locks 串行化；成功保存后使用 BroadcastChannel 广播新 revision。无本地改动的标签页自动重载服务端新版本，有未保存改动的标签页在发请求前暂停自动保存并提示冲突。
+- 跨设备与不支持浏览器协调 API 的客户端仍由服务端 `expectedRevision` 乐观锁保护；前端协调只能减少可预防的 409，不能绕过或替代服务端冲突检查。
 - Upload 与 Output 的单图/单视频使用素材固有比例计算初始尺寸，手动四角拉伸继续锁定该比例；多素材使用响应式网格与 `object-fit: contain` 完整展示。
 - Upload 单媒体节点计算预览外 chrome 时统一使用未受 React Flow 缩放影响的 layout CSS pixels（`offset*` / `scrollHeight`）；禁止把 viewport rect 与 layout metrics 混算后写入 `data.size`。媒体 metadata 在刷新后会按当前素材比例重新校正旧尺寸。
 - 异步生成节点在每个批次拿到远程任务号后立即持久化 `taskRuns[]`。每项至少包含 `batchIndex`、`taskId`、`resumeKind`、`status`，旧协议所需查询参数放入 `resumeParams`。

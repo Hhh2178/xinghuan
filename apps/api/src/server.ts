@@ -190,6 +190,7 @@ import {
   normalizeSystemHealthRange,
   type TaskObservabilityHealthStatus,
 } from "./task-observability-domain.js";
+import { decorateAuditConflictSummary } from "./audit-observability-domain.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
@@ -10633,6 +10634,8 @@ async function readAuditObservabilitySummary() {
       totalLast24h: number;
       totalLast7d: number;
       totalLast30d: number;
+      distinctTargetsLast24h: number;
+      distinctActorsLast24h: number;
       canvasRevisionLast24h: number;
       resourceRevisionLast24h: number;
       adminSettingsRevisionLast24h: number;
@@ -10649,14 +10652,6 @@ async function readAuditObservabilitySummary() {
         ? toObservabilityHealth("warning", `${coverageReferenceLabel} requestId 覆盖率低于目标，建议继续提升`)
         : toObservabilityHealth("critical", `${coverageReferenceLabel} requestId 覆盖率偏低，需优先补链路`)
     ;
-    const conflictHealth = summary.conflicts.totalLast24h === 0
-      ? toObservabilityHealth("healthy", "24h 内未观察到 revision conflict")
-      : summary.conflicts.totalLast24h <= 5
-        ? toObservabilityHealth("warning", "24h 内存在少量 revision conflict")
-        : toObservabilityHealth("critical", "24h 内 revision conflict 偏多，需排查并发写入")
-    ;
-    const total7dDailyAverageBaseline = Math.round(summary.conflicts.totalLast7d / 7);
-    const total30dDailyAverageBaseline = Math.round(summary.conflicts.totalLast30d / 30);
     return {
       ...summary,
       coverageHealth,
@@ -10664,16 +10659,7 @@ async function readAuditObservabilitySummary() {
         requestIdCoverageLast24hVsLatestSample: summary.requestIdCoverageLast24hPercent - summary.requestIdCoveragePercent,
         requestIdCoverageLast7dVsLatestSample: summary.requestIdCoverageLast7dPercent - summary.requestIdCoveragePercent,
       },
-      conflicts: {
-        ...summary.conflicts,
-        health: conflictHealth,
-        trend: {
-          total7dDailyAverageBaseline,
-          total30dDailyAverageBaseline,
-          total24hVs7dDailyAverage: summary.conflicts.totalLast24h - total7dDailyAverageBaseline,
-          total24hVs30dDailyAverage: summary.conflicts.totalLast24h - total30dDailyAverageBaseline,
-        },
-      },
+      conflicts: decorateAuditConflictSummary(summary.conflicts),
     };
   };
   if (usePostgresRepository()) {
@@ -10717,7 +10703,15 @@ async function readAuditObservabilitySummary() {
            ) as total_last_30d,
            count(*) filter (where action = 'conflict.canvas_revision' and created_at >= now() - interval '24 hour') as canvas_revision_last_24h,
            count(*) filter (where action = 'conflict.resource_revision' and created_at >= now() - interval '24 hour') as resource_revision_last_24h,
-           count(*) filter (where action = 'conflict.admin_settings_revision' and created_at >= now() - interval '24 hour') as admin_settings_revision_last_24h
+           count(*) filter (where action = 'conflict.admin_settings_revision' and created_at >= now() - interval '24 hour') as admin_settings_revision_last_24h,
+           count(distinct target_id) filter (
+             where action in ('conflict.canvas_revision', 'conflict.resource_revision', 'conflict.admin_settings_revision')
+               and created_at >= now() - interval '24 hour'
+           ) as distinct_targets_last_24h,
+           count(distinct actor_id) filter (
+             where action in ('conflict.canvas_revision', 'conflict.resource_revision', 'conflict.admin_settings_revision')
+               and created_at >= now() - interval '24 hour'
+           ) as distinct_actors_last_24h
          from xh_audit_logs`,
       ),
     ]);
@@ -10734,6 +10728,8 @@ async function readAuditObservabilitySummary() {
     const canvasRevisionLast24h = Number(conflictResult.rows[0]?.canvas_revision_last_24h) || 0;
     const resourceRevisionLast24h = Number(conflictResult.rows[0]?.resource_revision_last_24h) || 0;
     const adminSettingsRevisionLast24h = Number(conflictResult.rows[0]?.admin_settings_revision_last_24h) || 0;
+    const distinctTargetsLast24h = Number(conflictResult.rows[0]?.distinct_targets_last_24h) || 0;
+    const distinctActorsLast24h = Number(conflictResult.rows[0]?.distinct_actors_last_24h) || 0;
     return decorate({
       total,
       sampled,
@@ -10749,6 +10745,8 @@ async function readAuditObservabilitySummary() {
         totalLast24h,
         totalLast7d,
         totalLast30d,
+        distinctTargetsLast24h,
+        distinctActorsLast24h,
         canvasRevisionLast24h,
         resourceRevisionLast24h,
         adminSettingsRevisionLast24h,
@@ -10778,6 +10776,8 @@ async function readAuditObservabilitySummary() {
   const canvasRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.canvas_revision").length;
   const resourceRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.resource_revision").length;
   const adminSettingsRevisionLast24h = recentConflicts24h.filter((item) => item.action === "conflict.admin_settings_revision").length;
+  const distinctTargetsLast24h = new Set(recentConflicts24h.map((item) => item.targetId).filter(Boolean)).size;
+  const distinctActorsLast24h = new Set(recentConflicts24h.map((item) => item.actorId).filter(Boolean)).size;
   return decorate({
     total: audits.length,
     sampled: sample.length,
@@ -10793,6 +10793,8 @@ async function readAuditObservabilitySummary() {
       totalLast24h: recentConflicts24h.length,
       totalLast7d: recentConflicts7d.length,
       totalLast30d: recentConflicts30d.length,
+      distinctTargetsLast24h,
+      distinctActorsLast24h,
       canvasRevisionLast24h,
       resourceRevisionLast24h,
       adminSettingsRevisionLast24h,

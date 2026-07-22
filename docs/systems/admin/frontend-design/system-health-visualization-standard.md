@@ -155,6 +155,8 @@
 
 示例：任务失败健康应比较 `failed / finalized`、24h 相对 7d/30d 同粒度基线、最小样本量和持续时间。`7d failed total > 24h failed total × N` 不能作为健康规则。
 
+Revision conflict 必须比较 24h 事件数与 7d/30d 日均基线，并携带受影响对象数。少量可恢复冲突为 warning；只有达到基线回退阈值且影响多个对象时才进入 critical，禁止使用“绝对次数超过 5”作为唯一严重条件。
+
 ## 9. Data Correctness Contract
 
 - 所有 Redis runtime key 必须包含环境/queue namespace。

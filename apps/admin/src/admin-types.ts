@@ -755,12 +755,18 @@ export interface SystemInfo {
         totalLast24h: number;
         totalLast7d: number;
         totalLast30d: number;
+        distinctTargetsLast24h: number;
+        distinctActorsLast24h: number;
         canvasRevisionLast24h: number;
         resourceRevisionLast24h: number;
         adminSettingsRevisionLast24h: number;
         health: {
           status: "healthy" | "warning" | "critical";
           summary: string;
+          reason?: "no_conflicts" | "conflicts_observed" | "above_baseline" | "baseline_regression";
+          baselineCount?: number;
+          warningThresholdCount?: number;
+          criticalThresholdCount?: number;
         };
         trend: {
           total7dDailyAverageBaseline: number;

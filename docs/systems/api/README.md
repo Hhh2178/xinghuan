@@ -13,6 +13,7 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 ## 关键代码入口
 
 - 主服务：`apps/api/src/server.ts`
+- 审计冲突健康评估：`apps/api/src/audit-observability-domain.ts`
 - 后台系统状态与并发设置路由：`apps/api/src/admin-system-routes.ts`
 - 后台 system GET 路由：`apps/api/src/admin-system-settings-routes.ts`
 - 后台 queue settings 路由：`apps/api/src/admin-queue-settings-routes.ts`
@@ -35,6 +36,7 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
   - `GET /api/admin/system` 已继续下沉到 `admin-system-settings-routes.ts`
   - 系统健康读取支持 `range=1h|24h|7d|30d`；趋势只返回服务端聚合桶，不向后台发送任务 payload/result/logs
   - task health 使用失败率、7d/30d 同粒度基线与最小样本量；cancelled 与 failed 分离，数据不足返回 `unknown`
+  - revision conflict health 使用 7d/30d 日均基线、warning/critical 倍率和受影响对象数；禁止恢复为“24h 超过固定 5 次即 critical”的绝对阈值
   - DB queued 与 Redis queue depth 的差异只形成一致性告警，健康 GET 不隐式修改任务状态
   - queue settings 读写边界已继续下沉到 `admin-queue-settings-routes.ts`
   - `GET/PATCH /api/admin/assistant/settings` 已下沉到 `admin-assistant-settings-routes.ts`
