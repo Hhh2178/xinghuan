@@ -23,6 +23,8 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 - 通用 system/queue 响应适配：`apps/api/src/api-response-adapters.ts`
 - RunningHub catalog：`apps/api/src/runninghub-catalog.ts`
 - RunningHub 执行描述：`apps/api/src/runninghub-execution-descriptor.ts`
+- 图片裁剪、缩放与拼接：`apps/api/src/image-operation-routes.ts`
+- Provider 参考图预处理：`packages/shared/src/grsai-reference-images.ts`
 
 ## 当前重点
 
@@ -41,6 +43,7 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
   - queue settings 读写边界已继续下沉到 `admin-queue-settings-routes.ts`
   - `GET/PATCH /api/admin/assistant/settings` 已下沉到 `admin-assistant-settings-routes.ts`
   - system/queue response glue 已统一到 `api-response-adapters.ts`
+  - 图片处理运行时统一使用 `sharp >= 0.35.3`；安全升级必须覆盖截断输入、透明通道、尺寸边界、拼接、参考图字节限制和 release clean-install 验证
 
 ## 兼容正文来源
 

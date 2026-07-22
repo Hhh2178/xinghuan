@@ -7,6 +7,14 @@ const webBuildMarker = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0,
 const rootPackageJson = JSON.parse(readFileSync(path.resolve(__dirname, "../../package.json"), "utf8"));
 const appVersion = String(rootPackageJson.version || "").trim() || "0.0.0";
 
+function manualVendorChunk(id: string) {
+  const normalizedId = id.replaceAll("\\", "/");
+  if (normalizedId.includes("/node_modules/@xyflow/react/")) return "vendor-flow";
+  if (normalizedId.includes("/node_modules/@mediapipe/tasks-vision/")) return "vendor-mediapipe";
+  if (normalizedId.includes("/node_modules/lucide-react/")) return "vendor-icons";
+  return undefined;
+}
+
 function buildMetaPlugin() {
   return {
     name: "xinghuan-web-build-meta",
@@ -62,14 +70,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // [mimo-perf] 画布引擎单独分包
-          "vendor-flow": ["@xyflow/react"],
-          // [mimo-perf] MediaPipe 单独分包（体积较大）
-          "vendor-mediapipe": ["@mediapipe/tasks-vision"],
-          // [mimo-perf] 图标库单独分包
-          "vendor-icons": ["lucide-react"],
-        },
+        // Vite 8 / Rolldown 使用函数式 manualChunks；保持既有三类 vendor 分包语义。
+        manualChunks: manualVendorChunk,
       },
     },
     // [mimo-perf] 提高 chunk 警告阈值到 600KB

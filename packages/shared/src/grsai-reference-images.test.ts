@@ -73,4 +73,82 @@ describe("grsai reference images", () => {
     expect(output.byteLength).toBeLessThan(source.byteLength);
     expect(Buffer.from(prepared[1].split(",")[1], "base64").byteLength).toBe(output.byteLength);
   });
+
+  it("rejects truncated image bytes when preprocessing is enabled", async ({ task }) => {
+    const dataDir = join(process.cwd(), "runtime", "test-fixtures", task.id);
+    const ownerId = "user-invalid-image";
+    const imageDir = join(dataDir, "users", ownerId, "input");
+    await mkdir(imageDir, { recursive: true });
+    await writeFile(join(imageDir, "broken.png"), Buffer.from([137, 80, 78, 71, 13, 10]));
+
+    await expect(prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: ["input/broken.png"],
+      processing: { format: "jpeg", maxDimension: 1024, quality: 85 },
+    })).rejects.toThrow();
+  });
+
+  it("enforces per-image and aggregate byte limits before sending provider payloads", async ({ task }) => {
+    const dataDir = join(process.cwd(), "runtime", "test-fixtures", task.id);
+    const ownerId = "user-size-limits";
+    const source = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 12, g: 34, b: 56 } },
+    }).png().toBuffer();
+    const dataUrl = `data:image/png;base64,${source.toString("base64")}`;
+
+    await expect(prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: [dataUrl],
+      maxBytesPerImage: source.byteLength - 1,
+    })).rejects.toThrow("单图大小限制");
+
+    await expect(prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: [dataUrl, dataUrl],
+      maxBytesPerImage: source.byteLength,
+      maxTotalBytes: source.byteLength * 2 - 1,
+    })).rejects.toThrow("总大小超过");
+  });
+
+  it("flattens transparent input to JPEG without enlarging a small image", async ({ task }) => {
+    const dataDir = join(process.cwd(), "runtime", "test-fixtures", task.id);
+    const ownerId = "user-alpha";
+    const source = await sharp({
+      create: { width: 32, height: 16, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 0.25 } },
+    }).png().toBuffer();
+
+    const prepared = await prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: [`data:image/png;base64,${source.toString("base64")}`],
+      processing: { format: "jpeg", maxDimension: 1024, quality: 90 },
+    });
+
+    const output = Buffer.from(prepared[0].split(",")[1], "base64");
+    await expect(sharp(output).metadata()).resolves.toMatchObject({
+      format: "jpeg",
+      width: 32,
+      height: 16,
+      hasAlpha: false,
+    });
+  });
+
+  it("limits provider references to the configured count", async ({ task }) => {
+    const dataDir = join(process.cwd(), "runtime", "test-fixtures", task.id);
+    const ownerId = "user-reference-limit";
+    const source = await sharp({ create: { width: 2, height: 2, channels: 3, background: "#ffffff" } }).png().toBuffer();
+    const dataUrl = `data:image/png;base64,${source.toString("base64")}`;
+
+    const prepared = await prepareInlineImageReferences({
+      dataDir,
+      ownerId,
+      values: Array.from({ length: 20 }, () => dataUrl),
+      limit: 99,
+    });
+
+    expect(prepared).toHaveLength(16);
+  });
 });

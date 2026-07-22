@@ -7,7 +7,7 @@
 - 当前灰度 release：`20260722-canvas-revision-observability-gray-r1-v0718`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前工作分支：`xinghuan-integration-clean`
-- 最新完成：Gray 已部署并验收 v0.7.18，Production 已复用同一制品完成晋级；Production 启动前权限 retired-subject rule 漂移已由受控 reconciliation 修复并通过 readiness 验证。
+- 最新完成：Gray 与 Production 均稳定运行 v0.7.18；本地候选 v0.7.19 已完成 sharp/Vite/esbuild/brace-expansion 安全升级，`npm audit` 为 0，14 项图片安全场景与 69 files / 246 tests、全 workspace build 通过，尚未推送 Gray。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
   - 早期 `Phase 3` 任务与素材闭环已完成；当前不再用 Phase 3 作为主状态描述

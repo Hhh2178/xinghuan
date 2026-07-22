@@ -1,6 +1,6 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.7.18",
+  "version": "0.7.19",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
@@ -251,8 +251,9 @@
     "verify:generation-library-resource-card": "node scripts/verify-generation-library-resource-card-contract.mjs",
     "verify:worker": "node scripts/verify-worker-queue.mjs",
     "verify:package-exports": "node scripts/verify-package-exports.mjs",
+    "verify:dependency-security-baseline": "node scripts/verify-dependency-security-baseline.mjs",
     "verify:critical": "npm run verify:no-runtime-artifacts-staged && npm run verify:file-hotspot-budgets && npm run verify:staged-source-size-guard",
-    "verify:important": "npm run type-check && npm run build -w @xinghuan/api && npm run verify:api-aborted-response && npm run verify:hotspot-watchlist-contract && npm run verify:package-exports && npm run verify:permission-platform-hardening && npm run verify:node-serial-badge-host && npm run verify:image-op-upstream-material",
+    "verify:important": "npm run type-check && npm run build -w @xinghuan/api && npm run verify:api-aborted-response && npm run verify:hotspot-watchlist-contract && npm run verify:package-exports && npm run verify:dependency-security-baseline && npm run verify:permission-platform-hardening && npm run verify:node-serial-badge-host && npm run verify:image-op-upstream-material",
     "verify:recommended": "npm run lint",
     "verify:quick": "npm run verify:critical && npm run verify:important",
     "db:migrate": "node scripts/db-migrate.mjs",
@@ -273,7 +274,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^8.1.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
