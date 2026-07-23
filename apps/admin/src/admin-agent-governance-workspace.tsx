@@ -1,5 +1,5 @@
 import {
-  Activity, AlertTriangle, Bot, Check, ChevronRight, CirclePause, Database, FileText, Gauge,
+  Activity, AlertTriangle, Bot, Check, ChevronRight, CirclePause, FileText, Gauge,
   GitBranch, ListChecks, Loader2, Play, Plus, RefreshCw, Route, ShieldCheck, SlidersHorizontal,
   Sparkles, X,
 } from "lucide-react";
@@ -8,7 +8,6 @@ import type { ModelRecord } from "./admin-types";
 import type { AdminAgentRuntimeViewId } from "./admin-view-model";
 import { AdminAgentRoleConfigurationEditor } from "./admin-agent-role-configuration-editor";
 import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
-import { AdminAgentKnowledgeEditor } from "./admin-agent-knowledge-editor";
 import { AdminAgentQualityEditor } from "./admin-agent-quality-editor";
 import {
   adminAgentGovernanceApi,
@@ -20,18 +19,18 @@ import {
   type AgentRuntimeControl,
   type AgentRunsData,
   type AgentVersionStatus,
-  type KnowledgeCollection,
   type LlmRoutePool,
-  type NodeCapability,
   type QualityProfile,
   type RecoveryDecision,
-  type AgentToolData,
   type AgentRoleWorkspaceData,
   type AgentRecoveryWorkspaceData,
 } from "./admin-agent-governance-api";
 
 interface Props { activeView: AdminAgentRuntimeViewId; models: ModelRecord[] }
-type Data = AgentOverview | AgentRoleWorkspaceData | AgentRecoveryWorkspaceData | LlmRoutePool[] | AgentToolData | NodeCapability[] | KnowledgeCollection[] | QualityProfile[] | AgentRunsData | AgentApproval[] | AgentAuditRecord[];
+type ModelsData = { roles: AgentRoleWorkspaceData; pools: LlmRoutePool[] };
+type PoliciesData = { quality: QualityProfile[]; recovery: AgentRecoveryWorkspaceData };
+type ActivityData = { runs: AgentRunsData; approvals: AgentApproval[]; audit: AgentAuditRecord[] };
+type Data = AgentOverview | ModelsData | PoliciesData | ActivityData;
 
 export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   const [data, setData] = useState<Data | null>(null);
@@ -44,17 +43,19 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
     setLoading(true); setError("");
     try {
       const next = await ({
-        overview: adminAgentGovernanceApi.overview,
-        roles: adminAgentGovernanceApi.roleWorkspace,
-        "llm-routes": adminAgentGovernanceApi.pools,
-        tools: adminAgentGovernanceApi.tools,
-        nodes: adminAgentGovernanceApi.nodes,
-        knowledge: adminAgentGovernanceApi.knowledge,
-        quality: adminAgentGovernanceApi.qualityProfiles,
-        recovery: adminAgentGovernanceApi.recoveryWorkspace,
-        runs: adminAgentGovernanceApi.runs,
-        approvals: adminAgentGovernanceApi.approvals,
-        audit: adminAgentGovernanceApi.audit,
+        controls: adminAgentGovernanceApi.overview,
+        models: async () => {
+          const [roles, pools] = await Promise.all([adminAgentGovernanceApi.roleWorkspace(), adminAgentGovernanceApi.pools()]);
+          return { roles, pools };
+        },
+        policies: async () => {
+          const [quality, recovery] = await Promise.all([adminAgentGovernanceApi.qualityProfiles(), adminAgentGovernanceApi.recoveryWorkspace()]);
+          return { quality, recovery };
+        },
+        activity: async () => {
+          const [runs, approvals, audit] = await Promise.all([adminAgentGovernanceApi.runs(), adminAgentGovernanceApi.approvals(), adminAgentGovernanceApi.audit()]);
+          return { runs, approvals, audit };
+        },
       } satisfies Record<AdminAgentRuntimeViewId, () => Promise<Data>>)[activeView]();
       setData(next);
     } catch (nextError) { setError(message(nextError)); }
@@ -80,21 +81,42 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
       {notice ? <div className="agent-success-banner" role="status">{notice}</div> : null}
       {loading ? <Loading /> : (
         <>
-          {activeView === "overview" ? <OverviewView value={data as AgentOverview} busy={busy} mutate={mutate} /> : null}
-          {activeView === "roles" ? <RolesView value={data as AgentRoleWorkspaceData} busy={busy} mutate={mutate} /> : null}
-          {activeView === "llm-routes" ? <PoolsView value={data as LlmRoutePool[]} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} /> : null}
-          {activeView === "tools" ? <ToolsView value={data as AgentToolData} busy={busy} mutate={mutate} /> : null}
-          {activeView === "nodes" ? <NodesView value={data as NodeCapability[]} /> : null}
-          {activeView === "knowledge" ? <KnowledgeView value={data as KnowledgeCollection[]} busy={busy} mutate={mutate} /> : null}
-          {activeView === "quality" ? <QualityView value={data as QualityProfile[]} busy={busy} mutate={mutate} /> : null}
-          {activeView === "recovery" ? <RecoveryView value={data as AgentRecoveryWorkspaceData} busy={busy} mutate={mutate} /> : null}
-          {activeView === "runs" ? <RunsView value={data as AgentRunsData} /> : null}
-          {activeView === "approvals" ? <ApprovalsView value={data as AgentApproval[]} busy={busy} mutate={mutate} /> : null}
-          {activeView === "audit" ? <AuditView value={data as AgentAuditRecord[]} /> : null}
+          {activeView === "controls" ? <OverviewView value={data as AgentOverview} busy={busy} mutate={mutate} /> : null}
+          {activeView === "models" ? <ModelsView value={data as ModelsData} models={models} busy={busy} mutate={mutate} /> : null}
+          {activeView === "policies" ? <PoliciesView value={data as PoliciesData} busy={busy} mutate={mutate} /> : null}
+          {activeView === "activity" ? <ActivityView value={data as ActivityData} busy={busy} mutate={mutate} /> : null}
         </>
       )}
     </section>
   );
+}
+
+function ModelsView({ value, models, busy, mutate }: { value: ModelsData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+  const activeDefinitions = { ...value.roles, definitions: value.roles.definitions.filter((definition) => definition.agentKey !== "canvas-manager") };
+  return <div className="agent-governance-stack">
+    <SectionHead title="角色与模型绑定" description="仅管理助手诊断、失败恢复和候选评估所需的有界 LLM 配置。历史自由规划角色保持可审计，但不再进入新运行。" />
+    <RolesView value={activeDefinitions} busy={busy} mutate={mutate} />
+    <SectionHead title="LLM 路由与回退" description="路由池只接受已发布的聊天模型，并在新 Run 开始时锁定版本。" />
+    <PoolsView value={value.pools} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} />
+  </div>;
+}
+
+function PoliciesView({ value, busy, mutate }: { value: PoliciesData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+  return <div className="agent-governance-stack">
+    <SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" />
+    <QualityView value={value.quality} busy={busy} mutate={mutate} />
+    <RecoveryView value={value.recovery} busy={busy} mutate={mutate} />
+  </div>;
+}
+
+function ActivityView({ value, busy, mutate }: { value: ActivityData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+  return <div className="agent-governance-stack">
+    <RunsView value={value.runs} />
+    <SectionHead title="待处理审批" description="只有超出已发布策略边界的动作需要人工决定。" />
+    <ApprovalsView value={value.approvals} busy={busy} mutate={mutate} />
+    <SectionHead title="不可变动作审计" description="查看运行决策、工具结果和经过脱敏的错误。" />
+    <AuditView value={value.audit} />
+  </div>;
 }
 
 function OverviewView({ value, busy, mutate }: { value: AgentOverview; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
@@ -157,38 +179,6 @@ function PoolsView({ value, models, busy, mutate }: { value: LlmRoutePool[]; mod
   </div>;
 }
 
-function ToolsView({ value, busy, mutate }: { value: AgentToolData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  return <div className="agent-governance-stack"><SectionHead title="固定工具注册表" description="工具必须先存在于代码注册表，再由策略缩小权限；后台不能添加任意 Shell 或 HTTP 工具。" />
-    <div className="agent-tool-list">{value.catalog.map((tool) => <ToolPolicyRow key={tool.name} tool={tool} policy={value.policies.find((item) => item.subjectType === "platform" && item.toolName === tool.name)} busy={busy} mutate={mutate} />)}</div>
-  </div>;
-}
-
-function ToolPolicyRow({ tool, policy, busy, mutate }: { tool: AgentToolData["catalog"][number]; policy?: AgentToolData["policies"][number]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  const constraints = policy?.constraints || {};
-  const [draft, setDraft] = useState({
-    effect: policy?.effect || (tool.approvalRequired ? "require_approval" : "allow"),
-    maxCallsPerRun: Number(constraints.maxCallsPerRun || 20),
-    requireCanvasRevision: constraints.requireCanvasRevision !== false,
-    requireBudget: constraints.requireBudget !== false,
-  });
-  useEffect(() => setDraft({ effect: policy?.effect || (tool.approvalRequired ? "require_approval" : "allow"), maxCallsPerRun: Number(policy?.constraints.maxCallsPerRun || 20), requireCanvasRevision: policy?.constraints.requireCanvasRevision !== false, requireBudget: policy?.constraints.requireBudget !== false }), [policy?.revision, tool.approvalRequired]);
-  return <div className="agent-tool-row"><div><strong>{tool.label}</strong><code>{tool.name}</code><p>{tool.description}</p></div><div className="agent-tool-policy-editor"><StatusBadge value={tool.risk} /><label><span>效果</span><select value={draft.effect} disabled={busy} onChange={(event) => setDraft({ ...draft, effect: event.target.value })}><option value="allow" disabled={tool.approvalRequired}>允许</option><option value="require_approval">需审批</option><option value="deny">拒绝</option></select></label><label><span>每 Run 上限</span><input type="number" min="1" max="1000" value={draft.maxCallsPerRun} onChange={(event) => setDraft({ ...draft, maxCallsPerRun: Number(event.target.value) })} /></label><label><input type="checkbox" checked={draft.requireCanvasRevision} onChange={(event) => setDraft({ ...draft, requireCanvasRevision: event.target.checked })} /><span>校验画布 revision</span></label><label><input type="checkbox" checked={draft.requireBudget} onChange={(event) => setDraft({ ...draft, requireBudget: event.target.checked })} /><span>校验预算</span></label><button type="button" className="primary-action" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.updateToolPolicy({ subjectType: "platform", toolName: tool.name, effect: draft.effect, constraints: { maxCallsPerRun: draft.maxCallsPerRun, requireCanvasRevision: draft.requireCanvasRevision, requireBudget: draft.requireBudget }, revision: policy?.revision }))}><Check />保存</button></div></div>;
-}
-
-function NodesView({ value }: { value: NodeCapability[] }) {
-  const native = value.filter((item) => item.serverRuntime === "native_server").length;
-  const planEligible = value.filter((item) => item.planEligible).length;
-  return <div className="agent-governance-stack"><div className="scope-note"><Database /><span>{value.length} 个维护节点，{planEligible} 个可进入 Canvas Run 计划，{native} 个已迁移服务端 runtime。目录同时进入规划、监督、检查和恢复 Agent 的受控上下文。</span></div><DataTable headers={["节点", "用途与运行", "输入 / 输出", "连接与模型", "失败与 Agent"]}>{value.map((item) => <tr key={item.nodeType}><td><strong>{item.label}</strong><code>{item.nodeType}</code></td><td><p>{item.description}</p><small>{item.executionKind} · {item.planEligible ? "可进入计划" : "仅说明"}</small><StatusBadge value={item.serverRuntime} /></td><td><small>入：{portSummary(item.inputs)}</small><small>出：{portSummary(item.outputs)}</small></td><td><small>上游：{item.recommendedUpstream.join("、") || "无"}</small><small>下游：{item.recommendedDownstream.join("、") || "无"}</small><small>规则：{item.connectionRules.join(" ")}</small><small>示例：{item.usageExamples.join(" ")}</small><small>替代：{item.alternativeNodeTypes.join("、") || "无"}</small><small>能力：{item.modelCapabilityHints.join("、") || "无"}</small></td><td><small>{item.commonFailureCodes.join("、") || "无常见失败码"}</small><small>Agent：{item.agentAllowedActions.join("、") || "无"}</small></td></tr>)}</DataTable></div>;
-}
-
-function portSummary(ports: NodeCapability["inputs"]) {
-  return ports.length ? ports.map((port) => `${port.key}:${port.valueTypes.join("|")}(${port.cardinality}${port.required ? "，必填" : ""})`).join("；") : "无";
-}
-
-function KnowledgeView({ value, busy, mutate }: { value: KnowledgeCollection[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  return <AdminAgentKnowledgeEditor value={value} busy={busy} mutate={mutate} />;
-}
-
 function QualityView({ value, busy, mutate }: { value: QualityProfile[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
   return <AdminAgentQualityEditor value={value} busy={busy} mutate={mutate} />;
 }
@@ -216,8 +206,8 @@ function StatusBadge({ value }: { value: string }) { return <span className={`ag
 function EnvironmentBadge({ value }: { value: AgentEnvironment }) { return <span className={`agent-environment agent-environment--${value}`}>{value === "gray" ? "Gray" : "Production"}</span>; }
 function Empty({ label }: { label: string }) { return <div className="agent-empty"><CirclePause /><span>{label}</span></div>; }
 function Loading() { return <div className="starlight-page-loading"><Loader2 className="spin" />正在加载智能体治理数据...</div>; }
-function viewTitle(view: AdminAgentRuntimeViewId) { return ({ overview: "Agent 运行总览", roles: "Agent 角色与配置", "llm-routes": "LLM 路由池", tools: "工具与权限", nodes: "节点能力目录", knowledge: "Agent 知识库", quality: "媒体质量策略", recovery: "生成失败恢复", runs: "运行记录", approvals: "动作审批", audit: "Agent 动作审计" })[view]; }
-function viewDescription(view: AdminAgentRuntimeViewId) { return ({ overview: "环境级控制与实时态势", roles: "定义、草稿、审核与环境发布", "llm-routes": "仅管理 Agent 使用的聊天模型", tools: "固定注册表与最小权限策略", nodes: "服务端执行迁移的代码权威投影", knowledge: "公开与内部内容分域维护", quality: "图片与视频使用独立评分配置", recovery: "有限重试、参数修复、节点备选模型与停止条件", runs: "Canvas Run 与 Agent Run 权威账本", approvals: "用户与管理员确认高风险动作", audit: "不可变动作、工具结果与错误记录" })[view]; }
+function viewTitle(view: AdminAgentRuntimeViewId) { return ({ controls: "AI 运行控制", models: "角色与模型绑定", policies: "恢复与候选选择", activity: "运行与审计" })[view]; }
+function viewDescription(view: AdminAgentRuntimeViewId) { return ({ controls: "环境级开关与实时态势", models: "有界用途、发布配置与 LLM 路由", policies: "质量门、有限恢复与人工接管边界", activity: "Workflow Run、Agent Run、审批和动作证据" })[view]; }
 function statusLabel(value: string) { return ({ enabled: "启用", disabled: "停用", draft: "草稿", review: "审核中", approved: "已批准", retired: "已退役", pending: "待处理", rejected: "已拒绝", cancelled: "已取消", running: "运行中", succeeded: "成功", failed: "失败", queued: "排队", planned: "已计划", paused: "已暂停", awaiting_approval: "等待审批", healthy: "健康", degraded: "降级", circuit_open: "熔断", legacy_browser: "浏览器运行", native_server: "服务端运行", observe: "观察", execute: "执行", modify: "修改", public: "公开", internal: "内部" } as Record<string, string>)[value] || value; }
 function formatTime(value: number) { return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 function sameControl(left: AgentRuntimeControl, right: AgentRuntimeControl) { return left.agentEnabled === right.agentEnabled && left.canvasRunsEnabled === right.canvasRunsEnabled && left.automaticRecoveryEnabled === right.automaticRecoveryEnabled && left.qualityEvaluationEnabled === right.qualityEvaluationEnabled; }

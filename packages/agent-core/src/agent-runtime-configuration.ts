@@ -1,4 +1,4 @@
-import { AGENT_TOOL_CATALOG } from "./agent-tool-catalog.js";
+import { AGENT_TOOL_CATALOG, isRetiredAgentTool } from "./agent-tool-catalog.js";
 
 export interface AgentRuntimeConfiguration {
   promptTemplate: string;
@@ -24,7 +24,7 @@ export interface AgentRuntimeConfiguration {
 
 const knownTools = new Set(AGENT_TOOL_CATALOG.map((tool) => tool.name));
 
-export function normalizeAgentRuntimeConfiguration(value: unknown): AgentRuntimeConfiguration {
+export function normalizeAgentRuntimeConfiguration(value: unknown, options: { retiredTools?: "reject" | "preserve" } = {}): AgentRuntimeConfiguration {
   const source = record(value);
   const knowledge = record(source.knowledge);
   const budget = record(source.budget);
@@ -33,6 +33,8 @@ export function normalizeAgentRuntimeConfiguration(value: unknown): AgentRuntime
   const toolAllowlist = uniqueStrings(source.toolAllowlist).sort();
   const unknownTool = toolAllowlist.find((tool) => !knownTools.has(tool));
   if (unknownTool) throw new Error(`AGENT_CONFIGURATION_TOOL_UNKNOWN:${unknownTool}`);
+  const retiredTool = options.retiredTools === "preserve" ? undefined : toolAllowlist.find(isRetiredAgentTool);
+  if (retiredTool) throw new Error(`AGENT_CONFIGURATION_TOOL_RETIRED:${retiredTool}`);
   if (approval.structuralChanges !== undefined && approval.structuralChanges !== "required") {
     throw new Error("AGENT_CONFIGURATION_STRUCTURAL_APPROVAL_REQUIRED");
   }

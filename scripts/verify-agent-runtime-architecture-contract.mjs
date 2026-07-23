@@ -11,9 +11,9 @@ const files = {
   canvasRegistry: await read("docs/systems/canvas/frontend-design/visual-component-registry.md"),
   adminRegistry: await read("docs/systems/admin/frontend-design/visual-component-registry.md"),
   adrIndex: await read("docs/adr/README.md"),
-  adr: await read("docs/adr/0003-canvas-agent-runtime-and-llm-routing.md"),
-  spec: await read("docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md"),
-  plan: await read("docs/superpowers/plans/2026-07-22-canvas-agent-runtime-and-llm-routing-implementation.md"),
+  adr: await read("docs/adr/0004-workflow-scoped-deterministic-supervision.md"),
+  spec: await read("docs/superpowers/specs/2026-07-23-canvas-agent-experience-redesign-requirements.md"),
+  plan: await read("docs/superpowers/plans/2026-07-23-canvas-agent-experience-redesign-implementation.md"),
   packageJson: JSON.parse(await read("package.json")),
   migration: await read("apps/api/db/026_canvas_agent_runtime.sql"),
   agentMigration: await read("apps/api/db/027_internal_agent_llm_routing.sql"),
@@ -24,6 +24,7 @@ const files = {
   kernel: await read("packages/agent-core/src/canvas-run-kernel.ts"),
   nodeCapabilities: await read("packages/agent-core/src/node-execution-capabilities.ts"),
   knowledgeCore: await read("packages/agent-core/src/knowledge-snapshot.ts"),
+  toolCatalog: await read("packages/agent-core/src/agent-tool-catalog.ts"),
   deterministicRuntime: await read("packages/agent-core/src/deterministic-node-runtime.ts"),
   repository: await read("apps/api/src/canvas-run-repository.ts"),
   service: await read("apps/api/src/canvas-run-service.ts"),
@@ -63,12 +64,12 @@ for (const term of ["Canvas Run", "Agent Run", "Assistant Conversation", "Knowle
 }
 
 assert.match(files.adr, /\*\*Status:\*\* Accepted/, "Agent Runtime ADR must be Accepted before implementation");
-assert.match(files.adrIndex, /0003-canvas-agent-runtime-and-llm-routing/, "ADR index missing Agent Runtime decision");
+assert.match(files.adrIndex, /0004-workflow-scoped-deterministic-supervision/, "ADR index missing current workflow supervision decision");
 assert.match(files.docsIndex, /docs\/systems\/agent-runtime\/README\.md/, "docs index missing Agent Runtime system entry");
 assert.match(files.systems, /agent-runtime\//, "systems index missing Agent Runtime entry");
 assert.match(files.systemReadme, /尚未完成实现/, "system README must keep current implementation distinct from target architecture");
 assert.match(files.systemReadme, /XINGHUAN_CANVAS_RUNS_ENABLED=true/, "system README must document the Canvas Run feature gate");
-assert.match(files.systemReadme, /悬浮助手与顶部 AI 托管已成为独立入口/, "system README must record the landed product separation");
+assert.match(files.systemReadme, /`AI 托管` 入口独立控制该面板/, "system README must record the landed product separation");
 assert.match(files.design, /AI 入口按任务分离/, "design system must separate assistant and supervision identities");
 assert.match(files.canvasRegistry, /CanvasSupervisionTrigger/, "canvas registry must define an independent supervision trigger");
 assert.match(files.canvasRegistry, /AssistantMarkdown/, "canvas registry must define the shared safe Markdown renderer");
@@ -117,15 +118,21 @@ assert.match(files.orchestrator, /validateAgentRoleTask/, "Agent Orchestrator mu
 assert.match(files.orchestrator, /recordDecision/, "Agent Orchestrator must persist route decisions");
 assert.match(files.orchestrator, /messagesWithNodeCapabilities/, "planning roles must receive the maintained node capability context");
 assert.match(files.orchestrator, /knowledgeSnapshots\.createSnapshot/, "Agent Orchestrator must lock knowledge before creating a Run");
+assert.match(files.orchestrator, /includePublishedDocuments: false/, "new Agent Runs must not ingest retired free-document knowledge");
+assert.match(files.orchestrator, /!isRetiredAgentTool\(tool\)/, "new Agent Runs must strip retired free-planning tools from historical publications");
 assert.match(files.agentRunRepository, /knowledge_snapshot_id/, "Agent Runs must reference their immutable Knowledge Snapshot");
 assert.match(files.knowledgeMigration, /AGENT_KNOWLEDGE_SNAPSHOT_IMMUTABLE/, "Knowledge Snapshots must reject mutation");
 assert.match(files.knowledgeRepository, /projectAgentModelCatalog/, "Knowledge repository must build the safe model projection from SQL catalogs");
 assert.doesNotMatch(files.knowledgeRepository.match(/select m\.id[\s\S]*?from xh_models m/)?.[0] || "", /base_url|api_key|advanced_config/i, "Agent model projection query must not select Provider secrets");
 assert.match(files.knowledgeCore, /collectionAllowlist/, "document retrieval must enforce a collection allowlist before ranking");
-for (const tool of ["knowledge.node.get", "knowledge.model.get", "knowledge.documents.search", "canvas.workflow.inspect", "canvas.workflow.search", "canvas.workflow.validate", "canvas.patch.propose"]) {
-  assert.match(files.knowledgeTools, new RegExp(tool.replaceAll(".", "\\.")), `curated knowledge tool missing: ${tool}`);
+for (const tool of ["knowledge.node.get", "knowledge.model.get"]) {
+  assert.match(files.toolCatalog, new RegExp(tool.replaceAll(".", "\\.")), `active bounded knowledge tool missing: ${tool}`);
 }
-assert.match(files.knowledgeTools, /definition\("canvas\.patch\.propose", true/, "structural patch proposals must require approval");
+for (const tool of ["knowledge.documents.search", "canvas.workflow.inspect", "canvas.workflow.search", "canvas.workflow.validate", "canvas.patch.propose"]) {
+  assert.match(files.toolCatalog, new RegExp(tool.replaceAll(".", "\\.")), `retired tool compatibility record missing: ${tool}`);
+  assert.match(files.knowledgeTools, new RegExp(tool.replaceAll(".", "\\.")), `retired tool historical implementation missing: ${tool}`);
+}
+assert.match(files.toolCatalog, /RETIRED_AGENT_TOOL_CATALOG/, "retired tools must be separated from the active publication catalog");
 assert.match(files.toolGateway, /authorizeAgentToolCall/, "Tool Gateway must reauthorize every invocation");
 assert.match(files.toolGateway, /AGENT_TOOL_CALL_LIMIT_EXCEEDED/, "Tool Gateway must enforce published per-Run call limits");
 assert.match(files.toolGateway, /requireCanvasRevision/, "Tool Gateway must honor published revision policy");
@@ -145,25 +152,18 @@ assert.match(files.recoveryService, /planSnapshot/, "generation alternatives mus
 assert.doesNotMatch(files.qualityMigration, /alternative_llm_model/, "generation recovery must not reuse LLM route concepts");
 
 for (const anchor of [
-  "Workflow Compiler",
-  "Canvas Run Kernel",
-  "Agent Orchestrator",
-  "Tool Gateway",
-  "LLM Routing Pool",
-  "只用于 Agent 的 LLM 角色",
-  "不管理图片、视频或音频生成模型",
-  "proposal + approval",
-  "Identity And Lifecycle",
-  "Assistant Content Contract",
-  "Node Capability Registry",
-  "Agent Model Projection",
-  "运行时只解析并锁定已发布配置",
+  "参数化工作流上的 AI 托管",
+  "工作流变量设计",
+  "工作流区域：独立运行边界",
+  "智能候选选择器",
+  "AI 助手边界",
+  "不触碰 Production",
 ]) {
   assert.match(files.spec, new RegExp(escapeRegex(anchor)), `Agent Runtime spec missing boundary: ${anchor}`);
 }
 
-assert.match(files.plan, /legacy browser runtime 与新内核并行/, "implementation plan must preserve staged runtime migration");
-assert.match(files.plan, /Production 需要用户单独授权/, "implementation plan must preserve production authorization boundary");
+assert.match(files.plan, /旧 Canvas Run、Agent 配置、知识与 proposal 保持历史读取/, "implementation plan must preserve staged runtime migration");
+assert.match(files.plan, /Production 不进入本计划的部署或回滚链/, "implementation plan must preserve production authorization boundary");
 
 const scripts = files.packageJson.scripts || {};
 assert.equal(

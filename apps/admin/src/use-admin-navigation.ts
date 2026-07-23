@@ -32,7 +32,7 @@ export function useAdminNavigation() {
   const [activeComfyuiInstanceId, setActiveComfyuiInstanceId] = useState(initialRoute.comfyuiInstanceId || "");
   const [activeComfyuiDetailTab, setActiveComfyuiDetailTab] = useState<"config" | "workflows" | "logs">(initialRoute.comfyuiDetailTab || "config");
   const [activeCapabilitiesView, setActiveCapabilitiesView] = useState<AdminCapabilitiesViewId>(initialRoute.capabilitiesView || "providers");
-  const [activeAgentRuntimeView, setActiveAgentRuntimeView] = useState<AdminAgentRuntimeViewId>(initialRoute.agentRuntimeView || "overview");
+  const [activeAgentRuntimeView, setActiveAgentRuntimeView] = useState<AdminAgentRuntimeViewId>(initialRoute.agentRuntimeView || "controls");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -68,7 +68,7 @@ export function useAdminNavigation() {
     if (workspace.id === "system") setActiveSystemView(nextTab === "environment-sync" ? "environment-sync" : "health");
     if (workspace.id === "comfyui") { setActiveComfyuiInstanceId(""); setActiveComfyuiDetailTab("config"); }
     if (workspace.id === "capabilities") setActiveCapabilitiesView(nextTab === "assistant" ? "admin-assistant" : "providers");
-    if (workspace.id === "automation") setActiveAgentRuntimeView("overview");
+    if (workspace.id === "automation") setActiveAgentRuntimeView("controls");
     if (typeof window !== "undefined" && window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }

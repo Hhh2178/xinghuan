@@ -21,7 +21,7 @@ export function createAgentRuntimeConfigurationRepository(deps: { getPostgresPoo
     );
     const row = result.rows[0];
     if (!row) throw new Error(`AGENT_CONFIGURATION_UNAVAILABLE:${input.agentKey}:${input.environment}`);
-    const configuration = normalizeAgentRuntimeConfiguration(row.configuration);
+    const configuration = normalizeAgentRuntimeConfiguration(row.configuration, { retiredTools: "preserve" });
     const platformPolicies = configuration.toolAllowlist.length > 0
       ? await pool.query(
         `select tool_name, effect, constraints, revision

@@ -64,8 +64,9 @@ const checks = [
       resolveAdminPath("/admin/rh/keys").rhView === "keys" &&
       pathForCapabilitiesView("models") === "/admin/capabilities/models" &&
       resolveAdminPath("/admin/capabilities/models").capabilitiesView === "models" &&
-      pathForAgentRuntimeView("llm-routes") === "/admin/automation/llm-routes" &&
-      resolveAdminPath("/admin/automation/approvals").agentRuntimeView === "approvals" &&
+      pathForAgentRuntimeView("models") === "/admin/automation/models" &&
+      resolveAdminPath("/admin/automation/approvals").agentRuntimeView === "activity" &&
+      resolveAdminPath("/admin/automation/knowledge").agentRuntimeView === "controls" &&
       pathForAnalyticsView("audit") === "/admin/analytics/audit" &&
       resolveAdminPath("/admin/analytics/audit").analyticsView === "audit" &&
       pathForSystemView("runtime-settings") === "/admin/system/runtime-settings" &&

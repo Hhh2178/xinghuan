@@ -34,6 +34,7 @@ export interface LlmRoutePool {
 }
 export interface AgentToolData {
   catalog: Array<{ name: string; label: string; risk: string; approvalRequired: boolean; roles: string[]; description: string }>;
+  retiredCatalog: Array<{ name: string; label: string; risk: string; approvalRequired: boolean; roles: string[]; description: string }>;
   policies: Array<{ id: string; subjectType: string; subjectId?: string; toolName: string; effect: string; constraints: Record<string, unknown>; revision: number }>;
 }
 export interface AgentRoleWorkspaceData {
@@ -76,14 +77,12 @@ export const adminAgentGovernanceApi = {
   bootstrap: () => api<{ definitionsCreated: number; configurationsCreated: number; knowledgeCollectionsCreated: number }>(`${base}/bootstrap`, { method: "POST" }),
   roles: () => api<AgentDefinition[]>(`${base}/roles`),
   roleWorkspace: async (): Promise<AgentRoleWorkspaceData> => {
-    const [definitions, pools, knowledge, tools, qualityProfiles] = await Promise.all([
+    const [definitions, pools, qualityProfiles] = await Promise.all([
       api<AgentDefinition[]>(`${base}/roles`),
       api<LlmRoutePool[]>(`${base}/llm-pools`),
-      api<KnowledgeCollection[]>(`${base}/knowledge`),
-      api<AgentToolData>(`${base}/tools`),
       api<QualityProfile[]>(`${base}/quality-profiles`),
     ]);
-    return { definitions, pools, knowledge, tools, qualityProfiles };
+    return { definitions, pools, knowledge: [], tools: { catalog: [], retiredCatalog: [], policies: [] }, qualityProfiles };
   },
   createRole: (value: { agentKey: string; name: string; role: string; description: string }) => api<AgentDefinition>(`${base}/roles`, json(value)),
   createRoleVersion: (roleId: string, configuration: AgentRuntimeConfiguration) => api(`${base}/roles/${encodeURIComponent(roleId)}/versions`, json({ configuration })),

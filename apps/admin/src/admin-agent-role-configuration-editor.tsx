@@ -21,19 +21,19 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props
   const definition = value.definitions.find((item) => item.id === selectedDefinitionId) || value.definitions[0];
   const [sourceVersionId, setSourceVersionId] = useState(definition?.versions[0]?.id || "");
   const sourceVersion = definition?.versions.find((item) => item.id === sourceVersionId) || definition?.versions[0];
-  const [draft, setDraft] = useState<AgentRuntimeConfiguration>(() => normalizeAgentRuntimeConfiguration(sourceVersion?.configuration));
+  const [draft, setDraft] = useState<AgentRuntimeConfiguration>(() => normalizeAgentRuntimeConfiguration(sourceVersion?.configuration, { retiredTools: "preserve" }));
 
   useEffect(() => {
     if (!definition) return;
     const next = definition.versions[0];
     setSourceVersionId(next?.id || "");
-    setDraft(normalizeAgentRuntimeConfiguration(next?.configuration));
+    setDraft(normalizeAgentRuntimeConfiguration(next?.configuration, { retiredTools: "preserve" }));
   }, [definition?.id]);
   useEffect(() => {
-    setDraft(normalizeAgentRuntimeConfiguration(sourceVersion?.configuration));
+    setDraft(normalizeAgentRuntimeConfiguration(sourceVersion?.configuration, { retiredTools: "preserve" }));
   }, [sourceVersion?.id]);
 
-  const diff = useMemo(() => diffAgentRuntimeConfiguration(normalizeAgentRuntimeConfiguration(sourceVersion?.configuration), draft), [sourceVersion?.configuration, draft]);
+  const diff = useMemo(() => diffAgentRuntimeConfiguration(normalizeAgentRuntimeConfiguration(sourceVersion?.configuration, { retiredTools: "preserve" }), draft), [sourceVersion?.configuration, draft]);
   if (!definition) return <div className="agent-empty">尚未创建 Agent 定义</div>;
 
   return <div className="agent-split-layout agent-config-editor">
@@ -62,19 +62,6 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props
         <NumberField label="超时 (ms)" value={draft.timeoutMs} min={1000} max={600000} onChange={(timeoutMs) => setDraft({ ...draft, timeoutMs })} />
         <NumberField label="最大估算成本" value={draft.budget.maximumEstimatedCost ?? 0} min={0} max={1000000} step={0.01} onChange={(maximumEstimatedCost) => setDraft({ ...draft, budget: { maximumEstimatedCost } })} />
         <label className="agent-field"><span>质量配置</span><select value={draft.qualityProfileKey} onChange={(event) => setDraft({ ...draft, qualityProfileKey: event.target.value })}><option value="">不绑定</option>{value.qualityProfiles.map((profile) => <option value={profile.profileKey} key={profile.id}>{profile.profileKey} · v{profile.version}</option>)}</select></label>
-      </section>
-
-      <section className="agent-config-section agent-config-grid">
-        <h3>知识检索</h3>
-        <label className="agent-field"><span>受众</span><select value={draft.knowledge.audience} onChange={(event) => setDraft({ ...draft, knowledge: { ...draft.knowledge, audience: event.target.value === "public" ? "public" : "internal" } })}><option value="public">公开</option><option value="internal">内部</option></select></label>
-        <NumberField label="Top K" value={draft.knowledge.topK} min={1} max={20} onChange={(topK) => setDraft({ ...draft, knowledge: { ...draft.knowledge, topK } })} />
-        <NumberField label="检索 Token 预算" value={draft.knowledge.tokenBudget} min={128} max={32000} onChange={(tokenBudget) => setDraft({ ...draft, knowledge: { ...draft.knowledge, tokenBudget } })} />
-        <div className="agent-config-checklist"><span>知识集合</span>{value.knowledge.filter((collection) => collection.audience === draft.knowledge.audience).map((collection) => <label key={collection.id}><input type="checkbox" checked={draft.knowledge.collectionAllowlist.includes(collection.collectionKey)} onChange={() => setDraft({ ...draft, knowledge: { ...draft.knowledge, collectionAllowlist: toggle(draft.knowledge.collectionAllowlist, collection.collectionKey) } })} /><span>{collection.name}</span><code>{collection.collectionKey}</code></label>)}</div>
-      </section>
-
-      <section className="agent-config-section">
-        <h3>工具权限</h3>
-        <div className="agent-config-checklist agent-config-checklist--tools">{value.tools.catalog.filter((tool) => tool.roles.includes(definition.role)).map((tool) => <label key={tool.name}><input type="checkbox" checked={draft.toolAllowlist.includes(tool.name)} onChange={() => setDraft({ ...draft, toolAllowlist: toggle(draft.toolAllowlist, tool.name) })} /><span>{tool.label}</span><code>{tool.name}</code></label>)}</div>
       </section>
 
       <section className="agent-config-section agent-config-grid">
@@ -107,10 +94,6 @@ function RoleVersionRow({ definition, version, busy, mutate }: { definition: Age
 
 function NumberField({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
   return <label className="agent-field"><span>{label}</span><input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} /></label>;
-}
-
-function toggle(values: string[], value: string) {
-  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value].sort();
 }
 
 function display(value: unknown) {

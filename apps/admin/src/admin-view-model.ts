@@ -50,7 +50,7 @@ export type AdminRhViewId = "workflows" | "apps" | "keys";
 export type AdminAnalyticsViewId = "usage" | "costs" | "audit";
 export type AdminSystemViewId = "health" | "runtime-settings" | "environment-sync";
 export type AdminCapabilitiesViewId = "providers" | "models" | "admin-assistant";
-export type AdminAgentRuntimeViewId = "overview" | "roles" | "llm-routes" | "tools" | "nodes" | "knowledge" | "quality" | "recovery" | "runs" | "approvals" | "audit";
+export type AdminAgentRuntimeViewId = "controls" | "models" | "policies" | "activity";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 export type RefreshPolicyKind = "live" | "manual" | "guarded";
@@ -306,18 +306,18 @@ export const adminCapabilitiesViews = [
 ] satisfies Array<{ id: AdminCapabilitiesViewId; label: string; description: string; path: string }>;
 
 export const adminAgentRuntimeViews = [
-  { id: "overview", label: "运行总览", description: "查看环境开关、活跃运行、异常路由和待审批。", path: "/admin/automation/overview" },
-  { id: "roles", label: "角色", description: "维护 Agent 定义、配置版本和环境发布。", path: "/admin/automation/roles" },
-  { id: "llm-routes", label: "LLM 路由", description: "维护仅供 Agent 使用的 LLM 路由池、健康和模拟。", path: "/admin/automation/llm-routes" },
-  { id: "tools", label: "工具权限", description: "维护固定工具目录和平台、用户组、用户策略。", path: "/admin/automation/tools" },
-  { id: "nodes", label: "节点能力", description: "查看服务端可执行节点与迁移状态。", path: "/admin/automation/nodes" },
-  { id: "knowledge", label: "知识库", description: "维护公开与内部知识集合、版本和环境发布。", path: "/admin/automation/knowledge" },
-  { id: "quality", label: "质量策略", description: "维护图片与视频的评分、阈值和发布版本。", path: "/admin/automation/quality" },
-  { id: "recovery", label: "失败恢复", description: "查看失败分类、有限重试、参数修复和备选生成模型决策。", path: "/admin/automation/recovery" },
-  { id: "runs", label: "运行记录", description: "查看 Canvas Run 与 Agent Run 的实时状态。", path: "/admin/automation/runs" },
-  { id: "approvals", label: "审批", description: "处理结构修改、模型切换和高风险动作。", path: "/admin/automation/approvals" },
-  { id: "audit", label: "动作审计", description: "查看 Agent Action、工具调用结果和错误。", path: "/admin/automation/audit" },
+  { id: "controls", label: "运行控制", description: "管理环境开关与当前运行态势。", path: "/admin/automation/controls" },
+  { id: "models", label: "模型绑定", description: "维护助手、恢复和候选评估的角色配置与 LLM 路由。", path: "/admin/automation/models" },
+  { id: "policies", label: "恢复与选择", description: "维护质量门、有限恢复和候选选择策略。", path: "/admin/automation/policies" },
+  { id: "activity", label: "运行与审计", description: "查看 Run、审批、恢复决策和不可变审计记录。", path: "/admin/automation/activity" },
 ] satisfies Array<{ id: AdminAgentRuntimeViewId; label: string; description: string; path: string }>;
+
+export const legacyAgentRuntimeViewAliases: Record<string, AdminAgentRuntimeViewId> = {
+  overview: "controls", tools: "controls", nodes: "controls", knowledge: "controls",
+  roles: "models", "llm-routes": "models",
+  quality: "policies", recovery: "policies",
+  runs: "activity", approvals: "activity", audit: "activity",
+};
 
 export function tabsForWorkspace(workspaceId: AdminWorkspaceId) {
   const workspace = adminWorkspaces.find((item) => item.id === workspaceId);
@@ -367,7 +367,7 @@ export function pathForCapabilitiesView(viewId: AdminCapabilitiesViewId) {
 }
 
 export function pathForAgentRuntimeView(viewId: AdminAgentRuntimeViewId) {
-  return adminAgentRuntimeViews.find((item) => item.id === viewId)?.path || "/admin/automation/overview";
+  return adminAgentRuntimeViews.find((item) => item.id === viewId)?.path || "/admin/automation/controls";
 }
 
 export function resolveAdminPath(pathname: string): {
@@ -428,9 +428,11 @@ export function resolveAdminPath(pathname: string): {
       : normalizedPath.startsWith("/admin/capabilities")
         ? "providers"
         : undefined;
+  const agentRuntimeSegment = normalizedPath.match(/^\/admin\/automation\/([^/]+)/)?.[1];
   const agentRuntimeView = normalizedPath.startsWith("/admin/automation/")
     ? adminAgentRuntimeViews.find((item) => normalizedPath === item.path || normalizedPath.startsWith(`${item.path}/`))?.id
-    : normalizedPath === "/admin/automation" ? "overview" : undefined;
+      || (agentRuntimeSegment ? legacyAgentRuntimeViewAliases[agentRuntimeSegment] : undefined)
+    : normalizedPath === "/admin/automation" ? "controls" : undefined;
   const candidates = adminWorkspaces.flatMap((workspace) =>
     workspace.tabs.map((tabId) => ({
       workspaceId: workspace.id,

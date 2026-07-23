@@ -106,14 +106,7 @@ export function createAgentGovernanceRepository(deps: {
           configurationsCreated += 1;
         }
       }
-      const knowledge = await client.query(
-        `insert into xh_agent_knowledge_collections
-         (id, collection_key, name, description, audience, enabled, revision, created_by)
-         values ($1, 'public-canvas', '画布公开知识', '面向画布公开用户的节点、连接、模型与工作流知识。', 'public', true, 1, $2)
-         on conflict (collection_key) do nothing returning id`,
-        [newId("agent_knowledge_collection"), actorId],
-      );
-      return { definitionsCreated, configurationsCreated, knowledgeCollectionsCreated: knowledge.rows.length };
+      return { definitionsCreated, configurationsCreated, knowledgeCollectionsCreated: 0 };
     });
   }
 
@@ -676,13 +669,12 @@ async function validateAgentConfigurationReferences(client: Pick<PoolClient, "qu
 }
 
 const DEFAULT_AGENT_DEFINITIONS: Array<{ agentKey: string; name: string; role: AgentRole; description: string; tools: string[]; maxTokens: number }> = [
-  { agentKey: "assistant-planner", name: "创作助手规划者", role: "planner", description: "回答公开画布问题并生成受控运行计划。", tools: ["canvas.read", "canvas-run.preview"], maxTokens: 8000 },
+  { agentKey: "assistant-planner", name: "画布诊断助手", role: "planner", description: "解释画布与节点错误，给出不修改拓扑的受控建议。", tools: ["knowledge.node.get", "knowledge.model.get"], maxTokens: 8000 },
   { agentKey: "provider-analysis-planner", name: "Provider 分析者", role: "planner", description: "分析 Provider 和聊天模型接入配置。", tools: [], maxTokens: 8000 },
   { agentKey: "artifact-image-understanding", name: "图片质量评估者", role: "image_understanding", description: "按已发布图片质量配置生成结构化评分。", tools: ["artifact.evaluate"], maxTokens: 4000 },
   { agentKey: "artifact-video-understanding", name: "视频质量评估者", role: "video_understanding", description: "按时间戳采样帧评估视频质量和时序。", tools: ["artifact.evaluate"], maxTokens: 6000 },
   { agentKey: "artifact-checker", name: "产物检查者", role: "checker", description: "复核批次评分并选择下游输入。", tools: ["artifact.evaluate", "artifact.select"], maxTokens: 4000 },
   { agentKey: "generation-recovery", name: "生成恢复代理", role: "recovery", description: "分类失败并执行有限重试、参数修复或节点备选模型。", tools: ["canvas-run.pause", "canvas-run.retry", "generation.recover"], maxTokens: 4000 },
-  { agentKey: "canvas-manager", name: "画布托管管理者", role: "manager", description: "监督拓扑运行、预算、审批和有界子代理。", tools: ["canvas.read", "canvas-run.preview", "canvas-run.start", "canvas-run.pause", "canvas-run.cancel", "artifact.select", "canvas.patch.propose"], maxTokens: 8000 },
 ];
 
 function defaultAgentSchemas(role: AgentRole) {

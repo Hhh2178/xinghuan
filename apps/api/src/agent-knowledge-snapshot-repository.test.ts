@@ -37,6 +37,7 @@ describe("Agent knowledge snapshot repository", () => {
       environment: "gray",
       audience: "public",
       collectionAllowlist: ["public-canvas"],
+      includePublishedDocuments: true,
     });
 
     expect(snapshot).toMatchObject({ id: "snapshot-1", environment: "gray", audience: "public" });

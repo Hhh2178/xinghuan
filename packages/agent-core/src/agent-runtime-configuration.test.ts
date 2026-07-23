@@ -9,7 +9,7 @@ describe("published Agent runtime configuration", () => {
       roleDescription: "Canvas planner",
       llmPoolKey: "assistant-planner",
       knowledge: { collectionAllowlist: ["public-canvas", "public-canvas"], audience: "public", topK: 6, tokenBudget: 2400 },
-      toolAllowlist: ["knowledge.node.get", "canvas.patch.propose"],
+      toolAllowlist: ["knowledge.node.get", "knowledge.model.get"],
       maxTokens: 5000,
       timeoutMs: 90000,
       budget: { maximumEstimatedCost: 1.25 },
@@ -23,7 +23,7 @@ describe("published Agent runtime configuration", () => {
       roleDescription: "Canvas planner",
       llmPoolKey: "assistant-planner",
       knowledge: { collectionAllowlist: ["public-canvas"], audience: "public", topK: 6, tokenBudget: 2400 },
-      toolAllowlist: ["canvas.patch.propose", "knowledge.node.get"],
+      toolAllowlist: ["knowledge.model.get", "knowledge.node.get"],
       maxTokens: 5000,
       timeoutMs: 90000,
       budget: { maximumEstimatedCost: 1.25 },
@@ -36,6 +36,14 @@ describe("published Agent runtime configuration", () => {
   it("rejects unknown tools and attempts to bypass structural approval", () => {
     expect(() => normalizeAgentRuntimeConfiguration({ toolAllowlist: ["shell.exec"] })).toThrow("AGENT_CONFIGURATION_TOOL_UNKNOWN");
     expect(() => normalizeAgentRuntimeConfiguration({ approvalPolicy: { structuralChanges: "allow" } })).toThrow("AGENT_CONFIGURATION_STRUCTURAL_APPROVAL_REQUIRED");
+  });
+
+  it("rejects retired free-planning tools for new configurations while preserving historical reads", () => {
+    expect(() => normalizeAgentRuntimeConfiguration({ toolAllowlist: ["canvas.patch.propose"] })).toThrow("AGENT_CONFIGURATION_TOOL_RETIRED:canvas.patch.propose");
+    expect(normalizeAgentRuntimeConfiguration(
+      { toolAllowlist: ["canvas.patch.propose", "knowledge.node.get"] },
+      { retiredTools: "preserve" },
+    ).toolAllowlist).toEqual(["canvas.patch.propose", "knowledge.node.get"]);
   });
 
   it("produces a structured field diff instead of raw JSON", () => {

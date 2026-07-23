@@ -26,17 +26,20 @@ assert.match(repository, /validateLlmPoolVersionForPublication/, "route approval
 assert.match(repository, /normalizeToolPolicyConstraints/, "tool policy writes must normalize runtime constraints");
 assert.match(repository, /set retired_at = now\(\)/, "environment publication must retire the previous projection");
 assert.match(repository, /routeLlmCandidates/, "route simulation must reuse the production router");
-assert.match(routes, /AGENT_TOOL_CATALOG/, "tools must come from the fixed code registry");
+assert.match(routes, /ACTIVE_AGENT_TOOL_CATALOG/, "new governance writes must use the active code registry");
+assert.match(routes, /RETIRED_AGENT_TOOL_CATALOG/, "historical retired tools must remain explicit and readable");
+assert.match(routes, /AGENT_KNOWLEDGE_WRITES_RETIRED/, "retired knowledge writes must return an explicit deprecation response");
 assert.match(routes, /CANVAS_RUN_NODE_CAPABILITIES/, "node capability endpoint must use the code-owned catalog");
 assert.match(routes, /appendAudit/, "governance mutations must use the admin audit ledger");
 assert.match(viewModel, /id: "automation"/, "Admin must expose a dedicated Agent operations workspace");
-for (const path of ["overview", "roles", "llm-routes", "tools", "nodes", "knowledge", "quality", "recovery", "runs", "approvals", "audit"]) {
+for (const path of ["controls", "models", "policies", "activity"]) {
   assert.match(viewModel, new RegExp(`/admin/automation/${path}`), `stable Agent governance deep link is missing: ${path}`);
 }
+assert.match(viewModel, /legacyAgentRuntimeViewAliases/, "legacy Agent governance deep links must map to the four current task domains");
+assert.doesNotMatch(viewModel, /id: "knowledge"[^\n]+path: "\/admin\/automation\/knowledge"/, "retired knowledge CMS must not remain a first-class navigation item");
 assert.match(main, /AdminAgentGovernanceWorkspace/, "Admin shell must lazy-load the governance workspace");
 assert.match(api, /\/api\/admin\/agent-runtime/, "Admin client must use the internal governance API");
 assert.match(workspace, /图片、视频、音频生成模型不进入该路由池/, "UI must explain the LLM-only boundary");
-assert.match(workspace, /recommendedUpstream/, "node governance UI must expose maintained connection guidance");
 assert.match(workspace, /EnvironmentBadge/, "environment publication state must be visible");
 assert.match(styles, /\.agent-split-layout/, "governance workspace must have a stable master-detail layout");
 assert.match(styles, /@media \(max-width: 820px\)/, "governance workspace must have a narrow viewport layout");
@@ -46,8 +49,8 @@ assert.match(roleEditor, /diffAgentRuntimeConfiguration/, "role editor must show
 assert.doesNotMatch(roleEditor, /JSON\.parse|JSON\.stringify|<textarea[^>]+json/i, "role editor must not expose raw JSON editing");
 assert.match(poolEditor, /entries\.map/, "LLM pool editor must support multiple model entries");
 assert.match(poolEditor, /createPoolVersion/, "LLM pool editor must publish immutable route versions");
-assert.match(knowledgeEditor, /AssistantMarkdown/, "knowledge editor must render a safe Markdown preview");
-assert.match(knowledgeEditor, /sourceType === "workflow-template"/, "knowledge editor must preserve workflow template metadata");
+assert.doesNotMatch(workspace, /AdminAgentKnowledgeEditor/, "retired free-document knowledge CMS must not be reachable from the current workspace");
+assert.match(knowledgeEditor, /AssistantMarkdown/, "historical knowledge editor remains readable for compatibility evidence");
 assert.match(qualityEditor, /thresholds|weights/, "quality editor must expose structured scoring thresholds and weights");
 assert.match(workspace, /agent-success-banner/, "governance mutations must expose success feedback");
 

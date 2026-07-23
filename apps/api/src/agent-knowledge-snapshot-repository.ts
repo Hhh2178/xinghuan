@@ -40,6 +40,7 @@ export function createAgentKnowledgeSnapshotRepository(deps: {
     environment: KnowledgeEnvironment;
     audience: KnowledgeAudience;
     collectionAllowlist: string[];
+    includePublishedDocuments?: boolean;
   }): Promise<AgentKnowledgeSnapshotRecord> {
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
@@ -58,7 +59,9 @@ export function createAgentKnowledgeSnapshotRepository(deps: {
       const modelCatalogRevision = latestRevision(modelRows.rows);
       const modelCatalogHash = sha256(stableStringify(models));
 
-      const allowlist = [...new Set(input.collectionAllowlist.filter(Boolean))].sort();
+      const allowlist = input.includePublishedDocuments === true
+        ? [...new Set(input.collectionAllowlist.filter(Boolean))].sort()
+        : [];
       const documentRows = allowlist.length === 0 ? { rows: [] } : await client.query(
         `select pub.id as publication_id, d.id as document_id, d.document_key, d.version, d.title, d.body,
           d.source_snapshot, c.collection_key, c.audience, pub.environment

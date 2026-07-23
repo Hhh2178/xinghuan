@@ -19,6 +19,7 @@ describe("agent orchestrator", () => {
         promptTemplate: "Runtime prompt for {{scenario}}",
         llmPoolKey: "assistant-pool",
         knowledge: { collectionAllowlist: ["public-canvas"], audience: "public", topK: 3, tokenBudget: 900 },
+        toolAllowlist: ["knowledge.node.get", "knowledge.documents.search", "canvas.patch.propose"],
         maxTokens: 777,
         timeoutMs: 45678,
       }),
@@ -50,11 +51,18 @@ describe("agent orchestrator", () => {
 
     expect(result).toMatchObject({ mode: "agent", content: "structured answer", entryId: "backup", modelRecordId: "model-backup" });
     expect(createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "owner-1", environment: "gray" }));
-    expect(createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ audience: "public", collectionAllowlist: ["public-canvas"] }));
+    expect(createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ audience: "public", collectionAllowlist: [], includePublishedDocuments: false }));
     expect(createRun).toHaveBeenCalledWith(expect.objectContaining({ knowledgeSnapshotId: "knowledge-snapshot-1", configurationVersionId: "configuration-1" }));
     expect(createRun).toHaveBeenCalledWith(expect.objectContaining({
       inputSnapshot: expect.objectContaining({
-        runtimePolicy: expect.objectContaining({ llmPoolKey: "assistant-pool", promptTemplate: "Runtime prompt for {{scenario}}", maxTokens: 777, timeoutMs: 45678 }),
+        runtimePolicy: expect.objectContaining({
+          llmPoolKey: "assistant-pool",
+          promptTemplate: "Runtime prompt for {{scenario}}",
+          maxTokens: 777,
+          timeoutMs: 45678,
+          toolAllowlist: ["knowledge.node.get"],
+          knowledge: expect.objectContaining({ collectionAllowlist: [], retiredDocumentRetrieval: true }),
+        }),
       }),
       budgetSnapshot: { maxTokens: 777, timeoutMs: 45678, maximumEstimatedCost: undefined },
     }));
@@ -68,6 +76,7 @@ describe("agent orchestrator", () => {
     expect(invokeModel.mock.calls[0][0].messages[0]).toMatchObject({ role: "system", content: expect.stringContaining("Canvas Node Capability Catalog") });
     expect(invokeModel.mock.calls[0][0].messages[0].content).toContain("pick-from-set (从合集获取)");
     expect(JSON.stringify(invokeModel.mock.calls[0][0].messages)).toContain("Runtime prompt for assistant-chat");
+    expect(JSON.stringify(invokeModel.mock.calls[0][0].messages)).not.toContain("retired document");
     expect(invokeModel.mock.calls[0][0]).toMatchObject({ maxTokens: 777, timeoutMs: 45678 });
   });
 
@@ -124,7 +133,7 @@ describe("agent orchestrator", () => {
     const orchestrator = createAgentOrchestrator({
       runtimeConfigurations: {
         readPublishedConfiguration: vi.fn(async () => ({
-          ...(await runtimeConfiguration({ toolAllowlist: ["canvas.read", "canvas.patch.propose"] }).readPublishedConfiguration()),
+          ...(await runtimeConfiguration({ toolAllowlist: ["canvas.read", "canvas.patch.propose", "knowledge.node.get"] }).readPublishedConfiguration()),
           platformToolPolicies: [
             { toolName: "canvas.read", effect: "deny" as const, constraints: { maximumCallsPerRun: 0 }, revision: 5 },
             { toolName: "artifact.evaluate", effect: "allow" as const, constraints: {}, revision: 2 },
@@ -152,7 +161,7 @@ describe("agent orchestrator", () => {
     expect(createRun).toHaveBeenCalledWith(expect.objectContaining({
       inputSnapshot: expect.objectContaining({
         runtimePolicy: expect.objectContaining({
-          toolAllowlist: ["canvas.patch.propose"],
+          toolAllowlist: ["knowledge.node.get"],
           platformToolPolicies: expect.arrayContaining([expect.objectContaining({ toolName: "canvas.read", effect: "deny", revision: 5 })]),
         }),
       }),

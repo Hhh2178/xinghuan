@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { AGENT_TOOL_CATALOG, CANVAS_RUN_NODE_CAPABILITIES, type AgentRole } from "@xinghuan/agent-core";
+import { ACTIVE_AGENT_TOOL_CATALOG, CANVAS_RUN_NODE_CAPABILITIES, RETIRED_AGENT_TOOL_CATALOG, type AgentRole } from "@xinghuan/agent-core";
 import { readJsonBody } from "./http-session-utils.js";
 import type { createAgentGovernanceRepository, GovernedVersionStatus, GovernanceEnvironment } from "./agent-governance-repository.js";
 
@@ -124,12 +124,12 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     }
 
     if (path === "/api/admin/agent-runtime/tools" && request.method === "GET") {
-      deps.sendT8(response, { catalog: AGENT_TOOL_CATALOG, policies: await deps.repository.listToolPolicies() }); return true;
+      deps.sendT8(response, { catalog: ACTIVE_AGENT_TOOL_CATALOG, retiredCatalog: RETIRED_AGENT_TOOL_CATALOG, policies: await deps.repository.listToolPolicies() }); return true;
     }
     if (path === "/api/admin/agent-runtime/tool-policies" && request.method === "PUT") {
       const body = await readJsonBody<Record<string, unknown>>(request);
       const toolName = requiredText(body.toolName, "AGENT_TOOL_NAME_REQUIRED");
-      if (!AGENT_TOOL_CATALOG.some((tool) => tool.name === toolName)) throw deps.invalidRequest("AGENT_TOOL_UNKNOWN");
+      if (!ACTIVE_AGENT_TOOL_CATALOG.some((tool) => tool.name === toolName)) throw deps.invalidRequest("AGENT_TOOL_RETIRED_OR_UNKNOWN");
       const value = await deps.repository.upsertToolPolicy({ actorId: actor.id, subjectType: enumValue(body.subjectType, ["platform", "user_group", "user"], "AGENT_TOOL_SUBJECT_INVALID"), subjectId: text(body.subjectId) || undefined, toolName, effect: enumValue(body.effect, ["allow", "deny", "require_approval"], "AGENT_TOOL_EFFECT_INVALID"), constraints: object(body.constraints), revision: optionalNumber(body.revision) });
       await audit(deps, actor, requestContext, "agent.tool_policy.update", "agent-tool-policy", String(value.id), `更新工具策略 ${toolName}`);
       deps.sendT8(response, value); return true;
@@ -166,6 +166,14 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
 
     if (path === "/api/admin/agent-runtime/knowledge" && request.method === "GET") {
       deps.sendT8(response, await deps.repository.listKnowledge()); return true;
+    }
+    if (isRetiredKnowledgeWrite(path, request.method)) {
+      deps.sendT8(response, {
+        code: "AGENT_KNOWLEDGE_WRITES_RETIRED",
+        deprecated: true,
+        message: "自由知识文档已退出新 Agent Run；历史集合与文档仍可只读查询。",
+      }, 410);
+      return true;
     }
     if (path === "/api/admin/agent-runtime/knowledge/collections" && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
@@ -257,3 +265,10 @@ function optionalNumber(value: unknown) { const normalized = Number(value); retu
 function numericRecord(value: unknown) { return Object.fromEntries(Object.entries(object(value)).map(([key, item]) => [key, number(item, 0)])); }
 function limit(url: URL, fallback = 100) { return Math.min(500, Math.max(1, Math.floor(number(url.searchParams.get("limit"), fallback)))); }
 async function audit(deps: Parameters<typeof createAdminAgentGovernanceRouteHandler>[0], actor: CurrentUser, context: RequestContext, action: string, targetType: string, targetId: string, summary: string) { await deps.appendAudit(actor, action, targetType, targetId, summary, context); }
+function isRetiredKnowledgeWrite(path: string, method: string | undefined) {
+  return method !== "GET" && (
+    path === "/api/admin/agent-runtime/knowledge/collections"
+    || /^\/api\/admin\/agent-runtime\/knowledge\/collections\/[^/]+\/documents$/.test(path)
+    || /^\/api\/admin\/agent-runtime\/knowledge\/documents\/[^/]+\/(?:status|publish)$/.test(path)
+  );
+}
