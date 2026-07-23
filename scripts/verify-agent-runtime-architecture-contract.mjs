@@ -100,7 +100,7 @@ assert.match(files.service, /readOwnedCanvasSnapshot/, "Canvas Run service must 
 assert.match(files.routes, /idempotencyKey/, "Canvas Run write routes must require idempotency keys");
 assert.match(files.workerLeaseMigration, /lease_expires_at/, "Canvas Run Worker steps must use expiring leases");
 assert.match(files.workerLeaseMigration, /dispatch_enqueued_at/, "Canvas Run task dispatch must have durable queue acknowledgement");
-assert.match(files.workerCoordinator, /for update of s skip locked/, "Canvas Run Worker claims must be multi-instance safe");
+assert.match(files.workerCoordinator, /for update of s, r skip locked/, "Canvas Run Worker claims must lock both step and Run for multi-instance-safe concurrency enforcement");
 assert.match(files.workerCoordinator, /taskQueueNameForCapability/, "Canvas Run Worker must reuse capability queues");
 assert.match(files.workerCoordinator, /xh_agent_approvals/, "generation model switches requiring approval must enter the approval ledger");
 assert.match(files.workerCoordinator, /CANVAS_RUN_MAX_COST/, "Canvas Run Worker must enforce the persisted cost budget");

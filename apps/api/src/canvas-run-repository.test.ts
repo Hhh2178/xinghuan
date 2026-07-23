@@ -156,4 +156,50 @@ describe("canvas run repository", () => {
     await expect(repo.createCanvasRun({ ownerId: "owner-1", idempotencyKey: "workflow-active", plan: workflowPlan }))
       .rejects.toThrow("WORKFLOW_RUN_ACTIVE_CONFLICT");
   });
+
+  it("reads, writes, and resets remembered settings through owner-scoped workflow keys", async () => {
+    const query = vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes("select s.settings")) {
+        expect(sql).toContain("c.owner_id = $1");
+        expect(params).toEqual(["owner-1", "canvas-1", "workflow-1"]);
+        return { rows: [{ settings: { defaultRetryCount: 4 }, revision: 2, updated_at_ms: 100 }] };
+      }
+      if (sql.includes("insert into xh_workflow_supervision_settings")) {
+        expect(sql).toContain("on conflict (owner_id, canvas_id, workflow_id)");
+        expect(params?.slice(1, 4)).toEqual(["owner-1", "canvas-1", "workflow-1"]);
+        return { rows: [{ settings: { defaultRetryCount: 5 }, revision: 3, updated_at_ms: 200 }] };
+      }
+      if (sql.includes("delete from xh_workflow_supervision_settings")) {
+        expect(sql).toContain("using xh_canvases");
+        expect(params).toEqual(["owner-1", "canvas-1", "workflow-1"]);
+        return { rows: [{ id: "setting-1" }] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const repo = createCanvasRunRepository({ getPostgresPool: async () => ({ query } as any), newId: () => "setting-1" });
+
+    await expect(repo.readOwnedWorkflowSupervisionSettings("owner-1", "canvas-1", "workflow-1"))
+      .resolves.toEqual({ settings: { defaultRetryCount: 4 }, revision: 2, updatedAt: 100 });
+    await expect(repo.writeOwnedWorkflowSupervisionSettings({
+      ownerId: "owner-1",
+      canvasId: "canvas-1",
+      workflowId: "workflow-1",
+      settings: { defaultRetryCount: 5 },
+    })).resolves.toEqual({ settings: { defaultRetryCount: 5 }, revision: 3, updatedAt: 200 });
+    await expect(repo.deleteOwnedWorkflowSupervisionSettings("owner-1", "canvas-1", "workflow-1")).resolves.toBe(true);
+  });
+
+  it("lists the latest workflow run per target for a single owner and canvas", async () => {
+    const row = { ...runRow("running"), workflow_id: "workflow-1", workflow_revision: 3, workflow_subgraph_hash: "a".repeat(64), run_scope: "workflow" };
+    const query = vi.fn(async (sql: string, params: unknown[]) => {
+      expect(sql).toContain("distinct on (r.workflow_id)");
+      expect(sql).toContain("r.owner_id = $1 and r.canvas_id = $2");
+      expect(params).toEqual(["owner-1", "canvas-1", 50]);
+      return { rows: [row] };
+    });
+    const repo = createCanvasRunRepository({ getPostgresPool: async () => ({ query } as any) });
+
+    await expect(repo.readOwnedWorkflowRunOverview("owner-1", "canvas-1", 50))
+      .resolves.toEqual([expect.objectContaining({ id: "canvas_run_1", workflowId: "workflow-1", status: "running" })]);
+  });
 });

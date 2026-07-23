@@ -16,11 +16,16 @@ export function createCanvasRunRouteHandler(deps: {
     runScope?: CanvasRunRecord["runScope"];
     configuration?: Record<string, unknown>;
     budget?: Record<string, unknown>;
+    supervisionSettings?: Record<string, unknown>;
   }) => Promise<{ run: CanvasRunRecord; created: boolean }>;
   readRun: (ownerId: string, runId: string) => Promise<CanvasRunRecord>;
   readEvents: (ownerId: string, runId: string, afterSequence?: number, limit?: number) => Promise<unknown>;
   commandRun: (input: { ownerId: string; runId: string; command: CanvasRunCommand; idempotencyKey: string; request?: Record<string, unknown> }) => Promise<CanvasRunRecord>;
+  listWorkflowRuns?: (input: { ownerId: string; canvasId: string }) => Promise<CanvasRunRecord[]>;
   decideApproval?: (input: { ownerId: string; runId: string; approvalId: string; decision: "approved" | "rejected"; reason?: string }) => Promise<unknown>;
+  readWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string }) => Promise<unknown>;
+  saveWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string; settings: Record<string, unknown> }) => Promise<unknown>;
+  resetWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string }) => Promise<unknown>;
   invalidRequest: (message: string) => Error;
   mapError?: (error: unknown) => Error;
 }) {
@@ -32,6 +37,36 @@ export function createCanvasRunRouteHandler(deps: {
   }) {
     const { request, response, url, currentUser } = input;
     try {
+    if (url.pathname === "/api/canvas-run-settings") {
+      if (request.method === "GET" && deps.readWorkflowSettings) {
+        deps.sendT8(response, await deps.readWorkflowSettings({
+          ownerId: currentUser.id,
+          canvasId: requiredText(url.searchParams.get("canvasId"), "canvasId", deps.invalidRequest),
+          workflowId: requiredText(url.searchParams.get("workflowId"), "workflowId", deps.invalidRequest),
+        }));
+        return true;
+      }
+      if (request.method === "PUT" && deps.saveWorkflowSettings) {
+        const body = await readJsonBody<Record<string, unknown>>(request);
+        const settings = objectValue(body.settings);
+        if (!settings) throw deps.invalidRequest("settings 无效");
+        deps.sendT8(response, await deps.saveWorkflowSettings({
+          ownerId: currentUser.id,
+          canvasId: requiredText(body.canvasId, "canvasId", deps.invalidRequest),
+          workflowId: requiredText(body.workflowId, "workflowId", deps.invalidRequest),
+          settings,
+        }));
+        return true;
+      }
+      if (request.method === "DELETE" && deps.resetWorkflowSettings) {
+        deps.sendT8(response, await deps.resetWorkflowSettings({
+          ownerId: currentUser.id,
+          canvasId: requiredText(url.searchParams.get("canvasId"), "canvasId", deps.invalidRequest),
+          workflowId: requiredText(url.searchParams.get("workflowId"), "workflowId", deps.invalidRequest),
+        }));
+        return true;
+      }
+    }
     const approvalMatch = url.pathname.match(/^\/api\/canvas-runs\/([^/]+)\/approvals\/([^/]+)\/(approve|reject)$/);
     if (request.method === "POST" && approvalMatch && deps.decideApproval) {
       const body = await readJsonBody<Record<string, unknown>>(request);
@@ -90,6 +125,12 @@ export function createCanvasRunRouteHandler(deps: {
       return true;
     }
 
+    if (url.pathname === "/api/canvas-runs" && request.method === "GET" && deps.listWorkflowRuns) {
+      const canvasId = requiredText(url.searchParams.get("canvasId"), "canvasId", deps.invalidRequest);
+      deps.sendT8(response, { items: await deps.listWorkflowRuns({ ownerId: currentUser.id, canvasId }) });
+      return true;
+    }
+
     if (url.pathname === "/api/canvas-runs" && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
       const canvasId = requiredText(body.canvasId, "canvasId", deps.invalidRequest);
@@ -104,6 +145,7 @@ export function createCanvasRunRouteHandler(deps: {
         runScope,
         configuration: objectValue(body.configuration),
         budget: objectValue(body.budget),
+        supervisionSettings: objectValue(body.supervisionSettings),
       });
       deps.sendT8(response, result.run, result.created ? 201 : 200);
       return true;

@@ -31,6 +31,34 @@ const variables: WorkflowVariableDefinition[] = [
 ];
 
 describe("workflow variables", () => {
+  it("normalizes workflow supervision defaults without accepting unknown settings", () => {
+    const [workflow] = normalizeWorkflowDocuments([{
+      schemaVersion: 1,
+      id: "workflow-settings",
+      name: "Settings",
+      revision: 2,
+      memberNodeIds: [],
+      variables: [],
+      inputValues: {},
+      bindings: [],
+      stages: [],
+      supervisionDefaults: {
+        defaultRetryCount: 7,
+        candidateSelectionMode: "ai",
+        nodeRetryOverrides: { "node-2": 4 },
+        apiKey: "must-not-survive",
+      },
+      region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+    }]);
+
+    expect(workflow.supervisionDefaults).toEqual({
+      defaultRetryCount: 7,
+      candidateSelectionMode: "ai",
+      nodeRetryOverrides: { "node-2": 4 },
+    });
+    expect(workflow.supervisionDefaults).not.toHaveProperty("apiKey");
+  });
+
   it("normalizes visually equivalent names and rejects duplicate or internal-only definitions", () => {
     expect(normalizeWorkflowVariableName("  ＳＴＹＬＥ  ")).toBe("style");
     expect(() => validateWorkflowVariableDefinitions([

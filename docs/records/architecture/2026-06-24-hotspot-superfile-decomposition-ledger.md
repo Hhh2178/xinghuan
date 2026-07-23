@@ -61,6 +61,8 @@
   - 已补齐 contract：
     - `scripts/verify-api-admin-provider-route-split-contract.mjs`
   - 主文件继续保留入口装配、高层依赖注入，以及 provider key-pool / import-models 等剩余内联分支
+  - `2026-07-23` Phase 5 只在主文件增加 Canvas Run workflow 总览与监督设置 handler 的四项依赖注入；路由解析留在 `canvas-run-routes.ts`，解析/持久化编排留在 `canvas-run-service.ts` 与 repository，未把设置业务逻辑堆回 `server.ts`
+  - 主文件当前仍只承担 Canvas Run handler 装配；下一步拆分优先级继续保持 provider key-pool / import-models residue
 
 ### `apps/worker/src/worker.ts`
 

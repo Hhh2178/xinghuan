@@ -1,12 +1,16 @@
-import { Ban, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, Ban, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
+import type { WorkflowSupervisionSettings } from '@xinghuan/shared';
 import { decideCanvasRunApproval } from './canvas-run-api';
-import { buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
+import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
 
-export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canvasId: string | null; workflowId: string; projection: CanvasRunProjection }) {
-  const [qualityEnabled, setQualityEnabled] = useState(false);
-  const [selectionPolicy, setSelectionPolicy] = useState<'best' | 'top_k'>('best');
+export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeSettings, onOneTimeConsumed }: {
+  canvasId: string | null;
+  workflowId: string;
+  projection: CanvasRunProjection;
+  oneTimeSettings?: WorkflowSupervisionSettings;
+  onOneTimeConsumed: () => void;
+}) {
   const run = projection.run;
   const steps = run?.planSnapshot.steps || [];
   const groups = run?.planSnapshot.groups || [];
@@ -17,6 +21,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canv
   const percent = projection.progress.total ? Math.round((projection.progress.completed / projection.progress.total) * 100) : 0;
   const resolvedApprovals = new Set(projection.events.filter((event) => /approval_(applied|declined)/.test(event.eventType)).map((event) => String(event.payload.approvalId || '')));
   const pendingApproval = [...projection.events].reverse().find((event) => event.eventType === 'canvas_run.step_approval_requested' && !resolvedApprovals.has(String(event.payload.approvalId || '')));
+  const failure = run ? buildCanvasRunFailureDiagnostic(run, projection.events) : null;
 
   const decideApproval = async (decision: 'approve' | 'reject') => {
     const approvalId = String(pendingApproval?.payload.approvalId || '');
@@ -45,15 +50,9 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canv
         </div>
       ) : null}
 
-      {!run ? <div className="canvas-run-supervisor__options">
-        <label><input type="checkbox" checked={qualityEnabled} onChange={(event) => setQualityEnabled(event.target.checked)} /><span>自动质量优选</span></label>
-        <select aria-label="质量选择策略" disabled={!qualityEnabled} value={selectionPolicy} onChange={(event) => setSelectionPolicy(event.target.value as 'best' | 'top_k')}>
-          <option value="best">最佳单项</option>
-          <option value="top_k">前两项</option>
-        </select>
-      </div> : null}
+      {!run && oneTimeSettings ? <div className="canvas-run-supervisor__next-run">本次覆盖已就绪<span>仅下一次 Run</span></div> : null}
       <div className="canvas-run-supervisor__controls">
-        {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create({ qualityEvaluationEnabled: qualityEnabled, selectionPolicy, selectionMaximum: selectionPolicy === 'best' ? 1 : 2 })}><CirclePlay size={15} />生成运行计划</button> : null}
+        {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />生成运行计划</button> : null}
         {run?.status === 'draft' ? <button type="button" className="is-primary" disabled={projection.busy} onClick={() => void projection.command('start')}><CirclePlay size={15} />开始托管</button> : null}
         {run && ['planning', 'queued', 'running'].includes(run.status) ? <button type="button" onClick={() => void projection.command('pause')}><CirclePause size={15} />暂停</button> : null}
         {run?.status === 'paused' ? <button type="button" className="is-primary" onClick={() => void projection.command('resume')}><CirclePlay size={15} />继续</button> : null}
@@ -63,6 +62,12 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canv
       </div>
 
       {projection.error ? <div className="canvas-run-supervisor__error">{projection.error}</div> : null}
+
+      {failure ? <section className="canvas-run-failure" aria-label="运行失败诊断">
+        <header><AlertTriangle size={15} /><div><strong>节点 {String(failure.nodeNumber).padStart(2, '0')} · {failure.nodeType}</strong><small>{failure.category}</small></div></header>
+        <dl><div><dt>影响</dt><dd>{failure.impact}</dd></div><div><dt>恢复</dt><dd>{failure.recovery}</dd></div></dl>
+        <details><summary>技术详情</summary><code>{failure.technical}</code></details>
+      </section> : null}
 
       {run ? <div className="canvas-run-supervisor__facts">
         <span><Clock3 size={13} />{Math.max(0, Math.round((run.updatedAt - run.createdAt) / 1000))} 秒</span>

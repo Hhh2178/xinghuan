@@ -19,6 +19,9 @@
 - Supervision Dock 从当前 Canvas `workflows[]` 提供顶层托管目标切换，并为每个 workflow 分别记住 Run ID。创建 Run 时携带 workflow ID，UI 展示 workflow revision，不再把它称为整张 Canvas 的计划。
 - Workflow `stages[]` 由区域内普通 `groupBox` 和显式未分组成员投影，保存稳定 ID、名称、顺序、`serial|parallel` 与 skipped 状态。托管面板只允许在 Run 创建前编辑；逆转跨阶段拓扑依赖会立即拒绝并短暂高亮冲突边和端点，且不会把高亮写入 Canvas edge 数据。
 - Workflow Compiler 将阶段名称、模式、顺序和 skipped 状态写入不可变 Run Plan 与 subgraph hash。连续且独立的 parallel 阶段形成同一 scheduling wave；拓扑依赖仍逐步门控，skipped 阶段不释放步骤。旧 Run 缺少阶段名称/模式时继续按 serial 兼容读取。
+- Workflow Supervision 设置使用平台上限、workflow 默认、owner+canvas+workflow 记忆和仅本次覆盖四层解析。创建 Run 时将最终设置、字段来源、覆盖字段和平台裁剪结果冻结到 `configuration_snapshot.supervision`，预算与节点重试覆盖同时冻结到 `budget_snapshot`；编辑设置不改变 active Run。
+- PostgreSQL migration `038_workflow_supervision_settings.sql` 保存 owner-scoped 记忆设置与递增 revision。API 提供 workflow Run 总览和设置读取、记忆、恢复默认值；客户端拒绝 malformed `200 null` 响应，不会把无效载荷当作默认配置。
+- Worker 按 Run 的 `stageConcurrency` 限制同时领取的步骤，并优先使用稳定 node ID 的重试覆盖。Run 事件通过 `runStepKey/nodeId` 映射回节点，托管面板展示失败节点、错误分类、影响、恢复动作和技术详情。
 - `@xinghuan/agent-core` 已实现持久化画布快照编译、分组顺序与拓扑校验、输入绑定、运行/步骤/尝试/审批状态机和纯调度内核。
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
@@ -67,12 +70,14 @@
 - 领域入口：`packages/agent-core/src/index.ts`
 - Workflow Compiler：`packages/agent-core/src/workflow-compiler.ts`
 - Workflow Stage 领域与 Web 规划：`packages/shared/src/workflow-stages.ts`、`apps/web/src/components/canvas-agent/workflowStagePlanning.ts`
+- Workflow Supervision 设置领域与 UI：`packages/shared/src/workflow-supervision-settings.ts`、`apps/web/src/components/canvas-agent/WorkflowSupervisionSettingsDrawer.tsx`
 - Canvas Run Kernel：`packages/agent-core/src/canvas-run-kernel.ts`
 - 输入绑定：`packages/agent-core/src/artifact-binding.ts`
 - 节点执行能力目录：`packages/agent-core/src/node-execution-capabilities.ts`
 - 知识快照纯领域、模型投影、受限检索与工作流 proposal：`packages/agent-core/src/knowledge-snapshot.ts`
 - 确定性节点运行器：`packages/agent-core/src/deterministic-node-runtime.ts`；共享文本分段算法：`packages/shared/src/text-split.ts`
 - 数据迁移：`apps/api/db/026_canvas_agent_runtime.sql`
+- Workflow Supervision 设置迁移：`apps/api/db/038_workflow_supervision_settings.sql`
 - Canvas Run repository/service/routes：`apps/api/src/canvas-run-repository.ts`、`canvas-run-service.ts`、`canvas-run-routes.ts`
 - Task Attempt 与 Approval：`apps/api/src/task-attempt-repository.ts`、`agent-approval-repository.ts`
 - Agent Orchestrator：`apps/api/src/agent-orchestrator.ts`
@@ -110,6 +115,8 @@
 - `POST /api/canvas-runs/:runId/start|pause|resume|cancel|retry`：写入带幂等键的控制命令、状态和 Run Event。
 - `GET /api/canvas-runs/:runId/events?after=<sequence>`：按原子递增 sequence 增量读取事件。
 - `GET /api/canvas-runs/:runId/events/stream`：将同一持久化事件账本投影为 SSE；断线重连只影响投影，PostgreSQL sequence 仍是权威顺序。
+- `GET /api/canvases/:canvasId/workflow-runs`：读取当前 owner 在画布内各 workflow 的最新 Run 总览。
+- `GET|PUT|DELETE /api/canvases/:canvasId/workflows/:workflowId/supervision-settings`：读取解析结果、记住 owner 设置或恢复 workflow 默认值；修改只影响下一次 Run。
 
 所有写入由 repository 事务保护。Canvas revision 在创建事务内再次校验；Run、Step、Attempt、Approval 和 Event 查询均以 authenticated owner 为约束。Redis 不保存这些对象的权威状态。
 

@@ -59,4 +59,15 @@ describe("canvas run migration", () => {
     expect(sql).toMatch(/owner_id, canvas_id, workflow_id/i);
     expect(sql).toMatch(/status in \('planning', 'awaiting_approval', 'queued', 'running', 'paused'\)/i);
   });
+
+  it("stores owner and workflow isolated remembered supervision settings", async () => {
+    const sql = await readFile(new URL("../db/038_workflow_supervision_settings.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/create table if not exists xh_workflow_supervision_settings/i);
+    expect(sql).toMatch(/owner_id text not null references xh_users/i);
+    expect(sql).toMatch(/canvas_id text not null references xh_canvases/i);
+    expect(sql).toMatch(/workflow_id text not null/i);
+    expect(sql).toMatch(/settings jsonb not null/i);
+    expect(sql).toMatch(/unique\s*\(owner_id, canvas_id, workflow_id\)/i);
+  });
 });

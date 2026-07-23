@@ -39,6 +39,8 @@ export interface CanvasRunEventRecord {
   id: string;
   runId: string;
   runStepId: string | null;
+  runStepKey: string | null;
+  nodeId: string | null;
   sequence: number;
   eventType: string;
   payload: Record<string, unknown>;
@@ -87,6 +89,55 @@ export function createCanvasRunRepository(deps: {
       [ownerId, assetIds],
     );
     return result.rows.map((row) => ({ id: String(row.id), kind: String(row.kind), url: String(row.url || "") })).filter((asset) => asset.url);
+  }
+
+  async function readOwnedWorkflowSupervisionSettings(ownerId: string, canvasId: string, workflowId: string) {
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query(
+      `select s.settings, s.revision, extract(epoch from s.updated_at) * 1000 as updated_at_ms
+       from xh_workflow_supervision_settings s
+       join xh_canvases c on c.id = s.canvas_id
+       where c.owner_id = $1 and s.owner_id = $1 and s.canvas_id = $2 and s.workflow_id = $3
+       limit 1`,
+      [ownerId, canvasId, workflowId],
+    );
+    return result.rows[0] ? mapWorkflowSupervisionSettings(result.rows[0]) : null;
+  }
+
+  async function writeOwnedWorkflowSupervisionSettings(input: {
+    ownerId: string;
+    canvasId: string;
+    workflowId: string;
+    settings: Record<string, unknown>;
+  }) {
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query(
+      `insert into xh_workflow_supervision_settings
+        (id, owner_id, canvas_id, workflow_id, settings)
+       select $1, $2, $3, $4, $5::jsonb
+       from xh_canvases c where c.id = $3 and c.owner_id = $2
+       on conflict (owner_id, canvas_id, workflow_id) do update
+         set settings = excluded.settings,
+             revision = xh_workflow_supervision_settings.revision + 1,
+             updated_at = now()
+       returning settings, revision, extract(epoch from updated_at) * 1000 as updated_at_ms`,
+      [newId("workflow_supervision_settings"), input.ownerId, input.canvasId, input.workflowId, json(input.settings)],
+    );
+    if (!result.rows[0]) throw new Error("CANVAS_RUN_CANVAS_NOT_FOUND");
+    return mapWorkflowSupervisionSettings(result.rows[0]);
+  }
+
+  async function deleteOwnedWorkflowSupervisionSettings(ownerId: string, canvasId: string, workflowId: string) {
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query(
+      `delete from xh_workflow_supervision_settings s
+       using xh_canvases c
+       where s.canvas_id = c.id and c.owner_id = $1 and s.owner_id = $1
+         and s.canvas_id = $2 and s.workflow_id = $3
+       returning s.id`,
+      [ownerId, canvasId, workflowId],
+    );
+    return Boolean(result.rows[0]);
   }
 
   async function createCanvasRun(input: {
@@ -174,12 +225,25 @@ export function createCanvasRunRepository(deps: {
     return selectOwnedRun(pool, ownerId, runId);
   }
 
+  async function readOwnedWorkflowRunOverview(ownerId: string, canvasId: string, limit = 50) {
+    const pool = await deps.getPostgresPool();
+    const distinctSelect = RUN_SELECT.replace("select r.id", "select distinct on (r.workflow_id) r.id");
+    const result = await pool.query<CanvasRunRow>(
+      `${distinctSelect} from xh_canvas_runs r
+       where r.owner_id = $1 and r.canvas_id = $2 and r.workflow_id is not null
+       order by r.workflow_id, r.updated_at desc, r.id desc limit $3`,
+      [ownerId, canvasId, Math.max(1, Math.min(100, Math.floor(limit)))],
+    );
+    return result.rows.map(mapRun);
+  }
+
   async function readOwnedRunEvents(ownerId: string, runId: string, afterSequence = 0, limit = 200): Promise<CanvasRunEventRecord[]> {
     const pool = await deps.getPostgresPool();
     const result = await pool.query(
-      `select e.id, e.run_id, e.run_step_id, e.sequence, e.event_type, e.payload,
+      `select e.id, e.run_id, e.run_step_id, s.step_key, s.node_id, e.sequence, e.event_type, e.payload,
         extract(epoch from e.created_at) * 1000 as created_at_ms
        from xh_canvas_run_events e join xh_canvas_runs r on r.id = e.run_id
+       left join xh_canvas_run_steps s on s.id = e.run_step_id
        where e.run_id = $1 and r.owner_id = $2 and e.sequence > $3
        order by e.sequence asc limit $4`,
       [runId, ownerId, Math.max(0, Math.floor(afterSequence)), Math.max(1, Math.min(500, Math.floor(limit)))],
@@ -188,6 +252,8 @@ export function createCanvasRunRepository(deps: {
       id: String(row.id),
       runId: String(row.run_id),
       runStepId: row.run_step_id ? String(row.run_step_id) : null,
+      runStepKey: row.step_key ? String(row.step_key) : null,
+      nodeId: row.node_id ? String(row.node_id) : null,
       sequence: Number(row.sequence),
       eventType: String(row.event_type),
       payload: jsonObject(row.payload),
@@ -303,7 +369,19 @@ export function createCanvasRunRepository(deps: {
     });
   }
 
-  return { applyCommand, createCanvasRun, readOwnedCanvasSnapshot, readOwnedRun, readOwnedRunEvents, readOwnedWorkflowInputAssets, transitionStep };
+  return {
+    applyCommand,
+    createCanvasRun,
+    deleteOwnedWorkflowSupervisionSettings,
+    readOwnedCanvasSnapshot,
+    readOwnedRun,
+    readOwnedRunEvents,
+    readOwnedWorkflowRunOverview,
+    readOwnedWorkflowInputAssets,
+    readOwnedWorkflowSupervisionSettings,
+    transitionStep,
+    writeOwnedWorkflowSupervisionSettings,
+  };
 }
 
 const RUN_SELECT = `select r.id, r.owner_id, r.canvas_id, r.canvas_revision,
@@ -395,6 +473,14 @@ function mapWorkflowRunConstraintError(error: unknown) {
     return new Error("WORKFLOW_RUN_ACTIVE_CONFLICT");
   }
   return error;
+}
+
+function mapWorkflowSupervisionSettings(row: Record<string, unknown>) {
+  return {
+    settings: jsonObject(row.settings),
+    revision: Number(row.revision),
+    updatedAt: Number(row.updated_at_ms),
+  };
 }
 
 function json(value: unknown) {

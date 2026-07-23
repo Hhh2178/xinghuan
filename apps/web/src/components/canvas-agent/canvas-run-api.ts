@@ -53,10 +53,27 @@ export interface CanvasRunRecord {
   updatedAt: number;
 }
 
+export interface WorkflowSupervisionSettingsProjection {
+  canvasId: string;
+  workflowId: string;
+  workflowName: string;
+  workflowRevision: number;
+  settings: WorkflowSupervisionSettings;
+  sources: Record<keyof WorkflowSupervisionSettings, WorkflowSupervisionSettingSource>;
+  clampedFields: string[];
+  hasRemembered: boolean;
+  rememberedRevision: number | null;
+  rememberedUpdatedAt: number | null;
+  platformLimits: Partial<WorkflowSupervisionLimits>;
+  appliesTo: 'next_run';
+}
+
 export interface CanvasRunEvent {
   id: string;
   runId: string;
   runStepId: string | null;
+  runStepKey?: string | null;
+  nodeId?: string | null;
   sequence: number;
   eventType: string;
   payload: Record<string, unknown>;
@@ -74,6 +91,40 @@ async function readResponse<T>(response: Response): Promise<T> {
   return (payload?.data ?? payload) as T;
 }
 
+function requireWorkflowSupervisionSettingsProjection(value: unknown): WorkflowSupervisionSettingsProjection {
+  if (!isRecord(value) || !isRecord(value.settings) || !isRecord(value.sources)) {
+    throw new Error('托管设置响应无效，请刷新后重试');
+  }
+  const settings = value.settings;
+  const valid = typeof value.canvasId === 'string'
+    && typeof value.workflowId === 'string'
+    && typeof value.workflowName === 'string'
+    && typeof value.workflowRevision === 'number'
+    && typeof value.hasRemembered === 'boolean'
+    && Array.isArray(value.clampedFields)
+    && value.appliesTo === 'next_run'
+    && typeof settings.defaultRetryCount === 'number'
+    && (settings.retryExhaustionPolicy === 'stop' || settings.retryExhaustionPolicy === 'compatible_fallback')
+    && typeof settings.maxFallbackCount === 'number'
+    && typeof settings.promptReviewRewriteEnabled === 'boolean'
+    && typeof settings.promptReviewMaxRetries === 'number'
+    && typeof settings.stageConcurrency === 'number'
+    && typeof settings.maxDurationSeconds === 'number'
+    && typeof settings.maxCost === 'string'
+    && typeof settings.currency === 'string'
+    && (settings.candidateSelectionMode === 'manual' || settings.candidateSelectionMode === 'ai')
+    && typeof settings.candidateSelectionCount === 'number'
+    && typeof settings.candidateMinimumConfidence === 'number'
+    && typeof settings.lowConfidenceManualFallback === 'boolean'
+    && isRecord(settings.nodeRetryOverrides);
+  if (!valid) throw new Error('托管设置响应无效，请刷新后重试');
+  return value as unknown as WorkflowSupervisionSettingsProjection;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 export async function createCanvasRun(input: {
   canvasId: string;
   workflowId?: string;
@@ -81,6 +132,7 @@ export async function createCanvasRun(input: {
   runScope: CanvasRunRecord['runScope'];
   configuration?: Record<string, unknown>;
   budget?: Record<string, unknown>;
+  supervisionSettings?: Partial<WorkflowSupervisionSettings>;
 }) {
   return readResponse<CanvasRunRecord>(await fetch('/api/canvas-runs', {
     method: 'POST',
@@ -90,10 +142,42 @@ export async function createCanvasRun(input: {
   }));
 }
 
+export async function readWorkflowSupervisionSettings(canvasId: string, workflowId: string) {
+  const query = new URLSearchParams({ canvasId, workflowId });
+  return requireWorkflowSupervisionSettingsProjection(await readResponse<unknown>(await fetch(`/api/canvas-run-settings?${query}`, {
+    credentials: 'same-origin',
+  })));
+}
+
+export async function saveWorkflowSupervisionSettings(canvasId: string, workflowId: string, settings: WorkflowSupervisionSettings) {
+  return requireWorkflowSupervisionSettingsProjection(await readResponse<unknown>(await fetch('/api/canvas-run-settings', {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ canvasId, workflowId, settings }),
+  })));
+}
+
+export async function resetWorkflowSupervisionSettings(canvasId: string, workflowId: string) {
+  const query = new URLSearchParams({ canvasId, workflowId });
+  return requireWorkflowSupervisionSettingsProjection(await readResponse<unknown>(await fetch(`/api/canvas-run-settings?${query}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  })));
+}
+
 export async function readCanvasRun(runId: string) {
   return readResponse<CanvasRunRecord>(await fetch(`/api/canvas-runs/${encodeURIComponent(runId)}`, {
     credentials: 'same-origin',
   }));
+}
+
+export async function listCanvasWorkflowRuns(canvasId: string) {
+  const query = new URLSearchParams({ canvasId });
+  const result = await readResponse<{ items: CanvasRunRecord[] }>(await fetch(`/api/canvas-runs?${query}`, {
+    credentials: 'same-origin',
+  }));
+  return result.items;
 }
 
 export async function commandCanvasRun(runId: string, command: CanvasRunCommand, request?: Record<string, unknown>) {
@@ -129,3 +213,8 @@ export function subscribeCanvasRunEvents(
   source.onerror = handlers.onError;
   return () => source.close();
 }
+import type {
+  WorkflowSupervisionLimits,
+  WorkflowSupervisionSettings,
+  WorkflowSupervisionSettingSource,
+} from '@xinghuan/shared';

@@ -182,19 +182,27 @@ export function createCanvasRunCoordinator(options: {
            from xh_canvas_run_steps s join xh_canvas_runs r on r.id = s.run_id
            where r.status in ('queued', 'running') and s.status = 'ready'
              and (s.lease_expires_at is null or s.lease_expires_at < now())
+             and (
+               select count(*) from xh_canvas_run_steps active_steps
+               where active_steps.run_id = r.id and active_steps.status in ('queued', 'running', 'evaluating')
+             ) < greatest(1, least(64, coalesce(nullif(r.configuration_snapshot->>'stageConcurrency', '')::int, 1)))
            group by r.owner_id
          ), next_owner as (
            select owner_id from ready_owners
            order by case when owner_id > $1 then 0 else 1 end, owner_id
            limit 1
          )
-         select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, r.created_at as run_created_at
+         select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, r.configuration_snapshot, r.created_at as run_created_at
          from xh_canvas_run_steps s join xh_canvas_runs r on r.id = s.run_id
          join next_owner on next_owner.owner_id = r.owner_id
          where r.status in ('queued', 'running') and s.status = 'ready'
            and (s.lease_expires_at is null or s.lease_expires_at < now())
+           and (
+             select count(*) from xh_canvas_run_steps active_steps
+             where active_steps.run_id = r.id and active_steps.status in ('queued', 'running', 'evaluating')
+           ) < greatest(1, least(64, coalesce(nullif(r.configuration_snapshot->>'stageConcurrency', '')::int, 1)))
          order by r.updated_at asc, s.sequence asc
-         for update of s skip locked limit 1`,
+         for update of s, r skip locked limit 1`,
         [lastOwnerId],
       );
       const step = result.rows[0];
@@ -355,7 +363,7 @@ async function buildTaskInput(client: PoolClient, step: StepRow) {
     modelId: text(configuration.modelId),
   };
   const budget = object(step.budget_snapshot);
-  const retries = integer(budget.maxAttemptsPerStep, 3);
+  const retries = retryLimitForNode(budget, step.node_id);
   const alternatives = Array.isArray(configuration.generationAlternatives) ? configuration.generationAlternatives.map(object) : [];
   const alternativeIndex = Math.max(0, Number(step.attempt_count) - retries);
   const selected = Number(step.attempt_count) >= retries ? alternatives[alternativeIndex] || primary : primary;
@@ -541,7 +549,7 @@ async function readBudgetError(client: PoolClient, step: StepRow) {
 }
 
 export function recoveryChoice(step: Pick<StepRow, 'attempt_count' | 'budget_snapshot' | 'plan_snapshot' | 'node_id'>) {
-  const retries = integer(object(step.budget_snapshot).maxAttemptsPerStep, 3);
+  const retries = retryLimitForNode(object(step.budget_snapshot), step.node_id);
   if (Number(step.attempt_count) < retries) return { retry: true, strategy: 'same_configuration' };
   const planStep = planSteps(step.plan_snapshot).find((item) => item.nodeId === step.node_id) || {};
   const alternatives = Array.isArray(object(planStep.configuration).generationAlternatives) ? object(planStep.configuration).generationAlternatives as unknown[] : [];
@@ -549,6 +557,12 @@ export function recoveryChoice(step: Pick<StepRow, 'attempt_count' | 'budget_sna
   if (text(alternative.modelRecordId) && alternative.requiresApproval === false) return { retry: true, strategy: 'node_alternative', alternative };
   if (text(alternative.modelRecordId)) return { retry: false, strategy: 'approval_required', alternative };
   return { retry: false, strategy: 'exhausted' };
+}
+
+function retryLimitForNode(budget: Record<string, unknown>, nodeId: string) {
+  const overrides = object(budget.nodeRetryOverrides);
+  if (Object.prototype.hasOwnProperty.call(overrides, nodeId)) return Math.max(0, Math.min(10, integer(overrides[nodeId], 0)));
+  return Math.max(0, Math.min(10, integer(budget.maxAttemptsPerStep, 3)));
 }
 
 async function unlockDependents(client: PoolClient, runId: string) {

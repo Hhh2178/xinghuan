@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasRunEvent, CanvasRunRecord } from './canvas-run-api';
-import { buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel } from './canvas-run-view-model';
+import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel } from './canvas-run-view-model';
 
 const run: CanvasRunRecord = {
   id: 'run-1', canvasId: 'canvas-1', canvasRevision: 7, runScope: 'canvas', workflowId: null, workflowRevision: null, workflowSubgraphHash: null, status: 'running',
@@ -48,5 +48,20 @@ describe('canvas run supervision view model', () => {
     const reordered = { ...run, planSnapshot: { ...run.planSnapshot, groups: [{ ...run.planSnapshot.groups[0], order: 2 }] } };
     const views = buildCanvasRunStepViews(reordered, []);
     expect(buildCanvasRunPlanSections(reordered, views)).toMatchObject([{ id: 'group-a', label: '分组 3', order: 2, steps: [{ step: { id: 'step-1' } }] }]);
+  });
+
+  it('turns a failed event into node, category, impact, recovery, and technical evidence', () => {
+    const diagnostic = buildCanvasRunFailureDiagnostic({ ...run, status: 'failed' }, [
+      event(1, 'canvas_run.step_model_unavailable', { code: 'CANVAS_RUN_MODEL_UNAVAILABLE', modelRecordId: 'model-a' }),
+    ]);
+
+    expect(diagnostic).toEqual({
+      nodeNumber: 1,
+      nodeType: 'video',
+      category: '模型不可用',
+      impact: '当前节点未完成，下游步骤尚未释放。',
+      recovery: '检查已发布模型或切换兼容候选后重试。',
+      technical: 'CANVAS_RUN_MODEL_UNAVAILABLE · model-a',
+    });
   });
 });

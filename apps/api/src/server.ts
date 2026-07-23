@@ -455,7 +455,11 @@ const handleCanvasRunRoutes = createCanvasRunRouteHandler({
     return canvasRunService.createRun(input);
   },
   readRun: canvasRunService.readRun,
+  listWorkflowRuns: canvasRunService.listWorkflowRuns,
   readEvents: canvasRunService.readEvents,
+  readWorkflowSettings: canvasRunService.readWorkflowSettings,
+  saveWorkflowSettings: canvasRunService.saveWorkflowSettings,
+  resetWorkflowSettings: canvasRunService.resetWorkflowSettings,
   commandRun: async (input) => {
     if (!["pause", "cancel"].includes(input.command)) await assertAgentRuntimeCapability("canvasRunsEnabled");
     return canvasRunService.commandRun(input);

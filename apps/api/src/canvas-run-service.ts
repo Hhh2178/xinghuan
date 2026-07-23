@@ -1,10 +1,16 @@
 import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "@xinghuan/agent-core";
 import {
   createWorkflowInputSnapshot,
+  DEFAULT_WORKFLOW_SUPERVISION_LIMITS,
   normalizeWorkflowDocuments,
+  normalizeWorkflowSupervisionLimits,
+  normalizeWorkflowSupervisionOverrides,
   parseWorkflowTextTemplate,
+  resolveWorkflowSupervisionSettings,
   workflowTextTemplateBinding,
   type WorkflowDocument,
+  type WorkflowSupervisionLimits,
+  type WorkflowSupervisionSettingsInput,
 } from "@xinghuan/shared";
 
 import type { CanvasRunCommand, CanvasRunEventRecord, CanvasRunRecord, CanvasSnapshotRecord } from "./canvas-run-repository.js";
@@ -21,7 +27,20 @@ export interface CanvasRunServiceRepository {
     inputSnapshot?: Record<string, unknown>;
   }): Promise<{ run: CanvasRunRecord; created: boolean }>;
   readOwnedWorkflowInputAssets?(ownerId: string, assetIds: string[]): Promise<Array<{ id: string; kind: string; url: string }>>;
+  readOwnedWorkflowSupervisionSettings?(ownerId: string, canvasId: string, workflowId: string): Promise<{
+    settings: WorkflowSupervisionSettingsInput;
+    revision: number;
+    updatedAt: number;
+  } | null>;
+  writeOwnedWorkflowSupervisionSettings?(input: {
+    ownerId: string;
+    canvasId: string;
+    workflowId: string;
+    settings: WorkflowSupervisionSettingsInput;
+  }): Promise<unknown>;
+  deleteOwnedWorkflowSupervisionSettings?(ownerId: string, canvasId: string, workflowId: string): Promise<boolean>;
   readOwnedRun(ownerId: string, runId: string): Promise<CanvasRunRecord | null>;
+  readOwnedWorkflowRunOverview?(ownerId: string, canvasId: string, limit?: number): Promise<CanvasRunRecord[]>;
   readOwnedRunEvents(ownerId: string, runId: string, afterSequence?: number, limit?: number): Promise<CanvasRunEventRecord[]>;
   applyCommand(input: {
     ownerId: string;
@@ -37,6 +56,7 @@ export function createCanvasRunService(deps: {
   isEnabled: () => boolean;
   usePostgresRepository: () => boolean;
   assertStartablePlan?: (input: { ownerId: string; run: CanvasRunRecord }) => Promise<void>;
+  readSupervisionLimits?: () => Promise<Partial<WorkflowSupervisionLimits>>;
 }) {
   function assertAvailable() {
     if (!deps.isEnabled()) throw new Error("CANVAS_RUN_DISABLED");
@@ -52,6 +72,7 @@ export function createCanvasRunService(deps: {
     workflowInputValues?: Record<string, unknown>;
     configuration?: Record<string, unknown>;
     budget?: Record<string, unknown>;
+    supervisionSettings?: WorkflowSupervisionSettingsInput;
   }) {
     assertAvailable();
     const canvas = await deps.repository.readOwnedCanvasSnapshot(input.ownerId, input.canvasId);
@@ -71,7 +92,43 @@ export function createCanvasRunService(deps: {
         revision: canvas.revision,
         data: canvas.data,
       });
-    const configurationSnapshot = normalizeCanvasRunConfiguration(input.configuration);
+    const workflow = workflowId
+      ? normalizeWorkflowDocuments(record(canvas.data).workflows).find((candidate) => candidate.id === workflowId)
+      : undefined;
+    const remembered = workflowId && deps.repository.readOwnedWorkflowSupervisionSettings
+      ? await deps.repository.readOwnedWorkflowSupervisionSettings(input.ownerId, input.canvasId, workflowId)
+      : null;
+    const supervision = resolveWorkflowSupervisionSettings({
+      limits: deps.readSupervisionLimits ? await deps.readSupervisionLimits() : DEFAULT_WORKFLOW_SUPERVISION_LIMITS,
+      workflowDefaults: workflow?.supervisionDefaults,
+      remembered: remembered?.settings,
+      runOverride: {
+        ...legacySupervisionOverrides(input.configuration, input.budget),
+        ...(input.supervisionSettings || {}),
+      },
+    });
+    const legacyConfiguration = normalizeCanvasRunConfiguration(input.configuration);
+    const configurationSnapshot = {
+      ...legacyConfiguration,
+      qualityEvaluationEnabled: supervision.settings.candidateSelectionMode === "ai",
+      selectionPolicy: supervision.settings.candidateSelectionCount === 1 ? "best" : "top_k",
+      selectionMaximum: supervision.settings.candidateSelectionCount,
+      selectionMinimumScore: supervision.settings.candidateMinimumConfidence,
+      retryExhaustionPolicy: supervision.settings.retryExhaustionPolicy,
+      maxFallbackCount: supervision.settings.maxFallbackCount,
+      promptReviewRewriteEnabled: supervision.settings.promptReviewRewriteEnabled,
+      promptReviewMaxRetries: supervision.settings.promptReviewMaxRetries,
+      stageConcurrency: supervision.settings.stageConcurrency,
+      lowConfidenceManualFallback: supervision.settings.lowConfidenceManualFallback,
+      nodeRetryOverrides: supervision.settings.nodeRetryOverrides,
+      supervision: {
+        schemaVersion: 1,
+        settings: supervision.settings,
+        sources: supervision.sources,
+        overriddenFields: supervision.overriddenFields,
+        clampedFields: supervision.clampedFields,
+      },
+    };
     const configuredPlan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot);
     const inputSnapshot = compileWorkflowInputSnapshot({
       data: canvas.data,
@@ -86,7 +143,14 @@ export function createCanvasRunService(deps: {
       plan,
       runScope: workflowId ? "workflow" : input.runScope,
       configurationSnapshot,
-      budgetSnapshot: normalizeCanvasRunBudget(input.budget),
+      budgetSnapshot: {
+        ...normalizeCanvasRunBudget(input.budget),
+        maxAttemptsPerStep: supervision.settings.defaultRetryCount,
+        maxDurationSeconds: supervision.settings.maxDurationSeconds,
+        maxCost: supervision.settings.maxCost,
+        currency: supervision.settings.currency,
+        nodeRetryOverrides: supervision.settings.nodeRetryOverrides,
+      },
       inputSnapshot,
     });
   }
@@ -96,6 +160,12 @@ export function createCanvasRunService(deps: {
     const run = await deps.repository.readOwnedRun(ownerId, runId);
     if (!run) throw new Error("CANVAS_RUN_NOT_FOUND");
     return run;
+  }
+
+  async function listWorkflowRuns(input: { ownerId: string; canvasId: string }) {
+    assertAvailable();
+    if (!deps.repository.readOwnedWorkflowRunOverview) return [];
+    return deps.repository.readOwnedWorkflowRunOverview(input.ownerId, input.canvasId, 50);
   }
 
   async function commandRun(input: {
@@ -131,7 +201,90 @@ export function createCanvasRunService(deps: {
     return { items: events, nextSequence: events.at(-1)?.sequence ?? afterSequence };
   }
 
-  return { commandRun, createRun, readEvents, readRun };
+  async function readWorkflowSettings(input: { ownerId: string; canvasId: string; workflowId: string }) {
+    assertAvailable();
+    const canvas = await deps.repository.readOwnedCanvasSnapshot(input.ownerId, input.canvasId);
+    if (!canvas) throw new Error("CANVAS_RUN_CANVAS_NOT_FOUND");
+    const workflow = normalizeWorkflowDocuments(record(canvas.data).workflows)
+      .find((candidate) => candidate.id === input.workflowId);
+    if (!workflow) throw new Error(`WORKFLOW_NOT_FOUND:${input.workflowId}`);
+    const remembered = deps.repository.readOwnedWorkflowSupervisionSettings
+      ? await deps.repository.readOwnedWorkflowSupervisionSettings(input.ownerId, input.canvasId, input.workflowId)
+      : null;
+    const limits = normalizeWorkflowSupervisionLimits(
+      deps.readSupervisionLimits ? await deps.readSupervisionLimits() : DEFAULT_WORKFLOW_SUPERVISION_LIMITS,
+    );
+    const resolved = resolveWorkflowSupervisionSettings({
+      limits,
+      workflowDefaults: workflow.supervisionDefaults,
+      remembered: remembered?.settings,
+    });
+    return {
+      canvasId: input.canvasId,
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      workflowRevision: workflow.revision,
+      settings: resolved.settings,
+      sources: resolved.sources,
+      clampedFields: resolved.clampedFields,
+      hasRemembered: Boolean(remembered),
+      rememberedRevision: remembered?.revision ?? null,
+      rememberedUpdatedAt: remembered?.updatedAt ?? null,
+      platformLimits: limits,
+      appliesTo: "next_run" as const,
+    };
+  }
+
+  async function saveWorkflowSettings(input: {
+    ownerId: string;
+    canvasId: string;
+    workflowId: string;
+    settings: Record<string, unknown>;
+  }) {
+    await readWorkflowSettings(input);
+    if (!deps.repository.writeOwnedWorkflowSupervisionSettings) throw new Error("WORKFLOW_SUPERVISION_SETTINGS_UNAVAILABLE");
+    await deps.repository.writeOwnedWorkflowSupervisionSettings({
+      ownerId: input.ownerId,
+      canvasId: input.canvasId,
+      workflowId: input.workflowId,
+      settings: normalizeWorkflowSupervisionOverrides(input.settings),
+    });
+    return readWorkflowSettings(input);
+  }
+
+  async function resetWorkflowSettings(input: { ownerId: string; canvasId: string; workflowId: string }) {
+    await readWorkflowSettings(input);
+    if (!deps.repository.deleteOwnedWorkflowSupervisionSettings) throw new Error("WORKFLOW_SUPERVISION_SETTINGS_UNAVAILABLE");
+    await deps.repository.deleteOwnedWorkflowSupervisionSettings(input.ownerId, input.canvasId, input.workflowId);
+    return readWorkflowSettings(input);
+  }
+
+  return { commandRun, createRun, listWorkflowRuns, readEvents, readRun, readWorkflowSettings, resetWorkflowSettings, saveWorkflowSettings };
+}
+
+function legacySupervisionOverrides(
+  configuration: Record<string, unknown> | undefined,
+  budget: Record<string, unknown> | undefined,
+): WorkflowSupervisionSettingsInput {
+  const output: WorkflowSupervisionSettingsInput = {};
+  if (configuration && Object.prototype.hasOwnProperty.call(configuration, "qualityEvaluationEnabled")) {
+    output.candidateSelectionMode = configuration.qualityEvaluationEnabled === true ? "ai" : "manual";
+  }
+  if (configuration && Object.prototype.hasOwnProperty.call(configuration, "selectionMaximum")) {
+    output.candidateSelectionCount = integer(configuration.selectionMaximum, 1, 16, 1);
+  }
+  if (configuration && Object.prototype.hasOwnProperty.call(configuration, "selectionMinimumScore")) {
+    output.candidateMinimumConfidence = Math.max(0, Math.min(100, Number(decimal(configuration.selectionMinimumScore, "0"))));
+  }
+  if (budget && Object.prototype.hasOwnProperty.call(budget, "maxAttemptsPerStep")) {
+    output.defaultRetryCount = integer(budget.maxAttemptsPerStep, 0, 10, 3);
+  }
+  if (budget && Object.prototype.hasOwnProperty.call(budget, "maxDurationSeconds")) {
+    output.maxDurationSeconds = integer(budget.maxDurationSeconds, 60, 86_400, 3_600);
+  }
+  if (budget && Object.prototype.hasOwnProperty.call(budget, "maxCost")) output.maxCost = decimal(budget.maxCost, "0");
+  if (budget && typeof budget.currency === "string" && /^[A-Z]{3}$/.test(budget.currency)) output.currency = budget.currency;
+  return output;
 }
 
 async function applyWorkflowInputSnapshot(

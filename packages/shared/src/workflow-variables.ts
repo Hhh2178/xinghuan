@@ -1,4 +1,5 @@
 import { normalizeWorkflowStageDefinitions, type WorkflowStageDefinition } from "./workflow-stages.js";
+import { normalizeWorkflowSupervisionOverrides, type WorkflowSupervisionSettingsInput } from "./workflow-supervision-settings.js";
 
 export const WORKFLOW_VARIABLE_TYPES = ["text", "image", "video", "audio", "number", "select"] as const;
 
@@ -79,6 +80,7 @@ export interface WorkflowDocument {
   inputValues: Record<string, unknown>;
   bindings: WorkflowNodeFieldBinding[];
   stages: WorkflowStageDefinition[];
+  supervisionDefaults?: WorkflowSupervisionSettingsInput;
   region: WorkflowRegionVisual;
 }
 
@@ -189,6 +191,7 @@ export function normalizeWorkflowDocuments(input: unknown): WorkflowDocument[] {
       inputValues,
       bindings,
       stages: normalizeWorkflowStageDefinitions(raw.stages, memberNodeIds),
+      supervisionDefaults: normalizeWorkflowSupervisionOverrides(raw.supervisionDefaults),
       region: normalizeWorkflowRegionVisual(raw.region, index),
     };
   });

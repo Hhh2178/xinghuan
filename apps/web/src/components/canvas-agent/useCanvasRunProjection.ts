@@ -8,6 +8,7 @@ import {
   type CanvasRunEvent,
   type CanvasRunRecord,
 } from './canvas-run-api';
+import type { WorkflowSupervisionSettings } from '@xinghuan/shared';
 
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled']);
 
@@ -54,13 +55,13 @@ export function useCanvasRunProjection(canvasId: string | null, workflowId: stri
     });
   }, [refresh, runId]);
 
-  const create = useCallback(async (configuration?: Record<string, unknown>) => {
+  const create = useCallback(async (supervisionSettings?: Partial<WorkflowSupervisionSettings>) => {
     if (!canvasId) throw new Error('请先打开画布');
     setBusy(true);
     setError('');
     try {
       if (!workflowId) throw new Error('请先选择工作流');
-      const next = await createCanvasRun({ canvasId, workflowId, runScope: 'workflow', configuration });
+      const next = await createCanvasRun({ canvasId, workflowId, runScope: 'workflow', supervisionSettings });
       setRun(next);
       setEvents([]);
       return next;

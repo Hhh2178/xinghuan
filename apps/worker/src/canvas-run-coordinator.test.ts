@@ -39,6 +39,19 @@ describe('canvas run coordinator', () => {
     } as any)).toMatchObject({ retry: false, strategy: 'approval_required', alternative: { modelRecordId: 'model-b' } });
   });
 
+  it('uses the stable node retry override instead of the workflow default', () => {
+    const base = {
+      attempt_count: 0,
+      budget_snapshot: { maxAttemptsPerStep: 3, nodeRetryOverrides: { 'video-1': 0, 'image-1': 2 } },
+      node_id: 'video-1',
+      plan_snapshot: { steps: [{ nodeId: 'video-1', configuration: {} }] },
+    };
+
+    expect(recoveryChoice(base as any)).toEqual({ retry: false, strategy: 'exhausted' });
+    expect(recoveryChoice({ ...base, node_id: 'image-1', plan_snapshot: { steps: [{ nodeId: 'image-1', configuration: {} }] } } as any))
+      .toEqual({ retry: true, strategy: 'same_configuration' });
+  });
+
   it('allows two coordinators to compete without creating a duplicate task', async () => {
     const harness = coordinatorHarness();
     const first = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
@@ -74,6 +87,13 @@ describe('canvas run coordinator', () => {
     expect(source).toMatch(/order by case when owner_id > \$1 then 0 else 1 end, owner_id/i);
     expect(source).toMatch(/lockCanvasRunDispatchCursor/);
     expect(source).toMatch(/advanceCanvasRunDispatchCursor/);
+  });
+
+  it('enforces the immutable per-run stage concurrency before claiming work', () => {
+    const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(/configuration_snapshot->>'stageConcurrency'/);
+    expect(source).toMatch(/active_steps\.run_id = r\.id/);
+    expect(source).toMatch(/for update of s, r skip locked/i);
   });
 
   it('settles a native deterministic text step without creating a Provider task', async () => {

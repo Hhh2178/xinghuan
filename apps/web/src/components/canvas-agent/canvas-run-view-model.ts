@@ -31,6 +31,15 @@ export interface CanvasRunPlanSection {
   steps: CanvasRunStepView[];
 }
 
+export interface CanvasRunFailureDiagnostic {
+  nodeNumber: number;
+  nodeType: string;
+  category: string;
+  impact: string;
+  recovery: string;
+  technical: string;
+}
+
 export const CANVAS_RUN_STATUS_LABEL: Record<CanvasRunStatus, string> = {
   draft: '计划已生成',
   planning: '规划中',
@@ -101,7 +110,7 @@ function alternativeModel(configuration: Record<string, unknown>): string {
 export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunStepView[] {
   return run.planSnapshot.steps.map((step) => {
     const configuration = object(step.configuration);
-    const stepEvents = events.filter((event) => event.runStepId === step.id).sort((a, b) => a.sequence - b.sequence);
+    const stepEvents = events.filter((event) => eventMatchesStep(event, step)).sort((a, b) => a.sequence - b.sequence);
     let status: CanvasRunStepViewStatus = step.skipped ? 'skipped' : 'waiting';
     let attempt = 0;
     let provider = firstText(configuration, ['providerName', 'providerId', 'providerKey']);
@@ -153,6 +162,49 @@ export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunE
       updatedAt: stepEvents.at(-1)?.createdAt || null,
     };
   });
+}
+
+export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunFailureDiagnostic | null {
+  const failedEvent = [...events].reverse().find((event) => eventStatus(event) === 'failed' || /(?:failed|model_unavailable|budget_exceeded)$/.test(event.eventType));
+  if (!failedEvent) return null;
+  const stepIndex = run.planSnapshot.steps.findIndex((step) => eventMatchesStep(failedEvent, step));
+  const step = stepIndex >= 0 ? run.planSnapshot.steps[stepIndex] : null;
+  const code = firstText(failedEvent.payload, ['code', 'failureClass', 'reason']) || failedEvent.eventType.replace(/^canvas_run\./, '');
+  const normalized = `${failedEvent.eventType} ${code}`.toLowerCase();
+  let category = '执行失败';
+  let recovery = '查看技术详情，修复节点配置后重试。';
+  if (/model_unavailable|provider|model/.test(normalized)) {
+    category = '模型不可用';
+    recovery = '检查已发布模型或切换兼容候选后重试。';
+  } else if (/network|rate|limit|timeout/.test(normalized)) {
+    category = '网络或限流';
+    recovery = '保持原配置重试；持续失败时检查服务商状态。';
+  } else if (/budget|cost|duration/.test(normalized)) {
+    category = '预算或时限';
+    recovery = '调整下一次 Run 的预算或时限后重新创建计划。';
+  } else if (/prompt|review|moderation/.test(normalized)) {
+    category = '提示词审核';
+    recovery = '检查审核结果并使用允许的低风险改写。';
+  } else if (/input|parameter|invalid/.test(normalized)) {
+    category = '输入参数';
+    recovery = '修正工作流声明允许的参数后重新创建 Run。';
+  }
+  const technical = [
+    code,
+    firstText(failedEvent.payload, ['modelRecordId', 'providerId', 'taskId']),
+  ].filter(Boolean).join(' · ');
+  return {
+    nodeNumber: stepIndex + 1,
+    nodeType: step?.nodeType || firstText(failedEvent.payload, ['nodeType']) || '未知节点',
+    category,
+    impact: step ? '当前节点未完成，下游步骤尚未释放。' : '运行已停止，已完成结果保持可用。',
+    recovery,
+    technical,
+  };
+}
+
+function eventMatchesStep(event: CanvasRunEvent, step: CanvasRunPlanStep) {
+  return event.runStepKey === step.id || event.nodeId === step.nodeId || event.runStepId === step.id;
 }
 
 export function buildCanvasRunPlanSections(run: CanvasRunRecord, views: CanvasRunStepView[]): CanvasRunPlanSection[] {

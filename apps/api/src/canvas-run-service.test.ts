@@ -245,4 +245,119 @@ describe("canvas run service", () => {
     expect(assertStartablePlan).toHaveBeenCalledWith({ ownerId: "owner-1", run: expect.objectContaining({ id: "run-1" }) });
     expect(repository.applyCommand).toHaveBeenCalled();
   });
+
+  it("freezes four-layer supervision settings without persisting apply-once overrides", async () => {
+    const createCanvasRun = vi.fn(async (input: any) => ({ created: true, run: { id: "run-settings", ...input } }));
+    const writeOwnedWorkflowSupervisionSettings = vi.fn();
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 5,
+        data: {
+          nodes: [{ id: "image-1", type: "image", data: {} }],
+          edges: [],
+          workflows: [{
+            schemaVersion: 1,
+            id: "workflow-1",
+            name: "Poster",
+            revision: 3,
+            memberNodeIds: ["image-1"],
+            variables: [],
+            inputValues: {},
+            bindings: [],
+            stages: [],
+            supervisionDefaults: { defaultRetryCount: 2, stageConcurrency: 2 },
+            region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+          }],
+        },
+      })),
+      readOwnedWorkflowSupervisionSettings: vi.fn(async () => ({
+        settings: { defaultRetryCount: 4, candidateSelectionMode: "ai", candidateSelectionCount: 3 },
+        revision: 2,
+        updatedAt: 10,
+      })),
+      writeOwnedWorkflowSupervisionSettings,
+      createCanvasRun,
+      readOwnedRun: vi.fn(),
+      applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({
+      repository: repository as any,
+      isEnabled: () => true,
+      usePostgresRepository: () => true,
+      readSupervisionLimits: async () => ({ maxRetryCount: 5 }),
+    });
+
+    await service.createRun({
+      ownerId: "owner-1",
+      canvasId: "canvas-1",
+      workflowId: "workflow-1",
+      idempotencyKey: "settings-once",
+      supervisionSettings: { defaultRetryCount: 8, candidateMinimumConfidence: 76 },
+    });
+
+    const request = createCanvasRun.mock.calls[0][0];
+    expect(request.budgetSnapshot).toMatchObject({ maxAttemptsPerStep: 5 });
+    expect(request.configurationSnapshot).toMatchObject({
+      qualityEvaluationEnabled: true,
+      selectionPolicy: "top_k",
+      selectionMaximum: 3,
+      selectionMinimumScore: 76,
+      supervision: {
+        schemaVersion: 1,
+        settings: expect.objectContaining({ defaultRetryCount: 5, stageConcurrency: 2 }),
+        sources: expect.objectContaining({
+          defaultRetryCount: "run_override",
+          stageConcurrency: "workflow_default",
+          candidateSelectionMode: "remembered",
+        }),
+        overriddenFields: expect.arrayContaining(["defaultRetryCount", "candidateMinimumConfidence"]),
+        clampedFields: expect.arrayContaining(["defaultRetryCount"]),
+      },
+    });
+    expect(writeOwnedWorkflowSupervisionSettings).not.toHaveBeenCalled();
+  });
+
+  it("saves allowlisted remembered settings and restores workflow defaults", async () => {
+    let remembered: any = null;
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 5,
+        data: {
+          nodes: [{ id: "image-1", type: "image", data: {} }],
+          edges: [],
+          workflows: [{
+            schemaVersion: 1, id: "workflow-1", name: "Poster", revision: 3,
+            memberNodeIds: ["image-1"], variables: [], inputValues: {}, bindings: [], stages: [],
+            supervisionDefaults: { defaultRetryCount: 2 },
+            region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+          }],
+        },
+      })),
+      readOwnedWorkflowSupervisionSettings: vi.fn(async () => remembered),
+      writeOwnedWorkflowSupervisionSettings: vi.fn(async (input) => {
+        remembered = { settings: input.settings, revision: 1, updatedAt: 100 };
+        return remembered;
+      }),
+      deleteOwnedWorkflowSupervisionSettings: vi.fn(async () => {
+        remembered = null;
+        return true;
+      }),
+      createCanvasRun: vi.fn(), readOwnedRun: vi.fn(), applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({ repository: repository as any, isEnabled: () => true, usePostgresRepository: () => true });
+
+    const saved = await service.saveWorkflowSettings({
+      ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1",
+      settings: { defaultRetryCount: 5, candidateSelectionMode: "ai", apiKey: "drop" } as any,
+    });
+    expect(saved).toMatchObject({ hasRemembered: true, settings: { defaultRetryCount: 5, candidateSelectionMode: "ai" } });
+    expect(repository.writeOwnedWorkflowSupervisionSettings.mock.calls[0][0].settings).not.toHaveProperty("apiKey");
+
+    const restored = await service.resetWorkflowSettings({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1" });
+    expect(restored).toMatchObject({ hasRemembered: false, settings: { defaultRetryCount: 2 } });
+  });
 });

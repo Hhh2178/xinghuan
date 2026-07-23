@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-4 已完成；Phase 4 已实现 workflow-owned 阶段、拓扑约束排序、串并行/跳过和不可变 Run Plan 快照，进入本地 checkpoint 收口。Phase 5 简化托管与设置进入进行中。Phase 2 的窄屏 Canvas shell 结果仍是已知失败，留待 Phase 8/10 修复；Phase 4 仅确认托管抽屉在 `390x844` 内无溢出，不把完整移动 Canvas shell 计为通过。
+当前状态：Phase 0-5 已完成；Phase 5 已实现 workflow 运行总览、四层监督设置解析、owner+canvas+workflow 记忆、仅下一次 Run 覆盖、不可变设置来源/裁剪快照、按节点重试和阶段并发，并完成桌面/窄屏真实浏览器验收。Phase 6 恢复运行时进入进行中。Phase 2 的窄屏 Canvas shell 结果仍是已知失败，留待 Phase 8/10 修复；Phase 5 仅确认托管与设置面板在 `390x844` 内无溢出，不把完整移动 Canvas shell 计为通过。
 
 ## 执行原则
 
