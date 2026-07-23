@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
 
 import {
+  findWorkflowStageOrderConflict,
   isWorkflowBoundaryConnectionAllowed,
   isWorkflowBoundaryPortType,
   normalizeWorkflowDocuments,
+  reconcileWorkflowStageDefinitions,
+  type WorkflowStageMode,
+  type WorkflowStageNodeAssignment,
+  type WorkflowStageSource,
 } from "@xinghuan/shared";
 
 import { CANVAS_RUN_EXECUTABLE_NODE_TYPES, CANVAS_RUN_NODE_CAPABILITIES } from "./node-execution-capabilities.js";
@@ -11,6 +16,8 @@ import { CANVAS_RUN_EXECUTABLE_NODE_TYPES, CANVAS_RUN_NODE_CAPABILITIES } from "
 export interface CanvasRunGroupInput {
   id: string;
   order: number;
+  name?: string;
+  mode?: WorkflowStageMode;
   skipped?: boolean;
 }
 
@@ -39,6 +46,8 @@ export interface CompileCanvasRunPlanInput {
 export interface CanvasRunGroupPlan {
   id: string;
   order: number;
+  name?: string;
+  mode?: WorkflowStageMode;
   skipped: boolean;
   stepIds: string[];
 }
@@ -89,7 +98,14 @@ export function compileCanvasRunPlan(input: CompileCanvasRunPlanInput): CanvasRu
     const groupNodes = input.nodes.filter((node) => node.groupId === group.id);
     const sorted = stableTopologicalSort(groupNodes, input.edges);
     orderedNodes.push(...sorted);
-    groupPlans.push({ id: group.id, order: group.order, skipped: group.skipped === true, stepIds: sorted.map((node) => stepId(node.id)) });
+    groupPlans.push({
+      id: group.id,
+      order: group.order,
+      name: group.name || group.id,
+      mode: group.mode === "parallel" ? "parallel" : "serial",
+      skipped: group.skipped === true,
+      stepIds: sorted.map((node) => stepId(node.id)),
+    });
   }
 
   const groupedNodeIds = new Set(orderedNodes.map((node) => node.id));
@@ -146,7 +162,13 @@ export function compileCanvasSnapshotRunPlan(input: {
   const requestedOrder = uniqueStrings(managerData.groupOrder);
   const groupOrder = [...requestedOrder.filter((id) => groupIds.includes(id)), ...groupIds.filter((id) => !requestedOrder.includes(id))];
   const skipped = new Set(uniqueStrings(managerData.skippedGroupIds));
-  const groups = groupOrder.map((id, order) => ({ id, order, skipped: skipped.has(id) }));
+  const groups = groupOrder.map((id, order) => ({
+    id,
+    order,
+    name: stringValue(groupNodes.find((group) => group.id === id)?.data?.name) || `分组 ${order + 1}`,
+    mode: "serial" as const,
+    skipped: skipped.has(id),
+  }));
   const executable = nodes.filter((node) => typeof node.id === "string" && typeof node.type === "string" && executableTypes.has(node.type));
 
   return compileCanvasRunPlan({
@@ -230,16 +252,31 @@ export function compileWorkflowSnapshotRunPlan(input: {
     }
   }
 
-  const scopedData = {
-    nodes: nodes.filter((node) => typeof node.id === "string" && memberIds.has(node.id)),
-    edges: edges.filter((edge) => typeof edge.source === "string" && typeof edge.target === "string" && memberIds.has(edge.source) && memberIds.has(edge.target)),
-  };
-  const compiled = compileCanvasSnapshotRunPlan({
+  const scopedNodes = nodes.filter((node) => typeof node.id === "string" && memberIds.has(node.id));
+  const scopedEdges = edges.filter((edge) => typeof edge.source === "string" && typeof edge.target === "string" && memberIds.has(edge.source) && memberIds.has(edge.target));
+  const executableNodes = scopedNodes.filter((node): node is CanvasSnapshotNode & { id: string; type: string } => (
+    typeof node.id === "string" && typeof node.type === "string" && (input.executableNodeTypes || CANVAS_RUN_EXECUTABLE_NODE_TYPES).has(node.type)
+  ));
+  const stageProjection = projectWorkflowStages(workflow.id, workflow.stages, scopedNodes, executableNodes);
+  const conflict = findWorkflowStageOrderConflict(
+    stageProjection.stages,
+    stageProjection.assignments,
+    scopedEdges.map((edge, index) => ({ id: typeof edge.id === "string" ? edge.id : `edge:${index}`, source: String(edge.source), target: String(edge.target) })),
+  );
+  if (conflict) throw new Error(`WORKFLOW_STAGE_ORDER_CONFLICT:${conflict.edgeId}:${conflict.source}->${conflict.target}`);
+  const stageByNodeId = new Map(stageProjection.assignments.map((assignment) => [assignment.nodeId, assignment.stageId]));
+  const compiled = compileCanvasRunPlan({
     canvasId: input.canvasId,
     ownerId: input.ownerId,
     revision: input.revision,
-    data: scopedData,
-    executableNodeTypes: input.executableNodeTypes,
+    groups: stageProjection.stages,
+    nodes: executableNodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      groupId: stageByNodeId.get(node.id),
+      configuration: extractNodeExecutionConfiguration(node.data, node.type),
+    })),
+    edges: scopedEdges.map((edge, index) => ({ id: typeof edge.id === "string" ? edge.id : `edge:${index}`, source: String(edge.source), target: String(edge.target) })),
   });
   const workflowPlan = {
     ...compiled,
@@ -250,6 +287,40 @@ export function compileWorkflowSnapshotRunPlan(input: {
     ...workflowPlan,
     workflowSubgraphHash: hashWorkflowSubgraph(workflowPlan),
   };
+}
+
+function projectWorkflowStages(
+  workflowId: string,
+  configured: Parameters<typeof reconcileWorkflowStageDefinitions>[1],
+  scopedNodes: CanvasSnapshotNode[],
+  executableNodes: Array<CanvasSnapshotNode & { id: string; type: string }>,
+) {
+  const groupNodes = scopedNodes.filter((node): node is CanvasSnapshotNode & { id: string } => node.type === "groupBox" && typeof node.id === "string");
+  const sourceByNodeId = new Map<string, string | null>();
+  const membersByGroupId = new Map<string, string[]>();
+  for (const group of groupNodes) membersByGroupId.set(group.id, []);
+  const ungrouped: string[] = [];
+  for (const node of executableNodes) {
+    const containingGroups = groupNodes.filter((group) => containsNode(group, node));
+    if (containingGroups.length > 1) throw new Error(`WORKFLOW_STAGE_MEMBER_CONFLICT:${node.id}:${containingGroups.map((group) => group.id).join(":")}`);
+    const sourceGroupNodeId = containingGroups[0]?.id || null;
+    sourceByNodeId.set(node.id, sourceGroupNodeId);
+    if (sourceGroupNodeId) membersByGroupId.get(sourceGroupNodeId)?.push(node.id);
+    else ungrouped.push(node.id);
+  }
+  const sources: WorkflowStageSource[] = groupNodes.map((group, index) => ({
+    sourceGroupNodeId: group.id,
+    name: stringValue(group.data?.name) || `阶段 ${index + 1}`,
+    memberNodeIds: membersByGroupId.get(group.id) || [],
+  }));
+  if (ungrouped.length > 0) sources.push({ sourceGroupNodeId: null, name: "未分组阶段", memberNodeIds: ungrouped });
+  const stages = reconcileWorkflowStageDefinitions(workflowId, configured, sources);
+  const stageIdBySource = new Map(stages.map((stage) => [stage.sourceGroupNodeId || "__ungrouped__", stage.id]));
+  const assignments: WorkflowStageNodeAssignment[] = executableNodes.map((node) => ({
+    nodeId: node.id,
+    stageId: stageIdBySource.get(sourceByNodeId.get(node.id) || "__ungrouped__")!,
+  }));
+  return { stages, assignments };
 }
 
 function containsNode(group: CanvasSnapshotNode, node: CanvasSnapshotNode) {

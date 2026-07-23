@@ -82,7 +82,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canv
           <div className="canvas-run-supervisor__section-title"><span>运行计划</span><small>只读权威投影</small></div>
           <div className="canvas-run-plan">
             {planSections.map((section) => <section className="canvas-run-plan__group" key={section.id} data-skipped={section.skipped ? 'true' : 'false'}>
-              <header><strong>{section.label}</strong><small>顺序 {section.order + 1} · {section.steps.length} 步</small></header>
+              <header><strong>{section.label}</strong><small>顺序 {section.order + 1} · {section.mode === 'parallel' ? '并行' : '串行'} · {section.steps.length} 步</small></header>
               {section.steps.map((view) => (
                 <div className="canvas-run-plan__step" key={view.step.id} data-status={view.status}>
                   <span className="canvas-run-plan__index">{String(stepIndex.get(view.step.id) || 0).padStart(2, '0')}</span>

@@ -74,13 +74,18 @@ export function CanvasWorkflowProvider({
       let changed = false;
       const next = current.map((workflow) => {
         const memberIds = new Set(workflow.memberNodeIds);
+        const groupIds = new Set(nodes.filter((node) => memberIds.has(node.id) && node.type === 'groupBox').map((node) => node.id));
+        const stages = (workflow.stages || [])
+          .filter((stage) => stage.sourceGroupNodeId === null || groupIds.has(stage.sourceGroupNodeId))
+          .map((stage, order) => stage.order === order ? stage : { ...stage, order });
         const region = expandWorkflowRegionToIncludeNodes(
           workflow.region,
           nodes.filter((node) => memberIds.has(node.id)),
         );
-        if (sameRegion(region, workflow.region)) return workflow;
+        const currentStages = workflow.stages || [];
+        if (sameRegion(region, workflow.region) && stages.length === currentStages.length && stages.every((stage, index) => stage === currentStages[index])) return workflow;
         changed = true;
-        return { ...workflow, region };
+        return { ...workflow, region, stages };
       });
       if (!changed) return current;
       try {
@@ -147,6 +152,7 @@ export function CanvasWorkflowProvider({
         variables: [],
         inputValues: {},
         bindings: [],
+        stages: [],
         region,
       },
     ];

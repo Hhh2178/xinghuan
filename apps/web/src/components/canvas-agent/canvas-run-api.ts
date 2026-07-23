@@ -12,6 +12,8 @@ export type CanvasRunStatus =
 export interface CanvasRunPlanGroup {
   id: string;
   order: number;
+  name?: string;
+  mode?: 'serial' | 'parallel';
   skipped: boolean;
   stepIds: string[];
 }

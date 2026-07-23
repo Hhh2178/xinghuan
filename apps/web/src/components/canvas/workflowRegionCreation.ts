@@ -47,6 +47,7 @@ export function buildWorkflowRegionFromSelection(input: {
     variables: [],
     inputValues: {},
     bindings: [],
+    stages: [],
     region,
   };
   try {

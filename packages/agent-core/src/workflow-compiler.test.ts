@@ -157,4 +157,48 @@ describe("workflow compiler", () => {
       data: { nodes: [{ id: "outside", type: "text" }, { id: "text-1", type: "text" }], edges: [{ source: "outside", target: "text-1" }], workflows: [workflow] },
     })).toThrow("WORKFLOW_BOUNDARY_EDGE_INVALID:outside->text-1");
   });
+
+  it("compiles workflow-owned stages including an explicit ungrouped stage", () => {
+    const data = {
+      nodes: [
+        { id: "group-image", type: "groupBox", position: { x: 0, y: 0 }, data: { name: "图片阶段", width: 420, height: 260, memberIds: ["image"] } },
+        { id: "group-video", type: "groupBox", position: { x: 500, y: 0 }, data: { name: "视频阶段", width: 420, height: 260, memberIds: ["video"] } },
+        { id: "image", type: "image", position: { x: 40, y: 60 } },
+        { id: "video", type: "video", position: { x: 540, y: 60 } },
+        { id: "output", type: "output", position: { x: 980, y: 60 } },
+      ],
+      edges: [{ id: "image-video", source: "image", target: "video" }, { id: "video-output", source: "video", target: "output" }],
+      workflows: [{
+        schemaVersion: 1,
+        id: "workflow-staged",
+        name: "Staged",
+        revision: 8,
+        memberNodeIds: ["group-image", "group-video", "image", "video", "output"],
+        variables: [], inputValues: {}, bindings: [],
+        stages: [
+          { id: "stage-image", name: "图片", sourceGroupNodeId: "group-image", order: 0, mode: "serial", skipped: false },
+          { id: "stage-video", name: "视频", sourceGroupNodeId: "group-video", order: 1, mode: "parallel", skipped: false },
+        ],
+        region: { x: 0, y: 0, width: 1300, height: 500, color: "#2F6B5F" },
+      }],
+    };
+
+    const plan = compileWorkflowSnapshotRunPlan({ canvasId: "canvas-1", ownerId: "owner-1", revision: 20, workflowId: "workflow-staged", data });
+    expect(plan.groups.map((group) => [group.id, group.name, group.mode])).toEqual([
+      ["stage-image", "图片", "serial"],
+      ["stage-video", "视频", "parallel"],
+      ["workflow-stage:workflow-staged:ungrouped", "未分组阶段", "serial"],
+    ]);
+    expect(plan.steps.map((step) => [step.nodeId, step.groupId])).toEqual([
+      ["image", "stage-image"],
+      ["video", "stage-video"],
+      ["output", "workflow-stage:workflow-staged:ungrouped"],
+    ]);
+
+    const invalid = structuredClone(data);
+    invalid.workflows[0].stages = [invalid.workflows[0].stages[1], invalid.workflows[0].stages[0]];
+    invalid.workflows[0].stages.forEach((stage, index) => { stage.order = index; });
+    expect(() => compileWorkflowSnapshotRunPlan({ canvasId: "canvas-1", ownerId: "owner-1", revision: 21, workflowId: "workflow-staged", data: invalid }))
+      .toThrow("WORKFLOW_STAGE_ORDER_CONFLICT:image-video");
+  });
 });

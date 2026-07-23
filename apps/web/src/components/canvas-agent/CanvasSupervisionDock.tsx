@@ -1,8 +1,10 @@
 import { Bot, Minus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { normalizeWorkflowDocuments, type WorkflowDocument } from '@xinghuan/shared';
+import type { Edge, Node } from '@xyflow/react';
+import { normalizeWorkflowDocuments, type WorkflowDocument, type WorkflowStageDefinition } from '@xinghuan/shared';
 import * as api from '../../services/api';
 import { CanvasRunSupervisor } from './CanvasRunSupervisor';
+import { WorkflowStageEditor } from './WorkflowStageEditor';
 import { CANVAS_RUN_STATUS_LABEL } from './canvas-run-view-model';
 import { useCanvasRunProjection } from './useCanvasRunProjection';
 
@@ -22,6 +24,8 @@ export function CanvasSupervisionDock(props: {
 }) {
   const [initialRunId, setInitialRunId] = useState('');
   const [workflows, setWorkflows] = useState<WorkflowDocument[]>([]);
+  const [canvasNodes, setCanvasNodes] = useState<Node[]>([]);
+  const [canvasEdges, setCanvasEdges] = useState<Edge[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
   const [runIdsByWorkflow, setRunIdsByWorkflow] = useState<Record<string, string>>({});
   const projection = useCanvasRunProjection(props.canvasId, selectedWorkflowId, initialRunId || runIdsByWorkflow[selectedWorkflowId]);
@@ -34,25 +38,33 @@ export function CanvasSupervisionDock(props: {
     setRunIdsByWorkflow({});
     if (!props.canvasId) {
       setWorkflows([]);
+      setCanvasNodes([]);
+      setCanvasEdges([]);
       setSelectedWorkflowId('');
       return;
     }
     void api.getCanvasData(props.canvasId).then((data) => {
       const next = normalizeWorkflowDocuments(data.workflows);
       setWorkflows(next);
+      setCanvasNodes(Array.isArray(data.nodes) ? data.nodes as Node[] : []);
+      setCanvasEdges(Array.isArray(data.edges) ? data.edges as Edge[] : []);
       setSelectedWorkflowId((current) => next.some((workflow) => workflow.id === current) ? current : next[0]?.id || '');
     }).catch(() => {
       setWorkflows([]);
+      setCanvasNodes([]);
+      setCanvasEdges([]);
       setSelectedWorkflowId('');
     });
   }, [props.canvasId]);
 
   useEffect(() => {
     const handleWorkflows = (event: Event) => {
-      const detail = (event as CustomEvent<{ canvasId?: string; workflows?: unknown }>).detail;
+      const detail = (event as CustomEvent<{ canvasId?: string; workflows?: unknown; nodes?: Node[]; edges?: Edge[] }>).detail;
       if (detail?.canvasId !== props.canvasId) return;
       const next = normalizeWorkflowDocuments(detail.workflows);
       setWorkflows(next);
+      if (Array.isArray(detail.nodes)) setCanvasNodes(detail.nodes);
+      if (Array.isArray(detail.edges)) setCanvasEdges(detail.edges);
       setSelectedWorkflowId((current) => next.some((workflow) => workflow.id === current) ? current : next[0]?.id || '');
     };
     window.addEventListener('penguin:canvas-workflows-changed', handleWorkflows);
@@ -92,6 +104,19 @@ export function CanvasSupervisionDock(props: {
 
   if (!props.open) return null;
 
+  const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId);
+  const updateStages = (stages: WorkflowStageDefinition[]) => {
+    if (!selectedWorkflow || !props.canvasId) return;
+    setWorkflows((current) => current.map((workflow) => workflow.id === selectedWorkflow.id ? {
+      ...workflow,
+      revision: workflow.revision + 1,
+      stages,
+    } : workflow));
+    window.dispatchEvent(new CustomEvent('penguin:update-workflow-stages', {
+      detail: { canvasId: props.canvasId, workflowId: selectedWorkflow.id, stages },
+    }));
+  };
+
   return (
     <aside className="canvas-supervision-panel" aria-label="AI 托管面板" data-alert={alert ? 'true' : 'false'}>
       <header className="canvas-supervision-panel__header">
@@ -113,6 +138,14 @@ export function CanvasSupervisionDock(props: {
           </select>
         </label>
       </div>
+      {selectedWorkflow && !projection.run ? <WorkflowStageEditor
+        canvasId={props.canvasId}
+        workflow={selectedWorkflow}
+        nodes={canvasNodes}
+        edges={canvasEdges}
+        locked={projection.busy}
+        onChange={updateStages}
+      /> : null}
       <CanvasRunSupervisor canvasId={props.canvasId} workflowId={selectedWorkflowId} projection={projection} />
     </aside>
   );

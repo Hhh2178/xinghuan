@@ -21,7 +21,7 @@ describe('workflow region creation', () => {
 
   it('rejects existing membership and overlapping regions', () => {
     const nodes = [{ id: 'node-a', type: 'text', position: { x: 100, y: 100 }, width: 120, height: 80, data: {} }] as Node[];
-    const existing = [{ schemaVersion: 1 as const, id: 'workflow-old', name: 'Old', revision: 1, memberNodeIds: ['node-a'], variables: [], inputValues: {}, bindings: [], region: { x: 0, y: 0, width: 640, height: 420, color: '#2F6B5F' } }];
+    const existing = [{ schemaVersion: 1 as const, id: 'workflow-old', name: 'Old', revision: 1, memberNodeIds: ['node-a'], variables: [], inputValues: {}, bindings: [], stages: [], region: { x: 0, y: 0, width: 640, height: 420, color: '#2F6B5F' } }];
     expect(buildWorkflowRegionFromSelection({ nodes, selectedIds: ['node-a'], workflows: existing, color: '#10B981', newId: () => 'workflow-new' }))
       .toEqual({ ok: false, code: 'MEMBER_CONFLICT', workflowName: 'Old' });
 

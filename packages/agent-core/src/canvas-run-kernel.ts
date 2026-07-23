@@ -14,10 +14,10 @@ const TERMINAL_STEP_STATUSES = new Set<CanvasRunStepStatus>(["succeeded", "faile
 
 export function resolveRunnableCanvasRunSteps(plan: CanvasRunPlan, steps: CanvasRunKernelStep[]) {
   const byNodeId = new Map(steps.map((step) => [step.nodeId, step]));
-  const activeScope = firstIncompleteScope(plan, steps);
-  if (activeScope === null) return [];
+  const activeScopes = firstIncompleteScopes(plan, steps);
+  if (activeScopes.size === 0) return [];
   return steps
-    .filter((step) => scopeKey(step.groupId) === activeScope && step.status === "ready")
+    .filter((step) => activeScopes.has(scopeKey(step.groupId)) && step.status === "ready")
     .filter((step) => {
       const planned = plan.steps.find((candidate) => candidate.nodeId === step.nodeId);
       return (planned?.dependsOn || []).every((nodeId) => {
@@ -35,13 +35,22 @@ export function canvasRunKernelOutcome(steps: CanvasRunKernelStep[]): "running" 
   return "running";
 }
 
-function firstIncompleteScope(plan: CanvasRunPlan, steps: CanvasRunKernelStep[]) {
-  const orderedScopes = [...[...plan.groups].sort((left, right) => left.order - right.order).map((group) => scopeKey(group.id)), scopeKey(null)];
-  for (const scope of orderedScopes) {
-    const scoped = steps.filter((step) => scopeKey(step.groupId) === scope);
-    if (scoped.length > 0 && scoped.some((step) => !TERMINAL_STEP_STATUSES.has(step.status))) return scope;
+function firstIncompleteScopes(plan: CanvasRunPlan, steps: CanvasRunKernelStep[]) {
+  const waves: string[][] = [];
+  for (const group of [...plan.groups].sort((left, right) => left.order - right.order)) {
+    const scope = scopeKey(group.id);
+    if (group.mode === "parallel" && waves.length > 0 && waves[waves.length - 1].every((item) => plan.groups.find((candidate) => scopeKey(candidate.id) === item)?.mode === "parallel")) {
+      waves[waves.length - 1].push(scope);
+    } else {
+      waves.push([scope]);
+    }
   }
-  return null;
+  waves.push([scopeKey(null)]);
+  for (const wave of waves) {
+    const scoped = steps.filter((step) => wave.includes(scopeKey(step.groupId)));
+    if (scoped.length > 0 && scoped.some((step) => !TERMINAL_STEP_STATUSES.has(step.status))) return new Set(wave);
+  }
+  return new Set<string>();
 }
 
 function scopeKey(groupId: string | null) {

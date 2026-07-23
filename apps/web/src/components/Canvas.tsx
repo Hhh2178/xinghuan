@@ -21,7 +21,9 @@ import '@xyflow/react/dist/style.css';
 import {
   isWorkflowBoundaryConnectionAllowed,
   normalizeWorkflowDocuments,
+  normalizeWorkflowStageDefinitions,
   type WorkflowDocument,
+  type WorkflowStageDefinition,
 } from '@xinghuan/shared';
 import {
   AlignCenterHorizontal,
@@ -1242,9 +1244,54 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('penguin:canvas-workflows-changed', {
-      detail: { canvasId: activeId, workflows },
+      detail: { canvasId: activeId, workflows, nodes, edges },
     }));
-  }, [activeId, workflows]);
+  }, [activeId, edges, nodes, workflows]);
+
+  useEffect(() => {
+    let conflictTimer: number | null = null;
+    const clearConflictHighlight = () => {
+      document.querySelectorAll('.workflow-stage-conflict-edge, .workflow-stage-conflict-node')
+        .forEach((element) => element.classList.remove('workflow-stage-conflict-edge', 'workflow-stage-conflict-node'));
+    };
+    const updateWorkflowStages = (event: Event) => {
+      const detail = (event as CustomEvent<{ canvasId?: string; workflowId?: string; stages?: WorkflowStageDefinition[] }>).detail;
+      if (!activeId || detail?.canvasId !== activeId || !detail.workflowId) return;
+      setWorkflows((current) => current.map((workflow) => {
+        if (workflow.id !== detail.workflowId) return workflow;
+        const stages = normalizeWorkflowStageDefinitions(detail.stages, workflow.memberNodeIds);
+        if (JSON.stringify(stages) === JSON.stringify(workflow.stages)) return workflow;
+        return { ...workflow, revision: workflow.revision + 1, stages };
+      }));
+    };
+    const highlightConflict = (event: Event) => {
+      const detail = (event as CustomEvent<{ canvasId?: string; edgeId?: string; source?: string; target?: string }>).detail;
+      if (!activeId || detail?.canvasId !== activeId || !detail.edgeId) return;
+      clearConflictHighlight();
+      const edgeLabel = detail.source && detail.target ? `Edge from ${detail.source} to ${detail.target}` : '';
+      if (edgeLabel) {
+        document.querySelectorAll<HTMLElement>('.react-flow__edge[aria-label]')
+          .forEach((edge) => {
+            if (edge.getAttribute('aria-label') === edgeLabel) edge.classList.add('workflow-stage-conflict-edge');
+          });
+      }
+      [detail.source, detail.target].filter(Boolean).forEach((nodeId) => {
+        document.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')
+          .forEach((node) => {
+            if (node.dataset.id === nodeId) node.classList.add('workflow-stage-conflict-node');
+          });
+      });
+      conflictTimer = window.setTimeout(clearConflictHighlight, 2_500);
+    };
+    window.addEventListener('penguin:update-workflow-stages', updateWorkflowStages);
+    window.addEventListener('penguin:highlight-workflow-stage-conflict', highlightConflict);
+    return () => {
+      if (conflictTimer) window.clearTimeout(conflictTimer);
+      clearConflictHighlight();
+      window.removeEventListener('penguin:update-workflow-stages', updateWorkflowStages);
+      window.removeEventListener('penguin:highlight-workflow-stage-conflict', highlightConflict);
+    };
+  }, [activeId]);
 
   // 选中节点 / 剪贴板
   const [selectedCount, setSelectedCount] = useState(0);

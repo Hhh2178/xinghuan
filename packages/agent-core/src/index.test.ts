@@ -129,6 +129,31 @@ describe("canvas run kernel", () => {
     expect(canvasRunKernelOutcome([{ id: "a", nodeId: "a", groupId: null, sequence: 0, status: "succeeded" }])).toBe("succeeded");
     expect(canvasRunKernelOutcome([{ id: "a", nodeId: "a", groupId: null, sequence: 0, status: "failed" }])).toBe("failed");
   });
+
+  it("releases independent adjacent parallel stages in the same scheduling wave", () => {
+    const parallelPlan = compileCanvasRunPlan({
+      canvasId: "canvas-parallel",
+      ownerId: "owner-1",
+      revision: 1,
+      groups: [
+        { id: "first", order: 0, mode: "parallel" },
+        { id: "second", order: 1, mode: "parallel" },
+        { id: "final", order: 2, mode: "serial" },
+      ],
+      nodes: [
+        { id: "a", type: "image", groupId: "first" },
+        { id: "b", type: "image", groupId: "second" },
+        { id: "c", type: "video", groupId: "final" },
+      ],
+      edges: [],
+    });
+    const runnable = resolveRunnableCanvasRunSteps(parallelPlan, [
+      { id: "step-a", nodeId: "a", groupId: "first", sequence: 0, status: "ready" },
+      { id: "step-b", nodeId: "b", groupId: "second", sequence: 1, status: "ready" },
+      { id: "step-c", nodeId: "c", groupId: "final", sequence: 2, status: "ready" },
+    ]);
+    expect(runnable.map((step) => step.nodeId)).toEqual(["a", "b"]);
+  });
 });
 
 describe("compileCanvasSnapshotRunPlan", () => {

@@ -4,7 +4,7 @@
 
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。当前仍处于本地候选阶段，认证 UI 与 Gray 验收尚未完成。当前事实是：
 
-> 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-3 已在本地完成旧自由链退役、变量领域和 Workflow Region 隔离；尚未部署 Gray，阶段排序、记忆设置、恢复与候选选择仍不能冒充已上线能力。
+> 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-4 已在本地完成旧自由链退役、变量领域、Workflow Region 隔离和确定性阶段执行；尚未部署 Gray，记忆设置、恢复与候选选择仍不能冒充已上线能力。
 
 - 画布助手已替换为全新的深色生产工作台 UI；会话、附件、编写器和消息投影分离，支持图片选择与剪贴板粘贴、节点/工作流/媒体上下文和内部 Agent SSE 响应。
 - 浮动助手在存在活跃画布时默认附带受控的 `当前画布` 工作流卡片。该投影上限为 40 个节点和 80 条连线，包含组顺序、成员、连线、节点类型及已允许的模型/执行配置；Web 与 API 都移除 key、token、secret、cookie、password、authorization 等字段，避免把节点原始 JSON 或敏感参数发送给模型。
@@ -17,6 +17,8 @@
 - migration `037_workflow_region_runs.sql` 前向增加 workflow identity、revision、subgraph hash 与 workflow run scope，并以 owner+canvas+workflow 的 partial unique index 阻止同一 workflow 多 active Run；不同 workflow 可并发。旧 canvas-scoped Run 继续兼容读取。
 - `compileWorkflowSnapshotRunPlan` 只编译请求 workflow 的显式成员，拒绝缺失成员、不完整节点组、普通跨边界边和类型错误的 Workflow Input，并计算不包含位置、尺寸和颜色的 SHA-256 subgraph hash。服务端从 owner-scoped `xh_assets` 解析媒体输入，客户端 URL 不作为权限权威。
 - Supervision Dock 从当前 Canvas `workflows[]` 提供顶层托管目标切换，并为每个 workflow 分别记住 Run ID。创建 Run 时携带 workflow ID，UI 展示 workflow revision，不再把它称为整张 Canvas 的计划。
+- Workflow `stages[]` 由区域内普通 `groupBox` 和显式未分组成员投影，保存稳定 ID、名称、顺序、`serial|parallel` 与 skipped 状态。托管面板只允许在 Run 创建前编辑；逆转跨阶段拓扑依赖会立即拒绝并短暂高亮冲突边和端点，且不会把高亮写入 Canvas edge 数据。
+- Workflow Compiler 将阶段名称、模式、顺序和 skipped 状态写入不可变 Run Plan 与 subgraph hash。连续且独立的 parallel 阶段形成同一 scheduling wave；拓扑依赖仍逐步门控，skipped 阶段不释放步骤。旧 Run 缺少阶段名称/模式时继续按 serial 兼容读取。
 - `@xinghuan/agent-core` 已实现持久化画布快照编译、分组顺序与拓扑校验、输入绑定、运行/步骤/尝试/审批状态机和纯调度内核。
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
@@ -64,6 +66,7 @@
 
 - 领域入口：`packages/agent-core/src/index.ts`
 - Workflow Compiler：`packages/agent-core/src/workflow-compiler.ts`
+- Workflow Stage 领域与 Web 规划：`packages/shared/src/workflow-stages.ts`、`apps/web/src/components/canvas-agent/workflowStagePlanning.ts`
 - Canvas Run Kernel：`packages/agent-core/src/canvas-run-kernel.ts`
 - 输入绑定：`packages/agent-core/src/artifact-binding.ts`
 - 节点执行能力目录：`packages/agent-core/src/node-execution-capabilities.ts`

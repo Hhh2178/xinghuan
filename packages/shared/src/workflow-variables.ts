@@ -1,3 +1,5 @@
+import { normalizeWorkflowStageDefinitions, type WorkflowStageDefinition } from "./workflow-stages.js";
+
 export const WORKFLOW_VARIABLE_TYPES = ["text", "image", "video", "audio", "number", "select"] as const;
 
 export type WorkflowVariableType = typeof WORKFLOW_VARIABLE_TYPES[number];
@@ -76,6 +78,7 @@ export interface WorkflowDocument {
   variables: WorkflowVariableDefinition[];
   inputValues: Record<string, unknown>;
   bindings: WorkflowNodeFieldBinding[];
+  stages: WorkflowStageDefinition[];
   region: WorkflowRegionVisual;
 }
 
@@ -185,6 +188,7 @@ export function normalizeWorkflowDocuments(input: unknown): WorkflowDocument[] {
       variables,
       inputValues,
       bindings,
+      stages: normalizeWorkflowStageDefinitions(raw.stages, memberNodeIds),
       region: normalizeWorkflowRegionVisual(raw.region, index),
     };
   });

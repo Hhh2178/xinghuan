@@ -27,6 +27,7 @@ export interface CanvasRunPlanSection {
   label: string;
   order: number;
   skipped: boolean;
+  mode: 'serial' | 'parallel';
   steps: CanvasRunStepView[];
 }
 
@@ -159,14 +160,15 @@ export function buildCanvasRunPlanSections(run: CanvasRunRecord, views: CanvasRu
     .sort((a, b) => a.order - b.order)
     .map((group) => ({
       id: group.id,
-      label: `分组 ${group.order + 1}`,
+      label: group.name || `分组 ${group.order + 1}`,
       order: group.order,
       skipped: group.skipped,
+      mode: group.mode || 'serial',
       steps: views.filter((view) => view.step.groupId === group.id),
     }))
     .filter((section) => section.steps.length > 0);
   const ungrouped = views.filter((view) => !view.step.groupId);
-  if (ungrouped.length > 0) sections.push({ id: 'ungrouped', label: '未分组步骤', order: sections.length, skipped: false, steps: ungrouped });
+  if (ungrouped.length > 0) sections.push({ id: 'ungrouped', label: '未分组步骤', order: sections.length, skipped: false, mode: 'serial', steps: ungrouped });
   return sections;
 }
 

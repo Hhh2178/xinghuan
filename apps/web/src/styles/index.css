@@ -2206,6 +2206,17 @@ html[data-theme-visual] .t8-canvas-shell::after,
   z-index: 2 !important;
 }
 
+.t8-canvas-shell .react-flow__edge.workflow-stage-conflict-edge path {
+  stroke: #dc2626;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.65));
+}
+
+.t8-canvas-shell .react-flow__node.workflow-stage-conflict-node {
+  outline: 3px solid #dc2626;
+  outline-offset: 4px;
+}
+
 .t8-canvas-shell .react-flow__nodes {
   z-index: 3 !important;
 }
@@ -3977,6 +3988,29 @@ body:has(.canvas-supervision-panel) .agent-assistant-root[data-open='true'] { ri
 .canvas-run-supervisor__options label { display: inline-flex; align-items: center; gap: 7px; color: #b6c2bf; font-size: 13px; line-height: 20px; }
 .canvas-run-supervisor__options input { accent-color: var(--agent-accent); }
 .canvas-run-supervisor__options select { min-width: 110px; height: 32px; border: 1px solid #293331; background: #0c1110; color: #c7d1ce; font-size: 12px; }
+.workflow-stage-editor { border-bottom: 1px solid var(--agent-line); background: #0d1211; }
+.workflow-stage-editor > header { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; color: #cbd7d3; font-size: 13px; line-height: 20px; }
+.workflow-stage-editor > header span { display: inline-flex; align-items: center; gap: 6px; }
+.workflow-stage-editor > header small { color: var(--agent-muted); font-size: 12px; }
+.workflow-stage-editor__list { display: grid; gap: 1px; padding: 0 8px 8px; }
+.workflow-stage-editor__item { min-height: 48px; display: grid; grid-template-columns: 20px 26px minmax(72px, 1fr) auto auto; align-items: center; gap: 6px; padding: 6px; border: 1px solid #24302d; border-radius: 4px; color: #cbd5d2; background: #131918; }
+.workflow-stage-editor__item[draggable='true'] { cursor: grab; }
+.workflow-stage-editor__item[draggable='true']:active { cursor: grabbing; }
+.workflow-stage-editor__item[data-skipped='true'] { opacity: .58; }
+.workflow-stage-editor__grip { display: grid; place-items: center; color: #72817d; }
+.workflow-stage-editor__index { color: var(--agent-accent); font-size: 11px; font-variant-numeric: tabular-nums; }
+.workflow-stage-editor__name { min-width: 0; display: grid; gap: 1px; }
+.workflow-stage-editor__name strong,.workflow-stage-editor__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-stage-editor__name strong { font-size: 12px; line-height: 18px; }
+.workflow-stage-editor__name small { color: var(--agent-muted); font-size: 11px; line-height: 16px; }
+.workflow-stage-editor__mode { height: 28px; display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid #2b3734; border-radius: 4px; overflow: hidden; }
+.workflow-stage-editor__mode button { min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 0 6px; border: 0; border-right: 1px solid #2b3734; color: #899692; background: #0c1110; font-size: 11px; cursor: pointer; }
+.workflow-stage-editor__mode button:last-child { border-right: 0; }
+.workflow-stage-editor__mode button[data-active='true'] { color: #07130f; background: var(--agent-accent); font-weight: 700; }
+.workflow-stage-editor__mode button:disabled { cursor: default; opacity: .65; }
+.workflow-stage-editor__skip { display: inline-flex; align-items: center; gap: 4px; color: #a5b1ae; font-size: 11px; white-space: nowrap; }
+.workflow-stage-editor__skip input { accent-color: var(--agent-accent); }
+.workflow-stage-editor__error { min-height: 34px; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid #4d2926; color: #efa59f; background: #1a1010; font-size: 12px; line-height: 18px; }
 .canvas-run-supervisor__controls { min-height: 46px; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--agent-line); }
 .canvas-run-supervisor__controls button { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid var(--agent-line); border-radius: 4px; color: #c9d5d1; font-size: 12px; line-height: 18px; }
 .canvas-run-supervisor__controls button.is-primary { border-color: var(--agent-accent); color: #04120e; background: var(--agent-accent); font-weight: 800; }

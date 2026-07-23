@@ -18,6 +18,10 @@ import {
   isWorkflowBoundaryConnectionAllowed,
   normalizeWorkflowRegionVisual,
 } from "./workflow-regions.js";
+import {
+  findWorkflowStageOrderConflict,
+  reconcileWorkflowStageDefinitions,
+} from "./workflow-stages.js";
 
 const variables: WorkflowVariableDefinition[] = [
   { id: "var-theme", key: "主题", label: "主题", type: "text", required: true, version: 1, constraints: { minLength: 2, maxLength: 80 }, allowAiFill: false, allowAiRewrite: true },
@@ -246,5 +250,32 @@ describe("workflow variables", () => {
       fieldType: "text",
       binding: { mode: "variable", variableId: "unknown" },
     }] }])).toThrow("WORKFLOW_BINDING_VARIABLE_UNKNOWN:unknown");
+  });
+
+  it("reconciles stable group and ungrouped stages and reports the conflicting edge", () => {
+    const stages = reconcileWorkflowStageDefinitions("workflow-1", [
+      { id: "stage-b", name: "视频", sourceGroupNodeId: "group-b", order: 0, mode: "serial", skipped: false },
+      { id: "stage-a", name: "图片", sourceGroupNodeId: "group-a", order: 1, mode: "parallel", skipped: false },
+    ], [
+      { sourceGroupNodeId: "group-a", name: "图片组", memberNodeIds: ["image"] },
+      { sourceGroupNodeId: "group-b", name: "视频组", memberNodeIds: ["video"] },
+      { sourceGroupNodeId: null, name: "未分组阶段", memberNodeIds: ["output"] },
+    ]);
+
+    expect(stages.map((stage) => [stage.id, stage.sourceGroupNodeId, stage.order, stage.mode])).toEqual([
+      ["stage-b", "group-b", 0, "serial"],
+      ["stage-a", "group-a", 1, "parallel"],
+      ["workflow-stage:workflow-1:ungrouped", null, 2, "serial"],
+    ]);
+    expect(findWorkflowStageOrderConflict(stages, [
+      { nodeId: "image", stageId: "stage-a" },
+      { nodeId: "video", stageId: "stage-b" },
+    ], [{ id: "image-video", source: "image", target: "video" }])).toEqual({
+      edgeId: "image-video",
+      source: "image",
+      target: "video",
+      sourceStageId: "stage-a",
+      targetStageId: "stage-b",
+    });
   });
 });
