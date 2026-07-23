@@ -18,3 +18,10 @@
 
 - Gray only. Production remains `v0.7.18 / 20260722-canvas-revision-observability-prod-r1-v0718` and must not be restarted or reconfigured.
 - GitHub is not pushed.
+
+## Deployment
+
+- Deployed on `2026-07-23` to `/opt/apps/xinghuan-canvas-next/releases/20260723-canvas-agent-governance-gray-r1-v0720`.
+- Applied database migration `035_agent_knowledge_snapshots.sql`; the preceding 34 migrations were already present.
+- Switched `current` to this release and restarted both `xinghuan-canvas-next.service` and `xinghuan-canvas-next-worker.service`.
+- Retained `20260722-canvas-agent-runtime-gray-r1-v0719` as the verified rollback release.

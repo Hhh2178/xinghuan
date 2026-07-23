@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.20`
 - 当前 release：`20260723-canvas-agent-governance-gray-r1-v0720`
-- 当前状态：`Canvas Agent Governance 候选：双入口、安全 Markdown、不可变知识快照、结构化 Admin 治理和发布配置运行时解析；部署与 Gray 回归进行中`
+- 当前状态：`Canvas Agent Governance v0.7.20 已部署；公网/内网状态、API/Worker、知识快照迁移与回滚点验证通过，等待认证视觉和真实业务验收`
 - 当前补修：`LLM 路由在创建、审核、发布和运行四层拒绝生成模型；Tool Gateway 执行平台 deny、每 Run 上限、revision、budget 和审批约束`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 本轮制品源提交：`e9cf212`

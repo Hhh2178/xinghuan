@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-- 版本：`v0.7.20`
-- release：`20260723-canvas-agent-governance-gray-r1-v0720`
-  - 状态：`内部 Canvas Agent Runtime 已部署；持久化 Canvas Run、LLM 路由、质量选择与恢复治理由 Gray API/Worker 托管，真实 5 路并发任务通过`
-  - 当前补修：`助手自动附带经脱敏的当前画布上下文；协作内容不再覆盖托管 Tab；每环境最多保留 5 个 release，Gray 当前有 4 个且没有删除`
-  - 本轮制品源提交：`40953b4`
+  - 版本：`v0.7.20`
+  - release：`20260723-canvas-agent-governance-gray-r1-v0720`
+  - 状态：`Canvas Agent Governance 已部署；API/Worker、知识快照迁移、公网/内网状态和回滚点验证通过`
+  - 当前补修：`双入口、安全 Markdown/reasoning、不可变 Knowledge Snapshot、Admin 结构化治理、发布配置运行时解析，以及 LLM 路由和 Tool Gateway 运行时约束`
+  - 本轮制品源提交：`e9cf212`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
