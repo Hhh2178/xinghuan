@@ -1,3 +1,5 @@
+import type { WorkflowFieldBinding } from '@xinghuan/shared';
+
 export type WorkflowTokenPresentationSegment = {
   kind: 'text' | 'token';
   value: string;
@@ -53,4 +55,30 @@ export function workflowVariableErrorMessage(error: string | null) {
   if (code === 'WORKFLOW_VARIABLE_KEY_RESERVED') return `变量名称“${detail || ''}”不可使用`;
   if (code === 'WORKFLOW_VARIABLE_KEY_REQUIRED') return '变量名称不能为空';
   return '变量配置无效，请检查名称、类型和约束';
+}
+
+export function initialTextVariableBinding(
+  mode: 'variable' | 'template',
+  text: string,
+  variableId: string,
+  variableKey: string,
+): { source: string; binding: WorkflowFieldBinding } | null {
+  if (mode === 'variable') {
+    return {
+      source: `##${variableKey}##`,
+      binding: { mode: 'variable', variableId },
+    };
+  }
+  if (text.includes('##')) return null;
+  const prefix = text ? `${text} ` : '';
+  return {
+    source: `${prefix}##${variableKey}##`,
+    binding: {
+      mode: 'template',
+      segments: [
+        ...(prefix ? [{ kind: 'text' as const, value: prefix }] : []),
+        { kind: 'variable', variableId, key: variableKey },
+      ],
+    },
+  };
 }

@@ -5141,7 +5141,7 @@ html[data-theme-visual="pixel"] .t8-context-menu__node-icon {
   background: rgba(15, 23, 42, 0.78);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .t8-topbar {
     position: relative;
     z-index: 132;

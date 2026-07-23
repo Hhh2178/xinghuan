@@ -11,7 +11,6 @@ import {
 import type { Node } from '@xyflow/react';
 import {
   assertWorkflowRegionLayout,
-  normalizeWorkflowVariableName,
   normalizeWorkflowRegionVisual,
   parseWorkflowTextTemplate,
   renameWorkflowVariableToken,
@@ -28,6 +27,7 @@ import {
   expandWorkflowRegionToIncludeNodes,
   workflowRegionAroundNodes,
 } from './workflowRegionCreation';
+import { nextWorkflowVariableName } from './workflowVariableNaming';
 
 interface CanvasWorkflowContextValue {
   workflows: WorkflowDocument[];
@@ -183,7 +183,7 @@ export function CanvasWorkflowProvider({
     setWorkflows((current) => current.map((workflow) => {
       if (workflow.id !== workflowId) return workflow;
       const baseName = (name || variableTypeLabel(type)).trim();
-      const key = uniqueVariableName(workflow.variables, baseName);
+      const key = nextWorkflowVariableName(workflow.variables, baseName);
       const variable: WorkflowVariableDefinition = {
         id,
         key,
@@ -345,14 +345,6 @@ function newStableId(prefix: string) {
 
 function variableTypeLabel(type: WorkflowVariableType) {
   return ({ text: '文本', image: '图像', video: '视频', audio: '音频', number: '数字', select: '选项' } as const)[type];
-}
-
-function uniqueVariableName(variables: WorkflowVariableDefinition[], baseName: string) {
-  const names = new Set(variables.map((variable) => normalizeWorkflowVariableName(variable.key)));
-  if (!names.has(normalizeWorkflowVariableName(baseName))) return baseName;
-  let suffix = 2;
-  while (names.has(normalizeWorkflowVariableName(`${baseName} ${suffix}`))) suffix += 1;
-  return `${baseName} ${suffix}`;
 }
 
 function bindingVariableIds(binding: WorkflowFieldBinding) {

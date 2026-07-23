@@ -10,7 +10,8 @@ import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { useCanvasWorkflows } from '../canvas/CanvasWorkflowContext';
 import { WorkflowTokenEditor } from '../canvas/WorkflowTokenEditor';
 import { WorkflowBadge, WorkflowMembershipControl, WorkflowVariableValues } from '../canvas/WorkflowVariableControls';
-import { workflowVariableErrorMessage } from '../canvas/workflowTokenPresentation';
+import { initialTextVariableBinding, workflowVariableErrorMessage } from '../canvas/workflowTokenPresentation';
+import { nextWorkflowVariableName } from '../canvas/workflowVariableNaming';
 
 /**
  * 文本节点 - 提示词输入
@@ -77,8 +78,15 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
       return;
     }
     const textVariable = workflow.variables.find((variable) => variable.type === 'text');
-    const variableId = textVariable?.id || workflowController.addVariable(workflow.id, 'text', '文本输入');
-    const variableKey = textVariable?.key || '文本输入';
+    const variableKey = textVariable?.key || nextWorkflowVariableName(workflow.variables, '文本输入');
+    const variableId = textVariable?.id || workflowController.addVariable(workflow.id, 'text', variableKey);
+    const initialBinding = textVariable ? null : initialTextVariableBinding(mode, text, variableId, variableKey);
+    if (initialBinding) {
+      workflowController.setFieldBinding(workflow.id, id, 'prompt', 'text', initialBinding.binding);
+      update({ prompt: initialBinding.source });
+      setTemplateError(null);
+      return;
+    }
     if (mode === 'variable') {
       workflowController.setFieldBinding(workflow.id, id, 'prompt', 'text', { mode: 'variable', variableId });
       update({ prompt: `##${variableKey}##` });
