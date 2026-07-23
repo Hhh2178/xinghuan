@@ -56,6 +56,46 @@ describe("workflow compiler", () => {
     expect(plan.steps[0].configuration?.executionPayload).not.toHaveProperty("textSplitFavorites");
   });
 
+  it("freezes the explicit smart candidate selector policy without transient UI state", () => {
+    const plan = compileCanvasSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 9,
+      data: {
+        nodes: [{
+          id: "selector-1",
+          type: "smart-candidate-selector",
+          data: {
+            selectorMediaKind: "video",
+            selectorMode: "ai",
+            selectorMaximum: 2,
+            selectorMinimumConfidence: 0.82,
+            selectorLowConfidencePolicy: "request_manual",
+            selectorNote: "Keep character identity and the complete building.",
+            previewSelection: ["browser-only"],
+          },
+        }],
+        edges: [],
+      },
+    });
+
+    expect(plan.steps[0]).toMatchObject({
+      nodeType: "smart-candidate-selector",
+      configuration: {
+        serverRuntime: "native_server",
+        smartCandidateSelector: {
+          mediaKind: "video",
+          mode: "ai",
+          maximum: 2,
+          minimumConfidence: 0.82,
+          lowConfidencePolicy: "request_manual",
+          note: "Keep character identity and the complete building.",
+        },
+      },
+    });
+    expect(JSON.stringify(plan.steps[0].configuration)).not.toContain("browser-only");
+  });
+
   it("locks a bounded RunningHub execution reference without browser metadata or secrets", () => {
     const plan = compileCanvasSnapshotRunPlan({
       canvasId: "canvas-1",

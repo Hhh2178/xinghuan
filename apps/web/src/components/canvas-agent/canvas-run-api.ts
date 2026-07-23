@@ -80,6 +80,27 @@ export interface CanvasRunEvent {
   createdAt: number;
 }
 
+export interface PendingCanvasRunCandidateSelection {
+  runId: string;
+  stepId: string;
+  nodeId: string;
+  mediaKind: 'image' | 'video';
+  maximum: number;
+  criteria: string;
+  note: string;
+  candidates: Array<{
+    artifactId: string;
+    mediaKind: 'image' | 'video';
+    fileUrl: string;
+    sourceNodeId: string;
+    prompt: string;
+    variableSnapshot: Record<string, unknown>;
+    providerId: string;
+    modelRecordId: string;
+    createdAt: number;
+  }>;
+}
+
 export type CanvasRunCommand = 'start' | 'pause' | 'resume' | 'cancel' | 'retry';
 
 async function readResponse<T>(response: Response): Promise<T> {
@@ -195,6 +216,29 @@ export async function decideCanvasRunApproval(runId: string, approvalId: string,
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
+  }));
+}
+
+export async function readCanvasRunCandidateSelections(runId: string) {
+  const result = await readResponse<{ items: PendingCanvasRunCandidateSelection[] }>(await fetch(
+    `/api/canvas-runs/${encodeURIComponent(runId)}/candidate-selections`,
+    { credentials: 'same-origin' },
+  ));
+  return result.items;
+}
+
+export async function selectCanvasRunCandidates(runId: string, stepId: string, selectedArtifactIds: string[]) {
+  return readResponse<{
+    runId: string;
+    stepId: string;
+    selectionId: string;
+    selectedArtifactIds: string[];
+    notSelectedArtifactIds: string[];
+  }>(await fetch(`/api/canvas-runs/${encodeURIComponent(runId)}/candidate-selections/${encodeURIComponent(stepId)}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ selectedArtifactIds, idempotencyKey: crypto.randomUUID() }),
   }));
 }
 

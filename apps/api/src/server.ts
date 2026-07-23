@@ -192,6 +192,7 @@ import type { CanvasRunRecord } from "./canvas-run-repository.js";
 import { createCanvasRunService } from "./canvas-run-service.js";
 import { resolveCanvasRunPlanModelReferences } from "./canvas-run-model-preflight.js";
 import { canvasRunErrorStatus, createCanvasRunRouteHandler } from "./canvas-run-routes.js";
+import { createCanvasRunCandidateSelectionService } from "./canvas-run-candidate-selection.js";
 import { createAgentRunRepository } from "./agent-run-repository.js";
 import { createAgentKnowledgeSnapshotRepository } from "./agent-knowledge-snapshot-repository.js";
 import { createAgentRuntimeConfigurationRepository } from "./agent-runtime-configuration-repository.js";
@@ -450,6 +451,7 @@ const canvasRunService = createCanvasRunService({
   assertStartablePlan: assertCanvasRunStartablePlan,
   resolvePlanModelReferences: resolveCanvasRunModels,
 });
+const canvasRunCandidateSelectionService = createCanvasRunCandidateSelectionService({ getPostgresPool });
 const handleCanvasRunRoutes = createCanvasRunRouteHandler({
   sendT8,
   createRun: async (input) => {
@@ -462,6 +464,11 @@ const handleCanvasRunRoutes = createCanvasRunRouteHandler({
   readWorkflowSettings: canvasRunService.readWorkflowSettings,
   saveWorkflowSettings: canvasRunService.saveWorkflowSettings,
   resetWorkflowSettings: canvasRunService.resetWorkflowSettings,
+  readCandidateSelections: canvasRunCandidateSelectionService.readPending,
+  selectCandidates: async (input) => {
+    await assertAgentRuntimeCapability("canvasRunsEnabled");
+    return canvasRunCandidateSelectionService.selectManual(input);
+  },
   commandRun: async (input) => {
     if (!["pause", "cancel"].includes(input.command)) await assertAgentRuntimeCapability("canvasRunsEnabled");
     return canvasRunService.commandRun(input);

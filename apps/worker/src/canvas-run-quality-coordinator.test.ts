@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { createCanvasRunQualityCoordinator, parseQualityEvaluationContent, qualityContextForCompletedStep } from "./canvas-run-quality-coordinator.js";
+import { normalizeContext } from "./canvas-run-quality-support.js";
 
 describe("canvas run quality coordinator", () => {
   it("starts quality work only for enabled multi-candidate image or video steps", () => {
@@ -51,6 +52,63 @@ describe("canvas run quality coordinator", () => {
     });
 
     expect(evaluation).toMatchObject({ artifactId: "artifact-a", overallScore: 75, confidence: 0.9, passed: true });
+  });
+
+  it("preserves selector-specific alignment scores and frozen context", () => {
+    const evaluation = parseQualityEvaluationContent({
+      content: JSON.stringify({
+        technicalValidity: 90,
+        promptAlignment: 80,
+        composition: 70,
+        visualQuality: 60,
+        variableAlignment: 85,
+        noteAlignment: 75,
+        summary: "Wide framing keeps the requested building.",
+        defects: [],
+        evidence: ["complete facade"],
+        confidence: 0.88,
+      }),
+      artifactId: "artifact-a",
+      mediaKind: "image",
+      smartCandidate: true,
+      profile: {
+        id: "image-default",
+        version: 2,
+        mediaKind: "image",
+        minimumOverallScore: 70,
+        minimumConfidence: 0.8,
+        weights: { technicalValidity: 1, promptAlignment: 1, composition: 1, visualQuality: 1 },
+      },
+    });
+    expect(evaluation).toMatchObject({
+      variableAlignment: 85,
+      noteAlignment: 75,
+      summary: "Wide framing keeps the requested building.",
+    });
+    expect(normalizeContext({
+      artifactIds: ["artifact-a", "artifact-b"],
+      mediaKind: "image",
+      goal: "wide city",
+      selectionPolicy: "best",
+      selectionMaximum: 1,
+      selectionMinimumScore: 0,
+      currentIndex: 1,
+      evaluations: [{
+        evaluationId: "evaluation-a",
+        artifactId: "artifact-a",
+        fileUrl: "/a.png",
+        createdAt: 1,
+        overallScore: 80,
+        confidence: 0.88,
+        variableAlignment: 85,
+        noteAlignment: 75,
+        summary: "Wide framing keeps the requested building.",
+      }],
+      smartCandidateSelector: { mode: "ai", minimumConfidence: 0.8, candidates: [{ artifactId: "artifact-a" }] },
+    })).toMatchObject({
+      evaluations: [{ variableAlignment: 85, noteAlignment: 75, summary: "Wide framing keeps the requested building." }],
+      smartCandidateSelector: { mode: "ai", minimumConfidence: 0.8 },
+    });
   });
 
   it("requires the video-specific score dimensions", () => {
@@ -113,5 +171,15 @@ describe("canvas run quality coordinator", () => {
     expect(source).toMatch(/claimHalfOpenProbe\(client, routeCandidate\.entryId/);
     expect(source).toMatch(/await releaseHalfOpenProbe\(client, context\)/);
     expect(source).toMatch(/xh_llm_route_entry_probe_leases/);
+  });
+
+  it("settles smart selection through confidence and run-scoped candidate ledgers", () => {
+    const source = readFileSync(new URL("./canvas-run-quality-coordinator.ts", import.meta.url), "utf8");
+    expect(source).toMatch(/resolveSmartCandidateSelection/);
+    expect(source).toMatch(/status = 'selecting'.*candidate_context/s);
+    expect(source).toMatch(/xh_canvas_run_candidate_artifacts/);
+    expect(source).toMatch(/["']not_selected["']/);
+    expect(source).toMatch(/skipped_by_selection/);
+    expect(source).toMatch(/canvas_run\.candidate_selection_completed/);
   });
 });

@@ -58,6 +58,16 @@ describe("deterministic Canvas Run nodes", () => {
   });
 
   it("only declares explicitly implemented deterministic nodes server-native", () => {
-    expect(NATIVE_DETERMINISTIC_NODE_TYPES).toEqual(new Set(["text", "upload", "material-set", "pick-from-set", "relay", "output", "text-split"]));
+    expect(NATIVE_DETERMINISTIC_NODE_TYPES).toEqual(new Set([
+      "text",
+      "upload",
+      "material-set",
+      "pick-from-set",
+      "relay",
+      "output",
+      "text-split",
+      "workflow-input",
+      "workflow-output",
+    ]));
   });
 });

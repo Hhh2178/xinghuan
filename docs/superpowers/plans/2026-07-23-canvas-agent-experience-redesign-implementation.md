@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-5 已完成；Phase 5 已实现 workflow 运行总览、四层监督设置解析、owner+canvas+workflow 记忆、仅下一次 Run 覆盖、不可变设置来源/裁剪快照、按节点重试和阶段并发，并完成桌面/窄屏真实浏览器验收。Phase 6 恢复运行时进入进行中。Phase 2 的窄屏 Canvas shell 结果仍是已知失败，留待 Phase 8/10 修复；Phase 5 仅确认托管与设置面板在 `390x844` 内无溢出，不把完整移动 Canvas shell 计为通过。
+当前状态：Phase 0-7 已在本地完成。Phase 7 已交付独立候选门、终态屏障、服务端 provenance、人工/AI Top K、低置信度转人工/停止、候选与 Selection 审计和仅派发前裁剪，并完成桌面真实浏览器验收。Phase 8 悬浮助手与响应式 Canvas shell 进入下一阶段。Phase 2/7 的 `390x844` 结果均证明现有顶栏和固定侧栏挤占 Canvas；该问题必须在 Phase 8/10 修复并重验，不能用单个面板或节点局部截图代替完整窄屏通过。
 
 ## 执行原则
 

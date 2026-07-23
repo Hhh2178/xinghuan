@@ -21,16 +21,19 @@ const files = {
   knowledgeMigration: await read("apps/api/db/035_agent_knowledge_snapshots.sql"),
   workerLeaseMigration: await read("apps/api/db/030_canvas_run_worker_leases.sql"),
   recoveryRuntimeMigration: await read("apps/api/db/039_canvas_run_recovery_runtime.sql"),
+  candidateSelectorMigration: await read("apps/api/db/040_smart_candidate_selector.sql"),
   compiler: await read("packages/agent-core/src/workflow-compiler.ts"),
   kernel: await read("packages/agent-core/src/canvas-run-kernel.ts"),
   nodeCapabilities: await read("packages/agent-core/src/node-execution-capabilities.ts"),
   knowledgeCore: await read("packages/agent-core/src/knowledge-snapshot.ts"),
   toolCatalog: await read("packages/agent-core/src/agent-tool-catalog.ts"),
   deterministicRuntime: await read("packages/agent-core/src/deterministic-node-runtime.ts"),
+  candidateSelectorCore: await read("packages/agent-core/src/smart-candidate-selector.ts"),
   repository: await read("apps/api/src/canvas-run-repository.ts"),
   service: await read("apps/api/src/canvas-run-service.ts"),
   modelPreflight: await read("apps/api/src/canvas-run-model-preflight.ts"),
   routes: await read("apps/api/src/canvas-run-routes.ts"),
+  candidateSelectionApi: await read("apps/api/src/canvas-run-candidate-selection.ts"),
   orchestrator: await read("apps/api/src/agent-orchestrator.ts"),
   agentRunRepository: await read("apps/api/src/agent-run-repository.ts"),
   knowledgeRepository: await read("apps/api/src/agent-knowledge-snapshot-repository.ts"),
@@ -47,11 +50,15 @@ const files = {
   workerCoordinator: await read("apps/worker/src/canvas-run-coordinator.ts"),
   workerRecoveryRuntime: await read("apps/worker/src/canvas-run-recovery-runtime.ts"),
   workerRecoveryStore: await read("apps/worker/src/canvas-run-recovery-store.ts"),
+  workerCandidateSelector: await read("apps/worker/src/canvas-run-candidate-selector.ts"),
+  workerQualityCoordinator: await read("apps/worker/src/canvas-run-quality-coordinator.ts"),
   workerEntry: await read("apps/worker/src/worker.ts"),
   webApp: await read("apps/web/src/App.tsx"),
   assistantShell: await read("apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx"),
   supervisionDock: await read("apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx"),
   nodeRegistry: await read("apps/web/src/config/nodeRegistry.ts"),
+  candidateSelectorNode: await read("apps/web/src/components/nodes/SmartCandidateSelectorNode.tsx"),
+  candidateSelectionPanel: await read("apps/web/src/components/canvas-agent/CanvasCandidateSelectionPanel.tsx"),
   legacyAssistantRuntime: await readMany([
     "apps/api/src/server.ts",
     "apps/api/src/settings-repository.ts",
@@ -122,6 +129,27 @@ assert.match(files.workerRecoveryRuntime, /mergeCanvasRunRecoveryOverrides/, "di
 assert.match(files.workerRecoveryStore, /insert into xh_recovery_decisions/, "Worker recovery must write the Recovery Decision ledger");
 assert.match(files.workerRecoveryStore, /p\.role = 'recovery'.*p\.scenario = 'prompt-review-rewrite'/s, "prompt rewrites must use a published governed recovery route");
 assert.match(files.workerRecoveryStore, /input_before_snapshot.*input_after_snapshot.*diff_snapshot/s, "prompt rewrite decisions must retain before, after and bounded diff evidence");
+assert.match(files.candidateSelectorMigration, /xh_canvas_run_candidate_artifacts/, "candidate selection must use a run-scoped artifact ledger");
+assert.match(files.candidateSelectorMigration, /candidate.*selected.*not_selected/s, "candidate ledger must distinguish selected and not-selected artifacts");
+assert.match(files.candidateSelectorMigration, /selection_mode.*manual.*ai/s, "selection audit must record manual versus AI mode");
+assert.match(files.candidateSelectorMigration, /owner_id, idempotency_key/, "manual selection commands must be idempotent per owner");
+assert.match(files.candidateSelectorCore, /resolveSmartCandidateBarrier/, "smart selector must keep an explicit completion barrier");
+assert.match(files.candidateSelectorCore, /SMART_CANDIDATE_MEDIA_KIND_MISMATCH/, "smart selector must reject mixed media candidates");
+assert.match(files.candidateSelectorCore, /SMART_CANDIDATE_MANUAL_SELECTION_INVALID/, "manual selection must be checked against frozen candidates and Top K");
+assert.doesNotMatch(files.deterministicRuntime, /smart-candidate-selector/, "smart selector must remain a governed workflow gate rather than a deterministic picker alias");
+assert.match(files.workerCandidateSelector, /for update of s, r skip locked/, "selector initialization must atomically claim the Step and Run");
+assert.match(files.workerCandidateSelector, /candidate_context/, "selector initialization must freeze server-owned provenance");
+assert.match(files.workerCandidateSelector, /SMART_CANDIDATE_SELECTOR_MEDIA_KIND_MISMATCH/, "selector runtime must match candidates against the frozen media mode");
+assert.match(files.workerQualityCoordinator, /variableAlignment.*noteAlignment/s, "AI selection must evaluate variable and user-note alignment");
+assert.match(files.workerQualityCoordinator, /status in \('blocked', 'ready'\)/, "selection pruning must not cancel dispatched or running work");
+assert.match(files.candidateSelectionApi, /r\.owner_id = \$2.*for update of r, s/s, "manual selection must lock an owner-scoped Run and selector Step");
+assert.match(files.candidateSelectionApi, /for update of r, s[\s\S]*idempotency_key = \$2/, "manual replay must be checked after the Run and Step lock");
+assert.match(files.candidateSelectionApi, /sameIds\(replaySelectedArtifactIds, requestedArtifactIds\)/, "manual replay must reject a changed selected-artifact set");
+assert.match(files.candidateSelectionApi, /selection_mode.*manual/s, "manual overrides must be written to the selection ledger");
+assert.match(files.routes, /candidate-selections/, "Canvas Run routes must expose governed candidate read and selection commands");
+assert.match(files.candidateSelectorNode, /selectorMediaKind.*selectorMode.*selectorMaximum.*selectorMinimumConfidence/s, "selector node must expose media, mode, Top K and confidence controls");
+assert.match(files.candidateSelectorNode, /criteria-text/, "selector node must expose a separate criteria port");
+assert.match(files.candidateSelectionPanel, /readCanvasRunCandidateSelections.*selectCanvasRunCandidates/s, "supervision UI must read frozen candidates and submit through the owner-scoped API");
 assert.match(files.workerEntry, /XINGHUAN_CANVAS_RUN_WORKER_ENABLED/, "Canvas Run Worker consumer must have an explicit environment gate");
 
 for (const table of ["xh_agent_definitions", "xh_agent_runs", "xh_agent_actions", "xh_llm_route_pools", "xh_llm_route_pool_versions", "xh_llm_route_entries", "xh_llm_route_entry_health", "xh_llm_route_decisions"]) {

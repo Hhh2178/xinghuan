@@ -30,6 +30,7 @@ const REQUIRED_INITIAL_DATA = {
   "comfyui-app-maker": { label: "ComfyUI maker defaults", patterns: [/comfyMakerTitle:/, /comfyMakerWorkflowRaw:\s*''/] },
   loop: { label: "loop defaults", patterns: [/mode:\s*'serial'/, /kind:\s*'image'/] },
   "pick-from-set": { label: "pick defaults", patterns: [/pickKind:\s*'image'/, /pickIndex:\s*1/] },
+  "smart-candidate-selector": { label: "governed selector defaults", patterns: [/selectorMediaKind:\s*'image'/, /selectorMode:\s*'manual'/, /selectorMaximum:\s*1/, /selectorLowConfidencePolicy:\s*'request_manual'/] },
   "image-compare": { label: "compare defaults", patterns: [/mode:\s*'slider'/, /split:\s*50/] },
   "drawing-board": { label: "drawing board defaults", patterns: [/boardRatio:\s*'16:9'/, /boardElements:\s*\[\]/] },
   "grid-crop": { label: "grid crop defaults", patterns: [/rows:\s*3/, /cols:\s*3/] },
@@ -69,7 +70,7 @@ for (const node of registryTypes) {
   checkNode(node, "port declaration", hasPortDeclaration(portText, node.type));
 }
 
-check("groupBox has explicit component mapping", canvasText.includes("nodeTypes.groupBox = withNodeSerialBadge(GroupBoxNode)"));
+check("groupBox has explicit component mapping", /nodeTypes\.groupBox\s*=\s*withNodeSerialBadge\(GroupBoxNode/.test(canvasText));
 check("groupBox has explicit port declaration", hasPortDeclaration(portText, "groupBox"));
 check("bulkPhantom has explicit component mapping", canvasText.includes("nodeTypes.bulkPhantom = BulkPhantomNode"));
 
@@ -167,6 +168,9 @@ function extractRegistryNodes(text) {
 function hasSpecificNodeMapping(text, type) {
   if (type === "rh-toolbox-maker") {
     return text.includes("'rh-toolbox-maker': RHToolboxMakerDevNode");
+  }
+  if (type === "group-execution-manager") {
+    return /nodeTypes\[GROUP_EXECUTION_MANAGER_NODE_TYPE\]\s*=\s*withNodeSerialBadge\(GroupExecutionManagerNode/.test(text);
   }
   return hasObjectKey(text, "SPECIFIC_NODES", type);
 }

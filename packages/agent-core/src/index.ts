@@ -10,4 +10,5 @@ export * from "./node-execution-capabilities.js";
 export * from "./llm-routing.js";
 export * from "./knowledge-snapshot.js";
 export * from "./failure-recovery.js";
+export * from "./smart-candidate-selector.js";
 export * from "./workflow-compiler.js";

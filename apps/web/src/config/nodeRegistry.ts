@@ -65,6 +65,7 @@ export const NODE_REGISTRY: NodeMeta[] = [
   { type: 'loop', label: '循环器', category: 'utility', description: '接多个同类型素材，串联逐个驱动或并联克隆子图同时跱发下游生成节点', icon: 'Repeat', color: 'orange' },
   // 从合集获取 (v1.2.8): 多素材 → 按序号取单个传给下游
   { type: 'pick-from-set', label: '从合集获取', category: 'utility', description: '从上游多素材中按序号取出单一素材，kind 可在节点内切换', icon: 'Filter', color: 'orange' },
+  { type: 'smart-candidate-selector', label: '智能候选选择器', category: 'utility', description: '在候选素材与下游之间执行人工或 AI 选择门', icon: 'ListChecks', color: 'teal' },
   { type: 'text-split', label: '文本分割', category: 'utility', description: '将长提示词/分镜按段落、行、智能分镜、正则、自定义分隔符或字数切成多段文本，支持收藏与循环器链路', icon: 'SplitSquareVertical', color: 'orange' },
   { type: 'code', label: '代码', category: 'utility', description: '使用受控 Python 代码处理上游数据，支持节点内预设保存、切换与覆盖', icon: 'Code2', color: 'orange' },
   { type: 'resize', label: '图像尺寸调整', category: 'utility', description: '调整图片尺寸；视频需先经过抽帧节点', icon: 'Maximize2', color: 'orange' },

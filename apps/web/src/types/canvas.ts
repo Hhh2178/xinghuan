@@ -38,6 +38,7 @@ export type NodeType =
   | 'frame-pair'
   | 'loop'
   | 'pick-from-set'
+  | 'smart-candidate-selector'
   | 'text-split'
   | 'code'
   | 'resize'

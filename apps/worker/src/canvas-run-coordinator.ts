@@ -6,6 +6,7 @@ import type { RedisClientType } from 'redis';
 import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator.js';
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from './canvas-run-dispatch-fairness.js';
 import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas-run-recovery-runtime.js';
+import { initializeSmartCandidateSelector } from './canvas-run-candidate-selector.js';
 import {
   type CanvasRunRecoveryStepRow,
   findCanvasRunPromptRewriteRoute,
@@ -65,6 +66,7 @@ export function createCanvasRunCoordinator(options: {
         await settleCompletedTasks();
         await releaseDueRetries();
         await enqueuePendingDispatches();
+        await initializeSmartCandidateSelector({ pool: options.pool, appendEvent });
         await claimReadyStep();
       }
       await wait(pollIntervalMs);
@@ -319,6 +321,7 @@ export function createCanvasRunCoordinator(options: {
            select r.owner_id
            from xh_canvas_run_steps s join xh_canvas_runs r on r.id = s.run_id
            where r.status in ('queued', 'running') and s.status = 'ready'
+             and s.node_type <> 'smart-candidate-selector'
              and (s.lease_expires_at is null or s.lease_expires_at < now())
              and (
                select count(*) from xh_canvas_run_steps active_steps
@@ -334,6 +337,7 @@ export function createCanvasRunCoordinator(options: {
          from xh_canvas_run_steps s join xh_canvas_runs r on r.id = s.run_id
          join next_owner on next_owner.owner_id = r.owner_id
          where r.status in ('queued', 'running') and s.status = 'ready'
+           and s.node_type <> 'smart-candidate-selector'
            and (s.lease_expires_at is null or s.lease_expires_at < now())
            and (
              select count(*) from xh_canvas_run_steps active_steps
@@ -502,7 +506,14 @@ export function createCanvasRunCoordinator(options: {
     await options.pool.query(`update xh_canvas_run_steps set dispatch_enqueued_at = now(), updated_at = now() where ${stepId ? 'id = $1' : 'task_id = $1'}`, [stepId || taskId]);
   }
 
-  return { run, stop, tick: async () => { await resumeApprovalDecisions(); await settleCompletedTasks(); await releaseDueRetries(); await enqueuePendingDispatches(); await claimReadyStep(); } };
+  return { run, stop, tick: async () => {
+    await resumeApprovalDecisions();
+    await settleCompletedTasks();
+    await releaseDueRetries();
+    await enqueuePendingDispatches();
+    await initializeSmartCandidateSelector({ pool: options.pool, appendEvent });
+    await claimReadyStep();
+  } };
 }
 
 async function runtimeEnabled(pool: Pool, environment: string) {

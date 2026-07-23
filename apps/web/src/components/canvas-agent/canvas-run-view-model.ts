@@ -2,7 +2,10 @@ import type { CanvasRunEvent, CanvasRunPlanStep, CanvasRunRecord, CanvasRunStatu
 
 export type CanvasRunStepViewStatus =
   | 'waiting'
+  | 'candidate_wait'
   | 'running'
+  | 'evaluating'
+  | 'selecting'
   | 'retrying'
   | 'approval'
   | 'succeeded'
@@ -54,7 +57,10 @@ export const CANVAS_RUN_STATUS_LABEL: Record<CanvasRunStatus, string> = {
 
 export const CANVAS_RUN_STEP_STATUS_LABEL: Record<CanvasRunStepViewStatus, string> = {
   waiting: '等待',
+  candidate_wait: '等待候选',
   running: '运行中',
+  evaluating: 'AI 评估中',
+  selecting: '待人工选择',
   retrying: '重试中',
   approval: '待审批',
   succeeded: '已完成',
@@ -63,10 +69,12 @@ export const CANVAS_RUN_STEP_STATUS_LABEL: Record<CanvasRunStepViewStatus, strin
 };
 
 const STEP_STATUS_BY_EVENT: Array<[RegExp, CanvasRunStepViewStatus]> = [
-  [/step_(?:succeeded)|quality_selection_completed$/, 'succeeded'],
+  [/step_(?:succeeded)|quality_selection_completed$|candidate_selection_completed$/, 'succeeded'],
   [/step_(?:failed|unsupported|model_unavailable)|budget_exceeded|quality_failed$/, 'failed'],
   [/step_(?:cancelled|skipped)$/, 'skipped'],
   [/step_approval_requested$/, 'approval'],
+  [/(?:candidate_selection_waiting|candidate_selection_manual_required)$/, 'selecting'],
+  [/candidate_evaluation_started$/, 'evaluating'],
   [/(?:step_retry_scheduled|step_recovery_scheduled|prompt_rewrite_(?:started|applied))$/, 'retrying'],
   [/step_(?:dispatched)|quality_(?:evaluation_started|evaluation_dispatched|artifact_evaluated)$/, 'running'],
 ];
@@ -94,7 +102,9 @@ function eventStatus(event: CanvasRunEvent): CanvasRunStepViewStatus | null {
     if (status === 'failed' || status === 'cancelled') return status === 'failed' ? 'failed' : 'skipped';
     if (status === 'awaiting_approval') return 'approval';
     if (status === 'ready' || status === 'blocked') return 'waiting';
-    if (status === 'queued' || status === 'running' || status === 'evaluating') return 'running';
+    if (status === 'selecting') return 'selecting';
+    if (status === 'evaluating') return 'evaluating';
+    if (status === 'queued' || status === 'running') return 'running';
   }
   return STEP_STATUS_BY_EVENT.find(([pattern]) => pattern.test(event.eventType))?.[1] || null;
 }
@@ -111,7 +121,7 @@ export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunE
   return run.planSnapshot.steps.map((step) => {
     const configuration = object(step.configuration);
     const stepEvents = events.filter((event) => eventMatchesStep(event, step)).sort((a, b) => a.sequence - b.sequence);
-    let status: CanvasRunStepViewStatus = step.skipped ? 'skipped' : 'waiting';
+    let status: CanvasRunStepViewStatus = step.skipped ? 'skipped' : step.nodeType === 'smart-candidate-selector' ? 'candidate_wait' : 'waiting';
     let attempt = 0;
     let provider = firstText(configuration, ['providerName', 'providerId', 'providerKey']);
     let model = firstText(configuration, ['modelName', 'modelId', 'modelRecordId', 'modelKey']);
@@ -140,6 +150,12 @@ export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunE
         const selected = Array.isArray(event.payload.selectedArtifactIds) ? event.payload.selectedArtifactIds.length : 0;
         const rejected = Array.isArray(event.payload.rejectedArtifactIds) ? event.payload.rejectedArtifactIds.length : 0;
         qualityEvidence = `选中 ${selected} · 淘汰 ${rejected}`;
+      }
+      if (event.eventType === 'canvas_run.candidate_selection_completed') {
+        const selected = Array.isArray(event.payload.selectedArtifactIds) ? event.payload.selectedArtifactIds.length : 0;
+        const rejected = Array.isArray(event.payload.notSelectedArtifactIds) ? event.payload.notSelectedArtifactIds.length : 0;
+        const confidence = typeof event.payload.confidence === 'number' ? ` · ${Math.round(event.payload.confidence * 100)}%` : ' · 人工';
+        qualityEvidence = `选中 ${selected} · 未选 ${rejected}${confidence}`;
       }
       if (event.eventType === 'canvas_run.step_retry_scheduled') {
         recoveryEvidence = firstText(event.payload, ['strategy']) || recoveryEvidence || '同配置重试';
@@ -250,6 +266,9 @@ export function canvasRunEventLabel(eventType: string): string {
     'prompt_rewrite_applied': '提示词审核改写已应用',
     'quality_evaluation_started': '开始质量评估', 'quality_evaluation_dispatched': '质量评估已派发',
     'quality_selection_completed': '质量选择完成', succeeded: '运行已完成', failed: '运行失败',
+    'candidate_selection_waiting': '等待人工选择', 'candidate_evaluation_started': 'AI 候选评估已开始',
+    'candidate_selection_manual_required': '低置信度转人工', 'candidate_selection_manual_override': '人工选择已覆盖',
+    'candidate_selection_completed': '候选选择完成', 'step_skipped_by_selection': '未选候选下游已裁剪',
   };
   return labels[suffix] || suffix.replaceAll('_', ' ');
 }

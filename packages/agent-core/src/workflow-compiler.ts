@@ -376,7 +376,19 @@ function extractNodeExecutionConfiguration(value: unknown, nodeType: string): Re
     selectionPolicy: qualitySelectionPolicy(data.agentSelectionPolicy),
     selectionMaximum: positiveInteger(data.agentSelectionMaximum, 1, 16),
     selectionMinimumScore: boundedNumber(data.agentSelectionMinimumScore, 0, 100),
+    ...(nodeType === "smart-candidate-selector" ? { smartCandidateSelector: smartCandidateSelectorSnapshot(data) } : {}),
     ...(isRunningHubNode(nodeType) ? { runningHub: runningHubExecutionSnapshot(data) } : {}),
+  };
+}
+
+function smartCandidateSelectorSnapshot(data: Record<string, unknown>) {
+  return {
+    mediaKind: data.selectorMediaKind === "video" ? "video" : "image",
+    mode: data.selectorMode === "ai" ? "ai" : "manual",
+    maximum: positiveInteger(data.selectorMaximum, 1, 8),
+    minimumConfidence: boundedNumber(data.selectorMinimumConfidence, 0, 1),
+    lowConfidencePolicy: data.selectorLowConfidencePolicy === "stop" ? "stop" : "request_manual",
+    note: stringValue(data.selectorNote).slice(0, 2_000),
   };
 }
 

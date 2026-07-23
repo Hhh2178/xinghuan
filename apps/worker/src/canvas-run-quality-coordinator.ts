@@ -4,6 +4,7 @@ import {
   nextLlmRouteState,
   routeLlmCandidates,
   routeVideoUnderstandingCandidates,
+  resolveSmartCandidateSelection,
   selectArtifactCandidates,
   type ArtifactEvaluationResult,
   type ArtifactMediaKind,
@@ -61,6 +62,7 @@ interface QualityStepRow extends QueryResultRow {
   quality_task_id: string | null;
   quality_dispatch_enqueued_at: Date | null;
   quality_context: Record<string, unknown>;
+  candidate_context?: Record<string, unknown>;
   quality_task_status?: string | null;
   quality_task_result?: Record<string, unknown> | null;
 }
@@ -97,7 +99,8 @@ export function parseQualityEvaluationContent(input: {
   mediaKind: ArtifactMediaKind;
   profile: ArtifactQualityProfile;
   sampledTimestampsMs?: number[];
-}): ArtifactEvaluationResult {
+  smartCandidate?: boolean;
+}): ArtifactEvaluationResult & { variableAlignment?: number; noteAlignment?: number; summary?: string } {
   const parsed = JSON.parse(extractJsonObject(input.content));
   const common = {
     artifactId: input.artifactId,
@@ -109,7 +112,7 @@ export function parseQualityEvaluationContent(input: {
     evidence: strings(parsed.evidence).slice(0, 50),
     confidence: parsed.confidence,
   };
-  return evaluateArtifactQuality(input.mediaKind === "image"
+  const evaluation = evaluateArtifactQuality(input.mediaKind === "image"
     ? { mediaKind: "image", ...common }
     : {
       mediaKind: "video",
@@ -119,6 +122,19 @@ export function parseQualityEvaluationContent(input: {
       keyframeConsistency: parsed.keyframeConsistency,
       sampledTimestampsMs: input.sampledTimestampsMs || [],
     }, input.profile);
+  if (!input.smartCandidate) return evaluation;
+  return {
+    ...evaluation,
+    variableAlignment: selectorScore(parsed.variableAlignment, "variableAlignment"),
+    noteAlignment: selectorScore(parsed.noteAlignment, "noteAlignment"),
+    summary: text(parsed.summary).slice(0, 1_000) || "No visible selection summary.",
+  };
+}
+
+function selectorScore(value: unknown, key: string) {
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 0 || score > 100) throw new Error(`SMART_CANDIDATE_SCORE_INVALID:${key}`);
+  return score;
 }
 
 export function createCanvasRunQualityCoordinator(options: {
@@ -212,6 +228,7 @@ export function createCanvasRunQualityCoordinator(options: {
       mediaKind: context.mediaKind,
       profile,
       sampledTimestampsMs: context.sampledTimestampsMs,
+      smartCandidate: Boolean(context.smartCandidateSelector),
     });
     const artifact = await readOwnedArtifact(client, step.owner_id, artifactId, context.mediaKind);
     const evaluationId = `artifact_evaluation_${randomUUID()}`;
@@ -241,8 +258,17 @@ export function createCanvasRunQualityCoordinator(options: {
       artifactId,
       fileUrl: artifact.file_url,
       createdAt: new Date(artifact.created_at).getTime(),
-      overallScore: evaluation.overallScore,
+      overallScore: context.smartCandidateSelector
+        ? Math.round(((evaluation.technicalValidity + evaluation.promptAlignment + evaluation.visualQuality
+          + Number(evaluation.variableAlignment) + Number(evaluation.noteAlignment)) / 5) * 100) / 100
+        : evaluation.overallScore,
       confidence: evaluation.confidence,
+      technicalValidity: evaluation.technicalValidity,
+      promptAlignment: evaluation.promptAlignment,
+      visualQuality: evaluation.visualQuality,
+      variableAlignment: evaluation.variableAlignment,
+      noteAlignment: evaluation.noteAlignment,
+      summary: evaluation.summary,
     }];
     const nextContext: QualityContext = {
       ...context,
@@ -333,32 +359,110 @@ export function createCanvasRunQualityCoordinator(options: {
   }
 
   async function finalizeSelection(client: PoolClient, step: QualityStepRow, context: QualityContext) {
-    const selection = selectArtifactCandidates({
+    const selector = object(context.smartCandidateSelector);
+    const smartCandidates = Array.isArray(selector.candidates) ? selector.candidates.map(object).map((candidate) => ({
+      artifactId: text(candidate.artifactId),
+      mediaKind: candidate.mediaKind === "video" ? "video" as const : "image" as const,
+      fileUrl: text(candidate.fileUrl),
+      sourceNodeId: text(candidate.sourceNodeId),
+      prompt: text(candidate.prompt),
+      variableSnapshot: object(candidate.variableSnapshot),
+      providerId: text(candidate.providerId),
+      modelRecordId: text(candidate.modelRecordId),
+      createdAt: Number(candidate.createdAt),
+    })) : [];
+    const smartResult = context.smartCandidateSelector ? resolveSmartCandidateSelection({
+      mode: "ai",
+      maximum: boundedInteger(selector.maximum, 1, 8, 1),
+      minimumConfidence: boundedNumber(selector.minimumConfidence, 0, 1, 0),
+      lowConfidencePolicy: selector.lowConfidencePolicy === "stop" ? "stop" : "request_manual",
+      candidates: smartCandidates,
+      evaluations: context.evaluations.map((evaluation) => ({
+        artifactId: evaluation.artifactId,
+        technicalValidity: Number(evaluation.technicalValidity),
+        promptAlignment: Number(evaluation.promptAlignment),
+        visualQuality: Number(evaluation.visualQuality),
+        variableAlignment: Number(evaluation.variableAlignment),
+        noteAlignment: Number(evaluation.noteAlignment),
+        overallScore: evaluation.overallScore,
+        confidence: evaluation.confidence,
+        summary: evaluation.summary || "No visible selection summary.",
+      })),
+    }) : null;
+    if (smartResult?.state === "awaiting_manual") {
+      const candidateContext = { ...selector, evaluations: context.evaluations, transferReason: smartResult.reason, aiConfidence: smartResult.confidence };
+      await client.query(
+        `update xh_canvas_run_steps set status = 'selecting', candidate_context = $2::jsonb,
+          quality_task_id = null, quality_dispatch_enqueued_at = null, quality_context = '{}'::jsonb,
+          lease_owner = null, lease_expires_at = null, updated_at = now() where id = $1`,
+        [step.id, JSON.stringify(candidateContext)],
+      );
+      await appendEvent(client, step.run_id, step.id, "canvas_run.candidate_selection_manual_required", {
+        candidateCount: smartResult.candidateArtifactIds.length,
+        reason: smartResult.reason,
+        confidence: smartResult.confidence,
+      });
+      return;
+    }
+    if (smartResult?.state === "stopped") {
+      await failQualityStep(client, step, "SMART_CANDIDATE_LOW_CONFIDENCE");
+      return;
+    }
+    const automaticSelection = selectArtifactCandidates({
       policy: context.selectionPolicy,
       maximum: context.selectionMaximum,
       minimumScore: context.selectionMinimumScore,
       candidates: context.evaluations.map((item) => ({ artifactId: item.artifactId, createdAt: item.createdAt })),
       evaluations: context.evaluations.map((item) => ({ artifactId: item.artifactId, overallScore: item.overallScore, confidence: item.confidence })),
     });
+    const selection = smartResult?.state === "selected" ? {
+      policy: context.selectionMaximum === 1 ? "best" as const : "top_k" as const,
+      executionMode: smartResult.selectedArtifactIds.length <= 1 ? "single" as const : "batch" as const,
+      selectedArtifactIds: smartResult.selectedArtifactIds,
+      rejectedArtifactIds: smartResult.rejectedArtifactIds,
+      reason: smartResult.reason,
+      confidence: smartResult.confidence,
+    } : automaticSelection;
     const selectionId = `artifact_selection_${randomUUID()}`;
+    const bindingKey = context.smartCandidateSelector ? "smartCandidateSelection" : QUALITY_BINDING_KEY;
     await client.query(
       `insert into xh_artifact_selections
         (id, owner_id, canvas_run_id, run_step_id, binding_key, policy, source_artifact_ids, selected_artifact_ids,
-         rejected_artifact_ids, evaluation_ids, reason, confidence, evaluator_version, binding_snapshot)
-       values ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13,$14::jsonb)
+         rejected_artifact_ids, evaluation_ids, reason, confidence, evaluator_version, binding_snapshot,
+         selection_mode, criteria_snapshot, note_snapshot, candidate_snapshot, score_snapshot, selected_at)
+       values ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13,$14::jsonb,
+         $15,$16::jsonb,$17,$18::jsonb,$19::jsonb,now())
        on conflict (run_step_id, binding_key) do nothing`,
-      [selectionId, step.owner_id, step.run_id, step.id, QUALITY_BINDING_KEY, selection.policy,
+      [selectionId, step.owner_id, step.run_id, step.id, bindingKey, selection.policy,
         JSON.stringify(context.artifactIds), JSON.stringify(selection.selectedArtifactIds), JSON.stringify(selection.rejectedArtifactIds),
         JSON.stringify(context.evaluations.map((item) => item.evaluationId)), selection.reason, selection.confidence,
-        context.profileKey || "published-default", JSON.stringify({ executionMode: selection.executionMode })],
+        context.profileKey || "published-default", JSON.stringify({ executionMode: selection.executionMode }),
+        context.smartCandidateSelector ? "ai" : null,
+        JSON.stringify({ text: text(selector.criteria) }),
+        text(selector.note),
+        JSON.stringify(smartCandidates),
+        JSON.stringify(context.evaluations)],
     );
     const selectedSet = new Set(selection.selectedArtifactIds);
     const selected = context.evaluations.filter((item) => selectedSet.has(item.artifactId));
+    if (context.smartCandidateSelector) {
+      for (const evaluation of context.evaluations) {
+        await client.query(
+          `update xh_canvas_run_candidate_artifacts
+           set selection_status = $3, score_snapshot = $4::jsonb, updated_at = now()
+           where run_step_id = $1 and artifact_id = $2`,
+          [step.id, evaluation.artifactId, selectedSet.has(evaluation.artifactId) ? "selected" : "not_selected", JSON.stringify(evaluation)],
+        );
+      }
+    }
     const output = {
       ...object(step.output_binding),
       generationArtifactIds: selection.selectedArtifactIds,
       imageUrls: context.mediaKind === "image" ? selected.map((item) => item.fileUrl) : [],
       videoUrls: context.mediaKind === "video" ? selected.map((item) => item.fileUrl) : [],
+      ...(context.smartCandidateSelector ? {
+        selectedCandidates: smartCandidates.filter((candidate) => selectedSet.has(candidate.artifactId)),
+      } : {}),
       qualitySelection: {
         selectionId,
         policy: selection.policy,
@@ -379,6 +483,29 @@ export function createCanvasRunQualityCoordinator(options: {
       selectedArtifactIds: selection.selectedArtifactIds,
       rejectedArtifactIds: selection.rejectedArtifactIds,
     });
+    if (context.smartCandidateSelector) {
+      const skipped = await client.query<{ id: string }>(
+        `update xh_canvas_run_steps set status = 'skipped',
+          error = '{"code":"skipped_by_selection"}'::jsonb, finalized_at = now(), updated_at = now()
+         where run_id = $1 and status in ('blocked', 'ready')
+           and input_binding->>'candidateArtifactId' = any($2::text[])
+         returning id`,
+        [step.run_id, selection.rejectedArtifactIds],
+      );
+      for (const skippedStep of skipped.rows) {
+        await appendEvent(client, step.run_id, skippedStep.id, "canvas_run.step_skipped_by_selection", {
+          selectorStepId: step.id,
+          rejectedArtifactIds: selection.rejectedArtifactIds,
+        });
+      }
+      await appendEvent(client, step.run_id, step.id, "canvas_run.candidate_selection_completed", {
+        selectionId,
+        selectedArtifactIds: selection.selectedArtifactIds,
+        notSelectedArtifactIds: selection.rejectedArtifactIds,
+        reason: selection.reason,
+        confidence: selection.confidence,
+      });
+    }
     await appendEvent(client, step.run_id, step.id, "canvas_run.step_succeeded", { taskId: step.quality_task_id, qualitySelectionId: selectionId });
     await unlockDependents(client, step.run_id);
     await finalizeRunIfComplete(client, step.run_id);
@@ -502,7 +629,7 @@ export function createCanvasRunQualityCoordinator(options: {
       const actionId = await appendAgentAction(client, step.owner_id, agentRunId, routeCandidate, artifactId, routed.videoInputMode);
       await recordRouteDecision(client, step, routed, routeCandidate, agentRunId, artifactId);
       const taskId = `task-${randomUUID()}`;
-      const messages = qualityMessages(context.mediaKind, context.goal, artifactId, prepared, samples.map((sample) => sample.timestampMs), routed.videoInputMode);
+      const messages = qualityMessages(context.mediaKind, context.goal, artifactId, prepared, samples.map((sample) => sample.timestampMs), routed.videoInputMode, Boolean(context.smartCandidateSelector));
       const nativeVideo = context.mediaKind === "video" && routed.videoInputMode === "native_video"
         ? { artifactId, fileUrl: artifact.file_url, mimeType: artifact.mime || "video/mp4" }
         : undefined;

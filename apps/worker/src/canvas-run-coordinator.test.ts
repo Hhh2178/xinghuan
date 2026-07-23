@@ -113,6 +113,12 @@ describe('canvas run coordinator', () => {
     expect(source).toMatch(/for update of s, r skip locked/i);
   });
 
+  it('routes the explicit smart selector before the generation claim', () => {
+    const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(/initializeSmartCandidateSelector\(\{ pool: options\.pool, appendEvent \}\)/);
+    expect(source).toMatch(/s\.node_type <> 'smart-candidate-selector'/);
+  });
+
   it('settles a native deterministic text step without creating a Provider task', async () => {
     const harness = coordinatorHarness({ nodeType: 'text', prompt: 'server-owned prompt' });
     const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
@@ -226,6 +232,7 @@ function coordinatorHarness(options: {
   });
   const clientQuery = vi.fn(async (sql: string, params?: unknown[]) => {
     if (sql === 'begin' || sql === 'commit' || sql === 'rollback') return { rows: [] };
+    if (sql.includes("s.node_type = 'smart-candidate-selector'") && sql.includes('for update')) return { rows: [] };
     if (sql.includes('insert into xh_canvas_run_dispatch_cursors')) return { rows: [] };
     if (sql.includes('from xh_canvas_run_dispatch_cursors') && sql.includes('for update')) return { rows: [{ last_owner_id: state.lastOwnerId }] };
     if (sql.includes('update xh_canvas_run_dispatch_cursors')) {

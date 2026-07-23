@@ -38,7 +38,14 @@ export interface QualityContext {
     createdAt: number;
     overallScore: number;
     confidence: number;
+    technicalValidity?: number;
+    promptAlignment?: number;
+    visualQuality?: number;
+    variableAlignment?: number;
+    noteAlignment?: number;
+    summary?: string;
   }>;
+  smartCandidateSelector?: Record<string, unknown>;
   routeArtifactId?: string;
   routeCandidates?: LlmRouteCandidate[];
   routeOrderedEntryIds?: string[];
@@ -102,10 +109,13 @@ export function qualitySamples(artifact: QualityArtifactRow) {
   }).slice(0, 12);
 }
 
-export function qualityMessages(mediaKind: ArtifactMediaKind, goal: string, artifactId: string, dataUrls: string[], timestamps: number[], inputMode?: QualityContext["videoInputMode"]) {
-  const schema = mediaKind === "image"
+export function qualityMessages(mediaKind: ArtifactMediaKind, goal: string, artifactId: string, dataUrls: string[], timestamps: number[], inputMode?: QualityContext["videoInputMode"], smartCandidate = false) {
+  const baseSchema = mediaKind === "image"
     ? { technicalValidity: 0, promptAlignment: 0, composition: 0, visualQuality: 0, defects: [""], evidence: [""], confidence: 0 }
     : { technicalValidity: 0, promptAlignment: 0, composition: 0, visualQuality: 0, temporalCoherence: 0, motionQuality: 0, keyframeConsistency: 0, defects: [""], evidence: [""], confidence: 0 };
+  const schema = smartCandidate
+    ? { ...baseSchema, variableAlignment: 0, noteAlignment: 0, summary: "" }
+    : baseSchema;
   return [{
     role: "user",
     content: [
@@ -138,7 +148,14 @@ export function normalizeContext(value: unknown): QualityContext {
     evaluations: Array.isArray(row.evaluations) ? row.evaluations.map(object).flatMap((item) => text(item.artifactId) ? [{
       evaluationId: text(item.evaluationId), artifactId: text(item.artifactId), fileUrl: text(item.fileUrl),
       createdAt: Number(item.createdAt), overallScore: Number(item.overallScore), confidence: Number(item.confidence),
+      technicalValidity: Number.isFinite(Number(item.technicalValidity)) ? Number(item.technicalValidity) : undefined,
+      promptAlignment: Number.isFinite(Number(item.promptAlignment)) ? Number(item.promptAlignment) : undefined,
+      visualQuality: Number.isFinite(Number(item.visualQuality)) ? Number(item.visualQuality) : undefined,
+      variableAlignment: Number.isFinite(Number(item.variableAlignment)) ? Number(item.variableAlignment) : undefined,
+      noteAlignment: Number.isFinite(Number(item.noteAlignment)) ? Number(item.noteAlignment) : undefined,
+      summary: text(item.summary) || undefined,
     }] : []) : [],
+    smartCandidateSelector: Object.keys(object(row.smartCandidateSelector)).length ? object(row.smartCandidateSelector) : undefined,
     routeArtifactId: text(row.routeArtifactId) || undefined,
     routeCandidates: Array.isArray(row.routeCandidates) ? row.routeCandidates as LlmRouteCandidate[] : undefined,
     routeOrderedEntryIds: strings(row.routeOrderedEntryIds),

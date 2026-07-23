@@ -84,4 +84,23 @@ describe("canvas run migration", () => {
     expect(sql).toMatch(/recovery_attempt_no integer/i);
     expect(sql).toMatch(/'rewrite_prompt_for_review'/i);
   });
+
+  it("adds a run-scoped smart candidate ledger without changing global artifact lifecycle", async () => {
+    const sql = await readFile(new URL("../db/040_smart_candidate_selector.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/add column if not exists candidate_context jsonb not null default '\{\}'::jsonb/i);
+    expect(sql).toMatch(/create table if not exists xh_canvas_run_candidate_artifacts/i);
+    expect(sql).toMatch(/run_step_id text not null references xh_canvas_run_steps/i);
+    expect(sql).toMatch(/artifact_id text not null references xh_generation_artifacts/i);
+    expect(sql).toMatch(/selection_status text not null check \(selection_status in \('candidate', 'selected', 'not_selected'\)\)/i);
+    expect(sql).toMatch(/provenance_snapshot jsonb not null/i);
+    expect(sql).toMatch(/unique \(run_step_id, artifact_id\)/i);
+    expect(sql).toMatch(/add column if not exists selection_mode text/i);
+    expect(sql).toMatch(/add column if not exists candidate_snapshot jsonb not null/i);
+    expect(sql).toMatch(/add column if not exists score_snapshot jsonb not null/i);
+    expect(sql).toMatch(/add column if not exists overridden_by_user_id text references xh_users/i);
+    expect(sql).toMatch(/add column if not exists idempotency_key text/i);
+    expect(sql).toMatch(/on xh_artifact_selections\(owner_id, idempotency_key\)/i);
+    expect(sql).not.toMatch(/alter table xh_generation_artifacts[\s\S]*not_selected/i);
+  });
 });

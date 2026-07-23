@@ -63,6 +63,8 @@ describe('canvas run supervision view model', () => {
     expect(canvasRunEventLabel('canvas_run.step_retry_scheduled')).toBe('步骤准备重试');
     expect(canvasRunEventLabel('canvas_run.step_recovery_scheduled')).toBe('步骤恢复已安排');
     expect(canvasRunEventLabel('canvas_run.prompt_rewrite_applied')).toBe('提示词审核改写已应用');
+    expect(canvasRunEventLabel('canvas_run.candidate_selection_waiting')).toBe('等待人工选择');
+    expect(canvasRunEventLabel('canvas_run.candidate_selection_completed')).toBe('候选选择完成');
     expect(canvasRunBudgetItems(run.budgetSnapshot)).toEqual([
       { label: '任务上限', value: '8' },
       { label: '时长上限', value: '90 秒' },

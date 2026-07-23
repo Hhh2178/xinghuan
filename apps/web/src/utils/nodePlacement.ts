@@ -60,6 +60,7 @@ export const NODE_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   'penguin-portrait': { w: 320, h: 380 },
   loop: { w: 320, h: 240 },
   'pick-from-set': { w: 280, h: 200 },
+  'smart-candidate-selector': { w: 320, h: 390 },
   'text-split': { w: 760, h: 520 },
   code: { w: 560, h: 560 },
   resize: { w: 280, h: 220 },

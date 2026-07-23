@@ -23,6 +23,8 @@ export function createCanvasRunRouteHandler(deps: {
   commandRun: (input: { ownerId: string; runId: string; command: CanvasRunCommand; idempotencyKey: string; request?: Record<string, unknown> }) => Promise<CanvasRunRecord>;
   listWorkflowRuns?: (input: { ownerId: string; canvasId: string }) => Promise<CanvasRunRecord[]>;
   decideApproval?: (input: { ownerId: string; runId: string; approvalId: string; decision: "approved" | "rejected"; reason?: string }) => Promise<unknown>;
+  readCandidateSelections?: (input: { ownerId: string; runId: string }) => Promise<unknown>;
+  selectCandidates?: (input: { ownerId: string; runId: string; stepId: string; selectedArtifactIds: string[]; idempotencyKey: string }) => Promise<unknown>;
   readWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string }) => Promise<unknown>;
   saveWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string; settings: Record<string, unknown> }) => Promise<unknown>;
   resetWorkflowSettings?: (input: { ownerId: string; canvasId: string; workflowId: string }) => Promise<unknown>;
@@ -76,6 +78,27 @@ export function createCanvasRunRouteHandler(deps: {
         approvalId: decodeURIComponent(approvalMatch[2]),
         decision: approvalMatch[3] === "approve" ? "approved" : "rejected",
         reason: typeof body.reason === "string" ? body.reason.trim().slice(0, 1000) : undefined,
+      }));
+      return true;
+    }
+    const candidateSelectionMatch = url.pathname.match(/^\/api\/canvas-runs\/([^/]+)\/candidate-selections(?:\/([^/]+))?$/);
+    if (candidateSelectionMatch && request.method === "GET" && !candidateSelectionMatch[2] && deps.readCandidateSelections) {
+      deps.sendT8(response, { items: await deps.readCandidateSelections({
+        ownerId: currentUser.id,
+        runId: decodeURIComponent(candidateSelectionMatch[1]),
+      }) });
+      return true;
+    }
+    if (candidateSelectionMatch && request.method === "POST" && candidateSelectionMatch[2] && deps.selectCandidates) {
+      const body = await readJsonBody<Record<string, unknown>>(request);
+      const selectedArtifactIds = stringArray(body.selectedArtifactIds);
+      if (selectedArtifactIds.length === 0) throw deps.invalidRequest("selectedArtifactIds 无效");
+      deps.sendT8(response, await deps.selectCandidates({
+        ownerId: currentUser.id,
+        runId: decodeURIComponent(candidateSelectionMatch[1]),
+        stepId: decodeURIComponent(candidateSelectionMatch[2]),
+        selectedArtifactIds,
+        idempotencyKey: requiredText(body.idempotencyKey, "idempotencyKey", deps.invalidRequest),
       }));
       return true;
     }
@@ -183,6 +206,7 @@ export function canvasRunErrorStatus(error: unknown) {
   if (code === "CANVAS_RUN_DISABLED" || code === "CANVAS_RUN_POSTGRES_REQUIRED" || code.includes("AGENT_RUNTIME_CAPABILITY_DISABLED")) return 503;
   if (code === "CANVAS_RUN_PLAN_EMPTY" || code.startsWith("WORKFLOW_")) return 422;
   if (code.includes("CANVAS_RUN_LEGACY_NODE_UNSUPPORTED")) return 422;
+  if (code.includes("SMART_CANDIDATE_MANUAL_SELECTION") || code.includes("SMART_CANDIDATE_LEDGER_MISMATCH")) return 422;
   return 500;
 }
 
@@ -205,6 +229,14 @@ function runScopeValue(value: unknown, invalidRequest: (message: string) => Erro
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function stringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.flatMap((item) => {
+    const text = typeof item === "string" ? item.trim() : "";
+    return text && text.length <= 200 ? [text] : [];
+  }))];
 }
 
 function numericQuery(url: URL, key: string, fallback: number) {

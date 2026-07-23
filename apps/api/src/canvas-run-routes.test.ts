@@ -132,6 +132,45 @@ describe("canvas run routes", () => {
     expect(sendT8).toHaveBeenCalledWith(expect.anything(), { id: "approval-1", status: "approved" });
   });
 
+  it("reads and applies owner-scoped manual candidate selections", async () => {
+    const readCandidateSelections = vi.fn(async () => [{ stepId: "step-1" }]);
+    const selectCandidates = vi.fn(async () => ({ stepId: "step-1", selectedArtifactIds: ["artifact-2"] }));
+    const sendT8 = vi.fn();
+    const handler = createCanvasRunRouteHandler({
+      sendT8,
+      createRun: vi.fn(),
+      readRun: vi.fn(),
+      readEvents: vi.fn(),
+      commandRun: vi.fn(),
+      readCandidateSelections,
+      selectCandidates,
+      invalidRequest: (message) => new Error(message),
+    });
+
+    await handler({
+      request: request("GET"),
+      response: {} as any,
+      url: new URL("http://localhost/api/canvas-runs/run-1/candidate-selections"),
+      currentUser: { id: "owner-1" },
+    });
+    await handler({
+      request: request("POST", { selectedArtifactIds: ["artifact-2", "artifact-2"], idempotencyKey: "selection-command-1", ownerId: "attacker" }),
+      response: {} as any,
+      url: new URL("http://localhost/api/canvas-runs/run-1/candidate-selections/step-1"),
+      currentUser: { id: "owner-1" },
+    });
+
+    expect(readCandidateSelections).toHaveBeenCalledWith({ ownerId: "owner-1", runId: "run-1" });
+    expect(selectCandidates).toHaveBeenCalledWith({
+      ownerId: "owner-1",
+      runId: "run-1",
+      stepId: "step-1",
+      selectedArtifactIds: ["artifact-2"],
+      idempotencyKey: "selection-command-1",
+    });
+    expect(sendT8).toHaveBeenCalledWith(expect.anything(), { items: [{ stepId: "step-1" }] });
+  });
+
   it("reads, saves, and resets workflow settings for the authenticated owner", async () => {
     const readWorkflowSettings = vi.fn(async () => ({ workflowId: "workflow-1", settings: { defaultRetryCount: 2 } }));
     const saveWorkflowSettings = vi.fn(async () => ({ workflowId: "workflow-1", settings: { defaultRetryCount: 5 } }));

@@ -44,6 +44,7 @@ const DEV_NODE_PORTS: Record<string, NodePorts> = import.meta.env?.DEV ? {
  * 与 features.json 节点清单严格对齐
  */
 export const NODE_PORTS: Record<string, NodePorts> = {
+  'workflow-variables': { inputs: [], outputs: [] },
   'workflow-input': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   'workflow-output': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   // ========== Core ==========
@@ -105,6 +106,7 @@ export const NODE_PORTS: Record<string, NodePorts> = {
   loop: { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   // 从合集获取 (v1.2.8): 从上游集合中选中单一素材 → 输出按 kind 变化
   'pick-from-set': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
+  'smart-candidate-selector': { inputs: ['text', 'image', 'video'], outputs: ['image', 'video'] },
   // 文本分割: 长文本/上游文本 → 多段 textSegments, 下游按多文本集合消费
   'text-split': { inputs: ['text'], outputs: ['text'] },
   code: { inputs: ['text', 'image', 'video', 'audio', 'any'], outputs: ['any'] },
@@ -115,6 +117,7 @@ export const NODE_PORTS: Record<string, NodePorts> = {
   'grid-crop': { inputs: ['image'], outputs: ['image'] },
   'grid-editor': { inputs: ['image'], outputs: ['image'] },
   'group-execution-manager': { inputs: [], outputs: ['any'] },
+  'canvas-agent': { inputs: [], outputs: [] },
 
   // ========== Auxiliary ==========
   edit: { inputs: ['text', 'image'], outputs: ['image'] },
@@ -159,6 +162,10 @@ export function getNodeInputs(node: Node | null | undefined): PortType[] {
   if (node.type === 'workflow-input' || node.type === 'workflow-output') {
     const portType = (node.data as any)?.portType;
     return ['text', 'image', 'video', 'audio'].includes(portType) ? [portType as PortType] : ['text'];
+  }
+  if (node.type === 'smart-candidate-selector') {
+    const mediaKind = (node.data as any)?.selectorMediaKind === 'video' ? 'video' : 'image';
+    return [mediaKind, 'text'];
   }
   const ports = NODE_PORTS[node.type];
   return ports?.inputs ?? [];
@@ -208,6 +215,9 @@ export function getNodeOutputs(node: Node | null | undefined): PortType[] {
   if (node.type === 'workflow-input' || node.type === 'workflow-output') {
     const portType = (node.data as any)?.portType;
     return ['text', 'image', 'video', 'audio'].includes(portType) ? [portType as PortType] : ['text'];
+  }
+  if (node.type === 'smart-candidate-selector') {
+    return [(node.data as any)?.selectorMediaKind === 'video' ? 'video' : 'image'];
   }
 
   const ports = NODE_PORTS[node.type];

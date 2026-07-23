@@ -189,6 +189,7 @@ import FrameExtractorNode from './nodes/FrameExtractorNode';
 import FramePairNode from './nodes/FramePairNode';
 const LoopNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LoopNode')));
 import PickFromSetNode from './nodes/PickFromSetNode';
+import SmartCandidateSelectorNode from './nodes/SmartCandidateSelectorNode';
 const TextSplitNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/TextSplitNode')));
 const CodeNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/CodeNode')));
 import LabelNode from './nodes/LabelNode';
@@ -287,6 +288,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   'frame-pair': FramePairNode,
   loop: LazyLoopNode,
   'pick-from-set': PickFromSetNode,
+  'smart-candidate-selector': SmartCandidateSelectorNode,
   'text-split': LazyTextSplitNode,
   code: withLazyNode(CodeNode),
   'material-set': MaterialSetNode,
@@ -686,6 +688,14 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
   loop: { mode: 'serial', kind: 'image', outputs: [], progress: { done: 0, total: 0, ok: 0, fail: 0 } },
   // 从合集获取: 默认 image + 第 1 个
   'pick-from-set': { pickKind: 'image', pickIndex: 1 },
+  'smart-candidate-selector': {
+    selectorMediaKind: 'image',
+    selectorMode: 'manual',
+    selectorMaximum: 1,
+    selectorMinimumConfidence: 0.7,
+    selectorLowConfidencePolicy: 'request_manual',
+    selectorNote: '',
+  },
   'image-compare': { mode: 'slider', align: 'contain', split: 50, opacity: 50, threshold: 24 },
   'drawing-board': { boardRatio: '16:9', boardWidth: 960, boardHeight: 540, boardElements: [], boardColor: '#111827', boardStrokeSize: 5 },
   'grid-crop': { rows: 3, cols: 3, gap: 0 },
@@ -2952,7 +2962,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     // v1.2.9.9: 'loop' 也加入 — 循环器自身不产出最终结果 (累积已由下游 EXEC→OutputNode 链路接管),
     //          autoOutput 若给 LoopNode 自动建 OutputNode 会让用户看到 “循环器自己生了 N 个素材” 的错误体验。
     // PoseMaster 自己负责写入单张/合集 OutputNode；通用 autoOutput 再处理会把批量合集拆出重复单体。
-    const SKIP_TYPES = new Set(['output', 'groupBox', 'bulkPhantom', 'upload', 'material-set', 'pick-from-set', 'loop', 'pose-master']);
+    const SKIP_TYPES = new Set(['output', 'groupBox', 'bulkPhantom', 'upload', 'material-set', 'pick-from-set', 'smart-candidate-selector', 'loop', 'pose-master']);
 
     const toAddNodes: Node[] = [];
     const toAddEdges: Edge[] = [];

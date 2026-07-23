@@ -3,6 +3,7 @@ import type { WorkflowSupervisionSettings } from '@xinghuan/shared';
 import { decideCanvasRunApproval } from './canvas-run-api';
 import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
+import { CanvasCandidateSelectionPanel } from './CanvasCandidateSelectionPanel';
 
 export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeSettings, onOneTimeConsumed }: {
   canvasId: string | null;
@@ -80,6 +81,10 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
           <button type="button" className="is-primary" onClick={() => void decideApproval('approve')}><Check size={14} />批准</button>
           <button type="button" onClick={() => void decideApproval('reject')}><X size={14} />拒绝</button>
         </div>
+      ) : null}
+
+      {run && steps.some((step) => step.nodeType === 'smart-candidate-selector') ? (
+        <CanvasCandidateSelectionPanel runId={run.id} events={projection.events} onRefresh={projection.refresh} />
       ) : null}
 
       {run ? (
