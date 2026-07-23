@@ -8,6 +8,7 @@ import {
 } from '../../services/api';
 import { uploadDataUrl } from '../../services/imageOps';
 import { getMediaItemsFromData } from '../../utils/mediaCollection';
+import { listCanvasWorkflowRuns, readCanvasRunEvents, type CanvasRunEvent } from '../canvas-agent/canvas-run-api';
 import { attachmentKey, type AssistantMessage } from './assistant-types';
 
 const DEFAULT_SETTINGS: PublicAssistantSettings = {
@@ -58,13 +59,13 @@ function workflowAttachment(nodes: Node[], edges: Edge[], canvasId: string): Ass
     summary: `${nodes.length} 节点 / ${edges.length} 连线`,
     payload: {
       canvasId,
-      nodes: nodes.slice(0, 40).map((node) => ({ id: node.id, type: String(node.type || ''), data: workflowData(node.data) })),
+      nodes: nodes.slice(0, 40).map((node) => ({ id: node.id, type: String(node.type || ''), data: sanitizeAssistantWorkflowData(node.data) })),
       edges: edges.slice(0, 80).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
     },
   };
 }
 
-function workflowData(value: unknown) {
+export function sanitizeAssistantWorkflowData(value: unknown) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
   const allowed = new Set(['label', 'title', 'prompt', 'text', 'messages', 'backendProviderId', 'backendModelId', 'providerModel', 'taskCapability', 'groupOrder', 'skippedGroupIds', 'memberIds', 'generationAlternatives', 'agentQualityEvaluation', 'agentQualityProfileKey', 'agentSelectionPolicy', 'agentSelectionMaximum', 'agentParameterRepair', 'providerParams', 'size', 'ratio', 'aspectRatio']);
   return Object.fromEntries(Object.entries(source)
@@ -103,6 +104,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('就绪');
   const [sessionId, setSessionId] = useState(conversationId);
+  const [recentFailure, setRecentFailure] = useState<{ attachment: AssistantChatAttachment; label: string } | null>(null);
   const selected = useMemo(() => nodes.filter((node) => node.selected), [nodes]);
   const currentWorkflow = useMemo(() => canvasId ? workflowAttachment(nodes, edges, canvasId) : null, [canvasId, edges, nodes]);
 
@@ -111,6 +113,38 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     void getAssistantSettings().then((next) => active && setSettings(next)).catch(() => undefined);
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setRecentFailure(null);
+    if (!canvasId || selected.length > 0) return () => { active = false; };
+    void listCanvasWorkflowRuns(canvasId).then(async (runs) => {
+      const failed = runs.filter((run) => run.status === 'failed').sort((left, right) => right.updatedAt - left.updatedAt)[0];
+      if (!failed) return;
+      const events = (await readCanvasRunEvents(failed.id)).items;
+      const event = [...events].reverse().find(isAssistantFailureEvent);
+      const step = failed.planSnapshot.steps.find((candidate) => candidate.id === event?.runStepKey
+        || candidate.nodeId === event?.nodeId
+        || candidate.id === event?.runStepId);
+      if (!step || !active) return;
+      const node = nodes.find((candidate) => candidate.id === step.nodeId);
+      setRecentFailure(buildAssistantFailureTarget({
+        node: node || { id: step.nodeId, type: step.nodeType, data: {} } as Node,
+        edges,
+        source: 'recent_failed_run',
+        runId: failed.id,
+        event,
+      }));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [canvasId, edges, nodes, selected.length]);
+
+  const selectedFailure = useMemo(() => selected[0] ? buildAssistantFailureTarget({
+    node: selected[0],
+    edges,
+    source: 'selected_node',
+  }) : null, [edges, selected]);
+  const failureTarget = selectedFailure || recentFailure;
 
   const suggestions = useMemo(() => {
     const items: AssistantChatAttachment[] = [];
@@ -167,10 +201,10 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     addAttachment({ id: `upload-${crypto.randomUUID()}`, kind: 'image', title: file.name || '粘贴图片', summary: url, payload: { kind: 'image', url, sourceUrl: url } });
   }, [addAttachment]);
 
-  const send = useCallback(async () => {
-    const text = draft.trim();
-    if (busy || (!text && attachments.length === 0)) return;
-    const outgoing = attachments.map(compact);
+  const submit = useCallback(async (requestedText: string, requestedAttachments: AssistantChatAttachment[]) => {
+    const text = requestedText.trim();
+    if (busy || (!text && requestedAttachments.length === 0)) return;
+    const outgoing = requestedAttachments.map(compact);
     if (currentWorkflow && !outgoing.some((item) => item.kind === 'workflow')) outgoing.unshift(compact(currentWorkflow));
     const userText = text || `请分析这 ${outgoing.length} 个上下文。`;
     const assistantId = `assistant-${crypto.randomUUID()}`;
@@ -193,7 +227,16 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     } finally {
       setBusy(false);
     }
-  }, [attachments, busy, currentWorkflow, draft, sessionId]);
+  }, [busy, currentWorkflow, sessionId]);
+
+  const send = useCallback(async () => {
+    await submit(draft, attachments);
+  }, [attachments, draft, submit]);
+
+  const analyzeFailure = useCallback(async () => {
+    if (!failureTarget) return;
+    await submit(`分析${failureTarget.label}的报错原因，并按“发生了什么、为什么发生、影响了哪些步骤、现在怎么修复”给出结论。`, [failureTarget.attachment]);
+  }, [failureTarget, submit]);
 
   const reset = useCallback(() => {
     setMessages([]);
@@ -203,5 +246,65 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     setStatus('就绪');
   }, []);
 
-  return { settings, messages, attachments, suggestions, draft, setDraft, busy, status, addAttachment, setAttachments, uploadImage, send, reset };
+  return {
+    settings,
+    messages,
+    attachments,
+    suggestions,
+    draft,
+    setDraft,
+    busy,
+    status,
+    addAttachment,
+    setAttachments,
+    uploadImage,
+    send,
+    reset,
+    analyzeFailure,
+    canAnalyzeFailure: Boolean(failureTarget),
+    failureAnalysisHint: failureTarget ? failureTarget.label : '请先选择节点或打开失败运行',
+  };
+}
+
+export function buildAssistantFailureTarget(input: {
+  node: Node;
+  edges: Edge[];
+  source: 'selected_node' | 'recent_failed_run';
+  runId?: string;
+  event?: CanvasRunEvent;
+}) {
+  const incoming = input.edges.filter((edge) => edge.target === input.node.id).map((edge) => edge.source).slice(0, 20);
+  const outgoing = input.edges.filter((edge) => edge.source === input.node.id).map((edge) => edge.target).slice(0, 20);
+  const failure = input.event ? {
+    code: text(input.event.payload.code || input.event.payload.failureClass),
+    reason: text(input.event.payload.reason).slice(0, 1_000),
+    providerId: text(input.event.payload.providerId),
+    modelRecordId: text(input.event.payload.modelRecordId),
+  } : undefined;
+  const attachment: AssistantChatAttachment = {
+    id: `failure-${input.source}-${input.runId || input.node.id}`,
+    kind: 'node',
+    title: `节点 ${String(input.node.type || '')}`,
+    summary: input.node.id,
+    payload: {
+      source: input.source,
+      runId: input.runId,
+      nodeId: input.node.id,
+      nodeType: String(input.node.type || ''),
+      configuration: sanitizeAssistantWorkflowData(input.node.data),
+      upstreamNodeIds: incoming,
+      downstreamNodeIds: outgoing,
+      failure,
+    },
+  };
+  return { attachment, label: `节点 ${String(input.node.type || '')}（${input.node.id}）` };
+}
+
+export function isAssistantFailureEvent(event: CanvasRunEvent) {
+  return /(?:failed|model_unavailable|budget_exceeded)$/.test(event.eventType)
+    || event.payload.status === 'failed';
+}
+
+function text(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
 }

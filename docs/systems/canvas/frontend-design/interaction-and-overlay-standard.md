@@ -22,6 +22,14 @@
 - Long forms should use a dialog or side panel rather than expanding a node into an unreadable block.
 - Canvas pointer overlays should reuse `ViewportFloatingPanel` so context and quick-add menus share one measured viewport-boundary implementation.
 
+## Assistant And Supervision Overlays
+
+- Desktop Assistant launchers snap to a safe viewport edge and keep the workbench outside a stable launcher gap; persisted offsets may move the panel away from the launcher but must never overlap it.
+- Native panel resize must persist the untransformed border-box size. Responsive viewport clamps are temporary and must not overwrite the user's preferred desktop size.
+- Assistant and Supervision avoidance uses measured rectangles. Fixed guessed offsets are not an acceptable geometry contract.
+- At `900px` and below, Assistant and Supervision use one controlled near-full-viewport drawer and are mutually exclusive. The active drawer must own the top overlay stacking context so its header controls remain reachable.
+- At narrow widths, the node Sidebar becomes an off-canvas drawer and the top bar uses icon commands; closing the Sidebar must restore the full Canvas width without horizontal overflow.
+
 ## Error States
 
 - Errors must show actionable text and preserve user input.

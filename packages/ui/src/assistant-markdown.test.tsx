@@ -42,4 +42,12 @@ describe("AssistantMarkdown", () => {
     expect(html).toContain("<h3>One</h3>");
     expect(html).toContain("<h5>Six</h5>");
   });
+
+  it("adds opt-in copy controls only to reusable semantic blocks", () => {
+    const html = renderToStaticMarkup(<AssistantMarkdown copyableBlocks markdown={'Plain paragraph.\n\n1. First\n2. Second\n\n```json\n{"ok":true}\n```'} />);
+
+    expect(html.match(/aria-label="复制此块"/g)).toHaveLength(2);
+    expect(html).toContain('data-kind="steps"');
+    expect(html).toContain('data-kind="code"');
+  });
 });

@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-7 已在本地完成。Phase 7 已交付独立候选门、终态屏障、服务端 provenance、人工/AI Top K、低置信度转人工/停止、候选与 Selection 审计和仅派发前裁剪，并完成桌面真实浏览器验收。Phase 8 悬浮助手与响应式 Canvas shell 进入下一阶段。Phase 2/7 的 `390x844` 结果均证明现有顶栏和固定侧栏挤占 Canvas；该问题必须在 Phase 8/10 修复并重验，不能用单个面板或节点局部截图代替完整窄屏通过。
+当前状态：Phase 0-8 已在本地完成。Phase 8 已交付 owner-scoped 悬浮几何、左右吸附与 10px 邻接、标题拖动、原生 resize、Supervision 矩形避让、单一错误分析、语义 Markdown 复制、off-canvas Sidebar 和窄屏互斥抽屉；`390x844` 完整 shell 的 document/body 宽度为 `390`，Assistant/Supervision 均为 `374x828` 且无水平 overflow。Phase 9 Admin 精简进入下一阶段；Phase 10 仍需重复完整视觉矩阵与真实运行行为，不能把 route fixture 当作 Gray/runtime 通过。
 
 ## 执行原则
 

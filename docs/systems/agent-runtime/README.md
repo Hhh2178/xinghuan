@@ -32,6 +32,9 @@
 - `@xinghuan/agent-core` 已实现持久化画布快照编译、分组顺序与拓扑校验、输入绑定、运行/步骤/尝试/审批状态机和纯调度内核。
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
+- 悬浮助手的位置、边缘吸附、标题偏移和首选尺寸按 owner 保存在本地 UI 几何状态；这些状态不进入 Canvas、Run 或服务端权限权威。桌面 Assistant 根据真实 Supervision 矩形切换边缘，窄屏使用互斥抽屉。
+- 助手错误分析优先使用当前选中节点，否则读取最近失败的 owner-scoped Workflow Run 与 bounded events；发送给助手的节点配置、上下游影响和失败证据先做 allowlist/sensitive-key 清洗，可见用户消息不倾倒 Plan/Event JSON。
+- Assistant Markdown 继续由共享安全 renderer 承担 HTML、URL、远程图片和 reasoning 边界，并在其上提供整条回答与 code/table/ordered-steps/note 语义块复制。助手仍不拥有 Run、重试或托管控制权。
 - 新建运行默认关闭，只有 PostgreSQL 模式并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时可用。
 - Worker 已新增 feature-gated Canvas Run Coordinator，可持久化领取 image/video/audio/llm 与受治理 RunningHub 原生步骤、创建现有 Generation Task、复用能力队列并在页面关闭后继续推进。其他未迁移节点仍标记为 `legacy_browser`，因此尚不能声称任意旧画布都可完整后台托管。
 - `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay` 与 `output` 已迁移为原生确定性步骤：Worker 在同一 PostgreSQL 事务内计算 output binding、解锁下游和写入 Run Event，不创建 `xh_tasks`、不占用 Provider 并发，也不执行浏览器代码或任意脚本。`text-split` 从 Shared 纯模块复用分镜、正则、编号、字符切块、清理、前后缀和手工 override 语义。
@@ -109,6 +112,7 @@
 - Admin 治理 workspace/client：`apps/admin/src/admin-agent-governance-workspace.tsx`、`admin-agent-governance-api.ts`
 - 悬浮助手薄入口：`apps/web/src/components/CanvasAssistant.tsx`
 - 助手工作台与会话：`apps/web/src/components/canvas-assistant/`
+- 助手几何纯领域与 owner-scoped hook：`apps/web/src/components/canvas-assistant/assistant-geometry.ts`、`useAssistantGeometry.ts`
 - 独立托管入口/controller：`apps/web/src/App.tsx`、`apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx`
 - Canvas Agent 节点与监督投影：`apps/web/src/components/nodes/CanvasAgentNode.tsx`、`apps/web/src/components/canvas-agent/`
 - Assistant API：`apps/api/src/server.ts`

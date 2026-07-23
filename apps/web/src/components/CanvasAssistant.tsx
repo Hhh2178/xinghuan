@@ -5,6 +5,7 @@ export interface CanvasAssistantProps {
   nodes: Node[];
   edges: Edge[];
   activeCanvasId: string | null;
+  ownerId: string;
 }
 
 export default function CanvasAssistant(props: CanvasAssistantProps) {

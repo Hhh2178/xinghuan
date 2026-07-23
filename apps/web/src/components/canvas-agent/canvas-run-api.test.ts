@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readWorkflowSupervisionSettings } from './canvas-run-api';
+import { readCanvasRunEvents, readWorkflowSupervisionSettings } from './canvas-run-api';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -53,5 +53,18 @@ describe('workflow supervision settings API', () => {
     })));
 
     await expect(readWorkflowSupervisionSettings('canvas-1', 'workflow-1')).resolves.toEqual(projection);
+  });
+});
+
+describe('canvas run event API', () => {
+  it('reads owner-scoped persisted events from an explicit sequence cursor', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { items: [], nextSequence: 7 } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(readCanvasRunEvents('run/1', 7)).resolves.toEqual({ items: [], nextSequence: 7 });
+    expect(fetchMock).toHaveBeenCalledWith('/api/canvas-runs/run%2F1/events?after=7', { credentials: 'same-origin' });
   });
 });

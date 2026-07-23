@@ -3798,7 +3798,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         onSendToEagle={handleSendMaterialsToEagle}
       />
 
-      <CanvasAssistant nodes={nodes} edges={edges} activeCanvasId={activeId} />
+      <CanvasAssistant nodes={nodes} edges={edges} activeCanvasId={activeId} ownerId={currentUser?.id || 'anonymous'} />
 
       {/* 右键菜单(框选 右键 或 节点右键) */}
       {contextMenu && (() => {

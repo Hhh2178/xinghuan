@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { usePerformanceModeStore } from './stores/performanceMode';
 import { useApiKeysStore } from './stores/apiKeys';
@@ -206,6 +206,7 @@ function App() {
   const [workflowTemplatesOpen, setWorkflowTemplatesOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const [supervisionOpen, setSupervisionOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supervisionStatus, setSupervisionStatus] = useState<CanvasSupervisionStatus>({ label: 'AI 托管', runStatus: '', active: false, alert: false, streamConnected: false });
   const activeCanvasId = useCanvasStore((state) => state.activeId);
   const previewMode = getDevPreviewMode();
@@ -218,6 +219,22 @@ function App() {
     const openTemplates = () => setWorkflowTemplatesOpen(true);
     window.addEventListener('penguin:open-workflow-templates', openTemplates);
     return () => window.removeEventListener('penguin:open-workflow-templates', openTemplates);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('penguin:supervision-open-change', { detail: { open: supervisionOpen } }));
+  }, [supervisionOpen]);
+
+  useEffect(() => {
+    const handleAssistantOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean; compact?: boolean }>).detail;
+      if (detail?.open && detail.compact) {
+        setSupervisionOpen(false);
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('penguin:assistant-open-change', handleAssistantOpen);
+    return () => window.removeEventListener('penguin:assistant-open-change', handleAssistantOpen);
   }, []);
 
   useEffect(() => {
@@ -415,7 +432,10 @@ function App() {
     : `${utilityButtonClassName} bg-sky-500/10 border-sky-500/30 text-sky-200 hover:bg-sky-500/20`;
 
   const handleAddNode = (type: NodeType) => {
-    if (isNodeTypeAllowed(type, deniedNodeTypes)) addNodeRef.current?.(type);
+    if (isNodeTypeAllowed(type, deniedNodeTypes)) {
+      addNodeRef.current?.(type);
+      setSidebarOpen(false);
+    }
   };
 
   const addPermittedNode: AddNodeFn = (type, options) => {
@@ -536,6 +556,7 @@ function App() {
       className={`t8-app-shell h-screen flex flex-col overflow-hidden ${
         isPixel ? '' : isDark ? 'bg-zinc-950 text-white' : 'bg-zinc-50 text-zinc-900'
       } ${isOp ? 't8-app-shell--op' : ''} ${isRh ? 't8-app-shell--rh' : ''} ${isNaruto ? 't8-app-shell--naruto' : ''} ${isEva ? 't8-app-shell--eva' : ''} ${isYyh ? 't8-app-shell--yyh' : ''} ${isSlamdunk ? 't8-app-shell--slamdunk' : ''} ${isSoccer ? 't8-app-shell--soccer' : ''}`}
+      data-sidebar-open={sidebarOpen ? 'true' : 'false'}
       style={{ background: 'var(--t8-bg-app)', color: 'var(--t8-text-main)' }}
     >
       {/* 头部状态栏 */}
@@ -548,7 +569,10 @@ function App() {
               : 'bg-white border-black/10'
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="t8-topbar__identity flex items-center gap-3 min-w-0">
+          <button className="t8-mobile-sidebar-trigger t8-icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} title={sidebarOpen ? '关闭节点面板' : '打开节点面板'} aria-expanded={sidebarOpen}>
+            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          </button>
           <img className="xh-cyber-topbar-logo xh-cyber-topbar-logo--large" src={brandStellarGlitchLogo} alt="星幻画布" />
           <span
             className={
@@ -606,7 +630,7 @@ function App() {
             <LogOut size={14} />
           </button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="t8-topbar__actions flex items-center gap-1">
           <button
             type="button"
             onClick={announcements.openDrawer}
@@ -681,8 +705,9 @@ function App() {
       </header>
 
       {/* 主体两栏布局 */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="t8-workspace flex-1 flex overflow-hidden">
         <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} />
+        {sidebarOpen ? <button type="button" className="t8-sidebar-backdrop" aria-label="关闭节点面板" onClick={() => setSidebarOpen(false)} /> : null}
         <ErrorBoundary fallbackTitle="画布渲染出错了，已被错误边界捕获">
           <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />
         </ErrorBoundary>

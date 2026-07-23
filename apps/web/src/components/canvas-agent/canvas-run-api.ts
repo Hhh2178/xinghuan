@@ -193,6 +193,14 @@ export async function readCanvasRun(runId: string) {
   }));
 }
 
+export async function readCanvasRunEvents(runId: string, after = 0) {
+  const query = new URLSearchParams({ after: String(Math.max(0, Math.floor(after))) });
+  return readResponse<{ items: CanvasRunEvent[]; nextSequence: number }>(await fetch(
+    `/api/canvas-runs/${encodeURIComponent(runId)}/events?${query}`,
+    { credentials: 'same-origin' },
+  ));
+}
+
 export async function listCanvasWorkflowRuns(canvasId: string) {
   const query = new URLSearchParams({ canvasId });
   const result = await readResponse<{ items: CanvasRunRecord[] }>(await fetch(`/api/canvas-runs?${query}`, {
