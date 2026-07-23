@@ -67,7 +67,7 @@ const STEP_STATUS_BY_EVENT: Array<[RegExp, CanvasRunStepViewStatus]> = [
   [/step_(?:failed|unsupported|model_unavailable)|budget_exceeded|quality_failed$/, 'failed'],
   [/step_(?:cancelled|skipped)$/, 'skipped'],
   [/step_approval_requested$/, 'approval'],
-  [/step_retry_scheduled$/, 'retrying'],
+  [/(?:step_retry_scheduled|step_recovery_scheduled|prompt_rewrite_(?:started|applied))$/, 'retrying'],
   [/step_(?:dispatched)|quality_(?:evaluation_started|evaluation_dispatched|artifact_evaluated)$/, 'running'],
 ];
 
@@ -144,6 +144,18 @@ export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunE
       if (event.eventType === 'canvas_run.step_retry_scheduled') {
         recoveryEvidence = firstText(event.payload, ['strategy']) || recoveryEvidence || '同配置重试';
       }
+      if (event.eventType === 'canvas_run.step_recovery_scheduled') {
+        const action = recoveryActionLabel(firstText(event.payload, ['action']));
+        const delayMs = Number(event.payload.retryDelayMs || 0);
+        recoveryEvidence = delayMs > 0 ? `${action} · ${Math.ceil(delayMs / 1000)} 秒后` : action;
+      }
+      if (event.eventType === 'canvas_run.prompt_rewrite_started') {
+        recoveryEvidence = '提示词审核改写中';
+      }
+      if (event.eventType === 'canvas_run.prompt_rewrite_applied') {
+        const changeCount = Number(event.payload.changeCount || 0);
+        recoveryEvidence = changeCount > 0 ? `提示词已改写 · ${changeCount} 处` : '提示词已改写';
+      }
       if (event.eventType === 'canvas_run.step_approval_requested') {
         recoveryEvidence = firstText(event.payload, ['actionType']) || recoveryEvidence || '备用模型';
       }
@@ -189,6 +201,10 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
     category = '输入参数';
     recovery = '修正工作流声明允许的参数后重新创建 Run。';
   }
+  if (/model_record_repair_required/.test(normalized)) {
+    category = '旧 Run 缺少模型记录';
+    recovery = '当前草稿无法安全补全模型记录。请从最新工作流重新创建 Run。';
+  }
   const technical = [
     code,
     firstText(failedEvent.payload, ['modelRecordId', 'providerId', 'taskId']),
@@ -230,10 +246,22 @@ export function canvasRunEventLabel(eventType: string): string {
     created: '运行计划已创建', start: '开始托管', pause: '已暂停', resume: '继续运行', cancel: '已取消', retry: '重新尝试',
     'step_dispatched': '步骤已派发', 'step_succeeded': '步骤已完成', 'step_failed': '步骤失败',
     'step_retry_scheduled': '步骤准备重试', 'step_approval_requested': '步骤等待审批',
+    'step_recovery_scheduled': '步骤恢复已安排', 'prompt_rewrite_started': '提示词审核改写已开始',
+    'prompt_rewrite_applied': '提示词审核改写已应用',
     'quality_evaluation_started': '开始质量评估', 'quality_evaluation_dispatched': '质量评估已派发',
     'quality_selection_completed': '质量选择完成', succeeded: '运行已完成', failed: '运行失败',
   };
   return labels[suffix] || suffix.replaceAll('_', ' ');
+}
+
+function recoveryActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    retry_same_configuration: '同配置重试',
+    apply_parameter_repair: '参数修复后重试',
+    switch_generation_model: '切换兼容模型',
+    rewrite_prompt_for_review: '提示词审核改写',
+  };
+  return labels[action] || action || '恢复处理中';
 }
 
 export function canvasRunBudgetItems(snapshot: Record<string, unknown>): Array<{ label: string; value: string }> {

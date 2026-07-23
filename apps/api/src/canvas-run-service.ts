@@ -56,6 +56,10 @@ export function createCanvasRunService(deps: {
   isEnabled: () => boolean;
   usePostgresRepository: () => boolean;
   assertStartablePlan?: (input: { ownerId: string; run: CanvasRunRecord }) => Promise<void>;
+  resolvePlanModelReferences?: (input: {
+    ownerId: string;
+    plan: ReturnType<typeof compileCanvasSnapshotRunPlan>;
+  }) => Promise<ReturnType<typeof compileCanvasSnapshotRunPlan>>;
   readSupervisionLimits?: () => Promise<Partial<WorkflowSupervisionLimits>>;
 }) {
   function assertAvailable() {
@@ -135,7 +139,10 @@ export function createCanvasRunService(deps: {
       workflowId,
       values: input.workflowInputValues,
     });
-    const plan = await applyWorkflowInputSnapshot(configuredPlan, inputSnapshot, input.ownerId, deps.repository);
+    const inputResolvedPlan = await applyWorkflowInputSnapshot(configuredPlan, inputSnapshot, input.ownerId, deps.repository);
+    const plan = deps.resolvePlanModelReferences
+      ? await deps.resolvePlanModelReferences({ ownerId: input.ownerId, plan: inputResolvedPlan })
+      : inputResolvedPlan;
     if (plan.steps.length === 0) throw new Error("CANVAS_RUN_PLAN_EMPTY");
     return deps.repository.createCanvasRun({
       ownerId: input.ownerId,

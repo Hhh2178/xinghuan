@@ -1,5 +1,5 @@
 export type GenerationFailureCategory = "transient" | "provider" | "capability" | "input" | "parameter" | "policy" | "content" | "quality" | "unknown";
-export type RecoveryActionType = "retry_same_configuration" | "apply_parameter_repair" | "switch_generation_model" | "regenerate_for_quality" | "request_approval" | "stop";
+export type RecoveryActionType = "retry_same_configuration" | "apply_parameter_repair" | "switch_generation_model" | "regenerate_for_quality" | "rewrite_prompt_for_review" | "request_approval" | "stop";
 
 export interface GenerationModelAlternative {
   providerId: string;
@@ -14,6 +14,7 @@ export interface RecoveryPolicy {
   maxParameterRepairs: number;
   maxGenerationModelSwitches: number;
   maxQualityRegenerations: number;
+  maxPromptReviewRewrites?: number;
 }
 
 export interface RecoveryState {
@@ -21,6 +22,7 @@ export interface RecoveryState {
   parameterRepairs: number;
   generationModelSwitches: number;
   qualityRegenerations: number;
+  promptReviewRewrites?: number;
   triedModelRecordIds: string[];
 }
 
@@ -52,8 +54,18 @@ export function planGenerationRecovery(input: {
   policy: RecoveryPolicy;
   alternatives: GenerationModelAlternative[];
   parameterRepair?: Record<string, unknown>;
+  promptRewriteAllowed?: boolean;
 }): RecoveryPlan {
   const { failureCategory, state, policy } = input;
+  if (failureCategory === "content"
+    && input.promptRewriteAllowed === true
+    && (state.promptReviewRewrites || 0) < (policy.maxPromptReviewRewrites || 0)) {
+    return {
+      action: "rewrite_prompt_for_review",
+      failureCategory,
+      reason: `prompt-review rewrite ${(state.promptReviewRewrites || 0) + 1}/${policy.maxPromptReviewRewrites || 0}`,
+    };
+  }
   if (failureCategory === "policy" || failureCategory === "content" || failureCategory === "input") {
     return { action: "stop", failureCategory, reason: `${failureCategory} failures require user correction or policy resolution` };
   }

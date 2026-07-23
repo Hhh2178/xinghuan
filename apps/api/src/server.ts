@@ -190,6 +190,7 @@ import { createTaskRepository } from "./task-repository.js";
 import { createCanvasRunRepository } from "./canvas-run-repository.js";
 import type { CanvasRunRecord } from "./canvas-run-repository.js";
 import { createCanvasRunService } from "./canvas-run-service.js";
+import { resolveCanvasRunPlanModelReferences } from "./canvas-run-model-preflight.js";
 import { canvasRunErrorStatus, createCanvasRunRouteHandler } from "./canvas-run-routes.js";
 import { createAgentRunRepository } from "./agent-run-repository.js";
 import { createAgentKnowledgeSnapshotRepository } from "./agent-knowledge-snapshot-repository.js";
@@ -447,6 +448,7 @@ const canvasRunService = createCanvasRunService({
   isEnabled: () => canvasRunsEnabled,
   usePostgresRepository,
   assertStartablePlan: assertCanvasRunStartablePlan,
+  resolvePlanModelReferences: resolveCanvasRunModels,
 });
 const handleCanvasRunRoutes = createCanvasRunRouteHandler({
   sendT8,
@@ -6895,7 +6897,36 @@ async function assertCanUseRunningHubCatalogItem(
   if (!decision.allowed) throw new PermissionDeniedError();
 }
 
+async function resolveCanvasRunModels(input: { ownerId: string; plan: CanvasRunRecord["planSnapshot"] }) {
+  const authDb = await readAuthDb();
+  const user = authDb.users.find((candidate) => candidate.id === input.ownerId && !candidate.disabled);
+  if (!user) throw new Error("CANVAS_RUN_OWNER_UNAVAILABLE");
+  const adminDb = await readAdminDb();
+  const providerEnabled = new Map(adminDb.providers.map((provider) => [provider.id, provider.enabled]));
+  return resolveCanvasRunPlanModelReferences({
+    plan: input.plan,
+    models: adminDb.models.map((model) => ({
+      id: model.id,
+      providerId: model.providerId,
+      modelId: model.modelId,
+      capability: normalizeCapability(model.capability),
+      enabled: model.enabled,
+      providerEnabled: providerEnabled.get(model.providerId) === true,
+      inputCapabilities: plainObject(model.inputCapabilities),
+    })),
+    assertCanExecute: async (modelRecordId) => assertCanExecuteProviderModel(user as CurrentUser, modelRecordId),
+  });
+}
+
 async function assertCanvasRunStartablePlan(input: { ownerId: string; run: CanvasRunRecord }) {
+  const resolvedPlan = await resolveCanvasRunModels({ ownerId: input.ownerId, plan: input.run.planSnapshot });
+  for (const [index, step] of input.run.planSnapshot.steps.entries()) {
+    const currentModelRecordId = safeText(plainObject(step.configuration).modelRecordId);
+    const resolvedModelRecordId = safeText(plainObject(resolvedPlan.steps[index]?.configuration).modelRecordId);
+    if (currentModelRecordId !== resolvedModelRecordId) {
+      throw new Error(`CANVAS_RUN_MODEL_RECORD_REPAIR_REQUIRED:${step.nodeId}`);
+    }
+  }
   const authDb = await readAuthDb();
   const user = authDb.users.find((candidate) => candidate.id === input.ownerId && !candidate.disabled);
   if (!user) throw new Error("CANVAS_RUN_OWNER_UNAVAILABLE");

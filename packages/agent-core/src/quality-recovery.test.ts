@@ -19,9 +19,9 @@ describe("artifact quality evaluation", () => {
 });
 
 describe("generation failure recovery", () => {
-  const policy = { maxSameConfigurationRetries: 2, maxParameterRepairs: 1, maxGenerationModelSwitches: 2, maxQualityRegenerations: 1 };
+  const policy = { maxSameConfigurationRetries: 2, maxParameterRepairs: 1, maxGenerationModelSwitches: 2, maxQualityRegenerations: 1, maxPromptReviewRewrites: 1 };
   const alternative = { providerId: "provider-backup", modelId: "image-v2", modelRecordId: "model-backup", requiresApproval: false };
-  const state = { sameConfigurationRetries: 0, parameterRepairs: 0, generationModelSwitches: 0, qualityRegenerations: 0, triedModelRecordIds: ["model-primary"] };
+  const state = { sameConfigurationRetries: 0, parameterRepairs: 0, generationModelSwitches: 0, qualityRegenerations: 0, promptReviewRewrites: 0, triedModelRecordIds: ["model-primary"] };
 
   it("classifies technical, input, policy, content, and quality failures separately", () => {
     expect(classifyGenerationFailure({ statusCode: 429, message: "rate limited" })).toBe("transient");
@@ -39,6 +39,15 @@ describe("generation failure recovery", () => {
   it("requires approval when the node alternative is not pre-authorized and stops policy failures", () => {
     expect(planGenerationRecovery({ failureCategory: "provider", state: { ...state, sameConfigurationRetries: 2 }, policy, alternatives: [{ ...alternative, requiresApproval: true }] }).action).toBe("request_approval");
     expect(planGenerationRecovery({ failureCategory: "content", state, policy, alternatives: [alternative] }).action).toBe("stop");
+  });
+
+  it("uses a distinct bounded prompt-review rewrite action only when the Run allows it", () => {
+    expect(planGenerationRecovery({ failureCategory: "content", state, policy, alternatives: [], promptRewriteAllowed: true }))
+      .toMatchObject({ action: "rewrite_prompt_for_review", failureCategory: "content" });
+    expect(planGenerationRecovery({ failureCategory: "content", state: { ...state, promptReviewRewrites: 1 }, policy, alternatives: [], promptRewriteAllowed: true }).action)
+      .toBe("stop");
+    expect(planGenerationRecovery({ failureCategory: "content", state, policy, alternatives: [], promptRewriteAllowed: false }).action)
+      .toBe("stop");
   });
 
   it("applies only bounded parameter repairs and quality regenerations", () => {

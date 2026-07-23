@@ -29,6 +29,43 @@ describe("canvas run service", () => {
     }));
   });
 
+  it("freezes server-resolved model records before repository creation", async () => {
+    const createCanvasRun = vi.fn(async (input: any) => ({ created: true, run: { id: "run-1", ...input } }));
+    const resolvePlanModelReferences = vi.fn(async ({ plan }: any) => ({
+      ...plan,
+      steps: plan.steps.map((step: any) => ({
+        ...step,
+        configuration: { ...step.configuration, providerId: "provider-1", modelRecordId: "model-record-1" },
+      })),
+    }));
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 8,
+        data: { nodes: [{ id: "image-1", type: "image", data: { model: "gpt-image-2" } }], edges: [] },
+      })),
+      createCanvasRun,
+      readOwnedRun: vi.fn(),
+      applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({
+      repository: repository as any,
+      isEnabled: () => true,
+      usePostgresRepository: () => true,
+      resolvePlanModelReferences,
+    });
+
+    await service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", idempotencyKey: "model-preflight" });
+
+    expect(resolvePlanModelReferences).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "owner-1" }));
+    expect(createCanvasRun.mock.calls[0][0].plan.steps[0].configuration).toMatchObject({
+      modelId: "gpt-image-2",
+      providerId: "provider-1",
+      modelRecordId: "model-record-1",
+    });
+  });
+
   it("refuses file-backed or disabled runtime creation", async () => {
     const repository = { readOwnedCanvasSnapshot: vi.fn(), createCanvasRun: vi.fn(), readOwnedRun: vi.fn(), applyCommand: vi.fn() } as any;
     const disabled = createCanvasRunService({ repository, isEnabled: () => false, usePostgresRepository: () => true });

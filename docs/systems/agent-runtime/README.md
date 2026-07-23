@@ -4,7 +4,7 @@
 
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。当前仍处于本地候选阶段，认证 UI 与 Gray 验收尚未完成。当前事实是：
 
-> 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-4 已在本地完成旧自由链退役、变量领域、Workflow Region 隔离和确定性阶段执行；尚未部署 Gray，记忆设置、恢复与候选选择仍不能冒充已上线能力。
+> 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-6 已在本地完成旧自由链退役、变量领域、Workflow Region 隔离、确定性阶段执行、记忆设置和恢复运行时；尚未部署 Gray，候选选择及真实 PostgreSQL/Worker 恢复验证仍不能冒充已上线能力。
 
 - 画布助手已替换为全新的深色生产工作台 UI；会话、附件、编写器和消息投影分离，支持图片选择与剪贴板粘贴、节点/工作流/媒体上下文和内部 Agent SSE 响应。
 - 浮动助手在存在活跃画布时默认附带受控的 `当前画布` 工作流卡片。该投影上限为 40 个节点和 80 条连线，包含组顺序、成员、连线、节点类型及已允许的模型/执行配置；Web 与 API 都移除 key、token、secret、cookie、password、authorization 等字段，避免把节点原始 JSON 或敏感参数发送给模型。
@@ -22,6 +22,11 @@
 - Workflow Supervision 设置使用平台上限、workflow 默认、owner+canvas+workflow 记忆和仅本次覆盖四层解析。创建 Run 时将最终设置、字段来源、覆盖字段和平台裁剪结果冻结到 `configuration_snapshot.supervision`，预算与节点重试覆盖同时冻结到 `budget_snapshot`；编辑设置不改变 active Run。
 - PostgreSQL migration `038_workflow_supervision_settings.sql` 保存 owner-scoped 记忆设置与递增 revision。API 提供 workflow Run 总览和设置读取、记忆、恢复默认值；客户端拒绝 malformed `200 null` 响应，不会把无效载荷当作默认配置。
 - Worker 按 Run 的 `stageConcurrency` 限制同时领取的步骤，并优先使用稳定 node ID 的重试覆盖。Run 事件通过 `runStepKey/nodeId` 映射回节点，托管面板展示失败节点、错误分类、影响、恢复动作和技术详情。
+- Canvas Run 创建前执行模型预检：旧名称只有在启用、授权、能力与输入均兼容且唯一命中时才解析为 catalog record ID；primary 与 fallback ID 随不可变 Plan 冻结。歧义、不可用和不兼容均失败关闭，旧草稿无法安全修复时要求从最新工作流重新创建 Run。
+- migration `039_canvas_run_recovery_runtime.sql` 为 Step 增加独立 `retry_not_before`、`recovery_overrides` 与 `recovery_context`，并扩展 Recovery Decision 的提示词改写前后值、diff 与恢复次数。lease 只表示 Worker 所有权，不再承担退避计时。
+- Worker 从持久化的规范化任务失败证据分类恢复动作，并写入 Task Attempt 与 Recovery Decision 账本。重试耗尽策略为 `stop` 时禁止进入模型回退；回退、参数修复和审批只能使用 Run 开始时冻结的候选与允许补丁，应用值通过审计 overlay 进入下一次 dispatch，不修改 Run Plan。
+- 提示词审核改写使用已发布的 `recovery / prompt-review-rewrite` LLM route 创建有界 `chat` 子任务。每次 Recovery Decision 冻结有序候选，只在技术失败后尝试下一项；内容/策略失败不会绕过。结构化结果校验后记录原文、新文和 bounded diff，原节点成功前下游保持阻塞。
+- Web Run 投影显示 `retry_wait`、实际 fallback Provider/模型、可读恢复动作与退避、提示词改写证据，以及旧模型记录无法修复时的重建指导。
 - `@xinghuan/agent-core` 已实现持久化画布快照编译、分组顺序与拓扑校验、输入绑定、运行/步骤/尝试/审批状态机和纯调度内核。
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
@@ -78,6 +83,8 @@
 - 确定性节点运行器：`packages/agent-core/src/deterministic-node-runtime.ts`；共享文本分段算法：`packages/shared/src/text-split.ts`
 - 数据迁移：`apps/api/db/026_canvas_agent_runtime.sql`
 - Workflow Supervision 设置迁移：`apps/api/db/038_workflow_supervision_settings.sql`
+- Recovery Runtime 迁移：`apps/api/db/039_canvas_run_recovery_runtime.sql`
+- Canvas Run 模型预检：`apps/api/src/canvas-run-model-preflight.ts`
 - Canvas Run repository/service/routes：`apps/api/src/canvas-run-repository.ts`、`canvas-run-service.ts`、`canvas-run-routes.ts`
 - Task Attempt 与 Approval：`apps/api/src/task-attempt-repository.ts`、`agent-approval-repository.ts`
 - Agent Orchestrator：`apps/api/src/agent-orchestrator.ts`
@@ -90,6 +97,7 @@
 - LLM half-open probe lease 迁移：`apps/api/db/033_llm_route_half_open_probe_leases.sql`
 - Canvas Run 公平领取迁移与 helper：`apps/api/db/032_canvas_run_fair_dispatch.sql`、`apps/worker/src/canvas-run-dispatch-fairness.ts`
 - 质量与恢复核心：`packages/agent-core/src/artifact-evaluation.ts`、`failure-recovery.ts`
+- Canvas Run 恢复运行时与存储：`apps/worker/src/canvas-run-recovery-runtime.ts`、`canvas-run-recovery-store.ts`
 - 质量 repository/service：`apps/api/src/artifact-quality-repository.ts`、`artifact-quality-service.ts`
 - 恢复 repository/service：`apps/api/src/recovery-decision-repository.ts`、`generation-recovery-service.ts`
 - 质量与恢复 API：`apps/api/src/quality-recovery-routes.ts`

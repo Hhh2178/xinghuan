@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvasRunCoordinator, mergeUpstreamPayload, recoveryChoice } from './canvas-run-coordinator.js';
+import { createCanvasRunCoordinator, mergeUpstreamPayload } from './canvas-run-coordinator.js';
 
 describe('canvas run coordinator', () => {
   it('binds upstream media and text without overwriting explicit inputs', () => {
@@ -16,40 +16,57 @@ describe('canvas run coordinator', () => {
     expect(payload.prompt).toBe('下一步提示词');
   });
 
-  it('uses finite same-configuration retries then an explicitly preauthorized node alternative', () => {
-    const base = {
-      budget_snapshot: { maxAttemptsPerStep: 2 },
-      node_id: 'image-1',
-      plan_snapshot: {
-        steps: [{ nodeId: 'image-1', configuration: { generationAlternatives: [{ modelRecordId: 'model-b', requiresApproval: false }] } }],
+  it('records normalized transient recovery and waits for bounded backoff', async () => {
+    const harness = coordinatorHarness({ failedTaskResult: { failureCategory: 'upstream_poll_timeout', failureReason: 'provider timeout', upstreamHttpStatus: 504 } });
+    const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
+
+    await coordinator.tick();
+
+    expect(harness.state.recoveryDecisionInsertions).toBe(1);
+    expect(harness.state.recoveryAction).toBe('retry_same_configuration');
+    expect(harness.state.stepStatus).toBe('retry_wait');
+    expect(harness.state.retryDelayMs).toBe(2_000);
+    expect(harness.redis.lPush).not.toHaveBeenCalled();
+  });
+
+  it('queues content-review rewriting through the published recovery chat route', async () => {
+    const harness = coordinatorHarness({ failedTaskResult: { failureCategory: 'unknown', failureReason: 'content policy moderation blocked' }, promptRewrite: true });
+    const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'gray', queueName: 'tasks', enabled: true });
+
+    await coordinator.tick();
+
+    expect(harness.state.recoveryAction).toBe('rewrite_prompt_for_review');
+    expect(harness.state.stepStatus).toBe('queued');
+    expect(harness.state.taskPayload).toMatchObject({ taskCapability: 'chat', recoveryDecisionId: 'decision-1' });
+    expect(harness.state.recoveryContext).toMatchObject({ kind: 'prompt_review_rewrite', decisionId: 'decision-1', originalPrompt: 'test' });
+    expect(harness.redis.lPush).toHaveBeenCalledWith('tasks:chat', expect.any(String));
+  });
+
+  it('dispatches the frozen fallback model only after its approval is applied', async () => {
+    const harness = coordinatorHarness({
+      failedTaskResult: { failureCategory: 'upstream_poll_gateway_failed', failureReason: 'provider unavailable' },
+      maxAttemptsPerStep: 0,
+      retryExhaustionPolicy: 'compatible_fallback',
+      generationAlternative: {
+        providerId: 'provider-2',
+        modelId: 'backup-upstream-model',
+        modelRecordId: 'model-2',
+        requiresApproval: true,
       },
-    };
+      approvalStatus: 'approved',
+    });
+    const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
 
-    expect(recoveryChoice({ ...base, attempt_count: 1 } as any)).toEqual({ retry: true, strategy: 'same_configuration' });
-    expect(recoveryChoice({ ...base, attempt_count: 2 } as any)).toMatchObject({ retry: true, strategy: 'node_alternative', alternative: { modelRecordId: 'model-b' } });
-    expect(recoveryChoice({ ...base, attempt_count: 3 } as any)).toEqual({ retry: false, strategy: 'exhausted' });
-  });
+    await coordinator.tick();
+    expect(harness.state.stepStatus).toBe('awaiting_approval');
+    expect(harness.state.recoveryOverrides).toMatchObject({ generationModel: { modelRecordId: 'model-2' } });
 
-  it('does not auto-switch to alternatives requiring approval', () => {
-    expect(recoveryChoice({
-      attempt_count: 1,
-      budget_snapshot: { maxAttemptsPerStep: 1 },
-      node_id: 'video-1',
-      plan_snapshot: { steps: [{ nodeId: 'video-1', configuration: { generationAlternatives: [{ modelRecordId: 'model-b', requiresApproval: true }] } }] },
-    } as any)).toMatchObject({ retry: false, strategy: 'approval_required', alternative: { modelRecordId: 'model-b' } });
-  });
+    await coordinator.tick();
 
-  it('uses the stable node retry override instead of the workflow default', () => {
-    const base = {
-      attempt_count: 0,
-      budget_snapshot: { maxAttemptsPerStep: 3, nodeRetryOverrides: { 'video-1': 0, 'image-1': 2 } },
-      node_id: 'video-1',
-      plan_snapshot: { steps: [{ nodeId: 'video-1', configuration: {} }] },
-    };
-
-    expect(recoveryChoice(base as any)).toEqual({ retry: false, strategy: 'exhausted' });
-    expect(recoveryChoice({ ...base, node_id: 'image-1', plan_snapshot: { steps: [{ nodeId: 'image-1', configuration: {} }] } } as any))
-      .toEqual({ retry: true, strategy: 'same_configuration' });
+    expect(harness.state.stepStatus).toBe('queued');
+    expect(harness.state.dispatchedProviderId).toBe('provider-2');
+    expect(harness.state.dispatchedModelRecordId).toBe('model-2');
+    expect(harness.state.taskPayload).toMatchObject({ providerModel: 'backup-upstream-model' });
   });
 
   it('allows two coordinators to compete without creating a duplicate task', async () => {
@@ -139,10 +156,20 @@ describe('canvas run coordinator', () => {
   });
 });
 
-function coordinatorHarness(options: { failFirstPush?: boolean; nodeType?: 'image' | 'text' | 'text-split' | 'runninghub'; prompt?: string } = {}) {
+function coordinatorHarness(options: {
+  failFirstPush?: boolean;
+  nodeType?: 'image' | 'text' | 'text-split' | 'runninghub';
+  prompt?: string;
+  failedTaskResult?: Record<string, unknown>;
+  promptRewrite?: boolean;
+  maxAttemptsPerStep?: number;
+  retryExhaustionPolicy?: 'stop' | 'compatible_fallback';
+  generationAlternative?: Record<string, unknown>;
+  approvalStatus?: 'approved' | 'rejected';
+} = {}) {
   const state = {
-    stepStatus: 'ready',
-    taskId: '',
+    stepStatus: options.failedTaskResult ? 'queued' : 'ready',
+    taskId: options.failedTaskResult ? 'task-failed' : '',
     taskInsertions: 0,
     dispatchEnqueued: false,
     leaseOwner: '',
@@ -150,14 +177,23 @@ function coordinatorHarness(options: { failFirstPush?: boolean; nodeType?: 'imag
     lastOwnerId: '',
     outputBinding: {} as Record<string, unknown>,
     taskPayload: {} as Record<string, unknown>,
+    recoveryDecisionInsertions: 0,
+    recoveryAction: '',
+    retryDelayMs: 0,
+    recoveryContext: {} as Record<string, unknown>,
+    recoveryOverrides: {} as Record<string, unknown>,
+    approvalId: '',
+    dispatchedProviderId: '',
+    dispatchedModelRecordId: '',
   };
   const isRunningHub = options.nodeType === 'runninghub';
   const step = {
     id: 'step-1', run_id: 'run-1', owner_id: 'owner-1', node_id: `${options.nodeType || 'image'}-1`, node_type: options.nodeType || 'image', status: 'ready',
-    attempt_count: 0, task_id: null, plan_snapshot: { steps: [{ nodeId: `${options.nodeType || 'image'}-1`, configuration: {
+    attempt_count: options.failedTaskResult ? 1 : 0, task_id: options.failedTaskResult ? 'task-failed' : null, plan_snapshot: { steps: [{ nodeId: `${options.nodeType || 'image'}-1`, configuration: {
       providerId: 'provider-1', modelRecordId: 'model-1', modelId: 'upstream-model', taskCapability: options.nodeType === 'text' || options.nodeType === 'text-split' ? '' : 'image', executionPayload: options.nodeType === 'text-split'
         ? { sourceText: options.prompt || 'test', splitMode: 'storyboard' }
         : { prompt: options.prompt || 'test' },
+      ...(options.generationAlternative ? { generationAlternatives: [options.generationAlternative] } : {}),
       ...(isRunningHub ? {
         runningHub: {
           catalogId: 'provider-1:workflow:workflow-1', targetType: 'workflow', runTargetId: 'workflow-1', pageId: 'workflow-1', workflowId: 'workflow-1',
@@ -165,14 +201,21 @@ function coordinatorHarness(options: { failFirstPush?: boolean; nodeType?: 'imag
           values: { 'prompt-1:text': 'a studio portrait' },
         },
       } : {}),
-    } }] }, budget_snapshot: {}, input_binding: {}, depends_on: [], run_created_at: new Date(),
+    } }] }, budget_snapshot: { maxAttemptsPerStep: options.maxAttemptsPerStep ?? 2 },
+    configuration_snapshot: { retryExhaustionPolicy: options.retryExhaustionPolicy || 'stop', maxFallbackCount: 1, promptReviewRewriteEnabled: options.promptRewrite === true, promptReviewMaxRetries: options.promptRewrite ? 1 : 0 },
+    input_binding: {}, recovery_overrides: {}, recovery_context: {}, depends_on: [], run_created_at: new Date(),
   };
   const topLevelQuery = vi.fn(async (sql: string, params?: unknown[]) => {
-    if (sql.includes('from xh_agent_approvals')) return { rows: [] };
-    if (sql.includes("t.status in ('succeeded', 'failed', 'cancelled')")) return { rows: [] };
+    if (sql.includes('from xh_agent_approvals')) return { rows: state.stepStatus === 'awaiting_approval' && state.approvalId
+      ? [{ approval_id: state.approvalId, run_id: 'run-1', step_id: 'step-1', status: options.approvalStatus || 'approved' }]
+      : [] };
+    if (sql.includes("t.status in ('succeeded', 'failed', 'cancelled')")) return { rows: options.failedTaskResult && state.stepStatus === 'queued'
+      ? [{ ...step, recovery_overrides: state.recoveryOverrides, status: state.stepStatus, task_status: 'failed', task_result: options.failedTaskResult, task_payload: { prompt: options.prompt || 'test' }, task_provider_id: 'provider-1', task_model_record_id: 'model-1' }]
+      : [] };
+    if (sql.includes("s.status = 'retry_wait'")) return { rows: [] };
     if (sql.includes('s.dispatch_enqueued_at is null')) {
       return { rows: state.stepStatus === 'queued' && state.taskId && !state.dispatchEnqueued
-        ? [{ step_id: 'step-1', task_id: state.taskId, capability: 'image' }]
+        ? [{ step_id: 'step-1', task_id: state.taskId, capability: String(state.taskPayload.taskCapability || 'image') }]
         : [] };
     }
     if (sql.includes('set dispatch_enqueued_at = now()')) {
@@ -189,8 +232,45 @@ function coordinatorHarness(options: { failFirstPush?: boolean; nodeType?: 'imag
       state.lastOwnerId = String(params?.[1] || '');
       return { rows: [] };
     }
+    if (sql.includes('where s.id = $1 for update of s, r')) {
+      return { rows: [{ ...step, recovery_overrides: state.recoveryOverrides, status: state.stepStatus, task_status: 'failed', task_result: options.failedTaskResult || {}, task_payload: { prompt: options.prompt || 'test' }, task_provider_id: 'provider-1', task_model_record_id: 'model-1' }] };
+    }
+    if (sql.includes('from xh_recovery_decisions') && sql.includes('order by created_at asc')) return { rows: [] };
+    if (sql.includes('from xh_llm_route_pool_publications')) return { rows: options.promptRewrite ? [{
+      pool_id: 'pool-1', pool_version_id: 'pool-version-1', pool_version: 1,
+      entry_id: 'entry-1', provider_id: 'provider-1', model_record_id: 'chat-model-1',
+      model_capability_snapshot: 'chat', capability_tags_snapshot: [], priority: 0, weight: 1,
+      estimated_cost: '0', health_state: 'healthy', p95_latency_ms: 0,
+    }] : [] };
+    if (sql.includes('insert into xh_recovery_decisions')) {
+      state.recoveryDecisionInsertions += 1;
+      state.recoveryAction = String(params?.[6] || '');
+      return { rows: [{ id: 'decision-1' }] };
+    }
+    if (sql.includes('insert into xh_agent_approvals')) {
+      state.approvalId = String(params?.[0] || '');
+      return { rows: [] };
+    }
+    if (sql.includes('insert into xh_llm_route_decisions')) return { rows: [] };
+    if (sql.includes('update xh_recovery_decisions')) return { rows: [] };
+    if (sql.includes('update xh_task_attempts')) return { rows: [] };
+    if (sql.includes("set status = 'retry_wait'")) {
+      state.stepStatus = 'retry_wait';
+      state.retryDelayMs = Number(params?.[2] || 0);
+      return { rows: [] };
+    }
+    if (sql.includes('update xh_canvas_run_steps') && sql.includes("set status = 'awaiting_approval'")) {
+      state.stepStatus = 'awaiting_approval';
+      state.recoveryOverrides = JSON.parse(String(params?.[1] || '{}'));
+      return { rows: [] };
+    }
+    if (sql.includes('update xh_canvas_runs') && sql.includes("set status = 'awaiting_approval'")) return { rows: [] };
+    if (sql.includes("set status = 'ready', task_id = null")) {
+      state.stepStatus = 'ready';
+      return { rows: [] };
+    }
     if (sql.includes("s.status = 'ready'") && sql.includes('skip locked')) {
-      return { rows: state.stepStatus === 'ready' ? [{ ...step, status: state.stepStatus }] : [] };
+      return { rows: state.stepStatus === 'ready' ? [{ ...step, recovery_overrides: state.recoveryOverrides, status: state.stepStatus }] : [] };
     }
     if (sql.includes("count(*)::int as count from xh_tasks")) return { rows: [{ count: state.taskInsertions }] };
     if (sql.includes('jsonb_array_elements_text')) return { rows: [] };
@@ -207,11 +287,21 @@ function coordinatorHarness(options: { failFirstPush?: boolean; nodeType?: 'imag
         fields: [{ nodeId: 'prompt-1', fieldName: 'text', fieldType: 'string', required: true }],
       }], rh_apps: [],
     }] };
-    if (sql.includes('from xh_models m join xh_providers')) return { rows: [{ model_record_id: 'model-1', provider_id: 'provider-1' }] };
+    if (sql.includes('from xh_models m join xh_providers')) return { rows: [{ model_record_id: String(params?.[0] || 'model-1'), provider_id: String(params?.[2] || 'provider-1'), input_capabilities: {} }] };
     if (sql.includes('insert into xh_tasks')) {
       state.taskInsertions += 1;
       state.taskId = String(params?.[0] || '');
       state.taskPayload = JSON.parse(String(params?.[5] || '{}'));
+      state.dispatchedProviderId = String(params?.[3] || '');
+      state.dispatchedModelRecordId = String(params?.[4] || '');
+      return { rows: [] };
+    }
+    if (sql.includes('insert into xh_task_attempts')) return { rows: [] };
+    if (sql.includes("set status = 'queued', task_id = $2") && sql.includes('recovery_context')) {
+      state.stepStatus = 'queued';
+      state.taskId = String(params?.[1] || '');
+      state.recoveryContext = JSON.parse(String(params?.[2] || '{}'));
+      state.dispatchEnqueued = false;
       return { rows: [] };
     }
     if (sql.includes("set status = 'queued', task_id")) {

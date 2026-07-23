@@ -5,6 +5,16 @@ import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import type { RedisClientType } from 'redis';
 import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator.js';
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from './canvas-run-dispatch-fairness.js';
+import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas-run-recovery-runtime.js';
+import {
+  type CanvasRunRecoveryStepRow,
+  findCanvasRunPromptRewriteRoute,
+  mergeCanvasRunRecoveryRuntimePatch,
+  recordCanvasRunRecoveryDecision,
+  scheduleCanvasRunPromptRewriteTask,
+  settleCanvasRunPromptRewriteTask,
+  settleCanvasRunTaskAttempt,
+} from './canvas-run-recovery-store.js';
 
 const TERMINAL_STEP = new Set(['succeeded', 'failed', 'cancelled', 'skipped']);
 
@@ -19,9 +29,15 @@ interface StepRow extends QueryResultRow {
   task_id: string | null;
   task_status?: string | null;
   task_result?: Record<string, unknown> | null;
+  task_payload?: Record<string, unknown> | null;
+  task_provider_id?: string | null;
+  task_model_record_id?: string | null;
   plan_snapshot: Record<string, unknown>;
   budget_snapshot: Record<string, unknown>;
+  configuration_snapshot: Record<string, unknown>;
   input_binding: Record<string, unknown>;
+  recovery_overrides?: Record<string, unknown>;
+  recovery_context?: Record<string, unknown>;
   dispatch_enqueued_at?: Date | null;
   run_created_at?: Date;
 }
@@ -47,6 +63,7 @@ export function createCanvasRunCoordinator(options: {
       if (enabled) {
         await resumeApprovalDecisions();
         await settleCompletedTasks();
+        await releaseDueRetries();
         await enqueuePendingDispatches();
         await claimReadyStep();
       }
@@ -60,7 +77,9 @@ export function createCanvasRunCoordinator(options: {
 
   async function settleCompletedTasks() {
     const result = await options.pool.query<StepRow>(
-      `select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, t.status as task_status, t.result as task_result
+      `select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, r.configuration_snapshot,
+         t.status as task_status, t.result as task_result, t.payload as task_payload,
+         t.provider_id as task_provider_id, t.model_id as task_model_record_id
        from xh_canvas_run_steps s
        join xh_canvas_runs r on r.id = s.run_id
        join xh_tasks t on t.id = s.task_id
@@ -78,7 +97,9 @@ export function createCanvasRunCoordinator(options: {
     try {
       await client.query('begin');
       const locked = await client.query<StepRow>(
-        `select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, t.status as task_status, t.result as task_result
+        `select s.*, r.owner_id, r.plan_snapshot, r.budget_snapshot, r.configuration_snapshot,
+           t.status as task_status, t.result as task_result, t.payload as task_payload,
+           t.provider_id as task_provider_id, t.model_id as task_model_record_id
          from xh_canvas_run_steps s join xh_canvas_runs r on r.id = s.run_id join xh_tasks t on t.id = s.task_id
          where s.id = $1 for update of s, r`,
         [step.id],
@@ -88,7 +109,13 @@ export function createCanvasRunCoordinator(options: {
         await client.query('rollback');
         return;
       }
+      if (text(object(current.recovery_context).kind) === 'prompt_review_rewrite') {
+        await settleCanvasRunPromptRewriteTask(client, current, appendEvent, failCanvasRunStep);
+        await client.query('commit');
+        return;
+      }
       if (current.task_status === 'succeeded') {
+        await settleCanvasRunTaskAttempt(client, current.task_id, 'succeeded');
         const qualityContext = await qualityEvaluationRuntimeEnabled(client, options.environment)
           ? qualityContextForCompletedStep({
             nodeType: current.node_type,
@@ -120,40 +147,10 @@ export function createCanvasRunCoordinator(options: {
           await finalizeRunIfComplete(client, current.run_id);
         }
       } else if (current.task_status === 'failed') {
-        const retry = recoveryChoice(current);
-        if (retry.retry) {
-          await client.query(
-            `update xh_canvas_run_steps set status = 'ready', task_id = null, dispatch_enqueued_at = null,
-               lease_owner = null, lease_expires_at = null, error = $2::jsonb, updated_at = now() where id = $1`,
-            [current.id, JSON.stringify({ previousTaskId: current.task_id, strategy: retry.strategy })],
-          );
-          await appendEvent(client, current.run_id, current.id, 'canvas_run.step_retry_scheduled', retry);
-        } else if (retry.strategy === 'approval_required') {
-          const approvalId = `agent_approval_${randomUUID()}`;
-          await client.query(
-            `insert into xh_agent_approvals
-              (id, owner_id, canvas_run_id, run_step_id, action_type, action_snapshot, status, requested_by)
-             values ($1, $2, $3, $4, 'switch_generation_model', $5::jsonb, 'pending', 'canvas-run-worker')`,
-            [approvalId, current.owner_id, current.run_id, current.id, JSON.stringify(retry.alternative || {})],
-          );
-          await client.query(
-            `update xh_canvas_run_steps set status = 'awaiting_approval', lease_owner = null, lease_expires_at = null,
-               error = $2::jsonb, updated_at = now() where id = $1`,
-            [current.id, JSON.stringify({ previousTaskId: current.task_id, approvalId })],
-          );
-          await client.query(`update xh_canvas_runs set status = 'awaiting_approval', updated_at = now() where id = $1`, [current.run_id]);
-          await appendEvent(client, current.run_id, current.id, 'canvas_run.step_approval_requested', { approvalId, actionType: 'switch_generation_model' });
-        } else {
-          await client.query(
-            `update xh_canvas_run_steps set status = 'failed', lease_owner = null, lease_expires_at = null,
-               error = $2::jsonb, updated_at = now(), finalized_at = now() where id = $1`,
-            [current.id, JSON.stringify({ taskId: current.task_id, result: current.task_result || {} })],
-          );
-          await client.query(`update xh_canvas_runs set status = 'failed', updated_at = now(), finalized_at = now() where id = $1`, [current.run_id]);
-          await appendEvent(client, current.run_id, current.id, 'canvas_run.step_failed', { taskId: current.task_id });
-          await appendEvent(client, current.run_id, null, 'canvas_run.failed', { stepId: current.id });
-        }
+        await settleCanvasRunTaskAttempt(client, current.task_id, 'failed');
+        await settleFailedStep(client, current);
       } else {
+        await settleCanvasRunTaskAttempt(client, current.task_id, 'cancelled');
         await client.query(
           `update xh_canvas_run_steps set status = 'cancelled', lease_owner = null, lease_expires_at = null,
              updated_at = now(), finalized_at = now() where id = $1`,
@@ -168,6 +165,147 @@ export function createCanvasRunCoordinator(options: {
     } finally {
       client.release();
     }
+  }
+
+  async function settleFailedStep(client: PoolClient, step: StepRow) {
+    const prior = await client.query<{ action_type: string; alternative_generation_model_id_snapshot: string | null }>(
+      `select action_type, alternative_generation_model_id_snapshot
+       from xh_recovery_decisions where owner_id = $1 and canvas_run_id = $2 and run_step_id = $3
+       order by created_at asc`,
+      [step.owner_id, step.run_id, step.id],
+    );
+    const planned = planCanvasRunRecovery({
+      attemptCount: Number(step.attempt_count),
+      nodeId: step.node_id,
+      planSnapshot: object(step.plan_snapshot),
+      budgetSnapshot: object(step.budget_snapshot),
+      configurationSnapshot: object(step.configuration_snapshot),
+      taskResult: object(step.task_result),
+      priorDecisions: prior.rows.map((row) => ({
+        actionType: row.action_type,
+        alternativeModelRecordId: row.alternative_generation_model_id_snapshot || undefined,
+      })),
+    });
+    let recovery = planned.recovery;
+    let runtimePatch = planned.runtimePatch;
+    if ((recovery.action === 'switch_generation_model' || recovery.action === 'request_approval') && recovery.alternative) {
+      const planStep = planSteps(step.plan_snapshot).find((item) => item.nodeId === step.node_id) || {};
+      const capability = text(object(planStep.configuration).taskCapability) || (step.node_type === 'llm' ? 'chat' : step.node_type);
+      const available = await resolveEnabledModel(client, recovery.alternative.providerId, recovery.alternative.modelRecordId, capability, object(step.task_payload));
+      if (!available) {
+        recovery = { action: 'stop', failureCategory: planned.failureCategory, reason: 'frozen fallback model is no longer enabled or compatible' };
+        runtimePatch = {};
+      }
+    }
+
+    const originalPrompt = text(object(step.task_payload).prompt);
+    const rewriteRoute = recovery.action === 'rewrite_prompt_for_review' && originalPrompt
+      ? await findCanvasRunPromptRewriteRoute(
+        client,
+        options.environment,
+        `${step.run_id}:${step.id}:${step.task_id || 'none'}:prompt-review-rewrite`,
+      )
+      : null;
+    if (recovery.action === 'rewrite_prompt_for_review' && (!originalPrompt || !rewriteRoute)) {
+      recovery = {
+        action: 'stop',
+        failureCategory: planned.failureCategory,
+        reason: originalPrompt ? 'published prompt-review recovery route is unavailable' : 'failed task has no prompt to rewrite',
+      };
+      runtimePatch = {};
+    }
+
+    let approvalId = '';
+    if (recovery.action === 'request_approval' && recovery.alternative) {
+      approvalId = `agent_approval_${randomUUID()}`;
+      await client.query(
+        `insert into xh_agent_approvals
+          (id, owner_id, canvas_run_id, run_step_id, action_type, action_snapshot, status, requested_by)
+         values ($1, $2, $3, $4, 'switch_generation_model', $5::jsonb, 'pending', 'canvas-run-worker')`,
+        [approvalId, step.owner_id, step.run_id, step.id, JSON.stringify(recovery.alternative)],
+      );
+      runtimePatch = { generationModel: {
+        providerId: recovery.alternative.providerId,
+        modelId: recovery.alternative.modelId,
+        modelRecordId: recovery.alternative.modelRecordId,
+      } };
+    }
+    const decisionId = await recordCanvasRunRecoveryDecision(client, step, recovery, prior.rows.length + 1, approvalId);
+
+    if (recovery.action === 'retry_same_configuration'
+      || recovery.action === 'apply_parameter_repair'
+      || recovery.action === 'switch_generation_model') {
+      const overrides = mergeCanvasRunRecoveryRuntimePatch(step.recovery_overrides, runtimePatch);
+      await client.query(
+        `update xh_canvas_run_steps
+         set status = 'retry_wait', task_id = null, dispatch_enqueued_at = null,
+             lease_owner = null, lease_expires_at = null,
+             retry_not_before = now() + ($3::bigint * interval '1 millisecond'),
+             recovery_overrides = $2::jsonb, recovery_context = '{}'::jsonb,
+             error = $4::jsonb, updated_at = now()
+         where id = $1`,
+        [step.id, JSON.stringify(overrides), planned.retryDelayMs, JSON.stringify({
+          previousTaskId: step.task_id,
+          decisionId,
+          failureCategory: planned.failureCategory,
+          action: recovery.action,
+        })],
+      );
+      await appendEvent(client, step.run_id, step.id, 'canvas_run.step_recovery_scheduled', {
+        decisionId,
+        failureCategory: planned.failureCategory,
+        action: recovery.action,
+        retryDelayMs: planned.retryDelayMs,
+        providerId: recovery.alternative?.providerId,
+        modelId: recovery.alternative?.modelId,
+        modelRecordId: recovery.alternative?.modelRecordId,
+      });
+      return;
+    }
+
+    if (recovery.action === 'rewrite_prompt_for_review' && rewriteRoute) {
+      await scheduleCanvasRunPromptRewriteTask(client, step, decisionId, originalPrompt, rewriteRoute, prior.rows.length + 1, appendEvent);
+      return;
+    }
+
+    if (recovery.action === 'request_approval') {
+      const overrides = mergeCanvasRunRecoveryRuntimePatch(step.recovery_overrides, runtimePatch);
+      await client.query(
+        `update xh_canvas_run_steps
+         set status = 'awaiting_approval', lease_owner = null, lease_expires_at = null,
+             recovery_overrides = $2::jsonb,
+             error = $3::jsonb, updated_at = now() where id = $1`,
+        [step.id, JSON.stringify(overrides), JSON.stringify({ previousTaskId: step.task_id, approvalId, decisionId })],
+      );
+      await client.query(`update xh_canvas_runs set status = 'awaiting_approval', updated_at = now() where id = $1`, [step.run_id]);
+      await appendEvent(client, step.run_id, step.id, 'canvas_run.step_approval_requested', { approvalId, decisionId, actionType: 'switch_generation_model' });
+      return;
+    }
+
+    await failCanvasRunStep(client, step, {
+      taskId: step.task_id,
+      decisionId,
+      failureCategory: planned.failureCategory,
+      reason: recovery.reason,
+      result: step.task_result || {},
+    });
+  }
+
+  async function failCanvasRunStep(client: PoolClient, step: CanvasRunRecoveryStepRow, error: Record<string, unknown>) {
+    await client.query(
+      `update xh_canvas_run_steps
+       set status = 'failed', lease_owner = null, lease_expires_at = null,
+           error = $2::jsonb, updated_at = now(), finalized_at = now() where id = $1`,
+      [step.id, JSON.stringify(error)],
+    );
+    await client.query(`update xh_canvas_runs set status = 'failed', updated_at = now(), finalized_at = now() where id = $1`, [step.run_id]);
+    await appendEvent(client, step.run_id, step.id, 'canvas_run.step_failed', {
+      taskId: step.task_id,
+      code: text(error.code),
+      decisionId: text(error.decisionId),
+      failureCategory: text(error.failureCategory),
+    });
+    await appendEvent(client, step.run_id, null, 'canvas_run.failed', { stepId: step.id, decisionId: text(error.decisionId) });
   }
 
   async function claimReadyStep() {
@@ -254,7 +392,7 @@ export function createCanvasRunCoordinator(options: {
       const isRunningHubTask = 'runningHub' in taskInput && taskInput.runningHub === true;
       const resolvedModel = isRunningHubTask
         ? { modelRecordId: '', providerId: taskInput.providerId }
-        : await resolveEnabledModel(client, taskInput.providerId, taskInput.modelRecordId, taskInput.capability);
+        : await resolveEnabledModel(client, taskInput.providerId, taskInput.modelRecordId, taskInput.capability, taskInput.payload);
       if (!resolvedModel) {
         await client.query(`update xh_canvas_run_steps set status = 'failed', error = $2::jsonb, finalized_at = now(), updated_at = now() where id = $1`, [step.id, JSON.stringify({ code: 'CANVAS_RUN_MODEL_UNAVAILABLE', modelRecordId: taskInput.modelRecordId })]);
         await client.query(`update xh_canvas_runs set status = 'failed', finalized_at = now(), updated_at = now() where id = $1`, [step.run_id]);
@@ -268,6 +406,18 @@ export function createCanvasRunCoordinator(options: {
          values ($1, $2, $3, 'queued', $4, $5, $6::jsonb, '{}'::jsonb, $7::jsonb, now(), now())`,
         [taskId, step.owner_id, `Canvas Run · ${step.node_type} · ${step.node_id}`, resolvedModel.providerId, resolvedModel.modelRecordId || null, JSON.stringify(taskInput.payload), JSON.stringify(['Canvas Run Worker 已创建任务'])],
       );
+      const attemptNo = Number(step.attempt_count) + 1;
+      await client.query(
+        `insert into xh_task_attempts
+          (id, owner_id, run_step_id, task_id, attempt_no, provider_id, model_id, status,
+           reason, parameter_snapshot, idempotency_key)
+         values ($1, $2, $3, $4, $5, $6, $7, 'queued', 'canvas_run_dispatch', $8::jsonb, $9)
+         on conflict (run_step_id, attempt_no) do nothing`,
+        [`task_attempt_${randomUUID()}`, step.owner_id, step.id, taskId, attemptNo,
+          resolvedModel.providerId, resolvedModel.modelRecordId || null,
+          JSON.stringify({ ...taskInput.payload, modelRecordId: resolvedModel.modelRecordId || '' }),
+          `canvas-run:${step.run_id}:step:${step.id}:attempt:${attemptNo}`],
+      );
       await client.query(
         `update xh_canvas_run_steps set status = 'queued', task_id = $2, attempt_count = attempt_count + 1,
            lease_owner = $3, lease_expires_at = now() + ($4::bigint * interval '1 millisecond'),
@@ -275,7 +425,7 @@ export function createCanvasRunCoordinator(options: {
         [step.id, taskId, options.workerId, leaseMs],
       );
       await client.query(`update xh_canvas_runs set status = 'running', started_at = coalesce(started_at, now()), updated_at = now() where id = $1 and status = 'queued'`, [step.run_id]);
-      await appendEvent(client, step.run_id, step.id, 'canvas_run.step_dispatched', { taskId, attempt: Number(step.attempt_count) + 1, capability: taskInput.capability });
+      await appendEvent(client, step.run_id, step.id, 'canvas_run.step_dispatched', { taskId, attempt: attemptNo, capability: taskInput.capability });
       await client.query('commit');
       dispatch = { taskId, capability: taskInput.capability };
     } catch (error) {
@@ -307,10 +457,12 @@ export function createCanvasRunCoordinator(options: {
           await client.query(`update xh_canvas_run_steps set status = 'ready', task_id = null, dispatch_enqueued_at = null, error = '{}'::jsonb, updated_at = now() where id = $1`, [decision.step_id]);
           await client.query(`update xh_canvas_runs set status = 'running', updated_at = now() where id = $1 and status = 'awaiting_approval'`, [decision.run_id]);
           await appendEvent(client, decision.run_id, decision.step_id, 'canvas_run.step_approval_applied', { approvalId: decision.approval_id });
+          await client.query(`update xh_recovery_decisions set status = 'applied', applied_at = now(), updated_at = now() where approval_id = $1 and status = 'proposed'`, [decision.approval_id]);
         } else {
           await client.query(`update xh_canvas_run_steps set status = 'failed', finalized_at = now(), updated_at = now() where id = $1`, [decision.step_id]);
           await client.query(`update xh_canvas_runs set status = 'failed', finalized_at = now(), updated_at = now() where id = $1`, [decision.run_id]);
           await appendEvent(client, decision.run_id, decision.step_id, 'canvas_run.step_approval_declined', { approvalId: decision.approval_id, status: decision.status });
+          await client.query(`update xh_recovery_decisions set status = 'rejected', updated_at = now() where approval_id = $1 and status = 'proposed'`, [decision.approval_id]);
         }
         await client.query('commit');
       } catch (error) {
@@ -334,12 +486,23 @@ export function createCanvasRunCoordinator(options: {
     for (const row of result.rows) await enqueueTask(row.task_id, row.capability, row.step_id);
   }
 
+  async function releaseDueRetries() {
+    await options.pool.query(
+      `update xh_canvas_run_steps s
+       set status = 'ready', retry_not_before = null, updated_at = now()
+       from xh_canvas_runs r
+       where r.id = s.run_id and r.status in ('queued', 'running')
+         and s.status = 'retry_wait'
+         and (s.retry_not_before is null or s.retry_not_before <= now())`,
+    );
+  }
+
   async function enqueueTask(taskId: string, capability: string, stepId?: string) {
     await options.redis.lPush(taskQueueNameForCapability(options.queueName, capability as never), taskId);
     await options.pool.query(`update xh_canvas_run_steps set dispatch_enqueued_at = now(), updated_at = now() where ${stepId ? 'id = $1' : 'task_id = $1'}`, [stepId || taskId]);
   }
 
-  return { run, stop, tick: async () => { await resumeApprovalDecisions(); await settleCompletedTasks(); await enqueuePendingDispatches(); await claimReadyStep(); } };
+  return { run, stop, tick: async () => { await resumeApprovalDecisions(); await settleCompletedTasks(); await releaseDueRetries(); await enqueuePendingDispatches(); await claimReadyStep(); } };
 }
 
 async function runtimeEnabled(pool: Pool, environment: string) {
@@ -356,17 +519,12 @@ async function qualityEvaluationRuntimeEnabled(client: PoolClient, environment: 
 
 async function buildTaskInput(client: PoolClient, step: StepRow) {
   const planStep = planSteps(step.plan_snapshot).find((item) => item.id === step.step_key || item.nodeId === step.node_id) || {};
-  const configuration = object(planStep.configuration);
-  const primary = {
+  const configuration = mergeCanvasRunRecoveryOverrides(planStep.configuration, step.recovery_overrides);
+  const selected = {
     providerId: text(configuration.providerId),
     modelRecordId: text(configuration.modelRecordId),
     modelId: text(configuration.modelId),
   };
-  const budget = object(step.budget_snapshot);
-  const retries = retryLimitForNode(budget, step.node_id);
-  const alternatives = Array.isArray(configuration.generationAlternatives) ? configuration.generationAlternatives.map(object) : [];
-  const alternativeIndex = Math.max(0, Number(step.attempt_count) - retries);
-  const selected = Number(step.attempt_count) >= retries ? alternatives[alternativeIndex] || primary : primary;
   const payload = { ...object(configuration.executionPayload), ...object(step.input_binding) };
   const upstream = await client.query<{ output_binding: Record<string, unknown> }>(
     `select d.output_binding from xh_canvas_run_steps d, jsonb_array_elements_text($2::jsonb) dep
@@ -376,9 +534,9 @@ async function buildTaskInput(client: PoolClient, step: StepRow) {
   mergeUpstreamPayload(payload, upstream.rows.map((row) => object(row.output_binding)));
   const capability = text(configuration.taskCapability) || (step.node_type === 'llm' ? 'chat' : step.node_type);
   return {
-    providerId: text(selected.providerId) || primary.providerId,
-    modelRecordId: text(selected.modelRecordId) || primary.modelRecordId,
-    payload: { ...payload, providerModel: text(selected.modelId) || primary.modelId, taskCapability: capability, executionMode: 'worker_queue', sourceNodeId: step.node_id, canvasRunId: step.run_id, canvasRunStepId: step.id },
+    providerId: selected.providerId,
+    modelRecordId: selected.modelRecordId,
+    payload: { ...payload, providerModel: selected.modelId, taskCapability: capability, executionMode: 'worker_queue', sourceNodeId: step.node_id, canvasRunId: step.run_id, canvasRunStepId: step.id },
     capability,
   };
 }
@@ -511,16 +669,33 @@ export function mergeUpstreamPayload(payload: Record<string, unknown>, outputs: 
   return payload;
 }
 
-async function resolveEnabledModel(client: PoolClient, providerId: string, modelRecordId: string, capability: string) {
+async function resolveEnabledModel(client: PoolClient, providerId: string, modelRecordId: string, capability: string, payload: Record<string, unknown> = {}) {
   if (!modelRecordId) return null;
-  const result = await client.query<{ model_record_id: string; provider_id: string }>(
-    `select m.id as model_record_id, p.id as provider_id
+  const result = await client.query<{ model_record_id: string; provider_id: string; input_capabilities: Record<string, unknown> }>(
+    `select m.id as model_record_id, p.id as provider_id, m.input_capabilities
      from xh_models m join xh_providers p on p.id = m.provider_id
      where m.id = $1 and m.enabled = true and p.enabled = true and m.capability = $2
        and ($3 = '' or p.id = $3) limit 1`,
     [modelRecordId, capability, providerId],
   );
-  return result.rows[0] ? { modelRecordId: result.rows[0].model_record_id, providerId: result.rows[0].provider_id } : null;
+  const row = result.rows[0];
+  if (!row || !modelSupportsTaskInputs(object(row.input_capabilities), payload)) return null;
+  return { modelRecordId: row.model_record_id, providerId: row.provider_id };
+}
+
+function modelSupportsTaskInputs(capabilities: Record<string, unknown>, payload: Record<string, unknown>) {
+  if (hasPayloadMedia(payload, ['image', 'imageUrl', 'imageUrls', 'images'])
+    && !['imageReference', 'firstFrame', 'lastFrame'].some((key) => capabilities[key] === true)) return false;
+  if (hasPayloadMedia(payload, ['video', 'videoUrl', 'videoUrls', 'videos']) && capabilities.videoReference !== true) return false;
+  if (hasPayloadMedia(payload, ['audio', 'audioUrl', 'audioUrls', 'audios']) && capabilities.audioReference !== true) return false;
+  if (text(payload.prompt) && capabilities.prompt === false) return false;
+  return true;
+}
+
+function hasPayloadMedia(payload: Record<string, unknown>, keys: string[]) {
+  return keys.some((key) => Array.isArray(payload[key])
+    ? (payload[key] as unknown[]).some((item) => Boolean(text(item)))
+    : Boolean(text(payload[key])));
 }
 
 async function readBudgetError(client: PoolClient, step: StepRow) {
@@ -546,23 +721,6 @@ async function readBudgetError(client: PoolClient, step: StepRow) {
     if (Number(cost.rows[0]?.amount || 0) >= maxCost) return 'CANVAS_RUN_MAX_COST';
   }
   return '';
-}
-
-export function recoveryChoice(step: Pick<StepRow, 'attempt_count' | 'budget_snapshot' | 'plan_snapshot' | 'node_id'>) {
-  const retries = retryLimitForNode(object(step.budget_snapshot), step.node_id);
-  if (Number(step.attempt_count) < retries) return { retry: true, strategy: 'same_configuration' };
-  const planStep = planSteps(step.plan_snapshot).find((item) => item.nodeId === step.node_id) || {};
-  const alternatives = Array.isArray(object(planStep.configuration).generationAlternatives) ? object(planStep.configuration).generationAlternatives as unknown[] : [];
-  const alternative = object(alternatives[Math.max(0, Number(step.attempt_count) - retries)]);
-  if (text(alternative.modelRecordId) && alternative.requiresApproval === false) return { retry: true, strategy: 'node_alternative', alternative };
-  if (text(alternative.modelRecordId)) return { retry: false, strategy: 'approval_required', alternative };
-  return { retry: false, strategy: 'exhausted' };
-}
-
-function retryLimitForNode(budget: Record<string, unknown>, nodeId: string) {
-  const overrides = object(budget.nodeRetryOverrides);
-  if (Object.prototype.hasOwnProperty.call(overrides, nodeId)) return Math.max(0, Math.min(10, integer(overrides[nodeId], 0)));
-  return Math.max(0, Math.min(10, integer(budget.maxAttemptsPerStep, 3)));
 }
 
 async function unlockDependents(client: PoolClient, runId: string) {

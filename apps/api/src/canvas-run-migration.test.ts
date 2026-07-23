@@ -70,4 +70,18 @@ describe("canvas run migration", () => {
     expect(sql).toMatch(/settings jsonb not null/i);
     expect(sql).toMatch(/unique\s*\(owner_id, canvas_id, workflow_id\)/i);
   });
+
+  it("adds audited recovery runtime state without mutating immutable Run plans", async () => {
+    const sql = await readFile(new URL("../db/039_canvas_run_recovery_runtime.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/add column if not exists retry_not_before timestamptz/i);
+    expect(sql).toMatch(/add column if not exists recovery_overrides jsonb not null default '\{\}'::jsonb/i);
+    expect(sql).toMatch(/add column if not exists recovery_context jsonb not null default '\{\}'::jsonb/i);
+    expect(sql).toMatch(/where status = 'retry_wait'/i);
+    expect(sql).toMatch(/input_before_snapshot jsonb not null/i);
+    expect(sql).toMatch(/input_after_snapshot jsonb not null/i);
+    expect(sql).toMatch(/diff_snapshot jsonb not null/i);
+    expect(sql).toMatch(/recovery_attempt_no integer/i);
+    expect(sql).toMatch(/'rewrite_prompt_for_review'/i);
+  });
 });

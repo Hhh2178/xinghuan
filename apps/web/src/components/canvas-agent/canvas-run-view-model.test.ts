@@ -26,6 +26,29 @@ describe('canvas run supervision view model', () => {
     expect(buildCanvasRunStepViews(run, [...[], event(4, 'canvas_run.step_succeeded')])[0].status).toBe('succeeded');
   });
 
+  it('projects governed recovery and prompt rewrite evidence from the new runtime events', () => {
+    const fallback = buildCanvasRunStepViews(run, [
+      event(1, 'canvas_run.step_recovery_scheduled', {
+        action: 'switch_generation_model',
+        providerId: 'provider-b',
+        modelId: 'model-b',
+        retryDelayMs: 2_000,
+      }),
+    ])[0];
+    expect(fallback).toMatchObject({
+      status: 'retrying',
+      provider: 'provider-b',
+      model: 'model-b',
+      recoveryEvidence: '切换兼容模型 · 2 秒后',
+    });
+
+    const rewritten = buildCanvasRunStepViews(run, [
+      event(1, 'canvas_run.prompt_rewrite_started'),
+      event(2, 'canvas_run.prompt_rewrite_applied', { changeCount: 2 }),
+    ])[0];
+    expect(rewritten).toMatchObject({ status: 'retrying', recoveryEvidence: '提示词已改写 · 2 处' });
+  });
+
   it('projects input and quality-selection evidence without inventing missing values', () => {
     const view = buildCanvasRunStepViews(run, [
       event(1, 'canvas_run.quality_evaluation_dispatched', { inputMode: 'sampled_frames', sampleCount: 6, truncatedItemCount: 2, routeEntryId: 'route-1' }),
@@ -38,6 +61,8 @@ describe('canvas run supervision view model', () => {
 
   it('formats event and budget evidence for compact supervision UI', () => {
     expect(canvasRunEventLabel('canvas_run.step_retry_scheduled')).toBe('步骤准备重试');
+    expect(canvasRunEventLabel('canvas_run.step_recovery_scheduled')).toBe('步骤恢复已安排');
+    expect(canvasRunEventLabel('canvas_run.prompt_rewrite_applied')).toBe('提示词审核改写已应用');
     expect(canvasRunBudgetItems(run.budgetSnapshot)).toEqual([
       { label: '任务上限', value: '8' },
       { label: '时长上限', value: '90 秒' },
@@ -62,6 +87,17 @@ describe('canvas run supervision view model', () => {
       impact: '当前节点未完成，下游步骤尚未释放。',
       recovery: '检查已发布模型或切换兼容候选后重试。',
       technical: 'CANVAS_RUN_MODEL_UNAVAILABLE · model-a',
+    });
+  });
+
+  it('gives legacy drafts an explicit recreate-run repair path', () => {
+    const diagnostic = buildCanvasRunFailureDiagnostic({ ...run, status: 'failed' }, [
+      event(1, 'canvas_run.step_failed', { code: 'CANVAS_RUN_MODEL_RECORD_REPAIR_REQUIRED' }),
+    ]);
+
+    expect(diagnostic).toMatchObject({
+      category: '旧 Run 缺少模型记录',
+      recovery: '当前草稿无法安全补全模型记录。请从最新工作流重新创建 Run。',
     });
   });
 });

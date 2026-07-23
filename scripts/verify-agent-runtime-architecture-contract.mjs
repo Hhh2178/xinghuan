@@ -20,6 +20,7 @@ const files = {
   qualityMigration: await read("apps/api/db/028_artifact_quality_and_recovery.sql"),
   knowledgeMigration: await read("apps/api/db/035_agent_knowledge_snapshots.sql"),
   workerLeaseMigration: await read("apps/api/db/030_canvas_run_worker_leases.sql"),
+  recoveryRuntimeMigration: await read("apps/api/db/039_canvas_run_recovery_runtime.sql"),
   compiler: await read("packages/agent-core/src/workflow-compiler.ts"),
   kernel: await read("packages/agent-core/src/canvas-run-kernel.ts"),
   nodeCapabilities: await read("packages/agent-core/src/node-execution-capabilities.ts"),
@@ -28,6 +29,7 @@ const files = {
   deterministicRuntime: await read("packages/agent-core/src/deterministic-node-runtime.ts"),
   repository: await read("apps/api/src/canvas-run-repository.ts"),
   service: await read("apps/api/src/canvas-run-service.ts"),
+  modelPreflight: await read("apps/api/src/canvas-run-model-preflight.ts"),
   routes: await read("apps/api/src/canvas-run-routes.ts"),
   orchestrator: await read("apps/api/src/agent-orchestrator.ts"),
   agentRunRepository: await read("apps/api/src/agent-run-repository.ts"),
@@ -43,6 +45,8 @@ const files = {
   qualityService: await read("apps/api/src/artifact-quality-service.ts"),
   recoveryService: await read("apps/api/src/generation-recovery-service.ts"),
   workerCoordinator: await read("apps/worker/src/canvas-run-coordinator.ts"),
+  workerRecoveryRuntime: await read("apps/worker/src/canvas-run-recovery-runtime.ts"),
+  workerRecoveryStore: await read("apps/worker/src/canvas-run-recovery-store.ts"),
   workerEntry: await read("apps/worker/src/worker.ts"),
   webApp: await read("apps/web/src/App.tsx"),
   assistantShell: await read("apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx"),
@@ -105,6 +109,19 @@ assert.match(files.workerCoordinator, /taskQueueNameForCapability/, "Canvas Run 
 assert.match(files.workerCoordinator, /xh_agent_approvals/, "generation model switches requiring approval must enter the approval ledger");
 assert.match(files.workerCoordinator, /CANVAS_RUN_MAX_COST/, "Canvas Run Worker must enforce the persisted cost budget");
 assert.match(files.workerCoordinator, /executeDeterministicNode/, "Canvas Run Worker must settle supported deterministic nodes without Provider tasks");
+assert.match(files.modelPreflight, /resolveCanvasRunPlanModelReferences/, "Canvas Run start must preflight legacy and frozen model records");
+assert.match(files.modelPreflight, /CANVAS_RUN_MODEL_AMBIGUOUS/, "legacy model names must fail closed when catalog resolution is ambiguous");
+assert.match(files.recoveryRuntimeMigration, /retry_not_before/, "recovery backoff must use dedicated retry timing rather than lease expiry");
+assert.match(files.recoveryRuntimeMigration, /recovery_overrides/, "recovery choices must use audited runtime overrides rather than mutate the Run Plan");
+assert.match(files.recoveryRuntimeMigration, /rewrite_prompt_for_review/, "the recovery ledger must support governed prompt-review rewrites");
+assert.match(files.workerCoordinator, /insert into xh_task_attempts/, "Canvas Run dispatch must write task-attempt ledger rows");
+assert.match(files.workerCoordinator, /status = 'retry_wait'/, "Canvas Run retry backoff must have a dedicated step state");
+assert.match(files.workerCoordinator, /d\.status not in \('succeeded', 'skipped'\)/, "downstream steps must remain blocked until upstream recovery succeeds");
+assert.match(files.workerRecoveryRuntime, /retryExhaustionPolicy === "compatible_fallback"/, "runtime fallback must honor the frozen retry-exhaustion policy");
+assert.match(files.workerRecoveryRuntime, /mergeCanvasRunRecoveryOverrides/, "dispatch must overlay audited recovery choices without rewriting the immutable plan");
+assert.match(files.workerRecoveryStore, /insert into xh_recovery_decisions/, "Worker recovery must write the Recovery Decision ledger");
+assert.match(files.workerRecoveryStore, /p\.role = 'recovery'.*p\.scenario = 'prompt-review-rewrite'/s, "prompt rewrites must use a published governed recovery route");
+assert.match(files.workerRecoveryStore, /input_before_snapshot.*input_after_snapshot.*diff_snapshot/s, "prompt rewrite decisions must retain before, after and bounded diff evidence");
 assert.match(files.workerEntry, /XINGHUAN_CANVAS_RUN_WORKER_ENABLED/, "Canvas Run Worker consumer must have an explicit environment gate");
 
 for (const table of ["xh_agent_definitions", "xh_agent_runs", "xh_agent_actions", "xh_llm_route_pools", "xh_llm_route_pool_versions", "xh_llm_route_entries", "xh_llm_route_entry_health", "xh_llm_route_decisions"]) {
