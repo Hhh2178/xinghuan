@@ -22,6 +22,7 @@ export * from "./announcements.js";
 export * from "./environment-sync.js";
 export * from "./runninghub.js";
 export * from "./comfyui-workflow.js";
+export * from "./workflow-variables.js";
 export * from "./postgres-pool-config.js";
 export * from "./permission-contract.js";
 export * from "./canvas-node-permission-catalog.js";

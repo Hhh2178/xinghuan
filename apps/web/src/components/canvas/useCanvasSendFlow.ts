@@ -276,6 +276,7 @@ export function useCanvasSendFlow({
           const payload = {
             nodes: [...targetNodes, ...instance.nodes],
             edges: [...targetEdges, ...instance.edges],
+            workflows: Array.isArray(data.workflows) ? data.workflows : [],
             viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
             revision: data.revision,
             nextNodeSerialId: freshSerials.nextNodeSerialId,
@@ -366,6 +367,7 @@ export function useCanvasSendFlow({
         const payload = {
           nodes: [...cleaned.nodes, ...freshSerials.nodes],
           edges: cleaned.edges,
+          workflows: Array.isArray(data.workflows) ? data.workflows : [],
           viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
           revision: data.revision,
           nextNodeSerialId: freshSerials.nextNodeSerialId,

@@ -1,11 +1,16 @@
 import { memo, useCallback, useState } from 'react';
 import { Handle, Position, type NodeProps, type ResizeParams } from '@xyflow/react';
-import { Hash, Type } from 'lucide-react';
+import type { WorkflowFieldBinding } from '@xinghuan/shared';
+import { Braces, Hash, Type } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import ResizableCorners from './ResizableCorners';
 import { getCornerResizeBehavior } from '../../utils/nodeResizeBehavior';
 import { normalizeRhNodeId } from '../../utils/rhTextBinding';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
+import { useCanvasWorkflows } from '../canvas/CanvasWorkflowContext';
+import { WorkflowTokenEditor } from '../canvas/WorkflowTokenEditor';
+import { WorkflowBadge, WorkflowMembershipControl, WorkflowVariableValues } from '../canvas/WorkflowVariableControls';
+import { workflowVariableErrorMessage } from '../canvas/workflowTokenPresentation';
 
 /**
  * 文本节点 - 提示词输入
@@ -21,7 +26,14 @@ import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
   const update = useUpdateNodeData(id);
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
+  const workflowController = useCanvasWorkflows();
   const text = ((data as any)?.prompt as string) || '';
+  const workflow = workflowController.workflowForNode(id);
+  const promptBinding = workflow?.bindings.find((binding) => binding.nodeId === id && binding.fieldPath === 'prompt');
+  const bindingMode = promptBinding?.binding.mode || 'fixed';
+  const variableIds = promptBinding ? bindingVariableIds(promptBinding.binding) : [];
+  const [variablesOpen, setVariablesOpen] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const rhNodeIdRaw = String((data as any)?.rhNodeId ?? '');
   const rhNodeId = normalizeRhNodeId(rhNodeIdRaw);
   const resizeBehavior = getCornerResizeBehavior('text');
@@ -50,6 +62,33 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
     },
     [update],
   );
+
+  const handleTextChange = useCallback((value: string) => {
+    update({ prompt: value });
+    if (!workflow) return;
+    setTemplateError(workflowVariableErrorMessage(workflowController.setTextSource(workflow.id, id, 'prompt', value)));
+  }, [id, update, workflow, workflowController]);
+
+  const chooseBindingMode = useCallback((mode: 'fixed' | 'variable' | 'template') => {
+    if (!workflow) return;
+    if (mode === 'fixed') {
+      workflowController.setFieldBinding(workflow.id, id, 'prompt', 'text', { mode: 'fixed' });
+      setTemplateError(null);
+      return;
+    }
+    const textVariable = workflow.variables.find((variable) => variable.type === 'text');
+    const variableId = textVariable?.id || workflowController.addVariable(workflow.id, 'text', '文本输入');
+    const variableKey = textVariable?.key || '文本输入';
+    if (mode === 'variable') {
+      workflowController.setFieldBinding(workflow.id, id, 'prompt', 'text', { mode: 'variable', variableId });
+      update({ prompt: `##${variableKey}##` });
+      setTemplateError(null);
+      return;
+    }
+    const source = text.includes('##') ? text : `${text}${text ? ' ' : ''}##${variableKey}##`;
+    update({ prompt: source });
+    setTemplateError(workflowVariableErrorMessage(workflowController.setTextSource(workflow.id, id, 'prompt', source)));
+  }, [id, text, update, workflow, workflowController]);
 
   return (
     <div
@@ -100,23 +139,64 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
           <Type size={13} />
         </div>
         <div className="flex-1 text-sm font-semibold text-white">文本</div>
+        {workflow ? <WorkflowBadge workflow={workflow} /> : null}
+        <button
+          type="button"
+          onClick={() => setVariablesOpen((open) => !open)}
+          className={`nodrag nopan inline-flex h-6 w-6 items-center justify-center rounded ${variablesOpen ? 'bg-amber-300 text-zinc-950' : 'bg-white/5 text-white/55 hover:bg-white/10'}`}
+          title="工作流变量"
+          aria-label="工作流变量"
+        >
+          <Braces size={12} />
+        </button>
         <span className="text-[10px] text-white/30">prompt</span>
       </div>
 
       <div className={`p-2.5 flex flex-col ${size.h ? 'flex-1 min-h-0' : ''}`}>
-        <textarea
-          value={text}
-          onChange={(e) => update({ prompt: e.target.value })}
-          placeholder="输入提示词..."
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          className={`w-full resize-none rounded-md bg-white/5 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30 nodrag nowheel ${
-            size.h ? 'flex-1 min-h-[72px]' : 'h-24'
-          }`}
-          // 阻止 reactflow 拖拽冒泡
-          onMouseDown={(e) => e.stopPropagation()}
-        />
+        {workflow && (variablesOpen || bindingMode !== 'fixed') ? (
+          <WorkflowTokenEditor
+            value={text}
+            onChange={handleTextChange}
+            error={templateError}
+            className={size.h ? 'flex-1 min-h-[72px]' : 'h-24'}
+          />
+        ) : (
+          <textarea
+            value={text}
+            onChange={(e) => handleTextChange(e.target.value)}
+            placeholder="输入提示词..."
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+            className={`w-full resize-none rounded-md bg-white/5 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-white/30 placeholder:text-white/30 nodrag nowheel ${
+              size.h ? 'flex-1 min-h-[72px]' : 'h-24'
+            }`}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+        )}
+        {variablesOpen ? (
+          <div className="nodrag nowheel mt-2 space-y-2 rounded-md border border-white/10 bg-black/20 p-2" onMouseDown={(event) => event.stopPropagation()}>
+            <WorkflowMembershipControl nodeId={id} workflow={workflow} />
+            {workflow ? (
+              <>
+                <div className="grid grid-cols-3 overflow-hidden rounded border border-white/10">
+                  {(['fixed', 'variable', 'template'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => chooseBindingMode(mode)}
+                      className={`h-7 text-[10px] ${bindingMode === mode ? 'bg-amber-300 font-semibold text-zinc-950' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+                    >
+                      {{ fixed: '固定文本', variable: '整段变量', template: '模板文本' }[mode]}
+                    </button>
+                  ))}
+                </div>
+                {templateError ? <div className="text-[10px] text-red-300">{templateError}</div> : null}
+                <WorkflowVariableValues workflow={workflow} variableIds={variableIds} />
+              </>
+            ) : null}
+          </div>
+        ) : null}
         <div className="text-[10px] text-white/30 mt-1 flex items-center gap-2 shrink-0">
           <span className="shrink-0" title="输出到下游节点">{text.length} 字符</span>
           <label
@@ -142,3 +222,9 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
 };
 
 export default memo(TextNode);
+
+function bindingVariableIds(binding: WorkflowFieldBinding) {
+  if (binding.mode === 'fixed') return [];
+  if (binding.mode === 'variable') return [binding.variableId];
+  return [...new Set(binding.segments.flatMap((segment) => segment.kind === 'variable' ? [segment.variableId] : []))];
+}

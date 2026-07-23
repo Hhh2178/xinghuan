@@ -18,6 +18,7 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { normalizeWorkflowDocuments, type WorkflowDocument } from '@xinghuan/shared';
 import {
   AlignCenterHorizontal,
   AlignCenterVertical,
@@ -50,6 +51,7 @@ import { getTemplateMode, resolveThemeTemplate } from '../theme/defaultTemplates
 import { useRunBusStore } from '../stores/runBus';
 import { useGroupBusStore, GROUP_COLORS, DEFAULT_GROUP_NAME } from '../stores/groupBus';
 import { GROUP_EXECUTION_MANAGER_NODE_TYPE, buildGroupExecutionManagerDataFromNodes, findGroupExecutionManagerNode, normalizeGroupExecutionManagerData, type GroupExecutionManagerData } from './canvas/groupExecutionManager';
+import { CanvasWorkflowProvider } from './canvas/CanvasWorkflowContext';
 import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
@@ -188,6 +190,7 @@ import UploadNode from './nodes/UploadNode';
 const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/OutputNode')));
 import GroupBoxNode from './nodes/GroupBoxNode';
 import GroupExecutionManagerNode from './nodes/GroupExecutionManagerNode';
+import WorkflowVariablesNode from './nodes/WorkflowVariablesNode';
 import CanvasAgentNode from './nodes/CanvasAgentNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
@@ -285,6 +288,7 @@ const SPECIFIC_NODES: Record<string, any> = {
   'grid-crop': GridCropNode,
   'grid-editor': GridEditorNode,
   'canvas-agent': CanvasAgentNode,
+  'workflow-variables': WorkflowVariablesNode,
   // Auxiliary (5)
   edit: ImageNode, // 复用 ImageNode,默认偏向 edit 能力
   idea: IdeaNode,
@@ -1219,6 +1223,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   const { screenToFlowPosition, setCenter, getViewport, setViewport, fitView } = useReactFlow();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowDocument[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadedCanvasId, setLoadedCanvasId] = useState<string | null>(null);
   const nextNodeSerialIdRef = useRef(1);
@@ -1309,6 +1314,16 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       if (idList.length === 0) return;
       markCanvasNodesDeleted(activeId, idList);
       const removeIds = new Set(idList);
+      setWorkflows((current) => current.map((workflow) => {
+        const removedMembers = workflow.memberNodeIds.filter((nodeId) => removeIds.has(nodeId));
+        if (removedMembers.length === 0) return workflow;
+        return {
+          ...workflow,
+          revision: workflow.revision + 1,
+          memberNodeIds: workflow.memberNodeIds.filter((nodeId) => !removeIds.has(nodeId)),
+          bindings: workflow.bindings.filter((binding) => !removeIds.has(binding.nodeId)),
+        };
+      }).filter((workflow) => workflow.memberNodeIds.length > 0));
       const baseNodes = beforeNodes || nodesRef.current;
       const remaining = baseNodes.filter((node) => node.id !== BULK_PHANTOM_ID && !removeIds.has(node.id));
       if (remaining.length === 0) {
@@ -1355,6 +1370,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     activeId,
     nodes,
     edges,
+    workflows,
     loaded,
     loadedCanvasId,
     bulkPhantomId: BULK_PHANTOM_ID,
@@ -1362,6 +1378,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     scheduleCapture,
     setNodes,
     setEdges,
+    setWorkflows,
     setLoaded,
     setLoadedCanvasId,
     nextNodeSerialIdRef,
@@ -1956,6 +1973,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       canvas: { id: activeId || 'export' },
       nodes,
       edges,
+      workflows,
       viewport: getViewport(),
       nextNodeSerialId: nextNodeSerialIdRef.current,
     };
@@ -1968,7 +1986,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [nodes, edges, activeId, getViewport]);
+  }, [nodes, edges, workflows, activeId, getViewport]);
 
   const handleImportClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -1986,6 +2004,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           const source = json?.canvasData && typeof json.canvasData === 'object' ? json.canvasData : json;
           const importedNodes = Array.isArray(source.nodes) ? source.nodes : [];
           const importedEdges = Array.isArray(source.edges) ? source.edges : [];
+          const importedWorkflows = normalizeWorkflowDocuments(source.workflows);
           if (!confirm(`导入将替换当前画布(${importedNodes.length} 个节点 / ${importedEdges.length} 条连线),是否继续?`)) {
             return;
           }
@@ -1994,6 +2013,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           nextNodeSerialIdRef.current = normalized.nextNodeSerialId;
           setNodes(normalized.nodes);
           setEdges(importedEdges);
+          setWorkflows(importedWorkflows);
         } catch (err) {
           alert('导入失败:JSON 解析错误');
           console.error(err);
@@ -3399,6 +3419,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   }
 
   return (
+    <CanvasWorkflowProvider workflows={workflows} setWorkflows={setWorkflows} setNodes={setNodes}>
     <div
       className={`t8-canvas-shell flex-1 relative${connectionPanModeActive ? ' connection-pan-mode-active' : ''}`}
       data-theme-visual={visualStyle}
@@ -4006,6 +4027,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         );
       })()}
     </div>
+    </CanvasWorkflowProvider>
   );
 }
 

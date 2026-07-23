@@ -23,6 +23,8 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
+当前状态：Phase 0、1、2 已完成并分别保留本地 checkpoint；Phase 3 Workflow Region 正在进行。Phase 2 的窄屏 Canvas shell 结果为已知失败，留待 Phase 8/10 修复，不影响变量领域合同完成，也不计为移动端验收通过。
+
 ## 执行原则
 
 - 每阶段先写失败测试，再实现，再跑受影响 package 和合同；阶段末同步计划、系统文档、daily/validation logbook。

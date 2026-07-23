@@ -35,6 +35,7 @@ function enqueueOffscreenCanvasPatch(
       const payload = {
         nodes,
         edges: Array.isArray(data.edges) ? data.edges : [],
+        workflows: Array.isArray(data.workflows) ? data.workflows : [],
         viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
       };
       await api.saveCanvasData(canvasId, payload);

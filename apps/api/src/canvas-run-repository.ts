@@ -18,6 +18,7 @@ export interface CanvasRunRecord {
   runScope: "canvas" | "group" | "downstream";
   status: CanvasRunStatus;
   planSnapshot: CanvasRunPlan;
+  inputSnapshot: Record<string, unknown>;
   configurationSnapshot: Record<string, unknown>;
   budgetSnapshot: Record<string, unknown>;
   createdAt: number;
@@ -49,6 +50,7 @@ interface CanvasRunRow extends QueryResultRow {
   run_scope: CanvasRunRecord["runScope"];
   status: CanvasRunStatus;
   plan_snapshot: CanvasRunPlan;
+  input_snapshot: Record<string, unknown>;
   configuration_snapshot: Record<string, unknown>;
   budget_snapshot: Record<string, unknown>;
   created_at_ms: string | number;
@@ -78,6 +80,7 @@ export function createCanvasRunRepository(deps: {
     runScope?: CanvasRunRecord["runScope"];
     configurationSnapshot?: Record<string, unknown>;
     budgetSnapshot?: Record<string, unknown>;
+    inputSnapshot?: Record<string, unknown>;
   }): Promise<{ run: CanvasRunRecord; created: boolean }> {
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
@@ -92,12 +95,12 @@ export function createCanvasRunRepository(deps: {
       const inserted = await client.query<CanvasRunRow>(
         `with inserted as (
            insert into xh_canvas_runs
-             (id, owner_id, canvas_id, canvas_revision, run_scope, status, plan_snapshot, configuration_snapshot, budget_snapshot, idempotency_key)
-           values ($1, $2, $3, $4, $5, 'draft', $6::jsonb, $7::jsonb, $8::jsonb, $9)
+             (id, owner_id, canvas_id, canvas_revision, run_scope, status, plan_snapshot, input_snapshot, configuration_snapshot, budget_snapshot, idempotency_key)
+           values ($1, $2, $3, $4, $5, 'draft', $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10)
            on conflict (owner_id, idempotency_key) do nothing
            returning *
          ) ${RUN_SELECT} from inserted r`,
-        [runId, input.ownerId, input.plan.canvasId, input.plan.canvasRevision, input.runScope || "canvas", json(input.plan), json(input.configurationSnapshot), json(input.budgetSnapshot), input.idempotencyKey],
+        [runId, input.ownerId, input.plan.canvasId, input.plan.canvasRevision, input.runScope || "canvas", json(input.plan), json(input.inputSnapshot), json(input.configurationSnapshot), json(input.budgetSnapshot), input.idempotencyKey],
       );
       if (inserted.rows[0]) {
         await insertRunSteps(client, runId, input.plan, newId);
@@ -256,7 +259,7 @@ export function createCanvasRunRepository(deps: {
 }
 
 const RUN_SELECT = `select r.id, r.owner_id, r.canvas_id, r.canvas_revision, r.run_scope, r.status,
-  r.plan_snapshot, r.configuration_snapshot, r.budget_snapshot,
+  r.plan_snapshot, r.input_snapshot, r.configuration_snapshot, r.budget_snapshot,
   extract(epoch from r.created_at) * 1000 as created_at_ms,
   extract(epoch from r.updated_at) * 1000 as updated_at_ms`;
 
@@ -326,6 +329,7 @@ function mapRun(row: CanvasRunRow): CanvasRunRecord {
     runScope: row.run_scope,
     status: row.status,
     planSnapshot: row.plan_snapshot,
+    inputSnapshot: jsonObject(row.input_snapshot),
     configurationSnapshot: jsonObject(row.configuration_snapshot),
     budgetSnapshot: jsonObject(row.budget_snapshot),
     createdAt: Number(row.created_at_ms),

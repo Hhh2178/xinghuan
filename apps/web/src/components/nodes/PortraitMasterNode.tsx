@@ -1237,6 +1237,7 @@ const PortraitMasterNode = ({ id, data, selected }: NodeProps) => {
       await api.saveCanvasData(targetId, {
         nodes: [...targetNodes, newNode],
         edges: Array.isArray(canvas.edges) ? canvas.edges : [],
+        workflows: Array.isArray(canvas.workflows) ? canvas.workflows : [],
         viewport: canvas.viewport || { x: 0, y: 0, zoom: 1 },
       });
       await loadCanvases();

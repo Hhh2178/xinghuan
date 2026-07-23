@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createCanvasRunService, normalizeCanvasRunBudget, normalizeCanvasRunConfiguration } from "./canvas-run-service.js";
+import { compileWorkflowInputSnapshot, createCanvasRunService, normalizeCanvasRunBudget, normalizeCanvasRunConfiguration } from "./canvas-run-service.js";
 
 describe("canvas run service", () => {
   it("compiles only the authenticated owner's persisted canvas revision", async () => {
@@ -36,6 +36,79 @@ describe("canvas run service", () => {
 
     const fileBacked = createCanvasRunService({ repository, isEnabled: () => true, usePostgresRepository: () => false });
     await expect(fileBacked.createRun({ ownerId: "o", canvasId: "c", idempotencyKey: "i" })).rejects.toThrow("CANVAS_RUN_POSTGRES_REQUIRED");
+  });
+
+  it("freezes a validated workflow input snapshot when workflow scope is requested", async () => {
+    const createCanvasRun = vi.fn(async (input: any) => ({ created: true, run: { id: "run-workflow", ...input } }));
+    const workflow = {
+      schemaVersion: 1,
+      id: "workflow-1",
+      name: "海报工作流",
+      revision: 4,
+      memberNodeIds: ["text-1", "workflow-variables-1"],
+      variables: [{ id: "var-theme", key: "主题", label: "主题", type: "text", required: true, constraints: {}, allowAiFill: false, allowAiRewrite: true, version: 1 }],
+      inputValues: { "var-theme": "海边" },
+      bindings: [{ nodeId: "text-1", fieldPath: "prompt", fieldType: "text", binding: { mode: "template", segments: [{ kind: "text", value: "主题：" }, { kind: "variable", variableId: "var-theme", key: "主题" }] } }],
+    };
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 8,
+        data: {
+          nodes: [
+            { id: "text-1", type: "text", data: { prompt: "主题：##主题##" } },
+            { id: "workflow-variables-1", type: "workflow-variables", data: {} },
+          ],
+          edges: [],
+          workflows: [workflow],
+        },
+      })),
+      createCanvasRun,
+      readOwnedRun: vi.fn(),
+      applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({ repository: repository as any, isEnabled: () => true, usePostgresRepository: () => true });
+
+    await service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", idempotencyKey: "workflow-1" });
+
+    expect(createCanvasRun).toHaveBeenCalledWith(expect.objectContaining({
+      inputSnapshot: {
+        schemaVersion: 1,
+        workflowId: "workflow-1",
+        workflowRevision: 4,
+        variables: [{ id: "var-theme", key: "主题", type: "text", value: "海边", source: "provided" }],
+      },
+    }));
+    expect(Object.isFrozen(createCanvasRun.mock.calls[0][0].inputSnapshot)).toBe(true);
+  });
+
+  it("rejects stale workflow bindings and missing required input before creating a run", async () => {
+    const createCanvasRun = vi.fn();
+    const data = {
+      nodes: [{ id: "text-1", type: "text", data: { prompt: "##未闭合" } }],
+      edges: [],
+      workflows: [{
+        schemaVersion: 1,
+        id: "workflow-1",
+        name: "工作流",
+        revision: 1,
+        memberNodeIds: ["text-1"],
+        variables: [{ id: "var-theme", key: "主题", label: "主题", type: "text", required: true, constraints: {}, allowAiFill: false, allowAiRewrite: true, version: 1 }],
+        inputValues: {},
+        bindings: [{ nodeId: "text-1", fieldPath: "prompt", fieldType: "text", binding: { mode: "variable", variableId: "var-theme" } }],
+      }],
+    };
+    const repository = { readOwnedCanvasSnapshot: vi.fn(async () => ({ id: "canvas-1", ownerId: "owner-1", revision: 1, data })), createCanvasRun, readOwnedRun: vi.fn(), applyCommand: vi.fn() };
+    const service = createCanvasRunService({ repository: repository as any, isEnabled: () => true, usePostgresRepository: () => true });
+
+    await expect(service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", idempotencyKey: "workflow-invalid" })).rejects.toThrow("WORKFLOW_VARIABLE_TOKEN_UNCLOSED");
+    expect(createCanvasRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects workflow input overrides when no workflow target is supplied", () => {
+    expect(() => compileWorkflowInputSnapshot({ data: {}, values: { theme: "海边" } }))
+      .toThrow("WORKFLOW_ID_REQUIRED");
   });
 
   it("normalizes bounded runtime budgets without floating point money conversion", () => {

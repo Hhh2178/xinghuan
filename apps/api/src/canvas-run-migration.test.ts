@@ -40,4 +40,11 @@ describe("canvas run migration", () => {
     expect(sql).toMatch(/owner_id text not null references xh_users/i);
     expect(sql).toMatch(/status text not null check.*'pending'.*'approved'.*'rejected'.*'expired'.*'cancelled'/is);
   });
+
+  it("adds an immutable workflow input snapshot to canvas runs", async () => {
+    const sql = await readFile(new URL("../db/036_workflow_input_snapshots.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/alter table xh_canvas_runs/i);
+    expect(sql).toMatch(/add column if not exists input_snapshot jsonb not null default '\{\}'::jsonb/i);
+  });
 });

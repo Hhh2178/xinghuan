@@ -38,6 +38,7 @@ export interface CanvasRunRecord {
     groups: CanvasRunPlanGroup[];
     steps: CanvasRunPlanStep[];
   };
+  inputSnapshot?: Record<string, unknown>;
   configurationSnapshot: Record<string, unknown>;
   budgetSnapshot: Record<string, unknown>;
   createdAt: number;
@@ -67,6 +68,8 @@ async function readResponse<T>(response: Response): Promise<T> {
 
 export async function createCanvasRun(input: {
   canvasId: string;
+  workflowId?: string;
+  workflowInputValues?: Record<string, unknown>;
   runScope: CanvasRunRecord['runScope'];
   configuration?: Record<string, unknown>;
   budget?: Record<string, unknown>;

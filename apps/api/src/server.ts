@@ -17,6 +17,7 @@ import {
   type EnvironmentSyncTarget,
   defaultTaskQueueSettings,
   normalizeTaskQueueSettings,
+  normalizeWorkflowDocuments,
   resolvePostgresPoolConfig,
   taskQueueNameForCapability,
   type AppEnvironment,
@@ -29,6 +30,7 @@ import {
   type TaskQueueCapability,
   type TaskQueueSettings,
   type TaskStatus,
+  type WorkflowDocument,
 } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
@@ -744,6 +746,7 @@ interface CanvasListItem {
 interface CanvasData {
   nodes: unknown[];
   edges: unknown[];
+  workflows: WorkflowDocument[];
   viewport: { x: number; y: number; zoom: number };
   revision?: number;
   nextNodeSerialId?: number;
@@ -1323,6 +1326,7 @@ function sanitizeAdminDbVisibleText(db: AdminDb): { db: AdminDb; changed: boolea
 const emptyCanvasData = (): CanvasData => ({
   nodes: [],
   edges: [],
+  workflows: [],
   viewport: { x: 0, y: 0, zoom: 1 },
   revision: 1,
   nextNodeSerialId: 1,
@@ -4310,6 +4314,7 @@ function normalizeCanvasData(value: unknown): CanvasData {
   return {
     nodes: sanitizeCanvasNodes(Array.isArray(data.nodes) ? data.nodes : []),
     edges: Array.isArray(data.edges) ? data.edges : [],
+    workflows: normalizeWorkflowDocuments(data.workflows),
     viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
     revision: Number.isFinite(data.revision) && Number(data.revision) > 0 ? Math.floor(Number(data.revision)) : 1,
     nextNodeSerialId: typeof data.nextNodeSerialId === "number" ? data.nextNodeSerialId : 1,

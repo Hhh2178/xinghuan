@@ -10,6 +10,8 @@ export function createCanvasRunRouteHandler(deps: {
   createRun: (input: {
     ownerId: string;
     canvasId: string;
+    workflowId?: string;
+    workflowInputValues?: Record<string, unknown>;
     idempotencyKey: string;
     runScope?: CanvasRunRecord["runScope"];
     configuration?: Record<string, unknown>;
@@ -96,6 +98,8 @@ export function createCanvasRunRouteHandler(deps: {
       const result = await deps.createRun({
         ownerId: currentUser.id,
         canvasId,
+        workflowId: optionalText(body.workflowId),
+        workflowInputValues: objectValue(body.workflowInputValues),
         idempotencyKey,
         runScope,
         configuration: objectValue(body.configuration),
@@ -135,7 +139,7 @@ export function canvasRunErrorStatus(error: unknown) {
   if (code.includes("NOT_FOUND")) return 404;
   if (code.includes("CONFLICT") || code.includes("INVALID_TRANSITION") || code.includes("COMMAND_INVALID")) return 409;
   if (code === "CANVAS_RUN_DISABLED" || code === "CANVAS_RUN_POSTGRES_REQUIRED" || code.includes("AGENT_RUNTIME_CAPABILITY_DISABLED")) return 503;
-  if (code === "CANVAS_RUN_PLAN_EMPTY") return 422;
+  if (code === "CANVAS_RUN_PLAN_EMPTY" || code.startsWith("WORKFLOW_")) return 422;
   if (code.includes("CANVAS_RUN_LEGACY_NODE_UNSUPPORTED")) return 422;
   return 500;
 }
@@ -144,6 +148,11 @@ function requiredText(value: unknown, field: string, invalidRequest: (message: s
   const text = typeof value === "string" ? value.trim() : "";
   if (!text || text.length > 200) throw invalidRequest(`${field} 无效`);
   return text;
+}
+
+function optionalText(value: unknown) {
+  const text = typeof value === "string" ? value.trim().slice(0, 200) : "";
+  return text || undefined;
 }
 
 function runScopeValue(value: unknown, invalidRequest: (message: string) => Error): CanvasRunRecord["runScope"] {

@@ -23,6 +23,7 @@ function runRow(status = "draft") {
     run_scope: "canvas",
     status,
     plan_snapshot: plan,
+    input_snapshot: { workflowId: "workflow-1" },
     configuration_snapshot: {},
     budget_snapshot: {},
     created_at_ms: 100,
@@ -47,6 +48,8 @@ describe("canvas run repository", () => {
       }
       if (sql.includes("with inserted as")) {
         expect(sql).toContain("on conflict (owner_id, idempotency_key) do nothing");
+        expect(sql).toContain("input_snapshot");
+        expect(params?.[6]).toBe(JSON.stringify({ workflowId: "workflow-1" }));
         return { rows: [runRow()] };
       }
       if (sql.includes("insert into xh_canvas_run_steps")) return { rows: [] };
@@ -61,9 +64,9 @@ describe("canvas run repository", () => {
     let id = 0;
     const repo = createCanvasRunRepository({ getPostgresPool: async () => pool, newId: (prefix) => `${prefix}_${++id}` });
 
-    const result = await repo.createCanvasRun({ ownerId: "owner-1", idempotencyKey: "create-1", plan });
+    const result = await repo.createCanvasRun({ ownerId: "owner-1", idempotencyKey: "create-1", plan, inputSnapshot: { workflowId: "workflow-1" } });
 
-    expect(result).toMatchObject({ created: true, run: { id: "canvas_run_1", ownerId: "owner-1", canvasRevision: 4 } });
+    expect(result).toMatchObject({ created: true, run: { id: "canvas_run_1", ownerId: "owner-1", canvasRevision: 4, inputSnapshot: { workflowId: "workflow-1" } } });
     const stepCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into xh_canvas_run_steps"));
     expect(stepCalls).toHaveLength(2);
     expect(stepCalls.map((call) => call[1]?.[7])).toEqual(["ready", "blocked"]);

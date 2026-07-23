@@ -18,6 +18,12 @@
 
 ## 通用工作流节点能力
 
+- Canvas JSON 顶层 `workflows[]` 保存 workflow registry、稳定 workflow ID/revision、显式成员、变量定义、draft input values 和节点字段 binding。节点 JSON 不是变量权威；画布加载、保存、revision reload、导入导出和离屏写入必须保留该顶层字段。
+- Workflow Variable 支持 `text | image | video | audio | number | select`。文本编辑语法为 `##变量名##`，内部 binding 使用稳定 variable ID；`\##字面量##` 表示不参与绑定的字面量。名称按 NFKC、trim 和大小写归一，视觉同名、内部保留名、未知/未闭合 token 和类型不匹配均拒绝运行。
+- Text 节点支持固定文本、整段变量和模板文本。变量面板只展示当前字段引用；改名必须同步更新未转义 token 与 binding segment，不能依赖运行时字符串替换。
+- Upload 节点可绑定 image/video/audio 强类型变量。当前兼容层把 owner-scoped 上传 URL 放入 `{ kind, assetId }`；待 Resource Asset UUID 成为统一上传权威后再前向迁移，历史 Run snapshot 不回写。
+- `workflow-variables` 是不参与连线或执行的控制节点，每个 workflow 最多一个；变量真值仍在顶层 workflow document，删除控制节点不会删除定义。节点展示本次值、引用节点序号和定位动作。
+
 - 节点序号徽标使用单一稳定宿主包装节点组件，宿主以 `display: contents` 保持原布局；不得再用 Fragment 把节点主体和徽标作为 ReactFlow 下的并列根节点，避免运行态条件渲染触发 DOM `insertBefore` 冲突。
 - 图片、视频、LLM、音频等后台目录生成节点在同一稳定宿主左上角复用 `NodeCostBadge`：角标位于节点框外，左边缘与节点对齐，底边贴住节点顶边；当前模型无有效价格时完全不渲染；模型/Provider 切换显示当前报价；任务开始后通过 `taskId/taskIds` 切换为价格快照结算状态。
 - 费用快照只有在 `model_id_snapshot` 与当前 `backendModelId` 一致时覆盖报价，避免切换模型后继续显示上一轮任务金额。

@@ -23,14 +23,14 @@ describe("canvas run routes", () => {
       invalidRequest: (message) => new Error(message),
     });
     const handled = await handler({
-      request: request("POST", { canvasId: "canvas-1", idempotencyKey: "create-1", budget: { maxTaskCount: 5 } }),
+      request: request("POST", { canvasId: "canvas-1", workflowId: "workflow-1", workflowInputValues: { "var-theme": "海边" }, idempotencyKey: "create-1", budget: { maxTaskCount: 5 } }),
       response: {} as any,
       url: new URL("http://localhost/api/canvas-runs"),
       currentUser: { id: "owner-1" },
     });
 
     expect(handled).toBe(true);
-    expect(createRun).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "owner-1", canvasId: "canvas-1", idempotencyKey: "create-1" }));
+    expect(createRun).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", workflowInputValues: { "var-theme": "海边" }, idempotencyKey: "create-1" }));
     expect(sendT8).toHaveBeenCalledWith(expect.anything(), { id: "run-1" }, 201);
   });
 

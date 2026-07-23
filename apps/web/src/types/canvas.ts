@@ -3,6 +3,8 @@
  * 与 features.json 节点清单严格对齐(24 节点 + 4 已弃)
  */
 
+import type { WorkflowDocument } from '@xinghuan/shared';
+
 // 节点类型(25 种保留 = 24 + upload)
 export type NodeType =
   // Core (8)
@@ -45,6 +47,7 @@ export type NodeType =
   | 'grid-crop'
   | 'grid-editor'
   | 'group-execution-manager'
+  | 'workflow-variables'
   | 'canvas-agent'
   // Auxiliary (5)
   | 'edit'
@@ -392,6 +395,7 @@ export interface CanvasListItem {
 export interface CanvasData {
   nodes: any[];
   edges: any[];
+  workflows?: WorkflowDocument[];
   viewport: { x: number; y: number; zoom: number };
   revision?: number;
   nextNodeSerialId?: number;

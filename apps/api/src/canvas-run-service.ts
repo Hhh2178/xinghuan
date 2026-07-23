@@ -1,4 +1,11 @@
 import { compileCanvasSnapshotRunPlan } from "@xinghuan/agent-core";
+import {
+  createWorkflowInputSnapshot,
+  normalizeWorkflowDocuments,
+  parseWorkflowTextTemplate,
+  workflowTextTemplateBinding,
+  type WorkflowDocument,
+} from "@xinghuan/shared";
 
 import type { CanvasRunCommand, CanvasRunEventRecord, CanvasRunRecord, CanvasSnapshotRecord } from "./canvas-run-repository.js";
 
@@ -11,6 +18,7 @@ export interface CanvasRunServiceRepository {
     runScope?: CanvasRunRecord["runScope"];
     configurationSnapshot?: Record<string, unknown>;
     budgetSnapshot?: Record<string, unknown>;
+    inputSnapshot?: Record<string, unknown>;
   }): Promise<{ run: CanvasRunRecord; created: boolean }>;
   readOwnedRun(ownerId: string, runId: string): Promise<CanvasRunRecord | null>;
   readOwnedRunEvents(ownerId: string, runId: string, afterSequence?: number, limit?: number): Promise<CanvasRunEventRecord[]>;
@@ -39,6 +47,8 @@ export function createCanvasRunService(deps: {
     canvasId: string;
     idempotencyKey: string;
     runScope?: CanvasRunRecord["runScope"];
+    workflowId?: string;
+    workflowInputValues?: Record<string, unknown>;
     configuration?: Record<string, unknown>;
     budget?: Record<string, unknown>;
   }) {
@@ -54,6 +64,11 @@ export function createCanvasRunService(deps: {
     const configurationSnapshot = normalizeCanvasRunConfiguration(input.configuration);
     const plan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot);
     if (plan.steps.length === 0) throw new Error("CANVAS_RUN_PLAN_EMPTY");
+    const inputSnapshot = compileWorkflowInputSnapshot({
+      data: canvas.data,
+      workflowId: input.workflowId,
+      values: input.workflowInputValues,
+    });
     return deps.repository.createCanvasRun({
       ownerId: input.ownerId,
       idempotencyKey: input.idempotencyKey,
@@ -61,6 +76,7 @@ export function createCanvasRunService(deps: {
       runScope: input.runScope,
       configurationSnapshot,
       budgetSnapshot: normalizeCanvasRunBudget(input.budget),
+      inputSnapshot,
     });
   }
 
@@ -105,6 +121,64 @@ export function createCanvasRunService(deps: {
   }
 
   return { commandRun, createRun, readEvents, readRun };
+}
+
+export function compileWorkflowInputSnapshot(input: {
+  data: unknown;
+  workflowId?: string;
+  values?: Record<string, unknown>;
+}) {
+  const workflowId = typeof input.workflowId === "string" ? input.workflowId.trim() : "";
+  if (!workflowId) {
+    if (input.values && Object.keys(input.values).length > 0) throw new Error("WORKFLOW_ID_REQUIRED");
+    return Object.freeze({});
+  }
+  const data = record(input.data);
+  const workflows = normalizeWorkflowDocuments(data.workflows);
+  const workflow = workflows.find((item) => item.id === workflowId);
+  if (!workflow) throw new Error(`WORKFLOW_NOT_FOUND:${workflowId}`);
+  assertWorkflowBindingsCurrent(workflow, data.nodes);
+  return createWorkflowInputSnapshot({
+    workflowId: workflow.id,
+    workflowRevision: workflow.revision,
+    variables: workflow.variables,
+    values: { ...workflow.inputValues, ...(input.values || {}) },
+  });
+}
+
+function assertWorkflowBindingsCurrent(workflow: WorkflowDocument, rawNodes: unknown) {
+  const nodes = Array.isArray(rawNodes) ? rawNodes.filter(isRecord) : [];
+  const nodesById = new Map(nodes.map((node) => [String(node.id || ""), node]));
+  for (const nodeId of workflow.memberNodeIds) {
+    if (!nodesById.has(nodeId)) throw new Error(`WORKFLOW_MEMBER_NODE_MISSING:${nodeId}`);
+  }
+  const summaryCount = workflow.memberNodeIds.filter((nodeId) => nodesById.get(nodeId)?.type === "workflow-variables").length;
+  if (summaryCount > 1) throw new Error(`WORKFLOW_VARIABLE_SUMMARY_CONFLICT:${workflow.id}`);
+  for (const target of workflow.bindings) {
+    const node = nodesById.get(target.nodeId);
+    if (!node) throw new Error(`WORKFLOW_BINDING_NODE_MISSING:${target.nodeId}`);
+    if (target.fieldType !== "text") continue;
+    const source = readStringPath(record(node.data), target.fieldPath);
+    const current = workflowTextTemplateBinding(parseWorkflowTextTemplate(source, workflow.variables));
+    if (JSON.stringify(current) !== JSON.stringify(target.binding)) {
+      throw new Error(`WORKFLOW_BINDING_STALE:${target.nodeId}:${target.fieldPath}`);
+    }
+  }
+}
+
+function readStringPath(source: Record<string, unknown>, path: string) {
+  const normalizedPath = path.startsWith("data.") ? path.slice(5) : path;
+  let value: unknown = source;
+  for (const part of normalizedPath.split(".")) value = record(value)[part];
+  return typeof value === "string" ? value : "";
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export function normalizeCanvasRunConfiguration(value: Record<string, unknown> | undefined) {

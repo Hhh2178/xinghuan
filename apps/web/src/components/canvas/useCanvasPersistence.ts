@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Edge, Node, Viewport } from '@xyflow/react';
+import type { WorkflowDocument } from '@xinghuan/shared';
 import { normalizeCanvasNodeSerials } from '../../utils/nodeSerialIds';
 import { migrateImportedNodes } from '../../utils/nodeMigration';
 import { useCanvasStore } from '../../stores/canvas';
@@ -15,6 +16,7 @@ import {
 interface PendingCanvasSave {
   nodes: Node[];
   edges: Edge[];
+  workflows: WorkflowDocument[];
   snapshot: string;
   nextNodeSerialId: number;
 }
@@ -29,6 +31,7 @@ interface UseCanvasPersistenceArgs {
   activeId: string | null;
   nodes: Node[];
   edges: Edge[];
+  workflows: WorkflowDocument[];
   loaded: boolean;
   loadedCanvasId: string | null;
   bulkPhantomId: string;
@@ -36,6 +39,7 @@ interface UseCanvasPersistenceArgs {
   scheduleCapture: (snapshot: { nodes: Node[]; edges: Edge[] }) => void;
   setNodes: Dispatch<SetStateAction<Node[]>>;
   setEdges: Dispatch<SetStateAction<Edge[]>>;
+  setWorkflows: Dispatch<SetStateAction<WorkflowDocument[]>>;
   setLoaded: Dispatch<SetStateAction<boolean>>;
   setLoadedCanvasId: Dispatch<SetStateAction<string | null>>;
   nextNodeSerialIdRef: MutableRefObject<number>;
@@ -63,6 +67,7 @@ export function useCanvasPersistence({
   activeId,
   nodes,
   edges,
+  workflows,
   loaded,
   loadedCanvasId,
   bulkPhantomId,
@@ -70,6 +75,7 @@ export function useCanvasPersistence({
   scheduleCapture,
   setNodes,
   setEdges,
+  setWorkflows,
   setLoaded,
   setLoadedCanvasId,
   nextNodeSerialIdRef,
@@ -97,6 +103,7 @@ export function useCanvasPersistence({
       nextNodeSerialIdRef.current = 1;
       setNodes([]);
       setEdges([]);
+      setWorkflows([]);
       setLoaded(false);
       setLoadedCanvasId(null);
       histReset();
@@ -113,6 +120,7 @@ export function useCanvasPersistence({
         const pendingSave = pendingSaveByCanvasRef.current.get(requestedCanvasId);
         const ns = pendingSave?.nodes || data.nodes || [];
         const es = pendingSave?.edges || data.edges || [];
+        const workflowDocuments = pendingSave?.workflows || data.workflows || [];
         const savedNextNodeSerialId = pendingSave?.nextNodeSerialId ?? data.nextNodeSerialId;
         const migratedNodes = migrateImportedNodes(ns as Node[]);
         const fixedNsBeforeSerials = migratedNodes.map((node: any) =>
@@ -123,14 +131,17 @@ export function useCanvasPersistence({
         const fixedNs = normalized.nodes;
         setNodes(fixedNs);
         setEdges(es);
+        setWorkflows(workflowDocuments);
         const loadedSnapshot = JSON.stringify({
           nodes: fixedNsBeforeSerials,
           edges: es,
+          workflows: workflowDocuments,
           nextNodeSerialId: savedNextNodeSerialId || 1,
         });
         const normalizedSnapshot = JSON.stringify({
           nodes: fixedNs,
           edges: es,
+          workflows: workflowDocuments,
           nextNodeSerialId: normalized.nextNodeSerialId,
         });
         lastSavedByCanvasRef.current.set(
@@ -151,6 +162,7 @@ export function useCanvasPersistence({
         nextNodeSerialIdRef.current = 1;
         setNodes([]);
         setEdges([]);
+        setWorkflows([]);
         histReset();
         saveConflictCanvasIdsRef.current.delete(requestedCanvasId);
         setLoadedCanvasId(requestedCanvasId);
@@ -165,6 +177,7 @@ export function useCanvasPersistence({
     histReset,
     nextNodeSerialIdRef,
     setEdges,
+    setWorkflows,
     setLoaded,
     setLoadedCanvasId,
     setNodes,
@@ -209,14 +222,17 @@ export function useCanvasPersistence({
         const migratedNodes = migrateImportedNodes((Array.isArray(data.nodes) ? data.nodes : []) as Node[]);
         const normalized = normalizeCanvasNodeSerials(migratedNodes, data.nextNodeSerialId);
         const remoteEdges = (Array.isArray(data.edges) ? data.edges : []) as Edge[];
+        const remoteWorkflows = Array.isArray(data.workflows) ? data.workflows : [];
         const remoteSnapshot = JSON.stringify({
           nodes: normalized.nodes,
           edges: remoteEdges,
+          workflows: remoteWorkflows,
           nextNodeSerialId: normalized.nextNodeSerialId,
         });
         nextNodeSerialIdRef.current = normalized.nextNodeSerialId;
         setNodes(normalized.nodes);
         setEdges(remoteEdges);
+        setWorkflows(remoteWorkflows);
         histReset({ nodes: normalized.nodes, edges: remoteEdges });
         currentSnapshotByCanvasRef.current.set(notice.canvasId, remoteSnapshot);
         lastSavedByCanvasRef.current.set(notice.canvasId, remoteSnapshot);
@@ -234,7 +250,7 @@ export function useCanvasPersistence({
       coordinator?.close();
       if (revisionChannelRef.current === coordinator) revisionChannelRef.current = null;
     };
-  }, [histReset, nextNodeSerialIdRef, setEdges, setNodes]);
+  }, [histReset, nextNodeSerialIdRef, setEdges, setNodes, setWorkflows]);
 
   useEffect(() => {
     return () => {
@@ -293,7 +309,7 @@ export function useCanvasPersistence({
       (edge) => edge.source !== bulkPhantomId && edge.target !== bulkPhantomId,
     );
     const nextNodeSerialId = nextNodeSerialIdRef.current;
-    const snapshot = JSON.stringify({ nodes: persistNodes, edges: persistEdges, nextNodeSerialId });
+    const snapshot = JSON.stringify({ nodes: persistNodes, edges: persistEdges, workflows, nextNodeSerialId });
     const canvasIdForSave = activeId;
     currentSnapshotByCanvasRef.current.set(canvasIdForSave, snapshot);
     if (saveConflictCanvasIdsRef.current.has(canvasIdForSave)) return;
@@ -314,6 +330,7 @@ export function useCanvasPersistence({
     pendingSaveByCanvasRef.current.set(canvasIdForSave, {
       nodes: persistNodes,
       edges: persistEdges,
+      workflows,
       nextNodeSerialId,
       snapshot,
     });
@@ -324,6 +341,7 @@ export function useCanvasPersistence({
         const payload = {
           nodes: persistNodes,
           edges: persistEdges,
+          workflows,
           viewport: getViewport(),
           revision: currentRevision,
           nextNodeSerialId,
@@ -374,6 +392,7 @@ export function useCanvasPersistence({
     loadedCanvasId,
     nextNodeSerialIdRef,
     nodes,
+    workflows,
   ]);
 
   return {

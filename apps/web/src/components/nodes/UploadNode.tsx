@@ -46,6 +46,7 @@ import {
 } from '../../utils/mediaCollection';
 // v1.2.10.5: 节点落点防重叠
 import { placeSingleNode, placeBatchNodes, defaultSizeOf, type Rect as PlacementRect } from '../../utils/nodePlacement';
+import { UploadWorkflowVariablePanel, UploadWorkflowVariableToggle } from './UploadWorkflowVariables';
 
 /**
  * UploadNode - 通用上传素材节点
@@ -146,6 +147,7 @@ const UploadNode = ({ id, data, selected, width }: NodeProps) => {
   const rf = useReactFlow();
 
   const [error, setError] = useState<string | null>(null);
+  const [variablesOpen, setVariablesOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   // 图像编辑弹窗 src URL（与 OutputNode 双击逻辑保持一致）
@@ -690,6 +692,12 @@ const UploadNode = ({ id, data, selected, width }: NodeProps) => {
         <div className={`flex-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
           {headerLabel}
         </div>
+        <UploadWorkflowVariableToggle
+          nodeId={id}
+          isDark={isDark}
+          open={variablesOpen}
+          onToggle={() => setVariablesOpen((open) => !open)}
+        />
         {meta && (
           <button
             onClick={handleReset}
@@ -707,6 +715,13 @@ const UploadNode = ({ id, data, selected, width }: NodeProps) => {
       {/* body 高度逻辑: root 默认 height=auto 时 body 也 auto 跟随内容 (图/视频) 自然高;
           root 拖角后有具体 px 时, body flex-1 撑满剩余 + min-h-0 允许内容 overflow */}
       <div ref={bodyRef} className={`p-2.5 space-y-2 ${size.h && !singleVisualItem ? 'flex-1 min-h-0 overflow-auto' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+        <UploadWorkflowVariablePanel
+          nodeId={id}
+          uploadType={uploadType}
+          url={url}
+          isDark={isDark}
+          open={variablesOpen}
+        />
         {/* 隐藏的文件输入: accept 三合一, 上传后自动按 MIME 识别 kind */}
         <input
           ref={fileInputRef}
