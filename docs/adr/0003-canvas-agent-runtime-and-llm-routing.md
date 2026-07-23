@@ -1,10 +1,11 @@
 # ADR 0003: Canvas Agent Runtime 与 LLM 路由池
 
-> **Status:** Accepted
+> **Status:** Superseded
 > **Date:** 2026-07-22
 > **Owners:** Canvas / API / Worker / Admin / Auth / Storage
 > **Decision Scope:** Canvas execution / Agent orchestration / LLM routing / Quality evaluation / Admin governance
 > **Supersedes:** None
+> **Superseded by:** [ADR 0004](0004-workflow-scoped-deterministic-supervision.md)
 
 ## Context
 

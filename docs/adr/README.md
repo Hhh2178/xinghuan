@@ -23,7 +23,8 @@
 | --- | --- | --- | --- | --- |
 | [0001](0001-generation-artifact-authority-and-lifecycle.md) | 生成产物权威源与生命周期 | Accepted | 2026-07-17 | API / Worker / Storage / Canvas |
 | [0002](0002-task-cost-ledger-and-pricing-snapshots.md) | 任务费用台账与价格版本快照 | Accepted | 2026-07-21 | Admin / API / Worker / Storage |
-| [0003](0003-canvas-agent-runtime-and-llm-routing.md) | Canvas Agent Runtime 与 LLM 路由池 | Accepted | 2026-07-22 | Canvas / API / Worker / Admin / Auth / Storage |
+| [0003](0003-canvas-agent-runtime-and-llm-routing.md) | Canvas Agent Runtime 与 LLM 路由池 | Superseded | 2026-07-22 | Canvas / API / Worker / Admin / Auth / Storage |
+| [0004](0004-workflow-scoped-deterministic-supervision.md) | 工作流级确定性执行与有限 AI 托管 | Accepted | 2026-07-23 | Canvas / API / Worker / Admin / Auth / Storage |
 
 ## 模板
 

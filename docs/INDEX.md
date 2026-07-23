@@ -156,9 +156,11 @@
 ### Agent Runtime
 
 - 当前基线与迁移入口：`docs/systems/agent-runtime/README.md`
-- Accepted 架构：`docs/adr/0003-canvas-agent-runtime-and-llm-routing.md`
-- 目标规格：`docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md`
-- 体验重设计需求（对齐中）：`docs/superpowers/specs/2026-07-23-canvas-agent-experience-redesign-requirements.md`
+- Accepted 架构：`docs/adr/0004-workflow-scoped-deterministic-supervision.md`
+- 历史架构：`docs/adr/0003-canvas-agent-runtime-and-llm-routing.md`
+- 已确认体验需求：`docs/superpowers/specs/2026-07-23-canvas-agent-experience-redesign-requirements.md`
+- 实施计划：`docs/superpowers/plans/2026-07-23-canvas-agent-experience-redesign-implementation.md`
+- v0.7.19 审计矩阵：`docs/records/architecture/2026-07-23-canvas-agent-v0719-audit-matrix.md`
 
 ## 与旧入口的关系
 

@@ -65,31 +65,51 @@
 
 ### Canvas Run（画布运行）
 
-一次基于特定 Canvas Project revision 和配置快照创建的服务端可恢复执行。它保存用户分组顺序、节点拓扑、步骤、预算和终态；运行开始后的画布编辑不隐式改变已有 Canvas Run。
+旧版以整个 Canvas Project revision 为边界的服务端可恢复执行。历史 Canvas Run 保持可读；新的独立执行默认使用 Workflow Run。
+
+### Workflow Region（工作流区域）
+
+Canvas Project 中可独立发布、运行、暂停、恢复和托管的显式边界。它保存稳定 workflow ID、成员、内部连线、变量、执行阶段、运行策略和 workflow revision；视觉位置、尺寸和颜色不属于运行 revision。
+
+### Workflow Run（工作流运行）
+
+一次基于特定 Workflow Region revision、输入与设置快照创建的服务端可恢复执行。它只包含区域成员、内部连线、显式 Workflow Input/Output、步骤、预算、选择门和终态；区域外编辑不得改变已有 Workflow Run。
+
+### Workflow Variable（工作流变量）
+
+属于单个 Workflow Region 的强类型输入定义。文本中的 `##变量名##` 是编辑语法，内部以稳定 variable ID、结构化 token 和 binding 为权威；同名变量仅在同一 workflow 内共享。
 
 ### Agent Run（智能体运行）
 
-一次由内部 Agent Runtime 执行的有界规划、监督或恢复过程。Agent Run 属于单一 owner，使用受控工具、预算、配置版本和审计记录，不等同于聊天消息或浏览器会话。
+一次由内部 Agent Runtime 执行的有界诊断、失败恢复改写或候选评估过程。Agent Run 属于单一 owner 和明确 workflow/run scope，使用受控输入、预算、配置版本和审计记录，不等同于聊天消息或浏览器会话。
 
 ### Assistant Conversation（助手会话）
 
-用户与悬浮 AI 助手之间的对话记录，负责问答、诊断、知识引用和工作流提案。Assistant Conversation 可以引用 Agent Run，但不等同于 Canvas Run，也不能成为画布执行状态的权威源。
+用户与悬浮 AI 助手之间的对话记录，负责问答、节点错误诊断和文本建议。Assistant Conversation 可以引用 Agent Run 或 Workflow Run，但不能执行自动恢复，也不能成为工作流状态的权威源。
+
+### AI Supervision（AI 托管）
+
+针对一个明确 Workflow Region 的运行监督能力，只负责权威状态监测、受预算约束的失败恢复和显式候选门选择。它必须遵守已发布模型、拓扑、阶段顺序、变量类型、权限和 Run snapshot，不创建节点或修改连线。
 
 ### Knowledge Snapshot（知识快照）
 
-面向一次 Agent Run 的不可变知识发布物，锁定节点能力注册表版本、模型目录投影、已批准知识文档、环境、受众和集合 allowlist。运行时只能查询 Knowledge Snapshot，不扫描仓库或任意文件目录。
+面向一次 Agent Run 的不可变安全事实投影，至少锁定节点能力注册表版本、模型目录投影和环境。旧快照可包含已发布知识文档与 workflow template 引用并保持历史可读；新 MVP Run 不依赖自由文档检索。运行时不得扫描仓库或任意文件目录。
 
 ### Canvas Patch Proposal（画布变更提案）
 
-助手根据用户目标生成的结构化画布修改建议，包含基线 revision、节点/连线差异、验证结果和风险说明。提案在用户确认并创建新 revision 前不得改变 Canvas Project。
+历史 Agent Runtime 生成的结构化画布修改建议。该能力已退出当前 MVP 的新运行路径；历史提案保持只读，AI 助手和 AI 托管均不得自动创建或应用结构修改。
 
 ### LLM Routing Pool（LLM 路由池）
 
-为 planner、图片理解、视频理解、检查和恢复等 Agent LLM 角色提供版本化候选顺序、健康、熔断和回退策略的配置。它不管理图片、视频或音频生成模型；这些生成模型仍由对应节点和 Provider Model Catalog 管理。
+为助手诊断、恢复改写和候选评估等有界 LLM 用途提供版本化候选顺序、健康、熔断和回退策略的配置。它不管理图片、视频或音频生成模型；这些生成模型仍由对应节点和 Provider Model Catalog 管理。
 
 ### Artifact Evaluation（产物评估）
 
 对 Generation Artifact 的图片或视频质量、任务目标匹配和技术有效性形成的结构化评分与证据。评估不改变产物本身；将候选传给下游必须通过显式 Artifact Selection 或运行时输入绑定记录。
+
+### Smart Candidate Selection（智能候选选择）
+
+Workflow Run 中位于上游候选和下游执行之间的显式释放门。它基于候选 provenance、提示词、变量、用户备注、质量证据和置信度执行人工或 AI 选择；未选项和被裁剪分支必须保留明确状态与审计记录。
 
 ### Gray / Production（灰度 / 生产）
 
@@ -102,9 +122,11 @@
 - GET 读取保持只读；清理、修复、迁移和状态推进必须通过显式命令或受控服务执行。
 - 短期生成产物和长期资源素材必须使用不同生命周期。
 - 业务写入必须支持并发安全和幂等；不能依赖进程内变量或无锁 JSON 覆盖来维持正确性。
-- Canvas Run、Agent Run、路由决策、质量选择和自动恢复必须可追踪到 owner、revision、配置版本和审计事件。
-- Assistant Conversation、Agent Run、Canvas Run 和 Knowledge Snapshot 必须保持独立身份，并通过显式 ID 引用；关闭任一 UI 面板不得终止持久化运行。
-- Agent 运行时输入选择默认不得静默修改 Canvas Project；结构性变化必须形成显式 proposal 并创建新 revision。
+- Canvas Run、Workflow Run、Agent Run、路由决策、质量选择和自动恢复必须可追踪到 owner、workflow、revision、配置版本和审计事件。
+- Assistant Conversation、AI Supervision、Agent Run、Workflow Run 和 Knowledge Snapshot 必须保持独立身份，并通过显式 ID 引用；关闭任一 UI 面板不得终止持久化运行。
+- AI 助手和 AI 托管不得静默修改 Canvas Project 的节点或连线；当前 MVP 不创建新的 Canvas Patch Proposal。
+- 普通连线不得穿越 Workflow Region 边界；跨边界数据必须经显式强类型 Workflow Input/Output 并进入 Run snapshot。
+- 工作流设置和变量值只在新 Run 开始时冻结；active Run 不随编辑静默变化。
 - 费用金额必须使用十进制定点语义；价格与归属历史必须来自任务费用快照，不得被当前配置反向改写。
 - 当前实现与目标方案必须分开记录；Proposed ADR 不代表已经上线。
 
@@ -115,4 +137,4 @@
 - Worker 输出物料化：`docs/systems/worker/output-materialization.md`
 - 架构决策索引：`docs/adr/README.md`
 - 生成产物权威与生命周期提案：`docs/adr/0001-generation-artifact-authority-and-lifecycle.md`
-- Canvas Agent Runtime 与 LLM 路由决定：`docs/adr/0003-canvas-agent-runtime-and-llm-routing.md`
+- 工作流级确定性执行与有限 AI 托管决定：`docs/adr/0004-workflow-scoped-deterministic-supervision.md`

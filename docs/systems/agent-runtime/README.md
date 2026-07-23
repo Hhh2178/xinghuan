@@ -4,7 +4,7 @@
 
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。当前仍处于本地候选阶段，认证 UI 与 Gray 验收尚未完成。当前事实是：
 
-> 2026-07-23 纠偏进度：Assistant Content、reasoning 隔离和 Canvas/Admin 共用安全 Markdown 已落地；悬浮助手与顶部 AI 托管已成为独立入口，关闭托管面板不会卸载运行投影或取消 Canvas Run。节点目录、安全模型投影、发布文档与 Agent Run 已通过不可变 Knowledge Snapshot 关联；Phase 12 的 Admin 结构化编辑、运行时配置解析、平台工具收紧和幂等重放已落地，认证治理页面的真实浏览器验收仍待隔离一次性账号。Accepted 目标见 `docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md`；不能把其余未完成入口描述为已经完成。
+> 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心；旧自由知识、workflow proposal 与角色网络进入兼容退役。当前代码仍是 v0.7.20 实现，不能把下述目标描述为已经完成。
 
 - 画布助手已替换为全新的深色生产工作台 UI；会话、附件、编写器和消息投影分离，支持图片选择与剪贴板粘贴、节点/工作流/媒体上下文和内部 Agent SSE 响应。
 - 浮动助手在存在活跃画布时默认附带受控的 `当前画布` 工作流卡片。该投影上限为 40 个节点和 80 条连线，包含组顺序、成员、连线、节点类型及已允许的模型/执行配置；Web 与 API 都移除 key、token、secret、cookie、password、authorization 等字段，避免把节点原始 JSON 或敏感参数发送给模型。
@@ -48,11 +48,12 @@
 - Generation Recovery 按同配置重试、受控参数修复、Run Plan 中节点已有的生成模型备选、审批/停止推进；生成模型备选不进入 LLM Routing Pool。
 - Evaluation、Selection 和 Recovery Decision 已提供 owner-scoped Step API；Canvas Run Quality Coordinator 已自动触发批次评估、路由技术回退、确定性选择和下游 output binding。
 
-本文不把 Accepted 目标架构冒充为当前能力。目标和实施入口：
+本文不把 Accepted 目标架构冒充为当前能力。新目标和实施入口：
 
-- ADR：`../../adr/0003-canvas-agent-runtime-and-llm-routing.md`
-- Spec：`../../superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md`
-- Plan：`../../superpowers/plans/2026-07-22-canvas-agent-runtime-and-llm-routing-implementation.md`
+- ADR：`../../adr/0004-workflow-scoped-deterministic-supervision.md`
+- Requirements：`../../superpowers/specs/2026-07-23-canvas-agent-experience-redesign-requirements.md`
+- Plan：`../../superpowers/plans/2026-07-23-canvas-agent-experience-redesign-implementation.md`
+- Audit：`../../records/architecture/2026-07-23-canvas-agent-v0719-audit-matrix.md`
 
 ## Current Code Entry Points
 
