@@ -5,6 +5,12 @@ export interface AgentToolExecutionContext {
   canvasRevisionMatches: boolean;
   budgetAvailable: boolean;
   approvalGranted: boolean;
+  toolCallCount?: number;
+  policy?: {
+    maxCallsPerRun?: number;
+    requireCanvasRevision?: boolean;
+    requireBudget?: boolean;
+  };
 }
 
 export interface AgentToolDefinition<TInput = Record<string, unknown>, TOutput = unknown> {
@@ -35,12 +41,16 @@ export function createAgentToolGateway(deps: {
   }) {
     const definition = tools.get(input.tool);
     if (!definition) throw new Error(`AGENT_TOOL_NOT_REGISTERED:${input.tool}`);
+    const policy = input.context.policy || {};
+    const callCount = Number(input.context.toolCallCount || 0);
+    const maxCalls = Number(policy.maxCallsPerRun);
+    if (Number.isFinite(maxCalls) && maxCalls >= 0 && callCount >= maxCalls) throw new Error("AGENT_TOOL_CALL_LIMIT_EXCEEDED");
     authorizeAgentToolCall({
       task: input.task,
       tool: input.tool,
       ownerId: input.context.ownerId,
-      canvasRevisionMatches: input.context.canvasRevisionMatches,
-      budgetAvailable: input.context.budgetAvailable,
+      canvasRevisionMatches: policy.requireCanvasRevision === false || input.context.canvasRevisionMatches,
+      budgetAvailable: policy.requireBudget === false || input.context.budgetAvailable,
       approvalRequired: definition.approvalRequired,
       approvalGranted: input.context.approvalGranted,
     });

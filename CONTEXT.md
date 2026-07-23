@@ -71,6 +71,18 @@
 
 一次由内部 Agent Runtime 执行的有界规划、监督或恢复过程。Agent Run 属于单一 owner，使用受控工具、预算、配置版本和审计记录，不等同于聊天消息或浏览器会话。
 
+### Assistant Conversation（助手会话）
+
+用户与悬浮 AI 助手之间的对话记录，负责问答、诊断、知识引用和工作流提案。Assistant Conversation 可以引用 Agent Run，但不等同于 Canvas Run，也不能成为画布执行状态的权威源。
+
+### Knowledge Snapshot（知识快照）
+
+面向一次 Agent Run 的不可变知识发布物，锁定节点能力注册表版本、模型目录投影、已批准知识文档、环境、受众和集合 allowlist。运行时只能查询 Knowledge Snapshot，不扫描仓库或任意文件目录。
+
+### Canvas Patch Proposal（画布变更提案）
+
+助手根据用户目标生成的结构化画布修改建议，包含基线 revision、节点/连线差异、验证结果和风险说明。提案在用户确认并创建新 revision 前不得改变 Canvas Project。
+
 ### LLM Routing Pool（LLM 路由池）
 
 为 planner、图片理解、视频理解、检查和恢复等 Agent LLM 角色提供版本化候选顺序、健康、熔断和回退策略的配置。它不管理图片、视频或音频生成模型；这些生成模型仍由对应节点和 Provider Model Catalog 管理。
@@ -91,6 +103,7 @@
 - 短期生成产物和长期资源素材必须使用不同生命周期。
 - 业务写入必须支持并发安全和幂等；不能依赖进程内变量或无锁 JSON 覆盖来维持正确性。
 - Canvas Run、Agent Run、路由决策、质量选择和自动恢复必须可追踪到 owner、revision、配置版本和审计事件。
+- Assistant Conversation、Agent Run、Canvas Run 和 Knowledge Snapshot 必须保持独立身份，并通过显式 ID 引用；关闭任一 UI 面板不得终止持久化运行。
 - Agent 运行时输入选择默认不得静默修改 Canvas Project；结构性变化必须形成显式 proposal 并创建新 revision。
 - 费用金额必须使用十进制定点语义；价格与归属历史必须来自任务费用快照，不得被当前配置反向改写。
 - 当前实现与目标方案必须分开记录；Proposed ADR 不代表已经上线。

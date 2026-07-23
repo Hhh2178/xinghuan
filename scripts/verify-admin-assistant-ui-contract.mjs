@@ -72,20 +72,17 @@ async function main() {
         !panelSource.includes("assistant-process-block"),
     ],
     [
-      "Admin assistant renders structured blocks instead of a single paragraph blob",
-      panelSource.includes("parseAssistantMessageBlocks") &&
-        panelSource.includes("message.blocks || parseAssistantMessageBlocks(message.text)") &&
-        panelSource.includes("assistant-message-blocks") &&
-        panelSource.includes("assistant-message-code") &&
+      "Admin assistant renders the shared safe Markdown surface instead of a paragraph blob",
+      panelSource.includes('import { AssistantMarkdown } from "@xinghuan/ui"') &&
+        panelSource.includes('className="admin-assistant-message__body"') &&
+        panelSource.includes("createAssistantContentStreamFilter") &&
         !panelSource.includes("<p>{message.text}</p>"),
     ],
     [
-      "Admin assistant groups structured output into real section cards",
-      panelSource.includes("groupAssistantMessageSections") &&
-        panelSource.includes("admin-assistant-message-card") &&
-        panelSource.includes("admin-assistant-message-card__body") &&
-        styleSource.includes(".admin-assistant-message-card {") &&
-        styleSource.includes(".admin-assistant-message-card__body {"),
+      "Admin assistant Markdown preserves readable body sizing and overflow",
+      styleSource.includes(".admin-assistant-message__body {") &&
+        styleSource.includes("font-size: 14px") &&
+        styleSource.includes("overflow: auto"),
     ],
     [
       "Admin assistant supports clipboard image paste in the composer",

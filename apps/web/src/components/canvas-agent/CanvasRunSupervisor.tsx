@@ -1,19 +1,19 @@
-import { Ban, Check, CirclePause, CirclePlay, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
+import { Ban, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
 import { useState } from 'react';
 import { decideCanvasRunApproval } from './canvas-run-api';
-import { useCanvasRunProjection } from './useCanvasRunProjection';
+import { buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
+import type { CanvasRunProjection } from './useCanvasRunProjection';
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: '计划已生成', planning: '规划中', awaiting_approval: '等待确认', queued: '排队中', running: '运行中', paused: '已暂停', succeeded: '已完成', failed: '失败', cancelled: '已取消',
-};
-
-export function CanvasRunSupervisor({ canvasId, initialRunId }: { canvasId: string | null; initialRunId?: string }) {
-  const projection = useCanvasRunProjection(canvasId, initialRunId);
+export function CanvasRunSupervisor({ canvasId, projection }: { canvasId: string | null; projection: CanvasRunProjection }) {
   const [qualityEnabled, setQualityEnabled] = useState(false);
   const [selectionPolicy, setSelectionPolicy] = useState<'best' | 'top_k'>('best');
   const run = projection.run;
   const steps = run?.planSnapshot.steps || [];
   const groups = run?.planSnapshot.groups || [];
+  const stepViews = run ? buildCanvasRunStepViews(run, projection.events) : [];
+  const planSections = run ? buildCanvasRunPlanSections(run, stepViews) : [];
+  const stepIndex = new Map(stepViews.map((view, index) => [view.step.id, index + 1]));
+  const budgetItems = run ? canvasRunBudgetItems(run.budgetSnapshot) : [];
   const percent = projection.progress.total ? Math.round((projection.progress.completed / projection.progress.total) * 100) : 0;
   const resolvedApprovals = new Set(projection.events.filter((event) => /approval_(applied|declined)/.test(event.eventType)).map((event) => String(event.payload.approvalId || '')));
   const pendingApproval = [...projection.events].reverse().find((event) => event.eventType === 'canvas_run.step_approval_requested' && !resolvedApprovals.has(String(event.payload.approvalId || '')));
@@ -30,7 +30,7 @@ export function CanvasRunSupervisor({ canvasId, initialRunId }: { canvasId: stri
       <div className="canvas-run-supervisor__summary">
         <div>
           <span className="canvas-run-supervisor__eyebrow"><Workflow size={13} /> 托管运行</span>
-          <strong>{run ? STATUS_LABEL[run.status] || run.status : '尚未建立运行计划'}</strong>
+          <strong>{run ? CANVAS_RUN_STATUS_LABEL[run.status] : '尚未建立运行计划'}</strong>
           <p>{run ? `画布修订 ${run.canvasRevision}，${groups.length} 个分组，${steps.length} 个步骤` : '创建后将锁定画布修订、分组顺序和组内拓扑。'}</p>
         </div>
         <div className="canvas-run-supervisor__connection" data-connected={projection.streamConnected ? 'true' : 'false'}>
@@ -64,6 +64,11 @@ export function CanvasRunSupervisor({ canvasId, initialRunId }: { canvasId: stri
 
       {projection.error ? <div className="canvas-run-supervisor__error">{projection.error}</div> : null}
 
+      {run ? <div className="canvas-run-supervisor__facts">
+        <span><Clock3 size={13} />{Math.max(0, Math.round((run.updatedAt - run.createdAt) / 1000))} 秒</span>
+        {budgetItems.map((item) => <span key={item.label}><small>{item.label}</small>{item.value}</span>)}
+      </div> : null}
+
       {pendingApproval ? (
         <div className="canvas-run-approval">
           <div><strong>需要确认备用生成模型</strong><p>当前节点已耗尽同配置重试。批准后仅使用 Run Plan 中锁定的备选项继续。</p></div>
@@ -76,18 +81,32 @@ export function CanvasRunSupervisor({ canvasId, initialRunId }: { canvasId: stri
         <div className="canvas-run-supervisor__body">
           <div className="canvas-run-supervisor__section-title"><span>运行计划</span><small>只读权威投影</small></div>
           <div className="canvas-run-plan">
-            {steps.map((step, index) => (
-              <div className="canvas-run-plan__step" key={step.id} data-skipped={step.skipped ? 'true' : 'false'}>
-                <span className="canvas-run-plan__index">{String(index + 1).padStart(2, '0')}</span>
-                <span><strong>{step.nodeType}</strong><small>{step.groupId ? `分组 ${step.groupId}` : '未分组'}{step.dependsOn.length ? ` · ${step.dependsOn.length} 个依赖` : ''}</small></span>
-                <ShieldCheck size={14} />
-              </div>
-            ))}
+            {planSections.map((section) => <section className="canvas-run-plan__group" key={section.id} data-skipped={section.skipped ? 'true' : 'false'}>
+              <header><strong>{section.label}</strong><small>顺序 {section.order + 1} · {section.steps.length} 步</small></header>
+              {section.steps.map((view) => (
+                <div className="canvas-run-plan__step" key={view.step.id} data-status={view.status}>
+                  <span className="canvas-run-plan__index">{String(stepIndex.get(view.step.id) || 0).padStart(2, '0')}</span>
+                  <span className="canvas-run-plan__content">
+                    <strong>{view.step.nodeType}<em data-status={view.status}>{CANVAS_RUN_STEP_STATUS_LABEL[view.status]}</em></strong>
+                    <small>{view.step.dependsOn.length ? `依赖 ${view.step.dependsOn.join('、')}` : '组内起点'}</small>
+                    {view.provider || view.model ? <small>路由 {view.provider || '已发布 Provider'}{view.model ? ` / ${view.model}` : ''}</small> : null}
+                    <span className="canvas-run-plan__evidence">
+                      {view.attempt ? <b>尝试 {view.attempt}</b> : null}
+                      {view.inputEvidence ? <b>输入 {view.inputEvidence}</b> : null}
+                      {view.qualityEvidence ? <b>质量 {view.qualityEvidence}</b> : null}
+                      {view.recoveryEvidence ? <b>恢复 {view.recoveryEvidence}</b> : null}
+                    </span>
+                    {view.reason ? <p>{view.reason}</p> : null}
+                  </span>
+                  <ShieldCheck size={15} />
+                </div>
+              ))}
+            </section>)}
           </div>
           <div className="canvas-run-supervisor__section-title"><span>事件</span><small>{projection.events.length} 条</small></div>
           <div className="canvas-run-events">
             {projection.events.length === 0 ? <p>运行事件将在这里按服务端顺序出现。</p> : projection.events.slice(-20).reverse().map((event) => (
-              <div key={event.id}><time>{new Date(event.createdAt).toLocaleTimeString()}</time><strong>{event.eventType}</strong></div>
+              <div key={event.id}><time>{new Date(event.createdAt).toLocaleTimeString()}</time><strong>{canvasRunEventLabel(event.eventType)}</strong></div>
             ))}
           </div>
         </div>

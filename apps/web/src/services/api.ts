@@ -17,6 +17,15 @@ import type { AuthUser, EffectivePermissions } from './auth-api-types';
 import type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
 export type { AuthUser, EffectivePermissions } from './auth-api-types';
 export type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
+export {
+  chatWithAssistant,
+  getAssistantSettings,
+  streamAssistantChat,
+  type AssistantChatAttachment,
+  type AssistantChatResult,
+  type AssistantProcessEntry,
+  type PublicAssistantSettings,
+} from './assistant-api';
 
 const BASE = '/api';
 
@@ -55,47 +64,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export interface AssistantChatAttachment {
-  id?: string;
-  kind?: string;
-  title?: string;
-  summary?: string;
-  payload?: Record<string, unknown>;
-}
-
-export interface AssistantChatResult {
-  mode: 'agent' | 'fallback';
-  message: string;
-  rawAssistant: string;
-}
-
-export interface AssistantProcessEntry {
-  label: string;
-  content: string;
-}
-
-export interface PublicAssistantSettings {
-  frontend: {
-    enabled: boolean;
-    title: string;
-    hint: string;
-    placeholder: string;
-    allowWorkflowAttachment: boolean;
-    allowNodeAttachment: boolean;
-    allowMediaAttachment: boolean;
-    persistMemory: false;
-  };
-  integration: {
-    runtime: 'internal';
-    assistantAgentKey: string;
-    providerAnalysisAgentKey: string;
-    knowledgeProfile: string;
-    persistMemory: false;
-    strictMode: boolean;
-  };
-  updatedAt: number;
-}
-
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const res = await request<{ success: boolean; data: { authenticated: boolean; user: AuthUser | null } }>(
     `${BASE}/auth/me`,
@@ -123,79 +91,6 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 
 export async function logout(): Promise<void> {
   await request(`${BASE}/auth/logout`, { method: 'POST', body: JSON.stringify({}) });
-}
-
-export async function chatWithAssistant(payload: {
-  message?: string;
-  attachments?: AssistantChatAttachment[];
-  scope?: 'canvas' | 'admin';
-  conversationId?: string;
-  idempotencyKey?: string;
-}): Promise<AssistantChatResult> {
-  const res = await request<{ success: boolean; data: AssistantChatResult }>(`${BASE}/assistant/chat`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-  return res.data;
-}
-
-export async function streamAssistantChat(
-  payload: {
-    message?: string;
-    attachments?: AssistantChatAttachment[];
-    scope?: 'canvas' | 'admin';
-    conversationId?: string;
-    idempotencyKey?: string;
-  },
-  handlers: {
-    onStatus?: (status: string) => void;
-    onProcess?: (entry: AssistantProcessEntry) => void;
-    onDelta?: (delta: string) => void;
-    onDone?: (result: AssistantChatResult) => void;
-  },
-): Promise<void> {
-  const response = await fetch(`${BASE}/assistant/chat/stream`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok || !response.body) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf('\n\n');
-    while (boundary >= 0) {
-      const rawEvent = buffer.slice(0, boundary).trim();
-      buffer = buffer.slice(boundary + 2);
-      if (rawEvent) {
-        const eventName = rawEvent.split('\n').find((line) => line.startsWith('event:'))?.slice(6).trim() || 'message';
-        const dataText = rawEvent
-          .split('\n')
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trim())
-          .join('\n');
-        const data = dataText ? JSON.parse(dataText) : null;
-        if (eventName === 'status' && typeof data?.status === 'string') handlers.onStatus?.(data.status);
-        if (eventName === 'process' && typeof data?.label === 'string' && typeof data?.content === 'string') handlers.onProcess?.(data);
-        if (eventName === 'delta' && typeof data?.delta === 'string') handlers.onDelta?.(data.delta);
-        if (eventName === 'done' && data) handlers.onDone?.(data);
-      }
-      boundary = buffer.indexOf('\n\n');
-    }
-  }
-}
-
-export async function getAssistantSettings(): Promise<PublicAssistantSettings> {
-  const res = await request<{ success: boolean; data: PublicAssistantSettings }>(`${BASE}/assistant/settings`);
-  return res.data;
 }
 
 export async function getComfyuiAppCatalog(): Promise<ComfyuiCatalogResponse> {

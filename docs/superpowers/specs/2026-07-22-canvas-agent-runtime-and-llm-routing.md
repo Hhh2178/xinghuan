@@ -15,14 +15,17 @@
 - 提供解释、知识问答、素材分析、计划预览和工作流草案。
 - 默认只读；结构修改输出 Canvas Patch Proposal。
 - 不沿用当前 `CanvasAssistant` 的视觉结构做增量修补；Phase 6 只复用必要协议，重新设计为紧凑的创作工作台。
-- 新界面必须分离对话、附件、知识引用、运行计划、审批和托管状态，不能用伪进度、同权重卡片或遮挡画布的固定大面板。
+- 入口固定为可随时打开的悬浮球，只承载对话、附件、知识引用和 Canvas Patch Proposal；不得再包含“托管”Tab、Canvas Run 控制或运行时间线。
+- 过程状态使用受控事件（例如检索知识、校验拓扑、准备提案），不得渲染 Provider reasoning、`<think>`、analysis 或内部 context 文本。
 - 桌面和窄屏都必须通过真实浏览器截图、交互和重叠检查。
 
-### Canvas Agent Node And Supervision Panel
+### AI Supervision Entry And Panel
 
-- Agent 节点保存监督范围、策略和 `agentRunId` 引用，不保存完整日志。
+- 在画布顶部公告操作旁提供独立 AI 托管按钮；再次点击关闭面板。助手与托管可以独立开关并同时存在。
+- 托管面板关闭后 Canvas Run 继续执行，重新打开后从 PostgreSQL/SSE 恢复，不依赖助手会话或节点 JSON。
 - 监督面板展示 Run Plan、分组、拓扑、步骤、候选评分、路由、费用、审批和控制动作。
 - 支持 start / pause / resume / cancel / retry / takeover。
+- 旧 `canvas-agent` 节点只保留历史画布兼容与策略迁移，不再作为新建入口。
 
 ## Runtime Architecture
 
@@ -45,6 +48,17 @@ Web/Admin -> Agent API -> Agent Orchestrator -> Tool Gateway
 - Worker：消费队列并执行既有 Provider/RunningHub/ComfyUI 任务，不负责改变用户编排顺序。
 
 ## Domain Contracts
+
+### Identity And Lifecycle
+
+| Entity | Owns | May reference | Must not own |
+|---|---|---|---|
+| Assistant Conversation | 用户消息、最终回答、引用、提案 | Agent Run、Knowledge Snapshot、Canvas Patch Proposal | Canvas Run 状态、Provider reasoning |
+| Agent Run | 角色任务、配置快照、工具调用、预算、审计 | Assistant Conversation、Canvas Run、Knowledge Snapshot | 浏览器 UI 状态、任意文件系统 |
+| Canvas Run | revision、Run Plan、Step/Event、审批、终态 | Agent Run、配置版本、Knowledge Snapshot | 对话正文、草稿知识 |
+| Knowledge Snapshot | 已发布节点/模型/文档投影与来源 | 配置版本、环境 publication | secrets、仓库目录、未批准文档 |
+
+关闭 Assistant Conversation 或 AI 托管 UI 只改变本地可见性。Agent Run/Canvas Run 只能通过正式 cancel/terminal transition 结束。
 
 ### Canvas Run
 
@@ -96,10 +110,20 @@ Web/Admin -> Agent API -> Agent Orchestrator -> Tool Gateway
 
 ### Knowledge
 
-- Public Knowledge：面向普通用户的产品、节点、工作流与使用说明。
-- Operational Knowledge：节点契约、模型能力、失败模式和恢复规则。
-- Private Admin Knowledge：内部运维信息；不得进入普通用户上下文。
-- 节点能力基础字段从代码契约提取，人工只维护说明、示例、常见失败和推荐连接。
+- 节点事实唯一来源是 Node Capability Registry，覆盖端口、cardinality、连接规则、执行状态、允许动作、示例、常见错误和替代节点。
+- 模型事实从 Provider Model Catalog 生成只读 Agent Model Projection，覆盖用途、输入能力、兼容节点、参数边界、成本/延迟/质量倾向、LLM 资格、发布和健康状态；不得维护第二份手写模型清单。
+- 编辑型知识文档维护节点教程、工作流案例、公开错误诊断和使用规范，使用 draft -> review -> approved -> retired 与 Gray/Production publication。
+- 发布构建生成不可变 Knowledge Snapshot，锁定 registry hash、model catalog revision、document publication IDs、environment、audience、collection allowlist 和来源摘要。
+- 结构化节点/模型问题优先走 allowlisted 精确查询；教程与解释只走 publication 过滤后的受限混合检索，并限制 topK、token budget 和引用来源。
+- Agent 永久禁止仓库扫描、任意文件读取、任意目录搜索和未发布文档访问。
+
+### Assistant Content Contract
+
+- 最终正文使用版本化 `markdown-v1` 内容类型；支持 GFM 标题、列表、表格、引用、代码和安全链接。
+- 禁止 raw HTML、`javascript:` URL、事件属性和默认外部图片；标题层级限制在面板语义内。
+- Provider Adapter 将 reasoning 与 final answer 分离，API/SSE 对跨 chunk `<think>` 等内部标记做状态化过滤，前端保留防御性清理。
+- Canvas 与 Admin 共用规范化和安全渲染实现，不维护两套 Markdown policy。
+- 正文不低于 14/22px，元数据不低于 12/18px；代码块、表格和长链接在窄面板内可滚动或换行。
 
 ## Persistence
 
@@ -127,6 +151,8 @@ Web/Admin -> Agent API -> Agent Orchestrator -> Tool Gateway
 
 Admin UI 必须复用现有深色工业控制台、紧凑表格、Inspector、Drawer、revision 冲突和稳定深链，不使用同权重卡片堆砌复杂治理页面。
 
+所有关键配置必须通过结构化控件编辑，不能要求管理员编辑原始 JSON。角色配置至少覆盖提示词、角色说明、LLM Pool、知识集合、工具 allowlist、token、timeout、预算、审批和恢复策略；路由池至少覆盖多候选、优先级、权重、能力、传输、成本、健康、重试和熔断；知识至少覆盖 Markdown 编辑/预览、受众、版本、发布、引用完整性和索引状态。保存总是创建不可变草稿版本，运行时只解析并锁定已发布配置。
+
 ## Security Invariants
 
 - Agent 永久禁止读取 Provider Key、执行 Shell、部署、修改后台配置或访问其他 owner 数据。
@@ -144,3 +170,7 @@ Admin UI 必须复用现有深色工业控制台、紧凑表格、Inspector、Dr
 - 技术失败与质量失败分别统计和恢复。
 - 所有 Agent 动作、选择、路由、审批和费用可追踪。
 - 多用户并发无上下文串线，预算和权限失败会停止而非自动绕过。
+- 助手与托管入口可独立开关、可并存，关闭面板不影响 Canvas Run。
+- Markdown 无原始标记、危险 HTML/URL 或 reasoning 泄漏，所有目标视口满足字体与溢出约束。
+- Agent Run 只能读取已发布 Knowledge Snapshot；未批准文档、内部受众和仓库文件不可检索。
+- Admin 关键字段可结构化编辑，保存/审核/发布后的运行时快照可证明生效；非 chat 生成模型在创建、审核、发布和选择四层均被拒绝。

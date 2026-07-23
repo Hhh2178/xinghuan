@@ -1,5 +1,7 @@
 import { Bot, Image as ImageIcon, KeyRound, MonitorCog, RotateCcw, ScrollText, Send, Sparkles, UserCog, Workflow, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createAssistantContentStreamFilter, normalizeAssistantContent } from "@xinghuan/shared";
+import { AssistantMarkdown } from "@xinghuan/ui";
 import type {
   AdminUser,
   AssistantChatAttachment,
@@ -29,11 +31,6 @@ interface AssistantMessage {
   process?: AssistantProcessEntry[];
 }
 
-interface AssistantMessageSection {
-  title?: string;
-  blocks: AssistantMessageBlock[];
-}
-
 function getAttachmentKindLabel(kind?: string) {
   switch (kind) {
     case "provider":
@@ -55,38 +52,6 @@ function getAttachmentKindLabel(kind?: string) {
 
 function createAssistantConversationId(scope: "canvas" | "admin") {
   return `${scope}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function groupAssistantMessageSections(blocks: AssistantMessageBlock[]) {
-  const sections: AssistantMessageSection[] = [];
-  let current: AssistantMessageSection | null = null;
-
-  for (const block of blocks) {
-    if (block.type === "heading") {
-      if (current && current.blocks.length > 0) sections.push(current);
-      current = { title: block.text, blocks: [] };
-      continue;
-    }
-
-    if (block.type === "kv" && !current && isLikelySectionTitle(block.label)) {
-      current = { title: block.label, blocks: [{ type: "paragraph", text: block.value }] };
-      continue;
-    }
-
-    if (!current) current = { blocks: [] };
-    current.blocks.push(block);
-  }
-
-  if (current && (current.title || current.blocks.length > 0)) {
-    sections.push(current);
-  }
-
-  return sections.length > 0 ? sections : [{ blocks }];
-}
-
-function isLikelySectionTitle(value: string) {
-  const text = String(value || "").trim();
-  return text.length > 0 && text.length <= 20;
 }
 
 async function fileToDataUrl(file: File) {
@@ -349,6 +314,7 @@ export function AdminAssistantPanel({
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      const contentFilter = createAssistantContentStreamFilter();
       let buffer = "";
       while (true) {
         const { value, done } = await reader.read();
@@ -367,23 +333,30 @@ export function AdminAssistantPanel({
               .join("\n");
             const data = dataText ? JSON.parse(dataText) : null;
             if (eventName === "delta" && typeof data?.delta === "string") {
+              const delta = contentFilter.push(data.delta);
+              if (!delta) {
+                boundary = buffer.indexOf("\n\n");
+                continue;
+              }
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
-                    ? { ...message, text: `${message.text}${data.delta}` }
+                    ? { ...message, text: `${message.text}${delta}` }
                     : message,
                 ),
               );
             }
             if (eventName === "done" && data) {
               const result = data as AssistantChatResult;
+              contentFilter.finish();
+              const messageText = normalizeAssistantContent(result.content?.text || result.message);
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
                     ? {
                         ...message,
-                        text: result.message,
-                        blocks: Array.isArray(result.blocks) ? result.blocks : parseAssistantMessageBlocks(result.message),
+                        text: messageText,
+                        blocks: parseAssistantMessageBlocks(messageText),
                         mode: result.mode,
                         streaming: false,
                       }
@@ -567,53 +540,7 @@ export function AdminAssistantPanel({
           <div className="admin-assistant-dock__messages">
             {messages.map((message) => (
               <article key={message.id} className={`admin-assistant-message admin-assistant-message--${message.role}`}>
-                <div className="admin-assistant-message-blocks">
-                  {groupAssistantMessageSections(message.blocks || parseAssistantMessageBlocks(message.text)).map((section, sectionIndex) => (
-                    <section key={`${message.id}-section-${sectionIndex}`} className="admin-assistant-message-card">
-                      {section.title ? (
-                        <header className="admin-assistant-message-card__header">
-                          <strong className="admin-assistant-message-heading">{section.title}</strong>
-                        </header>
-                      ) : null}
-                      <div className="admin-assistant-message-card__body">
-                        {section.blocks.map((block, blockIndex) => {
-                          if (block.type === "list") {
-                            const ListTag = block.ordered ? "ol" : "ul";
-                            return (
-                              <ListTag key={`${message.id}-list-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-list">
-                                {block.items.map((item) => <li key={item}>{item}</li>)}
-                              </ListTag>
-                            );
-                          }
-                          if (block.type === "code") {
-                            return (
-                              <section key={`${message.id}-code-${sectionIndex}-${blockIndex}`} className="assistant-message-code">
-                                {block.language ? <span>{block.language.toUpperCase()}</span> : null}
-                                <pre>{block.code}</pre>
-                              </section>
-                            );
-                          }
-                          if (block.type === "quote") {
-                            return (
-                              <blockquote key={`${message.id}-quote-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-quote">
-                                {block.text}
-                              </blockquote>
-                            );
-                          }
-                          if (block.type === "kv") {
-                            return (
-                              <div key={`${message.id}-kv-${sectionIndex}-${blockIndex}`} className="admin-assistant-message-kv">
-                                <strong>{block.label}</strong>
-                                <span>{block.value}</span>
-                              </div>
-                            );
-                          }
-                          return <p key={`${message.id}-paragraph-${sectionIndex}-${blockIndex}`}>{block.text}</p>;
-                        })}
-                      </div>
-                    </section>
-                  ))}
-                </div>
+                <AssistantMarkdown className="admin-assistant-message__body" markdown={message.text} />
               </article>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import { api } from "./admin-api-client";
+import type { AgentRuntimeConfiguration } from "@xinghuan/agent-core";
 
 export type AgentEnvironment = "gray" | "production";
 export type AgentVersionStatus = "draft" | "review" | "approved" | "retired";
@@ -19,7 +20,7 @@ export interface AgentOverview {
 export interface AgentPublication { id: string; environment: AgentEnvironment; publishedAt: number }
 export interface AgentDefinition {
   id: string; agentKey: string; name: string; role: string; description: string; enabled: boolean;
-  versions: Array<{ id: string; version: number; status: AgentVersionStatus; configuration: Record<string, unknown>; createdAt: number }>;
+  versions: Array<{ id: string; version: number; status: AgentVersionStatus; configuration: AgentRuntimeConfiguration; createdAt: number }>;
   publications: Array<AgentPublication & { configurationVersionId: string }>;
 }
 export interface LlmRouteEntry {
@@ -35,11 +36,23 @@ export interface AgentToolData {
   catalog: Array<{ name: string; label: string; risk: string; approvalRequired: boolean; roles: string[]; description: string }>;
   policies: Array<{ id: string; subjectType: string; subjectId?: string; toolName: string; effect: string; constraints: Record<string, unknown>; revision: number }>;
 }
+export interface AgentRoleWorkspaceData {
+  definitions: AgentDefinition[];
+  pools: LlmRoutePool[];
+  knowledge: KnowledgeCollection[];
+  tools: AgentToolData;
+  qualityProfiles: QualityProfile[];
+}
+export interface AgentRecoveryWorkspaceData {
+  decisions: RecoveryDecision[];
+  roles: AgentRoleWorkspaceData;
+}
 export interface NodeCapabilityPort { key: string; valueTypes: string[]; cardinality: string; required: boolean; description: string }
 export interface NodeCapability {
   nodeType: string; label: string; description: string; executionKind: string; serverRuntime: string; planEligible: boolean;
   inputs: NodeCapabilityPort[]; outputs: NodeCapabilityPort[]; recommendedUpstream: string[]; recommendedDownstream: string[];
   modelCapabilityHints: string[]; commonFailureCodes: string[]; agentAllowedActions: string[];
+  connectionRules: string[]; usageExamples: string[]; alternativeNodeTypes: string[];
 }
 export interface QualityProfile {
   id: string; profileKey: string; version: number; mediaKind: "image" | "video"; status: AgentVersionStatus;
@@ -62,13 +75,24 @@ export const adminAgentGovernanceApi = {
   overview: () => api<AgentOverview>(`${base}/overview`),
   bootstrap: () => api<{ definitionsCreated: number; configurationsCreated: number; knowledgeCollectionsCreated: number }>(`${base}/bootstrap`, { method: "POST" }),
   roles: () => api<AgentDefinition[]>(`${base}/roles`),
+  roleWorkspace: async (): Promise<AgentRoleWorkspaceData> => {
+    const [definitions, pools, knowledge, tools, qualityProfiles] = await Promise.all([
+      api<AgentDefinition[]>(`${base}/roles`),
+      api<LlmRoutePool[]>(`${base}/llm-pools`),
+      api<KnowledgeCollection[]>(`${base}/knowledge`),
+      api<AgentToolData>(`${base}/tools`),
+      api<QualityProfile[]>(`${base}/quality-profiles`),
+    ]);
+    return { definitions, pools, knowledge, tools, qualityProfiles };
+  },
   createRole: (value: { agentKey: string; name: string; role: string; description: string }) => api<AgentDefinition>(`${base}/roles`, json(value)),
-  createRoleVersion: (roleId: string, configuration: Record<string, unknown>) => api(`${base}/roles/${encodeURIComponent(roleId)}/versions`, json({ configuration })),
+  createRoleVersion: (roleId: string, configuration: AgentRuntimeConfiguration) => api(`${base}/roles/${encodeURIComponent(roleId)}/versions`, json({ configuration })),
+  cloneRoleVersion: (id: string) => api(`${base}/agent-configurations/${encodeURIComponent(id)}/clone`, { method: "POST" }),
   transitionRoleVersion: (id: string, status: AgentVersionStatus) => api(`${base}/agent-configurations/${encodeURIComponent(id)}/status`, json({ status })),
   publishRoleVersion: (id: string, environment: AgentEnvironment) => api(`${base}/agent-configurations/${encodeURIComponent(id)}/publish`, json({ environment })),
   pools: () => api<LlmRoutePool[]>(`${base}/llm-pools`),
   createPool: (value: { poolKey: string; name: string; role: string; scenario: string }) => api<LlmRoutePool>(`${base}/llm-pools`, json(value)),
-  createPoolVersion: (poolId: string, value: { policy: Record<string, unknown>; entries: Array<Record<string, unknown>> }) => api(`${base}/llm-pools/${encodeURIComponent(poolId)}/versions`, json(value)),
+  createPoolVersion: (poolId: string, value: { policy: Record<string, unknown>; entries: Array<{ modelId: string; providerId: string; capabilityTags: string[]; priority: number; weight: number; estimatedCost: number; enabled: boolean }> }) => api(`${base}/llm-pools/${encodeURIComponent(poolId)}/versions`, json(value)),
   transitionPoolVersion: (id: string, status: AgentVersionStatus) => api(`${base}/llm-pool-versions/${encodeURIComponent(id)}/status`, json({ status })),
   publishPoolVersion: (id: string, environment: AgentEnvironment) => api(`${base}/llm-pool-versions/${encodeURIComponent(id)}/publish`, json({ environment })),
   simulatePool: (value: { versionId: string; role: string; scenario: string; requiredCapabilityTags: string[]; requiredInputCapabilities?: string[]; maximumEstimatedCost?: number; decisionKey: string }) => api<{ candidates: LlmRouteEntry[]; decision: { selectedEntryId: string; orderedEntryIds: string[]; rejected: Array<{ entryId: string; reason: string }>; reason: string } }>(`${base}/llm-pools/simulate`, json({
@@ -80,7 +104,7 @@ export const adminAgentGovernanceApi = {
   updateToolPolicy: (value: Record<string, unknown>) => api(`${base}/tool-policies`, json(value, "PUT")),
   nodes: () => api<NodeCapability[]>(`${base}/node-capabilities`),
   qualityProfiles: () => api<QualityProfile[]>(`${base}/quality-profiles`),
-  createQualityProfile: (value: Record<string, unknown>) => api(`${base}/quality-profiles`, json(value)),
+  createQualityProfile: (value: { profileKey: string; mediaKind: "image" | "video"; minimumOverallScore: number; minimumConfidence: number; weights: Record<string, number>; instructions: string }) => api(`${base}/quality-profiles`, json(value)),
   transitionQualityProfile: (id: string, status: AgentVersionStatus) => api(`${base}/quality-profiles/${encodeURIComponent(id)}/status`, json({ status })),
   publishQualityProfile: (id: string, environment: AgentEnvironment) => api(`${base}/quality-profiles/${encodeURIComponent(id)}/publish`, json({ environment })),
   knowledge: () => api<KnowledgeCollection[]>(`${base}/knowledge`),
@@ -93,6 +117,13 @@ export const adminAgentGovernanceApi = {
   runs: () => api<AgentRunsData>(`${base}/runs`),
   approvals: () => api<AgentApproval[]>(`${base}/approvals`),
   recovery: () => api<RecoveryDecision[]>(`${base}/recovery`),
+  recoveryWorkspace: async (): Promise<AgentRecoveryWorkspaceData> => {
+    const [decisions, roles] = await Promise.all([
+      api<RecoveryDecision[]>(`${base}/recovery`),
+      adminAgentGovernanceApi.roleWorkspace(),
+    ]);
+    return { decisions, roles };
+  },
   decideApproval: (id: string, status: "approved" | "rejected" | "cancelled", reason: string) => api(`${base}/approvals/${encodeURIComponent(id)}/decision`, json({ status, reason })),
   audit: () => api<AgentAuditRecord[]>(`${base}/audit`),
 };

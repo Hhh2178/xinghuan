@@ -9,6 +9,7 @@ export interface AgentRunRecord {
   parentAgentRunId: string | null;
   agentDefinitionId: string;
   configurationVersionId: string;
+  knowledgeSnapshotId: string;
   role: AgentRole;
   scenario: string;
   status: AgentRunStatus;
@@ -25,6 +26,7 @@ interface AgentRunRow extends QueryResultRow {
   parent_agent_run_id: string | null;
   agent_definition_id: string;
   configuration_version_id: string;
+  knowledge_snapshot_id: string;
   role: AgentRole;
   scenario: string;
   status: AgentRunStatus;
@@ -37,6 +39,15 @@ interface AgentRunRow extends QueryResultRow {
 export function createAgentRunRepository(deps: { getPostgresPool: () => Promise<Pool>; newId?: (prefix: string) => string }) {
   const newId = deps.newId || ((prefix: string) => `${prefix}_${randomUUID()}`);
 
+  async function readRunByIdempotency(input: { ownerId: string; idempotencyKey: string }) {
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query<AgentRunRow>(
+      `select * from xh_agent_runs where owner_id = $1 and idempotency_key = $2 limit 1`,
+      [input.ownerId, input.idempotencyKey],
+    );
+    return result.rows[0] ? mapRun(result.rows[0]) : null;
+  }
+
   async function createRun(input: {
     ownerId: string;
     agentKey: string;
@@ -46,30 +57,40 @@ export function createAgentRunRepository(deps: { getPostgresPool: () => Promise<
     idempotencyKey: string;
     canvasRunId?: string;
     parentAgentRunId?: string;
+    configurationVersionId: string;
+    knowledgeSnapshotId: string;
     inputSnapshot: Record<string, unknown>;
     budgetSnapshot: Record<string, unknown>;
   }): Promise<{ run: AgentRunRecord; created: boolean }> {
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
+      const existing = await client.query<AgentRunRow>(
+        `select * from xh_agent_runs where owner_id = $1 and idempotency_key = $2 limit 1`,
+        [input.ownerId, input.idempotencyKey],
+      );
+      if (existing.rows[0]) {
+        assertReplayCompatible(existing.rows[0], input);
+        return { run: mapRun(existing.rows[0]), created: false };
+      }
       const definition = await client.query(
         `select d.id as definition_id, cv.id as configuration_version_id
          from xh_agent_definitions d
          join xh_agent_configuration_versions cv on cv.agent_definition_id = d.id and cv.status = 'approved'
          join xh_agent_configuration_publications cp on cp.configuration_version_id = cv.id and cp.environment = $3 and cp.retired_at is null
-         where d.agent_key = $1 and d.role = $2 and d.enabled = true
+         where d.agent_key = $1 and d.role = $2 and d.enabled = true and cv.id = $4
          order by cv.version desc limit 1 for share of d`,
-        [input.agentKey, input.role, input.environment],
+        [input.agentKey, input.role, input.environment, input.configurationVersionId],
       );
       if (!definition.rows[0]) throw new Error(`AGENT_CONFIGURATION_UNAVAILABLE:${input.agentKey}:${input.environment}`);
       const inserted = await client.query<AgentRunRow>(
         `insert into xh_agent_runs
           (id, owner_id, canvas_run_id, parent_agent_run_id, agent_definition_id, configuration_version_id,
-           role, scenario, status, input_snapshot, budget_snapshot, idempotency_key)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9::jsonb, $10::jsonb, $11)
+           knowledge_snapshot_id, role, scenario, status, input_snapshot, budget_snapshot, idempotency_key)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'queued', $10::jsonb, $11::jsonb, $12)
          on conflict (owner_id, idempotency_key) do nothing returning *`,
         [newId("agent_run"), input.ownerId, input.canvasRunId || null, input.parentAgentRunId || null,
-          definition.rows[0].definition_id, definition.rows[0].configuration_version_id, input.role, input.scenario,
-          JSON.stringify(input.inputSnapshot), JSON.stringify(input.budgetSnapshot), input.idempotencyKey],
+          definition.rows[0].definition_id, definition.rows[0].configuration_version_id, input.knowledgeSnapshotId,
+          input.role, input.scenario, JSON.stringify(input.inputSnapshot), JSON.stringify(input.budgetSnapshot), input.idempotencyKey],
       );
       if (inserted.rows[0]) return { run: mapRun(inserted.rows[0]), created: true };
       const replay = await client.query<AgentRunRow>(
@@ -77,7 +98,7 @@ export function createAgentRunRepository(deps: { getPostgresPool: () => Promise<
         [input.ownerId, input.idempotencyKey],
       );
       if (!replay.rows[0]) throw new Error("AGENT_RUN_IDEMPOTENCY_RACE");
-      if (replay.rows[0].role !== input.role || replay.rows[0].scenario !== input.scenario) throw new Error("AGENT_RUN_IDEMPOTENCY_CONFLICT");
+      assertReplayCompatible(replay.rows[0], input);
       return { run: mapRun(replay.rows[0]), created: false };
     });
   }
@@ -136,7 +157,11 @@ export function createAgentRunRepository(deps: { getPostgresPool: () => Promise<
     });
   }
 
-  return { appendAction, createRun, transitionRun };
+  return { appendAction, createRun, readRunByIdempotency, transitionRun };
+}
+
+function assertReplayCompatible(row: AgentRunRow, input: { role: AgentRole; scenario: string }) {
+  if (row.role !== input.role || row.scenario !== input.scenario) throw new Error("AGENT_RUN_IDEMPOTENCY_CONFLICT");
 }
 
 async function withTransaction<T>(pool: Pool, run: (client: PoolClient) => Promise<T>) {
@@ -162,6 +187,7 @@ function mapRun(row: AgentRunRow): AgentRunRecord {
     parentAgentRunId: row.parent_agent_run_id,
     agentDefinitionId: row.agent_definition_id,
     configurationVersionId: row.configuration_version_id,
+    knowledgeSnapshotId: row.knowledge_snapshot_id,
     role: row.role,
     scenario: row.scenario,
     status: row.status,

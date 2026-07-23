@@ -12,7 +12,7 @@ export interface PublishedLlmRoutePool {
 export function createLlmRoutingRepository(deps: { getPostgresPool: () => Promise<Pool>; newId?: (prefix: string) => string }) {
   const newId = deps.newId || ((prefix: string) => `${prefix}_${randomUUID()}`);
 
-  async function readPublishedPool(input: { role: AgentRole; scenario: string; environment: "gray" | "production" }): Promise<PublishedLlmRoutePool | null> {
+  async function readPublishedPool(input: { role: AgentRole; scenario: string; environment: "gray" | "production"; poolKey?: string }): Promise<PublishedLlmRoutePool | null> {
     const pool = await deps.getPostgresPool();
     const result = await pool.query(
       `select p.id as pool_id, pv.id as pool_version_id, pv.policy_snapshot,
@@ -29,8 +29,9 @@ export function createLlmRoutingRepository(deps: { getPostgresPool: () => Promis
        join xh_providers pr on pr.id = e.provider_id and pr.enabled = true
        left join xh_llm_route_entry_health h on h.route_entry_id = e.id
        where p.role = $1 and p.scenario = $2 and p.enabled = true
+         and ($4::text is null or p.pool_key = $4)
        order by pv.version desc, e.priority asc, e.id asc`,
-      [input.role, input.scenario, input.environment],
+      [input.role, input.scenario, input.environment, input.poolKey || null],
     );
     const first = result.rows[0];
     if (!first) return null;

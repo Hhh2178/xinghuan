@@ -18,6 +18,10 @@ This registry defines visual building blocks that future canvas nodes should use
 | `WorkflowTopologyCard` | Canvas resources | `components/resource-library/WorkflowTopologyCard.tsx` | current shared location | Shared workflow thumbnail or topology fallback | Resource library and template modal must reuse it |
 | `CodeNode` | Canvas nodes | `components/nodes/CodeNode.tsx` | current node location | Orange utility node with Python editor, presets, run state and output preview | Keep utility color, header density and port treatment aligned with existing tool nodes |
 | `LabelNode` | Canvas nodes | `components/nodes/LabelNode.tsx` | current node location | Slate auxiliary annotation board with typography, free width/height resize and lock controls | Keep portless, persist size, hide resize handles while locked and stay visually aligned with auxiliary nodes |
+| `CanvasAssistantLauncher` | Canvas AI | `components/canvas-assistant/CanvasAssistantShell.tsx` | current feature location | Floating conversation, knowledge reference and patch-proposal entry | Must not contain Canvas Run supervision tabs or controls |
+| `CanvasSupervisionTrigger` | Canvas AI | `App.tsx` | implemented top header action | Independent AI hosting status and panel toggle beside announcements | Must remain independent from assistant visibility and conversation state |
+| `CanvasSupervisionPanel` | Canvas AI | `components/canvas-agent/CanvasSupervisionDock.tsx` + `CanvasRunSupervisor.tsx` | implemented controller and projection | Run Plan, topology, step state, approvals, budget and event timeline | Reads server projection; closing the panel never cancels a run |
+| `AssistantMarkdown` | Shared AI content | `@xinghuan/ui` | implemented for Canvas/Admin | Safe `markdown-v1` renderer with GFM and reasoning-free final content | Canvas and Admin must share one URL/HTML policy and typography contract |
 
 ## Extraction Rule
 

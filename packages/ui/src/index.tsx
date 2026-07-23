@@ -1,6 +1,8 @@
 import { Activity, Box, Database, KeyRound, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
+export * from "./assistant-markdown.js";
+
 export const themeTokens = {
   background: "#07100f",
   surface: "#0d1a1c",

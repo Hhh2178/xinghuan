@@ -11,6 +11,7 @@ import {
   canvasRunKernelOutcome,
   resolveRunnableCanvasRunSteps,
   CANVAS_RUN_NODE_CAPABILITIES,
+  CANVAS_RUN_EXECUTABLE_NODE_TYPES,
 } from "./index.js";
 
 describe("compileCanvasRunPlan", () => {
@@ -80,13 +81,14 @@ describe("compileCanvasRunPlan", () => {
 });
 
 describe("node execution capabilities", () => {
-  it("provides a unique code-owned catalog without treating structural group nodes as executable", () => {
+  it("keeps structural node facts in the unique catalog without treating them as executable", () => {
     const nodeTypes = CANVAS_RUN_NODE_CAPABILITIES.map((item) => item.nodeType);
     expect(new Set(nodeTypes).size).toBe(nodeTypes.length);
     expect(nodeTypes).toContain("image");
     expect(nodeTypes).toContain("runninghub");
     expect(nodeTypes).not.toContain("groupBox");
-    expect(nodeTypes).not.toContain("group-execution-manager");
+    expect(nodeTypes).toContain("group-execution-manager");
+    expect(CANVAS_RUN_EXECUTABLE_NODE_TYPES.has("group-execution-manager")).toBe(false);
   });
 });
 

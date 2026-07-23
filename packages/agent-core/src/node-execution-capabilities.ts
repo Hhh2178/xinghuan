@@ -25,11 +25,14 @@ export interface NodeExecutionCapability {
   recommendedUpstream: string[];
   recommendedDownstream: string[];
   modelCapabilityHints: string[];
+  connectionRules: string[];
+  usageExamples: string[];
+  alternativeNodeTypes: string[];
   commonFailureCodes: string[];
   agentAllowedActions: NodeAgentAction[];
 }
 
-export const NODE_CAPABILITY_CATALOG_VERSION = "2026-07-22";
+export const NODE_CAPABILITY_CATALOG_VERSION = "2026-07-23";
 
 const textInput = port("text", ["text"], "single", false, "提示词、说明或结构化文本。");
 const imageInput = port("image", ["image"], "many", false, "一张或多张图片参考。");
@@ -114,6 +117,9 @@ export function buildNodeCapabilityPromptContext(input: { includeLegacy?: boolea
       const upstream = capability.recommendedUpstream || [];
       const downstream = capability.recommendedDownstream || [];
       const modelHints = capability.modelCapabilityHints || [];
+      const connectionRules = capability.connectionRules || [];
+      const examples = capability.usageExamples || [];
+      const alternatives = capability.alternativeNodeTypes || [];
       const failures = capability.commonFailureCodes || [];
       const actions = capability.agentAllowedActions || [];
       return [
@@ -121,6 +127,9 @@ export function buildNodeCapabilityPromptContext(input: { includeLegacy?: boolea
         `Purpose: ${capability.description}`,
         `Inputs: ${inputs}; outputs: ${outputs}.`,
         `Recommended flow: from ${upstream.join(", ") || "none"} to ${downstream.join(", ") || "none"}.`,
+        `Connection rules: ${connectionRules.join(" ")}`,
+        `Examples: ${examples.join(" ")}`,
+        `Alternatives: ${alternatives.join(", ") || "none"}.`,
         `Model/service hints: ${modelHints.join(", ") || "none"}; common failures: ${failures.join(", ") || "none"}; allowed Agent actions: ${actions.join(", ") || "none"}.`,
       ].join(" ");
     }),
@@ -143,15 +152,36 @@ function toolbox(nodeType: string, label: string, description: string, inputs: N
   return capability({ nodeType, label, description, executionKind: "toolbox", inputs, outputs, recommendedUpstream: ["text"], recommendedDownstream: ["text", "image", "video", "llm"], commonFailureCodes: ["TOOLBOX_VALUE_INVALID"], agentAllowedActions: localActions });
 }
 
-function capability(input: Omit<NodeExecutionCapability, "serverRuntime" | "planEligible" | "recommendedUpstream" | "recommendedDownstream" | "modelCapabilityHints"> & Partial<Pick<NodeExecutionCapability, "serverRuntime" | "planEligible" | "recommendedUpstream" | "recommendedDownstream" | "modelCapabilityHints">>): NodeExecutionCapability {
+function capability(input: Omit<NodeExecutionCapability, "serverRuntime" | "planEligible" | "recommendedUpstream" | "recommendedDownstream" | "modelCapabilityHints" | "connectionRules" | "usageExamples" | "alternativeNodeTypes"> & Partial<Pick<NodeExecutionCapability, "serverRuntime" | "planEligible" | "recommendedUpstream" | "recommendedDownstream" | "modelCapabilityHints" | "connectionRules" | "usageExamples" | "alternativeNodeTypes">>): NodeExecutionCapability {
+  const upstream = input.recommendedUpstream || [];
+  const downstream = input.recommendedDownstream || [];
   return {
     ...input,
     serverRuntime: input.serverRuntime || "legacy_browser",
     planEligible: input.planEligible === true,
-    recommendedUpstream: input.recommendedUpstream || [],
-    recommendedDownstream: input.recommendedDownstream || [],
+    recommendedUpstream: upstream,
+    recommendedDownstream: downstream,
     modelCapabilityHints: input.modelCapabilityHints || [],
+    connectionRules: input.connectionRules || defaultConnectionRules(input.inputs),
+    usageExamples: input.usageExamples || [defaultUsageExample(input.nodeType, upstream, downstream)],
+    alternativeNodeTypes: input.alternativeNodeTypes || [],
   };
+}
+
+function defaultConnectionRules(inputs: NodePortCapability[]) {
+  if (inputs.length === 0) return ["This node does not require an upstream edge; connect only its declared outputs."];
+  const required = inputs.filter((input) => input.required).map((input) => input.key);
+  return [
+    "Connect only values compatible with the declared input port types and cardinality.",
+    required.length > 0 ? `Required input ports: ${required.join(", ")}.` : "All input ports are optional unless the node-specific runtime rejects an empty input.",
+  ];
+}
+
+function defaultUsageExample(nodeType: string, upstream: string[], downstream: string[]) {
+  if (upstream[0] && downstream[0]) return `${upstream[0]} -> ${nodeType} -> ${downstream[0]}.`;
+  if (downstream[0]) return `${nodeType} -> ${downstream[0]}.`;
+  if (upstream[0]) return `${upstream[0]} -> ${nodeType}.`;
+  return `Use ${nodeType} as a standalone canvas annotation or control node.`;
 }
 
 function port(key: string, valueTypes: NodeValueType[], cardinality: NodePortCardinality, required: boolean, description: string): NodePortCapability {

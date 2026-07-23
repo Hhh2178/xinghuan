@@ -19,6 +19,13 @@ export function useCanvasRunProjection(canvasId: string | null, initialRunId?: s
   const [streamConnected, setStreamConnected] = useState(false);
   const runId = run?.id || initialRunId || '';
 
+  useEffect(() => {
+    setRun(null);
+    setEvents([]);
+    setError('');
+    setStreamConnected(false);
+  }, [canvasId]);
+
   const refresh = useCallback(async () => {
     if (!runId) return;
     try {
@@ -97,3 +104,5 @@ export function useCanvasRunProjection(canvasId: string | null, initialRunId?: s
     refresh,
   };
 }
+
+export type CanvasRunProjection = ReturnType<typeof useCanvasRunProjection>;

@@ -33,21 +33,21 @@ $env:PWCLI = "C:\Users\Administrator\.codex\skills\playwright\scripts\playwright
 
 `eX`、`eY` 和 `eZ` 是每次 snapshot 产生的临时 ref，必须替换为当前终端输出中的实际值。随后执行：
 
-1. 以 1440x1000 打开标题为“打开画布助手”的 launcher，确认出现 aria-label 为“画布 AI 工作台”的工作台，截取一张截图到 `output/playwright/`。
+1. 以 1440x1000 打开标题为“打开画布助手”的 launcher，确认出现 aria-label 为“画布 AI 工作台”的工作台，且其中没有托管 Tab 或 Canvas Run 控制；截取一张截图到 `output/playwright/`。
 2. 在协作 Tab 发送只读问题，确认返回内部 Agent 或受限 fallback 的可解释状态，且没有暴露 Provider Key、内部知识或其他 owner 的数据。
-3. 打开“托管”Tab，确认“生成运行计划”只针对当前画布的 revision；创建计划后确认 Run Plan、分组顺序、拓扑步骤和 SSE 连接状态可见。
+3. 点击顶部公告旁的 `AI 托管` 独立入口，确认 aria-label 为“AI 托管面板”的面板可独立开关；“生成运行计划”只针对当前画布的 revision，创建后可见 Run Plan、分组顺序、组内拓扑、步骤状态、证据和 SSE 连接状态。
 4. 仅在可丢弃画布且已明确允许执行时，开始一个最小 `native_server` 测试 Run，依次验证暂停、继续、取消以及刷新后仍读取同一服务端权威状态。不要在此流程验证 `legacy_browser` 节点的页面关闭托管。
-5. 将视口调整为 800x1000 与 390x844，重复打开工作台和托管 Tab，检查文本、操作按钮、抽屉和画布不重叠；每个尺寸保存一张截图。
+5. 将视口调整为 800x1000 与 390x844，分别和同时打开助手/托管面板，检查文本、操作按钮、全屏抽屉与关键画布控件；每个尺寸保存一张截图。
 6. 每个关键切换后执行 `snapshot`，最终检查 `console` 中是否存在由 Canvas Agent 引入的 error。完成后删除测试画布或按环境数据留存规则处理。
 
 ## 通过标准
 
 - 登录后的普通用户只能看到自己的 canvas、Run、事件、审批和知识 publication。
-- 悬浮助手、图片附件入口、协作会话和托管面板均可交互，且状态来自真实 API/SSE，不是浏览器伪进度。
+- 悬浮助手、图片附件入口、协作会话和独立托管面板均可交互；两者可分别开关，托管状态来自真实 API/SSE，不是浏览器伪进度。
 - Canvas Run 的计划、开始、暂停、继续、取消和刷新遵循服务端状态；页面刷新或短暂断线后不产生重复命令。
 - 桌面、窄桌面和移动宽度均没有文本溢出、控件遮挡或画布不可操作区域。
 - 验收记录只保存环境、候选版本、匿名化的结果和截图路径；不保存凭据、Cookie、内部 URL 参数或用户内容。
 
 ## 当前状态
 
-本机隔离环境已完成一次真实登录、悬浮工作台打开、托管计划创建与 1440x1000、800x1000、390x844 响应式检查。托管面板确认展示锁定 revision、拓扑步骤和在线 SSE；唯一 console error 是 Vite 开发环境缺少 `favicon.ico` 的 404，不属于 Canvas Agent。该次 UI 检查未在浏览器内执行 Worker 结算，后者以 `test:canvas-run-local-e2e` 的 API/Redis/Worker 联合验收为证据；Gray 认证验收仍未完成。
+本机隔离环境已完成真实登录与独立双入口验收：悬浮助手不再包含托管 Tab，顶部 `AI 托管` 可单独开关，并在 `1440x900` 同时打开时与助手无重叠。受控 Run/SSE 投影验证了分组、拓扑、步骤证据、关闭后持续订阅和重新打开恢复；`800x1000` 与 `390x844` 响应式检查无页面横向溢出。浏览器仅保留既有 React Flow 开发警告，不属于 Canvas Agent 运行错误。该次 UI 检查未在浏览器内执行 Worker 结算，后者以 `test:canvas-run-local-e2e` 的 API/Redis/Worker 联合验收为证据；Gray 认证验收仍未完成。

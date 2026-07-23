@@ -4,14 +4,17 @@
 
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。当前仍处于本地候选阶段，认证 UI 与 Gray 验收尚未完成。当前事实是：
 
+> 2026-07-23 纠偏进度：Assistant Content、reasoning 隔离和 Canvas/Admin 共用安全 Markdown 已落地；悬浮助手与顶部 AI 托管已成为独立入口，关闭托管面板不会卸载运行投影或取消 Canvas Run。节点目录、安全模型投影、发布文档与 Agent Run 已通过不可变 Knowledge Snapshot 关联；Phase 12 的 Admin 结构化编辑、运行时配置解析、平台工具收紧和幂等重放已落地，认证治理页面的真实浏览器验收仍待隔离一次性账号。Accepted 目标见 `docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md`；不能把其余未完成入口描述为已经完成。
+
 - 画布助手已替换为全新的深色生产工作台 UI；会话、附件、编写器和消息投影分离，支持图片选择与剪贴板粘贴、节点/工作流/媒体上下文和内部 Agent SSE 响应。
 - 浮动助手在存在活跃画布时默认附带受控的 `当前画布` 工作流卡片。该投影上限为 40 个节点和 80 条连线，包含组顺序、成员、连线、节点类型及已允许的模型/执行配置；Web 与 API 都移除 key、token、secret、cookie、password、authorization 等字段，避免把节点原始 JSON 或敏感参数发送给模型。
 - assistant 协议已使用 `agent | fallback`；聊天与 Provider 分析优先进入内部 Agent Orchestrator，未发布对应 LLM 路由或调用失败时使用受限本地 fallback。
+- Assistant Chat 成功与 fallback 结果统一投影为 `AssistantContent markdown-v1`；API 与 SSE 防御层会移除内部 reasoning，Canvas/Admin 通过同一安全 GFM renderer 渲染，禁止 raw HTML、危险 URL 和远程图片直出。
 - 整画布与分组执行仍由浏览器 runtime 驱动，各生成节点保留自己的观察/轮询逻辑。
 - PostgreSQL 迁移 `026_canvas_agent_runtime.sql` 已定义 Canvas Run、Step、Event、Command、Task Attempt 和 Approval 权威表。
 - `@xinghuan/agent-core` 已实现持久化画布快照编译、分组顺序与拓扑校验、输入绑定、运行/步骤/尝试/审批状态机和纯调度内核。
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
-- Web 已新增 Canvas Run client、SSE projection、托管监督面板和 `canvas-agent` 节点。节点只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
+- Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
 - 新建运行默认关闭，只有 PostgreSQL 模式并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时可用。
 - Worker 已新增 feature-gated Canvas Run Coordinator，可持久化领取 image/video/audio/llm 与受治理 RunningHub 原生步骤、创建现有 Generation Task、复用能力队列并在页面关闭后继续推进。其他未迁移节点仍标记为 `legacy_browser`，因此尚不能声称任意旧画布都可完整后台托管。
 - `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay` 与 `output` 已迁移为原生确定性步骤：Worker 在同一 PostgreSQL 事务内计算 output binding、解锁下游和写入 Run Event，不创建 `xh_tasks`、不占用 Provider 并发，也不执行浏览器代码或任意脚本。`text-split` 从 Shared 纯模块复用分镜、正则、编号、字符切块、清理、前后缀和手工 override 语义。
@@ -20,16 +23,21 @@
 - Canvas Run generation 与 quality coordinator 都通过 PostgreSQL 持久化 owner round-robin cursor 领取工作：短事务先锁定对应 cursor，再选择下一位有 ready work 的 owner，提交时才推进 cursor；Redis 不参与公平决策。
 - PostgreSQL migration `027_internal_agent_llm_routing.sql` 已定义 Agent Definition、配置版本/环境发布、Agent Run/Action、Tool Policy 和 LLM Pool/Version/Entry/Health/Decision。
 - Agent Orchestrator 已执行 owner-scoped 有界角色任务，使用既有 Provider/Model Catalog 的 `chat` 模型 Adapter，并对每次路由、回退、健康结果和动作写审计账本。
+- Agent Runtime Configuration resolver 只读取当前 environment 的 approved active publication；运行时锁定配置版本、提示词、Pool Key、知识边界、有效工具、token/timeout/cost、审批/恢复/质量策略。平台工具 `deny` 只能收紧角色 allowlist，策略修订和 effect 会进入 Run 快照；同一 owner/idempotency key 在配置重新发布后仍回放原 Run 与原 Knowledge Snapshot。
 - LLM Routing Pool 从 SQL 与纯领域路由两层拒绝非 `chat` 模型；图片、视频、音频生成模型仍由对应生成节点管理。
 - 过冷却期的 `circuit_open` entry 会投影为 `half_open`，但必须取得 `xh_llm_route_entry_probe_leases` 的单探针 lease 才能实际调用。API Agent 在调用结束后释放；质量任务将 lease owner 持久化到质量上下文，并在评估结算时释放。
-- Tool Gateway 只执行启动时固定注册且位于角色 allowlist 的工具，并在调用时重新验证 owner、canvas revision、budget 和 approval。
+- Tool Gateway 只执行启动时固定注册且位于角色 allowlist 的工具，并在调用时重新验证 owner、canvas revision、budget 和 approval；发布的 platform tool policy 还会约束每 Run 调用上限，以及是否必须满足 revision/budget 条件。
 - 旧外部助手 bridge、session cache、登录、Cookie/CSRF、环境变量和协议类型已从活跃代码与 Harness 移除。
 - Admin 已新增独立“智能体与自动化”工作域，提供角色、LLM 路由、工具、节点能力、知识、质量、恢复、运行、审批和动作审计稳定深链。
 - Agent/LLM/Quality/Knowledge 配置使用 `draft -> review -> approved -> retired` 生命周期；Gray/Production publication 与版本状态分离，重新发布旧 approved 版本即为可审计回滚。
+- Agent 配置 create/clone/review/approve/publish 均重新校验 Pool、知识 collection audience/enabled 状态和 Quality Profile 引用；Admin 编辑器保存始终创建新草稿并显示结构化 diff。
 - Admin 路由模拟复用生产 `routeLlmCandidates`，模型写入同时校验启用 Provider、启用模型和 `chat` capability。
 - 环境级 Agent、Canvas Run、质量评估和自动恢复 kill switch 已接入真实入口；数据库记录不存在时默认关闭，暂停和取消不受启动门禁阻断。
 - 默认角色与 `public-canvas` 公开知识集合可幂等初始化为草稿，不自动批准、发布或选择任意模型。
-- 悬浮助手只读取当前环境、`knowledgeProfile` 指定集合、`audience = public` 且 approved/active publication 的文档；internal 知识不进入普通用户上下文。Agent Run 只记录文档 key/version，模型 usage 只保存数值计数，Provider 错误在进入账本前脱敏。
+- 每次 Agent 角色调用先创建或复用 owner-scoped、environment/audience-scoped 的不可变 Knowledge Snapshot，再创建 Agent Run 并写入 `knowledge_snapshot_id`。悬浮助手只从该快照检索 `knowledgeProfile` allowlist 内、`audience = public` 且在当前环境 approved/active publication 的文档；internal 知识不进入普通用户上下文。模型 usage 只保存数值计数，Provider 错误在进入账本前脱敏。
+- Knowledge Snapshot 锁定完整节点目录版本/hash、安全 Agent Model Projection revision/hash、发布文档 ID/version/body hash/正文和受控 workflow-template 引用。已发布文档随后 retired 不会改变已有 Run 的知识内容；运行时不扫描仓库目录或任意文件系统路径。
+- Agent Model Projection 只投影模型/Provider 标识、协议、用途、输入能力、capability tags、参数 schema、兼容节点、成本/延迟/质量倾向、LLM 资格、启用与健康状态；不读取或保存 base URL、API key、raw advanced config。
+- 固定工具目录已增加 `knowledge.node.get`、`knowledge.model.get/search`、`knowledge.documents.search` 和 `canvas.workflow.inspect/search/validate`。文档检索在排序前执行 collection allowlist、audience、environment 过滤，并受服务端 topK/token budget 约束；`canvas.patch.propose` 只生成 before/after/validation 预览且仍需审批，不会直接改写 Canvas revision。
 - PostgreSQL migration `028_artifact_quality_and_recovery.sql` 已定义版本化图片/视频 Quality Profile、Evaluation、Selection 和 Generation Recovery Decision。
 - 图片与视频理解分别使用 `image_understanding` / `video_understanding` 角色。路由条目发布时冻结模型输入能力与媒体传输方式，运行时不能因模型目录后续编辑而改变已有版本语义。
 - 视频评估优先选择 `videoReference + gemini_file` 的原生完整视频候选。Worker 只解析当前 owner 的内部产物引用，经 Gemini Files API 流式上传、等待 Provider File `ACTIVE`、执行 `generateContent`，并尽力删除临时 Provider File；这里的 `fileUri` 是 Gemini 临时文件，不是本项目的产物 URL。
@@ -53,6 +61,7 @@
 - Canvas Run Kernel：`packages/agent-core/src/canvas-run-kernel.ts`
 - 输入绑定：`packages/agent-core/src/artifact-binding.ts`
 - 节点执行能力目录：`packages/agent-core/src/node-execution-capabilities.ts`
+- 知识快照纯领域、模型投影、受限检索与工作流 proposal：`packages/agent-core/src/knowledge-snapshot.ts`
 - 确定性节点运行器：`packages/agent-core/src/deterministic-node-runtime.ts`；共享文本分段算法：`packages/shared/src/text-split.ts`
 - 数据迁移：`apps/api/db/026_canvas_agent_runtime.sql`
 - Canvas Run repository/service/routes：`apps/api/src/canvas-run-repository.ts`、`canvas-run-service.ts`、`canvas-run-routes.ts`
@@ -60,6 +69,7 @@
 - Agent Orchestrator：`apps/api/src/agent-orchestrator.ts`
 - Tool Gateway：`apps/api/src/agent-tool-gateway.ts`
 - Agent Run repository：`apps/api/src/agent-run-repository.ts`
+- Knowledge Snapshot migration/repository/tools：`apps/api/db/035_agent_knowledge_snapshots.sql`、`apps/api/src/agent-knowledge-snapshot-repository.ts`、`apps/api/src/agent-knowledge-tools.ts`
 - LLM Routing core/repository：`packages/agent-core/src/llm-routing.ts`、`apps/api/src/llm-routing-repository.ts`
 - Agent/LLM 数据迁移：`apps/api/db/027_internal_agent_llm_routing.sql`
 - LLM 媒体输入快照迁移：`apps/api/db/031_llm_route_media_input_snapshots.sql`
@@ -75,6 +85,7 @@
 - Admin 治理 workspace/client：`apps/admin/src/admin-agent-governance-workspace.tsx`、`admin-agent-governance-api.ts`
 - 悬浮助手薄入口：`apps/web/src/components/CanvasAssistant.tsx`
 - 助手工作台与会话：`apps/web/src/components/canvas-assistant/`
+- 独立托管入口/controller：`apps/web/src/App.tsx`、`apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx`
 - Canvas Agent 节点与监督投影：`apps/web/src/components/nodes/CanvasAgentNode.tsx`、`apps/web/src/components/canvas-agent/`
 - Assistant API：`apps/api/src/server.ts`
 - Assistant settings route：`apps/api/src/admin-assistant-settings-routes.ts`
@@ -95,7 +106,13 @@
 
 ## Node Capability Maintenance
 
-`packages/agent-core/src/node-execution-capabilities.ts` 是版本化 Node Capability Catalog 的代码权威入口。每个条目维护用户可见名称与用途、执行类别、是否可进入计划、真实 server runtime、输入/输出端口和 cardinality、推荐上下游、模型/服务提示、常见失败码及 Agent 可执行动作。`buildNodeCapabilityPromptContext` 只向 planner/manager/checker/recovery 注入这一受控投影；Admin `/admin/automation/nodes` 读取同一目录。目录的 `native_server` 不是愿景标签：目前包含 image/video/audio/llm、`runninghub`，以及 `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output`。`runninghub-wallet`、`rh-tools`、`rh-toolbox`、ComfyUI 和其余 legacy 节点仍会在 Run start 时明确拒绝，不能被 Agent 假定为后台托管。
+`packages/agent-core/src/node-execution-capabilities.ts` 是版本化 Node Capability Catalog 的代码权威入口。每个条目维护用户可见名称与用途、执行类别、是否可进入计划、真实 server runtime、输入/输出端口和 cardinality、推荐上下游、显式连接规则、用法示例、替代节点、模型/服务提示、常见失败码及 Agent 可执行动作。结构/控制节点保留在知识目录中，但只有 `CANVAS_RUN_EXECUTABLE_NODE_TYPES` 才是执行资格权威。`buildNodeCapabilityPromptContext` 只向 planner/manager/checker/recovery 注入这一受控投影；Admin `/admin/automation/nodes` 读取同一目录。目录的 `native_server` 不是愿景标签：目前包含 image/video/audio/llm、`runninghub`，以及 `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output`。`runninghub-wallet`、`rh-tools`、`rh-toolbox`、ComfyUI 和其余 legacy 节点仍会在 Run start 时明确拒绝，不能被 Agent 假定为后台托管。
+
+## Knowledge Snapshot
+
+`apps/api/db/035_agent_knowledge_snapshots.sql` 是不可变快照权威。数据库 trigger 拒绝 update/delete；新 Agent Run 必须引用快照，历史 Run 因而不会随节点目录、模型目录或 publication 的后续变化漂移。相同 owner 与相同 canonical hash 会复用快照，Agent Run 幂等重放仍返回原 Run 和原快照。
+
+快照创建顺序是：读取无密钥节点目录 -> 从 `xh_models`/`xh_providers` 生成安全模型投影 -> 在 environment/audience/collection allowlist 内读取 approved active publications -> 锁定 workflow-template source references -> canonicalize/hash -> 插入快照 -> 创建 Agent Run。Assistant 文档检索只从该快照正文执行，并为每项返回 `knowledge://<collection>/<document>@<version>` 引用。
 
 ## Admin Governance
 

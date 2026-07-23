@@ -40,4 +40,20 @@ describe("generation failure recovery", () => {
     expect(planGenerationRecovery({ failureCategory: "provider", state: { ...state, sameConfigurationRetries: 2 }, policy, alternatives: [{ ...alternative, requiresApproval: true }] }).action).toBe("request_approval");
     expect(planGenerationRecovery({ failureCategory: "content", state, policy, alternatives: [alternative] }).action).toBe("stop");
   });
+
+  it("applies only bounded parameter repairs and quality regenerations", () => {
+    expect(planGenerationRecovery({ failureCategory: "parameter", state, policy, alternatives: [], parameterRepair: { duration: 5 } })).toMatchObject({ action: "apply_parameter_repair", parameterPatch: { duration: 5 } });
+    expect(planGenerationRecovery({ failureCategory: "parameter", state: { ...state, parameterRepairs: 1 }, policy, alternatives: [], parameterRepair: { duration: 5 } }).action).toBe("stop");
+    expect(planGenerationRecovery({ failureCategory: "quality", state, policy, alternatives: [] }).action).toBe("regenerate_for_quality");
+    expect(planGenerationRecovery({ failureCategory: "quality", state: { ...state, qualityRegenerations: 1 }, policy, alternatives: [] }).action).toBe("stop");
+  });
+
+  it("stops after retry, model-switch, and alternative budgets are exhausted", () => {
+    expect(planGenerationRecovery({
+      failureCategory: "provider",
+      state: { ...state, sameConfigurationRetries: 2, generationModelSwitches: 2, triedModelRecordIds: ["model-primary", "model-backup"] },
+      policy,
+      alternatives: [alternative],
+    })).toMatchObject({ action: "stop", reason: "recovery budget exhausted or no untried node-configured alternative" });
+  });
 });

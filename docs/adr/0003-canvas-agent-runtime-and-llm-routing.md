@@ -28,7 +28,9 @@
 - 技术失败、质量不达标和输入契约错误分别处理；质量回退不能污染 Provider 技术健康统计。
 - 视频质量评估采用传输能力感知的双路径：优先选择支持完整视频输入的 LLM。Gemini 直连由 Worker 上传 owner-scoped 文件并使用临时 Provider File URI；时间戳帧序列仅作为已有帧产物的兼容回退，不在运行时依赖 FFmpeg。对于显式声明可拉取远程 URL 的 Provider 网关，短期受控 URL 是保留的第三种传输能力而非 Gemini 的替代协议，当前默认关闭；启用前必须落地独立媒体访问网关、单产物短期签名、传输上限、审计快照和撤销策略。
 - 批次输出到单项输入通过运行时 Artifact Binding 解决；默认不修改画布结构。结构修改形成 Canvas Patch Proposal，并在审批后生成新 revision。
-- 悬浮助手和画布 Agent 面板共用内部 Agent Runtime；前端只提交命令和订阅真实 Run Event，不保存运行权威状态。
+- 悬浮 AI 助手与 AI 托管面板是两个独立产品入口：助手以悬浮球承载对话、诊断、知识引用和 Canvas Patch Proposal；托管入口位于画布顶部公告操作旁，只承载 Canvas Run 创建、执行、监管、审批和接管。两者可以引用同一 Agent Run/Canvas Run，但不能共享开关、Tab 身份或面板生命周期。
+- Assistant Conversation、Agent Run、Canvas Run 和 Knowledge Snapshot 使用独立 ID 与生命周期。关闭助手或托管面板不终止持久化运行；浏览器只提交命令并订阅真实 Run Event，不保存运行权威状态。
+- Agent 运行时不扫描仓库。节点能力注册表、Provider/模型目录投影和已批准知识文档在环境发布时形成不可变 Knowledge Snapshot；Agent Run 锁定快照 ID，并仅通过 allowlisted 精确查询或受限检索工具访问。
 - Agent 配置采用 draft / review / published / retired 生命周期，运行开始时锁定配置版本快照，并复用现有 Gray / Production 环境发布治理。
 - Hermes bridge、环境变量、session 和协议类型在内部 Agent Runtime 达到兼容门后移除，不保留为长期 fallback。
 
@@ -67,7 +69,12 @@
 - 图片/视频候选评估与 single-input 下游绑定端到端测试。
 - Gemini Provider File 上传、处理等待、原生视频理解、临时文件清理，以及无原生能力时的帧序列回退测试。
 - Admin 配置 revision、发布、回滚、kill switch 和审计测试。
+- 双入口独立开关、Assistant Content 安全 Markdown、reasoning 隔离、Knowledge Snapshot 发布边界和 Admin 配置到运行时快照的合同测试。
 - Gray 断线恢复、多用户并发、费用上限和长时间托管验证。
+
+## 2026-07-23 Clarification
+
+本次澄清收紧原文“共用内部 Agent Runtime”的含义：共用的是服务端基础设施和显式引用，不是同一个前端工作台。它同时把受控知识发布物确认为运行时唯一知识入口，避免把仓库检索误当成产品知识库。
 
 ## Migration And Rollback
 

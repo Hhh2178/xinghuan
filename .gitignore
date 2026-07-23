@@ -35,3 +35,4 @@ build/
 # 系统与编辑器噪音
 .DS_Store
 Thumbs.db
+.gstack/

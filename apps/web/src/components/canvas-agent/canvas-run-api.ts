@@ -23,6 +23,7 @@ export interface CanvasRunPlanStep {
   groupId: string | null;
   dependsOn: string[];
   skipped: boolean;
+  configuration?: Record<string, unknown>;
 }
 
 export interface CanvasRunRecord {

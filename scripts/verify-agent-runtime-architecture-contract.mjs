@@ -7,6 +7,9 @@ const files = {
   docsIndex: await read("docs/INDEX.md"),
   systems: await read("docs/systems/README.md"),
   systemReadme: await read("docs/systems/agent-runtime/README.md"),
+  design: await read("DESIGN.md"),
+  canvasRegistry: await read("docs/systems/canvas/frontend-design/visual-component-registry.md"),
+  adminRegistry: await read("docs/systems/admin/frontend-design/visual-component-registry.md"),
   adrIndex: await read("docs/adr/README.md"),
   adr: await read("docs/adr/0003-canvas-agent-runtime-and-llm-routing.md"),
   spec: await read("docs/superpowers/specs/2026-07-22-canvas-agent-runtime-and-llm-routing.md"),
@@ -15,15 +18,20 @@ const files = {
   migration: await read("apps/api/db/026_canvas_agent_runtime.sql"),
   agentMigration: await read("apps/api/db/027_internal_agent_llm_routing.sql"),
   qualityMigration: await read("apps/api/db/028_artifact_quality_and_recovery.sql"),
+  knowledgeMigration: await read("apps/api/db/035_agent_knowledge_snapshots.sql"),
   workerLeaseMigration: await read("apps/api/db/030_canvas_run_worker_leases.sql"),
   compiler: await read("packages/agent-core/src/workflow-compiler.ts"),
   kernel: await read("packages/agent-core/src/canvas-run-kernel.ts"),
   nodeCapabilities: await read("packages/agent-core/src/node-execution-capabilities.ts"),
+  knowledgeCore: await read("packages/agent-core/src/knowledge-snapshot.ts"),
   deterministicRuntime: await read("packages/agent-core/src/deterministic-node-runtime.ts"),
   repository: await read("apps/api/src/canvas-run-repository.ts"),
   service: await read("apps/api/src/canvas-run-service.ts"),
   routes: await read("apps/api/src/canvas-run-routes.ts"),
   orchestrator: await read("apps/api/src/agent-orchestrator.ts"),
+  agentRunRepository: await read("apps/api/src/agent-run-repository.ts"),
+  knowledgeRepository: await read("apps/api/src/agent-knowledge-snapshot-repository.ts"),
+  knowledgeTools: await read("apps/api/src/agent-knowledge-tools.ts"),
   llmRouting: await read("packages/agent-core/src/llm-routing.ts"),
   llmRepository: await read("apps/api/src/llm-routing-repository.ts"),
   toolGateway: await read("apps/api/src/agent-tool-gateway.ts"),
@@ -35,6 +43,10 @@ const files = {
   recoveryService: await read("apps/api/src/generation-recovery-service.ts"),
   workerCoordinator: await read("apps/worker/src/canvas-run-coordinator.ts"),
   workerEntry: await read("apps/worker/src/worker.ts"),
+  webApp: await read("apps/web/src/App.tsx"),
+  assistantShell: await read("apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx"),
+  supervisionDock: await read("apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx"),
+  nodeRegistry: await read("apps/web/src/config/nodeRegistry.ts"),
   legacyAssistantRuntime: await readMany([
     "apps/api/src/server.ts",
     "apps/api/src/settings-repository.ts",
@@ -46,7 +58,7 @@ const files = {
   ]),
 };
 
-for (const term of ["Canvas Run", "Agent Run", "LLM Routing Pool", "Artifact Evaluation"]) {
+for (const term of ["Canvas Run", "Agent Run", "Assistant Conversation", "Knowledge Snapshot", "Canvas Patch Proposal", "LLM Routing Pool", "Artifact Evaluation"]) {
   assert.match(files.context, new RegExp(term), `CONTEXT.md missing ${term}`);
 }
 
@@ -56,6 +68,16 @@ assert.match(files.docsIndex, /docs\/systems\/agent-runtime\/README\.md/, "docs 
 assert.match(files.systems, /agent-runtime\//, "systems index missing Agent Runtime entry");
 assert.match(files.systemReadme, /尚未完成实现/, "system README must keep current implementation distinct from target architecture");
 assert.match(files.systemReadme, /XINGHUAN_CANVAS_RUNS_ENABLED=true/, "system README must document the Canvas Run feature gate");
+assert.match(files.systemReadme, /悬浮助手与顶部 AI 托管已成为独立入口/, "system README must record the landed product separation");
+assert.match(files.design, /AI 入口按任务分离/, "design system must separate assistant and supervision identities");
+assert.match(files.canvasRegistry, /CanvasSupervisionTrigger/, "canvas registry must define an independent supervision trigger");
+assert.match(files.canvasRegistry, /AssistantMarkdown/, "canvas registry must define the shared safe Markdown renderer");
+assert.match(files.adminRegistry, /AdminVersionedConfigEditor/, "admin registry must define structured versioned Agent configuration editing");
+assert.match(files.webApp, /xh-topbar-supervision-trigger/, "Canvas top bar must own the independent supervision trigger");
+assert.match(files.webApp, /<CanvasSupervisionDock/, "App shell must own supervision visibility");
+assert.doesNotMatch(files.assistantShell, /CanvasRunSupervisor|agent-assistant-tabs|penguin:open-run-supervisor/, "floating Assistant must not own supervision UI or events");
+assert.match(files.supervisionDock, /useCanvasRunProjection/, "supervision controller must keep the server projection mounted independently");
+assert.match(files.nodeRegistry, /type: 'canvas-agent'.*hidden: true/, "legacy canvas-agent node must not remain in the new-node catalog");
 
 for (const table of ["xh_canvas_runs", "xh_canvas_run_steps", "xh_canvas_run_events", "xh_canvas_run_commands", "xh_task_attempts", "xh_agent_approvals"]) {
   assert.match(files.migration, new RegExp(`create table if not exists ${table}`), `Canvas Run migration missing ${table}`);
@@ -66,6 +88,9 @@ assert.match(files.nodeCapabilities, /CANVAS_RUN_NODE_CAPABILITIES/, "node execu
 assert.match(files.nodeCapabilities, /buildNodeCapabilityPromptContext/, "node capability catalog must project bounded Agent context");
 assert.match(files.nodeCapabilities, /recommendedUpstream/, "node capability catalog must record recommended workflow connections");
 assert.match(files.nodeCapabilities, /commonFailureCodes/, "node capability catalog must record recoverable failure categories");
+assert.match(files.nodeCapabilities, /connectionRules/, "node capability catalog must record explicit connection rules");
+assert.match(files.nodeCapabilities, /usageExamples/, "node capability catalog must record usage examples");
+assert.match(files.nodeCapabilities, /alternativeNodeTypes/, "node capability catalog must record alternatives");
 assert.match(files.deterministicRuntime, /NATIVE_DETERMINISTIC_NODE_TYPES/, "deterministic server node contract is missing");
 assert.match(files.deterministicRuntime, /pick-from-set/, "deterministic single-input binding contract is missing");
 assert.match(files.repository, /owner_id = \$2 for share/, "Canvas Run creation must lock owner-scoped canvas revision");
@@ -91,7 +116,20 @@ assert.match(files.llmRepository, /m\.capability = 'chat'/, "LLM repository must
 assert.match(files.orchestrator, /validateAgentRoleTask/, "Agent Orchestrator must run bounded role tasks");
 assert.match(files.orchestrator, /recordDecision/, "Agent Orchestrator must persist route decisions");
 assert.match(files.orchestrator, /messagesWithNodeCapabilities/, "planning roles must receive the maintained node capability context");
+assert.match(files.orchestrator, /knowledgeSnapshots\.createSnapshot/, "Agent Orchestrator must lock knowledge before creating a Run");
+assert.match(files.agentRunRepository, /knowledge_snapshot_id/, "Agent Runs must reference their immutable Knowledge Snapshot");
+assert.match(files.knowledgeMigration, /AGENT_KNOWLEDGE_SNAPSHOT_IMMUTABLE/, "Knowledge Snapshots must reject mutation");
+assert.match(files.knowledgeRepository, /projectAgentModelCatalog/, "Knowledge repository must build the safe model projection from SQL catalogs");
+assert.doesNotMatch(files.knowledgeRepository.match(/select m\.id[\s\S]*?from xh_models m/)?.[0] || "", /base_url|api_key|advanced_config/i, "Agent model projection query must not select Provider secrets");
+assert.match(files.knowledgeCore, /collectionAllowlist/, "document retrieval must enforce a collection allowlist before ranking");
+for (const tool of ["knowledge.node.get", "knowledge.model.get", "knowledge.documents.search", "canvas.workflow.inspect", "canvas.workflow.search", "canvas.workflow.validate", "canvas.patch.propose"]) {
+  assert.match(files.knowledgeTools, new RegExp(tool.replaceAll(".", "\\.")), `curated knowledge tool missing: ${tool}`);
+}
+assert.match(files.knowledgeTools, /definition\("canvas\.patch\.propose", true/, "structural patch proposals must require approval");
 assert.match(files.toolGateway, /authorizeAgentToolCall/, "Tool Gateway must reauthorize every invocation");
+assert.match(files.toolGateway, /AGENT_TOOL_CALL_LIMIT_EXCEEDED/, "Tool Gateway must enforce published per-Run call limits");
+assert.match(files.toolGateway, /requireCanvasRevision/, "Tool Gateway must honor published revision policy");
+assert.match(files.toolGateway, /requireBudget/, "Tool Gateway must honor published budget policy");
 assert.match(files.assistantProtocol, /mode: "agent" \| "fallback"/, "assistant protocol must expose internal Agent mode");
 assert.doesNotMatch(files.legacyAssistantRuntime, /\bhermes\b/i, "active assistant runtime must not retain a Hermes dependency");
 
@@ -115,6 +153,11 @@ for (const anchor of [
   "只用于 Agent 的 LLM 角色",
   "不管理图片、视频或音频生成模型",
   "proposal + approval",
+  "Identity And Lifecycle",
+  "Assistant Content Contract",
+  "Node Capability Registry",
+  "Agent Model Projection",
+  "运行时只解析并锁定已发布配置",
 ]) {
   assert.match(files.spec, new RegExp(escapeRegex(anchor)), `Agent Runtime spec missing boundary: ${anchor}`);
 }

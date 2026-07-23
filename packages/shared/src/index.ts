@@ -17,6 +17,7 @@ import type { UnifiedRuntimeDiagnostic as SharedUnifiedRuntimeDiagnostic } from 
 export * from "./task-queue-settings.js";
 export * from "./assistant-message-blocks.js";
 export * from "./assistant-chat.js";
+export * from "./assistant-content.js";
 export * from "./announcements.js";
 export * from "./environment-sync.js";
 export * from "./runninghub.js";

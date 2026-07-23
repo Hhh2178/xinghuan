@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  AGENT_TOOL_CATALOG,
+  normalizeAgentRuntimeConfiguration,
   routeLlmCandidates,
   routeStateAfterCooldown,
   type AgentRole,
@@ -99,7 +101,7 @@ export function createAgentGovernanceRepository(deps: {
           await client.query(
             `insert into xh_agent_configuration_versions (id, agent_definition_id, version, status, configuration, created_by)
              values ($1, $2, 1, 'draft', $3::jsonb, $4)`,
-            [newId("agent_configuration"), definitionId, JSON.stringify({ toolAllowlist: definition.tools, maxTokens: definition.maxTokens, timeoutMs: 120000 }), actorId],
+            [newId("agent_configuration"), definitionId, JSON.stringify(normalizeAgentRuntimeConfiguration({ toolAllowlist: definition.tools, maxTokens: definition.maxTokens, timeoutMs: 120000 })), actorId],
           );
           configurationsCreated += 1;
         }
@@ -116,15 +118,43 @@ export function createAgentGovernanceRepository(deps: {
   }
 
   async function createAgentConfigurationVersion(input: { actorId: string; agentDefinitionId: string; configuration: Record<string, unknown> }) {
+    const configuration = normalizeAgentRuntimeConfiguration(input.configuration);
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
-      const definition = await client.query("select id from xh_agent_definitions where id = $1 for update", [input.agentDefinitionId]);
+      const definition = await client.query("select id, role from xh_agent_definitions where id = $1 for update", [input.agentDefinitionId]);
       if (!definition.rows[0]) throw new Error("AGENT_DEFINITION_NOT_FOUND");
+      await validateAgentConfigurationReferences(client, configuration, definition.rows[0].role as AgentRole);
       const version = await client.query("select coalesce(max(version), 0) + 1 as next from xh_agent_configuration_versions where agent_definition_id = $1", [input.agentDefinitionId]);
       const result = await client.query(
         `insert into xh_agent_configuration_versions (id, agent_definition_id, version, status, configuration, created_by)
          values ($1, $2, $3, 'draft', $4::jsonb, $5) returning *`,
-        [newId("agent_configuration"), input.agentDefinitionId, Number(version.rows[0].next), JSON.stringify(input.configuration), input.actorId],
+        [newId("agent_configuration"), input.agentDefinitionId, Number(version.rows[0].next), JSON.stringify(configuration), input.actorId],
+      );
+      return result.rows[0];
+    });
+  }
+
+  async function cloneAgentConfigurationVersion(input: { actorId: string; sourceVersionId: string }) {
+    const pool = await deps.getPostgresPool();
+    return withTransaction(pool, async (client) => {
+      const source = await client.query(
+        `select cv.agent_definition_id, cv.configuration
+         from xh_agent_configuration_versions cv where cv.id = $1 for share`,
+        [input.sourceVersionId],
+      );
+      if (!source.rows[0]) throw new Error("AGENT_CONFIGURATION_NOT_FOUND");
+      const configuration = normalizeAgentRuntimeConfiguration(source.rows[0].configuration);
+      const definition = await client.query("select role from xh_agent_definitions where id = $1 for share", [source.rows[0].agent_definition_id]);
+      if (!definition.rows[0]) throw new Error("AGENT_DEFINITION_NOT_FOUND");
+      await validateAgentConfigurationReferences(client, configuration, definition.rows[0].role as AgentRole);
+      const version = await client.query(
+        "select coalesce(max(version), 0) + 1 as next from xh_agent_configuration_versions where agent_definition_id = $1",
+        [source.rows[0].agent_definition_id],
+      );
+      const result = await client.query(
+        `insert into xh_agent_configuration_versions (id, agent_definition_id, version, status, configuration, created_by)
+         values ($1, $2, $3, 'draft', $4::jsonb, $5) returning *`,
+        [newId("agent_configuration"), source.rows[0].agent_definition_id, Number(version.rows[0].next), JSON.stringify(configuration), input.actorId],
       );
       return result.rows[0];
     });
@@ -132,6 +162,7 @@ export function createAgentGovernanceRepository(deps: {
 
   async function transitionAgentConfigurationVersion(input: { actorId: string; versionId: string; next: GovernedVersionStatus }) {
     const pool = await deps.getPostgresPool();
+    if (input.next === "review" || input.next === "approved") await validateStoredAgentConfiguration(pool, input.versionId);
     return transitionVersion(pool, {
       table: "xh_agent_configuration_versions",
       publicationTable: "xh_agent_configuration_publications",
@@ -144,6 +175,7 @@ export function createAgentGovernanceRepository(deps: {
 
   async function publishAgentConfiguration(input: { actorId: string; versionId: string; environment: GovernanceEnvironment }) {
     const pool = await deps.getPostgresPool();
+    await validateStoredAgentConfiguration(pool, input.versionId);
     return publishVersion(pool, {
       parentTable: "xh_agent_definitions",
       versionTable: "xh_agent_configuration_versions",
@@ -258,6 +290,7 @@ export function createAgentGovernanceRepository(deps: {
     return transitionVersion(pool, {
       table: "xh_llm_route_pool_versions", publicationTable: "xh_llm_route_pool_publications",
       publicationForeignKey: "pool_version_id", id: input.versionId, next: input.next, actorId: input.actorId,
+      validate: input.next === "approved" ? (client) => validateLlmPoolVersionForPublication(client, input.versionId) : undefined,
     });
   }
 
@@ -267,6 +300,7 @@ export function createAgentGovernanceRepository(deps: {
       parentTable: "xh_llm_route_pools", versionTable: "xh_llm_route_pool_versions", parentForeignKey: "pool_id",
       publicationTable: "xh_llm_route_pool_publications", publicationForeignKey: "pool_version_id",
       publicationId: newId("llm_pool_publication"), versionId: input.versionId, environment: input.environment, actorId: input.actorId,
+      validate: (client) => validateLlmPoolVersionForPublication(client, input.versionId),
     });
   }
 
@@ -303,6 +337,12 @@ export function createAgentGovernanceRepository(deps: {
   }
 
   async function upsertToolPolicy(input: { actorId: string; id?: string; subjectType: string; subjectId?: string; toolName: string; effect: string; constraints: Record<string, unknown>; revision?: number }) {
+    const catalogEntry = AGENT_TOOL_CATALOG.find((tool) => tool.name === input.toolName);
+    if (!catalogEntry) throw new Error("AGENT_TOOL_POLICY_TOOL_UNKNOWN");
+    if (!new Set(["platform", "user_group", "user"]).has(input.subjectType)) throw new Error("AGENT_TOOL_POLICY_SUBJECT_INVALID");
+    if (!new Set(["allow", "deny", "require_approval"]).has(input.effect)) throw new Error("AGENT_TOOL_POLICY_EFFECT_INVALID");
+    if (catalogEntry.approvalRequired && input.effect === "allow") throw new Error("AGENT_TOOL_APPROVAL_CANNOT_BE_BYPASSED");
+    const constraints = normalizeToolPolicyConstraints(input.constraints);
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
       const current = await client.query(
@@ -314,14 +354,14 @@ export function createAgentGovernanceRepository(deps: {
         const updated = await client.query(
           `update xh_agent_tool_policies set effect = $4, constraints = $5::jsonb, revision = revision + 1, updated_at = now()
            where id = $1 and subject_type = $2 and subject_id is not distinct from $3 returning *`,
-          [current.rows[0].id, input.subjectType, input.subjectId || null, input.effect, JSON.stringify(input.constraints)],
+          [current.rows[0].id, input.subjectType, input.subjectId || null, input.effect, JSON.stringify(constraints)],
         );
         return updated.rows[0];
       }
       const inserted = await client.query(
         `insert into xh_agent_tool_policies (id, subject_type, subject_id, tool_name, effect, constraints, revision, created_by)
          values ($1, $2, $3, $4, $5, $6::jsonb, 1, $7) returning *`,
-        [input.id || newId("agent_tool_policy"), input.subjectType, input.subjectId || null, input.toolName, input.effect, JSON.stringify(input.constraints), input.actorId],
+        [input.id || newId("agent_tool_policy"), input.subjectType, input.subjectId || null, input.toolName, input.effect, JSON.stringify(constraints), input.actorId],
       );
       return inserted.rows[0];
     });
@@ -597,13 +637,42 @@ export function createAgentGovernanceRepository(deps: {
   }
 
   return {
-    bootstrapDefaults, createAgentConfigurationVersion, createAgentDefinition, createKnowledgeCollection, createKnowledgeDocument,
+    bootstrapDefaults, cloneAgentConfigurationVersion, createAgentConfigurationVersion, createAgentDefinition, createKnowledgeCollection, createKnowledgeDocument,
     createLlmPool, createLlmPoolVersion, createQualityProfile, decideApproval, listAgentAudit, listAgentDefinitions,
     listApprovals, listKnowledge, listLlmPools, listQualityProfiles, listRecoveryDecisions, listRuns, listToolPolicies, publishAgentConfiguration,
     publishKnowledgeDocument, publishLlmPoolVersion, publishQualityProfile, readOverview, readPublishedKnowledgeContext, readRuntimeControl, readRuntimeControls,
     simulateLlmRoute, transitionAgentConfigurationVersion, transitionKnowledgeDocument, transitionLlmPoolVersion,
     transitionQualityProfile, updateRuntimeControls, upsertToolPolicy,
   };
+}
+
+async function validateStoredAgentConfiguration(pool: Pool, versionId: string) {
+  const result = await pool.query(
+    `select cv.configuration, d.role from xh_agent_configuration_versions cv
+     join xh_agent_definitions d on d.id = cv.agent_definition_id where cv.id = $1 limit 1`,
+    [versionId],
+  );
+  if (!result.rows[0]) throw new Error("AGENT_CONFIGURATION_NOT_FOUND");
+  await validateAgentConfigurationReferences(pool, normalizeAgentRuntimeConfiguration(result.rows[0].configuration), result.rows[0].role as AgentRole);
+}
+
+async function validateAgentConfigurationReferences(client: Pick<PoolClient, "query"> | Pool, configuration: ReturnType<typeof normalizeAgentRuntimeConfiguration>, role: AgentRole) {
+  if (configuration.llmPoolKey) {
+    const pool = await client.query("select id from xh_llm_route_pools where pool_key = $1 and role = $2 and enabled = true limit 1", [configuration.llmPoolKey, role]);
+    if (!pool.rows[0]) throw new Error("AGENT_CONFIGURATION_LLM_POOL_INVALID");
+  }
+  if (configuration.knowledge.collectionAllowlist.length > 0) {
+    const collections = await client.query(
+      "select collection_key from xh_agent_knowledge_collections where collection_key = any($1::text[]) and audience = $2 and enabled = true",
+      [configuration.knowledge.collectionAllowlist, configuration.knowledge.audience],
+    );
+    const found = new Set(collections.rows.map((row) => String(row.collection_key)));
+    if (configuration.knowledge.collectionAllowlist.some((key) => !found.has(key))) throw new Error("AGENT_CONFIGURATION_KNOWLEDGE_COLLECTION_INVALID");
+  }
+  if (configuration.qualityProfileKey) {
+    const quality = await client.query("select id from xh_artifact_quality_profiles where profile_key = $1 limit 1", [configuration.qualityProfileKey]);
+    if (!quality.rows[0]) throw new Error("AGENT_CONFIGURATION_QUALITY_PROFILE_INVALID");
+  }
 }
 
 const DEFAULT_AGENT_DEFINITIONS: Array<{ agentKey: string; name: string; role: AgentRole; description: string; tools: string[]; maxTokens: number }> = [
@@ -629,6 +698,7 @@ const TRANSITIONS: Record<GovernedVersionStatus, GovernedVersionStatus[]> = {
 
 async function transitionVersion(pool: Pool, input: {
   table: string; publicationTable: string; publicationForeignKey: string; id: string; next: GovernedVersionStatus; actorId: string;
+  validate?: (client: PoolClient) => Promise<void>;
 }) {
   return withTransaction(pool, async (client) => {
     const current = await client.query(`select status from ${input.table} where id = $1 for update`, [input.id]);
@@ -639,6 +709,7 @@ async function transitionVersion(pool: Pool, input: {
       const active = await client.query(`select id from ${input.publicationTable} where ${input.publicationForeignKey} = $1 and retired_at is null limit 1`, [input.id]);
       if (active.rows[0]) throw new Error("GOVERNED_VERSION_ACTIVE_PUBLICATION");
     }
+    await input.validate?.(client);
     const reviewer = input.next === "approved" ? input.actorId : null;
     const result = await client.query(
       `update ${input.table} set status = $2,
@@ -655,6 +726,7 @@ async function transitionVersion(pool: Pool, input: {
 async function publishVersion(pool: Pool, input: {
   parentTable: string; versionTable: string; parentForeignKey: string; publicationTable: string;
   publicationForeignKey: string; publicationId: string; versionId: string; environment: GovernanceEnvironment; actorId: string;
+  validate?: (client: PoolClient) => Promise<void>;
 }) {
   return withTransaction(pool, async (client) => {
     const version = await client.query(
@@ -663,6 +735,7 @@ async function publishVersion(pool: Pool, input: {
     );
     if (!version.rows[0]) throw new Error("GOVERNED_VERSION_NOT_FOUND");
     if (version.rows[0].status !== "approved") throw new Error("GOVERNED_VERSION_NOT_APPROVED");
+    await input.validate?.(client);
     await client.query(
       `update ${input.publicationTable} publication set retired_at = now()
        from ${input.versionTable} v where publication.${input.publicationForeignKey} = v.id
@@ -679,6 +752,27 @@ async function publishVersion(pool: Pool, input: {
     );
     return mapPublication(result.rows[0]);
   });
+}
+
+async function validateLlmPoolVersionForPublication(client: Pick<PoolClient, "query">, versionId: string) {
+  const result = await client.query(
+    `select p.enabled as pool_enabled, e.id as entry_id, e.enabled as entry_enabled,
+       m.id as model_id, m.enabled as model_enabled, m.capability,
+       pr.id as provider_id, pr.enabled as provider_enabled
+     from xh_llm_route_pool_versions pv
+     join xh_llm_route_pools p on p.id = pv.pool_id
+     left join xh_llm_route_entries e on e.pool_version_id = pv.id
+     left join xh_models m on m.id = e.model_id
+     left join xh_providers pr on pr.id = e.provider_id
+     where pv.id = $1`,
+    [versionId],
+  );
+  if (!result.rows[0] || result.rows[0].pool_enabled !== true) throw new Error("LLM_POOL_DISABLED");
+  const entries = result.rows.filter((row) => row.entry_id && row.entry_enabled !== false);
+  if (entries.length === 0) throw new Error("LLM_POOL_ENTRIES_REQUIRED");
+  if (entries.some((row) => row.model_enabled !== true || row.provider_enabled !== true || row.capability !== "chat")) {
+    throw new Error("LLM_POOL_CHAT_MODEL_REQUIRED");
+  }
 }
 
 async function withTransaction<T>(pool: Pool, run: (client: PoolClient) => Promise<T>) {
@@ -731,3 +825,10 @@ function effectiveRouteState(row: Record<string, unknown>, policy: Record<string
 function dateMillis(value: unknown) { const time = value instanceof Date ? value.getTime() : new Date(String(value || "")).getTime(); return Number.isFinite(time) ? time : 0; }
 function finite(value: unknown, fallback: number) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 function integer(value: unknown, minimum: number, maximum: number) { return Math.min(maximum, Math.max(minimum, Math.floor(finite(value, minimum)))); }
+function normalizeToolPolicyConstraints(value: Record<string, unknown>) {
+  return {
+    maxCallsPerRun: integer(value.maxCallsPerRun ?? 20, 1, 1_000),
+    requireCanvasRevision: value.requireCanvasRevision !== false,
+    requireBudget: value.requireBudget !== false,
+  };
+}

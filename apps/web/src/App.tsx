@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { usePerformanceModeStore } from './stores/performanceMode';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
 import { useShortcutStore } from './stores/shortcuts';
+import { useCanvasStore } from './stores/canvas';
 import { AnnouncementCenterDrawer } from './components/AnnouncementCenterDrawer';
 import { AnnouncementStrongReminderModal } from './components/AnnouncementStrongReminderModal';
 import LoginGate from './components/LoginGate';
@@ -24,6 +25,7 @@ import { createLazyImportWithReloadRecovery } from './utils/lazyImportRecovery';
 import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
 import { applyVisualPerformanceMode } from './utils/visualPerformanceMode';
+import { CanvasSupervisionDock, type CanvasSupervisionStatus } from './components/canvas-agent/CanvasSupervisionDock';
 import {
   buildPortraitPrompt,
   normalizePortraitLocks,
@@ -203,6 +205,9 @@ function App() {
   const [resourceOpen, setResourceOpen] = useState(false);
   const [workflowTemplatesOpen, setWorkflowTemplatesOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
+  const [supervisionOpen, setSupervisionOpen] = useState(false);
+  const [supervisionStatus, setSupervisionStatus] = useState<CanvasSupervisionStatus>({ label: 'AI 托管', runStatus: '', active: false, alert: false, streamConnected: false });
+  const activeCanvasId = useCanvasStore((state) => state.activeId);
   const previewMode = getDevPreviewMode();
   const announcements = useAnnouncements(Boolean(currentUser));
   // 画布接收节点添加的 ref(从 Sidebar -> Canvas)
@@ -611,6 +616,20 @@ function App() {
             <BellBadge unreadCount={announcements.unreadCount} />
           </button>
           <button
+            type="button"
+            onClick={() => setSupervisionOpen((open) => !open)}
+            className={`${announcementButtonClassName} xh-topbar-supervision-trigger ${supervisionOpen ? 'is-active' : ''}`}
+            aria-expanded={supervisionOpen}
+            aria-label={`AI 托管：${supervisionStatus.label === 'AI 托管' ? '未运行' : supervisionStatus.label}`}
+            data-status={supervisionStatus.runStatus || 'idle'}
+            data-alert={supervisionStatus.alert ? 'true' : 'false'}
+            title={supervisionOpen ? '关闭 AI 托管面板' : '打开 AI 托管面板'}
+          >
+            <GitBranch size={14} />
+            <span className="text-[11px]">AI 托管</span>
+            <i aria-hidden="true" />
+          </button>
+          <button
             onClick={() => {
               setGenerationLibraryOpen(false);
               setResourceOpen(true);
@@ -674,6 +693,12 @@ function App() {
         onClose={() => setResourceOpen(false)}
         onInsertMaterial={handleInsertResource}
         currentUser={currentUser}
+      />
+      <CanvasSupervisionDock
+        canvasId={activeCanvasId}
+        open={supervisionOpen}
+        onOpenChange={setSupervisionOpen}
+        onStatusChange={setSupervisionStatus}
       />
       <WorkflowTemplateModal
         open={workflowTemplatesOpen}

@@ -1,4 +1,5 @@
 import { Bot, CheckCircle2, LoaderCircle, UserRound } from 'lucide-react';
+import { AssistantMarkdown } from '@xinghuan/ui';
 import type { AssistantMessage } from './assistant-types';
 
 export function AssistantConversation({ messages, status }: { messages: AssistantMessage[]; status: string }) {
@@ -26,7 +27,10 @@ export function AssistantConversation({ messages, status }: { messages: Assistan
               {message.process.map((entry, index) => <p key={`${entry.label}-${index}`}><strong>{entry.label}</strong>{entry.content}</p>)}
             </details>
           ) : null}
-          <p className="agent-assistant-message__body">{message.text || (message.streaming ? status : '')}</p>
+          <AssistantMarkdown
+            className="agent-assistant-message__body"
+            markdown={message.text || (message.streaming ? status : '')}
+          />
           {message.streaming ? <LoaderCircle className="agent-assistant-spin" size={14} /> : null}
         </article>
       ))}

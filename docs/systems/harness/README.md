@@ -51,6 +51,8 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 
 - `npm run verify:documentation-entry-contract`
 - `npm run verify:domain-context-and-adr-contract`
+- `npm run verify:agent-runtime-architecture-contract`（同时保护双入口身份、Assistant Content、Knowledge Snapshot、Admin 结构化配置与运行时边界）
+- `npm run verify:assistant-content-contract`（保护 `markdown-v1`、跨 chunk reasoning 隔离、安全 GFM 渲染、双端接入与内容字号/溢出边界）
 - `npm run verify:generation-artifact-framework-contract`
 - `npm run verify:generation-artifact-operations`
 - `npm run verify:visual-design-docs-contract`

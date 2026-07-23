@@ -22,6 +22,9 @@ This registry defines admin visual components and their intended home. Some entr
 | `AdminProviderHealthHeatmap` | not formalized | `apps/admin/src/components/observability/` | Provider/model health comparison with sample size | Use for provider and capability comparisons |
 | `AdminIncidentTimeline` | audit/event lists | `apps/admin/src/components/observability/` | Alerts, deploys, config changes, restarts and recovery | Use for health-correlated events |
 | `AdminObservabilityInspector` | scattered technical tables | `apps/admin/src/components/observability/` | Metrics, thresholds, related events and technical details | Use for health chart/card drill-down |
+| `AdminVersionedConfigEditor` | not implemented | `apps/admin/src/components/agent-governance/` | Structured Agent, route, quality and recovery draft editing with diff/conflict state | Never expose raw JSON as the primary editing surface; save creates a new draft version |
+| `AdminKnowledgeEditor` | basic fields in `admin-agent-governance-workspace.tsx` | `apps/admin/src/components/agent-governance/` | Markdown edit/preview, audience, reference validation, publication and index status | Use published-document lifecycle; preview uses shared `AssistantMarkdown` policy |
+| `AdminAssistantDock` | `admin-assistant-panel.tsx` | current feature location | Optional page-context assistant | Must be collapsible and must not leave the main configuration form below the first viewport at supported desktop widths |
 
 ## Ant Design Boundary
 

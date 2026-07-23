@@ -32,4 +32,18 @@ describe("agent tool gateway", () => {
     })).rejects.toThrow("AGENT_TOOL_APPROVAL_REQUIRED");
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it("enforces published per-Run limits and policy-controlled revision/budget requirements", async () => {
+    const execute = vi.fn(async () => ({}));
+    const gateway = createAgentToolGateway({ tools: [{ name: "canvas.read", approvalRequired: false, execute }], recordAction: async () => undefined });
+    await expect(gateway.invoke({
+      task, tool: "canvas.read", payload: {},
+      context: { ownerId: "owner-1", canvasRevisionMatches: true, budgetAvailable: true, approvalGranted: false, toolCallCount: 1, policy: { maxCallsPerRun: 1 } },
+    })).rejects.toThrow("AGENT_TOOL_CALL_LIMIT_EXCEEDED");
+    await expect(gateway.invoke({
+      task, tool: "canvas.read", payload: {},
+      context: { ownerId: "owner-1", canvasRevisionMatches: false, budgetAvailable: false, approvalGranted: false, policy: { requireCanvasRevision: false, requireBudget: false } },
+    })).resolves.toEqual({});
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 });

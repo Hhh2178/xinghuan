@@ -7,7 +7,7 @@ describe("LLM routing repository", () => {
     const query = vi.fn(async (sql: string, params: unknown[]) => {
       expect(sql).toContain("m.capability = 'chat'");
       expect(sql).toContain("pub.environment = $3");
-      expect(params).toEqual(["planner", "assistant-chat", "gray"]);
+      expect(params).toEqual(["planner", "assistant-chat", "gray", null]);
       return { rows: [{
         pool_id: "pool-1", pool_version_id: "pool-v2", policy_snapshot: { failureThreshold: 3 }, entry_id: "entry-1",
         provider_id: "provider-1", model_id: "model-1", model_capability_snapshot: "chat", capability_tags_snapshot: ["text_chat"],

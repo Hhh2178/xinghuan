@@ -65,6 +65,13 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
       await audit(deps, actor, requestContext, "agent.configuration.status", "agent-configuration", String(value.id), `Agent 配置状态变更为 ${next}`);
       deps.sendT8(response, value); return true;
     }
+    const agentVersionClone = path.match(/^\/api\/admin\/agent-runtime\/agent-configurations\/([^/]+)\/clone$/);
+    if (agentVersionClone && request.method === "POST") {
+      const sourceVersionId = decodeURIComponent(agentVersionClone[1]);
+      const value = await deps.repository.cloneAgentConfigurationVersion({ actorId: actor.id, sourceVersionId });
+      await audit(deps, actor, requestContext, "agent.configuration.clone", "agent-configuration", String(value.id), `从 ${sourceVersionId} 复制 Agent 配置草稿`);
+      deps.sendT8(response, value, 201); return true;
+    }
     const agentVersionPublish = path.match(/^\/api\/admin\/agent-runtime\/agent-configurations\/([^/]+)\/publish$/);
     if (agentVersionPublish && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
