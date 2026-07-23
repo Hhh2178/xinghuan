@@ -1,6 +1,6 @@
 {
   "name": "@xinghuan/agent-core",
-  "version": "0.7.20",
+  "version": "0.7.21",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
