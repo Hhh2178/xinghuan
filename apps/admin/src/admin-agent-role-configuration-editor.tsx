@@ -9,6 +9,7 @@ import {
   type AgentRoleWorkspaceData,
   type AgentVersionStatus,
 } from "./admin-agent-governance-api";
+import { canvasAgentPurpose } from "./admin-agent-governance-purpose";
 
 interface Props {
   value: AgentRoleWorkspaceData;
@@ -37,21 +38,21 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props
   if (!definition) return <div className="agent-empty">尚未创建 Agent 定义</div>;
 
   return <div className="agent-split-layout agent-config-editor">
-    <div className="agent-rail" role="tablist" aria-label="Agent 角色">
+    <div className="agent-rail" role="tablist" aria-label="AI 用途">
       {value.definitions.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === definition.id} className={item.id === definition.id ? "active" : ""} onClick={() => setSelectedDefinitionId(item.id)}>
-        <span><strong>{item.name}</strong><small>{item.role} · {item.agentKey}</small></span>
+        <span><strong>{canvasAgentPurpose(item.agentKey)?.label || item.name}</strong><small>{canvasAgentPurpose(item.agentKey)?.description || item.description}</small></span>
       </button>)}
     </div>
     <div className="agent-inspector agent-config-editor__inspector">
-      <header className="agent-config-editor__header"><div><strong>{definition.name}</strong><span>{definition.description || definition.agentKey}</span></div><span className={`agent-status agent-status--${definition.enabled ? "enabled" : "disabled"}`}>{definition.enabled ? "启用" : "停用"}</span></header>
+      <header className="agent-config-editor__header"><div><strong>{canvasAgentPurpose(definition.agentKey)?.label || definition.name}</strong><span>{definition.description || definition.agentKey} 配置只对新 Run 生效。</span></div><span className={`agent-status agent-status--${definition.enabled ? "enabled" : "disabled"}`}>{definition.enabled ? "启用" : "停用"}</span></header>
       <div className="agent-config-editor__version-bar">
         <label><span>基准版本</span><select value={sourceVersion?.id || ""} onChange={(event) => setSourceVersionId(event.target.value)}>{definition.versions.map((version) => <option value={version.id} key={version.id}>v{version.version} · {statusLabel(version.status)}</option>)}</select></label>
         <button type="button" className="ghost-action" disabled={busy || !sourceVersion} onClick={() => sourceVersion && void mutate(() => adminAgentGovernanceApi.cloneRoleVersion(sourceVersion.id))}><Copy />复制为草稿</button>
       </div>
 
       <section className="agent-config-section">
-        <h3>角色与提示词</h3>
-        <label className="agent-field"><span>角色说明</span><input value={draft.roleDescription} onChange={(event) => setDraft({ ...draft, roleDescription: event.target.value })} /></label>
+        <h3>用途与提示词</h3>
+        <label className="agent-field"><span>用途说明</span><input value={draft.roleDescription} onChange={(event) => setDraft({ ...draft, roleDescription: event.target.value })} /></label>
         <label className="agent-field"><span>系统提示词模板</span><textarea rows={6} value={draft.promptTemplate} onChange={(event) => setDraft({ ...draft, promptTemplate: event.target.value })} /></label>
       </section>
 
@@ -85,10 +86,27 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props
 
 function RoleVersionRow({ definition, version, busy, mutate }: { definition: AgentDefinition; version: AgentDefinition["versions"][number]; busy: boolean; mutate: Props["mutate"] }) {
   const publications: Array<{ environment: AgentEnvironment }> = definition.publications.filter((item) => item.configurationVersionId === version.id);
-  return <div className="agent-version-row"><div><strong>v{version.version}</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{publications.map((item) => <span key={item.environment}>{item.environment}</span>)}</div><div className="agent-inline-actions">
+  const activeVersion = (environment: AgentEnvironment) => {
+    const publication = definition.publications.find((item) => item.environment === environment);
+    return definition.versions.find((item) => item.id === publication?.configurationVersionId);
+  };
+  const actionLabel = (environment: AgentEnvironment) => {
+    const current = activeVersion(environment);
+    const name = environment === "gray" ? "Gray" : "Production";
+    return current && version.version < current.version ? `回滚 ${name} 至此版本` : `发布 ${name}`;
+  };
+  const publish = (environment: AgentEnvironment) => {
+    const label = actionLabel(environment);
+    if (environment === "production" || label.startsWith("回滚")) {
+      if (!window.confirm(`确认${label}？该操作会切换后续新 Run 使用的配置。`)) return;
+    }
+    void mutate(() => adminAgentGovernanceApi.publishRoleVersion(version.id, environment));
+  };
+  return <div className="agent-version-row"><div><strong>v{version.version}</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><div className="agent-inline-actions">
     {version.status === "draft" ? <button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "review"))}>送审</button> : null}
     {version.status === "review" ? <><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "draft"))}>退回</button><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "approved"))}><Check />批准</button></> : null}
-    {version.status === "approved" ? <><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.publishRoleVersion(version.id, "gray"))}>发布 Gray</button><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.publishRoleVersion(version.id, "production"))}>发布 Production</button></> : null}
+    {version.status === "approved" && !publications.some((item) => item.environment === "gray") ? <button type="button" disabled={busy} onClick={() => publish("gray")}>{actionLabel("gray")}</button> : null}
+    {version.status === "approved" && !publications.some((item) => item.environment === "production") ? <button type="button" disabled={busy} onClick={() => publish("production")}>{actionLabel("production")}</button> : null}
   </div></div>;
 }
 

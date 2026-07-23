@@ -45,17 +45,28 @@ export function AdminAgentQualityEditor({ value, busy, mutate }: Props) {
       <section className="agent-config-section"><h3>评分维度权重</h3><div className="agent-quality-weight-grid">{dimensions.map((dimension) => <NumberField key={dimension} label={dimension} value={draft.weights[dimension] || 0} min={0} max={1} step={0.05} onChange={(weight) => setDraft({ ...draft, weights: { ...draft.weights, [dimension]: weight } })} />)}</div><span className="agent-config-empty">权重合计 {Object.values(draft.weights).reduce((sum, weight) => sum + Number(weight || 0), 0).toFixed(2)}</span></section>
       <section className="agent-config-section"><h3>评估指令</h3><label className="agent-field"><span>Instructions</span><textarea rows={8} value={draft.instructions} onChange={(event) => setDraft({ ...draft, instructions: event.target.value })} /></label></section>
       <div className="agent-config-editor__actions"><button type="button" className="primary-action" disabled={busy || !draft.profileKey.trim()} onClick={() => void mutate(() => adminAgentGovernanceApi.createQualityProfile(draft))}><Save />保存为新草稿</button></div>
-      <div className="agent-version-list">{versions.map((profile) => <QualityVersionRow key={profile.id} profile={profile} busy={busy} mutate={mutate} />)}</div>
+      <div className="agent-version-list">{versions.map((profile) => <QualityVersionRow key={profile.id} profile={profile} versions={versions} busy={busy} mutate={mutate} />)}</div>
     </div>
   </div>;
 }
 
-function QualityVersionRow({ profile, busy, mutate }: { profile: QualityProfile; busy: boolean; mutate: Props["mutate"] }) {
-  return <div className="agent-version-row"><div><strong>v{profile.version} · {profile.mediaKind}</strong><span className={`agent-status agent-status--${profile.status}`}>{statusLabel(profile.status)}</span>{profile.publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>{item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><VersionActions status={profile.status} busy={busy} onTransition={(status) => mutate(() => adminAgentGovernanceApi.transitionQualityProfile(profile.id, status))} onPublish={(environment) => mutate(() => adminAgentGovernanceApi.publishQualityProfile(profile.id, environment))} /></div>;
+function QualityVersionRow({ profile, versions, busy, mutate }: { profile: QualityProfile; versions: QualityProfile[]; busy: boolean; mutate: Props["mutate"] }) {
+  const activeVersion = (environment: AgentEnvironment) => versions.find((item) => item.publications.some((publication) => publication.environment === environment));
+  const actionLabel = (environment: AgentEnvironment) => {
+    const current = activeVersion(environment);
+    const name = environment === "gray" ? "Gray" : "Production";
+    return current && profile.version < current.version ? `回滚 ${name} 至此版本` : `发布 ${name}`;
+  };
+  const publish = async (environment: AgentEnvironment) => {
+    const label = actionLabel(environment);
+    if ((environment === "production" || label.startsWith("回滚")) && !window.confirm(`确认${label}？该操作会切换后续新 Run 使用的质量策略。`)) return;
+    await mutate(() => adminAgentGovernanceApi.publishQualityProfile(profile.id, environment));
+  };
+  return <div className="agent-version-row"><div><strong>v{profile.version} · {profile.mediaKind}</strong><span className={`agent-status agent-status--${profile.status}`}>{statusLabel(profile.status)}</span>{profile.publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><VersionActions status={profile.status} busy={busy} published={profile.publications.map((item) => item.environment)} onTransition={(status) => mutate(() => adminAgentGovernanceApi.transitionQualityProfile(profile.id, status))} onPublish={publish} actionLabel={actionLabel} /></div>;
 }
 
-function VersionActions({ status, busy, onTransition, onPublish }: { status: AgentVersionStatus; busy: boolean; onTransition: (status: AgentVersionStatus) => Promise<void>; onPublish: (environment: AgentEnvironment) => Promise<void> }) {
-  return <div className="agent-inline-actions">{status === "draft" ? <button type="button" disabled={busy} onClick={() => void onTransition("review")}>送审</button> : null}{status === "review" ? <><button type="button" disabled={busy} onClick={() => void onTransition("draft")}>退回</button><button type="button" disabled={busy} onClick={() => void onTransition("approved")}><Check />批准</button></> : null}{status === "approved" ? <><button type="button" disabled={busy} onClick={() => void onPublish("gray")}>发布 Gray</button><button type="button" disabled={busy} onClick={() => void onPublish("production")}>发布 Production</button></> : null}</div>;
+function VersionActions({ status, busy, published, onTransition, onPublish, actionLabel }: { status: AgentVersionStatus; busy: boolean; published: AgentEnvironment[]; onTransition: (status: AgentVersionStatus) => Promise<void>; onPublish: (environment: AgentEnvironment) => Promise<void>; actionLabel: (environment: AgentEnvironment) => string }) {
+  return <div className="agent-inline-actions">{status === "draft" ? <button type="button" disabled={busy} onClick={() => void onTransition("review")}>送审</button> : null}{status === "review" ? <><button type="button" disabled={busy} onClick={() => void onTransition("draft")}>退回</button><button type="button" disabled={busy} onClick={() => void onTransition("approved")}><Check />批准</button></> : null}{status === "approved" && !published.includes("gray") ? <button type="button" disabled={busy} onClick={() => void onPublish("gray")}>{actionLabel("gray")}</button> : null}{status === "approved" && !published.includes("production") ? <button type="button" disabled={busy} onClick={() => void onPublish("production")}>{actionLabel("production")}</button> : null}</div>;
 }
 
 function qualityDraft(profile: QualityProfile | undefined, profileKey: string): Draft {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [migration, migrationUpgrade, repository, routes, viewModel, workspace, api, main, styles, roleEditor, poolEditor, knowledgeEditor, qualityEditor] = await Promise.all([
+const [migration, migrationUpgrade, repository, routes, viewModel, workspace, api, main, styles, roleEditor, poolEditor, knowledgeEditor, qualityEditor, purposes, assistantSettings, server] = await Promise.all([
   "apps/api/db/029_agent_governance.sql",
   "apps/api/db/034_agent_definition_description.sql",
   "apps/api/src/agent-governance-repository.ts",
@@ -15,6 +15,9 @@ const [migration, migrationUpgrade, repository, routes, viewModel, workspace, ap
   "apps/admin/src/admin-agent-pool-editor.tsx",
   "apps/admin/src/admin-agent-knowledge-editor.tsx",
   "apps/admin/src/admin-agent-quality-editor.tsx",
+  "apps/admin/src/admin-agent-governance-purpose.ts",
+  "apps/admin/src/admin-assistant-settings-panel.tsx",
+  "apps/api/src/server.ts",
 ].map((path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")));
 
 for (const table of ["xh_agent_runtime_controls", "xh_agent_knowledge_collections", "xh_agent_knowledge_documents", "xh_agent_knowledge_publications"]) {
@@ -41,6 +44,13 @@ assert.match(main, /AdminAgentGovernanceWorkspace/, "Admin shell must lazy-load 
 assert.match(api, /\/api\/admin\/agent-runtime/, "Admin client must use the internal governance API");
 assert.match(workspace, /图片、视频、音频生成模型不进入该路由池/, "UI must explain the LLM-only boundary");
 assert.match(workspace, /EnvironmentBadge/, "environment publication state must be visible");
+assert.match(purposes, /assistant-planner/, "Assistant governance must use the canonical bounded definition");
+assert.match(purposes, /generation-recovery/, "Recovery governance must use the canonical bounded definition");
+assert.match(purposes, /artifact-checker/, "Candidate evaluation governance must use the canonical bounded definition");
+assert.doesNotMatch(workspace, /createRole\(|RoleSelect|新建角色/, "current MVP must not expose arbitrary internal role creation");
+assert.match(workspace, /历史配置/, "retired and non-MVP definitions must remain visible as read-only history");
+assert.match(workspace, /purposeRouteTemplates/, "new LLM pools must be created only from bounded purpose templates");
+assert.doesNotMatch(workspace, /角色.*<RoleSelect|role:\s*"planner"/, "current MVP must not ask administrators to choose raw runtime roles");
 assert.match(styles, /\.agent-split-layout/, "governance workspace must have a stable master-detail layout");
 assert.match(styles, /@media \(max-width: 820px\)/, "governance workspace must have a narrow viewport layout");
 assert.match(roleEditor, /cloneRoleVersion/, "role editor must copy an immutable version into a draft");
@@ -49,9 +59,14 @@ assert.match(roleEditor, /diffAgentRuntimeConfiguration/, "role editor must show
 assert.doesNotMatch(roleEditor, /JSON\.parse|JSON\.stringify|<textarea[^>]+json/i, "role editor must not expose raw JSON editing");
 assert.match(poolEditor, /entries\.map/, "LLM pool editor must support multiple model entries");
 assert.match(poolEditor, /createPoolVersion/, "LLM pool editor must publish immutable route versions");
+assert.match(roleEditor, /回滚/, "role lifecycle must make rollback explicit");
+assert.match(poolEditor, /回滚/, "route lifecycle must make rollback explicit");
+assert.match(qualityEditor, /回滚/, "quality lifecycle must make rollback explicit");
 assert.doesNotMatch(workspace, /AdminAgentKnowledgeEditor/, "retired free-document knowledge CMS must not be reachable from the current workspace");
 assert.match(knowledgeEditor, /AssistantMarkdown/, "historical knowledge editor remains readable for compatibility evidence");
 assert.match(qualityEditor, /thresholds|weights/, "quality editor must expose structured scoring thresholds and weights");
 assert.match(workspace, /agent-success-banner/, "governance mutations must expose success feedback");
+assert.match(assistantSettings, /value="assistant-planner" disabled/, "legacy assistant settings must not redirect new conversations to arbitrary planner definitions");
+assert.match(server, /agentKey: "assistant-planner"/, "new assistant runs must resolve the canonical bounded definition");
 
 console.log("PASS Agent governance persistence, API, deep links, LLM-only boundary and UI contract");

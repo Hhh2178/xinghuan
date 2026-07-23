@@ -142,7 +142,7 @@ export const adminWorkspaces: AdminWorkspace[] = [
     id: "automation",
     label: "智能体与自动化",
     subtitle: "Agent Operations",
-    description: "Agent 角色、LLM 路由、工具、知识、质量、运行、审批和审计治理。",
+    description: "固定 AI 用途、LLM 路由、质量恢复、运行审批和审计治理。",
     icon: Route,
     tabs: ["agent-runtime"],
     tabPaths: { "agent-runtime": "/admin/automation" },
@@ -307,7 +307,7 @@ export const adminCapabilitiesViews = [
 
 export const adminAgentRuntimeViews = [
   { id: "controls", label: "运行控制", description: "管理环境开关与当前运行态势。", path: "/admin/automation/controls" },
-  { id: "models", label: "模型绑定", description: "维护助手、恢复和候选评估的角色配置与 LLM 路由。", path: "/admin/automation/models" },
+  { id: "models", label: "模型绑定", description: "维护助手、恢复和候选评估的用途配置与 LLM 路由。", path: "/admin/automation/models" },
   { id: "policies", label: "恢复与选择", description: "维护质量门、有限恢复和候选选择策略。", path: "/admin/automation/policies" },
   { id: "activity", label: "运行与审计", description: "查看 Run、审批、恢复决策和不可变审计记录。", path: "/admin/automation/activity" },
 ] satisfies Array<{ id: AdminAgentRuntimeViewId; label: string; description: string; path: string }>;

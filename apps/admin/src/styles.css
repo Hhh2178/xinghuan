@@ -9594,6 +9594,7 @@ td {
 .agent-rail button.active { color: var(--starlight-text); background: var(--starlight-panel); box-shadow: inset 3px 0 var(--starlight-cyan); }
 .agent-rail button svg { width: 16px; }
 .agent-rail button span { display: grid; min-width: 0; gap: 3px; }
+.agent-rail button > span:only-child { grid-column: 1 / -1; }
 .agent-rail button strong,
 .agent-rail button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-rail button small { font-size: 10px; }

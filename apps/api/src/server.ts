@@ -6151,7 +6151,7 @@ function normalizeAssistantSettings(
     },
     integration: {
       runtime: "internal",
-      assistantAgentKey: safeText(integrationSource.assistantAgentKey, base.integration.assistantAgentKey || "assistant-planner"),
+      assistantAgentKey: "assistant-planner",
       providerAnalysisAgentKey: safeText(integrationSource.providerAnalysisAgentKey, base.integration.providerAnalysisAgentKey || "provider-analysis-planner"),
       knowledgeProfile: safeText(integrationSource.knowledgeProfile, base.integration.knowledgeProfile || "public-canvas"),
       persistMemory: false,
@@ -9328,7 +9328,7 @@ async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser,
         maxTokens: 8_000,
         timeoutMs: 120_000,
       },
-      agentKey: settings.integration.assistantAgentKey,
+      agentKey: "assistant-planner",
       environment: environment === "production" ? "production" : "gray",
       idempotencyKey: assistantAgentIdempotencyKey(input, actor),
       messages: [

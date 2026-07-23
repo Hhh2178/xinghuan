@@ -670,12 +670,14 @@
 
 稳定入口：`/admin/automation/*`。
 
-- `overview`：环境开关与运行指标。
-- `roles`：Agent 定义、配置版本与 publication。
-- `llm-routes`：仅 LLM 路由池、候选健康、模拟、发布与回滚。
-- `tools` / `nodes`：固定工具策略与节点执行能力目录。
-- `knowledge` / `quality` / `recovery`：知识、媒体质量和生成失败恢复。
-- `runs` / `approvals` / `audit`：Canvas/Agent 运行、审批和动作账本。
+- `controls`：环境开关与运行指标。
+- `models`：固定用途、配置版本、LLM 路由、模拟、发布与回滚。
+- `policies`：质量门、候选选择与有限恢复。
+- `activity`：Workflow/Agent Run、审批、恢复决策和动作账本。
+
+旧 `overview`、`roles`、`llm-routes`、`tools`、`nodes`、`knowledge`、`quality`、`recovery`、`runs`、`approvals`、`audit` 深链映射到上述四域，不再作为导航项。自由知识、通用工具和节点目录仅保留历史兼容读取。
+
+当前 MVP 的用途受控：助手诊断、失败恢复、图片评估、视频评估和候选选择。管理员不创建任意内部角色，也不直接选择 `planner/manager/checker`；旧定义只读展示。版本编辑、审核、Gray/Production 发布与回滚必须明确区分，且只影响新 Run。
 
 桌面使用紧凑 master-detail 与数据表；窄屏域导航横向滚动，治理表单和控制行改为单列，不允许把正文推到导航之后的多屏之外。
 

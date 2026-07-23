@@ -156,3 +156,18 @@
 - 当前信息架构口径继续要求：
   - 无权限资源和 RH 条目前台直接隐藏
   - 后台页面优先保证文字可读、按钮可换行、不同宽度下不出现叠层面板
+
+## 2026-07-23 Canvas AI 治理收敛
+
+- Canvas AI 治理稳定入口收敛为四个管理员任务域：
+  - `/admin/automation/controls`：环境开关与运行态势
+  - `/admin/automation/models`：助手诊断、失败恢复和候选评估的固定用途与 LLM 路由
+  - `/admin/automation/policies`：质量门、候选选择和有限恢复
+  - `/admin/automation/activity`：Run、审批、恢复决策与不可变审计
+- `roles`、`llm-routes`、`tools`、`nodes`、`knowledge`、`quality`、`recovery`、`runs`、`approvals`、`audit` 等旧深链只做兼容映射，不再成为等权导航入口。
+- 当前 MVP 不允许管理员任意创建内部角色。活跃编辑面只承载助手诊断、失败恢复、图片/视频评估和候选选择五个固定用途；其他定义作为只读历史保留版本与发布证据。
+- 新建 LLM 路由必须从固定用途模板开始，管理员不直接选择 `planner`、`manager`、`checker` 等运行时角色标识。
+- 对话助手固定解析 `assistant-planner`；历史或外部保存的 planner/manager key 不得改变新的 Canvas Assistant Run。
+- 配置、路由和质量策略都使用不可变版本，明确展示草稿、审核、批准、当前 Gray/Production 发布状态。重新发布更早的批准版本视为显式回滚，并在执行前确认。
+- 配置和发布只影响后续新 Run；active Run 继续使用开始时冻结的配置快照。
+- 自由知识 CMS、通用工具策略和节点目录不在当前 Canvas AI 治理工作区出现，历史数据与只读兼容 API 保留。

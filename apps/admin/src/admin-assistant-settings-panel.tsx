@@ -289,13 +289,9 @@ export function AdminAssistantSettingsPanel({
               />
               <FieldRow
                 label="对话 Agent"
-                description="悬浮助手和后台对话使用的 Agent 定义 key。"
+                description="悬浮助手固定使用受控诊断用途；旧 planner 配置不会进入新的对话 Run。"
                 control={(
-                  <input
-                    value={draft.integration.assistantAgentKey}
-                    onChange={(event) => updateIntegration("assistantAgentKey", event.target.value)}
-                    placeholder="服务器内地址已隐藏；如需改接入可手动填写"
-                  />
+                  <input value="assistant-planner" disabled />
                 )}
               />
               <FieldRow
