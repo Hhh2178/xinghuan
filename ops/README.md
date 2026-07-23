@@ -27,8 +27,8 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.19`
-  - release：`20260722-canvas-agent-runtime-gray-r1-v0719`
+- 版本：`v0.7.20`
+- release：`20260723-canvas-agent-governance-gray-r1-v0720`
   - 状态：`内部 Canvas Agent Runtime 已部署；持久化 Canvas Run、LLM 路由、质量选择与恢复治理由 Gray API/Worker 托管，真实 5 路并发任务通过`
   - 当前补修：`助手自动附带经脱敏的当前画布上下文；协作内容不再覆盖托管 Tab；每环境最多保留 5 个 release，Gray 当前有 4 个且没有删除`
   - 本轮制品源提交：`40953b4`

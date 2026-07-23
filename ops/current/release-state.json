@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-22",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "40953b4112b99865d04f0222394df4fb5cbf8204",
+  "sourceCommit": "e9cf21256e7ed2838109750cdea098b637d38425",
   "environments": {
     "gray": {
-      "version": "0.7.19",
-      "releaseId": "20260722-canvas-agent-runtime-gray-r1-v0719",
-      "deployedAt": "2026-07-22",
+      "version": "0.7.20",
+      "releaseId": "20260723-canvas-agent-governance-gray-r1-v0720",
+      "deployedAt": "2026-07-23",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-22-canvas-agent-runtime-gray-v0719.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-22-canvas-agent-runtime-gray-v0719.md",
-      "rollbackReleaseId": "20260721-admin-health-visual-resource-domain-gray-r1-v0717"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-23-canvas-agent-governance-gray-v0720.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-23-canvas-agent-governance-gray-v0720.md",
+      "rollbackReleaseId": "20260722-canvas-agent-runtime-gray-r1-v0719"
     },
     "production": {
       "version": "0.7.18",

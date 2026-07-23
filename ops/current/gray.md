@@ -2,17 +2,19 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.19`
-- 当前 release：`20260722-canvas-agent-runtime-gray-r1-v0719`
-- 当前状态：`内部 Canvas Agent Runtime、持久化 Canvas Run、LLM 路由池、质量选择和恢复治理已部署；API/Worker active、runtime verifier 与真实 5 路并发压力任务通过`
-- 当前补修：`悬浮助手默认附带经脱敏的当前画布拓扑和模型上下文；协作消息层不再覆盖“托管”标签。Gray release 保留上限已统一为 5，当前服务器仅有 4 个受保护 release，无目录删除`
+- 当前版本：`v0.7.20`
+- 当前 release：`20260723-canvas-agent-governance-gray-r1-v0720`
+- 当前状态：`Canvas Agent Governance 候选：双入口、安全 Markdown、不可变知识快照、结构化 Admin 治理和发布配置运行时解析；部署与 Gray 回归进行中`
+- 当前补修：`LLM 路由在创建、审核、发布和运行四层拒绝生成模型；Tool Gateway 执行平台 deny、每 Run 上限、revision、budget 和审批约束`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`40953b4`
+- 本轮制品源提交：`e9cf212`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
+  - `../../docs/logbooks/releases/gray/2026-07-23-canvas-agent-governance-gray-v0720.md`
+  - `../../docs/logbooks/validations/2026-07-23-canvas-agent-governance-gray-v0720.md`
   - `../../docs/logbooks/releases/gray/2026-07-22-canvas-agent-runtime-gray-v0719.md`
   - `../../docs/logbooks/validations/2026-07-22-canvas-agent-runtime-gray-v0719.md`
   - `../../docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`

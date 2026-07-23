@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.19`
-- release：`20260722-canvas-agent-runtime-gray-r1-v0719`
-- 当前状态：`内部 Canvas Agent Runtime 已部署；持久化 Canvas Run、LLM 路由池、质量选择、恢复和审计在 Gray 运行，API/Worker active`
-- 部署内容：`Hermes-free Agent Runtime、Canvas Run Worker、仅 LLM 路由池、图片/视频质量评估、受控恢复、悬浮助手和画布托管工作台`
-- 已验证：`99 files / 347 tests、完整 Project Harness、Gray runtime verifier、3 个 Grok LLM Run、2 个 nano-banana-fast 生图 Run、Assistant agent 模式与事件账本`
-- 部署时间：`2026-07-22`
-- 本轮制品源提交：`40953b4`
+- 版本：`v0.7.20`
+- release：`20260723-canvas-agent-governance-gray-r1-v0720`
+- 当前状态：`Canvas Agent Governance Gray 部署与回归进行中`
+- 部署内容：`双入口、安全 Markdown/reasoning、不可变 Knowledge Snapshot、Admin 结构化治理、发布配置运行时解析和四层 LLM 路由校验`
+- 已验证：`116 files / 421 tests、完整 Project Harness、全 workspace build/type-check、路由/恢复/视频矩阵和发布治理预检`
+- 部署时间：`2026-07-23`
+- 本轮制品源提交：`e9cf212`
 - 当前批次记录：
-  - `gray/2026-07-22-canvas-agent-runtime-gray-v0719.md`
-  - `../validations/2026-07-22-canvas-agent-runtime-gray-v0719.md`
+  - `gray/2026-07-23-canvas-agent-governance-gray-v0720.md`
+  - `../validations/2026-07-23-canvas-agent-governance-gray-v0720.md`
 - 当前批次记录：
   - `gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`

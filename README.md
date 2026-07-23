@@ -30,16 +30,16 @@
 
 ## 当前状态摘要
 
-- 当前候选版本：`v0.7.19`
+- 当前候选版本：`v0.7.20`
 - 当前灰度：`canvas-next.hhh2121.xyz`
-- 当前灰度版本：`v0.7.19`
+- 当前灰度版本：`v0.7.20`
 - 当前生产：`canvas.hhh2121.xyz`
 - 当前生产版本：`v0.7.18`
-- 当前灰度 release：`20260722-canvas-agent-runtime-gray-r1-v0719`
+- 当前灰度 release：`20260723-canvas-agent-governance-gray-r1-v0720`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前开发分支：`feature/canvas-agent-runtime`
-- 当前重点：内部 Canvas Agent Runtime、持久化 Canvas Run、仅 LLM 路由池、质量评估与恢复治理已部署至 Gray。真实压测已完成 3 个分组 `text -> Grok 4.5 LLM` Run 与 2 个 `text -> nano-banana-fast` 生图 Run，5 个均成功；任务执行链、节点参数和生成 Provider 的既有语义未替换。悬浮助手默认携带经脱敏的当前画布上下文，工作台的“协作/托管”标签不再互相遮挡。视频理解继续不依赖 FFmpeg：Gemini 原生完整视频路径使用 owner-scoped 二进制上传至 Files API；受控 URL 直传仍默认关闭。
-- 下一阶段方向：持续观察 Gray 的 Agent 运行、失败恢复、预算和用户体验数据；Production 仍运行 `v0.7.18`，本轮未部署、未重启、未改配置，也未推送 GitHub。
+- 当前重点：Gray 候选已升级为 Canvas Agent Governance v0.7.20：悬浮助手与托管面板彻底分离，Canvas/Admin 共用安全 Markdown 与 reasoning 隔离；节点目录、安全模型投影、发布文档和工作流引用被锁定到不可变 Knowledge Snapshot；Admin 角色、LLM Pool、工具、知识、质量和恢复均采用结构化版本化编辑，并真实驱动运行时提示词、路由、知识、预算和策略。
+- 下一阶段方向：完成 Gray 认证视觉、并发 Run、路由回退、质量恢复和压力回归；Production 仍运行 `v0.7.18`，不部署、不重启、不改配置，也不推送 GitHub。
 - ComfyUI 状态：功能开发暂停封存，仅允许 crash/security/rollback/docs 级别例外
 
 详细运行态以 `docs/logbooks/releases/current-release-index.md`、`ops/current/gray.md`、`ops/current/production.md`、`docs/memory/current-state.md` 为准。

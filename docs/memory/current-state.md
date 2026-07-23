@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.19`（内部 Canvas Agent Runtime）
+- 当前灰度版本：`v0.7.20`（Canvas Agent Governance）
 - 当前生产版本：`v0.7.18`（画布 revision 协调与基线化观测）
-- 当前灰度 release：`20260722-canvas-agent-runtime-gray-r1-v0719`
+- 当前灰度 release：`20260723-canvas-agent-governance-gray-r1-v0720`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：Gray 已运行 v0.7.19 的内部 Canvas Agent Runtime；Production 保持 v0.7.18。真实压力任务覆盖 3 个分组 `text -> Grok 4.5 LLM` Canvas Run 与 2 个 `text -> nano-banana-fast` 生图 Run，全部成功并完成事件账本。Agent 不依赖 Hermes；Canvas Run、路由、质量选择、恢复、预算和审计均由本项目持久化服务维护。悬浮助手的画布上下文默认附带且双侧脱敏，协作/托管工作台的 Tab 分层已修复。Gray 留存政策为最多 5 个 release，受控 dry-run/apply 确认当前仅 4 个，未删除任何目录。未推送 GitHub，未触碰 Production。
+- 最新完成：Gray v0.7.20 候选完成悬浮助手/托管面板分离、安全 Markdown 与 reasoning 隔离、不可变 Knowledge Snapshot、Admin 全结构化治理、发布配置运行时解析和 LLM 路由四层资格校验。Production 保持 v0.7.18；未推送 GitHub。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
