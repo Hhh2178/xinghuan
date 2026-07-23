@@ -8,6 +8,8 @@ export const NATIVE_DETERMINISTIC_NODE_TYPES = new Set([
   "relay",
   "output",
   "text-split",
+  "workflow-input",
+  "workflow-output",
 ]);
 
 type OutputBinding = Record<string, unknown>;
@@ -23,7 +25,9 @@ export function executeDeterministicNode(input: {
   if (input.nodeType === "material-set") return materialSetNodeOutput(payload, input.upstreamOutputs);
   if (input.nodeType === "pick-from-set") return pickFromSetNodeOutput(payload, input.upstreamOutputs);
   if (input.nodeType === "text-split") return textSplitNodeOutput(payload, input.upstreamOutputs);
-  if (input.nodeType === "relay" || input.nodeType === "output") return mergeOutputBindings([...input.upstreamOutputs, payload]);
+  if (input.nodeType === "relay" || input.nodeType === "output" || input.nodeType === "workflow-input" || input.nodeType === "workflow-output") {
+    return mergeOutputBindings([...input.upstreamOutputs, payload]);
+  }
   throw new Error(`CANVAS_RUN_DETERMINISTIC_NODE_UNSUPPORTED:${input.nodeType}`);
 }
 

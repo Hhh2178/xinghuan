@@ -30,11 +30,17 @@ export interface CanvasRunRecord {
   id: string;
   canvasId: string;
   canvasRevision: number;
-  runScope: 'canvas' | 'group' | 'downstream';
+  runScope: 'canvas' | 'group' | 'downstream' | 'workflow';
+  workflowId: string | null;
+  workflowRevision: number | null;
+  workflowSubgraphHash: string | null;
   status: CanvasRunStatus;
   planSnapshot: {
     canvasId: string;
     canvasRevision: number;
+    workflowId?: string;
+    workflowRevision?: number;
+    workflowSubgraphHash?: string;
     groups: CanvasRunPlanGroup[];
     steps: CanvasRunPlanStep[];
   };

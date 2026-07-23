@@ -4,7 +4,7 @@ import { decideCanvasRunApproval } from './canvas-run-api';
 import { buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
 
-export function CanvasRunSupervisor({ canvasId, projection }: { canvasId: string | null; projection: CanvasRunProjection }) {
+export function CanvasRunSupervisor({ canvasId, workflowId, projection }: { canvasId: string | null; workflowId: string; projection: CanvasRunProjection }) {
   const [qualityEnabled, setQualityEnabled] = useState(false);
   const [selectionPolicy, setSelectionPolicy] = useState<'best' | 'top_k'>('best');
   const run = projection.run;
@@ -31,7 +31,7 @@ export function CanvasRunSupervisor({ canvasId, projection }: { canvasId: string
         <div>
           <span className="canvas-run-supervisor__eyebrow"><Workflow size={13} /> 托管运行</span>
           <strong>{run ? CANVAS_RUN_STATUS_LABEL[run.status] : '尚未建立运行计划'}</strong>
-          <p>{run ? `画布修订 ${run.canvasRevision}，${groups.length} 个分组，${steps.length} 个步骤` : '创建后将锁定画布修订、分组顺序和组内拓扑。'}</p>
+          <p>{run ? `工作流修订 ${run.workflowRevision ?? '-'}，${groups.length} 个分组，${steps.length} 个步骤` : '创建后将锁定工作流修订、输入快照和区域内拓扑。'}</p>
         </div>
         <div className="canvas-run-supervisor__connection" data-connected={projection.streamConnected ? 'true' : 'false'}>
           <PlugZap size={13} />{projection.streamConnected ? '事件流在线' : '事件流待连接'}
@@ -53,7 +53,7 @@ export function CanvasRunSupervisor({ canvasId, projection }: { canvasId: string
         </select>
       </div> : null}
       <div className="canvas-run-supervisor__controls">
-        {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId} onClick={() => void projection.create('canvas', { qualityEvaluationEnabled: qualityEnabled, selectionPolicy, selectionMaximum: selectionPolicy === 'best' ? 1 : 2 })}><CirclePlay size={15} />生成运行计划</button> : null}
+        {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create({ qualityEvaluationEnabled: qualityEnabled, selectionPolicy, selectionMaximum: selectionPolicy === 'best' ? 1 : 2 })}><CirclePlay size={15} />生成运行计划</button> : null}
         {run?.status === 'draft' ? <button type="button" className="is-primary" disabled={projection.busy} onClick={() => void projection.command('start')}><CirclePlay size={15} />开始托管</button> : null}
         {run && ['planning', 'queued', 'running'].includes(run.status) ? <button type="button" onClick={() => void projection.command('pause')}><CirclePause size={15} />暂停</button> : null}
         {run?.status === 'paused' ? <button type="button" className="is-primary" onClick={() => void projection.command('resume')}><CirclePlay size={15} />继续</button> : null}

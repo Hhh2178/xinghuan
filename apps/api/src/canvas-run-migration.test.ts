@@ -47,4 +47,16 @@ describe("canvas run migration", () => {
     expect(sql).toMatch(/alter table xh_canvas_runs/i);
     expect(sql).toMatch(/add column if not exists input_snapshot jsonb not null default '\{\}'::jsonb/i);
   });
+
+  it("adds workflow run identity and one-active-run isolation", async () => {
+    const sql = await readFile(new URL("../db/037_workflow_region_runs.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/add column if not exists workflow_id text/i);
+    expect(sql).toMatch(/add column if not exists workflow_revision bigint/i);
+    expect(sql).toMatch(/add column if not exists workflow_subgraph_hash text/i);
+    expect(sql).toMatch(/run_scope in \('canvas', 'group', 'downstream', 'workflow'\)/i);
+    expect(sql).toMatch(/create unique index if not exists uq_xh_canvas_runs_active_workflow/i);
+    expect(sql).toMatch(/owner_id, canvas_id, workflow_id/i);
+    expect(sql).toMatch(/status in \('planning', 'awaiting_approval', 'queued', 'running', 'paused'\)/i);
+  });
 });

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   type Dispatch,
   type ReactNode,
@@ -9,7 +10,9 @@ import {
 } from 'react';
 import type { Node } from '@xyflow/react';
 import {
+  assertWorkflowRegionLayout,
   normalizeWorkflowVariableName,
+  normalizeWorkflowRegionVisual,
   parseWorkflowTextTemplate,
   renameWorkflowVariableToken,
   validateWorkflowVariableDefinitions,
@@ -18,18 +21,25 @@ import {
   type WorkflowFieldBinding,
   type WorkflowVariableDefinition,
   type WorkflowVariableType,
+  type WorkflowRegionVisual,
 } from '@xinghuan/shared';
+
+import {
+  expandWorkflowRegionToIncludeNodes,
+  workflowRegionAroundNodes,
+} from './workflowRegionCreation';
 
 interface CanvasWorkflowContextValue {
   workflows: WorkflowDocument[];
   workflowForNode: (nodeId: string) => WorkflowDocument | undefined;
   assignNode: (nodeId: string, workflowId: string | null) => string | null;
-  createWorkflowForNode: (nodeId: string) => string;
+  createWorkflowForNode: (nodeId: string) => string | null;
   addVariable: (workflowId: string, type: WorkflowVariableType, name?: string) => string;
   updateVariable: (workflowId: string, variableId: string, patch: Partial<WorkflowVariableDefinition>) => string | null;
   removeVariable: (workflowId: string, variableId: string) => boolean;
   setTextSource: (workflowId: string, nodeId: string, fieldPath: string, source: string) => string | null;
   setVariableValue: (workflowId: string, variableId: string, value: unknown) => void;
+  setRegion: (workflowId: string, patch: Partial<WorkflowRegionVisual>) => void;
   setFieldBinding: (
     workflowId: string,
     nodeId: string,
@@ -46,23 +56,54 @@ export function CanvasWorkflowProvider({
   workflows,
   setWorkflows,
   setNodes,
+  nodes,
 }: {
   children: ReactNode;
   workflows: WorkflowDocument[];
   setWorkflows: Dispatch<SetStateAction<WorkflowDocument[]>>;
   setNodes: Dispatch<SetStateAction<Node[]>>;
+  nodes: Node[];
 }) {
   const workflowForNode = useCallback(
     (nodeId: string) => workflows.find((workflow) => workflow.memberNodeIds.includes(nodeId)),
     [workflows],
   );
 
+  useEffect(() => {
+    setWorkflows((current) => {
+      let changed = false;
+      const next = current.map((workflow) => {
+        const memberIds = new Set(workflow.memberNodeIds);
+        const region = expandWorkflowRegionToIncludeNodes(
+          workflow.region,
+          nodes.filter((node) => memberIds.has(node.id)),
+        );
+        if (sameRegion(region, workflow.region)) return workflow;
+        changed = true;
+        return { ...workflow, region };
+      });
+      if (!changed) return current;
+      try {
+        assertWorkflowRegionLayout(next);
+        return next;
+      } catch {
+        return current;
+      }
+    });
+  }, [nodes, setWorkflows]);
+
   const assignNode = useCallback((nodeId: string, workflowId: string | null) => {
-    setWorkflows((current) => current.map((workflow) => {
+    const node = nodes.find((candidate) => candidate.id === nodeId);
+    const next = workflows.map((workflow) => {
       const isTarget = workflow.id === workflowId;
       const hasMember = workflow.memberNodeIds.includes(nodeId);
       if (isTarget && !hasMember) {
-        return { ...workflow, revision: workflow.revision + 1, memberNodeIds: [...workflow.memberNodeIds, nodeId] };
+        return {
+          ...workflow,
+          revision: workflow.revision + 1,
+          memberNodeIds: [...workflow.memberNodeIds, nodeId],
+          region: node ? expandWorkflowRegionToIncludeNodes(workflow.region, [node]) : workflow.region,
+        };
       }
       if (!isTarget && hasMember) {
         return {
@@ -73,14 +114,25 @@ export function CanvasWorkflowProvider({
         };
       }
       return workflow;
-    }).filter((workflow) => workflow.memberNodeIds.length > 0));
-    return workflowId;
-  }, [setWorkflows]);
+    }).filter((workflow) => workflow.memberNodeIds.length > 0);
+    try {
+      assertWorkflowRegionLayout(next);
+    } catch {
+      return 'WORKFLOW_REGION_OVERLAP';
+    }
+    setWorkflows(next);
+    return null;
+  }, [nodes, setWorkflows, workflows]);
 
   const createWorkflowForNode = useCallback((nodeId: string) => {
     const id = newStableId('workflow');
-    setWorkflows((current) => [
-      ...current.map((workflow) => workflow.memberNodeIds.includes(nodeId) ? {
+    const node = nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return null;
+    const visualDefaults = normalizeWorkflowRegionVisual(undefined, workflows.length);
+    const region = workflowRegionAroundNodes([node], visualDefaults.color);
+    if (!region) return null;
+    const next: WorkflowDocument[] = [
+      ...workflows.map((workflow) => workflow.memberNodeIds.includes(nodeId) ? {
         ...workflow,
         revision: workflow.revision + 1,
         memberNodeIds: workflow.memberNodeIds.filter((memberId) => memberId !== nodeId),
@@ -89,16 +141,23 @@ export function CanvasWorkflowProvider({
       {
         schemaVersion: 1,
         id,
-        name: `工作流 ${current.length + 1}`,
+        name: `工作流 ${workflows.length + 1}`,
         revision: 1,
         memberNodeIds: [nodeId],
         variables: [],
         inputValues: {},
         bindings: [],
+        region,
       },
-    ]);
+    ];
+    try {
+      assertWorkflowRegionLayout(next);
+    } catch {
+      return null;
+    }
+    setWorkflows(next);
     return id;
-  }, [setWorkflows]);
+  }, [nodes, setWorkflows, workflows]);
 
   const setFieldBinding = useCallback<CanvasWorkflowContextValue['setFieldBinding']>((workflowId, nodeId, fieldPath, fieldType, binding) => {
     setWorkflows((current) => current.map((workflow) => {
@@ -233,6 +292,21 @@ export function CanvasWorkflowProvider({
     }));
   }, [setWorkflows]);
 
+  const setRegion = useCallback((workflowId: string, patch: Partial<WorkflowRegionVisual>) => {
+    setWorkflows((current) => {
+      const next = current.map((workflow, index) => workflow.id === workflowId ? {
+        ...workflow,
+        region: normalizeWorkflowRegionVisual({ ...workflow.region, ...patch }, index),
+      } : workflow);
+      try {
+        assertWorkflowRegionLayout(next);
+        return next;
+      } catch {
+        return current;
+      }
+    });
+  }, [setWorkflows]);
+
   const value = useMemo<CanvasWorkflowContextValue>(() => ({
     workflows,
     workflowForNode,
@@ -243,8 +317,9 @@ export function CanvasWorkflowProvider({
     removeVariable,
     setTextSource,
     setVariableValue,
+    setRegion,
     setFieldBinding,
-  }), [addVariable, assignNode, createWorkflowForNode, removeVariable, setFieldBinding, setTextSource, setVariableValue, updateVariable, workflowForNode, workflows]);
+  }), [addVariable, assignNode, createWorkflowForNode, removeVariable, setFieldBinding, setRegion, setTextSource, setVariableValue, updateVariable, workflowForNode, workflows]);
 
   return <CanvasWorkflowContext.Provider value={value}>{children}</CanvasWorkflowContext.Provider>;
 }
@@ -321,4 +396,12 @@ function writeStringPath(source: Record<string, unknown>, path: string, value: s
 
 function normalizedFieldPath(path: string) {
   return (path.startsWith('data.') ? path.slice(5) : path).split('.').filter(Boolean);
+}
+
+function sameRegion(left: WorkflowRegionVisual, right: WorkflowRegionVisual) {
+  return left.x === right.x
+    && left.y === right.y
+    && left.width === right.width
+    && left.height === right.height
+    && left.color === right.color;
 }

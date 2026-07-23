@@ -48,6 +48,8 @@ export type NodeType =
   | 'grid-editor'
   | 'group-execution-manager'
   | 'workflow-variables'
+  | 'workflow-input'
+  | 'workflow-output'
   | 'canvas-agent'
   // Auxiliary (5)
   | 'edit'

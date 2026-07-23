@@ -11,7 +11,7 @@ import {
 
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled']);
 
-export function useCanvasRunProjection(canvasId: string | null, initialRunId?: string) {
+export function useCanvasRunProjection(canvasId: string | null, workflowId: string, initialRunId?: string) {
   const [run, setRun] = useState<CanvasRunRecord | null>(null);
   const [events, setEvents] = useState<CanvasRunEvent[]>([]);
   const [busy, setBusy] = useState(false);
@@ -24,7 +24,7 @@ export function useCanvasRunProjection(canvasId: string | null, initialRunId?: s
     setEvents([]);
     setError('');
     setStreamConnected(false);
-  }, [canvasId]);
+  }, [canvasId, workflowId]);
 
   const refresh = useCallback(async () => {
     if (!runId) return;
@@ -54,12 +54,13 @@ export function useCanvasRunProjection(canvasId: string | null, initialRunId?: s
     });
   }, [refresh, runId]);
 
-  const create = useCallback(async (scope: CanvasRunRecord['runScope'] = 'canvas', configuration?: Record<string, unknown>) => {
+  const create = useCallback(async (configuration?: Record<string, unknown>) => {
     if (!canvasId) throw new Error('请先打开画布');
     setBusy(true);
     setError('');
     try {
-      const next = await createCanvasRun({ canvasId, runScope: scope, configuration });
+      if (!workflowId) throw new Error('请先选择工作流');
+      const next = await createCanvasRun({ canvasId, workflowId, runScope: 'workflow', configuration });
       setRun(next);
       setEvents([]);
       return next;
@@ -70,7 +71,7 @@ export function useCanvasRunProjection(canvasId: string | null, initialRunId?: s
     } finally {
       setBusy(false);
     }
-  }, [canvasId]);
+  }, [canvasId, workflowId]);
 
   const command = useCallback(async (name: CanvasRunCommand) => {
     if (!runId) return;

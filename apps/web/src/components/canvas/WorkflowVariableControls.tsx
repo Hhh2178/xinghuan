@@ -29,7 +29,14 @@ export function WorkflowMembershipControl({
               return;
             }
             onValidationError?.('');
-            controller.assignNode(nodeId, workflowId || null);
+            const assignmentError = controller.assignNode(nodeId, workflowId || null);
+            if (assignmentError) {
+              const message = assignmentError === 'WORKFLOW_REGION_OVERLAP'
+                ? '加入后工作流区域会与其他区域重叠，请先移动节点或调整区域'
+                : '无法更新工作流归属';
+              if (onValidationError) onValidationError(message);
+              else alert(message);
+            }
           }}
           className="h-7 min-w-0 flex-1 rounded border border-white/10 bg-zinc-900 px-1.5 text-[10px] text-white outline-none focus:border-amber-300/60 nodrag nowheel"
         >
@@ -38,7 +45,13 @@ export function WorkflowMembershipControl({
         </select>
         <button
           type="button"
-          onClick={() => controller.createWorkflowForNode(nodeId)}
+          onClick={() => {
+            if (!controller.createWorkflowForNode(nodeId)) {
+              const message = '新工作流区域会与已有区域重叠，请先移动节点或调整区域';
+              if (onValidationError) onValidationError(message);
+              else alert(message);
+            }
+          }}
           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
           title="新建工作流并加入当前节点"
         >

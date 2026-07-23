@@ -18,7 +18,11 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { normalizeWorkflowDocuments, type WorkflowDocument } from '@xinghuan/shared';
+import {
+  isWorkflowBoundaryConnectionAllowed,
+  normalizeWorkflowDocuments,
+  type WorkflowDocument,
+} from '@xinghuan/shared';
 import {
   AlignCenterHorizontal,
   AlignCenterVertical,
@@ -52,6 +56,8 @@ import { useRunBusStore } from '../stores/runBus';
 import { useGroupBusStore, GROUP_COLORS, DEFAULT_GROUP_NAME } from '../stores/groupBus';
 import { GROUP_EXECUTION_MANAGER_NODE_TYPE, buildGroupExecutionManagerDataFromNodes, findGroupExecutionManagerNode, normalizeGroupExecutionManagerData, type GroupExecutionManagerData } from './canvas/groupExecutionManager';
 import { CanvasWorkflowProvider } from './canvas/CanvasWorkflowContext';
+import { WorkflowRegionLayer } from './canvas/WorkflowRegionLayer';
+import { buildWorkflowRegionFromSelection } from './canvas/workflowRegionCreation';
 import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
@@ -191,6 +197,7 @@ const OutputNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes
 import GroupBoxNode from './nodes/GroupBoxNode';
 import GroupExecutionManagerNode from './nodes/GroupExecutionManagerNode';
 import WorkflowVariablesNode from './nodes/WorkflowVariablesNode';
+import { WorkflowInputNode, WorkflowOutputNode } from './nodes/WorkflowBoundaryNode';
 import CanvasAgentNode from './nodes/CanvasAgentNode';
 import DeletableEdge from './edges/DeletableEdge';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
@@ -289,6 +296,8 @@ const SPECIFIC_NODES: Record<string, any> = {
   'grid-editor': GridEditorNode,
   'canvas-agent': CanvasAgentNode,
   'workflow-variables': WorkflowVariablesNode,
+  'workflow-input': WorkflowInputNode,
+  'workflow-output': WorkflowOutputNode,
   // Auxiliary (5)
   edit: ImageNode, // 复用 ImageNode,默认偏向 edit 能力
   idea: IdeaNode,
@@ -425,6 +434,8 @@ function withNodeSerialBadge(Component: ComponentType<any>, nodeType?: string): 
 
 // 节点初始 data(用于区分共享组件的 kind/preset/model 等)
 const INITIAL_DATA: Record<string, Record<string, any>> = {
+  'workflow-input': { portType: 'text', label: '工作流输入' },
+  'workflow-output': { portType: 'text', label: '工作流输出' },
   image: { model: 'gpt-image-2', aspectRatio: '1:1', sizeLevel: '1K', referenceImages: [] },
   edit: { mode: 'edit', model: 'gpt-image-2', aspectRatio: '1:1', sizeLevel: '1K', referenceImages: [] },
   seedance: {
@@ -1228,6 +1239,12 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   const [loadedCanvasId, setLoadedCanvasId] = useState<string | null>(null);
   const nextNodeSerialIdRef = useRef(1);
   const allowEmptySaveCanvasIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('penguin:canvas-workflows-changed', {
+      detail: { canvasId: activeId, workflows },
+    }));
+  }, [activeId, workflows]);
 
   // 选中节点 / 剪贴板
   const [selectedCount, setSelectedCount] = useState(0);
@@ -2162,6 +2179,28 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     [nodes, assignActiveNodeSerials]
   );
 
+  const handleCreateWorkflowRegion = useCallback((ids: string[]) => {
+    const result = buildWorkflowRegionFromSelection({
+      nodes: nodesRef.current,
+      selectedIds: ids,
+      workflows,
+      color: GROUP_COLORS[workflows.length % GROUP_COLORS.length],
+      newId: () => `workflow_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
+    });
+    if (!result.ok) {
+      const message = result.code === 'EMPTY_SELECTION'
+        ? '请先选择要创建工作流区域的节点'
+        : result.code === 'MEMBER_CONFLICT'
+          ? `所选节点已属于「${result.workflowName}」，单个节点不能加入多个工作流`
+          : '新工作流区域会与已有工作流重叠，请先移动节点或调整已有区域';
+      alert(message);
+      return;
+    }
+    const memberIds = new Set(result.workflow.memberNodeIds);
+    setWorkflows((current) => [...current, result.workflow]);
+    setNodes((current) => current.map((node) => memberIds.has(node.id) ? { ...node, selected: false } : node));
+  }, [setNodes, workflows]);
+
   // 监听 GroupBox 的执行请求 / 删除请求
   const executeReq = useGroupBusStore((s) => s.executeReq);
   const deleteReq = useGroupBusStore((s) => s.deleteReq);
@@ -2495,6 +2534,17 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         .map((c) => (c as any).id as string);
       if (removedIds.length > 0) {
         markManualNodeDeletion(removedIds, nodesRef.current);
+        const removed = new Set(removedIds);
+        setWorkflows((current) => current.map((workflow) => {
+          const nextMembers = workflow.memberNodeIds.filter((nodeId) => !removed.has(nodeId));
+          if (nextMembers.length === workflow.memberNodeIds.length) return workflow;
+          return {
+            ...workflow,
+            revision: workflow.revision + 1,
+            memberNodeIds: nextMembers,
+            bindings: workflow.bindings.filter((binding) => !removed.has(binding.nodeId)),
+          };
+        }).filter((workflow) => workflow.memberNodeIds.length > 0));
       }
       // 检测拖拽状态,避免拖拽中频繁压栈
       for (const c of guardedChanges) {
@@ -2516,9 +2566,27 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     },
     [markManualNodeDeletion]
   );
+  const bumpWorkflowRevisionsForNodeIds = useCallback((nodeIds: Iterable<string>) => {
+    const changedIds = new Set(nodeIds);
+    setWorkflows((current) => current.map((workflow) => (
+      workflow.memberNodeIds.some((nodeId) => changedIds.has(nodeId))
+        ? { ...workflow, revision: workflow.revision + 1 }
+        : workflow
+    )));
+  }, []);
+
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+    (changes: EdgeChange[]) => {
+      const removedEdgeIds = new Set(changes.filter((change) => change.type === 'remove').map((change) => change.id));
+      if (removedEdgeIds.size > 0) {
+        const affectedNodeIds = edgesRef.current
+          .filter((edge) => removedEdgeIds.has(edge.id))
+          .flatMap((edge) => [edge.source, edge.target]);
+        bumpWorkflowRevisionsForNodeIds(affectedNodeIds);
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [bumpWorkflowRevisionsForNodeIds]
   );
 
   const onConnect = useCallback(
@@ -2532,6 +2600,12 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       const src = curNodes.find((n) => n.id === params.source);
       let tgt = curNodes.find((n) => n.id === params.target);
       if (!isConnectionValid(src, tgt)) return;
+      if (src && tgt && !isWorkflowBoundaryConnectionAllowed({
+        sourceWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(src.id))?.id || null,
+        targetWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(tgt!.id))?.id || null,
+        sourceNodeType: src.type || '',
+        targetNodeType: tgt.type || '',
+      })) return;
 
       // ⚡ 组容器连出去重: 如果 source 是 groupBox, 并且组内成员已经独立连到同一个下游 target,
       // 则自动断开那些「成员→target」的重复边, 只保留 group→target
@@ -2591,8 +2665,9 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           eds
         )
       );
+      if (params.source && params.target) bumpWorkflowRevisionsForNodeIds([params.source, params.target]);
     },
-    [resetConnectionPanMode, assignActiveNodeSerials]
+    [resetConnectionPanMode, assignActiveNodeSerials, bumpWorkflowRevisionsForNodeIds, workflows]
   );
 
   // ReactFlow 拖线连接时的实时校验(在连线处于“预览”阶段就拦截不兼容连接)
@@ -2601,9 +2676,15 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       const curNodes = nodesRef.current;
       const src = curNodes.find((n) => n.id === (params as Connection).source);
       const tgt = curNodes.find((n) => n.id === (params as Connection).target);
-      return isConnectionValid(src, tgt);
+      if (!isConnectionValid(src, tgt) || !src || !tgt) return false;
+      return isWorkflowBoundaryConnectionAllowed({
+        sourceWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(src.id))?.id || null,
+        targetWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(tgt.id))?.id || null,
+        sourceNodeType: src.type || '',
+        targetNodeType: tgt.type || '',
+      });
     },
-    []
+    [workflows]
   );
 
   // ===== 拖线到空白处 → 弹出候选节点菜单 =====
@@ -3419,7 +3500,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   }
 
   return (
-    <CanvasWorkflowProvider workflows={workflows} setWorkflows={setWorkflows} setNodes={setNodes}>
+    <CanvasWorkflowProvider workflows={workflows} setWorkflows={setWorkflows} setNodes={setNodes} nodes={nodes}>
     <div
       className={`t8-canvas-shell flex-1 relative${connectionPanModeActive ? ' connection-pan-mode-active' : ''}`}
       data-theme-visual={visualStyle}
@@ -3498,6 +3579,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         proOptions={memoProOptions}
         defaultEdgeOptions={memoDefaultEdgeOptions}
       >
+        <WorkflowRegionLayer />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
@@ -3784,6 +3866,17 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
               </button>
               <button
                 className={menuItemCls}
+                disabled={ids.length === 0}
+                onClick={() => {
+                  closeContextMenu();
+                  handleCreateWorkflowRegion(ids);
+                }}
+              >
+                <Workflow size={13} />
+                <span>创建工作流区域</span>
+              </button>
+              <button
+                className={menuItemCls}
                 disabled={!mergeCandidate}
                 title={mergeCandidate ? `合并为${PORT_LABEL[mergeCandidate.kind]}素材集` : '请选择多个同类型素材'}
                 onClick={() => {
@@ -4029,6 +4122,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     </div>
     </CanvasWorkflowProvider>
   );
+
 }
 
 interface CanvasProps {

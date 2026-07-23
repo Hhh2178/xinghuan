@@ -23,6 +23,9 @@
 - Text 节点支持固定文本、整段变量和模板文本。变量面板只展示当前字段引用；改名必须同步更新未转义 token 与 binding segment，不能依赖运行时字符串替换。
 - Upload 节点可绑定 image/video/audio 强类型变量。当前兼容层把 owner-scoped 上传 URL 放入 `{ kind, assetId }`；待 Resource Asset UUID 成为统一上传权威后再前向迁移，历史 Run snapshot 不回写。
 - `workflow-variables` 是不参与连线或执行的控制节点，每个 workflow 最多一个；变量真值仍在顶层 workflow document，删除控制节点不会删除定义。节点展示本次值、引用节点序号和定位动作。
+- Workflow Region 使用顶层 workflow document 的显式成员和 `region { x, y, width, height, color }`。区域是不透明实色底板，自动选择前景对比色；拖动标题联动全部成员，缩放、调色和节点内容增高只更新视觉几何，不增加 workflow revision。
+- 新成员加入时区域自动扩张并完整包住节点；扩张、创建或缩放若会与另一 Workflow Region 重叠则拒绝。单节点只能属于一个 workflow，选中节点组任一成员创建区域时必须展开完整显式组。
+- `workflow-input` / `workflow-output` 是强类型边界节点。普通边不能穿越 workflow 边界；输入节点必须绑定同 workflow、同类型变量，服务端仍在编译时独立验证，不能只信任前端连接提示。
 
 - 节点序号徽标使用单一稳定宿主包装节点组件，宿主以 `display: contents` 保持原布局；不得再用 Fragment 把节点主体和徽标作为 ReactFlow 下的并列根节点，避免运行态条件渲染触发 DOM `insertBefore` 冲突。
 - 图片、视频、LLM、音频等后台目录生成节点在同一稳定宿主左上角复用 `NodeCostBadge`：角标位于节点框外，左边缘与节点对齐，底边贴住节点顶边；当前模型无有效价格时完全不渲染；模型/Provider 切换显示当前报价；任务开始后通过 `taskId/taskIds` 切换为价格快照结算状态。

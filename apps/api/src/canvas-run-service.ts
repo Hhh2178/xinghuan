@@ -1,4 +1,4 @@
-import { compileCanvasSnapshotRunPlan } from "@xinghuan/agent-core";
+import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "@xinghuan/agent-core";
 import {
   createWorkflowInputSnapshot,
   normalizeWorkflowDocuments,
@@ -20,6 +20,7 @@ export interface CanvasRunServiceRepository {
     budgetSnapshot?: Record<string, unknown>;
     inputSnapshot?: Record<string, unknown>;
   }): Promise<{ run: CanvasRunRecord; created: boolean }>;
+  readOwnedWorkflowInputAssets?(ownerId: string, assetIds: string[]): Promise<Array<{ id: string; kind: string; url: string }>>;
   readOwnedRun(ownerId: string, runId: string): Promise<CanvasRunRecord | null>;
   readOwnedRunEvents(ownerId: string, runId: string, afterSequence?: number, limit?: number): Promise<CanvasRunEventRecord[]>;
   applyCommand(input: {
@@ -55,25 +56,35 @@ export function createCanvasRunService(deps: {
     assertAvailable();
     const canvas = await deps.repository.readOwnedCanvasSnapshot(input.ownerId, input.canvasId);
     if (!canvas) throw new Error("CANVAS_RUN_CANVAS_NOT_FOUND");
-    const compiledPlan = compileCanvasSnapshotRunPlan({
-      canvasId: canvas.id,
-      ownerId: input.ownerId,
-      revision: canvas.revision,
-      data: canvas.data,
-    });
+    const workflowId = typeof input.workflowId === "string" ? input.workflowId.trim() : "";
+    const compiledPlan = workflowId
+      ? compileWorkflowSnapshotRunPlan({
+        canvasId: canvas.id,
+        ownerId: input.ownerId,
+        revision: canvas.revision,
+        workflowId,
+        data: canvas.data,
+      })
+      : compileCanvasSnapshotRunPlan({
+        canvasId: canvas.id,
+        ownerId: input.ownerId,
+        revision: canvas.revision,
+        data: canvas.data,
+      });
     const configurationSnapshot = normalizeCanvasRunConfiguration(input.configuration);
-    const plan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot);
-    if (plan.steps.length === 0) throw new Error("CANVAS_RUN_PLAN_EMPTY");
+    const configuredPlan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot);
     const inputSnapshot = compileWorkflowInputSnapshot({
       data: canvas.data,
-      workflowId: input.workflowId,
+      workflowId,
       values: input.workflowInputValues,
     });
+    const plan = await applyWorkflowInputSnapshot(configuredPlan, inputSnapshot, input.ownerId, deps.repository);
+    if (plan.steps.length === 0) throw new Error("CANVAS_RUN_PLAN_EMPTY");
     return deps.repository.createCanvasRun({
       ownerId: input.ownerId,
       idempotencyKey: input.idempotencyKey,
       plan,
-      runScope: input.runScope,
+      runScope: workflowId ? "workflow" : input.runScope,
       configurationSnapshot,
       budgetSnapshot: normalizeCanvasRunBudget(input.budget),
       inputSnapshot,
@@ -121,6 +132,70 @@ export function createCanvasRunService(deps: {
   }
 
   return { commandRun, createRun, readEvents, readRun };
+}
+
+async function applyWorkflowInputSnapshot(
+  plan: ReturnType<typeof compileCanvasSnapshotRunPlan>,
+  rawSnapshot: Record<string, unknown>,
+  ownerId: string,
+  repository: CanvasRunServiceRepository,
+) {
+  if (!plan.workflowId) return plan;
+  const snapshotVariables = Array.isArray(rawSnapshot.variables) ? rawSnapshot.variables.filter(isRecord) : [];
+  const variablesById = new Map(snapshotVariables.map((variable) => [String(variable.id || ""), variable]));
+  const inputs = plan.steps.filter((step) => step.nodeType === "workflow-input").map((step) => {
+    const payload = record(step.configuration?.executionPayload);
+    const variableId = typeof payload.variableId === "string" ? payload.variableId : "";
+    const portType = typeof payload.portType === "string" ? payload.portType : "";
+    const variable = variablesById.get(variableId);
+    if (!variable) throw new Error(`WORKFLOW_BOUNDARY_VARIABLE_INVALID:${step.nodeId}`);
+    if (variable.type !== portType) throw new Error(`WORKFLOW_BOUNDARY_VARIABLE_TYPE_MISMATCH:${step.nodeId}`);
+    if (variable.source === "missing") throw new Error(`WORKFLOW_BOUNDARY_VALUE_MISSING:${step.nodeId}`);
+    return { step, payload, variableId, portType, value: variable.value };
+  });
+  const mediaInputs = inputs.filter((input) => input.portType !== "text");
+  const assetIds = mediaInputs.map((input) => {
+    const value = record(input.value);
+    return typeof value.assetId === "string" ? value.assetId : "";
+  });
+  let assetsById = new Map<string, { id: string; kind: string; url: string }>();
+  if (assetIds.some(Boolean)) {
+    if (!repository.readOwnedWorkflowInputAssets) throw new Error("WORKFLOW_BOUNDARY_ASSET_RESOLVER_REQUIRED");
+    const assets = await repository.readOwnedWorkflowInputAssets(ownerId, [...new Set(assetIds)]);
+    assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+  }
+  const inputByStepId = new Map(inputs.map((input) => [input.step.id, input]));
+  return {
+    ...plan,
+    steps: plan.steps.map((step) => {
+      const input = inputByStepId.get(step.id);
+      if (!input) return step;
+      const executionPayload: Record<string, unknown> = {
+        ...input.payload,
+        workflowVariableId: input.variableId,
+      };
+      if (input.portType === "text") {
+        if (typeof input.value !== "string") throw new Error(`WORKFLOW_BOUNDARY_VALUE_TYPE_MISMATCH:${step.nodeId}:text`);
+        executionPayload.text = input.value;
+        executionPayload.prompt = input.value;
+        executionPayload.outputText = input.value;
+      } else {
+        const reference = record(input.value);
+        const assetId = typeof reference.assetId === "string" ? reference.assetId : "";
+        const asset = assetsById.get(assetId);
+        if (!asset || asset.kind !== input.portType || !asset.url) {
+          throw new Error(`WORKFLOW_BOUNDARY_ASSET_NOT_FOUND:${step.nodeId}:${assetId}`);
+        }
+        executionPayload.workflowAssetId = asset.id;
+        executionPayload[`${input.portType}Url`] = asset.url;
+        executionPayload[`${input.portType}Urls`] = [asset.url];
+      }
+      return {
+        ...step,
+        configuration: { ...(step.configuration || {}), executionPayload },
+      };
+    }),
+  };
 }
 
 export function compileWorkflowInputSnapshot(input: {

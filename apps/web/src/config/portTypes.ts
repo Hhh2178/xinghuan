@@ -44,6 +44,8 @@ const DEV_NODE_PORTS: Record<string, NodePorts> = import.meta.env?.DEV ? {
  * 与 features.json 节点清单严格对齐
  */
 export const NODE_PORTS: Record<string, NodePorts> = {
+  'workflow-input': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
+  'workflow-output': { inputs: ['text', 'image', 'video', 'audio'], outputs: ['text', 'image', 'video', 'audio'] },
   // ========== Core ==========
   text: { inputs: [], outputs: ['text'] },
   image: { inputs: ['text', 'image'], outputs: ['image'] },
@@ -154,6 +156,10 @@ export const NODE_PORTS: Record<string, NodePorts> = {
  */
 export function getNodeInputs(node: Node | null | undefined): PortType[] {
   if (!node || !node.type) return [];
+  if (node.type === 'workflow-input' || node.type === 'workflow-output') {
+    const portType = (node.data as any)?.portType;
+    return ['text', 'image', 'video', 'audio'].includes(portType) ? [portType as PortType] : ['text'];
+  }
   const ports = NODE_PORTS[node.type];
   return ports?.inputs ?? [];
 }
@@ -197,6 +203,11 @@ export function getNodeOutputs(node: Node | null | undefined): PortType[] {
     if (kind === 'video') return ['video'];
     if (kind === 'audio') return ['audio'];
     return [];
+  }
+
+  if (node.type === 'workflow-input' || node.type === 'workflow-output') {
+    const portType = (node.data as any)?.portType;
+    return ['text', 'image', 'video', 'audio'].includes(portType) ? [portType as PortType] : ['text'];
   }
 
   const ports = NODE_PORTS[node.type];

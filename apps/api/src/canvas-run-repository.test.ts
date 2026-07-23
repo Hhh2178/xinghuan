@@ -49,7 +49,8 @@ describe("canvas run repository", () => {
       if (sql.includes("with inserted as")) {
         expect(sql).toContain("on conflict (owner_id, idempotency_key) do nothing");
         expect(sql).toContain("input_snapshot");
-        expect(params?.[6]).toBe(JSON.stringify({ workflowId: "workflow-1" }));
+        expect(params?.slice(4, 8)).toEqual([null, null, null, "canvas"]);
+        expect(params?.[9]).toBe(JSON.stringify({ workflowId: "workflow-1" }));
         return { rows: [runRow()] };
       }
       if (sql.includes("insert into xh_canvas_run_steps")) return { rows: [] };
@@ -133,5 +134,26 @@ describe("canvas run repository", () => {
 
     await expect(repo.createCanvasRun({ ownerId: "owner-1", idempotencyKey: "stale", plan })).rejects.toThrow("CANVAS_RUN_REVISION_CONFLICT");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into xh_canvas_runs"))).toBe(false);
+  });
+
+  it("maps the active workflow uniqueness constraint to a stable domain conflict", async () => {
+    const workflowPlan: CanvasRunPlan = {
+      ...plan,
+      workflowId: "workflow-1",
+      workflowRevision: 3,
+      workflowSubgraphHash: "a".repeat(64),
+    };
+    const { pool } = scriptedPool(async (sql) => {
+      if (sql === "begin" || sql === "rollback") return { rows: [] };
+      if (sql.includes("select revision from xh_canvases")) return { rows: [{ revision: 4 }] };
+      if (sql.includes("with inserted as")) {
+        throw Object.assign(new Error("duplicate key"), { code: "23505", constraint: "uq_xh_canvas_runs_active_workflow" });
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const repo = createCanvasRunRepository({ getPostgresPool: async () => pool });
+
+    await expect(repo.createCanvasRun({ ownerId: "owner-1", idempotencyKey: "workflow-active", plan: workflowPlan }))
+      .rejects.toThrow("WORKFLOW_RUN_ACTIVE_CONFLICT");
   });
 });

@@ -1,5 +1,7 @@
 import { Bot, Minus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { normalizeWorkflowDocuments, type WorkflowDocument } from '@xinghuan/shared';
+import * as api from '../../services/api';
 import { CanvasRunSupervisor } from './CanvasRunSupervisor';
 import { CANVAS_RUN_STATUS_LABEL } from './canvas-run-view-model';
 import { useCanvasRunProjection } from './useCanvasRunProjection';
@@ -19,12 +21,50 @@ export function CanvasSupervisionDock(props: {
   onStatusChange: (status: CanvasSupervisionStatus) => void;
 }) {
   const [initialRunId, setInitialRunId] = useState('');
-  const projection = useCanvasRunProjection(props.canvasId, initialRunId);
+  const [workflows, setWorkflows] = useState<WorkflowDocument[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
+  const [runIdsByWorkflow, setRunIdsByWorkflow] = useState<Record<string, string>>({});
+  const projection = useCanvasRunProjection(props.canvasId, selectedWorkflowId, initialRunId || runIdsByWorkflow[selectedWorkflowId]);
   const runStatus = projection.run?.status || '';
   const active = ['planning', 'awaiting_approval', 'queued', 'running', 'paused'].includes(runStatus);
   const alert = Boolean(projection.error) || runStatus === 'failed' || (active && !projection.streamConnected && Boolean(projection.run));
 
-  useEffect(() => setInitialRunId(''), [props.canvasId]);
+  useEffect(() => {
+    setInitialRunId('');
+    setRunIdsByWorkflow({});
+    if (!props.canvasId) {
+      setWorkflows([]);
+      setSelectedWorkflowId('');
+      return;
+    }
+    void api.getCanvasData(props.canvasId).then((data) => {
+      const next = normalizeWorkflowDocuments(data.workflows);
+      setWorkflows(next);
+      setSelectedWorkflowId((current) => next.some((workflow) => workflow.id === current) ? current : next[0]?.id || '');
+    }).catch(() => {
+      setWorkflows([]);
+      setSelectedWorkflowId('');
+    });
+  }, [props.canvasId]);
+
+  useEffect(() => {
+    const handleWorkflows = (event: Event) => {
+      const detail = (event as CustomEvent<{ canvasId?: string; workflows?: unknown }>).detail;
+      if (detail?.canvasId !== props.canvasId) return;
+      const next = normalizeWorkflowDocuments(detail.workflows);
+      setWorkflows(next);
+      setSelectedWorkflowId((current) => next.some((workflow) => workflow.id === current) ? current : next[0]?.id || '');
+    };
+    window.addEventListener('penguin:canvas-workflows-changed', handleWorkflows);
+    return () => window.removeEventListener('penguin:canvas-workflows-changed', handleWorkflows);
+  }, [props.canvasId]);
+
+  useEffect(() => {
+    const workflowId = projection.run?.workflowId;
+    if (!workflowId || !projection.run) return;
+    setRunIdsByWorkflow((current) => current[workflowId] === projection.run!.id ? current : { ...current, [workflowId]: projection.run!.id });
+    if (workflowId !== selectedWorkflowId) setSelectedWorkflowId(workflowId);
+  }, [projection.run, selectedWorkflowId]);
 
   useEffect(() => {
     const openSupervisor = (event: Event) => {
@@ -64,7 +104,16 @@ export function CanvasSupervisionDock(props: {
           <button type="button" onClick={() => props.onOpenChange(false)} title="关闭"><X size={15} /></button>
         </div>
       </header>
-      <CanvasRunSupervisor canvasId={props.canvasId} projection={projection} />
+      <div className="canvas-run-supervisor__options">
+        <label>
+          <span>托管目标</span>
+          <select aria-label="托管目标工作流" value={selectedWorkflowId} onChange={(event) => { setInitialRunId(''); setSelectedWorkflowId(event.target.value); }}>
+            {workflows.length === 0 ? <option value="">当前画布没有工作流区域</option> : null}
+            {workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name} · r{workflow.revision}</option>)}
+          </select>
+        </label>
+      </div>
+      <CanvasRunSupervisor canvasId={props.canvasId} workflowId={selectedWorkflowId} projection={projection} />
     </aside>
   );
 }

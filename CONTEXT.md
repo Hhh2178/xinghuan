@@ -126,6 +126,7 @@ Workflow Run 中位于上游候选和下游执行之间的显式释放门。它�
 - Assistant Conversation、AI Supervision、Agent Run、Workflow Run 和 Knowledge Snapshot 必须保持独立身份，并通过显式 ID 引用；关闭任一 UI 面板不得终止持久化运行。
 - AI 助手和 AI 托管不得静默修改 Canvas Project 的节点或连线；当前 MVP 不创建新的 Canvas Patch Proposal。
 - 普通连线不得穿越 Workflow Region 边界；跨边界数据必须经显式强类型 Workflow Input/Output 并进入 Run snapshot。
+- Workflow Region 的不透明底板必须完整包住显式成员；成员加入、节点内容增高和区域缩放不得让成员静默落到可见边界外。区域位置、尺寸和颜色仍不改变 workflow revision。
 - 工作流设置和变量值只在新 Run 开始时冻结；active Run 不随编辑静默变化。
 - 费用金额必须使用十进制定点语义；价格与归属历史必须来自任务费用快照，不得被当前配置反向改写。
 - 当前实现与目标方案必须分开记录；Proposed ADR 不代表已经上线。

@@ -76,6 +76,7 @@ export interface WorkflowDocument {
   variables: WorkflowVariableDefinition[];
   inputValues: Record<string, unknown>;
   bindings: WorkflowNodeFieldBinding[];
+  region: WorkflowRegionVisual;
 }
 
 const RESERVED_VARIABLE_KEYS = new Set([
@@ -134,7 +135,7 @@ export function validateWorkflowVariableDefinitions(input: readonly WorkflowVari
 export function normalizeWorkflowDocuments(input: unknown): WorkflowDocument[] {
   if (!Array.isArray(input)) return [];
   const workflowIds = new Set<string>();
-  return input.map((raw) => {
+  const workflows = input.map((raw, index) => {
     if (!isRecord(raw)) throw new Error("WORKFLOW_DOCUMENT_INVALID");
     const id = boundedText(raw.id, 160);
     if (!id) throw new Error("WORKFLOW_ID_REQUIRED");
@@ -175,8 +176,20 @@ export function normalizeWorkflowDocuments(input: unknown): WorkflowDocument[] {
       };
     });
 
-    return { schemaVersion: 1, id, name, revision, memberNodeIds, variables, inputValues, bindings };
+    return {
+      schemaVersion: 1 as const,
+      id,
+      name,
+      revision,
+      memberNodeIds,
+      variables,
+      inputValues,
+      bindings,
+      region: normalizeWorkflowRegionVisual(raw.region, index),
+    };
   });
+  assertWorkflowRegionLayout(workflows);
+  return workflows;
 }
 
 export function collectWorkflowVariableReferences(workflow: WorkflowDocument): Record<string, string[]> {
@@ -535,3 +548,8 @@ function deepFreeze<T>(value: T): T {
   for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
   return Object.freeze(value);
 }
+import {
+  assertWorkflowRegionLayout,
+  normalizeWorkflowRegionVisual,
+  type WorkflowRegionVisual,
+} from "./workflow-regions.js";

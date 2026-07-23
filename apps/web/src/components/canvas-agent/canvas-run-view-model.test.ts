@@ -3,7 +3,7 @@ import type { CanvasRunEvent, CanvasRunRecord } from './canvas-run-api';
 import { buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel } from './canvas-run-view-model';
 
 const run: CanvasRunRecord = {
-  id: 'run-1', canvasId: 'canvas-1', canvasRevision: 7, runScope: 'canvas', status: 'running',
+  id: 'run-1', canvasId: 'canvas-1', canvasRevision: 7, runScope: 'canvas', workflowId: null, workflowRevision: null, workflowSubgraphHash: null, status: 'running',
   planSnapshot: {
     canvasId: 'canvas-1', canvasRevision: 7, groups: [{ id: 'group-a', order: 0, skipped: false, stepIds: ['step-1'] }],
     steps: [{ id: 'step-1', nodeId: 'node-1', nodeType: 'video', groupId: 'group-a', dependsOn: [], skipped: false, configuration: { providerName: 'Provider A', modelName: 'Model A', generationAlternatives: [{ modelName: 'Model B' }] } }],

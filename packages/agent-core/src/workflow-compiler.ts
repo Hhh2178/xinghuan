@@ -1,3 +1,11 @@
+import { createHash } from "node:crypto";
+
+import {
+  isWorkflowBoundaryConnectionAllowed,
+  isWorkflowBoundaryPortType,
+  normalizeWorkflowDocuments,
+} from "@xinghuan/shared";
+
 import { CANVAS_RUN_EXECUTABLE_NODE_TYPES, CANVAS_RUN_NODE_CAPABILITIES } from "./node-execution-capabilities.js";
 
 export interface CanvasRunGroupInput {
@@ -49,6 +57,9 @@ export interface CanvasRunPlan {
   canvasId: string;
   ownerId: string;
   canvasRevision: number;
+  workflowId?: string;
+  workflowRevision?: number;
+  workflowSubgraphHash?: string;
   groups: CanvasRunGroupPlan[];
   steps: CanvasRunStepPlan[];
 }
@@ -153,6 +164,92 @@ export function compileCanvasSnapshotRunPlan(input: {
       .filter((edge) => typeof edge.source === "string" && typeof edge.target === "string")
       .map((edge, index) => ({ id: typeof edge.id === "string" ? edge.id : `edge:${index}`, source: String(edge.source), target: String(edge.target) })),
   });
+}
+
+export function compileWorkflowSnapshotRunPlan(input: {
+  canvasId: string;
+  ownerId: string;
+  revision: number;
+  workflowId: string;
+  data: unknown;
+  executableNodeTypes?: ReadonlySet<string>;
+}): CanvasRunPlan {
+  const data = isRecord(input.data) ? input.data : {};
+  const workflows = normalizeWorkflowDocuments(data.workflows);
+  const workflow = workflows.find((candidate) => candidate.id === input.workflowId);
+  if (!workflow) throw new Error(`WORKFLOW_NOT_FOUND:${input.workflowId}`);
+  const nodes = Array.isArray(data.nodes) ? data.nodes.filter(isRecord) as CanvasSnapshotNode[] : [];
+  const edges = Array.isArray(data.edges) ? data.edges.filter(isRecord) as CanvasSnapshotEdge[] : [];
+  const nodesById = new Map(nodes
+    .filter((node): node is CanvasSnapshotNode & { id: string; type: string } => typeof node.id === "string" && typeof node.type === "string")
+    .map((node) => [node.id, node]));
+  const workflowByNodeId = new Map<string, string>();
+  for (const candidate of workflows) {
+    for (const nodeId of candidate.memberNodeIds) workflowByNodeId.set(nodeId, candidate.id);
+  }
+  const memberIds = new Set(workflow.memberNodeIds);
+  const variablesById = new Map(workflow.variables.map((variable) => [variable.id, variable]));
+  for (const nodeId of memberIds) {
+    const node = nodesById.get(nodeId);
+    if (!node) throw new Error(`WORKFLOW_MEMBER_NODE_MISSING:${nodeId}`);
+    if (node.type === "workflow-input" || node.type === "workflow-output") {
+      const nodeData = isRecord(node.data) ? node.data : {};
+      if (!isWorkflowBoundaryPortType(nodeData.portType)) {
+        throw new Error(`WORKFLOW_BOUNDARY_PORT_TYPE_INVALID:${nodeId}`);
+      }
+      if (node.type === "workflow-input") {
+        const variableId = stringValue(nodeData.variableId);
+        const variable = variablesById.get(variableId);
+        if (!variable) throw new Error(`WORKFLOW_BOUNDARY_VARIABLE_INVALID:${nodeId}`);
+        if (variable.type !== nodeData.portType) {
+          throw new Error(`WORKFLOW_BOUNDARY_VARIABLE_TYPE_MISMATCH:${nodeId}:${variable.type}:${String(nodeData.portType)}`);
+        }
+      }
+    }
+  }
+  assertCompleteWorkflowGroups(workflow.id, memberIds, nodes);
+  for (const edge of edges) {
+    if (typeof edge.source !== "string" || typeof edge.target !== "string") continue;
+    const source = nodesById.get(edge.source);
+    const target = nodesById.get(edge.target);
+    if (!source || !target) continue;
+    const sourceWorkflowId = workflowByNodeId.get(edge.source) || null;
+    const targetWorkflowId = workflowByNodeId.get(edge.target) || null;
+    if (!isWorkflowBoundaryConnectionAllowed({
+      sourceWorkflowId,
+      targetWorkflowId,
+      sourceNodeType: source.type,
+      targetNodeType: target.type,
+    })) {
+      throw new Error(`WORKFLOW_BOUNDARY_EDGE_INVALID:${edge.source}->${edge.target}`);
+    }
+    if (sourceWorkflowId === workflow.id && targetWorkflowId === workflow.id) {
+      if (target.type === "workflow-input" || source.type === "workflow-output") {
+        throw new Error(`WORKFLOW_BOUNDARY_DIRECTION_INVALID:${edge.source}->${edge.target}`);
+      }
+    }
+  }
+
+  const scopedData = {
+    nodes: nodes.filter((node) => typeof node.id === "string" && memberIds.has(node.id)),
+    edges: edges.filter((edge) => typeof edge.source === "string" && typeof edge.target === "string" && memberIds.has(edge.source) && memberIds.has(edge.target)),
+  };
+  const compiled = compileCanvasSnapshotRunPlan({
+    canvasId: input.canvasId,
+    ownerId: input.ownerId,
+    revision: input.revision,
+    data: scopedData,
+    executableNodeTypes: input.executableNodeTypes,
+  });
+  const workflowPlan = {
+    ...compiled,
+    workflowId: workflow.id,
+    workflowRevision: workflow.revision,
+  };
+  return {
+    ...workflowPlan,
+    workflowSubgraphHash: hashWorkflowSubgraph(workflowPlan),
+  };
 }
 
 function containsNode(group: CanvasSnapshotNode, node: CanvasSnapshotNode) {
@@ -278,7 +375,38 @@ const EXECUTION_PAYLOAD_KEYS = [
   "fileName", "fileNames", "fileSize", "fileSizes", "mime", "mimes",
   "sourceText", "splitMode", "delimiter", "chunkSize", "regexPattern", "regexFlags", "regexStrategy",
   "removeEmpty", "trim", "normalizeSpaces", "stripNumbering", "preferUpstream", "prefix", "suffix", "segmentsOverride",
+  "portType", "variableId", "label",
 ] as const;
+
+function assertCompleteWorkflowGroups(workflowId: string, memberIds: ReadonlySet<string>, nodes: CanvasSnapshotNode[]) {
+  const groups = nodes.filter((node) => node.type === "groupBox" && typeof node.id === "string" && memberIds.has(node.id));
+  for (const group of groups) {
+    for (const node of nodes) {
+      if (typeof node.id !== "string" || node.id === group.id || node.type === "groupBox") continue;
+      if (containsNode(group, node) && !memberIds.has(node.id)) {
+        throw new Error(`WORKFLOW_GROUP_MEMBER_OUTSIDE:${workflowId}:${group.id}:${node.id}`);
+      }
+    }
+  }
+}
+
+function hashWorkflowSubgraph(plan: Omit<CanvasRunPlan, "workflowSubgraphHash">) {
+  const executionContract = {
+    workflowId: plan.workflowId,
+    workflowRevision: plan.workflowRevision,
+    groups: plan.groups,
+    steps: plan.steps,
+  };
+  return createHash("sha256").update(canonicalStringify(executionContract)).digest("hex");
+}
+
+function canonicalStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalStringify).join(",")}]`;
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
 
 function executionPayload(data: Record<string, unknown>) {
   const payload: Record<string, unknown> = {};

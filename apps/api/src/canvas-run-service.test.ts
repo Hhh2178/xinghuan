@@ -45,7 +45,7 @@ describe("canvas run service", () => {
       id: "workflow-1",
       name: "海报工作流",
       revision: 4,
-      memberNodeIds: ["text-1", "workflow-variables-1"],
+      memberNodeIds: ["workflow-input-1", "text-1", "workflow-variables-1"],
       variables: [{ id: "var-theme", key: "主题", label: "主题", type: "text", required: true, constraints: {}, allowAiFill: false, allowAiRewrite: true, version: 1 }],
       inputValues: { "var-theme": "海边" },
       bindings: [{ nodeId: "text-1", fieldPath: "prompt", fieldType: "text", binding: { mode: "template", segments: [{ kind: "text", value: "主题：" }, { kind: "variable", variableId: "var-theme", key: "主题" }] } }],
@@ -57,10 +57,11 @@ describe("canvas run service", () => {
         revision: 8,
         data: {
           nodes: [
+            { id: "workflow-input-1", type: "workflow-input", data: { portType: "text", variableId: "var-theme" } },
             { id: "text-1", type: "text", data: { prompt: "主题：##主题##" } },
             { id: "workflow-variables-1", type: "workflow-variables", data: {} },
           ],
-          edges: [],
+          edges: [{ source: "workflow-input-1", target: "text-1" }],
           workflows: [workflow],
         },
       })),
@@ -73,6 +74,19 @@ describe("canvas run service", () => {
     await service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", idempotencyKey: "workflow-1" });
 
     expect(createCanvasRun).toHaveBeenCalledWith(expect.objectContaining({
+      runScope: "workflow",
+      plan: expect.objectContaining({
+        workflowId: "workflow-1",
+        workflowRevision: 4,
+        workflowSubgraphHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        steps: [
+          expect.objectContaining({
+            nodeId: "workflow-input-1",
+            configuration: expect.objectContaining({ executionPayload: expect.objectContaining({ text: "海边", workflowVariableId: "var-theme" }) }),
+          }),
+          expect.objectContaining({ nodeId: "text-1", dependsOn: ["workflow-input-1"] }),
+        ],
+      }),
       inputSnapshot: {
         schemaVersion: 1,
         workflowId: "workflow-1",
@@ -81,6 +95,72 @@ describe("canvas run service", () => {
       },
     }));
     expect(Object.isFrozen(createCanvasRun.mock.calls[0][0].inputSnapshot)).toBe(true);
+  });
+
+  it("rejects ordinary edges crossing into a workflow before repository creation", async () => {
+    const createCanvasRun = vi.fn();
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 2,
+        data: {
+          nodes: [{ id: "outside", type: "text", data: {} }, { id: "inside", type: "text", data: {} }],
+          edges: [{ source: "outside", target: "inside" }],
+          workflows: [{ schemaVersion: 1, id: "workflow-1", name: "Workflow", revision: 1, memberNodeIds: ["inside"], variables: [], inputValues: {}, bindings: [], region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" } }],
+        },
+      })),
+      createCanvasRun,
+      readOwnedRun: vi.fn(),
+      applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({ repository: repository as any, isEnabled: () => true, usePostgresRepository: () => true });
+
+    await expect(service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", idempotencyKey: "crossing" }))
+      .rejects.toThrow("WORKFLOW_BOUNDARY_EDGE_INVALID:outside->inside");
+    expect(createCanvasRun).not.toHaveBeenCalled();
+  });
+
+  it("resolves media workflow inputs through the owner-scoped asset repository", async () => {
+    const createCanvasRun = vi.fn(async (input: any) => ({ created: true, run: { id: "run-media", ...input } }));
+    const readOwnedWorkflowInputAssets = vi.fn(async () => [{ id: "asset-1", kind: "image", url: "/files/assets/asset-1.png" }]);
+    const repository = {
+      readOwnedCanvasSnapshot: vi.fn(async () => ({
+        id: "canvas-1",
+        ownerId: "owner-1",
+        revision: 3,
+        data: {
+          nodes: [{ id: "input-1", type: "workflow-input", data: { portType: "image", variableId: "var-image" } }],
+          edges: [],
+          workflows: [{
+            schemaVersion: 1,
+            id: "workflow-1",
+            name: "Media",
+            revision: 2,
+            memberNodeIds: ["input-1"],
+            variables: [{ id: "var-image", key: "参考图", label: "参考图", type: "image", required: true, constraints: {}, allowAiFill: false, allowAiRewrite: false, version: 1 }],
+            inputValues: { "var-image": { kind: "image", assetId: "asset-1" } },
+            bindings: [],
+            region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+          }],
+        },
+      })),
+      readOwnedWorkflowInputAssets,
+      createCanvasRun,
+      readOwnedRun: vi.fn(),
+      applyCommand: vi.fn(),
+    };
+    const service = createCanvasRunService({ repository: repository as any, isEnabled: () => true, usePostgresRepository: () => true });
+
+    await service.createRun({ ownerId: "owner-1", canvasId: "canvas-1", workflowId: "workflow-1", idempotencyKey: "media" });
+
+    expect(readOwnedWorkflowInputAssets).toHaveBeenCalledWith("owner-1", ["asset-1"]);
+    expect(createCanvasRun.mock.calls[0][0].plan.steps[0].configuration.executionPayload).toMatchObject({
+      workflowVariableId: "var-image",
+      workflowAssetId: "asset-1",
+      imageUrl: "/files/assets/asset-1.png",
+      imageUrls: ["/files/assets/asset-1.png"],
+    });
   });
 
   it("rejects stale workflow bindings and missing required input before creating a run", async () => {

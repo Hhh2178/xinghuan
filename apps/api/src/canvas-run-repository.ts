@@ -15,7 +15,10 @@ export interface CanvasRunRecord {
   ownerId: string;
   canvasId: string;
   canvasRevision: number;
-  runScope: "canvas" | "group" | "downstream";
+  runScope: "canvas" | "group" | "downstream" | "workflow";
+  workflowId: string | null;
+  workflowRevision: number | null;
+  workflowSubgraphHash: string | null;
   status: CanvasRunStatus;
   planSnapshot: CanvasRunPlan;
   inputSnapshot: Record<string, unknown>;
@@ -47,6 +50,9 @@ interface CanvasRunRow extends QueryResultRow {
   owner_id: string;
   canvas_id: string;
   canvas_revision: string | number;
+  workflow_id: string | null;
+  workflow_revision: string | number | null;
+  workflow_subgraph_hash: string | null;
   run_scope: CanvasRunRecord["runScope"];
   status: CanvasRunStatus;
   plan_snapshot: CanvasRunPlan;
@@ -73,6 +79,16 @@ export function createCanvasRunRepository(deps: {
     return row ? { id: String(row.id), ownerId: String(row.owner_id), revision: Number(row.revision), data: jsonObject(row.data) } : null;
   }
 
+  async function readOwnedWorkflowInputAssets(ownerId: string, assetIds: string[]) {
+    if (assetIds.length === 0) return [];
+    const pool = await deps.getPostgresPool();
+    const result = await pool.query<{ id: string; kind: string; url: string | null }>(
+      `select id, kind, url from xh_assets where owner_id = $1 and id = any($2::text[]) and url is not null`,
+      [ownerId, assetIds],
+    );
+    return result.rows.map((row) => ({ id: String(row.id), kind: String(row.kind), url: String(row.url || "") })).filter((asset) => asset.url);
+  }
+
   async function createCanvasRun(input: {
     ownerId: string;
     idempotencyKey: string;
@@ -82,6 +98,12 @@ export function createCanvasRunRepository(deps: {
     budgetSnapshot?: Record<string, unknown>;
     inputSnapshot?: Record<string, unknown>;
   }): Promise<{ run: CanvasRunRecord; created: boolean }> {
+    const isWorkflowRun = Boolean(input.plan.workflowId);
+    const runScope = input.runScope || (isWorkflowRun ? "workflow" : "canvas");
+    if (isWorkflowRun !== (runScope === "workflow")) throw new Error("CANVAS_RUN_WORKFLOW_IDENTITY_INVALID");
+    if (isWorkflowRun && (!input.plan.workflowRevision || !input.plan.workflowSubgraphHash)) {
+      throw new Error("CANVAS_RUN_WORKFLOW_IDENTITY_INVALID");
+    }
     const pool = await deps.getPostgresPool();
     return withTransaction(pool, async (client) => {
       const canvas = await client.query(
@@ -95,16 +117,36 @@ export function createCanvasRunRepository(deps: {
       const inserted = await client.query<CanvasRunRow>(
         `with inserted as (
            insert into xh_canvas_runs
-             (id, owner_id, canvas_id, canvas_revision, run_scope, status, plan_snapshot, input_snapshot, configuration_snapshot, budget_snapshot, idempotency_key)
-           values ($1, $2, $3, $4, $5, 'draft', $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10)
+             (id, owner_id, canvas_id, canvas_revision, workflow_id, workflow_revision, workflow_subgraph_hash,
+              run_scope, status, plan_snapshot, input_snapshot, configuration_snapshot, budget_snapshot, idempotency_key)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13)
            on conflict (owner_id, idempotency_key) do nothing
            returning *
          ) ${RUN_SELECT} from inserted r`,
-        [runId, input.ownerId, input.plan.canvasId, input.plan.canvasRevision, input.runScope || "canvas", json(input.plan), json(input.inputSnapshot), json(input.configurationSnapshot), json(input.budgetSnapshot), input.idempotencyKey],
+        [
+          runId,
+          input.ownerId,
+          input.plan.canvasId,
+          input.plan.canvasRevision,
+          input.plan.workflowId || null,
+          input.plan.workflowRevision || null,
+          input.plan.workflowSubgraphHash || null,
+          runScope,
+          json(input.plan),
+          json(input.inputSnapshot),
+          json(input.configurationSnapshot),
+          json(input.budgetSnapshot),
+          input.idempotencyKey,
+        ],
       );
       if (inserted.rows[0]) {
         await insertRunSteps(client, runId, input.plan, newId);
-        await appendEventLocked(client, runId, "canvas_run.created", { canvasRevision: input.plan.canvasRevision }, newId);
+        await appendEventLocked(client, runId, "canvas_run.created", {
+          canvasRevision: input.plan.canvasRevision,
+          workflowId: input.plan.workflowId || null,
+          workflowRevision: input.plan.workflowRevision || null,
+          workflowSubgraphHash: input.plan.workflowSubgraphHash || null,
+        }, newId);
         const created = await selectOwnedRun(client, input.ownerId, runId);
         if (!created) throw new Error("CANVAS_RUN_CREATE_FAILED");
         return { run: created, created: true };
@@ -116,7 +158,13 @@ export function createCanvasRunRepository(deps: {
       );
       const existing = existingResult.rows[0] ? mapRun(existingResult.rows[0]) : null;
       if (!existing) throw new Error("CANVAS_RUN_IDEMPOTENCY_RACE");
-      if (existing.canvasId !== input.plan.canvasId || existing.canvasRevision !== input.plan.canvasRevision) throw new Error("CANVAS_RUN_IDEMPOTENCY_CONFLICT");
+      if (
+        existing.canvasId !== input.plan.canvasId
+        || existing.canvasRevision !== input.plan.canvasRevision
+        || existing.workflowId !== (input.plan.workflowId || null)
+        || existing.workflowRevision !== (input.plan.workflowRevision || null)
+        || existing.workflowSubgraphHash !== (input.plan.workflowSubgraphHash || null)
+      ) throw new Error("CANVAS_RUN_IDEMPOTENCY_CONFLICT");
       return { run: existing, created: false };
     });
   }
@@ -255,10 +303,11 @@ export function createCanvasRunRepository(deps: {
     });
   }
 
-  return { applyCommand, createCanvasRun, readOwnedCanvasSnapshot, readOwnedRun, readOwnedRunEvents, transitionStep };
+  return { applyCommand, createCanvasRun, readOwnedCanvasSnapshot, readOwnedRun, readOwnedRunEvents, readOwnedWorkflowInputAssets, transitionStep };
 }
 
-const RUN_SELECT = `select r.id, r.owner_id, r.canvas_id, r.canvas_revision, r.run_scope, r.status,
+const RUN_SELECT = `select r.id, r.owner_id, r.canvas_id, r.canvas_revision,
+  r.workflow_id, r.workflow_revision, r.workflow_subgraph_hash, r.run_scope, r.status,
   r.plan_snapshot, r.input_snapshot, r.configuration_snapshot, r.budget_snapshot,
   extract(epoch from r.created_at) * 1000 as created_at_ms,
   extract(epoch from r.updated_at) * 1000 as updated_at_ms`;
@@ -314,7 +363,7 @@ async function withTransaction<T>(pool: Pool, run: (client: PoolClient) => Promi
     return result;
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
-    throw error;
+    throw mapWorkflowRunConstraintError(error);
   } finally {
     client.release();
   }
@@ -326,6 +375,9 @@ function mapRun(row: CanvasRunRow): CanvasRunRecord {
     ownerId: row.owner_id,
     canvasId: row.canvas_id,
     canvasRevision: Number(row.canvas_revision),
+    workflowId: row.workflow_id || null,
+    workflowRevision: row.workflow_revision === null || row.workflow_revision === undefined ? null : Number(row.workflow_revision),
+    workflowSubgraphHash: row.workflow_subgraph_hash || null,
     runScope: row.run_scope,
     status: row.status,
     planSnapshot: row.plan_snapshot,
@@ -335,6 +387,14 @@ function mapRun(row: CanvasRunRow): CanvasRunRecord {
     createdAt: Number(row.created_at_ms),
     updatedAt: Number(row.updated_at_ms),
   };
+}
+
+function mapWorkflowRunConstraintError(error: unknown) {
+  const postgres = error as { code?: unknown; constraint?: unknown };
+  if (postgres.code === "23505" && postgres.constraint === "uq_xh_canvas_runs_active_workflow") {
+    return new Error("WORKFLOW_RUN_ACTIVE_CONFLICT");
+  }
+  return error;
 }
 
 function json(value: unknown) {

@@ -157,7 +157,7 @@ function optionalText(value: unknown) {
 
 function runScopeValue(value: unknown, invalidRequest: (message: string) => Error): CanvasRunRecord["runScope"] {
   if (value === undefined || value === "canvas") return "canvas";
-  if (value === "group" || value === "downstream") return value;
+  if (value === "group" || value === "downstream" || value === "workflow") return value;
   throw invalidRequest("runScope 无效");
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileCanvasSnapshotRunPlan } from "./index.js";
+import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "./index.js";
 
 describe("workflow compiler", () => {
   it("includes native deterministic input and selection nodes in the immutable server plan", () => {
@@ -96,5 +96,65 @@ describe("workflow compiler", () => {
     });
     expect(JSON.stringify(plan.steps[0].configuration)).not.toContain("do-not-copy");
     expect(JSON.stringify(plan.steps[0].configuration)).not.toContain("sourceMaterialId");
+  });
+
+  it("compiles only the requested workflow subgraph and ignores visual-only region changes", () => {
+    const data = {
+      nodes: [
+        { id: "outside", type: "text", data: { prompt: "outside" } },
+        { id: "input-1", type: "workflow-input", data: { portType: "text", variableId: "var-theme" } },
+        { id: "text-1", type: "text", data: { prompt: "inside" } },
+        { id: "output-1", type: "workflow-output", data: { portType: "text" } },
+        { id: "outside-output", type: "output", data: {} },
+      ],
+      edges: [
+        { id: "edge-in", source: "outside", target: "input-1" },
+        { id: "edge-a", source: "input-1", target: "text-1" },
+        { id: "edge-b", source: "text-1", target: "output-1" },
+        { id: "edge-out", source: "output-1", target: "outside-output" },
+      ],
+      workflows: [{
+        schemaVersion: 1,
+        id: "workflow-1",
+        name: "Workflow",
+        revision: 5,
+        memberNodeIds: ["input-1", "text-1", "output-1"],
+        variables: [{ id: "var-theme", key: "theme", label: "Theme", type: "text", required: true, constraints: {}, allowAiFill: false, allowAiRewrite: true, version: 1 }],
+        inputValues: { "var-theme": "inside" },
+        bindings: [],
+        region: { x: 20, y: 20, width: 800, height: 500, color: "#2F6B5F" },
+      }],
+    };
+    const plan = compileWorkflowSnapshotRunPlan({ canvasId: "canvas-1", ownerId: "owner-1", revision: 12, workflowId: "workflow-1", data });
+    expect(plan).toMatchObject({ workflowId: "workflow-1", workflowRevision: 5, canvasRevision: 12 });
+    expect(plan.steps.map((step) => step.nodeId)).toEqual(["input-1", "text-1", "output-1"]);
+    expect(plan.steps.find((step) => step.nodeId === "text-1")?.dependsOn).toEqual(["input-1"]);
+    expect(plan.workflowSubgraphHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const moved = structuredClone(data);
+    moved.workflows[0].region = { x: 900, y: 700, width: 900, height: 600, color: "#AA3344" };
+    expect(compileWorkflowSnapshotRunPlan({ canvasId: "canvas-1", ownerId: "owner-1", revision: 13, workflowId: "workflow-1", data: moved }).workflowSubgraphHash)
+      .toBe(plan.workflowSubgraphHash);
+  });
+
+  it("rejects ordinary cross-boundary edges and invalid boundary direction", () => {
+    const workflow = {
+      schemaVersion: 1,
+      id: "workflow-1",
+      name: "Workflow",
+      revision: 1,
+      memberNodeIds: ["text-1"],
+      variables: [],
+      inputValues: {},
+      bindings: [],
+      region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+    };
+    expect(() => compileWorkflowSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 1,
+      workflowId: "workflow-1",
+      data: { nodes: [{ id: "outside", type: "text" }, { id: "text-1", type: "text" }], edges: [{ source: "outside", target: "text-1" }], workflows: [workflow] },
+    })).toThrow("WORKFLOW_BOUNDARY_EDGE_INVALID:outside->text-1");
   });
 });

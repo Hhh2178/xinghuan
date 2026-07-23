@@ -10,6 +10,8 @@ const DEV_NODE_REGISTRY: NodeMeta[] = import.meta.env?.DEV ? [
  * 图标使用 lucide-react 名称(运行时由 Sidebar 动态查找)
  */
 export const NODE_REGISTRY: NodeMeta[] = [
+  { type: 'workflow-input', label: '工作流输入', category: 'utility', description: '将强类型输入显式带入工作流区域', icon: 'LogIn', color: 'emerald' },
+  { type: 'workflow-output', label: '工作流输出', category: 'utility', description: '将工作流结果从显式边界释放', icon: 'LogOut', color: 'emerald' },
   { type: 'workflow-variables', label: '工作流变量', category: 'utility', description: '工作流输入变量、当前值与节点引用', icon: 'Braces', color: 'amber' },
   // ========== Input 素材资源(3) ==========
   { type: 'upload', label: '上传素材', category: 'input', description: '图像 / 视频 / 音频 三合一上传(自适应输出端口)', icon: 'Upload', color: 'emerald' },

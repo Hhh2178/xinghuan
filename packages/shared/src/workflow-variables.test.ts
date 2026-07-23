@@ -13,6 +13,11 @@ import {
   workflowTextTemplateBinding,
   type WorkflowVariableDefinition,
 } from "./workflow-variables.js";
+import {
+  assertWorkflowRegionLayout,
+  isWorkflowBoundaryConnectionAllowed,
+  normalizeWorkflowRegionVisual,
+} from "./workflow-regions.js";
 
 const variables: WorkflowVariableDefinition[] = [
   { id: "var-theme", key: "主题", label: "主题", type: "text", required: true, version: 1, constraints: { minLength: 2, maxLength: 80 }, allowAiFill: false, allowAiRewrite: true },
@@ -159,6 +164,7 @@ describe("workflow variables", () => {
 
     expect(workflows).toEqual([expect.objectContaining({
       id: "workflow-1",
+      region: { x: 80, y: 80, width: 640, height: 420, color: "#2F6B5F" },
       memberNodeIds: ["text-1", "upload-1"],
       inputValues: {
         "var-theme": "夜景",
@@ -169,6 +175,47 @@ describe("workflow variables", () => {
       "var-theme": ["text-1"],
       "var-image": ["upload-1"],
     });
+  });
+
+  it("normalizes opaque workflow regions and rejects duplicate membership or overlap", () => {
+    expect(normalizeWorkflowRegionVisual({ x: 12, y: 34, width: 720, height: 480, color: "#ABCDEF" }, 0))
+      .toEqual({ x: 12, y: 34, width: 720, height: 480, color: "#ABCDEF" });
+    expect(() => normalizeWorkflowRegionVisual({ color: "#ABCDEF80" }, 0)).toThrow("WORKFLOW_REGION_COLOR_INVALID");
+    expect(() => assertWorkflowRegionLayout([
+      { id: "workflow-a", memberNodeIds: ["node-a"], region: { x: 0, y: 0, width: 400, height: 300, color: "#112233" } },
+      { id: "workflow-b", memberNodeIds: ["node-a"], region: { x: 500, y: 0, width: 400, height: 300, color: "#445566" } },
+    ])).toThrow("WORKFLOW_MEMBER_CONFLICT:node-a:workflow-a:workflow-b");
+    expect(() => assertWorkflowRegionLayout([
+      { id: "workflow-a", memberNodeIds: ["node-a"], region: { x: 0, y: 0, width: 400, height: 300, color: "#112233" } },
+      { id: "workflow-b", memberNodeIds: ["node-b"], region: { x: 399, y: 0, width: 400, height: 300, color: "#445566" } },
+    ])).toThrow("WORKFLOW_REGION_OVERLAP:workflow-a:workflow-b");
+  });
+
+  it("only permits explicit typed boundary nodes to cross workflow regions", () => {
+    expect(isWorkflowBoundaryConnectionAllowed({
+      sourceWorkflowId: null,
+      targetWorkflowId: "workflow-a",
+      sourceNodeType: "upload",
+      targetNodeType: "workflow-input",
+    })).toBe(true);
+    expect(isWorkflowBoundaryConnectionAllowed({
+      sourceWorkflowId: "workflow-a",
+      targetWorkflowId: null,
+      sourceNodeType: "workflow-output",
+      targetNodeType: "output",
+    })).toBe(true);
+    expect(isWorkflowBoundaryConnectionAllowed({
+      sourceWorkflowId: null,
+      targetWorkflowId: "workflow-a",
+      sourceNodeType: "upload",
+      targetNodeType: "image",
+    })).toBe(false);
+    expect(isWorkflowBoundaryConnectionAllowed({
+      sourceWorkflowId: "workflow-a",
+      targetWorkflowId: "workflow-b",
+      sourceNodeType: "workflow-output",
+      targetNodeType: "workflow-input",
+    })).toBe(true);
   });
 
   it("rejects invalid workflow membership and binding contracts", () => {
