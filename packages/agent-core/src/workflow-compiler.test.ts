@@ -60,6 +60,23 @@ describe("workflow compiler", () => {
     expect(plan.steps[2].configuration?.executionPayload).toMatchObject({ pickKind: "image", pickIndex: 1 });
   });
 
+  it("freezes native resize dimensions and fit into the server plan", () => {
+    const plan = compileCanvasSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 1,
+      data: {
+        nodes: [{ id: "resize-1", type: "resize", data: { width: 1024, height: 768, fit: "contain" } }],
+        edges: [],
+      },
+    });
+
+    expect(plan.steps[0].configuration).toMatchObject({
+      serverRuntime: "native_server",
+      executionPayload: { width: 1024, height: 768, fit: "contain" },
+    });
+  });
+
   it("locks only the executable text-split configuration into the server plan", () => {
     const plan = compileCanvasSnapshotRunPlan({
       canvasId: "canvas-1",

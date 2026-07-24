@@ -18,3 +18,4 @@
 
 - Release scripts deployed the package and applied no new database migrations (`41` skipped).
 - Public and internal `/api/status` both returned `0.7.32 / gray / enforced`; API and Worker services were active and permission readiness was `true` for database `xinghuan_canvas_gray`.
+- A disposable, no-provider `text` Workflow Region completed one authenticated Canvas Run through the formal UI after a separate cancellation check. The temporary Canvas was deleted afterwards; no paid Provider request was issued.

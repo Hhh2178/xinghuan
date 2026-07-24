@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.32`
 - 当前 release：`20260724-canvas-navigation-gray-r2-v0732`
-- 当前状态：`Canvas 连线、AI 托管就绪提示、全局小地图和鼠标定位粘贴已部署；运行态与 PC 视觉基础验证通过，新的隔离 Canvas Run 生命周期证据待补`
+- 当前状态：`Canvas 连线、AI 托管就绪提示、全局小地图和鼠标定位粘贴已部署；运行态、PC 视觉基础验证以及无付费隔离 Canvas Run 生命周期均已通过`
 - 当前补修：`Workflow Region 生成步骤保留完整候选集，显式 selector 独占候选裁剪；选中 Run 投影隔离且质量失败不会终止 Worker`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 本轮制品源提交：`353bad8`

@@ -450,7 +450,7 @@ function boundedNumber(value: unknown, minimum: number, maximum: number) {
 }
 
 const EXECUTION_PAYLOAD_KEYS = [
-  "prompt", "text", "messages", "negativePrompt", "negative", "size", "aspectRatio", "aspect_ratio", "ratio",
+  "prompt", "text", "messages", "negativePrompt", "negative", "size", "aspectRatio", "aspect_ratio", "ratio", "width", "height", "fit",
   "duration", "resolution", "seed", "images", "videos", "audios", "first_frame", "last_frame", "mode",
   "stylePrompt", "voice", "audioFormat", "temperature", "maxTokens", "max_tokens",
   "outputText", "textSegments", "segments", "texts", "imageUrl", "imageUrls", "videoUrl", "videoUrls", "audioUrl", "audioUrls",

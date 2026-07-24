@@ -20,6 +20,7 @@ import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages, prepareInlineImageReferences } from "./grsai-reference-images.js";
 import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
 import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
+import { executeVideoGenerationBatch } from "./worker-video-generation-batch.js";
 import {
   createOpenAiAudioChatPayload,
   extractAudioProviderResult,
@@ -129,6 +130,7 @@ const canvasRunCoordinator = createCanvasRunCoordinator({
   workerId,
   environment,
   queueName,
+  dataDir,
   enabled: canvasRunWorkerEnabled,
   pollIntervalMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_POLL_INTERVAL_MS || "1000", 10),
   leaseMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_STEP_LEASE_MS || "30000", 10),
@@ -846,6 +848,25 @@ async function executeSingleImageTask(task: TaskRow, requestedImageCount: number
 }
 
 async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
+  return executeVideoGenerationBatch({
+    generationCount: task.payload.generationCount ?? task.payload.n,
+    execute: () => executeSingleVideoTask(task),
+    isCancelled: () => isTaskCancelled(task.id),
+    onProgress: (batch) => touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      runtimeStage: "batch_generating",
+      progress: `${Math.round((batch.completed / batch.total) * 100)}%`,
+      generationCount: batch.total,
+      completedGenerationCount: batch.completed,
+      providerRequestCount: batch.providerRequestCount,
+      upstreamTaskIds: batch.taskIds,
+      videoUrls: batch.videoUrls,
+      remoteVideoUrls: batch.remoteVideoUrls,
+    }),
+  });
+}
+
+async function executeSingleVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
     return executeRunningHubTask(task);

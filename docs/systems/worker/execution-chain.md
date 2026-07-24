@@ -25,10 +25,10 @@
 - Coordinator 从 PostgreSQL 按 owner/run/step 状态领取 `native_server` 步骤，使用 `FOR UPDATE SKIP LOCKED`、过期 lease 和 durable dispatch acknowledgement 支持多实例接管。
 - Run Plan 只包含 allowlist 执行参数；Worker 在创建任务前重新校验启用 Provider、启用模型和 capability，不读取节点中的密钥。`runninghub` 额外重新读取启用 Provider、目录条目、目标和字段 contract，并只从目录声明的媒体字段绑定上游输入。
 - 任务继续进入现有 image/video/audio/chat 能力队列，复用用户窗口、Provider 窗口、费用账本、取消和产物落库。Chat 的 OpenAI-compatible 分支覆盖 `openai`、`apimart`、`modelscope`、`custom` 和 `aicopy`；Gemini 仍使用其原生媒体 Adapter。
-- Image Run Plan 将节点的 `generationCount` 冻结为 `1..4`。Worker 在同一个持久 Generation Task 内执行有界批次：支持原生多图响应，也可按需重复 Provider 请求；每个批次之间复核取消状态、写入心跳和进度，最终仍由单一 output materializer 生成稳定的逐项 Artifact ID。URL 相同不合并候选身份。
+- Image 与 Video Run Plan 将节点的 `generationCount` 冻结为 `1..4`。Worker 在同一个持久 Generation Task 内执行有界批次：支持原生多媒体响应，也可按需重复 Provider 异步请求；每个批次之间复核取消状态、写入心跳和进度，最终仍由单一 output materializer 生成稳定的逐项 Artifact ID。视频批次保留所有上游 task ID 和 URL，URL 相同也不合并候选身份。
 - 成功批次把实际 `providerRequestCount` 写回任务结果；费用触发器按该值结算 `per_request` 数量，未提供该字段的既有任务继续按 `1` 次结算。Run Step/Task/Attempt 的既有幂等键和重试边界保持不变。
 - 成功后回填 Step output binding 并解锁拓扑下游；失败按预算做同配置重试，再使用 Plan 中预授权备选，需确认的备选进入 Approval ledger。
-- 当前原生生成步骤为 image/video/audio/llm/runninghub；当前原生确定性步骤为 text/text-split/upload/material-set/pick-from-set/relay/output。后者在 Step 领取事务中直接生成 output binding、解锁下游并写入 Run Event，不创建 Generation Task，也不消耗 Provider 或 Redis 队列槽位。`text-split` 使用 Shared 纯算法并只消费 Run Plan 快照的可执行配置、上游文本或手工 segments override。其他 `legacy_browser` 节点会明确失败为 unsupported，不伪装为后台已托管。
+- 当前原生生成步骤为 image/video/audio/llm/runninghub；当前原生确定性步骤为 text/text-split/upload/material-set/pick-from-set/relay/output，以及受 owner 文件隔离约束的 resize。确定性步骤在 Step 领取事务中直接生成 output binding、解锁下游并写入 Run Event；resize 只读取当前 owner 的 `/files/input/` 或 `/files/output/`，在同一 owner 输出目录写入 PNG，不创建 Generation Task，也不消耗 Provider 或 Redis 队列槽位。`text-split` 使用 Shared 纯算法并只消费 Run Plan 快照的可执行配置、上游文本或手工 segments override。其他 `legacy_browser` 节点会明确失败为 unsupported，不伪装为后台已托管。
 - RunningHub Worker 在提交前使用 `worker-runninghub-media-adapter.ts` 将当前 owner 的 `/files/input/`、`/input/`、`/files/output/` 或 `/output/` 产物流式上传为 RunningHub 文件名；远程 URL、其他路径、嵌套路径和目录穿越均在请求前拒绝。Canvas Run 任务必须通过 API `start` 时的现有目录执行权限检查，并在 Coordinator 中重新验证 PostgreSQL Provider/目录/目标/字段 contract 后才创建任务。
 - 自动视频质量评估先按已发布 LLM 路由快照选择原生完整视频候选。Gemini 直连通过独立 adapter 上传 owner-scoped Artifact Binary；原生候选耗尽后只允许使用 Artifact 已有的时间戳帧，不在 Worker 内抽帧或调用 FFmpeg。
 - 质量输入模式、路由候选、Agent Action、Evaluation sample snapshot 和 Run Event 均持久化；原生与帧降级使用不同幂等键，避免技术回退与重复投递碰撞。

@@ -11,8 +11,9 @@
 - Selected dependency classification reached the rendered edge classes. The release fixes React Flow inline stroke precedence so direct and transitive emphasis can override default edge styles.
 - At Gray `v0.7.32`, exactly one `.react-flow__minimap` was present, displayed at `202x152` with `z-index: 20`.
 
-## Remaining Runtime Evidence
+## AI Supervision Lifecycle
 
-- This release record does not claim a new full isolated Canvas Run lifecycle. The existing Gray v0.7.28 lifecycle evidence remains historical; a new disposable workflow lifecycle check is still required before final AI supervision completion.
-- Authenticated Gray UI smoke on a disposable Canvas confirmed the advisory guard blocks a `code` node before plan creation with `CANVAS_RUN_LEGACY_NODE_UNSUPPORTED` and directs the user to supported `native-server` nodes. The test Canvas was not used for a paid provider request.
-- Browser automation could create and select the disposable Canvas, but its repeated creation flow did not expose a second fresh Canvas ID reliably enough to claim a current successful Run lifecycle. This is an evidence limitation, not a successful lifecycle result.
+- Authenticated Gray UI smoke on a disposable Canvas confirmed the advisory guard blocks a `code` node before plan creation with `CANVAS_RUN_LEGACY_NODE_UNSUPPORTED` and directs the user to supported `native-server` nodes.
+- A separate Workflow Region containing only a `text` native-server node reached the ready state, created an immutable one-step Run Plan, connected the event stream, and was cancelled through the formal UI before start.
+- After entering `Gray native text run validation`, a new revision-2 plan was created and started through the formal UI. The Run reached `已完成` with `1 / 1` steps complete and four ordered event records: plan created, start, step completed, and run completed. Cost limit and actual provider spend remained `0`.
+- The explicitly created disposable Canvas was then deleted through its own Gray Canvas confirmation flow; the Canvas count returned from `14` to `13`.

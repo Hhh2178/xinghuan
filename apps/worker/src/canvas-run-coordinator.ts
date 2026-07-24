@@ -7,6 +7,7 @@ import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from './canvas-run-dispatch-fairness.js';
 import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas-run-recovery-runtime.js';
 import { initializeSmartCandidateSelector } from './canvas-run-candidate-selector.js';
+import { resizeOwnedImage } from './worker-native-image-transform.js';
 import {
   type CanvasRunRecoveryStepRow,
   findCanvasRunPromptRewriteRoute,
@@ -49,6 +50,7 @@ export function createCanvasRunCoordinator(options: {
   workerId: string;
   environment: string;
   queueName: string;
+  dataDir?: string;
   enabled: boolean;
   pollIntervalMs?: number;
   leaseMs?: number;
@@ -368,9 +370,9 @@ export function createCanvasRunCoordinator(options: {
         await client.query('commit');
         return;
       }
-      if (NATIVE_DETERMINISTIC_NODE_TYPES.has(step.node_type)) {
+      if (NATIVE_DETERMINISTIC_NODE_TYPES.has(step.node_type) || step.node_type === 'resize') {
         try {
-          const output = await buildDeterministicOutput(client, step);
+          const output = await buildDeterministicOutput(client, step, options.dataDir || 'data');
           await client.query(
             `update xh_canvas_run_steps set status = 'succeeded', output_binding = $2::jsonb,
                lease_owner = null, lease_expires_at = null, updated_at = now(), finalized_at = now() where id = $1`,
@@ -654,17 +656,31 @@ function runningHubScalar(value: unknown): string | number | boolean | undefined
 }
 function firstArrayValue(value: unknown) { return Array.isArray(value) ? text(value[0]) : ''; }
 
-async function buildDeterministicOutput(client: PoolClient, step: StepRow) {
+async function buildDeterministicOutput(client: PoolClient, step: StepRow, dataDir: string) {
   const planStep = planSteps(step.plan_snapshot).find((item) => item.id === step.step_key || item.nodeId === step.node_id) || {};
   const upstream = await client.query<{ output_binding: Record<string, unknown> }>(
     `select d.output_binding from xh_canvas_run_steps d, jsonb_array_elements_text($2::jsonb) dep
      where d.run_id = $1 and d.node_id = dep order by d.sequence`,
     [step.run_id, JSON.stringify(step.depends_on || [])],
   );
+  const upstreamOutputs = upstream.rows.map((row) => object(row.output_binding));
+  if (step.node_type === 'resize') {
+    const payload = object(object(planStep.configuration).executionPayload);
+    const imageUrl = text(payload.imageUrl) || firstArrayValue(payload.imageUrls) || collectUrls(upstreamOutputs, ['imageUrls', 'images'])[0] || '';
+    if (!imageUrl) throw new Error('CANVAS_RUN_IMAGE_INPUT_REQUIRED');
+    return resizeOwnedImage({
+      dataDir,
+      ownerId: step.owner_id,
+      imageUrl,
+      width: payload.width,
+      height: payload.height,
+      fit: payload.fit,
+    });
+  }
   return executeDeterministicNode({
     nodeType: step.node_type,
     configuration: object(planStep.configuration),
-    upstreamOutputs: upstream.rows.map((row) => object(row.output_binding)),
+    upstreamOutputs,
   });
 }
 

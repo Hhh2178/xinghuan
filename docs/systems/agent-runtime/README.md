@@ -47,7 +47,7 @@
 - Assistant Markdown 继续由共享安全 renderer 承担 HTML、URL、远程图片和 reasoning 边界，并在其上提供整条回答与 code/table/ordered-steps/note 语义块复制。助手仍不拥有 Run、重试或托管控制权。
 - 新建运行默认关闭，只有 PostgreSQL 模式并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时可用。
 - Worker 已新增 feature-gated Canvas Run Coordinator，可持久化领取 image/video/audio/llm 与受治理 RunningHub 原生步骤、创建现有 Generation Task、复用能力队列并在页面关闭后继续推进。其他未迁移节点仍标记为 `legacy_browser`，因此尚不能声称任意旧画布都可完整后台托管。
-- `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay` 与 `output` 已迁移为原生确定性步骤：Worker 在同一 PostgreSQL 事务内计算 output binding、解锁下游和写入 Run Event，不创建 `xh_tasks`、不占用 Provider 并发，也不执行浏览器代码或任意脚本。`text-split` 从 Shared 纯模块复用分镜、正则、编号、字符切块、清理、前后缀和手工 override 语义。
+- `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 与 `resize` 已迁移为原生确定性步骤：Worker 在同一 PostgreSQL 事务内计算 output binding、解锁下游和写入 Run Event，不创建 `xh_tasks`、不占用 Provider 并发，也不执行浏览器代码或任意脚本。`resize` 只接受当前 owner 输入或输出目录中的图片，参数从不可变 Plan 的 `width`、`height`、`fit` 读取，输出写回当前 owner 的输出目录。`text-split` 从 Shared 纯模块复用分镜、正则、编号、字符切块、清理、前后缀和手工 override 语义。
 - `runninghub` 主节点已进入 Canvas Run：Worker 仅消费冻结的 catalog reference、字段标识和标量值，并在任务创建事务中重新读取启用的 RunningHub Provider、目录条目、目标和字段 contract。Canvas Run 的 `start` 门禁复用原 API 的 `assertCanUseRunningHubCatalogItem` 权限语义；字段不再匹配、Provider/目录被关闭或授权撤销时不得入队。上游媒体只绑定到目录声明的媒体字段，随后由 owner-scoped 上传 Adapter 转为 RunningHub fileName；浏览器 `appInfo`、任意 URL 和 Provider 原始响应不是执行权威。
 - Workflow Compiler 已为 RunningHub 节点冻结无密钥的 catalog reference、目标、字段标识和字段值；`appInfo` 原始响应、浏览器素材来源标识和敏感键均不进入 Run Plan。此快照只是后续服务端重新校验目录的输入，不是对浏览器配置的信任或执行授权。
 - Canvas Run generation 与 quality coordinator 都通过 PostgreSQL 持久化 owner round-robin cursor 领取工作：短事务先锁定对应 cursor，再选择下一位有 ready work 的 owner，提交时才推进 cursor；Redis 不参与公平决策。
