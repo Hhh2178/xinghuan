@@ -24,7 +24,7 @@
 - Member：`GET /api/channel-health`，`POST /api/channel-health/feedback`。
 - Admin：`GET /api/admin/analytics/model-success-rates`，支持 `capability`、`providerId`、`modelId` 筛选。
 - Web：Canvas 顶栏“公告”右侧的“渠道状态”文字入口打开独立子页面，可投票；首次载入、整点且可见时刷新、手动刷新有十秒冷却。
-- Admin：`/admin/analytics/reliability` 只读展示，可手动刷新；五分钟自动刷新默认关闭且页面隐藏时暂停。
+- Admin：`/admin/analytics/reliability` 只读展示，可手动刷新；五分钟自动刷新默认关闭且页面隐藏时暂停。每个 Provider 是独立的重复面板边界，面板内固定为“模型/状态、成功率/请求数、近 72 小时走向、用户反馈”四列；共享组件通过 `surface="admin"` 暴露后台专用布局，但不复制或改变聚合语义。
 
 两类 GET 都使用私有 ETag 重验证。聚合报告的服务端缓存时长为 30 秒，viewer vote 在读取时单独覆盖，不能与其他用户投票状态混合。
 

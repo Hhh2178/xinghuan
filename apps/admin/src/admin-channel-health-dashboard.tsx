@@ -106,12 +106,13 @@ export function AdminChannelHealthDashboard() {
 
       {error ? <div className="admin-channel-health__error" role="alert">{stale ? "显示上次成功数据：" : ""}{error}</div> : null}
       {loading && !report ? <div className="starlight-page-loading">正在汇总渠道状态...</div> : null}
-      {report ? <section className="api-card admin-channel-health__report-shell" aria-label="渠道健康报告">
+      {report ? <section className="admin-channel-health__report-shell" aria-label="渠道健康报告">
         <ChannelHealthReportView
           report={report}
           selectedCapability={filters.capability || "image"}
           onSelectedCapabilityChange={(capability) => changeFilter("capability", capability)}
           interactiveFeedback={false}
+          surface="admin"
           className="admin-channel-health__report"
         />
       </section> : null}

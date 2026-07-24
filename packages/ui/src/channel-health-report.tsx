@@ -25,6 +25,7 @@ export interface ChannelHealthReportViewProps {
   interactiveFeedback?: boolean;
   votingModelKey?: string;
   onVote?: (providerId: string, modelRecordId: string, vote: ChannelFeedbackVote) => void;
+  surface?: "member" | "admin";
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export function ChannelHealthReportView({
   interactiveFeedback = false,
   votingModelKey = "",
   onVote,
+  surface = "member",
   className,
 }: ChannelHealthReportViewProps) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -52,7 +54,7 @@ export function ChannelHealthReportView({
     .filter((provider) => provider.models.length > 0);
 
   return (
-    <div className={["xh-channel-health", className].filter(Boolean).join(" ")}>
+    <div className={["xh-channel-health", `xh-channel-health--${surface}`, className].filter(Boolean).join(" ")} data-channel-health-surface={surface}>
       <aside className="xh-channel-health__rail" aria-label="渠道类型">
         <div className="xh-channel-health__rail-title"><Activity size={17} />渠道状态</div>
         <div className="xh-channel-health__tabs">
@@ -72,9 +74,15 @@ export function ChannelHealthReportView({
         </header>
         <div className="xh-channel-health__providers">
           {providers.map((provider) => (
-            <section className="xh-channel-health__provider" key={provider.id} data-state={provider.state}>
-              <header><strong>{provider.name}</strong><span>{providerStateLabel(provider.state)}</span></header>
-              <div className="xh-channel-health__models">
+            <section className="xh-channel-health__provider" key={provider.id} data-state={provider.state} data-channel-provider-name={provider.name} aria-label={`${provider.name} 渠道状态`}>
+              <header className="xh-channel-health__provider-header"><strong title={provider.name}>{provider.name}</strong><span>{providerStateLabel(provider.state)}</span></header>
+              <div className="xh-channel-health__models" role="table" aria-label={`${provider.name} 模型状态`}>
+                <div className="xh-channel-health__columns" role="row">
+                  <span role="columnheader" data-channel-column="identity">模型 / 状态</span>
+                  <span role="columnheader" data-channel-column="rate">成功率 / 请求数</span>
+                  <span role="columnheader" data-channel-column="trend">近 72 小时走向</span>
+                  <span role="columnheader" data-channel-column="feedback">用户反馈</span>
+                </div>
                 {provider.models.map((model) => <ChannelHealthModelRow key={model.modelRecordId} model={model} report={report} interactiveFeedback={interactiveFeedback} voting={votingModelKey === modelKey(model)} onVote={onVote} />)}
               </div>
             </section>
@@ -102,10 +110,10 @@ function ChannelHealthModelRow({ model, report, interactiveFeedback, voting, onV
   const feedback = model.feedback;
 
   return (
-    <article className="xh-channel-health__model" data-state={model.state}>
-      <div className="xh-channel-health__identity"><span className="xh-channel-health__state-dot" aria-hidden="true" /><strong title={model.displayName}>{model.displayName}</strong><small>{modelStateLabel(model.state)}</small></div>
-      <div className="xh-channel-health__rate"><strong>{model.successRate === null ? "--" : percent(model.successRate)}</strong><span>成功 {model.succeeded} · 失败 {model.failed}</span></div>
-      <div className="xh-channel-health__trend">
+    <article className="xh-channel-health__model" data-state={model.state} data-provider-id={model.providerId} data-model-record-id={model.modelRecordId} role="row">
+      <div className="xh-channel-health__identity" data-channel-cell="identity" role="cell"><span className="xh-channel-health__state-dot" aria-hidden="true" /><strong title={model.displayName}>{model.displayName}</strong><small>{modelStateLabel(model.state)}</small></div>
+      <div className="xh-channel-health__rate" data-channel-cell="rate" role="cell"><strong>{model.successRate === null ? "--" : percent(model.successRate)}</strong><span>成功 {model.succeeded} · 失败 {model.failed}</span></div>
+      <div className="xh-channel-health__trend" data-channel-cell="trend" role="cell">
         <svg viewBox="0 0 360 64" role="img" aria-label={`${model.displayName} 成功率走向`} preserveAspectRatio="none">
           {segments.map((segment, index) => <path data-trend-segment={index} key={`${segment}-${index}`} d={segment} />)}
         </svg>
@@ -114,7 +122,7 @@ function ChannelHealthModelRow({ model, report, interactiveFeedback, voting, onV
           {positions.map((bucket, index) => <span key={index} data-channel-bucket={index} data-empty={bucket ? "false" : "true"} data-state={bucketState(bucket)} title={bucket ? `${percent(bucket.successRate)} · 成功 ${bucket.succeeded} · 失败 ${bucket.failed}` : "没有已结束请求"} />)}
         </div>
       </div>
-      <div className="xh-channel-health__feedback">
+      <div className="xh-channel-health__feedback" data-channel-cell="feedback" role="cell">
         <div><span>{feedback.window === "24h" ? "近24小时" : "近3天回溯"}</span><strong>{feedback.total ? `${percent(feedback.upRate || 0)} 赞` : "近3天暂无评价"}</strong></div>
         <div className="xh-channel-health__feedback-bar" aria-hidden="true"><i style={{ width: `${Math.round((feedback.upRate || 0) * 100)}%` }} /></div>
         {interactiveFeedback ? (

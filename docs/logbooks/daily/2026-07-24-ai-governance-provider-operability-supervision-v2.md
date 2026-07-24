@@ -17,7 +17,7 @@
 | --- | --- | --- | --- | --- |
 | Architecture and Harness ownership | Complete | Plan + ADR + context + Agent Runtime/governance contracts | `docs/logbooks/validations/2026-07-24-ai-governance-provider-operability-plan.md` | `b23f16e` |
 | Task identity and Provider rail | Complete | 7 files / 25 tests + Admin contracts + type-check/build + PC visual | `docs/logbooks/validations/2026-07-24-task-identity-provider-rail.md` | `d230a0b` |
-| Channel health hierarchy | Pending | Shared UI/Admin tests + PC visual | Pending | Pending |
+| Channel health hierarchy | Complete | 2 files / 5 tests + contract + UI/Admin/Web builds + isolated PostgreSQL PC visual | `docs/logbooks/validations/2026-07-24-channel-health-provider-model-hierarchy.md` | Pending |
 | Assistant/supervision governance | Pending | Route/config/permission tests + real assistant | Pending | Pending |
 | RunningHub standard models | Pending | Adapter tests + real image/video | Pending | Pending |
 | Failure diagnostics and assistant context | Pending | Shared/Web/API tests + real failed-run analysis | Pending | Pending |
@@ -30,3 +30,4 @@
 - 2026-07-24: Task 1 established ADR 0005, four domain terms, Agent/Provider system ownership and the project Harness plan contract. All five focused documentation/architecture commands passed.
 - 2026-07-24: Task 2 added immutable task execution identity snapshots for PostgreSQL and local file mode, human-readable Provider/model task columns, stable-ID filtering and a protocol-free Provider rail. A pre-existing local file race was reproduced during browser acceptance; reads/writes are now serialized per path in-process, invalid JSON is surfaced instead of being replaced, and independent read-modify-write operations remain documented as last-writer-wins risk.
 - 2026-07-24: Task 2 authenticated browser acceptance passed at exact `1920x1080` and `2560x1440`: no page overflow, identity cells fit, Provider rows fit, protocol badge count is zero and application console errors/warnings are empty. Gray deployment remained paused and Production was untouched.
+- 2026-07-24: Task 3 added shared Provider/table semantics and an explicit Admin presentation surface without changing channel-health aggregation. An isolated PostgreSQL 16 database ran migrations 001-043 and anonymous fixtures covering two Providers, four image models, 26 settled tasks across several buckets and eight feedback rows. Both PC viewports had aligned four-column tracks, no cell overflow, visible empty buckets and clear Provider boundaries. A deliberate isolated table fault confirmed stale data stays visible with a direct warning and recovers after the database is restored.

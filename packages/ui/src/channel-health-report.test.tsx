@@ -38,9 +38,23 @@ const report: ChannelHealthReport = {
 
 describe("ChannelHealthReportView", () => {
   it("renders the provider hierarchy, stable bucket positions, and aggregate feedback", () => {
-    const html = renderToStaticMarkup(<ChannelHealthReportView report={report} selectedCapability="image" interactiveFeedback />);
+    const html = renderToStaticMarkup(<ChannelHealthReportView report={report} selectedCapability="image" interactiveFeedback surface="admin" />);
 
     expect(html.indexOf("Provider One")).toBeLessThan(html.indexOf("Model One"));
+    expect(html).toContain("xh-channel-health--admin");
+    expect(html).toContain('data-channel-provider-name="Provider One"');
+    expect(html).toContain('aria-label="Provider One 渠道状态"');
+    expect(html).toContain('class="xh-channel-health__columns"');
+    expect(html).toContain('data-channel-column="identity"');
+    expect(html).toContain('data-channel-column="rate"');
+    expect(html).toContain('data-channel-column="trend"');
+    expect(html).toContain('data-channel-column="feedback"');
+    expect(html).toContain('data-channel-cell="identity"');
+    expect(html).toContain('data-channel-cell="rate"');
+    expect(html).toContain('data-channel-cell="trend"');
+    expect(html).toContain('data-channel-cell="feedback"');
+    expect(html).toContain('data-provider-id="provider-1"');
+    expect(html).toContain('data-model-record-id="model-1"');
     expect(html).toContain("成功 19 · 失败 1");
     expect(html.match(/data-channel-bucket=/g)).toHaveLength(36);
     expect(html.match(/data-empty="true"/g)).toHaveLength(34);

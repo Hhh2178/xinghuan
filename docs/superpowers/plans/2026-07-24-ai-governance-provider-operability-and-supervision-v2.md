@@ -227,26 +227,26 @@ git commit -m "fix(admin): make provider and task identities readable"
 - Consumes: unchanged `ChannelHealthReport` data contract.
 - Produces: shared semantic table header hooks and a bounded Admin presentation variant.
 
-- [ ] **Step 1: Add failing static-render and source-contract cases**
+- [x] **Step 1: Add failing static-render and source-contract cases**
 
 Assert that every Provider has a named section header, every model row exposes identity/rate/trend/feedback cells, and Admin passes an explicit `surface="admin"` or equivalent class contract.
 
-- [ ] **Step 2: Confirm RED**
+- [x] **Step 2: Confirm RED**
 
 ```powershell
 npx vitest run packages/ui/src/channel-health-report.test.tsx apps/admin/src/admin-channel-health-refresh.test.ts
 npm run verify:channel-health-contract
 ```
 
-- [ ] **Step 3: Add shared semantic column hooks without changing report data**
+- [x] **Step 3: Add shared semantic column hooks without changing report data**
 
 Add accessible labels and stable class hooks for Provider headers, model column headers and rows. Do not fork aggregation semantics or feedback windows.
 
-- [ ] **Step 4: Rebuild the Admin layout**
+- [x] **Step 4: Rebuild the Admin layout**
 
 Use one repeated Provider panel per Provider, one bounded model table per panel, opaque row backgrounds, fixed column tracks and a centered maximum content width. Avoid nested decorative cards; the Provider panel is the repeated record boundary.
 
-- [ ] **Step 5: Verify focused tests, Admin build and data behavior**
+- [x] **Step 5: Verify focused tests, Admin build and data behavior**
 
 ```powershell
 npx vitest run packages/ui/src/channel-health-report.test.tsx apps/admin/src/admin-channel-health-refresh.test.ts
@@ -255,7 +255,7 @@ npm run build -w @xinghuan/ui
 npm run build -w @xinghuan/admin
 ```
 
-- [ ] **Step 6: Authenticated visual acceptance**
+- [x] **Step 6: Authenticated visual acceptance**
 
 At both PC viewports, verify at least two Providers with multiple models where actual data permits. Check Provider boundaries, model separators, trend alignment, long names, empty buckets, stale-data banner and no horizontal content overlap.
 

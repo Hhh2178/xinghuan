@@ -40,6 +40,9 @@ assert.match(files.shared, /interface ChannelFeedbackSummary/, "shared report mu
 assert.doesNotMatch(files.shared, /ownerId|owner_id|voter/i, "shared report must not expose voter identity");
 assert.match(files.report, /<svg/, "shared report must render a trend SVG");
 assert.match(files.report, /data-empty=/, "shared report must render explicit empty buckets");
+assert.match(files.report, /surface\?:\s*"member"\s*\|\s*"admin"/, "shared report must expose an explicit presentation surface");
+assert.match(files.report, /xh-channel-health__columns/, "shared report must expose stable model column headers");
+assert.match(files.report, /data-channel-cell=/, "shared report must expose stable model cell hooks");
 
 assert.match(files.app, /xh-topbar-pill--channel-health/, "Canvas top bar must expose the channel health entry");
 assert.match(files.app, /渠道状态/, "Canvas channel health entry must have an explicit text label");
@@ -53,6 +56,7 @@ assert.match(files.adminViewModel, /\/admin\/analytics\/reliability/, "Admin rel
 assert.match(files.adminDashboard, /RefreshCw/, "Admin dashboard must expose manual refresh");
 assert.match(files.adminDashboard, /5 \* 60_000/, "Admin auto-refresh must remain five minutes");
 assert.match(files.adminDashboard, /checked=\{autoRefresh\}/, "Admin auto-refresh must default to opt-in state");
+assert.match(files.adminDashboard, /surface="admin"/, "Admin dashboard must select the bounded Admin report surface");
 assert.match(files.adminRefresh, /visibilityState === "visible"/, "Admin auto-refresh must pause in hidden tabs");
 
 const scripts = files.packageJson.scripts || {};
