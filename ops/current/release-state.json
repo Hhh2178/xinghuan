@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "88a75ad",
+  "sourceCommit": "be4f23d462688bdfaa91edc66aef140f3161f10b",
   "environments": {
     "gray": {
-      "version": "0.7.40",
-      "releaseId": "20260724-canvas-run-progress-lock-gray-r1-v0740",
+      "version": "0.7.41",
+      "releaseId": "20260724-provider-model-channel-health-gray-r1-v0741",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-run-progress-lock-gray-v0740.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-run-progress-lock-gray-v0740.md",
-      "rollbackReleaseId": "20260724-canvas-run-progress-dedup-gray-r1-v0739"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-provider-model-channel-health-gray-v0741.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-provider-model-channel-health-gray-v0741.md",
+      "rollbackReleaseId": "20260724-canvas-run-progress-lock-gray-r1-v0740"
     },
     "production": {
       "version": "0.7.18",

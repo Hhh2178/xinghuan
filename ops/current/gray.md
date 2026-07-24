@@ -2,16 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.40`
-- 当前 release：`20260724-canvas-run-progress-lock-gray-r1-v0740`
-- 当前状态：`已部署：Canvas Run 批量进度原子去重；待补一次认证 UI 基数复测`
-- 当前补修：`仅结构化匹配的 output-auto/e-auto 展示叶子可留在区域外；普通跨区域 Output 连线继续拒绝`
+- 当前版本：`v0.7.41`
+- 当前 release：`20260724-provider-model-channel-health-gray-r1-v0741`
+- 当前状态：`待部署：Provider/模型渠道健康度、匿名聚合反馈与后台可靠性分析`
+- 当前补修：`新增 Migration 042；仅统计 settled 成功/失败，不改写任务、路由或 Provider 状态`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`88a75ad`
+- 本轮制品源提交：`be4f23d`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-24-provider-model-channel-health-gray-v0741.md`
+  - `../../docs/logbooks/validations/2026-07-24-provider-model-channel-health-gray-v0741.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-canvas-run-progress-lock-gray-v0740.md`
   - `../../docs/logbooks/validations/2026-07-24-canvas-run-progress-lock-gray-v0740.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-canvas-agent-explicit-selector-gray-v0728.md`
@@ -127,9 +129,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-- `/opt/apps/xinghuan-canvas-next/releases/20260724-canvas-agent-run-projection-gray-r1-v0727`
+- `/opt/apps/xinghuan-canvas-next/releases/20260724-canvas-run-progress-lock-gray-r1-v0740`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260720-media-node-runtime-resume-gray-r2-v0713`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260724-canvas-run-progress-dedup-gray-r1-v0739`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
