@@ -259,7 +259,7 @@ npm run build -w @xinghuan/admin
 
 At both PC viewports, verify at least two Providers with multiple models where actual data permits. Check Provider boundaries, model separators, trend alignment, long names, empty buckets, stale-data banner and no horizontal content overlap.
 
-- [ ] **Step 7: Record and commit Task 3**
+- [x] **Step 7: Record and commit Task 3**
 
 Write the validation log with screenshots and commit:
 

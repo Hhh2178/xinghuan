@@ -17,7 +17,7 @@
 | --- | --- | --- | --- | --- |
 | Architecture and Harness ownership | Complete | Plan + ADR + context + Agent Runtime/governance contracts | `docs/logbooks/validations/2026-07-24-ai-governance-provider-operability-plan.md` | `b23f16e` |
 | Task identity and Provider rail | Complete | 7 files / 25 tests + Admin contracts + type-check/build + PC visual | `docs/logbooks/validations/2026-07-24-task-identity-provider-rail.md` | `d230a0b` |
-| Channel health hierarchy | Complete | 2 files / 5 tests + contract + UI/Admin/Web builds + isolated PostgreSQL PC visual | `docs/logbooks/validations/2026-07-24-channel-health-provider-model-hierarchy.md` | Pending |
+| Channel health hierarchy | Complete | 2 files / 5 tests + contract + UI/Admin/Web builds + isolated PostgreSQL PC visual | `docs/logbooks/validations/2026-07-24-channel-health-provider-model-hierarchy.md` | `173f697` |
 | Assistant/supervision governance | Pending | Route/config/permission tests + real assistant | Pending | Pending |
 | RunningHub standard models | Pending | Adapter tests + real image/video | Pending | Pending |
 | Failure diagnostics and assistant context | Pending | Shared/Web/API tests + real failed-run analysis | Pending | Pending |

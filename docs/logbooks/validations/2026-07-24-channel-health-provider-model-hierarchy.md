@@ -62,4 +62,4 @@ The isolated database table was briefly renamed to force a report query failure 
 
 ## Decision
 
-Task 3 is ready for a local commit. This validation does not authorize Gray deployment.
+Task 3 implementation was committed locally as `173f697` (`fix(channel-health): clarify provider and model hierarchy`). This validation does not authorize Gray deployment.
