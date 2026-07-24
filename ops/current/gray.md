@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.37`
 - 当前 release：`20260724-canvas-hosted-run-projection-gray-r1-v0737`
-- 当前状态：`待部署验证：AI 托管持久化运行态将直接显示在画布对应节点`
+- 当前状态：`已验证：AI 托管持久化运行态直接显示在画布对应节点`
 - 当前补修：`仅结构化匹配的 output-auto/e-auto 展示叶子可留在区域外；普通跨区域 Output 连线继续拒绝`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 本轮制品源提交：`3917822`

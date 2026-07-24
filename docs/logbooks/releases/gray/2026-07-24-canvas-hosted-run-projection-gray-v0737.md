@@ -11,4 +11,4 @@
 
 ## Boundary
 
-- Gray only. Production is untouched and no GitHub push occurred.
+- Gray deployment completed. Production is untouched and no GitHub push occurred.
