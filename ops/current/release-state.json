@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "5969f197374fc014eead9bd08ec6b15de99ca1f1",
+  "sourceCommit": "353bad8",
   "environments": {
     "gray": {
-      "version": "0.7.28",
-      "releaseId": "20260724-canvas-agent-explicit-selector-gray-r1-v0728",
+      "version": "0.7.32",
+      "releaseId": "20260724-canvas-navigation-gray-r2-v0732",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-agent-explicit-selector-gray-v0728.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-agent-experience-gray-v0728.md",
-      "rollbackReleaseId": "20260724-canvas-agent-run-projection-gray-r1-v0727"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-connectivity-navigation-gray-v0732.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-connectivity-navigation-gray-v0732.md",
+      "rollbackReleaseId": "20260724-canvas-navigation-gray-r1-v0731"
     },
     "production": {
       "version": "0.7.18",

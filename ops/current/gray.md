@@ -2,16 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.28`
-- 当前 release：`20260724-canvas-agent-explicit-selector-gray-r1-v0728`
-- 当前状态：`Canvas Agent 体验重构已完成 Gray 实测；显式候选、批量计费、不同 Workflow 并发、认证 SSE、1080p/2K PC 视觉与三层 Harness 全部通过`
+- 当前版本：`v0.7.32`
+- 当前 release：`20260724-canvas-navigation-gray-r2-v0732`
+- 当前状态：`Canvas 连线、AI 托管就绪提示、全局小地图和鼠标定位粘贴已部署；运行态与 PC 视觉基础验证通过，新的隔离 Canvas Run 生命周期证据待补`
 - 当前补修：`Workflow Region 生成步骤保留完整候选集，显式 selector 独占候选裁剪；选中 Run 投影隔离且质量失败不会终止 Worker`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`5969f19`
+- 本轮制品源提交：`353bad8`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-24-canvas-connectivity-navigation-gray-v0732.md`
+  - `../../docs/logbooks/validations/2026-07-24-canvas-connectivity-navigation-gray-v0732.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-canvas-agent-explicit-selector-gray-v0728.md`
   - `../../docs/logbooks/validations/2026-07-24-canvas-agent-experience-gray-v0728.md`
   - `../../docs/logbooks/releases/gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
