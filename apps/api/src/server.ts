@@ -502,7 +502,9 @@ const canvasRunAgentAnalysisService = createCanvasRunAgentAnalysisService({
       },
       agentKey: "supervision-planner",
       environment: environment === "production" ? "production" : "gray",
-      idempotencyKey: `supervision-analysis:${createHash("sha256").update(request.prompt).digest("hex")}`,
+      idempotencyKey: `supervision-analysis:${createHash("sha256")
+        .update(`${request.ownerId}\n${request.analysisIdempotencyKey}\n${request.prompt}`)
+        .digest("hex")}`,
       messages: [{ role: "user", content: request.prompt }],
       inputSnapshot: { graph: request.graph, maximumParallelism: request.maximumParallelism },
     });

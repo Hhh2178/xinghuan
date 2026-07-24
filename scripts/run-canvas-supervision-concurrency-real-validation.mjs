@@ -12,6 +12,7 @@ const modelRecordId = process.env.XINGHUAN_IMAGE_MODEL_RECORD_ID || `${providerI
 const key = `task7-concurrency-${randomUUID()}`;
 const planOnly = process.env.XINGHUAN_SUPERVISION_PLAN_ONLY === "1";
 const scenario = text(process.env.XINGHUAN_SUPERVISION_SCENARIO || "all");
+const preserveValidationCanvas = process.env.XINGHUAN_PRESERVE_VALIDATION_CANVAS === "1";
 const canvasIds = [];
 let cookie = "";
 let cleanedCanvasCount = 0;
@@ -31,10 +32,12 @@ try {
   successEvidence = scenario === "failure" ? { skipped: true, reason: "failure_only" } : await validateConcurrentSuccess();
   failureEvidence = planOnly || scenario === "success" ? { skipped: true, reason: planOnly ? "plan_only" : "success_only" } : await validateFailureAndAssistant();
 } finally {
-  for (const canvasId of canvasIds.reverse()) {
-    await request(`/api/canvas/${encodeURIComponent(canvasId)}`, { method: "DELETE" })
-      .then(() => { cleanedCanvasCount += 1; })
-      .catch(() => undefined);
+  if (!preserveValidationCanvas) {
+    for (const canvasId of canvasIds.reverse()) {
+      await request(`/api/canvas/${encodeURIComponent(canvasId)}`, { method: "DELETE" })
+        .then(() => { cleanedCanvasCount += 1; })
+        .catch(() => undefined);
+    }
   }
 }
 
@@ -44,7 +47,9 @@ console.log(JSON.stringify({
   candidate: { environment: "gray", baseUrl },
   success: successEvidence,
   failure: failureEvidence,
-  cleanupSucceeded: cleanedCanvasCount === canvasIds.length,
+  retainedCanvasIds: preserveValidationCanvas ? canvasIds : [],
+  cleanupDeferred: preserveValidationCanvas,
+  cleanupSucceeded: preserveValidationCanvas ? false : cleanedCanvasCount === canvasIds.length,
 }, null, 2));
 
 async function validateConcurrentSuccess() {

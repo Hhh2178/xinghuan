@@ -556,31 +556,31 @@ git commit -m "feat(agent): analyze and schedule supervised workflows"
 - Consumes: completed Tasks 1-7.
 - Produces: requirement-by-requirement evidence for frontend assistant, backend assistant, supervision and RH standard models.
 
-- [ ] **Step 1: Configure isolated Gray-target draft versions without publishing Production**
+- [x] **Step 1: Configure isolated Gray-target draft versions without publishing Production**
 
 Create or reuse approved draft versions for frontend assistant, backend assistant and supervision planner. Record only IDs/versions and display names, never secrets. Do not publish to Gray while the release pause is active.
 
-- [ ] **Step 2: Verify frontend assistant real behavior**
+- [x] **Step 2: Verify frontend assistant real behavior**
 
 In an authenticated Canvas, ask about the selected workflow, the generated execution plan and a real failure. Confirm it uses current workflow/run evidence and does not advise the retired AI hosting node.
 
-- [ ] **Step 3: Verify backend assistant real behavior**
+- [x] **Step 3: Verify backend assistant real behavior**
 
 In Admin, ask for a task/provider diagnosis. Confirm the backend assistant uses its separately selected Agent/model configuration and can access allowed task/audit context while the frontend assistant cannot.
 
-- [ ] **Step 4: Verify supervision configuration changes affect only new runs**
+- [x] **Step 4: Verify supervision configuration changes affect only new runs**
 
 Create a run, change a draft/published test configuration in the authorized environment, and confirm the existing run keeps its frozen snapshot while the next run uses the new version. Restore the authorized environment configuration after the test.
 
-- [ ] **Step 5: Verify all requested Admin visuals at both PC viewports**
+- [x] **Step 5: Verify all requested Admin visuals at both PC viewports**
 
 Capture model catalog, task list, channel health, AI Assistant governance and AI Supervision governance at `1920x1080` and `2560x1440`. Check text fit, Provider/model boundaries, opaque backgrounds, no overlaps and no mobile-specific regressions introduced.
 
-- [ ] **Step 6: Record real-model evidence**
+- [x] **Step 6: Record real-model evidence**
 
 Create one validation log that links the RH image, RH video, frontend assistant, backend assistant, multi-branch supervision and failed-run analysis evidence. Include task/run IDs, safe timestamps, statuses and materialized artifact paths only.
 
-- [ ] **Step 7: Review and commit acceptance records**
+- [x] **Step 7: Review and commit acceptance records**
 
 ```powershell
 git commit -m "test(ai): record real supervision and assistant acceptance"

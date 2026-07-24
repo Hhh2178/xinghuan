@@ -4185,7 +4185,7 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .canvas-run-failure > header strong { font-size: 12px; line-height: 18px; }
 .canvas-run-failure > header small { color: #c7827d; font-size: 11px; line-height: 17px; }
 .canvas-run-failure dl { display: grid; gap: 7px; margin: 0; padding: 9px; }
-.canvas-run-failure dl div { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
+.canvas-run-failure dl div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 7px; }
 .canvas-run-failure dt { color: #b97773; font-size: 11px; line-height: 18px; }
 .canvas-run-failure dd { margin: 0; color: #d8b4b1; font-size: 12px; line-height: 19px; }
 .canvas-run-failure__actions { min-height: 39px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border-top: 1px solid #4c2e2c; }

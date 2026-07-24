@@ -7,16 +7,18 @@ import {
 export function createCanvasRunAgentAnalysisService(deps: {
   runPlanner: (input: {
     ownerId: string;
+    analysisIdempotencyKey: string;
     maximumParallelism: number;
     graph: ReturnType<typeof sanitizedGraph>;
     prompt: string;
   }) => Promise<{ content: string; agentRunId?: string }>;
 }) {
-  async function analyzePlan(input: { ownerId: string; plan: CanvasRunPlan; maximumParallelism: number }) {
+  async function analyzePlan(input: { ownerId: string; plan: CanvasRunPlan; maximumParallelism: number; analysisIdempotencyKey: string }) {
     const graph = sanitizedGraph(input.plan);
     try {
       const result = await deps.runPlanner({
         ownerId: input.ownerId,
+        analysisIdempotencyKey: input.analysisIdempotencyKey,
         maximumParallelism: input.maximumParallelism,
         graph,
         prompt: buildPlannerPrompt(graph, input.maximumParallelism),

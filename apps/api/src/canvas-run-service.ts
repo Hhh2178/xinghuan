@@ -73,6 +73,7 @@ export function createCanvasRunService(deps: {
     ownerId: string;
     plan: CanvasRunPlan;
     maximumParallelism: number;
+    analysisIdempotencyKey: string;
   }) => Promise<{ analysis: CanvasRunAgentAnalysis; agentRunId?: string }>;
 }) {
   function assertAvailable() {
@@ -162,7 +163,12 @@ export function createCanvasRunService(deps: {
       const maximumParallelism = Number(baseConfigurationSnapshot.stageConcurrency) || 1;
       let analyzed: { analysis: CanvasRunAgentAnalysis; agentRunId?: string };
       try {
-        analyzed = await deps.analyzePlan({ ownerId: input.ownerId, plan, maximumParallelism });
+        analyzed = await deps.analyzePlan({
+          ownerId: input.ownerId,
+          plan,
+          maximumParallelism,
+          analysisIdempotencyKey: input.idempotencyKey,
+        });
       } catch (error) {
         analyzed = {
           analysis: degradedCanvasRunAgentAnalysis({

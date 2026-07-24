@@ -12,6 +12,7 @@ const session = read('apps/web/src/components/canvas-assistant/useAssistantSessi
 const shell = read('apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx');
 const assistantContext = read('apps/api/src/assistant-workflow-context.ts');
 const api = read('apps/api/src/server.ts');
+const styles = read('apps/web/src/styles/index.css');
 
 assert.match(shared, /CANVAS_RUN_FAILURE_DIAGNOSTIC_VERSION/);
 assert.match(shared, /projectCanvasRunFailureDiagnostic/);
@@ -30,5 +31,6 @@ assert.match(assistantContext, /summarizeNodeAssistantAttachment/);
 assert.match(assistantContext, /SENSITIVE_KEY/);
 assert.match(api, /Canvas Run Failure Diagnostic/);
 assert.match(api, /不得声称已经重试/);
+assert.match(styles, /\.canvas-run-failure dl div \{[^}]*grid-template-columns:\s*64px minmax\(0, 1fr\)/s);
 
 console.log('canvas supervision diagnostic contract: ok');

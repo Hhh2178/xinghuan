@@ -39,6 +39,7 @@ describe("Canvas Run Agent analysis service integration", () => {
     expect(source).toMatch(/createCanvasRunAgentAnalysisService/);
     expect(source).toMatch(/agentKey: "supervision-planner"/);
     expect(source).toMatch(/scenario: "canvas-supervision-analysis"/);
+    expect(source).toMatch(/request\.analysisIdempotencyKey/);
     expect(source).toMatch(/analyzePlan: canvasRunAgentAnalysisService\.analyzePlan/);
   });
 
@@ -68,11 +69,11 @@ describe("Canvas Run Agent analysis service integration", () => {
       executionLayers: [{ index: 0, stepIds: ["step:A", "step:B"] }],
     };
 
-    const result = await service.analyzePlan({ ownerId: "owner-1", plan: compiled, maximumParallelism: 3 });
+    const result = await service.analyzePlan({ ownerId: "owner-1", plan: compiled, maximumParallelism: 3, analysisIdempotencyKey: "analysis-run-1" });
 
     expect(result).toMatchObject({ agentRunId: "agent-run-real", analysis: { status: "completed", recommendedMaximumParallelism: 2 } });
     const plannerInput = (runPlanner.mock.calls as unknown[][])[0]?.[0];
-    expect(plannerInput).toMatchObject({ ownerId: "owner-1", maximumParallelism: 3 });
+    expect(plannerInput).toMatchObject({ ownerId: "owner-1", maximumParallelism: 3, analysisIdempotencyKey: "analysis-run-1" });
     expect(JSON.stringify(plannerInput)).not.toMatch(/must-not-leak|private prompt|apiKey/i);
     expect(JSON.stringify(plannerInput)).toMatch(/step:A|executionLayers/);
   });
@@ -165,6 +166,7 @@ describe("Canvas Run Agent analysis service integration", () => {
     expect(analyzePlan).toHaveBeenCalledWith(expect.objectContaining({
       ownerId: "owner-1",
       maximumParallelism: 4,
+      analysisIdempotencyKey: "analysis-create",
       plan: expect.objectContaining({ executionLayers: [{ index: 0, stepIds: ["step:A", "step:B"] }, { index: 1, stepIds: ["step:C"] }] }),
     }));
     expect(createCanvasRun.mock.calls[0][0]).toMatchObject({
