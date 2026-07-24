@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.41`
-  - release：`20260724-provider-model-channel-health-gray-r1-v0741`
-  - 状态：`待部署：Provider/模型渠道健康度、匿名聚合反馈与后台可靠性分析`
-  - 当前补修：`新增 Migration 042；仅统计 settled 成功/失败，不改写任务、路由或 Provider 状态`
-  - 本轮制品源提交：`be4f23d`
+  - 版本：`v0.7.42`
+  - release：`20260724-channel-health-surface-gray-r1-v0742`
+  - 状态：`待部署：渠道健康后台分层可读性与前台顶栏入口调整`
+  - 当前补修：`不改渠道聚合、任务、路由或 Provider 状态；仅调整成员入口与 Admin 报表表面`
+  - 本轮制品源提交：`d57f3a7`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.41`
-- release：`20260724-provider-model-channel-health-gray-r1-v0741`
-- 当前状态：`待部署：Provider/模型渠道健康度、匿名聚合反馈与后台可靠性分析`
-- 部署内容：`近三天二小时 settled 成功率、匿名赞踩、Canvas 状态子页与 Admin 可靠性分析`
+- 版本：`v0.7.42`
+- release：`20260724-channel-health-surface-gray-r1-v0742`
+- 当前状态：`待部署：渠道健康后台分层可读性与前台顶栏入口调整`
+- 部署内容：`渠道健康成员顶栏入口与 Admin 报表分层可读性补修`
 - 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、v0.7.32 无付费 text Run 的计划/取消/事件流/完成/删除临时画布、540 tests、完整 build 与三层 Harness`
 - 部署时间：`2026-07-24`
-- 本轮制品源提交：`be4f23d`
+- 本轮制品源提交：`d57f3a7`
 - 当前批次记录：
-  - `gray/2026-07-24-provider-model-channel-health-gray-v0741.md`
-  - `../validations/2026-07-24-provider-model-channel-health-gray-v0741.md`
+  - `gray/2026-07-24-channel-health-surface-gray-v0742.md`
+  - `../validations/2026-07-24-channel-health-surface-gray-v0742.md`
   - `gray/2026-07-24-canvas-run-progress-lock-gray-v0740.md`
   - `../validations/2026-07-24-canvas-run-progress-lock-gray-v0740.md`
 - 当前批次记录：
