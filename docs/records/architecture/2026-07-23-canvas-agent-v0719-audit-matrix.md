@@ -3,7 +3,7 @@
 ## 范围与基线
 
 - 审计基线：Gray `v0.7.19` 代码提交 `40953b4112b99865d04f0222394df4fb5cbf8204`。
-- 当前实现：`feature/canvas-agent-runtime` / Gray `v0.7.20`。
+- 当前实现：`feature/canvas-agent-runtime` / Gray `v0.7.28`。
 - 需求权威：`docs/superpowers/specs/2026-07-23-canvas-agent-experience-redesign-requirements.md`。
 - 标签：`KEEP` 保留，`ADAPT` 改造，`RETIRE` 停止新入口/新写入但兼容读取，`REMOVE` 删除无兼容价值实现，`FORWARD-MIGRATE` 只做前向数据演进。
 
@@ -40,6 +40,7 @@
 - 任何被 CodeGraph 或合同脚本发现仍有运行依赖的 `REMOVE` 项先降级为 `RETIRE` 或 `ADAPT`。
 - 不使用整仓 `git revert`。每个阶段以目标化 diff 和本地 checkpoint commit 保持可回退性。
 
-## 当前已知缺陷
+## 已关闭的基线缺陷
 
-- Gray Run `canvas_run_46450a74-1e3d-4635-849c-cefa24768829` 在节点 `image-1784764264921-9vhk` 以 `CANVAS_RUN_MODEL_UNAVAILABLE` 失败；持久化节点只有 `model: gpt-image-2`，`modelRecordId` 为空。新预检必须安全解析唯一已发布记录或在开始前给出可修复错误。
+- Gray `v0.7.19` Run `canvas_run_46450a74-1e3d-4635-849c-cefa24768829` 曾因 legacy 节点只有 `model: gpt-image-2`、缺少 `modelRecordId` 而以 `CANVAS_RUN_MODEL_UNAVAILABLE` 失败。
+- 当前创建预检只在启用、授权、能力与输入均兼容且唯一命中时解析 legacy 名称；否则在开始前失败关闭并要求重新选择模型或新建 Run Plan。Gray `v0.7.27/v0.7.28` 已证明显示的 catalog Provider/model identity 被持久化并冻结到不可变 Plan。

@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.27` 上执行真实运行回归。选中 Run 的读取/SSE 所有权修复已通过稳定轮询和正式 UI 启动；柏拉图批次真实返回 `providerRequestCount=2`、`imageCount=2` 和两个 Artifact。该 Run 同时证明两项剩余冲突：显示名中的 `0.16元` 没有正式 pricing version，且旧 canvas-scope 质量注入先在 image 步骤把两个候选裁成一个，导致显式 selector 报 `SMART_CANDIDATE_COUNT_INSUFFICIENT`。Gray 已通过 Admin API 建立 `per_request / CNY 0.160000` 定价版本；本地 `v0.7.28` 已使 Workflow Region 的生成步骤保留完整候选集，仅由显式 selector 评分与裁剪。仍需部署后证明计价数量、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
+当前状态：Phase 0-10 已完成；Phase 11 已在 Gray `v0.7.28` 证明正式 UI 双候选 AI Top 1、`selected/not_selected`、0.92 置信度、两次 Provider 请求与 `0.320000 CNY` 创建时计价快照。不同 Workflow Run 已并发成功且账本隔离，认证 SSE `Last-Event-ID` 只续传目标 Run 的后续序列，Worker 保持零重启。PC 视觉按项目宪法只验收 `1920x1080` 与 `2560x1440`，双面板均无重叠或横向溢出。临时并发 Canvas 已通过明确 DELETE API 清理；Gray retention 已保留 current/rollback 与最近五版并通过清理后 runtime verify。剩余工作只有最终 Harness/一致性门和本地 checkpoint。
 
 ## 执行原则
 

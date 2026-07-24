@@ -21,13 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.20`
-- release：`20260723-canvas-agent-governance-gray-r1-v0720`
-- 当前状态：`Canvas Agent Governance 已部署；服务、迁移、公网状态和回滚点验证通过，认证视觉与业务回归待验收`
-- 部署内容：`双入口、安全 Markdown/reasoning、不可变 Knowledge Snapshot、Admin 结构化治理、发布配置运行时解析和四层 LLM 路由校验`
-- 已验证：`116 files / 421 tests、完整 Project Harness、全 workspace build/type-check、路由/恢复/视频矩阵、API/Worker active、035 迁移、公网/内网 0.7.20 和回滚保留`
-- 部署时间：`2026-07-23`
-- 本轮制品源提交：`e9cf212`
+- 版本：`v0.7.28`
+- release：`20260724-canvas-agent-explicit-selector-gray-r1-v0728`
+- 当前状态：`Canvas Agent 体验重构已通过 Gray 显式候选、计费、并发、认证 SSE、1080p/2K PC 视觉与三层 Harness 实测`
+- 部署内容：`Workflow Region 变量与确定性阶段、有限 AI 托管、显式智能候选门、选中 Run 投影隔离、批量计费和四域 Admin 治理`
+- 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、540 tests、完整 build 与三层 Harness`
+- 部署时间：`2026-07-24`
+- 本轮制品源提交：`5969f19`
+- 当前批次记录：
+  - `gray/2026-07-24-canvas-agent-explicit-selector-gray-v0728.md`
+  - `../validations/2026-07-24-canvas-agent-experience-gray-v0728.md`
 - 当前批次记录：
   - `gray/2026-07-23-canvas-agent-governance-gray-v0720.md`
   - `../validations/2026-07-23-canvas-agent-governance-gray-v0720.md`

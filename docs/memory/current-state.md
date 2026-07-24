@@ -2,13 +2,13 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.7.20`（Canvas Agent Governance）
+- 当前灰度版本：`v0.7.28`（Canvas Agent 体验重构 Gray 验收）
 - 当前生产版本：`v0.7.18`（画布 revision 协调与基线化观测）
-- 当前灰度 release：`20260723-canvas-agent-governance-gray-r1-v0720`
+- 当前灰度 release：`20260724-canvas-agent-explicit-selector-gray-r1-v0728`
 - 当前生产 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：Gray v0.7.20 已部署悬浮助手/托管面板分离、安全 Markdown 与 reasoning 隔离、不可变 Knowledge Snapshot、Admin 全结构化治理、发布配置运行时解析和 LLM 路由四层资格校验；API/Worker、迁移、公网状态和回滚点验证通过。Production 保持 v0.7.18；未推送 GitHub。
-- 当前重构：已接受 ADR 0004，后续从 canvas-wide 多角色 Agent 收敛为 Workflow Region 上的变量输入、确定性执行、有限失败恢复和候选选择；v0.7.20 产品面尚未按新设计完成，当前 Gray 只作为审计与回滚基线。
+- 最新完成：Gray v0.7.28 已完成从 v0.7.19 审计基线出发的 Canvas Agent 体验重构实测；Workflow Region 变量、确定性阶段、有限托管、显式智能候选门、批量计费、不同 Workflow 并发、认证 SSE 和 1080p/2K PC 视觉均已形成证据。Production 保持 v0.7.18；未推送 GitHub。
+- 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
 - 当前产品路线口径：
@@ -42,7 +42,7 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-- gray 当前运行 `v0.7.18 / enforced`，release 为 `20260722-canvas-revision-observability-gray-r1-v0718`
+- gray 当前运行 `v0.7.28 / enforced`，release 为 `20260724-canvas-agent-explicit-selector-gray-r1-v0728`
 - production 当前运行 `v0.7.18 / enforced`，release 为 `20260722-canvas-revision-observability-prod-r1-v0718`
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成
