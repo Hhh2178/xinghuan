@@ -70,6 +70,7 @@ import {
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
 import {
+  buildPublishedModelPersistencePatch,
   pickImageSizeOptionForAspectRatio,
   resolvePublishedModelSelection,
   shouldShowImageSizeControl,
@@ -180,6 +181,33 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const backendProviderGroups = backendSelection.providerGroups;
   const backendProviderGroup = backendSelection.selectedProviderGroup;
   const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
+
+  useEffect(() => {
+    if (!isBackendSelected || !backendModel) return;
+    const patch = buildPublishedModelPersistencePatch(backendSelection, {
+      modelSource: d?.modelSource,
+      backendProviderId: d?.backendProviderId,
+      backendModelId: d?.backendModelId,
+      providerSource: d?.providerSource,
+      providerId: d?.providerId,
+      providerModel: d?.providerModel,
+    });
+    if (!patch && d?.apiModel === backendModel.modelId) return;
+    update({ ...(patch || {}), apiModel: backendModel.modelId });
+  }, [
+    backendModel,
+    backendSelection,
+    d?.apiModel,
+    d?.backendModelId,
+    d?.backendProviderId,
+    d?.modelSource,
+    d?.providerId,
+    d?.providerModel,
+    d?.providerSource,
+    isBackendSelected,
+    update,
+  ]);
+
   const model = d?.model || IMAGE_MODELS[0].id;
   const modelDef = useMemo(() => IMAGE_MODELS.find((m) => m.id === model) || IMAGE_MODELS[0], [model]);
   const localImageShowsSizeControl = useMemo(

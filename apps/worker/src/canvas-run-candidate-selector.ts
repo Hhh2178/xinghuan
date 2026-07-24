@@ -37,6 +37,15 @@ export interface SmartCandidateRuntimeContext {
   candidates: SmartCandidate[];
 }
 
+export function resolveSmartCandidateQualityGate(
+  context: Pick<SmartCandidateRuntimeContext, "mode" | "lowConfidencePolicy">,
+  qualityEvaluationEnabled: boolean,
+) {
+  if (context.mode !== "ai") return "manual" as const;
+  if (qualityEvaluationEnabled) return "evaluate" as const;
+  return context.lowConfidencePolicy === "request_manual" ? "manual" as const : "stop" as const;
+}
+
 export function createSmartCandidateRuntimeContext(input: {
   selectorStep: { nodeId: string; dependsOn: string[] };
   planSnapshot: Record<string, unknown>;
@@ -112,6 +121,7 @@ export function createSmartCandidateRuntimeContext(input: {
 
 export async function initializeSmartCandidateSelector(input: {
   pool: Pool;
+  environment: string;
   appendEvent: (
     client: PoolClient,
     runId: string,
@@ -227,8 +237,29 @@ export async function initializeSmartCandidateSelector(input: {
         ],
       );
     }
-    const nextStatus = context.mode === "ai" ? "evaluating" : "selecting";
-    const qualityContext = context.mode === "ai" ? {
+    const qualityEvaluationEnabled = await readQualityEvaluationEnabled(client, input.environment);
+    const qualityGate = resolveSmartCandidateQualityGate(context, qualityEvaluationEnabled);
+    if (qualityGate === "stop") {
+      const code = "CANVAS_RUN_QUALITY_DISABLED";
+      await client.query(
+        `update xh_canvas_run_steps set status = 'failed', error = $2::jsonb,
+          finalized_at = now(), updated_at = now() where id = $1`,
+        [step.id, JSON.stringify({ code, nodeType: "smart-candidate-selector" })],
+      );
+      await client.query(
+        `update xh_canvas_runs set status = 'failed', finalized_at = now(), updated_at = now() where id = $1`,
+        [step.run_id],
+      );
+      await input.appendEvent(client, text(step.run_id), text(step.id), "canvas_run.step_failed", { code });
+      await input.appendEvent(client, text(step.run_id), null, "canvas_run.failed", { stepId: text(step.id), code });
+      await client.query("commit");
+      return true;
+    }
+    const nextStatus = qualityGate === "evaluate" ? "evaluating" : "selecting";
+    const candidateContext = qualityGate === "manual" && context.mode === "ai"
+      ? { ...context, transferReason: "quality_evaluation_disabled", aiConfidence: 0 }
+      : context;
+    const qualityContext = qualityGate === "evaluate" ? {
       artifactIds: context.candidates.map((candidate) => candidate.artifactId),
       mediaKind: context.mediaKind,
       goal: selectorGoal(context),
@@ -245,7 +276,7 @@ export async function initializeSmartCandidateSelector(input: {
        set status = $2, candidate_context = $3::jsonb, quality_context = $4::jsonb,
          started_at = coalesce(started_at, now()), updated_at = now()
        where id = $1`,
-      [step.id, nextStatus, JSON.stringify(context), JSON.stringify(qualityContext)],
+      [step.id, nextStatus, JSON.stringify(candidateContext), JSON.stringify(qualityContext)],
     );
     await client.query(
       `update xh_canvas_runs set status = 'running', started_at = coalesce(started_at, now()), updated_at = now()
@@ -256,8 +287,19 @@ export async function initializeSmartCandidateSelector(input: {
       client,
       text(step.run_id),
       text(step.id),
-      context.mode === "ai" ? "canvas_run.candidate_evaluation_started" : "canvas_run.candidate_selection_waiting",
-      { candidateCount: context.candidates.length, mediaKind: context.mediaKind, maximum: context.maximum },
+      qualityGate === "evaluate"
+        ? "canvas_run.candidate_evaluation_started"
+        : context.mode === "ai"
+          ? "canvas_run.candidate_selection_manual_required"
+          : "canvas_run.candidate_selection_waiting",
+      {
+        candidateCount: context.candidates.length,
+        mediaKind: context.mediaKind,
+        maximum: context.maximum,
+        ...(qualityGate === "manual" && context.mode === "ai"
+          ? { reason: "quality_evaluation_disabled", confidence: 0 }
+          : {}),
+      },
     );
     await client.query("commit");
     return true;
@@ -267,6 +309,15 @@ export async function initializeSmartCandidateSelector(input: {
   } finally {
     client.release();
   }
+}
+
+async function readQualityEvaluationEnabled(client: PoolClient, environment: string) {
+  if (environment === "local" || environment === "test") return true;
+  const result = await client.query(
+    `select quality_evaluation_enabled from xh_agent_runtime_controls where environment = $1 limit 1`,
+    [environment],
+  );
+  return result.rows[0]?.quality_evaluation_enabled === true;
 }
 
 function selectorGoal(context: SmartCandidateRuntimeContext) {

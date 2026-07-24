@@ -14,6 +14,15 @@ export interface PublishedModelSelection {
   selectedModel: PublicModelRecord | null;
 }
 
+export interface PublishedModelPersistenceState {
+  modelSource?: string;
+  backendProviderId?: string;
+  backendModelId?: string;
+  providerSource?: string;
+  providerId?: string;
+  providerModel?: string;
+}
+
 export type AudioProviderMode = 'tts' | 'voice_clone' | 'voice_design';
 
 const DIMENSION_RE = /^(\d{2,5})x(\d{2,5})$/i;
@@ -50,6 +59,26 @@ export function resolvePublishedModelSelection(
     selectedProviderGroup,
     selectedModel,
   };
+}
+
+export function buildPublishedModelPersistencePatch(
+  selection: PublishedModelSelection,
+  current: PublishedModelPersistenceState,
+): PublishedModelPersistenceState | null {
+  const model = selection.selectedModel;
+  const provider = selection.selectedProviderGroup;
+  if (!model || !provider) return null;
+  const next: PublishedModelPersistenceState = {
+    modelSource: 'backend',
+    backendProviderId: provider.providerId,
+    backendModelId: model.id,
+    providerSource: '',
+    providerId: model.providerId,
+    providerModel: model.modelId,
+  };
+  return Object.entries(next).every(([key, value]) => current[key as keyof PublishedModelPersistenceState] === value)
+    ? null
+    : next;
 }
 
 export function filterAudioModelsByMode(

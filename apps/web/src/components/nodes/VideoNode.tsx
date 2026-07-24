@@ -65,7 +65,7 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
-import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import { buildPublishedModelPersistencePatch, resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
 import {
   getBackendFrameModeOptions,
   getBackendImageSlotCount,
@@ -160,6 +160,30 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const backendProviderGroups = backendSelection.providerGroups;
   const backendProviderGroup = backendSelection.selectedProviderGroup;
   const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
+
+  useEffect(() => {
+    if (!isBackendSelected) return;
+    const patch = buildPublishedModelPersistencePatch(backendSelection, {
+      modelSource: d?.modelSource,
+      backendProviderId: d?.backendProviderId,
+      backendModelId: d?.backendModelId,
+      providerSource: d?.providerSource,
+      providerId: d?.providerId,
+      providerModel: d?.providerModel,
+    });
+    if (patch) update(patch);
+  }, [
+    backendSelection,
+    d?.backendModelId,
+    d?.backendProviderId,
+    d?.modelSource,
+    d?.providerId,
+    d?.providerModel,
+    d?.providerSource,
+    isBackendSelected,
+    update,
+  ]);
+
   const backendVideoCaps = backendModel?.ui.inputCapabilities ?? {
     prompt: true,
     imageReference: false,

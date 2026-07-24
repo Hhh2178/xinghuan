@@ -66,7 +66,7 @@ export function createCanvasRunCoordinator(options: {
         await settleCompletedTasks();
         await releaseDueRetries();
         await enqueuePendingDispatches();
-        await initializeSmartCandidateSelector({ pool: options.pool, appendEvent });
+        await initializeSmartCandidateSelector({ pool: options.pool, environment: options.environment, appendEvent });
         await claimReadyStep();
       }
       await wait(pollIntervalMs);
@@ -511,7 +511,7 @@ export function createCanvasRunCoordinator(options: {
     await settleCompletedTasks();
     await releaseDueRetries();
     await enqueuePendingDispatches();
-    await initializeSmartCandidateSelector({ pool: options.pool, appendEvent });
+    await initializeSmartCandidateSelector({ pool: options.pool, environment: options.environment, appendEvent });
     await claimReadyStep();
   } };
 }

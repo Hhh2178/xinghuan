@@ -1,7 +1,16 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-import { createCanvasRunQualityCoordinator, parseQualityEvaluationContent, qualityContextForCompletedStep } from "./canvas-run-quality-coordinator.js";
+import {
+  createCanvasRunQualityCoordinator,
+  parseQualityEvaluationContent,
+  qualityContextForCompletedStep,
+} from "./canvas-run-quality-coordinator.js";
+import {
+  qualityGovernanceUnavailableReason,
+  settleWithQualitySavepoint,
+  smartCandidateUnavailableDisposition,
+} from "./canvas-run-quality-containment.js";
 import { normalizeContext } from "./canvas-run-quality-support.js";
 
 describe("canvas run quality coordinator", () => {
@@ -173,6 +182,46 @@ describe("canvas run quality coordinator", () => {
     expect(source).toMatch(/xh_llm_route_entry_probe_leases/);
   });
 
+  it("rolls back a failed successful settlement before durable fallback", async () => {
+    const calls: string[] = [];
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        calls.push(sql);
+        return { rows: [] };
+      }),
+    } as any;
+    const settleFailed = vi.fn(async (reason: string) => {
+      calls.push(`fallback:${reason}`);
+    });
+
+    await settleWithQualitySavepoint({
+      client,
+      settleSuccessful: async () => {
+        calls.push("settle-successful");
+        throw new Error("CANVAS_RUN_QUALITY_SETTLEMENT_FAILED:insert_evaluation:column mismatch");
+      },
+      settleFailed,
+    });
+
+    expect(calls).toEqual([
+      "savepoint canvas_quality_settlement",
+      "settle-successful",
+      "rollback to savepoint canvas_quality_settlement",
+      "release savepoint canvas_quality_settlement",
+      "fallback:CANVAS_RUN_QUALITY_SETTLEMENT_FAILED:insert_evaluation:column mismatch",
+    ]);
+  });
+
+  it("contains unavailable quality governance according to the selector policy", () => {
+    expect(qualityGovernanceUnavailableReason(new Error("ARTIFACT_QUALITY_PROFILE_NOT_PUBLISHED:image:gray"))).toContain("PROFILE_NOT_PUBLISHED");
+    expect(qualityGovernanceUnavailableReason(new Error("LLM_ROUTE_POOL_NOT_PUBLISHED:image_understanding:artifact-quality"))).toContain("ROUTE_POOL_NOT_PUBLISHED");
+    expect(qualityGovernanceUnavailableReason(new Error("AGENT_CONFIGURATION_UNAVAILABLE:artifact-image-understanding:gray"))).toContain("AGENT_CONFIGURATION_UNAVAILABLE");
+    expect(qualityGovernanceUnavailableReason(new Error("connection reset"))).toBe("");
+    expect(smartCandidateUnavailableDisposition({ smartCandidateSelector: { lowConfidencePolicy: "request_manual" } })).toBe("manual");
+    expect(smartCandidateUnavailableDisposition({ smartCandidateSelector: { lowConfidencePolicy: "stop" } })).toBe("stop");
+    expect(smartCandidateUnavailableDisposition({})).toBe("not_smart");
+  });
+
   it("settles smart selection through confidence and run-scoped candidate ledgers", () => {
     const source = readFileSync(new URL("./canvas-run-quality-coordinator.ts", import.meta.url), "utf8");
     expect(source).toMatch(/resolveSmartCandidateSelection/);
@@ -181,5 +230,7 @@ describe("canvas run quality coordinator", () => {
     expect(source).toMatch(/["']not_selected["']/);
     expect(source).toMatch(/skipped_by_selection/);
     expect(source).toMatch(/canvas_run\.candidate_selection_completed/);
+    expect(source).toMatch(/runQualitySettlementStage\("insert_evaluation"/);
+    expect(source).toMatch(/canvas_run\.quality_governance_unavailable/);
   });
 });

@@ -18,6 +18,12 @@ import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type { RedisClientType } from "redis";
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from "./canvas-run-dispatch-fairness.js";
 import {
+  qualityGovernanceUnavailableReason,
+  runQualitySettlementStage,
+  settleWithQualitySavepoint,
+  smartCandidateUnavailableDisposition,
+} from "./canvas-run-quality-containment.js";
+import {
   boundedInteger,
   boundedNumber,
   appendEvent,
@@ -200,11 +206,11 @@ export function createCanvasRunQualityCoordinator(options: {
       }
       const context = normalizeContext(step.quality_context);
       if (step.quality_task_status === "succeeded") {
-        try {
-          await settleSuccessfulEvaluation(client, step, context);
-        } catch (error) {
-          await settleFailedEvaluation(client, step, context, error instanceof Error ? error.message : String(error));
-        }
+        await settleWithQualitySavepoint({
+          client,
+          settleSuccessful: () => settleSuccessfulEvaluation(client, step, context),
+          settleFailed: (reason) => settleFailedEvaluation(client, step, context, reason),
+        });
       } else {
         await settleFailedEvaluation(client, step, context, step.quality_task_status || "failed");
       }
@@ -222,17 +228,18 @@ export function createCanvasRunQualityCoordinator(options: {
     const profile = context.profile;
     if (!artifactId || !profile) throw new Error("CANVAS_RUN_QUALITY_CONTEXT_INVALID");
     const content = text(object(step.quality_task_result).content || object(step.quality_task_result).text);
-    const evaluation = parseQualityEvaluationContent({
+    const evaluation = await runQualitySettlementStage("parse_evaluation", async () => parseQualityEvaluationContent({
       content,
       artifactId,
       mediaKind: context.mediaKind,
       profile,
       sampledTimestampsMs: context.sampledTimestampsMs,
       smartCandidate: Boolean(context.smartCandidateSelector),
-    });
-    const artifact = await readOwnedArtifact(client, step.owner_id, artifactId, context.mediaKind);
+    }));
+    const artifact = await runQualitySettlementStage("read_artifact", () =>
+      readOwnedArtifact(client, step.owner_id, artifactId, context.mediaKind));
     const evaluationId = `artifact_evaluation_${randomUUID()}`;
-    await client.query(
+    await runQualitySettlementStage("insert_evaluation", () => client.query(
       `insert into xh_artifact_evaluations
         (id, owner_id, artifact_id, canvas_run_id, run_step_id, agent_run_id, quality_profile_id, media_kind,
          evaluator_entry_id, evaluator_provider_id_snapshot, evaluator_model_id_snapshot, score_snapshot,
@@ -244,15 +251,17 @@ export function createCanvasRunQualityCoordinator(options: {
         currentRouteCandidate(context)?.modelId || null, JSON.stringify(scoreSnapshot(evaluation)), JSON.stringify(evaluation.evidence),
         JSON.stringify(evaluation.defects), JSON.stringify({ inputMode: context.mediaKind === "video" ? context.videoInputMode : "image", sampledTimestampsMs: context.sampledTimestampsMs || [] }),
         evaluation.overallScore, evaluation.confidence, evaluation.passed, `${step.id}:quality:${artifactId}`],
-    );
-    const replay = await client.query<{ id: string }>(
+    ));
+    const replay = await runQualitySettlementStage("read_evaluation", () => client.query<{ id: string }>(
       `select id from xh_artifact_evaluations where owner_id = $1 and idempotency_key = $2 limit 1`,
       [step.owner_id, `${step.id}:quality:${artifactId}`],
-    );
+    ));
     const effectiveEvaluationId = replay.rows[0]?.id || evaluationId;
-    await completeAgentAttempt(client, context, true, { evaluationId: effectiveEvaluationId, overallScore: evaluation.overallScore });
-    await recordRouteOutcome(client, currentRouteEntryId(context), "success");
-    await releaseHalfOpenProbe(client, context);
+    await runQualitySettlementStage("complete_agent_attempt", () =>
+      completeAgentAttempt(client, context, true, { evaluationId: effectiveEvaluationId, overallScore: evaluation.overallScore }));
+    await runQualitySettlementStage("record_route_outcome", () =>
+      recordRouteOutcome(client, currentRouteEntryId(context), "success"));
+    await runQualitySettlementStage("release_half_open_probe", () => releaseHalfOpenProbe(client, context));
     const evaluations = [...context.evaluations, {
       evaluationId: effectiveEvaluationId,
       artifactId,
@@ -290,20 +299,20 @@ export function createCanvasRunQualityCoordinator(options: {
       sampledTimestampsMs: undefined,
     };
     if (nextContext.currentIndex < nextContext.artifactIds.length) {
-      await client.query(
+      await runQualitySettlementStage("advance_artifact", () => client.query(
         `update xh_canvas_run_steps set quality_task_id = null, quality_dispatch_enqueued_at = null,
           quality_context = $2::jsonb, updated_at = now() where id = $1`,
         [step.id, JSON.stringify(nextContext)],
-      );
-      await appendEvent(client, step.run_id, step.id, "canvas_run.quality_artifact_evaluated", {
+      ));
+      await runQualitySettlementStage("append_artifact_event", () => appendEvent(client, step.run_id, step.id, "canvas_run.quality_artifact_evaluated", {
         artifactId,
         evaluationId: effectiveEvaluationId,
         overallScore: evaluation.overallScore,
         remaining: nextContext.artifactIds.length - nextContext.currentIndex,
-      });
+      }));
       return;
     }
-    await finalizeSelection(client, step, nextContext);
+    await runQualitySettlementStage("finalize_selection", () => finalizeSelection(client, step, nextContext));
   }
 
   async function settleFailedEvaluation(client: PoolClient, step: QualityStepRow, context: QualityContext, reason: string) {
@@ -355,7 +364,43 @@ export function createCanvasRunQualityCoordinator(options: {
       });
       return;
     }
+    if (await settleSmartCandidateUnavailable(client, step, context, "quality_route_exhausted")) return;
     await failQualityStep(client, step, "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+  }
+
+  async function transferSmartCandidateToManual(
+    client: PoolClient,
+    step: QualityStepRow,
+    context: QualityContext,
+    reason: string,
+    confidence: number | null = 0,
+  ) {
+    const selector = object(context.smartCandidateSelector);
+    const normalizedConfidence = confidence ?? 0;
+    const candidateContext = { ...selector, evaluations: context.evaluations, transferReason: reason, aiConfidence: normalizedConfidence };
+    await client.query(
+      `update xh_canvas_run_steps set status = 'selecting', candidate_context = $2::jsonb,
+        quality_task_id = null, quality_dispatch_enqueued_at = null, quality_context = '{}'::jsonb,
+        lease_owner = null, lease_expires_at = null, updated_at = now() where id = $1`,
+      [step.id, JSON.stringify(candidateContext)],
+    );
+    await appendEvent(client, step.run_id, step.id, "canvas_run.candidate_selection_manual_required", {
+      candidateCount: Array.isArray(selector.candidates) ? selector.candidates.length : 0,
+      reason,
+      confidence: normalizedConfidence,
+    });
+  }
+
+  async function settleSmartCandidateUnavailable(client: PoolClient, step: QualityStepRow, context: QualityContext, reason: string) {
+    const disposition = smartCandidateUnavailableDisposition(context);
+    if (disposition === "not_smart") return false;
+    await appendEvent(client, step.run_id, step.id, "canvas_run.quality_governance_unavailable", { reason });
+    if (disposition === "manual") {
+      await transferSmartCandidateToManual(client, step, context, reason);
+      return true;
+    }
+    await failQualityStep(client, step, "CANVAS_RUN_QUALITY_GOVERNANCE_UNAVAILABLE");
+    return true;
   }
 
   async function finalizeSelection(client: PoolClient, step: QualityStepRow, context: QualityContext) {
@@ -390,18 +435,7 @@ export function createCanvasRunQualityCoordinator(options: {
       })),
     }) : null;
     if (smartResult?.state === "awaiting_manual") {
-      const candidateContext = { ...selector, evaluations: context.evaluations, transferReason: smartResult.reason, aiConfidence: smartResult.confidence };
-      await client.query(
-        `update xh_canvas_run_steps set status = 'selecting', candidate_context = $2::jsonb,
-          quality_task_id = null, quality_dispatch_enqueued_at = null, quality_context = '{}'::jsonb,
-          lease_owner = null, lease_expires_at = null, updated_at = now() where id = $1`,
-        [step.id, JSON.stringify(candidateContext)],
-      );
-      await appendEvent(client, step.run_id, step.id, "canvas_run.candidate_selection_manual_required", {
-        candidateCount: smartResult.candidateArtifactIds.length,
-        reason: smartResult.reason,
-        confidence: smartResult.confidence,
-      });
+      await transferSmartCandidateToManual(client, step, context, smartResult.reason, smartResult.confidence);
       return;
     }
     if (smartResult?.state === "stopped") {
@@ -574,22 +608,37 @@ export function createCanvasRunQualityCoordinator(options: {
       }
       const artifact = await readOwnedArtifact(client, step.owner_id, artifactId, context.mediaKind);
       const samples = qualitySamples(artifact);
-      const profile = await readPublishedProfile(client, context.mediaKind, context.profileKey, releaseEnvironment(options.environment));
+      let profile;
+      try {
+        profile = await readPublishedProfile(client, context.mediaKind, context.profileKey, releaseEnvironment(options.environment));
+      } catch (error) {
+        const reason = qualityGovernanceUnavailableReason(error);
+        if (!reason) throw error;
+        if (!await settleSmartCandidateUnavailable(client, step, context, reason)) {
+          await failQualityStep(client, step, "CANVAS_RUN_QUALITY_GOVERNANCE_UNAVAILABLE");
+        }
+        await client.query("commit");
+        return;
+      }
       let routed = context;
       if (context.routeArtifactId !== artifactId || !context.routeOrderedEntryIds?.length) {
         try {
           routed = await routeQualityCandidates(client, step, context, artifactId, releaseEnvironment(options.environment), samples.length >= 2);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (!message.startsWith("LLM_ROUTE_UNAVAILABLE:")) throw error;
-          await failQualityStep(client, step, context.mediaKind === "video" ? "VIDEO_EVALUATION_INPUT_UNAVAILABLE" : "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+          const reason = qualityGovernanceUnavailableReason(error);
+          if (!reason) throw error;
+          if (!await settleSmartCandidateUnavailable(client, step, context, reason)) {
+            await failQualityStep(client, step, context.mediaKind === "video" ? "VIDEO_EVALUATION_INPUT_UNAVAILABLE" : "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+          }
           await client.query("commit");
           return;
         }
       }
       const routeCandidate = currentRouteCandidate(routed);
       if (!routeCandidate) {
-        await failQualityStep(client, step, "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+        if (!await settleSmartCandidateUnavailable(client, step, context, "quality_route_exhausted")) {
+          await failQualityStep(client, step, "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+        }
         await client.query("commit");
         return;
       }
@@ -625,7 +674,25 @@ export function createCanvasRunQualityCoordinator(options: {
         await client.query("commit");
         return;
       }
-      const agentRunId = await createAgentRun(client, step, routed, artifactId, releaseEnvironment(options.environment));
+      let agentRunId;
+      try {
+        agentRunId = await createAgentRun(client, step, routed, artifactId, releaseEnvironment(options.environment));
+      } catch (error) {
+        const reason = qualityGovernanceUnavailableReason(error);
+        if (!reason) throw error;
+        if (routeCandidate.state === "half_open") {
+          await releaseHalfOpenProbe(client, {
+            ...routed,
+            halfOpenProbeEntryId: routeCandidate.entryId,
+            halfOpenProbeOwner: probeOwner,
+          });
+        }
+        if (!await settleSmartCandidateUnavailable(client, step, context, reason)) {
+          await failQualityStep(client, step, "CANVAS_RUN_QUALITY_GOVERNANCE_UNAVAILABLE");
+        }
+        await client.query("commit");
+        return;
+      }
       const actionId = await appendAgentAction(client, step.owner_id, agentRunId, routeCandidate, artifactId, routed.videoInputMode);
       await recordRouteDecision(client, step, routed, routeCandidate, agentRunId, artifactId);
       const taskId = `task-${randomUUID()}`;

@@ -115,7 +115,7 @@ describe('canvas run coordinator', () => {
 
   it('routes the explicit smart selector before the generation claim', () => {
     const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
-    expect(source).toMatch(/initializeSmartCandidateSelector\(\{ pool: options\.pool, appendEvent \}\)/);
+    expect(source).toMatch(/initializeSmartCandidateSelector\(\{ pool: options\.pool, environment: options\.environment, appendEvent \}\)/);
     expect(source).toMatch(/s\.node_type <> 'smart-candidate-selector'/);
   });
 

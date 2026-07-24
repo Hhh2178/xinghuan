@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.23` 上执行真实运行回归。已完成恢复动作澄清和候选不足故障隔离；Gray 进一步证明 Image 节点保存的 `generationCount=2` 未进入 Run Plan，导致运行时只有一个候选。本地已补齐有界 Plan 快照、Worker 图像批次、稳定 Artifact 聚合和实际 Provider 请求次数计费，等待下一个 PATCH 部署后复测 AI 选择闭环。
+当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.24` 上执行真实运行回归。Gray 已证明 `generationCount=2` 进入不可变 Plan、两次 Provider 请求生成两个稳定 Artifact、选择器收到两个候选且 Worker 零重启；但遗留节点缺少 catalog ID，界面显示模型与 Plan 实际模型不一致，成功质量任务又在 Selection 结算中触发 aborted transaction 循环。本地下一 PATCH 已补齐可见 catalog 模型持久化、质量开关门禁、治理缺失的人工/停止分流，以及 savepoint 结算回滚；仍需部署 Gray 后证明定价模型计费、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
 
 ## 执行原则
 

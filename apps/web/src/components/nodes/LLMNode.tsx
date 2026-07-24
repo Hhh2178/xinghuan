@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
 import {
   AlertCircle,
@@ -52,7 +52,7 @@ import {
   filterExcludedMaterials,
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
-import { resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import { buildPublishedModelPersistencePatch, resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
 
 /**
  * LLM / Vision 节点 —— 完全对齐 gpt-image-2-web Chat (index.html L1600 / L8128~L8400)
@@ -193,6 +193,30 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const backendProviderGroups = backendSelection.providerGroups;
   const backendProviderGroup = backendSelection.selectedProviderGroup;
   const isBackendSelected = modelSource === 'backend' && Boolean(backendModel);
+
+  useEffect(() => {
+    if (!isBackendSelected) return;
+    const patch = buildPublishedModelPersistencePatch(backendSelection, {
+      modelSource: d?.modelSource,
+      backendProviderId: d?.backendProviderId,
+      backendModelId: d?.backendModelId,
+      providerSource: d?.providerSource,
+      providerId: d?.providerId,
+      providerModel: d?.providerModel,
+    });
+    if (patch) update(patch);
+  }, [
+    backendSelection,
+    d?.backendModelId,
+    d?.backendProviderId,
+    d?.modelSource,
+    d?.providerId,
+    d?.providerModel,
+    d?.providerSource,
+    isBackendSelected,
+    update,
+  ]);
+
   const model: string = d?.model || DEFAULT_LLM_MODEL;
   const advancedProviders = useApiKeysStore((s) => s.settings.advancedProviders);
   const llmAdvancedProviders = useMemo(

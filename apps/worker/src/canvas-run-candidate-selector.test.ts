@@ -1,8 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createSmartCandidateRuntimeContext, initializeSmartCandidateSelector } from "./canvas-run-candidate-selector.js";
+import {
+  createSmartCandidateRuntimeContext,
+  initializeSmartCandidateSelector,
+  resolveSmartCandidateQualityGate,
+} from "./canvas-run-candidate-selector.js";
 
 describe("canvas run smart candidate selector", () => {
+  it("transfers unavailable AI evaluation to manual selection unless policy requires stop", () => {
+    expect(resolveSmartCandidateQualityGate({ mode: "ai", lowConfidencePolicy: "request_manual" }, false)).toBe("manual");
+    expect(resolveSmartCandidateQualityGate({ mode: "ai", lowConfidencePolicy: "stop" }, false)).toBe("stop");
+    expect(resolveSmartCandidateQualityGate({ mode: "ai", lowConfidencePolicy: "request_manual" }, true)).toBe("evaluate");
+  });
+
   it("freezes provenance, criteria and the remembered supervision mode", () => {
     const result = createSmartCandidateRuntimeContext({
       selectorStep: {
@@ -101,7 +111,7 @@ describe("canvas run smart candidate selector", () => {
     });
     const pool = { connect: vi.fn(async () => ({ query, release: vi.fn() })) } as any;
 
-    await initializeSmartCandidateSelector({ pool, appendEvent });
+    await initializeSmartCandidateSelector({ pool, environment: "test", appendEvent });
 
     expect(state).toEqual({ stepStatus: "selecting", candidateRows: 2 });
     expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", "step-selector", "canvas_run.candidate_selection_waiting", expect.objectContaining({ candidateCount: 2 }));
@@ -142,7 +152,7 @@ describe("canvas run smart candidate selector", () => {
     const release = vi.fn();
     const pool = { connect: vi.fn(async () => ({ query, release })) } as any;
 
-    await expect(initializeSmartCandidateSelector({ pool, appendEvent })).resolves.toBe(true);
+    await expect(initializeSmartCandidateSelector({ pool, environment: "test", appendEvent })).resolves.toBe(true);
 
     expect(updates).toHaveLength(2);
     expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", "step-selector", "canvas_run.step_failed", expect.objectContaining({ code: "SMART_CANDIDATE_COUNT_INSUFFICIENT" }));
