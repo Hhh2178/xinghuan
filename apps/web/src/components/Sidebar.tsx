@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
+  Bot,
   ChevronDown,
   ChevronRight,
   Edit2,
@@ -233,9 +234,10 @@ const SOCCER_ICON_BY_TYPE: Record<string, string> = {
 interface SidebarProps {
   onAddNode: (type: NodeType) => void;
   deniedNodeTypes?: string[];
+  onOpenSupervision: () => void;
 }
 
-export default function Sidebar({ onAddNode, deniedNodeTypes = [] }: SidebarProps) {
+export default function Sidebar({ onAddNode, deniedNodeTypes = [], onOpenSupervision }: SidebarProps) {
   const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
     () => resolveThemeTemplate(templateId),
@@ -595,6 +597,17 @@ export default function Sidebar({ onAddNode, deniedNodeTypes = [] }: SidebarProp
 
       {/* 节点分组列表 */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide">
+        {!keyword.trim() ? <div className="mb-2 border-b border-white/10 pb-2">
+          <button
+            type="button"
+            onClick={onOpenSupervision}
+            title="打开工作流范围的 AI 托管面板，不会新增旧 Agent 托管节点"
+            className={`w-full text-left flex items-center gap-2 px-2 py-2 text-xs transition-colors ${isPixel ? 'px-row' : isDark ? 'rounded-md hover:bg-white/10 text-zinc-200' : 'rounded-md hover:bg-black/5 text-zinc-800'}`}
+          >
+            <span className={`w-6 h-6 flex items-center justify-center flex-shrink-0 ${isPixel ? 'rounded-[6px] border-2' : 'rounded'}`} style={isPixel ? { background: COLOR_HEX.teal, color: '#1A1410', borderColor: '#1A1410' } : { background: COLOR_HEX.teal + '22', color: COLOR_HEX.teal, boxShadow: `inset 0 0 0 1px ${COLOR_HEX.teal}55` }}><Bot size={13} /></span>
+            <span className="flex-1 min-w-0"><span className="block">AI 托管</span><span className="block mt-0.5 text-[10px] opacity-60">工作流范围运行面板</span></span>
+          </button>
+        </div> : null}
         {Object.entries(NODE_GROUPS).map(([key, group]) => {
           const visible = filterNodes(group.nodes);
           if (visible.length === 0) return null;

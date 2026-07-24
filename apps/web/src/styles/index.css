@@ -2206,6 +2206,47 @@ html[data-theme-visual] .t8-canvas-shell::after,
   z-index: 2 !important;
 }
 
+/* Regions are a translucent backdrop. Edges remain above them and below nodes. */
+.t8-canvas-shell .react-flow__viewport-portal {
+  z-index: 1 !important;
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-normal {
+  stroke: color-mix(in srgb, var(--t8-text-primary, #d7e2df) 72%, var(--t8-accent, #38bdf8));
+  stroke-width: 2px;
+  opacity: 0.9;
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-muted {
+  opacity: 0.26;
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-direct-upstream {
+  stroke: #38bdf8;
+  stroke-width: 3px;
+  opacity: 1;
+  filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.7));
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-direct-downstream {
+  stroke: #fb923c;
+  stroke-width: 3px;
+  opacity: 1;
+  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.68));
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-transitive-upstream {
+  stroke: #60a5fa;
+  stroke-width: 2.5px;
+  opacity: 0.78;
+}
+
+.t8-canvas-shell .react-flow__edge .t8-edge-emphasis-transitive-downstream {
+  stroke: #fbbf24;
+  stroke-width: 2.5px;
+  opacity: 0.78;
+}
+
 .t8-canvas-shell .react-flow__edge.workflow-stage-conflict-edge path {
   stroke: #dc2626;
   stroke-width: 4;
@@ -4017,6 +4058,21 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .canvas-run-supervisor__options label { display: inline-flex; align-items: center; gap: 7px; color: #b6c2bf; font-size: 13px; line-height: 20px; }
 .canvas-run-supervisor__options input { accent-color: var(--agent-accent); }
 .canvas-run-supervisor__options select { min-width: 110px; height: 32px; border: 1px solid #293331; background: #0c1110; color: #c7d1ce; font-size: 12px; }
+.canvas-supervision-empty { margin: 14px; padding: 14px; border: 1px solid #315048; border-radius: 6px; background: #10201c; color: var(--agent-text); }
+.canvas-supervision-empty strong { display: block; font-size: 14px; line-height: 20px; }
+.canvas-supervision-empty p,.canvas-supervision-empty ol { margin: 8px 0 0; color: #b6c2bf; font-size: 12px; line-height: 19px; }
+.canvas-supervision-empty ol { padding-left: 19px; }
+.canvas-supervision-readiness { margin: 14px; border: 1px solid #315048; border-radius: 6px; background: #10201c; color: var(--agent-text); }
+.canvas-supervision-readiness[data-state='blocked'] { border-color: #6a4538; background: #1d1512; }
+.canvas-supervision-readiness > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; padding: 0 10px; border-bottom: 1px solid #315048; font-size: 13px; }
+.canvas-supervision-readiness[data-state='blocked'] > header { border-color: #6a4538; }
+.canvas-supervision-readiness > header small { color: var(--agent-muted); font-size: 11px; }
+.canvas-supervision-readiness > div { display: grid; gap: 4px; padding: 10px; border-top: 1px solid rgba(181, 204, 195, .12); font-size: 12px; line-height: 18px; }
+.canvas-supervision-readiness > div:first-of-type { border-top: 0; }
+.canvas-supervision-readiness > div strong { color: var(--agent-accent); font-size: 11px; }
+.canvas-supervision-readiness[data-state='blocked'] > div strong { color: #efaaa4; }
+.canvas-supervision-readiness > div span { color: #d7e2df; }
+.canvas-supervision-readiness > div p { margin: 0; color: var(--agent-muted); }
 .canvas-run-supervisor__next-run { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #5a4e2c; color: #ead9a5; background: #18150d; font-size: 12px; line-height: 18px; }
 .canvas-run-supervisor__next-run span { color: #b8ad8e; }
 .canvas-run-overview { display: flex; gap: 5px; padding: 6px 8px; overflow-x: auto; border-bottom: 1px solid var(--agent-line); background: #0d1213; scrollbar-width: thin; }
@@ -4102,7 +4158,12 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .canvas-run-supervisor__controls button.is-primary { border-color: var(--agent-accent); color: #04120e; background: var(--agent-accent); font-weight: 800; }
 .canvas-run-supervisor__controls button.is-danger { margin-left: auto; color: #f0a09a; }
 .canvas-run-supervisor__controls button:disabled { opacity: .42; }
-.canvas-run-supervisor__error { margin: 10px; padding: 9px 10px; border-left: 2px solid #d96b62; color: #efaaa4; background: #1d1111; font-size: 14px; line-height: 22px; }
+.canvas-run-supervisor__error { display: grid; gap: 4px; margin: 10px; padding: 9px 10px; border-left: 2px solid #d96b62; color: #efaaa4; background: #1d1111; font-size: 14px; line-height: 22px; }
+.canvas-run-supervisor__error strong { font-size: 14px; }
+.canvas-run-supervisor__error span { color: #f5c0bb; }
+.canvas-run-supervisor__error p { margin: 0; color: #dca19c; }
+.canvas-run-supervisor__error details { color: #c89691; font-size: 12px; }
+.canvas-run-supervisor__error code { overflow-wrap: anywhere; }
 .canvas-run-failure { margin: 10px; border: 1px solid #633d3a; border-radius: 4px; background: #181111; }
 .canvas-run-failure > header { min-height: 45px; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-bottom: 1px solid #4c2e2c; color: #efaaa4; }
 .canvas-run-failure > header div { min-width: 0; }

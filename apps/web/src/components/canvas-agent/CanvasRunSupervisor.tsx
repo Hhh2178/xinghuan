@@ -4,6 +4,7 @@ import { decideCanvasRunApproval } from './canvas-run-api';
 import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
 import { CanvasCandidateSelectionPanel } from './CanvasCandidateSelectionPanel';
+import { describeCanvasRunError } from './canvas-run-error-message';
 
 export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeSettings, onOneTimeConsumed }: {
   canvasId: string | null;
@@ -23,6 +24,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
   const resolvedApprovals = new Set(projection.events.filter((event) => /approval_(applied|declined)/.test(event.eventType)).map((event) => String(event.payload.approvalId || '')));
   const pendingApproval = [...projection.events].reverse().find((event) => event.eventType === 'canvas_run.step_approval_requested' && !resolvedApprovals.has(String(event.payload.approvalId || '')));
   const failure = run ? buildCanvasRunFailureDiagnostic(run, projection.events) : null;
+  const errorMessage = projection.error ? describeCanvasRunError(projection.error) : null;
 
   const decideApproval = async (decision: 'approve' | 'reject') => {
     const approvalId = String(pendingApproval?.payload.approvalId || '');
@@ -63,7 +65,10 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
         {run ? <button type="button" title="刷新权威状态" onClick={() => void projection.refresh()}><RefreshCw size={15} /></button> : null}
       </div>
 
-      {projection.error ? <div className="canvas-run-supervisor__error">{projection.error}</div> : null}
+      {errorMessage ? <section className="canvas-run-supervisor__error" aria-label="AI 托管错误说明">
+        <strong>{errorMessage.title}</strong><span>{errorMessage.message}</span><p>{errorMessage.action}</p>
+        <details><summary>技术详情</summary><code>{errorMessage.technicalCode}</code></details>
+      </section> : null}
 
       {failure ? <section className="canvas-run-failure" aria-label="运行失败诊断">
         <header><AlertTriangle size={15} /><div><strong>节点 {String(failure.nodeNumber).padStart(2, '0')} · {failure.nodeType}</strong><small>{failure.category}</small></div></header>

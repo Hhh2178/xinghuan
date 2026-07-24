@@ -9,6 +9,7 @@ import { WorkflowSupervisionSettingsDrawer } from './WorkflowSupervisionSettings
 import { CANVAS_RUN_STATUS_LABEL } from './canvas-run-view-model';
 import { listCanvasWorkflowRuns, type CanvasRunRecord } from './canvas-run-api';
 import { useCanvasRunProjection } from './useCanvasRunProjection';
+import { buildWorkflowSupervisionReadiness } from './workflow-supervision-readiness';
 
 export interface CanvasSupervisionStatus {
   label: string;
@@ -128,6 +129,11 @@ export function CanvasSupervisionDock(props: {
   if (!props.open) return null;
 
   const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId);
+  const readiness = buildWorkflowSupervisionReadiness({
+    workflow: selectedWorkflow,
+    nodes: canvasNodes,
+    edges: canvasEdges,
+  });
   const updateStages = (stages: WorkflowStageDefinition[]) => {
     if (!selectedWorkflow || !props.canvasId) return;
     setWorkflows((current) => current.map((workflow) => workflow.id === selectedWorkflow.id ? {
@@ -164,6 +170,19 @@ export function CanvasSupervisionDock(props: {
               </select>
             </label>
           </div>
+          {!selectedWorkflow ? <section className="canvas-supervision-empty" aria-label="AI 托管使用说明">
+            <strong>先创建一个工作流区域</strong>
+            <p>AI 托管管理的是工作流区域，不是画布上的旧 Agent 托管节点。</p>
+            <ol><li>用工作流区域框选要运行的节点。</li><li>需要跨区域传值时，在边界放置工作流输入和工作流输出。</li><li>返回这里，选择工作流并生成运行计划。</li></ol>
+          </section> : null}
+          {selectedWorkflow && !projection.run ? <section className="canvas-supervision-readiness" data-state={readiness.state} aria-label="AI 托管运行前检查">
+            <header><strong>{readiness.state === 'blocked' ? '运行前检查发现问题' : '运行前检查'}</strong><small>{readiness.state === 'blocked' ? '需要修复' : '等待服务端确认'}</small></header>
+            {readiness.items.map((item) => <div key={`${item.code}:${item.nodeId || 'workflow'}`}>
+              <strong>{item.nodeId ? `节点 ${item.nodeId}` : '工作流'}</strong>
+              <span>{item.message}</span>
+              <p>{item.action}</p>
+            </div>)}
+          </section> : null}
           {overviewRuns.length ? <div className="canvas-run-overview" aria-label="工作流运行概览">
             {overviewRuns.map((run) => {
               const workflow = workflows.find((item) => item.id === run.workflowId);

@@ -16,8 +16,12 @@ describe('canvas node catalog presentation', () => {
     expect(getNodeMeta('remove-ai-watermark')?.hidden).toBe(true);
   });
 
-  it('uses the current auxiliary and utility labels and colors', () => {
+  it('splits workflow, logic, and tool creation entries with uniform group colors', () => {
     expect(getNodeMeta('idea')?.label).toBe('灵感笔记');
-    expect(getNodeMeta('group-execution-manager')?.color).toBe('orange');
+    expect(NODE_GROUPS.workflow.nodes.every((node) => node.color === 'teal')).toBe(true);
+    expect(NODE_GROUPS.logic.nodes.every((node) => node.color === 'sky')).toBe(true);
+    expect(NODE_GROUPS.tool.nodes.every((node) => node.color === 'orange')).toBe(true);
+    expect(NODE_GROUPS.workflow.nodes.some((node) => node.type === 'canvas-agent')).toBe(false);
+    expect(getNodeMeta('canvas-agent')?.hidden).toBe(true);
   });
 });

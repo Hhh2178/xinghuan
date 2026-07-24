@@ -706,7 +706,7 @@ function App() {
 
       {/* 主体两栏布局 */}
       <div className="t8-workspace flex-1 flex overflow-hidden">
-        <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} />
+        <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} onOpenSupervision={() => setSupervisionOpen(true)} />
         {sidebarOpen ? <button type="button" className="t8-sidebar-backdrop" aria-label="关闭节点面板" onClick={() => setSidebarOpen(false)} /> : null}
         <ErrorBoundary fallbackTitle="画布渲染出错了，已被错误边界捕获">
           <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />

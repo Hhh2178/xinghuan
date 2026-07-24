@@ -203,6 +203,7 @@ import WorkflowVariablesNode from './nodes/WorkflowVariablesNode';
 import { WorkflowInputNode, WorkflowOutputNode } from './nodes/WorkflowBoundaryNode';
 import CanvasAgentNode from './nodes/CanvasAgentNode';
 import DeletableEdge from './edges/DeletableEdge';
+import { classifyCanvasEdgeEmphasis } from './canvas-edge-emphasis';
 import { NODE_REGISTRY } from '../config/nodeRegistry';
 import type { NodeType, NodeMeta } from '../types/canvas';
 import { getNodeIcon } from './nodeIconMap';
@@ -1251,6 +1252,13 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   const [loadedCanvasId, setLoadedCanvasId] = useState<string | null>(null);
   const nextNodeSerialIdRef = useRef(1);
   const allowEmptySaveCanvasIdsRef = useRef<Set<string>>(new Set());
+  const displayEdges = useMemo(() => {
+    const emphasisByEdgeId = classifyCanvasEdgeEmphasis(nodes, edges);
+    return edges.map((edge) => ({
+      ...edge,
+      data: { ...edge.data, emphasis: emphasisByEdgeId.get(edge.id) || 'normal' },
+    }));
+  }, [edges, nodes]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('penguin:canvas-workflows-changed', {
@@ -3605,7 +3613,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       />
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={displayEdges}
         nodeTypes={memoNodeTypes}
         edgeTypes={memoEdgeTypes}
         onNodesChange={onNodesChange}

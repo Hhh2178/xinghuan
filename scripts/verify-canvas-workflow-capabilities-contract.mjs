@@ -24,7 +24,7 @@ const [registry, ports, codeNode, labelNode, groupExecutionManagerNode, groupExe
   read('apps/web/src/services/codeNodeApi.ts'),
 ]);
 
-assert.match(registry, /type: 'code'.*category: 'utility'.*color: 'orange'/, 'Code node must stay in the orange utility category.');
+assert.match(registry, /type: 'code'.*category: 'logic'.*color: 'sky'/, 'Code node must stay in the sky logic category.');
 assert.match(registry, /type: 'label'.*category: 'auxiliary'.*color: 'slate'/, 'Label node must stay in the slate auxiliary category.');
 assert.match(ports, /code: \{ inputs:/, 'Code node port contract is missing.');
 assert.match(ports, /label: \{ inputs: \[\], outputs: \[\] \}/, 'Label node must remain portless.');

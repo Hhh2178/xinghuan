@@ -41,6 +41,8 @@
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
 - 悬浮助手的位置、边缘吸附、标题偏移和首选尺寸按 owner 保存在本地 UI 几何状态；这些状态不进入 Canvas、Run 或服务端权限权威。桌面 Assistant 根据真实 Supervision 矩形切换边缘，窄屏使用互斥抽屉。
+- 2026-07-24 后续体验修正：悬浮助手改为保存 owner-scoped 的自由 `x/y` 坐标，启动器与工作台标题栏都可在 PC 画布可视区内拖动；工作台仍会在可行时避让 AI 托管面板，但不再吸附到左右边缘。
+- `canvas-agent` 的节点能力记录已改为“Agent 托管（历史兼容）”：它只支持旧画布读取，不是新建入口，也不得成为助手建议。当前 AI 托管的唯一产品路径是 Workflow Region -> AI 托管面板 -> 生成运行计划 -> 开始托管。受控知识快照继续只读，运行时关于节点/模型的事实来自受版本控制的 Node Capability Catalog 和安全模型投影。
 - 助手错误分析优先使用当前选中节点，否则读取最近失败的 owner-scoped Workflow Run 与 bounded events；发送给助手的节点配置、上下游影响和失败证据先做 allowlist/sensitive-key 清洗，可见用户消息不倾倒 Plan/Event JSON。
 - Assistant Markdown 继续由共享安全 renderer 承担 HTML、URL、远程图片和 reasoning 边界，并在其上提供整条回答与 code/table/ordered-steps/note 语义块复制。助手仍不拥有 Run、重试或托管控制权。
 - 新建运行默认关闭，只有 PostgreSQL 模式并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时可用。
@@ -177,3 +179,7 @@ Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-sel
 - 已在本机隔离数据库执行该命令，全部迁移成功，真实集成组 4 项通过，覆盖公平 cursor、过期 lease 接管、投递恢复和重复 delivery 原子 claim。认证 UI 与 Gray 综合验收仍待完成；只有 `native_server` 节点可声明页面关闭后由服务端继续执行。
 - 认证后的悬浮助手与托管面板验收步骤见 `authenticated-ui-acceptance.md`。该流程只允许隔离环境或 Gray 的一次性测试账号，不得把凭据、Cookie 或 Production 写操作纳入自动化。
 - 每次更新必须同时运行 `npm run verify:agent-runtime-architecture-contract`。
+# Supervision Readiness Follow-up (2026-07-24)
+
+- The Canvas supervision panel performs an advisory client-side check before creating a Run Plan. It identifies missing or empty Workflow Regions, non-native nodes, and invalid or missing Workflow Input values.
+- The API remains authoritative for feature flags, PostgreSQL, permissions, assets, models, budgets, and Worker availability. Stable Run errors are translated into repair guidance while retaining the original technical code in the UI.

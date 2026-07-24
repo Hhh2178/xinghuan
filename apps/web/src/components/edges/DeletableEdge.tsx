@@ -44,9 +44,11 @@ export default function DeletableEdge(props: EdgeProps) {
       (sourceNode?.data as any)?.yyhPortraitHidden ||
       (targetNode?.data as any)?.yyhPortraitHidden,
   );
+  const emphasis = (data as { emphasis?: string } | undefined)?.emphasis || 'normal';
   const edgeClassName = [
     isRhDuckEdge ? 'rh-duck-edge' : '',
     isYyhPortraitHiddenEdge ? 'yyh-portrait-hidden-edge' : '',
+    `t8-edge-emphasis-${emphasis}`,
   ].filter(Boolean).join(' ') || undefined;
 
   const [edgePath, labelX, labelY] = getBezierPath({

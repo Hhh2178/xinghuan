@@ -153,8 +153,6 @@ export function useAssistantGeometry(ownerId: string, open: boolean) {
           pointerY: event.clientY,
           viewportWidth: viewport.width,
           viewportHeight: viewport.height,
-          offsetX: current.anchor.offsetX,
-          offsetY: current.anchor.offsetY,
         }),
       }));
       return;
@@ -162,9 +160,8 @@ export function useAssistantGeometry(ownerId: string, open: boolean) {
     setGeometry((current) => ({
       ...current,
       anchor: normalizeAssistantAnchor({
-        ...current.anchor,
-        offsetX: drag.anchor.offsetX + deltaX,
-        offsetY: drag.anchor.offsetY + deltaY,
+        x: drag.anchor.x + deltaX,
+        y: drag.anchor.y + deltaY,
       }, viewport),
     }));
   };

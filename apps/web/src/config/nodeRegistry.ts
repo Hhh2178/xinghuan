@@ -10,9 +10,9 @@ const DEV_NODE_REGISTRY: NodeMeta[] = import.meta.env?.DEV ? [
  * 图标使用 lucide-react 名称(运行时由 Sidebar 动态查找)
  */
 export const NODE_REGISTRY: NodeMeta[] = [
-  { type: 'workflow-input', label: '工作流输入', category: 'utility', description: '将强类型输入显式带入工作流区域', icon: 'LogIn', color: 'emerald' },
-  { type: 'workflow-output', label: '工作流输出', category: 'utility', description: '将工作流结果从显式边界释放', icon: 'LogOut', color: 'emerald' },
-  { type: 'workflow-variables', label: '工作流变量', category: 'utility', description: '工作流输入变量、当前值与节点引用', icon: 'Braces', color: 'amber' },
+  { type: 'workflow-input', label: '工作流输入', category: 'workflow', description: '将强类型输入显式带入工作流区域', icon: 'LogIn', color: 'teal' },
+  { type: 'workflow-output', label: '工作流输出', category: 'workflow', description: '将工作流结果从显式边界释放', icon: 'LogOut', color: 'teal' },
+  { type: 'workflow-variables', label: '工作流变量', category: 'workflow', description: '工作流输入变量、当前值与节点引用', icon: 'Braces', color: 'teal' },
   // ========== Input 素材资源(3) ==========
   { type: 'upload', label: '上传素材', category: 'input', description: '图像 / 视频 / 音频 三合一上传(自适应输出端口)', icon: 'Upload', color: 'emerald' },
   { type: 'material-set', label: '素材集', category: 'input', description: '把多个同类型文本 / 图像 / 视频 / 音频打包成可排序素材集，可直接传给生成与 RH 节点', icon: 'Images', color: 'teal' },
@@ -53,27 +53,27 @@ export const NODE_REGISTRY: NodeMeta[] = [
 
   // ========== Utility 工具节点(13) ==========
   // 其中 4 个暂时隐藏: browser / frame-extractor / remove-bg / upscale
-  { type: 'group-execution-manager', label: '组执行管理器', category: 'utility', description: '全局组执行调度节点：控制组顺序、跳过与整体执行编排', icon: 'Workflow', color: 'orange' },
-  { type: 'canvas-agent', label: 'Agent 托管', category: 'utility', description: '历史画布兼容节点；新运行请使用顶部 AI 托管入口', icon: 'Bot', color: 'emerald', hidden: true },
-  { type: 'drawing-board', label: '画板', category: 'utility', description: '图层画板：接上游图片后手绘、标注、组合并输出图像', icon: 'Pencil', color: 'orange' },
-  { type: 'browser', label: '浏览器', category: 'utility', description: '网页内嵌', icon: 'Globe2', color: 'orange', hidden: true },
-  { type: 'image-compare', label: '图像对比', category: 'utility', description: '双图滑杆 / 并排 / 叠加 / 热力 / 聚焦对比', icon: 'GitCompare', color: 'orange' },
-  { type: 'frame-extractor', label: '抽帧', category: 'utility', description: '视频抽帧', icon: 'Scissors', color: 'orange', hidden: true },
+  { type: 'group-execution-manager', label: '组执行管理器', category: 'workflow', description: '全局组执行调度节点：控制组顺序、跳过与整体执行编排', icon: 'Workflow', color: 'teal' },
+  { type: 'canvas-agent', label: 'Agent 托管', category: 'workflow', description: '历史画布兼容节点；新运行请使用 AI 托管入口', icon: 'Bot', color: 'teal', hidden: true },
+  { type: 'drawing-board', label: '画板', category: 'tool', description: '图层画板：接上游图片后手绘、标注、组合并输出图像', icon: 'Pencil', color: 'orange' },
+  { type: 'browser', label: '浏览器', category: 'tool', description: '网页内嵌', icon: 'Globe2', color: 'orange', hidden: true },
+  { type: 'image-compare', label: '图像对比', category: 'tool', description: '双图滑杆 / 并排 / 叠加 / 热力 / 聚焦对比', icon: 'GitCompare', color: 'orange' },
+  { type: 'frame-extractor', label: '抽帧', category: 'tool', description: '视频抽帧', icon: 'Scissors', color: 'orange', hidden: true },
   // 首尾帧获取 (v1.2.7): 输入视频节点 → 运行后抽取首帧/尾帧 → 双 image 输出
-  { type: 'frame-pair', label: '首尾帧获取', category: 'utility', description: '从视频抽取首帧与尾帧，双输出可分别接下游', icon: 'Film', color: 'orange' },
+  { type: 'frame-pair', label: '首尾帧获取', category: 'tool', description: '从视频抽取首帧与尾帧，双输出可分别接下游', icon: 'Film', color: 'orange' },
   // 循环器 (v1.2.8): 上游多素材 → 串联/并联驱动下游执行链
-  { type: 'loop', label: '循环器', category: 'utility', description: '接多个同类型素材，串联逐个驱动或并联克隆子图同时跱发下游生成节点', icon: 'Repeat', color: 'orange' },
+  { type: 'loop', label: '循环器', category: 'logic', description: '接多个同类型素材，串联逐个驱动或并联克隆子图同时跱发下游生成节点', icon: 'Repeat', color: 'sky' },
   // 从合集获取 (v1.2.8): 多素材 → 按序号取单个传给下游
-  { type: 'pick-from-set', label: '从合集获取', category: 'utility', description: '从上游多素材中按序号取出单一素材，kind 可在节点内切换', icon: 'Filter', color: 'orange' },
-  { type: 'smart-candidate-selector', label: '智能候选选择器', category: 'utility', description: '在候选素材与下游之间执行人工或 AI 选择门', icon: 'ListChecks', color: 'teal' },
-  { type: 'text-split', label: '文本分割', category: 'utility', description: '将长提示词/分镜按段落、行、智能分镜、正则、自定义分隔符或字数切成多段文本，支持收藏与循环器链路', icon: 'SplitSquareVertical', color: 'orange' },
-  { type: 'code', label: '代码', category: 'utility', description: '使用受控 Python 代码处理上游数据，支持节点内预设保存、切换与覆盖', icon: 'Code2', color: 'orange' },
-  { type: 'resize', label: '图像尺寸调整', category: 'utility', description: '调整图片尺寸；视频需先经过抽帧节点', icon: 'Maximize2', color: 'orange' },
-  { type: 'combine', label: '合并', category: 'utility', description: '图像合并', icon: 'Combine', color: 'orange' },
-  { type: 'remove-bg', label: '抠图', category: 'utility', description: '去除背景', icon: 'Eraser', color: 'orange', hidden: true },
-  { type: 'upscale', label: '放大', category: 'utility', description: '图像放大', icon: 'ZoomIn', color: 'orange', hidden: true },
-  { type: 'grid-crop', label: '宫格剪裁', category: 'utility', description: '网格切图', icon: 'Grid3x3', color: 'orange' },
-  { type: 'grid-editor', label: '宫格编辑', category: 'utility', description: '多图分镜宫格拼接与顺序拆分', icon: 'LayoutGrid', color: 'orange' },
+  { type: 'pick-from-set', label: '从合集获取', category: 'logic', description: '从上游多素材中按序号取出单一素材，kind 可在节点内切换', icon: 'Filter', color: 'sky' },
+  { type: 'smart-candidate-selector', label: '智能候选选择器', category: 'logic', description: '在候选素材与下游之间执行人工或 AI 选择门', icon: 'ListChecks', color: 'sky' },
+  { type: 'text-split', label: '文本分割', category: 'logic', description: '将长提示词/分镜按段落、行、智能分镜、正则、自定义分隔符或字数切成多段文本，支持收藏与循环器链路', icon: 'SplitSquareVertical', color: 'sky' },
+  { type: 'code', label: '代码', category: 'logic', description: '使用受控 Python 代码处理上游数据，支持节点内预设保存、切换与覆盖', icon: 'Code2', color: 'sky' },
+  { type: 'resize', label: '图像尺寸调整', category: 'tool', description: '调整图片尺寸；视频需先经过抽帧节点', icon: 'Maximize2', color: 'orange' },
+  { type: 'combine', label: '合并', category: 'tool', description: '图像合并', icon: 'Combine', color: 'orange' },
+  { type: 'remove-bg', label: '抠图', category: 'tool', description: '去除背景', icon: 'Eraser', color: 'orange', hidden: true },
+  { type: 'upscale', label: '放大', category: 'tool', description: '图像放大', icon: 'ZoomIn', color: 'orange', hidden: true },
+  { type: 'grid-crop', label: '宫格剪裁', category: 'tool', description: '网格切图', icon: 'Grid3x3', color: 'orange' },
+  { type: 'grid-editor', label: '宫格编辑', category: 'tool', description: '多图分镜宫格拼接与顺序拆分', icon: 'LayoutGrid', color: 'orange' },
 
   // ========== Auxiliary 辅助节点(6) ==========
   // 其中 2 个暂时隐藏: edit / video-output
@@ -100,7 +100,9 @@ export const NODE_GROUPS: Record<string, { label: string; nodes: NodeMeta[] }> =
   rh: { label: 'RH', nodes: NODE_REGISTRY.filter((n) => n.category === 'rh' && !n.hidden) },
   comfyui: { label: 'ComfyUI', nodes: NODE_REGISTRY.filter((n) => n.category === 'comfyui' && !n.hidden) },
   special: { label: '特殊节点', nodes: NODE_REGISTRY.filter((n) => n.category === 'special' && !n.hidden) },
-  utility: { label: '工具节点', nodes: NODE_REGISTRY.filter((n) => n.category === 'utility' && !n.hidden) },
+  workflow: { label: '工作流类', nodes: NODE_REGISTRY.filter((n) => n.category === 'workflow' && !n.hidden) },
+  logic: { label: '逻辑处理类', nodes: NODE_REGISTRY.filter((n) => n.category === 'logic' && !n.hidden) },
+  tool: { label: '工具', nodes: NODE_REGISTRY.filter((n) => n.category === 'tool' && !n.hidden) },
   auxiliary: { label: '辅助节点', nodes: NODE_REGISTRY.filter((n) => n.category === 'auxiliary' && !n.hidden) },
   toolbox: { label: '工具箱', nodes: NODE_REGISTRY.filter((n) => n.category === 'toolbox' && !n.hidden) },
 };
