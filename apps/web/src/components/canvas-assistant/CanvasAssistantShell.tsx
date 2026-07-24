@@ -27,6 +27,15 @@ export function CanvasAssistantShell({ nodes, edges, activeCanvasId, ownerId }: 
     return () => window.removeEventListener('penguin:supervision-open-change', handleSupervision);
   }, [geometry.layout.compact]);
 
+  useEffect(() => {
+    const handleAssistantContext = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      if (detail?.open) setOpen(true);
+    };
+    window.addEventListener('penguin:append-assistant-context', handleAssistantContext);
+    return () => window.removeEventListener('penguin:append-assistant-context', handleAssistantContext);
+  }, []);
+
   if (!session.settings.frontend.enabled) return null;
   return (
     <div

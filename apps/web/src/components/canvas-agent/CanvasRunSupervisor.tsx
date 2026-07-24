@@ -1,10 +1,11 @@
-import { AlertTriangle, Ban, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
-import type { WorkflowSupervisionSettings } from '@xinghuan/shared';
+import { AlertTriangle, Ban, Bot, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
+import type { CanvasRunFailureDiagnostic, WorkflowSupervisionSettings } from '@xinghuan/shared';
 import { decideCanvasRunApproval } from './canvas-run-api';
 import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
 import { CanvasCandidateSelectionPanel } from './CanvasCandidateSelectionPanel';
 import { describeCanvasRunError } from './canvas-run-error-message';
+import { buildCanvasRunAssistantContextDetail } from './canvas-run-assistant-bridge';
 
 export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeSettings, onOneTimeConsumed }: {
   canvasId: string | null;
@@ -31,6 +32,12 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
     if (!run || !approvalId) return;
     await decideCanvasRunApproval(run.id, approvalId, decision);
     await projection.refresh();
+  };
+
+  const sendDiagnosticToAssistant = (diagnostic: CanvasRunFailureDiagnostic) => {
+    window.dispatchEvent(new CustomEvent('penguin:append-assistant-context', {
+      detail: buildCanvasRunAssistantContextDetail(diagnostic, run?.id),
+    }));
   };
 
   return (
@@ -66,14 +73,18 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
       </div>
 
       {errorMessage ? <section className="canvas-run-supervisor__error" aria-label="AI 托管错误说明">
-        <strong>{errorMessage.title}</strong><span>{errorMessage.message}</span><p>{errorMessage.action}</p>
-        <details><summary>技术详情</summary><code>{errorMessage.technicalCode}</code></details>
+        <strong>{errorMessage.title}</strong>
+        <dl><div><dt>发生了什么</dt><dd>{errorMessage.summary}</dd></div><div><dt>可能原因</dt><dd>{errorMessage.likelyCause}</dd></div><div><dt>影响</dt><dd>{errorMessage.impact}</dd></div><div><dt>怎么处理</dt><dd>{errorMessage.action}</dd></div></dl>
+        <span>{errorMessage.retryable ? '可在原因解除后按原计划重试' : '需要修复配置或新建运行计划'}</span>
+        <button type="button" onClick={() => sendDiagnosticToAssistant(errorMessage)}><Bot size={14} />让 AI 助手分析</button>
+        <details><summary>技术详情</summary><code>{errorMessage.technical.code}</code></details>
       </section> : null}
 
       {failure ? <section className="canvas-run-failure" aria-label="运行失败诊断">
-        <header><AlertTriangle size={15} /><div><strong>节点 {String(failure.nodeNumber).padStart(2, '0')} · {failure.nodeType}</strong><small>{failure.category}</small></div></header>
-        <dl><div><dt>影响</dt><dd>{failure.impact}</dd></div><div><dt>恢复</dt><dd>{failure.recovery}</dd></div></dl>
-        <details><summary>技术详情</summary><code>{failure.technical}</code></details>
+        <header><AlertTriangle size={15} /><div><strong>{failure.location.stepNumber ? `节点 ${String(failure.location.stepNumber).padStart(2, '0')} · ` : ''}{failure.location.nodeType || '未知节点'}</strong><small>{failure.title}</small></div></header>
+        <dl><div><dt>发生了什么</dt><dd>{failure.observed}</dd></div><div><dt>可能原因</dt><dd>{failure.likelyCause}</dd></div><div><dt>影响</dt><dd>{failure.impact}</dd></div><div><dt>怎么处理</dt><dd>{failure.action}</dd></div></dl>
+        <div className="canvas-run-failure__actions"><span>{failure.retryable ? '可重试' : '需先修复'}</span><button type="button" onClick={() => sendDiagnosticToAssistant(failure)}><Bot size={14} />让 AI 助手分析</button></div>
+        <details><summary>技术详情</summary><code>{[failure.technical.code, failure.technical.taskId, failure.technical.requestId].filter(Boolean).join(' · ')}</code></details>
       </section> : null}
 
       {run ? <div className="canvas-run-supervisor__facts">

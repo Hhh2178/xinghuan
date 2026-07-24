@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvasRunCoordinator, mergeUpstreamPayload, resolveResizeImageUrl } from './canvas-run-coordinator.js';
+import { buildCanvasRunTaskFailureDiagnostic, createCanvasRunCoordinator, mergeUpstreamPayload, resolveResizeImageUrl } from './canvas-run-coordinator.js';
 
 describe('canvas run coordinator', () => {
   it('uses an owner-scoped materialized image before remote provider URLs for resize', () => {
@@ -21,6 +21,32 @@ describe('canvas run coordinator', () => {
     expect(payload.videos).toEqual(['generated.mp4']);
     expect(payload.audios).toEqual(['voice.wav']);
     expect(payload.prompt).toBe('下一步提示词');
+  });
+
+  it('projects a failed Provider task into a safe assistant-ready diagnostic', () => {
+    const diagnostic = buildCanvasRunTaskFailureDiagnostic({
+      runId: 'run-1',
+      runStepId: 'step-1',
+      nodeId: 'image-1',
+      nodeType: 'image',
+      taskId: 'task-1',
+      result: {
+        failureCategory: 'upstream_business_failed',
+        providerDiagnostic: 'Bearer private-key rejected https://private.example/file.png?token=secret',
+        upstreamHttpStatus: 400,
+        requestId: 'request-1',
+        providerName: 'RunningHub',
+        modelName: 'RH Image',
+      },
+    });
+
+    expect(diagnostic).toMatchObject({
+      category: 'provider',
+      title: '渠道拒绝了本次请求',
+      location: { runId: 'run-1', runStepId: 'step-1', nodeId: 'image-1', nodeType: 'image', providerName: 'RunningHub', modelName: 'RH Image' },
+      technical: { code: 'upstream_business_failed', taskId: 'task-1', requestId: 'request-1', upstreamHttpStatus: 400 },
+    });
+    expect(JSON.stringify(diagnostic)).not.toMatch(/private-key|private\.example|token=secret/);
   });
 
   it('records normalized transient recovery and waits for bounded backoff', async () => {

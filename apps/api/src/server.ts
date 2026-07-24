@@ -50,7 +50,7 @@ import { basename, extname, join, resolve } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
-import { summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
+import { summarizeNodeAssistantAttachment, summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
 import { fileErrorCode, readSerializedJson, writeSerializedJson } from "./serialized-json-file.js";
 import {
   inferMime,
@@ -9711,8 +9711,7 @@ function summarizeAssistantAttachment(item: AssistantChatAttachment) {
     Object.assign(summary, summarizeWorkflowAssistantAttachment(payload));
   }
   if (kind === "node") {
-    summary.nodeId = safeText(payload.id || payload.nodeId).slice(0, 80);
-    summary.nodeType = safeText(payload.type || payload.nodeType).slice(0, 80);
+    Object.assign(summary, summarizeNodeAssistantAttachment(payload));
   }
   if (kind === "provider" || kind === "model" || kind === "task") {
     summary.id = safeText(payload.id || payload.providerId || payload.modelId || payload.taskId).slice(0, 80);
@@ -9791,6 +9790,9 @@ function buildInternalAssistantChatPrompt(input: AssistantChatRequest, actor: Cu
     "不要把 JSON、说明文字、步骤、风险写在同一块里。",
     "保持空行、缩进和代码块原样，不要压扁格式。",
     "如果用户提供的是工作流、节点或媒体，请优先做分析、诊断、建议和下一步动作。",
+    "如果上下文包含 Canvas Run Failure Diagnostic，必须区分：已观察事实、可能原因、受影响步骤、修复动作。",
+    "只能把诊断对象中的 observed、location 和 technical 字段视为已观察事实；推断必须明确标为可能原因，不得把猜测写成事实。",
+    "不得声称已经重试、修改节点、切换模型或恢复运行，除非上下文中存在对应的审计结果。",
     `当前作用域: ${input.scope === "admin" ? "后台管理" : "画布工作区"}`,
     `当前用户: ${actor.email} (${actor.role})`,
     `用户问题: ${safeLongText(input.message, "", 4000) || "未提供问题"}`,

@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const read = (path) => readFileSync(join(process.cwd(), path), 'utf8');
+const shared = read('packages/shared/src/canvas-run-diagnostic.ts');
+const worker = read('apps/worker/src/canvas-run-coordinator.ts');
+const viewModel = read('apps/web/src/components/canvas-agent/canvas-run-view-model.ts');
+const supervisor = read('apps/web/src/components/canvas-agent/CanvasRunSupervisor.tsx');
+const bridge = read('apps/web/src/components/canvas-agent/canvas-run-assistant-bridge.ts');
+const session = read('apps/web/src/components/canvas-assistant/useAssistantSession.ts');
+const shell = read('apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx');
+const assistantContext = read('apps/api/src/assistant-workflow-context.ts');
+const api = read('apps/api/src/server.ts');
+
+assert.match(shared, /CANVAS_RUN_FAILURE_DIAGNOSTIC_VERSION/);
+assert.match(shared, /projectCanvasRunFailureDiagnostic/);
+assert.match(shared, /Bearer\\s\+/);
+assert.match(worker, /buildCanvasRunTaskFailureDiagnostic/);
+assert.match(worker, /diagnostic,/);
+assert.match(viewModel, /projectCanvasRunFailureDiagnostic/);
+assert.match(supervisor, /让 AI 助手分析/);
+assert.match(supervisor, /buildCanvasRunAssistantContextDetail/);
+assert.match(bridge, /diagnostic,/);
+assert.match(bridge, /open: true/);
+assert.match(session, /detail\?\.draft/);
+assert.match(session, /planContext/);
+assert.match(shell, /detail\?\.open/);
+assert.match(assistantContext, /summarizeNodeAssistantAttachment/);
+assert.match(assistantContext, /SENSITIVE_KEY/);
+assert.match(api, /Canvas Run Failure Diagnostic/);
+assert.match(api, /不得声称已经重试/);
+
+console.log('canvas supervision diagnostic contract: ok');

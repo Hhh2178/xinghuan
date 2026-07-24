@@ -179,6 +179,8 @@ Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-sel
 
 ## Agent Analysis And Shared Failure Diagnostics
 
+> 2026-07-24 local Task 6 checkpoint: `Canvas Run Failure Diagnostic` is implemented as a shared projector consumed by Worker failure events, Run API error presentation and the Canvas assistant. The Canvas renders observed fact, possible cause, impact, repair, retryability and bounded technical IDs; `让 AI 助手分析` opens the assistant with exactly that diagnostic. Two real candidate Runs reached `SMART_CANDIDATE_COUNT_INSUFFICIENT`, and the published frontend Assistant Agent cited the stable code and failed selector type while proposing applicable repairs. Gray deployment remains paused.
+
 本轮目标架构由 [ADR 0005](../../adr/0005-agent-analyzed-deterministic-supervision.md) 约束。`supervision-planner` 只生成并发建议、串行原因、风险和建议并发上限；`packages/agent-core/src/workflow-compiler.ts` 生成的依赖与 Execution Layer、服务端校验和 Worker ready-step 领取仍是执行权威。Agent 调用失败时，Run 必须以 `degraded` 分析状态继续确定性计划。
 
 前台 Canvas 助手、后台 Admin 助手和 AI 托管 planner 使用分离的 Agent definition 与 LLM route pool。Admin 将把助手表面设置和对应的版本化 Agent 配置组合展示，但不合并它们的数据权威，也不允许前台助手读取 Admin 用户、审计或 Provider secrets。

@@ -37,4 +37,39 @@ describe('assistant failure context', () => {
     expect(isAssistantFailureEvent({ eventType: 'canvas_run.step_status_changed', payload: { status: 'failed' } } as any)).toBe(true);
     expect(isAssistantFailureEvent({ eventType: 'canvas_run.step_succeeded', payload: {} } as any)).toBe(false);
   });
+
+  it('attaches the normalized diagnostic and bounded plan context without provider secrets', () => {
+    const target = buildAssistantFailureTarget({
+      node: { id: 'video-3', type: 'video', data: { prompt: 'slow push' } } as any,
+      edges: [{ id: 'e1', source: 'image-2', target: 'video-3' }] as any,
+      source: 'recent_failed_run',
+      runId: 'run-1',
+      event: {
+        eventType: 'canvas_run.step_failed',
+        runStepId: 'step-3',
+        runStepKey: 'step-3',
+        nodeId: 'video-3',
+        payload: {
+          code: 'UPSTREAM_REJECTED',
+          failureCategory: 'provider',
+          providerDiagnostic: 'Bearer private-key https://private.example/result.mp4?token=secret',
+          providerName: 'RunningHub',
+          modelName: 'RH Video',
+          taskId: 'task-9',
+        },
+      } as any,
+      planContext: { groupId: 'group-1', groupOrder: 2, layer: 3 },
+    });
+
+    expect(target.attachment.payload).toMatchObject({
+      planContext: { groupId: 'group-1', groupOrder: 2, layer: 3 },
+      diagnostic: {
+        category: 'provider',
+        title: '渠道拒绝了本次请求',
+        location: { runId: 'run-1', runStepId: 'step-3', nodeId: 'video-3', nodeType: 'video', providerName: 'RunningHub', modelName: 'RH Video' },
+        technical: { code: 'UPSTREAM_REJECTED', taskId: 'task-9' },
+      },
+    });
+    expect(JSON.stringify(target)).not.toMatch(/private-key|private\.example|token=secret/);
+  });
 });

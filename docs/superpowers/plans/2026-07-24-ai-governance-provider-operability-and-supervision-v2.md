@@ -432,34 +432,34 @@ git commit -m "feat(runninghub): support standard image and video models"
 - Consumes: Canvas Run API errors, run events, task diagnostics and sanitized workflow context.
 - Produces: shared `CanvasRunFailureDiagnostic`, direct Canvas copy and assistant failure attachments.
 
-- [ ] **Step 1: Write failing diagnostic normalization tests**
+- [x] **Step 1: Write failing diagnostic normalization tests**
 
 Cover workflow boundaries, cycles, unsupported nodes, model repair, Provider rejection/rate limit, queue wait/stall, budget exceeded, permission denied, cancellation, Worker timeout and unknown fallback. Assert secrets, signed URLs and raw bodies are removed.
 
-- [ ] **Step 2: Confirm RED**
+- [x] **Step 2: Confirm RED**
 
 ```powershell
 npx vitest run packages/shared/src/canvas-run-diagnostic.test.ts apps/web/src/components/canvas-agent/canvas-run-error-message.test.ts apps/web/src/components/canvas-assistant/useAssistantSession.test.ts
 npm run verify:canvas-supervision-diagnostic-contract
 ```
 
-- [ ] **Step 3: Implement the shared diagnostic projector**
+- [x] **Step 3: Implement the shared diagnostic projector**
 
 Normalize stable codes and safe event/task fields into category, title, summary, action, retryability, location and collapsed technical details. Provider/model names are allowed; credentials, signed URLs and full upstream response snippets are not.
 
-- [ ] **Step 4: Make Canvas failures direct and location-aware**
+- [x] **Step 4: Make Canvas failures direct and location-aware**
 
 Render the four-part explanation, affected node/model, retryability and a dedicated `让 AI 助手分析` action. Keep technical code/request ID in a collapsed details region.
 
-- [ ] **Step 5: Expand assistant failure context safely**
+- [x] **Step 5: Expand assistant failure context safely**
 
 Attach the normalized diagnostic, failed step, plan group/layer, bounded neighboring nodes and latest relevant events. Add an event bridge so clicking the Canvas error action opens the assistant with exactly that diagnostic selected.
 
-- [ ] **Step 6: Strengthen assistant prompt behavior**
+- [x] **Step 6: Strengthen assistant prompt behavior**
 
 Require the assistant to separate observed facts, likely cause, affected steps and repair actions. It must state uncertainty and may not claim execution/retry/mutation without an audited result.
 
-- [ ] **Step 7: Verify tests, boundaries and builds**
+- [x] **Step 7: Verify tests, boundaries and builds**
 
 ```powershell
 npx vitest run packages/shared/src/canvas-run-diagnostic.test.ts apps/web/src/components/canvas-agent/canvas-run-error-message.test.ts apps/web/src/components/canvas-assistant/useAssistantSession.test.ts
@@ -473,11 +473,11 @@ npm run build -w @xinghuan/api
 npm run build -w @xinghuan/web
 ```
 
-- [ ] **Step 8: Run real failed-run assistant diagnosis**
+- [x] **Step 8: Run real failed-run assistant diagnosis**
 
 Create a disposable workflow failure with a safe, intentional invalid model/input configuration. Confirm Canvas copy identifies the node and repair, click the assistant action, and verify the real assistant response cites the actual run evidence and gives applicable repair steps.
 
-- [ ] **Step 9: Record and commit Task 6**
+- [x] **Step 9: Record and commit Task 6**
 
 ```powershell
 git commit -m "feat(canvas): make supervision failures diagnosable"

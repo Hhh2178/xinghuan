@@ -20,6 +20,20 @@ export function summarizeWorkflowAssistantAttachment(payload: Record<string, unk
   };
 }
 
+export function summarizeNodeAssistantAttachment(payload: Record<string, unknown>) {
+  return {
+    source: text(payload.source, 80),
+    runId: text(payload.runId, 120),
+    nodeId: text(payload.id || payload.nodeId, 120),
+    nodeType: text(payload.type || payload.nodeType, 120),
+    configuration: safeValue(payload.configuration, 0),
+    upstreamNodeIds: safeTextList(payload.upstreamNodeIds, 20),
+    downstreamNodeIds: safeTextList(payload.downstreamNodeIds, 20),
+    planContext: safeValue(payload.planContext, 0),
+    diagnostic: safeValue(payload.diagnostic, 0),
+  };
+}
+
 function snapshotNode(node: Record<string, unknown>) {
   const data = record(node.data);
   return {
@@ -38,7 +52,7 @@ function snapshotEdge(edge: Record<string, unknown>) {
 
 function safeValue(value: unknown, depth: number): unknown {
   if (depth > 3 || value === null || value === undefined) return undefined;
-  if (typeof value === "string") return value.slice(0, MAX_TEXT_LENGTH);
+  if (typeof value === "string") return safeString(value).slice(0, MAX_TEXT_LENGTH);
   if (typeof value === "number" || typeof value === "boolean") return value;
   if (Array.isArray(value)) return value.slice(0, 20).map((item) => safeValue(item, depth + 1)).filter((item) => item !== undefined);
   if (typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>)
@@ -54,5 +68,17 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 function text(value: unknown, maximum: number) {
-  return typeof value === "string" ? value.trim().slice(0, maximum) : "";
+  return typeof value === "string" ? safeString(value).trim().slice(0, maximum) : "";
+}
+
+function safeTextList(value: unknown, maximum: number) {
+  return Array.isArray(value)
+    ? value.map((item) => text(item, 120)).filter(Boolean).slice(0, maximum)
+    : [];
+}
+
+function safeString(value: string) {
+  return value
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+/gi, "Bearer [已隐藏]")
+    .replace(/https?:\/\/[^\s"'<>]+[?&](?:token|signature|sign|auth|key)=[^\s"'<>]+/gi, "[已隐藏临时链接]");
 }

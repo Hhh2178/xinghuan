@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Edge, Node } from '@xyflow/react';
+import { projectCanvasRunFailureDiagnostic } from '@xinghuan/shared';
 import {
   getAssistantSettings,
   streamAssistantChat,
@@ -133,6 +134,10 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
         source: 'recent_failed_run',
         runId: failed.id,
         event,
+        planContext: {
+          groupId: step.groupId,
+          groupOrder: failed.planSnapshot.groups.find((group) => group.id === step.groupId)?.order,
+        },
       }));
     }).catch(() => undefined);
     return () => { active = false; };
@@ -187,8 +192,9 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
 
   useEffect(() => {
     const append = (event: Event) => {
-      const detail = (event as CustomEvent<{ attachments?: AssistantChatAttachment[] }>).detail;
+      const detail = (event as CustomEvent<{ attachments?: AssistantChatAttachment[]; draft?: string }>).detail;
       for (const item of detail?.attachments || []) addAttachment(item);
+      if (detail?.draft?.trim()) setDraft(detail.draft.trim());
     };
     window.addEventListener('penguin:append-assistant-context', append);
     return () => window.removeEventListener('penguin:append-assistant-context', append);
@@ -271,15 +277,28 @@ export function buildAssistantFailureTarget(input: {
   source: 'selected_node' | 'recent_failed_run';
   runId?: string;
   event?: CanvasRunEvent;
+  planContext?: { groupId?: string | null; groupOrder?: number; layer?: number };
 }) {
   const incoming = input.edges.filter((edge) => edge.target === input.node.id).map((edge) => edge.source).slice(0, 20);
   const outgoing = input.edges.filter((edge) => edge.source === input.node.id).map((edge) => edge.target).slice(0, 20);
-  const failure = input.event ? {
-    code: text(input.event.payload.code || input.event.payload.failureClass),
-    reason: text(input.event.payload.reason).slice(0, 1_000),
-    providerId: text(input.event.payload.providerId),
-    modelRecordId: text(input.event.payload.modelRecordId),
-  } : undefined;
+  const diagnostic = input.event ? projectCanvasRunFailureDiagnostic({
+    code: input.event.payload.code || input.event.payload.failureClass,
+    eventType: input.event.eventType,
+    message: input.event.payload.message || input.event.payload.error,
+    reason: input.event.payload.reason,
+    failureCategory: input.event.payload.failureCategory,
+    providerDiagnostic: input.event.payload.providerDiagnostic,
+    waitReason: input.event.payload.waitReason,
+    runId: input.runId,
+    runStepId: input.event.runStepKey || input.event.runStepId,
+    nodeId: input.node.id,
+    nodeType: String(input.node.type || ''),
+    providerName: input.event.payload.providerName,
+    modelName: input.event.payload.modelName,
+    taskId: input.event.payload.taskId,
+    requestId: input.event.payload.requestId,
+    upstreamHttpStatus: input.event.payload.upstreamHttpStatus,
+  }) : undefined;
   const attachment: AssistantChatAttachment = {
     id: `failure-${input.source}-${input.runId || input.node.id}`,
     kind: 'node',
@@ -293,7 +312,8 @@ export function buildAssistantFailureTarget(input: {
       configuration: sanitizeAssistantWorkflowData(input.node.data),
       upstreamNodeIds: incoming,
       downstreamNodeIds: outgoing,
-      failure,
+      planContext: input.planContext,
+      diagnostic,
     },
   };
   return { attachment, label: `节点 ${String(input.node.type || '')}（${input.node.id}）` };

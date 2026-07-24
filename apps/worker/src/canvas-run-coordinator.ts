@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { CANVAS_RUN_NATIVE_NODE_TYPES, executeDeterministicNode, NATIVE_DETERMINISTIC_NODE_TYPES } from '@xinghuan/agent-core';
-import { taskQueueNameForCapability } from '@xinghuan/shared';
+import { projectCanvasRunFailureDiagnostic, taskQueueNameForCapability, type CanvasRunFailureDiagnostic } from '@xinghuan/shared';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import type { RedisClientType } from 'redis';
 import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator.js';
@@ -362,11 +362,27 @@ export function createCanvasRunCoordinator(options: {
       [step.id, JSON.stringify(error)],
     );
     await client.query(`update xh_canvas_runs set status = 'failed', updated_at = now(), finalized_at = now() where id = $1`, [step.run_id]);
+    const diagnostic = buildCanvasRunTaskFailureDiagnostic({
+      runId: step.run_id,
+      runStepId: step.id,
+      nodeId: step.node_id,
+      nodeType: step.node_type,
+      taskId: text(error.taskId) || text(step.task_id),
+      result: object(error.result),
+      fallbackFailureCategory: text(error.failureCategory),
+      fallbackReason: text(error.reason),
+    });
     await appendEvent(client, step.run_id, step.id, 'canvas_run.step_failed', {
       taskId: step.task_id,
       code: text(error.code),
       decisionId: text(error.decisionId),
       failureCategory: text(error.failureCategory),
+      providerDiagnostic: diagnostic.observed,
+      upstreamHttpStatus: diagnostic.technical.upstreamHttpStatus,
+      requestId: diagnostic.technical.requestId,
+      providerName: diagnostic.location.providerName,
+      modelName: diagnostic.location.modelName,
+      diagnostic,
     });
     await appendEvent(client, step.run_id, null, 'canvas_run.failed', { stepId: step.id, decisionId: text(error.decisionId) });
   }
@@ -576,6 +592,36 @@ export function createCanvasRunCoordinator(options: {
     await initializeSmartCandidateSelector({ pool: options.pool, environment: options.environment, appendEvent });
     await claimReadyStep();
   } };
+}
+
+export function buildCanvasRunTaskFailureDiagnostic(input: {
+  runId: string;
+  runStepId: string;
+  nodeId: string;
+  nodeType: string;
+  taskId: string;
+  result: Record<string, unknown>;
+  fallbackFailureCategory?: string;
+  fallbackReason?: string;
+}): CanvasRunFailureDiagnostic {
+  const result = object(input.result);
+  const failureCategory = text(result.failureCategory) || text(input.fallbackFailureCategory);
+  return projectCanvasRunFailureDiagnostic({
+    code: text(result.code) || failureCategory || 'CANVAS_RUN_TASK_FAILED',
+    message: text(result.error) || text(result.failureReason) || text(input.fallbackReason),
+    failureCategory,
+    providerDiagnostic: result.providerDiagnostic,
+    waitReason: result.waitReason,
+    runId: input.runId,
+    runStepId: input.runStepId,
+    nodeId: input.nodeId,
+    nodeType: input.nodeType,
+    providerName: result.providerName,
+    modelName: result.modelName,
+    taskId: input.taskId,
+    requestId: result.requestId,
+    upstreamHttpStatus: result.upstreamHttpStatus,
+  });
 }
 
 async function runtimeEnabled(pool: Pool, environment: string) {

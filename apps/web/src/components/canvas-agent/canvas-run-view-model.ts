@@ -1,3 +1,4 @@
+import { projectCanvasRunFailureDiagnostic, type CanvasRunFailureDiagnostic } from '@xinghuan/shared';
 import type { CanvasRunEvent, CanvasRunPlanStep, CanvasRunRecord, CanvasRunStatus } from './canvas-run-api';
 
 export type CanvasRunStepViewStatus =
@@ -32,15 +33,6 @@ export interface CanvasRunPlanSection {
   skipped: boolean;
   mode: 'serial' | 'parallel';
   steps: CanvasRunStepView[];
-}
-
-export interface CanvasRunFailureDiagnostic {
-  nodeNumber: number;
-  nodeType: string;
-  category: string;
-  impact: string;
-  recovery: string;
-  technical: string;
 }
 
 export const CANVAS_RUN_STATUS_LABEL: Record<CanvasRunStatus, string> = {
@@ -201,44 +193,26 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
   const stepIndex = run.planSnapshot.steps.findIndex((step) => eventMatchesStep(failedEvent, step));
   const step = stepIndex >= 0 ? run.planSnapshot.steps[stepIndex] : null;
   const code = firstText(failedEvent.payload, ['code', 'failureClass', 'reason']) || failedEvent.eventType.replace(/^canvas_run\./, '');
-  const normalized = `${failedEvent.eventType} ${code}`.toLowerCase();
-  let category = '执行失败';
-  let recovery = '可按原计划重试冻结快照；修改节点配置后请新建运行计划。';
-  if (/smart_candidate_count_insufficient|candidate.*insufficient/.test(normalized)) {
-    category = '候选不足';
-    recovery = '至少准备 2 个同类型候选后新建运行计划。';
-  } else if (/model_unavailable|provider|model/.test(normalized)) {
-    category = '模型不可用';
-    recovery = '服务恢复后可按原计划重试；修改模型或候选后请新建运行计划。';
-  } else if (/network|rate|limit|timeout/.test(normalized)) {
-    category = '网络或限流';
-    recovery = '保持原配置重试；持续失败时检查服务商状态。';
-  } else if (/budget|cost|duration/.test(normalized)) {
-    category = '预算或时限';
-    recovery = '调整下一次 Run 的预算或时限后重新创建计划。';
-  } else if (/prompt|review|moderation/.test(normalized)) {
-    category = '提示词审核';
-    recovery = '检查审核结果并使用允许的低风险改写。';
-  } else if (/input|parameter|invalid|empty|required/.test(normalized)) {
-    category = '输入参数';
-    recovery = '修正工作流输入后新建运行计划；按原计划重试不会读取当前编辑。';
-  }
-  if (/model_record_repair_required/.test(normalized)) {
-    category = '旧 Run 缺少模型记录';
-    recovery = '当前草稿无法安全补全模型记录。请从最新工作流重新创建 Run。';
-  }
-  const technical = [
+  const configuration = step?.configuration || {};
+  return projectCanvasRunFailureDiagnostic({
     code,
-    firstText(failedEvent.payload, ['modelRecordId', 'providerId', 'taskId']),
-  ].filter(Boolean).join(' · ');
-  return {
-    nodeNumber: stepIndex + 1,
-    nodeType: step?.nodeType || firstText(failedEvent.payload, ['nodeType']) || '未知节点',
-    category,
-    impact: step ? '当前节点未完成，下游步骤尚未释放。' : '运行已停止，已完成结果保持可用。',
-    recovery,
-    technical,
-  };
+    eventType: failedEvent.eventType,
+    message: firstText(failedEvent.payload, ['message', 'error']),
+    reason: firstText(failedEvent.payload, ['reason']),
+    failureCategory: firstText(failedEvent.payload, ['failureCategory', 'failureClass']),
+    providerDiagnostic: firstText(failedEvent.payload, ['providerDiagnostic']),
+    waitReason: firstText(failedEvent.payload, ['waitReason']),
+    runId: run.id,
+    runStepId: step?.id || failedEvent.runStepKey || failedEvent.runStepId,
+    nodeId: step?.nodeId || failedEvent.nodeId,
+    nodeType: step?.nodeType || firstText(failedEvent.payload, ['nodeType']),
+    stepNumber: stepIndex >= 0 ? stepIndex + 1 : undefined,
+    providerName: firstText(failedEvent.payload, ['providerName']) || firstText(configuration, ['providerName', 'providerId']),
+    modelName: firstText(failedEvent.payload, ['modelName']) || firstText(configuration, ['modelName', 'modelId', 'modelRecordId']),
+    taskId: firstText(failedEvent.payload, ['taskId']),
+    requestId: firstText(failedEvent.payload, ['requestId']),
+    upstreamHttpStatus: failedEvent.payload.upstreamHttpStatus,
+  });
 }
 
 function eventMatchesStep(event: CanvasRunEvent, step: CanvasRunPlanStep) {

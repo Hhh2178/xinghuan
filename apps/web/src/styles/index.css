@@ -4171,7 +4171,11 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .canvas-run-supervisor__error { display: grid; gap: 4px; margin: 10px; padding: 9px 10px; border-left: 2px solid #d96b62; color: #efaaa4; background: #1d1111; font-size: 14px; line-height: 22px; }
 .canvas-run-supervisor__error strong { font-size: 14px; }
 .canvas-run-supervisor__error span { color: #f5c0bb; }
-.canvas-run-supervisor__error p { margin: 0; color: #dca19c; }
+.canvas-run-supervisor__error dl { display: grid; gap: 6px; margin: 2px 0; }
+.canvas-run-supervisor__error dl div { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 8px; }
+.canvas-run-supervisor__error dt { color: #b97773; font-size: 11px; }
+.canvas-run-supervisor__error dd { min-width: 0; margin: 0; color: #dca19c; overflow-wrap: anywhere; }
+.canvas-run-supervisor__error > button,.canvas-run-failure__actions button { width: fit-content; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; border: 1px solid #754945; border-radius: 4px; color: #f2bbb6; background: #241514; font-size: 11px; cursor: pointer; }
 .canvas-run-supervisor__error details { color: #c89691; font-size: 12px; }
 .canvas-run-supervisor__error code { overflow-wrap: anywhere; }
 .canvas-run-failure { margin: 10px; border: 1px solid #633d3a; border-radius: 4px; background: #181111; }
@@ -4184,6 +4188,8 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .canvas-run-failure dl div { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
 .canvas-run-failure dt { color: #b97773; font-size: 11px; line-height: 18px; }
 .canvas-run-failure dd { margin: 0; color: #d8b4b1; font-size: 12px; line-height: 19px; }
+.canvas-run-failure__actions { min-height: 39px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border-top: 1px solid #4c2e2c; }
+.canvas-run-failure__actions span { color: #d89a95; font-size: 11px; }
 .canvas-run-failure details { border-top: 1px solid #4c2e2c; }
 .canvas-run-failure summary { padding: 7px 9px; color: #ba8884; font-size: 11px; cursor: pointer; }
 .canvas-run-failure code { display: block; padding: 0 9px 9px; color: #cba4a1; font: 11px/18px ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }

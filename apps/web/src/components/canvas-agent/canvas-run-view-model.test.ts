@@ -82,13 +82,12 @@ describe('canvas run supervision view model', () => {
       event(1, 'canvas_run.step_model_unavailable', { code: 'CANVAS_RUN_MODEL_UNAVAILABLE', modelRecordId: 'model-a' }),
     ]);
 
-    expect(diagnostic).toEqual({
-      nodeNumber: 1,
-      nodeType: 'video',
-      category: '模型不可用',
-      impact: '当前节点未完成，下游步骤尚未释放。',
-      recovery: '服务恢复后可按原计划重试；修改模型或候选后请新建运行计划。',
-      technical: 'CANVAS_RUN_MODEL_UNAVAILABLE · model-a',
+    expect(diagnostic).toMatchObject({
+      category: 'model',
+      title: '模型当前不可用',
+      impact: '当前节点未执行，下游节点不会被释放。',
+      location: { runId: 'run-1', runStepId: 'step-1', nodeId: 'node-1', nodeType: 'video', stepNumber: 1, providerName: 'Provider A', modelName: 'Model A' },
+      technical: { code: 'CANVAS_RUN_MODEL_UNAVAILABLE' },
     });
   });
 
@@ -98,14 +97,7 @@ describe('canvas run supervision view model', () => {
       { ...event(2, 'canvas_run.failed', { code: 'CANVAS_RUN_FAILED' }), runStepId: null },
     ]);
 
-    expect(diagnostic).toEqual({
-      nodeNumber: 1,
-      nodeType: 'video',
-      category: '输入参数',
-      impact: '当前节点未完成，下游步骤尚未释放。',
-      recovery: '修正工作流输入后新建运行计划；按原计划重试不会读取当前编辑。',
-      technical: 'TEXT_EMPTY',
-    });
+    expect(diagnostic).toMatchObject({ category: 'input', title: '节点输入或参数无效', location: { nodeId: 'node-1', stepNumber: 1 }, technical: { code: 'TEXT_EMPTY' } });
   });
 
   it('provides a recreate-plan action for an insufficient candidate set', () => {
@@ -114,8 +106,9 @@ describe('canvas run supervision view model', () => {
     ]);
 
     expect(diagnostic).toMatchObject({
-      category: '候选不足',
-      recovery: '至少准备 2 个同类型候选后新建运行计划。',
+      category: 'input',
+      title: '智能选择器候选不足',
+      action: '至少连接 2 个同类型候选，再重新生成运行计划。',
     });
   });
 
@@ -125,8 +118,9 @@ describe('canvas run supervision view model', () => {
     ]);
 
     expect(diagnostic).toMatchObject({
-      category: '旧 Run 缺少模型记录',
-      recovery: '当前草稿无法安全补全模型记录。请从最新工作流重新创建 Run。',
+      category: 'model',
+      title: '模型配置需要修复',
+      action: '在后台修复并发布模型后，从最新工作流新建 Run。',
     });
   });
 });
