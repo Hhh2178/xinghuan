@@ -230,6 +230,13 @@ export function compileWorkflowSnapshotRunPlan(input: {
     }
   }
   assertCompleteWorkflowGroups(workflow.id, memberIds, nodes);
+  const incomingEdgeCountByNodeId = new Map<string, number>();
+  const outgoingEdgeCountByNodeId = new Map<string, number>();
+  for (const edge of edges) {
+    if (typeof edge.source !== "string" || typeof edge.target !== "string") continue;
+    incomingEdgeCountByNodeId.set(edge.target, (incomingEdgeCountByNodeId.get(edge.target) || 0) + 1);
+    outgoingEdgeCountByNodeId.set(edge.source, (outgoingEdgeCountByNodeId.get(edge.source) || 0) + 1);
+  }
   for (const edge of edges) {
     if (typeof edge.source !== "string" || typeof edge.target !== "string") continue;
     const source = nodesById.get(edge.source);
@@ -242,6 +249,12 @@ export function compileWorkflowSnapshotRunPlan(input: {
       targetWorkflowId,
       sourceNodeType: source.type,
       targetNodeType: target.type,
+    }) && !isAutomaticDisplayOutputEdge({
+      edge,
+      source,
+      target,
+      incomingEdgeCountByNodeId,
+      outgoingEdgeCountByNodeId,
     })) {
       throw new Error(`WORKFLOW_BOUNDARY_EDGE_INVALID:${edge.source}->${edge.target}`);
     }
@@ -338,6 +351,20 @@ function containsNode(group: CanvasSnapshotNode, node: CanvasSnapshotNode) {
 function uniqueStrings(value: unknown) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()))];
+}
+
+function isAutomaticDisplayOutputEdge(input: {
+  edge: CanvasSnapshotEdge;
+  source: CanvasSnapshotNode & { id: string; type: string };
+  target: CanvasSnapshotNode & { id: string; type: string };
+  incomingEdgeCountByNodeId: ReadonlyMap<string, number>;
+  outgoingEdgeCountByNodeId: ReadonlyMap<string, number>;
+}) {
+  return input.target.type === "output"
+    && input.target.id.startsWith(`output-auto-${input.source.id}-`)
+    && input.edge.id === `e-auto-${input.target.id}`
+    && input.incomingEdgeCountByNodeId.get(input.target.id) === 1
+    && !input.outgoingEdgeCountByNodeId.has(input.target.id);
 }
 
 function finite(value: unknown, fallback = 0) {

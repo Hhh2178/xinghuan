@@ -26,6 +26,7 @@
 - `@xinghuan/shared` 是 Workflow Variable 与 Workflow Region schema/parser/validation 的代码权威；Web 节点只编辑 top-level Canvas `workflows[]` 中的 registry、membership、input values、bindings 和视觉区域。
 - migration `037_workflow_region_runs.sql` 前向增加 workflow identity、revision、subgraph hash 与 workflow run scope，并以 owner+canvas+workflow 的 partial unique index 阻止同一 workflow 多 active Run；不同 workflow 可并发。旧 canvas-scoped Run 继续兼容读取。
 - `compileWorkflowSnapshotRunPlan` 只编译请求 workflow 的显式成员，拒绝缺失成员、不完整节点组、普通跨边界边和类型错误的 Workflow Input，并计算不包含位置、尺寸和颜色的 SHA-256 subgraph hash。服务端从 owner-scoped `xh_assets` 解析媒体输入，客户端 URL 不作为权限权威。
+- 生成节点自动创建的展示型 Output 叶子（`output-auto-*` 与对应 `e-auto-*`）不属于 Workflow Run 的执行子图；编译器只在其 ID、自动连线、唯一入边和零出边均匹配时忽略这条展示连线。任何手工跨区域 Output 连线仍按边界规则拒绝，不能借此绕过显式 Workflow Output。
 - Supervision Dock 从当前 Canvas `workflows[]` 提供顶层托管目标切换，并为每个 workflow 分别记住 Run ID。创建 Run 时携带 workflow ID，UI 展示 workflow revision，不再把它称为整张 Canvas 的计划。
 - Workflow `stages[]` 由区域内普通 `groupBox` 和显式未分组成员投影，保存稳定 ID、名称、顺序、`serial|parallel` 与 skipped 状态。托管面板只允许在 Run 创建前编辑；逆转跨阶段拓扑依赖会立即拒绝并短暂高亮冲突边和端点，且不会把高亮写入 Canvas edge 数据。
 - Workflow Compiler 将阶段名称、模式、顺序和 skipped 状态写入不可变 Run Plan 与 subgraph hash。连续且独立的 parallel 阶段形成同一 scheduling wave；拓扑依赖仍逐步门控，skipped 阶段不释放步骤。旧 Run 缺少阶段名称/模式时继续按 serial 兼容读取。

@@ -252,6 +252,59 @@ describe("workflow compiler", () => {
     })).toThrow("WORKFLOW_BOUNDARY_EDGE_INVALID:outside->text-1");
   });
 
+  it("ignores a structurally verified automatic display output outside a workflow", () => {
+    const workflow = {
+      schemaVersion: 1,
+      id: "workflow-1",
+      name: "Workflow",
+      revision: 1,
+      memberNodeIds: ["task-image-0"],
+      variables: [],
+      inputValues: {},
+      bindings: [],
+      region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+    };
+    const autoOutputId = "output-auto-task-image-0-123456-image-abc";
+    const plan = compileWorkflowSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 1,
+      workflowId: "workflow-1",
+      data: {
+        nodes: [{ id: "task-image-0", type: "image" }, { id: autoOutputId, type: "output" }],
+        edges: [{ id: `e-auto-${autoOutputId}`, source: "task-image-0", target: autoOutputId }],
+        workflows: [workflow],
+      },
+    });
+
+    expect(plan.steps.map((step) => step.nodeId)).toEqual(["task-image-0"]);
+  });
+
+  it("keeps a manually connected output outside a workflow invalid", () => {
+    const workflow = {
+      schemaVersion: 1,
+      id: "workflow-1",
+      name: "Workflow",
+      revision: 1,
+      memberNodeIds: ["task-image-0"],
+      variables: [],
+      inputValues: {},
+      bindings: [],
+      region: { x: 0, y: 0, width: 640, height: 420, color: "#2F6B5F" },
+    };
+    expect(() => compileWorkflowSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 1,
+      workflowId: "workflow-1",
+      data: {
+        nodes: [{ id: "task-image-0", type: "image" }, { id: "output-manual", type: "output" }],
+        edges: [{ id: "edge-manual", source: "task-image-0", target: "output-manual" }],
+        workflows: [workflow],
+      },
+    })).toThrow("WORKFLOW_BOUNDARY_EDGE_INVALID:task-image-0->output-manual");
+  });
+
   it("compiles workflow-owned stages including an explicit ungrouped stage", () => {
     const data = {
       nodes: [
