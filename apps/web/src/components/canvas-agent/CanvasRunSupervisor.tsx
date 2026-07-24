@@ -54,10 +54,11 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
       {!run && oneTimeSettings ? <div className="canvas-run-supervisor__next-run">本次覆盖已就绪<span>仅下一次 Run</span></div> : null}
       <div className="canvas-run-supervisor__controls">
         {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />生成运行计划</button> : null}
+        {run && projection.terminal ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />新建运行计划</button> : null}
         {run?.status === 'draft' ? <button type="button" className="is-primary" disabled={projection.busy} onClick={() => void projection.command('start')}><CirclePlay size={15} />开始托管</button> : null}
         {run && ['planning', 'queued', 'running'].includes(run.status) ? <button type="button" onClick={() => void projection.command('pause')}><CirclePause size={15} />暂停</button> : null}
         {run?.status === 'paused' ? <button type="button" className="is-primary" onClick={() => void projection.command('resume')}><CirclePlay size={15} />继续</button> : null}
-        {run?.status === 'failed' ? <button type="button" onClick={() => void projection.command('retry')}><RotateCcw size={15} />重试</button> : null}
+        {run?.status === 'failed' ? <button type="button" disabled={projection.busy} title="使用当前 Run 的冻结快照重试" onClick={() => void projection.command('retry')}><RotateCcw size={15} />按原计划重试</button> : null}
         {run && !projection.terminal ? <button type="button" className="is-danger" onClick={() => void projection.command('cancel')}><Ban size={15} />取消</button> : null}
         {run ? <button type="button" title="刷新权威状态" onClick={() => void projection.refresh()}><RefreshCw size={15} /></button> : null}
       </div>

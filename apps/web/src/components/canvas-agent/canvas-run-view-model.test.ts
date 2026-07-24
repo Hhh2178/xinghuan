@@ -87,8 +87,24 @@ describe('canvas run supervision view model', () => {
       nodeType: 'video',
       category: '模型不可用',
       impact: '当前节点未完成，下游步骤尚未释放。',
-      recovery: '检查已发布模型或切换兼容候选后重试。',
+      recovery: '服务恢复后可按原计划重试；修改模型或候选后请新建运行计划。',
       technical: 'CANVAS_RUN_MODEL_UNAVAILABLE · model-a',
+    });
+  });
+
+  it('prefers the concrete failed step over a later run-level failure event', () => {
+    const diagnostic = buildCanvasRunFailureDiagnostic({ ...run, status: 'failed' }, [
+      event(1, 'canvas_run.step_failed', { code: 'TEXT_EMPTY' }),
+      { ...event(2, 'canvas_run.failed', { code: 'CANVAS_RUN_FAILED' }), runStepId: null },
+    ]);
+
+    expect(diagnostic).toEqual({
+      nodeNumber: 1,
+      nodeType: 'video',
+      category: '输入参数',
+      impact: '当前节点未完成，下游步骤尚未释放。',
+      recovery: '修正工作流输入后新建运行计划；按原计划重试不会读取当前编辑。',
+      technical: 'TEXT_EMPTY',
     });
   });
 

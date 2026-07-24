@@ -193,17 +193,20 @@ export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunE
 }
 
 export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunFailureDiagnostic | null {
-  const failedEvent = [...events].reverse().find((event) => eventStatus(event) === 'failed' || /(?:failed|model_unavailable|budget_exceeded)$/.test(event.eventType));
+  const reversedEvents = [...events].reverse();
+  const isFailure = (event: CanvasRunEvent) => eventStatus(event) === 'failed' || /(?:failed|model_unavailable|budget_exceeded)$/.test(event.eventType);
+  const failedEvent = reversedEvents.find((event) => isFailure(event) && run.planSnapshot.steps.some((step) => eventMatchesStep(event, step)))
+    || reversedEvents.find(isFailure);
   if (!failedEvent) return null;
   const stepIndex = run.planSnapshot.steps.findIndex((step) => eventMatchesStep(failedEvent, step));
   const step = stepIndex >= 0 ? run.planSnapshot.steps[stepIndex] : null;
   const code = firstText(failedEvent.payload, ['code', 'failureClass', 'reason']) || failedEvent.eventType.replace(/^canvas_run\./, '');
   const normalized = `${failedEvent.eventType} ${code}`.toLowerCase();
   let category = '执行失败';
-  let recovery = '查看技术详情，修复节点配置后重试。';
+  let recovery = '可按原计划重试冻结快照；修改节点配置后请新建运行计划。';
   if (/model_unavailable|provider|model/.test(normalized)) {
     category = '模型不可用';
-    recovery = '检查已发布模型或切换兼容候选后重试。';
+    recovery = '服务恢复后可按原计划重试；修改模型或候选后请新建运行计划。';
   } else if (/network|rate|limit|timeout/.test(normalized)) {
     category = '网络或限流';
     recovery = '保持原配置重试；持续失败时检查服务商状态。';
@@ -213,9 +216,9 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
   } else if (/prompt|review|moderation/.test(normalized)) {
     category = '提示词审核';
     recovery = '检查审核结果并使用允许的低风险改写。';
-  } else if (/input|parameter|invalid/.test(normalized)) {
+  } else if (/input|parameter|invalid|empty|required/.test(normalized)) {
     category = '输入参数';
-    recovery = '修正工作流声明允许的参数后重新创建 Run。';
+    recovery = '修正工作流输入后新建运行计划；按原计划重试不会读取当前编辑。';
   }
   if (/model_record_repair_required/.test(normalized)) {
     category = '旧 Run 缺少模型记录';
