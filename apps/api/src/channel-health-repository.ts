@@ -41,6 +41,7 @@ export interface ChannelViewerVoteRow {
   providerId: string;
   modelRecordId: string;
   vote: ChannelFeedbackVote;
+  updatedAt: number;
 }
 
 export type ChannelFeedbackWriteResult =
@@ -101,6 +102,7 @@ interface ViewerVotePostgresRow extends QueryResultRow {
   provider_id: string;
   model_id: string;
   vote: string;
+  updated_at: unknown;
 }
 
 interface VoteWritePostgresRow extends QueryResultRow {
@@ -252,14 +254,14 @@ export function createChannelHealthRepository(deps: {
   async function readViewerVotes(input: { ownerId: string; from: Date }): Promise<ChannelViewerVoteRow[]> {
     const pool = await deps.getPostgresPool();
     const result = await pool.query<ViewerVotePostgresRow>(
-      `select provider_id, model_id, vote
+      `select provider_id, model_id, vote, updated_at
          from xh_channel_feedback
         where owner_id = $1
           and updated_at >= $2`,
       [input.ownerId, input.from],
     );
     return result.rows.flatMap((row) => row.vote === "up" || row.vote === "down"
-      ? [{ providerId: row.provider_id, modelRecordId: row.model_id, vote: row.vote }]
+      ? [{ providerId: row.provider_id, modelRecordId: row.model_id, vote: row.vote, updatedAt: dateValue(row.updated_at) }]
       : []);
   }
 
