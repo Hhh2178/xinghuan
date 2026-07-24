@@ -25,6 +25,7 @@
 - `workflow-variables` 是不参与连线或执行的控制节点，每个 workflow 最多一个；变量真值仍在顶层 workflow document，删除控制节点不会删除定义。节点展示本次值、引用节点序号和定位动作。
 - Workflow Region 使用顶层 workflow document 的显式成员和 `region { x, y, width, height, color }`。区域是不透明实色底板，自动选择前景对比色；拖动标题联动全部成员，缩放、调色和节点内容增高只更新视觉几何，不增加 workflow revision。
 - 新成员加入时区域自动扩张并完整包住节点；扩张、创建或缩放若会与另一 Workflow Region 重叠则拒绝。单节点只能属于一个 workflow，选中节点组任一成员创建区域时必须展开完整显式组。
+- 建立兼容端口连接时，若恰有一个端点已属于 workflow，另一个端点完整位于该 workflow 的可见 Region 内，画布将把未归属端点加入该 workflow 并建立内部边，作为一次 revision 更新。区域外节点、已归属其他 workflow 的节点、以及加入后仍违反 Workflow Input/Output 方向的连接继续拒绝；不能用视觉覆盖绕过真实跨 workflow 边界。
 - `workflow-input` / `workflow-output` 是强类型边界节点。普通边不能穿越 workflow 边界；输入节点必须绑定同 workflow、同类型变量，服务端仍在编译时独立验证，不能只信任前端连接提示。
 
 - 节点序号徽标使用单一稳定宿主包装节点组件，宿主以 `display: contents` 保持原布局；不得再用 Fragment 把节点主体和徽标作为 ReactFlow 下的并列根节点，避免运行态条件渲染触发 DOM `insertBefore` 冲突。

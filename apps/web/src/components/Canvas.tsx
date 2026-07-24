@@ -60,6 +60,7 @@ import { GROUP_EXECUTION_MANAGER_NODE_TYPE, buildGroupExecutionManagerDataFromNo
 import { CanvasWorkflowProvider } from './canvas/CanvasWorkflowContext';
 import { WorkflowRegionLayer } from './canvas/WorkflowRegionLayer';
 import { buildWorkflowRegionFromSelection } from './canvas/workflowRegionCreation';
+import { resolveWorkflowConnectionMembership } from './canvas/workflowConnectionMembership';
 import StellarCursorAura from './StellarCursorAura';
 import { topologicalSort } from '../utils/topologicalSort';
 import { installGlobalWheelBlockObserver } from '../utils/wheelBlock';
@@ -2691,13 +2692,17 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       // 连接有效性校验(防止绕过 isValidConnection 的底层调用)
       const src = curNodes.find((n) => n.id === params.source);
       let tgt = curNodes.find((n) => n.id === params.target);
-      if (!isConnectionValid(src, tgt)) return;
-      if (src && tgt && !isWorkflowBoundaryConnectionAllowed({
-        sourceWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(src.id))?.id || null,
-        targetWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(tgt!.id))?.id || null,
-        sourceNodeType: src.type || '',
-        targetNodeType: tgt.type || '',
-      })) return;
+      if (!isConnectionValid(src, tgt) || !src || !tgt) return;
+      const membership = resolveWorkflowConnectionMembership({ source: src, target: tgt, workflows });
+      if (membership.kind === 'blocked') return;
+      if (membership.kind === 'join') {
+        setWorkflows((current) => current.map((workflow) => (
+          workflow.id === membership.workflowId && !workflow.memberNodeIds.includes(membership.joiningNodeId)
+            ? { ...workflow, revision: workflow.revision + 1, memberNodeIds: [...workflow.memberNodeIds, membership.joiningNodeId] }
+            : workflow
+        )));
+        logBus.info('已将节点加入当前工作流并建立连接', '工作流');
+      }
 
       // ⚡ 组容器连出去重: 如果 source 是 groupBox, 并且组内成员已经独立连到同一个下游 target,
       // 则自动断开那些「成员→target」的重复边, 只保留 group→target
@@ -2757,7 +2762,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           eds
         )
       );
-      if (params.source && params.target) bumpWorkflowRevisionsForNodeIds([params.source, params.target]);
+      if (membership.kind === 'direct' && params.source && params.target) bumpWorkflowRevisionsForNodeIds([params.source, params.target]);
     },
     [resetConnectionPanMode, assignActiveNodeSerials, bumpWorkflowRevisionsForNodeIds, workflows]
   );
@@ -2769,12 +2774,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       const src = curNodes.find((n) => n.id === (params as Connection).source);
       const tgt = curNodes.find((n) => n.id === (params as Connection).target);
       if (!isConnectionValid(src, tgt) || !src || !tgt) return false;
-      return isWorkflowBoundaryConnectionAllowed({
-        sourceWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(src.id))?.id || null,
-        targetWorkflowId: workflows.find((workflow) => workflow.memberNodeIds.includes(tgt.id))?.id || null,
-        sourceNodeType: src.type || '',
-        targetNodeType: tgt.type || '',
-      });
+      return resolveWorkflowConnectionMembership({ source: src, target: tgt, workflows }).kind !== 'blocked';
     },
     [workflows]
   );
