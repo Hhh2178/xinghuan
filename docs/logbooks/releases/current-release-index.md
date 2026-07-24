@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.38`
-- release：`20260724-canvas-run-live-progress-gray-r1-v0738`
-- 当前状态：`待部署：AI 托管关闭时仍投影，批量节点显示持久化实时进度`
+- 版本：`v0.7.39`
+- release：`20260724-canvas-run-progress-dedup-gray-r1-v0739`
+- 当前状态：`待部署：Canvas Run 批量进度事件去重`
 - 部署内容：`Workflow Region 变量与确定性阶段、有限 AI 托管、显式智能候选门、选中 Run 投影隔离、批量计费和四域 Admin 治理`
 - 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、v0.7.32 无付费 text Run 的计划/取消/事件流/完成/删除临时画布、540 tests、完整 build 与三层 Harness`
 - 部署时间：`2026-07-24`
-- 本轮制品源提交：`590b4f7`
+- 本轮制品源提交：`8de9ab2`
 - 当前批次记录：
-  - `gray/2026-07-24-canvas-run-live-progress-gray-v0738.md`
-  - `../validations/2026-07-24-canvas-run-live-progress-gray-v0738.md`
+  - `gray/2026-07-24-canvas-run-progress-dedup-gray-v0739.md`
+  - `../validations/2026-07-24-canvas-run-progress-dedup-gray-v0739.md`
 - 当前批次记录：
   - `gray/2026-07-23-canvas-agent-governance-gray-v0720.md`
   - `../validations/2026-07-23-canvas-agent-governance-gray-v0720.md`

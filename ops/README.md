@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.38`
-  - release：`20260724-canvas-run-live-progress-gray-r1-v0738`
-  - 状态：`待部署：AI 托管关闭时仍投影，批量节点显示持久化实时进度`
+  - 版本：`v0.7.39`
+  - release：`20260724-canvas-run-progress-dedup-gray-r1-v0739`
+  - 状态：`待部署：Canvas Run 批量进度事件去重`
   - 当前补修：`仅结构化匹配的 output-auto/e-auto 展示叶子可留在区域外；普通跨区域 Output 连线继续拒绝`
-  - 本轮制品源提交：`590b4f7`
+  - 本轮制品源提交：`8de9ab2`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

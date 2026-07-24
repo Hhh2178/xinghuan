@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "590b4f7",
+  "sourceCommit": "8de9ab2",
   "environments": {
     "gray": {
-      "version": "0.7.38",
-      "releaseId": "20260724-canvas-run-live-progress-gray-r1-v0738",
+      "version": "0.7.39",
+      "releaseId": "20260724-canvas-run-progress-dedup-gray-r1-v0739",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-run-live-progress-gray-v0738.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-run-live-progress-gray-v0738.md",
-      "rollbackReleaseId": "20260724-canvas-hosted-run-projection-gray-r1-v0737"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-run-progress-dedup-gray-v0739.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-run-progress-dedup-gray-v0739.md",
+      "rollbackReleaseId": "20260724-canvas-run-live-progress-gray-r1-v0738"
     },
     "production": {
       "version": "0.7.18",
