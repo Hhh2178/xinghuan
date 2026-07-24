@@ -25,7 +25,20 @@ export interface CanvasRunPlanStep {
   groupId: string | null;
   dependsOn: string[];
   skipped: boolean;
+  executionLayer?: number | null;
   configuration?: Record<string, unknown>;
+}
+
+export interface CanvasRunAgentAnalysis {
+  status: 'completed' | 'degraded';
+  summary: string;
+  concurrencyGroups: Array<{ stepIds: string[]; reason: string }>;
+  serialConstraints: Array<{ beforeStepId: string; afterStepId: string; reason: string }>;
+  risks: string[];
+  recommendedMaximumParallelism: number;
+  estimatedRequestCount: number;
+  deterministicLayerCount: number;
+  degradationReason?: string;
 }
 
 export interface CanvasRunRecord {
@@ -45,6 +58,9 @@ export interface CanvasRunRecord {
     workflowSubgraphHash?: string;
     groups: CanvasRunPlanGroup[];
     steps: CanvasRunPlanStep[];
+    executionLayers?: Array<{ index: number; stepIds: string[] }>;
+    agentAnalysis?: CanvasRunAgentAnalysis;
+    agentRunId?: string;
   };
   inputSnapshot?: Record<string, unknown>;
   configurationSnapshot: Record<string, unknown>;

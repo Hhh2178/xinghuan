@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import type { CanvasRunEvent, CanvasRunRecord } from './canvas-run-api';
 import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel } from './canvas-run-view-model';
+import * as ViewModel from './canvas-run-view-model';
 
 const run: CanvasRunRecord = {
   id: 'run-1', canvasId: 'canvas-1', canvasRevision: 7, runScope: 'canvas', workflowId: null, workflowRevision: null, workflowSubgraphHash: null, status: 'running',
@@ -16,6 +18,53 @@ const event = (sequence: number, eventType: string, payload: Record<string, unkn
 });
 
 describe('canvas run supervision view model', () => {
+  it('projects Agent analysis and the active deterministic execution layer', () => {
+    const buildAnalysisView = (ViewModel as unknown as Record<string, unknown>).buildCanvasRunAnalysisView;
+    expect(typeof buildAnalysisView).toBe('function');
+    if (typeof buildAnalysisView !== 'function') return;
+    const analyzedRun = {
+      ...run,
+      planSnapshot: {
+        ...run.planSnapshot,
+        executionLayers: [{ index: 0, stepIds: ['step-A', 'step-B'] }, { index: 1, stepIds: ['step-C'] }],
+        steps: [
+          { id: 'step-A', nodeId: 'A', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0 },
+          { id: 'step-B', nodeId: 'B', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0 },
+          { id: 'step-C', nodeId: 'C', nodeType: 'smart-candidate-selector', groupId: 'group-a', dependsOn: ['A', 'B'], skipped: false, executionLayer: 1 },
+        ],
+        agentAnalysis: {
+          status: 'completed',
+          summary: 'A 与 B 可并发，C 等待汇聚。',
+          concurrencyGroups: [{ stepIds: ['step-A', 'step-B'], reason: '互不依赖' }],
+          serialConstraints: [{ beforeStepId: 'step-A', afterStepId: 'step-C', reason: '候选汇聚' }],
+          risks: ['上游失败会阻止汇聚'],
+          recommendedMaximumParallelism: 2,
+          estimatedRequestCount: 2,
+          deterministicLayerCount: 2,
+        },
+      },
+    };
+    const events = [{ id: 'layer', runId: 'run-1', runStepId: null, sequence: 4, eventType: 'canvas_run.execution_layer_started', payload: { layerIndex: 1 }, createdAt: 10 }];
+
+    expect(buildAnalysisView(analyzedRun, events)).toMatchObject({
+      status: 'completed',
+      summary: 'A 与 B 可并发，C 等待汇聚。',
+      activeLayer: 1,
+      layerCount: 2,
+      estimatedRequestCount: 2,
+      concurrencyGroups: [{ labels: ['A', 'B'], reason: '互不依赖' }],
+    });
+  });
+
+  it('renders analysis, concurrency, risk and active layer evidence in the supervisor', () => {
+    const source = readFileSync(new URL('./CanvasRunSupervisor.tsx', import.meta.url), 'utf8');
+    expect(source).toMatch(/buildCanvasRunAnalysisView/);
+    expect(source).toMatch(/AI 链路分析/);
+    expect(source).toMatch(/并发组/);
+    expect(source).toMatch(/当前执行层/);
+    expect(source).toMatch(/预计请求/);
+  });
+
   it('projects retry, approval and terminal state from ordered durable events', () => {
     const views = buildCanvasRunStepViews(run, [
       event(1, 'canvas_run.step_dispatched', { attempt: 1 }),

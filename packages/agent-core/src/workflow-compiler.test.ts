@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "./index.js";
+import { compileCanvasRunPlan, compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "./index.js";
 
 describe("workflow compiler", () => {
   it("freezes a bounded generation count into the immutable execution payload", () => {
@@ -347,5 +347,59 @@ describe("workflow compiler", () => {
     invalid.workflows[0].stages.forEach((stage, index) => { stage.order = index; });
     expect(() => compileWorkflowSnapshotRunPlan({ canvasId: "canvas-1", ownerId: "owner-1", revision: 21, workflowId: "workflow-staged", data: invalid }))
       .toThrow("WORKFLOW_STAGE_ORDER_CONFLICT:image-video");
+  });
+
+  it("derives stable execution layers from dependencies", () => {
+    const plan = compileCanvasRunPlan({
+      canvasId: "canvas-layers",
+      ownerId: "owner-1",
+      revision: 1,
+      groups: [{ id: "stage-1", order: 0, mode: "parallel" }],
+      nodes: [
+        { id: "A", type: "image", groupId: "stage-1" },
+        { id: "B", type: "image", groupId: "stage-1" },
+        { id: "C", type: "smart-candidate-selector", groupId: "stage-1" },
+        { id: "D", type: "resize", groupId: "stage-1" },
+      ],
+      edges: [
+        { id: "A-C", source: "A", target: "C" },
+        { id: "B-C", source: "B", target: "C" },
+        { id: "C-D", source: "C", target: "D" },
+      ],
+    });
+
+    expect(plan.executionLayers?.map((layer) => layer.stepIds)).toEqual([
+      ["step:A", "step:B"],
+      ["step:C"],
+      ["step:D"],
+    ]);
+  });
+
+  it("keeps serial stages ordered, starts later stages after the barrier and omits skipped steps", () => {
+    const plan = compileCanvasRunPlan({
+      canvasId: "canvas-stages",
+      ownerId: "owner-1",
+      revision: 1,
+      groups: [
+        { id: "serial", order: 0, mode: "serial" },
+        { id: "skipped", order: 1, mode: "parallel", skipped: true },
+        { id: "parallel", order: 2, mode: "parallel" },
+      ],
+      nodes: [
+        { id: "A", type: "image", groupId: "serial" },
+        { id: "B", type: "image", groupId: "serial" },
+        { id: "SKIP", type: "image", groupId: "skipped" },
+        { id: "C", type: "image", groupId: "parallel" },
+        { id: "D", type: "image", groupId: "parallel" },
+      ],
+      edges: [],
+    });
+
+    expect(plan.executionLayers?.map((layer) => layer.stepIds)).toEqual([
+      ["step:A"],
+      ["step:B"],
+      ["step:C", "step:D"],
+    ]);
+    expect(plan.steps.find((step) => step.nodeId === "SKIP")?.executionLayer).toBeNull();
   });
 });

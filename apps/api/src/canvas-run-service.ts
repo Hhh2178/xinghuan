@@ -1,4 +1,10 @@
-import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "@xinghuan/agent-core";
+import {
+  compileCanvasSnapshotRunPlan,
+  compileWorkflowSnapshotRunPlan,
+  degradedCanvasRunAgentAnalysis,
+  type CanvasRunAgentAnalysis,
+  type CanvasRunPlan,
+} from "@xinghuan/agent-core";
 import {
   createWorkflowInputSnapshot,
   DEFAULT_WORKFLOW_SUPERVISION_LIMITS,
@@ -14,6 +20,8 @@ import {
 } from "@xinghuan/shared";
 
 import type { CanvasRunCommand, CanvasRunEventRecord, CanvasRunRecord, CanvasSnapshotRecord } from "./canvas-run-repository.js";
+
+export { createCanvasRunAgentAnalysisService } from "./canvas-run-agent-analysis-service.js";
 
 export interface CanvasRunServiceRepository {
   readOwnedCanvasSnapshot(ownerId: string, canvasId: string): Promise<CanvasSnapshotRecord | null>;
@@ -61,6 +69,11 @@ export function createCanvasRunService(deps: {
     plan: ReturnType<typeof compileCanvasSnapshotRunPlan>;
   }) => Promise<ReturnType<typeof compileCanvasSnapshotRunPlan>>;
   readSupervisionLimits?: () => Promise<Partial<WorkflowSupervisionLimits>>;
+  analyzePlan?: (input: {
+    ownerId: string;
+    plan: CanvasRunPlan;
+    maximumParallelism: number;
+  }) => Promise<{ analysis: CanvasRunAgentAnalysis; agentRunId?: string }>;
 }) {
   function assertAvailable() {
     if (!deps.isEnabled()) throw new Error("CANVAS_RUN_DISABLED");
@@ -112,7 +125,7 @@ export function createCanvasRunService(deps: {
       },
     });
     const legacyConfiguration = normalizeCanvasRunConfiguration(input.configuration);
-    const configurationSnapshot = {
+    const baseConfigurationSnapshot = {
       ...legacyConfiguration,
       qualityEvaluationEnabled: supervision.settings.candidateSelectionMode === "ai",
       selectionPolicy: supervision.settings.candidateSelectionCount === 1 ? "best" : "top_k",
@@ -133,16 +146,41 @@ export function createCanvasRunService(deps: {
         clampedFields: supervision.clampedFields,
       },
     };
-    const configuredPlan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot, Boolean(workflowId));
+    const configuredPlan = applyCanvasRunConfiguration(compiledPlan, baseConfigurationSnapshot, Boolean(workflowId));
     const inputSnapshot = compileWorkflowInputSnapshot({
       data: canvas.data,
       workflowId,
       values: input.workflowInputValues,
     });
     const inputResolvedPlan = await applyWorkflowInputSnapshot(configuredPlan, inputSnapshot, input.ownerId, deps.repository);
-    const plan = deps.resolvePlanModelReferences
+    const resolvedPlan = deps.resolvePlanModelReferences
       ? await deps.resolvePlanModelReferences({ ownerId: input.ownerId, plan: inputResolvedPlan })
       : inputResolvedPlan;
+    let plan: CanvasRunPlan = resolvedPlan;
+    let configurationSnapshot: Record<string, unknown> = baseConfigurationSnapshot;
+    if (workflowId && deps.analyzePlan) {
+      const maximumParallelism = Number(baseConfigurationSnapshot.stageConcurrency) || 1;
+      let analyzed: { analysis: CanvasRunAgentAnalysis; agentRunId?: string };
+      try {
+        analyzed = await deps.analyzePlan({ ownerId: input.ownerId, plan, maximumParallelism });
+      } catch (error) {
+        analyzed = {
+          analysis: degradedCanvasRunAgentAnalysis({
+            plan,
+            maximumParallelism,
+            reason: error instanceof Error ? error.message : "AGENT_ANALYSIS_UNAVAILABLE",
+          }),
+        };
+      }
+      const effectiveConcurrency = Math.max(1, Math.min(maximumParallelism, analyzed.analysis.recommendedMaximumParallelism));
+      plan = { ...plan, agentAnalysis: analyzed.analysis, agentRunId: analyzed.agentRunId };
+      configurationSnapshot = {
+        ...baseConfigurationSnapshot,
+        effectiveConcurrency,
+        agentAnalysis: analyzed.analysis,
+        agentRunId: analyzed.agentRunId,
+      };
+    }
     if (plan.steps.length === 0) throw new Error("CANVAS_RUN_PLAN_EMPTY");
     return deps.repository.createCanvasRun({
       ownerId: input.ownerId,

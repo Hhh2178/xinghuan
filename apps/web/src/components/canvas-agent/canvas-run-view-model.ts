@@ -35,6 +35,19 @@ export interface CanvasRunPlanSection {
   steps: CanvasRunStepView[];
 }
 
+export interface CanvasRunAnalysisView {
+  status: 'completed' | 'degraded';
+  summary: string;
+  concurrencyGroups: Array<{ labels: string[]; reason: string }>;
+  serialConstraints: Array<{ before: string; after: string; reason: string }>;
+  risks: string[];
+  recommendedMaximumParallelism: number;
+  estimatedRequestCount: number;
+  activeLayer: number | null;
+  layerCount: number;
+  degradationReason: string;
+}
+
 export const CANVAS_RUN_STATUS_LABEL: Record<CanvasRunStatus, string> = {
   draft: '计划已生成',
   planning: '规划中',
@@ -215,6 +228,41 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
   });
 }
 
+export function buildCanvasRunAnalysisView(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunAnalysisView | null {
+  const analysis = run.planSnapshot.agentAnalysis || object(run.configurationSnapshot.agentAnalysis);
+  if (!analysis || !['completed', 'degraded'].includes(text(analysis.status))) return null;
+  const labels = new Map(run.planSnapshot.steps.map((step) => [step.id, step.nodeId || step.nodeType]));
+  const completedLayers = new Set(events
+    .filter((event) => event.eventType === 'canvas_run.execution_layer_completed')
+    .map((event) => Number(event.payload.layerIndex))
+    .filter(Number.isInteger));
+  const activeEvent = [...events].reverse().find((event) => (
+    event.eventType === 'canvas_run.execution_layer_started' && !completedLayers.has(Number(event.payload.layerIndex))
+  ));
+  const concurrencyGroups = Array.isArray(analysis.concurrencyGroups) ? analysis.concurrencyGroups : [];
+  const serialConstraints = Array.isArray(analysis.serialConstraints) ? analysis.serialConstraints : [];
+  const risks = Array.isArray(analysis.risks) ? analysis.risks : [];
+  return {
+    status: text(analysis.status) as CanvasRunAnalysisView['status'],
+    summary: text(analysis.summary),
+    concurrencyGroups: concurrencyGroups.map((value) => object(value)).map((group) => ({
+      labels: Array.isArray(group.stepIds) ? group.stepIds.map((stepId) => labels.get(text(stepId)) || text(stepId)).filter(Boolean) : [],
+      reason: text(group.reason),
+    })),
+    serialConstraints: serialConstraints.map((value) => object(value)).map((constraint) => ({
+      before: labels.get(text(constraint.beforeStepId)) || text(constraint.beforeStepId),
+      after: labels.get(text(constraint.afterStepId)) || text(constraint.afterStepId),
+      reason: text(constraint.reason),
+    })),
+    risks: risks.map(text).filter(Boolean),
+    recommendedMaximumParallelism: Number(analysis.recommendedMaximumParallelism || 1),
+    estimatedRequestCount: Number(analysis.estimatedRequestCount || 0),
+    activeLayer: activeEvent ? Number(activeEvent.payload.layerIndex) : null,
+    layerCount: Number(analysis.deterministicLayerCount || run.planSnapshot.executionLayers?.length || 0),
+    degradationReason: text(analysis.degradationReason),
+  };
+}
+
 function eventMatchesStep(event: CanvasRunEvent, step: CanvasRunPlanStep) {
   return event.runStepKey === step.id || event.nodeId === step.nodeId || event.runStepId === step.id;
 }
@@ -249,6 +297,8 @@ export function canvasRunEventLabel(eventType: string): string {
     'candidate_selection_waiting': '等待人工选择', 'candidate_evaluation_started': 'AI 候选评估已开始',
     'candidate_selection_manual_required': '低置信度转人工', 'candidate_selection_manual_override': '人工选择已覆盖',
     'candidate_selection_completed': '候选选择完成', 'step_skipped_by_selection': '未选候选下游已裁剪',
+    'analysis_started': 'AI 链路分析已开始', 'analysis_completed': 'AI 链路分析已完成', 'analysis_degraded': 'AI 链路分析已降级',
+    'execution_layer_started': '执行层已开始', 'execution_layer_completed': '执行层已完成',
   };
   return labels[suffix] || suffix.replaceAll('_', ' ');
 }

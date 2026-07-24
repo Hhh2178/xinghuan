@@ -200,7 +200,7 @@ import { createTaskRepository } from "./task-repository.js";
 import { normalizeTaskExecutionIdentitySnapshot, type TaskExecutionIdentitySnapshot } from "./task-execution-identity.js";
 import { createCanvasRunRepository } from "./canvas-run-repository.js";
 import type { CanvasRunRecord } from "./canvas-run-repository.js";
-import { createCanvasRunService } from "./canvas-run-service.js";
+import { createCanvasRunAgentAnalysisService, createCanvasRunService } from "./canvas-run-service.js";
 import { resolveCanvasRunPlanModelReferences } from "./canvas-run-model-preflight.js";
 import { canvasRunErrorStatus, createCanvasRunRouteHandler } from "./canvas-run-routes.js";
 import { createCanvasRunCandidateSelectionService } from "./canvas-run-candidate-selection.js";
@@ -468,12 +468,54 @@ async function assertAgentRuntimeCapability(capability: "agentEnabled" | "canvas
 const agentApprovalRepository = createAgentApprovalRepository({ getPostgresPool });
 const artifactQualityRepository = createArtifactQualityRepository({ getPostgresPool });
 const recoveryDecisionRepository = createRecoveryDecisionRepository({ getPostgresPool });
+const canvasRunAgentAnalysisService = createCanvasRunAgentAnalysisService({
+  runPlanner: async (request) => {
+    const actor = (await readAuthDb()).users.find((user) => user.id === request.ownerId);
+    if (!actor) throw new Error("CANVAS_RUN_ANALYSIS_OWNER_NOT_FOUND");
+    const orchestrator = createAgentOrchestrator({
+      runtimeConfigurations: agentRuntimeConfigurationRepository,
+      knowledgeSnapshots: agentKnowledgeSnapshotRepository,
+      agentRuns: agentRunRepository,
+      routing: llmRoutingRepository,
+      invokeModel: async (invocation) => {
+        if (invocation.ownerId !== request.ownerId) throw new Error("AGENT_TOOL_OWNER_MISMATCH");
+        const result = await generateExternalChatProxy({
+          providerId: invocation.providerId,
+          providerParams: { modelRecordId: invocation.modelRecordId },
+          messages: invocation.messages,
+          maxTokens: invocation.maxTokens,
+        }, actor, "");
+        return { content: result.content, usage: plainObject(result.raw).usage as Record<string, unknown> | undefined };
+      },
+    });
+    const result = await orchestrator.runRole({
+      task: {
+        id: `supervision-analysis-${createRequestId()}`,
+        ownerId: request.ownerId,
+        role: "planner",
+        scenario: "canvas-supervision-analysis",
+        inputSchema: "canvas-run-agent-analysis-input/v1",
+        outputSchema: "canvas-run-agent-analysis/v1",
+        toolAllowlist: [],
+        maxTokens: 4_000,
+        timeoutMs: 120_000,
+      },
+      agentKey: "supervision-planner",
+      environment: environment === "production" ? "production" : "gray",
+      idempotencyKey: `supervision-analysis:${createHash("sha256").update(request.prompt).digest("hex")}`,
+      messages: [{ role: "user", content: request.prompt }],
+      inputSnapshot: { graph: request.graph, maximumParallelism: request.maximumParallelism },
+    });
+    return { content: result.content, agentRunId: result.agentRunId };
+  },
+});
 const canvasRunService = createCanvasRunService({
   repository: canvasRunRepository,
   isEnabled: () => canvasRunsEnabled,
   usePostgresRepository,
   assertStartablePlan: assertCanvasRunStartablePlan,
   resolvePlanModelReferences: resolveCanvasRunModels,
+  analyzePlan: canvasRunAgentAnalysisService.analyzePlan,
 });
 const canvasRunCandidateSelectionService = createCanvasRunCandidateSelectionService({ getPostgresPool });
 const handleCanvasRunRoutes = createCanvasRunRouteHandler({

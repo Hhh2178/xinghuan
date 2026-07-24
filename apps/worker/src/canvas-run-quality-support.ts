@@ -290,8 +290,39 @@ export async function unlockDependents(client: PoolClient, runId: string) {
 export async function finalizeRunIfComplete(client: PoolClient, runId: string) {
   const result = await client.query<{ status: string }>(`select status from xh_canvas_run_steps where run_id=$1`, [runId]);
   if (result.rows.length && result.rows.every((row) => ["succeeded", "skipped"].includes(row.status))) {
+    await appendCompletedExecutionLayerEvents(client, runId);
     await client.query(`update xh_canvas_runs set status='succeeded', finalized_at=now(), updated_at=now() where id=$1`, [runId]);
     await appendEvent(client, runId, null, "canvas_run.succeeded", {});
+  }
+}
+
+export async function appendCompletedExecutionLayerEvents(client: PoolClient, runId: string) {
+  const [layers, events] = await Promise.all([
+    client.query<{ execution_layer: number }>(
+      `select execution_layer from xh_canvas_run_steps
+       where run_id=$1 and execution_layer is not null
+       group by execution_layer
+       having bool_and(status in ('succeeded','skipped'))
+       order by execution_layer`,
+      [runId],
+    ),
+    client.query<{ payload: Record<string, unknown> }>(
+      `select payload from xh_canvas_run_events
+       where run_id=$1 and event_type='canvas_run.execution_layer_completed'`,
+      [runId],
+    ),
+  ]);
+  const completed = new Set(events.rows.map((event) => Number(event.payload?.layerIndex)));
+  for (const layer of layers.rows) {
+    if (completed.has(layer.execution_layer)) continue;
+    const count = await client.query<{ count: string }>(
+      `select count(*)::text as count from xh_canvas_run_steps where run_id=$1 and execution_layer=$2`,
+      [runId, layer.execution_layer],
+    );
+    await appendEvent(client, runId, null, "canvas_run.execution_layer_completed", {
+      layerIndex: layer.execution_layer,
+      stepCount: Number(count.rows[0]?.count || 0),
+    });
   }
 }
 

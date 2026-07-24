@@ -38,6 +38,10 @@ try {
   const taskId = String(events.items?.find((event) => event.eventType === "canvas_run.step_dispatched")?.payload?.taskId || "");
   assert(taskId, "CANVAS_E2E_TASK_DISPATCH_EVENT_MISSING");
   assert(events.items?.some((event) => event.eventType === "canvas_run.step_succeeded" && event.payload?.deterministic === true), "CANVAS_E2E_DETERMINISTIC_STEP_MISSING");
+  for (const layerIndex of [0, 1]) {
+    assert(events.items?.some((event) => event.eventType === "canvas_run.execution_layer_started" && Number(event.payload?.layerIndex) === layerIndex), `CANVAS_E2E_LAYER_START_MISSING:${layerIndex}`);
+    assert(events.items?.some((event) => event.eventType === "canvas_run.execution_layer_completed" && Number(event.payload?.layerIndex) === layerIndex), `CANVAS_E2E_LAYER_COMPLETE_MISSING:${layerIndex}`);
+  }
   await assertTaskSettled(taskId);
 
   const pausedRun = await createRun(canvasId, "pause-resume");

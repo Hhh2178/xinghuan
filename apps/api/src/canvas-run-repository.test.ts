@@ -8,9 +8,10 @@ const plan: CanvasRunPlan = {
   ownerId: "owner-1",
   canvasRevision: 4,
   groups: [{ id: "group-1", order: 0, skipped: false, stepIds: ["step:image", "step:video"] }],
+  executionLayers: [{ index: 0, stepIds: ["step:image"] }, { index: 1, stepIds: ["step:video"] }],
   steps: [
-    { id: "step:image", nodeId: "image", nodeType: "image", groupId: "group-1", dependsOn: [], skipped: false },
-    { id: "step:video", nodeId: "video", nodeType: "video", groupId: "group-1", dependsOn: ["image"], skipped: false },
+    { id: "step:image", nodeId: "image", nodeType: "image", groupId: "group-1", dependsOn: [], skipped: false, executionLayer: 0 },
+    { id: "step:video", nodeId: "video", nodeType: "video", groupId: "group-1", dependsOn: ["image"], skipped: false, executionLayer: 1 },
   ],
 };
 
@@ -70,7 +71,8 @@ describe("canvas run repository", () => {
     expect(result).toMatchObject({ created: true, run: { id: "canvas_run_1", ownerId: "owner-1", canvasRevision: 4, inputSnapshot: { workflowId: "workflow-1" } } });
     const stepCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into xh_canvas_run_steps"));
     expect(stepCalls).toHaveLength(2);
-    expect(stepCalls.map((call) => call[1]?.[7])).toEqual(["ready", "blocked"]);
+    expect(stepCalls.map((call) => call[1]?.[7])).toEqual([0, 1]);
+    expect(stepCalls.map((call) => call[1]?.[8])).toEqual(["ready", "blocked"]);
     expect(query.mock.calls.some(([sql]) => String(sql).includes("from xh_canvas_runs r where r.id"))).toBe(true);
     expect(release).toHaveBeenCalledOnce();
   });

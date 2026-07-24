@@ -489,42 +489,42 @@ git commit -m "feat(canvas): make supervision failures diagnosable"
 - Consumes: workflow snapshot, deterministic dependency graph, published `supervision-planner` configuration and concurrency policy.
 - Produces: frozen `CanvasRunAgentAnalysis`, deterministic execution layers and visible planning/run events.
 
-- [ ] **Step 1: Write failing deterministic layer tests**
+- [x] **Step 1: Write failing deterministic layer tests**
 
 Test a graph `A -> C`, `B -> C`, `C -> D` and assert layers `[[A,B],[C],[D]]`. Test stage ordering, cycles, skipped steps, maximum parallelism and the rule that Agent suggestions cannot place dependencies in one layer.
 
-- [ ] **Step 2: Write failing Agent analysis validation tests**
+- [x] **Step 2: Write failing Agent analysis validation tests**
 
 Cover valid recommendations, unknown step IDs, dependency violations, excessive parallelism, malformed response, timeout and deterministic fallback.
 
-- [ ] **Step 3: Confirm RED**
+- [x] **Step 3: Confirm RED**
 
 ```powershell
 npx vitest run packages/agent-core/src/canvas-run-agent-analysis.test.ts packages/agent-core/src/workflow-compiler.test.ts apps/api/src/canvas-run-agent-analysis-service.test.ts
 npm run test:canvas-run-postgres-integration
 ```
 
-- [ ] **Step 4: Implement deterministic execution layers**
+- [x] **Step 4: Implement deterministic execution layers**
 
 Extend the compiler output with layers derived only from validated dependencies and stage constraints. Keep stable order for equally ready steps.
 
-- [ ] **Step 5: Implement the bounded Agent analysis service**
+- [x] **Step 5: Implement the bounded Agent analysis service**
 
 Call the published `supervision-planner` through the existing orchestrator with a sanitized workflow summary and deterministic graph. Validate the structured response, persist its Agent Run/audit linkage and fall back without blocking plan creation.
 
-- [ ] **Step 6: Freeze analysis, layers and effective policy in the Run**
+- [x] **Step 6: Freeze analysis, layers and effective policy in the Run**
 
 Store analysis and layers in the plan/configuration snapshot. Emit `analysis_started`, `analysis_completed`, `analysis_degraded`, `execution_layer_started` and `execution_layer_completed` events.
 
-- [ ] **Step 7: Make Worker scheduling honor ready steps and effective concurrency**
+- [x] **Step 7: Make Worker scheduling honor ready steps and effective concurrency**
 
 The runnable set is `pending steps whose dependencies succeeded and whose layer is active`. Effective concurrency is the minimum of workflow limit, published policy, Provider quota and ready count. Convergence steps wait for all required upstream outputs.
 
-- [ ] **Step 8: Render analysis and layer progress in Canvas**
+- [x] **Step 8: Render analysis and layer progress in Canvas**
 
 Show summary, concurrency groups, serial constraints, risks, estimated request count and degraded status before execution. During execution, project active layer and node/task progress directly onto the workflow.
 
-- [ ] **Step 9: Verify focused tests, integration and builds**
+- [x] **Step 9: Verify focused tests, integration and builds**
 
 ```powershell
 npx vitest run packages/agent-core/src/canvas-run-agent-analysis.test.ts packages/agent-core/src/workflow-compiler.test.ts apps/api/src/canvas-run-agent-analysis-service.test.ts
@@ -536,15 +536,15 @@ npm run type-check
 npm run build
 ```
 
-- [ ] **Step 10: Run real multi-branch AI supervision verification**
+- [x] **Step 10: Run real multi-branch AI supervision verification**
 
 Use a disposable workflow with two independent image-generation branches, a candidate/convergence step and a downstream image operation. Confirm the real Agent analysis identifies the branches, the deterministic validator approves only valid concurrency, two upstream tasks overlap in time, convergence waits, Canvas shows live states and final artifacts reach downstream nodes.
 
-- [ ] **Step 11: Run real failure-and-recovery variation**
+- [x] **Step 11: Run real failure-and-recovery variation**
 
 Trigger one Provider/model failure in a separate disposable run. Confirm the failed node is visible, unaffected completed branch remains completed, normalized error is direct, recovery policy is audited and the assistant can analyze the failure.
 
-- [ ] **Step 12: Record and commit Task 7**
+- [x] **Step 12: Record and commit Task 7**
 
 ```powershell
 git commit -m "feat(agent): analyze and schedule supervised workflows"

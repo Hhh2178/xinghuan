@@ -1,7 +1,7 @@
 import { AlertTriangle, Ban, Bot, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
 import type { CanvasRunFailureDiagnostic, WorkflowSupervisionSettings } from '@xinghuan/shared';
 import { decideCanvasRunApproval } from './canvas-run-api';
-import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
+import { buildCanvasRunAnalysisView, buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
 import { CanvasCandidateSelectionPanel } from './CanvasCandidateSelectionPanel';
 import { describeCanvasRunError } from './canvas-run-error-message';
@@ -26,6 +26,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
   const pendingApproval = [...projection.events].reverse().find((event) => event.eventType === 'canvas_run.step_approval_requested' && !resolvedApprovals.has(String(event.payload.approvalId || '')));
   const failure = run ? buildCanvasRunFailureDiagnostic(run, projection.events) : null;
   const errorMessage = projection.error ? describeCanvasRunError(projection.error) : null;
+  const analysis = run ? buildCanvasRunAnalysisView(run, projection.events) : null;
 
   const decideApproval = async (decision: 'approve' | 'reject') => {
     const approvalId = String(pendingApproval?.payload.approvalId || '');
@@ -91,6 +92,19 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
         <span><Clock3 size={13} />{Math.max(0, Math.round((run.updatedAt - run.createdAt) / 1000))} 秒</span>
         {budgetItems.map((item) => <span key={item.label}><small>{item.label}</small>{item.value}</span>)}
       </div> : null}
+
+      {analysis ? <section className="canvas-run-analysis" data-status={analysis.status} aria-label="AI 链路分析">
+        <header><div><strong>AI 链路分析</strong><small>{analysis.status === 'completed' ? '已验证' : '确定性降级'}</small></div><span>{analysis.recommendedMaximumParallelism} 并发</span></header>
+        <p>{analysis.summary}</p>
+        <div className="canvas-run-analysis__facts">
+          <span><small>当前执行层</small>{analysis.activeLayer === null ? '未开始' : `${analysis.activeLayer + 1} / ${analysis.layerCount}`}</span>
+          <span><small>预计请求</small>{analysis.estimatedRequestCount}</span>
+        </div>
+        {analysis.concurrencyGroups.length ? <div className="canvas-run-analysis__section"><strong>并发组</strong>{analysis.concurrencyGroups.map((group, index) => <p key={`parallel-${index}`}><b>{group.labels.join(' + ')}</b>{group.reason}</p>)}</div> : null}
+        {analysis.serialConstraints.length ? <div className="canvas-run-analysis__section"><strong>串行约束</strong>{analysis.serialConstraints.map((constraint, index) => <p key={`serial-${index}`}><b>{constraint.before} → {constraint.after}</b>{constraint.reason}</p>)}</div> : null}
+        {analysis.risks.length ? <div className="canvas-run-analysis__section"><strong>风险</strong>{analysis.risks.map((risk, index) => <p key={`risk-${index}`}>{risk}</p>)}</div> : null}
+        {analysis.degradationReason ? <code>{analysis.degradationReason}</code> : null}
+      </section> : null}
 
       {pendingApproval ? (
         <div className="canvas-run-approval">

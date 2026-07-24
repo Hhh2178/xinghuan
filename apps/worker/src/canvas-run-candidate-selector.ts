@@ -140,6 +140,11 @@ export async function initializeSmartCandidateSelector(input: {
        where r.status in ('queued', 'running')
          and s.status = 'ready'
          and s.node_type = 'smart-candidate-selector'
+         and coalesce(s.execution_layer, 0) = (
+           select min(coalesce(layer_step.execution_layer, 0)) from xh_canvas_run_steps layer_step
+           where layer_step.run_id = r.id
+             and layer_step.status not in ('succeeded', 'failed', 'cancelled', 'skipped')
+         )
        order by r.updated_at asc, s.sequence asc
        for update of s, r skip locked
        limit 1`,

@@ -12,3 +12,4 @@ export * from "./knowledge-snapshot.js";
 export * from "./failure-recovery.js";
 export * from "./smart-candidate-selector.js";
 export * from "./workflow-compiler.js";
+export * from "./canvas-run-agent-analysis.js";

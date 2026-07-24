@@ -59,7 +59,13 @@ export interface CanvasRunStepPlan {
   groupId: string | null;
   dependsOn: string[];
   skipped: boolean;
+  executionLayer?: number | null;
   configuration?: Record<string, unknown>;
+}
+
+export interface CanvasRunExecutionLayer {
+  index: number;
+  stepIds: string[];
 }
 
 export interface CanvasRunPlan {
@@ -71,6 +77,9 @@ export interface CanvasRunPlan {
   workflowSubgraphHash?: string;
   groups: CanvasRunGroupPlan[];
   steps: CanvasRunStepPlan[];
+  executionLayers?: CanvasRunExecutionLayer[];
+  agentAnalysis?: import("./canvas-run-agent-analysis.js").CanvasRunAgentAnalysis;
+  agentRunId?: string;
 }
 
 export function compileCanvasRunPlan(input: CompileCanvasRunPlanInput): CanvasRunPlan {
@@ -111,21 +120,76 @@ export function compileCanvasRunPlan(input: CompileCanvasRunPlanInput): CanvasRu
   const groupedNodeIds = new Set(orderedNodes.map((node) => node.id));
   orderedNodes.push(...stableTopologicalSort(input.nodes.filter((node) => !groupedNodeIds.has(node.id)), input.edges));
 
+  const steps: CanvasRunStepPlan[] = orderedNodes.map((node) => ({
+    id: stepId(node.id),
+    nodeId: node.id,
+    nodeType: node.type,
+    groupId: node.groupId || null,
+    dependsOn: [...(incoming.get(node.id) || [])],
+    skipped: node.groupId ? input.groups.find((group) => group.id === node.groupId)?.skipped === true : false,
+    executionLayer: null,
+    configuration: node.configuration,
+  }));
+  const executionLayers = deriveExecutionLayers(steps, groupPlans);
+  const layerByStepId = new Map(executionLayers.flatMap((layer) => layer.stepIds.map((id) => [id, layer.index] as const)));
+
   return {
     canvasId: input.canvasId,
     ownerId: input.ownerId,
     canvasRevision: input.revision,
     groups: groupPlans,
-    steps: orderedNodes.map((node) => ({
-      id: stepId(node.id),
-      nodeId: node.id,
-      nodeType: node.type,
-      groupId: node.groupId || null,
-      dependsOn: [...(incoming.get(node.id) || [])],
-      skipped: node.groupId ? input.groups.find((group) => group.id === node.groupId)?.skipped === true : false,
-      configuration: node.configuration,
-    })),
+    steps: steps.map((step) => ({ ...step, executionLayer: layerByStepId.get(step.id) ?? null })),
+    executionLayers,
   };
+}
+
+function deriveExecutionLayers(steps: CanvasRunStepPlan[], groups: CanvasRunGroupPlan[]): CanvasRunExecutionLayer[] {
+  const layerByNodeId = new Map<string, number>();
+  const skippedNodeIds = new Set(steps.filter((step) => step.skipped).map((step) => step.nodeId));
+  const stages = [
+    ...groups.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id)).map((group) => ({ id: group.id, mode: group.mode || "serial" })),
+    { id: null, mode: "serial" as const },
+  ];
+  let previousStageMaximum = -1;
+
+  for (const stage of stages) {
+    const stageSteps = steps.filter((step) => step.groupId === stage.id && !step.skipped);
+    if (stageSteps.length === 0) continue;
+    const stageNodeIds = new Set(stageSteps.map((step) => step.nodeId));
+    const pending = new Set(stageSteps.map((step) => step.nodeId));
+    const stageFloor = previousStageMaximum + 1;
+    let serialLayer = stageFloor;
+
+    while (pending.size > 0) {
+      const ready = stageSteps.filter((step) => pending.has(step.nodeId) && step.dependsOn.every((dependency) => (
+        skippedNodeIds.has(dependency) || !stageNodeIds.has(dependency) || layerByNodeId.has(dependency)
+      )));
+      if (ready.length === 0) throw new Error(`CANVAS_RUN_EXECUTION_LAYER_CYCLE:${[...pending].join(":")}`);
+      const selected = stage.mode === "parallel" ? ready : ready.slice(0, 1);
+      for (const step of selected) {
+        const dependencyLayer = step.dependsOn.reduce((maximum, dependency) => Math.max(maximum, layerByNodeId.get(dependency) ?? -1), -1);
+        const layer = stage.mode === "parallel"
+          ? Math.max(stageFloor, dependencyLayer + 1)
+          : Math.max(serialLayer, dependencyLayer + 1);
+        layerByNodeId.set(step.nodeId, layer);
+        pending.delete(step.nodeId);
+        if (stage.mode !== "parallel") serialLayer = layer + 1;
+      }
+    }
+    previousStageMaximum = Math.max(previousStageMaximum, ...stageSteps.map((step) => layerByNodeId.get(step.nodeId) ?? previousStageMaximum));
+  }
+
+  const stepIdsByLayer = new Map<number, string[]>();
+  for (const step of steps) {
+    const layer = layerByNodeId.get(step.nodeId);
+    if (layer === undefined) continue;
+    const entries = stepIdsByLayer.get(layer) || [];
+    entries.push(step.id);
+    stepIdsByLayer.set(layer, entries);
+  }
+  return [...stepIdsByLayer.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([index, stepIds]) => ({ index, stepIds }));
 }
 
 interface CanvasSnapshotNode {

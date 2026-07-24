@@ -146,6 +146,24 @@ describe('canvas run coordinator', () => {
     expect(source).toMatch(/for update of s, r skip locked/i);
   });
 
+  it('claims only the current deterministic execution layer and records layer progress', () => {
+    const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(/s\.execution_layer/);
+    expect(source).toMatch(/coalesce\(s\.execution_layer, 0\)/);
+    expect(source).toMatch(/min\(coalesce\(layer_step\.execution_layer, 0\)\)/);
+    expect(source).toMatch(/configuration_snapshot->>'effectiveConcurrency'/);
+    expect(source).toMatch(/canvas_run\.execution_layer_started/);
+    expect(source).toMatch(/canvas_run\.execution_layer_completed/);
+  });
+
+  it('records execution-layer progress in the real continuous run loop', () => {
+    const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
+    const runLoop = source.match(/async function run\(\) \{[\s\S]*?await wait\(pollIntervalMs\);[\s\S]*?\n  \}/)?.[0] || '';
+    expect(runLoop).toMatch(/await recordExecutionLayerProgress\(\)/);
+    expect(runLoop.indexOf('recordExecutionLayerProgress')).toBeLessThan(runLoop.indexOf('initializeSmartCandidateSelector'));
+    expect(runLoop.indexOf('initializeSmartCandidateSelector')).toBeLessThan(runLoop.indexOf('claimReadyStep'));
+  });
+
   it('routes the explicit smart selector before the generation claim', () => {
     const source = readFileSync(new URL('./canvas-run-coordinator.ts', import.meta.url), 'utf8');
     expect(source).toMatch(/initializeSmartCandidateSelector\(\{ pool: options\.pool, environment: options\.environment, appendEvent \}\)/);
@@ -245,6 +263,7 @@ function coordinatorHarness(options: {
     input_binding: {}, recovery_overrides: {}, recovery_context: {}, depends_on: [], run_created_at: new Date(),
   };
   const topLevelQuery = vi.fn(async (sql: string, params?: unknown[]) => {
+    if (sql.includes("select id from xh_canvas_runs where status in ('queued', 'running')")) return { rows: [] };
     if (sql.includes("t.status = 'running'")) return { rows: [] };
     if (sql.includes('from xh_agent_approvals')) return { rows: state.stepStatus === 'awaiting_approval' && state.approvalId
       ? [{ approval_id: state.approvalId, run_id: 'run-1', step_id: 'step-1', status: options.approvalStatus || 'approved' }]
@@ -321,6 +340,9 @@ function coordinatorHarness(options: {
       return { rows: [] };
     }
     if (sql.includes("select status from xh_canvas_run_steps")) return { rows: [{ status: state.stepStatus }] };
+    if (sql.includes('select execution_layer from xh_canvas_run_steps')) return { rows: [{ execution_layer: 0 }] };
+    if (sql.includes("event_type='canvas_run.execution_layer_completed'")) return { rows: [] };
+    if (sql.includes('select count(*)::text as count from xh_canvas_run_steps')) return { rows: [{ count: '1' }] };
     if (sql.includes("update xh_canvas_runs set status = 'succeeded'")) return { rows: [] };
     if (sql.includes('from xh_providers where id =')) return { rows: [{
       id: 'provider-1', enabled: true, protocol: 'runninghub', rh_workflows: [{
@@ -352,7 +374,7 @@ function coordinatorHarness(options: {
       return { rows: [] };
     }
     if (sql.includes("update xh_canvas_runs set status = 'running'")) return { rows: [] };
-    if (sql.includes('set event_sequence = event_sequence + 1')) return { rows: [{ event_sequence: ++state.eventSequence }] };
+    if (sql.includes('set event_sequence = event_sequence + 1') || sql.includes('set event_sequence=event_sequence+1')) return { rows: [{ event_sequence: ++state.eventSequence }] };
     if (sql.includes('insert into xh_canvas_run_events')) return { rows: [] };
     throw new Error(`unexpected client query: ${sql} ${JSON.stringify(params || [])}`);
   });

@@ -4,6 +4,7 @@ import { projectCanvasRunFailureDiagnostic, taskQueueNameForCapability, type Can
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import type { RedisClientType } from 'redis';
 import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator.js';
+import { appendCompletedExecutionLayerEvents } from './canvas-run-quality-support.js';
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from './canvas-run-dispatch-fairness.js';
 import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas-run-recovery-runtime.js';
 import { initializeSmartCandidateSelector } from './canvas-run-candidate-selector.js';
@@ -42,6 +43,7 @@ interface StepRow extends QueryResultRow {
   recovery_overrides?: Record<string, unknown>;
   recovery_context?: Record<string, unknown>;
   dispatch_enqueued_at?: Date | null;
+  execution_layer: number | null;
   run_created_at?: Date;
 }
 
@@ -70,6 +72,7 @@ export function createCanvasRunCoordinator(options: {
         await settleCompletedTasks();
         await releaseDueRetries();
         await enqueuePendingDispatches();
+        await recordExecutionLayerProgress();
         await initializeSmartCandidateSelector({ pool: options.pool, environment: options.environment, appendEvent });
         await claimReadyStep();
       }
@@ -400,10 +403,19 @@ export function createCanvasRunCoordinator(options: {
            where r.status in ('queued', 'running') and s.status = 'ready'
              and s.node_type <> 'smart-candidate-selector'
              and (s.lease_expires_at is null or s.lease_expires_at < now())
+             and coalesce(s.execution_layer, 0) = (
+               select min(coalesce(layer_step.execution_layer, 0)) from xh_canvas_run_steps layer_step
+               where layer_step.run_id = r.id
+                 and layer_step.status not in ('succeeded', 'failed', 'cancelled', 'skipped')
+             )
              and (
                select count(*) from xh_canvas_run_steps active_steps
                where active_steps.run_id = r.id and active_steps.status in ('queued', 'running', 'evaluating')
-             ) < greatest(1, least(64, coalesce(nullif(r.configuration_snapshot->>'stageConcurrency', '')::int, 1)))
+             ) < greatest(1, least(64, coalesce(
+               nullif(r.configuration_snapshot->>'effectiveConcurrency', '')::int,
+               nullif(r.configuration_snapshot->>'stageConcurrency', '')::int,
+               1
+             )))
            group by r.owner_id
          ), next_owner as (
            select owner_id from ready_owners
@@ -416,10 +428,19 @@ export function createCanvasRunCoordinator(options: {
          where r.status in ('queued', 'running') and s.status = 'ready'
            and s.node_type <> 'smart-candidate-selector'
            and (s.lease_expires_at is null or s.lease_expires_at < now())
+           and coalesce(s.execution_layer, 0) = (
+             select min(coalesce(layer_step.execution_layer, 0)) from xh_canvas_run_steps layer_step
+             where layer_step.run_id = r.id
+               and layer_step.status not in ('succeeded', 'failed', 'cancelled', 'skipped')
+           )
            and (
              select count(*) from xh_canvas_run_steps active_steps
              where active_steps.run_id = r.id and active_steps.status in ('queued', 'running', 'evaluating')
-           ) < greatest(1, least(64, coalesce(nullif(r.configuration_snapshot->>'stageConcurrency', '')::int, 1)))
+           ) < greatest(1, least(64, coalesce(
+             nullif(r.configuration_snapshot->>'effectiveConcurrency', '')::int,
+             nullif(r.configuration_snapshot->>'stageConcurrency', '')::int,
+             1
+           )))
          order by r.updated_at asc, s.sequence asc
          for update of s, r skip locked limit 1`,
         [lastOwnerId],
@@ -567,6 +588,58 @@ export function createCanvasRunCoordinator(options: {
     for (const row of result.rows) await enqueueTask(row.task_id, row.capability, row.step_id);
   }
 
+  async function recordExecutionLayerProgress() {
+    const runs = await options.pool.query<{ id: string }>(
+      `select id from xh_canvas_runs where status in ('queued', 'running') order by updated_at asc limit 50`,
+    );
+    for (const run of runs.rows) {
+      const client = await options.pool.connect();
+      try {
+        await client.query('begin');
+        const locked = await client.query<{ id: string }>(
+          `select id from xh_canvas_runs where id = $1 and status in ('queued', 'running') for update`,
+          [run.id],
+        );
+        if (!locked.rows[0]) {
+          await client.query('rollback');
+          continue;
+        }
+        const steps = await client.query<{ execution_layer: number | null; status: string }>(
+          `select execution_layer, status from xh_canvas_run_steps where run_id = $1 order by execution_layer, sequence`,
+          [run.id],
+        );
+        const events = await client.query<{ event_type: string; payload: Record<string, unknown> }>(
+          `select event_type, payload from xh_canvas_run_events
+           where run_id = $1 and event_type in ('canvas_run.execution_layer_started', 'canvas_run.execution_layer_completed')`,
+          [run.id],
+        );
+        const started = new Set(events.rows.filter((event) => event.event_type.endsWith('_started')).map((event) => Number(object(event.payload).layerIndex)));
+        const completed = new Set(events.rows.filter((event) => event.event_type.endsWith('_completed')).map((event) => Number(object(event.payload).layerIndex)));
+        const layers = [...new Set(steps.rows.map((step) => step.execution_layer).filter((layer): layer is number => layer !== null))].sort((left, right) => left - right);
+        for (const layerIndex of layers) {
+          const layerSteps = steps.rows.filter((step) => step.execution_layer === layerIndex);
+          if (!completed.has(layerIndex) && layerSteps.every((step) => ['succeeded', 'skipped'].includes(step.status))) {
+            await appendEvent(client, run.id, null, 'canvas_run.execution_layer_completed', { layerIndex, stepCount: layerSteps.length });
+            completed.add(layerIndex);
+          }
+        }
+        const currentLayer = layers.find((layerIndex) => steps.rows.some((step) => (
+          step.execution_layer === layerIndex && !TERMINAL_STEP.has(step.status)
+        )));
+        if (currentLayer !== undefined && !started.has(currentLayer)) {
+          const stepCount = steps.rows.filter((step) => step.execution_layer === currentLayer).length;
+          await appendEvent(client, run.id, null, 'canvas_run.execution_layer_started', { layerIndex: currentLayer, stepCount });
+        }
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback').catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+  }
+
   async function releaseDueRetries() {
     await options.pool.query(
       `update xh_canvas_run_steps s
@@ -589,6 +662,7 @@ export function createCanvasRunCoordinator(options: {
     await settleCompletedTasks();
     await releaseDueRetries();
     await enqueuePendingDispatches();
+    await recordExecutionLayerProgress();
     await initializeSmartCandidateSelector({ pool: options.pool, environment: options.environment, appendEvent });
     await claimReadyStep();
   } };
@@ -878,6 +952,7 @@ async function unlockDependents(client: PoolClient, runId: string) {
 async function finalizeRunIfComplete(client: PoolClient, runId: string) {
   const result = await client.query<{ status: string }>(`select status from xh_canvas_run_steps where run_id = $1`, [runId]);
   if (result.rows.length > 0 && result.rows.every((row) => TERMINAL_STEP.has(row.status)) && result.rows.every((row) => ['succeeded', 'skipped'].includes(row.status))) {
+    await appendCompletedExecutionLayerEvents(client, runId);
     await client.query(`update xh_canvas_runs set status = 'succeeded', updated_at = now(), finalized_at = now() where id = $1`, [runId]);
     await appendEvent(client, runId, null, 'canvas_run.succeeded', {});
   }

@@ -198,6 +198,25 @@ export function createCanvasRunRepository(deps: {
           workflowRevision: input.plan.workflowRevision || null,
           workflowSubgraphHash: input.plan.workflowSubgraphHash || null,
         }, newId);
+        if (input.plan.agentAnalysis) {
+          await appendEventLocked(client, runId, "canvas_run.analysis_started", {
+            agentRunId: input.plan.agentRunId || null,
+            deterministicLayerCount: input.plan.executionLayers?.length || 0,
+          }, newId);
+          await appendEventLocked(client, runId, input.plan.agentAnalysis.status === "completed"
+            ? "canvas_run.analysis_completed"
+            : "canvas_run.analysis_degraded", {
+            agentRunId: input.plan.agentRunId || null,
+            ...input.plan.agentAnalysis,
+          }, newId);
+          if (input.plan.agentRunId) {
+            await client.query(
+              `update xh_agent_runs set canvas_run_id = $1, updated_at = now()
+               where id = $2 and owner_id = $3 and canvas_run_id is null`,
+              [runId, input.plan.agentRunId, input.ownerId],
+            );
+          }
+        }
         const created = await selectOwnedRun(client, input.ownerId, runId);
         if (!created) throw new Error("CANVAS_RUN_CREATE_FAILED");
         return { run: created, created: true };
@@ -399,9 +418,9 @@ async function insertRunSteps(client: PoolClient, runId: string, plan: CanvasRun
   for (const [sequence, step] of plan.steps.entries()) {
     await client.query(
       `insert into xh_canvas_run_steps
-        (id, run_id, step_key, node_id, node_type, group_id, sequence, status, depends_on)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
-      [newId("canvas_run_step"), runId, step.id, step.nodeId, step.nodeType, step.groupId, sequence, step.skipped ? "skipped" : step.dependsOn.length > 0 ? "blocked" : "ready", json(step.dependsOn)],
+        (id, run_id, step_key, node_id, node_type, group_id, sequence, execution_layer, status, depends_on)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+      [newId("canvas_run_step"), runId, step.id, step.nodeId, step.nodeType, step.groupId, sequence, step.skipped ? null : step.executionLayer ?? 0, step.skipped ? "skipped" : step.dependsOn.length > 0 ? "blocked" : "ready", json(step.dependsOn)],
     );
   }
 }
