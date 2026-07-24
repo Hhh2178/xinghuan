@@ -111,21 +111,36 @@ export function createCanvasRunCoordinator(options: {
        limit 25`,
     );
     for (const step of result.rows) {
-      const progress = readCanvasRunTaskProgress(step.task_result);
-      if (!progress) continue;
-      const previous = await options.pool.query<{ payload: Record<string, unknown> }>(
-        `select payload from xh_canvas_run_events
-         where run_step_id = $1 and event_type = 'canvas_run.step_progress'
-         order by sequence desc limit 1`,
-        [step.id],
-      );
-      const last = readCanvasRunTaskProgress(previous.rows[0]?.payload);
-      if (last?.completed === progress.completed && last.providerRequestCount === progress.providerRequestCount) continue;
       const client = await options.pool.connect();
       try {
         await client.query('begin');
-        await appendEvent(client, step.run_id, step.id, 'canvas_run.step_progress', {
-          taskId: step.task_id,
+        const locked = await client.query<{ run_id: string; task_id: string; task_result: Record<string, unknown> }>(
+          `select s.run_id, s.task_id, t.result as task_result
+           from xh_canvas_run_steps s
+           join xh_tasks t on t.id = s.task_id
+           where s.id = $1 and s.status in ('queued', 'running') and t.status = 'running'
+           for update of s`,
+          [step.id],
+        );
+        const current = locked.rows[0];
+        const progress = readCanvasRunTaskProgress(current?.task_result);
+        if (!current || !progress) {
+          await client.query('rollback');
+          continue;
+        }
+        const previous = await client.query<{ payload: Record<string, unknown> }>(
+          `select payload from xh_canvas_run_events
+           where run_step_id = $1 and event_type = 'canvas_run.step_progress'
+           order by sequence desc limit 1`,
+          [step.id],
+        );
+        const last = readCanvasRunTaskProgress(previous.rows[0]?.payload);
+        if (last?.completed === progress.completed && last.providerRequestCount === progress.providerRequestCount) {
+          await client.query('rollback');
+          continue;
+        }
+        await appendEvent(client, current.run_id, step.id, 'canvas_run.step_progress', {
+          taskId: current.task_id,
           completed: progress.completed,
           generationCount: progress.total,
           providerRequestCount: progress.providerRequestCount,

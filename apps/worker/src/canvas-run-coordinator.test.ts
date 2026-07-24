@@ -219,6 +219,7 @@ function coordinatorHarness(options: {
     input_binding: {}, recovery_overrides: {}, recovery_context: {}, depends_on: [], run_created_at: new Date(),
   };
   const topLevelQuery = vi.fn(async (sql: string, params?: unknown[]) => {
+    if (sql.includes("t.status = 'running'")) return { rows: [] };
     if (sql.includes('from xh_agent_approvals')) return { rows: state.stepStatus === 'awaiting_approval' && state.approvalId
       ? [{ approval_id: state.approvalId, run_id: 'run-1', step_id: 'step-1', status: options.approvalStatus || 'approved' }]
       : [] };
