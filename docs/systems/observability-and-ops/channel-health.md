@@ -28,9 +28,12 @@
 
 两类 GET 都使用私有 ETag 重验证。聚合报告的服务端缓存时长为 30 秒，viewer vote 在读取时单独覆盖，不能与其他用户投票状态混合。
 
+反馈写入错误码为：缺少 Provider、模型或 vote 时分别为 `CHANNEL_FEEDBACK_PROVIDER_REQUIRED`、`CHANNEL_FEEDBACK_MODEL_REQUIRED`、`CHANNEL_FEEDBACK_VOTE_INVALID`；通道不存在为 `CHANNEL_NOT_FOUND`；没有近期精确通道使用资格为 `CHANNEL_FEEDBACK_INELIGIBLE`。Admin 使用无效能力筛选时返回 `CHANNEL_HEALTH_CAPABILITY_INVALID`。
+
 ## 排障
 
 1. 先确认任务终态、`provider_cost` 快照及 `created_at` 是否落在当前 72 小时窗口；运行中、取消的任务不是数据缺失。
 2. 为空桶或暂无近期请求时，确认该精确 Provider / 模型是否确实没有已结束任务，而非将状态读作零成功率。
 3. 投票被拒绝时，确认 owner 在最近 24 小时是否有同一 Provider / 模型的成功或失败任务。
 4. 数据更新不及时时，先使用手动刷新；再检查请求 ETag/304 和服务端 30 秒聚合缓存。不要通过重启服务或删除反馈记录“刷新”状态。
+5. 聚合查询计划应以 Migration 042 的局部 settled-task 索引和反馈窗口索引为起点。查询计划异常时，在隔离数据库中对仓库的时间窗口查询执行 `EXPLAIN (ANALYZE, BUFFERS)`，确认 `status in ('succeeded', 'failed')`、时间范围与 `provider_cost` 快照连接都没有退化为无界全表读取。

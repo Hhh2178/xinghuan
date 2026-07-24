@@ -28,6 +28,8 @@ Implement the approved Provider/model channel health report without a GitHub pus
 - `npx vitest run apps/admin/src/admin-channel-health-refresh.test.ts`: pass.
 - `npm run verify:admin-view-model-contract && npm run verify:admin-readonly-panels-contract`: pass.
 - `npm run type-check -w @xinghuan/admin && npm run build -w @xinghuan/admin`: pass.
+- `npm run verify:channel-health-contract`: pass.
+- `npm run verify:project-harness-contract && npm run verify:harness-doc-sync-contract`: pass after registering the feature contract in the project Harness.
 
 ## Boundary
 
