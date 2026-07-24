@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "b07ebcccee3540cbf62a5c20831c3ee82801d9e6",
+  "sourceCommit": "f6a1236e1481eb35c13f4a8f181c8baf3295fcf6",
   "environments": {
     "gray": {
-      "version": "0.7.35",
-      "releaseId": "20260724-canvas-resize-materialized-gray-r1-v0735",
+      "version": "0.7.36",
+      "releaseId": "20260724-workflow-auto-output-boundary-gray-r1-v0736",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-resize-materialized-gray-v0735.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-resize-materialized-gray-v0735.md",
-      "rollbackReleaseId": "20260724-canvas-generation-batch-gray-r1-v0734"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-workflow-auto-output-boundary-gray-v0736.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-workflow-auto-output-boundary-gray-v0736.md",
+      "rollbackReleaseId": "20260724-canvas-resize-materialized-gray-r1-v0735"
     },
     "production": {
       "version": "0.7.18",

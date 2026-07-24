@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.7.35`
-- release：`20260724-canvas-resize-materialized-gray-r1-v0735`
-- 当前状态：`Canvas 连线、AI 托管就绪提示、全局小地图和鼠标定位粘贴已部署；运行态、PC 视觉基础验证以及无付费隔离 Canvas Run 生命周期均已通过`
+- 版本：`v0.7.36`
+- release：`20260724-workflow-auto-output-boundary-gray-r1-v0736`
+- 当前状态：`待部署验证：自动展示 Output 叶子不会再阻断 Workflow Region 的 AI 托管运行计划创建`
 - 部署内容：`Workflow Region 变量与确定性阶段、有限 AI 托管、显式智能候选门、选中 Run 投影隔离、批量计费和四域 Admin 治理`
 - 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、v0.7.32 无付费 text Run 的计划/取消/事件流/完成/删除临时画布、540 tests、完整 build 与三层 Harness`
 - 部署时间：`2026-07-24`
-- 本轮制品源提交：`353bad8`
+- 本轮制品源提交：`f6a1236`
 - 当前批次记录：
-  - `gray/2026-07-24-canvas-resize-materialized-gray-v0735.md`
-  - `../validations/2026-07-24-canvas-resize-materialized-gray-v0735.md`
+  - `gray/2026-07-24-workflow-auto-output-boundary-gray-v0736.md`
+  - `../validations/2026-07-24-workflow-auto-output-boundary-gray-v0736.md`
 - 当前批次记录：
   - `gray/2026-07-23-canvas-agent-governance-gray-v0720.md`
   - `../validations/2026-07-23-canvas-agent-governance-gray-v0720.md`
