@@ -18,10 +18,14 @@ export function buildCanvasRunNodeProjection(input: {
     const configuredCount = countFrom(view.step.configuration?.executionPayload)
       || countFrom(view.step.configuration)
       || 1;
-    const requestedCount = number(payload.providerRequestCount) || number(payload.generationCount) || configuredCount;
+    const batch = object(payload.generationBatch);
+    const completedCount = number(payload.completed)
+      || number(batch.completed)
+      || number(payload.completedGenerationCount)
+      || number(payload.providerRequestCount);
     projection[view.step.nodeId] = {
       status: view.status,
-      label: view.status === 'running' && configuredCount > 1 ? `运行中 ${Math.min(requestedCount, configuredCount)}/${configuredCount}` : statusLabel(view.status),
+      label: view.status === 'running' && configuredCount > 1 ? `运行中 ${Math.min(completedCount, configuredCount)}/${configuredCount}` : statusLabel(view.status),
     };
   }
   return projection;
@@ -29,6 +33,10 @@ export function buildCanvasRunNodeProjection(input: {
 
 function countFrom(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? number((value as Record<string, unknown>).generationCount) : 0;
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function number(value: unknown) {

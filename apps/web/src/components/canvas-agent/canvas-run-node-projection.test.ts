@@ -9,4 +9,15 @@ describe('canvas run node projection', () => {
       events: [{ id: 'event-1', runId: 'run-1', runStepId: 'step-1', nodeId: 'image-1', sequence: 1, eventType: 'canvas_run.step_dispatched', payload: { generationCount: 3, providerRequestCount: 1 }, createdAt: 1 }],
     })).toEqual({ 'image-1': { status: 'running', label: '运行中 1/3' } });
   });
+
+  it('starts an active batch at zero and advances from durable Worker progress events', () => {
+    const run = { status: 'running' as const, planSnapshot: { canvasId: 'canvas-1', canvasRevision: 1, groups: [], steps: [{ id: 'step-1', nodeId: 'image-1', nodeType: 'image', groupId: null, dependsOn: [], skipped: false, configuration: { executionPayload: { generationCount: 3 } } }] } };
+    expect(buildCanvasRunNodeProjection({ run, events: [{ id: 'dispatch', runId: 'run-1', runStepId: 'step-1', nodeId: 'image-1', sequence: 1, eventType: 'canvas_run.step_dispatched', payload: {}, createdAt: 1 }] }))
+      .toEqual({ 'image-1': { status: 'running', label: '运行中 0/3' } });
+    expect(buildCanvasRunNodeProjection({ run, events: [
+      { id: 'dispatch', runId: 'run-1', runStepId: 'step-1', nodeId: 'image-1', sequence: 1, eventType: 'canvas_run.step_dispatched', payload: {}, createdAt: 1 },
+      { id: 'progress', runId: 'run-1', runStepId: 'step-1', nodeId: 'image-1', sequence: 2, eventType: 'canvas_run.step_progress', payload: { completed: 2, generationCount: 3, providerRequestCount: 2 }, createdAt: 2 },
+    ] }))
+      .toEqual({ 'image-1': { status: 'running', label: '运行中 2/3' } });
+  });
 });

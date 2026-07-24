@@ -79,15 +79,17 @@ describe("worker image generation batch", () => {
     expect(result).toMatchObject({ imageCount: 2, providerRequestCount: 2 });
   });
 
-  it("requests only the remaining candidate count after a partial native batch", async () => {
+  it("submits one provider request for every requested candidate", async () => {
     const execute = vi.fn(async (_batchIndex: number, remaining: number) => ({
       imageUrls: Array.from({ length: Math.min(2, remaining) }, (_, index) => `https://example.test/${remaining}-${index}.png`),
     }));
 
     const result = await executeImageGenerationBatch({ generationCount: 3, execute });
 
-    expect(execute).toHaveBeenNthCalledWith(1, 0, 3);
+    expect(execute).toHaveBeenCalledTimes(3);
+    expect(execute).toHaveBeenNthCalledWith(1, 0, 1);
     expect(execute).toHaveBeenNthCalledWith(2, 1, 1);
-    expect(result).toMatchObject({ imageCount: 3, providerRequestCount: 2 });
+    expect(execute).toHaveBeenNthCalledWith(3, 2, 1);
+    expect(result).toMatchObject({ imageCount: 3, providerRequestCount: 3 });
   });
 });

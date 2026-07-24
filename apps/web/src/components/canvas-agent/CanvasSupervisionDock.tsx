@@ -68,7 +68,7 @@ export function CanvasSupervisionDock(props: {
   }, [props.canvasId]);
 
   useEffect(() => {
-    if (!props.open || !props.canvasId) return;
+    if (!props.canvasId) return;
     let cancelled = false;
     const refreshOverview = () => void listCanvasWorkflowRuns(props.canvasId!)
       .then((runs) => {

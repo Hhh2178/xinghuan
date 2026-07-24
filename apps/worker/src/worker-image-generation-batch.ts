@@ -26,10 +26,10 @@ export async function executeImageGenerationBatch(options: {
   let lastResult: ImageGenerationResult = {};
   let providerRequestCount = 0;
 
-  for (let batchIndex = 0; batchIndex < total && imageUrls.length < total; batchIndex += 1) {
+  for (let batchIndex = 0; batchIndex < total; batchIndex += 1) {
     if (await options.isCancelled?.()) throw new Error("TASK_CANCELLED");
 
-    lastResult = await options.execute(batchIndex, total - imageUrls.length);
+    lastResult = await options.execute(batchIndex, 1);
     providerRequestCount += 1;
     imageUrls.push(...strings(lastResult.imageUrls));
     remoteImageUrls.push(...strings(lastResult.remoteImageUrls));

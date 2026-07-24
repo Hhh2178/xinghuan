@@ -28,9 +28,9 @@ export async function executeVideoGenerationBatch(options: {
   let lastResult: VideoGenerationResult = {};
   let providerRequestCount = 0;
 
-  for (let batchIndex = 0; batchIndex < total && videoUrls.length < total; batchIndex += 1) {
+  for (let batchIndex = 0; batchIndex < total; batchIndex += 1) {
     if (await options.isCancelled?.()) throw new Error("TASK_CANCELLED");
-    lastResult = await options.execute(batchIndex, total - videoUrls.length);
+    lastResult = await options.execute(batchIndex, 1);
     providerRequestCount += 1;
     videoUrls.push(...strings(lastResult.videoUrls));
     remoteVideoUrls.push(...strings(lastResult.remoteVideoUrls));

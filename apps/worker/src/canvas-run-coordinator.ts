@@ -7,6 +7,7 @@ import { qualityContextForCompletedStep } from './canvas-run-quality-coordinator
 import { advanceCanvasRunDispatchCursor, CANVAS_RUN_DISPATCH_SCOPES, lockCanvasRunDispatchCursor } from './canvas-run-dispatch-fairness.js';
 import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas-run-recovery-runtime.js';
 import { initializeSmartCandidateSelector } from './canvas-run-candidate-selector.js';
+import { readCanvasRunTaskProgress } from './canvas-run-task-progress.js';
 import { resizeOwnedImage } from './worker-native-image-transform.js';
 import {
   type CanvasRunRecoveryStepRow,
@@ -65,6 +66,7 @@ export function createCanvasRunCoordinator(options: {
       const enabled = await runtimeEnabled(options.pool, options.environment);
       if (enabled) {
         await resumeApprovalDecisions();
+        await recordTaskProgress();
         await settleCompletedTasks();
         await releaseDueRetries();
         await enqueuePendingDispatches();
@@ -94,6 +96,48 @@ export function createCanvasRunCoordinator(options: {
        limit 25`,
     );
     for (const step of result.rows) await settleStep(step);
+  }
+
+  async function recordTaskProgress() {
+    const result = await options.pool.query<{ id: string; run_id: string; task_id: string; task_result: Record<string, unknown> }>(
+      `select s.id, s.run_id, s.task_id, t.result as task_result
+       from xh_canvas_run_steps s
+       join xh_canvas_runs r on r.id = s.run_id
+       join xh_tasks t on t.id = s.task_id
+       where r.status in ('queued', 'running')
+         and s.status in ('queued', 'running')
+         and t.status = 'running'
+       order by s.updated_at asc
+       limit 25`,
+    );
+    for (const step of result.rows) {
+      const progress = readCanvasRunTaskProgress(step.task_result);
+      if (!progress) continue;
+      const previous = await options.pool.query<{ payload: Record<string, unknown> }>(
+        `select payload from xh_canvas_run_events
+         where run_step_id = $1 and event_type = 'canvas_run.step_progress'
+         order by sequence desc limit 1`,
+        [step.id],
+      );
+      const last = readCanvasRunTaskProgress(previous.rows[0]?.payload);
+      if (last?.completed === progress.completed && last.providerRequestCount === progress.providerRequestCount) continue;
+      const client = await options.pool.connect();
+      try {
+        await client.query('begin');
+        await appendEvent(client, step.run_id, step.id, 'canvas_run.step_progress', {
+          taskId: step.task_id,
+          completed: progress.completed,
+          generationCount: progress.total,
+          providerRequestCount: progress.providerRequestCount,
+        });
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback').catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
   }
 
   async function settleStep(step: StepRow) {
@@ -510,6 +554,7 @@ export function createCanvasRunCoordinator(options: {
 
   return { run, stop, tick: async () => {
     await resumeApprovalDecisions();
+    await recordTaskProgress();
     await settleCompletedTasks();
     await releaseDueRetries();
     await enqueuePendingDispatches();
