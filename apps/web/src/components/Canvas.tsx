@@ -1484,6 +1484,19 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     getEdges: () => edgesRef.current,
     executableNodeTypes: EXECUTABLE_NODE_TYPES,
   });
+  const [canvasRunNodeStates, setCanvasRunNodeStates] = useState<Record<string, { status: string; label: string }>>({});
+  useEffect(() => {
+    const onProjection = (event: Event) => {
+      const detail = (event as CustomEvent<{ canvasId?: string; nodeStates?: Record<string, { status: string; label: string }> }>).detail;
+      if (detail?.canvasId === activeId) setCanvasRunNodeStates(detail.nodeStates || {});
+    };
+    window.addEventListener('penguin:canvas-run-node-projection', onProjection);
+    return () => window.removeEventListener('penguin:canvas-run-node-projection', onProjection);
+  }, [activeId]);
+  const renderedNodes = useMemo(() => nodes.map((node) => {
+    const state = canvasRunNodeStates[node.id];
+    return state ? { ...node, className: `${node.className || ''} canvas-run-node-status canvas-run-node-status--${state.status}`, ariaLabel: state.label } : node;
+  }), [canvasRunNodeStates, nodes]);
   const {
     handleSaveSendMaterialsToResource,
     handleSendMaterialsToCanvas,
@@ -3626,7 +3639,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         onChange={handleImportFile}
       />
       <ReactFlow
-        nodes={nodes}
+        nodes={renderedNodes}
         edges={displayEdges}
         nodeTypes={memoNodeTypes}
         edgeTypes={memoEdgeTypes}

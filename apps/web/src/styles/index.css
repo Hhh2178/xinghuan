@@ -3140,6 +3140,10 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .t8-node-serial-host {
   display: contents;
 }
+.t8-canvas-shell .react-flow__node.canvas-run-node-status::after { content: attr(aria-label); position: absolute; top: -26px; left: 0; z-index: 8; padding: 3px 7px; border: 1px solid #36b89b; border-radius: 3px; color: #e5fff8; background: #113a32; font-size: 11px; line-height: 15px; white-space: nowrap; pointer-events: none; }
+.t8-canvas-shell .react-flow__node.canvas-run-node-status--succeeded::after { border-color: #3d8d78; color: #d9f8ee; background: #15352d; }
+.t8-canvas-shell .react-flow__node.canvas-run-node-status--failed::after { border-color: #bd5f59; color: #ffe2df; background: #44201f; }
+.t8-canvas-shell .react-flow__node.canvas-run-node-status--waiting::after { border-color: #6b7d79; color: #d5dfdc; background: #1b2423; }
 
 .t8-node-serial-badge {
   --t8-node-serial-offset-x: 9px;

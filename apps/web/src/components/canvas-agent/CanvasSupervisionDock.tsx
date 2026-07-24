@@ -7,6 +7,7 @@ import { CanvasRunSupervisor } from './CanvasRunSupervisor';
 import { WorkflowStageEditor } from './WorkflowStageEditor';
 import { WorkflowSupervisionSettingsDrawer } from './WorkflowSupervisionSettingsDrawer';
 import { CANVAS_RUN_STATUS_LABEL } from './canvas-run-view-model';
+import { buildCanvasRunNodeProjection } from './canvas-run-node-projection';
 import { listCanvasWorkflowRuns, type CanvasRunRecord } from './canvas-run-api';
 import { useCanvasRunProjection } from './useCanvasRunProjection';
 import { buildWorkflowSupervisionReadiness } from './workflow-supervision-readiness';
@@ -121,6 +122,15 @@ export function CanvasSupervisionDock(props: {
       streamConnected: projection.streamConnected,
     });
   }, [active, alert, projection.run, projection.streamConnected, props.onStatusChange, runStatus]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('penguin:canvas-run-node-projection', {
+      detail: {
+        canvasId: props.canvasId,
+        nodeStates: projection.run ? buildCanvasRunNodeProjection({ run: projection.run, events: projection.events }) : {},
+      },
+    }));
+  }, [projection.events, projection.run, props.canvasId]);
 
   useEffect(() => {
     if (props.open && projection.run) void projection.refresh();
