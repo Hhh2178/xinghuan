@@ -41,6 +41,7 @@ const Sidebar = lazy(createLazyImportWithReloadRecovery(() => import('./componen
 const Canvas = lazy(createLazyImportWithReloadRecovery(() => import('./components/Canvas')));
 const ResourceLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/ResourceLibraryDrawer')));
 const WorkflowTemplateModal = lazy(createLazyImportWithReloadRecovery(() => import('./components/WorkflowTemplateModal')));
+const ChannelHealthModal = lazy(createLazyImportWithReloadRecovery(() => import('./components/channel-health/ChannelHealthModal')));
 const GenerationLibraryDrawer = lazy(createLazyImportWithReloadRecovery(() => import('./components/GenerationLibraryDrawer')));
 const MaterialContextMenu = lazy(createLazyImportWithReloadRecovery(() => import('./components/MaterialContextMenu')));
 const RHToolsProvider = lazy(() =>
@@ -204,6 +205,7 @@ function App() {
   const [deniedNodeTypes, setDeniedNodeTypes] = useState<string[]>([]);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [workflowTemplatesOpen, setWorkflowTemplatesOpen] = useState(false);
+  const [channelHealthOpen, setChannelHealthOpen] = useState(false);
   const [generationLibraryOpen, setGenerationLibraryOpen] = useState(false);
   const [supervisionOpen, setSupervisionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -219,6 +221,12 @@ function App() {
     const openTemplates = () => setWorkflowTemplatesOpen(true);
     window.addEventListener('penguin:open-workflow-templates', openTemplates);
     return () => window.removeEventListener('penguin:open-workflow-templates', openTemplates);
+  }, []);
+
+  useEffect(() => {
+    const openChannelHealth = () => setChannelHealthOpen(true);
+    window.addEventListener('penguin:open-channel-health', openChannelHealth);
+    return () => window.removeEventListener('penguin:open-channel-health', openChannelHealth);
   }, []);
 
   useEffect(() => {
@@ -730,6 +738,7 @@ function App() {
         onClose={() => setWorkflowTemplatesOpen(false)}
         onInsert={handleInsertResource}
       />
+      <ChannelHealthModal open={channelHealthOpen} onClose={() => setChannelHealthOpen(false)} />
       <GenerationLibraryDrawer
         open={generationLibraryOpen}
         onClose={() => setGenerationLibraryOpen(false)}

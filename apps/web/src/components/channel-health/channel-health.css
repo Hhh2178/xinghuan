@@ -1,0 +1,61 @@
+.xh-channel-health-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(5px);
+}
+
+.xh-channel-health-modal__panel {
+  width: min(1440px, 94vw);
+  height: min(850px, 90vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  background: #09090b;
+  color: #e4e4e7;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48);
+}
+
+.xh-channel-health-modal.is-light .xh-channel-health-modal__panel { background: #fafafa; border-color: #d4d4d8; color: #18181b; }
+.xh-channel-health-modal__header { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; border-bottom: 1px solid #27272a; }
+.is-light .xh-channel-health-modal__header { border-color: #e4e4e7; }
+.xh-channel-health-modal__header strong { display: block; font-size: 14px; }
+.xh-channel-health-modal__header span { display: block; margin-top: 3px; color: #a1a1aa; font-size: 10px; }
+.xh-channel-health-modal__actions { display: flex; gap: 8px; }
+.xh-channel-health-modal__actions button:disabled { opacity: 0.45; cursor: wait; }
+.xh-channel-health-modal__error { margin: 10px 16px 0; padding: 9px 11px; border: 1px solid rgba(239, 68, 68, 0.42); border-radius: 6px; background: rgba(127, 29, 29, 0.24); color: #fecaca; font-size: 12px; }
+.xh-channel-health-modal__loading, .xh-channel-health__empty { display: grid; place-items: center; min-height: 240px; color: #a1a1aa; font-size: 12px; }
+.is-spinning { animation: xh-channel-health-spin 0.8s linear infinite; }
+
+.xh-channel-health { min-height: 0; flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); overflow: hidden; }
+.xh-channel-health__rail { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #27272a; background: #111113; }
+.is-light .xh-channel-health__rail { border-color: #e4e4e7; background: #f4f4f5; }
+.xh-channel-health__rail-title { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid #27272a; color: #67e8f9; font-size: 13px; font-weight: 700; }
+.is-light .xh-channel-health__rail-title { border-color: #e4e4e7; color: #0e7490; }
+.xh-channel-health__tabs { display: grid; gap: 4px; padding: 12px; }
+.xh-channel-health__tabs button { height: 38px; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 6px; padding: 0 10px; background: transparent; color: #a1a1aa; font-size: 12px; text-align: left; }
+.xh-channel-health__tabs button.is-active { background: #67e8f9; color: #083344; font-weight: 700; }
+.xh-channel-health__tabs em { margin-left: auto; font-style: normal; font-variant-numeric: tabular-nums; }
+.xh-channel-health__legend { display: grid; gap: 7px; margin-top: auto; padding: 15px; border-top: 1px solid #27272a; color: #a1a1aa; font-size: 10px; }
+.xh-channel-health__legend span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 2px; background: #52525b; }
+.xh-channel-health__legend [data-state="healthy"]::before { background: #16a34a; }.xh-channel-health__legend [data-state="degraded"]::before { background: #d97706; }.xh-channel-health__legend [data-state="unhealthy"]::before { background: #dc2626; }
+.xh-channel-health__main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.xh-channel-health__search { min-height: 52px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #27272a; }
+.xh-channel-health__search input { width: min(360px, 100%); height: 34px; border: 1px solid #3f3f46; border-radius: 6px; padding: 0 11px; outline: none; background: #18181b; color: inherit; font-size: 12px; }
+.is-light .xh-channel-health__search input { border-color: #d4d4d8; background: white; }
+.xh-channel-health__providers { min-height: 0; overflow: auto; padding: 14px 16px 24px; }
+.xh-channel-health__provider { margin-bottom: 17px; border-top: 1px solid #3f3f46; }.xh-channel-health__provider > header { height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 5px; }.xh-channel-health__provider > header strong { font-size: 12px; }.xh-channel-health__provider > header span { color: #a1a1aa; font-size: 10px; }.xh-channel-health__provider[data-state="healthy"] > header span { color: #86efac; }.xh-channel-health__provider[data-state="degraded"] > header span { color: #fbbf24; }.xh-channel-health__provider[data-state="unhealthy"] > header span { color: #fca5a5; }
+.xh-channel-health__models { overflow: hidden; border: 1px solid #27272a; border-radius: 6px; }.is-light .xh-channel-health__models { border-color: #e4e4e7; }
+.xh-channel-health__model { min-height: 122px; display: grid; grid-template-columns: 184px 126px minmax(360px, 1fr) 176px; border-bottom: 1px solid #27272a; background: #111113; }.xh-channel-health__model:last-child { border-bottom: 0; }.is-light .xh-channel-health__model { border-color: #e4e4e7; background: white; }
+.xh-channel-health__identity, .xh-channel-health__rate, .xh-channel-health__feedback { display: flex; flex-direction: column; justify-content: center; padding: 14px; }.xh-channel-health__identity { gap: 6px; }.xh-channel-health__identity strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.xh-channel-health__identity small { margin-left: 16px; color: #a1a1aa; font-size: 10px; }.xh-channel-health__state-dot { width: 9px; height: 9px; margin-bottom: -17px; border-radius: 50%; background: #52525b; }.xh-channel-health__model[data-state="healthy"] .xh-channel-health__state-dot { background: #22c55e; }.xh-channel-health__model[data-state="degraded"] .xh-channel-health__state-dot { background: #f59e0b; }.xh-channel-health__model[data-state="unhealthy"] .xh-channel-health__state-dot { background: #ef4444; }
+.xh-channel-health__rate { border-left: 1px solid #27272a; }.xh-channel-health__rate strong { font-size: 20px; font-variant-numeric: tabular-nums; }.xh-channel-health__rate span { margin-top: 3px; color: #a1a1aa; font-size: 10px; }.is-light .xh-channel-health__rate { border-color: #e4e4e7; }
+.xh-channel-health__trend { min-width: 0; padding: 10px 13px 9px; border-left: 1px solid #27272a; }.xh-channel-health__trend svg { display: block; width: 100%; height: 62px; }.xh-channel-health__trend path { fill: none; stroke: #34d399; stroke-width: 2; vector-effect: non-scaling-stroke; }.xh-channel-health__axis { display: flex; justify-content: space-between; color: #71717a; font-size: 8px; }.xh-channel-health__buckets { display: grid; grid-template-columns: repeat(36, minmax(4px, 1fr)); gap: 2px; height: 5px; margin-top: 5px; }.xh-channel-health__buckets span { border-radius: 1px; background: #52525b; }.xh-channel-health__buckets [data-empty="true"] { border: 1px solid #3f3f46; background: transparent; opacity: 0.55; }.xh-channel-health__buckets [data-state="healthy"] { background: #16a34a; }.xh-channel-health__buckets [data-state="degraded"] { background: #d97706; }.xh-channel-health__buckets [data-state="unhealthy"] { background: #dc2626; }
+.xh-channel-health__feedback { border-left: 1px solid #27272a; background: #0d0d0f; }.is-light .xh-channel-health__feedback { border-color: #e4e4e7; background: #fafafa; }.xh-channel-health__feedback > div:first-child { display: flex; justify-content: space-between; gap: 6px; color: #a1a1aa; font-size: 9px; }.xh-channel-health__feedback > div:first-child strong { color: inherit; font-size: 9px; }.xh-channel-health__feedback-bar { height: 5px; overflow: hidden; margin: 9px 0; border-radius: 2px; background: #3f3f46; }.xh-channel-health__feedback-bar i { display: block; height: 100%; background: #22c55e; }.xh-channel-health__vote-actions { display: flex; gap: 6px; }.xh-channel-health__vote-actions button { min-width: 52px; height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #3f3f46; border-radius: 5px; background: #18181b; color: #e4e4e7; font-size: 10px; }.xh-channel-health__vote-actions button[data-selected="true"] { border-color: #34d399; color: #86efac; }.xh-channel-health__vote-actions button:disabled { opacity: 0.48; }.xh-channel-health__feedback-counts { color: #a1a1aa; font-size: 10px; }
+
+@keyframes xh-channel-health-spin { to { transform: rotate(360deg); } }
