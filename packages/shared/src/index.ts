@@ -31,6 +31,7 @@ export * from "./permission-contract.js";
 export * from "./canvas-node-permission-catalog.js";
 export * from "./generation-artifact.js";
 export * from "./text-split.js";
+export * from "./channel-health.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 
