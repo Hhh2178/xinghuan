@@ -3,6 +3,43 @@ import { describe, expect, it } from "vitest";
 import { compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "./index.js";
 
 describe("workflow compiler", () => {
+  it("freezes a bounded generation count into the immutable execution payload", () => {
+    const plan = compileCanvasSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 10,
+      data: {
+        nodes: [{
+          id: "image-1",
+          type: "image",
+          data: {
+            prompt: "two skyline candidates",
+            generationCount: 2,
+            backendProviderId: "provider-1",
+            providerParams: { modelRecordId: "model-1" },
+          },
+        }],
+        edges: [],
+      },
+    });
+
+    expect(plan.steps[0].configuration?.executionPayload).toMatchObject({
+      prompt: "two skyline candidates",
+      generationCount: 2,
+    });
+
+    const clamped = compileCanvasSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 11,
+      data: {
+        nodes: [{ id: "image-1", type: "image", data: { generationCount: 99 } }],
+        edges: [],
+      },
+    });
+    expect(clamped.steps[0].configuration?.executionPayload).toMatchObject({ generationCount: 4 });
+  });
+
   it("includes native deterministic input and selection nodes in the immutable server plan", () => {
     const plan = compileCanvasSnapshotRunPlan({
       canvasId: "canvas-1",

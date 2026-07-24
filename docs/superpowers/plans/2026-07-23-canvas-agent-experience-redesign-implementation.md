@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-8 已在本地完成。Phase 8 已交付 owner-scoped 悬浮几何、左右吸附与 10px 邻接、标题拖动、原生 resize、Supervision 矩形避让、单一错误分析、语义 Markdown 复制、off-canvas Sidebar 和窄屏互斥抽屉；`390x844` 完整 shell 的 document/body 宽度为 `390`，Assistant/Supervision 均为 `374x828` 且无水平 overflow。Phase 9 Admin 精简进入下一阶段；Phase 10 仍需重复完整视觉矩阵与真实运行行为，不能把 route fixture 当作 Gray/runtime 通过。
+当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.23` 上执行真实运行回归。已完成恢复动作澄清和候选不足故障隔离；Gray 进一步证明 Image 节点保存的 `generationCount=2` 未进入 Run Plan，导致运行时只有一个候选。本地已补齐有界 Plan 快照、Worker 图像批次、稳定 Artifact 聚合和实际 Provider 请求次数计费，等待下一个 PATCH 部署后复测 AI 选择闭环。
 
 ## 执行原则
 
@@ -31,7 +31,8 @@
 - 数据只前向迁移。旧 Canvas Run、Agent 配置、知识与 proposal 保持历史读取，不静默重解释。
 - 配置和变量只在新 Run 开始时冻结，active Run 不受编辑影响。
 - 一个 workflow 默认只允许一个 active Run，不同 workflow 可并发且不得串状态、输入、成本或事件。
-- 视觉验收必须使用真实浏览器，覆盖拖动、吸附、缩放、调色、文本 token、排序、设置、切换、滚动、断线和遮挡。
+- 后续视觉设计与验收只覆盖 PC 桌面端；已存在的响应式兼容不主动破坏，移动端或平板端只在用户明确扩展范围时重新纳入。
+- 视觉验收必须使用真实 PC 浏览器，覆盖拖动、吸附、缩放、调色、文本 token、排序、设置、切换、滚动、断线和遮挡。
 - 计划变化先记录原因和影响，再修改阶段状态；同一失败不重复执行同一无效动作。
 
 ## 回滚

@@ -10,4 +10,13 @@ describe("task cost ledger migration", () => {
     expect(sql).toMatch(/after insert or update of status, result/i);
     expect(sql).not.toMatch(/insert into xh_task_cost_items[\s\S]*select[\s\S]*from xh_tasks/i);
   });
+
+  it("charges successful batched image tasks by their authoritative provider request count", async () => {
+    const sql = await readFile(new URL("../db/041_task_cost_provider_request_count.sql", import.meta.url), "utf8");
+
+    expect(sql).toMatch(/new\.result->>'providerRequestCount'/i);
+    expect(sql).toMatch(/then greatest\(1, least\(1000, floor\(coalesce\(provider_request_count, 1\)\)\)\)::integer/i);
+    expect(sql).toMatch(/then 'provider_request_count'/i);
+    expect(sql).toMatch(/and item\.status = 'pending'/i);
+  });
 });

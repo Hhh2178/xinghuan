@@ -497,6 +497,9 @@ function executionPayload(data: Record<string, unknown>) {
     const value = sanitizeExecutionValue(data[key], 0);
     if (value !== undefined) payload[key] = value;
   }
+  if (data.generationCount !== undefined) {
+    payload.generationCount = positiveInteger(data.generationCount, 1, 4);
+  }
   const providerParams = isRecord(data.providerParams) ? data.providerParams : {};
   const sanitizedParams: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(providerParams)) {

@@ -84,6 +84,7 @@ import {
 import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
+import { executeImageGenerationBatch } from "./worker-image-generation-batch.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
 import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
 import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
@@ -730,6 +731,20 @@ async function reapStaleRunningTasks() {
 }
 
 async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>> {
+  return executeImageGenerationBatch({
+    generationCount: task.payload.generationCount ?? task.payload.n,
+    execute: (_batchIndex, remaining) => executeSingleImageTask(task, remaining),
+    isCancelled: () => isTaskCancelled(task.id),
+    onProgress: (batch) => touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      runtimeStage: "generating_batch",
+      progress: `${batch.completed}/${batch.total}`,
+      generationBatch: batch,
+    }),
+  });
+}
+
+async function executeSingleImageTask(task: TaskRow, requestedImageCount: number): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
     return executeRunningHubTask(task);
@@ -753,7 +768,7 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
   const requestBody: Record<string, unknown> = {
     model: task.providerModelId,
     prompt,
-    n: clampNumber(task.payload.n, 1, 1, 4),
+    n: clampNumber(requestedImageCount, 1, 1, 4),
     size: safeText(task.payload.size || task.payload.image_size, "1024x1024"),
   };
   const aspectRatio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio);
