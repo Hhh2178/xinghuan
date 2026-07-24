@@ -5,15 +5,15 @@
   "sourceCommit": "353bad8",
   "environments": {
     "gray": {
-      "version": "0.7.32",
-      "releaseId": "20260724-canvas-navigation-gray-r2-v0732",
+      "version": "0.7.34",
+      "releaseId": "20260724-canvas-generation-batch-gray-r1-v0734",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-connectivity-navigation-gray-v0732.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-connectivity-navigation-gray-v0732.md",
-      "rollbackReleaseId": "20260724-canvas-navigation-gray-r1-v0731"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-generation-batch-gray-v0734.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-generation-batch-gray-v0734.md",
+      "rollbackReleaseId": "20260724-canvas-native-media-gray-r1-v0733"
     },
     "production": {
       "version": "0.7.18",

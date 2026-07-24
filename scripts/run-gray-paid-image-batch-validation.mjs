@@ -6,6 +6,7 @@ const modelId = process.env.XINGHUAN_IMAGE_MODEL_ID || "nano-banana-fast";
 const modelRecordId = process.env.XINGHUAN_IMAGE_MODEL_RECORD_ID || `${providerId}-image-${modelId}`;
 const generationCount = Math.max(1, Math.min(4, Number(process.env.XINGHUAN_IMAGE_GENERATION_COUNT || 3)));
 const prompt = process.env.XINGHUAN_IMAGE_PROMPT || "A clean editorial product photo of a cobalt-blue glass perfume bottle on a pale stone plinth, soft studio light, square composition";
+const referenceImage = process.env.XINGHUAN_IMAGE_REFERENCE_URL || "";
 
 let cookie = "";
 
@@ -42,6 +43,7 @@ async function main() {
       aspectRatio: "1:1",
       generationCount,
       n: 1,
+      ...(referenceImage ? { images: [referenceImage] } : {}),
       providerParams: { modelRecordId, sourceNodeId: "gray-paid-image-batch-validation", sourceCanvasId: "gray-paid-image-batch-validation" },
     }),
   });
