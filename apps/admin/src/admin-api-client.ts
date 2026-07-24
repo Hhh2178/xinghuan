@@ -94,6 +94,44 @@ export const adminCostApi = {
   },
 };
 
+export type AdminChannelHealthReadResult =
+  | { kind: "fresh"; report: import("@xinghuan/shared").ChannelHealthReport; etag: string }
+  | { kind: "not_modified"; etag: string };
+
+export const adminChannelHealthApi = {
+  async readReport(
+    filters: {
+      capability?: import("@xinghuan/shared").ChannelHealthCapability;
+      providerId?: string;
+      modelRecordId?: string;
+    } = {},
+    etag = "",
+  ): Promise<AdminChannelHealthReadResult> {
+    const query = new URLSearchParams();
+    if (filters.capability) query.set("capability", filters.capability);
+    if (filters.providerId) query.set("providerId", filters.providerId);
+    if (filters.modelRecordId) query.set("modelId", filters.modelRecordId);
+    const suffix = query.toString();
+    const pathname = `/api/admin/analytics/model-success-rates${suffix ? `?${suffix}` : ""}`;
+    const response = await fetch(pathname, {
+      credentials: "same-origin",
+      headers: etag ? { "If-None-Match": etag } : undefined,
+    });
+    if (response.status === 304) return { kind: "not_modified", etag: response.headers.get("etag") || etag };
+    const text = await response.text();
+    let payload: Record<string, unknown> = {};
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = {}; }
+    if (!response.ok || payload.success === false || payload.ok === false) {
+      throw new AdminApiError(typeof payload.error === "string" ? payload.error : `${pathname} ${response.status}`, payload, response.status);
+    }
+    return {
+      kind: "fresh",
+      report: payload.data as import("@xinghuan/shared").ChannelHealthReport,
+      etag: response.headers.get("etag") || "",
+    };
+  },
+};
+
 export const adminPermissionApi = {
   listPolicies: () =>
     api<import("./admin-types").AdminGroupPermissionPolicy[]>("/api/admin/group-permission-policies"),

@@ -47,7 +47,7 @@ export type AdminWorkspaceId =
   | "system";
 export type AdminUsersViewId = "overview" | "accounts" | "groups" | "permissions" | "sessions";
 export type AdminRhViewId = "workflows" | "apps" | "keys";
-export type AdminAnalyticsViewId = "usage" | "costs" | "audit";
+export type AdminAnalyticsViewId = "usage" | "costs" | "reliability" | "audit";
 export type AdminSystemViewId = "health" | "runtime-settings" | "environment-sync";
 export type AdminCapabilitiesViewId = "providers" | "models" | "admin-assistant";
 export type AdminAgentRuntimeViewId = "controls" | "models" | "policies" | "activity";
@@ -290,6 +290,7 @@ export const adminRhViews: AdminRhView[] = [
 export const adminAnalyticsViews = [
   { id: "usage", label: "用量分析", description: "查看用量、排行、能力分布和趋势。", path: "/admin/analytics/usage" },
   { id: "costs", label: "费用分析", description: "查看模型、服务商、用户组和账号的费用与趋势。", path: "/admin/analytics/costs" },
+  { id: "reliability", label: "渠道健康", description: "查看服务商和模型近三天的成功率与反馈走向。", path: "/admin/analytics/reliability" },
   { id: "audit", label: "审计日志", description: "检索后台操作、请求来源和对象变更。", path: "/admin/analytics/audit" },
 ] satisfies Array<{ id: AdminAnalyticsViewId; label: string; description: string; path: string }>;
 
@@ -408,6 +409,8 @@ export function resolveAdminPath(pathname: string): {
     ? "audit"
     : normalizedPath.startsWith("/admin/analytics/costs")
       ? "costs"
+    : normalizedPath.startsWith("/admin/analytics/reliability")
+      ? "reliability"
     : normalizedPath.startsWith("/admin/analytics")
       ? "usage"
       : undefined;

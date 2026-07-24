@@ -1,6 +1,7 @@
 import { Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
+import { AdminChannelHealthDashboard } from "./admin-channel-health-dashboard";
 import { AdminUsageDashboard } from "./admin-usage-dashboard";
 import { AdminCostDashboard } from "./admin-cost-dashboard";
 import { AdminSystemHealthDashboard } from "./components/observability/AdminSystemHealthDashboard";
@@ -38,7 +39,7 @@ export function AuditPanel({
   onUsageFiltersChange,
   onSelectedUsageUserIdChange,
 }: {
-  activeView?: "usage" | "costs" | "audit";
+  activeView?: "usage" | "costs" | "reliability" | "audit";
   auditLogs: AuditRecord[];
   usageSummary: AdminUsageSummary | null;
   usageSummaryLoading: boolean;
@@ -77,6 +78,7 @@ export function AuditPanel({
         onSelectedUsageUserIdChange={onSelectedUsageUserIdChange}
       /> : null}
       {activeView === "costs" ? <AdminCostDashboard users={users} userGroups={userGroups} providers={providers} models={models} /> : null}
+      {activeView === "reliability" ? <AdminChannelHealthDashboard /> : null}
       {activeView === "audit" ? <DataTable
         title="审计日志"
         columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}

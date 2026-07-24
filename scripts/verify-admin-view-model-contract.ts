@@ -69,6 +69,8 @@ const checks = [
       resolveAdminPath("/admin/automation/knowledge").agentRuntimeView === "controls" &&
       pathForAnalyticsView("audit") === "/admin/analytics/audit" &&
       resolveAdminPath("/admin/analytics/audit").analyticsView === "audit" &&
+      pathForAnalyticsView("reliability") === "/admin/analytics/reliability" &&
+      resolveAdminPath("/admin/analytics/reliability").analyticsView === "reliability" &&
       pathForSystemView("runtime-settings") === "/admin/system/runtime-settings" &&
       resolveAdminPath("/admin/system/runtime-settings").systemView === "runtime-settings" &&
       resolveAdminPath("/admin/comfyui/instances/demo/workflows").comfyuiDetailTab === "workflows" &&

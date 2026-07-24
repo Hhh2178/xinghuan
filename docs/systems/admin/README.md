@@ -22,6 +22,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - 路由错误隔离：`apps/admin/src/admin-route-error-boundary.tsx`
 - 动态模块加载恢复：`apps/admin/src/admin-lazy-import-recovery.ts`
 - 费用分析：`apps/admin/src/admin-cost-dashboard.tsx`
+- 渠道健康分析：`apps/admin/src/admin-channel-health-dashboard.tsx`
 - 模型计费配置：`apps/admin/src/admin-model-pricing-section.tsx`
 - RunningHub 工作台：`apps/admin/src/admin-runninghub-workspace.tsx`
 - RunningHub 编辑器：`apps/admin/src/admin-runninghub-item-editor.tsx`
@@ -42,3 +43,4 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - 系统页需要同时展示“配置值”和“实际生效值”
 - API 设置面板已开始按 `helper / form sections / save actions` 分层，避免继续堆成单个超大后台文件
 - 后台前端设计长期资料已进入 `frontend-design/`，后续在统一 `stitch` 风格基础上增减后台功能时优先维护该目录
+- 数据分析与审计下的 `/admin/analytics/reliability` 只读展示 Provider / 模型渠道健康度；筛选、手动刷新和默认关闭的五分钟自动刷新均由该页面负责，不在 `main.tsx` 累积状态。

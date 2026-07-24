@@ -38,6 +38,13 @@ const checks = [
       panelSource.includes("item.userAgent"),
   },
   {
+    name: "audit panel owns the channel health analytics view",
+    pass:
+      panelSource.includes('from "./admin-channel-health-dashboard"') &&
+      panelSource.includes('activeView === "reliability"') &&
+      panelSource.includes("<AdminChannelHealthDashboard"),
+  },
+  {
     name: "system panel delegates health visualization without changing runtime settings",
     pass:
       panelSource.includes('from "./components/observability/AdminSystemHealthDashboard"') &&
