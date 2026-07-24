@@ -107,6 +107,49 @@ describe("canvas run smart candidate selector", () => {
     expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", "step-selector", "canvas_run.candidate_selection_waiting", expect.objectContaining({ candidateCount: 2 }));
   });
 
+  it("fails only the current run when the candidate set is invalid", async () => {
+    const updates: string[] = [];
+    const appendEvent = vi.fn(async () => undefined);
+    const query = vi.fn(async (sql: string) => {
+      if (["begin", "commit", "rollback"].includes(sql)) return { rows: [] };
+      if (sql.includes("s.node_type = 'smart-candidate-selector'") && sql.includes("for update")) {
+        return { rows: [{
+          id: "step-selector",
+          run_id: "run-1",
+          owner_id: "owner-1",
+          node_id: "selector-1",
+          depends_on: ["image-a"],
+          plan_snapshot: { steps: [
+            { nodeId: "image-a", configuration: { executionPayload: { prompt: "A" } } },
+            { nodeId: "selector-1", configuration: { smartCandidateSelector: { mediaKind: "image", mode: "ai", maximum: 1 } } },
+          ] },
+          input_snapshot: { variables: [] },
+          configuration_snapshot: { candidateSelectionMode: "ai" },
+        }] };
+      }
+      if (sql.includes("from xh_canvas_run_steps d")) return { rows: [
+        { id: "step-a", node_id: "image-a", status: "succeeded", output_binding: { generationArtifactIds: ["artifact-a"] } },
+      ] };
+      if (sql.includes("from xh_generation_artifacts")) return { rows: [
+        { id: "artifact-a", kind: "image", file_url: "/a.png", source_node_id: "image-a", provider_id: "provider-a", model_id: "model-a", metadata: {}, created_at: new Date(1) },
+      ] };
+      if (sql.includes("update xh_canvas_run_steps") || sql.includes("update xh_canvas_runs")) {
+        updates.push(sql);
+        return { rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const release = vi.fn();
+    const pool = { connect: vi.fn(async () => ({ query, release })) } as any;
+
+    await expect(initializeSmartCandidateSelector({ pool, appendEvent })).resolves.toBe(true);
+
+    expect(updates).toHaveLength(2);
+    expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", "step-selector", "canvas_run.step_failed", expect.objectContaining({ code: "SMART_CANDIDATE_COUNT_INSUFFICIENT" }));
+    expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", null, "canvas_run.failed", expect.objectContaining({ code: "SMART_CANDIDATE_COUNT_INSUFFICIENT" }));
+    expect(release).toHaveBeenCalledOnce();
+  });
+
   it("rejects candidates that do not match the selector media mode", () => {
     expect(() => createSmartCandidateRuntimeContext({
       selectorStep: { nodeId: "selector-1", dependsOn: ["image-a", "image-b"] },

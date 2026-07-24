@@ -155,28 +155,58 @@ export async function initializeSmartCandidateSelector(input: {
        order by created_at asc, id asc`,
       [step.owner_id, artifactIds],
     );
-    const context = createSmartCandidateRuntimeContext({
-      selectorStep: { nodeId: text(step.node_id), dependsOn },
-      planSnapshot: record(step.plan_snapshot),
-      inputSnapshot: record(step.input_snapshot),
-      configurationSnapshot: record(step.configuration_snapshot),
-      upstreamSteps: upstream.rows.map((row) => ({
-        id: text(row.id),
-        nodeId: text(row.node_id),
-        status: text(row.status) as SmartCandidateUpstreamStatus,
-        outputBinding: record(row.output_binding),
-      })),
-      artifacts: artifacts.rows.map((row) => ({
-        id: text(row.id),
-        kind: row.kind === "video" ? "video" : "image",
-        fileUrl: text(row.file_url),
-        sourceNodeId: text(row.source_node_id),
-        providerId: text(row.provider_id),
-        modelId: text(row.model_id),
-        metadata: record(row.metadata),
-        createdAt: new Date(String(row.created_at)).getTime(),
-      })),
-    });
+    let context: SmartCandidateRuntimeContext;
+    try {
+      context = createSmartCandidateRuntimeContext({
+        selectorStep: { nodeId: text(step.node_id), dependsOn },
+        planSnapshot: record(step.plan_snapshot),
+        inputSnapshot: record(step.input_snapshot),
+        configurationSnapshot: record(step.configuration_snapshot),
+        upstreamSteps: upstream.rows.map((row) => ({
+          id: text(row.id),
+          nodeId: text(row.node_id),
+          status: text(row.status) as SmartCandidateUpstreamStatus,
+          outputBinding: record(row.output_binding),
+        })),
+        artifacts: artifacts.rows.map((row) => ({
+          id: text(row.id),
+          kind: row.kind === "video" ? "video" : "image",
+          fileUrl: text(row.file_url),
+          sourceNodeId: text(row.source_node_id),
+          providerId: text(row.provider_id),
+          modelId: text(row.model_id),
+          metadata: record(row.metadata),
+          createdAt: new Date(String(row.created_at)).getTime(),
+        })),
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "SMART_CANDIDATE_CONTEXT_INVALID";
+      if (code === "SMART_CANDIDATE_BARRIER_INCOMPLETE") {
+        await client.query("rollback");
+        return false;
+      }
+      await client.query(
+        `update xh_canvas_run_steps
+         set status = 'failed', error = $2::jsonb, finalized_at = now(), updated_at = now()
+         where id = $1`,
+        [step.id, JSON.stringify({ code, nodeType: "smart-candidate-selector" })],
+      );
+      await client.query(
+        `update xh_canvas_runs set status = 'failed', finalized_at = now(), updated_at = now()
+         where id = $1`,
+        [step.run_id],
+      );
+      await input.appendEvent(client, text(step.run_id), text(step.id), "canvas_run.step_failed", {
+        code,
+        nodeType: "smart-candidate-selector",
+      });
+      await input.appendEvent(client, text(step.run_id), null, "canvas_run.failed", {
+        stepId: text(step.id),
+        code,
+      });
+      await client.query("commit");
+      return true;
+    }
     const upstreamStepIdByNodeId = new Map(upstream.rows.map((row) => [text(row.node_id), text(row.id)]));
     for (const candidate of context.candidates) {
       await client.query(

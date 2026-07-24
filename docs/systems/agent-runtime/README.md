@@ -4,6 +4,8 @@
 
 > 2026-07-23 Phase 7 local checkpoint: `smart-candidate-selector` is now a distinct governed Run step; deterministic `pick-from-set` remains unchanged. The server waits for every direct dependency to become terminal, assembles same-media candidates from owner-scoped artifacts and frozen Run provenance, and then parks in manual selection or enters governed quality evaluation. Manual and AI results write the candidate ledger, Selection audit, selected/not-selected state and pre-dispatch pruning evidence. Low AI confidence either transfers to manual selection or stops according to the frozen policy. This capability is still local only; PostgreSQL execution and Gray behavior remain Phase 10/11 gates.
 
+> 2026-07-24 Phase 11 Gray correction: candidate barrier/context validation failures are now contained to the claimed selector step and its Run. An insufficient or invalid candidate set writes durable `step_failed` and `failed` events instead of terminating the Worker process; the UI identifies candidate insufficiency and requires a new Run Plan after the workflow is corrected.
+
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。当前仍处于本地候选阶段，认证 UI 与 Gray 验收尚未完成。当前事实是：
 
 > 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-6 已在本地完成旧自由链退役、变量领域、Workflow Region 隔离、确定性阶段执行、记忆设置和恢复运行时；尚未部署 Gray，候选选择及真实 PostgreSQL/Worker 恢复验证仍不能冒充已上线能力。

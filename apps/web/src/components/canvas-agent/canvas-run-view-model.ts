@@ -204,7 +204,10 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
   const normalized = `${failedEvent.eventType} ${code}`.toLowerCase();
   let category = '执行失败';
   let recovery = '可按原计划重试冻结快照；修改节点配置后请新建运行计划。';
-  if (/model_unavailable|provider|model/.test(normalized)) {
+  if (/smart_candidate_count_insufficient|candidate.*insufficient/.test(normalized)) {
+    category = '候选不足';
+    recovery = '至少准备 2 个同类型候选后新建运行计划。';
+  } else if (/model_unavailable|provider|model/.test(normalized)) {
     category = '模型不可用';
     recovery = '服务恢复后可按原计划重试；修改模型或候选后请新建运行计划。';
   } else if (/network|rate|limit|timeout/.test(normalized)) {

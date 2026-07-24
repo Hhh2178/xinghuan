@@ -108,6 +108,17 @@ describe('canvas run supervision view model', () => {
     });
   });
 
+  it('provides a recreate-plan action for an insufficient candidate set', () => {
+    const diagnostic = buildCanvasRunFailureDiagnostic({ ...run, status: 'failed' }, [
+      event(1, 'canvas_run.step_failed', { code: 'SMART_CANDIDATE_COUNT_INSUFFICIENT' }),
+    ]);
+
+    expect(diagnostic).toMatchObject({
+      category: '候选不足',
+      recovery: '至少准备 2 个同类型候选后新建运行计划。',
+    });
+  });
+
   it('gives legacy drafts an explicit recreate-run repair path', () => {
     const diagnostic = buildCanvasRunFailureDiagnostic({ ...run, status: 'failed' }, [
       event(1, 'canvas_run.step_failed', { code: 'CANVAS_RUN_MODEL_RECORD_REPAIR_REQUIRED' }),
