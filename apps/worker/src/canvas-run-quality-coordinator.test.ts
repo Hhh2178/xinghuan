@@ -178,7 +178,8 @@ describe("canvas run quality coordinator", () => {
   it("holds half-open probes until the quality task is settled", () => {
     const source = readFileSync(new URL("./canvas-run-quality-coordinator.ts", import.meta.url), "utf8");
     expect(source).toMatch(/claimHalfOpenProbe\(client, routeCandidate\.entryId/);
-    expect(source).toMatch(/await releaseHalfOpenProbe\(client, context\)/);
+    expect(source).toMatch(/releaseHalfOpenProbe\(client, context\)/);
+    expect(source).toMatch(/runQualitySettlementStage\("release_failed_probe"/);
     expect(source).toMatch(/xh_llm_route_entry_probe_leases/);
   });
 
@@ -208,7 +209,37 @@ describe("canvas run quality coordinator", () => {
       "settle-successful",
       "rollback to savepoint canvas_quality_settlement",
       "release savepoint canvas_quality_settlement",
+      "savepoint canvas_quality_failure_settlement",
       "fallback:CANVAS_RUN_QUALITY_SETTLEMENT_FAILED:insert_evaluation:column mismatch",
+      "release savepoint canvas_quality_failure_settlement",
+    ]);
+  });
+
+  it("rolls back failed failure bookkeeping before terminal containment", async () => {
+    const calls: string[] = [];
+    const client = { query: vi.fn(async (sql: string) => {
+      calls.push(sql);
+      return { rows: [] };
+    }) } as any;
+    const settleContained = vi.fn(async (reason: string, fallbackReason: string) => {
+      calls.push(`contained:${reason}:${fallbackReason}`);
+    });
+
+    await settleWithQualitySavepoint({
+      client,
+      settleSuccessful: async () => { throw new Error("primary"); },
+      settleFailed: async () => { throw new Error("secondary"); },
+      settleContained,
+    });
+
+    expect(calls).toEqual([
+      "savepoint canvas_quality_settlement",
+      "rollback to savepoint canvas_quality_settlement",
+      "release savepoint canvas_quality_settlement",
+      "savepoint canvas_quality_failure_settlement",
+      "rollback to savepoint canvas_quality_failure_settlement",
+      "release savepoint canvas_quality_failure_settlement",
+      "contained:primary:secondary",
     ]);
   });
 
@@ -232,5 +263,7 @@ describe("canvas run quality coordinator", () => {
     expect(source).toMatch(/canvas_run\.candidate_selection_completed/);
     expect(source).toMatch(/runQualitySettlementStage\("insert_evaluation"/);
     expect(source).toMatch(/canvas_run\.quality_governance_unavailable/);
+    expect(source).toMatch(/\$4::bigint/);
+    expect(source).toMatch(/canvas_run\.quality_settlement_contained/);
   });
 });

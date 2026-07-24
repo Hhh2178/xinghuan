@@ -8,6 +8,8 @@
 
 > 2026-07-24 Phase 11 Gray `v0.7.24` evidence: a real two-image Run persisted `generationCount=2`, executed two Provider requests inside one durable generation task, materialized two stable artifacts and entered the AI selector with `candidateCount=2`; Worker restart count remained zero. The selected image model was still an unpriced fallback because legacy node data lacked catalog IDs, and the first governed quality settlement exposed an aborted-transaction loop. The next local PATCH persists the catalog model actually displayed by Image/Video/LLM nodes, gates AI selection on the environment quality switch, and contains missing governance or settlement failures through manual transfer/stop plus a PostgreSQL savepoint. These corrections are not Gray evidence until the next release is deployed and rerun.
 
+> 2026-07-24 Phase 11 Gray `v0.7.25` correction: API/Worker/current release verification passed and Worker remained active with zero restarts. The savepoint removed the aborted-transaction error, but technical-failure route health settlement reused PostgreSQL parameter `$4` across `bigint` and `integer` contexts, producing `inconsistent types deduced for parameter $4` and leaving the retained selector evaluating. The follow-up PATCH adds explicit numeric casts and a second failure-settlement savepoint whose terminal containment can still transfer the selector to manual or stop when secondary bookkeeping fails.
+
 内部 Agent Runtime、首批 `native_server` 节点的服务端托管执行、质量恢复和 Admin 治理均已落地；但面向全部 legacy browser 节点的服务端托管尚未完成实现。认证 UI 与 Gray 验收已进入 Phase 11，智能选择闭环、定价计费、并发、SSE 和最终 Harness 仍未完成。当前事实是：
 
 > 2026-07-23 第二轮纠偏：Gray v0.7.20 的运行、路由、安全渲染、质量与审计底座保留，但多角色自由规划、canvas-wide 托管和十一项等权 Admin 产品面已判定不符合需求。新 Accepted 边界见 ADR 0004：以 Workflow Region、结构化变量、确定性阶段、有限恢复和显式候选门为核心。Phase 1-6 已在本地完成旧自由链退役、变量领域、Workflow Region 隔离、确定性阶段执行、记忆设置和恢复运行时；尚未部署 Gray，候选选择及真实 PostgreSQL/Worker 恢复验证仍不能冒充已上线能力。
@@ -48,6 +50,7 @@
 - Smart Candidate Selector 在进入 AI 评估前读取当前环境质量开关。开关关闭时，冻结策略为 `request_manual` 的 Step 直接进入人工选择，`stop` 则持久失败；不会创建无法结算的质量任务。
 - 缺失已发布 Quality Profile、LLM route pool 或 Agent configuration 时，质量 coordinator 将治理原因写入 Run Event，并按同一冻结策略转人工或停止。路由全部耗尽也不会把 `request_manual` 误判为 Run 失败。
 - 成功质量任务的 Evaluation/Selection 结算运行在 PostgreSQL savepoint 内。任一带阶段名的结算错误会先回滚局部写入，再执行技术失败、路由回退或人工接管，避免在已 aborted 的事务中每秒重复失败。
+- 技术失败结算本身运行在独立 savepoint 内，并对 Agent Attempt、路由健康和 probe 释放标记阶段。次级账本 SQL 失败时先回滚，再执行最小终态 containment；智能选择器不会因非核心健康计数写入失败而永久停留在 `evaluating`。
 - PostgreSQL migration `027_internal_agent_llm_routing.sql` 已定义 Agent Definition、配置版本/环境发布、Agent Run/Action、Tool Policy 和 LLM Pool/Version/Entry/Health/Decision。
 - Agent Orchestrator 已执行 owner-scoped 有界角色任务，使用既有 Provider/Model Catalog 的 `chat` 模型 Adapter，并对每次路由、回退、健康结果和动作写审计账本。
 - Agent Runtime Configuration resolver 只读取当前 environment 的 approved active publication；历史配置可兼容读取退役工具名，但新配置 create/clone/publish 会拒绝退役工具。Orchestrator 在创建新 Run 时再次剥离退役工具，只锁定节点/模型安全投影、有效工具、token/timeout/cost、审批/恢复/质量策略。平台工具 `deny` 只能继续收紧 allowlist；同一 owner/idempotency key 仍回放原 Run 与原 Knowledge Snapshot。

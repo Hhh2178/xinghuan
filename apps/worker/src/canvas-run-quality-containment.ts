@@ -11,6 +11,7 @@ export async function settleWithQualitySavepoint(input: {
   client: Pick<PoolClient, "query">;
   settleSuccessful: () => Promise<void>;
   settleFailed: (reason: string) => Promise<void>;
+  settleContained?: (reason: string, fallbackReason: string) => Promise<void>;
 }) {
   await input.client.query("savepoint canvas_quality_settlement");
   try {
@@ -19,7 +20,18 @@ export async function settleWithQualitySavepoint(input: {
     const reason = error instanceof Error ? error.message : String(error);
     await input.client.query("rollback to savepoint canvas_quality_settlement");
     await input.client.query("release savepoint canvas_quality_settlement");
-    await input.settleFailed(reason);
+    await input.client.query("savepoint canvas_quality_failure_settlement");
+    try {
+      await input.settleFailed(reason);
+    } catch (fallbackError) {
+      const fallbackReason = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      await input.client.query("rollback to savepoint canvas_quality_failure_settlement");
+      await input.client.query("release savepoint canvas_quality_failure_settlement");
+      if (!input.settleContained) throw fallbackError;
+      await input.settleContained(reason, fallbackReason);
+      return;
+    }
+    await input.client.query("release savepoint canvas_quality_failure_settlement");
     return;
   }
   await input.client.query("release savepoint canvas_quality_settlement");

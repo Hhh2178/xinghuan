@@ -210,6 +210,7 @@ export function createCanvasRunQualityCoordinator(options: {
           client,
           settleSuccessful: () => settleSuccessfulEvaluation(client, step, context),
           settleFailed: (reason) => settleFailedEvaluation(client, step, context, reason),
+          settleContained: (reason, fallbackReason) => containQualitySettlementFailure(client, step, context, reason, fallbackReason),
         });
       } else {
         await settleFailedEvaluation(client, step, context, step.quality_task_status || "failed");
@@ -316,9 +317,11 @@ export function createCanvasRunQualityCoordinator(options: {
   }
 
   async function settleFailedEvaluation(client: PoolClient, step: QualityStepRow, context: QualityContext, reason: string) {
-    await completeAgentAttempt(client, context, false, { taskId: step.quality_task_id, status: step.quality_task_status || "failed", reason });
-    await recordRouteOutcome(client, currentRouteEntryId(context), "technical_failure");
-    await releaseHalfOpenProbe(client, context);
+    await runQualitySettlementStage("fail_agent_attempt", () =>
+      completeAgentAttempt(client, context, false, { taskId: step.quality_task_id, status: step.quality_task_status || "failed", reason }));
+    await runQualitySettlementStage("record_route_failure", () =>
+      recordRouteOutcome(client, currentRouteEntryId(context), "technical_failure"));
+    await runQualitySettlementStage("release_failed_probe", () => releaseHalfOpenProbe(client, context));
     const nextRouteIndex = Number(context.routeIndex || 0) + 1;
     if (nextRouteIndex < (context.routeOrderedEntryIds?.length || 0)) {
       const nextContext = { ...context, routeIndex: nextRouteIndex, agentRunId: undefined, agentActionId: undefined };
@@ -366,6 +369,26 @@ export function createCanvasRunQualityCoordinator(options: {
     }
     if (await settleSmartCandidateUnavailable(client, step, context, "quality_route_exhausted")) return;
     await failQualityStep(client, step, "CANVAS_RUN_QUALITY_ROUTE_EXHAUSTED");
+  }
+
+  async function containQualitySettlementFailure(
+    client: PoolClient,
+    step: QualityStepRow,
+    context: QualityContext,
+    reason: string,
+    fallbackReason: string,
+  ) {
+    const boundedReason = reason.slice(0, 1_000);
+    const boundedFallbackReason = fallbackReason.slice(0, 1_000);
+    await appendEvent(client, step.run_id, step.id, "canvas_run.quality_settlement_contained", {
+      reason: boundedReason,
+      fallbackReason: boundedFallbackReason,
+    });
+    if (smartCandidateUnavailableDisposition(context) === "manual") {
+      await transferSmartCandidateToManual(client, step, context, "quality_settlement_failed");
+      return;
+    }
+    await failQualityStep(client, step, "CANVAS_RUN_QUALITY_SETTLEMENT_FAILED");
   }
 
   async function transferSmartCandidateToManual(
@@ -923,13 +946,13 @@ async function recordRouteOutcome(client: PoolClient, entryId: string, outcome: 
     `insert into xh_llm_route_entry_health
       (route_entry_id, state, consecutive_technical_failures, success_count, technical_failure_count, updated_at,
        last_success_at, last_failure_at, circuit_opened_at)
-     values ($1,$2,$3,$4,$5,now(),case when $4=1 then now() end,case when $5=1 then now() end,case when $2='circuit_open' then now() end)
+     values ($1,$2,$3::integer,$4::bigint,$5::bigint,now(),case when $4::bigint=1 then now() end,case when $5::bigint=1 then now() end,case when $2='circuit_open' then now() end)
      on conflict (route_entry_id) do update set state = excluded.state,
-       consecutive_technical_failures = case when $4=1 then 0 else xh_llm_route_entry_health.consecutive_technical_failures + 1 end,
-       success_count = xh_llm_route_entry_health.success_count + $4,
-       technical_failure_count = xh_llm_route_entry_health.technical_failure_count + $5,
-       last_success_at = case when $4=1 then now() else xh_llm_route_entry_health.last_success_at end,
-       last_failure_at = case when $5=1 then now() else xh_llm_route_entry_health.last_failure_at end,
+       consecutive_technical_failures = case when $4::bigint=1 then 0 else xh_llm_route_entry_health.consecutive_technical_failures + 1 end,
+       success_count = xh_llm_route_entry_health.success_count + $4::bigint,
+       technical_failure_count = xh_llm_route_entry_health.technical_failure_count + $5::bigint,
+       last_success_at = case when $4::bigint=1 then now() else xh_llm_route_entry_health.last_success_at end,
+       last_failure_at = case when $5::bigint=1 then now() else xh_llm_route_entry_health.last_failure_at end,
        circuit_opened_at = case when excluded.state='circuit_open' then coalesce(xh_llm_route_entry_health.circuit_opened_at,now()) else null end,
        updated_at = now()`,
     [entryId, state, outcome === "success" ? 0 : Number(current.rows[0]?.consecutive_technical_failures || 0) + 1,
