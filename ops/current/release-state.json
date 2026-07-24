@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "3917822",
+  "sourceCommit": "590b4f7",
   "environments": {
     "gray": {
-      "version": "0.7.37",
-      "releaseId": "20260724-canvas-hosted-run-projection-gray-r1-v0737",
+      "version": "0.7.38",
+      "releaseId": "20260724-canvas-run-live-progress-gray-r1-v0738",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-hosted-run-projection-gray-v0737.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-hosted-run-projection-gray-v0737.md",
-      "rollbackReleaseId": "20260724-workflow-auto-output-boundary-gray-r1-v0736"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-run-live-progress-gray-v0738.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-run-live-progress-gray-v0738.md",
+      "rollbackReleaseId": "20260724-canvas-hosted-run-projection-gray-r1-v0737"
     },
     "production": {
       "version": "0.7.18",
