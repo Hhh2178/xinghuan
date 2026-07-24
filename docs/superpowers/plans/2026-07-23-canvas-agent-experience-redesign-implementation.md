@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.25` 上执行真实运行回归。Gray 已证明 `generationCount=2` 进入不可变 Plan、两次 Provider 请求生成两个稳定 Artifact、选择器收到两个候选且 Worker 零重启；catalog 持久化、质量开关门禁与主 savepoint 已部署。保留 Run 随后暴露路由健康结算参数在 `bigint/integer` 间推断冲突，主事务不再 aborted，但次级失败结算仍每秒重试。本地后续 PATCH 已显式转换计数类型并为失败结算增加独立 savepoint 与最小终态 containment；仍需部署 Gray 后证明 Run 收口、定价模型计费、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
+当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.26` 上执行真实运行回归。Gray 已证明 `generationCount=2` 进入不可变 Plan、两次 Provider 请求生成两个稳定 Artifact、选择器收到两个候选且 Worker 零重启；catalog 持久化、质量开关门禁、嵌套 savepoint 与最小终态 containment 已部署，保留 Run 已从 `evaluating` 收口为时限失败。新 draft Run 的不可变 Plan 已冻结计价模型 `custom-api-1781662170435 / nano-banana` 和 `generationCount=2`，但认证 UI 实测发现旧 Run 的异步刷新会覆盖新 Run 选择并阻断启动。本地 `v0.7.27` PATCH 已按 Run ID 隔离读取、SSE 与候选投影；仍需部署后证明定价模型计费、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
 
 ## 执行原则
 

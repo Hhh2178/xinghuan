@@ -85,7 +85,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
       ) : null}
 
       {run && steps.some((step) => step.nodeType === 'smart-candidate-selector') ? (
-        <CanvasCandidateSelectionPanel runId={run.id} events={projection.events} onRefresh={projection.refresh} />
+        <CanvasCandidateSelectionPanel runId={run.id} events={projection.events} terminal={projection.terminal} onRefresh={projection.refresh} />
       ) : null}
 
       {run ? (

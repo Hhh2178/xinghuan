@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Check, Image as ImageIcon, Loader2, MousePointer2, Video } from 'lucide-react';
 
 import {
@@ -7,36 +7,51 @@ import {
   type CanvasRunEvent,
   type PendingCanvasRunCandidateSelection,
 } from './canvas-run-api';
+import { isCandidateEvaluationActive } from './canvas-candidate-selection-state';
 
 export function CanvasCandidateSelectionPanel(props: {
   runId: string;
   events: CanvasRunEvent[];
+  terminal: boolean;
   onRefresh: () => Promise<void>;
 }) {
   const [pending, setPending] = useState<PendingCanvasRunCandidateSelection[]>([]);
   const [selectedByStep, setSelectedByStep] = useState<Record<string, string[]>>({});
   const [busyStepId, setBusyStepId] = useState('');
   const [error, setError] = useState('');
+  const runIdRef = useRef(props.runId);
+  runIdRef.current = props.runId;
   const eventCursor = props.events.at(-1)?.sequence || 0;
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const requestedRunId = props.runId;
     try {
-      setPending(await readCanvasRunCandidateSelections(props.runId));
+      const next = await readCanvasRunCandidateSelections(requestedRunId);
+      if (runIdRef.current !== requestedRunId) return;
+      setPending(next);
       setError('');
     } catch (nextError) {
+      if (runIdRef.current !== requestedRunId) return;
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     }
-  };
+  }, [props.runId]);
+
+  useEffect(() => {
+    setPending([]);
+    setSelectedByStep({});
+    setBusyStepId('');
+    setError('');
+  }, [props.runId]);
 
   useEffect(() => {
     void load();
-  }, [props.runId, eventCursor]);
+  }, [eventCursor, load]);
 
   const latestEvaluation = useMemo(() => [...props.events].reverse().find((event) =>
     event.eventType === 'canvas_run.candidate_evaluation_started'), [props.events]);
   const latestCompletion = useMemo(() => [...props.events].reverse().find((event) =>
     event.eventType === 'canvas_run.candidate_selection_completed'), [props.events]);
-  const evaluationActive = Boolean(latestEvaluation && (!latestCompletion || latestEvaluation.sequence > latestCompletion.sequence));
+  const evaluationActive = isCandidateEvaluationActive(latestEvaluation, latestCompletion, props.terminal);
   if (pending.length === 0 && !latestEvaluation && !latestCompletion && !error) return null;
 
   const toggle = (stepId: string, artifactId: string, maximum: number) => {

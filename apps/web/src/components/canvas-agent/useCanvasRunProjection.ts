@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   commandCanvasRun,
   createCanvasRun,
@@ -14,33 +14,65 @@ const TERMINAL = new Set(['succeeded', 'failed', 'cancelled']);
 
 export function useCanvasRunProjection(canvasId: string | null, workflowId: string, initialRunId?: string) {
   const [run, setRun] = useState<CanvasRunRecord | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState(initialRunId || '');
   const [events, setEvents] = useState<CanvasRunEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [streamConnected, setStreamConnected] = useState(false);
-  const runId = run?.id || initialRunId || '';
+  const lastInitialRunId = useRef(initialRunId || '');
+  const runId = resolveCanvasRunTargetId(initialRunId, lastInitialRunId.current, selectedRunId, run?.id);
+  const runIdRef = useRef(runId);
+  runIdRef.current = runId;
+  const visibleRun = run?.id === runId ? run : null;
 
   useEffect(() => {
     setRun(null);
+    setSelectedRunId(initialRunId || '');
+    lastInitialRunId.current = initialRunId || '';
     setEvents([]);
     setError('');
     setStreamConnected(false);
   }, [canvasId, workflowId]);
 
+  useEffect(() => {
+    const nextRunId = initialRunId || '';
+    if (nextRunId === lastInitialRunId.current) return;
+    lastInitialRunId.current = nextRunId;
+    setSelectedRunId(nextRunId);
+    setRun(null);
+    setEvents([]);
+    setError('');
+    setStreamConnected(false);
+  }, [initialRunId]);
+
   const refresh = useCallback(async () => {
     if (!runId) return;
+    const requestedRunId = runId;
     try {
-      setRun(await readCanvasRun(runId));
+      const next = await readCanvasRun(requestedRunId);
+      if (!canvasRunReadMatchesTarget(requestedRunId, runIdRef.current, next.id)) return;
+      setRun(next);
       setError('');
     } catch (nextError) {
+      if (runIdRef.current !== requestedRunId) return;
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     }
   }, [runId]);
 
   useEffect(() => {
-    if (!initialRunId || run?.id === initialRunId) return;
-    void readCanvasRun(initialRunId).then(setRun).catch(() => undefined);
-  }, [initialRunId, run?.id]);
+    if (!runId || run?.id === runId) return;
+    let cancelled = false;
+    const requestedRunId = runId;
+    void readCanvasRun(requestedRunId).then((next) => {
+      if (cancelled || !canvasRunReadMatchesTarget(requestedRunId, runIdRef.current, next.id)) return;
+      setRun(next);
+    }).catch((nextError) => {
+      if (!cancelled && runIdRef.current === requestedRunId) {
+        setError(nextError instanceof Error ? nextError.message : String(nextError));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [runId, run?.id]);
 
   useEffect(() => {
     if (!runId) return;
@@ -62,6 +94,7 @@ export function useCanvasRunProjection(canvasId: string | null, workflowId: stri
     try {
       if (!workflowId) throw new Error('请先选择工作流');
       const next = await createCanvasRun({ canvasId, workflowId, runScope: 'workflow', supervisionSettings });
+      setSelectedRunId(next.id);
       setRun(next);
       setEvents([]);
       return next;
@@ -88,23 +121,37 @@ export function useCanvasRunProjection(canvasId: string | null, workflowId: stri
   }, [runId]);
 
   const progress = useMemo(() => {
-    const steps = run?.planSnapshot.steps || [];
+    const steps = visibleRun?.planSnapshot.steps || [];
     const completed = new Set(events.filter((event) => /succeeded|skipped/.test(event.eventType)).map((event) => event.runStepId).filter(Boolean));
     return { total: steps.length, completed: completed.size };
-  }, [events, run]);
+  }, [events, visibleRun]);
 
   return {
-    run,
+    run: visibleRun,
     events,
     busy,
     error,
     streamConnected,
     progress,
-    terminal: run ? TERMINAL.has(run.status) : false,
+    terminal: visibleRun ? TERMINAL.has(visibleRun.status) : false,
     create,
     command,
     refresh,
   };
+}
+
+export function canvasRunReadMatchesTarget(requestedRunId: string, currentRunId: string, responseRunId: string) {
+  return requestedRunId === currentRunId && responseRunId === requestedRunId;
+}
+
+export function resolveCanvasRunTargetId(
+  initialRunId: string | undefined,
+  lastInitialRunId: string,
+  selectedRunId: string,
+  loadedRunId: string | undefined,
+) {
+  const externalRunId = initialRunId || '';
+  return externalRunId !== lastInitialRunId ? externalRunId : selectedRunId || loadedRunId || '';
 }
 
 export type CanvasRunProjection = ReturnType<typeof useCanvasRunProjection>;
