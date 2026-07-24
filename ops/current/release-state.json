@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "d53c474",
+  "sourceCommit": "b07ebcccee3540cbf62a5c20831c3ee82801d9e6",
   "environments": {
     "gray": {
-      "version": "0.7.34",
-      "releaseId": "20260724-canvas-generation-batch-gray-r1-v0734",
+      "version": "0.7.35",
+      "releaseId": "20260724-canvas-resize-materialized-gray-r1-v0735",
       "deployedAt": "2026-07-24",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-generation-batch-gray-v0734.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-generation-batch-gray-v0734.md",
-      "rollbackReleaseId": "20260724-canvas-native-media-gray-r1-v0733"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-canvas-resize-materialized-gray-v0735.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-24-canvas-resize-materialized-gray-v0735.md",
+      "rollbackReleaseId": "20260724-canvas-generation-batch-gray-r1-v0734"
     },
     "production": {
       "version": "0.7.18",

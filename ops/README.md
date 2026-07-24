@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.34`
-  - release：`20260724-canvas-generation-batch-gray-r1-v0734`
+  - 版本：`v0.7.35`
+  - release：`20260724-canvas-resize-materialized-gray-r1-v0735`
   - 状态：`Canvas 连线、AI 托管就绪提示、全局小地图和鼠标定位粘贴已部署；运行态、PC 视觉基础验证以及无付费隔离 Canvas Run 生命周期均已通过`
   - 当前补修：`Workflow Region 生成步骤保留完整候选集，显式 selector 独占候选裁剪；选中 Run 投影隔离，质量失败受事务边界保护`
-  - 本轮制品源提交：`d53c474`
+  - 本轮制品源提交：`b07ebcc`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
