@@ -30,7 +30,19 @@ Implement the approved Provider/model channel health report without a GitHub pus
 - `npm run type-check -w @xinghuan/admin && npm run build -w @xinghuan/admin`: pass.
 - `npm run verify:channel-health-contract`: pass.
 - `npm run verify:project-harness-contract && npm run verify:harness-doc-sync-contract`: pass after registering the feature contract in the project Harness.
+- Focused feature suite: `8` files / `20` tests passed for shared bucket rules, UI trend gaps, migration, repository, service, routes, Web refresh, and Admin refresh.
+- `npm run type-check`: pass for all workspaces.
+- `npm run build`: pass for all workspaces.
+- `npm run harness:verify:project`: pass, including the new channel-health contract.
+- `npm run harness:verify:workspace`: pass, including CodeGraph sync, all workspace type checks, and package exports.
+
+## Local Runtime Evidence
+
+- `npm run db:migrate` returned `DATABASE_NOT_CONFIGURED` before any connection attempt. The workstation has no `DATABASE_URL`, `XINGHUAN_DATABASE_URL`, or isolated test database variable, and no local PostgreSQL or Docker process. Migration 042 was therefore not applied to any environment.
+- Built local single-port runtime started on `http://127.0.0.1:18200`; `GET /api/status` returned `200` with local environment metadata. `/` and `/admin/` returned `200`; unauthenticated `GET /api/channel-health` and `GET /api/admin/analytics/model-success-rates` both returned the expected `401` boundary.
+- Playwright rendered the local login shell at `1920x1080` and `2560x1440` with no console errors. Ignored evidence paths: `output/playwright/.playwright-cli/page-2026-07-24T14-03-03-644Z.png` and `output/playwright/.playwright-cli/page-2026-07-24T14-03-23-924Z.png`.
+- Authenticated report rendering, real settled image/video/audio/LLM aggregation, feedback eligibility and mutation, migration execution, query-plan inspection, and report-specific desktop screenshots cannot be truthfully completed without an isolated PostgreSQL/auth fixture or an explicitly authorized Gray deployment.
 
 ## Boundary
 
-No Gray release preparation, deployment, database migration, or runtime test has occurred. No Production request and no GitHub push has occurred.
+No Gray release preparation, deployment, database migration, or runtime test has occurred. No Production request and no GitHub push has occurred. The next gate is explicit Gray authorization for the additive Migration 042, release build, and authenticated real-task/vote acceptance only.
