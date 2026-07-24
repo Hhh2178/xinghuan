@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-24",
+  "updatedAt": "2026-07-25",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "d57f3a7",
+  "sourceCommit": "5ddc9da",
   "environments": {
     "gray": {
-      "version": "0.7.42",
-      "releaseId": "20260724-channel-health-surface-gray-r1-v0742",
-      "deployedAt": "待部署",
+      "version": "0.7.43",
+      "releaseId": "20260725-ai-governance-supervision-gray-r1-v0743",
+      "deployedAt": "2026-07-25",
       "permissionMode": "enforced",
       "readiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 128, "publishedSubjects": 122, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-24-channel-health-surface-gray-v0742.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-24-channel-health-surface-gray-v0742.md",
-      "rollbackReleaseId": "20260724-provider-model-channel-health-gray-r1-v0741"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md",
+      "rollbackReleaseId": "20260724-channel-health-surface-gray-r1-v0742"
     },
     "production": {
       "version": "0.7.18",

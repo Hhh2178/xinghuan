@@ -21,14 +21,17 @@
 
 ### Gray
 
-- 版本：`v0.7.42`
-- release：`20260724-channel-health-surface-gray-r1-v0742`
-- 当前状态：`待部署：渠道健康后台分层可读性与前台顶栏入口调整`
-- 部署内容：`渠道健康成员顶栏入口与 Admin 报表分层可读性补修`
-- 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、v0.7.32 无付费 text Run 的计划/取消/事件流/完成/删除临时画布、540 tests、完整 build 与三层 Harness`
-- 部署时间：`2026-07-24`
-- 本轮制品源提交：`d57f3a7`
+- 版本：`v0.7.43`
+- release：`20260725-ai-governance-supervision-gray-r1-v0743`
+- 当前状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
+- 部署内容：`前后台 AI 助手治理分离、Provider/模型可读任务身份、渠道健康层级、RunningHub Standard Model 图片/视频适配、AI 托管规划并发与失败诊断`
+- 已验证：`发布前完整 Harness、构建、契约和真实 Provider/Agent/Canvas Run 证据；Gray API/Worker/readiness；发布后前台和后台助手均以 agent 模式实测。用户明确豁免本次双视窗视觉检查。`
+- 部署时间：`2026-07-25`
+- 本轮制品源提交：`5ddc9da`
 - 当前批次记录：
+  - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
+  - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
+  - `../validations/2026-07-24-ai-governance-provider-supervision-real-acceptance.md`
   - `gray/2026-07-24-channel-health-surface-gray-v0742.md`
   - `../validations/2026-07-24-channel-health-surface-gray-v0742.md`
   - `gray/2026-07-24-canvas-run-progress-lock-gray-v0740.md`

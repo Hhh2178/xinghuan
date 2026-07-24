@@ -2,16 +2,19 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.42`
-- 当前 release：`20260724-channel-health-surface-gray-r1-v0742`
-- 当前状态：`待部署：渠道健康后台分层可读性与前台顶栏入口调整`
-- 当前补修：`不改渠道聚合、任务、路由或 Provider 状态；仅调整成员入口与 Admin 报表表面`
+- 当前版本：`v0.7.43`
+- 当前 release：`20260725-ai-governance-supervision-gray-r1-v0743`
+- 当前状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
+- 当前补修：`发布后补齐 Gray 的后台助手与托管规划 Agent/路由池治理版本；前台和后台助手实测均以 agent 模式完成`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`d57f3a7`
+- 本轮制品源提交：`5ddc9da`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
+  - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
+  - `../../docs/logbooks/validations/2026-07-24-ai-governance-provider-supervision-real-acceptance.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-channel-health-surface-gray-v0742.md`
   - `../../docs/logbooks/validations/2026-07-24-channel-health-surface-gray-v0742.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-canvas-run-progress-lock-gray-v0740.md`
@@ -129,7 +132,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-- `/opt/apps/xinghuan-canvas-next/releases/20260724-provider-model-channel-health-gray-r1-v0741`
+- `/opt/apps/xinghuan-canvas-next/releases/20260724-channel-health-surface-gray-r1-v0742`
 - deploy 前上一版锚点：
   - `/opt/apps/xinghuan-canvas-next/releases/20260724-canvas-run-progress-dedup-gray-r1-v0739`
 - 回滚后需重启：
