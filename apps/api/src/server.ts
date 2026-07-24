@@ -185,6 +185,9 @@ import { createAdminUsageSummaryService } from "./admin-usage-summary-service.js
 import { createTaskCostRepository } from "./task-cost-repository.js";
 import { createAdminCostRouteHandler } from "./admin-cost-routes.js";
 import { createTaskCostRouteHandler } from "./task-cost-routes.js";
+import { createChannelHealthRepository } from "./channel-health-repository.js";
+import { createChannelHealthService } from "./channel-health-service.js";
+import { createChannelHealthRouteHandlers } from "./channel-health-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createCanvasRunRepository } from "./canvas-run-repository.js";
@@ -428,6 +431,19 @@ const handleTaskCostRoutes = createTaskCostRouteHandler({
   sendT8,
   readTaskCostSummary: taskCostRepository.readTaskCostSummary,
   invalidRequest: (message) => new HttpError(400, message),
+});
+const channelHealthRepository = createChannelHealthRepository({
+  getPostgresPool,
+  newId: () => `channel_feedback_${Date.now()}_${randomBytes(6).toString("hex")}`,
+});
+const channelHealthService = createChannelHealthService({ repository: channelHealthRepository });
+const { handleMemberRoutes: handleChannelHealthMemberRoutes, handleAdminRoutes: handleChannelHealthAdminRoutes } = createChannelHealthRouteHandlers({
+  service: channelHealthService,
+  sendT8,
+  readJsonBody,
+  invalidRequest: (code) => new HttpError(400, code),
+  forbidden: (code) => new HttpError(403, code),
+  notFound: (code) => new HttpError(404, code),
 });
 const canvasRunRepository = createCanvasRunRepository({ getPostgresPool });
 const agentRunRepository = createAgentRunRepository({ getPostgresPool });
@@ -1750,6 +1766,7 @@ const server = createServer(async (request, response) => {
     if (await handleQualityRecoveryRoutes({ request, response, url, currentUser: currentUser! })) return;
     if (await handleCanvasRunRoutes({ request, response, url, currentUser: currentUser! })) return;
     if (await handleTaskCostRoutes({ request, response, url, currentUser: currentUser! })) return;
+    if (await handleChannelHealthMemberRoutes({ request, response, url, currentUser: currentUser! })) return;
 
     if (url.pathname === "/api/models" && request.method === "GET") {
       sendT8(response, await publicModelCatalog(currentUser));
@@ -3284,6 +3301,7 @@ async function handleAdminRequest(
   if (await handleAdminTaskListRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
   if (await handleAdminAgentGovernanceRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
+  if (await handleChannelHealthAdminRoutes({ request, response, url, currentUser: adminUser })) return true;
   if (await handleAdminAuditRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
   if (await handleAdminCostRoutes({ request, response, url, currentUser: adminUser, requestContext })) return true;
 
