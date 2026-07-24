@@ -40,3 +40,11 @@
 - OpenAI-compatible Chat 适配覆盖 `openai`、`apimart`、`aicopy`、`modelscope` 与 `custom`；Gemini 继续使用独立原生媒体路径。
 - RunningHub 条目治理
 - ComfyUI Connector + 实例专属工作流 + 推送到共享区
+
+## RunningHub 双执行模式
+
+- `catalog_target`：现有 RH 应用/工作流条目，使用 `webappId`、`workflowId`、`nodeInfoList` 和专属目录治理。
+- `standard_model`：通用 Provider 模型，按模型路径调用 `/openapi/v2/<model-path>`，再通过 `/openapi/v2/query` 轮询。
+- 两种模式共享 Provider 身份、密钥和可选 key pool，但请求参数、状态解析和 Admin 所有权分开。
+- Generic image/video task 在创建时冻结执行模式；Worker 不根据后续目录变化重新判断历史任务。
+- Standard model 的临时输入/输出 URL 按一天资源处理，成功结果必须进入平台 Generation Artifact 物料化链路。

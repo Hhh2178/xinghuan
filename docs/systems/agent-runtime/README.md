@@ -175,6 +175,14 @@ Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-sel
 
 所有治理写操作要求管理员、PostgreSQL 模式并追加后台审计。运行开关与配置 publication 是两层独立门禁；打开开关不会自动发布草稿，发布配置也不会自动打开环境。
 
+## Agent Analysis And Shared Failure Diagnostics
+
+本轮目标架构由 [ADR 0005](../../adr/0005-agent-analyzed-deterministic-supervision.md) 约束。`supervision-planner` 只生成并发建议、串行原因、风险和建议并发上限；`packages/agent-core/src/workflow-compiler.ts` 生成的依赖与 Execution Layer、服务端校验和 Worker ready-step 领取仍是执行权威。Agent 调用失败时，Run 必须以 `degraded` 分析状态继续确定性计划。
+
+前台 Canvas 助手、后台 Admin 助手和 AI 托管 planner 使用分离的 Agent definition 与 LLM route pool。Admin 将把助手表面设置和对应的版本化 Agent 配置组合展示，但不合并它们的数据权威，也不允许前台助手读取 Admin 用户、审计或 Provider secrets。
+
+Canvas Run 失败统一投影为 `Canvas Run Failure Diagnostic`。Canvas 展示“发生了什么、在哪里、为什么、怎么修复”，AI 助手接收同一份脱敏诊断、失败步骤和有限邻接上下文。原始 Run Event、Task 和审计记录不由助手修改。
+
 ## Update Triggers
 
 - Phase 7 已实现 owner round-robin 领取；`npm run test:canvas-run-postgres-integration` 会先验证 `XINGHUAN_TEST_DATABASE_URL` 指向名称符合 `xinghuan_agent_test_*` 的隔离数据库，再执行全部迁移和真实 Coordinator/Task Store 并发验证。它覆盖 owner 轮转、过期 lease 接管、投递确认中断后的恢复和 `queued -> running` 原子领取；没有该环境变量时命令明确失败，常规 Vitest 只跳过该套测试。

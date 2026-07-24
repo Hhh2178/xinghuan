@@ -91,6 +91,22 @@ Canvas Project 中可独立发布、运行、暂停、恢复和托管的显式�
 
 针对一个明确 Workflow Region 的运行监督能力，只负责权威状态监测、受预算约束的失败恢复和显式候选门选择。它必须遵守已发布模型、拓扑、阶段顺序、变量类型、权限和 Run snapshot，不创建节点或修改连线。
 
+### Canvas Run Agent Analysis（画布运行智能分析）
+
+在 Workflow Run 计划阶段，由受控 `supervision-planner` Agent 基于脱敏工作流摘要和确定性依赖图生成的并发建议、串行原因、风险与建议并发上限。它是可审计建议，不是执行顺序权威；结构校验失败或 Agent 不可用时必须降级到确定性计划。
+
+### Execution Layer（执行层）
+
+由确定性工作流编译器根据节点依赖、阶段顺序和 skip 状态生成的一组同时 ready 的步骤。Worker 只能在当前层内领取依赖已成功的步骤；有效并发仍受 workflow 设置、已发布策略、Provider 配额和队列容量约束。
+
+### Canvas Run Failure Diagnostic（画布运行失败诊断）
+
+从 Run API 错误、事件账本和任务诊断投影出的脱敏、结构化失败说明，包含分类、用户可读标题、原因摘要、修复动作、重试性、步骤/节点位置与有限技术信息。Canvas 与 AI 助手消费同一诊断；原始事件和任务记录继续是权威源。
+
+### Execution Identity Snapshot（执行身份快照）
+
+任务创建时冻结的 Provider ID/名称、模型记录 ID、服务商模型 ID 与模型展示名。稳定 ID 用于权限、关联和过滤；名称快照用于历史可读性，不被后续目录改名或删除反向改写。
+
 ### Knowledge Snapshot（知识快照）
 
 面向一次 Agent Run 的不可变安全事实投影，至少锁定节点能力注册表版本、模型目录投影和环境。旧快照可包含已发布知识文档与 workflow template 引用并保持历史可读；新 MVP Run 不依赖自由文档检索。运行时不得扫描仓库或任意文件目录。
@@ -125,6 +141,9 @@ Workflow Run 中位于上游候选和下游执行之间的显式释放门。它�
 - Canvas Run、Workflow Run、Agent Run、路由决策、质量选择和自动恢复必须可追踪到 owner、workflow、revision、配置版本和审计事件。
 - Assistant Conversation、AI Supervision、Agent Run、Workflow Run 和 Knowledge Snapshot 必须保持独立身份，并通过显式 ID 引用；关闭任一 UI 面板不得终止持久化运行。
 - AI 助手和 AI 托管不得静默修改 Canvas Project 的节点或连线；当前 MVP 不创建新的 Canvas Patch Proposal。
+- Canvas Run Agent Analysis 不得移除依赖、制造不存在的步骤、绕过端口/权限/预算或直接决定 Worker 领取；Execution Layer 和 ready-step 校验保持确定性权威。
+- Canvas 与 AI 助手必须从同一 Canvas Run Failure Diagnostic 读取用户可见失败事实；助手不得把推测写成已执行动作。
+- 任务历史展示使用 Execution Identity Snapshot；当前 Provider/model 目录只可作为旧任务缺失快照时的读取兜底。
 - 普通连线不得穿越 Workflow Region 边界；跨边界数据必须经显式强类型 Workflow Input/Output 并进入 Run snapshot。
 - Workflow Region 的不透明底板必须完整包住显式成员；成员加入、节点内容增高和区域缩放不得让成员静默落到可见边界外。区域位置、尺寸和颜色仍不改变 workflow revision。
 - 工作流设置和变量值只在新 Run 开始时冻结；active Run 不随编辑静默变化。
