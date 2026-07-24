@@ -6,7 +6,6 @@ import {
   ReactFlowProvider,
   SelectionMode,
   Handle,
-  MiniMap,
   Position,
   addEdge,
   applyEdgeChanges,
@@ -3660,13 +3659,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         defaultEdgeOptions={memoDefaultEdgeOptions}
       >
         <WorkflowRegionLayer />
-        <MiniMap
-          ariaLabel="全局小地图"
-          pannable
-          zoomable
-          maskColor="rgba(4, 8, 10, 0.58)"
-          nodeColor={(node) => node.selected ? '#fbbf24' : '#94a3b8'}
-        />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
