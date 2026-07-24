@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch, PanelLeftClose, PanelLeftOpen, Activity } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { usePerformanceModeStore } from './stores/performanceMode';
 import { useApiKeysStore } from './stores/apiKeys';
@@ -646,6 +646,16 @@ function App() {
             title="公告中心"
           >
             <BellBadge unreadCount={announcements.unreadCount} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setChannelHealthOpen(true)}
+            className={`${announcementButtonClassName} xh-topbar-pill--channel-health`}
+            title="查看渠道状态"
+            aria-label="打开渠道状态"
+          >
+            <Activity size={14} />
+            <span className="text-[11px]">渠道状态</span>
           </button>
           <button
             type="button"

@@ -83,7 +83,7 @@ export function AdminChannelHealthDashboard() {
 
   return (
     <section className="admin-channel-health" aria-label="渠道与模型健康度">
-      <header className="admin-channel-health__header">
+      <header className="api-card admin-channel-health__header">
         <div>
           <p>Provider / Model Reliability</p>
           <h2>渠道健康</h2>
@@ -97,7 +97,7 @@ export function AdminChannelHealthDashboard() {
         </div>
       </header>
 
-      <section className="admin-channel-health__filters" aria-label="渠道健康筛选">
+      <section className="api-card admin-channel-health__filters" aria-label="渠道健康筛选">
         <label><span>能力</span><select value={filters.capability} onChange={(event) => changeFilter("capability", event.target.value as FilterState["capability"])}><option value="">全部能力</option><option value="image">图像</option><option value="video">视频</option><option value="audio">音频</option><option value="chat">LLM</option></select></label>
         <label><span>服务商</span><select value={filters.providerId} onChange={(event) => changeFilter("providerId", event.target.value)}><option value="">全部服务商</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
         <label><span>模型</span><select value={filters.modelRecordId} onChange={(event) => changeFilter("modelRecordId", event.target.value)}><option value="">全部模型</option>{models.map((model) => <option key={model.modelRecordId} value={model.modelRecordId}>{model.displayName}</option>)}</select></label>
@@ -106,13 +106,15 @@ export function AdminChannelHealthDashboard() {
 
       {error ? <div className="admin-channel-health__error" role="alert">{stale ? "显示上次成功数据：" : ""}{error}</div> : null}
       {loading && !report ? <div className="starlight-page-loading">正在汇总渠道状态...</div> : null}
-      {report ? <ChannelHealthReportView
-        report={report}
-        selectedCapability={filters.capability || "image"}
-        onSelectedCapabilityChange={(capability) => changeFilter("capability", capability)}
-        interactiveFeedback={false}
-        className="admin-channel-health__report"
-      /> : null}
+      {report ? <section className="api-card admin-channel-health__report-shell" aria-label="渠道健康报告">
+        <ChannelHealthReportView
+          report={report}
+          selectedCapability={filters.capability || "image"}
+          onSelectedCapabilityChange={(capability) => changeFilter("capability", capability)}
+          interactiveFeedback={false}
+          className="admin-channel-health__report"
+        />
+      </section> : null}
     </section>
   );
 }

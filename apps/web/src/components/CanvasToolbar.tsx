@@ -27,7 +27,6 @@ import {
   AlignHorizontalSpaceBetween,
   AlignVerticalSpaceBetween,
   Grid3x3,
-  Activity,
 } from 'lucide-react';
 import { useThemeStore } from '../stores/theme';
 import { useLogStore } from '../stores/logs';
@@ -442,14 +441,6 @@ export default function CanvasToolbar({
         <div className={sep} />
 
         {/* 模板 */}
-        <button
-          className={baseBtn}
-          onClick={() => window.dispatchEvent(new CustomEvent('penguin:open-channel-health'))}
-          title="渠道状态"
-          aria-label="打开渠道状态"
-        >
-          <Activity size={16} />
-        </button>
         <button
           className={baseBtn}
           onClick={() => window.dispatchEvent(new CustomEvent('penguin:open-workflow-templates'))}

@@ -15,6 +15,7 @@
 .admin-channel-health__header {
   justify-content: space-between;
   gap: 24px;
+  padding: 16px 18px;
 }
 
 .admin-channel-health__header p,
@@ -31,9 +32,6 @@
   min-height: 64px;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 7px;
-  background: var(--surface-raised);
 }
 
 .admin-channel-health__filters label:not(.admin-channel-health__auto) { display: grid; min-width: 160px; gap: 4px; color: var(--text-secondary); font-size: 11px; }
@@ -43,7 +41,8 @@
 .admin-channel-health__auto small { color: var(--text-tertiary); font-size: 10px; }
 .admin-channel-health__error { padding: 10px 12px; border: 1px solid rgba(238, 110, 110, .48); border-radius: 6px; background: rgba(130, 43, 43, .2); color: #ffc4c4; font-size: 12px; }
 
-.admin-channel-health .xh-channel-health { min-height: 620px; display: grid; grid-template-columns: 188px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 7px; background: var(--surface); }
+.admin-channel-health__report-shell { min-width: 0; padding: 14px; background: rgba(7, 14, 21, .94); }
+.admin-channel-health .xh-channel-health { min-height: 620px; display: grid; grid-template-columns: 188px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 7px; background: rgba(8, 15, 23, .96); }
 .admin-channel-health .xh-channel-health__rail { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border-subtle); background: var(--surface-raised); }
 .admin-channel-health .xh-channel-health__rail-title { height: 50px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border-subtle); color: var(--starlight-cyan); font-size: 13px; font-weight: 700; }
 .admin-channel-health .xh-channel-health__tabs { display: grid; gap: 4px; padding: 10px; }

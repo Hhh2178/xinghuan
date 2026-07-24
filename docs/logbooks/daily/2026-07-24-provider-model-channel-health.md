@@ -46,3 +46,11 @@ Implement the approved Provider/model channel health report without a GitHub pus
 ## Boundary
 
 No Gray release preparation, deployment, database migration, or runtime test has occurred. No Production request and no GitHub push has occurred. The next gate is explicit Gray authorization for the additive Migration 042, release build, and authenticated real-task/vote acceptance only.
+
+## Gray Follow-up: Surface Readability
+
+- Gray `v0.7.41` was deployed after the initial log entry; this follow-up prepares a `v0.7.42` UI-only Gray patch.
+- Moved the member channel-health entry from the compact Canvas tool strip to the top bar immediately after “公告”, with an explicit “渠道状态” label.
+- Wrapped the Admin report header, filters, and report body in the established `api-card` surface treatment. The report receives an opaque dark shell so the trend, rate, and feedback columns remain readable over the administration grid backdrop.
+- No aggregation, feedback, route, database, task-execution, Provider-routing, or Production behavior changed.
+- Local evidence: `npm run verify:channel-health-contract`, `npm run type-check`, `npm run build`, and five focused channel-health test files all passed.

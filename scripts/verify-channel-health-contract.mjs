@@ -10,7 +10,7 @@ const files = {
   server: await read("apps/api/src/server.ts"),
   shared: await read("packages/shared/src/channel-health.ts"),
   report: await read("packages/ui/src/channel-health-report.tsx"),
-  toolbar: await read("apps/web/src/components/CanvasToolbar.tsx"),
+  app: await read("apps/web/src/App.tsx"),
   webApp: await read("apps/web/src/App.tsx"),
   webRefresh: await read("apps/web/src/components/channel-health/channel-health-refresh.ts"),
   webHook: await read("apps/web/src/components/channel-health/useChannelHealth.ts"),
@@ -41,7 +41,8 @@ assert.doesNotMatch(files.shared, /ownerId|owner_id|voter/i, "shared report must
 assert.match(files.report, /<svg/, "shared report must render a trend SVG");
 assert.match(files.report, /data-empty=/, "shared report must render explicit empty buckets");
 
-assert.match(files.toolbar, /penguin:open-channel-health/, "Canvas toolbar must expose channel health entry");
+assert.match(files.app, /xh-topbar-pill--channel-health/, "Canvas top bar must expose the channel health entry");
+assert.match(files.app, /渠道状态/, "Canvas channel health entry must have an explicit text label");
 assert.match(files.webApp, /ChannelHealthModal/, "Web App must own the lazy channel health modal");
 assert.match(files.webRefresh, /manualRefreshCoolingDown/, "Web must preserve manual refresh cooldown");
 assert.match(files.webHook, /msUntilNextWholeHour/, "Web must schedule whole-hour refreshes");
