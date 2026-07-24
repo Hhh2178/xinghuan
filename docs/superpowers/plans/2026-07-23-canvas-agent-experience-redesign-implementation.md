@@ -23,7 +23,7 @@
 | 10 本地总验证 | focused tests、type/build、全 Harness、视觉矩阵、并发/断线/owner 隔离 | 无 blocker；证据写入 validation logbook |
 | 11 Gray 发布 | patch release、migration、API/Worker、认证 UI、多类型压力与回归 | Gray 通过；Production `/api/status` 未变；无 GitHub push |
 
-当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.26` 上执行真实运行回归。Gray 已证明 `generationCount=2` 进入不可变 Plan、两次 Provider 请求生成两个稳定 Artifact、选择器收到两个候选且 Worker 零重启；catalog 持久化、质量开关门禁、嵌套 savepoint 与最小终态 containment 已部署，保留 Run 已从 `evaluating` 收口为时限失败。新 draft Run 的不可变 Plan 已冻结计价模型 `custom-api-1781662170435 / nano-banana` 和 `generationCount=2`，但认证 UI 实测发现旧 Run 的异步刷新会覆盖新 Run 选择并阻断启动。本地 `v0.7.27` PATCH 已按 Run ID 隔离读取、SSE 与候选投影；仍需部署后证明定价模型计费、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
+当前状态：Phase 0-10 已完成，Phase 11 正在 Gray `v0.7.27` 上执行真实运行回归。选中 Run 的读取/SSE 所有权修复已通过稳定轮询和正式 UI 启动；柏拉图批次真实返回 `providerRequestCount=2`、`imageCount=2` 和两个 Artifact。该 Run 同时证明两项剩余冲突：显示名中的 `0.16元` 没有正式 pricing version，且旧 canvas-scope 质量注入先在 image 步骤把两个候选裁成一个，导致显式 selector 报 `SMART_CANDIDATE_COUNT_INSUFFICIENT`。Gray 已通过 Admin API 建立 `per_request / CNY 0.160000` 定价版本；本地 `v0.7.28` 已使 Workflow Region 的生成步骤保留完整候选集，仅由显式 selector 评分与裁剪。仍需部署后证明计价数量、AI/人工选择闭环、并发、SSE、PC 视觉和最终 Harness。
 
 ## 执行原则
 

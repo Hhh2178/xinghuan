@@ -133,7 +133,7 @@ export function createCanvasRunService(deps: {
         clampedFields: supervision.clampedFields,
       },
     };
-    const configuredPlan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot);
+    const configuredPlan = applyCanvasRunConfiguration(compiledPlan, configurationSnapshot, Boolean(workflowId));
     const inputSnapshot = compileWorkflowInputSnapshot({
       data: canvas.data,
       workflowId,
@@ -434,7 +434,20 @@ export function normalizeCanvasRunConfiguration(value: Record<string, unknown> |
 function applyCanvasRunConfiguration(
   plan: ReturnType<typeof compileCanvasSnapshotRunPlan>,
   configuration: ReturnType<typeof normalizeCanvasRunConfiguration>,
+  explicitCandidateBoundary: boolean,
 ) {
+  if (explicitCandidateBoundary) {
+    return {
+      ...plan,
+      steps: plan.steps.map((step) => step.nodeType === "image" || step.nodeType === "video" ? {
+        ...step,
+        configuration: {
+          ...(step.configuration || {}),
+          qualityEvaluationEnabled: false,
+        },
+      } : step),
+    };
+  }
   if (!configuration.qualityEvaluationEnabled) return plan;
   return {
     ...plan,

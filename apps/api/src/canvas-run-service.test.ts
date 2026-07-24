@@ -292,7 +292,7 @@ describe("canvas run service", () => {
         ownerId: "owner-1",
         revision: 5,
         data: {
-          nodes: [{ id: "image-1", type: "image", data: {} }],
+          nodes: [{ id: "image-1", type: "image", data: { agentQualityEvaluation: true } }],
           edges: [],
           workflows: [{
             schemaVersion: 1,
@@ -353,6 +353,7 @@ describe("canvas run service", () => {
         clampedFields: expect.arrayContaining(["defaultRetryCount"]),
       },
     });
+    expect(request.plan.steps[0].configuration).toMatchObject({ qualityEvaluationEnabled: false });
     expect(writeOwnedWorkflowSupervisionSettings).not.toHaveBeenCalled();
   });
 

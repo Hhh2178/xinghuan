@@ -146,6 +146,8 @@
 
 前端监督投影以用户当前选中的 Run ID 为所有权边界。切换 Run 后，旧 Run 的延迟读取、SSE 刷新和候选请求不得写回新面板；组件只渲染 ID 与当前选择一致的 Run。候选面板在 Run 切换时清空本地选择，终态 Run 即使缺少候选完成事件也不得继续显示“AI 正在评估”。
 
+Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-selector` 步骤。Workflow 级 AI/手动候选设置冻结在 Run configuration snapshot，由 selector 消费；image/video 生成步骤必须把完整 Artifact ID 集合交给该门，不得继承旧 canvas-scope 自动质量选择并提前缩减候选。非 workflow 历史入口继续保留原质量行为用于兼容读取和受控重放。
+
 ## Node Capability Maintenance
 
 `packages/agent-core/src/node-execution-capabilities.ts` 是版本化 Node Capability Catalog 的代码权威入口。每个条目维护用户可见名称与用途、执行类别、是否可进入计划、真实 server runtime、输入/输出端口和 cardinality、推荐上下游、显式连接规则、用法示例、替代节点、模型/服务提示、常见失败码及 Agent 可执行动作。结构/控制节点保留在目录中，但只有 `CANVAS_RUN_EXECUTABLE_NODE_TYPES` 才是执行资格权威。`buildNodeCapabilityPromptContext` 只向受控诊断/恢复调用注入这一投影；Admin 不再直接暴露完整内部目录页。目录的 `native_server` 不是愿景标签：目前包含 image/video/audio/llm、`runninghub`，以及 `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output`。`runninghub-wallet`、`rh-tools`、`rh-toolbox`、ComfyUI 和其余 legacy 节点仍会在 Run start 时明确拒绝，不能被 Agent 假定为后台托管。
