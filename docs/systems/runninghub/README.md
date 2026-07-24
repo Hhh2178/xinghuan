@@ -2,7 +2,7 @@
 
 ## 这个系统负责什么
 
-RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入到无限画布 2.0，覆盖后台条目建模、前端节点选择与运行、后端 catalog 透出，以及 worker 的提交与查询执行。
+RunningHub 系统负责两类执行：把 RH Workflow 与 AI App 作为外部运行目标接入画布，以及把 RunningHub 标准图像/视频模型作为通用 Provider 模型执行。两类执行共享 Provider 身份，但拥有不同的任务描述、参数和 Key 资格。
 
 ## 建议阅读顺序
 
@@ -23,6 +23,9 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
 - worker 执行：`apps/worker/src/worker.ts`
 - worker 协议 client：`apps/worker/src/worker-runninghub-client.ts`
 - worker poll 响应护栏：`apps/worker/src/worker-runninghub-response.ts`
+- 标准模型 adapter：`apps/worker/src/worker-runninghub-standard-adapter.ts`
+- 标准模型媒体上传：`apps/worker/src/worker-runninghub-standard-media.ts`
+- Key 池调度：`apps/worker/src/worker-runninghub-dispatch.ts`
 
 ## 当前重点边界
 
@@ -38,6 +41,16 @@ RunningHub 系统负责把 RH Workflow 与 AI App 作为外部运行目标接入
   - 只有全部 Key 满载时才进入 `all_keys_busy`
   - 抢占顺序是 `preferredRhKeyId -> 其他 default Key -> 其他启用 Key`
   - 若根本不存在启用 Key，worker 会直接回写 `model_config` 失败，而不是伪装成排队
+- 标准模型 Key 资格：
+  - Admin Key 池用 `standardModelApi` 明确标记企业级共享 Key
+  - 旧记录缺少该字段时，Worker 兼容识别 `企业级` / `enterprise` 备注
+  - 标准模型只从合格 Key 中抢占；App/Workflow 目录任务继续使用全部既有 Key
+  - 无合格 Key 时直接显示 `RunningHub 标准模型需要企业级-共享 API Key`
+- 标准模型执行：
+  - Generic image/video task 创建时冻结 `runningHubExecutionMode` 与 `runningHubModelPath`
+  - 本地或受保护媒体只能在 owner 边界内读取，再上传 `/openapi/v2/media/upload/binary`
+  - 提交 `/openapi/v2/<model-path>`，查询 `/openapi/v2/query`
+  - 最终远端 URL 必须由统一 output materializer 转存为平台产物
 - Worker 第二阶段收口方向：
   - `worker.ts` 逐步退回 orchestration glue
   - RunningHub 协议解析已开始下沉到独立 helper / client

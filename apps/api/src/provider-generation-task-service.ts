@@ -271,13 +271,14 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     );
     await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "modelscope", "custom", "grsai_draw"].includes(protocol)) {
+    if (!["openai", "apimart", "modelscope", "custom", "grsai_draw", "runninghub"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
 
     const parameterSchema = mergeModelParameterSchema("image", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const runningHub = resolveRunningHubExecution(protocol, model, advancedConfig);
     const ui = uiMetadataFromSchema(parameterSchema, "image");
     const requestedSize = deps.safeText(body.size || params.size || params.image_size);
     const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
@@ -301,6 +302,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       images,
       taskCapability: "image",
       executionMode: "worker_queue",
+      ...runningHub,
       sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
       sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
     };
@@ -336,7 +338,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     );
     await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
-    if (!["openai", "apimart", "aicopy", "modelscope", "custom"].includes(protocol)) {
+    if (!["openai", "apimart", "aicopy", "modelscope", "custom", "runninghub"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入视频任务 Adapter: ${protocol}`);
     }
     if (!deps.providerPlainApiKey(provider)) throw new Error("Provider 未配置 API Key");
@@ -344,6 +346,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const schema = mergeModelParameterSchema("video", model.modelId, protocol as CatalogProtocol, model.parameterSchema);
     const inputCapabilities = parseInputCapabilities(model.inputCapabilities, "video");
     const advancedConfig = parseAdvancedConfig(model.advancedConfig);
+    const runningHub = resolveRunningHubExecution(protocol, model, advancedConfig);
     validateVideoPromptBytes(prompt, resolveVideoPromptByteLimit(protocol, advancedConfig.maxPromptBytes));
     const ui = uiMetadataFromSchema(schema, "video", inputCapabilities);
     const requestedRatio = deps.safeText(body.aspect_ratio || body.ratio || params.aspectRatio);
@@ -440,6 +443,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       advancedMode: deps.safeText(advancedConfig.mode || params.mode),
       taskCapability: "video",
       executionMode: "worker_queue",
+      ...runningHub,
       sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
       sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
     };
@@ -607,6 +611,23 @@ function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
   return {
     submitProviderGenerationTask,
     readProviderGenerationTaskStatus,
+  };
+}
+
+function resolveRunningHubExecution(protocol: string, model: ModelLike, advancedConfig: Record<string, unknown>) {
+  if (protocol !== "runninghub") return {};
+  const hasCatalogTarget = ["rhCatalogId", "webappId", "workflowId", "runTargetId"]
+    .some((key) => typeof advancedConfig[key] === "string" && String(advancedConfig[key]).trim());
+  if (hasCatalogTarget) return { runningHubExecutionMode: "catalog_target" as const };
+  const modelPath = typeof advancedConfig.runningHubModelPath === "string" && advancedConfig.runningHubModelPath.trim()
+    ? advancedConfig.runningHubModelPath.trim()
+    : typeof advancedConfig.modelPath === "string" && advancedConfig.modelPath.trim()
+      ? advancedConfig.modelPath.trim()
+      : model.modelId.trim();
+  if (!modelPath) throw new Error("RunningHub 标准模型缺少模型路径");
+  return {
+    runningHubExecutionMode: "standard_model" as const,
+    runningHubModelPath: modelPath,
   };
 }
 

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 
-function createService() {
+function createService(options: {
+  protocol?: string;
+  modelId?: string;
+  advancedConfig?: Record<string, unknown>;
+} = {}) {
   const insertedTasks: Array<{ payload?: Record<string, unknown> }> = [];
   const service = createProviderGenerationTaskService({
-    normalizeProviderProtocol: () => "openai",
+    normalizeProviderProtocol: () => options.protocol || "openai",
     providerPlainApiKey: () => "test-key",
     findEnabledProviderModel: async (capability, providerId, modelId) => ({
       provider: {
@@ -17,11 +21,12 @@ function createService() {
       model: {
         id: `${capability}-model-record`,
         providerId: providerId || "provider-1",
-        modelId: modelId || `${capability}-model`,
+        modelId: options.modelId || modelId || `${capability}-model`,
         displayName: "Test model",
         capability,
         enabled: true,
         parameterSchema: "{}",
+        advancedConfig: options.advancedConfig,
       },
     }),
     normalizeProviderReferenceUrls: (values) => values,
@@ -67,5 +72,78 @@ describe("provider generation task payload", () => {
     });
 
     expect(insertedTasks[0]?.payload).toMatchObject({ n: 4, generationCount: 4 });
+  });
+
+  it("freezes RunningHub generic image models as standard model execution", async () => {
+    const { insertedTasks, service } = createService({
+      protocol: "runninghub",
+      modelId: "rhart-image-n-g31-flash/text-to-image",
+    });
+
+    await service.submitProviderGenerationTask({
+      capability: "image",
+      rawBody: { providerId: "provider-rh", model: "rhart-image-n-g31-flash/text-to-image", prompt: "city rain" },
+      user: { id: "user-1", role: "admin" },
+      publicOrigin: "https://canvas.test",
+    });
+
+    expect(insertedTasks[0]?.payload).toMatchObject({
+      runningHubExecutionMode: "standard_model",
+      runningHubModelPath: "rhart-image-n-g31-flash/text-to-image",
+    });
+  });
+
+  it("preserves explicit RunningHub catalog targets instead of reclassifying them as standard models", async () => {
+    const { insertedTasks, service } = createService({
+      protocol: "runninghub",
+      advancedConfig: {
+        targetType: "app",
+        runTargetId: "app-1",
+        webappId: "app-1",
+        nodeInfoList: [{ nodeId: "1", fieldName: "prompt", fieldValue: "city rain" }],
+      },
+    });
+
+    await service.submitProviderGenerationTask({
+      capability: "video",
+      rawBody: { providerId: "provider-rh", model: "video-model", prompt: "city rain" },
+      user: { id: "user-1", role: "admin" },
+      publicOrigin: "https://canvas.test",
+    });
+
+    expect(insertedTasks[0]?.payload).toMatchObject({
+      runningHubExecutionMode: "catalog_target",
+      runTargetId: "app-1",
+      webappId: "app-1",
+    });
+  });
+
+  it("preserves explicit standard-video parameters when the RunningHub model schema is empty", async () => {
+    const { insertedTasks, service } = createService({
+      protocol: "runninghub",
+      modelId: "/rhart-video-g/image-to-video",
+    });
+
+    await service.submitProviderGenerationTask({
+      capability: "video",
+      rawBody: {
+        providerId: "provider-rh",
+        model: "/rhart-video-g/image-to-video",
+        prompt: "slow camera push",
+        aspect_ratio: "16:9",
+        resolution: "720p",
+        duration: 6,
+      },
+      user: { id: "user-1", role: "admin" },
+      publicOrigin: "https://canvas.test",
+    });
+
+    expect(insertedTasks[0]?.payload).toMatchObject({
+      runningHubExecutionMode: "standard_model",
+      aspect_ratio: "16:9",
+      ratio: "16:9",
+      resolution: "720p",
+      duration: 6,
+    });
   });
 });

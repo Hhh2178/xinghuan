@@ -347,7 +347,7 @@ git commit -m "feat(agent): separate assistant and supervision governance"
 - Consumes: queued generic image/video tasks and configured RunningHub Provider/model records.
 - Produces: `runningHubExecutionMode`, standard submit/query adapter and materialized outputs.
 
-- [ ] **Step 1: Write failing adapter contract tests**
+- [x] **Step 1: Write failing adapter contract tests**
 
 Use injected `fetch` and fake timers to cover:
 
@@ -358,7 +358,7 @@ Use injected `fetch` and fake timers to cover:
 - signed URLs and Authorization are absent from diagnostics;
 - specialized `webappId/workflowId` payload still routes to the existing catalog client.
 
-- [ ] **Step 2: Confirm RED**
+- [x] **Step 2: Confirm RED**
 
 ```powershell
 npx vitest run apps/worker/src/worker-runninghub-standard-adapter.test.ts apps/worker/src/worker-runninghub-standard-media.test.ts
@@ -366,11 +366,11 @@ npm run verify:provider-generation-task-service
 npm run verify:provider-generation-worker
 ```
 
-- [ ] **Step 3: Accept RunningHub in generic image/video submission**
+- [x] **Step 3: Accept RunningHub in generic image/video submission**
 
 Add `runninghub` to both API capability allowlists. Freeze `runningHubExecutionMode` based on explicit catalog target fields versus a standard model path. Do not apply the Grok/AICopy prompt-byte limit to RunningHub; retain only the platform-wide prompt safety ceiling.
 
-- [ ] **Step 4: Implement the standard adapter as a focused module**
+- [x] **Step 4: Implement the standard adapter as a focused module**
 
 Provide:
 
@@ -388,15 +388,15 @@ export async function executeRunningHubStandardModel(input: {
 
 Normalize submit/query URLs, status mapping and result types. Return adapter `runninghub-standard-image` or `runninghub-standard-video`.
 
-- [ ] **Step 5: Implement protected media upload and output materialization handoff**
+- [x] **Step 5: Implement protected media upload and output materialization handoff**
 
 Read only owner-authorized local artifacts, upload through RH binary media endpoint when needed, and return temporary remote URLs to the standard adapter. Reuse the existing Worker output materializer so final tasks expose platform-owned URLs.
 
-- [ ] **Step 6: Route Worker execution without changing catalog targets**
+- [x] **Step 6: Route Worker execution without changing catalog targets**
 
 In `executeSingleImageTask` and `executeSingleVideoTask`, route `standard_model` to the new adapter and `catalog_target` to `executeRunningHubTask`. Preserve key-pool assignment and heartbeat semantics where configured.
 
-- [ ] **Step 7: Verify mocked edge cases and builds**
+- [x] **Step 7: Verify mocked edge cases and builds**
 
 ```powershell
 npx vitest run apps/worker/src/worker-runninghub-standard-adapter.test.ts apps/worker/src/worker-runninghub-standard-media.test.ts
@@ -410,15 +410,15 @@ npm run build -w @xinghuan/api
 npm run build -w @xinghuan/worker
 ```
 
-- [ ] **Step 8: Run controlled real RunningHub image verification**
+- [x] **Step 8: Run controlled real RunningHub image verification**
 
 Using the configured RH image model, submit one real request through the generic Provider API. Record only allowlisted evidence: internal task ID, display Provider/model names, adapter name, final status, output count, materialized local URL and timestamps. Do not record key, signed URL or full upstream body.
 
-- [ ] **Step 9: Run controlled real RunningHub video verification**
+- [x] **Step 9: Run controlled real RunningHub video verification**
 
 Use a platform-owned image artifact as the input to the configured RH video model. Verify media upload/fetch, submit, polling, `mp4` classification, task state, output materialization and Canvas playback. One real video request is sufficient unless the first fails for a diagnosed configuration reason.
 
-- [ ] **Step 10: Record and commit Task 5**
+- [x] **Step 10: Record and commit Task 5**
 
 Document real costs/status without secrets and commit:
 

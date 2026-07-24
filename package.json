@@ -226,6 +226,8 @@
     "verify:task-runtime-state-contract": "node scripts/verify-task-runtime-state-contract.mjs",
     "verify:task-runtime-event-ledger-contract": "node scripts/verify-task-runtime-event-ledger-contract.mjs",
     "verify:runninghub-workflow-contract": "node scripts/verify-runninghub-workflow-contract.mjs",
+    "verify:runninghub-key-pool-contract": "node scripts/verify-runninghub-key-pool-contract.mjs",
+    "verify:runninghub-standard-model-contract": "node scripts/verify-runninghub-standard-model-contract.mjs",
     "verify:runninghub-analyze-contract": "node scripts/verify-runninghub-analyze-contract.mjs",
     "verify:runninghub-workflow-api": "node scripts/verify-runninghub-workflow-api.mjs",
     "verify:runninghub-runtime-state-contract": "node scripts/verify-runninghub-runtime-state-contract.mjs",

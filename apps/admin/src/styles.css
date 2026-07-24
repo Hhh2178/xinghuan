@@ -2836,6 +2836,22 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.admin-runninghub-key-pool-row__standard-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.admin-runninghub-analyze-panel .admin-runninghub-key-pool-row__standard-control input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+  accent-color: #38bdf8;
+}
+
 .admin-runninghub-analyze-panel input,
 .admin-runninghub-analyze-panel textarea {
   width: 100%;

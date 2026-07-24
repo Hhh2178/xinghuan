@@ -12,6 +12,7 @@ export interface RunningHubKeyPoolItemRecord {
   maxConcurrency: number;
   enabled: boolean;
   isDefault: boolean;
+  standardModelApi: boolean;
   currentInFlight?: number;
   createdAt: number;
   updatedAt: number;

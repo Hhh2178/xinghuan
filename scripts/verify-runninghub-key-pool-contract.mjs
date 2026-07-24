@@ -8,6 +8,7 @@ const styles = await readFile(new URL("../apps/admin/src/styles.css", import.met
 
 assert.match(adminTypes, /export interface RunningHubKeyPoolItem \{/);
 assert.match(adminTypes, /isDefault:\s*boolean;/);
+assert.match(adminTypes, /standardModelApi:\s*boolean;/);
 assert.match(adminTypes, /rhKeyPool\?: RunningHubKeyPoolItem\[\];/);
 assert.match(server, /function normalizeRunningHubKeyPool\(/);
 assert.match(server, /function summarizeRunningHubKeyPool\(/);
@@ -18,6 +19,8 @@ assert.match(workspace, /RH Key 池管理/);
 assert.match(workspace, /新增 Key/);
 assert.match(workspace, /默认 Key/);
 assert.match(workspace, /设为默认/);
+assert.match(workspace, /企业级共享 Key/);
+assert.match(workspace, /admin-runninghub-key-pool-row__standard-control/);
 assert.match(workspace, /Provider 级共享 Key 池/, "workspace should describe the Key pool as Provider-owned configuration");
 assert.match(workspace, /当前 Provider：\{resolvedProviderLabel\}/, "Key pool summary should identify its current Provider");
 
@@ -35,5 +38,6 @@ assert.doesNotMatch(
 assert.match(workspace, /admin-runninghub-key-pool-panel__body/, "expanded Key pool controls should have an explicit body");
 assert.match(workspace, /admin-runninghub-key-pool-row/, "Key entries should use bounded rows instead of nested cards");
 assert.match(styles, /\.admin-runninghub-key-pool-row\s*\{[\s\S]{0,320}min-width:\s*0;/, "Key rows should be shrink-safe");
+assert.match(styles, /\.admin-runninghub-analyze-panel \.admin-runninghub-key-pool-row__standard-control input\[type="checkbox"\][\s\S]{0,240}width:\s*16px;/, "standard-model Key eligibility should use a bounded checkbox");
 
 console.log("PASS runninghub key pool contract");

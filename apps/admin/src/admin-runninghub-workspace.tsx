@@ -445,6 +445,17 @@ export function AdminRunningHubWorkspace({
                         onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, maxConcurrency: Math.max(1, Number(event.target.value || 1)) } : row))}
                       />
                     </label>
+                    <label className="admin-runninghub-analyze-panel__full-row admin-runninghub-key-pool-row__standard-toggle">
+                      <span>标准模型 API</span>
+                      <span className="admin-runninghub-key-pool-row__standard-control">
+                        <input
+                          type="checkbox"
+                          checked={item.standardModelApi}
+                          onChange={(event) => setKeyPoolDraft((current) => current.map((row) => row.id === item.id ? { ...row, standardModelApi: event.target.checked } : row))}
+                        />
+                        企业级共享 Key
+                      </span>
+                    </label>
                     <label className="admin-runninghub-analyze-panel__full-row">
                       <span>API Key</span>
                       <input

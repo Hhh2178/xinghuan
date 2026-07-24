@@ -40,6 +40,7 @@ export function createEmptyRunningHubKeyPoolDraftItem(): RunningHubKeyPoolDraftI
     maxConcurrency: 1,
     enabled: true,
     isDefault: false,
+    standardModelApi: false,
     currentInFlight: 0,
     createdAt: now,
     updatedAt: now,

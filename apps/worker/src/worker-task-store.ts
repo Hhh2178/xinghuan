@@ -224,6 +224,9 @@ function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItem[] {
         maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
         enabled: row.enabled !== false,
         isDefault: row.isDefault === true,
+        standardModelApi: typeof row.standardModelApi === "boolean"
+          ? row.standardModelApi
+          : /企业级|enterprise/i.test(safeText(row.note)),
         currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
       }];
     });

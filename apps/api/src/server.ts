@@ -953,6 +953,7 @@ interface RunningHubKeyPoolItemRecord {
   maxConcurrency: number;
   enabled: boolean;
   isDefault: boolean;
+  standardModelApi: boolean;
   currentInFlight?: number;
   createdAt: number;
   updatedAt: number;
@@ -8864,6 +8865,9 @@ function normalizeRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord
         maxConcurrency: Math.max(1, Number(row.maxConcurrency) || 1),
         enabled: row.enabled !== false,
         isDefault: row.isDefault === true,
+        standardModelApi: typeof row.standardModelApi === "boolean"
+          ? row.standardModelApi
+          : /企业级|enterprise/i.test(safeText(row.note)),
         currentInFlight: Math.max(0, Number(row.currentInFlight) || 0),
         createdAt: Math.max(0, Number(row.createdAt) || 0),
         updatedAt: Math.max(0, Number(row.updatedAt) || 0),
@@ -8899,6 +8903,7 @@ function toPublicRunningHubKeyPool(value: unknown): RunningHubKeyPoolItemRecord[
     maxConcurrency: item.maxConcurrency,
     enabled: item.enabled,
     isDefault: item.isDefault === true,
+    standardModelApi: item.standardModelApi,
     currentInFlight: item.currentInFlight,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -8931,6 +8936,7 @@ function buildEffectiveRunningHubKeyPool(provider: AdminProviderRecord, legacyFa
     maxConcurrency: Math.max(1, Number(legacyFallbackConcurrency) || 1),
     enabled: true,
     isDefault: true,
+    standardModelApi: false,
     currentInFlight: 0,
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,

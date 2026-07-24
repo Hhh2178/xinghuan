@@ -9,6 +9,7 @@ export interface RunningHubKeyPoolItem {
   maxConcurrency: number;
   enabled: boolean;
   isDefault: boolean;
+  standardModelApi?: boolean;
   currentInFlight?: number;
 }
 
@@ -43,6 +44,17 @@ function buildNoAvailableKeyError() {
   error.resultPatch = {
     failureCategory: "model_config",
     providerDiagnostic: "RunningHub 未配置可用 Key",
+  };
+  return error;
+}
+
+function buildNoStandardModelKeyError() {
+  const message = "RunningHub 标准模型需要企业级-共享 API Key";
+  const error = new Error(message) as Error & { resultPatch?: Record<string, unknown> };
+  error.name = "WorkerTaskError";
+  error.resultPatch = {
+    failureCategory: "model_config",
+    providerDiagnostic: message,
   };
   return error;
 }
@@ -137,7 +149,7 @@ async function acquireExecutableRunningHubKey(deps: RunningHubDispatchDeps) {
 function resolveOrderedRunningHubKeys(deps: RunningHubDispatchDeps): RunningHubSelectionItem[] {
   const { task, settings } = deps;
   const preferredRhKeyId = deps.safeText(task.payload.preferredRhKeyId || task.result.preferredRhKeyId);
-  const pool = task.rhKeyPool.length > 0
+  const availablePool = task.rhKeyPool.length > 0
     ? task.rhKeyPool.filter((item) => item.enabled && deps.safeText(item.apiKey))
     : [{
         id: "legacy-default",
@@ -149,10 +161,20 @@ function resolveOrderedRunningHubKeys(deps: RunningHubDispatchDeps): RunningHubS
         isDefault: true,
         currentInFlight: 0,
       } satisfies RunningHubKeyPoolItem];
-  if (pool.length === 0) throw buildNoAvailableKeyError();
+  if (availablePool.length === 0) throw buildNoAvailableKeyError();
+  const standardModelTask = deps.safeText(task.payload.runningHubExecutionMode) === "standard_model";
+  const pool = standardModelTask
+    ? availablePool.filter(isRunningHubStandardModelKey)
+    : availablePool;
+  if (standardModelTask && pool.length === 0) throw buildNoStandardModelKeyError();
   return [
     ...pool.filter((item) => item.id === preferredRhKeyId),
     ...pool.filter((item) => item.id !== preferredRhKeyId && item.isDefault),
     ...pool.filter((item) => item.id !== preferredRhKeyId && !item.isDefault),
   ];
+}
+
+function isRunningHubStandardModelKey(item: RunningHubKeyPoolItem) {
+  if (typeof item.standardModelApi === "boolean") return item.standardModelApi;
+  return /企业级|enterprise/i.test(item.note);
 }

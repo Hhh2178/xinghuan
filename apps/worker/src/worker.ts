@@ -53,6 +53,8 @@ import {
 } from "./worker-provider-utils.js";
 import { createRunningHubClient } from "./worker-runninghub-client.js";
 import { materializeRunningHubNodeInfo } from "./worker-runninghub-media-adapter.js";
+import { executeRunningHubStandardModel } from "./worker-runninghub-standard-adapter.js";
+import { prepareRunningHubStandardMediaValues } from "./worker-runninghub-standard-media.js";
 import { createWorkerCancelSync } from "./worker-cancel-sync.js";
 import {
   createWorkerDeferredRequeue,
@@ -667,7 +669,7 @@ async function executeTask(task: TaskRow, signal?: AbortSignal): Promise<Record<
     return { adapter: "noop", note: "未绑定 Provider/Model，按后台队列健康检查任务完成" };
   }
   const protocol = normalizeProtocol(task.providerProtocol);
-  if (protocol === "runninghub") return executeRunningHubTask(task);
+  if (protocol === "runninghub" && runningHubExecutionMode(task) !== "standard_model") return executeRunningHubTask(task);
   if (task.capability === "image") return executeImageTask(task);
   if (task.capability === "video") return executeVideoTask(task);
   if (task.capability === "audio") return executeAudioTask(task);
@@ -749,7 +751,9 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
 async function executeSingleImageTask(task: TaskRow, requestedImageCount: number): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
-    return executeRunningHubTask(task);
+    return runningHubExecutionMode(task) === "standard_model"
+      ? executeRunningHubStandardTask(task, "image")
+      : executeRunningHubTask(task);
   }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
@@ -869,7 +873,9 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
 async function executeSingleVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
-    return executeRunningHubTask(task);
+    return runningHubExecutionMode(task) === "standard_model"
+      ? executeRunningHubStandardTask(task, "video")
+      : executeRunningHubTask(task);
   }
   if (!task.providerEnabled) throw new Error("Provider 不存在或未启用");
   if (!task.modelEnabled) throw new Error("模型不存在或未启用");
@@ -1208,6 +1214,106 @@ async function executeRunningHubTask(task: TaskRow): Promise<Record<string, unkn
     ...result,
     providerId: task.providerId,
   };
+}
+
+async function executeRunningHubStandardTask(task: TaskRow, capability: "image" | "video"): Promise<Record<string, unknown>> {
+  if (!task.providerEnabled) throw new Error("RunningHub Provider 不存在或未启用");
+  if (!task.modelEnabled) throw new Error("RunningHub 模型不存在或未启用");
+  if (!task.providerBaseUrl) throw new Error("RunningHub Provider 缺少 Base URL");
+  const modelPath = safeText(task.payload.runningHubModelPath || task.providerModelId);
+  if (!modelPath) throw new Error("RunningHub 标准模型缺少模型路径");
+  const assignedRhKeyId = safeText(
+    task.payload.assignedRhKeyId
+      || task.result.assignedRhKeyId
+      || task.payload.preferredRhKeyId
+      || task.result.preferredRhKeyId,
+  );
+  const assignedRhKey = findAssignedRunningHubKey(task.rhKeyPool, assignedRhKeyId);
+  const apiKey = decryptSecret(assignedRhKey?.apiKey || task.apiKeyCipher);
+  if (!apiKey) throw new Error("RunningHub Provider 未配置 API Key 或无法解密");
+
+  const body = await buildRunningHubStandardRequestBody(task, apiKey);
+  const result = await executeRunningHubStandardModel({
+    capability,
+    baseUrl: task.providerBaseUrl,
+    apiKey,
+    modelPath,
+    body,
+    onHeartbeat: async (patch) => {
+      await touchTaskRuntime(task.id, {
+        heartbeatAt: new Date().toISOString(),
+        ...patch,
+        ...(assignedRhKey ? {
+          assignedRhKeyId: assignedRhKey.id,
+          assignedRhKeyNoteSnapshot: assignedRhKey.note,
+          assignedRhKeyMaxConcurrency: assignedRhKey.maxConcurrency,
+        } : {}),
+      });
+    },
+  });
+  return { ...result, providerId: task.providerId, modelId: task.providerModelId };
+}
+
+async function buildRunningHubStandardRequestBody(task: TaskRow, apiKey: string) {
+  const body: Record<string, unknown> = { ...plainObject(task.payload.fixedBody) };
+  const excluded = new Set([
+    "assignedRhKeyId", "preferredRhKeyId", "runningHubExecutionMode", "runningHubModelPath",
+    "taskCapability", "executionMode", "sourceNodeId", "sourceCanvasId", "requestId", "userId",
+    "generationCount", "n", "images", "imageUrls", "videos", "videoUrls", "audios", "audioUrls",
+    "first_frame", "last_frame", "firstFrame", "lastFrame", "fixedBody", "requestMapping",
+    "requestContract", "requestContractEnabled", "aicopyRequestContractEnabled", "referenceImageTransport",
+    "videoInputMode", "modeType", "advancedMode", "webappId", "workflowId", "runTargetId", "targetType",
+    "nodeInfoList", "rhCatalogId", "pollIntervalMs", "pollTimeoutMs", "timeoutMs", "maxPollMs",
+  ]);
+  for (const [key, value] of Object.entries(task.payload)) {
+    if (!excluded.has(key) && value !== undefined && value !== null && value !== "") body[key] = value;
+  }
+
+  const imageValues = stringList(task.payload.imageUrls).length
+    ? stringList(task.payload.imageUrls)
+    : stringList(task.payload.images);
+  const preparedImages = await prepareRunningHubStandardMediaValues({
+    dataDir,
+    ownerId: task.ownerId,
+    baseUrl: task.providerBaseUrl,
+    apiKey,
+    values: imageValues,
+  });
+  if (preparedImages.length) body.imageUrls = preparedImages;
+
+  const firstFrame = safeText(task.payload.firstFrame || task.payload.first_frame);
+  const lastFrame = safeText(task.payload.lastFrame || task.payload.last_frame);
+  if (firstFrame) body.firstFrame = preparedImages[imageValues.indexOf(firstFrame)] || (await prepareRunningHubStandardMediaValues({
+    dataDir, ownerId: task.ownerId, baseUrl: task.providerBaseUrl, apiKey, values: [firstFrame],
+  }))[0];
+  if (lastFrame) body.lastFrame = preparedImages[imageValues.indexOf(lastFrame)] || (await prepareRunningHubStandardMediaValues({
+    dataDir, ownerId: task.ownerId, baseUrl: task.providerBaseUrl, apiKey, values: [lastFrame],
+  }))[0];
+
+  const videoValues = stringList(task.payload.videoUrls).length
+    ? stringList(task.payload.videoUrls)
+    : stringList(task.payload.videos);
+  if (videoValues.length) body.videoUrls = await prepareRunningHubStandardMediaValues({
+    dataDir, ownerId: task.ownerId, baseUrl: task.providerBaseUrl, apiKey, values: videoValues,
+  });
+  const audioValues = stringList(task.payload.audioUrls).length
+    ? stringList(task.payload.audioUrls)
+    : stringList(task.payload.audios);
+  if (audioValues.length) body.audioUrls = await prepareRunningHubStandardMediaValues({
+    dataDir, ownerId: task.ownerId, baseUrl: task.providerBaseUrl, apiKey, values: audioValues,
+  });
+
+  const aspectRatio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio || task.payload.ratio);
+  if (aspectRatio && body.aspectRatio === undefined) body.aspectRatio = aspectRatio;
+  return body;
+}
+
+function runningHubExecutionMode(task: TaskRow) {
+  return safeText(task.payload.runningHubExecutionMode) === "standard_model" ? "standard_model" : "catalog_target";
+}
+
+function stringList(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => safeText(item)).filter(Boolean) : [];
 }
 
 function resolveRunningHubPollIntervalMs(task: TaskRow) {

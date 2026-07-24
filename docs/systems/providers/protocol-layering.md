@@ -45,6 +45,9 @@
 
 - `catalog_target`：现有 RH 应用/工作流条目，使用 `webappId`、`workflowId`、`nodeInfoList` 和专属目录治理。
 - `standard_model`：通用 Provider 模型，按模型路径调用 `/openapi/v2/<model-path>`，再通过 `/openapi/v2/query` 轮询。
-- 两种模式共享 Provider 身份、密钥和可选 key pool，但请求参数、状态解析和 Admin 所有权分开。
+- 两种模式共享 Provider 身份和 key pool，但 Key 资格、请求参数、状态解析和 Admin 所有权分开。
+- `standard_model` 只能使用后台显式标记 `standardModelApi=true` 的企业级共享 Key；旧数据仅在该字段缺失时兼容识别备注中的 `企业级` / `enterprise`。显式关闭始终优先于备注。
+- `catalog_target` 保持原有 Key 池顺序，不要求企业级共享资格。若标准模型没有合格 Key，Worker 直接回写 `model_config`，不进入伪排队或先向上游失败一次。
 - Generic image/video task 在创建时冻结执行模式；Worker 不根据后续目录变化重新判断历史任务。
 - Standard model 的临时输入/输出 URL 按一天资源处理，成功结果必须进入平台 Generation Artifact 物料化链路。
+- 已实测的 `/rhart-video-g/image-to-video` 需要 `imageUrls`、`prompt`、`aspectRatio`、`resolution` 和不少于 6 秒的 `duration`。通用 Provider service 合并默认视频 Schema 后会保留这些显式参数；后台仍应为模型维护准确 Schema，以便管理端和画布端展示真实枚举。
