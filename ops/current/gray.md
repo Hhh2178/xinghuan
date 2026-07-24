@@ -2,18 +2,18 @@
 
 - 入口域名：`canvas-next.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.7.36`
-- 当前 release：`20260724-workflow-auto-output-boundary-gray-r1-v0736`
-- 当前状态：`待部署验证：自动展示 Output 叶子不会再阻断 Workflow Region 的 AI 托管运行计划创建`
+- 当前版本：`v0.7.37`
+- 当前 release：`20260724-canvas-hosted-run-projection-gray-r1-v0737`
+- 当前状态：`待部署验证：AI 托管持久化运行态将直接显示在画布对应节点`
 - 当前补修：`仅结构化匹配的 output-auto/e-auto 展示叶子可留在区域外；普通跨区域 Output 连线继续拒绝`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`f6a1236`
+- 本轮制品源提交：`3917822`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
-  - `../../docs/logbooks/releases/gray/2026-07-24-workflow-auto-output-boundary-gray-v0736.md`
-  - `../../docs/logbooks/validations/2026-07-24-workflow-auto-output-boundary-gray-v0736.md`
+  - `../../docs/logbooks/releases/gray/2026-07-24-canvas-hosted-run-projection-gray-v0737.md`
+  - `../../docs/logbooks/validations/2026-07-24-canvas-hosted-run-projection-gray-v0737.md`
   - `../../docs/logbooks/releases/gray/2026-07-24-canvas-agent-explicit-selector-gray-v0728.md`
   - `../../docs/logbooks/validations/2026-07-24-canvas-agent-experience-gray-v0728.md`
   - `../../docs/logbooks/releases/gray/2026-07-21-admin-health-visual-resource-domain-gray-v0717.md`
