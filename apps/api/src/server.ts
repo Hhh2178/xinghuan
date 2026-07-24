@@ -51,6 +51,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, 
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
+import { fileErrorCode, readSerializedJson, writeSerializedJson } from "./serialized-json-file.js";
 import {
   inferMime,
   safeEmail,
@@ -190,6 +191,7 @@ import { createChannelHealthService } from "./channel-health-service.js";
 import { createChannelHealthRouteHandlers } from "./channel-health-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
+import { normalizeTaskExecutionIdentitySnapshot, type TaskExecutionIdentitySnapshot } from "./task-execution-identity.js";
 import { createCanvasRunRepository } from "./canvas-run-repository.js";
 import type { CanvasRunRecord } from "./canvas-run-repository.js";
 import { createCanvasRunService } from "./canvas-run-service.js";
@@ -575,6 +577,10 @@ const taskRepository = createTaskRepository({
   writeTaskRecords: async (tasks) => {
     const db = await readAdminDb();
     await writeAdminDb({ ...db, tasks: tasks as AdminTaskRecord[] });
+  },
+  readTaskExecutionCatalog: async () => {
+    const db = await readAdminDb();
+    return { providers: db.providers, models: db.models };
   },
   readTaskOwnerRecords: async () => {
     const authDb = await readAuthDb();
@@ -987,7 +993,11 @@ interface AdminTaskRecord {
   ownerGroupName?: string;
   ownerDeleted?: boolean;
   providerId?: string;
+  providerName?: string;
   modelId?: string;
+  modelName?: string;
+  providerModelId?: string;
+  executionIdentitySnapshot?: TaskExecutionIdentitySnapshot;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
   logs: string[];
@@ -4421,8 +4431,9 @@ async function readAdminDb(): Promise<AdminDb> {
   } else {
     await ensureDataDirs();
     try {
-      db = JSON.parse(await readFile(adminDbPath, "utf-8")) as AdminDb;
-    } catch {
+      db = await readSerializedJson(adminDbPath) as AdminDb;
+    } catch (error) {
+      if (fileErrorCode(error) !== "ENOENT") throw error;
       db = defaultAdminDb();
       await writeAdminDb(db);
     }
@@ -4471,7 +4482,7 @@ async function writeAdminDb(db: AdminDb) {
     throw new Error("writeAdminDb is unavailable in postgres mode; use a targeted repository write");
   }
   await ensureDataDirs();
-  await writeFile(adminDbPath, JSON.stringify(db, null, 2), "utf-8");
+  await writeSerializedJson(adminDbPath, db);
 }
 
 async function writeAssistantSettingsRecord(settings: AssistantSettingsRecord, expectedRevision?: number) {
@@ -5369,7 +5380,11 @@ function toAdminTaskRecord(row: {
   owner_group_name?: string | null;
   owner_deleted?: unknown;
   provider_id?: string | null;
+  provider_name?: string | null;
   model_id?: string | null;
+  model_name?: string | null;
+  provider_model_id?: string | null;
+  execution_identity_snapshot?: unknown;
   payload?: unknown;
   result?: unknown;
   logs?: unknown;
@@ -5389,7 +5404,11 @@ function toAdminTaskRecord(row: {
     ownerGroupName: safeText(row.owner_group_name) || undefined,
     ownerDeleted: Boolean(row.owner_deleted),
     providerId: row.provider_id || undefined,
+    providerName: safeText(row.provider_name) || undefined,
     modelId: row.model_id || undefined,
+    modelName: safeText(row.model_name) || undefined,
+    providerModelId: safeText(row.provider_model_id) || undefined,
+    executionIdentitySnapshot: normalizeTaskExecutionIdentitySnapshot(row.execution_identity_snapshot),
     payload: plainObject(row.payload),
     result: plainObject(row.result),
     logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],

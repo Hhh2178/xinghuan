@@ -194,7 +194,7 @@ describe("admin task list routes", () => {
       currentUser: { id: "admin-1", role: "admin" },
     });
 
-    const listSql = query.mock.calls.find(([sql]) => String(sql).includes("from xh_tasks t"))?.[0] as string;
+    const listSql = query.mock.calls.find(([sql]) => /\bt\.logs\b/.test(String(sql)))?.[0] as string;
     expect(listSql).toBeTruthy();
     expect(listSql).not.toMatch(/\bt\.payload\s*,/);
     expect(listSql).not.toMatch(/\bt\.result\s*,/);

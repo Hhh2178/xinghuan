@@ -23,11 +23,19 @@ function finalStatusTime(task: TaskRecord) {
   return task.finalizedAt ? new Date(task.finalizedAt).toLocaleString() : "--";
 }
 
+function TaskIdentityCell({ primary, secondary, title }: { primary: string; secondary: string; title: string }) {
+  return <span className="task-monitor-identity" title={title}><strong>{primary || "-"}</strong>{secondary && secondary !== primary ? <small>{secondary}</small> : null}</span>;
+}
+
 export function TasksPanel(
   { taskPage, mutate, onQueryChange }: { taskPage: TaskListPage; mutate: AdminMutate; onQueryChange: (next: TaskQuery) => void },
 ) {
   const [title, setTitle] = useState("");
-  const providerOptions = Array.from(new Set(taskPage.items.map((task) => String(task.providerId || "").trim()).filter(Boolean))).sort();
+  const providerOptions = Array.from(taskPage.items.reduce((options, task) => {
+    const value = String(task.providerId || "").trim();
+    if (value && !options.has(value)) options.set(value, String(task.providerName || value).trim());
+    return options;
+  }, new Map<string, string>())).map(([value, label]) => ({ value, label })).sort((left, right) => left.label.localeCompare(right.label, "zh-CN"));
   const pageCount = Math.max(1, Math.ceil(taskPage.total / taskPage.pageSize));
   return (
     <section className="panel-stack">
@@ -50,8 +58,8 @@ export function TasksPanel(
           onChange={(e) => onQueryChange({ page: 1, pageSize: taskPage.pageSize, filters: { ...taskPage.filters, providerId: e.target.value } })}
         >
           <option value="">全部 Provider</option>
-          {providerOptions.map((providerId) => (
-            <option key={providerId} value={providerId}>{providerId}</option>
+          {providerOptions.map((providerOption) => (
+            <option key={providerOption.value} value={providerOption.value}>{providerOption.label}</option>
           ))}
         </select>
         <select
@@ -83,8 +91,8 @@ export function TasksPanel(
               <td><StatusPill tone={taskDisplayTone(task)}>{taskStatusText(task)}</StatusPill></td>
               <td><span className="task-monitor-cell task-monitor-cell--time" title={task.finalizedAt ? new Date(task.finalizedAt).toLocaleString() : "任务尚未结束"}>{finalStatusTime(task)}</span></td>
               <td><span className="task-monitor-cell" title={ownerPrimary(task)}>{ownerPrimary(task)}</span></td>
-              <td><span className="task-monitor-cell" title={task.providerId || "-"}>{task.providerId || "-"}</span></td>
-              <td><span className="task-monitor-cell" title={task.modelId || "-"}>{task.modelId || "-"}</span></td>
+              <td><TaskIdentityCell primary={task.providerName || task.providerId || ""} secondary={task.providerId || ""} title={[task.providerName, task.providerId].filter(Boolean).join(" · ") || "-"} /></td>
+              <td><TaskIdentityCell primary={task.modelName || task.providerModelId || task.modelId || ""} secondary={task.providerModelId || task.modelId || ""} title={[task.modelName, task.providerModelId, task.modelId].filter(Boolean).join(" · ") || "-"} /></td>
               <td><pre className="task-monitor-log">{taskMessage(task)}</pre></td>
               <td>
                 {canCancelTask(task.status) ? (

@@ -1,6 +1,11 @@
 import type { Pool, QueryResultRow } from "pg";
 import type { TaskStatus } from "@xinghuan/shared";
 import { applyTaskFinalization, isTerminalTaskStatus } from "./task-lifecycle.js";
+import {
+  projectTaskExecutionIdentityFromCatalog,
+  type TaskExecutionIdentityCatalog,
+  type TaskExecutionIdentitySnapshot,
+} from "./task-execution-identity.js";
 import { TASK_OWNER_ID_SQL } from "./task-owner-identity.js";
 
 const TASK_LIST_WINDOW_LIMIT = 2000;
@@ -17,7 +22,11 @@ export interface TaskRecordShape {
   ownerGroupName?: string;
   ownerDeleted?: boolean;
   providerId?: string;
+  providerName?: string;
   modelId?: string;
+  modelName?: string;
+  providerModelId?: string;
+  executionIdentitySnapshot?: TaskExecutionIdentitySnapshot;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
   logs: string[];
@@ -65,7 +74,10 @@ export interface TaskListItemShape {
   ownerGroupName?: string;
   ownerDeleted?: boolean;
   providerId?: string;
+  providerName?: string;
   modelId?: string;
+  modelName?: string;
+  providerModelId?: string;
   logs: string[];
   displayStatus?: string;
   displayMessage?: string;
@@ -89,7 +101,11 @@ export interface TaskPostgresRowShape {
   owner_group_name?: string | null;
   owner_deleted?: unknown;
   provider_id?: string | null;
+  provider_name?: string | null;
   model_id?: string | null;
+  model_name?: string | null;
+  provider_model_id?: string | null;
+  execution_identity_snapshot?: unknown;
   payload?: unknown;
   result?: unknown;
   logs?: unknown;
@@ -109,6 +125,7 @@ export interface TaskRepositoryDeps {
   getPostgresPool: () => Promise<Pool>;
   readTaskRecords: () => Promise<TaskRecordShape[]>;
   writeTaskRecords: (tasks: TaskRecordShape[]) => Promise<void>;
+  readTaskExecutionCatalog: () => Promise<TaskExecutionIdentityCatalog>;
   readTaskOwnerRecords: () => Promise<{ users: TaskOwnerRecordShape[]; userGroups: TaskOwnerGroupRecordShape[] }>;
   toAdminTaskRecord: (row: TaskPostgresRowShape) => TaskRecordShape;
   enrichAdminTaskRecord: (
@@ -181,8 +198,8 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       await pool.query(
-        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, payload, result, logs, created_at, updated_at, finalized_at)
-         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11, $12)`,
+        `insert into xh_tasks (id, owner_id, title, status, provider_id, model_id, execution_identity_snapshot, payload, result, logs, created_at, updated_at, finalized_at)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)`,
         [
           task.id,
           task.ownerId || null,
@@ -190,6 +207,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
           task.status,
           task.providerId || null,
           task.modelId || null,
+          JSON.stringify(deps.plainObject(task.executionIdentitySnapshot)),
           JSON.stringify(deps.plainObject(task.payload)),
           JSON.stringify(deps.plainObject(task.result)),
           JSON.stringify(Array.isArray(task.logs) ? task.logs : []),
@@ -200,8 +218,8 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       );
       return;
     }
-    const tasks = await deps.readTaskRecords();
-    await deps.writeTaskRecords([task, ...tasks]);
+    const [tasks, catalog] = await Promise.all([deps.readTaskRecords(), deps.readTaskExecutionCatalog()]);
+    await deps.writeTaskRecords([withTaskExecutionIdentity(task, catalog, true), ...tasks]);
   }
 
   async function readTaskListPage(query: TaskListQuery): Promise<TaskListPage> {
@@ -211,20 +229,20 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       const params: unknown[] = [];
       if (query.status) {
         params.push(query.status);
-        where.push(`status = $${params.length}`);
+        where.push(`t.status = $${params.length}`);
       }
       if (query.providerId) {
         params.push(query.providerId);
-        where.push(`provider_id = $${params.length}`);
+        where.push(`t.provider_id = $${params.length}`);
       }
       if (query.capability) {
         params.push(query.capability);
-        where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
+        where.push(`coalesce(t.payload->>'taskCapability', t.result->>'capability', t.result->'raw'->>'capability', '') = $${params.length}`);
       }
       const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
       const windowResult = await pool.query<TaskCountPostgresRow>(`select count(*)::int as total from (select id from xh_tasks order by updated_at desc, created_at desc, id desc limit 2001) recent`, []);
       const windowCount = Number(windowResult.rows?.[0]?.total || 0);
-      const totalResult = await pool.query<TaskCountPostgresRow>(`with recent_tasks as (select * from xh_tasks order by updated_at desc, created_at desc, id desc limit ${TASK_LIST_WINDOW_LIMIT}) select count(*)::int as total from recent_tasks ${whereSql}`, params);
+      const totalResult = await pool.query<TaskCountPostgresRow>(`with recent_tasks as (select * from xh_tasks order by updated_at desc, created_at desc, id desc limit ${TASK_LIST_WINDOW_LIMIT}) select count(*)::int as total from recent_tasks t ${whereSql}`, params);
       const total = Number(totalResult.rows?.[0]?.total || 0);
       const offset = (query.page - 1) * query.pageSize;
       const pageParams = [...params, query.pageSize, offset];
@@ -235,7 +253,11 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 t.title,
                 t.status,
                 t.provider_id,
+                t.execution_identity_snapshot,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerName', ''), p.name, t.provider_id, '') as provider_name,
                 t.model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
                 t.logs,
                 t.created_at,
                 t.updated_at,
@@ -249,6 +271,8 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
          from recent_tasks t
          left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
+         left join xh_providers p on p.id = t.provider_id
+         left join xh_models m on m.id = t.model_id
          ${whereSql}
          order by t.updated_at desc, t.created_at desc, t.id desc
          limit $${pageParams.length - 1} offset $${pageParams.length}`,
@@ -260,10 +284,14 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       return toTaskListPage(query, total, offset, items, Math.min(windowCount, TASK_LIST_WINDOW_LIMIT), windowCount > TASK_LIST_WINDOW_LIMIT);
     }
 
-    const [tasks, owners] = await Promise.all([deps.readTaskRecords(), deps.readTaskOwnerRecords()]);
+    const [tasks, owners, catalog] = await Promise.all([
+      deps.readTaskRecords(),
+      deps.readTaskOwnerRecords(),
+      deps.readTaskExecutionCatalog(),
+    ]);
     const usersById = new Map(owners.users.map((user) => [user.id, user]));
     const groupsById = new Map(owners.userGroups.map((group) => [group.id, group]));
-    const recentTasks = [...tasks]
+    const recentTasks = tasks.map((task) => withTaskExecutionIdentity(task, catalog))
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || (b.createdAt || 0) - (a.createdAt || 0) || b.id.localeCompare(a.id))
       .slice(0, TASK_LIST_WINDOW_LIMIT);
     const filtered = recentTasks
@@ -285,7 +313,11 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 t.title,
                 t.status,
                 t.provider_id,
+                t.execution_identity_snapshot,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerName', ''), p.name, t.provider_id, '') as provider_name,
                 t.model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
                 t.payload,
                 t.result,
                 t.logs,
@@ -301,14 +333,21 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
          from xh_tasks t
          left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
+         left join xh_providers p on p.id = t.provider_id
+         left join xh_models m on m.id = t.model_id
          where t.id = $1
          limit 1`,
         [taskId],
       );
       return result.rows[0] ? deps.toAdminTaskRecord(result.rows[0]) : null;
     }
-    const [tasks, owners] = await Promise.all([deps.readTaskRecords(), deps.readTaskOwnerRecords()]);
-    const task = tasks.find((item) => item.id === taskId);
+    const [tasks, owners, catalog] = await Promise.all([
+      deps.readTaskRecords(),
+      deps.readTaskOwnerRecords(),
+      deps.readTaskExecutionCatalog(),
+    ]);
+    const storedTask = tasks.find((item) => item.id === taskId);
+    const task = storedTask ? withTaskExecutionIdentity(storedTask, catalog) : undefined;
     if (!task) return null;
     return deps.enrichAdminTaskRecord(
       task,
@@ -395,4 +434,23 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
       finalizedAt: summary.finalizedAt || (isTerminalTaskStatus(summary.status) ? summary.updatedAt : undefined),
     };
   }
+}
+
+function withTaskExecutionIdentity(
+  task: TaskRecordShape,
+  catalog: TaskExecutionIdentityCatalog,
+  freezeSnapshot = false,
+): TaskRecordShape {
+  const identity = projectTaskExecutionIdentityFromCatalog({
+    providerId: task.providerId,
+    modelRecordId: task.modelId,
+    snapshot: task.executionIdentitySnapshot,
+  }, catalog);
+  return {
+    ...task,
+    providerName: identity.providerName || undefined,
+    modelName: identity.modelName || undefined,
+    providerModelId: identity.providerModelId || undefined,
+    executionIdentitySnapshot: freezeSnapshot ? identity : task.executionIdentitySnapshot,
+  };
 }

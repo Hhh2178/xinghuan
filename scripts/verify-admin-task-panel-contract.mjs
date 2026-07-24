@@ -85,6 +85,15 @@ const checks = [
       panelSource.includes('title={task.title}'),
   },
   {
+    name: "task panel presents human Provider and model identities before raw ids",
+    pass:
+      panelSource.includes("task.providerName") &&
+      panelSource.includes("task.modelName") &&
+      panelSource.includes("task.providerModelId") &&
+      panelSource.includes("providerOption.label") &&
+      panelSource.includes("providerOption.value"),
+  },
+  {
     name: "task panel uses shared admin components",
     pass:
       panelSource.includes('from "./admin-common-components"') &&

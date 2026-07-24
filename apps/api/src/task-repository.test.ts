@@ -50,6 +50,7 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
     },
     readTaskRecords: async () => [],
     writeTaskRecords: async () => undefined,
+    readTaskExecutionCatalog: async () => ({ providers: [], models: [] }),
     readTaskOwnerRecords: async () => ({ users: [], userGroups: [] }),
     toAdminTaskRecord: (row: TaskPostgresRowShape) => taskRecord({
       id: row.id,
@@ -61,6 +62,11 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
       ownerId: row.owner_id || undefined,
       ownerName: row.owner_name || undefined,
       ownerEmail: row.owner_email || undefined,
+      providerId: row.provider_id || undefined,
+      providerName: row.provider_name || undefined,
+      modelId: row.model_id || undefined,
+      modelName: row.model_name || undefined,
+      providerModelId: row.provider_model_id || undefined,
       createdAt: 1,
       updatedAt: 1,
     }),
@@ -77,7 +83,10 @@ function createDeps(overrides: Partial<Parameters<typeof createTaskRepository>[0
       ownerGroupName: task.ownerGroupName,
       ownerDeleted: task.ownerDeleted,
       providerId: task.providerId,
+      providerName: task.providerName,
       modelId: task.modelId,
+      modelName: task.modelName,
+      providerModelId: task.providerModelId,
       displayStatus: task.displayStatus,
       displayMessage: task.displayMessage,
       displayTone: task.displayTone,
@@ -108,9 +117,24 @@ describe("task repository", () => {
       expect(sql).toContain("select t.id");
       expect(sql).not.toMatch(/\bt\.payload\s*,/);
       expect(sql).not.toMatch(/\bt\.result\s*,/);
+      expect(sql).toContain("t.execution_identity_snapshot");
+      expect(sql).toContain("left join xh_providers p on p.id = t.provider_id");
+      expect(sql).toContain("left join xh_models m on m.id = t.model_id");
+      expect(sql).toContain("provider_name");
+      expect(sql).toContain("model_name");
       expect(sql).toContain("t.logs");
       expect(params).toEqual(["queued", "provider-1", "image", 1, 0]);
-      return { rows: [{ id: "task-1", title: "Task One", status: "queued", logs: ["full log"] }] };
+      return { rows: [{
+        id: "task-1",
+        title: "Task One",
+        status: "queued",
+        provider_id: "provider-1",
+        provider_name: "平台一",
+        model_id: "model-1",
+        provider_model_id: "provider/model-1",
+        model_name: "模型一",
+        logs: ["full log"],
+      }] };
     });
     const repo = createTaskRepository(createDeps({
       usePostgresRepository: () => true,
@@ -119,6 +143,11 @@ describe("task repository", () => {
         id: task.id,
         title: task.title,
         status: task.status,
+        providerId: task.providerId,
+        providerName: task.providerName,
+        modelId: task.modelId,
+        modelName: task.modelName,
+        providerModelId: task.providerModelId,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         displayMessage: task.displayMessage,
@@ -140,7 +169,16 @@ describe("task repository", () => {
       capability: "image",
     });
     expect(page).toMatchObject({
-      items: [{ id: "task-1", title: "Task One", status: "queued", displayMessage: "diagnostic", logs: ["full log"] }],
+      items: [{
+        id: "task-1",
+        title: "Task One",
+        status: "queued",
+        providerName: "平台一",
+        modelName: "模型一",
+        providerModelId: "provider/model-1",
+        displayMessage: "diagnostic",
+        logs: ["full log"],
+      }],
       total: 2,
       hasMore: true,
     });
@@ -226,6 +264,53 @@ describe("task repository", () => {
     expect(writeTaskRecords).toHaveBeenCalledWith([
       expect.objectContaining({ id: "task-1", title: "Updated", ownerId: "owner-a" }),
     ]);
+  });
+
+  it("projects file-backed task identities from the catalog and freezes them on insert", async () => {
+    const catalog = {
+      providers: [{ id: "provider-rh", name: "RunningHub" }],
+      models: [{
+        id: "model-rh-video",
+        providerId: "provider-rh",
+        modelId: "/rhart-video-g/image-to-video",
+        displayName: "RH 图生视频",
+      }],
+    };
+    const writeTaskRecords = vi.fn(async () => undefined);
+    const repo = createTaskRepository(createDeps({
+      readTaskRecords: async () => [taskRecord({
+        id: "task-legacy-rh",
+        providerId: "provider-rh",
+        modelId: "model-rh-video",
+      })],
+      writeTaskRecords,
+      readTaskExecutionCatalog: async () => catalog,
+    }));
+
+    const page = await repo.readTaskListPage({ page: 1, pageSize: 20, status: "", providerId: "", capability: "" });
+    expect(page.items[0]).toMatchObject({
+      providerName: "RunningHub",
+      providerModelId: "/rhart-video-g/image-to-video",
+      modelName: "RH 图生视频",
+    });
+
+    await repo.insertTaskRecord(taskRecord({
+      id: "task-new-rh",
+      providerId: "provider-rh",
+      modelId: "model-rh-video",
+    }));
+    expect(writeTaskRecords).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({
+        id: "task-new-rh",
+        providerName: "RunningHub",
+        providerModelId: "/rhart-video-g/image-to-video",
+        modelName: "RH 图生视频",
+        executionIdentitySnapshot: expect.objectContaining({
+          providerName: "RunningHub",
+          modelName: "RH 图生视频",
+        }),
+      }),
+    ]));
   });
 
   it("reads a file-backed task list page with filtering sorting enrichment and pagination", async () => {

@@ -605,7 +605,10 @@ export interface TaskRecord {
   ownerGroupName?: string;
   ownerDeleted?: boolean;
   providerId?: string;
+  providerName?: string;
   modelId?: string;
+  modelName?: string;
+  providerModelId?: string;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
   displayStatus?: string;

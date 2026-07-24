@@ -23,4 +23,25 @@ describe("task finalization", () => {
 
     expect(task).not.toHaveProperty("finalizedAt");
   });
+
+  it("preserves the original execution identity snapshot on retry", () => {
+    const executionIdentitySnapshot = {
+      providerId: "provider-rh",
+      providerName: "RunningHub",
+      modelRecordId: "model-rh-video",
+      providerModelId: "/rhart-video-g/image-to-video",
+      modelName: "RH image to video",
+    };
+    const task = createRetriedTask({
+      id: "task-original",
+      title: "original",
+      status: "failed",
+      executionIdentitySnapshot,
+      logs: [],
+      createdAt: 1,
+      updatedAt: 2,
+    }, { id: "task-retry", ownerId: "admin", now: 3 });
+
+    expect(task.executionIdentitySnapshot).toEqual(executionIdentitySnapshot);
+  });
 });

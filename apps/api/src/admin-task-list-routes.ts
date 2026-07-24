@@ -126,18 +126,18 @@ export function createAdminTaskListRouteHandler(deps: {
       const params: unknown[] = [];
       if (query.status) {
         params.push(query.status);
-        where.push(`status = $${params.length}`);
+        where.push(`t.status = $${params.length}`);
       }
       if (query.providerId) {
         params.push(query.providerId);
-        where.push(`provider_id = $${params.length}`);
+        where.push(`t.provider_id = $${params.length}`);
       }
       if (query.capability) {
         params.push(query.capability);
-        where.push(`coalesce(payload->>'taskCapability', result->>'capability', result->'raw'->>'capability', '') = $${params.length}`);
+        where.push(`coalesce(t.payload->>'taskCapability', t.result->>'capability', t.result->'raw'->>'capability', '') = $${params.length}`);
       }
       const whereSql = where.length > 0 ? `where ${where.join(" and ")}` : "";
-      const totalResult = await pool.query(`select count(*)::int as total from xh_tasks ${whereSql}`, params);
+      const totalResult = await pool.query(`select count(*)::int as total from xh_tasks t ${whereSql}`, params);
       const total = Number(totalResult.rows?.[0]?.total || 0);
       const offset = (query.page - 1) * query.pageSize;
       const pageParams = [...params, query.pageSize, offset];
@@ -147,7 +147,11 @@ export function createAdminTaskListRouteHandler(deps: {
                 t.title,
                 t.status,
                 t.provider_id,
+                t.execution_identity_snapshot,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerName', ''), p.name, t.provider_id, '') as provider_name,
                 t.model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
+                coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
                 t.logs,
                 t.created_at,
                 t.updated_at,
@@ -160,6 +164,8 @@ export function createAdminTaskListRouteHandler(deps: {
          from xh_tasks t
          left join xh_users u on u.id = ${TASK_OWNER_ID_SQL}
          left join xh_user_groups g on g.id = u.group_id
+         left join xh_providers p on p.id = t.provider_id
+         left join xh_models m on m.id = t.model_id
          ${whereSql}
          order by t.created_at desc
          limit $${pageParams.length - 1} offset $${pageParams.length}`,

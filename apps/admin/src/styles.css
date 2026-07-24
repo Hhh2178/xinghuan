@@ -3615,7 +3615,7 @@ td {
 
 .provider-item {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) max-content;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -3665,18 +3665,6 @@ td {
 .provider-copy small {
   color: #93c5fd;
   font-size: 12px;
-}
-
-.provider-item em {
-  flex: 0 0 auto;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: rgba(8, 47, 73, 0.58);
-  color: #a7f3d0;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .catalog-order-actions {
@@ -6707,6 +6695,10 @@ td {
 .task-monitor-row td { vertical-align: middle; }
 .task-monitor-cell { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-monitor-cell--time { min-width: 156px; max-width: 156px; color: #cbd5e1; }
+.task-monitor-identity { display: grid; max-width: 230px; gap: 3px; }
+.task-monitor-identity strong, .task-monitor-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-monitor-identity strong { color: #e5f7ff; font-size: 12px; }
+.task-monitor-identity small { color: #7f9aad; font-size: 10px; }
 .task-monitor-log { min-width: 280px; max-width: 520px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #dbeafe; font: inherit; line-height: 1.55; }
 
 .confirm-icon {

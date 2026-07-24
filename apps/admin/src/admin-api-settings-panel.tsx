@@ -558,10 +558,9 @@ export function ApiSettingsPanel({
                     <KeyRound aria-hidden="true" />
                   </span>
                   <span className="provider-copy">
-                    <strong>{provider.name}</strong>
+                    <strong title={provider.name}>{provider.name}</strong>
                     <small>{provider.baseUrl || "未配置地址"}</small>
                   </span>
-                  <em>{provider.protocol || "openai"}</em>
                 </button>
                 <span className="catalog-order-actions">
                   <button type="button" title="上移平台" onClick={() => moveProvider(provider.id, -1)} disabled={busy || index === 0}>

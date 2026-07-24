@@ -36,6 +36,10 @@ async function run() {
   const addActionIndex = panel.indexOf('<Plus aria-hidden="true" /> 新增平台');
   assert.ok(listIndex > -1 && footerIndex > -1 && addActionIndex > -1, "provider list, footer, and add action should all render");
   assert.ok(listIndex < footerIndex && footerIndex < addActionIndex, "add provider action should render after the scrolling list inside a fixed footer");
+  assert.doesNotMatch(panel, /<em>\{provider\.protocol/, "compact Provider rail must not render protocol badges");
+  assert.doesNotMatch(css, /\.provider-item em\s*\{/, "protocol badge styles must not occupy Provider rail width");
+  assert.match(blockFor(css, ".provider-item"), /grid-template-columns:\s*36px minmax\(0,\s*1fr\);/, "Provider rail must reserve its width for icon and readable service identity");
+  assert.match(panel, /title=\{provider\.name\}/, "full Provider name must remain available when visual truncation is required");
 
   const scrollbarSelectors = css.slice(0, css.indexOf(".admin-shell"));
   assert.ok(scrollbarSelectors.includes(".provider-list"), "provider list should receive custom scrollbar styling");

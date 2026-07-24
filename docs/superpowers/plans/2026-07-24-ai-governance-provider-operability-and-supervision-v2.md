@@ -144,7 +144,7 @@ npm run verify:agent-governance-contract
 
 Expected: documentation and architecture checks pass; later behavior ownership is listed in this plan and stage ledger.
 
-- [ ] **Step 6: Review and commit the planning baseline**
+- [x] **Step 6: Review and commit the planning baseline**
 
 Run `git diff --check`, inspect staged files, then commit only the design/plan/ADR/journal/Harness baseline with:
 
@@ -158,7 +158,7 @@ git commit -m "docs(ai): plan supervision and provider operability v2"
 - Consumes: existing task `provider_id`, model record ID and Provider/model catalogs.
 - Produces: `TaskExecutionIdentitySnapshot`, Admin task projection names and protocol-free Provider rail.
 
-- [ ] **Step 1: Write failing execution identity tests**
+- [x] **Step 1: Write failing execution identity tests**
 
 Cover snapshot-first projection, live-name fallback, deleted Provider/model fallback, retry snapshot preservation and filtering by stable Provider ID.
 
@@ -174,7 +174,7 @@ export interface TaskExecutionIdentitySnapshot {
 }
 ```
 
-- [ ] **Step 2: Run focused tests and confirm RED**
+- [x] **Step 2: Run focused tests and confirm RED**
 
 ```powershell
 npx vitest run apps/api/src/task-execution-identity.test.ts apps/api/src/task-repository.test.ts apps/api/src/admin-task-list-routes.test.ts
@@ -182,23 +182,23 @@ npm run verify:admin-task-panel-contract
 npm run verify:admin-provider-rail-layout
 ```
 
-- [ ] **Step 3: Add migration 043 and repository persistence**
+- [x] **Step 3: Add migration 043 and repository persistence**
 
 Add an `execution_identity_snapshot jsonb not null default '{}'::jsonb` column and any bounded list-query index justified by the final SQL. Centralize normalization in `task-execution-identity.ts`; both PostgreSQL and file fallback paths must produce the same public projection.
 
-- [ ] **Step 4: Join display names in the lightweight Admin list query**
+- [x] **Step 4: Join display names in the lightweight Admin list query**
 
 Join `xh_providers` and `xh_models` without selecting task payload/result. Return snapshot/live/raw fallbacks as `providerName`, `modelName` and `providerModelId` while preserving IDs.
 
-- [ ] **Step 5: Update Admin task list presentation and filtering**
+- [x] **Step 5: Update Admin task list presentation and filtering**
 
 Render human names as primary text, raw IDs as subdued secondary text, and Provider filter options as `{ value: providerId, label: providerName }`.
 
-- [ ] **Step 6: Remove the protocol badge from the Provider rail**
+- [x] **Step 6: Remove the protocol badge from the Provider rail**
 
 Delete `<em>{provider.protocol...}</em>` from the compact rail. Give the name block `min-width: 0`, allow the service name the recovered width, keep full name in `title`, and retain protocol only in the selected Provider editor.
 
-- [ ] **Step 7: Verify focused behavior and build**
+- [x] **Step 7: Verify focused behavior and build**
 
 ```powershell
 npx vitest run apps/api/src/task-execution-identity.test.ts apps/api/src/task-repository.test.ts apps/api/src/admin-task-list-routes.test.ts
@@ -209,7 +209,7 @@ npm run build -w @xinghuan/api
 npm run build -w @xinghuan/admin
 ```
 
-- [ ] **Step 8: Run authenticated PC visual checks and record evidence**
+- [x] **Step 8: Run authenticated PC visual checks and record evidence**
 
 At `1920x1080` and `2560x1440`, verify long Provider names remain readable in the model catalog and Admin task rows show Provider/model names with raw IDs secondary. Record screenshots and console/network state.
 
