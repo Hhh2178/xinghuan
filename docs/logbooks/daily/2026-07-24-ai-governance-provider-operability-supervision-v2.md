@@ -16,7 +16,7 @@
 | Stage | Status | Verification | Evidence | Commit |
 | --- | --- | --- | --- | --- |
 | Architecture and Harness ownership | Complete | Plan + ADR + context + Agent Runtime/governance contracts | `docs/logbooks/validations/2026-07-24-ai-governance-provider-operability-plan.md` | `b23f16e` |
-| Task identity and Provider rail | Complete | 7 files / 25 tests + Admin contracts + type-check/build + PC visual | `docs/logbooks/validations/2026-07-24-task-identity-provider-rail.md` | Pending |
+| Task identity and Provider rail | Complete | 7 files / 25 tests + Admin contracts + type-check/build + PC visual | `docs/logbooks/validations/2026-07-24-task-identity-provider-rail.md` | `d230a0b` |
 | Channel health hierarchy | Pending | Shared UI/Admin tests + PC visual | Pending | Pending |
 | Assistant/supervision governance | Pending | Route/config/permission tests + real assistant | Pending | Pending |
 | RunningHub standard models | Pending | Adapter tests + real image/video | Pending | Pending |

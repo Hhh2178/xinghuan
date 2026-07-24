@@ -52,4 +52,4 @@ The local task fixture remained visible after the task page refresh interval. Br
 
 ## Decision
 
-Task 2 is ready for its local commit. This record does not approve or perform Gray deployment.
+Task 2 implementation was committed locally as `d230a0b` (`fix(admin): make provider and task identities readable`). This record does not approve or perform Gray deployment.

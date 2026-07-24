@@ -213,7 +213,7 @@ npm run build -w @xinghuan/admin
 
 At `1920x1080` and `2560x1440`, verify long Provider names remain readable in the model catalog and Admin task rows show Provider/model names with raw IDs secondary. Record screenshots and console/network state.
 
-- [ ] **Step 9: Review and commit Task 2**
+- [x] **Step 9: Review and commit Task 2**
 
 Run `git diff --check`, source-size/Hotspot checks for touched large files, write the validation log, then commit:
 
