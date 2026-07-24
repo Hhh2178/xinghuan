@@ -6,6 +6,7 @@ import {
   ReactFlowProvider,
   SelectionMode,
   Handle,
+  MiniMap,
   Position,
   addEdge,
   applyEdgeChanges,
@@ -1899,7 +1900,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   );
 
   const handleCanvasPointerMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    lastCanvasPointerRef.current = { x: e.clientX, y: e.clientY };
+    const target = e.target as HTMLElement;
+    if (target.closest('.react-flow__pane, .react-flow__node')) {
+      lastCanvasPointerRef.current = { x: e.clientX, y: e.clientY };
+    }
   }, []);
 
   const onCanvasFileDragOver = useCallback((e: ReactDragEvent) => {
@@ -1961,6 +1965,17 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     };
     const idMap = new Map<string, string>();
     const stamp = Date.now();
+    const sourceBounds = cb.nodes.reduce((bounds, node) => ({
+      minX: Math.min(bounds.minX, node.position?.x ?? 0),
+      minY: Math.min(bounds.minY, node.position?.y ?? 0),
+      maxX: Math.max(bounds.maxX, node.position?.x ?? 0),
+      maxY: Math.max(bounds.maxY, node.position?.y ?? 0),
+    }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+    const pointer = lastCanvasPointerRef.current;
+    const pasteCenter = pointer ? screenToFlowPosition(pointer) : null;
+    const offset = pasteCenter
+      ? { x: pasteCenter.x - (sourceBounds.minX + sourceBounds.maxX) / 2, y: pasteCenter.y - (sourceBounds.minY + sourceBounds.maxY) / 2 }
+      : { x: 40, y: 40 };
     const newNodes = cb.nodes.map((n, idx) => {
       const newId = `${n.type}-${stamp}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
       idMap.set(n.id, newId);
@@ -1969,8 +1984,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         id: newId,
         selected: true,
         position: {
-          x: (n.position?.x ?? 0) + 40,
-          y: (n.position?.y ?? 0) + 40,
+          x: (n.position?.x ?? 0) + offset.x,
+          y: (n.position?.y ?? 0) + offset.y,
         },
         data: sanitize(n.data),
       } as Node;
@@ -2025,7 +2040,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     // 取消其他节点的选中,新粘贴节点设为选中
     setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), ...assignedNewNodes]);
     setEdges((prev) => [...prev, ...newInternalEdges, ...extraEdges]);
-  }, [nodes, assignActiveNodeSerials]);
+  }, [nodes, assignActiveNodeSerials, screenToFlowPosition]);
 
   const handleDuplicate = useCallback(() => {
     handleCopy();
@@ -3645,6 +3660,13 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         defaultEdgeOptions={memoDefaultEdgeOptions}
       >
         <WorkflowRegionLayer />
+        <MiniMap
+          ariaLabel="全局小地图"
+          pannable
+          zoomable
+          maskColor="rgba(4, 8, 10, 0.58)"
+          nodeColor={(node) => node.selected ? '#fbbf24' : '#94a3b8'}
+        />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
