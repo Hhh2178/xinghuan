@@ -592,7 +592,7 @@ git commit -m "test(ai): record real supervision and assistant acceptance"
 - Consumes: all implementation commits and validation logs.
 - Produces: clean local release candidate and an explicit stop before Gray deployment.
 
-- [ ] **Step 1: Run focused contracts again**
+- [x] **Step 1: Run focused contracts again**
 
 ```powershell
 npm run verify:admin-task-panel-contract
@@ -608,7 +608,7 @@ npm run verify:canvas-supervision-diagnostic-contract
 npm run verify:canvas-assistant-chat
 ```
 
-- [ ] **Step 2: Run workspace and project gates**
+- [x] **Step 2: Run workspace and project gates**
 
 ```powershell
 npm run codegraph:sync
@@ -621,7 +621,7 @@ npm run verify:hotspot-watchlist-contract
 npm run verify:dependency-security-baseline
 ```
 
-- [ ] **Step 3: Run full relevant test suite**
+- [x] **Step 3: Run full relevant test suite**
 
 ```powershell
 npm test
@@ -629,11 +629,11 @@ npm run test:canvas-run-postgres-integration
 npm run test:canvas-run-local-e2e
 ```
 
-- [ ] **Step 4: Perform the completion audit**
+- [x] **Step 4: Perform the completion audit**
 
 For every requirement in the design, point to code, test, rendered behavior and real-run evidence. Treat missing or indirect evidence as incomplete. Confirm Production was untouched and no secret/runtime artifact is staged.
 
-- [ ] **Step 5: Run staged safety checks and commit final documentation**
+- [x] **Step 5: Run staged safety checks and commit final documentation**
 
 ```powershell
 npm run verify:no-runtime-artifacts-staged
@@ -643,7 +643,7 @@ git diff --check
 git commit -m "docs(ai): complete provider and supervision v2 evidence"
 ```
 
-- [ ] **Step 6: Stop at the Gray deployment gate**
+- [x] **Step 6: Stop at the Gray deployment gate**
 
 Do not run release preparation or deployment. Report the local commit, test matrix, real-model evidence and remaining risks to the user. Wait for explicit Gray deployment approval.
 

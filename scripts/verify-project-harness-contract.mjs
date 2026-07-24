@@ -53,7 +53,7 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:project"],
-  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:domain-context-and-adr-contract && npm run verify:generation-artifact-framework-contract && npm run verify:channel-health-contract && npm run verify:agent-runtime-architecture-contract && npm run verify:assistant-content-contract && npm run verify:agent-governance-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run verify:canvas-workflow-capabilities-contract && npm run verify:catalog-display-order-contract && npm run harness:verify:quick",
+  "npm run verify:project-harness-contract && npm run verify:documentation-entry-contract && npm run verify:domain-context-and-adr-contract && npm run verify:generation-artifact-framework-contract && npm run verify:channel-health-contract && npm run verify:agent-runtime-architecture-contract && npm run verify:assistant-content-contract && npm run verify:agent-governance-contract && npm run verify:ai-governance-provider-operability-plan-contract && npm run verify:visual-design-docs-contract && npm run verify:design-token-docs-contract && npm run verify:component-registry-docs-contract && npm run verify:system-doc-template-contract && npm run verify:harness-doc-sync-contract && npm run verify:canvas-workflow-capabilities-contract && npm run verify:catalog-display-order-contract && npm run harness:verify:quick",
   "project harness should expose project verification chain with documentation contracts",
 );
 assert.match(
@@ -90,6 +90,11 @@ assert.match(
   scripts["harness:verify:project"],
   /verify:agent-governance-contract/,
   "project harness should include Agent governance contract",
+);
+assert.match(
+  scripts["harness:verify:project"],
+  /verify:ai-governance-provider-operability-plan-contract/,
+  "project harness should include AI governance provider operability plan contract",
 );
 assert.match(
   scripts["harness:verify:project"],
