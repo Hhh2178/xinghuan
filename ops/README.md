@@ -29,7 +29,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.7.40`
   - release：`20260724-canvas-run-progress-lock-gray-r1-v0740`
-  - 状态：`待部署：Canvas Run 批量进度原子去重`
+  - 状态：`已部署：Canvas Run 批量进度原子去重；待补一次认证 UI 基数复测`
   - 当前补修：`仅结构化匹配的 output-auto/e-auto 展示叶子可留在区域外；普通跨区域 Output 连线继续拒绝`
   - 本轮制品源提交：`88a75ad`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`

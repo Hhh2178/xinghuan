@@ -23,7 +23,7 @@
 
 - 版本：`v0.7.40`
 - release：`20260724-canvas-run-progress-lock-gray-r1-v0740`
-- 当前状态：`待部署：Canvas Run 批量进度原子去重`
+- 当前状态：`已部署：Canvas Run 批量进度原子去重；待补一次认证 UI 基数复测`
 - 部署内容：`Workflow Region 变量与确定性阶段、有限 AI 托管、显式智能候选门、选中 Run 投影隔离、批量计费和四域 Admin 治理`
 - 已验证：`正式 UI 双候选 AI Top 1、selected/not_selected、0.92 置信度、0.320000 CNY、不同 Workflow 并发、Last-Event-ID 续传、Worker 零重启、1080p/2K 无重叠溢出、v0.7.32 无付费 text Run 的计划/取消/事件流/完成/删除临时画布、540 tests、完整 build 与三层 Harness`
 - 部署时间：`2026-07-24`
