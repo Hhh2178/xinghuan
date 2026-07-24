@@ -1,8 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvasRunCoordinator, mergeUpstreamPayload } from './canvas-run-coordinator.js';
+import { createCanvasRunCoordinator, mergeUpstreamPayload, resolveResizeImageUrl } from './canvas-run-coordinator.js';
 
 describe('canvas run coordinator', () => {
+  it('uses an owner-scoped materialized image before remote provider URLs for resize', () => {
+    expect(resolveResizeImageUrl({}, [{
+      imageUrls: ['https://provider.example/image.jpg'],
+      materializedImageUrls: ['/files/output/current-owner.png'],
+    }])).toBe('/files/output/current-owner.png');
+  });
+
   it('binds upstream media and text without overwriting explicit inputs', () => {
     const payload = { images: ['explicit.png'] } as Record<string, unknown>;
     mergeUpstreamPayload(payload, [

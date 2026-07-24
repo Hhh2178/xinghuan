@@ -656,6 +656,13 @@ function runningHubScalar(value: unknown): string | number | boolean | undefined
 }
 function firstArrayValue(value: unknown) { return Array.isArray(value) ? text(value[0]) : ''; }
 
+export function resolveResizeImageUrl(payload: Record<string, unknown>, upstreamOutputs: Record<string, unknown>[]) {
+  return text(payload.imageUrl)
+    || firstArrayValue(payload.imageUrls)
+    || collectUrls(upstreamOutputs, ['materializedImageUrls', 'imageUrls', 'images'])[0]
+    || '';
+}
+
 async function buildDeterministicOutput(client: PoolClient, step: StepRow, dataDir: string) {
   const planStep = planSteps(step.plan_snapshot).find((item) => item.id === step.step_key || item.nodeId === step.node_id) || {};
   const upstream = await client.query<{ output_binding: Record<string, unknown> }>(
@@ -666,7 +673,7 @@ async function buildDeterministicOutput(client: PoolClient, step: StepRow, dataD
   const upstreamOutputs = upstream.rows.map((row) => object(row.output_binding));
   if (step.node_type === 'resize') {
     const payload = object(object(planStep.configuration).executionPayload);
-    const imageUrl = text(payload.imageUrl) || firstArrayValue(payload.imageUrls) || collectUrls(upstreamOutputs, ['imageUrls', 'images'])[0] || '';
+    const imageUrl = resolveResizeImageUrl(payload, upstreamOutputs);
     if (!imageUrl) throw new Error('CANVAS_RUN_IMAGE_INPUT_REQUIRED');
     return resizeOwnedImage({
       dataDir,

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-24",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "353bad8",
+  "sourceCommit": "d53c474",
   "environments": {
     "gray": {
       "version": "0.7.34",
