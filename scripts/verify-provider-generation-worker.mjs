@@ -14,12 +14,15 @@ assert.match(workerSource, /if \(task\.capability === "audio"\) return executeAu
 assert.match(workerSource, /async function executeAudioTask/);
 assert.match(workerSource, /createOpenAiAudioChatPayload/);
 assert.match(workerSource, /extractAudioProviderResult/);
-assert.match(workerSource, /if \(task\.capability === "chat"\) return executeChatTask\(task\)/);
+assert.match(workerSource, /if \(task\.capability === "chat"\) return executeChatTask\(task(?:, signal)?\)/);
 assert.match(workerSource, /TASK_QUEUE_CAPABILITIES/);
-assert.match(workerSource, /task\.capability === "image" \|\| task\.capability === "audio" \|\| task\.capability === "video"/);
+assert.match(workerSource, /TASK_QUEUE_CAPABILITIES\.includes\(task\.capability as TaskQueueCapability\)/);
+assert.match(workerSource, /if \(task\.capability === "image"\) return executeImageTask\(task\)/);
+assert.match(workerSource, /if \(task\.capability === "video"\) return executeVideoTask\(task\)/);
 assert.match(workerSource, /slotIndex/);
 assert.match(workerSource, /buildTaskQueueRuntimeDescriptors/);
-assert.match(workerSource, /const backgroundLoops = staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 \? \[runStaleTaskReaperLoop\(\)\] : \[\]/);
+assert.match(workerSource, /const backgroundLoops = \[/);
+assert.match(workerSource, /staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 \? \[runStaleTaskReaperLoop\(\)\] : \[\]/);
 assert.match(workerSource, /Promise\.allSettled\(\[\.\.\.workerLoops, \.\.\.backgroundLoops\]\)/);
 assert.match(workerSource, /readTaskQueueSettings/);
 assert.match(workerSource, /touchTaskRuntime,\s*\n\s*touchQueuedTaskRuntime,/);

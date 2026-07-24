@@ -281,7 +281,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const ui = uiMetadataFromSchema(parameterSchema, "image");
     const requestedSize = deps.safeText(body.size || params.size || params.image_size);
     const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
-    const count = clampInteger(body.n, 1, 4, 1);
+    const generationCount = clampInteger(body.generationCount ?? body.n, 1, 4, 1);
     const images = deps.normalizeProviderReferenceUrls(
       Array.isArray(body.images)
         ? body.images.map((item) => deps.safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4)
@@ -294,7 +294,9 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       ...advancedConfig,
       ...params,
       prompt,
-      n: count,
+      // Keep n for provider compatibility while making batch intent explicit to the Worker.
+      n: generationCount,
+      generationCount,
       size,
       images,
       taskCapability: "image",
@@ -412,10 +414,13 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const resolution = ui.resolutionOptions.length > 0
       ? (ui.resolutionOptions.includes(requestedResolution) ? requestedResolution : ui.defaultResolution)
       : "";
+    const generationCount = clampInteger(body.generationCount ?? body.n, 1, 4, 1);
     const payload: Record<string, unknown> = {
       ...advancedConfig,
       ...params,
       prompt,
+      n: generationCount,
+      generationCount,
       aspect_ratio: ratio,
       ratio,
       duration,
