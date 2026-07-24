@@ -12,7 +12,7 @@ export function readCanvasRunTaskProgress(value: unknown): CanvasRunTaskProgress
 
   const completed = Math.min(
     total,
-    positive(batch.completed) || positive(result.completedGenerationCount) || 0,
+    positive(batch.completed) || positive(result.completedGenerationCount) || positive(result.completed) || 0,
   );
   const providerRequestCount = positive(batch.providerRequestCount) || positive(result.providerRequestCount) || 0;
   return { completed, total, providerRequestCount };
