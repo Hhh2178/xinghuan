@@ -2,47 +2,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import type { Pool } from "pg";
 import type { TaskQueueSettings } from "@xinghuan/shared";
 import { defaultTaskQueueSettings, normalizeTaskQueueSettings } from "@xinghuan/shared";
+import type { AssistantSettingsRecord } from "./assistant-settings-domain.js";
 
-export interface AssistantFrontendSettingsRecord {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  allowWorkflowAttachment: boolean;
-  allowNodeAttachment: boolean;
-  allowMediaAttachment: boolean;
-  persistMemory: false;
-}
-
-export interface AssistantBackendSettingsRecord {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  defaultOpen: boolean;
-  allowProviderContext: boolean;
-  allowModelContext: boolean;
-  allowTaskContext: boolean;
-  allowUserContext: boolean;
-  allowAuditContext: boolean;
-}
-
-export interface AssistantIntegrationSettingsRecord {
-  runtime: "internal";
-  assistantAgentKey: string;
-  providerAnalysisAgentKey: string;
-  knowledgeProfile: string;
-  persistMemory: false;
-  strictMode: boolean;
-}
-
-export interface AssistantSettingsRecord {
-  frontend: AssistantFrontendSettingsRecord;
-  backend: AssistantBackendSettingsRecord;
-  integration: AssistantIntegrationSettingsRecord;
-  updatedAt: number;
-  revision: number;
-}
+export type { AssistantSettingsRecord } from "./assistant-settings-domain.js";
 
 export interface SystemSettingsRecord {
   taskQueueSettings: TaskQueueSettings;

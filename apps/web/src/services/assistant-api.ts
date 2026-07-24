@@ -34,8 +34,7 @@ export interface PublicAssistantSettings {
   };
   integration: {
     runtime: 'internal';
-    assistantAgentKey: string;
-    providerAnalysisAgentKey: string;
+    frontendAssistantAgentKey: string;
     knowledgeProfile: string;
     persistMemory: false;
     strictMode: boolean;

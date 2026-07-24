@@ -174,6 +174,12 @@ import {
   type CanvasSnapshotRecoveryCandidate,
 } from "./canvas-snapshot-recovery.js";
 import { createSettingsRepository } from "./settings-repository.js";
+import {
+  assistantAgentKeyForScope,
+  defaultAssistantSettings,
+  normalizeAssistantSettings,
+  type AssistantSettingsRecord,
+} from "./assistant-settings-domain.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
 import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } from "./comfyui-instance-routes.js";
@@ -1130,47 +1136,6 @@ interface RequestContext {
   startedAt: number;
   userId?: string;
   userEmail?: string;
-}
-
-interface AssistantFrontendSettingsRecord {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  allowWorkflowAttachment: boolean;
-  allowNodeAttachment: boolean;
-  allowMediaAttachment: boolean;
-  persistMemory: false;
-}
-
-interface AssistantBackendSettingsRecord {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  defaultOpen: boolean;
-  allowProviderContext: boolean;
-  allowModelContext: boolean;
-  allowTaskContext: boolean;
-  allowUserContext: boolean;
-  allowAuditContext: boolean;
-}
-
-interface AssistantIntegrationSettingsRecord {
-  runtime: "internal";
-  assistantAgentKey: string;
-  providerAnalysisAgentKey: string;
-  knowledgeProfile: string;
-  persistMemory: false;
-  strictMode: boolean;
-}
-
-interface AssistantSettingsRecord {
-  frontend: AssistantFrontendSettingsRecord;
-  backend: AssistantBackendSettingsRecord;
-  integration: AssistantIntegrationSettingsRecord;
-  updatedAt: number;
-  revision: number;
 }
 
 interface AssistantAnalyzeRequest {
@@ -6105,43 +6070,6 @@ function defaultAdminDb(): AdminDb {
   };
 }
 
-function defaultAssistantSettings(): AssistantSettingsRecord {
-  return {
-    frontend: {
-      enabled: true,
-      title: "画布 AI 助手",
-      hint: "",
-      placeholder: "输入问题或要求",
-      allowWorkflowAttachment: true,
-      allowNodeAttachment: true,
-      allowMediaAttachment: true,
-      persistMemory: false,
-    },
-    backend: {
-      enabled: true,
-      title: "后台 AI 助手",
-      hint: "",
-      placeholder: "输入问题或要求",
-      defaultOpen: true,
-      allowProviderContext: true,
-      allowModelContext: true,
-      allowTaskContext: true,
-      allowUserContext: true,
-      allowAuditContext: true,
-    },
-    integration: {
-      runtime: "internal",
-      assistantAgentKey: "assistant-planner",
-      providerAnalysisAgentKey: "provider-analysis-planner",
-      knowledgeProfile: "public-canvas",
-      persistMemory: false,
-      strictMode: true,
-    },
-    updatedAt: Date.now(),
-    revision: 1,
-  };
-}
-
 function maskAssistantEndpoint(settings: AssistantSettingsRecord): AssistantSettingsRecord {
   return settings;
 }
@@ -6149,55 +6077,15 @@ function maskAssistantEndpoint(settings: AssistantSettingsRecord): AssistantSett
 function toPublicAssistantSettings(settings: AssistantSettingsRecord) {
   return {
     frontend: settings.frontend,
-    integration: settings.integration,
+    integration: {
+      runtime: settings.integration.runtime,
+      frontendAssistantAgentKey: settings.integration.frontendAssistantAgentKey,
+      knowledgeProfile: settings.integration.knowledgeProfile,
+      persistMemory: false as const,
+      strictMode: settings.integration.strictMode,
+    },
     updatedAt: settings.updatedAt,
     revision: settings.revision,
-  };
-}
-
-function normalizeAssistantSettings(
-  value: unknown,
-  base: AssistantSettingsRecord = defaultAssistantSettings(),
-): AssistantSettingsRecord {
-  const source = plainObject(value);
-  const frontendSource = plainObject(source.frontend);
-  const backendSource = plainObject(source.backend);
-  const integrationSource = plainObject(source.integration);
-  return {
-    frontend: {
-      enabled: booleanValue(frontendSource.enabled, base.frontend.enabled),
-      title: safeText(frontendSource.title, base.frontend.title),
-      hint: safeText(frontendSource.hint, base.frontend.hint),
-      placeholder: safeText(frontendSource.placeholder, base.frontend.placeholder),
-      allowWorkflowAttachment: booleanValue(frontendSource.allowWorkflowAttachment, base.frontend.allowWorkflowAttachment),
-      allowNodeAttachment: booleanValue(frontendSource.allowNodeAttachment, base.frontend.allowNodeAttachment),
-      allowMediaAttachment: booleanValue(frontendSource.allowMediaAttachment, base.frontend.allowMediaAttachment),
-      persistMemory: false,
-    },
-    backend: {
-      enabled: booleanValue(backendSource.enabled, base.backend.enabled),
-      title: safeText(backendSource.title, base.backend.title),
-      hint: safeText(backendSource.hint, base.backend.hint),
-      placeholder: safeText(backendSource.placeholder, base.backend.placeholder),
-      defaultOpen: booleanValue(backendSource.defaultOpen, base.backend.defaultOpen),
-      allowProviderContext: booleanValue(backendSource.allowProviderContext, base.backend.allowProviderContext),
-      allowModelContext: booleanValue(backendSource.allowModelContext, base.backend.allowModelContext),
-      allowTaskContext: booleanValue(backendSource.allowTaskContext, base.backend.allowTaskContext),
-      allowUserContext: booleanValue(backendSource.allowUserContext, base.backend.allowUserContext),
-      allowAuditContext: booleanValue(backendSource.allowAuditContext, base.backend.allowAuditContext),
-    },
-    integration: {
-      runtime: "internal",
-      assistantAgentKey: "assistant-planner",
-      providerAnalysisAgentKey: safeText(integrationSource.providerAnalysisAgentKey, base.integration.providerAnalysisAgentKey || "provider-analysis-planner"),
-      knowledgeProfile: safeText(integrationSource.knowledgeProfile, base.integration.knowledgeProfile || "public-canvas"),
-      persistMemory: false,
-      strictMode: booleanValue(integrationSource.strictMode, base.integration.strictMode),
-    },
-    updatedAt: Number.isFinite(source.updatedAt) ? Number(source.updatedAt) : Date.now(),
-    revision: Number.isFinite(source.revision) && Number(source.revision) > 0
-      ? Math.floor(Number(source.revision))
-      : (Number.isFinite(base.revision) && base.revision > 0 ? Math.floor(base.revision) : 1),
   };
 }
 
@@ -9365,7 +9253,7 @@ async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser,
         maxTokens: 8_000,
         timeoutMs: 120_000,
       },
-      agentKey: "assistant-planner",
+      agentKey: assistantAgentKeyForScope(settings, input.scope),
       environment: environment === "production" ? "production" : "gray",
       idempotencyKey: assistantAgentIdempotencyKey(input, actor),
       messages: [

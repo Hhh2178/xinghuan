@@ -1,33 +1,47 @@
 import { readFile } from "node:fs/promises";
 
 async function main() {
-  const [mainSource, panelSource, settingsSource, styleSource] = await Promise.all([
+  const [mainSource, panelSource, workspaceSource, supervisionSource, styleSource] = await Promise.all([
     readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-assistant-panel.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../apps/admin/src/admin-assistant-settings-panel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/admin/src/admin-assistant-governance-workspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/admin/src/admin-agent-governance-workspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/styles.css", import.meta.url), "utf8"),
   ]);
 
   const checks = [
     [
-      "Admin app still mounts docked assistant panel and dedicated assistant settings page",
+      "Admin app mounts the docked assistant and the separated assistant governance workspace",
       mainSource.includes("import { AdminAssistantPanel } from \"./admin-assistant-panel\";") &&
         mainSource.includes("<AdminAssistantPanel") &&
-        mainSource.includes('activeTab === "assistant"'),
+        mainSource.includes("AdminAssistantGovernanceWorkspace") &&
+        !mainSource.includes("AdminAssistantSettingsPanel"),
     ],
     [
-      "Admin assistant nav item opens a real page and dock toggle is not duplicated in the topbar",
+      "Admin assistant dock toggle remains available from the topbar",
       mainSource.includes("const [assistantOpen, setAssistantOpen]") &&
-        mainSource.includes('title={assistantOpen ? "收起 AI 助手" : "展开 AI 助手"}') &&
-        mainSource.includes('activeTab === "assistant"'),
+        mainSource.includes('title={assistantOpen ? "收起 AI 助手" : "展开 AI 助手"}'),
     ],
     [
-      "Admin assistant settings page exposes frontend, backend, integration and explicit save actions",
-      settingsSource.includes("创作侧助手") &&
-        settingsSource.includes("后台审计助手") &&
-        settingsSource.includes("内部 Agent 接入") &&
-        settingsSource.includes("保存 AI 助手配置") &&
-        settingsSource.includes("重置未保存修改"),
+      "Assistant governance separates frontend and backend configuration with matching editors",
+      workspaceSource.includes("创作侧助手") &&
+        workspaceSource.includes("后台 AI 助手") &&
+        workspaceSource.includes("frontendAssistantAgentKey") &&
+        workspaceSource.includes("backendAssistantAgentKey") &&
+        workspaceSource.includes("AdminAgentRoleConfigurationEditor") &&
+        workspaceSource.includes("AdminAgentPoolEditor") &&
+        workspaceSource.includes('publicationMode="read-only"') &&
+        workspaceSource.includes("保存当前助手设置"),
+    ],
+    [
+      "Assistant governance remounts editors when switching assistant surfaces",
+      workspaceSource.includes('key={definition.id}') &&
+        workspaceSource.includes('key={pools.map((pool) => pool.poolKey).join(":")}'),
+    ],
+    [
+      "Supervision governance copy owns planning, recovery and candidate evaluation",
+      supervisionSource.includes("托管分析、失败恢复和候选评估") &&
+        !supervisionSource.includes("只管理助手诊断、失败恢复和候选评估"),
     ],
     [
       "Admin assistant uses right-side chat composer",
@@ -66,8 +80,8 @@ async function main() {
       "Admin assistant UI hides implementation labels and process output",
       panelSource.includes('mode?: "agent" | "fallback"') &&
         !panelSource.includes(">Fallback<") &&
-        settingsSource.includes("项目内 Agent Runtime") &&
-        !settingsSource.includes(">Fallback<") &&
+        workspaceSource.includes("项目内 Agent Runtime") &&
+        !workspaceSource.includes(">Fallback<") &&
         !panelSource.includes("<summary>过程</summary>") &&
         !panelSource.includes("assistant-process-block"),
     ],
@@ -93,7 +107,7 @@ async function main() {
     [
       "Admin assistant settings copy avoids debug and acceptance wording",
       ["测试", "验收", "前端助手", "Fallback", "过程"].every(
-        (banned) => !panelSource.includes(`>${banned}<`) && !settingsSource.includes(`>${banned}<`),
+        (banned) => !panelSource.includes(`>${banned}<`) && !workspaceSource.includes(`>${banned}<`),
       ),
     ],
     [

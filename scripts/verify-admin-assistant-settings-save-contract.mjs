@@ -11,7 +11,7 @@ async function main() {
     "utf8",
   );
   const settingsSource = await readFile(
-    new URL("../apps/admin/src/admin-assistant-settings-panel.tsx", import.meta.url),
+    new URL("../apps/admin/src/admin-assistant-governance-workspace.tsx", import.meta.url),
     "utf8",
   );
 
@@ -67,9 +67,9 @@ async function main() {
         !settingsSource.includes('onChange={(checked) => void onSave('),
     ],
     [
-      "Assistant settings panel exposes explicit save action",
-      settingsSource.includes("保存 AI 助手配置") &&
-        settingsSource.includes("assistant-settings-actions"),
+      "Assistant governance workspace exposes explicit scoped save action",
+      settingsSource.includes("保存当前助手设置") &&
+        settingsSource.includes("assistant-governance-settings__actions"),
     ],
   ];
 

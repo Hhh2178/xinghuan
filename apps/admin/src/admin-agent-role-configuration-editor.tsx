@@ -15,9 +15,10 @@ interface Props {
   value: AgentRoleWorkspaceData;
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
+  publicationMode?: "manage" | "read-only";
 }
 
-export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props) {
+export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publicationMode = "manage" }: Props) {
   const [selectedDefinitionId, setSelectedDefinitionId] = useState(value.definitions[0]?.id || "");
   const definition = value.definitions.find((item) => item.id === selectedDefinitionId) || value.definitions[0];
   const [sourceVersionId, setSourceVersionId] = useState(definition?.versions[0]?.id || "");
@@ -79,12 +80,12 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate }: Props
       </section>
 
       <div className="agent-config-editor__actions"><button type="button" className="primary-action" disabled={busy || diff.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createRoleVersion(definition.id, normalizeAgentRuntimeConfiguration(draft)))}><Save />保存为新草稿</button></div>
-      <div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} />)}</div>
+      <div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div>
     </div>
   </div>;
 }
 
-function RoleVersionRow({ definition, version, busy, mutate }: { definition: AgentDefinition; version: AgentDefinition["versions"][number]; busy: boolean; mutate: Props["mutate"] }) {
+function RoleVersionRow({ definition, version, busy, mutate, publicationMode }: { definition: AgentDefinition; version: AgentDefinition["versions"][number]; busy: boolean; mutate: Props["mutate"]; publicationMode: NonNullable<Props["publicationMode"]> }) {
   const publications: Array<{ environment: AgentEnvironment }> = definition.publications.filter((item) => item.configurationVersionId === version.id);
   const activeVersion = (environment: AgentEnvironment) => {
     const publication = definition.publications.find((item) => item.environment === environment);
@@ -105,8 +106,8 @@ function RoleVersionRow({ definition, version, busy, mutate }: { definition: Age
   return <div className="agent-version-row"><div><strong>v{version.version}</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><div className="agent-inline-actions">
     {version.status === "draft" ? <button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "review"))}>送审</button> : null}
     {version.status === "review" ? <><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "draft"))}>退回</button><button type="button" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.transitionRoleVersion(version.id, "approved"))}><Check />批准</button></> : null}
-    {version.status === "approved" && !publications.some((item) => item.environment === "gray") ? <button type="button" disabled={busy} onClick={() => publish("gray")}>{actionLabel("gray")}</button> : null}
-    {version.status === "approved" && !publications.some((item) => item.environment === "production") ? <button type="button" disabled={busy} onClick={() => publish("production")}>{actionLabel("production")}</button> : null}
+    {publicationMode === "manage" && version.status === "approved" && !publications.some((item) => item.environment === "gray") ? <button type="button" disabled={busy} onClick={() => publish("gray")}>{actionLabel("gray")}</button> : null}
+    {publicationMode === "manage" && version.status === "approved" && !publications.some((item) => item.environment === "production") ? <button type="button" disabled={busy} onClick={() => publish("production")}>{actionLabel("production")}</button> : null}
   </div></div>;
 }
 

@@ -61,7 +61,7 @@ const ApiSettingsPanel = lazy(createAdminLazyImportWithRecovery(() => import("./
 const AdminRunningHubWorkspace = lazy(createAdminLazyImportWithRecovery(() => import("./admin-runninghub-workspace").then((module) => ({ default: module.AdminRunningHubWorkspace })), { recoveryId: "runninghub" }));
 const AdminComfyuiInstancesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-comfyui-instances-panel"), { recoveryId: "comfyui" }));
 const AdminPublicResourcesPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-public-resources-panel").then((module) => ({ default: module.AdminPublicResourcesPanel })), { recoveryId: "resources" }));
-const AdminAssistantSettingsPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-assistant-settings-panel").then((module) => ({ default: module.AdminAssistantSettingsPanel })), { recoveryId: "assistant" }));
+const AdminAssistantGovernanceWorkspace = lazy(createAdminLazyImportWithRecovery(() => import("./admin-assistant-governance-workspace").then((module) => ({ default: module.AdminAssistantGovernanceWorkspace })), { recoveryId: "assistant-governance" }));
 const AdminAgentGovernanceWorkspace = lazy(createAdminLazyImportWithRecovery(() => import("./admin-agent-governance-workspace").then((module) => ({ default: module.AdminAgentGovernanceWorkspace })), { recoveryId: "agent-runtime" }));
 const AdminAnnouncementPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-announcement-panel").then((module) => ({ default: module.AdminAnnouncementPanel })), { recoveryId: "announcements" }));
 const TasksPanel = lazy(createAdminLazyImportWithRecovery(() => import("./admin-task-panel").then((module) => ({ default: module.TasksPanel })), { recoveryId: "tasks" }));
@@ -227,7 +227,8 @@ function defaultAssistantSettings(): AssistantSettings {
     },
     integration: {
       runtime: "internal",
-      assistantAgentKey: "assistant-planner",
+      frontendAssistantAgentKey: "assistant-planner",
+      backendAssistantAgentKey: "admin-assistant-planner",
       providerAnalysisAgentKey: "provider-analysis-planner",
       knowledgeProfile: "public-canvas",
       persistMemory: false,
@@ -613,7 +614,7 @@ function AdminApp() {
       </aside>
 
       <div className={`admin-workspace${assistantOpen ? " admin-workspace--with-assistant" : ""}`}>
-        <main className={`admin-main${activeTab === "assistant" ? " admin-main--assistant-settings" : ""}`}>
+        <main className={`admin-main${activeAgentRuntimeView === "assistants" ? " admin-main--assistant-settings" : ""}`}>
           <header className="starlight-topbar admin-topbar">
             <div>
               <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>
@@ -722,9 +723,10 @@ function AdminApp() {
           {activeTab === "public-resources" ? (
             <AdminPublicResourcesPanel />
           ) : null}
-          {activeTab === "assistant" ? (
-            <AdminAssistantSettingsPanel
+          {activeTab === "agent-runtime" && activeAgentRuntimeView === "assistants" ? (
+            <AdminAssistantGovernanceWorkspace
               settings={assistantSettings}
+              models={models}
               saving={busy}
               onSave={async (next) => {
                 setBusy(true);
@@ -750,7 +752,7 @@ function AdminApp() {
               }}
             />
           ) : null}
-          {activeTab === "agent-runtime" ? (
+          {activeTab === "agent-runtime" && activeAgentRuntimeView !== "assistants" ? (
             <AdminAgentGovernanceWorkspace activeView={activeAgentRuntimeView} models={models} />
           ) : null}
           {activeTab === "announcement" ? (

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readJsonBody } from "./http-session-utils.js";
+import type { AssistantSettingsRecord as AssistantSettingsRecordShape } from "./assistant-settings-domain.js";
 
 export interface CurrentUserShape {
   id: string;
@@ -17,47 +18,6 @@ export interface RequestContextShape {
   startedAt: number;
   userId?: string;
   userEmail?: string;
-}
-
-interface AssistantFrontendSettingsShape {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  allowWorkflowAttachment: boolean;
-  allowNodeAttachment: boolean;
-  allowMediaAttachment: boolean;
-  persistMemory: false;
-}
-
-interface AssistantBackendSettingsShape {
-  enabled: boolean;
-  title: string;
-  hint: string;
-  placeholder: string;
-  defaultOpen: boolean;
-  allowProviderContext: boolean;
-  allowModelContext: boolean;
-  allowTaskContext: boolean;
-  allowUserContext: boolean;
-  allowAuditContext: boolean;
-}
-
-interface AssistantIntegrationSettingsShape {
-  runtime: "internal";
-  assistantAgentKey: string;
-  providerAnalysisAgentKey: string;
-  knowledgeProfile: string;
-  persistMemory: false;
-  strictMode: boolean;
-}
-
-interface AssistantSettingsRecordShape {
-  frontend: AssistantFrontendSettingsShape;
-  backend: AssistantBackendSettingsShape;
-  integration: AssistantIntegrationSettingsShape;
-  updatedAt: number;
-  revision: number;
 }
 
 export interface AdminAssistantSettingsRouteDeps {

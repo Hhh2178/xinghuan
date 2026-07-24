@@ -33,11 +33,11 @@ $env:PWCLI = "C:\Users\Administrator\.codex\skills\playwright\scripts\playwright
 
 `eX`、`eY` 和 `eZ` 是每次 snapshot 产生的临时 ref，必须替换为当前终端输出中的实际值。随后执行：
 
-1. 以 1440x1000 打开标题为“打开画布助手”的 launcher，确认出现 aria-label 为“画布 AI 工作台”的工作台，且其中没有托管 Tab 或 Canvas Run 控制；截取一张截图到 `output/playwright/`。
+1. 以 `1920x1080` 打开标题为“打开画布助手”的 launcher，确认出现 aria-label 为“画布 AI 工作台”的工作台，且其中没有托管 Tab 或 Canvas Run 控制；截取一张截图到 `output/playwright/`。
 2. 在协作 Tab 发送只读问题，确认返回内部 Agent 或受限 fallback 的可解释状态，且没有暴露 Provider Key、内部知识或其他 owner 的数据。
 3. 点击顶部公告旁的 `AI 托管` 独立入口，确认 aria-label 为“AI 托管面板”的面板可独立开关；“生成运行计划”只针对当前画布的 revision，创建后可见 Run Plan、分组顺序、组内拓扑、步骤状态、证据和 SSE 连接状态。
 4. 仅在可丢弃画布且已明确允许执行时，开始一个最小 `native_server` 测试 Run，依次验证暂停、继续、取消以及刷新后仍读取同一服务端权威状态。失败终态必须区分“按原计划重试”的冻结快照和“新建运行计划”的当前工作流修订。不要在此流程验证 `legacy_browser` 节点的页面关闭托管。
-5. 在 PC 桌面视口 `1366x768`、`1440x900` 和 `1920x1080` 分别和同时打开助手/托管面板，检查文本、操作按钮、面板避让与关键画布控件；保存必要的桌面证据。移动端和平板端不属于默认设计与验收范围。
+5. 只在 PC 桌面视口 `1920x1080` 和 `2560x1440` 分别和同时打开助手/托管面板，检查文本、操作按钮、面板避让与关键画布控件；保存必要的桌面证据。其他比例、移动端和平板端不属于默认设计与验收范围。
 6. 每个关键切换后执行 `snapshot`，最终检查 `console` 中是否存在由 Canvas Agent 引入的 error。完成后删除测试画布或按环境数据留存规则处理。
 
 ## 通过标准
@@ -50,4 +50,4 @@ $env:PWCLI = "C:\Users\Administrator\.codex\skills\playwright\scripts\playwright
 
 ## 当前状态
 
-本机隔离环境已完成真实登录与独立双入口验收：悬浮助手不再包含托管 Tab，顶部 `AI 托管` 可单独开关，并在 `1440x900` 同时打开时与助手无重叠。受控 Run/SSE 投影验证了分组、拓扑、步骤证据、关闭后持续订阅和重新打开恢复。此前 `800x1000` 与 `390x844` 的无横向溢出结果保留为历史兼容证据，后续默认只执行 PC 桌面矩阵。浏览器仅保留既有 React Flow 开发警告，不属于 Canvas Agent 运行错误。Worker 结算另由 `test:canvas-run-local-e2e` 的 API/Redis/Worker 联合验收覆盖；Gray 认证业务回归继续记录在当前 Phase 11 validation logbook。
+本机隔离环境已完成真实登录与独立双入口验收：悬浮助手不再包含托管 Tab，顶部 `AI 托管` 可单独开关，受控 Run/SSE 投影验证了分组、拓扑、步骤证据、关闭后持续订阅和重新打开恢复。历史尺寸证据只作历史记录；后续验收严格只执行 `1920x1080` 与 `2560x1440`。Worker 结算另由 `test:canvas-run-local-e2e` 的 API/Redis/Worker 联合验收覆盖；Gray 认证业务回归继续记录在对应 validation logbook。

@@ -64,9 +64,15 @@ const checks = [
       resolveAdminPath("/admin/rh/keys").rhView === "keys" &&
       pathForCapabilitiesView("models") === "/admin/capabilities/models" &&
       resolveAdminPath("/admin/capabilities/models").capabilitiesView === "models" &&
-      pathForAgentRuntimeView("models") === "/admin/automation/models" &&
+      pathForAgentRuntimeView("assistants") === "/admin/automation/assistants" &&
+      pathForAgentRuntimeView("supervision") === "/admin/automation/supervision" &&
+      pathForAgentRuntimeView("activity") === "/admin/automation/activity" &&
+      resolveAdminPath("/admin/automation/assistants").agentRuntimeView === "assistants" &&
+      resolveAdminPath("/admin/automation/supervision").agentRuntimeView === "supervision" &&
       resolveAdminPath("/admin/automation/approvals").agentRuntimeView === "activity" &&
-      resolveAdminPath("/admin/automation/knowledge").agentRuntimeView === "controls" &&
+      resolveAdminPath("/admin/automation/knowledge").agentRuntimeView === "supervision" &&
+      resolveAdminPath("/admin/capabilities/admin-assistant").workspaceId === "automation" &&
+      resolveAdminPath("/admin/capabilities/admin-assistant").agentRuntimeView === "assistants" &&
       pathForAnalyticsView("audit") === "/admin/analytics/audit" &&
       resolveAdminPath("/admin/analytics/audit").analyticsView === "audit" &&
       pathForAnalyticsView("reliability") === "/admin/analytics/reliability" &&
@@ -84,6 +90,12 @@ const checks = [
       resolveAdminPath("/admin/organization/accounts").usersView === "accounts" &&
       pathForUsersView("sessions") === "/admin/organization/sessions" &&
       resolveAdminPath("/admin/system/environment-sync").tabId === "environment-sync",
+  },
+  {
+    name: "Provider and model workspace no longer owns assistant governance",
+    pass:
+      adminWorkspaces.find((workspace) => workspace.id === "capabilities")?.tabs.join(",") === "providers" &&
+      !mainSource.includes("AdminAssistantSettingsPanel"),
   },
   {
     name: "titleFor returns label and fallback",

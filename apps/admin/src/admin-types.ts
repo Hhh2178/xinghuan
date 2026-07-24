@@ -1114,7 +1114,8 @@ export interface AssistantBackendSettings {
 
 export interface AssistantIntegrationSettings {
   runtime: "internal";
-  assistantAgentKey: string;
+  frontendAssistantAgentKey: string;
+  backendAssistantAgentKey: string;
   providerAnalysisAgentKey: string;
   knowledgeProfile: string;
   persistMemory: false;
@@ -1131,7 +1132,7 @@ export interface AssistantSettings {
 
 export interface PublicAssistantSettings {
   frontend: AssistantFrontendSettings;
-  integration: AssistantIntegrationSettings;
+  integration: Omit<AssistantIntegrationSettings, "backendAssistantAgentKey" | "providerAnalysisAgentKey">;
   updatedAt: number;
   revision: number;
 }

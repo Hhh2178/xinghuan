@@ -22,7 +22,8 @@ assert.match(orchestrator, /recordDecision/);
 assert.match(orchestrator, /recordOutcome/);
 assert.match(orchestrator, /ownerId !== actor\.id|ownerId: task\.ownerId/);
 assert.match(routing, /m\.capability = 'chat'/);
-assert.match(routing, /published_production|published_gray/);
+assert.match(routing, /xh_llm_route_pool_publications/);
+assert.match(routing, /pub\.environment = \$3/);
 
 assert.match(types, /mode: "agent" \| "fallback"/);
 assert.match(types, /idempotencyKey\?: string/);

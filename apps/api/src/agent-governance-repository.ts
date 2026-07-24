@@ -85,6 +85,15 @@ export function createAgentGovernanceRepository(deps: {
     return withTransaction(pool, async (client) => {
       let definitionsCreated = 0;
       let configurationsCreated = 0;
+      let routePoolsCreated = 0;
+      for (const routePool of DEFAULT_LLM_ROUTE_POOLS) {
+        const inserted = await client.query(
+          `insert into xh_llm_route_pools (id, pool_key, name, role, scenario, enabled)
+           values ($1, $2, $3, $4, $5, true) on conflict (pool_key) do nothing returning id`,
+          [newId("llm_pool"), routePool.poolKey, routePool.name, routePool.role, routePool.scenario],
+        );
+        routePoolsCreated += inserted.rows.length;
+      }
       for (const definition of DEFAULT_AGENT_DEFINITIONS) {
         const schemas = defaultAgentSchemas(definition.role);
         const inserted = await client.query(
@@ -101,12 +110,12 @@ export function createAgentGovernanceRepository(deps: {
           await client.query(
             `insert into xh_agent_configuration_versions (id, agent_definition_id, version, status, configuration, created_by)
              values ($1, $2, 1, 'draft', $3::jsonb, $4)`,
-            [newId("agent_configuration"), definitionId, JSON.stringify(normalizeAgentRuntimeConfiguration({ toolAllowlist: definition.tools, maxTokens: definition.maxTokens, timeoutMs: 120000 })), actorId],
+            [newId("agent_configuration"), definitionId, JSON.stringify(normalizeAgentRuntimeConfiguration({ toolAllowlist: definition.tools, maxTokens: definition.maxTokens, timeoutMs: 120000, llmPoolKey: definition.llmPoolKey })), actorId],
           );
           configurationsCreated += 1;
         }
       }
-      return { definitionsCreated, configurationsCreated, knowledgeCollectionsCreated: 0 };
+      return { definitionsCreated, configurationsCreated, routePoolsCreated, knowledgeCollectionsCreated: 0 };
     });
   }
 
@@ -668,8 +677,16 @@ async function validateAgentConfigurationReferences(client: Pick<PoolClient, "qu
   }
 }
 
-const DEFAULT_AGENT_DEFINITIONS: Array<{ agentKey: string; name: string; role: AgentRole; description: string; tools: string[]; maxTokens: number }> = [
-  { agentKey: "assistant-planner", name: "画布诊断助手", role: "planner", description: "解释画布与节点错误，给出不修改拓扑的受控建议。", tools: ["knowledge.node.get", "knowledge.model.get"], maxTokens: 8000 },
+const DEFAULT_LLM_ROUTE_POOLS: Array<{ poolKey: string; name: string; role: AgentRole; scenario: string }> = [
+  { poolKey: "assistant-diagnosis", name: "创作侧助手路由", role: "planner", scenario: "assistant-chat" },
+  { poolKey: "admin-assistant-diagnosis", name: "后台助手路由", role: "planner", scenario: "assistant-chat" },
+  { poolKey: "supervision-planning", name: "AI 托管规划路由", role: "planner", scenario: "canvas-supervision-analysis" },
+];
+
+const DEFAULT_AGENT_DEFINITIONS: Array<{ agentKey: string; name: string; role: AgentRole; description: string; tools: string[]; maxTokens: number; llmPoolKey?: string }> = [
+  { agentKey: "assistant-planner", name: "画布诊断助手", role: "planner", description: "解释画布与节点错误，给出不修改拓扑的受控建议。", tools: ["knowledge.node.get", "knowledge.model.get"], maxTokens: 8000, llmPoolKey: "assistant-diagnosis" },
+  { agentKey: "admin-assistant-planner", name: "后台诊断助手", role: "planner", description: "分析后台任务、Provider、模型与审计上下文，给出受控诊断建议。", tools: ["knowledge.model.get"], maxTokens: 8000, llmPoolKey: "admin-assistant-diagnosis" },
+  { agentKey: "supervision-planner", name: "AI 托管规划器", role: "planner", description: "分析工作流依赖、可并发入口、串行约束和执行风险；确定性编译器仍是执行权威。", tools: ["knowledge.node.get", "knowledge.model.get"], maxTokens: 8000, llmPoolKey: "supervision-planning" },
   { agentKey: "provider-analysis-planner", name: "Provider 分析者", role: "planner", description: "分析 Provider 和聊天模型接入配置。", tools: [], maxTokens: 8000 },
   { agentKey: "artifact-image-understanding", name: "图片质量评估者", role: "image_understanding", description: "按已发布图片质量配置生成结构化评分。", tools: ["artifact.evaluate"], maxTokens: 4000 },
   { agentKey: "artifact-video-understanding", name: "视频质量评估者", role: "video_understanding", description: "按时间戳采样帧评估视频质量和时序。", tools: ["artifact.evaluate"], maxTokens: 6000 },

@@ -28,7 +28,8 @@ interface Props { activeView: AdminAgentRuntimeViewId; models: ModelRecord[] }
 type ModelsData = { roles: AgentRoleWorkspaceData; pools: LlmRoutePool[] };
 type PoliciesData = { quality: QualityProfile[]; recovery: AgentRecoveryWorkspaceData };
 type ActivityData = { runs: AgentRunsData; approvals: AgentApproval[]; audit: AgentAuditRecord[] };
-type Data = AgentOverview | ModelsData | PoliciesData | ActivityData;
+type SupervisionData = { overview: AgentOverview; models: ModelsData; policies: PoliciesData };
+type Data = SupervisionData | ActivityData;
 
 export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   const [data, setData] = useState<Data | null>(null);
@@ -41,14 +42,16 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
     setLoading(true); setError("");
     try {
       const next = await ({
-        controls: adminAgentGovernanceApi.overview,
-        models: async () => {
-          const [roles, pools] = await Promise.all([adminAgentGovernanceApi.roleWorkspace(), adminAgentGovernanceApi.pools()]);
-          return { roles, pools };
-        },
-        policies: async () => {
-          const [quality, recovery] = await Promise.all([adminAgentGovernanceApi.qualityProfiles(), adminAgentGovernanceApi.recoveryWorkspace()]);
-          return { quality, recovery };
+        assistants: async () => { throw new Error("ASSISTANT_GOVERNANCE_WORKSPACE_REQUIRED"); },
+        supervision: async () => {
+          const [overview, roles, pools, quality, recovery] = await Promise.all([
+            adminAgentGovernanceApi.overview(),
+            adminAgentGovernanceApi.roleWorkspace(),
+            adminAgentGovernanceApi.pools(),
+            adminAgentGovernanceApi.qualityProfiles(),
+            adminAgentGovernanceApi.recoveryWorkspace(),
+          ]);
+          return { overview, models: { roles, pools }, policies: { quality, recovery } };
         },
         activity: async () => {
           const [runs, approvals, audit] = await Promise.all([adminAgentGovernanceApi.runs(), adminAgentGovernanceApi.approvals(), adminAgentGovernanceApi.audit()]);
@@ -79,9 +82,7 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
       {notice ? <div className="agent-success-banner" role="status">{notice}</div> : null}
       {loading ? <Loading /> : (
         <>
-          {activeView === "controls" ? <OverviewView value={data as AgentOverview} busy={busy} mutate={mutate} /> : null}
-          {activeView === "models" ? <ModelsView value={data as ModelsData} models={models} busy={busy} mutate={mutate} /> : null}
-          {activeView === "policies" ? <PoliciesView value={data as PoliciesData} busy={busy} mutate={mutate} /> : null}
+          {activeView === "supervision" ? <SupervisionView value={data as SupervisionData} models={models} busy={busy} mutate={mutate} /> : null}
           {activeView === "activity" ? <ActivityView value={data as ActivityData} busy={busy} mutate={mutate} /> : null}
         </>
       )}
@@ -89,11 +90,32 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   );
 }
 
+function SupervisionView({ value, models, busy, mutate }: { value: SupervisionData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+  const assistantPoolKeys = new Set(["assistant-diagnosis", "admin-assistant-diagnosis"]);
+  const supervisionPools = value.models.pools.filter((pool) => !assistantPoolKeys.has(pool.poolKey));
+  const supervisionDefinitions = {
+    ...value.models.roles,
+    definitions: value.models.roles.definitions.filter((definition) => !["assistant-planner", "admin-assistant-planner", "provider-analysis-planner"].includes(definition.agentKey)),
+    pools: supervisionPools,
+  };
+  return <div className="agent-governance-stack">
+    <OverviewView value={value.overview} busy={busy} mutate={mutate} />
+    <div className="supervision-execution-policy" aria-label="托管执行并发权威">
+      <div><span>并发输入</span><strong>工作流 stageConcurrency</strong></div>
+      <div><span>平台上限</span><strong>每阶段 1-16</strong></div>
+      <div><span>执行规则</span><strong>新 Run 冻结后生效</strong></div>
+    </div>
+    <SectionHead title="托管 planner 与执行策略" description="管理托管规划、并发边界、质量门、候选选择和恢复策略。助手定义不在此处混合展示。" />
+    <ModelsView value={{ ...value.models, roles: supervisionDefinitions, pools: supervisionPools }} models={models} busy={busy} mutate={mutate} />
+    <PoliciesView value={value.policies} busy={busy} mutate={mutate} />
+  </div>;
+}
+
 function ModelsView({ value, models, busy, mutate }: { value: ModelsData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
   const activeDefinitions = { ...value.roles, definitions: value.roles.definitions.filter((definition) => canvasAgentPurpose(definition.agentKey)) };
   const historicalDefinitions = value.roles.definitions.filter((definition) => !canvasAgentPurpose(definition.agentKey));
   return <div className="agent-governance-stack">
-    <SectionHead title="用途与模型绑定" description="只管理助手诊断、失败恢复和候选评估。配置仅在新 Run 开始时冻结并生效。" />
+    <SectionHead title="用途与模型绑定" description="只管理托管分析、失败恢复和候选评估。配置仅在新 Run 开始时冻结并生效。" />
     <RolesView value={activeDefinitions} busy={busy} mutate={mutate} />
     <SectionHead title="LLM 路由与回退" description="路由池只接受已发布的聊天模型，并在新 Run 开始时锁定版本。" />
     <PoolsView value={value.pools} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} />
@@ -205,8 +227,8 @@ function StatusBadge({ value }: { value: string }) { return <span className={`ag
 function EnvironmentBadge({ value }: { value: AgentEnvironment }) { return <span className={`agent-environment agent-environment--${value}`}>{value === "gray" ? "Gray" : "Production"}</span>; }
 function Empty({ label }: { label: string }) { return <div className="agent-empty"><CirclePause /><span>{label}</span></div>; }
 function Loading() { return <div className="starlight-page-loading"><Loader2 className="spin" />正在加载智能体治理数据...</div>; }
-function viewTitle(view: AdminAgentRuntimeViewId) { return ({ controls: "AI 运行控制", models: "用途与模型绑定", policies: "恢复与候选选择", activity: "运行与审计" })[view]; }
-function viewDescription(view: AdminAgentRuntimeViewId) { return ({ controls: "环境级开关与实时态势", models: "有界用途、发布配置与 LLM 路由", policies: "质量门、有限恢复与人工接管边界", activity: "Workflow Run、Agent Run、审批和动作证据" })[view]; }
+function viewTitle(view: AdminAgentRuntimeViewId) { return ({ assistants: "AI 助手", supervision: "AI 托管与自动化", activity: "运行与审计" })[view]; }
+function viewDescription(view: AdminAgentRuntimeViewId) { return ({ assistants: "创作侧与后台助手治理", supervision: "托管 planner、并发、质量、候选与恢复策略", activity: "Workflow Run、Agent Run、审批和动作证据" })[view]; }
 function statusLabel(value: string) { return ({ enabled: "启用", disabled: "停用", draft: "草稿", review: "审核中", approved: "已批准", retired: "已退役", pending: "待处理", rejected: "已拒绝", cancelled: "已取消", running: "运行中", succeeded: "成功", failed: "失败", queued: "排队", planned: "已计划", paused: "已暂停", awaiting_approval: "等待审批", healthy: "健康", degraded: "降级", circuit_open: "熔断", legacy_browser: "浏览器运行", native_server: "服务端运行", observe: "观察", execute: "执行", modify: "修改", public: "公开", internal: "内部" } as Record<string, string>)[value] || value; }
 function formatTime(value: number) { return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 function sameControl(left: AgentRuntimeControl, right: AgentRuntimeControl) { return left.agentEnabled === right.agentEnabled && left.canvasRunsEnabled === right.canvasRunsEnabled && left.automaticRecoveryEnabled === right.automaticRecoveryEnabled && left.qualityEvaluationEnabled === right.qualityEvaluationEnabled; }

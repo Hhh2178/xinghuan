@@ -273,7 +273,7 @@ git commit -m "fix(channel-health): clarify provider and model hierarchy"
 - Consumes: `AssistantSettings`, versioned Agent definitions, LLM route pools and Agent governance APIs.
 - Produces: separate frontend/backend assistant workspaces, separate supervision workspace and stable legacy route redirect.
 
-- [ ] **Step 1: Write failing IA and configuration projection tests**
+- [x] **Step 1: Write failing IA and configuration projection tests**
 
 Cover:
 
@@ -288,7 +288,7 @@ backend assistant -> admin-assistant-planner
 
 Verify the frontend/backend surface settings and Agent publication states remain distinct.
 
-- [ ] **Step 2: Confirm RED**
+- [x] **Step 2: Confirm RED**
 
 ```powershell
 npm run verify:admin-view-model-contract
@@ -297,27 +297,27 @@ npm run verify:agent-governance-contract
 npm run verify:admin-assistant-ui-contract
 ```
 
-- [ ] **Step 3: Extend assistant settings compatibility**
+- [x] **Step 3: Extend assistant settings compatibility**
 
 Normalize `frontendAssistantAgentKey` and `backendAssistantAgentKey`, preserving the old `assistantAgentKey` as a read fallback only. Route Canvas and Admin chat to separate Agent definitions. Keep knowledge/context permissions enforced by scope on the server.
 
-- [ ] **Step 4: Register and bootstrap the backend assistant purpose**
+- [x] **Step 4: Register and bootstrap the backend assistant purpose**
 
 Add a stable `admin-assistant-planner` definition and route pool template. Bootstrap is idempotent and must never overwrite published versions.
 
-- [ ] **Step 5: Implement the AI Assistant governance workspace**
+- [x] **Step 5: Implement the AI Assistant governance workspace**
 
 Use a frontend/backend segmented control. Compose surface settings with the matching Agent role editor and route pool. Show current Gray/Production publications, but do not publish or modify Production during this work.
 
-- [ ] **Step 6: Refocus the supervision workspace**
+- [x] **Step 6: Refocus the supervision workspace**
 
 Move controls, planner model, maximum parallelism, quality, candidate selection and recovery policies under `AI 托管与自动化`. Move runs, approvals and audit into `运行与审计`. Historical Agent definitions remain read-only.
 
-- [ ] **Step 7: Remove old active UI ownership**
+- [x] **Step 7: Remove old active UI ownership**
 
 Remove `后台 AI 助手` from `Provider 与模型`, stop rendering `AdminAssistantSettingsPanel`, and preserve only a route redirect. Provider/model pages must no longer contain assistant model or policy controls.
 
-- [ ] **Step 8: Verify configuration, permission and builds**
+- [x] **Step 8: Verify configuration, permission and builds**
 
 ```powershell
 npm run verify:admin-view-model-contract
@@ -331,11 +331,11 @@ npm run build -w @xinghuan/api
 npm run build -w @xinghuan/admin
 ```
 
-- [ ] **Step 9: Authenticated behavior and visual acceptance**
+- [x] **Step 9: Authenticated behavior and visual acceptance**
 
 At both PC viewports, inspect both assistant segments, edit and discard a draft safely, verify route pool labels use human model/Provider names, verify legacy route redirect, and confirm Production controls are not used.
 
-- [ ] **Step 10: Record and commit Task 4**
+- [x] **Step 10: Record and commit Task 4**
 
 ```powershell
 git commit -m "feat(agent): separate assistant and supervision governance"

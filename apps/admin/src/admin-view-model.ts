@@ -49,8 +49,8 @@ export type AdminUsersViewId = "overview" | "accounts" | "groups" | "permissions
 export type AdminRhViewId = "workflows" | "apps" | "keys";
 export type AdminAnalyticsViewId = "usage" | "costs" | "reliability" | "audit";
 export type AdminSystemViewId = "health" | "runtime-settings" | "environment-sync";
-export type AdminCapabilitiesViewId = "providers" | "models" | "admin-assistant";
-export type AdminAgentRuntimeViewId = "controls" | "models" | "policies" | "activity";
+export type AdminCapabilitiesViewId = "providers" | "models";
+export type AdminAgentRuntimeViewId = "assistants" | "supervision" | "activity";
 export type StatusTone = "success" | "danger" | "muted" | "warning";
 export type ModelCapability = "chat" | "image" | "video" | "audio";
 export type RefreshPolicyKind = "live" | "manual" | "guarded";
@@ -129,24 +129,23 @@ export const adminWorkspaces: AdminWorkspace[] = [
     id: "capabilities",
     label: "Provider 与模型",
     subtitle: "Provider & Model",
-    description: "Provider 接入、模型目录、能力标签、路由和后台 AI 助手配置。",
+    description: "Provider 接入、模型目录、能力标签和协议配置。",
     icon: KeyRound,
-    tabs: ["providers", "assistant"],
+    tabs: ["providers"],
     tabPaths: {
       providers: "/admin/capabilities/providers",
-      assistant: "/admin/capabilities/admin-assistant",
     },
-    tabLabels: { providers: "Provider 与模型", assistant: "后台 AI 助手" },
+    tabLabels: { providers: "Provider 与模型" },
   },
   {
     id: "automation",
     label: "智能体与自动化",
     subtitle: "Agent Operations",
-    description: "固定 AI 用途、LLM 路由、质量恢复、运行审批和审计治理。",
+    description: "前后台 AI 助手、托管规划、自动化策略、运行审批和审计治理。",
     icon: Route,
     tabs: ["agent-runtime"],
-    tabPaths: { "agent-runtime": "/admin/automation" },
-    tabLabels: { "agent-runtime": "智能体治理" },
+    tabPaths: { "agent-runtime": "/admin/automation/assistants" },
+    tabLabels: { "agent-runtime": "AI 与自动化" },
   },
   {
     id: "rh",
@@ -303,20 +302,18 @@ export const adminSystemViews = [
 export const adminCapabilitiesViews = [
   { id: "providers", label: "Provider 接入", description: "维护接入地址、协议、密钥和健康验证。", path: "/admin/capabilities/providers" },
   { id: "models", label: "模型目录", description: "维护模型能力、参数结构、排序和连通测试。", path: "/admin/capabilities/models" },
-  { id: "admin-assistant", label: "后台 AI 助手", description: "配置后台助手模型、内核和上下文边界。", path: "/admin/capabilities/admin-assistant" },
 ] satisfies Array<{ id: AdminCapabilitiesViewId; label: string; description: string; path: string }>;
 
 export const adminAgentRuntimeViews = [
-  { id: "controls", label: "运行控制", description: "管理环境开关与当前运行态势。", path: "/admin/automation/controls" },
-  { id: "models", label: "模型绑定", description: "维护助手、恢复和候选评估的用途配置与 LLM 路由。", path: "/admin/automation/models" },
-  { id: "policies", label: "恢复与选择", description: "维护质量门、有限恢复和候选选择策略。", path: "/admin/automation/policies" },
+  { id: "assistants", label: "AI 助手", description: "分别管理创作侧和后台助手的内核、模型、策略与上下文权限。", path: "/admin/automation/assistants" },
+  { id: "supervision", label: "AI 托管与自动化", description: "管理托管 planner、并发、质量、候选选择与恢复策略。", path: "/admin/automation/supervision" },
   { id: "activity", label: "运行与审计", description: "查看 Run、审批、恢复决策和不可变审计记录。", path: "/admin/automation/activity" },
 ] satisfies Array<{ id: AdminAgentRuntimeViewId; label: string; description: string; path: string }>;
 
 export const legacyAgentRuntimeViewAliases: Record<string, AdminAgentRuntimeViewId> = {
-  overview: "controls", tools: "controls", nodes: "controls", knowledge: "controls",
-  roles: "models", "llm-routes": "models",
-  quality: "policies", recovery: "policies",
+  overview: "supervision", controls: "supervision", tools: "supervision", nodes: "supervision", knowledge: "supervision",
+  roles: "assistants", models: "assistants", "llm-routes": "assistants",
+  policies: "supervision", quality: "supervision", recovery: "supervision",
   runs: "activity", approvals: "activity", audit: "activity",
 };
 
@@ -368,7 +365,7 @@ export function pathForCapabilitiesView(viewId: AdminCapabilitiesViewId) {
 }
 
 export function pathForAgentRuntimeView(viewId: AdminAgentRuntimeViewId) {
-  return adminAgentRuntimeViews.find((item) => item.id === viewId)?.path || "/admin/automation/controls";
+  return adminAgentRuntimeViews.find((item) => item.id === viewId)?.path || "/admin/automation/assistants";
 }
 
 export function resolveAdminPath(pathname: string): {
@@ -384,6 +381,9 @@ export function resolveAdminPath(pathname: string): {
   agentRuntimeView?: AdminAgentRuntimeViewId;
 } {
   const normalizedPath = pathname.replace(/\/$/, "") || "/admin";
+  if (normalizedPath === "/admin/capabilities/admin-assistant" || normalizedPath.startsWith("/admin/capabilities/admin-assistant/")) {
+    return { workspaceId: "automation", tabId: "agent-runtime", agentRuntimeView: "assistants" };
+  }
   if (normalizedPath === "/admin/content/public-resources" || normalizedPath.startsWith("/admin/content/public-resources/")) {
     return { workspaceId: "resources", tabId: "public-resources" };
   }
@@ -426,16 +426,14 @@ export function resolveAdminPath(pathname: string): {
   const comfyuiDetailTab = comfyuiMatch?.[2] as "config" | "workflows" | "logs" | undefined;
   const capabilitiesView = normalizedPath.startsWith("/admin/capabilities/models")
     ? "models"
-    : normalizedPath.startsWith("/admin/capabilities/admin-assistant")
-      ? "admin-assistant"
-      : normalizedPath.startsWith("/admin/capabilities")
+    : normalizedPath.startsWith("/admin/capabilities")
         ? "providers"
         : undefined;
   const agentRuntimeSegment = normalizedPath.match(/^\/admin\/automation\/([^/]+)/)?.[1];
   const agentRuntimeView = normalizedPath.startsWith("/admin/automation/")
     ? adminAgentRuntimeViews.find((item) => normalizedPath === item.path || normalizedPath.startsWith(`${item.path}/`))?.id
       || (agentRuntimeSegment ? legacyAgentRuntimeViewAliases[agentRuntimeSegment] : undefined)
-    : normalizedPath === "/admin/automation" ? "controls" : undefined;
+    : normalizedPath === "/admin/automation" ? "assistants" : undefined;
   const candidates = adminWorkspaces.flatMap((workspace) =>
     workspace.tabs.map((tabId) => ({
       workspaceId: workspace.id,
@@ -445,13 +443,17 @@ export function resolveAdminPath(pathname: string): {
   ).sort((left, right) => right.path.length - left.path.length);
   const match = candidates.find((candidate) =>
     candidate.path && (normalizedPath === candidate.path || normalizedPath.startsWith(`${candidate.path}/`)),
-  ) || (systemView ? {
+  ) || (agentRuntimeView ? {
+    workspaceId: "automation" as const,
+    tabId: "agent-runtime" as const,
+    path: normalizedPath,
+  } : systemView ? {
     workspaceId: "system" as const,
     tabId: systemView === "environment-sync" ? "environment-sync" as const : "system" as const,
     path: normalizedPath,
   } : capabilitiesView ? {
     workspaceId: "capabilities" as const,
-    tabId: capabilitiesView === "admin-assistant" ? "assistant" as const : "providers" as const,
+    tabId: "providers" as const,
     path: normalizedPath,
   } : undefined);
   return match

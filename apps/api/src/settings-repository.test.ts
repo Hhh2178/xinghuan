@@ -59,7 +59,8 @@ function createDefaultAssistantSettings(): AssistantSettingsRecord {
     },
     integration: {
       runtime: "internal",
-      assistantAgentKey: "assistant-planner",
+      frontendAssistantAgentKey: "assistant-planner",
+      backendAssistantAgentKey: "admin-assistant-planner",
       providerAnalysisAgentKey: "provider-analysis-planner",
       knowledgeProfile: "public-canvas",
       persistMemory: false,

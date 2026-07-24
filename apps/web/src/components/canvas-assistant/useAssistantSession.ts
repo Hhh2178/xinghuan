@@ -24,8 +24,7 @@ const DEFAULT_SETTINGS: PublicAssistantSettings = {
   },
   integration: {
     runtime: 'internal',
-    assistantAgentKey: 'assistant-planner',
-    providerAnalysisAgentKey: 'provider-analysis-planner',
+    frontendAssistantAgentKey: 'assistant-planner',
     knowledgeProfile: 'public-canvas',
     persistMemory: false,
     strictMode: true,

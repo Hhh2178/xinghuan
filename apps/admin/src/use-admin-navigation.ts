@@ -32,7 +32,7 @@ export function useAdminNavigation() {
   const [activeComfyuiInstanceId, setActiveComfyuiInstanceId] = useState(initialRoute.comfyuiInstanceId || "");
   const [activeComfyuiDetailTab, setActiveComfyuiDetailTab] = useState<"config" | "workflows" | "logs">(initialRoute.comfyuiDetailTab || "config");
   const [activeCapabilitiesView, setActiveCapabilitiesView] = useState<AdminCapabilitiesViewId>(initialRoute.capabilitiesView || "providers");
-  const [activeAgentRuntimeView, setActiveAgentRuntimeView] = useState<AdminAgentRuntimeViewId>(initialRoute.agentRuntimeView || "controls");
+  const [activeAgentRuntimeView, setActiveAgentRuntimeView] = useState<AdminAgentRuntimeViewId>(initialRoute.agentRuntimeView || "assistants");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -52,6 +52,8 @@ export function useAdminNavigation() {
     window.addEventListener("popstate", syncRouteFromLocation);
     if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
       window.history.replaceState({}, "", pathForWorkspaceTab("overview", "overview"));
+    } else if (window.location.pathname.startsWith("/admin/capabilities/admin-assistant")) {
+      window.history.replaceState({}, "", pathForAgentRuntimeView("assistants"));
     }
     return () => window.removeEventListener("popstate", syncRouteFromLocation);
   }, []);
@@ -67,8 +69,8 @@ export function useAdminNavigation() {
     if (workspace.id === "analytics") setActiveAnalyticsView("usage");
     if (workspace.id === "system") setActiveSystemView(nextTab === "environment-sync" ? "environment-sync" : "health");
     if (workspace.id === "comfyui") { setActiveComfyuiInstanceId(""); setActiveComfyuiDetailTab("config"); }
-    if (workspace.id === "capabilities") setActiveCapabilitiesView(nextTab === "assistant" ? "admin-assistant" : "providers");
-    if (workspace.id === "automation") setActiveAgentRuntimeView("controls");
+    if (workspace.id === "capabilities") setActiveCapabilitiesView("providers");
+    if (workspace.id === "automation") setActiveAgentRuntimeView("assistants");
     if (typeof window !== "undefined" && window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }
@@ -107,7 +109,7 @@ export function useAdminNavigation() {
 
   function navigateCapabilitiesView(viewId: AdminCapabilitiesViewId) {
     const nextPath = pathForCapabilitiesView(viewId);
-    setActiveWorkspaceId("capabilities"); setActiveTab(viewId === "admin-assistant" ? "assistant" : "providers");
+    setActiveWorkspaceId("capabilities"); setActiveTab("providers");
     setActiveCapabilitiesView(viewId);
     if (typeof window !== "undefined" && window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
   }

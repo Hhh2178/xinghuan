@@ -24,8 +24,8 @@ async function run() {
   assert.match(adminCss, /\.admin-assistant-topbar-toggle\.icon-button[\s\S]*?min-width:\s*108px;/, "admin assistant topbar toggle must not collapse to the generic icon button size");
   assert.match(adminCss, /\.admin-assistant-topbar-toggle span[\s\S]*?min-width:\s*max-content;/, "admin assistant topbar label should stay readable");
   assert.match(adminCss, /\.topbar-actions[\s\S]*?flex-wrap:\s*wrap;/, "admin topbar actions should wrap instead of visually mixing");
-  assert.match(adminCss, /\.assistant-settings-page[\s\S]*?height:\s*100%;[\s\S]*?overflow:\s*auto;/, "assistant settings page should own internal scrolling inside the fixed content slot");
-  assert.doesNotMatch(adminCss, /\.assistant-settings-page[\s\S]*?max-height:\s*calc\(100vh - 120px\);/, "assistant settings page should not create a competing viewport-height scrollbar");
+  assert.match(adminCss, /\.assistant-governance-workspace[\s\S]*?display:\s*grid;/, "assistant governance should use the desktop operational grid");
+  assert.doesNotMatch(adminCss, /\.assistant-governance-workspace[\s\S]*?max-height:\s*calc\(100vh - 120px\);/, "assistant governance should not create a competing viewport-height scrollbar");
   assert.doesNotMatch(adminCss, /\.admin-assistant-dock__toggle\s*\{/, "assistant dock should not expose a second floating toggle that overlaps the header");
   assert.match(adminAssistantPanel, /<details className="admin-assistant-dock__context">/, "assistant context picker should be collapsible");
   assert.match(adminAssistantPanel, /页面 <strong>\{activeTab\}<\/strong>/, "assistant dock should use compact page status chips");

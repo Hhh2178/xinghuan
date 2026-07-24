@@ -15,7 +15,7 @@ const assistantChatRuntime = server.slice(
 
 assert.match(server, /url\.pathname === "\/api\/assistant\/chat\/stream"/);
 assert.match(server, /scenario: "assistant-chat"/);
-assert.match(server, /agentKey: "assistant-planner"/);
+assert.match(server, /agentKey: assistantAgentKeyForScope\(settings, input\.scope\)/);
 assert.match(server, /providerParams: \{ modelRecordId: invocation\.modelRecordId \}/);
 assert.match(server, /AGENT_TOOL_OWNER_MISMATCH/);
 assert.match(server, /buildAssistantChatContentResult\("agent"/);

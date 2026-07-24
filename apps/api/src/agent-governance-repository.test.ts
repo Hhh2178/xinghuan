@@ -7,6 +7,45 @@ function transactionalPool(query: (sql: string, params?: unknown[]) => Promise<{
 }
 
 describe("agent governance repository", () => {
+  it("bootstraps separate backend assistant and supervision planner definitions without overwriting versions", async () => {
+    const inserts: Array<{ sql: string; params?: unknown[] }> = [];
+    const definitionIds = new Map<string, string>();
+    const { pool } = transactionalPool(async (sql, params) => {
+      if (sql === "begin" || sql === "commit") return { rows: [] };
+      if (sql.includes("insert into xh_llm_route_pools")) {
+        inserts.push({ sql, params });
+        return { rows: [{ id: `pool-${String(params?.[1])}` }] };
+      }
+      if (sql.includes("insert into xh_agent_definitions")) {
+        const key = String(params?.[1]);
+        definitionIds.set(key, `definition-${key}`);
+        inserts.push({ sql, params });
+        return { rows: [{ id: `definition-${key}` }] };
+      }
+      if (sql.includes("select id from xh_agent_definitions")) {
+        return { rows: [{ id: definitionIds.get(String(params?.[0])) || `definition-${String(params?.[0])}` }] };
+      }
+      if (sql.includes("select id from xh_agent_configuration_versions")) return { rows: [] };
+      if (sql.includes("insert into xh_agent_configuration_versions")) {
+        inserts.push({ sql, params });
+        return { rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const repository = createAgentGovernanceRepository({ getPostgresPool: async () => pool, newId: (prefix) => `${prefix}-1` });
+
+    await repository.bootstrapDefaults("admin-1");
+
+    expect(inserts.some((entry) => entry.sql.includes("xh_llm_route_pools") && entry.params?.includes("admin-assistant-diagnosis"))).toBe(true);
+    expect(inserts.some((entry) => entry.sql.includes("xh_llm_route_pools") && entry.params?.includes("supervision-planning"))).toBe(true);
+    expect(inserts.some((entry) => entry.sql.includes("xh_agent_definitions") && entry.params?.includes("admin-assistant-planner"))).toBe(true);
+    expect(inserts.some((entry) => entry.sql.includes("xh_agent_definitions") && entry.params?.includes("supervision-planner"))).toBe(true);
+    const backendConfiguration = inserts.find((entry) =>
+      entry.sql.includes("xh_agent_configuration_versions") && String(entry.params?.[1]).includes("admin-assistant-planner"),
+    );
+    expect(JSON.parse(String(backendConfiguration?.params?.[2]))).toMatchObject({ llmPoolKey: "admin-assistant-diagnosis" });
+  });
+
   it("rejects an Agent configuration that references an unregistered tool before writing", async () => {
     const getPostgresPool = vi.fn();
     const repository = createAgentGovernanceRepository({ getPostgresPool: getPostgresPool as any });

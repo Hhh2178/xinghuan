@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-24 local governance checkpoint: Admin assistant governance is now split into `/admin/automation/assistants`, `/admin/automation/supervision` and `/admin/automation/activity`. Frontend and backend assistants keep separate surface settings, Agent definitions and LLM route pools; the old `assistantAgentKey` is read compatibility only. The supervision workspace owns planner, concurrency, quality, candidate and recovery controls, while run/approval/audit evidence is isolated in activity. Gray deployment remains paused and Production was not changed.
+
 > 2026-07-24 Gray `v0.7.38` follow-up: a closed supervision panel no longer disables Canvas Run discovery or event subscription. The Worker persists bounded image/video batch progress into the immutable Canvas Run event ledger, and the Canvas renders the owner-selected node badge as `运行中 0/N` through `运行中 N/N` without writing transient state to Canvas JSON. A configured `generationCount` now means exactly that many independent provider submissions (bounded `1..4`), even when an upstream provider can return multiple outputs per request.
 
 > 2026-07-24 Phase 11 Gray `v0.7.28` closure: the authenticated formal UI completed a two-candidate AI Top 1 Run with one selected and one not-selected Artifact, confidence `0.92`, two Provider requests and `0.320000 CNY` charged from the creation-time price snapshot. Different Workflow Runs overlapped and completed with isolated Task, Artifact, Selection, Cost and Event ledgers; authenticated SSE resumed from `Last-Event-ID` without duplicates or cross-Run events. Worker restart count stayed at zero. PC visual acceptance at `1920x1080` and `2560x1440` found no Assistant/Supervision overlap or horizontal overflow. Full test/build, Project/Workspace/Release Harnesses, retention and release-state consistency gates passed.
@@ -167,11 +169,11 @@ Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-sel
 
 ## Admin Governance
 
-- `/admin/automation/controls`：环境开关、活跃运行、异常路由和待审批。
-- `/admin/automation/models`：有界角色、配置版本、LLM 路由、模拟、发布和回滚。
-- `/admin/automation/policies`：质量门、有限恢复和候选选择策略。
-- `/admin/automation/activity`：Run、审批、恢复决策和不可变动作账本。
-- 旧 `/overview|roles|llm-routes|tools|nodes|knowledge|quality|recovery|runs|approvals|audit` 深链映射到上述四域，不再恢复十一项等权导航。
+- `/admin/automation/assistants`：分别治理创作侧和后台助手的表面设置、Agent 内核与 LLM 路由；两侧配置不互相复用编辑草稿。
+- `/admin/automation/supervision`：环境开关、`supervision-planner`、阶段并发权威、质量门、候选选择和有限恢复。
+- `/admin/automation/activity`：Workflow Run、Agent Run、审批、恢复决策和不可变动作账本。
+- 旧 `/admin/capabilities/admin-assistant` 稳定跳转到助手治理；Provider 与模型工作区不再拥有助手模型或策略配置。
+- 旧 `/overview|roles|llm-routes|tools|nodes|knowledge|quality|recovery|runs|approvals|audit` 深链继续兼容映射，不恢复十一项等权导航。
 
 所有治理写操作要求管理员、PostgreSQL 模式并追加后台审计。运行开关与配置 publication 是两层独立门禁；打开开关不会自动发布草稿，发布配置也不会自动打开环境。
 
