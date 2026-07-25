@@ -4,14 +4,14 @@
 
 ### Production
 
-- 版本：`v0.7.18`
-- release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 当前状态：`Production runtime/readiness、数据库、关键路由、Nginx 和服务日志验证通过`
-- 部署内容：`复用 Gray 已验收的画布 revision 协调与基线化 revision conflict 观测制品`
+- 版本：`v0.7.44`
+- release：`20260725-ai-governance-runtime-current-production-r1-v0744`
+- 当前状态：`Production runtime/readiness、数据库、关键路由、Nginx 和服务日志验证通过；正式晋级后 smoke 通过`
+- 部署内容：`复用 Gray 已验收的前后台 AI 助手、AI 托管运行时、候选选择器溯源修复与批量媒体执行制品`
 - 回滚：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 当前批次记录：
-  - `production/2026-07-22-canvas-revision-observability-production-v0718.md`
-  - `../validations/2026-07-22-canvas-revision-observability-production-v0718.md`
+  - `production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
+  - `../validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`

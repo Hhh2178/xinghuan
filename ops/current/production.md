@@ -2,12 +2,14 @@
 
 - 入口域名：`canvas.hhh2121.xyz`
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.18`
-- 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 当前状态：`复用 Gray 已验收的画布 revision 协调与基线化观测制品；Production runtime、权限、数据库、路由、Nginx 与日志验证通过`
-- 当前补修：`启动前发现 2 条 retired subject rule 引用，已通过受控 reconciliation 事务修复并幂等验证；任务失败率与 revision conflict 继续观察`
+- 当前版本：`v0.7.44`
+- 当前 release：`20260725-ai-governance-runtime-current-production-r1-v0744`
+- 当前状态：`复用 Gray 已验收的 AI 助手、AI 托管运行时与候选选择器制品；Production runtime、权限、数据库、路由、Nginx 与日志验证通过`
+- 当前补修：`本次应用 026-044 数据库迁移；任务失败率与 revision conflict 仍按既有观测告警继续观察`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
+  - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/releases/production/2026-07-22-canvas-revision-observability-production-v0718.md`
   - `../../docs/logbooks/validations/2026-07-22-canvas-revision-observability-production-v0718.md`
   - `../../docs/logbooks/releases/production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`

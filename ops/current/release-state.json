@@ -16,15 +16,15 @@
       "rollbackReleaseId": "20260725-ai-governance-supervision-gray-r1-v0743"
     },
     "production": {
-      "version": "0.7.18",
-      "releaseId": "20260722-canvas-revision-observability-prod-r1-v0718",
-      "deployedAt": "2026-07-22",
+      "version": "0.7.44",
+      "releaseId": "20260725-ai-governance-runtime-current-production-r1-v0744",
+      "deployedAt": "2026-07-25",
       "permissionMode": "enforced",
       "readiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-22-canvas-revision-observability-production-v0718.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-22-canvas-revision-observability-production-v0718.md",
-      "rollbackReleaseId": "20260721-admin-health-visual-resource-domain-prod-r1-v0717"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md",
+      "rollbackReleaseId": "20260722-canvas-revision-observability-prod-r1-v0718"
     }
   }
 }

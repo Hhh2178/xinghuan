@@ -37,10 +37,10 @@
 - Production：
   - 域名：`canvas.hhh2121.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.18`
-  - release：`20260722-canvas-revision-observability-prod-r1-v0718`
-  - 状态：`画布 revision 协调与基线化观测已由 Gray 验收制品晋级，Production runtime/readiness、数据库、路由、Nginx 和日志验证通过`
-  - 当前补修：`启动前 retired subject rule 漂移已通过受控 reconciliation 修复；继续观察任务失败率与 revision conflict；依赖审计项单独治理`
+  - 版本：`v0.7.44`
+  - release：`20260725-ai-governance-runtime-current-production-r1-v0744`
+  - 状态：`Gray 验收的 AI 助手与托管运行时已晋级；Production runtime/readiness、数据库、路由、Nginx 和日志验证通过`
+  - 当前补修：`应用 026-044 数据库迁移；继续观察任务失败率与 revision conflict；依赖审计项单独治理`
 
 ## current / archive 分工
 
