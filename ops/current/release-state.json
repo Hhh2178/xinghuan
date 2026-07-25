@@ -5,15 +5,15 @@
   "sourceCommit": "5ddc9da",
   "environments": {
     "gray": {
-      "version": "0.7.43",
-      "releaseId": "20260725-ai-governance-supervision-gray-r1-v0743",
+      "version": "0.7.44",
+      "releaseId": "20260725-ai-governance-runtime-current-gray-r1-v0744",
       "deployedAt": "2026-07-25",
       "permissionMode": "enforced",
       "readiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-25", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md",
-      "rollbackReleaseId": "20260724-channel-health-surface-gray-r1-v0742"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-25-ai-governance-runtime-current-gray-v0744.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-gray-v0744.md",
+      "rollbackReleaseId": "20260725-ai-governance-supervision-gray-r1-v0743"
     },
     "production": {
       "version": "0.7.18",

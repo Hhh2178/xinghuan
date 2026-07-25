@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.hhh2121.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.7.43`
-  - release：`20260725-ai-governance-supervision-gray-r1-v0743`
-  - 状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
-  - 当前补修：`Gray 后台助手与托管规划 Agent/路由池已受控初始化并发布；前台和后台助手均实测为 agent 模式`
-  - 本轮制品源提交：`5ddc9da`
+  - 版本：`v0.7.44`
+  - release：`20260725-ai-governance-runtime-current-gray-r1-v0744`
+  - 状态：`当前 AI 助手、AI 托管运行时和候选选择器修复已部署并通过运行态验证`
+  - 当前补修：`推送当前代码中的统一运行投影、候选溯源修复与批量媒体执行；前台和后台助手均实测为 agent 模式`
+  - 本轮制品源提交：`待发布提交写入后更新`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

@@ -21,13 +21,13 @@
 
 ### Gray
 
-- 版本：`v0.7.43`
-- release：`20260725-ai-governance-supervision-gray-r1-v0743`
+- 版本：`v0.7.44`
+- release：`20260725-ai-governance-runtime-current-gray-r1-v0744`
 - 当前状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
-- 部署内容：`前后台 AI 助手治理分离、Provider/模型可读任务身份、渠道健康层级、RunningHub Standard Model 图片/视频适配、AI 托管规划并发与失败诊断`
-- 已验证：`发布前完整 Harness、构建、契约和真实 Provider/Agent/Canvas Run 证据；Gray API/Worker/readiness；发布后前台和后台助手均以 agent 模式实测。用户明确豁免本次双视窗视觉检查。`
+- 部署内容：`当前代码中的前后台 AI 助手治理、AI 托管统一运行投影、候选选择器溯源修复、批量媒体执行与面板交互修复`
+- 已验证：`发布前完整 Harness、构建、契约和隔离 Gray Candidate 真实 Provider/Agent/Canvas Run 证据；正式 Gray 发布后复核 API/Worker/readiness 与助手 agent 模式。用户明确豁免本次双视窗视觉检查。`
 - 部署时间：`2026-07-25`
-- 本轮制品源提交：`5ddc9da`
+- 本轮制品源提交：`待发布提交写入后更新`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
