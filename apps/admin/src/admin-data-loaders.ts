@@ -60,7 +60,7 @@ export async function readAdminWorkspaceSnapshot(
     ]);
     return { users, userGroups, sessions };
   }
-  if (workspaceId === "capabilities" || workspaceId === "rh") {
+  if (workspaceId === "capabilities" || workspaceId === "rh" || workspaceId === "automation") {
     const [providers, models] = await Promise.all([
       api<ProviderRecord[]>("/api/admin/providers"),
       api<ModelRecord[]>("/api/admin/models"),
