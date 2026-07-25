@@ -15,8 +15,8 @@
 | Stage | Status | Verification | Evidence | Commit |
 | --- | --- | --- | --- | --- |
 | Direct Agent workspace model loading | Complete | Focused Vitest, static Harness contract, Admin type-check/build, diff check | This logbook | This local commit |
-| Human node identity | In progress | Pending | Pending | Pending |
-| Smart candidate provenance | Pending | Pending | Pending | Pending |
+| Human node identity | Complete | 17 focused tests, Shared/Agent Core type-check/build, Web type-check, diff check | This logbook | This local commit |
+| Smart candidate provenance | In progress | Pending | Pending | Pending |
 | Unified supervised batch execution | Pending | Pending | Pending | Pending |
 | Canvas runtime projection | Pending | Pending | Pending | Pending |
 | Supervision information architecture | Pending | Pending | Pending | Pending |
@@ -33,3 +33,6 @@
 - 2026-07-25: The minimal fix reuses the existing Provider/model catalog loader for `automation`. It does not introduce a second catalog or fabricate model options.
 - 2026-07-25: Added `verify:admin-agent-runtime-model-loading` and placed it in the project Harness chain. The contract verifies both direct workspace loading and first-render model propagation into `AdminAgentGovernanceWorkspace`.
 - 2026-07-25: Focused verification passed: one Vitest test, the new static contract, Admin type-check, Admin build and the project Harness contract. The build reported only the existing Vite `node:crypto` browser-externalization warning.
+- 2026-07-25: Human node identity TDD RED reproduced both missing shared identity resolution and an absent Run step identity. The shared helper now applies the custom `label` / `name` / `title` precedence, capability-catalog fallback and a bounded safe ID suffix.
+- 2026-07-25: Every newly compiled Run step freezes `displayIdentity`; the Web contract keeps the field optional so historical Run JSON remains readable and can use the same shared helper as later presentation work is migrated.
+- 2026-07-25: Identity verification passed 17 focused tests, Shared and Agent Core type-check/build, Web type-check and `git diff --check`.

@@ -3,6 +3,28 @@ import { describe, expect, it } from "vitest";
 import { compileCanvasRunPlan, compileCanvasSnapshotRunPlan, compileWorkflowSnapshotRunPlan } from "./index.js";
 
 describe("workflow compiler", () => {
+  it("freezes a human display identity from the canvas node label", () => {
+    const plan = compileCanvasSnapshotRunPlan({
+      canvasId: "canvas-1",
+      ownerId: "owner-1",
+      revision: 1,
+      data: {
+        nodes: [{
+          id: "image-1784938575967-v3uy",
+          type: "image",
+          data: { label: "人物生成" },
+        }],
+        edges: [],
+      },
+    });
+
+    expect(plan.steps[0].displayIdentity).toEqual({
+      label: "人物生成",
+      suffix: "v3uy",
+      displayName: "人物生成 #v3uy",
+    });
+  });
+
   it("freezes a bounded generation count into the immutable execution payload", () => {
     const plan = compileCanvasSnapshotRunPlan({
       canvasId: "canvas-1",

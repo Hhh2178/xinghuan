@@ -26,6 +26,7 @@ export interface CanvasRunPlanStep {
   dependsOn: string[];
   skipped: boolean;
   executionLayer?: number | null;
+  displayIdentity?: NodeDisplayIdentity;
   configuration?: Record<string, unknown>;
 }
 
@@ -282,6 +283,7 @@ export function subscribeCanvasRunEvents(
   return () => source.close();
 }
 import type {
+  NodeDisplayIdentity,
   WorkflowSupervisionLimits,
   WorkflowSupervisionSettings,
   WorkflowSupervisionSettingSource,

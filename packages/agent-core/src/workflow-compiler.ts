@@ -6,6 +6,8 @@ import {
   isWorkflowBoundaryPortType,
   normalizeWorkflowDocuments,
   reconcileWorkflowStageDefinitions,
+  resolveNodeDisplayIdentity,
+  type NodeDisplayIdentity,
   type WorkflowStageMode,
   type WorkflowStageNodeAssignment,
   type WorkflowStageSource,
@@ -25,6 +27,7 @@ export interface CanvasRunNodeInput {
   id: string;
   type: string;
   groupId?: string;
+  customLabel?: unknown;
   configuration?: Record<string, unknown>;
 }
 
@@ -60,6 +63,7 @@ export interface CanvasRunStepPlan {
   dependsOn: string[];
   skipped: boolean;
   executionLayer?: number | null;
+  displayIdentity: NodeDisplayIdentity;
   configuration?: Record<string, unknown>;
 }
 
@@ -128,6 +132,12 @@ export function compileCanvasRunPlan(input: CompileCanvasRunPlanInput): CanvasRu
     dependsOn: [...(incoming.get(node.id) || [])],
     skipped: node.groupId ? input.groups.find((group) => group.id === node.groupId)?.skipped === true : false,
     executionLayer: null,
+    displayIdentity: resolveNodeDisplayIdentity({
+      nodeId: node.id,
+      nodeType: node.type,
+      customLabel: node.customLabel,
+      catalogLabel: CANVAS_RUN_NODE_CAPABILITIES.find((capability) => capability.nodeType === node.type)?.label,
+    }),
     configuration: node.configuration,
   }));
   const executionLayers = deriveExecutionLayers(steps, groupPlans);
@@ -244,6 +254,7 @@ export function compileCanvasSnapshotRunPlan(input: {
       id: String(node.id),
       type: String(node.type),
       groupId: groupNodes.find((group) => containsNode(group, node))?.id as string | undefined,
+      customLabel: firstDisplayLabel(node.data),
       configuration: extractNodeExecutionConfiguration(node.data, String(node.type)),
     })),
     edges: edges
@@ -351,6 +362,7 @@ export function compileWorkflowSnapshotRunPlan(input: {
       id: node.id,
       type: node.type,
       groupId: stageByNodeId.get(node.id),
+      customLabel: firstDisplayLabel(node.data),
       configuration: extractNodeExecutionConfiguration(node.data, node.type),
     })),
     edges: scopedEdges.map((edge, index) => ({ id: typeof edge.id === "string" ? edge.id : `edge:${index}`, source: String(edge.source), target: String(edge.target) })),
@@ -580,6 +592,13 @@ function canonicalStringify(value: unknown): string {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`).join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
+}
+
+function firstDisplayLabel(data: Record<string, unknown> | undefined) {
+  for (const value of [data?.label, data?.name, data?.title]) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
 }
 
 function executionPayload(data: Record<string, unknown>) {
