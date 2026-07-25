@@ -50,14 +50,22 @@ async function verifyReconciliation() {
   const dataDir = await mkdtemp(join(tmpdir(), "generation-artifact-reconcile-"));
   const ownerId = "owner-a";
   const outputDir = join(dataDir, "users", ownerId, "output");
+  const inputDir = join(dataDir, "users", ownerId, "input");
   const dbPath = join(dataDir, "users", ownerId, "resources", "generation-library.json");
+  const uploadManifestPath = join(dataDir, "users", ownerId, "resources", "ephemeral-uploads.json");
   await mkdir(outputDir, { recursive: true });
+  await mkdir(inputDir, { recursive: true });
   await mkdir(dirname(dbPath), { recursive: true });
   await writeFile(join(outputDir, "expired.png"), "expired", "utf8");
   await writeFile(join(outputDir, "promoted.png"), "promoted", "utf8");
   await writeFile(join(outputDir, "retry.png"), "retry", "utf8");
   await writeFile(join(outputDir, "deleted.png"), "deleted", "utf8");
   await writeFile(join(outputDir, "orphan.png"), "orphan", "utf8");
+  await writeFile(join(inputDir, "expired-input.png"), "expired input", "utf8");
+  await writeFile(join(inputDir, "recent-input.png"), "recent input", "utf8");
+  await writeFile(uploadManifestPath, JSON.stringify({ items: [
+    { id: "upload-expired", ownerId, kind: "image", storageKey: "expired-input.png", fileUrl: "/files/input/expired-input.png", status: "active", createdAt: 1_000, updatedAt: 1_000, expiresAt: 1_000 },
+  ] }), "utf8");
   await writeFile(dbPath, JSON.stringify({ items: [
     artifact("expired", "expired.png", 1_000),
     { ...artifact("promoted", "promoted.png", 1_000), status: "promoted", promotedAssetId: "asset-promoted" },
@@ -68,8 +76,9 @@ async function verifyReconciliation() {
 
   const before = await readFile(dbPath, "utf8");
   const dryRun = await reconcileGenerationArtifacts({ dataDir, storageDriver: "file", now: 5_000, apply: false });
-  assert(dryRun.candidates.length === 5, "reconciliation dry-run candidate count mismatch");
+  assert(dryRun.candidates.length === 6, "reconciliation dry-run candidate count mismatch");
   assert(dryRun.orphanFiles.includes("/files/output/orphan.png"), "reconciliation did not report orphan output");
+  assert(dryRun.candidates.some((candidate: any) => candidate.fileUrl === "/files/input/expired-input.png"), "reconciliation did not find expired input upload");
   assert(await readFile(dbPath, "utf8") === before, "reconciliation dry-run mutated metadata");
   assert(await exists(join(outputDir, "expired.png")), "reconciliation dry-run deleted file");
 
@@ -83,6 +92,8 @@ async function verifyReconciliation() {
   assert(!(await exists(join(outputDir, "deleted.png"))), "deleted artifact file deletion was not retried");
   assert(await exists(join(outputDir, "promoted.png")), "promoted file was deleted");
   assert(await exists(join(outputDir, "orphan.png")), "orphan report deleted an unregistered output");
+  assert(!(await exists(join(inputDir, "expired-input.png"))), "expired input upload was not deleted");
+  assert(await exists(join(inputDir, "recent-input.png")), "recent input orphan was deleted before grace period");
   return { candidates: applied.candidates.length, updated: applied.updatedIds.length, deletedFiles: applied.deletedFiles.length, orphanFiles: applied.orphanFiles.length };
 }
 

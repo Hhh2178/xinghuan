@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const files = {
   migration: await read("apps/api/db/024_generation_artifacts.sql"),
+  ephemeralMigration: await read("apps/api/db/045_ephemeral_upload_retention.sql"),
+  ephemeralRepository: await read("apps/api/src/ephemeral-upload-repository.ts"),
   repository: await read("apps/api/src/generation-artifact-repository.ts"),
   artifactStore: await read("apps/api/src/artifact-store.ts"),
   lifecycle: await read("apps/api/src/generation-artifact-lifecycle.ts"),
@@ -27,6 +29,9 @@ for (const status of ["active", "promoted", "expired", "missing", "deleted"]) {
   assert.match(files.migration, new RegExp(`'${status}'`), `generation artifact schema missing status ${status}`);
 }
 assert.match(files.migration, /unique \(owner_id, dedupe_key\)/, "schema must enforce owner-scoped idempotency");
+assert.match(files.ephemeralMigration, /create table if not exists xh_ephemeral_uploads/, "ephemeral upload retention table missing");
+assert.match(files.ephemeralMigration, /expires_at timestamptz not null/, "ephemeral upload expiry missing");
+assert.match(files.ephemeralRepository, /EPHEMERAL_UPLOAD_TTL_MS = 24 \* 60 \* 60 \* 1000/, "ephemeral uploads must use a one-day TTL");
 assert.match(files.repository, /on conflict \(owner_id, dedupe_key\)/, "repository must upsert idempotently");
 assert.match(files.repository, /owner_id = \$1/, "repository reads must constrain owner");
 assert.match(files.lifecycle, /resolveContent/, "lifecycle must own content resolution");
@@ -34,6 +39,7 @@ assert.match(files.artifactStore, /interface ArtifactStore/, "artifact binary ac
 assert.match(files.lifecycle, /artifactStore\.resolveOwned/, "lifecycle must delegate binary resolution to ArtifactStore");
 assert.match(files.routes, /promoteOwned/, "routes must expose promotion");
 assert.match(files.server, /handleGenerationArtifactRoutes/, "server must delegate generation artifact routes");
+assert.match(files.server, /ephemeralUploadRepository\.registerOwned/, "multipart uploads must register temporary retention metadata");
 assert.match(
   files.server,
   /if \(currentUser && await handleGenerationArtifactRoutes\(\{[\s\S]*?ownerId: currentUser\.id,/,
@@ -46,6 +52,9 @@ assert.doesNotMatch(files.canvas, /generationLibraryRegisteredRef/, "Canvas must
 assert.match(files.api, /promoteGenerationLibraryItem/, "web API must expose explicit promotion");
 assert.match(files.migrationScript, /const apply = process\.argv\.includes\("--apply"\)/, "legacy migration must default to dry-run");
 assert.match(files.reconcileScript, /apply = Boolean\(options\.apply\)/, "reconciliation must default to dry-run");
+assert.match(files.reconcileScript, /xh_ephemeral_uploads/, "reconciliation must scan ephemeral uploads");
+assert.match(files.reconcileScript, /INPUT_ORPHAN_GRACE_MS/, "reconciliation must apply input orphan grace period");
+assert.match(files.reconcileScript, /deletedFiles/, "reconciliation must report physical deletions");
 assert.match(files.deployScript, /migrate-generation-artifacts/, "release deploy must expose an explicit legacy migration gate");
 assert.ok(
   files.deployScript.indexOf("generation-artifacts:migrate:dry-run") < files.deployScript.indexOf("generation-artifacts:migrate`"),

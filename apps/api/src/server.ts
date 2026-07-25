@@ -118,6 +118,7 @@ import { createExternalProxyHandlers } from "./external-proxy.js";
 import { createMaterialAccessService } from "./material-access-service.js";
 import { createGenerationArtifactRepository } from "./generation-artifact-repository.js";
 import { createGenerationArtifactLifecycle } from "./generation-artifact-lifecycle.js";
+import { createEphemeralUploadRepository } from "./ephemeral-upload-repository.js";
 import { createLocalArtifactStore } from "./artifact-store.js";
 import { handleGenerationArtifactRoutes } from "./generation-artifact-routes.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
@@ -1411,6 +1412,12 @@ const generationArtifactLifecycle = createGenerationArtifactLifecycle({
   repository: generationArtifactRepository,
   artifactStore: createLocalArtifactStore({ outputDir: (ownerId) => userDataDirsForId(ownerId).outputDir }),
   createId: () => `gen-${Date.now()}-${randomBytes(5).toString("hex")}`,
+});
+
+const ephemeralUploadRepository = createEphemeralUploadRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  manifestPath: (ownerId) => userDataDirsForId(ownerId).ephemeralUploadManifestPath,
 });
 
 async function readAnnouncementRecords() {
@@ -3983,6 +3990,7 @@ function userDataDirsForId(userId: string) {
     resourceDbPath: join(resourceDir, "resource-library.json"),
     resourcePostgresMigrationMarkerPath: join(resourceDir, ".postgres-migration-complete"),
     generationLibraryDbPath: join(resourceDir, "generation-library.json"),
+    ephemeralUploadManifestPath: join(resourceDir, "ephemeral-uploads.json"),
   };
 }
 
@@ -10800,7 +10808,14 @@ async function handleMultipartUpload(request: import("node:http").IncomingMessag
         rejectUpload(new Error("未收到文件"));
         return;
       }
-      resolveUpload(saved);
+      void ephemeralUploadRepository.registerOwned(user.id, {
+        filename: saved.filename,
+        url: saved.url,
+        kind: normalizeUploadKind(saved.mime),
+        mime: saved.mime,
+        size: saved.size,
+        metadata: { registrationSource: "user-upload" },
+      }).then(() => resolveUpload(saved)).catch(rejectUpload);
     });
     request.pipe(busboy);
   });
@@ -10917,6 +10932,13 @@ function videoExtensionFromUrl(sourceUrl: string) {
   } catch {
     return "";
   }
+}
+
+function normalizeUploadKind(mime: string): "image" | "video" | "audio" {
+  const value = String(mime || "").trim().toLowerCase();
+  if (value.startsWith("video/")) return "video";
+  if (value.startsWith("audio/")) return "audio";
+  return "image";
 }
 
 function audioExtensionFromMime(mime: string) {

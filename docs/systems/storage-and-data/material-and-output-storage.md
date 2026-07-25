@@ -28,6 +28,8 @@
 - `npm run generation-artifacts:reconcile:dry-run`：报告到期、缺失和物理文件候选。
 - `npm run generation-artifacts:reconcile`：显式推进状态；只删除已到期、未晋级且没有资源引用的文件。
 - reconciliation 同时报告未登记输出文件；只报告不删除。已经进入 `expired` 但物理删除失败的文件会在下一次运行继续重试。
+- 用户上传的 `/files/input/` 文件由 API 在上传流成功关闭后登记到 `xh_ephemeral_uploads`，默认只保留 24 小时；清理器会在无资源库、任务或运行引用时删除，并对未登记 input/output 文件执行 24 小时/3 天孤儿宽限。
+- 清理摘要同时包含 `scannedUploads`、孤儿文件、受保护文件、物理删除和失败重试；Production/Gray 的 timer 仍使用各自环境的 `cleanup:output-materials` 入口。
 - 兼容命令 `cleanup:output-materials(:dry-run)` 已指向同一个 reconciliation module。
 
 ## Promotion
