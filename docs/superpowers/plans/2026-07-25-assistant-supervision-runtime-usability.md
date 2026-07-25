@@ -826,11 +826,11 @@ Commit with `refactor(admin): focus supervision governance workspaces`.
 - Consumes all prior task outputs.
 - Produces a local acceptance record and a release-readiness decision without deploying.
 
-- [ ] **Step 1: Run the focused combined suite**
+- [x] **Step 1: Run the focused combined suite**
 
 Run every focused test and verifier from Tasks 1-10 as one clean sequence. Record exact pass counts and durations.
 
-- [ ] **Step 2: Run integration and Harness gates**
+- [x] **Step 2: Run integration and Harness gates**
 
 Run:
 
@@ -848,7 +848,7 @@ git diff --check
 
 Use only the authorized isolated test database/Redis required by the existing scripts. Do not point these commands at Production.
 
-- [ ] **Step 3: Start the local app and run one PC visual acceptance**
+- [x] **Step 3: Start the local app and run one PC visual acceptance**
 
 Use `1920x1080` only. Capture:
 
@@ -860,7 +860,7 @@ Use `1920x1080` only. Capture:
 - human node identities with no one-character vertical overflow;
 - original image nodes showing supervised child task progress and outputs.
 
-- [ ] **Step 4: Perform IME and native-selection behavior acceptance**
+- [x] **Step 4: Perform IME and native-selection behavior acceptance**
 
 Use Microsoft IME Pinyin in Canvas and Admin assistant composers. Keep a mouse text selection active across one streaming/status update and record the result.
 
@@ -882,19 +882,19 @@ text B -> image B x3 -> selector B --/
 
 Evidence must show requested child count, task IDs in the technical record, independent completion, artifact IDs, selector provenance, selected artifact bindings, final output and visible node previews. Keep secrets and full prompts out of the logbook.
 
-- [ ] **Step 6: Perform real assistant acceptance**
+- [x] **Step 6: Perform real assistant acceptance**
 
 Attach the real selector diagnostic. Ask once for ordinary help and once for technical detail. Confirm the first response is concise and hides raw IDs, while the second supplies safe code/provenance detail. Repeat a scoped Admin assistant call and confirm `mode=agent` plus visible analysis states.
 
-- [ ] **Step 7: Review the complete diff**
+- [x] **Step 7: Review the complete diff**
 
 Check for transient runtime persistence, raw user-facing IDs, secret leakage, accidental Production references, source hotspot growth, duplicated assistant/runtime components and unrelated formatting churn.
 
-- [ ] **Step 8: Complete documentation and local commit**
+- [x] **Step 8: Complete documentation and local commit**
 
 Update system documents with implemented facts, complete the validation record and commit the integrated batch locally. Do not push or deploy.
 
-- [ ] **Step 9: Stop at the release gate**
+- [x] **Step 9: Stop at the release gate**
 
 Report the local commit, behavior evidence, remaining risks and exact Gray deployment plan. Wait for explicit user approval before GitHub push or Gray deployment.
 
@@ -902,17 +902,17 @@ Report the local commit, behavior evidence, remaining risks and exact Gray deplo
 
 ## Final Self-review Checklist
 
-- [ ] Every requirement P1-P10 maps to at least one task and an acceptance scenario.
-- [ ] Smart selector tests cover multiple artifacts from one upstream edge with prompt supplied by an upstream text node.
-- [ ] Provenance validation remains strict and owner-scoped.
-- [ ] Manual and supervised node rendering use the same runtime card and preview components.
-- [ ] Multi-generation task state is independently observable and ordered by `batchIndex`.
-- [ ] Transient Run projections cannot be saved to Canvas topology or workflow templates.
-- [ ] Every user-facing node reference uses `displayName`; raw IDs remain technical only.
-- [ ] Assistant and supervision rectangles cannot overlap while both are open.
-- [ ] Brief assistant answers do not expose raw IDs or parameter dumps by default.
-- [ ] Admin assistant retains Admin-only context and permission behavior.
-- [ ] Chinese IME and selection persistence are proven in a real browser.
-- [ ] Only one `1920x1080` visual acceptance is performed.
-- [ ] Gray is not deployed and GitHub is not pushed without a later explicit instruction.
-- [ ] Production is untouched.
+- [x] Every requirement P1-P10 maps to at least one task and an acceptance scenario.
+- [x] Smart selector tests cover multiple artifacts from one upstream edge with prompt supplied by an upstream text node.
+- [x] Provenance validation remains strict and owner-scoped.
+- [x] Manual and supervised node rendering use the same runtime card and preview components.
+- [x] Multi-generation task state is independently observable and ordered by `batchIndex`.
+- [x] Transient Run projections cannot be saved to Canvas topology or workflow templates.
+- [x] Every user-facing node reference uses `displayName`; raw IDs remain technical only.
+- [x] Assistant and supervision rectangles cannot overlap while both are open.
+- [x] Brief assistant answers do not expose raw IDs or parameter dumps by default.
+- [x] Admin assistant retains Admin-only context and permission behavior.
+- [x] Chinese IME and selection persistence are proven in a real browser.
+- [x] Only one `1920x1080` visual acceptance is performed.
+- [x] Gray is not deployed and GitHub is not pushed without a later explicit instruction.
+- [x] Production is untouched.

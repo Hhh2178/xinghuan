@@ -41,7 +41,10 @@ async function main() {
     ],
     [
       "Supervision governance copy owns planning, recovery and candidate evaluation",
-      supervisionSource.includes("托管分析、失败恢复和候选评估") &&
+      supervisionSource.includes("托管分析用途") &&
+        supervisionSource.includes("质量与候选选择") &&
+        supervisionSource.includes('definition.agentKey !== "generation-recovery"') &&
+        supervisionSource.includes('navigation.active === "recovery"') &&
         !supervisionSource.includes("只管理助手诊断、失败恢复和候选评估"),
     ],
     [

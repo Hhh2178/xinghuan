@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import {
   findWorkflowStageOrderConflict,
   isWorkflowBoundaryConnectionAllowed,
@@ -583,7 +581,28 @@ function hashWorkflowSubgraph(plan: Omit<CanvasRunPlan, "workflowSubgraphHash">)
     groups: plan.groups,
     steps: plan.steps,
   };
-  return createHash("sha256").update(canonicalStringify(executionContract)).digest("hex");
+  return stableWorkflowHash(canonicalStringify(executionContract));
+}
+
+// Workflow hashes are change-detection fingerprints, not secrets. Keep the
+// implementation synchronous and runtime-neutral so the compiler can be used
+// by both the Node API and the browser without bundling node:crypto.
+function stableWorkflowHash(value: string) {
+  let first = 2166136261;
+  let second = 2246822519;
+  let third = 3266489917;
+  let fourth = 668265263;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    first = Math.imul(first ^ code, 16777619);
+    second = Math.imul(second ^ (code + index), 2246822519);
+    third = Math.imul(third ^ (code << (index % 8)), 3266489917);
+    fourth = Math.imul(fourth ^ (code + first), 668265263);
+  }
+  return [first, second, third, fourth]
+    .map((part) => (part >>> 0).toString(16).padStart(8, "0"))
+    .join("")
+    .repeat(2);
 }
 
 function canonicalStringify(value: unknown): string {

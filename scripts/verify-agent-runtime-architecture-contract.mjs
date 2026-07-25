@@ -61,6 +61,7 @@ const files = {
   assistantShell: await read("apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx"),
   supervisionDock: await read("apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx"),
   runSupervisor: await read("apps/web/src/components/canvas-agent/CanvasRunSupervisor.tsx"),
+  supervisionPlanView: await read("apps/web/src/components/canvas-agent/CanvasSupervisionPlanView.tsx"),
   runViewModel: await read("apps/web/src/components/canvas-agent/canvas-run-view-model.ts"),
   nodeRegistry: await read("apps/web/src/config/nodeRegistry.ts"),
   candidateSelectorNode: await read("apps/web/src/components/nodes/SmartCandidateSelectorNode.tsx"),
@@ -213,8 +214,9 @@ assert.match(files.toolGateway, /requireBudget/, "Tool Gateway must honor publis
 assert.match(files.assistantProtocol, /mode: "agent" \| "fallback"/, "assistant protocol must expose internal Agent mode");
 assert.match(files.runViewModel, /buildCanvasRunAnalysisView/, "Canvas must project the frozen Agent analysis");
 assert.match(files.runViewModel, /canvas_run\.execution_layer_started/, "Canvas must project the active execution layer from audited events");
-assert.match(files.runSupervisor, /AI 链路分析/, "Canvas supervision must render the Agent analysis visibly");
-assert.match(files.runSupervisor, /当前执行层/, "Canvas supervision must render live execution-layer progress");
+assert.match(files.runSupervisor, /CanvasSupervisionPlanView analysis=\{analysis\}/, "Canvas supervision must route projected analysis into the Plan workspace");
+assert.match(files.supervisionPlanView, /AI 链路分析/, "Canvas supervision must render the Agent analysis visibly");
+assert.match(files.supervisionPlanView, /当前执行层/, "Canvas supervision must render live execution-layer progress");
 assert.doesNotMatch(files.legacyAssistantRuntime, /\bhermes\b/i, "active assistant runtime must not retain a Hermes dependency");
 
 for (const table of ["xh_artifact_quality_profiles", "xh_artifact_evaluations", "xh_artifact_selections", "xh_recovery_decisions"]) {
