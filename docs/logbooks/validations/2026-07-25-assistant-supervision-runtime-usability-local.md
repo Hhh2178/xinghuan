@@ -62,6 +62,13 @@ CANVAS_RUN_MODEL_UNAVAILABLE
 
 No paid request was sent and no fabricated success was recorded. A Gray/real-provider acceptance remains required after an authorized image model is published to the isolated environment.
 
+## Formal Gray Runtime Probe
+
+- Read-only Gray runtime verification passed: API and Worker active, public/internal `0.7.43 / gray / enforced`, permission readiness ready with zero failures.
+- A real Gray single-branch chain was executed against `grsai / nano-banana-fast`. The Run succeeded with 26 events; the upstream image emitted three independent Provider requests, the selector received three candidates and recorded one selected artifact, and the downstream image emitted three independent Provider requests.
+- The stricter two-branch concurrency/convergence probe against the deployed `5ddc9da` release failed at the selector with `SMART_CANDIDATE_PROVENANCE_INCOMPLETE`. The failed run was cleaned up by the validation harness. This is the known pre-fix Gray behavior, not evidence against the local provenance repair in `90aeec5`.
+- Therefore the current local commit is not yet Gray-verified. A new Gray release containing the local provenance/browser-bundle fixes must be deployed and the two-branch probe rerun before the objective can be marked complete. Production remains untouched.
+
 ## Release Decision
 
 Code and local behavior are ready for review. The batch is **not release-complete for real-provider image acceptance** because the authorized image model was not present in the local catalog. GitHub, Gray and Production remain untouched.
