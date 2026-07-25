@@ -1,11 +1,24 @@
-import { AlertTriangle, Ban, Bot, Check, CirclePause, CirclePlay, Clock3, PlugZap, RefreshCw, RotateCcw, ShieldCheck, Workflow, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Ban, CirclePause, CirclePlay, PlugZap, RefreshCw, RotateCcw, Workflow } from 'lucide-react';
 import type { CanvasRunFailureDiagnostic, WorkflowSupervisionSettings } from '@xinghuan/shared';
-import { decideCanvasRunApproval } from './canvas-run-api';
-import { buildCanvasRunAnalysisView, buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, CANVAS_RUN_STATUS_LABEL, CANVAS_RUN_STEP_STATUS_LABEL } from './canvas-run-view-model';
+import { decideCanvasRunApproval, type CanvasRunPlanStep } from './canvas-run-api';
+import {
+  buildCanvasRunAnalysisView,
+  buildCanvasRunFailureDiagnostic,
+  buildCanvasRunPlanSections,
+  buildCanvasRunStepViews,
+  canvasRunBudgetItems,
+  canvasRunStepDisplayName,
+  CANVAS_RUN_STATUS_LABEL,
+} from './canvas-run-view-model';
 import type { CanvasRunProjection } from './useCanvasRunProjection';
-import { CanvasCandidateSelectionPanel } from './CanvasCandidateSelectionPanel';
 import { describeCanvasRunError } from './canvas-run-error-message';
 import { buildCanvasRunAssistantContextDetail } from './canvas-run-assistant-bridge';
+import { CanvasSupervisionRuntimeView } from './CanvasSupervisionRuntimeView';
+import { CanvasSupervisionPlanView } from './CanvasSupervisionPlanView';
+import { CanvasSupervisionEventView } from './CanvasSupervisionEventView';
+
+type CanvasSupervisionView = 'runtime' | 'plan' | 'events';
 
 export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeSettings, onOneTimeConsumed }: {
   canvasId: string | null;
@@ -14,6 +27,7 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
   oneTimeSettings?: WorkflowSupervisionSettings;
   onOneTimeConsumed: () => void;
 }) {
+  const [activeView, setActiveView] = useState<CanvasSupervisionView>('runtime');
   const run = projection.run;
   const steps = run?.planSnapshot.steps || [];
   const groups = run?.planSnapshot.groups || [];
@@ -27,6 +41,13 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
   const failure = run ? buildCanvasRunFailureDiagnostic(run, projection.events) : null;
   const errorMessage = projection.error ? describeCanvasRunError(projection.error) : null;
   const analysis = run ? buildCanvasRunAnalysisView(run, projection.events) : null;
+  const currentStep = stepViews.find((view) => ['running', 'evaluating', 'selecting', 'retrying', 'approval'].includes(view.status));
+  const failureDisplayName = failure ? diagnosticDisplayName(failure, steps) : '';
+
+  useEffect(() => setActiveView('runtime'), [run?.id]);
+  useEffect(() => {
+    if (failure || errorMessage) setActiveView('runtime');
+  }, [errorMessage?.technical.code, failure?.technical.code]);
 
   const decideApproval = async (decision: 'approve' | 'reject') => {
     const approvalId = String(pendingApproval?.payload.approvalId || '');
@@ -37,121 +58,67 @@ export function CanvasRunSupervisor({ canvasId, workflowId, projection, oneTimeS
 
   const sendDiagnosticToAssistant = (diagnostic: CanvasRunFailureDiagnostic) => {
     window.dispatchEvent(new CustomEvent('penguin:append-assistant-context', {
-      detail: buildCanvasRunAssistantContextDetail(diagnostic, run?.id),
+      detail: buildCanvasRunAssistantContextDetail(diagnostic, run?.id, diagnosticDisplayName(diagnostic, steps)),
     }));
   };
 
-  return (
-    <section className="canvas-run-supervisor" aria-label="Agent 托管运行">
-      <div className="canvas-run-supervisor__summary">
-        <div>
-          <span className="canvas-run-supervisor__eyebrow"><Workflow size={13} /> 托管运行</span>
-          <strong>{run ? CANVAS_RUN_STATUS_LABEL[run.status] : '尚未建立运行计划'}</strong>
-          <p>{run ? `工作流修订 ${run.workflowRevision ?? '-'}，${groups.length} 个分组，${steps.length} 个步骤` : '创建后将锁定工作流修订、输入快照和区域内拓扑。'}</p>
-        </div>
-        <div className="canvas-run-supervisor__connection" data-connected={projection.streamConnected ? 'true' : 'false'}>
-          <PlugZap size={13} />{projection.streamConnected ? '事件流在线' : '事件流待连接'}
-        </div>
+  return <section className="canvas-run-supervisor" aria-label="AI 托管运行">
+    <div className="canvas-run-supervisor__summary">
+      <div>
+        <span className="canvas-run-supervisor__eyebrow"><Workflow size={13} /> 托管运行</span>
+        <strong>{run ? CANVAS_RUN_STATUS_LABEL[run.status] : '尚未建立运行计划'}</strong>
+        <p>{run ? `工作流修订 ${run.workflowRevision ?? '-'}，${groups.length} 个分组，${steps.length} 个步骤` : '创建后将锁定工作流修订、输入快照和区域内拓扑。'}</p>
       </div>
-
-      {run ? (
-        <div className="canvas-run-supervisor__progress" aria-label={`已完成 ${percent}%`}>
-          <span style={{ width: `${percent}%` }} />
-          <small>{projection.progress.completed} / {projection.progress.total} 步骤</small>
-        </div>
-      ) : null}
-
-      {!run && oneTimeSettings ? <div className="canvas-run-supervisor__next-run">本次覆盖已就绪<span>仅下一次 Run</span></div> : null}
-      <div className="canvas-run-supervisor__controls">
-        {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />生成运行计划</button> : null}
-        {run && projection.terminal ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />新建运行计划</button> : null}
-        {run?.status === 'draft' ? <button type="button" className="is-primary" disabled={projection.busy} onClick={() => void projection.command('start')}><CirclePlay size={15} />开始托管</button> : null}
-        {run && ['planning', 'queued', 'running'].includes(run.status) ? <button type="button" onClick={() => void projection.command('pause')}><CirclePause size={15} />暂停</button> : null}
-        {run?.status === 'paused' ? <button type="button" className="is-primary" onClick={() => void projection.command('resume')}><CirclePlay size={15} />继续</button> : null}
-        {run?.status === 'failed' ? <button type="button" disabled={projection.busy} title="使用当前 Run 的冻结快照重试" onClick={() => void projection.command('retry')}><RotateCcw size={15} />按原计划重试</button> : null}
-        {run && !projection.terminal ? <button type="button" className="is-danger" onClick={() => void projection.command('cancel')}><Ban size={15} />取消</button> : null}
-        {run ? <button type="button" title="刷新权威状态" onClick={() => void projection.refresh()}><RefreshCw size={15} /></button> : null}
+      <div className="canvas-run-supervisor__connection" data-connected={projection.streamConnected ? 'true' : 'false'}>
+        <PlugZap size={13} />{projection.streamConnected ? '事件流在线' : '事件流待连接'}
       </div>
+    </div>
 
-      {errorMessage ? <section className="canvas-run-supervisor__error" aria-label="AI 托管错误说明">
-        <strong>{errorMessage.title}</strong>
-        <dl><div><dt>发生了什么</dt><dd>{errorMessage.summary}</dd></div><div><dt>可能原因</dt><dd>{errorMessage.likelyCause}</dd></div><div><dt>影响</dt><dd>{errorMessage.impact}</dd></div><div><dt>怎么处理</dt><dd>{errorMessage.action}</dd></div></dl>
-        <span>{errorMessage.retryable ? '可在原因解除后按原计划重试' : '需要修复配置或新建运行计划'}</span>
-        <button type="button" onClick={() => sendDiagnosticToAssistant(errorMessage)}><Bot size={14} />让 AI 助手分析</button>
-        <details><summary>技术详情</summary><code>{errorMessage.technical.code}</code></details>
-      </section> : null}
+    {run ? <div className="canvas-run-supervisor__progress" aria-label={`已完成 ${percent}%`}>
+      <span style={{ width: `${percent}%` }} />
+      <small>{projection.progress.completed} / {projection.progress.total} 步骤</small>
+    </div> : null}
 
-      {failure ? <section className="canvas-run-failure" aria-label="运行失败诊断">
-        <header><AlertTriangle size={15} /><div><strong>{failure.location.stepNumber ? `节点 ${String(failure.location.stepNumber).padStart(2, '0')} · ` : ''}{failure.location.nodeType || '未知节点'}</strong><small>{failure.title}</small></div></header>
-        <dl><div><dt>发生了什么</dt><dd>{failure.observed}</dd></div><div><dt>可能原因</dt><dd>{failure.likelyCause}</dd></div><div><dt>影响</dt><dd>{failure.impact}</dd></div><div><dt>怎么处理</dt><dd>{failure.action}</dd></div></dl>
-        <div className="canvas-run-failure__actions"><span>{failure.retryable ? '可重试' : '需先修复'}</span><button type="button" onClick={() => sendDiagnosticToAssistant(failure)}><Bot size={14} />让 AI 助手分析</button></div>
-        <details><summary>技术详情</summary><code>{[failure.technical.code, failure.technical.taskId, failure.technical.requestId].filter(Boolean).join(' · ')}</code></details>
-      </section> : null}
+    {!run && oneTimeSettings ? <div className="canvas-run-supervisor__next-run">本次覆盖已就绪<span>仅下一次运行</span></div> : null}
+    <div className="canvas-run-supervisor__controls">
+      {!run ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />生成运行计划</button> : null}
+      {run && projection.terminal ? <button type="button" className="is-primary" disabled={projection.busy || !canvasId || !workflowId} onClick={() => void projection.create(oneTimeSettings).then(onOneTimeConsumed).catch(() => undefined)}><CirclePlay size={15} />新建运行计划</button> : null}
+      {run?.status === 'draft' ? <button type="button" className="is-primary" disabled={projection.busy} onClick={() => void projection.command('start')}><CirclePlay size={15} />开始托管</button> : null}
+      {run && ['planning', 'queued', 'running'].includes(run.status) ? <button type="button" onClick={() => void projection.command('pause')}><CirclePause size={15} />暂停</button> : null}
+      {run?.status === 'paused' ? <button type="button" className="is-primary" onClick={() => void projection.command('resume')}><CirclePlay size={15} />继续</button> : null}
+      {run?.status === 'failed' ? <button type="button" disabled={projection.busy} title="使用当前运行的冻结快照重试" onClick={() => void projection.command('retry')}><RotateCcw size={15} />按原计划重试</button> : null}
+      {run && !projection.terminal ? <button type="button" className="is-danger" onClick={() => void projection.command('cancel')}><Ban size={15} />取消</button> : null}
+      {run ? <button type="button" title="刷新权威状态" onClick={() => void projection.refresh()}><RefreshCw size={15} /></button> : null}
+    </div>
 
-      {run ? <div className="canvas-run-supervisor__facts">
-        <span><Clock3 size={13} />{Math.max(0, Math.round((run.updatedAt - run.createdAt) / 1000))} 秒</span>
-        {budgetItems.map((item) => <span key={item.label}><small>{item.label}</small>{item.value}</span>)}
-      </div> : null}
+    {run ? <>
+      <nav className="canvas-supervision-tabs" aria-label="AI 托管视图">
+        <button type="button" aria-selected={activeView === 'runtime'} onClick={() => setActiveView('runtime')}>运行</button>
+        <button type="button" aria-selected={activeView === 'plan'} onClick={() => setActiveView('plan')}>计划</button>
+        <button type="button" aria-selected={activeView === 'events'} onClick={() => setActiveView('events')}>事件 <span>{projection.events.length}</span></button>
+      </nav>
+      {activeView === 'runtime' ? <CanvasSupervisionRuntimeView
+        run={run}
+        events={projection.events}
+        terminal={projection.terminal}
+        currentStep={currentStep}
+        durationSeconds={Math.max(0, Math.round((run.updatedAt - run.createdAt) / 1000))}
+        budgetItems={budgetItems}
+        errorMessage={errorMessage}
+        failure={failure}
+        failureDisplayName={failureDisplayName}
+        pendingApproval={pendingApproval}
+        onAnalyze={sendDiagnosticToAssistant}
+        onApproval={(decision) => void decideApproval(decision)}
+        onRefresh={projection.refresh}
+      /> : null}
+      {activeView === 'plan' ? <CanvasSupervisionPlanView analysis={analysis} sections={planSections} stepIndex={stepIndex} /> : null}
+      {activeView === 'events' ? <CanvasSupervisionEventView events={projection.events} steps={steps} /> : null}
+    </> : null}
+  </section>;
+}
 
-      {analysis ? <section className="canvas-run-analysis" data-status={analysis.status} aria-label="AI 链路分析">
-        <header><div><strong>AI 链路分析</strong><small>{analysis.status === 'completed' ? '已验证' : '确定性降级'}</small></div><span>{analysis.recommendedMaximumParallelism} 并发</span></header>
-        <p>{analysis.summary}</p>
-        <div className="canvas-run-analysis__facts">
-          <span><small>当前执行层</small>{analysis.activeLayer === null ? '未开始' : `${analysis.activeLayer + 1} / ${analysis.layerCount}`}</span>
-          <span><small>预计请求</small>{analysis.estimatedRequestCount}</span>
-        </div>
-        {analysis.concurrencyGroups.length ? <div className="canvas-run-analysis__section"><strong>并发组</strong>{analysis.concurrencyGroups.map((group, index) => <p key={`parallel-${index}`}><b>{group.labels.join(' + ')}</b>{group.reason}</p>)}</div> : null}
-        {analysis.serialConstraints.length ? <div className="canvas-run-analysis__section"><strong>串行约束</strong>{analysis.serialConstraints.map((constraint, index) => <p key={`serial-${index}`}><b>{constraint.before} → {constraint.after}</b>{constraint.reason}</p>)}</div> : null}
-        {analysis.risks.length ? <div className="canvas-run-analysis__section"><strong>风险</strong>{analysis.risks.map((risk, index) => <p key={`risk-${index}`}>{risk}</p>)}</div> : null}
-        {analysis.degradationReason ? <code>{analysis.degradationReason}</code> : null}
-      </section> : null}
-
-      {pendingApproval ? (
-        <div className="canvas-run-approval">
-          <div><strong>需要确认备用生成模型</strong><p>当前节点已耗尽同配置重试。批准后仅使用 Run Plan 中锁定的备选项继续。</p></div>
-          <button type="button" className="is-primary" onClick={() => void decideApproval('approve')}><Check size={14} />批准</button>
-          <button type="button" onClick={() => void decideApproval('reject')}><X size={14} />拒绝</button>
-        </div>
-      ) : null}
-
-      {run && steps.some((step) => step.nodeType === 'smart-candidate-selector') ? (
-        <CanvasCandidateSelectionPanel runId={run.id} events={projection.events} terminal={projection.terminal} onRefresh={projection.refresh} />
-      ) : null}
-
-      {run ? (
-        <div className="canvas-run-supervisor__body">
-          <div className="canvas-run-supervisor__section-title"><span>运行计划</span><small>只读权威投影</small></div>
-          <div className="canvas-run-plan">
-            {planSections.map((section) => <section className="canvas-run-plan__group" key={section.id} data-skipped={section.skipped ? 'true' : 'false'}>
-              <header><strong>{section.label}</strong><small>顺序 {section.order + 1} · {section.mode === 'parallel' ? '并行' : '串行'} · {section.steps.length} 步</small></header>
-              {section.steps.map((view) => (
-                <div className="canvas-run-plan__step" key={view.step.id} data-status={view.status}>
-                  <span className="canvas-run-plan__index">{String(stepIndex.get(view.step.id) || 0).padStart(2, '0')}</span>
-                  <span className="canvas-run-plan__content">
-                    <strong>{view.step.nodeType}<em data-status={view.status}>{CANVAS_RUN_STEP_STATUS_LABEL[view.status]}</em></strong>
-                    <small>{view.step.dependsOn.length ? `依赖 ${view.step.dependsOn.join('、')}` : '组内起点'}</small>
-                    {view.provider || view.model ? <small>路由 {view.provider || '已发布 Provider'}{view.model ? ` / ${view.model}` : ''}</small> : null}
-                    <span className="canvas-run-plan__evidence">
-                      {view.attempt ? <b>尝试 {view.attempt}</b> : null}
-                      {view.inputEvidence ? <b>输入 {view.inputEvidence}</b> : null}
-                      {view.qualityEvidence ? <b>质量 {view.qualityEvidence}</b> : null}
-                      {view.recoveryEvidence ? <b>恢复 {view.recoveryEvidence}</b> : null}
-                    </span>
-                    {view.reason ? <p>{view.reason}</p> : null}
-                  </span>
-                  <ShieldCheck size={15} />
-                </div>
-              ))}
-            </section>)}
-          </div>
-          <div className="canvas-run-supervisor__section-title"><span>事件</span><small>{projection.events.length} 条</small></div>
-          <div className="canvas-run-events">
-            {projection.events.length === 0 ? <p>运行事件将在这里按服务端顺序出现。</p> : projection.events.slice(-20).reverse().map((event) => (
-              <div key={event.id}><time>{new Date(event.createdAt).toLocaleTimeString()}</time><strong>{canvasRunEventLabel(event.eventType)}</strong></div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+function diagnosticDisplayName(diagnostic: CanvasRunFailureDiagnostic, steps: CanvasRunPlanStep[]) {
+  const step = steps.find((candidate) => candidate.id === diagnostic.location.runStepId || candidate.nodeId === diagnostic.location.nodeId);
+  return step ? canvasRunStepDisplayName(step) : '';
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { CanvasRunEvent, CanvasRunRecord } from './canvas-run-api';
-import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel } from './canvas-run-view-model';
+import { buildCanvasRunFailureDiagnostic, buildCanvasRunPlanSections, buildCanvasRunStepViews, canvasRunBudgetItems, canvasRunEventLabel, canvasRunStepDisplayName } from './canvas-run-view-model';
 import * as ViewModel from './canvas-run-view-model';
 
 const run: CanvasRunRecord = {
@@ -28,9 +28,9 @@ describe('canvas run supervision view model', () => {
         ...run.planSnapshot,
         executionLayers: [{ index: 0, stepIds: ['step-A', 'step-B'] }, { index: 1, stepIds: ['step-C'] }],
         steps: [
-          { id: 'step-A', nodeId: 'A', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0 },
-          { id: 'step-B', nodeId: 'B', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0 },
-          { id: 'step-C', nodeId: 'C', nodeType: 'smart-candidate-selector', groupId: 'group-a', dependsOn: ['A', 'B'], skipped: false, executionLayer: 1 },
+          { id: 'step-A', nodeId: 'image-a001', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0, displayIdentity: { label: '人物生成', suffix: 'a001', displayName: '人物生成 #a001' } },
+          { id: 'step-B', nodeId: 'image-b001', nodeType: 'image', groupId: 'group-a', dependsOn: [], skipped: false, executionLayer: 0, displayIdentity: { label: '场景生成', suffix: 'b001', displayName: '场景生成 #b001' } },
+          { id: 'step-C', nodeId: 'selector-c001', nodeType: 'smart-candidate-selector', groupId: 'group-a', dependsOn: ['image-a001', 'image-b001'], skipped: false, executionLayer: 1, displayIdentity: { label: '智能候选选择器', suffix: 'c001', displayName: '智能候选选择器 #c001' } },
         ],
         agentAnalysis: {
           status: 'completed',
@@ -52,13 +52,14 @@ describe('canvas run supervision view model', () => {
       activeLayer: 1,
       layerCount: 2,
       estimatedRequestCount: 2,
-      concurrencyGroups: [{ labels: ['A', 'B'], reason: '互不依赖' }],
+      concurrencyGroups: [{ labels: ['人物生成 #a001', '场景生成 #b001'], reason: '互不依赖' }],
+      serialConstraints: [{ before: '人物生成 #a001', after: '智能候选选择器 #c001', reason: '候选汇聚' }],
     });
   });
 
   it('renders analysis, concurrency, risk and active layer evidence in the supervisor', () => {
-    const source = readFileSync(new URL('./CanvasRunSupervisor.tsx', import.meta.url), 'utf8');
-    expect(source).toMatch(/buildCanvasRunAnalysisView/);
+    const source = readFileSync(new URL('./CanvasSupervisionPlanView.tsx', import.meta.url), 'utf8');
+    expect(source).toMatch(/canvasRunStepDisplayName/);
     expect(source).toMatch(/AI 链路分析/);
     expect(source).toMatch(/并发组/);
     expect(source).toMatch(/当前执行层/);
@@ -118,6 +119,17 @@ describe('canvas run supervision view model', () => {
       { label: '任务上限', value: '8' },
       { label: '时长上限', value: '90 秒' },
     ]);
+    expect(canvasRunBudgetItems({ maxTasks: 0, maxCost: '0', maxDurationMs: 0, maxTokens: 'unlimited' })).toEqual([]);
+  });
+
+  it('uses frozen human node identity and a catalog fallback for historical runs', () => {
+    expect(canvasRunStepDisplayName({
+      ...run.planSnapshot.steps[0],
+      nodeId: 'video-v3uy',
+      displayIdentity: { label: '人物视频', suffix: 'v3uy', displayName: '人物视频 #v3uy' },
+    })).toBe('人物视频 #v3uy');
+    expect(canvasRunStepDisplayName({ ...run.planSnapshot.steps[0], nodeId: 'video-old1', displayIdentity: undefined }))
+      .toBe('视频 #old1');
   });
 
   it('preserves explicit group order and keeps dependencies inside each step view', () => {

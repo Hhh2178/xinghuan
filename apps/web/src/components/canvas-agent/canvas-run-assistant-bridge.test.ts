@@ -15,7 +15,7 @@ describe('Canvas Run assistant diagnostic bridge', () => {
       upstreamHttpStatus: 429,
     });
 
-    const detail = buildCanvasRunAssistantContextDetail(diagnostic);
+    const detail = buildCanvasRunAssistantContextDetail(diagnostic, undefined, '人物生成 #v3uy');
 
     expect(detail.open).toBe(true);
     expect(detail.draft).toBe(CANVAS_RUN_FAILURE_ASSISTANT_DRAFT);
@@ -23,6 +23,7 @@ describe('Canvas Run assistant diagnostic bridge', () => {
     expect(detail.attachments[0]).toMatchObject({
       id: 'canvas-run-failure-run-1-step-2',
       kind: 'node',
+      title: '失败节点 人物生成 #v3uy',
       payload: {
         source: 'canvas_run_error',
         runId: 'run-1',
@@ -38,5 +39,10 @@ describe('Canvas Run assistant diagnostic bridge', () => {
     const diagnostic = projectCanvasRunFailureDiagnostic({ code: 'CANVAS_RUN_DISABLED' });
     expect(buildCanvasRunAssistantContextDetail(diagnostic, 'run-fallback').attachments[0]?.id)
       .toBe('canvas-run-failure-run-fallback-CANVAS_RUN_DISABLED');
+  });
+
+  it('uses a catalog node name instead of a raw node type when no frozen name is supplied', () => {
+    const diagnostic = projectCanvasRunFailureDiagnostic({ code: 'RATE_LIMITED', nodeId: 'image-ab12', nodeType: 'image' });
+    expect(buildCanvasRunAssistantContextDetail(diagnostic).attachments[0]?.title).toBe('失败节点 图像 #ab12');
   });
 });

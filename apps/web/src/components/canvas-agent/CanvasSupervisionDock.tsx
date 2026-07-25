@@ -188,7 +188,7 @@ export function CanvasSupervisionDock(props: {
           {selectedWorkflow && !projection.run ? <section className="canvas-supervision-readiness" data-state={readiness.state} aria-label="AI 托管运行前检查">
             <header><strong>{readiness.state === 'blocked' ? '运行前检查发现问题' : '运行前检查'}</strong><small>{readiness.state === 'blocked' ? '需要修复' : '等待服务端确认'}</small></header>
             {readiness.items.map((item) => <div key={`${item.code}:${item.nodeId || 'workflow'}`}>
-              <strong>{item.nodeId ? `节点 ${item.nodeId}` : '工作流'}</strong>
+              <strong>{item.nodeDisplayName || (item.nodeId ? '相关节点' : '工作流')}</strong>
               <span>{item.message}</span>
               <p>{item.action}</p>
             </div>)}

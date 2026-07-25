@@ -1,4 +1,5 @@
-import { projectCanvasRunFailureDiagnostic, type CanvasRunFailureDiagnostic } from '@xinghuan/shared';
+import { projectCanvasRunFailureDiagnostic, resolveNodeDisplayIdentity, type CanvasRunFailureDiagnostic } from '@xinghuan/shared';
+import { getNodeExecutionCapability } from '@xinghuan/agent-core';
 import type { CanvasRunEvent, CanvasRunPlanStep, CanvasRunRecord, CanvasRunStatus } from './canvas-run-api';
 
 export type CanvasRunStepViewStatus =
@@ -122,6 +123,16 @@ function alternativeModel(configuration: Record<string, unknown>): string {
   return firstText(candidate, ['modelName', 'modelId', 'modelRecordId', 'modelKey']);
 }
 
+export function canvasRunStepDisplayName(step: CanvasRunPlanStep): string {
+  const frozen = text(step.displayIdentity?.displayName);
+  if (frozen) return frozen;
+  return resolveNodeDisplayIdentity({
+    nodeId: step.nodeId,
+    nodeType: step.nodeType,
+    catalogLabel: getNodeExecutionCapability(step.nodeType)?.label,
+  }).displayName;
+}
+
 export function buildCanvasRunStepViews(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunStepView[] {
   return run.planSnapshot.steps.map((step) => {
     const configuration = object(step.configuration);
@@ -231,7 +242,7 @@ export function buildCanvasRunFailureDiagnostic(run: CanvasRunRecord, events: Ca
 export function buildCanvasRunAnalysisView(run: CanvasRunRecord, events: CanvasRunEvent[]): CanvasRunAnalysisView | null {
   const analysis = run.planSnapshot.agentAnalysis || object(run.configurationSnapshot.agentAnalysis);
   if (!analysis || !['completed', 'degraded'].includes(text(analysis.status))) return null;
-  const labels = new Map(run.planSnapshot.steps.map((step) => [step.id, step.nodeId || step.nodeType]));
+  const labels = new Map(run.planSnapshot.steps.map((step) => [step.id, canvasRunStepDisplayName(step)]));
   const completedLayers = new Set(events
     .filter((event) => event.eventType === 'canvas_run.execution_layer_completed')
     .map((event) => Number(event.payload.layerIndex))
@@ -322,8 +333,15 @@ export function canvasRunBudgetItems(snapshot: Record<string, unknown>): Array<{
   ];
   return candidates.flatMap(([label, keys]) => {
     const value = firstText(snapshot, keys);
-    if (!value) return [];
+    if (!value || !isVisibleLimit(value)) return [];
     const formatted = label === '时长上限' ? `${Math.round(Number(value) / 1000)} 秒` : value;
     return [{ label, value: formatted }];
   });
+}
+
+function isVisibleLimit(value: string) {
+  const normalized = value.toLowerCase();
+  if (['unlimited', 'none', 'infinite', 'infinity', '不限', '无限'].includes(normalized)) return false;
+  const numeric = Number(value);
+  return !Number.isFinite(numeric) || numeric > 0;
 }

@@ -17,8 +17,8 @@ describe('buildWorkflowSupervisionReadiness', () => {
   });
 
   it('identifies legacy nodes by the responsible node id', () => {
-    const result = buildWorkflowSupervisionReadiness({ workflow: workflow(['legacy']), nodes: [node('legacy', 'canvas-agent')], edges: [] });
-    expect(result).toMatchObject({ state: 'blocked', items: [{ nodeId: 'legacy', code: 'CANVAS_RUN_LEGACY_NODE_UNSUPPORTED' }] });
+    const result = buildWorkflowSupervisionReadiness({ workflow: workflow(['legacy']), nodes: [node('legacy', 'canvas-agent', { label: '旧托管' })], edges: [] });
+    expect(result).toMatchObject({ state: 'blocked', items: [{ nodeId: 'legacy', nodeDisplayName: '旧托管 #legacy', code: 'CANVAS_RUN_LEGACY_NODE_UNSUPPORTED' }] });
   });
 
   it('blocks a workflow input that is missing its required value', () => {

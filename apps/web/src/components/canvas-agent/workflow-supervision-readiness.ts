@@ -1,11 +1,12 @@
 import type { Edge, Node } from '@xyflow/react';
 import { getNodeExecutionCapability } from '@xinghuan/agent-core';
-import type { WorkflowDocument } from '@xinghuan/shared';
+import { resolveNodeDisplayIdentity, type WorkflowDocument } from '@xinghuan/shared';
 
 export type WorkflowSupervisionReadinessState = 'ready' | 'blocked' | 'server-check';
 
 export interface WorkflowSupervisionReadinessItem {
   nodeId?: string;
+  nodeDisplayName?: string;
   code: string;
   message: string;
   action: string;
@@ -30,15 +31,21 @@ export function buildWorkflowSupervisionReadiness(input: {
   for (const nodeId of workflow.memberNodeIds) {
     const node = nodesById.get(nodeId);
     if (!node) {
-      items.push({ nodeId, code: 'WORKFLOW_MEMBER_NODE_MISSING', message: '工作流引用的节点已不存在。', action: '重新将有效节点加入工作流区域。' });
+      items.push({ nodeId, nodeDisplayName: resolveNodeDisplayIdentity({ nodeId, catalogLabel: '缺失节点' }).displayName, code: 'WORKFLOW_MEMBER_NODE_MISSING', message: '工作流引用的节点已不存在。', action: '重新将有效节点加入工作流区域。' });
       continue;
     }
     const capability = getNodeExecutionCapability(node.type || '');
+    const nodeDisplayName = resolveNodeDisplayIdentity({
+      nodeId,
+      nodeType: node.type,
+      customLabel: (node.data as Record<string, unknown>)?.label || (node.data as Record<string, unknown>)?.name || (node.data as Record<string, unknown>)?.title,
+      catalogLabel: capability?.label,
+    }).displayName;
     if (!capability || capability.serverRuntime !== 'native_server') {
-      items.push({ nodeId, code: 'CANVAS_RUN_LEGACY_NODE_UNSUPPORTED', message: `节点“${node.type || '未知类型'}”不能由 AI 托管运行。`, action: '替换为支持 native-server 的节点；不要使用历史 Agent 托管节点。' });
+      items.push({ nodeId, nodeDisplayName, code: 'CANVAS_RUN_LEGACY_NODE_UNSUPPORTED', message: `节点“${node.type || '未知类型'}”不能由 AI 托管运行。`, action: '替换为支持 native-server 的节点；不要使用历史 Agent 托管节点。' });
       continue;
     }
-    if (node.type === 'workflow-input') validateWorkflowInput(node, workflow, items);
+    if (node.type === 'workflow-input') validateWorkflowInput(node, nodeDisplayName, workflow, items);
   }
   if (items.length > 0) return { state: 'blocked', items };
 
@@ -52,21 +59,21 @@ export function buildWorkflowSupervisionReadiness(input: {
   };
 }
 
-function validateWorkflowInput(node: Node, workflow: WorkflowDocument, items: WorkflowSupervisionReadinessItem[]) {
+function validateWorkflowInput(node: Node, nodeDisplayName: string, workflow: WorkflowDocument, items: WorkflowSupervisionReadinessItem[]) {
   const data = node.data as { variableId?: unknown; portType?: unknown };
   const variableId = typeof data.variableId === 'string' ? data.variableId : '';
   const portType = typeof data.portType === 'string' ? data.portType : '';
   const variable = workflow.variables.find((candidate) => candidate.id === variableId);
   if (!variable) {
-    items.push({ nodeId: node.id, code: 'WORKFLOW_BOUNDARY_VARIABLE_INVALID', message: '工作流输入没有关联有效变量。', action: '在该工作流输入节点中选择同类型的输入变量。' });
+    items.push({ nodeId: node.id, nodeDisplayName, code: 'WORKFLOW_BOUNDARY_VARIABLE_INVALID', message: '工作流输入没有关联有效变量。', action: '在该工作流输入节点中选择同类型的输入变量。' });
     return;
   }
   if (variable.type !== portType) {
-    items.push({ nodeId: node.id, code: 'WORKFLOW_BOUNDARY_VARIABLE_TYPE_MISMATCH', message: `工作流输入类型与变量“${variable.label}”不一致。`, action: '将节点数据类型改为与输入变量相同的类型。' });
+    items.push({ nodeId: node.id, nodeDisplayName, code: 'WORKFLOW_BOUNDARY_VARIABLE_TYPE_MISMATCH', message: `工作流输入类型与变量“${variable.label}”不一致。`, action: '将节点数据类型改为与输入变量相同的类型。' });
     return;
   }
   if (variable.required && isMissing(workflow.inputValues[variableId])) {
-    items.push({ nodeId: node.id, code: 'WORKFLOW_BOUNDARY_VALUE_MISSING', message: `输入变量“${variable.label}”尚未提供值。`, action: '在工作流变量面板中填写该输入变量的值。' });
+    items.push({ nodeId: node.id, nodeDisplayName, code: 'WORKFLOW_BOUNDARY_VALUE_MISSING', message: `输入变量“${variable.label}”尚未提供值。`, action: '在工作流变量面板中填写该输入变量的值。' });
   }
 }
 

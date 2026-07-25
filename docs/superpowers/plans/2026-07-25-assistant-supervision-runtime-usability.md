@@ -510,7 +510,7 @@ Commit with `feat(canvas): show supervised tasks in normal nodes`.
 - Produces internal tab state: `runtime | plan | events`.
 - All user-facing step labels consume frozen `displayIdentity`; raw IDs remain in technical detail.
 
-- [ ] **Step 1: Write view-model tests for friendly names and hidden empty facts**
+- [x] **Step 1: Write view-model tests for friendly names and hidden empty facts**
 
 ```ts
 expect(view.currentStep.displayName).toBe("智能候选选择器 #ydhc");
@@ -521,23 +521,23 @@ expect(view.serialConstraints[0]).toMatchObject({
 });
 ```
 
-- [ ] **Step 2: Add a component contract for the three internal tabs**
+- [x] **Step 2: Add a component contract for the three internal tabs**
 
 The static verifier must reject a return to one continuous stack and assert that only the active workspace is rendered.
 
-- [ ] **Step 3: Split the current supervisor**
+- [x] **Step 3: Split the current supervisor**
 
 Keep the header, workflow selector, settings trigger and Run commands in the dock. Move default status/failure/candidate/output, plan/analysis and events into separate focused components.
 
-- [ ] **Step 4: Simplify the runtime view**
+- [x] **Step 4: Simplify the runtime view**
 
 Show status, progress, current node, primary control and concise repair action. Hide zero/unlimited cost, empty budgets, full revision metadata and raw route IDs from the default view.
 
-- [ ] **Step 5: Replace all raw user-facing node references**
+- [x] **Step 5: Replace all raw user-facing node references**
 
 Update readiness items, run plan, AI concurrency groups, serial constraints, failure title, candidate source and assistant bridge. Keep `nodeId` unchanged in event payloads and technical detail.
 
-- [ ] **Step 6: Run the phase gate**
+- [x] **Step 6: Run the phase gate**
 
 Run:
 
@@ -549,7 +549,7 @@ npm run build -w @xinghuan/web
 git diff --check
 ```
 
-- [ ] **Step 7: Record and commit**
+- [x] **Step 7: Record and commit**
 
 Commit with `refactor(canvas): focus supervision runtime views`.
 

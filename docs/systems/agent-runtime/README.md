@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-25 local Task 6 checkpoint: AI Supervision now has exclusive Runtime, Plan and Events workspaces beneath fixed status/progress/commands. Runtime focuses the current node, concise repair, approval and candidate actions; Plan owns Agent analysis and immutable steps; Events owns the durable timeline. User-facing references prefer frozen `displayIdentity` and historical Runs fall back through the capability catalog, while raw IDs remain technical. Zero/unlimited facts are omitted. This checkpoint is local only; Gray and Production were not changed.
+
 > 2026-07-25 local Task 5 checkpoint: the selected supervised Run now projects owner-scoped `runtimeSteps` into the existing Image/Video/Audio/Output node runtime and preview surfaces through a reserved transient `__runtimeProjection`. Canvas and workflow serialization strip that key, Output nodes suppress projection-triggered persistence, and switching Canvas/Run clears stale state. Active multi-child batches materialize completed children early so normal node previews can show safe platform URLs before the whole batch settles. This checkpoint is local only; Gray and Production were not changed.
 
 > 2026-07-25 local Task 4 checkpoint: supervised Image, Video and Audio generation now reuse one bounded batch runner with stable child ordering, independent child state, cancellation-safe late-result handling and materialized Artifact binding. Detailed owner-scoped Run reads expose safe `runtimeSteps`; Run lists remain lightweight. Active selector evaluation/selection stays visually running even after its Provider task succeeds. This checkpoint is local only; Gray and Production were not changed.
