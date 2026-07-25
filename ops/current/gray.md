@@ -4,7 +4,7 @@
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.7.44`
 - 当前 release：`20260725-ai-governance-runtime-current-gray-r1-v0744`
-- 当前状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
+- 当前状态：`v0.7.44 已部署；AI 治理、RunningHub Standard Model 与 AI 托管执行链运行态验证通过`
 - 当前补修：`将当前代码中的 AI 助手/托管运行时、候选选择器溯源修复和统一运行投影推送到 Gray；前台和后台助手实测均以 agent 模式完成`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
 - 本轮制品源提交：`6a154df`

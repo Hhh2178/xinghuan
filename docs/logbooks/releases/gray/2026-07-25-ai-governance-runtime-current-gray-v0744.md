@@ -25,6 +25,14 @@
 - 隔离 Gray Candidate 真实运行通过：双分支候选选择、单分支多候选质量评估、下游生成和前后台 assistant agent 模式。
 - 正式 Gray 旧版本曾复现旧的 `SMART_CANDIDATE_PROVENANCE_INCOMPLETE`；本 release 包含该修复。
 
+## Post-deploy result
+
+- Gray `current` 已切换至 `/opt/apps/xinghuan-canvas-next/releases/20260725-ai-governance-runtime-current-gray-r1-v0744`。
+- 内部与公网 `/api/status` 均返回 `0.7.44 / gray / enforced`；API 与 Worker 均为 `active`。
+- Gray permission readiness：数据库 `xinghuan_canvas_gray`，131 subjects、932 rules、5 principals，`failures=[]`。
+- Admin task pagination、environment sync、Provider task service 与 Provider Worker smoke 全部通过。
+- Production 未部署、未重启、未修改。
+
 ## Visual Scope
 
 - 按用户要求仅做 PC 端视觉验收；未执行其他窗口尺寸矩阵。
