@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-25 local Task 7 checkpoint: the Canvas assistant treats the measured AI Supervision panel as a hard desktop obstacle with a 12px exclusion gap. Open placement uses viewport subtraction and nearest legal launcher/panel regions; closed placement constrains only the launcher. Supervision open/resize re-homes illegal persisted coordinates and every pointer move uses the same clamp, while closing supervision preserves valid coordinates. This checkpoint is local only; final visual acceptance remains the single `1920x1080` pass, and Gray/Production were not changed.
+
 > 2026-07-25 local Task 6 checkpoint: AI Supervision now has exclusive Runtime, Plan and Events workspaces beneath fixed status/progress/commands. Runtime focuses the current node, concise repair, approval and candidate actions; Plan owns Agent analysis and immutable steps; Events owns the durable timeline. User-facing references prefer frozen `displayIdentity` and historical Runs fall back through the capability catalog, while raw IDs remain technical. Zero/unlimited facts are omitted. This checkpoint is local only; Gray and Production were not changed.
 
 > 2026-07-25 local Task 5 checkpoint: the selected supervised Run now projects owner-scoped `runtimeSteps` into the existing Image/Video/Audio/Output node runtime and preview surfaces through a reserved transient `__runtimeProjection`. Canvas and workflow serialization strip that key, Output nodes suppress projection-triggered persistence, and switching Canvas/Run clears stale state. Active multi-child batches materialize completed children early so normal node previews can show safe platform URLs before the whole batch settles. This checkpoint is local only; Gray and Production were not changed.
@@ -52,7 +54,7 @@
 - API 已提供 owner-scoped Canvas Run 创建、读取、控制命令、事件游标读取和 `/events/stream` SSE 投影；创建只从数据库中的 canvas revision 编译 Plan，不接受客户端 Plan。
 - Web 已新增 Canvas Run client、SSE projection 和独立托管监督面板。顶部公告旁的 `AI 托管` 入口独立控制该面板并投影活动/异常状态；悬浮助手只保留对话、附件、知识引用与提案。旧 `canvas-agent` 节点仍可渲染历史画布，但已退出新建目录，只保存 scope、policyRef 和 agentRunId 引用，运行计划、事件和状态不进入 Zustand 或节点 JSON。
 - 悬浮助手的位置、边缘吸附、标题偏移和首选尺寸按 owner 保存在本地 UI 几何状态；这些状态不进入 Canvas、Run 或服务端权限权威。桌面 Assistant 根据真实 Supervision 矩形切换边缘，窄屏使用互斥抽屉。
-- 2026-07-24 后续体验修正：悬浮助手改为保存 owner-scoped 的自由 `x/y` 坐标，启动器与工作台标题栏都可在 PC 画布可视区内拖动；工作台仍会在可行时避让 AI 托管面板，但不再吸附到左右边缘。
+- 2026-07-25 后续体验修正：悬浮助手保存 owner-scoped 的自由 `x/y` 坐标，启动器与工作台标题栏都可在 PC 画布可视区内拖动；助手和工作台使用同一障碍物约束，AI 托管面板存在时不能进入其 12px 排除区域，关闭托管后恢复完整桌面移动范围，且不再吸附到左右边缘。
 - `canvas-agent` 的节点能力记录已改为“Agent 托管（历史兼容）”：它只支持旧画布读取，不是新建入口，也不得成为助手建议。当前 AI 托管的唯一产品路径是 Workflow Region -> AI 托管面板 -> 生成运行计划 -> 开始托管。受控知识快照继续只读，运行时关于节点/模型的事实来自受版本控制的 Node Capability Catalog 和安全模型投影。
 - 助手错误分析优先使用当前选中节点，否则读取最近失败的 owner-scoped Workflow Run 与 bounded events；发送给助手的节点配置、上下游影响和失败证据先做 allowlist/sensitive-key 清洗，可见用户消息不倾倒 Plan/Event JSON。
 - Assistant Markdown 继续由共享安全 renderer 承担 HTML、URL、远程图片和 reasoning 边界，并在其上提供整条回答与 code/table/ordered-steps/note 语义块复制。助手仍不拥有 Run、重试或托管控制权。

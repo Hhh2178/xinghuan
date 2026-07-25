@@ -94,6 +94,7 @@ export function useAssistantGeometry(ownerId: string, open: boolean) {
           anchor: current.anchor,
           size: current.size,
           supervisionRect,
+          panelOpen: true,
         }).panel;
         if (Math.abs(width - expected.width) < 2 && Math.abs(height - expected.height) < 2) return current;
         const size = normalizeAssistantSize({ width, height }, viewport);
@@ -106,13 +107,27 @@ export function useAssistantGeometry(ownerId: string, open: boolean) {
     return () => observer.disconnect();
   }, [open, supervisionRect, viewport]);
 
+  useEffect(() => {
+    setGeometry((current) => {
+      const anchor = constrainAssistantAnchor({
+        anchor: current.anchor,
+        size: current.size,
+        viewport,
+        supervisionRect,
+        panelOpen: open,
+      });
+      return sameAnchor(anchor, current.anchor) ? current : { ...current, anchor };
+    });
+  }, [open, ownerId, supervisionRect, viewport]);
+
   const layout = useMemo(() => resolveAssistantLayout({
     viewportWidth: viewport.width,
     viewportHeight: viewport.height,
     anchor: geometry.anchor,
     size: geometry.size,
     supervisionRect,
-  }), [geometry, supervisionRect, viewport]);
+    panelOpen: open,
+  }), [geometry, open, supervisionRect, viewport]);
 
   const beginLauncherDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -146,24 +161,30 @@ export function useAssistantGeometry(ownerId: string, open: boolean) {
     const deltaY = event.clientY - drag.startY;
     drag.moved ||= Math.abs(deltaX) + Math.abs(deltaY) > 5;
     if (drag.kind === 'launcher') {
-      setGeometry((current) => ({
-        ...current,
-        anchor: snapAssistantAnchor({
+      setGeometry((current) => {
+        const anchor = snapAssistantAnchor({
           pointerX: event.clientX,
           pointerY: event.clientY,
           viewportWidth: viewport.width,
           viewportHeight: viewport.height,
-        }),
-      }));
+        });
+        return {
+          ...current,
+          anchor: constrainAssistantAnchor({ anchor, size: current.size, viewport, supervisionRect, panelOpen: open }),
+        };
+      });
       return;
     }
-    setGeometry((current) => ({
-      ...current,
-      anchor: normalizeAssistantAnchor({
+    setGeometry((current) => {
+      const anchor = normalizeAssistantAnchor({
         x: drag.anchor.x + deltaX,
         y: drag.anchor.y + deltaY,
-      }, viewport),
-    }));
+      }, viewport);
+      return {
+        ...current,
+        anchor: constrainAssistantAnchor({ anchor, size: current.size, viewport, supervisionRect, panelOpen: open }),
+      };
+    });
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
@@ -223,4 +244,26 @@ function sameRect(left: AssistantRect | null, right: AssistantRect) {
     && Math.abs(left!.y - right.y) < 1
     && Math.abs(left!.width - right.width) < 1
     && Math.abs(left!.height - right.height) < 1;
+}
+
+function constrainAssistantAnchor(input: {
+  anchor: AssistantAnchor;
+  size: AssistantSize;
+  viewport: AssistantSize;
+  supervisionRect: AssistantRect | null;
+  panelOpen: boolean;
+}): AssistantAnchor {
+  const layout = resolveAssistantLayout({
+    viewportWidth: input.viewport.width,
+    viewportHeight: input.viewport.height,
+    anchor: input.anchor,
+    size: input.size,
+    supervisionRect: input.supervisionRect,
+    panelOpen: input.panelOpen,
+  });
+  return { x: layout.launcher.x, y: layout.launcher.y };
+}
+
+function sameAnchor(left: AssistantAnchor, right: AssistantAnchor) {
+  return Math.abs(left.x - right.x) < 1 && Math.abs(left.y - right.y) < 1;
 }

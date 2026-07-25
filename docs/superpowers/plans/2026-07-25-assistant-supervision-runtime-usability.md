@@ -580,7 +580,7 @@ export function resolveAssistantMovementRegion(input: {
 }): AssistantMovementRegion[];
 ```
 
-- [ ] **Step 1: Write no-overlap and clamped-drag tests**
+- [x] **Step 1: Write no-overlap and clamped-drag tests**
 
 ```ts
 const supervision = { x: 1382, y: 122, width: 520, height: 720 };
@@ -595,23 +595,23 @@ expect(assistantRectsOverlap(layout.panel, supervision, 12)).toBe(false);
 expect(assistantRectsOverlap(layout.launcher, supervision, 12)).toBe(false);
 ```
 
-- [ ] **Step 2: Add transition tests**
+- [x] **Step 2: Add transition tests**
 
 Opening or resizing supervision re-homes an illegal assistant position; closing supervision keeps the anchor when it is valid and restores full movement bounds.
 
-- [ ] **Step 3: Run the geometry tests and confirm the current overlap remains possible**
+- [x] **Step 3: Run the geometry tests and confirm the current overlap remains possible**
 
 Run: `npx vitest run apps/web/src/components/canvas-assistant/assistant-geometry.test.ts`
 
-- [ ] **Step 4: Implement viewport subtraction and nearest legal region selection**
+- [x] **Step 4: Implement viewport subtraction and nearest legal region selection**
 
 Use pure rectangle math with a 12px gap. Clamp on every pointer move. Do not rely on z-index or choose merely the smaller intersection.
 
-- [ ] **Step 5: Observe the supervision rectangle without global event races**
+- [x] **Step 5: Observe the supervision rectangle without global event races**
 
 Keep `ResizeObserver` ownership in the geometry hook, but update only when the measured rectangle changes. Ensure pointer capture remains on the assistant control during clamped dragging.
 
-- [ ] **Step 6: Run the phase gate**
+- [x] **Step 6: Run the phase gate**
 
 Run:
 
@@ -623,7 +623,7 @@ npm run build -w @xinghuan/web
 git diff --check
 ```
 
-- [ ] **Step 7: Record and commit**
+- [x] **Step 7: Record and commit**
 
 Commit with `fix(canvas): keep assistant clear of supervision`.
 
