@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Edge, Node } from '@xyflow/react';
-import { projectCanvasRunFailureDiagnostic } from '@xinghuan/shared';
+import { projectCanvasRunFailureDiagnostic, resolveNodeDisplayIdentity } from '@xinghuan/shared';
+import { assistantPhaseLabel } from '@xinghuan/ui';
 import {
   getAssistantSettings,
   streamAssistantChat,
@@ -59,7 +60,7 @@ function workflowAttachment(nodes: Node[], edges: Edge[], canvasId: string): Ass
     summary: `${nodes.length} 节点 / ${edges.length} 连线`,
     payload: {
       canvasId,
-      nodes: nodes.slice(0, 40).map((node) => ({ id: node.id, type: String(node.type || ''), data: sanitizeAssistantWorkflowData(node.data) })),
+      nodes: nodes.slice(0, 40).map((node) => ({ id: node.id, type: String(node.type || ''), displayName: assistantNodeDisplayName(node), data: sanitizeAssistantWorkflowData(node.data) })),
       edges: edges.slice(0, 80).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
     },
   };
@@ -163,14 +164,15 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
         summary: `${selected.length} 节点 / ${selectedEdges.length} 连线`,
         payload: {
           canvasId,
-          nodes: selected.map((node) => ({ id: node.id, type: String(node.type || '') })),
+          nodes: selected.map((node) => ({ id: node.id, type: String(node.type || ''), displayName: assistantNodeDisplayName(node) })),
           edges: selectedEdges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
         },
       });
     }
     if (settings.frontend.allowNodeAttachment && selected.length === 1) {
       const node = selected[0];
-      items.push({ id: `node-${node.id}`, kind: 'node', title: `节点 ${String(node.type || '')}`, summary: node.id, payload: { id: node.id, type: node.type } });
+      const displayName = assistantNodeDisplayName(node);
+      items.push({ id: `node-${node.id}`, kind: 'node', title: displayName, summary: String(node.type || '节点'), payload: { id: node.id, type: node.type, displayName } });
     }
     if (settings.frontend.allowMediaAttachment) {
       for (const node of selected) {
@@ -220,7 +222,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
     setStatus('正在分析');
     try {
       await streamAssistantChat({ message: text, attachments: outgoing, scope: 'canvas', conversationId: sessionId, idempotencyKey: crypto.randomUUID() }, {
-        onStatus: setStatus,
+        onStatus: (nextStatus) => setStatus(assistantPhaseLabel(nextStatus)),
         onProcess: (entry) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, process: [...(message.process || []), entry] } : message)),
         onDelta: (delta) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, text: message.text + delta } : message)),
         onDone: (result) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, text: result.message, mode: result.mode, streaming: false } : message)),
@@ -299,16 +301,18 @@ export function buildAssistantFailureTarget(input: {
     requestId: input.event.payload.requestId,
     upstreamHttpStatus: input.event.payload.upstreamHttpStatus,
   }) : undefined;
+  const displayName = assistantNodeDisplayName(input.node);
   const attachment: AssistantChatAttachment = {
     id: `failure-${input.source}-${input.runId || input.node.id}`,
     kind: 'node',
-    title: `节点 ${String(input.node.type || '')}`,
-    summary: input.node.id,
+    title: displayName,
+    summary: String(input.node.type || '节点'),
     payload: {
       source: input.source,
       runId: input.runId,
       nodeId: input.node.id,
       nodeType: String(input.node.type || ''),
+      displayName,
       configuration: sanitizeAssistantWorkflowData(input.node.data),
       upstreamNodeIds: incoming,
       downstreamNodeIds: outgoing,
@@ -316,7 +320,7 @@ export function buildAssistantFailureTarget(input: {
       diagnostic,
     },
   };
-  return { attachment, label: `节点 ${String(input.node.type || '')}（${input.node.id}）` };
+  return { attachment, label: displayName };
 }
 
 export function isAssistantFailureEvent(event: CanvasRunEvent) {
@@ -326,4 +330,15 @@ export function isAssistantFailureEvent(event: CanvasRunEvent) {
 
 function text(value: unknown) {
   return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+function assistantNodeDisplayName(node: Node) {
+  const data = node.data && typeof node.data === 'object' ? node.data as Record<string, unknown> : {};
+  const nodeType = String(node.type || '节点');
+  return resolveNodeDisplayIdentity({
+    nodeId: node.id,
+    nodeType,
+    customLabel: data.label || data.title,
+    catalogLabel: nodeType,
+  }).displayName;
 }

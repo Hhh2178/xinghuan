@@ -3,11 +3,12 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-const [shared, sharedTest, ui, uiTest, uiPackage, server, webApi, assistantApi, canvas, admin, webStyles, adminStyles] = await Promise.all([
+const [shared, sharedTest, ui, uiTest, assistantUi, uiPackage, server, webApi, assistantApi, canvas, admin, webStyles, adminStyles] = await Promise.all([
   read("packages/shared/src/assistant-content.ts"),
   read("packages/shared/src/assistant-content.test.ts"),
   read("packages/ui/src/assistant-markdown.tsx"),
   read("packages/ui/src/assistant-markdown.test.tsx"),
+  read("packages/ui/src/assistant-chat-ui.tsx"),
   read("packages/ui/package.json"),
   read("apps/api/src/server.ts"),
   read("apps/web/src/services/api.ts"),
@@ -42,9 +43,11 @@ assert.match(assistantChatRuntime, /buildAssistantChatContentResult\("agent"/);
 assert.doesNotMatch(assistantChatRuntime, /rawAssistant: `\$\{fallback\.rawAssistant\}/);
 assert.match(webApi, /from '\.\/assistant-api'/);
 assert.match(assistantApi, /createAssistantContentStreamFilter/);
-assert.match(canvas, /AssistantMarkdown/);
+assert.match(assistantUi, /AssistantMarkdown/);
+assert.match(assistantUi, /copyableBlocks=\{!message\.streaming\}/);
+assert.match(canvas, /AssistantConversationList/);
 assert.match(admin, /createAssistantContentStreamFilter/);
-assert.match(admin, /AssistantMarkdown/);
+assert.match(admin, /AssistantConversationList/);
 
 assert.match(webStyles, /agent-assistant-message__body[^}]*font-size: 14px;[^}]*line-height: 22px;/);
 assert.match(webStyles, /agent-assistant-message__identity[^}]*font-size: 12px;[^}]*line-height: 18px;/);

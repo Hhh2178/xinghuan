@@ -3963,6 +3963,8 @@ html[data-theme-visual="op"] .t8-group-box__handle {
 .agent-assistant-process p { margin: 7px 0 0; color: var(--agent-muted); font-size: 12px; line-height: 18px; }
 .agent-assistant-process p strong { display: block; color: #cad6d2; }
 .agent-assistant-spin { color: var(--agent-accent); animation: agent-spin 1s linear infinite; }
+.xh-assistant-stream-status { display: inline-flex; align-items: center; gap: 7px; min-height: 22px; color: var(--agent-muted); font-size: 12px; line-height: 18px; }
+.xh-assistant-stream-status svg { color: var(--agent-accent); animation: agent-spin 1s linear infinite; }
 @keyframes agent-spin { to { transform: rotate(360deg); } }
 
 .agent-assistant-empty { grid-row: 2; min-height: 0; display: grid; place-content: center; justify-items: start; gap: 9px; padding: 42px; color: var(--agent-muted); }

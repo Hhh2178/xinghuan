@@ -1,12 +1,11 @@
-import { Bot, Image as ImageIcon, KeyRound, MonitorCog, RotateCcw, ScrollText, Send, Sparkles, UserCog, Workflow, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { KeyRound, MonitorCog, RotateCcw, ScrollText, Sparkles, UserCog, Workflow, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { createAssistantContentStreamFilter, normalizeAssistantContent } from "@xinghuan/shared";
-import { AssistantMarkdown, isImeSubmissionEvent, useImeSafeTextControl } from "@xinghuan/ui";
+import { AssistantAttachmentStrip, AssistantComposer, AssistantConversationList, assistantPhaseLabel } from "@xinghuan/ui";
 import type {
   AdminUser,
   AssistantChatAttachment,
   AssistantChatResult,
-  AssistantMessageBlock,
   AssistantProcessEntry,
   AssistantSettings,
   AuditRecord,
@@ -19,13 +18,11 @@ import {
   ADMIN_ASSISTANT_APPEND_CONTEXT_EVENT,
   type AdminAssistantAppendContextDetail,
 } from "./admin-assistant-events";
-import { parseAssistantMessageBlocks } from "./admin-assistant-message-blocks";
 
 interface AssistantMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
-  blocks?: AssistantMessageBlock[];
   mode?: "agent" | "fallback";
   streaming?: boolean;
   process?: AssistantProcessEntry[];
@@ -120,17 +117,15 @@ export function AdminAssistantPanel({
   settings: AssistantSettings["backend"];
 }) {
   const [draft, setDraft] = useState("");
-  const draftControl = useImeSafeTextControl({ value: draft, onCommit: setDraft });
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("就绪");
   const [attachments, setAttachments] = useState<AssistantChatAttachment[]>([]);
   const [conversationId, setConversationId] = useState(() => createAssistantConversationId("admin"));
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       id: "assistant-welcome",
       role: "assistant",
       text: "把当前后台页的 Provider、模型、任务或用户上下文挂进来，我会帮你做分析和配置建议。",
-      blocks: parseAssistantMessageBlocks("把当前后台页的 Provider、模型、任务或用户上下文挂进来，我会帮你做分析和配置建议。"),
       mode: "fallback",
     },
   ]);
@@ -279,12 +274,12 @@ export function AdminAssistantPanel({
         id: `user-${Date.now()}`,
         role: "user",
         text: text || `请分析这 ${outgoingAttachments.length} 个后台上下文卡片。`,
-        blocks: parseAssistantMessageBlocks(text || `请分析这 ${outgoingAttachments.length} 个后台上下文卡片。`),
       },
     ]);
     setDraft("");
     setAttachments([]);
     setBusy(true);
+    setStatus("正在读取上下文");
     try {
       const assistantId = `assistant-${Date.now()}`;
       setMessages((current) => [
@@ -333,6 +328,9 @@ export function AdminAssistantPanel({
               .map((line) => line.slice(5).trim())
               .join("\n");
             const data = dataText ? JSON.parse(dataText) : null;
+            if (eventName === "status" && typeof data?.status === "string") {
+              setStatus(assistantPhaseLabel(data.status));
+            }
             if (eventName === "delta" && typeof data?.delta === "string") {
               const delta = contentFilter.push(data.delta);
               if (!delta) {
@@ -357,7 +355,6 @@ export function AdminAssistantPanel({
                     ? {
                         ...message,
                         text: messageText,
-                        blocks: parseAssistantMessageBlocks(messageText),
                         mode: result.mode,
                         streaming: false,
                       }
@@ -370,18 +367,19 @@ export function AdminAssistantPanel({
         }
       }
     } catch (error) {
+      setStatus("连接异常");
       setMessages((current) => [
         ...current.filter((message) => !message.streaming),
         {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
           text: error instanceof Error ? error.message : String(error),
-          blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
           mode: "fallback",
         },
       ]);
     } finally {
       setBusy(false);
+      setStatus((current) => current === "连接异常" ? current : "就绪");
     }
   }
 
@@ -389,12 +387,12 @@ export function AdminAssistantPanel({
     setConversationId(createAssistantConversationId("admin"));
     setDraft("");
     setAttachments([]);
+    setStatus("就绪");
     setMessages([
       {
         id: `assistant-welcome-${Date.now()}`,
         role: "assistant",
         text: settings.hint,
-        blocks: parseAssistantMessageBlocks(settings.hint),
         mode: "fallback",
       },
     ]);
@@ -418,34 +416,6 @@ export function AdminAssistantPanel({
         sourceUrl: uploaded.url,
       },
     });
-  }
-
-  async function handleClipboardPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const files = Array.from(event.clipboardData?.items || [])
-      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
-      .map((item) => item.getAsFile())
-      .filter((file): file is File => Boolean(file && file.size > 0));
-    if (files.length === 0) return;
-    event.preventDefault();
-    for (const [index, file] of files.entries()) {
-      const namedFile = file.name
-        ? file
-        : new File([file], `clipboard-image-${Date.now()}-${index + 1}.png`, { type: file.type || "image/png" });
-      try {
-        await handleUploadImage(namedFile);
-      } catch (error) {
-        setMessages((current) => [
-          ...current,
-          {
-            id: `assistant-paste-error-${Date.now()}-${index}`,
-            role: "assistant",
-            text: error instanceof Error ? error.message : String(error),
-            blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
-            mode: "fallback",
-          },
-        ]);
-      }
-    }
   }
 
   return (
@@ -511,90 +481,45 @@ export function AdminAssistantPanel({
           </details>
 
           {attachments.length > 0 ? (
-            <div className="admin-assistant-dock__attachments">
-              {attachments.map((item) => (
-                <div key={item.id || `${item.kind}-${item.title}`} className="admin-assistant-attachment">
-                  <div className="admin-assistant-attachment__meta">
-                    <div className="admin-assistant-attachment__title-row">
-                      <strong>{item.title || item.kind}</strong>
-                      <span className="admin-assistant-attachment__badge">{getAttachmentKindLabel(item.kind)}</span>
-                    </div>
-                    <span>{item.summary}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAttachments((current) =>
-                        current.filter((entry) => (entry.id || `${entry.kind}-${entry.title}`) !== (item.id || `${item.kind}-${item.title}`)),
-                      )
-                    }
-                  >
-                    <X aria-hidden="true" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <AssistantAttachmentStrip
+              classPrefix="admin-assistant"
+              items={attachments.map((item) => ({
+                key: item.id || `${item.kind}-${item.title}`,
+                kind: item.kind,
+                title: item.title || item.kind || "上下文",
+                kindLabel: getAttachmentKindLabel(item.kind),
+                summary: item.summary,
+              }))}
+              onRemove={(key) => setAttachments((current) => current.filter((item) => (item.id || `${item.kind}-${item.title}`) !== key))}
+            />
           ) : (
             <div className="admin-assistant-dock__empty">可直接提问，或展开上方添加当前页上下文。</div>
           )}
 
-          <div className="admin-assistant-dock__messages">
-            {messages.map((message) => (
-              <article key={message.id} className={`admin-assistant-message admin-assistant-message--${message.role}`}>
-                <AssistantMarkdown className="admin-assistant-message__body" markdown={message.text} />
-              </article>
-            ))}
-          </div>
+          <AssistantConversationList
+            className="admin-assistant-dock__messages"
+            classPrefix="admin-assistant"
+            messages={messages}
+            status={status}
+            assistantLabel="后台 AI 助手"
+          />
 
-          <footer className="admin-assistant-dock__composer">
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="admin-assistant-dock__file-input"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.currentTarget.value = "";
-                if (!file) return;
-                void handleUploadImage(file).catch((error) =>
-                  setMessages((current) => [
-                    ...current,
-                    {
-                      id: `assistant-upload-error-${Date.now()}`,
-                      role: "assistant",
-                      text: error instanceof Error ? error.message : String(error),
-                      blocks: parseAssistantMessageBlocks(error instanceof Error ? error.message : String(error)),
-                      mode: "fallback",
-                    },
-                  ]),
-                );
-              }}
-            />
-            <div className="admin-assistant-dock__composer-actions">
-              <button type="button" className="ghost-action" onClick={() => imageInputRef.current?.click()} disabled={busy}>
-                <ImageIcon aria-hidden="true" />
-                添加图片
-              </button>
-            </div>
-            <textarea
-              value={draftControl.value}
-              onChange={draftControl.onChange}
-              onCompositionStart={draftControl.onCompositionStart}
-              onCompositionEnd={draftControl.onCompositionEnd}
-              onKeyDown={(event) => {
-                if (isImeSubmissionEvent(event.nativeEvent, draftControl.isComposing)) return;
-                if (event.key !== "Enter" || event.shiftKey) return;
-                event.preventDefault();
-                void sendMessage();
-              }}
-              onPaste={(event) => void handleClipboardPaste(event)}
-              placeholder={settings.placeholder}
-            />
-            <button type="button" className="primary-action" onClick={() => void sendMessage()} disabled={busy || (!draft.trim() && attachments.length === 0)}>
-              <Send aria-hidden="true" />
-              {busy ? "发送中..." : "发送"}
-            </button>
-          </footer>
+          <AssistantComposer
+            classPrefix="admin-assistant"
+            value={draft}
+            placeholder={settings.placeholder}
+            busy={busy}
+            hasAttachments={attachments.length > 0}
+            onCommit={setDraft}
+            onUpload={handleUploadImage}
+            onUploadError={(error) => setMessages((current) => [...current, {
+              id: `assistant-upload-error-${Date.now()}`,
+              role: "assistant",
+              text: error instanceof Error ? error.message : String(error),
+              mode: "fallback",
+            }])}
+            onSend={() => void sendMessage()}
+          />
         </div>
       ) : null}
     </aside>

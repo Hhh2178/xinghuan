@@ -8,6 +8,8 @@ const webApi = read("apps/web/src/services/api.ts");
 const assistantApi = read("apps/web/src/services/assistant-api.ts");
 const assistant = read("apps/web/src/components/canvas-assistant/useAssistantSession.ts");
 const shared = read("packages/shared/src/assistant-chat.ts");
+const answerPolicy = read("apps/api/src/assistant-answer-policy.ts");
+const workflowContext = read("apps/api/src/assistant-workflow-context.ts");
 const assistantChatRuntime = server.slice(
   server.indexOf("async function runAssistantChat"),
   server.indexOf("function extractAssistantProcess"),
@@ -30,6 +32,12 @@ assert.match(assistantApi, /idempotencyKey\?: string/);
 assert.match(assistant, /idempotencyKey: crypto\.randomUUID\(\)/);
 assert.match(assistantApi, /payload\?: Record<string, unknown>/);
 assert.match(shared, /mode: "agent" \| "fallback"/);
+assert.match(server, /resolveAssistantDetailLevel/);
+assert.match(server, /buildAssistantAnswerPolicyPrompt\(detailLevel\)/);
+assert.match(answerPolicy, /最多 3 个可执行动作/);
+assert.match(answerPolicy, /主回答不得输出原始 ID/);
+assert.match(workflowContext, /displayName/);
+assert.match(workflowContext, /detailLevel === "brief"/);
 
 console.log("canvas internal assistant chat contract: ok");
 

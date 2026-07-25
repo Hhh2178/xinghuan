@@ -8,6 +8,8 @@ const orchestrator = read("apps/api/src/agent-orchestrator.ts");
 const routing = read("apps/api/src/llm-routing-repository.ts");
 const panel = read("apps/admin/src/admin-assistant-panel.tsx");
 const types = read("apps/admin/src/admin-types.ts");
+const answerPolicy = read("apps/api/src/assistant-answer-policy.ts");
+const assistantUi = read("packages/ui/src/assistant-chat-ui.tsx");
 
 assert.match(server, /url\.pathname === "\/api\/admin\/assistant\/chat\/stream"/);
 assert.match(server, /buildInternalAssistantChatPrompt/);
@@ -29,6 +31,10 @@ assert.match(types, /mode: "agent" \| "fallback"/);
 assert.match(types, /idempotencyKey\?: string/);
 assert.match(panel, /idempotencyKey: crypto\.randomUUID\(\)/);
 assert.match(panel, /kind: "image"/);
+assert.match(panel, /setStatus\(assistantPhaseLabel\(data\.status\)\)/);
+assert.match(answerPolicy, /resolveAssistantDetailLevel/);
+assert.match(assistantUi, /正在读取上下文/);
+assert.match(assistantUi, /正在生成答复/);
 
 console.log("admin internal assistant chat contract: ok");
 

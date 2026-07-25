@@ -24,7 +24,7 @@ This registry defines admin visual components and their intended home. Some entr
 | `AdminObservabilityInspector` | scattered technical tables | `apps/admin/src/components/observability/` | Metrics, thresholds, related events and technical details | Use for health chart/card drill-down |
 | `AdminVersionedConfigEditor` | not implemented | `apps/admin/src/components/agent-governance/` | Structured Agent, route, quality and recovery draft editing with diff/conflict state | Never expose raw JSON as the primary editing surface; save creates a new draft version |
 | `AdminKnowledgeEditor` | basic fields in `admin-agent-governance-workspace.tsx` | `apps/admin/src/components/agent-governance/` | Markdown edit/preview, audience, reference validation, publication and index status | Use published-document lifecycle; preview uses shared `AssistantMarkdown` policy |
-| `AdminAssistantDock` | `admin-assistant-panel.tsx` | current feature location | Optional page-context assistant | Must be collapsible and must not leave the main configuration form below the first viewport at supported desktop widths |
+| `AdminAssistantDock` | `admin-assistant-panel.tsx` + `packages/ui/src/assistant-chat-ui.tsx` | current feature location + shared UI | Optional page-context assistant | Reuse the shared conversation, status, attachment and composer behavior; keep Admin context collection and permissions local; remain collapsible without pushing the main form below the desktop viewport |
 
 ## Ant Design Boundary
 

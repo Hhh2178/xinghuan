@@ -51,6 +51,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, 
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { summarizeNodeAssistantAttachment, summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
+import { buildAssistantAnswerPolicyPrompt, resolveAssistantDetailLevel, type AssistantDetailLevel } from "./assistant-answer-policy.js";
 import { fileErrorCode, readSerializedJson, writeSerializedJson } from "./serialized-json-file.js";
 import {
   inferMime,
@@ -9743,7 +9744,7 @@ function buildAssistantChatContentResult(mode: "agent" | "fallback", input: stri
   };
 }
 
-function summarizeAssistantAttachment(item: AssistantChatAttachment) {
+function summarizeAssistantAttachment(item: AssistantChatAttachment, detailLevel: AssistantDetailLevel = "technical") {
   const payload = plainObject(item.payload);
   const kind = safeText(item.kind || "context");
   const summary: Record<string, unknown> = {
@@ -9752,10 +9753,10 @@ function summarizeAssistantAttachment(item: AssistantChatAttachment) {
     summary: safeText(item.summary).slice(0, 240),
   };
   if (kind === "workflow") {
-    Object.assign(summary, summarizeWorkflowAssistantAttachment(payload));
+    Object.assign(summary, summarizeWorkflowAssistantAttachment(payload, { detailLevel }));
   }
   if (kind === "node") {
-    Object.assign(summary, summarizeNodeAssistantAttachment(payload));
+    Object.assign(summary, summarizeNodeAssistantAttachment(payload, { detailLevel }));
   }
   if (kind === "provider" || kind === "model" || kind === "task") {
     summary.id = safeText(payload.id || payload.providerId || payload.modelId || payload.taskId).slice(0, 80);
@@ -9819,28 +9820,23 @@ function buildInternalProviderAnalysisPrompt(input: AssistantAnalyzeRequest, fal
 
 function buildInternalAssistantChatPrompt(input: AssistantChatRequest, actor: CurrentUser, fallback: AssistantChatResult) {
   const attachments = Array.isArray(input.attachments) ? input.attachments : [];
+  const detailLevel = resolveAssistantDetailLevel({ message: safeLongText(input.message, "", 4000), scope: input.scope || "canvas" });
   return [
     "你是无限画布的内置 AI 助手。",
     "你会收到用户问题，以及若干来自画布或后台的上下文卡片。",
-    "请结合这些上下文，用简洁、专业、可执行的中文直接回复。",
-    "输出必须是稳定的结构化文档，不要把多类内容混在一个段落里。",
-    "请优先使用明确分段输出，每一段单独成块：标题、正文、列表、JSON/代码块分开写。",
-    "每个主题单独成段，优先组织为 3 到 6 个 section，每个 section 只表达一个主题。",
-    "可以使用简短的小标题、要点列表，以及 fenced code block 展示 JSON、请求体或配置草案。",
+    "请结合这些上下文，用专业、可执行的中文直接回复。",
+    buildAssistantAnswerPolicyPrompt(detailLevel),
     "不要假装你已经修改了配置或执行了操作。",
-    "如果是在后台管理场景，优先输出结构化接入方案：结论、原因、接入步骤、风险、可直接应用配置(JSON)。",
-    "标题请独占一行，使用 ## 标题；列表请每项单独一行；JSON 必须放进 ```json 代码块。",
     "不要输出超长单行文本；如果内容很长，拆成多个段落或列表项。",
-    "不要把 JSON、说明文字、步骤、风险写在同一块里。",
     "保持空行、缩进和代码块原样，不要压扁格式。",
     "如果用户提供的是工作流、节点或媒体，请优先做分析、诊断、建议和下一步动作。",
-    "如果上下文包含 Canvas Run Failure Diagnostic，必须区分：已观察事实、可能原因、受影响步骤、修复动作。",
     "只能把诊断对象中的 observed、location 和 technical 字段视为已观察事实；推断必须明确标为可能原因，不得把猜测写成事实。",
     "不得声称已经重试、修改节点、切换模型或恢复运行，除非上下文中存在对应的审计结果。",
     `当前作用域: ${input.scope === "admin" ? "后台管理" : "画布工作区"}`,
     `当前用户: ${actor.email} (${actor.role})`,
     `用户问题: ${safeLongText(input.message, "", 4000) || "未提供问题"}`,
-    `上下文卡片摘要: ${JSON.stringify(attachments.map((item) => summarizeAssistantAttachment(item)))}`,
+    `回答详细级别: ${detailLevel}`,
+    `上下文卡片摘要: ${JSON.stringify(attachments.map((item) => summarizeAssistantAttachment(item, detailLevel)))}`,
     `本地兜底回复摘要: ${safeLongText(fallback.message, "", 1200)}`,
   ].join("\n");
 }

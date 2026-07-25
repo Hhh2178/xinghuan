@@ -710,30 +710,30 @@ export function resolveAssistantDetailLevel(input: {
 
 - Canvas/Admin streaming status uses the same semantic phases while each surface provides its own context adapter.
 
-- [ ] **Step 1: Write answer-policy tests**
+- [x] **Step 1: Write answer-policy tests**
 
 ```ts
 expect(resolveAssistantDetailLevel({ message: "这个错误怎么处理", scope: "canvas" })).toBe("brief");
 expect(resolveAssistantDetailLevel({ message: "给我技术码、任务 ID 和 provenance 字段", scope: "canvas" })).toBe("technical");
 ```
 
-- [ ] **Step 2: Write prompt contract assertions**
+- [x] **Step 2: Write prompt contract assertions**
 
 Brief mode requires a conclusion plus no more than three actions and forbids raw IDs/JSON in the main answer. Technical mode allows identifiers and structured detail while preserving secret redaction and evidence/guess separation.
 
-- [ ] **Step 3: Move common conversation/composer behavior into shared UI primitives**
+- [x] **Step 3: Move common conversation/composer behavior into shared UI primitives**
 
 Share message identity, markdown blocks, copy action, process display, composer, attachment strip and semantic status rendering. Keep Canvas context collection and Admin context collection in their respective apps.
 
-- [ ] **Step 4: Make Admin consume SSE statuses**
+- [x] **Step 4: Make Admin consume SSE statuses**
 
 Map `starting`, `building-context`, `generating` to `正在读取上下文`, `正在分析`, `正在生成答复`. Keep Admin-only Provider/model/task/user/audit features and permissions.
 
-- [ ] **Step 5: Use human node identity in assistant attachments**
+- [x] **Step 5: Use human node identity in assistant attachments**
 
 The prompt receives `displayName` as the primary reference and raw `nodeId` under technical context. The assistant must not repeat raw IDs unless detail level is technical.
 
-- [ ] **Step 6: Run the phase gate**
+- [x] **Step 6: Run the phase gate**
 
 Run:
 
@@ -751,7 +751,7 @@ npm run type-check -w @xinghuan/admin
 git diff --check
 ```
 
-- [ ] **Step 7: Record and commit**
+- [x] **Step 7: Record and commit**
 
 Commit with `feat(assistant): default to concise actionable answers`.
 

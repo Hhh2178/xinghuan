@@ -2,6 +2,7 @@ import { Activity, Box, Database, KeyRound, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 export * from "./assistant-markdown.js";
+export * from "./assistant-chat-ui.js";
 export * from "./channel-health-report.js";
 export * from "./ime-safe-text-control.js";
 

@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
 
 async function main() {
-  const [mainSource, panelSource, workspaceSource, supervisionSource, styleSource] = await Promise.all([
+  const [mainSource, panelSource, workspaceSource, supervisionSource, assistantUiSource, styleSource] = await Promise.all([
     readFile(new URL("../apps/admin/src/main.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-assistant-panel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-assistant-governance-workspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/admin-agent-governance-workspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../packages/ui/src/assistant-chat-ui.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/admin/src/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -45,8 +46,9 @@ async function main() {
     ],
     [
       "Admin assistant uses right-side chat composer",
-      panelSource.includes("admin-assistant-dock__composer") &&
-        panelSource.includes("<textarea") &&
+      panelSource.includes("<AssistantComposer") &&
+        panelSource.includes('classPrefix="admin-assistant"') &&
+        assistantUiSource.includes("<textarea") &&
         panelSource.includes("可直接提问，或展开上方添加当前页上下文。"),
     ],
     [
@@ -87,17 +89,25 @@ async function main() {
     ],
     [
       "Admin assistant renders the shared safe Markdown surface instead of a paragraph blob",
-      panelSource.includes("AssistantMarkdown") &&
-        panelSource.includes('className="admin-assistant-message__body"') &&
+      panelSource.includes("AssistantConversationList") &&
+        assistantUiSource.includes("AssistantMarkdown") &&
         panelSource.includes("createAssistantContentStreamFilter") &&
         !panelSource.includes("<p>{message.text}</p>"),
     ],
     [
+      "Admin assistant renders semantic SSE phases from the shared status map",
+      panelSource.includes('eventName === "status"') &&
+        panelSource.includes("setStatus(assistantPhaseLabel(data.status))") &&
+        assistantUiSource.includes('starting: "正在读取上下文"') &&
+        assistantUiSource.includes('"building-context": "正在分析"') &&
+        assistantUiSource.includes('generating: "正在生成答复"'),
+    ],
+    [
       "Admin assistant preserves IME composition and blocks accidental Enter submission",
-      panelSource.includes("useImeSafeTextControl") &&
-        panelSource.includes("isImeSubmissionEvent(event.nativeEvent, draftControl.isComposing)") &&
-        panelSource.includes("onCompositionStart={draftControl.onCompositionStart}") &&
-        panelSource.includes("onCompositionEnd={draftControl.onCompositionEnd}"),
+      assistantUiSource.includes("useImeSafeTextControl") &&
+        assistantUiSource.includes("isImeSubmissionEvent(event.nativeEvent, textControl.isComposing)") &&
+        assistantUiSource.includes("onCompositionStart={textControl.onCompositionStart}") &&
+        assistantUiSource.includes("onCompositionEnd={textControl.onCompositionEnd}"),
     ],
     [
       "Admin assistant Markdown preserves readable body sizing and overflow",
@@ -107,9 +117,9 @@ async function main() {
     ],
     [
       "Admin assistant supports clipboard image paste in the composer",
-      panelSource.includes("handleClipboardPaste") &&
-        panelSource.includes("event.clipboardData?.items") &&
-        panelSource.includes("onPaste={(event) => void handleClipboardPaste(event)}"),
+      panelSource.includes("onUpload={handleUploadImage}") &&
+        assistantUiSource.includes("event.clipboardData.files") &&
+        assistantUiSource.includes("onPaste={pasteImage}"),
     ],
     [
       "Admin assistant settings copy avoids debug and acceptance wording",
