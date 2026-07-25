@@ -7,6 +7,47 @@ import {
 } from "./canvas-run-candidate-selector.js";
 
 describe("canvas run smart candidate selector", () => {
+  it("accepts three artifacts from one image step whose prompt came from upstream text", () => {
+    const result = createSmartCandidateRuntimeContext({
+      selectorStep: { nodeId: "selector-ydhc", dependsOn: ["image-v3uy"] },
+      planSnapshot: { steps: [
+        { nodeId: "image-v3uy", configuration: { executionPayload: { prompt: "" } } },
+        { nodeId: "selector-ydhc", configuration: { smartCandidateSelector: { mediaKind: "image" } } },
+      ] },
+      inputSnapshot: { variables: [] },
+      configurationSnapshot: {},
+      upstreamSteps: [{
+        id: "step-image",
+        nodeId: "image-v3uy",
+        status: "succeeded",
+        outputBinding: { generationArtifactIds: ["artifact-0", "artifact-1", "artifact-2"] },
+      }],
+      artifacts: [0, 1, 2].map((index) => ({
+        id: `artifact-${index}`,
+        kind: "image" as const,
+        fileUrl: `/files/output/${index}.png`,
+        sourceNodeId: "image-v3uy",
+        providerId: "provider-1",
+        modelId: "provider-model-1",
+        metadata: { provenance: {
+          schemaVersion: 1,
+          sourceTaskId: "task-1",
+          sourceNodeId: "image-v3uy",
+          canvasRunId: "run-1",
+          canvasRunStepId: "step-image",
+          providerId: "provider-1",
+          modelRecordId: "model-record-1",
+          resolvedPrompt: "resolved upstream prompt",
+        } },
+        createdAt: index + 1,
+      })),
+    });
+
+    expect(result.candidates).toHaveLength(3);
+    expect(result.candidates.every((candidate) => candidate.prompt === "resolved upstream prompt")).toBe(true);
+    expect(result.candidates.every((candidate) => candidate.modelRecordId === "model-record-1")).toBe(true);
+  });
+
   it("transfers unavailable AI evaluation to manual selection unless policy requires stop", () => {
     expect(resolveSmartCandidateQualityGate({ mode: "ai", lowConfidencePolicy: "request_manual" }, false)).toBe("manual");
     expect(resolveSmartCandidateQualityGate({ mode: "ai", lowConfidencePolicy: "stop" }, false)).toBe("stop");
@@ -115,6 +156,70 @@ describe("canvas run smart candidate selector", () => {
 
     expect(state).toEqual({ stepStatus: "selecting", candidateRows: 2 });
     expect(appendEvent).toHaveBeenCalledWith(expect.anything(), "run-1", "step-selector", "canvas_run.candidate_selection_waiting", expect.objectContaining({ candidateCount: 2 }));
+  });
+
+  it("rebuilds legacy artifact provenance through an owner-scoped task query", async () => {
+    const appendEvent = vi.fn(async () => undefined);
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === "begin" || sql === "commit" || sql === "rollback") return { rows: [] };
+      if (sql.includes("s.node_type = 'smart-candidate-selector'") && sql.includes("for update")) {
+        return { rows: [{
+          id: "step-selector",
+          run_id: "run-1",
+          owner_id: "owner-1",
+          node_id: "selector-1",
+          status: "ready",
+          depends_on: ["image-1"],
+          plan_snapshot: { steps: [
+            { nodeId: "image-1", configuration: { executionPayload: { prompt: "" } } },
+            { nodeId: "selector-1", configuration: { smartCandidateSelector: { mediaKind: "image", mode: "manual", maximum: 1 } } },
+          ] },
+          input_snapshot: { variables: [] },
+          configuration_snapshot: { candidateSelectionMode: "manual" },
+        }] };
+      }
+      if (sql.includes("from xh_canvas_run_steps d")) return { rows: [{
+        id: "step-image",
+        node_id: "image-1",
+        status: "succeeded",
+        output_binding: { generationArtifactIds: ["artifact-1", "artifact-2"] },
+      }] };
+      if (sql.includes("from xh_generation_artifacts")) return { rows: [1, 2].map((index) => ({
+        id: `artifact-${index}`,
+        kind: "image",
+        file_url: `/files/output/${index}.png`,
+        source_task_id: "task-1",
+        source_node_id: "image-1",
+        provider_id: "provider-1",
+        model_id: "legacy-provider-model",
+        metadata: {},
+        created_at: new Date(index),
+      })) };
+      if (sql.includes("from xh_tasks") && sql.includes("owner_id = $1")) {
+        expect(params).toEqual(["owner-1", ["task-1"]]);
+        return { rows: [{
+          id: "task-1",
+          owner_id: "owner-1",
+          provider_id: "provider-1",
+          model_id: "model-record-1",
+          payload: { prompt: "resolved upstream prompt", sourceNodeId: "image-1", canvasRunId: "run-1" },
+        }] };
+      }
+      if (sql.includes("insert into xh_canvas_run_candidate_artifacts")) return { rows: [] };
+      if (sql.includes("set status = $2") && sql.includes("candidate_context")) return { rows: [] };
+      if (sql.includes("update xh_canvas_runs set status = 'running'")) return { rows: [] };
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const pool = { connect: vi.fn(async () => ({ query, release: vi.fn() })) } as any;
+
+    await expect(initializeSmartCandidateSelector({ pool, environment: "test", appendEvent })).resolves.toBe(true);
+
+    const candidateInserts = query.mock.calls.filter(([sql]) => String(sql).includes("insert into xh_canvas_run_candidate_artifacts"));
+    expect(candidateInserts).toHaveLength(2);
+    expect(candidateInserts.map(([, params]) => JSON.parse(String(params?.[7])))).toEqual([
+      expect.objectContaining({ prompt: "resolved upstream prompt", modelRecordId: "model-record-1" }),
+      expect.objectContaining({ prompt: "resolved upstream prompt", modelRecordId: "model-record-1" }),
+    ]);
   });
 
   it("fails only the current run when the candidate set is invalid", async () => {

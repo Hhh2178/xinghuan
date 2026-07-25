@@ -3,6 +3,7 @@ import { dirname, extname, join } from "node:path";
 import {
   GENERATION_ARTIFACT_TTL_MS,
   buildGenerationArtifactDedupeKey,
+  buildGenerationExecutionProvenance,
   buildTaskGenerationArtifactId,
   generationArtifactStorageKey,
   resolvePostgresPoolConfig,
@@ -180,6 +181,15 @@ function buildTaskArtifact(
     metadata: {
       dedupeKey: buildGenerationArtifactDedupeKey({ taskId: task.id, kind, storageKey: generationArtifactStorageKey(saved.fileUrl) }),
       registrationSource: "worker",
+      provenance: buildGenerationExecutionProvenance({
+        sourceTaskId: task.id,
+        sourceNodeId: safeText(task.payload.sourceNodeId),
+        canvasRunId: safeText(task.payload.canvasRunId),
+        canvasRunStepId: safeText(task.payload.canvasRunStepId),
+        providerId: task.providerId,
+        modelRecordId: task.modelRecordId,
+        resolvedPrompt: safeText(task.payload.prompt) || safeText(task.payload.text),
+      }),
     },
   };
 }

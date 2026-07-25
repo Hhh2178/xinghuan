@@ -75,6 +75,15 @@ describe("smart candidate selector", () => {
     ])).toThrow("SMART_CANDIDATE_MEDIA_KIND_MISMATCH");
   });
 
+  it("identifies the exact missing provenance field without weakening candidate count", () => {
+    expect(() => assertSmartCandidateSet([
+      candidates[0],
+      { ...candidates[1], prompt: "" },
+    ])).toThrow("SMART_CANDIDATE_PROVENANCE_INCOMPLETE:resolvedPrompt:artifact-b");
+    expect(() => assertSmartCandidateSet([candidates[0]]))
+      .toThrow("SMART_CANDIDATE_COUNT_INSUFFICIENT");
+  });
+
   it("pauses a manual gate without choosing the first candidate", () => {
     expect(resolveSmartCandidateSelection({
       mode: "manual",

@@ -6,6 +6,7 @@ describe("Canvas Run failure diagnostic", () => {
   it.each([
     [{ code: "WORKFLOW_BOUNDARY_VALUE_MISSING:input-1" }, "input", "工作流输入缺少值"],
     [{ code: "SMART_CANDIDATE_COUNT_INSUFFICIENT" }, "input", "智能选择器候选不足"],
+    [{ code: "SMART_CANDIDATE_PROVENANCE_INCOMPLETE:resolvedPrompt:artifact-1" }, "input", "候选图生成来源不完整"],
     [{ code: "CANVAS_RUN_CYCLE_DETECTED" }, "workflow", "工作流存在循环依赖"],
     [{ code: "CANVAS_RUN_DISABLED" }, "environment", "AI 托管运行环境不可用"],
     [{ code: "CANVAS_RUN_LEGACY_NODE_UNSUPPORTED:resize" }, "capability", "节点不支持 AI 托管"],

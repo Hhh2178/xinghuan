@@ -107,12 +107,15 @@ export function assertSmartCandidateSet(candidates: SmartCandidate[]) {
       throw new Error("SMART_CANDIDATE_ARTIFACT_INVALID");
     }
     artifactIds.add(candidate.artifactId);
-    if (!candidate.fileUrl || !candidate.sourceNodeId || !candidate.prompt
-      || !candidate.providerId || !candidate.modelRecordId
-      || !candidate.variableSnapshot || typeof candidate.variableSnapshot !== "object"
-      || Array.isArray(candidate.variableSnapshot)) {
-      throw new Error(`SMART_CANDIDATE_PROVENANCE_INCOMPLETE:${candidate.artifactId}`);
-    }
+    const missingField = !candidate.fileUrl ? "fileUrl"
+      : !candidate.sourceNodeId ? "sourceNodeId"
+        : !candidate.prompt ? "resolvedPrompt"
+          : !candidate.providerId ? "providerId"
+            : !candidate.modelRecordId ? "modelRecordId"
+              : !candidate.variableSnapshot || typeof candidate.variableSnapshot !== "object" || Array.isArray(candidate.variableSnapshot)
+                ? "variableSnapshot"
+                : "";
+    if (missingField) throw new Error(`SMART_CANDIDATE_PROVENANCE_INCOMPLETE:${missingField}:${candidate.artifactId}`);
   }
   return candidates;
 }

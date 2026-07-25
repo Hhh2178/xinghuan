@@ -26,6 +26,7 @@ export interface CanvasRunFailureDiagnosticInput {
   runStepId?: unknown;
   nodeId?: unknown;
   nodeType?: unknown;
+  nodeDisplayName?: unknown;
   stepNumber?: unknown;
   providerName?: unknown;
   modelName?: unknown;
@@ -49,6 +50,7 @@ export interface CanvasRunFailureDiagnostic {
     runStepId?: string;
     nodeId?: string;
     nodeType?: string;
+    nodeDisplayName?: string;
     stepNumber?: number;
     providerName?: string;
     modelName?: string;
@@ -69,12 +71,16 @@ export function projectCanvasRunFailureDiagnostic(input: CanvasRunFailureDiagnos
   const evidence = safeDiagnostic(input.providerDiagnostic || input.message || input.reason, "", 500);
   const statusCode = optionalInteger(input.upstreamHttpStatus);
   const normalized = `${code} ${eventType} ${failureCategory} ${waitReason} ${evidence}`.toLowerCase();
-  const definition = classify(normalized, statusCode);
+  const definition = classify(normalized, statusCode, code);
+  const nodeDisplayName = safeDiagnostic(input.nodeDisplayName, "", 200);
+  const provenanceField = missingProvenanceField(code);
   return {
     version: CANVAS_RUN_FAILURE_DIAGNOSTIC_VERSION,
     category: definition.category,
     title: definition.title,
-    summary: definition.summary,
+    summary: provenanceField && nodeDisplayName
+      ? `${nodeDisplayName} 的候选产物缺少${provenanceField}。`
+      : definition.summary,
     observed: evidence || definition.summary,
     likelyCause: definition.likelyCause,
     impact: definition.impact,
@@ -85,6 +91,7 @@ export function projectCanvasRunFailureDiagnostic(input: CanvasRunFailureDiagnos
       runStepId: safeIdentifier(input.runStepId),
       nodeId: safeIdentifier(input.nodeId),
       nodeType: safeDiagnostic(input.nodeType, "", 120) || undefined,
+      nodeDisplayName: nodeDisplayName || undefined,
       stepNumber: optionalPositiveInteger(input.stepNumber),
       providerName: safeDiagnostic(input.providerName, "", 160) || undefined,
       modelName: safeDiagnostic(input.modelName, "", 200) || undefined,
@@ -98,7 +105,7 @@ export function projectCanvasRunFailureDiagnostic(input: CanvasRunFailureDiagnos
   };
 }
 
-function classify(text: string, statusCode?: number): Omit<CanvasRunFailureDiagnostic, "version" | "observed" | "location" | "technical"> {
+function classify(text: string, statusCode?: number, code = ""): Omit<CanvasRunFailureDiagnostic, "version" | "observed" | "location" | "technical"> {
   if (/cancelled|canceled|local_cancel/.test(text)) return definition("cancellation", "本次托管已取消", "运行已收到取消指令。", "用户主动取消，或上游任务在本地关闭。", "未执行的下游节点不会继续运行，已经完成的产物仍然保留。", "需要继续时，请基于当前工作流新建运行计划。", false);
   if (/canvas_run_disabled|canvas_run_postgres_required|agent_runtime_capability_disabled/.test(text)) return definition("environment", "AI 托管运行环境不可用", "当前环境没有准备好托管运行所需服务。", "Canvas Run 开关、PostgreSQL、Worker 或 Agent Runtime 尚未就绪。", "运行计划不会创建或继续执行。", "请管理员检查当前环境的托管开关、数据库和 Worker 状态。", false);
   if (/permission|forbidden|not allowed|access denied|agent_tool_owner|auth_required/.test(text)) return definition("permission", "当前账号没有执行权限", "服务端拒绝了本次托管操作。", "账号、用户组或资源所有权不允许执行目标节点。", "当前节点未执行，下游节点不会被释放。", "请检查账号权限、素材归属和模型授权后新建运行计划。", false);
@@ -115,9 +122,25 @@ function classify(text: string, statusCode?: number): Omit<CanvasRunFailureDiagn
   if (/provider|upstream|business_failed|rejected|http_[45]\d\d/.test(text) || (statusCode !== undefined && statusCode >= 400)) return definition("provider", "渠道拒绝了本次请求", "上游服务商返回失败，没有生成可用结果。", "输入、渠道状态或上游业务规则拒绝了请求。", "当前节点未完成，下游节点不会被释放。", "查看节点参数和渠道状态；可重试错误恢复后再按原计划重试。", true);
   if (/workflow_boundary_value_missing/.test(text)) return definition("input", "工作流输入缺少值", "工作流输入变量在运行快照中为空。", "输入节点没有为必填变量提供值。", "依赖该变量的节点不会执行。", "在工作流输入节点填写值，再重新生成运行计划。", false);
   if (/workflow_boundary_variable_type_mismatch/.test(text)) return definition("input", "工作流输入类型不匹配", "输入节点的数据类型与变量定义不同。", "工作流边界无法把当前值传给下游节点。", "依赖该变量的节点不会执行。", "统一输入节点和变量的数据类型，再重新生成运行计划。", false);
+  if (/smart_candidate_provenance_incomplete/.test(text)) {
+    const field = missingProvenanceField(code) || "完整生成来源";
+    return definition("input", "候选图生成来源不完整", `选择器收到了候选产物，但缺少${field}。`, "上游产物没有保留完整的生成任务上下文。", "选择器在选图前停止，已生成的图片仍保留。", "先重新运行对应的上游生成节点，再运行选择器；不需要先重跑整个工作流。", false);
+  }
   if (/smart_candidate_count_insufficient|candidate.*insufficient/.test(text)) return definition("input", "智能选择器候选不足", "智能选择器没有收到足够的同类型候选。", "上游有效候选少于选择器执行所需数量。", "选择器和它的下游节点不会执行。", "至少连接 2 个同类型候选，再重新生成运行计划。", false);
   if (/input|parameter|invalid|empty|required|candidate_count_insufficient/.test(text)) return definition("input", "节点输入或参数无效", "服务端无法使用当前输入创建任务。", "必填输入缺失、参数不在模型允许范围，或候选数量不足。", "当前节点未执行，下游节点不会被释放。", "修正被标记节点的输入和参数，再新建运行计划。", false);
   return definition("unknown", "运行失败，尚未识别具体类型", "服务端返回了未归类的托管错误。", "现有证据不足以确定唯一原因。", "运行已停止；已经完成的结果保持可用。", "展开技术详情并让 AI 助手结合运行证据分析；不要盲目重复提交。", false);
+}
+
+function missingProvenanceField(code: string) {
+  const field = /^SMART_CANDIDATE_PROVENANCE_INCOMPLETE:([^:]+)/i.exec(code)?.[1] || "";
+  return ({
+    fileUrl: "可访问的产物地址",
+    sourceNodeId: "来源节点",
+    resolvedPrompt: "最终提示词",
+    providerId: "模型服务商",
+    modelRecordId: "模型记录",
+    variableSnapshot: "工作流变量快照",
+  } as Record<string, string>)[field] || "";
 }
 
 function definition(

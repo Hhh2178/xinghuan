@@ -34,6 +34,7 @@ export * from "./text-split.js";
 export * from "./channel-health.js";
 export * from "./canvas-run-diagnostic.js";
 export * from "./node-display-identity.js";
+export * from "./generation-execution-provenance.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

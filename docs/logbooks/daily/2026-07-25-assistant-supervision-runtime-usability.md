@@ -16,8 +16,8 @@
 | --- | --- | --- | --- | --- |
 | Direct Agent workspace model loading | Complete | Focused Vitest, static Harness contract, Admin type-check/build, diff check | This logbook | This local commit |
 | Human node identity | Complete | 17 focused tests, Shared/Agent Core type-check/build, Web type-check, diff check | This logbook | This local commit |
-| Smart candidate provenance | In progress | Pending | Pending | Pending |
-| Unified supervised batch execution | Pending | Pending | Pending | Pending |
+| Smart candidate provenance | Complete | 39 focused tests, materializer/diagnostic Harness, Shared/Agent Core/Worker type-check and build | This logbook | This local commit |
+| Unified supervised batch execution | In progress | Pending | Pending | Pending |
 | Canvas runtime projection | Pending | Pending | Pending | Pending |
 | Supervision information architecture | Pending | Pending | Pending | Pending |
 | Assistant panel geometry | Pending | Pending | Pending | Pending |
@@ -36,3 +36,8 @@
 - 2026-07-25: Human node identity TDD RED reproduced both missing shared identity resolution and an absent Run step identity. The shared helper now applies the custom `label` / `name` / `title` precedence, capability-catalog fallback and a bounded safe ID suffix.
 - 2026-07-25: Every newly compiled Run step freezes `displayIdentity`; the Web contract keeps the field optional so historical Run JSON remains readable and can use the same shared helper as later presentation work is migrated.
 - 2026-07-25: Identity verification passed 17 focused tests, Shared and Agent Core type-check/build, Web type-check and `git diff --check`.
+- 2026-07-25: Smart selector RED reproduced the reported topology exactly: one upstream image step emitted three artifacts through one edge, the static image prompt was empty and the selector ignored the resolved task prompt.
+- 2026-07-25: New materialized artifacts now freeze bounded `GenerationExecutionProvenanceV1` facts: source task/node, optional Run/step, Provider, stable model record and the resolved prompt. Credentials, arbitrary headers, Provider bodies and media URLs are not copied into this projection.
+- 2026-07-25: Legacy artifacts reconstruct provenance from `source_task_id` only through a task query scoped by the current `owner_id`. Owner and task mismatches fail closed; historical artifact rows are not mutated.
+- 2026-07-25: Candidate validation still requires at least two same-kind artifacts. Incomplete provenance now names the missing field internally, while the shared user diagnostic gives a direct upstream-node repair action and keeps artifact IDs in technical detail.
+- 2026-07-25: Provenance verification passed 39 focused tests, the Worker output materializer and supervision diagnostic Harnesses, Shared/Agent Core/Worker type-check, all three builds and `git diff --check`.

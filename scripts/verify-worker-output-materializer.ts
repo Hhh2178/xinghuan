@@ -111,6 +111,9 @@ async function verifyMaterialization({
     payload: {
       sourceNodeId: `node-output-test-${expectedKind}`,
       sourceCanvasId: `canvas-output-test-${expectedKind}`,
+      canvasRunId: `run-output-test-${expectedKind}`,
+      canvasRunStepId: `step-output-test-${expectedKind}`,
+      prompt: `resolved prompt ${expectedKind}`,
     },
   };
 
@@ -122,6 +125,14 @@ async function verifyMaterialization({
   assert(materialized.artifacts[0]?.taskId === task.id, `${expectedKind} artifact taskId mismatch`);
   assert(materialized.artifacts[0]?.sourceNodeId === task.payload.sourceNodeId, `${expectedKind} artifact sourceNodeId mismatch`);
   assert(materialized.artifacts[0]?.sourceCanvasId === task.payload.sourceCanvasId, `${expectedKind} artifact sourceCanvasId mismatch`);
+  const provenance = materialized.artifacts[0]?.metadata?.provenance as Record<string, unknown> | undefined;
+  assert(provenance?.schemaVersion === 1, `${expectedKind} artifact provenance schema mismatch`);
+  assert(provenance?.sourceTaskId === task.id, `${expectedKind} artifact provenance task mismatch`);
+  assert(provenance?.sourceNodeId === task.payload.sourceNodeId, `${expectedKind} artifact provenance node mismatch`);
+  assert(provenance?.canvasRunId === task.payload.canvasRunId, `${expectedKind} artifact provenance Run mismatch`);
+  assert(provenance?.canvasRunStepId === task.payload.canvasRunStepId, `${expectedKind} artifact provenance step mismatch`);
+  assert(provenance?.modelRecordId === task.modelRecordId, `${expectedKind} artifact provenance model mismatch`);
+  assert(provenance?.resolvedPrompt === task.payload.prompt, `${expectedKind} artifact provenance prompt mismatch`);
   assert(duplicated.artifacts.length === 1, `${expectedKind} duplicate materialization did not return single artifact`);
 
   if (expectedKind === "image") {

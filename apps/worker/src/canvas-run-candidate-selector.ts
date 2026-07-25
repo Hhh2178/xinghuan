@@ -6,6 +6,10 @@ import {
 } from "@xinghuan/agent-core";
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import {
+  resolveCanvasRunArtifactProvenance,
+  type CanvasRunSourceTask,
+} from "./canvas-run-artifact-provenance.js";
 
 interface SelectorUpstreamStep {
   id: string;
@@ -16,6 +20,8 @@ interface SelectorUpstreamStep {
 
 interface SelectorArtifact {
   id: string;
+  ownerId?: string;
+  sourceTaskId?: string;
   kind: "image" | "video";
   fileUrl: string;
   sourceNodeId: string;
@@ -53,6 +59,7 @@ export function createSmartCandidateRuntimeContext(input: {
   configurationSnapshot: Record<string, unknown>;
   upstreamSteps: SelectorUpstreamStep[];
   artifacts: SelectorArtifact[];
+  sourceTasks?: CanvasRunSourceTask[];
 }): SmartCandidateRuntimeContext {
   const barrier = resolveSmartCandidateBarrier({
     dependencyNodeIds: input.selectorStep.dependsOn,
@@ -68,21 +75,26 @@ export function createSmartCandidateRuntimeContext(input: {
   const selector = record(record(selectorPlan.configuration).smartCandidateSelector);
   const planStepByNodeId = new Map(planSteps.map((step) => [text(step.nodeId), step]));
   const artifactsById = new Map(input.artifacts.map((artifact) => [artifact.id, artifact]));
+  const sourceTaskById = new Map((input.sourceTasks || []).map((task) => [task.id, task]));
   const variableSnapshot = workflowVariableSnapshot(input.inputSnapshot);
   const candidates = barrier.artifactIds.map((artifactId) => {
     const artifact = artifactsById.get(artifactId);
     if (!artifact) throw new Error(`SMART_CANDIDATE_ARTIFACT_NOT_FOUND:${artifactId}`);
     const sourcePlan = planStepByNodeId.get(artifact.sourceNodeId) || {};
     const payload = record(record(sourcePlan.configuration).executionPayload);
+    const provenance = resolveCanvasRunArtifactProvenance({
+      artifact,
+      sourceTask: artifact.sourceTaskId ? sourceTaskById.get(artifact.sourceTaskId) : undefined,
+    });
     return {
       artifactId,
       mediaKind: artifact.kind,
       fileUrl: artifact.fileUrl,
-      sourceNodeId: artifact.sourceNodeId,
-      prompt: text(artifact.metadata.prompt) || text(payload.prompt) || text(payload.text),
+      sourceNodeId: provenance.sourceNodeId || artifact.sourceNodeId,
+      prompt: provenance.resolvedPrompt || text(artifact.metadata.prompt) || text(payload.prompt) || text(payload.text),
       variableSnapshot,
-      providerId: artifact.providerId,
-      modelRecordId: artifact.modelId,
+      providerId: provenance.providerId || artifact.providerId,
+      modelRecordId: provenance.modelRecordId || artifact.modelId,
       createdAt: artifact.createdAt,
     };
   });
@@ -164,12 +176,21 @@ export async function initializeSmartCandidateSelector(input: {
     );
     const artifactIds = [...new Set(upstream.rows.flatMap((row) => strings(record(row.output_binding).generationArtifactIds)))];
     const artifacts = await client.query(
-      `select id, kind, file_url, source_node_id, provider_id, model_id, metadata, created_at
+      `select id, kind, file_url, source_task_id, source_node_id, provider_id, model_id, metadata, created_at
        from xh_generation_artifacts
        where owner_id = $1 and id = any($2::text[]) and status in ('active', 'promoted')
        order by created_at asc, id asc`,
       [step.owner_id, artifactIds],
     );
+    const sourceTaskIds = [...new Set(artifacts.rows.map((row) => text(row.source_task_id)).filter(Boolean))];
+    const sourceTasks = sourceTaskIds.length > 0
+      ? await client.query(
+        `select id, owner_id, provider_id, model_id, payload
+         from xh_tasks
+         where owner_id = $1 and id = any($2::text[])`,
+        [step.owner_id, sourceTaskIds],
+      )
+      : { rows: [] as Record<string, unknown>[] };
     let context: SmartCandidateRuntimeContext;
     try {
       context = createSmartCandidateRuntimeContext({
@@ -185,6 +206,8 @@ export async function initializeSmartCandidateSelector(input: {
         })),
         artifacts: artifacts.rows.map((row) => ({
           id: text(row.id),
+          ownerId: text(step.owner_id),
+          sourceTaskId: text(row.source_task_id),
           kind: row.kind === "video" ? "video" : "image",
           fileUrl: text(row.file_url),
           sourceNodeId: text(row.source_node_id),
@@ -192,6 +215,13 @@ export async function initializeSmartCandidateSelector(input: {
           modelId: text(row.model_id),
           metadata: record(row.metadata),
           createdAt: new Date(String(row.created_at)).getTime(),
+        })),
+        sourceTasks: sourceTasks.rows.map((row) => ({
+          id: text(row.id),
+          ownerId: text(row.owner_id),
+          providerId: text(row.provider_id),
+          modelRecordId: text(row.model_id),
+          payload: record(row.payload),
         })),
       });
     } catch (error) {
