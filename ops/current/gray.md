@@ -7,7 +7,7 @@
 - 当前状态：`AI 治理、RunningHub Standard Model 与 AI 托管执行链已部署并通过运行态验证`
 - 当前补修：`将当前代码中的 AI 助手/托管运行时、候选选择器溯源修复和统一运行投影推送到 Gray；前台和后台助手实测均以 agent 模式完成`
 - Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`待发布提交写入后更新`
+- 本轮制品源提交：`6a154df`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`

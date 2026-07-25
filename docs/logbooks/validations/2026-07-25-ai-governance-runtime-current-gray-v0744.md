@@ -1,7 +1,7 @@
 # AI Governance Runtime Current Gray v0.7.44 Validation
 
 - release: `20260725-ai-governance-runtime-current-gray-r1-v0744`
-- source commit: `待发布提交写入后更新`
+- source commit: `6a154df`
 - environment: `gray`
 - Production: `untouched`
 
