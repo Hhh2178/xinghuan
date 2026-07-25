@@ -137,6 +137,8 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
     await writeTaskGenerationArtifactsToFile(dirs.generationLibraryDbPath, task.id, artifacts);
   }
 
+  const generationBatch = bindGenerationBatchArtifacts(result.generationBatch, artifacts);
+
   return {
     artifacts,
     resourceItems: artifacts,
@@ -147,8 +149,77 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       materializedImageUrls: artifacts.filter((item) => item.kind === "image").map((item) => item.fileUrl).filter(Boolean),
       materializedVideoUrls: artifacts.filter((item) => item.kind === "video").map((item) => item.fileUrl).filter(Boolean),
       materializedAudioUrls: artifacts.filter((item) => item.kind === "audio").map((item) => item.fileUrl).filter(Boolean),
+      ...(generationBatch ? { generationBatch } : {}),
     },
   };
+}
+
+function bindGenerationBatchArtifacts(value: unknown, artifacts: GenerationArtifact[]) {
+  const batch = object(value);
+  if (!Array.isArray(batch.children)) return null;
+  const unassignedArtifacts = [...artifacts];
+  const children = batch.children.map(object)
+    .sort((left, right) => Number(left.batchIndex) - Number(right.batchIndex))
+    .map((child) => {
+      const batchIndex = Math.max(0, Math.floor(Number(child.batchIndex) || 0));
+      const generationArtifactIds = child.status === "succeeded"
+        ? takeChildArtifactIds(child, unassignedArtifacts)
+        : [];
+      return compact({
+        batchIndex,
+        status: generationBatchStatus(child.status),
+        taskId: safeText(child.taskId) || undefined,
+        error: safeBatchError(child.error) || undefined,
+        generationArtifactIds,
+        startedAt: positiveMillis(child.startedAt),
+        finishedAt: positiveMillis(child.finishedAt),
+      });
+    })
+    .sort((left, right) => Number(left.batchIndex) - Number(right.batchIndex));
+  return {
+    total: Math.max(children.length, Math.floor(Number(batch.total) || 0)),
+    completed: children.filter((child) => child.status === "succeeded").length,
+    providerRequestCount: Math.max(0, Math.floor(Number(batch.providerRequestCount) || 0)),
+    children,
+  };
+}
+
+function takeChildArtifactIds(child: Record<string, unknown>, unassignedArtifacts: GenerationArtifact[]) {
+  const outputUrls = readStringList(child.outputUrls);
+  const selected: GenerationArtifact[] = [];
+  for (const outputUrl of outputUrls) {
+    const index = unassignedArtifacts.findIndex((artifact) => artifact.sourceUrl === outputUrl);
+    if (index >= 0) selected.push(...unassignedArtifacts.splice(index, 1));
+  }
+  if (outputUrls.length === 0 && unassignedArtifacts.length > 0) {
+    selected.push(...unassignedArtifacts.splice(0, 1));
+  }
+  return selected.map((artifact) => artifact.id);
+}
+
+function generationBatchStatus(value: unknown) {
+  const status = safeText(value);
+  return ["queued", "running", "succeeded", "failed", "cancelled"].includes(status) ? status : "queued";
+}
+
+function safeBatchError(value: unknown) {
+  return safeText(value)
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+/gi, "Bearer [redacted]")
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[redacted url]")
+    .slice(0, 500);
+}
+
+function positiveMillis(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function compact<T extends Record<string, unknown>>(value: T) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function buildTaskArtifact(

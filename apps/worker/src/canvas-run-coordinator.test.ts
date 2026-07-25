@@ -62,6 +62,70 @@ describe('canvas run coordinator', () => {
     expect(harness.redis.lPush).not.toHaveBeenCalled();
   });
 
+  it('records safe batch child state in step progress events', async () => {
+    const harness = coordinatorHarness({
+      runningTaskResult: {
+        generationBatch: {
+          completed: 1,
+          total: 2,
+          providerRequestCount: 2,
+          children: [
+            { batchIndex: 0, status: 'succeeded', taskId: 'provider-0', generationArtifactIds: ['artifact-0'] },
+            { batchIndex: 1, status: 'running', outputUrls: ['https://private.invalid/1.png'] },
+          ],
+        },
+      },
+    });
+    const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
+
+    await coordinator.tick();
+
+    expect(harness.state.progressEvents).toEqual([{
+      taskId: 'task-running',
+      completed: 1,
+      generationCount: 2,
+      providerRequestCount: 2,
+      taskRuns: [
+        { batchIndex: 0, status: 'succeeded', taskId: 'provider-0', generationArtifactIds: ['artifact-0'] },
+        { batchIndex: 1, status: 'running', generationArtifactIds: [] },
+      ],
+    }]);
+    expect(JSON.stringify(harness.state.progressEvents)).not.toContain('private.invalid');
+  });
+
+  it('records a child failure even when aggregate progress counts do not change', async () => {
+    const harness = coordinatorHarness({
+      previousProgressEvent: {
+        completed: 0,
+        generationCount: 2,
+        providerRequestCount: 2,
+        taskRuns: [
+          { batchIndex: 0, status: 'running', generationArtifactIds: [] },
+          { batchIndex: 1, status: 'running', generationArtifactIds: [] },
+        ],
+      },
+      runningTaskResult: {
+        generationBatch: {
+          completed: 0,
+          total: 2,
+          providerRequestCount: 2,
+          children: [
+            { batchIndex: 0, status: 'failed', error: 'upstream failed' },
+            { batchIndex: 1, status: 'running' },
+          ],
+        },
+      },
+    });
+    const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'test', queueName: 'tasks', enabled: true });
+
+    await coordinator.tick();
+
+    expect(harness.state.progressEvents).toHaveLength(1);
+    expect(harness.state.progressEvents[0]).toMatchObject({
+      taskRuns: [{ batchIndex: 0, status: 'failed' }, { batchIndex: 1, status: 'running' }],
+    });
+  });
+
   it('queues content-review rewriting through the published recovery chat route', async () => {
     const harness = coordinatorHarness({ failedTaskResult: { failureCategory: 'unknown', failureReason: 'content policy moderation blocked' }, promptRewrite: true });
     const coordinator = createCanvasRunCoordinator({ pool: harness.pool, redis: harness.redis, workerId: 'worker-a', environment: 'gray', queueName: 'tasks', enabled: true });
@@ -223,10 +287,12 @@ function coordinatorHarness(options: {
   retryExhaustionPolicy?: 'stop' | 'compatible_fallback';
   generationAlternative?: Record<string, unknown>;
   approvalStatus?: 'approved' | 'rejected';
+  runningTaskResult?: Record<string, unknown>;
+  previousProgressEvent?: Record<string, unknown>;
 } = {}) {
   const state = {
-    stepStatus: options.failedTaskResult ? 'queued' : 'ready',
-    taskId: options.failedTaskResult ? 'task-failed' : '',
+    stepStatus: options.runningTaskResult ? 'running' : options.failedTaskResult ? 'queued' : 'ready',
+    taskId: options.runningTaskResult ? 'task-running' : options.failedTaskResult ? 'task-failed' : '',
     taskInsertions: 0,
     dispatchEnqueued: false,
     leaseOwner: '',
@@ -242,6 +308,7 @@ function coordinatorHarness(options: {
     approvalId: '',
     dispatchedProviderId: '',
     dispatchedModelRecordId: '',
+    progressEvents: [] as Record<string, unknown>[],
   };
   const isRunningHub = options.nodeType === 'runninghub';
   const step = {
@@ -264,7 +331,9 @@ function coordinatorHarness(options: {
   };
   const topLevelQuery = vi.fn(async (sql: string, params?: unknown[]) => {
     if (sql.includes("select id from xh_canvas_runs where status in ('queued', 'running')")) return { rows: [] };
-    if (sql.includes("t.status = 'running'")) return { rows: [] };
+    if (sql.includes("t.status = 'running'")) return { rows: options.runningTaskResult
+      ? [{ id: 'step-1', run_id: 'run-1', task_id: 'task-running', task_result: options.runningTaskResult }]
+      : [] };
     if (sql.includes('from xh_agent_approvals')) return { rows: state.stepStatus === 'awaiting_approval' && state.approvalId
       ? [{ approval_id: state.approvalId, run_id: 'run-1', step_id: 'step-1', status: options.approvalStatus || 'approved' }]
       : [] };
@@ -285,6 +354,14 @@ function coordinatorHarness(options: {
   });
   const clientQuery = vi.fn(async (sql: string, params?: unknown[]) => {
     if (sql === 'begin' || sql === 'commit' || sql === 'rollback') return { rows: [] };
+    if (sql.includes("where s.id = $1 and s.status in ('queued', 'running')") && sql.includes("t.status = 'running'")) {
+      return { rows: options.runningTaskResult
+        ? [{ run_id: 'run-1', task_id: 'task-running', task_result: options.runningTaskResult }]
+        : [] };
+    }
+    if (sql.includes("event_type = 'canvas_run.step_progress'")) return { rows: options.previousProgressEvent
+      ? [{ payload: options.previousProgressEvent }]
+      : [] };
     if (sql.includes("s.node_type = 'smart-candidate-selector'") && sql.includes('for update')) return { rows: [] };
     if (sql.includes('insert into xh_canvas_run_dispatch_cursors')) return { rows: [] };
     if (sql.includes('from xh_canvas_run_dispatch_cursors') && sql.includes('for update')) return { rows: [{ last_owner_id: state.lastOwnerId }] };
@@ -375,7 +452,10 @@ function coordinatorHarness(options: {
     }
     if (sql.includes("update xh_canvas_runs set status = 'running'")) return { rows: [] };
     if (sql.includes('set event_sequence = event_sequence + 1') || sql.includes('set event_sequence=event_sequence+1')) return { rows: [{ event_sequence: ++state.eventSequence }] };
-    if (sql.includes('insert into xh_canvas_run_events')) return { rows: [] };
+    if (sql.includes('insert into xh_canvas_run_events')) {
+      if (params?.[4] === 'canvas_run.step_progress') state.progressEvents.push(JSON.parse(String(params[5] || '{}')));
+      return { rows: [] };
+    }
     throw new Error(`unexpected client query: ${sql} ${JSON.stringify(params || [])}`);
   });
   let pushCount = 0;

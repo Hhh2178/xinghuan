@@ -53,6 +53,32 @@ export const PROVIDER_GENERATION_CAPABILITIES = [
 export type ProviderGenerationCapability =
   (typeof PROVIDER_GENERATION_CAPABILITIES)[number];
 
+export type GenerationBatchChildStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface GenerationBatchChildSnapshot {
+  batchIndex: number;
+  status: GenerationBatchChildStatus;
+  taskId?: string;
+  error?: string;
+  generationArtifactIds?: string[];
+  outputUrls?: string[];
+  remoteOutputUrls?: string[];
+  startedAt?: number;
+  finishedAt?: number;
+}
+
+export interface GenerationBatchSnapshot {
+  total: number;
+  completed: number;
+  providerRequestCount: number;
+  children: GenerationBatchChildSnapshot[];
+}
+
 export type UnifiedFailureCategory =
   | "auth"
   | "quota_or_credits"
@@ -114,6 +140,7 @@ export interface ProviderGenerationTaskResult extends UnifiedRuntimeDiagnostic {
   displayStatus?: string;
   displayMessage?: string;
   displayTone?: TaskDisplayTone;
+  generationBatch?: GenerationBatchSnapshot;
 }
 
 export interface ProviderGenerationTaskRecord {

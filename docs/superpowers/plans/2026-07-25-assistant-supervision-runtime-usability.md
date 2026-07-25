@@ -371,7 +371,7 @@ Commit with `fix(agent): preserve selector artifact provenance`.
 - Detailed Run responses add `runtimeSteps: NodeExecutionProjection[]`; list/overview responses remain unchanged.
 - Batch child records use stable `batchIndex`, child `taskId`, terminal status, safe error and ordered output IDs.
 
-- [ ] **Step 1: Write a batch concurrency/order test**
+- [x] **Step 1: Write a batch concurrency/order test**
 
 ```ts
 it("submits all requested children independently and orders results by batch index", async () => {
@@ -385,27 +385,27 @@ it("submits all requested children independently and orders results by batch ind
 });
 ```
 
-- [ ] **Step 2: Write a partial progress and cancellation test**
+- [x] **Step 2: Write a partial progress and cancellation test**
 
 Assert that each child terminal state emits progress, cancellation stops unfinished children, completed artifacts remain and late results cannot mutate a cancelled Run.
 
-- [ ] **Step 3: Run focused tests and confirm the current sequential behavior fails**
+- [x] **Step 3: Run focused tests and confirm the current sequential behavior fails**
 
 Run: `npx vitest run apps/worker/src/worker-image-generation-batch.test.ts apps/worker/src/worker-video-generation-batch.test.ts`
 
-- [ ] **Step 4: Implement a bounded shared batch runner**
+- [x] **Step 4: Implement a bounded shared batch runner**
 
 Use the existing workflow/provider concurrency limit. Do not use unbounded `Promise.all`. Emit child snapshots after submit, progress and terminal settlement. Stable result ordering uses `batchIndex`.
 
-- [ ] **Step 5: Persist and project child state**
+- [x] **Step 5: Persist and project child state**
 
 Extend the safe task result/batch snapshot rather than creating a Canvas-only state table. The selected Run detail query joins only owner-scoped steps/tasks and projects safe URLs already materialized into the platform.
 
-- [ ] **Step 6: Add API ownership and list-weight tests**
+- [x] **Step 6: Add API ownership and list-weight tests**
 
 Confirm another owner cannot read runtime steps and `GET /api/canvas-runs?canvasId=...` does not include heavy runtime output.
 
-- [ ] **Step 7: Run the phase gate**
+- [x] **Step 7: Run the phase gate**
 
 Run:
 
@@ -420,7 +420,7 @@ npm run build -w @xinghuan/worker
 git diff --check
 ```
 
-- [ ] **Step 8: Record and commit**
+- [x] **Step 8: Record and commit**
 
 Commit with `feat(runtime): unify generation batch projections`.
 

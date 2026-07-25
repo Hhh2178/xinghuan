@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
+  buildNodeExecutionProjection,
+  type NodeExecutionProjection,
+} from "@xinghuan/shared";
+import {
   transitionCanvasRunStatus,
   transitionCanvasRunStepStatus,
   type CanvasRunPlan,
@@ -26,6 +30,7 @@ export interface CanvasRunRecord {
   budgetSnapshot: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
+  runtimeSteps?: NodeExecutionProjection[];
 }
 
 export interface CanvasSnapshotRecord {
@@ -241,7 +246,12 @@ export function createCanvasRunRepository(deps: {
 
   async function readOwnedRun(ownerId: string, runId: string) {
     const pool = await deps.getPostgresPool();
-    return selectOwnedRun(pool, ownerId, runId);
+    const run = await selectOwnedRun(pool, ownerId, runId);
+    if (!run) return null;
+    return {
+      ...run,
+      runtimeSteps: await selectOwnedRuntimeSteps(pool, ownerId, runId),
+    };
   }
 
   async function readOwnedWorkflowRunOverview(ownerId: string, canvasId: string, limit = 50) {
@@ -412,6 +422,38 @@ const RUN_SELECT = `select r.id, r.owner_id, r.canvas_id, r.canvas_revision,
 async function selectOwnedRun(queryable: Pick<Pool, "query"> | Pick<PoolClient, "query">, ownerId: string, runId: string) {
   const result = await queryable.query<CanvasRunRow>(`${RUN_SELECT} from xh_canvas_runs r where r.id = $1 and r.owner_id = $2 limit 1`, [runId, ownerId]);
   return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
+async function selectOwnedRuntimeSteps(
+  queryable: Pick<Pool, "query"> | Pick<PoolClient, "query">,
+  ownerId: string,
+  runId: string,
+) {
+  const result = await queryable.query(
+    `select s.id as run_step_id, s.node_id, s.node_type, s.status as step_status,
+       s.task_id, s.error as step_error, s.started_at, s.finalized_at,
+       t.status as task_status, t.result as task_result
+     from xh_canvas_run_steps s
+     join xh_canvas_runs r on r.id = s.run_id
+     left join xh_tasks t on t.id = s.task_id and t.owner_id = r.owner_id
+     where r.id = $1 and r.owner_id = $2
+     order by s.sequence asc`,
+    [runId, ownerId],
+  );
+  return result.rows.map((row) => buildNodeExecutionProjection({
+    authority: "workflow_run",
+    runId,
+    runStepId: row.run_step_id,
+    nodeId: row.node_id,
+    nodeType: row.node_type,
+    stepStatus: row.step_status,
+    taskId: row.task_id,
+    taskStatus: row.task_status,
+    taskResult: row.task_result,
+    stepError: row.step_error,
+    startedAt: row.started_at,
+    finishedAt: row.finalized_at,
+  }));
 }
 
 async function insertRunSteps(client: PoolClient, runId: string, plan: CanvasRunPlan, newId: (prefix: string) => string) {

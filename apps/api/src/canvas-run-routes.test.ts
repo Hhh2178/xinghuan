@@ -36,7 +36,8 @@ describe("canvas run routes", () => {
 
   it("routes pause and read operations without accepting an owner from the body", async () => {
     const commandRun = vi.fn(async () => ({ id: "run-1", status: "paused" } as any));
-    const readRun = vi.fn(async () => ({ id: "run-1" } as any));
+    const runDetail = { id: "run-1", runtimeSteps: [{ nodeId: "image-1", status: "running", progress: "1/2" }] } as any;
+    const readRun = vi.fn(async () => runDetail);
     const sendT8 = vi.fn();
     const readEvents = vi.fn(async () => ({ items: [], nextSequence: 4 }));
     const handler = createCanvasRunRouteHandler({ sendT8, createRun: vi.fn(), readRun, readEvents, commandRun, invalidRequest: (message) => new Error(message) });
@@ -48,6 +49,7 @@ describe("canvas run routes", () => {
     expect(commandRun).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "owner-1", runId: "run-1", command: "pause", idempotencyKey: "pause-1" }));
     expect(readRun).toHaveBeenCalledWith("owner-1", "run-1");
     expect(readEvents).toHaveBeenCalledWith("owner-1", "run-1", 4, 200);
+    expect(sendT8).toHaveBeenCalledWith(expect.anything(), runDetail);
   });
 
   it("streams persisted run events as server-sent events", async () => {

@@ -48,7 +48,11 @@ describe("worker image generation batch", () => {
     });
 
     expect(execute).toHaveBeenCalledTimes(2);
-    expect(progress).toHaveBeenCalledTimes(2);
+    expect(progress).toHaveBeenCalledTimes(4);
+    expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({
+      completed: 2,
+      generationBatch: { total: 2, completed: 2, providerRequestCount: 2, children: expect.any(Array) },
+    }));
     expect(result).toMatchObject({ imageCount: 2, generationCount: 2, providerRequestCount: 2 });
     expect(materialized.resultPatch.generationArtifactIds).toEqual([
       buildTaskGenerationArtifactId({ taskId: "task-two-candidates", kind: "image", index: 0 }),
@@ -92,4 +96,82 @@ describe("worker image generation batch", () => {
     expect(execute).toHaveBeenNthCalledWith(3, 2, 1);
     expect(result).toMatchObject({ imageCount: 3, providerRequestCount: 3 });
   });
+
+  it("submits requested children concurrently and orders results by batch index", async () => {
+    const gates = deferredExecutions(3);
+    const promise = executeImageGenerationBatch({ generationCount: 3, execute: gates.execute });
+
+    await vi.waitFor(() => expect(gates.started).toEqual([0, 1, 2]));
+    gates.resolve(2, { imageUrls: ["/2.png"], taskId: "provider-2" });
+    gates.resolve(0, { imageUrls: ["/0.png"], taskId: "provider-0" });
+    gates.resolve(1, { imageUrls: ["/1.png"], taskId: "provider-1" });
+
+    await expect(promise).resolves.toMatchObject({
+      imageUrls: ["/0.png", "/1.png", "/2.png"],
+      taskIds: ["provider-0", "provider-1", "provider-2"],
+      generationBatch: {
+        children: [
+          { batchIndex: 0, status: "succeeded", taskId: "provider-0" },
+          { batchIndex: 1, status: "succeeded", taskId: "provider-1" },
+          { batchIndex: 2, status: "succeeded", taskId: "provider-2" },
+        ],
+      },
+    });
+  });
+
+  it("keeps completed child state and ignores late results after cancellation", async () => {
+    const gates = deferredExecutions(3);
+    let cancelled = false;
+    const progress: unknown[] = [];
+    const promise = executeImageGenerationBatch({
+      generationCount: 3,
+      maximumConcurrency: 2,
+      execute: gates.execute,
+      isCancelled: async () => cancelled,
+      onProgress: async (snapshot) => {
+        progress.push(structuredClone(snapshot));
+        if (JSON.stringify(snapshot).includes('"batchIndex":0,"status":"succeeded"')) cancelled = true;
+      },
+    });
+
+    await vi.waitFor(() => expect(gates.started).toEqual([0, 1]));
+    gates.resolve(0, { imageUrls: ["/completed.png"], taskId: "provider-0" });
+    await vi.waitFor(() => expect(JSON.stringify(progress)).toContain('"status":"succeeded"'));
+    gates.resolve(1, { imageUrls: ["/late.png"], taskId: "provider-1" });
+
+    await expect(promise).rejects.toMatchObject({
+      message: "TASK_CANCELLED",
+      resultPatch: {
+        imageUrls: ["/completed.png"],
+        generationBatch: {
+          children: [
+            { batchIndex: 0, status: "succeeded" },
+            { batchIndex: 1, status: "cancelled" },
+            { batchIndex: 2, status: "cancelled" },
+          ],
+        },
+      },
+    });
+    expect(gates.started).toEqual([0, 1]);
+    expect(JSON.stringify(progress)).not.toContain("/late.png");
+  });
 });
+
+function deferredExecutions(count: number) {
+  const started: number[] = [];
+  const slots = Array.from({ length: count }, () => {
+    let resolve!: (value: Record<string, unknown>) => void;
+    const promise = new Promise<Record<string, unknown>>((done) => { resolve = done; });
+    return { promise, resolve };
+  });
+  return {
+    started,
+    execute: vi.fn((batchIndex: number) => {
+      started.push(batchIndex);
+      return slots[batchIndex].promise;
+    }),
+    resolve(batchIndex: number, value: Record<string, unknown>) {
+      slots[batchIndex].resolve(value);
+    },
+  };
+}

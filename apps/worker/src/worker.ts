@@ -19,6 +19,7 @@ import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages, prepareInlineImageReferences } from "./grsai-reference-images.js";
 import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
+import { executeAudioGenerationBatch } from "./worker-audio-generation-batch.js";
 import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
 import { executeVideoGenerationBatch } from "./worker-video-generation-batch.js";
 import {
@@ -737,13 +738,20 @@ async function reapStaleRunningTasks() {
 async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>> {
   return executeImageGenerationBatch({
     generationCount: task.payload.generationCount ?? task.payload.n,
+    maximumConcurrency: task.payload.generationConcurrency,
     execute: (_batchIndex, remaining) => executeSingleImageTask(task, remaining),
     isCancelled: () => isTaskCancelled(task.id),
     onProgress: (batch) => touchTaskRuntime(task.id, {
       heartbeatAt: new Date().toISOString(),
       runtimeStage: "generating_batch",
       progress: `${batch.completed}/${batch.total}`,
-      generationBatch: batch,
+      generationCount: batch.total,
+      completedGenerationCount: batch.completed,
+      providerRequestCount: batch.providerRequestCount,
+      upstreamTaskIds: batch.taskIds,
+      imageUrls: batch.imageUrls,
+      remoteImageUrls: batch.remoteImageUrls,
+      generationBatch: batch.generationBatch,
     }),
   });
 }
@@ -854,6 +862,7 @@ async function executeSingleImageTask(task: TaskRow, requestedImageCount: number
 async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
   return executeVideoGenerationBatch({
     generationCount: task.payload.generationCount ?? task.payload.n,
+    maximumConcurrency: task.payload.generationConcurrency,
     execute: () => executeSingleVideoTask(task),
     isCancelled: () => isTaskCancelled(task.id),
     onProgress: (batch) => touchTaskRuntime(task.id, {
@@ -866,6 +875,7 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
       upstreamTaskIds: batch.taskIds,
       videoUrls: batch.videoUrls,
       remoteVideoUrls: batch.remoteVideoUrls,
+      generationBatch: batch.generationBatch,
     }),
   });
 }
@@ -1511,6 +1521,27 @@ async function executeChatTask(task: TaskRow, signal?: AbortSignal): Promise<Rec
 }
 
 async function executeAudioTask(task: TaskRow): Promise<Record<string, unknown>> {
+  return executeAudioGenerationBatch({
+    generationCount: task.payload.generationCount ?? task.payload.n,
+    maximumConcurrency: task.payload.generationConcurrency,
+    execute: () => executeSingleAudioTask(task),
+    isCancelled: () => isTaskCancelled(task.id),
+    onProgress: (batch) => touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      runtimeStage: "batch_generating",
+      progress: `${Math.round((batch.completed / batch.total) * 100)}%`,
+      generationCount: batch.total,
+      completedGenerationCount: batch.completed,
+      providerRequestCount: batch.providerRequestCount,
+      upstreamTaskIds: batch.taskIds,
+      audioUrls: batch.audioUrls,
+      remoteAudioUrls: batch.remoteAudioUrls,
+      generationBatch: batch.generationBatch,
+    }),
+  });
+}
+
+async function executeSingleAudioTask(task: TaskRow): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {
     return executeRunningHubTask(task);

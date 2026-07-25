@@ -17,7 +17,7 @@
 | Direct Agent workspace model loading | Complete | Focused Vitest, static Harness contract, Admin type-check/build, diff check | This logbook | This local commit |
 | Human node identity | Complete | 17 focused tests, Shared/Agent Core type-check/build, Web type-check, diff check | This logbook | This local commit |
 | Smart candidate provenance | Complete | 39 focused tests, materializer/diagnostic Harness, Shared/Agent Core/Worker type-check and build | This logbook | This local commit |
-| Unified supervised batch execution | In progress | Pending | Pending | Pending |
+| Unified supervised batch execution | Complete | 57 focused tests, generation contracts, Shared/Agent Core/API/Worker type-check and build, diff check | This logbook | This local commit |
 | Canvas runtime projection | Pending | Pending | Pending | Pending |
 | Supervision information architecture | Pending | Pending | Pending | Pending |
 | Assistant panel geometry | Pending | Pending | Pending | Pending |
@@ -41,3 +41,8 @@
 - 2026-07-25: Legacy artifacts reconstruct provenance from `source_task_id` only through a task query scoped by the current `owner_id`. Owner and task mismatches fail closed; historical artifact rows are not mutated.
 - 2026-07-25: Candidate validation still requires at least two same-kind artifacts. Incomplete provenance now names the missing field internally, while the shared user diagnostic gives a direct upstream-node repair action and keeps artifact IDs in technical detail.
 - 2026-07-25: Provenance verification passed 39 focused tests, the Worker output materializer and supervision diagnostic Harnesses, Shared/Agent Core/Worker type-check, all three builds and `git diff --check`.
+- 2026-07-25: Unified supervised generation now uses one bounded batch runner for image, video and audio. It starts at most four independent children, preserves `batchIndex` ordering, records safe child errors and upstream task IDs, retains completed children on cancellation and ignores late results after cancellation.
+- 2026-07-25: Output materialization binds Artifact IDs by the ordered child output ownership rather than raw array index. A regression fixture proves that a later successful child cannot donate its Artifact ID to an earlier failed child; duplicate output URLs remain separate candidate identities.
+- 2026-07-25: Detailed owner-scoped Run reads now project `runtimeSteps`; workflow Run lists remain a single lightweight query. Step/task status precedence keeps evaluation and selection visibly running, while a queued Step with an already-running task also projects as running.
+- 2026-07-25: Canvas Run progress events persist ordered child states without Provider URLs. Event deduplication includes child transitions, so `running -> failed` is recorded even when aggregate success/request counts do not change.
+- 2026-07-25: Task 4 verification passed 57 focused tests across nine files, `verify:generation-count-contract`, `verify:provider-generation-task-contract`, Shared/Agent Core/API/Worker type-check, all four builds and `git diff --check`. GitHub, Gray and Production remained untouched.

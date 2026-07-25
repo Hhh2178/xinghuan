@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-25 local Task 4 checkpoint: supervised Image, Video and Audio generation now reuse one bounded batch runner with stable child ordering, independent child state, cancellation-safe late-result handling and materialized Artifact binding. Detailed owner-scoped Run reads expose safe `runtimeSteps`; Run lists remain lightweight. Active selector evaluation/selection stays visually running even after its Provider task succeeds. This checkpoint is local only; Gray and Production were not changed.
+
 > 2026-07-24 local governance checkpoint: Admin assistant governance is now split into `/admin/automation/assistants`, `/admin/automation/supervision` and `/admin/automation/activity`. Frontend and backend assistants keep separate surface settings, Agent definitions and LLM route pools; the old `assistantAgentKey` is read compatibility only. The supervision workspace owns planner, concurrency, quality, candidate and recovery controls, while run/approval/audit evidence is isolated in activity. Gray deployment remains paused and Production was not changed.
 
 > 2026-07-24 Gray `v0.7.38` follow-up: a closed supervision panel no longer disables Canvas Run discovery or event subscription. The Worker persists bounded image/video batch progress into the immutable Canvas Run event ledger, and the Canvas renders the owner-selected node badge as `运行中 0/N` through `运行中 N/N` without writing transient state to Canvas JSON. A configured `generationCount` now means exactly that many independent provider submissions (bounded `1..4`), even when an upstream provider can return multiple outputs per request.

@@ -138,7 +138,12 @@ export function createCanvasRunCoordinator(options: {
           [step.id],
         );
         const last = readCanvasRunTaskProgress(previous.rows[0]?.payload);
-        if (last?.completed === progress.completed && last.providerRequestCount === progress.providerRequestCount) {
+        if (
+          last?.completed === progress.completed
+          && last.total === progress.total
+          && last.providerRequestCount === progress.providerRequestCount
+          && JSON.stringify(last.taskRuns || []) === JSON.stringify(progress.taskRuns || [])
+        ) {
           await client.query('rollback');
           continue;
         }
@@ -147,6 +152,7 @@ export function createCanvasRunCoordinator(options: {
           completed: progress.completed,
           generationCount: progress.total,
           providerRequestCount: progress.providerRequestCount,
+          ...(progress.taskRuns ? { taskRuns: progress.taskRuns } : {}),
         });
         await client.query('commit');
       } catch (error) {

@@ -48,4 +48,80 @@ describe("output material provenance", () => {
       resolvedPrompt: "来自上游文本的最终提示词",
     });
   });
+
+  it("binds ordered artifact ids back to the corresponding batch children", async () => {
+    const materialized = await materializeTaskOutputs({
+      dataDir: "test-data",
+      task: {
+        id: "task-batch",
+        ownerId: "owner-1",
+        title: "batch",
+        providerId: "provider-1",
+        providerName: "Provider",
+        modelRecordId: "model-record-1",
+        providerModelId: "provider-model-1",
+        modelDisplayName: "Model",
+        payload: { prompt: "prompt", sourceNodeId: "image-1" },
+      },
+      result: {
+        imageUrls: [
+          "data:image/png;base64,aW1hZ2UtMQ==",
+          "data:image/png;base64,aW1hZ2UtMg==",
+        ],
+        generationBatch: {
+          total: 2,
+          completed: 2,
+          providerRequestCount: 2,
+          children: [
+            { batchIndex: 0, status: "succeeded", generationArtifactIds: [] },
+            { batchIndex: 1, status: "succeeded", generationArtifactIds: [] },
+          ],
+        },
+      },
+    });
+
+    expect(materialized.resultPatch.generationBatch).toMatchObject({
+      children: [
+        { batchIndex: 0, generationArtifactIds: [materialized.artifacts[0].id] },
+        { batchIndex: 1, generationArtifactIds: [materialized.artifacts[1].id] },
+      ],
+    });
+  });
+
+  it("does not bind a later successful artifact to an earlier failed child", async () => {
+    const successfulUrl = "data:image/png;base64,aW1hZ2UtMg==";
+    const materialized = await materializeTaskOutputs({
+      dataDir: "test-data",
+      task: {
+        id: "task-partial-batch",
+        ownerId: "owner-1",
+        title: "partial batch",
+        providerId: "provider-1",
+        providerName: "Provider",
+        modelRecordId: "model-record-1",
+        providerModelId: "provider-model-1",
+        modelDisplayName: "Model",
+        payload: { prompt: "prompt", sourceNodeId: "image-1" },
+      },
+      result: {
+        imageUrls: [successfulUrl],
+        generationBatch: {
+          total: 2,
+          completed: 1,
+          providerRequestCount: 2,
+          children: [
+            { batchIndex: 0, status: "failed", error: "request failed", outputUrls: [] },
+            { batchIndex: 1, status: "succeeded", outputUrls: [successfulUrl] },
+          ],
+        },
+      },
+    });
+
+    expect(materialized.resultPatch.generationBatch).toMatchObject({
+      children: [
+        { batchIndex: 0, status: "failed", generationArtifactIds: [] },
+        { batchIndex: 1, status: "succeeded", generationArtifactIds: [materialized.artifacts[0].id] },
+      ],
+    });
+  });
 });

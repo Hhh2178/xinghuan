@@ -10,8 +10,8 @@ const plan: CanvasRunPlan = {
   groups: [{ id: "group-1", order: 0, skipped: false, stepIds: ["step:image", "step:video"] }],
   executionLayers: [{ index: 0, stepIds: ["step:image"] }, { index: 1, stepIds: ["step:video"] }],
   steps: [
-    { id: "step:image", nodeId: "image", nodeType: "image", groupId: "group-1", dependsOn: [], skipped: false, executionLayer: 0 },
-    { id: "step:video", nodeId: "video", nodeType: "video", groupId: "group-1", dependsOn: ["image"], skipped: false, executionLayer: 1 },
+    { id: "step:image", nodeId: "image", nodeType: "image", groupId: "group-1", dependsOn: [], skipped: false, executionLayer: 0, displayIdentity: { label: "图像", suffix: "image", displayName: "图像 #image" } },
+    { id: "step:video", nodeId: "video", nodeType: "video", groupId: "group-1", dependsOn: ["image"], skipped: false, executionLayer: 1, displayIdentity: { label: "视频", suffix: "video", displayName: "视频 #video" } },
   ],
 };
 
@@ -98,6 +98,53 @@ describe("canvas run repository", () => {
     });
     const repo = createCanvasRunRepository({ getPostgresPool: async () => ({ query } as any) });
     await expect(repo.readOwnedRun("owner-2", "canvas_run_1")).resolves.toBeNull();
+  });
+
+  it("projects owner-scoped task runtime only for a detailed Run read", async () => {
+    const query = vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes("from xh_canvas_runs r where r.id")) {
+        expect(params).toEqual(["canvas_run_1", "owner-1"]);
+        return { rows: [runRow("running")] };
+      }
+      if (sql.includes("from xh_canvas_run_steps s")) {
+        expect(sql).toContain("r.owner_id = $2");
+        expect(sql).toContain("t.owner_id = r.owner_id");
+        expect(params).toEqual(["canvas_run_1", "owner-1"]);
+        return { rows: [{
+          run_step_id: "step-db-1",
+          node_id: "image",
+          node_type: "image",
+          step_status: "running",
+          task_id: "task-1",
+          task_status: "running",
+          task_result: {
+            generationBatch: { total: 2, completed: 1, children: [
+              { batchIndex: 0, status: "succeeded", taskId: "provider-0", generationArtifactIds: ["artifact-0"] },
+              { batchIndex: 1, status: "running" },
+            ] },
+            generationArtifactIds: ["artifact-0"],
+            materializedImageUrls: ["/files/output/0.png"],
+          },
+          step_error: {},
+          started_at: new Date(100),
+          finalized_at: null,
+        }] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const repo = createCanvasRunRepository({ getPostgresPool: async () => ({ query } as any) });
+
+    await expect(repo.readOwnedRun("owner-1", "canvas_run_1")).resolves.toMatchObject({
+      id: "canvas_run_1",
+      runtimeSteps: [{
+        runId: "canvas_run_1",
+        runStepId: "step-db-1",
+        nodeId: "image",
+        status: "running",
+        progress: "1/2",
+        outputs: { imageUrls: ["/files/output/0.png"] },
+      }],
+    });
   });
 
   it("serializes an idempotent pause command with a run lock and event", async () => {
@@ -201,7 +248,9 @@ describe("canvas run repository", () => {
     });
     const repo = createCanvasRunRepository({ getPostgresPool: async () => ({ query } as any) });
 
-    await expect(repo.readOwnedWorkflowRunOverview("owner-1", "canvas-1", 50))
-      .resolves.toEqual([expect.objectContaining({ id: "canvas_run_1", workflowId: "workflow-1", status: "running" })]);
+    const overview = await repo.readOwnedWorkflowRunOverview("owner-1", "canvas-1", 50);
+    expect(overview).toEqual([expect.objectContaining({ id: "canvas_run_1", workflowId: "workflow-1", status: "running" })]);
+    expect(overview[0]).not.toHaveProperty("runtimeSteps");
+    expect(query).toHaveBeenCalledOnce();
   });
 });

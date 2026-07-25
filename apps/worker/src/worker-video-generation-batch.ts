@@ -1,4 +1,8 @@
 import { boundedGenerationCount } from "./worker-image-generation-batch.js";
+import {
+  executeGenerationBatch,
+  type GenerationBatchProgress,
+} from "./worker-generation-batch.js";
 
 export interface VideoGenerationResult extends Record<string, unknown> {
   videoUrls?: unknown;
@@ -13,56 +17,75 @@ export interface VideoGenerationBatchProgress {
   videoUrls: string[];
   remoteVideoUrls: string[];
   taskIds: string[];
+  generationBatch: Pick<GenerationBatchProgress, "total" | "completed" | "providerRequestCount" | "children">;
 }
 
 export async function executeVideoGenerationBatch(options: {
   generationCount: unknown;
+  maximumConcurrency?: unknown;
   execute: (batchIndex: number, remaining: number) => Promise<VideoGenerationResult>;
   isCancelled?: () => Promise<boolean>;
   onProgress?: (progress: VideoGenerationBatchProgress) => Promise<void>;
 }) {
   const total = boundedGenerationCount(options.generationCount);
-  const videoUrls: string[] = [];
-  const remoteVideoUrls: string[] = [];
-  const taskIds: string[] = [];
-  let lastResult: VideoGenerationResult = {};
-  let providerRequestCount = 0;
-
-  for (let batchIndex = 0; batchIndex < total; batchIndex += 1) {
-    if (await options.isCancelled?.()) throw new Error("TASK_CANCELLED");
-    lastResult = await options.execute(batchIndex, 1);
-    providerRequestCount += 1;
-    videoUrls.push(...strings(lastResult.videoUrls));
-    remoteVideoUrls.push(...strings(lastResult.remoteVideoUrls));
-    const taskId = text(lastResult.taskId);
-    if (taskId && !taskIds.includes(taskId)) taskIds.push(taskId);
-    await options.onProgress?.({
-      completed: Math.min(total, videoUrls.length),
-      total,
-      providerRequestCount,
-      videoUrls: videoUrls.slice(0, total),
-      remoteVideoUrls: remoteVideoUrls.filter((url) => videoUrls.slice(0, total).includes(url)),
-      taskIds: [...taskIds],
+  try {
+    const batch = await executeGenerationBatch({
+      generationCount: total,
+      maximumConcurrency: options.maximumConcurrency,
+      outputKey: "videoUrls",
+      remoteOutputKey: "remoteVideoUrls",
+      execute: options.execute,
+      isCancelled: options.isCancelled,
+      onProgress: async (progress) => options.onProgress?.(videoProgress(progress)),
     });
+    return videoResult(batch, total);
+  } catch (error) {
+    mapErrorResultPatch(error, (patch) => videoResult(patch, total));
+    throw error;
   }
+}
 
-  const completedVideoUrls = videoUrls.slice(0, total);
+function videoProgress(progress: GenerationBatchProgress): VideoGenerationBatchProgress {
   return {
-    ...lastResult,
-    videoUrls: completedVideoUrls,
-    remoteVideoUrls: remoteVideoUrls.filter((url) => completedVideoUrls.includes(url)),
-    videoCount: completedVideoUrls.length,
+    completed: progress.completed,
+    total: progress.total,
+    providerRequestCount: progress.providerRequestCount,
+    videoUrls: progress.outputUrls,
+    remoteVideoUrls: progress.remoteOutputUrls.filter((url) => progress.outputUrls.includes(url)),
+    taskIds: progress.taskIds,
+    generationBatch: {
+      total: progress.total,
+      completed: progress.completed,
+      providerRequestCount: progress.providerRequestCount,
+      children: progress.children,
+    },
+  };
+}
+
+function videoResult(value: Record<string, unknown>, total: number) {
+  const outputUrls = strings(value.outputUrls);
+  const remoteOutputUrls = strings(value.remoteOutputUrls).filter((url) => outputUrls.includes(url));
+  const taskIds = strings(value.taskIds);
+  const { outputUrls: _outputs, remoteOutputUrls: _remote, ...rest } = value;
+  return {
+    ...rest,
+    videoUrls: outputUrls,
+    remoteVideoUrls: remoteOutputUrls,
+    videoCount: outputUrls.length,
     generationCount: total,
-    providerRequestCount,
     taskIds,
     ...(taskIds.length > 0 ? { taskId: taskIds[taskIds.length - 1] } : {}),
   };
 }
 
-function strings(value: unknown) {
-  return Array.isArray(value) ? value.map(text).filter(Boolean) : [];
+function mapErrorResultPatch(error: unknown, map: (patch: Record<string, unknown>) => Record<string, unknown>) {
+  if (!error || typeof error !== "object") return;
+  const current = (error as { resultPatch?: unknown }).resultPatch;
+  if (current && typeof current === "object" && !Array.isArray(current)) {
+    (error as { resultPatch: Record<string, unknown> }).resultPatch = map(current as Record<string, unknown>);
+  }
 }
 
-function text(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+function strings(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean) : [];
 }
