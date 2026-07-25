@@ -2,6 +2,7 @@ import {
   executeGenerationBatch,
   type GenerationBatchProgress,
 } from "./worker-generation-batch.js";
+import { inheritOutputFetchContext } from "./output-materials.js";
 
 export interface ImageGenerationResult extends Record<string, unknown> {
   imageUrls?: unknown;
@@ -50,7 +51,7 @@ export function boundedGenerationCount(value: unknown) {
 }
 
 function imageProgress(progress: GenerationBatchProgress): ImageGenerationBatchProgress {
-  return {
+  return inheritOutputFetchContext({
     completed: progress.completed,
     total: progress.total,
     providerRequestCount: progress.providerRequestCount,
@@ -63,7 +64,7 @@ function imageProgress(progress: GenerationBatchProgress): ImageGenerationBatchP
       providerRequestCount: progress.providerRequestCount,
       children: progress.children,
     },
-  };
+  }, progress);
 }
 
 function imageResult(value: Record<string, unknown>, total: number) {
@@ -71,7 +72,7 @@ function imageResult(value: Record<string, unknown>, total: number) {
   const remoteOutputUrls = strings(value.remoteOutputUrls).filter((url) => outputUrls.includes(url));
   const taskIds = strings(value.taskIds);
   const { outputUrls: _outputs, remoteOutputUrls: _remote, ...rest } = value;
-  return {
+  return inheritOutputFetchContext({
     ...rest,
     imageUrls: outputUrls,
     remoteImageUrls: remoteOutputUrls,
@@ -79,7 +80,7 @@ function imageResult(value: Record<string, unknown>, total: number) {
     generationCount: total,
     taskIds,
     ...(taskIds.length > 0 ? { taskId: taskIds[taskIds.length - 1] } : {}),
-  };
+  }, value);
 }
 
 function mapErrorResultPatch(error: unknown, map: (patch: Record<string, unknown>) => Record<string, unknown>) {

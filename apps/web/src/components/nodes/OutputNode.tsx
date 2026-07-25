@@ -8,6 +8,7 @@ import {
   type NodeProps,
   type Node,
 } from '@xyflow/react';
+import { hasNodeExecutionProjection, useNodeExecutionProjection } from './useNodeExecutionProjection';
 import { MonitorPlay, Type as TypeIcon, Image as ImageIcon, Video as VideoIcon, Music, Download, Pencil, Check, Edit3, GitCompare } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useThemeStore } from '../../stores/theme';
@@ -133,7 +134,7 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   const { rootRef, syncNodeInternals } = useSyncNodeInternalsOnResize(id);
   const { theme, templateId } = useThemeStore();
   const isDark = theme === 'dark';
-  const d = (data as any) || {};
+  const d = useNodeExecutionProjection(data) as any;
   const rf = useReactFlow();
   const activeTemplate = useMemo(
     () => resolveThemeTemplate(templateId),
@@ -167,6 +168,8 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   );
   // 订阅上游节点的 data, 任何上游 data 变化都会触发重渲染
   const upstreamNodes = useNodesData(upstreamIds);
+  const transientExecutionProjection = Boolean(d.__runtimeProjection)
+    || hasNodeExecutionProjection(Array.isArray(upstreamNodes) ? upstreamNodes : []);
 
   // v1.2.9.5: 检测上游是否含 LoopNode —— 用于「直接接 LoopNode 的 OutputNode」空状态下显示友好提示,
   //         代替误导性的「连入上游...」占位 (循环器不产出素材 → OutputNode 本身也不应表现得像「坏掉」)。
@@ -770,6 +773,7 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   //     清空 prompt/text/reply (避免下游生成节点误将上下文提示词一起当参考文本)
   //   - 若只有文本 (纯文本输出), 仍将文本透传到 prompt/text/reply
   useEffect(() => {
+    if (transientExecutionProjection) return;
     const hasNonText =
       collected.images.length > 0 ||
       collected.videos.length > 0 ||
@@ -818,7 +822,7 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
       JSON.stringify(cur.segments) !== JSON.stringify(next.segments);
     if (changed) update(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayText, collected]);
+  }, [displayText, collected, transientExecutionProjection]);
 
   // === v1.2.10.2: 自动保存到本地路径 ===
   // 设计要点:
@@ -828,6 +832,7 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   //   4. 远端 http(s) URL 也照位部 —— 后端会 fetch 拉取后保存, 不依赖前端报三方
   const savedUrlsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    if (transientExecutionProjection) return;
     const all: string[] = [
       ...collected.images,
       ...collected.videos,
@@ -841,7 +846,7 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
     fresh.forEach((u) => {
       saveAssetToDisk(u).catch(() => {/* 静默 */});
     });
-  }, [collected]);
+  }, [collected, transientExecutionProjection]);
 
   // === 选中节点上方浮动「Edit」按钮 ===
   // 仅当节点被选中且至少存在一张图像时出现，等价于双击图像触发

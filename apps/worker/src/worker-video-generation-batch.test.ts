@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("node:fs/promises", () => ({
+  mkdir: vi.fn(async () => undefined),
+  readFile: vi.fn(async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); }),
+  rename: vi.fn(async () => undefined),
+  stat: vi.fn(async () => ({ size: 1 })),
+  writeFile: vi.fn(async () => undefined),
+}));
+
+import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
 import { executeVideoGenerationBatch } from "./worker-video-generation-batch.js";
 
 describe("worker video generation batch", () => {
@@ -62,4 +71,55 @@ describe("worker video generation batch", () => {
       ] },
     });
   });
+
+  it("preserves non-persisted download headers through progress and final batch projections", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("video", {
+      status: 200,
+      headers: { "content-type": "video/mp4" },
+    }));
+    const materializedSnapshots: Record<string, unknown>[] = [];
+    const execute = vi.fn(async (batchIndex: number) => attachOutputFetchContext({
+      taskId: `upstream-${batchIndex}`,
+      videoUrls: [`https://secure-provider.test/video-${batchIndex}.mp4`],
+      remoteVideoUrls: [`https://secure-provider.test/video-${batchIndex}.mp4`],
+    }, {
+      origin: "https://secure-provider.test",
+      headers: { authorization: "Bearer private-download-token" },
+    }));
+
+    const result = await executeVideoGenerationBatch({
+      generationCount: 2,
+      maximumConcurrency: 1,
+      execute,
+      onProgress: async (snapshot) => {
+        if (snapshot.completed !== 1 || materializedSnapshots.length > 0) return;
+        materializedSnapshots.push((await materializeTaskOutputs({
+          dataDir: "test-data",
+          task: materializeTask,
+          result: snapshot as unknown as Record<string, unknown>,
+        })).resultPatch);
+      },
+    });
+    await materializeTaskOutputs({ dataDir: "test-data", task: materializeTask, result });
+
+    expect(materializedSnapshots).toHaveLength(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy.mock.calls.every(([, init]) => (
+      (init?.headers as Record<string, string>)?.authorization === "Bearer private-download-token"
+    ))).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("private-download-token");
+    fetchSpy.mockRestore();
+  });
 });
+
+const materializeTask = {
+  id: "task-secure-video",
+  ownerId: "owner-1",
+  title: "secure video",
+  providerId: "provider-1",
+  providerName: "Provider",
+  modelRecordId: "model-1",
+  providerModelId: "video-model",
+  modelDisplayName: "Video Model",
+  payload: { sourceNodeId: "video-1" },
+};

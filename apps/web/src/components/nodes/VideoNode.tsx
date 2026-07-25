@@ -39,6 +39,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useNodeExecutionProjection } from './useNodeExecutionProjection';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
@@ -146,7 +147,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
   const isDark = theme === 'dark';
   const isPixel = themeStyle === 'pixel';
 
-  const d = data as any;
+  const d = useNodeExecutionProjection(data) as any;
   const backendVideoModels = useModelCatalogStore((s) => s.catalog.videoModels);
   const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
   const backendSelection = useMemo(

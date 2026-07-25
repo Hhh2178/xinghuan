@@ -6,6 +6,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useNodeExecutionProjection } from './useNodeExecutionProjection';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import {
@@ -167,7 +168,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
 
   const [error, setError] = useState<string | null>(null);
   const src = `image:${id.slice(0, 6)}`;
-  const d = data as any;
+  const d = useNodeExecutionProjection(data) as any;
   const backendImageModels = useModelCatalogStore((s) => s.catalog.imageModels);
   const modelSource: 'backend' | 'local' = d?.modelSource === 'local' ? 'local' : 'backend';
   const backendSelection = useMemo(

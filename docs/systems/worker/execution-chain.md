@@ -27,6 +27,8 @@
 - 任务继续进入现有 image/video/audio/chat 能力队列，复用用户窗口、Provider 窗口、费用账本、取消和产物落库。Chat 的 OpenAI-compatible 分支覆盖 `openai`、`apimart`、`modelscope`、`custom` 和 `aicopy`；Gemini 仍使用其原生媒体 Adapter。
 - Image、Video 与 Audio Run Plan 将节点的 `generationCount` 冻结为 `1..4`。Worker 在同一个持久 Generation Task 内通过共享 runner 执行最多四路有界并发，每个请求拥有稳定 `batchIndex`、独立状态、上游 task ID、脱敏错误和产物 ID。取消保留已经完成的子项并忽略迟到结果；最终仍由单一 output materializer 生成稳定 Artifact ID，部分失败不会把后续成功产物错绑到失败子项。
 - 运行中的批次快照写入任务结果；Canvas Run Coordinator 只把脱敏、有序的子状态写入 Run Event。owner-scoped Run 详情投影 `runtimeSteps`，列表/概览保持轻量，不附带产物明细。
+- 多子任务批次仍在运行时，`worker-generation-progress-materializer.ts` 会串行处理并发进度回调，并在成功 child 数增加时提前把已完成媒体物料化为平台文件。稳定 Artifact ID 按 `batchIndex` 回填，安全 `/files/...` URL 和 child 状态一起写入任务结果；后续部分失败或取消会继续保留这些产物。全部成功仍走普通终态物料化入口，托管与手动任务保持同一终态合同。
+- 需要同源授权下载的媒体只在 Worker 内存对象上携带非枚举 fetch context。共享 batch runner 及 image/video/audio 映射会继承该上下文用于中间与终态物料化，但 JSON 序列化、任务结果和 Run Event 均不会包含下载请求头。
 - 成功批次把实际 `providerRequestCount` 写回任务结果；费用触发器按该值结算 `per_request` 数量，未提供该字段的既有任务继续按 `1` 次结算。Run Step/Task/Attempt 的既有幂等键和重试边界保持不变。
 - 成功后回填 Step output binding 并解锁拓扑下游；失败按预算做同配置重试，再使用 Plan 中预授权备选，需确认的备选进入 Approval ledger。
 - 当前原生生成步骤为 image/video/audio/llm/runninghub；当前原生确定性步骤为 text/text-split/upload/material-set/pick-from-set/relay/output，以及受 owner 文件隔离约束的 resize。确定性步骤在 Step 领取事务中直接生成 output binding、解锁下游并写入 Run Event；resize 只读取当前 owner 的 `/files/input/` 或 `/files/output/`，在同一 owner 输出目录写入 PNG，不创建 Generation Task，也不消耗 Provider 或 Redis 队列槽位。`text-split` 使用 Shared 纯算法并只消费 Run Plan 快照的可执行配置、上游文本或手工 segments override。其他 `legacy_browser` 节点会明确失败为 unsupported，不伪装为后台已托管。

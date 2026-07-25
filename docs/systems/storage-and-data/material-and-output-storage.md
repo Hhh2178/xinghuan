@@ -10,6 +10,7 @@
 
 - PostgreSQL 表 `xh_generation_artifacts` 是 Gray / Production 下一次发布后的生成产物元数据权威源；迁移由 `024_generation_artifacts.sql` 创建。
 - Worker 在输出文件物料化后直接登记 Generation Artifact；同步 API 输出保存路径也在服务端登记。
+- 多请求批次在尚未全部结束时，会按成功 child 数增长串行物料化已完成输出，并把稳定 Artifact ID 回填到对应 `batchIndex`。后续失败或取消仍保留已经物料化的产物；全部成功时继续走原有终态物料化入口。
 - Canvas 不再扫描节点并并发 POST 登记。旧 POST 接口暂时保留为兼容入口。
 - GET 只查询当前 owner 的 `active/promoted` 且未到期记录，不推进状态、不写 JSON、不删除文件。
 - `GenerationArtifactLifecycle` 集中负责查询、内容解析、删除和 Promotion；PostgreSQL 与 file adapter 位于 repository seam 后。

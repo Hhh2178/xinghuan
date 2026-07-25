@@ -440,7 +440,7 @@ Commit with `feat(runtime): unify generation batch projections`.
 - Produces: transient rendered-node data under a reserved non-persisted key such as `__runtimeProjection`.
 - `useNodeExecutionProjection(nodeData)` merges manual data and transient projection with active Workflow Run taking visual precedence only while present.
 
-- [ ] **Step 1: Write projection tests for running, multi-child success, failure and outputs**
+- [x] **Step 1: Write projection tests for running, multi-child success, failure and outputs**
 
 ```ts
 expect(buildCanvasRunNodeProjection(runDetail)["image-v3uy"]).toMatchObject({
@@ -455,11 +455,11 @@ expect(buildCanvasRunNodeProjection(runDetail)["image-v3uy"]).toMatchObject({
 });
 ```
 
-- [ ] **Step 2: Add a persistence guard test**
+- [x] **Step 2: Add a persistence guard test**
 
 Assert that Canvas serialization and workflow template export remove `__runtimeProjection` and that applying a Run projection does not call the Canvas update/persist callback.
 
-- [ ] **Step 3: Run tests and confirm the class-only projection fails**
+- [x] **Step 3: Run tests and confirm the class-only projection fails**
 
 Run:
 
@@ -467,19 +467,19 @@ Run:
 npx vitest run apps/web/src/components/canvas-agent/canvas-run-node-projection.test.ts apps/web/src/components/nodes/useNodeExecutionProjection.test.ts apps/web/src/utils/workflowRuntimeCleanup.test.ts
 ```
 
-- [ ] **Step 4: Merge the transient projection in `Canvas.tsx`**
+- [x] **Step 4: Merge the transient projection in `Canvas.tsx`**
 
 Map the selected Run detail into the rendered node array only. Do not call `setNodes`, `updateNodeData`, Canvas save or revision APIs.
 
-- [ ] **Step 5: Reuse existing runtime and preview components**
+- [x] **Step 5: Reuse existing runtime and preview components**
 
 Image/video/audio nodes feed the merged projection into `NodeRuntimeCard` and their existing output gallery. Output nodes consume projected upstream artifacts through the same media collection helpers used by manual results. Remove duplicate class-only status copy after all supported nodes render the projection.
 
-- [ ] **Step 6: Cover late SSE and Run switching**
+- [x] **Step 6: Cover late SSE and Run switching**
 
 Switching the selected workflow/run clears the previous transient projection immediately. A delayed event from the old Run cannot reappear on the new Run.
 
-- [ ] **Step 7: Run the phase gate**
+- [x] **Step 7: Run the phase gate**
 
 Run:
 
@@ -492,7 +492,7 @@ npm run build -w @xinghuan/web
 git diff --check
 ```
 
-- [ ] **Step 8: Record and commit**
+- [x] **Step 8: Record and commit**
 
 Commit with `feat(canvas): show supervised tasks in normal nodes`.
 

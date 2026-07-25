@@ -1,4 +1,5 @@
 const WORKFLOW_RUNTIME_STRIP_KEYS = [
+  '__runtimeProjection',
   'error',
   'errorCode',
   'errorMessage',

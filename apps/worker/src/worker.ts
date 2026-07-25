@@ -19,9 +19,9 @@ import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
 import { prepareGrsaiReferenceImages, prepareInlineImageReferences } from "./grsai-reference-images.js";
 import { attachOutputFetchContext, materializeTaskOutputs } from "./output-materials.js";
-import { executeAudioGenerationBatch } from "./worker-audio-generation-batch.js";
+import { executeAudioGenerationBatch, type AudioGenerationBatchProgress } from "./worker-audio-generation-batch.js";
 import { createGrsaiImageClient } from "./worker-grsai-image-client.js";
-import { executeVideoGenerationBatch } from "./worker-video-generation-batch.js";
+import { executeVideoGenerationBatch, type VideoGenerationBatchProgress } from "./worker-video-generation-batch.js";
 import {
   createOpenAiAudioChatPayload,
   extractAudioProviderResult,
@@ -88,7 +88,8 @@ import {
 import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
-import { executeImageGenerationBatch } from "./worker-image-generation-batch.js";
+import { executeImageGenerationBatch, type ImageGenerationBatchProgress } from "./worker-image-generation-batch.js";
+import { executeGenerationBatchWithMaterializedProgress } from "./worker-generation-progress-materializer.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
 import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
 import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
@@ -736,12 +737,17 @@ async function reapStaleRunningTasks() {
 }
 
 async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>> {
-  return executeImageGenerationBatch({
-    generationCount: task.payload.generationCount ?? task.payload.n,
-    maximumConcurrency: task.payload.generationConcurrency,
-    execute: (_batchIndex, remaining) => executeSingleImageTask(task, remaining),
-    isCancelled: () => isTaskCancelled(task.id),
-    onProgress: (batch) => touchTaskRuntime(task.id, {
+  return executeGenerationBatchWithMaterializedProgress<ImageGenerationBatchProgress, Record<string, unknown>>({
+    dataDir, task,
+    persist: (patch) => touchTaskRuntime(task.id, patch),
+    execute: (onProgress) => executeImageGenerationBatch({
+      generationCount: task.payload.generationCount ?? task.payload.n,
+      maximumConcurrency: task.payload.generationConcurrency,
+      execute: (_batchIndex, remaining) => executeSingleImageTask(task, remaining),
+      isCancelled: () => isTaskCancelled(task.id),
+      onProgress,
+    }),
+    runtimePatch: (batch) => ({
       heartbeatAt: new Date().toISOString(),
       runtimeStage: "generating_batch",
       progress: `${batch.completed}/${batch.total}`,
@@ -860,12 +866,17 @@ async function executeSingleImageTask(task: TaskRow, requestedImageCount: number
 }
 
 async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>> {
-  return executeVideoGenerationBatch({
-    generationCount: task.payload.generationCount ?? task.payload.n,
-    maximumConcurrency: task.payload.generationConcurrency,
-    execute: () => executeSingleVideoTask(task),
-    isCancelled: () => isTaskCancelled(task.id),
-    onProgress: (batch) => touchTaskRuntime(task.id, {
+  return executeGenerationBatchWithMaterializedProgress<VideoGenerationBatchProgress, Record<string, unknown>>({
+    dataDir, task,
+    persist: (patch) => touchTaskRuntime(task.id, patch),
+    execute: (onProgress) => executeVideoGenerationBatch({
+      generationCount: task.payload.generationCount ?? task.payload.n,
+      maximumConcurrency: task.payload.generationConcurrency,
+      execute: () => executeSingleVideoTask(task),
+      isCancelled: () => isTaskCancelled(task.id),
+      onProgress,
+    }),
+    runtimePatch: (batch) => ({
       heartbeatAt: new Date().toISOString(),
       runtimeStage: "batch_generating",
       progress: `${Math.round((batch.completed / batch.total) * 100)}%`,
@@ -1521,12 +1532,17 @@ async function executeChatTask(task: TaskRow, signal?: AbortSignal): Promise<Rec
 }
 
 async function executeAudioTask(task: TaskRow): Promise<Record<string, unknown>> {
-  return executeAudioGenerationBatch({
-    generationCount: task.payload.generationCount ?? task.payload.n,
-    maximumConcurrency: task.payload.generationConcurrency,
-    execute: () => executeSingleAudioTask(task),
-    isCancelled: () => isTaskCancelled(task.id),
-    onProgress: (batch) => touchTaskRuntime(task.id, {
+  return executeGenerationBatchWithMaterializedProgress<AudioGenerationBatchProgress, Record<string, unknown>>({
+    dataDir, task,
+    persist: (patch) => touchTaskRuntime(task.id, patch),
+    execute: (onProgress) => executeAudioGenerationBatch({
+      generationCount: task.payload.generationCount ?? task.payload.n,
+      maximumConcurrency: task.payload.generationConcurrency,
+      execute: () => executeSingleAudioTask(task),
+      isCancelled: () => isTaskCancelled(task.id),
+      onProgress,
+    }),
+    runtimePatch: (batch) => ({
       heartbeatAt: new Date().toISOString(),
       runtimeStage: "batch_generating",
       progress: `${Math.round((batch.completed / batch.total) * 100)}%`,

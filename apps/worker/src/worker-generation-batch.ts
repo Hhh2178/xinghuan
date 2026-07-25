@@ -2,6 +2,7 @@ import type {
   GenerationBatchChildSnapshot,
   GenerationBatchSnapshot,
 } from "@xinghuan/shared";
+import { inheritOutputFetchContext } from "./output-materials.js";
 
 interface GenerationResult extends Record<string, unknown> {
   taskId?: unknown;
@@ -38,7 +39,10 @@ export async function executeGenerationBatch(options: {
   let firstError: unknown;
 
   const emit = async () => {
-    await options.onProgress?.(snapshot(children, total, providerRequestCount));
+    await options.onProgress?.(inheritOutputFetchContext(
+      snapshot(children, total, providerRequestCount),
+      [...resultByIndex.values()],
+    ));
   };
   const cancelUnstarted = () => {
     for (const child of children) {
@@ -96,14 +100,14 @@ export async function executeGenerationBatch(options: {
     .flatMap(([, result]) => strings(result[options.remoteOutputKey]))
     .filter((url) => outputUrls.includes(url));
   const taskIds = successfulResults.map(([, result]) => text(result.taskId)).filter(Boolean);
-  const resultPatch = {
+  const resultPatch = inheritOutputFetchContext({
     ...(successfulResults.at(-1)?.[1] || {}),
     outputUrls,
     remoteOutputUrls,
     taskIds,
     providerRequestCount,
     generationBatch: finalSnapshot,
-  };
+  }, successfulResults.map(([, result]) => result));
   if (cancelled) throw batchError("TASK_CANCELLED", resultPatch);
   if (firstError) throw batchError(firstError instanceof Error ? firstError.message : "GENERATION_BATCH_FAILED", resultPatch);
   return resultPatch;

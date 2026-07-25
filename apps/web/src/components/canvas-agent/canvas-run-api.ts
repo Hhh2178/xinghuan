@@ -1,3 +1,11 @@
+import type {
+  NodeDisplayIdentity,
+  NodeExecutionProjection,
+  WorkflowSupervisionLimits,
+  WorkflowSupervisionSettings,
+  WorkflowSupervisionSettingSource,
+} from '@xinghuan/shared';
+
 export type CanvasRunStatus =
   | 'draft'
   | 'planning'
@@ -68,6 +76,7 @@ export interface CanvasRunRecord {
   budgetSnapshot: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
+  runtimeSteps?: NodeExecutionProjection[];
 }
 
 export interface WorkflowSupervisionSettingsProjection {
@@ -282,9 +291,3 @@ export function subscribeCanvasRunEvents(
   source.onerror = handlers.onError;
   return () => source.close();
 }
-import type {
-  NodeDisplayIdentity,
-  WorkflowSupervisionLimits,
-  WorkflowSupervisionSettings,
-  WorkflowSupervisionSettingSource,
-} from '@xinghuan/shared';

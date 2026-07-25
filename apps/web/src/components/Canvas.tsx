@@ -160,6 +160,7 @@ const LLMNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/LL
 const VideoNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/VideoNode')));
 const SeedanceNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/SeedanceNode')));
 import AudioNode from './nodes/AudioNode';
+import { projectCanvasRuntimeNodes } from './nodes/useNodeExecutionProjection';
 import { NodeCostBadge } from './nodes/common/NodeCostBadge';
 const RunningHubNode = lazy(createLazyImportWithReloadRecovery(() => import('./nodes/RunningHubNode')));
 import RhConfigNode from './nodes/RhConfigNode';
@@ -1485,19 +1486,20 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     getEdges: () => edgesRef.current,
     executableNodeTypes: EXECUTABLE_NODE_TYPES,
   });
-  const [canvasRunNodeStates, setCanvasRunNodeStates] = useState<Record<string, { status: string; label: string }>>({});
+  const [canvasRunNodeStates, setCanvasRunNodeStates] = useState<Record<string, import('./canvas-agent/canvas-run-node-projection').CanvasRunNodeProjection>>({});
+  useEffect(() => setCanvasRunNodeStates({}), [activeId]);
   useEffect(() => {
     const onProjection = (event: Event) => {
-      const detail = (event as CustomEvent<{ canvasId?: string; nodeStates?: Record<string, { status: string; label: string }> }>).detail;
+      const detail = (event as CustomEvent<{ canvasId?: string; nodeStates?: Record<string, import('./canvas-agent/canvas-run-node-projection').CanvasRunNodeProjection> }>).detail;
       if (detail?.canvasId === activeId) setCanvasRunNodeStates(detail.nodeStates || {});
     };
     window.addEventListener('penguin:canvas-run-node-projection', onProjection);
     return () => window.removeEventListener('penguin:canvas-run-node-projection', onProjection);
   }, [activeId]);
-  const renderedNodes = useMemo(() => nodes.map((node) => {
-    const state = canvasRunNodeStates[node.id];
-    return state ? { ...node, className: `${node.className || ''} canvas-run-node-status canvas-run-node-status--${state.status}`, ariaLabel: state.label } : node;
-  }), [canvasRunNodeStates, nodes]);
+  const renderedNodes = useMemo(
+    () => projectCanvasRuntimeNodes(nodes, canvasRunNodeStates),
+    [canvasRunNodeStates, nodes],
+  );
   const {
     handleSaveSendMaterialsToResource,
     handleSendMaterialsToCanvas,

@@ -23,6 +23,7 @@ import { useOrderedMaterials } from './useOrderedMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
 import MentionPromptInput from './MentionPromptInput';
 import NodeRuntimeCard from './NodeRuntimeCard';
+import { useNodeExecutionProjection } from './useNodeExecutionProjection';
 import { useSyncNodeInternalsOnResize } from './useSyncNodeInternalsOnResize';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
@@ -97,7 +98,7 @@ const AudioNode = ({ id, data, selected }: NodeProps) => {
   const isDark = theme === 'dark';
   const isPixel = themeStyle === 'pixel';
 
-  const d = data as any;
+  const d = useNodeExecutionProjection(data) as any;
   const backendAudioModels = useModelCatalogStore((s) => s.catalog.audioModels);
   const audioEngine: 'provider' | 'suno' = d?.audioEngine === 'suno' ? 'suno' : 'provider';
   const providerAudioMode: 'tts' | 'voice_clone' | 'voice_design' =

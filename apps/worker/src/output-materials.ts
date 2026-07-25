@@ -54,7 +54,7 @@ interface OutputFetchContext {
 
 const outputFetchContextSymbol = Symbol("xinghuan.outputFetchContext");
 
-export function attachOutputFetchContext<T extends Record<string, unknown>>(
+export function attachOutputFetchContext<T extends object>(
   result: T,
   context: OutputFetchContext,
 ): T {
@@ -67,6 +67,17 @@ export function attachOutputFetchContext<T extends Record<string, unknown>>(
     enumerable: false,
     writable: false,
   });
+  return result;
+}
+
+export function inheritOutputFetchContext<T extends object>(
+  result: T,
+  sources: object | object[],
+): T {
+  for (const source of Array.isArray(sources) ? sources : [sources]) {
+    const context = (source as { [outputFetchContextSymbol]?: OutputFetchContext })[outputFetchContextSymbol];
+    if (context) return attachOutputFetchContext(result, context);
+  }
   return result;
 }
 

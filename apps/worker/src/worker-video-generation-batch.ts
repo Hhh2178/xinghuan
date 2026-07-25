@@ -3,6 +3,7 @@ import {
   executeGenerationBatch,
   type GenerationBatchProgress,
 } from "./worker-generation-batch.js";
+import { inheritOutputFetchContext } from "./output-materials.js";
 
 export interface VideoGenerationResult extends Record<string, unknown> {
   videoUrls?: unknown;
@@ -46,7 +47,7 @@ export async function executeVideoGenerationBatch(options: {
 }
 
 function videoProgress(progress: GenerationBatchProgress): VideoGenerationBatchProgress {
-  return {
+  return inheritOutputFetchContext({
     completed: progress.completed,
     total: progress.total,
     providerRequestCount: progress.providerRequestCount,
@@ -59,7 +60,7 @@ function videoProgress(progress: GenerationBatchProgress): VideoGenerationBatchP
       providerRequestCount: progress.providerRequestCount,
       children: progress.children,
     },
-  };
+  }, progress);
 }
 
 function videoResult(value: Record<string, unknown>, total: number) {
@@ -67,7 +68,7 @@ function videoResult(value: Record<string, unknown>, total: number) {
   const remoteOutputUrls = strings(value.remoteOutputUrls).filter((url) => outputUrls.includes(url));
   const taskIds = strings(value.taskIds);
   const { outputUrls: _outputs, remoteOutputUrls: _remote, ...rest } = value;
-  return {
+  return inheritOutputFetchContext({
     ...rest,
     videoUrls: outputUrls,
     remoteVideoUrls: remoteOutputUrls,
@@ -75,7 +76,7 @@ function videoResult(value: Record<string, unknown>, total: number) {
     generationCount: total,
     taskIds,
     ...(taskIds.length > 0 ? { taskId: taskIds[taskIds.length - 1] } : {}),
-  };
+  }, value);
 }
 
 function mapErrorResultPatch(error: unknown, map: (patch: Record<string, unknown>) => Record<string, unknown>) {

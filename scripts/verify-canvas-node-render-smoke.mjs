@@ -40,10 +40,12 @@ let cookie = "";
 let createdCanvasId = "";
 let chrome = null;
 let cdp = null;
+let canvasRunsUnavailable = false;
 
 async function main() {
 try {
   await login();
+  canvasRunsUnavailable = await detectDisabledCanvasRuns();
   const canvas = await fetchJson("/api/canvas", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -136,6 +138,11 @@ async function login() {
     body: JSON.stringify({ email: loginEmail, password: loginPassword }),
   });
   assert(result.data?.authenticated === true, "login failed");
+}
+
+async function detectDisabledCanvasRuns() {
+  const response = await fetchText("/api/canvas-runs?canvasId=render-smoke-capability-probe");
+  return response.status === 503 && response.text.includes("CANVAS_RUN_DISABLED");
 }
 
 function buildCanvasData(nodes) {
@@ -597,7 +604,19 @@ function renderConsoleError(params) {
 function isIgnorableBrowserError(text, url) {
   const value = String(text || "");
   const sourceUrl = String(url || "");
-  return value.includes("status of 404") && /\/favicon\.ico(?:\?|$)/.test(sourceUrl);
+  const faviconMissing = value.includes("status of 404") && /\/favicon\.ico(?:\?|$)/.test(sourceUrl);
+  const disabledCanvasRuns = canvasRunsUnavailable
+    && value.includes("status of 503")
+    && /^\/api\/canvas-runs$/.test(safePathname(sourceUrl));
+  return faviconMissing || disabledCanvasRuns;
+}
+
+function safePathname(value) {
+  try {
+    return new URL(value, baseUrl).pathname;
+  } catch {
+    return "";
+  }
 }
 
 function findChromePath() {

@@ -1,11 +1,14 @@
 import { readFile } from "node:fs/promises";
 
 async function main() {
-  const [image, video, seedance, audio, card, styles] = await Promise.all([
+  const [image, video, seedance, audio, output, canvas, projection, card, styles] = await Promise.all([
     readFile(new URL("../apps/web/src/components/nodes/ImageNode.tsx", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../apps/web/src/components/nodes/VideoNode.tsx", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../apps/web/src/components/nodes/SeedanceNode.tsx", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../apps/web/src/components/nodes/AudioNode.tsx", import.meta.url), "utf8").catch(() => ""),
+    readFile(new URL("../apps/web/src/components/nodes/OutputNode.tsx", import.meta.url), "utf8").catch(() => ""),
+    readFile(new URL("../apps/web/src/components/Canvas.tsx", import.meta.url), "utf8").catch(() => ""),
+    readFile(new URL("../apps/web/src/components/nodes/useNodeExecutionProjection.ts", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../apps/web/src/components/nodes/NodeRuntimeCard.tsx", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../apps/web/src/styles/index.css", import.meta.url), "utf8").catch(() => ""),
   ]);
@@ -26,6 +29,21 @@ async function main() {
       "Generation nodes persist runtime timing metadata",
       merged.includes("startedAt") &&
         merged.includes("finishedAt"),
+    ],
+    [
+      "Supervised runtime is merged into rendered nodes without Canvas state writes",
+      canvas.includes("projectCanvasRuntimeNodes(nodes, canvasRunNodeStates)") &&
+        projection.includes("__runtimeProjection") &&
+        projection.includes("mergeNodeExecutionProjection"),
+    ],
+    [
+      "Image video and audio nodes consume the shared execution projection",
+      [image, video, audio].every((source) => source.includes("useNodeExecutionProjection(data)")),
+    ],
+    [
+      "Output node suppresses persistence side effects for transient projections",
+      output.includes("hasNodeExecutionProjection") &&
+        output.includes("if (transientExecutionProjection) return"),
     ],
   ];
 

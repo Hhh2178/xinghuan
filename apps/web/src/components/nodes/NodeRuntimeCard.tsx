@@ -59,6 +59,8 @@ function formatDuration(ms: number) {
 function labelForStatus(status?: string | null) {
   if (status === 'success') return '已完成';
   if (status === 'error') return '失败';
+  if (status === 'cancelled') return '已取消';
+  if (status === 'queued') return '排队中';
   if (status && RUNNING_STATUSES.has(status)) return '运行中';
   return '待执行';
 }
@@ -72,6 +74,7 @@ function summarizeTaskRuns(taskRuns?: NodeRuntimeCardProps["taskRuns"]) {
   for (const run of runs) {
     if (run.status === 'success') success += 1;
     else if (run.status === 'error') failed += 1;
+    else if (run.status === 'cancelled') failed += 1;
     else if (RUNNING_STATUSES.has(run.status)) running += 1;
     else pending += 1;
   }
@@ -89,7 +92,7 @@ export default function NodeRuntimeCard({
   taskRuns,
 }: NodeRuntimeCardProps) {
   const running = Boolean(status && RUNNING_STATUSES.has(status));
-  const visible = running || status === 'success' || status === 'error' || Boolean(startedAt || finishedAt || lastDurationMs);
+  const visible = running || ['queued', 'success', 'error', 'cancelled'].includes(status || '') || Boolean(startedAt || finishedAt || lastDurationMs);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -121,7 +124,11 @@ export default function NodeRuntimeCard({
             ? '100%'
             : status === 'error'
               ? '异常结束'
-              : '等待运行';
+              : status === 'cancelled'
+                ? '已取消'
+                : status === 'queued'
+                  ? '等待调度'
+                  : '等待运行';
 
   const style = {
     '--node-runtime-accent': accent,

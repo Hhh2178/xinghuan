@@ -27,4 +27,11 @@ describe('workflow runtime cleanup', () => {
     cleanupNodeRuntimeForWorkflowTemplate('image', data);
     expect(data).toEqual({ imageUrls: ['https://example.test/image.png'], size: { w: 500, h: 300 } });
   });
+
+  it('removes transient supervised execution projections from workflow exports', () => {
+    expect(cleanupNodeRuntimeForWorkflowTemplate('image', {
+      prompt: 'keep',
+      __runtimeProjection: { runId: 'run-1', status: 'running' },
+    })).toEqual({ prompt: 'keep' });
+  });
 });
