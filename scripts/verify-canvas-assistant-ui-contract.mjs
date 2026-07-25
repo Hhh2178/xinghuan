@@ -11,7 +11,9 @@ const geometry = read('apps/web/src/components/canvas-assistant/assistant-geomet
 const geometryHook = read('apps/web/src/components/canvas-assistant/useAssistantGeometry.ts');
 const conversation = read('apps/web/src/components/canvas-assistant/AssistantConversation.tsx');
 const markdown = read('packages/ui/src/assistant-markdown.tsx');
+const imeControl = read('packages/ui/src/ime-safe-text-control.ts');
 const composer = read('apps/web/src/components/canvas-assistant/AssistantComposer.tsx');
+const mentionPrompt = read('apps/web/src/components/nodes/MentionPromptInput.tsx');
 const session = read('apps/web/src/components/canvas-assistant/useAssistantSession.ts');
 const supervisor = read('apps/web/src/components/canvas-agent/CanvasRunSupervisor.tsx');
 const supervisionRuntime = read('apps/web/src/components/canvas-agent/CanvasSupervisionRuntimeView.tsx');
@@ -23,6 +25,10 @@ const supervisionViewModel = read('apps/web/src/components/canvas-agent/canvas-r
 const runApi = read('apps/web/src/components/canvas-agent/canvas-run-api.ts');
 const nodeRegistry = read('apps/web/src/config/nodeRegistry.ts');
 const styles = read('apps/web/src/styles/index.css');
+const mentionCompositionEnd = mentionPrompt.slice(
+  mentionPrompt.indexOf('onCompositionEnd={() => {'),
+  mentionPrompt.indexOf('onFocus={() => {'),
+);
 
 assert.match(canvas, /<CanvasAssistant nodes=\{nodes\} edges=\{edges\} activeCanvasId=\{activeId\} ownerId=/);
 assert.match(canvas, /penguin:append-assistant-context/);
@@ -59,6 +65,13 @@ assert.match(supervisionDock, /<WorkflowSupervisionSettingsDrawer/);
 assert.match(supervisionDock, /listCanvasWorkflowRuns/);
 assert.match(composer, /onPaste=\{pasteImage\}/);
 assert.match(composer, /accept="image\/png,image\/jpeg,image\/webp"/);
+assert.match(composer, /useImeSafeTextControl/);
+assert.match(composer, /isImeSubmissionEvent\(event\.nativeEvent, textControl\.isComposing\)/);
+assert.match(imeControl, /event\.keyCode === 229 \|\| event\.which === 229/);
+assert.match(mentionPrompt, /getPlainSelectionOffsets/);
+assert.match(mentionPrompt, /if \(document\.activeElement === el && \(mutated \|\| pendingCaretRef\.current !== null\)\)/);
+assert.match(mentionCompositionEnd, /composingRef\.current = false/);
+assert.doesNotMatch(mentionCompositionEnd, /setTimeout/);
 assert.match(session, /penguin:append-assistant-context/);
 assert.match(session, /idempotencyKey: crypto\.randomUUID\(\)/);
 assert.match(session, /conversationId: sessionId/);

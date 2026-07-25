@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 export * from "./assistant-markdown.js";
 export * from "./channel-health-report.js";
+export * from "./ime-safe-text-control.js";
 
 export const themeTokens = {
   background: "#07100f",

@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps, type ResizeParams } from '@xyflow/rea
 import type { WorkflowFieldBinding } from '@xinghuan/shared';
 import { Braces, Hash, Type } from 'lucide-react';
 import { useUpdateNodeData } from './useUpdateNodeData';
+import { useImeSafeTextControl } from '../inputs/useImeSafeTextControl';
 import ResizableCorners from './ResizableCorners';
 import { getCornerResizeBehavior } from '../../utils/nodeResizeBehavior';
 import { normalizeRhNodeId } from '../../utils/rhTextBinding';
@@ -69,6 +70,7 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
     if (!workflow) return;
     setTemplateError(workflowVariableErrorMessage(workflowController.setTextSource(workflow.id, id, 'prompt', value)));
   }, [id, update, workflow, workflowController]);
+  const textControl = useImeSafeTextControl({ value: text, onCommit: handleTextChange });
 
   const chooseBindingMode = useCallback((mode: 'fixed' | 'variable' | 'template') => {
     if (!workflow) return;
@@ -170,8 +172,10 @@ const TextNode = ({ id, data, selected, width, height }: NodeProps) => {
           />
         ) : (
           <textarea
-            value={text}
-            onChange={(e) => handleTextChange(e.target.value)}
+            value={textControl.value}
+            onChange={textControl.onChange}
+            onCompositionStart={textControl.onCompositionStart}
+            onCompositionEnd={textControl.onCompositionEnd}
             placeholder="输入提示词..."
             spellCheck={false}
             autoCorrect="off"

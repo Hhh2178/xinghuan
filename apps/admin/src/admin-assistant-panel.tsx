@@ -1,7 +1,7 @@
 import { Bot, Image as ImageIcon, KeyRound, MonitorCog, RotateCcw, ScrollText, Send, Sparkles, UserCog, Workflow, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createAssistantContentStreamFilter, normalizeAssistantContent } from "@xinghuan/shared";
-import { AssistantMarkdown } from "@xinghuan/ui";
+import { AssistantMarkdown, isImeSubmissionEvent, useImeSafeTextControl } from "@xinghuan/ui";
 import type {
   AdminUser,
   AssistantChatAttachment,
@@ -120,6 +120,7 @@ export function AdminAssistantPanel({
   settings: AssistantSettings["backend"];
 }) {
   const [draft, setDraft] = useState("");
+  const draftControl = useImeSafeTextControl({ value: draft, onCommit: setDraft });
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<AssistantChatAttachment[]>([]);
   const [conversationId, setConversationId] = useState(() => createAssistantConversationId("admin"));
@@ -576,8 +577,16 @@ export function AdminAssistantPanel({
               </button>
             </div>
             <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              value={draftControl.value}
+              onChange={draftControl.onChange}
+              onCompositionStart={draftControl.onCompositionStart}
+              onCompositionEnd={draftControl.onCompositionEnd}
+              onKeyDown={(event) => {
+                if (isImeSubmissionEvent(event.nativeEvent, draftControl.isComposing)) return;
+                if (event.key !== "Enter" || event.shiftKey) return;
+                event.preventDefault();
+                void sendMessage();
+              }}
               onPaste={(event) => void handleClipboardPaste(event)}
               placeholder={settings.placeholder}
             />

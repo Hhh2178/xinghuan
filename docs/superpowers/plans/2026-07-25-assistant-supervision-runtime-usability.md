@@ -641,7 +641,7 @@ Commit with `fix(canvas): keep assistant clear of supervision`.
 **Interfaces:**
 - Produces an input adapter with `value`, `onChange`, `onCompositionStart`, `onCompositionEnd`, `isComposing` and `commit`.
 
-- [ ] **Step 1: Write a composition event test**
+- [x] **Step 1: Write a composition event test**
 
 ```ts
 fireEvent.compositionStart(textarea);
@@ -652,19 +652,19 @@ fireEvent.compositionEnd(textarea, { data: "你" });
 expect(onChange).toHaveBeenLastCalledWith("你");
 ```
 
-- [ ] **Step 2: Reproduce selection loss in a real browser before changing Canvas handlers**
+- [x] **Step 2: Reproduce selection loss in a real browser before changing Canvas handlers**
 
 Use the local app and record which handler or remount clears `window.getSelection()` or `selectionStart/selectionEnd`. Do not remove global Canvas behavior without this evidence.
 
-- [ ] **Step 3: Implement the shared IME-safe control**
+- [x] **Step 3: Implement the shared IME-safe control**
 
 Buffer during composition, commit once at `compositionend` and block Enter submission while composing. Preserve focus and DOM identity during assistant streaming status updates.
 
-- [ ] **Step 4: Stop only confirmed Canvas pointer interference**
+- [x] **Step 4: Stop only confirmed Canvas pointer interference**
 
 Text controls may stop propagation to Canvas drag/pan handlers, but must not call `preventDefault` on normal selection pointer-down/up. Keep existing `nodrag` and `nowheel` semantics.
 
-- [ ] **Step 5: Run unit and real-browser phase gates**
+- [x] **Step 5: Run unit and real-browser phase gates**
 
 Run:
 
@@ -679,7 +679,7 @@ git diff --check
 
 Browser evidence: Microsoft IME Pinyin input plus retained mouse selection across one assistant status rerender.
 
-- [ ] **Step 6: Record and commit**
+- [x] **Step 6: Record and commit**
 
 Commit with `fix(ui): preserve ime and native text selection`.
 

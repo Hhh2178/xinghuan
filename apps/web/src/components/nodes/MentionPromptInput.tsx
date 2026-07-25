@@ -90,6 +90,22 @@ function getCaretPlainOffset(root: HTMLElement): number {
   const range = selection.getRangeAt(0);
   if (!root.contains(range.startContainer)) return 0;
 
+  return getPlainOffset(root, range.startContainer, range.startOffset);
+}
+
+function getPlainSelectionOffsets(root: HTMLElement): { start: number; end: number } | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
+  return {
+    start: getPlainOffset(root, range.startContainer, range.startOffset),
+    end: getPlainOffset(root, range.endContainer, range.endOffset),
+  };
+}
+
+function getPlainOffset(root: HTMLElement, targetNode: Node, targetOffset: number): number {
+
   const nodePlainLength = (node: Node): number => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent?.length || 0;
     if (node instanceof HTMLElement && node.dataset.mentionToken) return node.dataset.mentionToken.length;
@@ -105,11 +121,11 @@ function getCaretPlainOffset(root: HTMLElement): number {
   let found = false;
   const walk = (node: Node) => {
     if (found) return;
-    if (node === range.startContainer) {
+    if (node === targetNode) {
       if (node.nodeType === Node.TEXT_NODE) {
-        offset += range.startOffset;
+        offset += targetOffset;
       } else {
-        for (let i = 0; i < range.startOffset; i += 1) {
+        for (let i = 0; i < targetOffset; i += 1) {
           const child = node.childNodes[i];
           if (child) offset += nodePlainLength(child);
         }
@@ -136,8 +152,22 @@ function getCaretPlainOffset(root: HTMLElement): number {
 }
 
 function setCaretPlainOffset(root: HTMLElement, targetOffset: number) {
+  setPlainSelectionOffsets(root, { start: targetOffset, end: targetOffset });
+}
+
+function setPlainSelectionOffsets(root: HTMLElement, offsets: { start: number; end: number }) {
   const selection = window.getSelection();
   if (!selection) return;
+  const start = findPlainBoundary(root, offsets.start);
+  const end = findPlainBoundary(root, offsets.end);
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function findPlainBoundary(root: HTMLElement, targetOffset: number): { node: Node; offset: number } {
   let offset = 0;
   let targetNode: Node | null = null;
   let targetNodeOffset = 0;
@@ -182,11 +212,7 @@ function setCaretPlainOffset(root: HTMLElement, targetOffset: number) {
     targetNode = root;
     targetNodeOffset = root.childNodes.length;
   }
-  const range = document.createRange();
-  range.setStart(targetNode, targetNodeOffset);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  return { node: targetNode, offset: targetNodeOffset };
 }
 
 function readRichEditor(root: HTMLElement, fallbackMentions: MediaMention[]): { text: string; mentions: MediaMention[] } {
@@ -330,8 +356,12 @@ const MentionPromptInput = ({
     const el = localRef.current;
     if (!el) return;
     if (composingRef.current) return;
-    const keepCaret = document.activeElement === el ? getCaretPlainOffset(el) : null;
-    if (el.innerHTML !== editorHtml) el.innerHTML = editorHtml;
+    const keepSelection = document.activeElement === el ? getPlainSelectionOffsets(el) : null;
+    let mutated = false;
+    if (el.innerHTML !== editorHtml) {
+      el.innerHTML = editorHtml;
+      mutated = true;
+    }
     for (const item of inlineMentions) {
       const span = Array.from(el.querySelectorAll<HTMLElement>('[data-mention-id]'))
         .find((candidate) => candidate.dataset.mentionId === item.mention.id);
@@ -358,16 +388,19 @@ const MentionPromptInput = ({
         img.draggable = false;
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
         span.appendChild(img);
+        mutated = true;
       } else {
         span.textContent = item.material.kind === 'video' ? '▶' : '♪';
-      span.style.fontSize = '12px';
-      span.style.fontWeight = '900';
+        mutated = true;
+        span.style.fontSize = '12px';
+        span.style.fontWeight = '900';
       }
     }
-    if (document.activeElement === el) {
-      const caret = pendingCaretRef.current ?? keepCaret;
+    if (document.activeElement === el && (mutated || pendingCaretRef.current !== null)) {
+      const pendingCaret = pendingCaretRef.current;
       pendingCaretRef.current = null;
-      if (caret !== null) setCaretPlainOffset(el, caret);
+      if (pendingCaret !== null) setCaretPlainOffset(el, pendingCaret);
+      else if (keepSelection) setPlainSelectionOffsets(el, keepSelection);
     }
   }, [editorHtml, inlineMentions, isDark, isPixel]);
 
@@ -552,15 +585,13 @@ const MentionPromptInput = ({
           }}
           onCompositionEnd={() => {
             const el = localRef.current;
-            window.setTimeout(() => {
-              if (!el) return;
-              composingRef.current = false;
-              const caret = getCaretPlainOffset(el);
-              const { text, mentions: nextMentions } = readRichEditor(el, mentions);
-              onChange(text, nextMentions);
-              pendingCaretRef.current = caret;
-              openFromCaret(text, caret);
-            }, 0);
+            composingRef.current = false;
+            if (!el) return;
+            const caret = getCaretPlainOffset(el);
+            const { text, mentions: nextMentions } = readRichEditor(el, mentions);
+            onChange(text, nextMentions);
+            pendingCaretRef.current = caret;
+            openFromCaret(text, caret);
           }}
           onFocus={() => {
             setIsFocused(true);

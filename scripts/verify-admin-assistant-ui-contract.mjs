@@ -87,10 +87,17 @@ async function main() {
     ],
     [
       "Admin assistant renders the shared safe Markdown surface instead of a paragraph blob",
-      panelSource.includes('import { AssistantMarkdown } from "@xinghuan/ui"') &&
+      panelSource.includes("AssistantMarkdown") &&
         panelSource.includes('className="admin-assistant-message__body"') &&
         panelSource.includes("createAssistantContentStreamFilter") &&
         !panelSource.includes("<p>{message.text}</p>"),
+    ],
+    [
+      "Admin assistant preserves IME composition and blocks accidental Enter submission",
+      panelSource.includes("useImeSafeTextControl") &&
+        panelSource.includes("isImeSubmissionEvent(event.nativeEvent, draftControl.isComposing)") &&
+        panelSource.includes("onCompositionStart={draftControl.onCompositionStart}") &&
+        panelSource.includes("onCompositionEnd={draftControl.onCompositionEnd}"),
     ],
     [
       "Admin assistant Markdown preserves readable body sizing and overflow",

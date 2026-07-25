@@ -1,5 +1,6 @@
 import { ImagePlus, SendHorizontal } from 'lucide-react';
 import { useRef } from 'react';
+import { isImeSubmissionEvent, useImeSafeTextControl } from '../inputs/useImeSafeTextControl';
 
 export function AssistantComposer(props: {
   value: string;
@@ -11,7 +12,9 @@ export function AssistantComposer(props: {
   onSend: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const textControl = useImeSafeTextControl({ value: props.value, onCommit: props.onChange });
   const sendOnEnter = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isImeSubmissionEvent(event.nativeEvent, textControl.isComposing)) return;
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       props.onSend();
@@ -31,9 +34,11 @@ export function AssistantComposer(props: {
         if (file) void props.onUpload(file);
       }} />
       <textarea
-        value={props.value}
+        value={textControl.value}
         placeholder={props.placeholder}
-        onChange={(event) => props.onChange(event.target.value)}
+        onChange={textControl.onChange}
+        onCompositionStart={textControl.onCompositionStart}
+        onCompositionEnd={textControl.onCompositionEnd}
         onKeyDown={sendOnEnter}
         onPaste={pasteImage}
         rows={3}
