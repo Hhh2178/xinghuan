@@ -1,12 +1,14 @@
 # 当前 Production 运行态
 
-- 入口域名：`canvas.hhh2121.xyz`
+- 入口域名：`canvas.hhh2121.xyz`（迁移目标：`canvas.zezhen.online`）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.7.44`
-- 当前 release：`20260725-ai-governance-runtime-current-production-r1-v0744`
-- 当前状态：`复用 Gray 已验收的 AI 助手、AI 托管运行时与候选选择器制品；Production runtime、权限、数据库、路由、Nginx 与日志验证通过`
-- 当前补修：`本次应用 026-044 数据库迁移；任务失败率与 revision conflict 仍按既有观测告警继续观察`
+- 当前版本：`v0.8.1`
+- 当前 release：`20260725-media-retention-v081-r2`
+- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Production；API/Worker、数据库迁移和公网状态验证通过`
+- 当前补修：`上传临时文件 24 小时、生成制品 72 小时保留；清理器保护资源库、运行中任务和 Canvas Run 引用`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
+- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-25-media-retention-v081-r2.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-25-media-retention-v081-r2.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`
