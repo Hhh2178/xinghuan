@@ -69,6 +69,15 @@ No paid request was sent and no fabricated success was recorded. A Gray/real-pro
 - The stricter two-branch concurrency/convergence probe against the deployed `5ddc9da` release failed at the selector with `SMART_CANDIDATE_PROVENANCE_INCOMPLETE`. The failed run was cleaned up by the validation harness. This is the known pre-fix Gray behavior, not evidence against the local provenance repair in `90aeec5`.
 - Therefore the current local commit is not yet Gray-verified. A new Gray release containing the local provenance/browser-bundle fixes must be deployed and the two-branch probe rerun before the objective can be marked complete. Production remains untouched.
 
+## Current-Commit Gray Candidate Probe
+
+- The current commit was rebuilt in a clean temporary worktree and uploaded as an isolated Gray Candidate on `127.0.0.1:18248` with a cloned Gray database, independent Redis queue prefix and `XINGHUAN_PERMISSION_MODE=shadow`. Formal Gray services, shared Gray database and Nginx were not switched.
+- Low-cost two-branch real-provider run `canvas_run_b8e0d5fe-85b2-4aae-958f-7b9ac295a667` succeeded. Both upstream branches submitted one image request, the selector received two candidates, one artifact was selected, and the downstream image submitted one request. Candidate provenance bindings all contained artifact ID, source node, Provider, model record and resolved prompt fields.
+- AI selector run `canvas_run_573ffb2e-97a0-452a-9684-d1916da85fcb` succeeded. It evaluated two candidates, recorded quality scores, completed `quality_selection_completed`, selected one artifact and completed the downstream image step. One upstream request needed a transient recovery; the Run still completed within the enlarged budget.
+- The high-concurrency six-request probe also exercised the current code. It reached three-request progress for each branch, but one real Provider branch exhausted transient recovery before selection; this is recorded as a channel reliability observation, not a provenance failure.
+- Current Candidate assistant probes both returned `mode=agent`: Canvas response length `738`, Admin response length `173`, and neither brief response exposed raw Run/Task/Artifact identifiers.
+- Candidate processes were stopped after the probes. The formal Gray release remains `v0.7.43`; no Production service or data was touched.
+
 ## Release Decision
 
 Code and local behavior are ready for review. The batch is **not release-complete for real-provider image acceptance** because the authorized image model was not present in the local catalog. GitHub, Gray and Production remain untouched.
