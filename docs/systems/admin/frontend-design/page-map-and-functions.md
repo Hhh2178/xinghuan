@@ -670,16 +670,15 @@
 
 稳定入口：`/admin/automation/*`。
 
-- `controls`：环境开关与运行指标。
-- `models`：固定用途、配置版本、LLM 路由、模拟、发布与回滚。
-- `policies`：质量门、候选选择与有限恢复。
+- `assistants`：创作侧与后台 AI 助手的表面设置、Agent 内核和只读环境发布状态。
+- `supervision`：AI 托管与自动化治理；内部使用 `overview`、`environment`、`planner`、`routing`、`quality`、`recovery` 六个互斥任务工作区。
 - `activity`：Workflow/Agent Run、审批、恢复决策和动作账本。
 
-旧 `overview`、`roles`、`llm-routes`、`tools`、`nodes`、`knowledge`、`quality`、`recovery`、`runs`、`approvals`、`audit` 深链映射到上述四域，不再作为导航项。自由知识、通用工具和节点目录仅保留历史兼容读取。
+旧 `overview`、`roles`、`llm-routes`、`tools`、`nodes`、`knowledge`、`quality`、`recovery`、`runs`、`approvals`、`audit` 深链映射到上述三个一级域及对应托管子工作区，不再作为一级导航项。自由知识、通用工具和节点目录仅保留历史兼容读取。
 
 当前 MVP 的用途受控：助手诊断、失败恢复、图片评估、视频评估和候选选择。管理员不创建任意内部角色，也不直接选择 `planner/manager/checker`；旧定义只读展示。版本编辑、审核、Gray/Production 发布与回滚必须明确区分，且只影响新 Run。
 
-桌面使用紧凑 master-detail 与数据表；窄屏域导航横向滚动，治理表单和控制行改为单列，不允许把正文推到导航之后的多屏之外。
+桌面使用紧凑 master-detail 与数据表。托管治理采用固定任务轨道、固定工作区页头和独立正文滚动；任何时刻只挂载一个子工作区。草稿未保存时，切换请求必须保留当前编辑器并显示“留在当前页 / 放弃并切换”，手动刷新不得覆盖草稿。当前产品验收仅覆盖 PC `1920x1080`。
 
 新增 Provider、模型、RH、节点能力：
 

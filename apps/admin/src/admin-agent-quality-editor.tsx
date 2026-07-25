@@ -7,6 +7,7 @@ interface Props {
   value: QualityProfile[];
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 interface Draft {
@@ -21,7 +22,7 @@ interface Draft {
 const imageDimensions = ["technical", "semantic", "aesthetic", "safety"];
 const videoDimensions = ["technical", "semantic", "aesthetic", "temporalCoherence", "motionQuality", "keyframeConsistency"];
 
-export function AdminAgentQualityEditor({ value, busy, mutate }: Props) {
+export function AdminAgentQualityEditor({ value, busy, mutate, onDirtyChange }: Props) {
   const keys = [...new Set(value.map((profile) => profile.profileKey))];
   const [profileKey, setProfileKey] = useState(keys[0] || "image-default");
   const versions = value.filter((profile) => profile.profileKey === profileKey);
@@ -36,6 +37,10 @@ export function AdminAgentQualityEditor({ value, busy, mutate }: Props) {
   }, [profileKey, value]);
   useEffect(() => setDraft(qualityDraft(source, profileKey)), [source?.id]);
 
+  const sourceDraft = qualityDraft(source, profileKey);
+  const changed = JSON.stringify(sourceDraft) !== JSON.stringify(draft);
+  useEffect(() => onDirtyChange?.(changed), [changed, onDirtyChange]);
+
   const dimensions = draft.mediaKind === "video" ? videoDimensions : imageDimensions;
   return <div className="agent-split-layout agent-config-editor">
     <div className="agent-rail">{keys.map((key) => <button key={key} type="button" className={key === profileKey ? "active" : ""} onClick={() => setProfileKey(key)}><span><strong>{key}</strong><small>{value.filter((profile) => profile.profileKey === key).length} 个版本</small></span></button>)}<button type="button" className={!keys.includes(profileKey) ? "active" : ""} onClick={() => { setProfileKey("new-profile"); setDraft(qualityDraft(undefined, "new-profile")); }}><span><strong>新质量配置</strong><small>创建 v1 草稿</small></span></button></div>
@@ -44,8 +49,8 @@ export function AdminAgentQualityEditor({ value, busy, mutate }: Props) {
       <section className="agent-config-section agent-config-grid"><h3>评分边界</h3><label className="agent-field"><span>Profile Key</span><input value={draft.profileKey} onChange={(event) => setDraft({ ...draft, profileKey: event.target.value })} /></label><label className="agent-field"><span>媒体</span><select value={draft.mediaKind} onChange={(event) => { const mediaKind = event.target.value === "video" ? "video" : "image"; setDraft({ ...draft, mediaKind, weights: defaultWeights(mediaKind) }); }}><option value="image">图片</option><option value="video">视频</option></select></label><NumberField label="最低总分" value={draft.minimumOverallScore} min={0} max={100} onChange={(minimumOverallScore) => setDraft({ ...draft, minimumOverallScore })} /><NumberField label="最低置信度" value={draft.minimumConfidence} min={0} max={1} step={0.05} onChange={(minimumConfidence) => setDraft({ ...draft, minimumConfidence })} /></section>
       <section className="agent-config-section"><h3>评分维度权重</h3><div className="agent-quality-weight-grid">{dimensions.map((dimension) => <NumberField key={dimension} label={dimension} value={draft.weights[dimension] || 0} min={0} max={1} step={0.05} onChange={(weight) => setDraft({ ...draft, weights: { ...draft.weights, [dimension]: weight } })} />)}</div><span className="agent-config-empty">权重合计 {Object.values(draft.weights).reduce((sum, weight) => sum + Number(weight || 0), 0).toFixed(2)}</span></section>
       <section className="agent-config-section"><h3>评估指令</h3><label className="agent-field"><span>Instructions</span><textarea rows={8} value={draft.instructions} onChange={(event) => setDraft({ ...draft, instructions: event.target.value })} /></label></section>
-      <div className="agent-config-editor__actions"><button type="button" className="primary-action" disabled={busy || !draft.profileKey.trim()} onClick={() => void mutate(() => adminAgentGovernanceApi.createQualityProfile(draft))}><Save />保存为新草稿</button></div>
-      <div className="agent-version-list">{versions.map((profile) => <QualityVersionRow key={profile.id} profile={profile} versions={versions} busy={busy} mutate={mutate} />)}</div>
+      <div className="agent-config-editor__actions"><span>{changed ? "质量配置有未保存修改" : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || !changed || !draft.profileKey.trim()} onClick={() => void mutate(() => adminAgentGovernanceApi.createQualityProfile(draft))}><Save />保存为新草稿</button></div>
+      <section className="agent-version-history"><header><strong>版本历史</strong><span>审核、发布与回滚在这里单独管理</span></header><div className="agent-version-list">{versions.map((profile) => <QualityVersionRow key={profile.id} profile={profile} versions={versions} busy={busy} mutate={mutate} />)}</div></section>
     </div>
   </div>;
 }

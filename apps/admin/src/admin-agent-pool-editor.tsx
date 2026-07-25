@@ -11,6 +11,7 @@ interface Props {
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
   publicationMode?: "manage" | "read-only";
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 interface EntryDraft {
@@ -29,7 +30,7 @@ interface PoolDraft {
   entries: EntryDraft[];
 }
 
-export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationMode = "manage" }: Props) {
+export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationMode = "manage", onDirtyChange }: Props) {
   const [poolId, setPoolId] = useState(pools[0]?.id || "");
   const pool = pools.find((item) => item.id === poolId) || pools[0];
   const [versionId, setVersionId] = useState(pool?.versions[0]?.id || "");
@@ -47,6 +48,7 @@ export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationM
 
   const source = useMemo(() => poolDraft(version), [version]);
   const changed = JSON.stringify(source) !== JSON.stringify(draft);
+  useEffect(() => onDirtyChange?.(changed), [changed, onDirtyChange]);
   if (!pool) return <div className="agent-empty">尚未创建 LLM 路由池</div>;
 
   const addEntry = () => {
@@ -83,7 +85,7 @@ export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationM
 
       <div className="agent-config-editor__actions"><span>{changed ? `${draft.entries.length} 个候选待保存` : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || !changed || draft.entries.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createPoolVersion(pool.id, { policy: { failureThreshold: draft.failureThreshold, cooldownMs: draft.cooldownMs }, entries: draft.entries }))}><Save />保存为新草稿</button></div>
       {version ? <div className="agent-simulator"><strong>路由模拟</strong><button type="button" className="ghost-action" disabled={busy} onClick={async () => { setSimulation(""); try { const result = await adminAgentGovernanceApi.simulatePool({ versionId: version.id, role: pool.role, scenario: pool.scenario, requiredCapabilityTags: [], decisionKey: `admin-preview-${Date.now()}` }); setSimulation(`${result.decision.selectedEntryId} · ${result.decision.reason}`); } catch (error) { setSimulation(error instanceof Error ? error.message : String(error)); } }}>运行模拟</button>{simulation ? <p>{simulation}</p> : null}</div> : null}
-      <div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div>
+      <section className="agent-version-history"><header><strong>版本历史</strong><span>审核、发布与回滚在这里单独管理</span></header><div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section>
     </div>
   </div>;
 }

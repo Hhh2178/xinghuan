@@ -16,9 +16,10 @@ interface Props {
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
   publicationMode?: "manage" | "read-only";
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publicationMode = "manage" }: Props) {
+export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publicationMode = "manage", onDirtyChange }: Props) {
   const [selectedDefinitionId, setSelectedDefinitionId] = useState(value.definitions[0]?.id || "");
   const definition = value.definitions.find((item) => item.id === selectedDefinitionId) || value.definitions[0];
   const [sourceVersionId, setSourceVersionId] = useState(definition?.versions[0]?.id || "");
@@ -36,6 +37,7 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publica
   }, [sourceVersion?.id]);
 
   const diff = useMemo(() => diffAgentRuntimeConfiguration(normalizeAgentRuntimeConfiguration(sourceVersion?.configuration, { retiredTools: "preserve" }), draft), [sourceVersion?.configuration, draft]);
+  useEffect(() => onDirtyChange?.(diff.length > 0), [diff.length, onDirtyChange]);
   if (!definition) return <div className="agent-empty">尚未创建 Agent 定义</div>;
 
   return <div className="agent-split-layout agent-config-editor">
@@ -79,8 +81,8 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publica
         {diff.length ? <div className="agent-config-diff">{diff.map((entry) => <div key={entry.field}><code>{entry.field}</code><span>{display(entry.before)}</span><strong>→</strong><span>{display(entry.after)}</span></div>)}</div> : <p className="agent-config-empty">与基准版本一致</p>}
       </section>
 
-      <div className="agent-config-editor__actions"><button type="button" className="primary-action" disabled={busy || diff.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createRoleVersion(definition.id, normalizeAgentRuntimeConfiguration(draft)))}><Save />保存为新草稿</button></div>
-      <div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div>
+      <div className="agent-config-editor__actions"><span>{diff.length ? `${diff.length} 项配置待保存` : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || diff.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createRoleVersion(definition.id, normalizeAgentRuntimeConfiguration(draft)))}><Save />保存为新草稿</button></div>
+      <section className="agent-version-history"><header><strong>版本历史</strong><span>审核、发布与回滚在这里单独管理</span></header><div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section>
     </div>
   </div>;
 }

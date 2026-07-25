@@ -2,13 +2,24 @@ import {
   Activity, AlertTriangle, Check, CirclePause, GitBranch, History, ListChecks, Loader2,
   Plus, RefreshCw, ShieldCheck, Sparkles, X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ModelRecord } from "./admin-types";
 import type { AdminAgentRuntimeViewId } from "./admin-view-model";
 import { AdminAgentRoleConfigurationEditor } from "./admin-agent-role-configuration-editor";
 import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
 import { AdminAgentQualityEditor } from "./admin-agent-quality-editor";
 import { canvasAgentPurpose, purposeRouteTemplates } from "./admin-agent-governance-purpose";
+import {
+  AdminSupervisionWorkspaceNav,
+  createSupervisionWorkspaceState,
+  discardSupervisionWorkspaceDraft,
+  requestSupervisionWorkspace,
+  stayInSupervisionWorkspace,
+  supervisionWorkspaceItems,
+  updateSupervisionWorkspaceDirty,
+  type SupervisionWorkspaceKey,
+  type SupervisionWorkspaceState,
+} from "./admin-supervision-workspace-nav";
 import {
   adminAgentGovernanceApi,
   type AgentApproval,
@@ -19,7 +30,6 @@ import {
   type AgentRunsData,
   type LlmRoutePool,
   type QualityProfile,
-  type RecoveryDecision,
   type AgentRoleWorkspaceData,
   type AgentRecoveryWorkspaceData,
 } from "./admin-agent-governance-api";
@@ -37,6 +47,9 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [supervisionNavigation, setSupervisionNavigation] = useState<SupervisionWorkspaceState>(() =>
+    createSupervisionWorkspaceState(typeof window === "undefined" ? undefined : window.location.href),
+  );
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -64,10 +77,33 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   }, [activeView]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (activeView !== "supervision" || typeof window === "undefined") return;
+    const nextPath = `/admin/automation/supervision/${supervisionNavigation.active}`;
+    if (window.location.pathname !== nextPath) window.history.replaceState({}, "", nextPath);
+  }, [activeView, supervisionNavigation.active]);
+
+  const selectSupervisionWorkspace = useCallback((target: SupervisionWorkspaceKey) => {
+    setSupervisionNavigation((current) => requestSupervisionWorkspace(current, target));
+  }, []);
+  const reportSupervisionDirty = useCallback((dirty: boolean) => {
+    setSupervisionNavigation((current) => updateSupervisionWorkspaceDirty(current, dirty));
+  }, []);
+  const stayInCurrentSupervisionWorkspace = useCallback(() => {
+    setSupervisionNavigation((current) => stayInSupervisionWorkspace(current));
+  }, []);
+  const discardCurrentSupervisionDraft = useCallback(() => {
+    setSupervisionNavigation((current) => discardSupervisionWorkspaceDraft(current));
+  }, []);
 
   async function mutate(work: () => Promise<unknown>) {
     setBusy(true); setError(""); setNotice("");
-    try { await work(); setNotice("更改已保存"); await load(); }
+    try {
+      await work();
+      setNotice("更改已保存");
+      setSupervisionNavigation((current) => updateSupervisionWorkspaceDirty(current, false));
+      await load();
+    }
     catch (nextError) { setError(message(nextError)); }
     finally { setBusy(false); }
   }
@@ -76,13 +112,23 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
     <section className="agent-governance-workspace">
       <div className="agent-governance-toolbar">
         <div><strong>{viewTitle(activeView)}</strong><span>{viewDescription(activeView)}</span></div>
-        <button className="icon-button" type="button" onClick={() => void load()} disabled={loading || busy} title="刷新当前治理视图"><RefreshCw aria-hidden="true" /></button>
+        <button className="icon-button" type="button" onClick={() => void load()} disabled={loading || busy || (activeView === "supervision" && supervisionNavigation.dirty)} title={supervisionNavigation.dirty ? "请先保存或放弃当前修改" : "刷新当前治理视图"}><RefreshCw aria-hidden="true" /></button>
       </div>
       {error ? <div className="error-banner">{error}</div> : null}
       {notice ? <div className="agent-success-banner" role="status">{notice}</div> : null}
       {loading ? <Loading /> : (
         <>
-          {activeView === "supervision" ? <SupervisionView value={data as SupervisionData} models={models} busy={busy} mutate={mutate} /> : null}
+          {activeView === "supervision" ? <SupervisionView
+            value={data as SupervisionData}
+            models={models}
+            busy={busy}
+            mutate={mutate}
+            navigation={supervisionNavigation}
+            onSelect={selectSupervisionWorkspace}
+            onDirtyChange={reportSupervisionDirty}
+            onStay={stayInCurrentSupervisionWorkspace}
+            onDiscard={discardCurrentSupervisionDraft}
+          /> : null}
           {activeView === "activity" ? <ActivityView value={data as ActivityData} busy={busy} mutate={mutate} /> : null}
         </>
       )}
@@ -90,7 +136,27 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   );
 }
 
-function SupervisionView({ value, models, busy, mutate }: { value: SupervisionData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function SupervisionView({
+  value,
+  models,
+  busy,
+  mutate,
+  navigation,
+  onSelect,
+  onDirtyChange,
+  onStay,
+  onDiscard,
+}: {
+  value: SupervisionData;
+  models: ModelRecord[];
+  busy: boolean;
+  mutate: (work: () => Promise<unknown>) => Promise<void>;
+  navigation: SupervisionWorkspaceState;
+  onSelect: (target: SupervisionWorkspaceKey) => void;
+  onDirtyChange: (dirty: boolean) => void;
+  onStay: () => void;
+  onDiscard: () => void;
+}) {
   const assistantPoolKeys = new Set(["assistant-diagnosis", "admin-assistant-diagnosis"]);
   const supervisionPools = value.models.pools.filter((pool) => !assistantPoolKeys.has(pool.poolKey));
   const supervisionDefinitions = {
@@ -98,36 +164,36 @@ function SupervisionView({ value, models, busy, mutate }: { value: SupervisionDa
     definitions: value.models.roles.definitions.filter((definition) => !["assistant-planner", "admin-assistant-planner", "provider-analysis-planner"].includes(definition.agentKey)),
     pools: supervisionPools,
   };
-  return <div className="agent-governance-stack">
-    <OverviewView value={value.overview} busy={busy} mutate={mutate} />
-    <div className="supervision-execution-policy" aria-label="托管执行并发权威">
-      <div><span>并发输入</span><strong>工作流 stageConcurrency</strong></div>
-      <div><span>平台上限</span><strong>每阶段 1-16</strong></div>
-      <div><span>执行规则</span><strong>新 Run 冻结后生效</strong></div>
+  const plannerDefinitions = {
+    ...supervisionDefinitions,
+    definitions: supervisionDefinitions.definitions.filter((definition) => canvasAgentPurpose(definition.agentKey) && definition.agentKey !== "generation-recovery"),
+  };
+  const historicalDefinitions = supervisionDefinitions.definitions.filter((definition) => !canvasAgentPurpose(definition.agentKey));
+  const activeItem = supervisionWorkspaceItems(navigation.active).find((item) => item.selected);
+  const pendingItem = navigation.pending ? supervisionWorkspaceItems(navigation.pending).find((item) => item.selected) : null;
+
+  return <div className="supervision-workbench">
+    <AdminSupervisionWorkspaceNav active={navigation.active} onSelect={onSelect} />
+    <div className="supervision-workspace-surface" role="tabpanel" aria-label={activeItem?.label}>
+      <header className="supervision-workspace-surface__header">
+        <div><strong>{activeItem?.label}</strong><span>{activeItem?.description}</span></div>
+        <span className={`agent-status agent-status--${navigation.dirty ? "review" : "enabled"}`}>{navigation.dirty ? "有未保存修改" : "配置已同步"}</span>
+      </header>
+      {navigation.pending ? <div className="supervision-unsaved-notice" role="alert">
+        <AlertTriangle aria-hidden="true" />
+        <div><strong>当前修改尚未保存</strong><span>切换到“{pendingItem?.label}”会放弃本工作区的草稿。</span></div>
+        <button type="button" className="ghost-action" onClick={onStay}>留在当前页</button>
+        <button type="button" className="danger-action" onClick={onDiscard}>放弃并切换</button>
+      </div> : null}
+      <div className="supervision-workspace-surface__content">
+        {navigation.active === "overview" ? <SupervisionOverviewView value={value.overview} /> : null}
+        {navigation.active === "environment" ? <EnvironmentView value={value.overview} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "planner" ? <PlannerView value={plannerDefinitions} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "routing" ? <RoutingView value={supervisionPools} historicalDefinitions={historicalDefinitions} models={models} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "quality" ? <QualityView value={value.policies.quality} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "recovery" ? <RecoveryView value={value.policies.recovery} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+      </div>
     </div>
-    <SectionHead title="托管 planner 与执行策略" description="管理托管规划、并发边界、质量门、候选选择和恢复策略。助手定义不在此处混合展示。" />
-    <ModelsView value={{ ...value.models, roles: supervisionDefinitions, pools: supervisionPools }} models={models} busy={busy} mutate={mutate} />
-    <PoliciesView value={value.policies} busy={busy} mutate={mutate} />
-  </div>;
-}
-
-function ModelsView({ value, models, busy, mutate }: { value: ModelsData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  const activeDefinitions = { ...value.roles, definitions: value.roles.definitions.filter((definition) => canvasAgentPurpose(definition.agentKey)) };
-  const historicalDefinitions = value.roles.definitions.filter((definition) => !canvasAgentPurpose(definition.agentKey));
-  return <div className="agent-governance-stack">
-    <SectionHead title="用途与模型绑定" description="只管理托管分析、失败恢复和候选评估。配置仅在新 Run 开始时冻结并生效。" />
-    <RolesView value={activeDefinitions} busy={busy} mutate={mutate} />
-    <SectionHead title="LLM 路由与回退" description="路由池只接受已发布的聊天模型，并在新 Run 开始时锁定版本。" />
-    <PoolsView value={value.pools} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} />
-    <HistoricalDefinitions value={historicalDefinitions} />
-  </div>;
-}
-
-function PoliciesView({ value, busy, mutate }: { value: PoliciesData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  return <div className="agent-governance-stack">
-    <SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" />
-    <QualityView value={value.quality} busy={busy} mutate={mutate} />
-    <RecoveryView value={value.recovery} busy={busy} mutate={mutate} />
   </div>;
 }
 
@@ -141,7 +207,7 @@ function ActivityView({ value, busy, mutate }: { value: ActivityData; busy: bool
   </div>;
 }
 
-function OverviewView({ value, busy, mutate }: { value: AgentOverview; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function SupervisionOverviewView({ value }: { value: AgentOverview }) {
   const metrics = value?.metrics || {};
   return <div className="agent-governance-stack">
     <div className="agent-metric-grid">
@@ -151,38 +217,67 @@ function OverviewView({ value, busy, mutate }: { value: AgentOverview; busy: boo
       <Metric icon={<ListChecks />} label="待审批" value={metrics.pendingApprovals} tone={metrics.pendingApprovals ? "warning" : "normal"} />
       <Metric icon={<Sparkles />} label="24h 质量评估" value={metrics.evaluations24h} />
     </div>
-    <ActionHead title="环境总开关" action={<button type="button" className="ghost-action" disabled={busy} onClick={() => void mutate(adminAgentGovernanceApi.bootstrap)}><Plus />初始化固定用途草稿</button>} />
-    <p className="agent-section-description">环境开关只改变服务端允许范围，不自动发布任何配置。初始化操作也是幂等的，不会覆盖已有角色或配置。</p>
-    <div className="agent-control-table">
-      {(value?.controls || []).map((control) => <ControlRow key={control.environment} value={control} busy={busy} mutate={mutate} />)}
+    <SectionHead title="执行权威" description="AI 只分析并提出受控建议；依赖图、阶段就绪条件和节点任务运行仍由确定性执行层负责。" />
+    <div className="supervision-execution-policy" aria-label="托管执行并发权威">
+      <div><span>并发输入</span><strong>工作流 stageConcurrency</strong></div>
+      <div><span>平台上限</span><strong>每阶段 1-16</strong></div>
+      <div><span>执行规则</span><strong>新 Run 冻结后生效</strong></div>
+    </div>
+    <div className="supervision-environment-summary">
+      {(value?.controls || []).map((control) => <div key={control.environment}>
+        <EnvironmentBadge value={control.environment} />
+        <strong>{control.agentEnabled && control.canvasRunsEnabled ? "托管可用" : "托管受限"}</strong>
+        <span>{control.automaticRecoveryEnabled ? "允许自动恢复" : "仅观察与人工处理"}</span>
+      </div>)}
     </div>
   </div>;
 }
 
-function ControlRow({ value, busy, mutate }: { value: AgentRuntimeControl; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function EnvironmentView({ value, busy, mutate, onDirtyChange }: { value: AgentOverview; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+  const [dirtyControls, setDirtyControls] = useState<Record<string, boolean>>({});
+  const dirty = Object.values(dirtyControls).some(Boolean);
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  const handleDirtyChange = useCallback((environment: AgentEnvironment, nextDirty: boolean) => {
+    setDirtyControls((current) => current[environment] === nextDirty ? current : { ...current, [environment]: nextDirty });
+  }, []);
+
+  return <div className="agent-governance-stack">
+    <ActionHead title="环境总开关" action={<button type="button" className="ghost-action" disabled={busy} onClick={() => void mutate(adminAgentGovernanceApi.bootstrap)}><Plus />初始化固定用途草稿</button>} />
+    <p className="agent-section-description">环境开关只改变服务端允许范围，不自动发布任何配置。初始化操作也是幂等的，不会覆盖已有角色或配置。</p>
+    <div className="agent-control-table">
+      {(value?.controls || []).map((control) => <ControlRow key={control.environment} value={control} busy={busy} mutate={mutate} onDirtyChange={(nextDirty) => handleDirtyChange(control.environment, nextDirty)} />)}
+    </div>
+  </div>;
+}
+
+function ControlRow({ value, busy, mutate, onDirtyChange }: { value: AgentRuntimeControl; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
+  const changed = !sameControl(draft, value);
+  useEffect(() => onDirtyChange(changed), [changed, onDirtyChange]);
   const keys: Array<[keyof AgentRuntimeControl, string]> = [["agentEnabled", "Agent"], ["canvasRunsEnabled", "Canvas Run"], ["qualityEvaluationEnabled", "质量评估"], ["automaticRecoveryEnabled", "自动恢复"]];
   return <div className="agent-control-row">
     <div className="agent-control-environment"><EnvironmentBadge value={draft.environment} /><small>revision {draft.revision}</small></div>
     <div className="agent-control-toggles">{keys.map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.checked })} /><span>{label}</span></label>)}</div>
-    <button type="button" className="primary-action" disabled={busy || sameControl(draft, value)} onClick={() => void mutate(() => adminAgentGovernanceApi.updateControls(draft))}><Check aria-hidden="true" />应用</button>
+    <button type="button" className="primary-action" disabled={busy || !changed} onClick={() => void mutate(() => adminAgentGovernanceApi.updateControls(draft))}><Check aria-hidden="true" />应用</button>
   </div>;
 }
 
-function RolesView({ value, busy, mutate }: { value: AgentRoleWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function PlannerView({ value, busy, mutate, onDirtyChange }: { value: AgentRoleWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   return <div className="agent-governance-stack">
+    <SectionHead title="托管分析用途" description="配置规划、候选评估等受控 Agent。配置仅在新 Run 开始时冻结并生效。" />
     <ActionHead title={`${value.definitions.length} 个固定用途`} action={<span className="agent-status agent-status--enabled">用途受控</span>} />
-    {value.definitions.length ? <AdminAgentRoleConfigurationEditor value={value} busy={busy} mutate={mutate} /> : <Empty label="尚未初始化固定用途，请先在运行控制中初始化默认草稿" />}
+    {value.definitions.length ? <AdminAgentRoleConfigurationEditor value={value} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化固定用途，请先在环境控制中初始化默认草稿" />}
   </div>;
 }
 
-function PoolsView({ value, models, busy, mutate }: { value: LlmRoutePool[]; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function RoutingView({ value, historicalDefinitions, models, busy, mutate, onDirtyChange }: { value: LlmRoutePool[]; historicalDefinitions: AgentRoleWorkspaceData["definitions"]; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const [creating, setCreating] = useState(false);
   const availableTemplates = purposeRouteTemplates.filter((template) => !value.some((pool) => pool.poolKey === template.poolKey));
   const [templateId, setTemplateId] = useState<string>(purposeRouteTemplates[0].id);
   const template = availableTemplates.find((item) => item.id === templateId) || availableTemplates[0];
   return <div className="agent-governance-stack">
+    <SectionHead title="LLM 路由与回退" description="路由池只接受已启用的聊天模型，并在新 Run 开始时锁定版本。" />
     <ActionHead title={`${value.length} 个 LLM 路由池`} action={<button type="button" className="primary-action" disabled={!availableTemplates.length} onClick={() => setCreating(!creating)}><Plus />按用途创建</button>} />
     <div className="scope-note"><ShieldCheck /><span>这里只接受后台模型目录中已启用的 <code>chat</code> 模型。图片、视频、音频生成模型不进入该路由池。</span></div>
     {creating && template ? <InlineForm onSubmit={() => mutate(() => adminAgentGovernanceApi.createPool(template))} disabled={busy} submit="创建用途路由">
@@ -190,7 +285,8 @@ function PoolsView({ value, models, busy, mutate }: { value: LlmRoutePool[]; mod
       <Field label="固定标识"><input value={template.poolKey} disabled /></Field>
       <Field label="生效场景"><input value={template.label} disabled /></Field>
     </InlineForm> : null}
-    <AdminAgentPoolEditor pools={value} models={models} busy={busy} mutate={mutate} />
+    <AdminAgentPoolEditor pools={value} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} />
+    <HistoricalDefinitions value={historicalDefinitions} />
   </div>;
 }
 
@@ -203,14 +299,14 @@ function HistoricalDefinitions({ value }: { value: AgentRoleWorkspaceData["defin
   </div>;
 }
 
-function QualityView({ value, busy, mutate }: { value: QualityProfile[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  return <AdminAgentQualityEditor value={value} busy={busy} mutate={mutate} />;
+function QualityView({ value, busy, mutate, onDirtyChange }: { value: QualityProfile[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+  return <div className="agent-governance-stack"><SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" /><AdminAgentQualityEditor value={value} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /></div>;
 }
 
 function RunsView({ value }: { value: AgentRunsData }) { return <div className="agent-governance-stack"><SectionHead title="Agent Run" description="最近的助手诊断、媒体评估、候选选择与失败恢复运行。" /><RunTable rows={value.agentRuns} /><SectionHead title="Workflow Run" description="按 workflow revision 和冻结执行计划持久化的 Canvas 运行。" /><RunTable rows={value.canvasRuns} /></div>; }
-function RecoveryView({ value, busy, mutate }: { value: AgentRecoveryWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+function RecoveryView({ value, busy, mutate, onDirtyChange }: { value: AgentRecoveryWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const roles = { ...value.roles, definitions: value.roles.definitions.filter((definition) => definition.agentKey === "generation-recovery") };
-  return <div className="agent-governance-stack"><SectionHead title="恢复策略" description="恢复用途的发布配置决定工具、预算、审批与自动恢复次数。" /><AdminAgentRoleConfigurationEditor value={roles} busy={busy} mutate={mutate} /><SectionHead title="恢复决策账本" description="最近的失败分类、目标模型与审批状态。" /><DataTable headers={["时间", "Owner", "失败分类", "恢复决策", "模型变化", "状态"]}>{value.decisions.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td>{item.ownerEmail}</td><td><StatusBadge value={item.failureClass} /></td><td><strong>{item.decision}</strong><small>{item.reason}</small></td><td><code>{item.currentModelId || "-"}</code><small>{item.targetModelId && item.targetModelId !== item.currentModelId ? `→ ${item.targetModelId}` : "同配置"}</small></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable></div>;
+  return <div className="agent-governance-stack"><SectionHead title="恢复策略" description="恢复用途的发布配置决定工具、预算、审批与自动恢复次数。" />{roles.definitions.length ? <AdminAgentRoleConfigurationEditor value={roles} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化失败恢复用途" />}<SectionHead title="恢复决策账本" description="最近的失败分类、目标模型与审批状态。" /><DataTable headers={["时间", "Owner", "失败分类", "恢复决策", "模型变化", "状态"]}>{value.decisions.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td>{item.ownerEmail}</td><td><StatusBadge value={item.failureClass} /></td><td><strong>{item.decision}</strong><small>{item.reason}</small></td><td><code>{item.currentModelId || "-"}</code><small>{item.targetModelId && item.targetModelId !== item.currentModelId ? `→ ${item.targetModelId}` : "同配置"}</small></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable></div>;
 }
 function RunTable({ rows }: { rows: AgentRunsData["agentRuns"] }) { return <DataTable headers={["运行", "Owner", "角色 / 场景", "状态", "更新时间"]}>{rows.map((row) => <tr key={row.id}><td><code>{row.id}</code></td><td>{row.ownerEmail}</td><td>{[row.role, row.scenario].filter(Boolean).join(" · ") || row.canvasId}</td><td><StatusBadge value={row.status} /></td><td>{formatTime(row.updatedAt)}</td></tr>)}</DataTable>; }
 

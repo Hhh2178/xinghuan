@@ -9740,6 +9740,110 @@ td {
 .supervision-execution-policy span { color: var(--starlight-muted); font-size: 10px; }
 .supervision-execution-policy strong { color: var(--starlight-text); font-size: 12px; }
 
+.supervision-workbench {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-width: 0;
+  height: calc(100vh - 210px);
+  min-height: 620px;
+  max-height: 860px;
+  overflow: hidden;
+  border: 1px solid var(--starlight-border);
+  border-radius: 6px;
+  background: var(--starlight-bg);
+}
+
+.supervision-workspace-nav {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  border-right: 1px solid var(--starlight-border);
+  background: color-mix(in srgb, var(--starlight-panel) 62%, var(--starlight-bg));
+}
+
+.supervision-workspace-nav__label {
+  padding: 13px 14px 9px;
+  color: var(--starlight-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.supervision-workspace-nav__items { display: grid; align-content: start; overflow-y: auto; }
+.supervision-workspace-nav__items button {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 12px;
+  border: 0;
+  border-top: 1px solid var(--starlight-border);
+  color: var(--starlight-muted);
+  text-align: left;
+  background: transparent;
+}
+
+.supervision-workspace-nav__items button:last-child { border-bottom: 1px solid var(--starlight-border); }
+.supervision-workspace-nav__items button:hover { color: var(--starlight-text); background: color-mix(in srgb, var(--starlight-panel) 78%, transparent); }
+.supervision-workspace-nav__items button.active { color: var(--starlight-text); background: var(--starlight-panel); box-shadow: inset 3px 0 var(--starlight-cyan); }
+.supervision-workspace-nav__items svg { width: 17px; color: var(--starlight-cyan); }
+.supervision-workspace-nav__items span { display: grid; min-width: 0; gap: 3px; }
+.supervision-workspace-nav__items strong,
+.supervision-workspace-nav__items small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.supervision-workspace-nav__items strong { font-size: 12px; }
+.supervision-workspace-nav__items small { color: var(--starlight-muted); font-size: 10px; }
+
+.supervision-workspace-surface {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: var(--starlight-panel);
+}
+
+.supervision-workspace-surface__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--starlight-border);
+  background: var(--starlight-bg);
+}
+
+.supervision-workspace-surface__header > div { display: grid; gap: 3px; min-width: 0; }
+.supervision-workspace-surface__header strong { color: var(--starlight-text); font-size: 14px; }
+.supervision-workspace-surface__header span { color: var(--starlight-muted); font-size: 11px; }
+.supervision-workspace-surface__content { min-width: 0; min-height: 0; padding: 14px; overflow: auto; scrollbar-gutter: stable; }
+
+.supervision-unsaved-notice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--starlight-warning) 55%, var(--starlight-border));
+  color: var(--starlight-warning);
+  background: color-mix(in srgb, var(--starlight-warning) 8%, var(--starlight-bg));
+}
+
+.supervision-unsaved-notice svg { width: 17px; }
+.supervision-unsaved-notice > div { display: grid; gap: 2px; }
+.supervision-unsaved-notice strong { font-size: 12px; }
+.supervision-unsaved-notice span { color: var(--starlight-muted); font-size: 10px; }
+
+.supervision-environment-summary { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); border: 1px solid var(--starlight-border); border-radius: 6px; overflow: hidden; }
+.supervision-environment-summary > div { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 7px 10px; padding: 13px; border-right: 1px solid var(--starlight-border); background: var(--starlight-panel); }
+.supervision-environment-summary > div:last-child { border-right: 0; }
+.supervision-environment-summary > div > span:last-child { grid-column: 1 / -1; color: var(--starlight-muted); font-size: 11px; }
+
+.agent-version-history { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--starlight-border); }
+.agent-version-history > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.agent-version-history > header strong { font-size: 12px; }
+.agent-version-history > header span { color: var(--starlight-muted); font-size: 10px; }
+
 .assistant-governance-workspace {
   display: grid;
   align-content: start;
@@ -9920,6 +10024,20 @@ td {
   gap: 12px;
 }
 
+.agent-config-editor__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  min-height: 50px;
+  padding: 8px 10px;
+  border: 1px solid var(--starlight-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--starlight-panel) 94%, var(--starlight-bg));
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, .16);
+}
+
+.agent-config-editor__actions > span { color: var(--starlight-muted); font-size: 11px; }
+
 .agent-config-editor__header > div,
 .agent-config-editor__version-bar label {
   display: grid;
@@ -9932,14 +10050,14 @@ td {
 
 .agent-config-editor__header span,
 .agent-config-editor__version-bar label > span {
-  color: var(--text-secondary);
+  color: var(--starlight-muted);
   font-size: 12px;
 }
 
 .agent-config-editor__version-bar {
   flex-wrap: wrap;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--starlight-border);
 }
 
 .agent-config-section {
@@ -9970,7 +10088,7 @@ td {
 }
 
 .agent-config-checklist > span {
-  color: var(--text-secondary);
+  color: var(--starlight-muted);
   font-size: 12px;
 }
 
@@ -9982,7 +10100,7 @@ td {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--starlight-border);
   border-radius: 6px;
 }
 
@@ -9993,13 +10111,13 @@ td {
 .agent-config-checklist code {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: var(--text-tertiary);
+  color: var(--starlight-muted);
   font-size: 11px;
 }
 
 .agent-config-diff {
   display: grid;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--starlight-border);
 }
 
 .agent-config-diff > div {
@@ -10008,7 +10126,7 @@ td {
   gap: 8px;
   align-items: start;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--starlight-border);
   font-size: 12px;
 }
 
@@ -10018,7 +10136,7 @@ td {
 
 .agent-config-empty {
   margin: 0;
-  color: var(--text-tertiary);
+  color: var(--starlight-muted);
   font-size: 12px;
 }
 

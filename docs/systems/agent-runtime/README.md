@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-25 local Task 10 checkpoint: Admin AI Supervision governance is now a bounded PC workbench with six exclusive internal workspaces: overview, environment, planner, routing, quality and recovery. Only the active workspace is mounted. Role, route, quality and environment drafts report dirty state; switching keeps the current editor mounted until the administrator stays or explicitly discards, while manual refresh is disabled. Active editors, sticky save actions and immutable version history are visually separated. This checkpoint is local only; final `1920x1080` acceptance remains in Task 11, and Gray/Production were not changed.
+
 > 2026-07-25 local Task 7 checkpoint: the Canvas assistant treats the measured AI Supervision panel as a hard desktop obstacle with a 12px exclusion gap. Open placement uses viewport subtraction and nearest legal launcher/panel regions; closed placement constrains only the launcher. Supervision open/resize re-homes illegal persisted coordinates and every pointer move uses the same clamp, while closing supervision preserves valid coordinates. This checkpoint is local only; final visual acceptance remains the single `1920x1080` pass, and Gray/Production were not changed.
 
 > 2026-07-25 local Task 6 checkpoint: AI Supervision now has exclusive Runtime, Plan and Events workspaces beneath fixed status/progress/commands. Runtime focuses the current node, concise repair, approval and candidate actions; Plan owns Agent analysis and immutable steps; Events owns the durable timeline. User-facing references prefer frozen `displayIdentity` and historical Runs fall back through the capability catalog, while raw IDs remain technical. Zero/unlimited facts are omitted. This checkpoint is local only; Gray and Production were not changed.
@@ -79,7 +81,7 @@
 - 过冷却期的 `circuit_open` entry 会投影为 `half_open`，但必须取得 `xh_llm_route_entry_probe_leases` 的单探针 lease 才能实际调用。API Agent 在调用结束后释放；质量任务将 lease owner 持久化到质量上下文，并在评估结算时释放。
 - Tool Gateway 只执行启动时固定注册且位于角色 allowlist 的工具，并在调用时重新验证 owner、canvas revision、budget 和 approval；发布的 platform tool policy 还会约束每 Run 调用上限，以及是否必须满足 revision/budget 条件。
 - 旧外部助手 bridge、session cache、登录、Cookie/CSRF、环境变量和协议类型已从活跃代码与 Harness 移除。
-- Admin “智能体与自动化”工作域已收敛为 `运行控制`、`模型绑定`、`恢复与选择`、`运行与审计` 四个任务域。旧十一页深链只做兼容映射；自由知识 CMS、通用工具白名单和节点内部投影不再是一级产品入口。
+- Admin “智能体与自动化”工作域已收敛为 `AI 助手`、`AI 托管与自动化`、`运行与审计` 三个一级任务域；托管治理内部再按 `运行总览`、`环境控制`、`规划 Agent`、`模型路由`、`质量门`、`失败恢复` 六个互斥工作区组织。旧十一页深链只做兼容映射；自由知识 CMS、通用工具白名单和节点内部投影不再是一级产品入口。
 - Agent/LLM/Quality/Knowledge 配置使用 `draft -> review -> approved -> retired` 生命周期；Gray/Production publication 与版本状态分离，重新发布旧 approved 版本即为可审计回滚。
 - Agent 配置 create/clone/review/approve/publish 均重新校验 Pool、知识 collection audience/enabled 状态和 Quality Profile 引用；Admin 编辑器保存始终创建新草稿并显示结构化 diff。
 - Admin 路由模拟复用生产 `routeLlmCandidates`，模型写入同时校验启用 Provider、启用模型和 `chat` capability。
@@ -183,6 +185,7 @@ Workflow Region Run 的候选裁剪只允许发生在显式 `smart-candidate-sel
 
 - `/admin/automation/assistants`：分别治理创作侧和后台助手的表面设置、Agent 内核与 LLM 路由；两侧配置不互相复用编辑草稿。
 - `/admin/automation/supervision`：环境开关、`supervision-planner`、阶段并发权威、质量门、候选选择和有限恢复。
+- `/admin/automation/supervision/<workspace>`：托管治理内部稳定深链；当前只挂载一个工作区。有未保存草稿时，导航不卸载编辑器，必须明确留在当前页或放弃后切换。
 - `/admin/automation/activity`：Workflow Run、Agent Run、审批、恢复决策和不可变动作账本。
 - 旧 `/admin/capabilities/admin-assistant` 稳定跳转到助手治理；Provider 与模型工作区不再拥有助手模型或策略配置。
 - 旧 `/overview|roles|llm-routes|tools|nodes|knowledge|quality|recovery|runs|approvals|audit` 深链继续兼容映射，不恢复十一项等权导航。

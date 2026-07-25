@@ -779,23 +779,23 @@ type SupervisionWorkspaceKey =
   | "recovery";
 ```
 
-- [ ] **Step 1: Write navigation/view-model tests**
+- [x] **Step 1: Write navigation/view-model tests**
 
 Assert stable default selection, deep-link mapping, one rendered workspace and retention of unsaved draft warning when switching sections.
 
-- [ ] **Step 2: Add a style/structure contract**
+- [x] **Step 2: Add a style/structure contract**
 
 The verifier checks established Admin surface, form-row, button, select, segmented-control and sticky-action classes. It rejects the previous continuous vertical stack.
 
-- [ ] **Step 3: Implement task-oriented internal navigation**
+- [x] **Step 3: Implement task-oriented internal navigation**
 
 Keep top-level `AI 助手`, `AI 托管与自动化`, `运行与审计`. Inside supervision render only the selected task domain. Keep version history separate from the active editor.
 
-- [ ] **Step 4: Normalize controls and action placement**
+- [x] **Step 4: Normalize controls and action placement**
 
 Use existing Admin components and tokens. Do not introduce a parallel visual theme. Keep dense PC layout, fixed header/actions and independent content scrolling.
 
-- [ ] **Step 5: Run the phase gate**
+- [x] **Step 5: Run the phase gate**
 
 Run:
 
@@ -809,7 +809,7 @@ npm run build -w @xinghuan/admin
 git diff --check
 ```
 
-- [ ] **Step 6: Record and commit**
+- [x] **Step 6: Record and commit**
 
 Commit with `refactor(admin): focus supervision governance workspaces`.
 
