@@ -55,6 +55,11 @@ assert.match(files.reconcileScript, /apply = Boolean\(options\.apply\)/, "reconc
 assert.match(files.reconcileScript, /xh_ephemeral_uploads/, "reconciliation must scan ephemeral uploads");
 assert.match(files.reconcileScript, /INPUT_ORPHAN_GRACE_MS/, "reconciliation must apply input orphan grace period");
 assert.match(files.reconcileScript, /deletedFiles/, "reconciliation must report physical deletions");
+assert.match(
+  files.reconcileScript,
+  /from xh_canvas_run_steps s\s+join xh_canvas_runs r on r\.id = s\.run_id[\s\S]*?r\.owner_id = \$1[\s\S]*?s\.status in/s,
+  "running canvas references must resolve owner through xh_canvas_runs",
+);
 assert.match(files.deployScript, /migrate-generation-artifacts/, "release deploy must expose an explicit legacy migration gate");
 assert.ok(
   files.deployScript.indexOf("generation-artifacts:migrate:dry-run") < files.deployScript.indexOf("generation-artifacts:migrate`"),

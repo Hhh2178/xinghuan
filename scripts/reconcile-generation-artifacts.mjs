@@ -301,9 +301,10 @@ async function hasProtectedReference(pool, ownerId, fileUrl, row) {
   if (taskRefs.rows[0]) return true;
   try {
     const runRefs = await pool.query(
-      `select 1 from xh_canvas_run_steps
-       where owner_id = $1 and status in ('queued', 'running', 'awaiting_approval')
-         and (input_binding::text like $2 or output_binding::text like $2)
+      `select 1 from xh_canvas_run_steps s
+       join xh_canvas_runs r on r.id = s.run_id
+       where r.owner_id = $1 and s.status in ('queued', 'running', 'awaiting_approval')
+        and (input_binding::text like $2 or output_binding::text like $2)
        limit 1`,
       [ownerId, `%${fileUrl}%`],
     );
