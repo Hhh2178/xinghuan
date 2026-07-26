@@ -3,16 +3,16 @@
 - 入口域名：`canvas-next.hhh2121.xyz`（迁移目标：`canvas-next.zezhen.online`）
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.8.1`
-- 当前 release：`20260725-media-retention-v081-r2`
-- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Gray；上传 24 小时、生成制品 72 小时保留和运行中引用保护已启用`
-- 当前补修：`修正清理器通过 xh_canvas_runs 解析 Canvas Run owner_id；旧服务器 Production 已完成一次受保护的过期制品清理`
-- Production 当前 release：`20260722-canvas-revision-observability-prod-r1-v0718`
-- 本轮制品源提交：`6a154df`
+- 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
+- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Gray；视频提示词字节限制已交由服务商判断`
+- 当前补修：`视频请求不再在 API 入队前按历史 maxPromptBytes/4096 拦截；旧服务器 Production 与新服务器 Gray/Production 同步完成`
+- Production 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
+- 本轮制品源提交：`04a9e87`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-25-media-retention-v081-r2.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-25-media-retention-v081-r2.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

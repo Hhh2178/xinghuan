@@ -1,30 +1,30 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-25",
+  "updatedAt": "2026-07-26",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "85b1993",
+  "sourceCommit": "04a9e87",
   "environments": {
     "gray": {
       "version": "0.8.1",
-      "releaseId": "20260725-media-retention-v081-r2",
-      "deployedAt": "2026-07-25",
+      "releaseId": "20260726-video-prompt-provider-limit-v081-r1",
+      "deployedAt": "2026-07-26",
       "permissionMode": "enforced",
       "readiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-25", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-25-media-retention-v081-r2.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-25-media-retention-v081-r2.md",
-      "rollbackReleaseId": "20260725-ai-governance-runtime-current-gray-r1-v0744"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-26-video-prompt-provider-limit-v081-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-26-video-prompt-provider-limit-v081-r1.md",
+      "rollbackReleaseId": "20260725-media-retention-v081-r2"
     },
     "production": {
       "version": "0.8.1",
-      "releaseId": "20260725-media-retention-v081-r2",
-      "deployedAt": "2026-07-25",
+      "releaseId": "20260726-video-prompt-provider-limit-v081-r1",
+      "deployedAt": "2026-07-26",
       "permissionMode": "enforced",
       "readiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 142, "publishedSubjects": 124, "restrictedSubjects": 12, "retiredSubjects": 6, "rules": 2820, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-21", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-25-media-retention-v081-r2.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-25-media-retention-v081-r2.md",
-      "rollbackReleaseId": "20260725-ai-governance-runtime-current-production-r1-v0744"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-26-video-prompt-provider-limit-v081-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-26-video-prompt-provider-limit-v081-r1.md",
+      "rollbackReleaseId": "20260725-media-retention-v081-r2"
     }
   }
 }

@@ -5,13 +5,13 @@
 ### Production
 
 - 版本：`v0.8.1`
-- release：`20260725-media-retention-v081-r2`
-- 当前状态：`旧服务器与新服务器 Production 均已部署；API/Worker、数据库迁移、公网状态和受保护清理验证通过`
-- 部署内容：`临时上传 24 小时 TTL、生成制品 72 小时保留、资源库/运行中引用保护及 Canvas Run owner 查询修复`
-- 回滚：`20260725-ai-governance-runtime-current-production-r1-v0744`
+- release：`20260726-video-prompt-provider-limit-v081-r1`
+- 当前状态：`旧服务器与新服务器 Production 均已部署；API/Worker、权限 readiness 和公网状态验证通过`
+- 部署内容：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
+- 回滚：`20260725-media-retention-v081-r2`
 - 当前批次记录：
-  - `production/2026-07-25-media-retention-v081-r2.md`
-  - `../validations/2026-07-25-media-retention-v081-r2.md`
+  - `production/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+  - `../validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -22,15 +22,15 @@
 ### Gray
 
 - 版本：`v0.8.1`
-- release：`20260725-media-retention-v081-r2`
-- 当前状态：`旧服务器与新服务器 Gray 均已部署；迁移、服务、数据库和清理 dry-run 验证通过`
-- 部署内容：`临时上传 24 小时 TTL、生成制品 72 小时保留、运行中 Canvas Run 引用保护和清理器 SQL 修复`
+- release：`20260726-video-prompt-provider-limit-v081-r1`
+- 当前状态：`旧服务器与新服务器 Gray 均已部署；API/Worker、权限 readiness 和公网状态验证通过`
+- 部署内容：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
 - 已验证：`发布前完整 Harness、构建、契约和隔离 Gray Candidate 真实 Provider/Agent/Canvas Run 证据；正式 Gray 发布后复核 API/Worker/readiness 与助手 agent 模式。用户明确豁免本次双视窗视觉检查。`
-- 部署时间：`2026-07-25`
-- 本轮制品源提交：`85b1993`
+- 部署时间：`2026-07-26`
+- 本轮制品源提交：`04a9e87`
 - 本轮发布记录：
-  - `gray/2026-07-25-media-retention-v081-r2.md`
-  - `../validations/2026-07-25-media-retention-v081-r2.md`
+  - `gray/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+  - `../validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

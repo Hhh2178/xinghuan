@@ -28,19 +28,19 @@
   - 域名：`canvas-next.hhh2121.xyz`（迁移目标：`canvas-next.zezhen.online`）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.1`
-  - release：`20260725-media-retention-v081-r2`
-  - 状态：`旧服务器与新服务器 Gray 均已部署；服务、数据库迁移和清理 dry-run 通过`
-  - 当前补修：`临时上传 24 小时、生成制品 72 小时保留和 Canvas Run owner 查询修复`
-  - 本轮制品源提交：`85b1993`
+  - release：`20260726-video-prompt-provider-limit-v081-r1`
+  - 状态：`旧服务器与新服务器 Gray 均已部署；API/Worker、权限 readiness 和公网状态通过`
+  - 当前补修：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
+  - 本轮制品源提交：`04a9e87`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 域名：`canvas.hhh2121.xyz`（迁移目标：`canvas.zezhen.online`）
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.1`
-  - release：`20260725-media-retention-v081-r2`
-  - 状态：`旧服务器与新服务器 Production 均已部署；公网状态、数据库迁移和 API/Worker 通过`
-  - 当前补修：`上传和生成制品 retention 清理已启用；旧 Production 已完成受保护清理`
+  - release：`20260726-video-prompt-provider-limit-v081-r1`
+  - 状态：`旧服务器与新服务器 Production 均已部署；公网状态、权限 readiness 和 API/Worker 通过`
+  - 当前补修：`视频提示词字节限制交由服务商判断；既有 retention 和用户媒体边界保持不变`
 
 ## current / archive 分工
 

@@ -3,12 +3,12 @@
 - 入口域名：`canvas.hhh2121.xyz`（迁移目标：`canvas.zezhen.online`）
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.8.1`
-- 当前 release：`20260725-media-retention-v081-r2`
-- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Production；API/Worker、数据库迁移和公网状态验证通过`
-- 当前补修：`上传临时文件 24 小时、生成制品 72 小时保留；清理器保护资源库、运行中任务和 Canvas Run 引用`
+- 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
+- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Production；API/Worker、数据库迁移、权限 readiness 和公网状态验证通过`
+- 当前补修：`视频提示词字节限制交由服务商判断；平台不再按历史 maxPromptBytes/4096 在入队前拦截`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-25-media-retention-v081-r2.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-25-media-retention-v081-r2.md`
+- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`
