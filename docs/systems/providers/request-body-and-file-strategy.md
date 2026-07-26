@@ -31,4 +31,5 @@
   - `sd-channel-900`：固定 15 秒、720p，媒体仅使用顶层 `images`。
 - `requestContract` 的数据源支持 `videos`、`referenceMode` 和结构化 `media`；`media` 按图片、视频、音频顺序生成 `reference_image / reference_video / reference_audio` 对象，首尾帧仍由图片顺序保证。
 - 非默认 profile 在后台保存时必须保留自己的 bindings，不能再次合并 `sd2-per-second` 默认字段。
-- AICOPY 视频提示词默认按 UTF-8 4096 字节限制在 API 入队前校验；上游嵌套 JSON 错误必须解包到最内层可读原因，避免把 `fail_to_fetch_task` 套娃文本直接展示给用户。
+- 视频提示词字节数不在平台 API 预检。历史 `advancedConfig.maxPromptBytes`（包括 AICOPY/AIFork 旧的 4096 提示）不会阻止任何协议的请求；必须先把请求交给服务商，由服务商返回实际限制。平台仍保留通用的输入安全上限，不把它伪装成渠道模型限制。
+- 上游嵌套 JSON 错误必须解包到最内层可读原因，避免把 `fail_to_fetch_task` 套娃文本直接展示给用户。

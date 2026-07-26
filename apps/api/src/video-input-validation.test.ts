@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateVideoInputs, validateVideoPromptBytes } from "./video-input-validation.js";
+import { resolveVideoPromptByteLimit, validateVideoInputs, validateVideoPromptBytes } from "./video-input-validation.js";
 
 const fullCapabilities = {
   prompt: true,
@@ -137,4 +137,13 @@ describe("validateVideoPromptBytes", () => {
     expect(() => validateVideoPromptBytes("中".repeat(1366), 4096)).toThrow("4098 字节，超过当前模型 4096 字节限制");
     expect(validateVideoPromptBytes("中".repeat(1365), 4096)).toBe(4095);
   });
+});
+
+describe("resolveVideoPromptByteLimit", () => {
+  it.each(["aicopy", "aifork", "runninghub", "openai", "custom", ""])(
+    "does not block %s or use a catalog byte limit before the provider sees the request",
+    (protocol) => {
+      expect(resolveVideoPromptByteLimit(protocol, 4096)).toBe(0);
+    },
+  );
 });

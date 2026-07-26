@@ -17,9 +17,12 @@ export function validateVideoPromptBytes(prompt: string, maxBytes: number) {
 }
 
 export function resolveVideoPromptByteLimit(protocol: string, configuredValue: unknown) {
-  const configured = Number(configuredValue);
-  if (Number.isFinite(configured) && configured > 0) return Math.floor(configured);
-  return String(protocol || "").trim().toLowerCase() === "aicopy" ? 4096 : 0;
+  // Prompt byte limits belong to the upstream provider. Do not turn a stale
+  // catalog value (including the historical AICOPY 4096 hint) into a local
+  // rejection before the provider sees the request.
+  void protocol;
+  void configuredValue;
+  return 0;
 }
 
 export interface ValidatedVideoInputs {
