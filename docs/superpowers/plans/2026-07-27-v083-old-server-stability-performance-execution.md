@@ -460,11 +460,11 @@ Run focused Worker tests, delivery-contract verifier, local mock end-to-end fixt
 
 Fixtures use stable IDs/positions/edges, groups and bounded runtime projections. They never create external Provider work.
 
-- [ ] **Step 2: Capture baseline before optimizing**
+- [x] **Step 2: Capture baseline before optimizing**
 
 Record performance marks, long tasks, React commits, node render count, updateNodeInternals calls, polling requests and drag-frame timestamps. Write raw JSON only to a gitignored runtime artifact path; commit summary metrics to the validation record.
 
-- [ ] **Step 3: Add a budget comparator**
+- [x] **Step 3: Add a budget comparator**
 
 It fails if entry, Canvas, Admin, CSS or selected node chunks or scenario metrics exceed recorded budget without an explicit validation-record waiver.
 
@@ -492,11 +492,11 @@ scheduleWorkspacePreload({
 
 Prefetch failure must not block workspace navigation.
 
-- [ ] **Step 3: Compare fixture baseline, chunk sizes and network waterfall**
+- [x] **Step 3: Compare fixture baseline, chunk sizes and network waterfall**
 
 Keep heavy MediaPipe/editor chunks interaction-driven unless benchmark evidence shows safe earlier loading.
 
-- [ ] **Step 4: Release r3 through old-server Gray then same-SHA Production**
+- [x] **Step 4: Release r3 through old-server Gray then same-SHA Production**
 
 ## r4: Canvas Narrow Mutation and Render Control
 

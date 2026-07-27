@@ -225,6 +225,8 @@
     "verify:canvas-resource-api": "node scripts/verify-canvas-resource-api.mjs",
     "verify:generic-node-catalog": "node scripts/verify-generic-node-catalog.mjs",
     "verify:canvas-node-render-smoke": "node scripts/verify-canvas-node-render-smoke.mjs",
+    "measure:canvas-performance": "node scripts/measure-canvas-performance.mjs",
+    "verify:canvas-performance-budget": "node scripts/verify-canvas-performance-budget.mjs",
     "verify:canvas-audio-ui-removal": "node scripts/verify-canvas-audio-ui-removal.mjs",
     "verify:web-bundle-no-theme-audio": "node scripts/verify-web-bundle-no-theme-audio.mjs",
     "verify:web-lazy-import-recovery": "npx tsx scripts/verify-web-lazy-import-recovery.ts",

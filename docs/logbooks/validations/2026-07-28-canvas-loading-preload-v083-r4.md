@@ -12,9 +12,21 @@
 - `verify:web-lazy-import-recovery`：passed。
 - `verify:file-hotspot-budgets`：passed。
 - Deterministic fixture factory and tests now cover empty, 50, 100 and 200-node scenarios with stable IDs, positions, edges, groups and bounded runtime projections; fixture generation never calls a Provider.
+- Real browser baseline (`npm run measure:canvas-performance`) completed against the local 0.8.3 single-port build. The raw JSON is gitignored under `output/playwright/`; the repeatable budget gate is `npm run verify:canvas-performance-budget`.
+
+### 浏览器基线摘要（本地 0.8.3，未触发 Provider）
+
+| 节点场景 | 实际渲染 | 导航耗时 | 资源数 | 长任务 |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 0 | 2132ms | 11 | 0 / 0ms |
+| 50 | 50 | 112ms | 61 | 0 / 0ms |
+| 100 | 100 | 182ms | 66 | 0 / 0ms |
+| 200 | 200 | 321ms | 66 | 2 / 197ms |
+
+200 节点仍在当前预算（导航 ≤1000ms、资源 ≤80、长任务 ≤3 且总时长 ≤250ms）内；无运行时错误。导航指标包含冷启动差异，后续优化只接受同一 harness 的回归比较。
 
 ## 尚未完成
 
-- 空画布及 50/100/200 节点 fixture 的真实浏览器性能基线尚未采集。
-- 未改变重型 MediaPipe/editor chunk 的交互式加载策略，尚未发布 r4 到服务器。
-- 当前证据不代表 Canvas 首屏或节点渲染预算已达标。
+- 空画布及 50/100/200 节点 fixture 的真实浏览器性能基线已采集并通过预算门禁。
+- 重型 MediaPipe/editor chunk 仍保持交互式加载策略；本记录仅覆盖 r4 的本地验证，未发布 r4 到服务器。
+- Provider 生成/回传/物化链路的在线验收仍沿用 r3 的 Gray 证据；本次浏览器 harness 不触发计费 Provider。

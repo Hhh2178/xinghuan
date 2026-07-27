@@ -55,6 +55,13 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
   - `Canvas.tsx` 的 `connect picker / context-menu view shell / remaining edit interactions`
   - `PoseMasterNode.tsx` 的 `field schema / preview sections / runtime actions`
   - `VideoNode.tsx` 的 runtime panel / param sections
+
+## 加载与生成链路稳定性基线
+
+- 画布性能 fixture 与测量命令：`npm run measure:canvas-performance`；原始结果仅写入 gitignored 的 `output/playwright/`。
+- 性能预算门禁：`npm run verify:canvas-performance-budget`，预算来源为 `config/canvas-performance-budget.json`。
+- 0/50/100/200 节点基线必须验证实际节点渲染数、导航耗时、资源数量、长任务和浏览器运行时错误；fixture 不得创建 Provider 任务。
+- 生成节点的可见成功条件是“任务终态 + 可读物化产物”，不能仅凭 Provider 返回 URL 或中间轮询状态显示成功。Worker 的 `task_materializing` 与 `task_artifact_ready` 事件和同任务 ID 恢复链路由发布门禁覆盖。
 # Canvas Connectivity Follow-up (2026-07-24)
 
 - Workflow Region uses a translucent background layer below SVG edges and Canvas nodes. Grouping a node must never make a connected edge opaque or non-interactive.

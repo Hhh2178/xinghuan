@@ -1,0 +1,9 @@
+{
+  "version": "0.8.3",
+  "scenarios": {
+    "0": { "maxNavigationDurationMs": 2500, "maxResourceCount": 30, "maxLongTaskCount": 3, "maxLongTaskDurationMs": 250 },
+    "50": { "maxNavigationDurationMs": 600, "maxResourceCount": 80, "maxLongTaskCount": 3, "maxLongTaskDurationMs": 250 },
+    "100": { "maxNavigationDurationMs": 800, "maxResourceCount": 80, "maxLongTaskCount": 3, "maxLongTaskDurationMs": 250 },
+    "200": { "maxNavigationDurationMs": 1000, "maxResourceCount": 80, "maxLongTaskCount": 3, "maxLongTaskDurationMs": 250 }
+  }
+}
