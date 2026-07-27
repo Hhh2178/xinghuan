@@ -248,6 +248,12 @@
 
 - `apps/admin/src/admin-api-settings-panel.tsx`
 
+## 2026-07-28 Worker dispatch evidence
+
+- `apps/worker/src/worker-operation-dispatch.ts` now owns the pure operation selection seam for Provider execution, output recovery and deterministic Canvas operations.
+- `worker-task-operation.ts` delegates to the table without changing the existing `output_only` contract; `canvas-run-coordinator.ts` uses the same classifier for deterministic nodes and `resize`.
+- Focused Worker and Canvas Run tests cover operation selection, cancellation signal passthrough and handler exclusivity; Worker type-check and hotspot governance pass.
+
 ## 2026-07-28 incremental evidence
 
 - `apps/web/src/components/nodes/ToolboxParamNode.tsx` extracted its persisted parameter schema and multi-angle normalization into `apps/web/src/components/nodes/toolbox-param/toolbox-param-schema.ts`.

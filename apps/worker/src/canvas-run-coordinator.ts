@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { CANVAS_RUN_NATIVE_NODE_TYPES, executeDeterministicNode, NATIVE_DETERMINISTIC_NODE_TYPES } from '@xinghuan/agent-core';
+import { CANVAS_RUN_NATIVE_NODE_TYPES, executeDeterministicNode } from '@xinghuan/agent-core';
 import { projectCanvasRunFailureDiagnostic, taskQueueNameForCapability, type CanvasRunFailureDiagnostic } from '@xinghuan/shared';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import type { RedisClientType } from 'redis';
@@ -10,6 +10,7 @@ import { mergeCanvasRunRecoveryOverrides, planCanvasRunRecovery } from './canvas
 import { initializeSmartCandidateSelector } from './canvas-run-candidate-selector.js';
 import { readCanvasRunTaskProgress } from './canvas-run-task-progress.js';
 import { resizeOwnedImage } from './worker-native-image-transform.js';
+import { resolveCanvasRunOperation } from './worker-operation-dispatch.js';
 import {
   type CanvasRunRecoveryStepRow,
   findCanvasRunPromptRewriteRoute,
@@ -472,7 +473,7 @@ export function createCanvasRunCoordinator(options: {
         await client.query('commit');
         return;
       }
-      if (NATIVE_DETERMINISTIC_NODE_TYPES.has(step.node_type) || step.node_type === 'resize') {
+      if (resolveCanvasRunOperation(step.node_type) === 'deterministic_canvas') {
         try {
           const output = await buildDeterministicOutput(client, step, options.dataDir || 'data');
           await client.query(

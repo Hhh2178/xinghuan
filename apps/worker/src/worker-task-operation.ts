@@ -1,4 +1,5 @@
 import type { TaskRow } from "./worker-task-store.js";
+import { dispatchWorkerOperation } from "./worker-operation-dispatch.js";
 
 export type WorkerTaskOperation = "provider_execution" | "output_recovery";
 export type WorkerTaskExecutionResult = Record<string, unknown>;
@@ -16,7 +17,11 @@ export function resolveWorkerTaskOperation(task: Pick<TaskRow, "payload" | "resu
 }
 
 export async function executeWorkerTaskOperation(input: WorkerTaskOperationInput): Promise<WorkerTaskExecutionResult> {
-  return resolveWorkerTaskOperation(input.task) === "output_recovery"
-    ? input.executeOutputRecovery()
-    : input.executeProvider();
+  return dispatchWorkerOperation({
+    operation: resolveWorkerTaskOperation(input.task),
+    handlers: {
+      providerExecution: () => input.executeProvider(),
+      outputRecovery: () => input.executeOutputRecovery(),
+    },
+  });
 }

@@ -25,6 +25,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - Provider 请求体：`apps/worker/src/worker-provider-request-body.ts`
 - Provider 工具：`apps/worker/src/worker-provider-utils.ts`
 - 媒体异步轮询：`apps/worker/src/worker-media-polling.ts`
+- 统一操作分发：`apps/worker/src/worker-operation-dispatch.ts`
 
 ## 当前重点
 
@@ -58,6 +59,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 当前下一步收口重点已更新为：
   - `remaining runtime glue`
   - `provider capability entry seam`
+- `worker-operation-dispatch.ts` 现在集中声明 Provider execution、output recovery 与 deterministic Canvas operation 的选择；Provider adapter 仍只由对应 handler 调用，Canvas deterministic 节点不会创建 Provider task。
 - AICOPY 视频 Worker 只消费已验证的 `images / videos / audios / videoInputMode / requestContract`，具体 SD 按次、按秒差异由 `packages/model-core` 请求契约解释；Worker 不按模型名硬编码请求体。
 - AICOPY 提交失败时会递归解包上游 JSON `message/error.message`，任务日志保存最内层业务原因；未取得上游 task ID 的校验失败不应被误判为已创建服务商任务。
 
