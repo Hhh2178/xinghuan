@@ -556,6 +556,8 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections (DrawingBoard persistence boundary completed; runtime actions remain)**
 - [ ] **Step 4: Run source-size/hotspot gates after every extraction**
 
+Implementation evidence: `drawing-board-persistence.ts` now owns the layer snapshot boundary and its focused tests cover legacy flat-field synchronization plus group-only recovery. The broader Image/DrawingBoard runtime-action split and CSS boundary work remain intentionally open.
+
 ### Task 15: Split CSS Along Runtime Boundaries
 
 **Files:**
