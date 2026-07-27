@@ -552,7 +552,7 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - Modify matching behavior/render tests and hotspot ledger
 
 - [ ] **Step 1: PoseMaster: extract field schema, preview section, then runtime actions in three tested commits (field schema sub-step completed)**
-- [ ] **Step 2: ToolboxParam: extract parameter section, material binding, then preview helper in three tested commits (schema, multi-angle parameter section and material binding substeps completed)**
+- [x] **Step 2: ToolboxParam: extract parameter section, material binding, then preview helper in three tested commits (schema, multi-angle parameter section, material binding and preview substeps completed)**
 - [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections**
 - [ ] **Step 4: Run source-size/hotspot gates after every extraction**
 
