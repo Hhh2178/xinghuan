@@ -89,6 +89,7 @@ import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
 import { buildOutputRecoveryFailurePatch, executeOutputRecoveryTask } from "./worker-output-recovery.js";
+import { executeWorkerTaskOperation } from "./worker-task-operation.js";
 import { executeImageGenerationBatch, type ImageGenerationBatchProgress } from "./worker-image-generation-batch.js";
 import { executeGenerationBatchWithMaterializedProgress } from "./worker-generation-progress-materializer.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
@@ -545,7 +546,7 @@ async function processTask(taskId: string) {
     : null; let requeueAfterRelease = false;
   let executionResult: Record<string, unknown> = {};
   try {
-    const result = task.payload.outputRecoveryMode === "output_only" ? await executeOutputRecoveryTask(task, decryptSecret) : await executeTask(task, cancellationMonitor?.signal);
+    const result = await executeWorkerTaskOperation({ task, executeProvider: () => executeTask(task, cancellationMonitor?.signal), executeOutputRecovery: () => executeOutputRecoveryTask(task, decryptSecret) });
     executionResult = result;
     if (await workerCancelSync.dropResultIfCancelled({
       taskId,

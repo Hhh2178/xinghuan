@@ -307,6 +307,10 @@ export function createAdminTaskListRouteHandler(deps: {
       const updated = {
         ...withoutFinalizedAt,
         status: "queued",
+        payload: {
+          ...plainObject(currentTask.payload),
+          outputRecoveryMode: "output_only",
+        },
         result: {
           ...currentResult,
           outputRecoveryMode: "output_only",

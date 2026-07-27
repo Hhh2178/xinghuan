@@ -116,6 +116,7 @@ describe("admin task list routes", () => {
     expect(enqueueTask).toHaveBeenCalledWith("task-recover", "video");
     expect(writeTaskRecord).toHaveBeenCalledWith(expect.objectContaining({
       status: "queued",
+      payload: expect.objectContaining({ outputRecoveryMode: "output_only" }),
       result: expect.objectContaining({ outputRecoveryMode: "output_only" }),
     }));
     expect(sent[0].data).toMatchObject({ status: "queued" });
