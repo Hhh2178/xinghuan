@@ -558,7 +558,7 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 
 Implementation evidence: `drawing-board-persistence.ts` owns the layer snapshot boundary, while `image-node-runtime.ts` owns concurrent Provider result aggregation; focused tests cover legacy flat-field synchronization, group-only recovery, output URL/task de-duplication and latest-task recovery. The broader Image/DrawingBoard runtime-action split remains open.
 
-Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source commit `9bcb4fa42a5aa782a8684bb8be0b4b8cb43fd1bd` and the same archive SHA-256 in old-server Gray and Production; both strict runtime and permission readiness gates passed.
+Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source commit `9bcb4fa42a5aa782a8684bb8be0b4b8cb43fd1bd` and the same archive SHA-256 in old-server Gray and Production; both strict runtime and permission readiness gates passed. r14 `20260728-canvas-shell-css-v083-r14` used source commit `5c56dc01fb84310cd280fd0043806c80df6e395b` and the same archive SHA-256 in old-server Gray and Production; full CI and both strict runtime/readiness gates passed.
 
 ### Task 15: Split CSS Along Runtime Boundaries
 
@@ -571,9 +571,9 @@ Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source c
 - [ ] **Step 1: Move only styles owned by each boundary and preserve cascade order through explicit imports (error-recovery.css and canvas-shell.css completed; node-chrome/admin route-shell remain)**
 - [x] **Step 2: Add selector-scope tests rejecting broad global error selectors**
 - [ ] **Step 3: Verify HMR, 1920×1080 layout, CSS budget and affected node smoke**
-- [ ] **Step 4: Release r5 through old-server Gray and same-SHA Production**
+- [x] **Step 4: Release r5 through old-server Gray and same-SHA Production (r14 canvas-shell CSS seam)**
 
-Implementation evidence: `error-recovery.css` and `canvas-shell.css` are explicitly imported by `apps/web/src/styles/index.css`; contract tests protect scoped selectors, keyboard focus styles and ReactFlow stacking. Released error-recovery as r12; canvas-shell/node-chrome/admin route-shell boundaries remain open.
+Implementation evidence: `error-recovery.css` and `canvas-shell.css` are explicitly imported by `apps/web/src/styles/index.css`; contract tests protect scoped selectors, keyboard focus styles and ReactFlow stacking. Released error-recovery as r12 and canvas-shell as r14; node-chrome/admin route-shell boundaries remain open.
 
 ## r6: API and Worker Orchestration Seams
 
@@ -628,4 +628,5 @@ Implementation evidence: `apps/api/src/provider-model-import.ts` now owns capabi
 - [x] **Step 3: Inspect target fingerprints and prove no objective command targeted 43.131.246.222 or zezhen.online**
 - [x] **Step 4: Re-run type-check, tests, builds, Harness, release governance, CodeGraph sync and independent browser smoke; record the unrelated local video-fixture failure**
 - [x] **Step 5: Update current state, system docs, hotspot ledger, release index and daily evidence; commit and push intentional files only**
+- [x] **Step 5A: Release r14 canvas-shell CSS seam through old-server Gray and Production with same-SHA runtime evidence**
 - [ ] **Step 6: Mark the persistent goal complete only after requirement-by-requirement evidence exists**
