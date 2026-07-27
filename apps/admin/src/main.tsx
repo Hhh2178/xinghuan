@@ -48,7 +48,7 @@ import {
   workspaceForTab,
 } from "./admin-view-model";
 import { useAdminNavigation } from "./use-admin-navigation";
-import "./styles.css";
+import "./styles.css"; import "./styles/route-shell.css";
 
 void ConfirmActionDialog;
 void ManualModelDialog;

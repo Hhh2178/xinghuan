@@ -264,6 +264,7 @@
   - 纯函数保持 Provider 回传顺序、去重图片与远端 URL、去重 task ID，并将最新 task ID 作为可恢复主任务；focused tests 固化批量回传与重复回传行为。
 - `2026-07-28` 已将 Canvas shell 的背景/边/节点层级契约从 `apps/web/src/styles/index.css` 下沉到 `apps/web/src/styles/canvas-shell.css`。
 - `2026-07-28` 已将 ReactFlow 节点滚动条与 NodeActionBar token 边界下沉到 `apps/web/src/styles/node-chrome.css`，由入口显式导入并以契约测试锁定 node-scoped selectors。
+- `2026-07-28` 已将 Admin route shell 的 `.starlight-shell`、`.admin-shell`、`.admin-workspace` 与 `.admin-main` 布局契约下沉到 `apps/admin/src/styles/route-shell.css`，由 `main.tsx` 显式导入并以契约测试锁定全局选择器边界。
   - 只移动 shell 变量、伪元素水印层和 ReactFlow background/edges/node stacking；其余历史 canvas selectors 保持原位，避免改变级联范围。
   - `canvas-shell.test.ts` 与现有 Canvas Assistant UI contract 验证显式导入和层级选择器。
 - `2026-07-28` 已将 API provider model import 的 merge/default normalization 从 `apps/api/src/server.ts` 下沉到 `apps/api/src/provider-model-import.ts`。

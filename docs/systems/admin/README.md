@@ -21,6 +21,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - 工作区二级导航：`apps/admin/src/admin-shell-workspace-band.tsx`
 - 路由错误隔离：`apps/admin/src/admin-route-error-boundary.tsx`
 - 动态模块加载恢复：`apps/admin/src/admin-lazy-import-recovery.ts`
+- Admin route-shell 样式边界：`apps/admin/src/styles/route-shell.css`
 - 费用分析：`apps/admin/src/admin-cost-dashboard.tsx`
 - 渠道健康分析：`apps/admin/src/admin-channel-health-dashboard.tsx`
 - 模型计费配置：`apps/admin/src/admin-model-pricing-section.tsx`
@@ -37,6 +38,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - Admin 已采用十个一级业务域：运营总览、账号与组织、权限与安全、Provider 与模型、RH 管理、ComfyUI 管理、内容与资源、任务与运行、数据分析与审计、系统与发布。
 - 正式页面通过稳定 `/admin/...` URL 恢复；页面模块按路由懒加载，业务域数据按需读取，并由页面级错误边界隔离。
 - 壳层、路由状态与工作区导航分别由 `main.tsx`、`use-admin-navigation.ts`、`admin-shell-workspace-band.tsx` 承担，业务面板不再负责一级导航。
+- `.admin-shell`、`.admin-workspace` 和 `.admin-main` 的布局契约由 `route-shell.css` 显式导入，业务 panel 样式继续留在 `styles.css`，降低路由级变更的级联影响。
 - API 平台列表和各平台下的模型列表通过管理员专属上下移动操作维护前台展示顺序；权威字段为 `xh_providers.sort_order` 与 `xh_models.sort_order`。
 - Provider 顺序全局生效；模型顺序限定在同一 Provider 和同一 capability 内，重排 API 要求提交完整作用域并以事务写入。
 - RunningHub 工作台已成为 RH 条目录入和分析的主入口
