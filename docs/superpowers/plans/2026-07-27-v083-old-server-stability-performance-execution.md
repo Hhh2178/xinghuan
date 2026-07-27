@@ -551,12 +551,12 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - Create/modify under `apps/web/src/components/nodes/pose-master/`, `toolbox-param/`, `image/`, `drawing-board/`
 - Modify matching behavior/render tests and hotspot ledger
 
-- [ ] **Step 1: PoseMaster: extract field schema, preview section, then runtime actions in three tested commits (field schema sub-step completed)**
+- [ ] **Step 1: PoseMaster: extract field schema, preview section, then runtime actions in three tested commits (field schema and output runtime substeps completed; preview/actions remain)**
 - [x] **Step 2: ToolboxParam: extract parameter section, material binding, then preview helper in three tested commits (schema, multi-angle parameter section, material binding and preview substeps completed)**
 - [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections (ImageNode result aggregation and DrawingBoard persistence boundaries completed; remaining runtime actions remain)**
 - [ ] **Step 4: Run source-size/hotspot gates after every extraction**
 
-Implementation evidence: `drawing-board-persistence.ts` owns the layer snapshot boundary, while `image-node-runtime.ts` owns concurrent Provider result aggregation; focused tests cover legacy flat-field synchronization, group-only recovery, output URL/task de-duplication and latest-task recovery. The broader Image/DrawingBoard runtime-action split remains open.
+Implementation evidence: `drawing-board-persistence.ts` owns the layer snapshot boundary, `image-node-runtime.ts` owns concurrent Provider result aggregation, and `pose-output-runtime.ts` owns PoseMaster output field normalization plus managed/legacy output target cleanup. Focused tests cover legacy flat-field synchronization, group-only recovery, output URL/task de-duplication, latest-task recovery and PoseMaster single/collection output behavior. The broader PoseMaster preview/actions and Image/DrawingBoard runtime-action split remains open.
 
 Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source commit `9bcb4fa42a5aa782a8684bb8be0b4b8cb43fd1bd` and the same archive SHA-256 in old-server Gray and Production; both strict runtime and permission readiness gates passed. r14 `20260728-canvas-shell-css-v083-r14` used source commit `5c56dc01fb84310cd280fd0043806c80df6e395b` and the same archive SHA-256 in old-server Gray and Production; full CI and both strict runtime/readiness gates passed. r15 `20260728-node-chrome-css-v083-r15` used source commit `5cf6b1f3808f7fc0f30866c647b91cbbb2269b77` and the same archive SHA-256 in old-server Gray and Production; full CI and both strict runtime/readiness gates passed. r16 `20260728-admin-route-shell-v083-r16` used source commit `d92ed239c653f7e068ab4848148617d4f7d4524f` and the same archive SHA-256 in old-server Gray and Production; full CI and both strict runtime/readiness gates passed.
 

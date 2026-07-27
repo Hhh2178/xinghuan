@@ -45,6 +45,7 @@ import {
   type PoseBatchMode,
   type PoseRenderMode,
 } from './pose-master/pose-field-schema';
+import { buildPoseOutputData, planPoseOutputTargets } from './pose-master/pose-output-runtime';
 
 type Lang = 'en' | 'zh';
 type JointKey =
@@ -2757,7 +2758,8 @@ const PoseMasterNode = (props: NodeProps) => {
   };
 
   const writePoseOutputs = (items: Array<{ imageUrl: string; prompt: string; metadata: ReturnType<typeof poseMetadata> }>, successText: string) => {
-    if (items.length === 0) return;
+    const outputData = buildPoseOutputData(id, items, renderMode);
+    if (!outputData) return;
     const imageUrls = items.map((item) => item.imageUrl);
     const prompts = items.map((item) => item.prompt);
     const allMetadata = items.map((item) => item.metadata);
@@ -2786,45 +2788,9 @@ const PoseMasterNode = (props: NodeProps) => {
 
     const nodes = rf.getNodes();
     const edges = rf.getEdges();
-    const downstreamOutputNodes = edges
-      .filter((edge) => edge.source === id)
-      .map((edge) => nodes.find((node) => node.id === edge.target))
-      .filter((node): node is NonNullable<typeof node> => !!node && node.type === 'output');
-    const managedOutputNodes = downstreamOutputNodes.filter((node) =>
-      String(node.id).startsWith(`output-auto-pose-master-${id}-`) || (node.data as any)?.poseMasterSourceId === id,
-    );
-    const legacySplitOutputNodes = downstreamOutputNodes.filter((node) =>
-      String(node.id).startsWith(`output-auto-${id}-`) && (node.data as any)?.poseMasterSourceId !== id,
-    );
-    const targetOutput =
-      managedOutputNodes[0] ||
-      downstreamOutputNodes.find((node) => !legacySplitOutputNodes.some((legacy) => legacy.id === node.id)) ||
-      legacySplitOutputNodes[0];
-    const removableAutoIds = new Set(
-      [...managedOutputNodes, ...legacySplitOutputNodes]
-        .filter((node) => node.id !== targetOutput?.id)
-        .map((node) => node.id),
-    );
-    const outputData = {
-      title: items.length > 1 ? '姿势分镜合集' : '姿势参考',
-      directImageUrl: imageUrls[0],
-      directImageUrls: imageUrls,
-      imageUrl: imageUrls[0],
-      imageUrls,
-      urls: imageUrls,
-      directOutputText: joinedPrompt,
-      directTextSegments: prompts,
-      textSegments: prompts,
-      texts: prompts,
-      prompt: joinedPrompt,
-      text: joinedPrompt,
-      outputText: joinedPrompt,
-      poseMasterSourceId: id,
-      poseMasterRenderMode: renderMode,
-      poseMasterOutputMode: items.length > 1 ? 'collection' : 'single',
-      poseMasterMetadata: items.length === 1 ? allMetadata[0] : allMetadata,
-      updatedAt: Date.now(),
-    };
+    const targetPlan = planPoseOutputTargets(id, nodes, edges);
+    const targetOutput = nodes.find((node) => node.id === targetPlan.targetOutputId);
+    const removableAutoIds = new Set(targetPlan.removableOutputIds);
 
     if (targetOutput) {
       rf.setNodes((current) =>
