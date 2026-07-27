@@ -11,6 +11,7 @@
 - Web type-check：passed。
 - `verify:web-lazy-import-recovery`：passed。
 - `verify:file-hotspot-budgets`：passed。
+- Deterministic fixture factory and tests now cover empty, 50, 100 and 200-node scenarios with stable IDs, positions, edges, groups and bounded runtime projections; fixture generation never calls a Provider.
 
 ## 尚未完成
 

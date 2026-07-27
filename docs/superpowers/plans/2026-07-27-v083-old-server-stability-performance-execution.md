@@ -456,7 +456,7 @@ Run focused Worker tests, delivery-contract verifier, local mock end-to-end fixt
 - Create: `docs/logbooks/validations/2026-07-27-canvas-performance-baseline-v083.md`
 - Modify: `package.json`, `docs/systems/canvas/README.md`
 
-- [ ] **Step 1: Build empty, 50, 100 and 200-node fixtures**
+- [x] **Step 1: Build empty, 50, 100 and 200-node fixtures**
 
 Fixtures use stable IDs/positions/edges, groups and bounded runtime projections. They never create external Provider work.
 
