@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "e15678e48b1ac9716af09d92b06c1f1b4489889e",
+  "sourceCommit": "9bcb4fa42a5aa782a8684bb8be0b4b8cb43fd1bd",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-error-recovery-css-v083-r12",
+      "releaseId": "20260728-image-result-aggregation-v083-r13",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-error-recovery-css-v083-r12.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-error-recovery-css-v083-r12.md",
-      "rollbackReleaseId": "20260728-drawing-board-persistence-v083-r11"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-image-result-aggregation-v083-r13.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-image-result-aggregation-v083-r13.md",
+      "rollbackReleaseId": "20260728-error-recovery-css-v083-r12"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260728-error-recovery-css-v083-r12",
+      "releaseId": "20260728-image-result-aggregation-v083-r13",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-error-recovery-css-v083-r12.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-error-recovery-css-v083-r12.md",
-      "rollbackReleaseId": "20260728-drawing-board-persistence-v083-r11"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-image-result-aggregation-v083-r13.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-image-result-aggregation-v083-r13.md",
+      "rollbackReleaseId": "20260728-error-recovery-css-v083-r12"
     }
   }
 }

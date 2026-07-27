@@ -558,6 +558,8 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 
 Implementation evidence: `drawing-board-persistence.ts` owns the layer snapshot boundary, while `image-node-runtime.ts` owns concurrent Provider result aggregation; focused tests cover legacy flat-field synchronization, group-only recovery, output URL/task de-duplication and latest-task recovery. The broader Image/DrawingBoard runtime-action split remains open.
 
+Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source commit `9bcb4fa42a5aa782a8684bb8be0b4b8cb43fd1bd` and the same archive SHA-256 in old-server Gray and Production; both strict runtime and permission readiness gates passed.
+
 ### Task 15: Split CSS Along Runtime Boundaries
 
 **Files:**
