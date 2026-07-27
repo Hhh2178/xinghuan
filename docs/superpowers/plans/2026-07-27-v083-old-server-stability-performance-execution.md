@@ -356,7 +356,7 @@ interface UiFailureDiagnostic {
 }
 ~~~
 
-- [ ] **Step 1: Write redaction and reset tests**
+- [x] **Step 1: Write redaction and reset tests**
 
 ~~~ts
 const diagnostic = toUiFailureDiagnostic(new Error('https://secret.example/path'), 'node-renderer');
@@ -364,7 +364,7 @@ expect(diagnostic).toMatchObject({ scope: 'node-renderer', recoverable: true });
 expect(diagnostic.userMessage).not.toContain('secret.example');
 ~~~
 
-- [ ] **Step 2: Implement diagnostic and recovery panel**
+- [x] **Step 2: Implement diagnostic and recovery panel**
 
 The panel displays a safe message, diagnostic ID, retry and secondary reload. Development may log a stack; production markup must not render raw component stacks, URLs or secrets.
 
