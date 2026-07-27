@@ -49,6 +49,7 @@ import {
   parseMultiAngleCustomAngles,
 } from './toolbox-param/toolbox-param-schema';
 import { ToolboxMultiAngleParameterSection } from './toolbox-param/ToolboxMultiAngleParameterSection';
+import { collectFirstImageUrl } from './toolbox-param/toolbox-material-binding';
 
 /**
  * ToolboxParamNode - 参数提供节点
@@ -1208,29 +1209,6 @@ function MotionRoutePreview({ actionId, pathId }: { actionId?: string; pathId?: 
       </div>
     </div>
   );
-}
-
-function collectFirstImageUrl(nodesData: any) {
-  const list = Array.isArray(nodesData) ? nodesData : nodesData ? [nodesData] : [];
-  const pushFrom = (value: any): string => {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    return '';
-  };
-  for (const node of list) {
-    const d = node?.data || {};
-    const direct = pushFrom(d.imageUrl) || (d.uploadType === 'image' ? pushFrom(d.url) : '');
-    if (direct) return direct;
-    for (const key of ['imageUrls', 'urls', 'generatedImages'] as const) {
-      const arr = d[key];
-      if (Array.isArray(arr)) {
-        const found = arr.find((item: any) => typeof item === 'string' && item.trim());
-        if (found) return found.trim();
-      }
-    }
-    const firstFrame = pushFrom(d.firstFrameUrl) || pushFrom(d.lastFrameUrl);
-    if (firstFrame) return firstFrame;
-  }
-  return '';
 }
 
 type MultiAngleControl = 'azimuth' | 'elevation' | 'distance';

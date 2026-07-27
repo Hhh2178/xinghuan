@@ -263,6 +263,7 @@
 
 - `ToolboxParamNode.tsx` now delegates the multi-angle adjustment, angle-preset and output-setting controls to `toolbox-param/ToolboxMultiAngleParameterSection.tsx`; the component remains the composition shell for text supplements, favorites and runtime actions.
 - The extracted section has a server-rendered focused test for the visible control contract; persisted patch keys continue to flow through the existing `updateMultiAngle` callback.
+- Upstream image material binding is now isolated in `toolbox-param/toolbox-material-binding.ts`; direct, collection and first/last-frame inputs are covered, while non-image upload URLs are rejected.
   - `2026-06-24` 已将 provider draft / assistant plan / input capability 等纯 helper 下沉到 `admin-api-settings-panel-helpers.ts`
   - 主文件行数：`1289 -> 1103`
   - 当前已退出 `1200+` watchlist，但后续仍建议继续拆 `provider groups / sections / save helpers`
