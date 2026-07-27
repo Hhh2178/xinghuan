@@ -84,6 +84,7 @@ import {
   providerModelHeaders,
   providerModelsUrl,
 } from "./provider-model-catalog.js";
+import { importProviderModels, type AdminModelRecord } from "./provider-model-import.js";
 import {
   normalizeProviderReferenceUrl as normalizeProviderReferenceUrlForAccess,
   normalizeProviderReferenceUrls as normalizeProviderReferenceUrlsForAccess,
@@ -1013,26 +1014,6 @@ interface ModelScopeLora {
   strength: number;
   enabled: boolean;
   note?: string;
-}
-
-interface AdminModelRecord {
-  id: string;
-  sortOrder?: number;
-  providerId: string;
-  modelId: string;
-  displayName: string;
-  capability: ModelCapability;
-  enabled: boolean;
-  executionMode?: ProviderGenerationExecutionMode;
-  inputProfile: string;
-  inputCapabilities?: Record<string, unknown>;
-  capabilityTags?: ModelCapabilityTag[];
-  testState?: ModelTestState;
-  parameterSchema: string;
-  advancedConfig?: Record<string, unknown>;
-  protocolOverride?: string;
-  createdAt: number;
-  updatedAt: number;
 }
 
 interface AdminTaskRecord {
@@ -3078,71 +3059,26 @@ async function handleAdminRequest(
     if (!provider) throw new Error("Provider 不存在");
     const now = Date.now();
     const incoming = Array.isArray(body.models) ? body.models : [];
-    const nextModels = [...db.models];
-    const touchedModels: AdminModelRecord[] = [];
-    let imported = 0;
-    for (const item of incoming) {
-      const modelId = safeText(item.modelId);
-      if (!modelId) continue;
-      const capability = normalizeCapability(item.capability);
-      const capabilityTags = normalizeModelCapabilityTags(
-        item.capabilityTags === undefined ? inferModelCapabilityTags(modelId, capability) : item.capabilityTags,
-        capability,
-        modelId,
-      );
-      const id = safeSlug(`${providerId}-${capability}-${modelId}`, `model-${now}-${imported}`);
-      const existingIndex = nextModels.findIndex((model) => model.providerId === providerId && model.modelId === modelId);
-      const model: AdminModelRecord = {
-        id: existingIndex >= 0 ? nextModels[existingIndex].id : id,
-        providerId,
-        modelId,
-        displayName: safeText(item.displayName, modelId),
-        capability,
-        enabled: true,
-        inputProfile:
-          existingIndex >= 0
-            ? nextModels[existingIndex].inputProfile
-            : capability === "audio"
-              ? "prompt,audio_reference"
-            : capability === "image" || capability === "video"
-              ? "prompt,image_reference"
-              : "prompt",
-        inputCapabilities:
-          existingIndex >= 0
-            ? plainObject(nextModels[existingIndex].inputCapabilities)
-            : capability === "audio"
-              ? { prompt: true, audioReference: capabilityTags.includes("voice_clone") }
-            : capability === "video"
-              ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
-              : capability === "image"
-                ? { prompt: true, imageReference: true, multiImage: false, firstFrame: false, lastFrame: false }
-                : {
-                    prompt: true,
-                    imageReference: capabilityTags.includes("image_understanding"),
-                    videoReference: capabilityTags.includes("video_understanding"),
-                    audioReference: capabilityTags.includes("audio_understanding"),
-                    multiImage: false,
-                    firstFrame: false,
-                    lastFrame: false,
-                  },
-        capabilityTags: existingIndex >= 0
-          ? normalizeModelCapabilityTags(nextModels[existingIndex].capabilityTags, capability, modelId)
-          : capabilityTags,
-        testState: existingIndex >= 0 ? normalizeModelTestState(nextModels[existingIndex].testState) : {},
-        parameterSchema: existingIndex >= 0 ? nextModels[existingIndex].parameterSchema : "{}",
-        advancedConfig: existingIndex >= 0 ? plainObject(nextModels[existingIndex].advancedConfig) : {},
-        protocolOverride: normalizeOptionalProtocol(item.protocolOverride),
-        createdAt: existingIndex >= 0 ? nextModels[existingIndex].createdAt : now,
-        updatedAt: now,
-      };
-      const normalized = existingIndex >= 0
-        ? normalizeAdminModelRecord({ ...nextModels[existingIndex], ...model })
-        : normalizeAdminModelRecord(model);
-      if (existingIndex >= 0) nextModels[existingIndex] = normalized;
-      else nextModels.unshift(normalized);
-      touchedModels.push(normalized);
-      imported += 1;
-    }
+    const importedModels = importProviderModels({
+      providerId,
+      now,
+      existing: db.models,
+      incoming,
+      deps: {
+        normalizeCapability,
+        normalizeModelCapabilityTags,
+        inferModelCapabilityTags,
+        normalizeOptionalProtocol,
+        normalizeAdminModelRecord,
+        normalizeModelTestState,
+        plainObject,
+        safeSlug,
+        safeText,
+      },
+    });
+    const nextModels = importedModels.models;
+    const touchedModels = importedModels.touched;
+    const imported = importedModels.imported;
     if (usePostgresRepository()) {
       for (const model of touchedModels) {
         await upsertModelRecordPostgres(model);

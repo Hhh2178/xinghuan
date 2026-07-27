@@ -19,6 +19,7 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
 - 后台 queue settings 路由：`apps/api/src/admin-queue-settings-routes.ts`
 - 后台 assistant settings 路由：`apps/api/src/admin-assistant-settings-routes.ts`
 - 后台 provider 路由：`apps/api/src/admin-provider-routes.ts`
+- Provider model import 归一化：`apps/api/src/provider-model-import.ts`
 - 后台系统状态响应适配：`apps/api/src/admin-system-response-adapter.ts`
 - 通用 system/queue 响应适配：`apps/api/src/api-response-adapters.ts`
 - RunningHub catalog：`apps/api/src/runninghub-catalog.ts`
@@ -35,6 +36,7 @@ API 是前端、后台、Worker 与外部平台之间的统一协调层，负责
   - `admin-system-routes.ts` 继续收口为 admin system 兼容/装配壳
   - 稳定响应拼装已下沉到 `admin-system-response-adapter.ts`
   - 稳定 provider CRUD / probe / fetch-models 路由已下沉到 `admin-provider-routes.ts`
+  - provider model import 的 merge、stable-field 保留和 capability-aware defaults 已下沉到 `provider-model-import.ts`；`server.ts` 只保留依赖注入、持久化、审计和响应装配
   - `GET /api/admin/system` 已继续下沉到 `admin-system-settings-routes.ts`
   - 系统健康读取支持 `range=1h|24h|7d|30d`；趋势只返回服务端聚合桶，不向后台发送任务 payload/result/logs
   - task health 使用失败率、7d/30d 同粒度基线与最小样本量；cancelled 与 failed 分离，数据不足返回 `unknown`

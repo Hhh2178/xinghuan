@@ -256,6 +256,11 @@
 
 ## 2026-07-28 incremental evidence
 
+- `2026-07-28` 已将 API provider model import 的 merge/default normalization 从 `apps/api/src/server.ts` 下沉到 `apps/api/src/provider-model-import.ts`。
+  - 新模块负责模型能力、能力标签、协议覆盖、slug、旧记录保留字段与新模型默认输入能力的归一化，并以 focused tests 固化“更新保留稳定字段、新增按 capability 提供默认值”的行为。
+  - `server.ts` 现在只负责鉴权、请求解析、依赖注入、Postgres/文件持久化、审计与 HTTP 响应；provider model import 不再在主文件内维护逐条 merge 循环。
+  - 下一步仍保持为 provider execution / remaining runtime glue 的独立 seam，避免把外部协议细节重新堆回入口文件。
+
 - `apps/web/src/components/nodes/ToolboxParamNode.tsx` extracted its persisted parameter schema and multi-angle normalization into `apps/web/src/components/nodes/toolbox-param/toolbox-param-schema.ts`.
 - The extraction preserves language, prompt-mode and batch-mode IDs, ordering, favorite patch shapes and custom-angle normalization; `toolbox-param-schema.test.ts` locks those boundaries.
 - The component remains the composition shell for parameter sections, material bindings and preview helpers. Those seams remain separate follow-up work; no broad UI rewrite or renderer behavior change is implied.

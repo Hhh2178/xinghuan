@@ -604,10 +604,12 @@ Implementation evidence: `apps/worker/src/worker-operation-dispatch.ts` is a pur
 - Create or extend focused `apps/api/src/provider-*` modules
 - Modify: `apps/api/src/server.ts`, targeted API tests and hotspot ledger
 
-- [ ] **Step 1: Use CodeGraph impact analysis to choose one provider key-pool or import-model normalization seam**
-- [ ] **Step 2: Write behavior tests before extraction and preserve HTTP responses/errors**
-- [ ] **Step 3: Extract one seam per commit, leaving only route registration in server.ts**
+- [x] **Step 1: Use CodeGraph impact analysis to choose one provider key-pool or import-model normalization seam**
+- [x] **Step 2: Write behavior tests before extraction and preserve HTTP responses/errors**
+- [x] **Step 3: Extract one seam per commit, leaving only route registration in server.ts**
 - [ ] **Step 4: Release r6 after affected API/Worker integration and old-server gates**
+
+Implementation evidence: `apps/api/src/provider-model-import.ts` now owns capability/tag/protocol normalization, stable-field preservation and capability-aware defaults for model imports. `provider-model-import.test.ts` covers update and new-model behavior; the route keeps persistence, audit and HTTP response semantics. Step 4 is tracked as the next old-server release gate (r10).
 
 ## Final Verification and Completion Audit
 
