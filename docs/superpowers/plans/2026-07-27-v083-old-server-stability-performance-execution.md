@@ -255,7 +255,7 @@ Use CodeGraph and current verifiers to map `Canvas -> API task creation -> Worke
 
 Create a static verifier that requires idempotency propagation, cancellation passthrough, Provider submission identity, bounded polling/retry classification, output-recovery handoff, terminal materialization evidence and owner-scoped runtime projection. It must reject a direct Provider resubmission for an `output_only` task. The initial red run proved that `provider-generation-task-service.ts` had no persisted client idempotency key; the final gate verifies the owner-scoped lookup, duplicate-safe API path and PostgreSQL unique index.
 
-- [ ] **Step 3: Add a deterministic local end-to-end fixture**
+- [x] **Step 3: Add a deterministic local end-to-end fixture**
 
 Use a local mock Provider only. Prove an accepted Canvas request produces one Provider submission, stores a correlation ID, materializes a readable artifact and reaches success; separately prove a completed-but-unmaterialized result retries only materialization and never bills/submits again.
 

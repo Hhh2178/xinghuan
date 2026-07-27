@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const [webGeneration, service, taskRepository, worker, operation, recovery, lifecycle, outputFixture, runtimeProjection, idempotencyMigration] = await Promise.all([
+const [webGeneration, service, taskRepository, worker, operation, recovery, lifecycle, outputFixture, deliveryFixture, runtimeProjection, idempotencyMigration] = await Promise.all([
   read("apps/web/src/services/generation.ts"),
   read("apps/api/src/provider-generation-task-service.ts"),
   read("apps/api/src/task-repository.ts"),
@@ -11,6 +11,7 @@ const [webGeneration, service, taskRepository, worker, operation, recovery, life
   read("apps/worker/src/worker-output-recovery.ts"),
   read("apps/worker/src/worker-task-lifecycle.ts"),
   read("scripts/verify-worker-output-materials.mjs"),
+  read("apps/worker/src/canvas-generation-delivery-fixture.test.ts"),
   read("apps/api/src/task-runtime-projection.ts"),
   read("apps/api/db/046_provider_generation_task_idempotency.sql"),
 ]);
@@ -30,5 +31,7 @@ assert.match(outputFixture, /startMockOpenAiServer\(/, "delivery fixture must us
 assert.match(outputFixture, /task\?\.status === "succeeded"/, "delivery fixture must await terminal success");
 assert.match(outputFixture, /artifact\.fileUrl\?\.startsWith\("\/files\/output\/"\)/, "delivery fixture must require materialized output");
 assert.match(outputFixture, /savedFile\.status === 200/, "delivery fixture must require readable output");
+assert.match(deliveryFixture, /submits one provider task, materializes a readable artifact, and projects success/, "local fixture must cover Canvas submission through terminal success");
+assert.match(deliveryFixture, /re-materializes a completed output without another Provider submission/, "local fixture must cover output-only recovery without rebilling");
 
 console.log(JSON.stringify({ ok: true, contract: "canvas-generation-delivery" }, null, 2));
