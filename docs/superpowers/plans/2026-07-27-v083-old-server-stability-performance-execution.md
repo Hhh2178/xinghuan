@@ -553,10 +553,10 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 
 - [ ] **Step 1: PoseMaster: extract field schema, preview section, then runtime actions in three tested commits (field schema sub-step completed)**
 - [x] **Step 2: ToolboxParam: extract parameter section, material binding, then preview helper in three tested commits (schema, multi-angle parameter section, material binding and preview substeps completed)**
-- [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections (DrawingBoard persistence boundary completed; runtime actions remain)**
+- [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections (ImageNode result aggregation and DrawingBoard persistence boundaries completed; remaining runtime actions remain)**
 - [ ] **Step 4: Run source-size/hotspot gates after every extraction**
 
-Implementation evidence: `drawing-board-persistence.ts` now owns the layer snapshot boundary and its focused tests cover legacy flat-field synchronization plus group-only recovery. The broader Image/DrawingBoard runtime-action split and CSS boundary work remain intentionally open.
+Implementation evidence: `drawing-board-persistence.ts` owns the layer snapshot boundary, while `image-node-runtime.ts` owns concurrent Provider result aggregation; focused tests cover legacy flat-field synchronization, group-only recovery, output URL/task de-duplication and latest-task recovery. The broader Image/DrawingBoard runtime-action split remains open.
 
 ### Task 15: Split CSS Along Runtime Boundaries
 

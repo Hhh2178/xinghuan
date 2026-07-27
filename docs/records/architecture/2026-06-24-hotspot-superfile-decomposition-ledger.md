@@ -260,6 +260,8 @@
   - 纯函数保证 `boardLayers` 与 legacy `boardElements` 始终从同一份可编辑图层快照生成，并在恢复到 group-only 数据时创建可编辑 fallback layer。
   - focused tests 覆盖图层顺序、group 排除和 group-only 恢复；节点视图仍保留交互与渲染职责，未改变既有字段名。
 - `2026-07-28` 已将错误边界与崩溃回退样式从 `apps/web/src/styles/index.css` 下沉到 `apps/web/src/styles/error-recovery.css`，入口显式导入并以契约测试保证 selector namespace 不扩散到 `html/body/*`。
+- `2026-07-28` 已将 ImageNode 并发生成结果的 URL/taskId/usedI2I 聚合下沉到 `apps/web/src/components/nodes/image-node-runtime.ts`。
+  - 纯函数保持 Provider 回传顺序、去重图片与远端 URL、去重 task ID，并将最新 task ID 作为可恢复主任务；focused tests 固化批量回传与重复回传行为。
 - `2026-07-28` 已将 API provider model import 的 merge/default normalization 从 `apps/api/src/server.ts` 下沉到 `apps/api/src/provider-model-import.ts`。
   - 新模块负责模型能力、能力标签、协议覆盖、slug、旧记录保留字段与新模型默认输入能力的归一化，并以 focused tests 固化“更新保留稳定字段、新增按 capability 提供默认值”的行为。
   - `server.ts` 现在只负责鉴权、请求解析、依赖注入、Postgres/文件持久化、审计与 HTTP 响应；provider model import 不再在主文件内维护逐条 merge 循环。

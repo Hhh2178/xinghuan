@@ -78,6 +78,7 @@ import {
 } from '../../utils/publishedModelSelection';
 import { COMFY_APP_SOURCE_LABELS } from '../../utils/comfyuiApps';
 import { canonicalizeComfyFieldsByWorkflow } from '../../utils/comfyuiWorkflow';
+import { appendImageGenerationResult, type ImageGenerationAggregation } from './image-node-runtime';
 
 /**
  * ImageNode - 图像生成(ZhenzhenMagic)
@@ -1209,26 +1210,17 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         progress: generationCount > 1 ? `1/${generationCount}` : '0%',
         taskRuns: initialTaskRuns,
       });
-      const aggregatedImageUrls: string[] = accumulateOutputs
-        ? (Array.isArray(d?.imageUrls) ? d.imageUrls.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0) : [])
-        : [];
-      const aggregatedRemoteImageUrls: string[] = [];
-      const taskIds: string[] = [];
-      let lastTaskId: string | undefined = undefined;
-      let usedI2I = false;
+      let aggregation: ImageGenerationAggregation = {
+        imageUrls: accumulateOutputs
+          ? (Array.isArray(d?.imageUrls) ? d.imageUrls.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0) : [])
+          : [],
+        remoteImageUrls: [],
+        taskIds: [],
+        usedI2I: false,
+      };
 
-      const appendImageGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleImageGeneration>>) => {
-        for (const url of result.imageUrls) {
-          if (url && !aggregatedImageUrls.includes(url)) aggregatedImageUrls.push(url);
-        }
-        for (const url of result.remoteImageUrls) {
-          if (url && !aggregatedRemoteImageUrls.includes(url)) aggregatedRemoteImageUrls.push(url);
-        }
-        if (result.taskId) {
-          lastTaskId = result.taskId;
-          if (!taskIds.includes(result.taskId)) taskIds.push(result.taskId);
-        }
-        usedI2I = usedI2I || result.usedI2I;
+      const recordImageGenerationResult = (batchIndex: number, result: Awaited<ReturnType<typeof runSingleImageGeneration>>) => {
+        aggregation = appendImageGenerationResult(aggregation, result);
         patchTaskRun(batchIndex, {
           status: 'success',
           taskId: result.taskId,
@@ -1237,12 +1229,12 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           finishedAt: Date.now(),
         });
         update({
-          progress: generationCount > 1 ? `${aggregatedImageUrls.length}/${generationCount}` : '95%',
-          imageUrl: aggregatedImageUrls[0],
-          imageUrls: [...aggregatedImageUrls],
-          remoteImageUrls: [...aggregatedRemoteImageUrls],
-          taskId: lastTaskId,
-          taskIds: [...taskIds],
+          progress: generationCount > 1 ? `${aggregation.imageUrls.length}/${generationCount}` : '95%',
+          imageUrl: aggregation.imageUrls[0],
+          imageUrls: [...aggregation.imageUrls],
+          remoteImageUrls: [...aggregation.remoteImageUrls],
+          taskId: aggregation.lastTaskId,
+          taskIds: [...aggregation.taskIds],
         });
       };
 
@@ -1250,7 +1242,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         const jobs = Array.from({ length: generationCount }, (_, batchIndex) =>
           runSingleImageGeneration(batchIndex)
             .then((result) => {
-              appendImageGenerationResult(batchIndex, result);
+              recordImageGenerationResult(batchIndex, result);
               return result;
             })
             .catch((error) => {
@@ -1268,26 +1260,26 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       const settled = await runConcurrentImageGenerations();
       const rejected = settled.filter((item): item is PromiseRejectedResult => item.status === 'rejected');
 
-      if (aggregatedImageUrls.length === 0) {
+      if (aggregation.imageUrls.length === 0) {
         const reasons = rejected.map((item) => imageGenerationErrorMessage(item.reason)).filter(Boolean);
         throw new Error(reasons.length > 0 ? `图片生成失败：${reasons.join('；')}` : '图片生成失败：没有返回可用图片。');
       }
       markRuntimeFinished(runtimeStartedAt, {
         status: 'success',
         progress: '100%',
-        imageUrl: aggregatedImageUrls[0],
-        imageUrls: aggregatedImageUrls,
-        remoteImageUrls: aggregatedRemoteImageUrls,
+        imageUrl: aggregation.imageUrls[0],
+        imageUrls: aggregation.imageUrls,
+        remoteImageUrls: aggregation.remoteImageUrls,
         lastPrompt: finalPrompt,
-        usedI2I,
-        taskId: lastTaskId || d?.taskId,
-        taskIds,
+        usedI2I: aggregation.usedI2I,
+        taskId: aggregation.lastTaskId || d?.taskId,
+        taskIds: aggregation.taskIds,
         taskRuns: taskRunsRef.current.length > 0 ? taskRunsRef.current : initialTaskRuns,
       });
       if (rejected.length > 0) {
         logBus.warn(`部分生成失败: ${rejected.map((item) => imageGenerationErrorMessage(item.reason)).join('；')}`, src);
       }
-      logBus.success(`生成完成，共 ${aggregatedImageUrls.length} 张图片`, src);
+      logBus.success(`生成完成，共 ${aggregation.imageUrls.length} 张图片`, src);
       taskCompletionSound.notifyComplete(id, 'image');
     } catch (e: any) {
       const msg = e?.message || '生成失败';
