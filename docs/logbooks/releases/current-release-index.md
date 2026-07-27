@@ -5,14 +5,14 @@
 ### Production
 
 - 版本：`v0.8.3`
-- release：`20260728-drawing-board-persistence-v083-r11`
+- release：`20260728-error-recovery-css-v083-r12`
 - 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；继续包含 Provider model import 归一化、ToolboxParam 参数区/素材绑定/多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
+- 部署内容：`error-recovery.css 崩溃回退样式边界；继续包含 DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定/多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
 - Agent 运行态：`已加入运行环境静态 readiness 门禁；本批次未重复执行付费 Agent canary`
-- 回滚：`20260728-api-model-import-seam-v083-r10`
+- 回滚：`20260728-drawing-board-persistence-v083-r11`
 - 当前批次记录：
-  - `production/2026-07-28-drawing-board-persistence-v083-r11.md`
-  - `../validations/2026-07-28-drawing-board-persistence-v083-r11.md`
+  - `production/2026-07-28-error-recovery-css-v083-r12.md`
+  - `../validations/2026-07-28-error-recovery-css-v083-r12.md`
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -24,16 +24,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-drawing-board-persistence-v083-r11`
+- release：`20260728-error-recovery-css-v083-r12`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；继续包含 Provider model import 归一化、ToolboxParam 参数区/素材绑定/多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
+- 部署内容：`error-recovery.css 崩溃回退样式边界；继续包含 DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定/多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`36d9205`
-- 本轮制品 SHA-256：`25DB58B9797D6466BF5EF1228359E8E8FE95CFF52C3A46FD6F5A8CFB94FAC808`
+- 本轮制品源提交：`e15678e`
+- 本轮制品 SHA-256：`6CB3C2A940EFF173BE517124D7381B5A6A47F1EAA883900B037D36CA8CC2C264`
 - 本轮发布记录：
-  - `gray/2026-07-28-drawing-board-persistence-v083-r11.md`
-  - `../validations/2026-07-28-drawing-board-persistence-v083-r11.md`
+  - `gray/2026-07-28-error-recovery-css-v083-r12.md`
+  - `../validations/2026-07-28-error-recovery-css-v083-r12.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

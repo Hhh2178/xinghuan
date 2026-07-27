@@ -571,6 +571,8 @@ Implementation evidence: `drawing-board-persistence.ts` now owns the layer snaps
 - [ ] **Step 3: Verify HMR, 1920×1080 layout, CSS budget and affected node smoke**
 - [ ] **Step 4: Release r5 through old-server Gray and same-SHA Production**
 
+Implementation evidence: `error-recovery.css` is explicitly imported by `apps/web/src/styles/index.css`; its contract test protects scoped workspace/node selectors and keyboard focus styles. Released as r12 on old-server Gray then Production with the same archive; canvas-shell/node-chrome CSS boundaries remain open.
+
 ## r6: API and Worker Orchestration Seams
 
 ### Task 15A: Close Provider Query Retry Gaps
