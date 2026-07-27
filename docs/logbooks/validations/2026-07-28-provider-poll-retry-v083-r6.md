@@ -14,4 +14,6 @@
 - Gray 严格运行态通过：旧服务器 Gray 当前 r6，API/Worker active，内部/公网状态均为 0.8.3/gray。
 - Production 严格运行态通过：旧服务器 Production 当前 r6，API/Worker active，内部/公网状态均为 0.8.3/production；首次公网连接超时后复核成功。
 - Gray 与 Production 使用同一源码提交 `d067e468758c3d46e907170aef03cae2fbf2660d` 和同一归档 SHA-256 `FD81820DB7340376599738CB1FBF276F4CDFA5CBACBBA51B3A46899C8809CCC1`。
+- 独立本地单端口 Chrome/CDP Canvas smoke 通过：56 个注册节点全部渲染，0 missing、0 class mismatch、0 runtime error、0 network failure，无登录残留和错误边界。
+- `verify:local-acceptance-chain` 在后续 smoke 前于本地视频样例种子项失败（`Local sample video seeded` / generation-library video）；该环境型样例失败未被计入 Canvas smoke 或 Provider 成功结论。
 - 未执行 retention apply、历史发布删除或付费 Provider/Agent canary。

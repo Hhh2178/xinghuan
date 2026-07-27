@@ -538,9 +538,9 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - Modify only if accepted: `apps/web/src/components/Canvas.tsx`
 - Modify: r4 performance validation record
 
-- [ ] **Step 1: Test off-screen grouped nodes, Workflow Region edges, selection, fit-view and runtime projection with visibility rendering off/on**
+- [x] **Step 1: Test off-screen grouped nodes, Workflow Region overlay, cross-viewport edges, selection, fit-view and runtime projection against React Flow visibility semantics**
 - [ ] **Step 2: Enable only if all behavior tests pass and 100/200-node measurements improve**
-- [ ] **Step 3: Otherwise record rejection and retain current rendering**
+- [x] **Step 3: Record rejection and retain current rendering because renderer-level behavior and performance evidence are insufficient**
 
 ## r5: Hot Node and CSS Boundaries
 
@@ -614,6 +614,6 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - [x] **Step 1: Inspect r1-r6 records and prove every product version is 0.8.3, Gray precedes Production and Production SHA equals Gray SHA**
 - [x] **Step 2: Read old-server release directories and prove no historical release was removed**
 - [x] **Step 3: Inspect target fingerprints and prove no objective command targeted 43.131.246.222 or zezhen.online**
-- [ ] **Step 4: Re-run type-check, tests, builds, Harness, release governance, CodeGraph sync and browser smoke**
+- [x] **Step 4: Re-run type-check, tests, builds, Harness, release governance, CodeGraph sync and independent browser smoke; record the unrelated local video-fixture failure**
 - [x] **Step 5: Update current state, system docs, hotspot ledger, release index and daily evidence; commit and push intentional files only**
 - [ ] **Step 6: Mark the persistent goal complete only after requirement-by-requirement evidence exists**
