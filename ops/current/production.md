@@ -4,9 +4,9 @@
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.8.3`
-- 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
+- 当前 release：`20260728-generation-materialization-stability-v083-r3`
 - 当前状态：`旧服务器 Production 已晋级；API/Worker、内部/公网状态与权限 readiness 均已通过`
-- 当前补修：`recover-output 以独立 operation 分支执行；画布生成提交以 owner/idempotencyKey 去重并处理并发唯一键冲突`
+- 当前补修：`recover-output 独立 operation；画布生成幂等去重；图片/视频/音频物料化统一重试与 .part 原子提升；materializing/artifact_ready 阶段事件`
 - Agent 运行态：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
 - 当前限制：`尚未以付费 Provider 成功任务完成隔离的 Gray 端到端物料化验收；本批次未重复 Agent 真实请求 canary`
 - 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`

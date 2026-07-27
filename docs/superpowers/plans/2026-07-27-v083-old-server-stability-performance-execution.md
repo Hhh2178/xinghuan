@@ -436,11 +436,11 @@ Use mocked filesystem and fetch streams to prove no final filename is written wh
 
 Use one bounded downloader for all remote media, validate response status and media MIME before promotion, use bounded retry/backoff only for the documented transient classes, then write a unique sibling `.part` file and atomically rename it to the final output filename. Preserve the existing video Range-resume behavior. Clean up only the explicit failed temporary file when safe; never delete historical output or release files. Keep data-URL and already-local output behavior unchanged. Full streaming-to-disk is a follow-on capacity hardening item, not an unverified claim of this batch.
 
-- [ ] **Step 4: Record stage-safe evidence**
+- [x] **Step 4: Record stage-safe evidence**
 
 Persist sanitized task runtime events/metrics for `materializing`, `artifact_ready` and materialization failure classification without URLs, credentials or prompt text. A terminal user-visible success is allowed only after the readable artifact and registration evidence exist.
 
-- [ ] **Step 5: Validate and release r3 on the old server**
+- [x] **Step 5: Validate and release r3 on the old server**
 
 Run focused Worker tests, delivery-contract verifier, local mock end-to-end fixture, full relevant release gates, then package one `0.8.3-r3` archive. Promote the same SHA Gray then Production, run non-destructive runtime checks, and record that no retention command ran. Paid Provider canaries remain off unless explicitly authorized.
 

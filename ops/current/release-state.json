@@ -1,30 +1,30 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-27",
+  "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "48fbb61e7298b25e7da268e5e07d49a2e8cfc119",
+  "sourceCommit": "dacca28b0f24af4866c098a0994a6d24002e1fe7",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260727-generation-delivery-agent-p0-v083-r1",
-      "deployedAt": "2026-07-27",
+      "releaseId": "20260728-generation-materialization-stability-v083-r3",
+      "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
-      "runtimeReadiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-27-generation-delivery-agent-p0-v083-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-gray-v083-r1.md",
-      "rollbackReleaseId": "20260727-provider-output-recovery-v082-r1"
+      "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
+      "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-generation-materialization-stability-v083-r3.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-generation-materialization-stability-v083-r3.md",
+      "rollbackReleaseId": "20260727-generation-delivery-agent-p0-v083-r1"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260727-generation-delivery-agent-p0-v083-r1",
-      "deployedAt": "2026-07-27",
+      "releaseId": "20260728-generation-materialization-stability-v083-r3",
+      "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-27-generation-delivery-agent-p0-v083-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-production-v083-r1.md",
-      "rollbackReleaseId": "20260727-provider-output-recovery-v082-r1"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-generation-materialization-stability-v083-r3.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-generation-materialization-stability-v083-r3.md",
+      "rollbackReleaseId": "20260727-generation-delivery-agent-p0-v083-r1"
     }
   }
 }

@@ -28,7 +28,12 @@
 - `npm run verify:canvas-generation-delivery-contract`：passed。
 - `apps/worker/src/worker-materialization-stages.ts` now records sanitized `task_materializing` and `task_artifact_ready` events; failure remains owned by the existing lifecycle `task_failed` event. The Canvas generation-delivery fixture and Worker observability contract both pass.
 - `npm run verify:file-hotspot-budgets`：passed at the existing `worker.ts` budget of 1765 lines after extracting the stage seam.
-- 尚未构建 release archive、部署 Gray 或 Production；因此本记录不构成线上放行证据。
+- Archive `20260728-generation-materialization-stability-v083-r3` was built and deployed Gray then Production on the old server; the release records contain the target and runtime evidence.
+
+## 线上放行结果
+
+- Both environments report version 0.8.3, expected environment, active API/Worker, enforced permission mode and zero readiness failures.
+- No paid Provider canary was used; evidence is runtime/release verification plus the deterministic mock fixture.
 
 ## 未包含的后续风险
 
