@@ -108,5 +108,5 @@ printJson({
   sharedEnvFile,
   serviceName,
   workerServiceName,
-  steps: steps.map((step) => ({ name: step.name, command: `${step.command} ${step.args.join(" ")}` })),
+  steps: steps.map((step) => ({ name: step.name, command: step.command })),
 });
