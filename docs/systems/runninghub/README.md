@@ -62,6 +62,7 @@ RunningHub 系统负责两类执行：把 RH Workflow 与 AI App 作为外部运
   - 成功完成：`100%`
   - 排队文案：`任务队列排队中`
   - poll heartbeat 会持续回写 `upstreamStatus / upstreamMessage / rhTargetType / rhRunTargetId`
+  - App/Workflow 目录执行同样保持提交单次调用；查询遇到 408/425/429/5xx 或网络瞬断时，在任务超时截止点内做有界重试，并把恢复次数与上游状态回写到运行态
 
 ## 工程治理要求
 

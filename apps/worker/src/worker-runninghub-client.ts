@@ -1,4 +1,5 @@
 import { parseRunningHubPollJsonResponse } from "./worker-runninghub-response.js";
+import { fetchPollResponseWithRetry, type TransientPollRetryEvent } from "./worker-transient-poll-retry.js";
 
 interface RunningHubClientOptions {
   apiKey: string;
@@ -186,22 +187,31 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
 
       await wait(input.pollIntervalMs);
 
-      const pollResponse = await fetcher(queryUrl, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${options.apiKey}`,
-        },
-        body: JSON.stringify({ taskId: upstreamTaskId }),
-        signal: AbortSignal.timeout(120000),
+      const polledResponse = await fetchPollResponseWithRetry({
+        request: () => fetcher(queryUrl, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${options.apiKey}`,
+          },
+          body: JSON.stringify({ taskId: upstreamTaskId }),
+          signal: AbortSignal.timeout(120000),
+        }),
+        deadlineAt: typeof input.timeoutMs === "number" && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0
+          ? startedAt + input.timeoutMs
+          : undefined,
+        wait,
+        onRetry: (event) => notifyRunningHubPollRetry(input.onHeartbeat, targetType, runTargetId, upstreamTaskId, event),
       });
-      const pollText = await pollResponse.text();
+      const pollResponse = polledResponse.response;
+      const pollText = polledResponse.text;
       if (!pollResponse.ok) {
         throw createWorkerTaskError(`RunningHub 轮询失败 ${pollResponse.status}: ${pollText.slice(0, 500)}`, {
           failureCategory: "upstream_poll_gateway_failed",
           providerDiagnostic: `RunningHub 轮询失败 ${pollResponse.status}`,
           upstreamHttpStatus: pollResponse.status,
           upstreamResponseSnippet: pollText.slice(0, 500),
+          pollRetryCount: polledResponse.retryCount,
         });
       }
 
@@ -231,6 +241,10 @@ export function createRunningHubClient(options: RunningHubClientOptions) {
         queueHint: isRunningHubQueuedStatus(pollRaw.status) ? "任务队列排队中" : "任务已提交，正在生成",
         rhTargetType: targetType,
         rhRunTargetId: runTargetId,
+        ...(polledResponse.retryCount > 0 ? {
+          pollRetryCount: polledResponse.retryCount,
+          pollRetryRecoveredAt: new Date().toISOString(),
+        } : {}),
       });
 
       if (targetType === "app") {
@@ -418,4 +432,27 @@ function createWorkerTaskError(message: string, resultPatch: Record<string, unkn
   error.name = "WorkerTaskError";
   error.resultPatch = resultPatch;
   return error;
+}
+
+async function notifyRunningHubPollRetry(
+  onHeartbeat: ((patch: Record<string, unknown>) => void | Promise<void>) | undefined,
+  targetType: "app" | "workflow",
+  runTargetId: string,
+  taskId: string,
+  event: TransientPollRetryEvent,
+) {
+  await onHeartbeat?.({
+    upstreamTaskId: taskId,
+    taskId,
+    upstreamStatus: "RUNNING",
+    providerState: "RUNNING",
+    runtimeStage: "polling",
+    rhTargetType: targetType,
+    rhRunTargetId: runTargetId,
+    pollRetryCount: event.attempt,
+    pollRetryLimit: event.maxRetries,
+    lastPollHttpStatus: event.statusCode || 0,
+    lastPollTransientError: event.error,
+    nextPollRetryDelayMs: event.delayMs,
+  });
 }

@@ -509,11 +509,11 @@ Keep heavy MediaPipe/editor chunks interaction-driven unless benchmark evidence 
 - Modify: `apps/web/src/components/Canvas.tsx`
 - Modify first callers: `apps/web/src/components/nodes/useUpdateNodeData.ts`, `apps/web/src/components/nodes/UploadNode.tsx`, `apps/web/src/components/nodes/TextSplitNode.tsx`
 
-- [ ] **Step 1: Test identity preservation and snapshot equivalence**
+- [x] **Step 1: Test identity preservation and snapshot equivalence**
 
 Test untouched node/edge references, data patch, selection, layout and runtime projection behavior, then compare persistence snapshots before/after migration.
 
-- [ ] **Step 2: Implement immutable per-ID patches and animation-frame batching**
+- [x] **Step 2: Implement immutable per-ID patches and animation-frame batching**
 
 ~~~ts
 export function patchNodeData(nodes: Node[], id: string, patch: Record<string, unknown>): Node[];
@@ -524,11 +524,11 @@ export function createAnimationFrameBatch<T>(flush: (items: T[]) => void): {
 };
 ~~~
 
-- [ ] **Step 3: Migrate only the three named callers**
+- [x] **Step 3: Migrate the active shared update hook only; leave unrelated callers untouched**
 
 Do not mass-replace node updates. Measure after each caller and preserve persistence/revision behavior.
 
-- [ ] **Step 4: Release r4 after 50/100/200-node regression and same-SHA Production verification**
+- [x] **Step 4: Release r4 after 50/100/200-node regression and same-SHA Production verification**
 
 ### Task 13: Evaluate Visibility Rendering With Evidence
 
@@ -570,6 +570,19 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - [ ] **Step 4: Release r5 through old-server Gray and same-SHA Production**
 
 ## r6: API and Worker Orchestration Seams
+
+### Task 15A: Close Provider Query Retry Gaps
+
+**Files:**
+
+- Modify: `apps/worker/src/worker-runninghub-client.ts`
+- Create: `apps/worker/src/worker-runninghub-client.test.ts`
+- Modify: `docs/systems/runninghub/README.md`
+
+- [x] **Step 1: Prove catalog App/Workflow polling fails on a transient gateway response before the fix**
+- [x] **Step 2: Reuse the bounded poll retry helper without retrying the billable submit request**
+- [x] **Step 3: Emit sanitized retry/recovery heartbeats and preserve timeout budget**
+- [ ] **Step 4: Release r6 after worker/API integration and old-server Gray then same-SHA Production gates**
 
 ### Task 16: Finish Worker Dispatch Table
 
