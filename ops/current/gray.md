@@ -6,7 +6,8 @@
 - 当前版本：`v0.8.2`
 - 当前 release：`20260727-provider-output-recovery-v082-r1`
 - 当前状态：`新旧服务器 Gray 均已部署本 release；当前由旧域名提供可用灰度入口`
-- 当前补修：`视频下载/回传失败可分类、保留远端产物并通过 recover-output 恢复，不重复调用 Provider；Redis 入队增加连接与命令超时`
+- 当前补修：`视频下载/回传失败可分类并保留远端产物；Redis 入队增加连接与命令超时`
+- 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，后续 Gray 补丁修复前不得用于验证“不重复调用 Provider”`
 - Production 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
 - 本轮制品源提交：`55aa3d9`
 - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`

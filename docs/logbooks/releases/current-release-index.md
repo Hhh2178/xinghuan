@@ -6,12 +6,14 @@
 
 - 版本：`v0.8.2`
 - release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`旧服务器 Production 晋级；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持 recover-output，不重复调用 Provider`
+- 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
+- 部署内容：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物。recover-output 存在 P0 字段契约缺陷，修复前禁止在 Production 使用`
+- Agent 运行态：`已完成 bootstrap、Production Agent/route 发布和 observe 控制；前后台真实请求均为 mode=agent`
 - 回滚：`20260726-video-prompt-provider-limit-v081-r1`
 - 当前批次记录：
   - `production/2026-07-27-provider-output-recovery-v082-r1.md`
   - `../validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
+  - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -24,7 +26,7 @@
 - 版本：`v0.8.2`
 - release：`20260727-provider-output-recovery-v082-r1`
 - 当前状态：`新旧服务器 Gray 均已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新域名等待注册商恢复解析`
-- 部署内容：`Provider 内容下载支持重试、流中断分类与 Range 续传；失败时保留远端产物并提供 recover-output，不重复调用 Provider`
+- 部署内容：`Provider 视频内容下载支持重试、流中断分类与 Range 续传；失败时保留远端产物。recover-output 已确认存在字段契约缺陷，待下一 Gray 补丁修复`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过；五次 Grok 任务结果记录在对应 validation 台账。`
 - 部署时间：`2026-07-27`
 - 本轮制品源提交：`55aa3d9`
@@ -161,7 +163,7 @@
   - `../../../ops/runninghub-default-key-migrate-gray-release-2026-06-23.md`
   - `../../../ops/runninghub-key-pool-progress-gray-release-2026-06-23.md`
 
-### Production
+### 历史 Production 摘要
 
 - 版本：`v0.7.8`
 - release：`20260720-aicopy-video-contract-scope-prod-r1-v078`

@@ -31,7 +31,8 @@
   - 版本：`v0.8.2`
   - release：`20260727-provider-output-recovery-v082-r1`
   - 状态：`新旧服务器 Gray 均已部署；旧服务器 API/Worker、权限 readiness、首页、后台和公网状态全部通过`
-  - 当前补修：`Provider 成功后的媒体物料化支持重试、Range 续传和 recover-output 恢复，不重复计费`
+  - 当前补修：`Provider 成功后的视频物料化支持重试、Range 续传并保留远端产物`
+  - 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，下一 Gray 补丁修复前不得用于验证“不重复计费”`
   - 本轮制品源提交：`55aa3d9`
   - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
@@ -42,8 +43,11 @@
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.2`
   - release：`20260727-provider-output-recovery-v082-r1`
-  - 状态：`旧服务器 Production 晋级；API/Worker、权限 readiness 和公网状态验证后正式放行`
-  - 当前补修：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持恢复`
+  - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness、公网状态和 Agent 真实请求验证后正式放行`
+  - 当前补修：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物`
+  - Agent：`Production bootstrap、Agent/route publication 和 observe 控制已补齐；前后台真实请求均返回 mode=agent`
+  - 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，后续 Gray 补丁验收前禁止在 Production 使用`
+  - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 
 ## current / archive 分工
 

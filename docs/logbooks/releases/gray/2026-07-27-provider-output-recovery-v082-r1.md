@@ -10,7 +10,7 @@
 
 - Provider 已成功但视频内容下载或本地物料化失败时，增加可重试、可分类、可恢复的完整链路。
 - 支持 `429/502/503/504` 重试、响应流中断分类与 Range 续传，并保留 `remoteVideoUrls`、`upstreamTaskId` 和恢复状态。
-- 新增后台 `POST /api/admin/tasks/:id/recover-output`，恢复产物不重新调用 Provider、不重复计费。
+- 新增后台 `POST /api/admin/tasks/:id/recover-output`；发布后审计发现恢复模式字段的 API/Worker 契约不一致，当前入口尚不能证明不重新调用 Provider 或不重复计费。
 - Redis 入队增加连接和命令超时；新旧服务器 Gray 均部署本 release，Production 保持当前版本不变。
 
 ## Deployment

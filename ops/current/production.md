@@ -5,8 +5,11 @@
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.8.2`
 - 当前 release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`旧服务器 Production 晋级本 release；正式运行态验证完成后由旧域名继续提供服务`
-- 当前补修：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持 recover-output，不重复调用 Provider`
+- 当前状态：`旧服务器 Production 已晋级并完成正式运行态验证；由旧域名继续提供服务`
+- 当前补修：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物`
+- Agent 运行态：`bootstrap、Production Agent/route 发布和 observe 控制已补齐；前后台真实请求均返回 mode=agent`
+- 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，Gray 补丁验收前禁止在 Production 使用`
+- 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-27-provider-output-recovery-v082-r1.md`
 - 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
@@ -57,7 +60,7 @@
 - 当前 production `canvas.env` 仍指向数据库：`xinghuan_canvas_next`
 - `XINGHUAN_EXPECTED_DATABASE_NAME` 当前也为：`xinghuan_canvas_next`
 - gray 实际使用 `xinghuan_canvas_gray`，production 与 gray 当前为独立数据库；production 保留历史库名 `xinghuan_canvas_next`
-- 统一权限数据：134 Subjects、112 published、14 restricted、8 retired、452 rules、11 principals、0 readiness failures
+- 统一权限数据：154 Subjects、126 published、20 restricted、8 retired、2832 rules、11 principals、0 readiness failures
 - `v0.7.6` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/20260718-before-permission-image-node-repair-v076-r1.dump`
 - `v0.7.2` 晋级前数据库备份：
@@ -74,7 +77,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+  - `/opt/apps/xinghuan-canvas/releases/20260726-video-prompt-provider-limit-v081-r1`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

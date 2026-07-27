@@ -6,7 +6,7 @@
 - `/api/admin/runninghub/*`
 - `/api/admin/comfyui/instances`
 - `/api/admin/tasks`
-- `/api/admin/tasks/:id/recover-output`：仅恢复 Provider 已成功任务的已有远程产物，不重新提交生成请求。
+- `/api/admin/tasks/:id/recover-output`：目标语义是仅恢复 Provider 已成功任务的已有远程产物、不重新提交生成请求；`0.8.2` 已确认存在 API/Worker 恢复模式字段不一致，修复前该语义不成立。
 - `/api/admin/providers`
 - `/api/admin/models`
 - `/api/admin/audit`

@@ -40,6 +40,11 @@
 - AIFork `grok-imagine-video-1.5-preview`：`400 invalid field ... model`，该模型在 AIFork 当前配置使用了不匹配的上游模型契约；不是本次下载恢复逻辑导致。
 - 五次 ToAPIs 任务均完成本地 admission、Redis、Worker 和结构化失败反馈，未产生 `remoteVideoUrls`，没有发生可供恢复的下载阶段。
 
+### Post-release audit correction
+
+- 五次任务均在 Provider 轮询阶段以 503 失败，不能作为下载、物料化或 recover-output 成功证据。
+- 后续审计发现 recover-output 的 API/Worker 字段契约不一致；修复前不得宣称该入口不会重提 Provider，详见 `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`。
+
 ## Boundary
 
 - 未发布 Production，未修改生产数据库、用户媒体、Provider Key 或服务器 secrets。
