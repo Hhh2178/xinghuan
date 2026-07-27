@@ -372,6 +372,8 @@ The panel displays a safe message, diagnostic ID, retry and secondary reload. De
 
 The node wrapper preserves the node footprint and resets only when node ID, type or data revision changes. Workspace reset never mutates Canvas storage, nodes or edges.
 
+Implementation evidence: `NodeRenderBoundary` now wraps lazy Canvas nodes with the existing `PlaceholderNode` footprint; `WorkspaceErrorBoundary` remounts only the workspace view. Focused diagnostic/boundary tests and Web type-check pass. Full browser crash smoke remains required before this step is checked.
+
 - [ ] **Step 4: Replace user-visible penguin/garbled fallback copy**
 
 Change only visible copy and styles in this task. Keep `penguin:*` events, persisted schema keys, local-storage keys and historic hidden node types intact.

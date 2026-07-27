@@ -18,6 +18,7 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { NodeRenderBoundary, nodeRenderResetKey } from './errors/NodeRenderBoundary';
 import {
   isWorkflowBoundaryConnectionAllowed,
   normalizeWorkflowDocuments,
@@ -232,10 +233,11 @@ const RHToolboxMakerDevNode = (props: any) => import.meta.env?.DEV ? (
 
 function withLazyNode<P extends object>(Component: ComponentType<P>) {
   return function LazyWrappedNode(props: P) {
+    const nodeProps = props as any;
     return (
-      <Suspense fallback={<PlaceholderNode {...(props as any)} />}>
-        <Component {...props} />
-      </Suspense>
+      <NodeRenderBoundary resetKey={nodeRenderResetKey(nodeProps)} fallback={<PlaceholderNode {...nodeProps} />}>
+        <Suspense fallback={<PlaceholderNode {...nodeProps} />}><Component {...props} /></Suspense>
+      </NodeRenderBoundary>
     );
   };
 }

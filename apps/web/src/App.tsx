@@ -9,7 +9,7 @@ import { useCanvasStore } from './stores/canvas';
 import { AnnouncementCenterDrawer } from './components/AnnouncementCenterDrawer';
 import { AnnouncementStrongReminderModal } from './components/AnnouncementStrongReminderModal';
 import LoginGate from './components/LoginGate';
-import ErrorBoundary from './components/ErrorBoundary';
+import { WorkspaceErrorBoundary } from './components/errors/WorkspaceErrorBoundary';
 import CyberTransitionStage from './components/CyberTransitionStage';
 import EmptyCanvasPreviewShell from './components/EmptyCanvasPreviewShell';
 import * as api from './services/api';
@@ -726,9 +726,9 @@ function App() {
       <div className="t8-workspace flex-1 flex overflow-hidden">
         <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} onOpenSupervision={() => setSupervisionOpen(true)} />
         {sidebarOpen ? <button type="button" className="t8-sidebar-backdrop" aria-label="关闭节点面板" onClick={() => setSidebarOpen(false)} /> : null}
-        <ErrorBoundary fallbackTitle="画布渲染出错了，已被错误边界捕获">
+        <WorkspaceErrorBoundary>
           <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />
-        </ErrorBoundary>
+        </WorkspaceErrorBoundary>
       </div>
 
       <ResourceLibraryDrawer
