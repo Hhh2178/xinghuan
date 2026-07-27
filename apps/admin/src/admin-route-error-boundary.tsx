@@ -26,7 +26,7 @@ export class AdminRouteErrorBoundary extends Component<{
       <section className="starlight-route-error" role="alert">
         <span>当前页面暂时无法显示</span>
         <strong>业务域渲染失败，其他后台页面仍可继续使用。</strong>
-        <p>{this.state.error.message}</p>
+        <p>请重试当前页面；若问题持续出现，请提供此时的操作步骤给管理员。</p>
         <button type="button" onClick={() => window.location.reload()}>重新加载当前页面</button>
       </section>
     );
