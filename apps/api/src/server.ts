@@ -331,6 +331,7 @@ const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = creat
   normalizeProviderReferenceUrl: (value, publicOrigin, user) =>
     normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, { secret: secretKey(), scope: environment }),
   readTaskRecord,
+  findTaskByOwnerIdempotencyKey,
   insertTaskRecord,
   writeTaskRecord,
   appendTaskLog,
@@ -5934,6 +5935,10 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, reason: 
 
 async function readTaskRecord(taskId: string): Promise<AdminTaskRecord | null> {
   return taskRepository.readTaskRecord(taskId) as Promise<AdminTaskRecord | null>;
+}
+
+async function findTaskByOwnerIdempotencyKey(ownerId: string, idempotencyKey: string): Promise<AdminTaskRecord | null> {
+  return taskRepository.readTaskByOwnerIdempotencyKey(ownerId, idempotencyKey) as Promise<AdminTaskRecord | null>;
 }
 
 async function insertTaskRecord(task: AdminTaskRecord) {

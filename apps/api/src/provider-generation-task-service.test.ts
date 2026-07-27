@@ -6,7 +6,8 @@ function createService(options: {
   modelId?: string;
   advancedConfig?: Record<string, unknown>;
 } = {}) {
-  const insertedTasks: Array<{ payload?: Record<string, unknown> }> = [];
+  const insertedTasks: any[] = [];
+  let enqueuedCount = 0;
   const service = createProviderGenerationTaskService({
     normalizeProviderProtocol: () => options.protocol || "openai",
     providerPlainApiKey: () => "test-key",
@@ -31,11 +32,15 @@ function createService(options: {
     }),
     normalizeProviderReferenceUrls: (values) => values,
     normalizeProviderReferenceUrl: (value) => value,
+    findTaskByOwnerIdempotencyKey: async (ownerId, idempotencyKey) => insertedTasks.find((task) => task.ownerId === ownerId && task.payload?.idempotencyKey === idempotencyKey) || null,
     readTaskRecord: async () => null,
     insertTaskRecord: async (task) => { insertedTasks.push(task); },
     writeTaskRecord: async () => undefined,
     appendTaskLog: async () => undefined,
-    enqueueTask: async () => ({ queued: true, reason: "queued", queueName: "test" }),
+    enqueueTask: async () => {
+      enqueuedCount += 1;
+      return { queued: true, reason: "queued", queueName: "test" };
+    },
     safeText: (value, fallback = "") => typeof value === "string" ? value.trim() : fallback,
     safeLongText: (value, fallback = "") => typeof value === "string" ? value.trim() : fallback,
     safePromptText: (value, fallback = "") => typeof value === "string" ? value.trim() : fallback,
@@ -44,7 +49,7 @@ function createService(options: {
     taskIdFactory: () => `task-${insertedTasks.length + 1}`,
     now: () => 1,
   });
-  return { insertedTasks, service };
+  return { insertedTasks, enqueuedCount: () => enqueuedCount, service };
 }
 
 describe("provider generation task payload", () => {
@@ -59,6 +64,24 @@ describe("provider generation task payload", () => {
     });
 
     expect(insertedTasks[0]?.payload).toMatchObject({ n: 3, generationCount: 3 });
+  });
+
+  it("returns the original task and does not enqueue again for the same owner idempotency key", async () => {
+    const { insertedTasks, enqueuedCount, service } = createService();
+    const input = {
+      capability: "image" as const,
+      rawBody: { providerId: "provider-1", model: "image-model", prompt: "idempotent image", idempotencyKey: "canvas-node-1:run-1" },
+      user: { id: "user-1", role: "admin" as const },
+      publicOrigin: "https://canvas.test",
+    };
+
+    const first = await service.submitProviderGenerationTask(input);
+    const second = await service.submitProviderGenerationTask(input);
+
+    expect(second.taskId).toBe(first.taskId);
+    expect(insertedTasks).toHaveLength(1);
+    expect(enqueuedCount()).toBe(1);
+    expect(insertedTasks[0]?.payload).toMatchObject({ idempotencyKey: "canvas-node-1:run-1" });
   });
 
   it("persists the video generationCount and clamps it to four", async () => {

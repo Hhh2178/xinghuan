@@ -247,13 +247,13 @@ Commit: `git add scripts/verify-agent-environment-readiness.mjs scripts/verify-a
 
 **Scope:** The chain begins when a Canvas node creates a task and ends only when the corresponding owner-visible node reaches a terminal success with a readable materialized artifact. It covers request idempotency, queue claim, Provider submission/polling, Provider result parsing, artifact materialization, retry classification, task persistence and Canvas runtime projection.
 
-- [ ] **Step 1: Map existing cross-layer contracts and their blind spots**
+- [x] **Step 1: Map existing cross-layer contracts and their blind spots**
 
 Use CodeGraph and current verifiers to map `Canvas -> API task creation -> Worker -> Provider -> output-materials -> task lifecycle -> Canvas runtime`. Record every request/task/correlation ID and identify any terminal state that can be observed before artifact readability.
 
-- [ ] **Step 2: Add a delivery-chain contract gate before behavior changes**
+- [x] **Step 2: Add a delivery-chain contract gate before behavior changes**
 
-Create a static verifier that requires idempotency propagation, cancellation passthrough, Provider submission identity, bounded polling/retry classification, output-recovery handoff, terminal materialization evidence and owner-scoped runtime projection. It must reject a direct Provider resubmission for an `output_only` task.
+Create a static verifier that requires idempotency propagation, cancellation passthrough, Provider submission identity, bounded polling/retry classification, output-recovery handoff, terminal materialization evidence and owner-scoped runtime projection. It must reject a direct Provider resubmission for an `output_only` task. The initial red run proved that `provider-generation-task-service.ts` had no persisted client idempotency key; the final gate verifies the owner-scoped lookup, duplicate-safe API path and PostgreSQL unique index.
 
 - [ ] **Step 3: Add a deterministic local end-to-end fixture**
 

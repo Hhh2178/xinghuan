@@ -177,6 +177,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
   return {
     appendTaskLog,
     insertTaskRecord,
+    readTaskByOwnerIdempotencyKey,
     readTaskListPage,
     readTaskRecord,
     writeTaskRecord,
@@ -229,6 +230,23 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
     }
     const [tasks, catalog] = await Promise.all([deps.readTaskRecords(), deps.readTaskExecutionCatalog()]);
     await deps.writeTaskRecords([withTaskExecutionIdentity(task, catalog, true), ...tasks]);
+  }
+
+  async function readTaskByOwnerIdempotencyKey(ownerId: string, idempotencyKey: string): Promise<TaskRecordShape | null> {
+    if (!ownerId || !idempotencyKey) return null;
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const result = await pool.query<{ id: string }>(
+        `select id from xh_tasks
+         where owner_id = $1 and payload->>'idempotencyKey' = $2
+         order by created_at desc, id desc
+         limit 1`,
+        [ownerId, idempotencyKey],
+      );
+      return result.rows[0]?.id ? readTaskRecord(String(result.rows[0].id)) : null;
+    }
+    const tasks = await deps.readTaskRecords();
+    return tasks.find((task) => task.ownerId === ownerId && deps.safeText(task.payload?.idempotencyKey) === idempotencyKey) || null;
   }
 
   async function readTaskListPage(query: TaskListQuery): Promise<TaskListPage> {

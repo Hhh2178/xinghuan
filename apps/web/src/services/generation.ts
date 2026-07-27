@@ -58,6 +58,7 @@ export async function generateImage(req: GenerateImageRequest): Promise<Generate
 }
 
 export interface GenerateExternalImageRequest {
+  idempotencyKey?: string;
   providerId: string;
   provider?: AdvancedProviderConfig;
   providerModel?: string;
@@ -111,6 +112,7 @@ export async function generateExternalImage(req: GenerateExternalImageRequest): 
 }
 
 export interface GenerateExternalVideoRequest {
+  idempotencyKey?: string;
   providerId: string;
   providerModel?: string;
   model?: string;
@@ -245,6 +247,7 @@ export async function queryExternalVideoTask(taskId: string): Promise<ExternalVi
 }
 
 export interface GenerateExternalAudioRequest {
+  idempotencyKey?: string;
   providerId: string;
   providerModel?: string;
   model?: string;

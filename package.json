@@ -22,6 +22,7 @@
     "verify:old-server-release-target": "node scripts/release/target-profile.test.mjs && node scripts/verify-old-server-release-target.mjs",
     "verify:agent-environment-readiness-contract": "node scripts/verify-agent-environment-readiness-contract.mjs",
     "verify:agent-environment-readiness": "node scripts/verify-agent-environment-readiness.mjs",
+    "verify:canvas-generation-delivery-contract": "node scripts/verify-canvas-generation-delivery-contract.mjs",
     "release:gray:prepare": "node scripts/release/prepare-gray-release.mjs",
     "release:gray:prepare:runninghub": "node scripts/release/prepare-gray-release.mjs --preset=runninghub",
     "release:gray:deploy": "node scripts/release/deploy-gray-release.mjs",

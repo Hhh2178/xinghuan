@@ -79,6 +79,7 @@ interface ProviderGenerationTaskServiceDependencies {
   normalizeProviderReferenceUrls: (values: string[], publicOrigin: string, user: CurrentUserLike) => string[];
   normalizeProviderReferenceUrl: (value: string, publicOrigin: string, user: CurrentUserLike) => string;
   readTaskRecord: (taskId: string) => Promise<AdminTaskRecordLike | null>;
+  findTaskByOwnerIdempotencyKey: (ownerId: string, idempotencyKey: string) => Promise<AdminTaskRecordLike | null>;
   insertTaskRecord: (task: AdminTaskRecordLike) => Promise<void>;
   writeTaskRecord: (task: AdminTaskRecordLike) => Promise<void>;
   appendTaskLog: (taskId: string, line: string) => Promise<void>;
@@ -305,6 +306,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       ...runningHub,
       sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
       sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
+      idempotencyKey: idempotencyKey(body, params),
     };
     if (aspectRatio) {
       payload.aspectRatio = aspectRatio;
@@ -446,6 +448,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       ...runningHub,
       sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
       sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
+      idempotencyKey: idempotencyKey(body, params),
     };
     return createQueuedTask({
       capability: "video",
@@ -516,6 +519,7 @@ function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
       executionMode: "worker_queue",
       sourceNodeId: deps.safeText(params.sourceNodeId || body.sourceNodeId),
       sourceCanvasId: deps.safeText(params.sourceCanvasId || body.sourceCanvasId),
+      idempotencyKey: idempotencyKey(body, params),
     };
     createOpenAiAudioChatPayload({
       modelId: model.modelId,
@@ -550,6 +554,11 @@ function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
     const now = timestamp();
     const requestId = deps.safeText(input.requestContext?.requestId);
     const userId = deps.safeText(input.requestContext?.userId || input.ownerId);
+    const idempotencyKey = deps.safeText(input.payload.idempotencyKey).slice(0, 200);
+    if (idempotencyKey) {
+      const existing = await deps.findTaskByOwnerIdempotencyKey(input.ownerId, idempotencyKey);
+      if (existing) return queuedTaskResponse(existing, input);
+    }
     const task: AdminTaskRecordLike = {
       id: taskId,
       title: `${taskCapabilityLabel(input.capability)} · ${input.provider.name} · ${input.model.displayName || input.model.modelId}`,
@@ -561,16 +570,25 @@ function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
         ...input.payload,
         requestId,
         userId,
+        idempotencyKey,
       },
       result: {
         requestId,
         userId,
+        idempotencyKey,
       },
       logs: [`画布提交后台${taskCapabilityLabel(input.capability)}任务`],
       createdAt: now,
       updatedAt: now,
     };
-    await deps.insertTaskRecord(task);
+    try {
+      await deps.insertTaskRecord(task);
+    } catch (error) {
+      if (!idempotencyKey || !isUniqueViolation(error)) throw error;
+      const existing = await deps.findTaskByOwnerIdempotencyKey(input.ownerId, idempotencyKey);
+      if (!existing) throw error;
+      return queuedTaskResponse(existing, input);
+    }
     const queueResult = await deps.enqueueTask(task.id, input.capability);
     const queueLog = queueResult.queued
       ? `已进入 Redis 队列 ${queueResult.queueName}`
@@ -612,6 +630,31 @@ function enforceVideoInputs(input: Parameters<typeof validateVideoInputs>[0]) {
     submitProviderGenerationTask,
     readProviderGenerationTaskStatus,
   };
+}
+
+function idempotencyKey(body: Record<string, unknown>, params: Record<string, unknown>) {
+  return String(params.idempotencyKey || body.idempotencyKey || "").trim().slice(0, 200);
+}
+
+function queuedTaskResponse(task: AdminTaskRecordLike, input: { capability: GenerationCapability; provider: ProviderLike; model: ModelLike; protocol: string }) {
+  return {
+    taskId: task.id,
+    status: task.status,
+    progress: progressText(task.status),
+    provider: { id: input.provider.id, name: input.provider.name, protocol: input.protocol },
+    raw: {
+      providerId: input.provider.id,
+      modelId: input.model.modelId,
+      modelRecordId: input.model.id,
+      capability: input.capability,
+      queued: task.status === "queued",
+      idempotencyKey: String(task.payload?.idempotencyKey || "") || undefined,
+    },
+  };
+}
+
+function isUniqueViolation(error: unknown) {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505";
 }
 
 function resolveRunningHubExecution(protocol: string, model: ModelLike, advancedConfig: Record<string, unknown>) {
