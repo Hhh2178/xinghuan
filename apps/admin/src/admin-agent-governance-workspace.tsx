@@ -48,6 +48,10 @@ type ActivityData = { runs: AgentRunsData; approvals: AgentApproval[]; recovery:
 type SupervisionData = { overview: AgentOverview; models: ModelsData; policies: PoliciesData };
 type Data = SupervisionData | ActivityData;
 
+export function canRenderGovernanceData(loading: boolean, data: unknown): boolean {
+  return !loading && data !== null;
+}
+
 export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +127,7 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
       </div>
       {error ? <div className="error-banner">{error}</div> : null}
       {notice ? <div className="agent-success-banner" role="status">{notice}</div> : null}
-      {loading ? <Loading /> : (
+      {loading ? <Loading /> : canRenderGovernanceData(loading, data) ? (
         <>
           {activeView === "supervision" ? <SupervisionView
             value={data as SupervisionData}
@@ -138,7 +142,7 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
           /> : null}
           {activeView === "activity" ? <ActivityView value={data as ActivityData} models={models} busy={busy} mutate={mutate} /> : null}
         </>
-      )}
+      ) : null}
     </section>
   );
 }

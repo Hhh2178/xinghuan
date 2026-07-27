@@ -1,6 +1,6 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
