@@ -9,6 +9,7 @@
 - `2026-07-04-structural-improvement-execution-plan.md`（上面路线图的配套执行手册：逐批收口/测试/校验/归档/记录）
 - `2026-07-05-comfyui-feature-freeze.md`（ComfyUI 功能暂停封存：只允许 crash/security/rollback/docs 级别例外）
 - `2026-07-05-worktree-migration-audit.md`（`xinghuan-milestone-b` 到 `xinghuan-integration-clean` 的迁移审计）
+- `2026-07-27-v083-old-server-stability-performance-audit.md`（`0.8.3` 旧服务器范围内的生成回传、Agent、结构、崩溃隔离、画布渲染、加载与回退事实审计）
 
 当前执行主计划：
 

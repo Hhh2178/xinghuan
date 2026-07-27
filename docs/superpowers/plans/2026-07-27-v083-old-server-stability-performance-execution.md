@@ -212,7 +212,7 @@ It contains exact host, port, roots, services, worker services, env-file paths, 
 
 The r1 deploy and runtime commands require `--target-profile=old-server`. Resolve settings from that profile before CLI overrides. Reject any override that differs from the profile. Output only a sanitized fingerprint.
 
-- [ ] **Step 4: Register, package, verify and commit**
+- [x] **Step 4: Register, package, verify and commit**
 
 Run: `npm run verify:old-server-release-target -- --target-profile=old-server --env=gray`
 
