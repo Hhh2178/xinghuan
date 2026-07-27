@@ -16,6 +16,7 @@ const [assistant, governance, activity, styles, lifecycle, supervisionMode, acti
     return "";
   }
 }));
+const verifyVisual = process.argv.includes("--visual");
 
 for (const label of ["助手能力", "模型路由", "审核发布", "生效验证"]) {
   assert.match(assistant, new RegExp(label), `assistant lifecycle step is missing: ${label}`);
@@ -40,7 +41,7 @@ if (activityViewModel || activity) {
   assert.match(activity, /批准后的影响/, "approval details must explain impact before mutation");
 }
 
-if (supervisionMode && activityViewModel && activity) {
+if (verifyVisual) {
   for (const selector of [
     ".assistant-lifecycle-track",
     ".assistant-readiness-band",

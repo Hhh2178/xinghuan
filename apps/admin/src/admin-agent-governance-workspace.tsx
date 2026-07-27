@@ -1,6 +1,6 @@
 import {
   Activity, AlertTriangle, Check, CirclePause, GitBranch, History, ListChecks, Loader2,
-  Plus, RefreshCw, ShieldCheck, Sparkles, X,
+  Plus, RefreshCw, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ModelRecord } from "./admin-types";
@@ -8,6 +8,7 @@ import type { AdminAgentRuntimeViewId } from "./admin-view-model";
 import { AdminAgentRoleConfigurationEditor } from "./admin-agent-role-configuration-editor";
 import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
 import { AdminAgentQualityEditor } from "./admin-agent-quality-editor";
+import { AdminAgentActivityWorkspace } from "./admin-agent-activity-workspace";
 import { canvasAgentPurpose, purposeRouteTemplates } from "./admin-agent-governance-purpose";
 import {
   applySupervisionPreset,
@@ -37,12 +38,13 @@ import {
   type QualityProfile,
   type AgentRoleWorkspaceData,
   type AgentRecoveryWorkspaceData,
+  type RecoveryDecision,
 } from "./admin-agent-governance-api";
 
 interface Props { activeView: AdminAgentRuntimeViewId; models: ModelRecord[] }
 type ModelsData = { roles: AgentRoleWorkspaceData; pools: LlmRoutePool[] };
 type PoliciesData = { quality: QualityProfile[]; recovery: AgentRecoveryWorkspaceData };
-type ActivityData = { runs: AgentRunsData; approvals: AgentApproval[]; audit: AgentAuditRecord[] };
+type ActivityData = { runs: AgentRunsData; approvals: AgentApproval[]; recovery: RecoveryDecision[]; audit: AgentAuditRecord[] };
 type SupervisionData = { overview: AgentOverview; models: ModelsData; policies: PoliciesData };
 type Data = SupervisionData | ActivityData;
 
@@ -72,8 +74,8 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
           return { overview, models: { roles, pools }, policies: { quality, recovery } };
         },
         activity: async () => {
-          const [runs, approvals, audit] = await Promise.all([adminAgentGovernanceApi.runs(), adminAgentGovernanceApi.approvals(), adminAgentGovernanceApi.audit()]);
-          return { runs, approvals, audit };
+          const [runs, approvals, recovery, audit] = await Promise.all([adminAgentGovernanceApi.runs(), adminAgentGovernanceApi.approvals(), adminAgentGovernanceApi.recovery(), adminAgentGovernanceApi.audit()]);
+          return { runs, approvals, recovery, audit };
         },
       } satisfies Record<AdminAgentRuntimeViewId, () => Promise<Data>>)[activeView]();
       setData(next);
@@ -134,7 +136,7 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
             onStay={stayInCurrentSupervisionWorkspace}
             onDiscard={discardCurrentSupervisionDraft}
           /> : null}
-          {activeView === "activity" ? <ActivityView value={data as ActivityData} busy={busy} mutate={mutate} /> : null}
+          {activeView === "activity" ? <ActivityView value={data as ActivityData} models={models} busy={busy} mutate={mutate} /> : null}
         </>
       )}
     </section>
@@ -202,14 +204,8 @@ function SupervisionView({
   </div>;
 }
 
-function ActivityView({ value, busy, mutate }: { value: ActivityData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
-  return <div className="agent-governance-stack">
-    <RunsView value={value.runs} />
-    <SectionHead title="待处理审批" description="只有超出已发布策略边界的动作需要人工决定。" />
-    <ApprovalsView value={value.approvals} busy={busy} mutate={mutate} />
-    <SectionHead title="不可变动作审计" description="查看运行决策、工具结果和经过脱敏的错误。" />
-    <AuditView value={value.audit} />
-  </div>;
+function ActivityView({ value, models, busy, mutate }: { value: ActivityData; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) {
+  return <AdminAgentActivityWorkspace {...value} models={models} busy={busy} mutate={mutate} />;
 }
 
 function SupervisionOverviewView({ value }: { value: AgentOverview }) {
@@ -319,15 +315,10 @@ function QualityView({ value, busy, mutate, onDirtyChange }: { value: QualityPro
   return <div className="agent-governance-stack"><SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" /><AdminAgentQualityEditor value={value} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /></div>;
 }
 
-function RunsView({ value }: { value: AgentRunsData }) { return <div className="agent-governance-stack"><SectionHead title="Agent Run" description="最近的助手诊断、媒体评估、候选选择与失败恢复运行。" /><RunTable rows={value.agentRuns} /><SectionHead title="Workflow Run" description="按 workflow revision 和冻结执行计划持久化的 Canvas 运行。" /><RunTable rows={value.canvasRuns} /></div>; }
 function RecoveryView({ value, busy, mutate, onDirtyChange }: { value: AgentRecoveryWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const roles = { ...value.roles, definitions: value.roles.definitions.filter((definition) => definition.agentKey === "generation-recovery") };
   return <div className="agent-governance-stack"><SectionHead title="恢复策略" description="恢复用途的发布配置决定工具、预算、审批与自动恢复次数。" />{roles.definitions.length ? <AdminAgentRoleConfigurationEditor value={roles} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化失败恢复用途" />}<SectionHead title="恢复决策账本" description="最近的失败分类、目标模型与审批状态。" /><DataTable headers={["时间", "Owner", "失败分类", "恢复决策", "模型变化", "状态"]}>{value.decisions.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td>{item.ownerEmail}</td><td><StatusBadge value={item.failureClass} /></td><td><strong>{item.decision}</strong><small>{item.reason}</small></td><td><code>{item.currentModelId || "-"}</code><small>{item.targetModelId && item.targetModelId !== item.currentModelId ? `→ ${item.targetModelId}` : "同配置"}</small></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable></div>;
 }
-function RunTable({ rows }: { rows: AgentRunsData["agentRuns"] }) { return <DataTable headers={["运行", "Owner", "角色 / 场景", "状态", "更新时间"]}>{rows.map((row) => <tr key={row.id}><td><code>{row.id}</code></td><td>{row.ownerEmail}</td><td>{[row.role, row.scenario].filter(Boolean).join(" · ") || row.canvasId}</td><td><StatusBadge value={row.status} /></td><td>{formatTime(row.updatedAt)}</td></tr>)}</DataTable>; }
-
-function ApprovalsView({ value, busy, mutate }: { value: AgentApproval[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void> }) { return value.length ? <div className="agent-approval-list">{value.map((item) => <div className="agent-approval-row" key={item.id}><div><StatusBadge value={item.status} /><strong>{item.actionType}</strong><span>{item.ownerEmail} · {formatTime(item.createdAt)}</span></div><code>{item.canvasRunId}</code>{item.status === "pending" ? <div><button type="button" className="primary-action" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.decideApproval(item.id, "approved", "管理员批准"))}><Check />批准</button><button type="button" className="danger-action" disabled={busy} onClick={() => void mutate(() => adminAgentGovernanceApi.decideApproval(item.id, "rejected", "管理员拒绝"))}><X />拒绝</button></div> : <p>{item.decisionReason}</p>}</div>)}</div> : <Empty label="没有待处理或近期审批" />; }
-function AuditView({ value }: { value: AgentAuditRecord[] }) { return <DataTable headers={["时间", "Agent Run", "动作", "工具", "状态"]}>{value.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td><code>{item.agentRunId}</code></td><td>{item.actionType}</td><td><code>{item.toolName || "-"}</code></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable>; }
 
 function InlineForm({ children, onSubmit, disabled, submit }: { children: ReactNode; onSubmit: () => Promise<void>; disabled: boolean; submit: string }) { return <form className="agent-inline-form" onSubmit={(event) => { event.preventDefault(); void onSubmit(); }}>{children}<button type="submit" className="primary-action" disabled={disabled}><Check />{submit}</button></form>; }
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="agent-field"><span>{label}</span>{children}</label>; }
