@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "old-server": {
+      "gray": {
+        "profile": "old-server",
+        "environment": "gray",
+        "host": "101.33.75.38",
+        "port": 728,
+        "sshUser": "ubuntu",
+        "remoteRoot": "/opt/apps/xinghuan-canvas-next",
+        "sharedEnvFile": "/opt/apps/xinghuan-canvas-next/shared/canvas-next.env",
+        "serviceName": "xinghuan-canvas-next.service",
+        "workerServiceName": "xinghuan-canvas-next-worker.service",
+        "publicStatusUrl": "https://canvas-next.hhh2121.xyz/api/status",
+        "internalStatusUrl": "http://127.0.0.1:18200/api/status",
+        "expectedDatabaseName": "xinghuan_canvas_gray",
+        "queuePrefix": "xinghuan:tasks"
+      },
+      "production": {
+        "profile": "old-server",
+        "environment": "production",
+        "host": "101.33.75.38",
+        "port": 728,
+        "sshUser": "ubuntu",
+        "remoteRoot": "/opt/apps/xinghuan-canvas",
+        "sharedEnvFile": "/opt/apps/xinghuan-canvas/shared/canvas.env",
+        "serviceName": "xinghuan-canvas.service",
+        "workerServiceName": "xinghuan-canvas-worker.service",
+        "publicStatusUrl": "https://canvas.hhh2121.xyz/api/status",
+        "internalStatusUrl": "http://127.0.0.1:18100/api/status",
+        "expectedDatabaseName": "xinghuan_canvas_next",
+        "queuePrefix": "xinghuan:tasks:prod"
+      }
+    }
+  }
+}

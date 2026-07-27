@@ -11,33 +11,35 @@ import {
   shellQuote,
   sshTarget,
   tmpArchivePath,
-  loadEnvironmentConfig,
 } from "./_shared.mjs";
+import { assertTargetOverridesMatch, loadReleaseTargetProfile, sanitizedTargetFingerprint } from "./target-profile.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/deploy-gray-release.mjs --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--migrate-generation-artifacts=true] [--dry-run=true]
+  node scripts/release/deploy-gray-release.mjs --target-profile=old-server --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--migrate-generation-artifacts=true] [--dry-run=true]
 
 Examples:
-  node scripts/release/deploy-gray-release.mjs --release=20260623-demo-gray-r1-v049 --archive=dist-release/20260623-demo-gray-r1-v049.tar.gz --ssh-key=../Tencent_Cloud_Server.pem
+  node scripts/release/deploy-gray-release.mjs --target-profile=old-server --release=20260623-demo-gray-r1-v049 --archive=dist-release/20260623-demo-gray-r1-v049.tar.gz --ssh-key=<local-key-path>
 `);
   process.exit(0);
 }
 
 const environment = String(firstArg(args.env) || "gray").trim();
-const defaults = await loadEnvironmentConfig(environment);
+const targetProfile = requiredArg(args, "target-profile");
+const defaults = await loadReleaseTargetProfile({ profile: targetProfile, environment });
+assertTargetOverridesMatch(args, defaults);
 const releaseId = requiredArg(args, "release");
 const archivePath = await ensureFileExists(requiredArg(args, "archive"));
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
-const host = String(firstArg(args.host) || defaults.host);
-const port = String(firstArg(args.port) || defaults.sshPort);
-const user = String(firstArg(args.user) || defaults.sshUser);
-const remoteRoot = String(firstArg(args["remote-root"]) || defaults.remoteRoot);
+const host = defaults.host;
+const port = String(defaults.port);
+const user = defaults.sshUser;
+const remoteRoot = defaults.remoteRoot;
 const remoteTmpDir = String(firstArg(args["remote-tmp"]) || "/tmp");
-const serviceName = String(firstArg(args.service) || defaults.serviceName);
-const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
-const sharedEnvFile = String(firstArg(args["shared-env-file"]) || defaults.sharedEnvFile);
+const serviceName = defaults.serviceName;
+const workerServiceName = defaults.workerServiceName;
+const sharedEnvFile = defaults.sharedEnvFile;
 const dryRun = flagEnabled(args["dry-run"]);
 const migrateGenerationArtifacts = flagEnabled(args["migrate-generation-artifacts"]);
 
@@ -95,6 +97,7 @@ printJson({
   ok: true,
   stage: "deploy-release",
   environment,
+  targetFingerprint: sanitizedTargetFingerprint(defaults),
   dryRun,
   migrateGenerationArtifacts,
   releaseId,

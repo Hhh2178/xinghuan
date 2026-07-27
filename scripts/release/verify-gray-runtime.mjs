@@ -9,36 +9,38 @@ import {
   runCommand,
   shellQuote,
   sshTarget,
-  loadEnvironmentConfig,
 } from "./_shared.mjs";
+import { assertTargetOverridesMatch, loadReleaseTargetProfile, sanitizedTargetFingerprint } from "./target-profile.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/verify-gray-runtime.mjs --env=<gray|production> --ssh-key=<path> [--expected-version=<version>] [--expected-environment=<environment>] [--dry-run=true]
+  node scripts/release/verify-gray-runtime.mjs --target-profile=old-server --env=<gray|production> --ssh-key=<path> [--expected-version=<version>] [--expected-environment=<environment>] [--dry-run=true]
 
 Examples:
-  node scripts/release/verify-gray-runtime.mjs --ssh-key=../Tencent_Cloud_Server.pem --expected-version=0.4.9 --expected-environment=gray
+  node scripts/release/verify-gray-runtime.mjs --target-profile=old-server --ssh-key=<local-key-path> --expected-version=0.8.3 --expected-environment=gray
 `);
   process.exit(0);
 }
 
 const environment = String(firstArg(args.env) || "gray").trim();
-const defaults = await loadEnvironmentConfig(environment);
+const targetProfile = requiredArg(args, "target-profile");
+const defaults = await loadReleaseTargetProfile({ profile: targetProfile, environment });
+assertTargetOverridesMatch(args, defaults);
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
-const host = String(firstArg(args.host) || defaults.host);
-const port = String(firstArg(args.port) || defaults.sshPort);
-const user = String(firstArg(args.user) || defaults.sshUser);
-const remoteRoot = String(firstArg(args["remote-root"]) || defaults.remoteRoot);
-const serviceName = String(firstArg(args.service) || defaults.serviceName);
-const workerServiceName = String(firstArg(args["worker-service"]) || defaults.workerServiceName);
-const internalStatusUrl = String(firstArg(args["internal-status-url"]) || defaults.internalStatusUrl);
-const publicStatusUrl = String(firstArg(args["public-status-url"]) || defaults.publicStatusUrl);
+const host = defaults.host;
+const port = String(defaults.port);
+const user = defaults.sshUser;
+const remoteRoot = defaults.remoteRoot;
+const serviceName = defaults.serviceName;
+const workerServiceName = defaults.workerServiceName;
+const internalStatusUrl = defaults.internalStatusUrl;
+const publicStatusUrl = defaults.publicStatusUrl;
 const expectedVersion = String(firstArg(args["expected-version"]) || "").trim();
 const expectedEnvironment = String(firstArg(args["expected-environment"]) || "").trim();
 const expectedPermissionMode = String(firstArg(args["expected-permission-mode"]) || "").trim();
 const expectedPermissionReady = String(firstArg(args["expected-permission-ready"]) || "").trim();
-const sharedEnvFile = String(firstArg(args["shared-env-file"]) || defaults.sharedEnvFile);
+const sharedEnvFile = defaults.sharedEnvFile;
 const dryRun = flagEnabled(args["dry-run"]);
 const target = sshTarget(user, host);
 
@@ -99,6 +101,7 @@ printJson({
   ok: failedChecks.length === 0,
   stage: "verify-runtime",
   environment,
+  targetFingerprint: sanitizedTargetFingerprint(defaults),
   dryRun,
   target,
   publicStatusUrl,

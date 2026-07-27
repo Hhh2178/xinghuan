@@ -155,7 +155,7 @@ Add the command to package.json. Add its path to requiredPaths and includedPaths
 
 State that only the r1 deployed contract plus the Gray fixture guarantees output-only recovery; Production use remains prohibited before that evidence exists.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 Run: `npm run verify:output-recovery-operation-contract && npm test -- apps/worker/src/worker-task-operation.test.ts apps/api/src/admin-task-list-routes.test.ts`
 
@@ -196,7 +196,7 @@ export async function loadReleaseTargetProfile(input: {
 export function assertOldServerTarget(target: ReleaseTargetFingerprint): void;
 ~~~
 
-- [ ] **Step 1: Add allowed Gray/Production and rejected-new-server tests**
+- [x] **Step 1: Add allowed Gray/Production and rejected-new-server tests**
 
 ~~~ts
 expect(assertOldServerTarget(oldGray)).toBeUndefined();
@@ -204,11 +204,11 @@ expect(assertOldServerTarget(oldProduction)).toBeUndefined();
 expect(() => assertOldServerTarget({ ...oldGray, host: '43.131.246.222' })).toThrow('OLD_SERVER_TARGET_MISMATCH');
 ~~~
 
-- [ ] **Step 2: Create the non-secret profile**
+- [x] **Step 2: Create the non-secret profile**
 
 It contains exact host, port, roots, services, worker services, env-file paths, status URLs, queue names and expected database names for both environments. It includes no key paths, passwords, tokens or database URLs.
 
-- [ ] **Step 3: Require target profile for deploy and runtime verification**
+- [x] **Step 3: Require target profile for deploy and runtime verification**
 
 The r1 deploy and runtime commands require `--target-profile=old-server`. Resolve settings from that profile before CLI overrides. Reject any override that differs from the profile. Output only a sanitized fingerprint.
 
