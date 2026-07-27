@@ -20,6 +20,8 @@
     "package:release": "node scripts/package-release.mjs",
     "verify:output-recovery-operation-contract": "node scripts/verify-output-recovery-operation-contract.mjs",
     "verify:old-server-release-target": "node scripts/release/target-profile.test.mjs && node scripts/verify-old-server-release-target.mjs",
+    "verify:agent-environment-readiness-contract": "node scripts/verify-agent-environment-readiness-contract.mjs",
+    "verify:agent-environment-readiness": "node scripts/verify-agent-environment-readiness.mjs",
     "release:gray:prepare": "node scripts/release/prepare-gray-release.mjs",
     "release:gray:prepare:runninghub": "node scripts/release/prepare-gray-release.mjs --preset=runninghub",
     "release:gray:deploy": "node scripts/release/deploy-gray-release.mjs",

@@ -229,19 +229,43 @@ Commit: `git add config/release-target-profiles.json scripts/release/target-prof
 - Modify: `package.json`, `scripts/package-release.mjs`
 - Modify: `docs/systems/agent-runtime/README.md`, `docs/systems/observability-and-ops/release-gates.md`
 
-- [ ] **Step 1: Write the static contract before implementation**
+- [x] **Step 1: Write the static contract before implementation**
 
 It requires checks for eight bootstrap definitions, three Agent publications, three route publications, non-empty `text_chat` candidates, explicit controls, target environment, frontend/admin canaries and `mode=agent` without fallback.
 
-- [ ] **Step 2: Implement a read-only runtime verifier**
+- [x] **Step 2: Implement a read-only runtime verifier**
 
 It uses the old-server profile and authenticated Admin read endpoints. It never bootstraps, publishes, mutates controls or prints credentials. Billed canaries run only with `--allow-billed-canaries=true`; otherwise the verifier records that live canaries were deliberately skipped.
 
-- [ ] **Step 3: Register, package, verify and commit**
+- [x] **Step 3: Register, package, verify and commit**
 
 Run: `npm run verify:agent-environment-readiness-contract && npm run verify:agent-runtime-architecture-contract`
 
 Commit: `git add scripts/verify-agent-environment-readiness.mjs scripts/verify-agent-environment-readiness-contract.mjs package.json scripts/package-release.mjs docs/systems/agent-runtime/README.md docs/systems/observability-and-ops/release-gates.md && git commit -m "test(agent): gate environment readiness"`
+
+### Task 4A: Stabilize The Canvas Generation Delivery Chain
+
+**Scope:** The chain begins when a Canvas node creates a task and ends only when the corresponding owner-visible node reaches a terminal success with a readable materialized artifact. It covers request idempotency, queue claim, Provider submission/polling, Provider result parsing, artifact materialization, retry classification, task persistence and Canvas runtime projection.
+
+- [ ] **Step 1: Map existing cross-layer contracts and their blind spots**
+
+Use CodeGraph and current verifiers to map `Canvas -> API task creation -> Worker -> Provider -> output-materials -> task lifecycle -> Canvas runtime`. Record every request/task/correlation ID and identify any terminal state that can be observed before artifact readability.
+
+- [ ] **Step 2: Add a delivery-chain contract gate before behavior changes**
+
+Create a static verifier that requires idempotency propagation, cancellation passthrough, Provider submission identity, bounded polling/retry classification, output-recovery handoff, terminal materialization evidence and owner-scoped runtime projection. It must reject a direct Provider resubmission for an `output_only` task.
+
+- [ ] **Step 3: Add a deterministic local end-to-end fixture**
+
+Use a local mock Provider only. Prove an accepted Canvas request produces one Provider submission, stores a correlation ID, materializes a readable artifact and reaches success; separately prove a completed-but-unmaterialized result retries only materialization and never bills/submits again.
+
+- [ ] **Step 4: Narrowly fix proven boundary failures and re-run lifecycle contracts**
+
+Keep Provider adapters isolated, preserve owner/revision semantics, and use the existing retry taxonomy. Do not mass-rewrite Canvas or Worker orchestration.
+
+- [ ] **Step 5: Gray acceptance before Production promotion**
+
+Run one authorized, isolated Gray fixture and record task ID continuity, Provider submission count, cost-count invariance, artifact readability and terminal success. Production receives only the accepted archive and non-destructive code/runtime verification.
 
 ### Task 5: Build, Package, And Commit r1
 
