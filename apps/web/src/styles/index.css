@@ -3,6 +3,7 @@
 @import './theme-core.css';
 @import './error-recovery.css';
 @import './canvas-shell.css';
+@import './node-chrome.css';
 
 @tailwind base;
 @tailwind components;
@@ -2556,37 +2557,6 @@ html[data-theme-visual="tech"][data-theme-mode="light"] .react-flow__node:not(.r
   white-space: nowrap;
 }
 
-/* 极细无感滚动条(科技风) */
-.react-flow__node ::-webkit-scrollbar,
-.react-flow__node *::-webkit-scrollbar {
-  width: 2px !important;
-  height: 2px !important;
-}
-.react-flow__node ::-webkit-scrollbar-track,
-.react-flow__node *::-webkit-scrollbar-track {
-  background: transparent !important;
-}
-.react-flow__node ::-webkit-scrollbar-thumb,
-.react-flow__node *::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.15) !important;
-  border-radius: 9999px !important;
-}
-.react-flow__node ::-webkit-scrollbar-thumb:hover,
-.react-flow__node *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.3) !important;
-}
-.react-flow__node ::-webkit-scrollbar-button,
-.react-flow__node *::-webkit-scrollbar-button {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-.react-flow__node,
-.react-flow__node * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.15) transparent;
-}
-
 /* === xyflow Handle 交互优化 === */
 /* 1. 默认光标从 grab(手掌) 改为 crosshair(十字准星),
       更直观地提示「拖拽连线」动作 (与拖动节点本体区分开) */
@@ -3286,12 +3256,6 @@ html[data-theme-visual="op"] .t8-group-box__handle {
   color: var(--t8-menu-icon-color, var(--t8-accent, #38bdf8));
   background: color-mix(in srgb, var(--t8-menu-icon-color, var(--t8-accent, #38bdf8)) 20%, var(--t8-bg-panel, #111827));
   border: 1px solid color-mix(in srgb, var(--t8-menu-icon-color, var(--t8-accent, #38bdf8)) 48%, transparent);
-}
-
-.t8-node-action-bar {
-  --t8-actionbar-bg: color-mix(in srgb, var(--t8-bg-panel-elevated, #111827) 94%, transparent);
-  --t8-actionbar-border: 1px solid var(--t8-border-strong, rgba(255, 255, 255, 0.18));
-  --t8-actionbar-shadow: var(--t8-shadow-button, 0 8px 24px rgba(0, 0, 0, 0.34));
 }
 
 .llm-chat-message {

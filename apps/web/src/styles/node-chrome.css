@@ -1,0 +1,42 @@
+/* Node-owned interaction chrome. Keep these rules scoped to ReactFlow nodes so
+   editor shell and route-level styles cannot change node affordances globally. */
+.react-flow__node ::-webkit-scrollbar,
+.react-flow__node *::-webkit-scrollbar {
+  width: 2px !important;
+  height: 2px !important;
+}
+
+.react-flow__node ::-webkit-scrollbar-track,
+.react-flow__node *::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.react-flow__node ::-webkit-scrollbar-thumb,
+.react-flow__node *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 9999px !important;
+}
+
+.react-flow__node ::-webkit-scrollbar-thumb:hover,
+.react-flow__node *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.react-flow__node ::-webkit-scrollbar-button,
+.react-flow__node *::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.react-flow__node,
+.react-flow__node * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.t8-node-action-bar {
+  --t8-actionbar-bg: color-mix(in srgb, var(--t8-bg-panel-elevated, #111827) 94%, transparent);
+  --t8-actionbar-border: 1px solid var(--t8-border-strong, rgba(255, 255, 255, 0.18));
+  --t8-actionbar-shadow: var(--t8-shadow-button, 0 8px 24px rgba(0, 0, 0, 0.34));
+}
