@@ -29,12 +29,12 @@
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.3`
-  - release：`20260728-provider-poll-retry-v083-r6`
+  - release：`20260728-canvas-visibility-pose-schema-v083-r7`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过`
-  - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
+  - 当前补修：`大画布可见性评估与 PoseMaster 字段 schema 抽离；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
   - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
-  - 本轮制品源提交：`d067e46`
-  - 本轮制品 SHA-256：`FD81820DB7340376599738CB1FBF276F4CDFA5CBACBBA51B3A46899C8809CCC1`
+  - 本轮制品源提交：`602288e`
+  - 本轮制品 SHA-256：`DDC4BC055CE1E9092E394785D1338F7442B5AEF315109B901835F6AA1EBF55B7`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
@@ -42,9 +42,9 @@
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.3`
-  - release：`20260728-provider-poll-retry-v083-r6`
+  - release：`20260728-canvas-visibility-pose-schema-v083-r7`
   - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness 与公网状态全部通过`
-  - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
+  - 当前补修：`大画布可见性评估与 PoseMaster 字段 schema 抽离；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
   - Agent：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
   - 当前限制：`本批次未进行付费 Provider 成功产物的端到端验收，也未重复 Agent 真实请求 canary`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`

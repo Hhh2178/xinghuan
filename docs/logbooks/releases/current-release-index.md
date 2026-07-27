@@ -5,14 +5,14 @@
 ### Production
 
 - 版本：`v0.8.3`
-- release：`20260728-provider-poll-retry-v083-r6`
+- release：`20260728-canvas-visibility-pose-schema-v083-r7`
 - 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`recover-output 以独立 operation 分支执行；画布生成提交按 owner/idempotencyKey 去重，PostgreSQL 唯一索引吸收并发重复提交`
+- 部署内容：`大画布可见性评估与 PoseMaster 字段 schema 抽离；继续包含 Provider 查询瞬态重试与恢复心跳`
 - Agent 运行态：`已加入运行环境静态 readiness 门禁；本批次未重复执行付费 Agent canary`
-- 回滚：`20260728-provider-poll-retry-v083-r5`
+- 回滚：`20260728-provider-poll-retry-v083-r6`
 - 当前批次记录：
-  - `production/2026-07-28-provider-poll-retry-v083-r6.md`
-  - `../validations/2026-07-28-provider-poll-retry-v083-r6.md`
+  - `production/2026-07-28-canvas-visibility-pose-schema-v083-r7.md`
+  - `../validations/2026-07-28-canvas-visibility-pose-schema-v083-r7.md`
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -24,16 +24,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-provider-poll-retry-v083-r6`
+- release：`20260728-canvas-visibility-pose-schema-v083-r7`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`recover-output 以独立 operation 分支执行；画布生成提交按 owner/idempotencyKey 去重，PostgreSQL 唯一索引吸收并发重复提交`
+- 部署内容：`大画布可见性评估与 PoseMaster 字段 schema 抽离；继续包含 Provider 查询瞬态重试与恢复心跳`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`d067e46`
-- 本轮制品 SHA-256：`FD81820DB7340376599738CB1FBF276F4CDFA5CBACBBA51B3A46899C8809CCC1`
+- 本轮制品源提交：`602288e`
+- 本轮制品 SHA-256：`DDC4BC055CE1E9092E394785D1338F7442B5AEF315109B901835F6AA1EBF55B7`
 - 本轮发布记录：
-  - `gray/2026-07-28-provider-poll-retry-v083-r6.md`
-  - `../validations/2026-07-28-provider-poll-retry-v083-r6.md`
+  - `gray/2026-07-28-canvas-visibility-pose-schema-v083-r7.md`
+  - `../validations/2026-07-28-canvas-visibility-pose-schema-v083-r7.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
