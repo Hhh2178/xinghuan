@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "6533a364fa83b155e7ed23311499178f528e2247",
+  "sourceCommit": "d067e468758c3d46e907170aef03cae2fbf2660d",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-provider-poll-retry-v083-r5",
+      "releaseId": "20260728-provider-poll-retry-v083-r6",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-provider-poll-retry-v083-r5.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-provider-poll-retry-v083-r5.md",
-      "rollbackReleaseId": "20260728-canvas-loading-performance-v083-r4"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-provider-poll-retry-v083-r6.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-provider-poll-retry-v083-r6.md",
+      "rollbackReleaseId": "20260728-provider-poll-retry-v083-r5"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260728-provider-poll-retry-v083-r5",
+      "releaseId": "20260728-provider-poll-retry-v083-r6",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-provider-poll-retry-v083-r5.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-provider-poll-retry-v083-r5.md",
-      "rollbackReleaseId": "20260728-canvas-loading-performance-v083-r4"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-provider-poll-retry-v083-r6.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-provider-poll-retry-v083-r6.md",
+      "rollbackReleaseId": "20260728-provider-poll-retry-v083-r5"
     }
   }
 }
