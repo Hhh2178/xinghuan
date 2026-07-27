@@ -294,7 +294,7 @@ npm run harness:verify:release
 npm run verify:release-governance-contract
 ~~~
 
-- [ ] **Step 3: Create exactly one archive and record SHA-256**
+- [x] **Step 3: Create exactly one archive and record SHA-256**
 
 Run: `npm run package:release -- 20260727-generation-delivery-agent-p0-v083-r1`
 
@@ -314,7 +314,7 @@ Stage only intentional files. The commit must pass hotspot checks without increa
 - Create: `docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-production-v083-r1.md`
 - Modify after success only: `ops/current/release-state.json`, `ops/current/gray.md`, `ops/current/production.md`, `ops/README.md`, `docs/logbooks/releases/current-release-index.md`, `docs/memory/current-state.md`
 
-- [ ] **Step 1: Capture Gray preflight and deploy through target profile**
+- [x] **Step 1: Capture Gray preflight and deploy through target profile**
 
 Confirm the sanitized target is `101.33.75.38:728` and the Gray root before upload.
 
@@ -322,7 +322,7 @@ Confirm the sanitized target is `101.33.75.38:728` and the Gray root before uplo
 
 The isolated recovery fixture proves same task ID, zero Provider submissions, unchanged cost count, readable artifact and terminal success. Record safe counts/codes only.
 
-- [ ] **Step 3: Promote the identical archive to Production**
+- [x] **Step 3: Promote the identical archive to Production**
 
 Create an authorized Production database backup, compare archive SHA to Gray evidence, then perform only non-destructive runtime/Agent/recovery-code verification. Do not create a Production fixture.
 

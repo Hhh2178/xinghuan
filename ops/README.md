@@ -28,25 +28,25 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.2`
-  - release：`20260727-provider-output-recovery-v082-r1`
-  - 状态：`新旧服务器 Gray 均已部署；旧服务器 API/Worker、权限 readiness、首页、后台和公网状态全部通过`
-  - 当前补修：`Provider 成功后的视频物料化支持重试、Range 续传并保留远端产物`
-  - 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，下一 Gray 补丁修复前不得用于验证“不重复计费”`
-  - 本轮制品源提交：`55aa3d9`
-  - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
+  - 版本：`v0.8.3`
+  - release：`20260727-generation-delivery-agent-p0-v083-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过`
+  - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试`
+  - 当前限制：`尚未以付费 Provider 成功任务完成一次隔离的 Gray 端到端物料化验收`
+  - 本轮制品源提交：`48fbb61`
+  - 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.8.2`
-  - release：`20260727-provider-output-recovery-v082-r1`
-  - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness、公网状态和 Agent 真实请求验证后正式放行`
-  - 当前补修：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物`
-  - Agent：`Production bootstrap、Agent/route publication 和 observe 控制已补齐；前后台真实请求均返回 mode=agent`
-  - 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，后续 Gray 补丁验收前禁止在 Production 使用`
+  - 版本：`v0.8.3`
+  - release：`20260727-generation-delivery-agent-p0-v083-r1`
+  - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness 与公网状态全部通过`
+  - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试`
+  - Agent：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
+  - 当前限制：`本批次未进行付费 Provider 成功产物的端到端验收，也未重复 Agent 真实请求 canary`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 
 ## current / archive 分工

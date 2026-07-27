@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-27",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "55aa3d97d469179f01c8e29c35f16f923df2c88a",
+  "sourceCommit": "48fbb61e7298b25e7da268e5e07d49a2e8cfc119",
   "environments": {
     "gray": {
-      "version": "0.8.2",
-      "releaseId": "20260727-provider-output-recovery-v082-r1",
+      "version": "0.8.3",
+      "releaseId": "20260727-generation-delivery-agent-p0-v083-r1",
       "deployedAt": "2026-07-27",
       "permissionMode": "enforced",
       "readiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0 },
-      "runtimeReadiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-25", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-27-provider-output-recovery-v082-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-27-provider-output-recovery-v082-r1.md",
-      "rollbackReleaseId": "20260726-video-prompt-provider-limit-v081-r1"
+      "runtimeReadiness": { "subjects": 131, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 3, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-27-generation-delivery-agent-p0-v083-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-gray-v083-r1.md",
+      "rollbackReleaseId": "20260727-provider-output-recovery-v082-r1"
     },
     "production": {
-      "version": "0.8.2",
-      "releaseId": "20260727-provider-output-recovery-v082-r1",
+      "version": "0.8.3",
+      "releaseId": "20260727-generation-delivery-agent-p0-v083-r1",
       "deployedAt": "2026-07-27",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-27-provider-output-recovery-v082-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-27-provider-output-recovery-production-v082-r1.md",
-      "rollbackReleaseId": "20260726-video-prompt-provider-limit-v081-r1"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-27-generation-delivery-agent-p0-v083-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-production-v083-r1.md",
+      "rollbackReleaseId": "20260727-provider-output-recovery-v082-r1"
     }
   }
 }

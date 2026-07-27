@@ -3,16 +3,16 @@
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.2`
-- 当前 release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`旧服务器 Production 已晋级并完成正式运行态验证；由旧域名继续提供服务`
-- 当前补修：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物`
-- Agent 运行态：`bootstrap、Production Agent/route 发布和 observe 控制已补齐；前后台真实请求均返回 mode=agent`
-- 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，Gray 补丁验收前禁止在 Production 使用`
+- 当前版本：`v0.8.3`
+- 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
+- 当前状态：`旧服务器 Production 已晋级；API/Worker、内部/公网状态与权限 readiness 均已通过`
+- 当前补修：`recover-output 以独立 operation 分支执行；画布生成提交以 owner/idempotencyKey 去重并处理并发唯一键冲突`
+- Agent 运行态：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
+- 当前限制：`尚未以付费 Provider 成功任务完成隔离的 Gray 端到端物料化验收；本批次未重复 Agent 真实请求 canary`
 - 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-27-provider-output-recovery-v082-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-27-generation-delivery-agent-p0-v083-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-production-v083-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`

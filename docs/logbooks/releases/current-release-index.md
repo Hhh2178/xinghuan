@@ -4,15 +4,15 @@
 
 ### Production
 
-- 版本：`v0.8.2`
-- release：`20260727-provider-output-recovery-v082-r1`
+- 版本：`v0.8.3`
+- release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`Provider 视频内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物。recover-output 存在 P0 字段契约缺陷，修复前禁止在 Production 使用`
-- Agent 运行态：`已完成 bootstrap、Production Agent/route 发布和 observe 控制；前后台真实请求均为 mode=agent`
-- 回滚：`20260726-video-prompt-provider-limit-v081-r1`
+- 部署内容：`recover-output 以独立 operation 分支执行；画布生成提交按 owner/idempotencyKey 去重，PostgreSQL 唯一索引吸收并发重复提交`
+- Agent 运行态：`已加入运行环境静态 readiness 门禁；本批次未重复执行付费 Agent canary`
+- 回滚：`20260727-provider-output-recovery-v082-r1`
 - 当前批次记录：
-  - `production/2026-07-27-provider-output-recovery-v082-r1.md`
-  - `../validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
+  - `production/2026-07-27-generation-delivery-agent-p0-v083-r1.md`
+  - `../validations/2026-07-27-generation-delivery-agent-p0-production-v083-r1.md`
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -23,17 +23,17 @@
 
 ### Gray
 
-- 版本：`v0.8.2`
-- release：`20260727-provider-output-recovery-v082-r1`
+- 版本：`v0.8.3`
+- release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前状态：`新旧服务器 Gray 均已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新域名等待注册商恢复解析`
-- 部署内容：`Provider 视频内容下载支持重试、流中断分类与 Range 续传；失败时保留远端产物。recover-output 已确认存在字段契约缺陷，待下一 Gray 补丁修复`
-- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过；五次 Grok 任务结果记录在对应 validation 台账。`
+- 部署内容：`recover-output 以独立 operation 分支执行；画布生成提交按 owner/idempotencyKey 去重，PostgreSQL 唯一索引吸收并发重复提交`
+- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。付费 Provider 成功产物的隔离端到端验收尚未执行。`
 - 部署时间：`2026-07-27`
-- 本轮制品源提交：`55aa3d9`
-- 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
+- 本轮制品源提交：`48fbb61`
+- 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`
 - 本轮发布记录：
-  - `gray/2026-07-27-provider-output-recovery-v082-r1.md`
-  - `../validations/2026-07-27-provider-output-recovery-v082-r1.md`
+  - `gray/2026-07-27-generation-delivery-agent-p0-v083-r1.md`
+  - `../validations/2026-07-27-generation-delivery-agent-p0-gray-v083-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

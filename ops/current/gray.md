@@ -3,19 +3,19 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.2`
-- 当前 release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`新旧服务器 Gray 均已部署本 release；当前由旧域名提供可用灰度入口`
-- 当前补修：`视频下载/回传失败可分类并保留远端产物；Redis 入队增加连接与命令超时`
-- 当前限制：`recover-output 存在 API/Worker 字段契约缺陷，后续 Gray 补丁修复前不得用于验证“不重复调用 Provider”`
-- Production 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
-- 本轮制品源提交：`55aa3d9`
-- 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
+- 当前版本：`v0.8.3`
+- 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
+- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
+- 当前补修：`recover-output 以独立 operation 分支执行；画布生成提交以 owner/idempotencyKey 去重并处理并发唯一键冲突`
+- 当前限制：`静态交付链路门禁与单元契约已通过；尚未以付费 Provider 成功任务完成一次隔离的 Gray 端到端物料化验收`
+- Production 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
+- 本轮制品源提交：`48fbb61`
+- 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-27-provider-output-recovery-v082-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-provider-output-recovery-v082-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-27-generation-delivery-agent-p0-v083-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-generation-delivery-agent-p0-gray-v083-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
