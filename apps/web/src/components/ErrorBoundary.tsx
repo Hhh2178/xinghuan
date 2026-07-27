@@ -1,4 +1,6 @@
 import { Component, type ReactNode } from 'react';
+import { ErrorRecoveryPanel } from './errors/ErrorRecoveryPanel';
+import { toUiFailureDiagnostic } from './errors/ui-failure-diagnostic';
 
 /**
  * ErrorBoundary - 防御性错误边界
@@ -46,7 +48,6 @@ class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.hasError) return this.props.children;
-    const title = this.props.fallbackTitle || '画布渲染出错了';
     return (
       <div
         style={{
@@ -62,57 +63,7 @@ class ErrorBoundary extends Component<Props, State> {
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 600 }}>🐧 {title}</div>
-        <div style={{ fontSize: 13, opacity: 0.8, maxWidth: 720, textAlign: 'center' }}>
-          {this.state.error?.message || '未知错误'}
-        </div>
-        {this.state.info && (
-          <pre
-            style={{
-              fontSize: 11,
-              maxWidth: 880,
-              maxHeight: 240,
-              overflow: 'auto',
-              padding: 12,
-              background: '#0008',
-              borderRadius: 8,
-              color: '#fda4af',
-            }}
-          >
-            {this.state.info}
-          </pre>
-        )}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={this.reset}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 6,
-              border: '1px solid #fca5a5',
-              color: '#fca5a5',
-              background: 'transparent',
-              cursor: 'pointer',
-            }}
-          >
-            重试渲染
-          </button>
-          <button
-            onClick={this.reload}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 6,
-              border: '1px solid #5eead4',
-              color: '#5eead4',
-              background: 'transparent',
-              cursor: 'pointer',
-            }}
-          >
-            刷新页面
-          </button>
-        </div>
-        <div style={{ fontSize: 11, opacity: 0.5, marginTop: 8 }}>
-          如果反复出现，请截图浏览器 F12 控制台报错反馈给开发者
-        </div>
+        <ErrorRecoveryPanel diagnostic={toUiFailureDiagnostic(this.state.error, 'workspace')} onRetry={this.reset} onReload={this.reload} />
       </div>
     );
   }
