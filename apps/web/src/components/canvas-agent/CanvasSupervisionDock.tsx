@@ -8,7 +8,7 @@ import { WorkflowStageEditor } from './WorkflowStageEditor';
 import { WorkflowSupervisionSettingsDrawer } from './WorkflowSupervisionSettingsDrawer';
 import { CANVAS_RUN_STATUS_LABEL } from './canvas-run-view-model';
 import { buildCanvasRunNodeProjection } from './canvas-run-node-projection';
-import { listCanvasWorkflowRuns, type CanvasRunRecord } from './canvas-run-api';
+import { isCanvasRunRuntimeUnavailable, listCanvasWorkflowRuns, type CanvasRunRecord } from './canvas-run-api';
 import { useCanvasRunProjection } from './useCanvasRunProjection';
 import { buildWorkflowSupervisionReadiness } from './workflow-supervision-readiness';
 
@@ -35,6 +35,7 @@ export function CanvasSupervisionDock(props: {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [oneTimeSettingsByWorkflow, setOneTimeSettingsByWorkflow] = useState<Record<string, WorkflowSupervisionSettings>>({});
   const [overviewRuns, setOverviewRuns] = useState<CanvasRunRecord[]>([]);
+  const [runtimeUnavailable, setRuntimeUnavailable] = useState(false);
   const projection = useCanvasRunProjection(props.canvasId, selectedWorkflowId, initialRunId || runIdsByWorkflow[selectedWorkflowId]);
   const runStatus = projection.run?.status || '';
   const active = ['planning', 'awaiting_approval', 'queued', 'running', 'paused'].includes(runStatus);
@@ -46,6 +47,7 @@ export function CanvasSupervisionDock(props: {
     setSettingsOpen(false);
     setOneTimeSettingsByWorkflow({});
     setOverviewRuns([]);
+    setRuntimeUnavailable(false);
     if (!props.canvasId) {
       setWorkflows([]);
       setCanvasNodes([]);
@@ -68,7 +70,7 @@ export function CanvasSupervisionDock(props: {
   }, [props.canvasId]);
 
   useEffect(() => {
-    if (!props.canvasId) return;
+    if (!props.canvasId || !props.open || runtimeUnavailable) return;
     let cancelled = false;
     const refreshOverview = () => void listCanvasWorkflowRuns(props.canvasId!)
       .then((runs) => {
@@ -76,11 +78,13 @@ export function CanvasSupervisionDock(props: {
         setOverviewRuns(runs);
         setRunIdsByWorkflow(Object.fromEntries(runs.flatMap((run) => run.workflowId ? [[run.workflowId, run.id]] : [])));
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (!cancelled && isCanvasRunRuntimeUnavailable(error)) setRuntimeUnavailable(true);
+      });
     refreshOverview();
     const timer = window.setInterval(refreshOverview, 5_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [props.canvasId, props.open, projection.run?.id, projection.run?.status]);
+  }, [props.canvasId, props.open, projection.run?.id, projection.run?.status, runtimeUnavailable]);
 
   useEffect(() => {
     const handleWorkflows = (event: Event) => {
@@ -170,7 +174,11 @@ export function CanvasSupervisionDock(props: {
         </div>
       </header>
       <div className="canvas-supervision-panel__body" data-settings-open={settingsOpen ? 'true' : 'false'}>
-        <div className="canvas-supervision-panel__main">
+        {runtimeUnavailable ? <section className="canvas-supervision-empty" aria-label="AI 托管运行环境不可用">
+          <strong>AI 托管运行环境未启用</strong>
+          <p>当前服务未配置运行所需的持久化与执行能力；画布编辑不受影响。</p>
+        </section> : null}
+        {!runtimeUnavailable ? <div className="canvas-supervision-panel__main">
           <div className="canvas-run-supervisor__options">
             <label>
               <span>托管目标</span>
@@ -224,8 +232,8 @@ export function CanvasSupervisionDock(props: {
               return next;
             })}
           />
-        </div>
-        {settingsOpen && selectedWorkflow ? <WorkflowSupervisionSettingsDrawer
+        </div> : null}
+        {!runtimeUnavailable && settingsOpen && selectedWorkflow ? <WorkflowSupervisionSettingsDrawer
           canvasId={props.canvasId}
           workflow={selectedWorkflow}
           nodes={canvasNodes}

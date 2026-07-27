@@ -9,8 +9,8 @@ import { useAssistantSession } from './useAssistantSession';
 import { useAssistantGeometry } from './useAssistantGeometry';
 
 export function CanvasAssistantShell({ nodes, edges, activeCanvasId, ownerId }: { nodes: Node[]; edges: Edge[]; activeCanvasId: string | null; ownerId: string }) {
-  const session = useAssistantSession(nodes, edges, activeCanvasId);
   const [open, setOpen] = useState(false);
+  const session = useAssistantSession(nodes, edges, activeCanvasId, open);
   const [contextOpen, setContextOpen] = useState(false);
   const geometry = useAssistantGeometry(ownerId, open);
 

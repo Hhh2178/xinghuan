@@ -97,7 +97,7 @@ async function fileToDataUrl(file: File) {
   });
 }
 
-export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: string | null) {
+export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: string | null, assistantOpen: boolean) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [attachments, setAttachments] = useState<AssistantChatAttachment[]>([]);
@@ -118,7 +118,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
   useEffect(() => {
     let active = true;
     setRecentFailure(null);
-    if (!canvasId || selected.length > 0) return () => { active = false; };
+    if (!assistantOpen || !canvasId || selected.length > 0) return () => { active = false; };
     void listCanvasWorkflowRuns(canvasId).then(async (runs) => {
       const failed = runs.filter((run) => run.status === 'failed').sort((left, right) => right.updatedAt - left.updatedAt)[0];
       if (!failed) return;
@@ -142,7 +142,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
       }));
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [canvasId, edges, nodes, selected.length]);
+  }, [assistantOpen, canvasId, edges, nodes, selected.length]);
 
   const selectedFailure = useMemo(() => selected[0] ? buildAssistantFailureTarget({
     node: selected[0],

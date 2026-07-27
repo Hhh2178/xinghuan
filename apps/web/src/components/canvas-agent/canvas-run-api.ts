@@ -138,6 +138,13 @@ async function readResponse<T>(response: Response): Promise<T> {
   return (payload?.data ?? payload) as T;
 }
 
+export function isCanvasRunRuntimeUnavailable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return message === 'CANVAS_RUN_DISABLED'
+    || message === 'CANVAS_RUN_POSTGRES_REQUIRED'
+    || message.startsWith('AGENT_RUNTIME_CAPABILITY_DISABLED:');
+}
+
 function requireWorkflowSupervisionSettingsProjection(value: unknown): WorkflowSupervisionSettingsProjection {
   if (!isRecord(value) || !isRecord(value.settings) || !isRecord(value.sources)) {
     throw new Error('托管设置响应无效，请刷新后重试');

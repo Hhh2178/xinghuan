@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readCanvasRunEvents, readWorkflowSupervisionSettings } from './canvas-run-api';
+import { isCanvasRunRuntimeUnavailable, readCanvasRunEvents, readWorkflowSupervisionSettings } from './canvas-run-api';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -66,5 +66,19 @@ describe('canvas run event API', () => {
 
     await expect(readCanvasRunEvents('run/1', 7)).resolves.toEqual({ items: [], nextSequence: 7 });
     expect(fetchMock).toHaveBeenCalledWith('/api/canvas-runs/run%2F1/events?after=7', { credentials: 'same-origin' });
+  });
+});
+
+describe('canvas run runtime availability', () => {
+  it.each([
+    'CANVAS_RUN_DISABLED',
+    'CANVAS_RUN_POSTGRES_REQUIRED',
+    'AGENT_RUNTIME_CAPABILITY_DISABLED:gray:canvasRunsEnabled',
+  ])('classifies %s as a non-retriable unavailable runtime', (message) => {
+    expect(isCanvasRunRuntimeUnavailable(new Error(message))).toBe(true);
+  });
+
+  it('does not hide an ordinary task failure as runtime unavailability', () => {
+    expect(isCanvasRunRuntimeUnavailable(new Error('RATE_LIMITED'))).toBe(false);
   });
 });
