@@ -1,8 +1,9 @@
 import { useReactFlow } from '@xyflow/react';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as api from '../../services/api';
 import { useCanvasStore } from '../../stores/canvas';
 import { isCanvasNodeDeleted } from '../../utils/deletedNodeRegistry';
+import { createAnimationFrameBatch, patchNodeData } from '../canvas/canvas-node-mutations';
 
 const offscreenPatchQueues = new Map<string, Promise<void>>();
 
@@ -60,6 +61,14 @@ function enqueueOffscreenCanvasPatch(
 export function useUpdateNodeData(nodeId: string) {
   const { setNodes } = useReactFlow();
   const originCanvasIdRef = useRef(useCanvasStore.getState().activeId);
+  const activePatchBatchRef = useRef<ReturnType<typeof createAnimationFrameBatch<Record<string, any>>> | null>(null);
+  if (!activePatchBatchRef.current) {
+    activePatchBatchRef.current = createAnimationFrameBatch((patches) => {
+      const merged = patches.reduce<Record<string, any>>((result, patch) => ({ ...result, ...patch }), {});
+      setNodes((nds) => patchNodeData(nds, nodeId, merged));
+    });
+  }
+  useEffect(() => () => activePatchBatchRef.current?.dispose(), []);
 
   return useCallback(
     (patch: Record<string, any>) => {
@@ -71,13 +80,7 @@ export function useUpdateNodeData(nodeId: string) {
         enqueueOffscreenCanvasPatch(originCanvasId, nodeId, patch);
         if (activeCanvasId !== originCanvasId) return;
       }
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...(n.data as any), ...patch } }
-            : n
-        )
-      );
+      activePatchBatchRef.current?.enqueue(patch);
     },
     [nodeId, setNodes]
   );
