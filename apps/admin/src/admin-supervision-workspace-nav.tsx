@@ -34,12 +34,12 @@ export interface SupervisionWorkspaceItem extends SupervisionWorkspaceDefinition
 }
 
 const workspaceDefinitions: SupervisionWorkspaceDefinition[] = [
-  { key: "overview", label: "运行总览", description: "状态与执行权威", icon: Activity },
-  { key: "environment", label: "环境控制", description: "开关与允许范围", icon: SlidersHorizontal },
-  { key: "planner", label: "规划 Agent", description: "分析用途与预算", icon: Bot },
-  { key: "routing", label: "模型路由", description: "候选、回退与版本", icon: GitBranch },
-  { key: "quality", label: "质量门", description: "评分与候选策略", icon: ShieldCheck },
-  { key: "recovery", label: "失败恢复", description: "恢复策略与账本", icon: RotateCcw },
+  { key: "overview", label: "托管总览", description: "状态、异常与安全边界", icon: Activity },
+  { key: "environment", label: "托管强度", description: "Gray / Production 生效模式", icon: SlidersHorizontal },
+  { key: "planner", label: "规划策略", description: "分析用途、提示词与预算", icon: Bot },
+  { key: "routing", label: "模型路由", description: "主模型、候选与故障回退", icon: GitBranch },
+  { key: "quality", label: "候选与质量", description: "评分、置信度与转人工", icon: ShieldCheck },
+  { key: "recovery", label: "失败恢复", description: "重试、改写与审批策略", icon: RotateCcw },
 ];
 
 const workspaceAliases: Record<string, SupervisionWorkspaceKey> = {

@@ -10,6 +10,11 @@ import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
 import { AdminAgentQualityEditor } from "./admin-agent-quality-editor";
 import { canvasAgentPurpose, purposeRouteTemplates } from "./admin-agent-governance-purpose";
 import {
+  applySupervisionPreset,
+  deriveSupervisionMode,
+  type SupervisionPreset,
+} from "./admin-supervision-mode";
+import {
   AdminSupervisionWorkspaceNav,
   createSupervisionWorkspaceState,
   discardSupervisionWorkspaceDraft,
@@ -218,17 +223,20 @@ function SupervisionOverviewView({ value }: { value: AgentOverview }) {
       <Metric icon={<Sparkles />} label="24h 质量评估" value={metrics.evaluations24h} />
     </div>
     <SectionHead title="执行权威" description="AI 只分析并提出受控建议；依赖图、阶段就绪条件和节点任务运行仍由确定性执行层负责。" />
+    <div className="scope-note"><ShieldCheck /><span>AI 托管只作用于明确的 Workflow Region，不会创建节点、修改连线、绕过权限或改变活动 Run 的冻结快照。所有环境控制都<strong>仅影响新 Workflow Run</strong>。</span></div>
     <div className="supervision-execution-policy" aria-label="托管执行并发权威">
       <div><span>并发输入</span><strong>工作流 stageConcurrency</strong></div>
       <div><span>平台上限</span><strong>每阶段 1-16</strong></div>
       <div><span>执行规则</span><strong>新 Run 冻结后生效</strong></div>
     </div>
     <div className="supervision-environment-summary">
-      {(value?.controls || []).map((control) => <div key={control.environment}>
+      {(value?.controls || []).map((control) => {
+        const mode = deriveSupervisionMode(control);
+        return <div key={control.environment}>
         <EnvironmentBadge value={control.environment} />
-        <strong>{control.agentEnabled && control.canvasRunsEnabled ? "托管可用" : "托管受限"}</strong>
-        <span>{control.automaticRecoveryEnabled ? "允许自动恢复" : "仅观察与人工处理"}</span>
-      </div>)}
+        <strong>{mode.label}</strong>
+        <span>{mode.summary}</span>
+      </div>;})}
     </div>
   </div>;
 }
@@ -242,8 +250,8 @@ function EnvironmentView({ value, busy, mutate, onDirtyChange }: { value: AgentO
   }, []);
 
   return <div className="agent-governance-stack">
-    <ActionHead title="环境总开关" action={<button type="button" className="ghost-action" disabled={busy} onClick={() => void mutate(adminAgentGovernanceApi.bootstrap)}><Plus />初始化固定用途草稿</button>} />
-    <p className="agent-section-description">环境开关只改变服务端允许范围，不自动发布任何配置。初始化操作也是幂等的，不会覆盖已有角色或配置。</p>
+    <ActionHead title="环境托管强度" action={<button type="button" className="ghost-action" disabled={busy} onClick={() => void mutate(adminAgentGovernanceApi.bootstrap)}><Plus />初始化固定用途草稿</button>} />
+    <p className="agent-section-description">选择一种可理解的托管模式；保存只改变服务端允许范围，不自动发布配置，并且仅影响新 Workflow Run。</p>
     <div className="agent-control-table">
       {(value?.controls || []).map((control) => <ControlRow key={control.environment} value={control} busy={busy} mutate={mutate} onDirtyChange={(nextDirty) => handleDirtyChange(control.environment, nextDirty)} />)}
     </div>
@@ -254,12 +262,20 @@ function ControlRow({ value, busy, mutate, onDirtyChange }: { value: AgentRuntim
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const changed = !sameControl(draft, value);
+  const mode = deriveSupervisionMode(draft);
   useEffect(() => onDirtyChange(changed), [changed, onDirtyChange]);
   const keys: Array<[keyof AgentRuntimeControl, string]> = [["agentEnabled", "Agent"], ["canvasRunsEnabled", "Canvas Run"], ["qualityEvaluationEnabled", "质量评估"], ["automaticRecoveryEnabled", "自动恢复"]];
-  return <div className="agent-control-row">
-    <div className="agent-control-environment"><EnvironmentBadge value={draft.environment} /><small>revision {draft.revision}</small></div>
-    <div className="agent-control-toggles">{keys.map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.checked })} /><span>{label}</span></label>)}</div>
-    <button type="button" className="primary-action" disabled={busy || !changed} onClick={() => void mutate(() => adminAgentGovernanceApi.updateControls(draft))}><Check aria-hidden="true" />应用</button>
+  const presets: Array<{ id: SupervisionPreset; label: string; description: string }> = [
+    { id: "observe", label: "仅观察", description: "计划与诊断，不自动恢复" },
+    { id: "controlled", label: "受控托管", description: "质量选择，高风险动作转审批" },
+    { id: "automatic", label: "自动恢复", description: "在冻结策略和预算内恢复" },
+  ];
+  return <div className="agent-control-row agent-control-row--modes">
+    <div className="agent-control-environment"><EnvironmentBadge value={draft.environment} /><strong>{mode.label}</strong><small>revision {draft.revision} · 仅影响新 Workflow Run</small></div>
+    <div className="supervision-mode-grid" role="radiogroup" aria-label={`${draft.environment} 托管模式`}>{presets.map((preset) => <button type="button" role="radio" aria-checked={mode.mode === preset.id} key={preset.id} className={mode.mode === preset.id ? "active" : ""} onClick={() => setDraft(applySupervisionPreset(draft, preset.id))}><strong>{preset.label}</strong><span>{preset.description}</span></button>)}</div>
+    <div className={`supervision-mode-summary supervision-mode-summary--${mode.mode}`}><strong>{mode.summary}</strong>{mode.customReasons.map((reason) => <span key={reason}>{reason}</span>)}</div>
+    <details className="supervision-advanced-controls"><summary>高级控制</summary><div className="agent-control-toggles">{keys.map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.checked })} /><span>{label}</span></label>)}</div></details>
+    <button type="button" className="primary-action" disabled={busy || !changed} onClick={() => void mutate(() => adminAgentGovernanceApi.updateControls(draft))}><Check aria-hidden="true" />保存模式</button>
   </div>;
 }
 
