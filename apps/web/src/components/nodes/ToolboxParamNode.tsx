@@ -48,6 +48,7 @@ import {
   normalizeMultiAngleBatchMode,
   parseMultiAngleCustomAngles,
 } from './toolbox-param/toolbox-param-schema';
+import { ToolboxMultiAngleParameterSection } from './toolbox-param/ToolboxMultiAngleParameterSection';
 
 /**
  * ToolboxParamNode - 参数提供节点
@@ -2218,102 +2219,27 @@ const ToolboxParamNode = (p: NodeProps) => {
             </div>
 
             <div className="space-y-2 min-w-0">
-              <section className="t8-card p-2 space-y-2">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: 'var(--t8-text-muted)' }}>
-                  <SlidersHorizontal size={12} />
-                  精准调节
-                </div>
-                <div className="grid grid-cols-[52px_1fr_40px] gap-2 items-center text-[11px]">
-                  <span style={{ color: 'var(--t8-text-dim)' }}>水平</span>
-                  <input type="range" min={0} max={360} step={1} value={roundAngle(multiAngleAzimuth)} onChange={(e) => updateMultiAngle({ multiAngleAzimuth: Number(e.target.value) })} style={{ accentColor: 'var(--t8-accent)' }} />
-                  <span className="text-right font-bold">{roundAngle(multiAngleAzimuth)}°</span>
-                  <span style={{ color: 'var(--t8-text-dim)' }}>垂直</span>
-                  <input type="range" min={-30} max={60} step={1} value={roundAngle(multiAngleElevation)} onChange={(e) => updateMultiAngle({ multiAngleElevation: Number(e.target.value) })} style={{ accentColor: 'var(--t8-secondary)' }} />
-                  <span className="text-right font-bold">{roundAngle(multiAngleElevation)}°</span>
-                  <span style={{ color: 'var(--t8-text-dim)' }}>远近</span>
-                  <input type="range" min={0} max={10} step={0.1} value={multiAngleDistance} onChange={(e) => updateMultiAngle({ multiAngleDistance: Number(e.target.value) })} style={{ accentColor: 'var(--t8-warning, #f59e0b)' }} />
-                  <span className="text-right font-bold">{multiAngleDistance.toFixed(1)}</span>
-                </div>
-              </section>
-
-              <section className="grid grid-cols-2 gap-2">
-                <div className="t8-card p-2 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: 'var(--t8-text-muted)' }}>
-                    <Compass size={12} />
-                    角度列表
-                  </div>
-                  <select
-                    className={compactSelectClass}
-                    value={selectedAzimuthPresetId}
-                    onChange={(e) => {
-                      const ps = MULTI_ANGLE_AZIMUTH_PRESETS.find((item) => item.id === e.target.value);
-                      if (ps) updateMultiAngle({ multiAngleAzimuth: ps.azimuth });
-                    }}
-                  >
-                    <option value="">方向：当前 {roundAngle(multiAngleAzimuth)}°</option>
-                    {MULTI_ANGLE_AZIMUTH_PRESETS.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
-                  </select>
-                  <select
-                    className={compactSelectClass}
-                    value={selectedElevationPresetId}
-                    onChange={(e) => {
-                      const ps = MULTI_ANGLE_ELEVATION_PRESETS.find((item) => item.id === e.target.value);
-                      if (ps) updateMultiAngle({ multiAngleElevation: ps.elevation });
-                    }}
-                  >
-                    <option value="">高度：当前 {roundAngle(multiAngleElevation)}°</option>
-                    {MULTI_ANGLE_ELEVATION_PRESETS.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
-                  </select>
-                  <select
-                    className={compactSelectClass}
-                    value={selectedDistancePresetId}
-                    onChange={(e) => {
-                      const ps = MULTI_ANGLE_DISTANCE_PRESETS.find((item) => item.id === e.target.value);
-                      if (ps) updateMultiAngle({ multiAngleDistance: ps.distance });
-                    }}
-                  >
-                    <option value="">远近：当前 {multiAngleDistance.toFixed(1)}</option>
-                    {MULTI_ANGLE_DISTANCE_PRESETS.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
-                  </select>
-                  <select
-                    className={compactSelectClass}
-                    value={selectedCreativePresetId}
-                    onChange={(e) => {
-                      const ps = MULTI_ANGLE_CREATIVE_PRESETS.find((item) => item.id === e.target.value);
-                      if (ps) updateMultiAngle({ multiAngleAzimuth: ps.azimuth, multiAngleElevation: ps.elevation, multiAngleDistance: ps.distance });
-                    }}
-                  >
-                    <option value="">快捷机位</option>
-                    {MULTI_ANGLE_CREATIVE_PRESETS.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
-                  </select>
-                </div>
-
-                <div className="t8-card p-2 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: 'var(--t8-text-muted)' }}>
-                    <Wand2 size={12} />
-                    输出设置
-                  </div>
-                  <select className={compactSelectClass} value={multiAngleBatchMode} onChange={(e) => updateMultiAngle({ multiAngleBatchMode: e.target.value as MultiAngleBatchMode })}>
-                    {MULTI_ANGLE_BATCH_PRESETS.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.label}{preset.id === 'single' ? '' : ` · ${preset.id === 'custom' ? multiAngleBatchAngles.length || 0 : preset.angles.length}条`}
-                      </option>
-                    ))}
-                  </select>
-                  {multiAngleBatchMode === 'custom' && (
-                    <input className="t8-input w-full h-8 px-2 text-[11px]" value={d?.multiAngleBatchCustomAngles || ''} placeholder="0,45,90,180" onChange={(e) => updateMultiAngle({ multiAngleBatchCustomAngles: e.target.value })} />
-                  )}
-                  <select className={compactSelectClass} value={multiAnglePromptMode} onChange={(e) => updateMultiAngle({ multiAnglePromptMode: e.target.value as MultiAnglePromptMode })}>
-                    <option value="qwen">Prompt：Qwen</option>
-                    <option value="general">Prompt：通用</option>
-                    <option value="dual">Prompt：双格式</option>
-                  </select>
-                  <select className={compactSelectClass} value={multiAngleLanguage} onChange={(e) => updateMultiAngle({ multiAngleLanguage: e.target.value as PromptLanguage })}>
-                    <option value="en">语言：EN</option>
-                    <option value="zh">语言：中</option>
-                  </select>
-                </div>
-              </section>
+              <ToolboxMultiAngleParameterSection
+                azimuth={multiAngleAzimuth}
+                elevation={multiAngleElevation}
+                distance={multiAngleDistance}
+                selectedAzimuthPresetId={selectedAzimuthPresetId}
+                selectedElevationPresetId={selectedElevationPresetId}
+                selectedDistancePresetId={selectedDistancePresetId}
+                selectedCreativePresetId={selectedCreativePresetId}
+                batchMode={multiAngleBatchMode}
+                batchAngles={multiAngleBatchAngles}
+                promptMode={multiAnglePromptMode}
+                language={multiAngleLanguage}
+                customAngles={d?.multiAngleBatchCustomAngles || ''}
+                azimuthPresets={MULTI_ANGLE_AZIMUTH_PRESETS}
+                elevationPresets={MULTI_ANGLE_ELEVATION_PRESETS}
+                distancePresets={MULTI_ANGLE_DISTANCE_PRESETS}
+                creativePresets={MULTI_ANGLE_CREATIVE_PRESETS}
+                batchPresets={MULTI_ANGLE_BATCH_PRESETS}
+                compactSelectClass={compactSelectClass}
+                onPatch={updateMultiAngle}
+              />
 
               <section className="t8-card p-2 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: 'var(--t8-text-muted)' }}>
