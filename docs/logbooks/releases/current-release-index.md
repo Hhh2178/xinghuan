@@ -5,14 +5,14 @@
 ### Production
 
 - 版本：`v0.8.3`
-- release：`20260728-worker-dispatch-toolbox-schema-v083-r8`
+- release：`20260728-toolbox-hotspot-seams-v083-r9`
 - 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`Worker 操作分发表；ToolboxParam 字段 schema 抽离；继续包含大画布可见性评估、Provider 查询瞬态重试与物料化稳定性`
+- 部署内容：`ToolboxParam 参数区、素材绑定和多角度预览拆分；继续包含 Worker 操作分发、Provider 查询重试与物料化稳定性`
 - Agent 运行态：`已加入运行环境静态 readiness 门禁；本批次未重复执行付费 Agent canary`
-- 回滚：`20260728-canvas-visibility-pose-schema-v083-r7`
+- 回滚：`20260728-worker-dispatch-toolbox-schema-v083-r8`
 - 当前批次记录：
-  - `production/2026-07-28-worker-dispatch-toolbox-schema-v083-r8.md`
-  - `../validations/2026-07-28-worker-dispatch-toolbox-schema-v083-r8.md`
+  - `production/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
+  - `../validations/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -24,16 +24,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-worker-dispatch-toolbox-schema-v083-r8`
+- release：`20260728-toolbox-hotspot-seams-v083-r9`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Worker 操作分发表；ToolboxParam 字段 schema 抽离；继续包含大画布可见性评估、Provider 查询瞬态重试与物料化稳定性`
+- 部署内容：`ToolboxParam 参数区、素材绑定和多角度预览拆分；继续包含 Worker 操作分发、Provider 查询重试与物料化稳定性`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`3355054`
-- 本轮制品 SHA-256：`E844E0FF55403F72DCC7A98A09A66EC5938787965E0A71C84D4C872A7541D612`
+- 本轮制品源提交：`9005a6c`
+- 本轮制品 SHA-256：`758D7E0D5455788D9B9BD18B9D9C64B24F7FFABD91B2984DD5C3076FCAF9ACD6`
 - 本轮发布记录：
-  - `gray/2026-07-28-worker-dispatch-toolbox-schema-v083-r8.md`
-  - `../validations/2026-07-28-worker-dispatch-toolbox-schema-v083-r8.md`
+  - `gray/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
+  - `../validations/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
