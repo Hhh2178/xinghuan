@@ -617,6 +617,9 @@ export interface TaskRecord {
   displayTone?: "muted" | "warning" | "success" | "danger";
   runtimeStage?: string;
   providerState?: string;
+  outputRecoveryAvailable?: boolean;
+  materializationStatus?: string;
+  failureCategory?: string;
   logs: string[];
   createdAt?: number;
   updatedAt: number;

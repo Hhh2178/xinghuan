@@ -88,6 +88,7 @@ import {
 import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
+import { buildOutputRecoveryFailurePatch, executeOutputRecoveryTask } from "./worker-output-recovery.js";
 import { executeImageGenerationBatch, type ImageGenerationBatchProgress } from "./worker-image-generation-batch.js";
 import { executeGenerationBatchWithMaterializedProgress } from "./worker-generation-progress-materializer.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
@@ -541,10 +542,11 @@ async function processTask(taskId: string) {
   });
   const cancellationMonitor = task.capability === "chat" && normalizeProtocol(task.providerProtocol) === "gemini"
     ? createWorkerTaskCancellationMonitor({ taskId, intervalMs: 1_000, isTaskCancelled })
-    : null;
-  let requeueAfterRelease = false;
+    : null; let requeueAfterRelease = false;
+  let executionResult: Record<string, unknown> = {};
   try {
-    const result = await executeTask(task, cancellationMonitor?.signal);
+    const result = task.payload.outputRecoveryMode === "output_only" ? await executeOutputRecoveryTask(task, decryptSecret) : await executeTask(task, cancellationMonitor?.signal);
+    executionResult = result;
     if (await workerCancelSync.dropResultIfCancelled({
       taskId,
       capability: task.capability,
@@ -626,6 +628,7 @@ async function processTask(taskId: string) {
       baseResultPatch: buildWorkerFailureWritebackPatch({
         workerId,
         error,
+        baseResultPatch: buildOutputRecoveryFailurePatch(task, executionResult, error),
         ...(normalizeProtocol(task.providerProtocol) === "runninghub" ? clearTransientRuntimeFields(task.result) : {}),
       }),
       replaceResult: normalizeProtocol(task.providerProtocol) === "runninghub",
@@ -761,7 +764,6 @@ async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>>
     }),
   });
 }
-
 async function executeSingleImageTask(task: TaskRow, requestedImageCount: number): Promise<Record<string, unknown>> {
   const protocol = normalizeProtocol(task.providerProtocol);
   if (protocol === "runninghub") {

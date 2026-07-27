@@ -14,6 +14,9 @@
 - Worker 不再把每个任务输出自动写成长期 `xh_assets`；长期素材只能通过 Promotion 创建。
 - task result 新增 `generationArtifactIds`；`resourceItemIds` 暂时保留兼容投影，后续调用方完成迁移后移除。
 - file 模式写入 `generation-library.json` 时使用每文件串行队列和原子 rename。
+- 远程视频内容下载支持有限指数退避，并对 `429/502/503/504`、授权拒绝和响应流中断分别分类；支持在已经收到部分字节后用 HTTP Range 继续读取，避免把 Provider 内容回源异常误报成普通 `terminated`。
+- Provider 已成功但本地物料化失败时，任务结果保留 `remoteVideoUrls` / `remoteImageUrls` / `remoteAudioUrls`、`upstreamTaskId`、`providerState`、`materializationStatus`、`materializationAttempts` 和 `outputRecoveryAvailable`。后台 `POST /api/admin/tasks/:id/recover-output` 只重新入队物料化，不重新提交 Provider，不重复计费。
+- 产物恢复任务通过 `outputRecoveryMode=output_only` 进入 Worker；恢复失败仍保留远程 URL 和精确失败分类，允许再次恢复或由管理员明确选择重新生成。
 
 ## 关键文件
 

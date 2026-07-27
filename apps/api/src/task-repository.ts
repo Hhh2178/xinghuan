@@ -38,6 +38,9 @@ export interface TaskRecordShape {
   displayTone?: "muted" | "warning" | "success" | "danger";
   runtimeStage?: string;
   providerState?: string;
+  outputRecoveryAvailable?: boolean;
+  materializationStatus?: string;
+  failureCategory?: string;
 }
 
 export interface TaskOwnerRecordShape {
@@ -84,6 +87,9 @@ export interface TaskListItemShape {
   displayTone?: "muted" | "warning" | "success" | "danger";
   runtimeStage?: string;
   providerState?: string;
+  outputRecoveryAvailable?: boolean;
+  materializationStatus?: string;
+  failureCategory?: string;
   createdAt: number;
   updatedAt: number;
   finalizedAt?: number;
@@ -112,6 +118,9 @@ export interface TaskPostgresRowShape {
   created_at?: unknown;
   updated_at?: unknown;
   finalized_at?: unknown;
+  output_recovery_available?: unknown;
+  materialization_status?: string | null;
+  failure_category?: string | null;
 }
 
 interface TaskListPostgresRow extends QueryResultRow, TaskPostgresRowShape {}
@@ -259,6 +268,9 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
                 coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
                 t.logs,
+                lower(coalesce(t.result->>'outputRecoveryAvailable', '')) = 'true' as output_recovery_available,
+                t.result->>'materializationStatus' as materialization_status,
+                t.result->>'failureCategory' as failure_category,
                 t.created_at,
                 t.updated_at,
                 t.finalized_at,

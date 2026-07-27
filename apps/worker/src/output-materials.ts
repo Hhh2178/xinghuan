@@ -9,6 +9,7 @@ import {
   resolvePostgresPoolConfig,
   type GenerationArtifact,
   type GenerationArtifactKind,
+  type UnifiedFailureCategory,
 } from "@xinghuan/shared";
 
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
@@ -45,6 +46,18 @@ interface SavedOutput {
   size: number;
   mime: string;
   sourceUrl: string;
+}
+
+export class OutputMaterializationError extends Error {
+  readonly resultPatch: Record<string, unknown>;
+  readonly status?: number;
+
+  constructor(message: string, resultPatch: Record<string, unknown>, status?: number) {
+    super(message);
+    this.name = "OutputMaterializationError";
+    this.resultPatch = resultPatch;
+    this.status = status;
+  }
 }
 
 interface OutputFetchContext {
@@ -449,16 +462,11 @@ async function materializeVideoOutput(
     throw new Error(`暂不支持的输出视频 URL: ${sourceUrl.slice(0, 120)}`);
   }
 
-  const upstream = await fetch(sourceUrl, {
-    ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
-    signal: AbortSignal.timeout(180000),
-  });
-  if (!upstream.ok) throw new Error(`下载输出视频失败 ${upstream.status}`);
-  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (!mime.startsWith("video/")) throw new Error(`输出素材不是视频: ${mime || "unknown"}`);
+  const downloaded = await downloadVideoOutput(sourceUrl, headers);
+  const mime = downloaded.mime;
   const ext = videoExtensionFromMime(mime) || videoExtensionFromUrl(sourceUrl) || "mp4";
   const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
-  const buffer = Buffer.from(await upstream.arrayBuffer());
+  const buffer = downloaded.buffer;
   await writeFile(join(outputDir, filename), buffer);
   return {
     filename,
@@ -467,6 +475,132 @@ async function materializeVideoOutput(
     mime,
     sourceUrl,
   };
+}
+
+const VIDEO_DOWNLOAD_MAX_ATTEMPTS = 4;
+const VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS = 250;
+
+async function downloadVideoOutput(sourceUrl: string, headers?: Record<string, string>) {
+  let accumulated: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= VIDEO_DOWNLOAD_MAX_ATTEMPTS; attempt += 1) {
+    const requestHeaders: Record<string, string> = { ...(headers || {}) };
+    if (accumulated.length > 0) requestHeaders.range = `bytes=${accumulated.length}-`;
+    try {
+      const upstream = await fetch(sourceUrl, {
+        ...(Object.keys(requestHeaders).length > 0 ? { headers: requestHeaders } : {}),
+        signal: AbortSignal.timeout(180000),
+      });
+      if (!upstream.ok) {
+        const snippet = await readResponseSnippet(upstream);
+        const category = contentFailureCategory(upstream.status);
+        const error = new OutputMaterializationError(
+          `下载输出视频失败 ${upstream.status}${snippet ? `: ${snippet}` : ""}`,
+          {
+            failureCategory: category,
+            providerDiagnostic: `Provider 内容接口返回 HTTP ${upstream.status}`,
+            upstreamHttpStatus: upstream.status,
+            upstreamResponseSnippet: snippet || undefined,
+          },
+          upstream.status,
+        );
+        lastError = error;
+        if (!isRetryableContentStatus(upstream.status) || attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw error;
+        await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+        continue;
+      }
+      const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      if (!mime.startsWith("video/")) throw new OutputMaterializationError(
+        `输出素材不是视频: ${mime || "unknown"}`,
+        { failureCategory: "provider_content_unavailable", providerDiagnostic: `Provider 内容接口返回非视频类型 ${mime || "unknown"}` },
+        upstream.status,
+      );
+      let chunk: Buffer<ArrayBufferLike>;
+      try {
+        chunk = await readResponseBody(upstream);
+      } catch (error) {
+        const partial = error instanceof OutputStreamReadError ? error.partial : Buffer.alloc(0);
+        if (partial.length > 0) {
+          accumulated = upstream.status === 206
+            ? Buffer.concat([accumulated, partial])
+            : partial;
+        }
+        lastError = new OutputMaterializationError(
+          `Provider 视频流中断（已接收 ${accumulated.length} 字节）`,
+          {
+            failureCategory: "provider_content_stream_terminated",
+            providerDiagnostic: error instanceof Error ? error.message : String(error),
+            materializedBytes: accumulated.length,
+          },
+        );
+        if (attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
+        await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+        continue;
+      }
+      if (accumulated.length > 0 && upstream.status === 206) return { buffer: Buffer.concat([accumulated, chunk]), mime };
+      accumulated = chunk;
+      return { buffer: accumulated, mime };
+    } catch (error) {
+      if (error instanceof OutputMaterializationError) {
+        lastError = error;
+        if (error.resultPatch.failureCategory === "provider_content_stream_terminated" && attempt < VIDEO_DOWNLOAD_MAX_ATTEMPTS) continue;
+        throw error;
+      }
+      lastError = new OutputMaterializationError(
+        `下载输出视频失败: ${error instanceof Error ? error.message : String(error)}`,
+        { failureCategory: "provider_content_stream_terminated", providerDiagnostic: error instanceof Error ? error.message : String(error) },
+      );
+      if (attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
+      await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("下载输出视频失败");
+}
+
+class OutputStreamReadError extends Error {
+  constructor(public readonly partial: Buffer, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "OutputStreamReadError";
+  }
+}
+
+async function readResponseBody(response: Response & { body?: ReadableStream<Uint8Array> | null }) {
+  if (!response.body?.getReader) return Buffer.from(await response.arrayBuffer());
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      if (next.value?.length) chunks.push(Buffer.from(next.value));
+    }
+  } catch (error) {
+    throw new OutputStreamReadError(Buffer.concat(chunks), error);
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks);
+}
+
+async function readResponseSnippet(response: Response) {
+  try {
+    return (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+  } catch {
+    return "";
+  }
+}
+
+function isRetryableContentStatus(status: number) {
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function contentFailureCategory(status: number): UnifiedFailureCategory {
+  if (status === 401 || status === 403) return "provider_content_forbidden";
+  return "provider_content_unavailable";
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 function outputFetchHeadersForUrl(result: Record<string, unknown>, sourceUrl: string) {

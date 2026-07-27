@@ -124,4 +124,87 @@ describe("output material provenance", () => {
       ],
     });
   });
+
+  it("retries transient provider content failures and preserves the response diagnostic", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 502, headers: new Headers({ "content-type": "application/json" }), text: async () => '{"error":"gateway warming"}' })
+      .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers({ "content-type": "video/mp4" }), arrayBuffer: async () => new TextEncoder().encode("video").buffer });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const materialized = await materializeTaskOutputs({
+      dataDir: "test-data",
+      task: {
+        id: "task-video-retry",
+        ownerId: "owner-1",
+        title: "video",
+        providerId: "provider-1",
+        providerName: "Provider",
+        modelRecordId: "model-record-1",
+        providerModelId: "provider-model-1",
+        modelDisplayName: "Model",
+        payload: {},
+      },
+      result: { videoUrls: ["https://provider.test/video.mp4"] },
+    });
+
+    expect(materialized.artifacts).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("classifies a terminated content stream instead of reporting a generic failure", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("partial"));
+        controller.error(new Error("terminated"));
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "video/mp4" }),
+      body: stream,
+    })));
+
+    await expect(materializeTaskOutputs({
+      dataDir: "test-data",
+      task: {
+        id: "task-video-terminated",
+        ownerId: "owner-1",
+        title: "video",
+        providerId: "provider-1",
+        providerName: "Provider",
+        modelRecordId: "model-record-1",
+        providerModelId: "provider-model-1",
+        modelDisplayName: "Model",
+        payload: {},
+      },
+      result: { videoUrls: ["https://provider.test/video.mp4"] },
+    })).rejects.toMatchObject({ resultPatch: { failureCategory: "provider_content_stream_terminated" } });
+  });
+
+  it("does not retry a forbidden provider content response", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: async () => '{"error":"signed url expired"}',
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(materializeTaskOutputs({
+      dataDir: "test-data",
+      task: {
+        id: "task-video-forbidden",
+        ownerId: "owner-1",
+        title: "video",
+        providerId: "provider-1",
+        providerName: "Provider",
+        modelRecordId: "model-record-1",
+        providerModelId: "provider-model-1",
+        modelDisplayName: "Model",
+        payload: {},
+      },
+      result: { videoUrls: ["https://provider.test/video.mp4"] },
+    })).rejects.toMatchObject({ resultPatch: { failureCategory: "provider_content_forbidden", upstreamHttpStatus: 403 } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

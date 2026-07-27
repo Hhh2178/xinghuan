@@ -95,7 +95,16 @@ export function TasksPanel(
               <td><TaskIdentityCell primary={task.modelName || task.providerModelId || task.modelId || ""} secondary={task.providerModelId || task.modelId || ""} title={[task.modelName, task.providerModelId, task.modelId].filter(Boolean).join(" · ") || "-"} /></td>
               <td><pre className="task-monitor-log">{taskMessage(task)}</pre></td>
               <td>
-                {canCancelTask(task.status) ? (
+                {task.status === "failed" && task.outputRecoveryAvailable ? (
+                  <div className="row-actions">
+                    <button type="button" title="仅重新下载已有产物，不重新生成" onClick={() => mutate(`/api/admin/tasks/${task.id}/recover-output`, {}, "POST")}>
+                      恢复产物
+                    </button>
+                    <button type="button" onClick={() => mutate(`/api/admin/tasks/${task.id}/retry`, {}, "POST")}>
+                      重新生成
+                    </button>
+                  </div>
+                ) : canCancelTask(task.status) ? (
                   <button type="button" onClick={() => mutate(`/api/admin/tasks/${task.id}`, { action: "cancel" }, "PATCH")}>
                     取消
                   </button>

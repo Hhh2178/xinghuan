@@ -20,9 +20,14 @@ interface AdminTaskListPage {
 }
 
 function toAdminTaskListSummary(task: any) {
-  const { payload: _payload, result: _result, ...summary } = task || {};
+  const source = task || {};
+  const result = source.result && typeof source.result === "object" && !Array.isArray(source.result) ? source.result : {};
+  const { payload: _payload, result: _result, ...summary } = source;
   return {
     ...summary,
+    outputRecoveryAvailable: summary.outputRecoveryAvailable ?? result.outputRecoveryAvailable === true,
+    materializationStatus: summary.materializationStatus || result.materializationStatus || undefined,
+    failureCategory: summary.failureCategory || result.failureCategory || undefined,
     logs: Array.isArray(summary.logs) ? summary.logs.map((line: unknown) => String(line)).filter(Boolean) : [],
   };
 }
@@ -284,6 +289,47 @@ export function createAdminTaskListRouteHandler(deps: {
     }
 
     const retryMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)\/retry$/);
+    const recoverOutputMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)\/recover-output$/);
+    if (recoverOutputMatch && request.method === "POST") {
+      const id = decodeURIComponent(recoverOutputMatch[1]);
+      const currentTask = await readTaskRecord(id);
+      if (!currentTask) throw new Error("任务不存在");
+      if (currentTask.status !== "failed") throw new Error(`任务当前状态为 ${currentTask.status}，不可恢复产物`);
+      const currentResult = plainObject(currentTask.result);
+      const remoteUrls = [
+        ...(Array.isArray(currentResult.remoteVideoUrls) ? currentResult.remoteVideoUrls : []),
+        ...(Array.isArray(currentResult.remoteImageUrls) ? currentResult.remoteImageUrls : []),
+        ...(Array.isArray(currentResult.remoteAudioUrls) ? currentResult.remoteAudioUrls : []),
+      ].map((value) => safeText(value)).filter((value) => /^https?:\/\//i.test(value));
+      if (remoteUrls.length === 0) throw new Error("任务没有可恢复的 Provider 远程产物");
+      const now = Date.now();
+      const { finalizedAt: _finalizedAt, ...withoutFinalizedAt } = currentTask;
+      const updated = {
+        ...withoutFinalizedAt,
+        status: "queued",
+        result: {
+          ...currentResult,
+          outputRecoveryMode: "output_only",
+          outputRecoveryAvailable: true,
+          materializationStatus: "queued",
+          recoveryRequestedAt: new Date(now).toISOString(),
+        },
+        logs: [...(Array.isArray(currentTask.logs) ? currentTask.logs : []), "管理员请求恢复已有产物（不重新生成、不重复计费）"],
+        updatedAt: now,
+      };
+      await writeTaskRecord(updated);
+      const capability = normalizeTaskQueueCapability(updated.payload?.taskCapability || currentResult.capability);
+      const queueResult = capability
+        ? await enqueueTask(id, capability)
+        : { queued: false, reason: "unsupported_capability", queueName: "" };
+      const queueLog = queueResult.queued ? `产物恢复已进入 Redis 队列 ${queueResult.queueName}` : `产物恢复未进入 Redis 队列: ${queueResult.reason}`;
+      await appendTaskLog(id, queueLog);
+      await appendAudit(actor, "task.recover_output", "task", id, `恢复任务 ${currentTask.title} 的已有产物`, requestContext);
+      logApiEvent("task.output_recovery_requested", requestContext, { taskId: id, capability, queued: queueResult.queued });
+      sendT8(response, withUnifiedRuntimeDiagnostic((await readTaskRecord(id)) || { ...updated, logs: [...updated.logs, queueLog] }));
+      return true;
+    }
+
     if (retryMatch && request.method === "POST") {
       const id = decodeURIComponent(retryMatch[1]);
       const originalTask = await readTaskRecord(id);

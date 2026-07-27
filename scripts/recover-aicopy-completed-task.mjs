@@ -44,23 +44,28 @@ try {
     console.log(JSON.stringify({ ok: true, taskId, status: "already_succeeded" }, null, 2));
     process.exit(0);
   }
-  if (row.status !== "running") throw new Error(`TASK_NOT_RECOVERABLE:${row.status}`);
+  if (!["running", "failed"].includes(row.status)) throw new Error(`TASK_NOT_RECOVERABLE:${row.status}`);
 
   const currentResult = plainObject(row.result);
   const upstreamTaskId = String(currentResult.upstreamTaskId || currentResult.taskId || "");
-  if (!upstreamTaskId) throw new Error("UPSTREAM_TASK_ID_MISSING");
+  const savedRemoteUrl = [currentResult.remoteVideoUrls, currentResult.videoUrls]
+    .flatMap((value) => Array.isArray(value) ? value : [])
+    .map((value) => String(value || ""))
+    .find((value) => /^https?:\/\//i.test(value)) || "";
+  if (!upstreamTaskId && !savedRemoteUrl) throw new Error("UPSTREAM_TASK_ID_MISSING");
   const apiKey = decryptSecret(String(row.api_key_cipher || ""));
   if (!apiKey) throw new Error("PROVIDER_KEY_DECRYPT_FAILED");
-  const contentUrl = openAiEndpoint(String(row.base_url || ""), `videos/${encodeURIComponent(upstreamTaskId)}/content?variant=video`);
+  const contentUrl = savedRemoteUrl || openAiEndpoint(String(row.base_url || ""), `videos/${encodeURIComponent(upstreamTaskId)}/content?variant=video`);
   const executionResult = attachOutputFetchContext({
     adapter: "aicopy-video",
     providerId: String(row.provider_id || ""),
     modelId: String(row.provider_model_id || ""),
-    taskId: upstreamTaskId,
+    taskId: upstreamTaskId || "saved-remote-output",
     videoUrls: [contentUrl],
     remoteVideoUrls: [contentUrl],
     videoCount: 1,
     providerState: "completed",
+    materializationStatus: "retrying",
   }, {
     origin: String(row.base_url || ""),
     headers: providerHeaders(apiKey),
@@ -97,8 +102,8 @@ try {
             logs = coalesce(logs, '[]'::jsonb) || $3::jsonb,
             updated_at = now(),
             finalized_at = now()
-      where id = $1 and status = 'running'`,
-    [taskId, JSON.stringify(resultPatch), JSON.stringify(["AICopy completed output recovered without resubmission"])],
+      where id = $1 and status = $4`,
+    [taskId, JSON.stringify(resultPatch), JSON.stringify(["AICopy completed output recovered without resubmission"]), row.status],
   );
   if (updated.rowCount !== 1) throw new Error("TASK_RECOVERY_STATUS_CONFLICT");
   console.log(JSON.stringify({

@@ -85,6 +85,42 @@ function createBaseDeps(overrides: Record<string, unknown> = {}) {
 }
 
 describe("admin task list routes", () => {
+  it("queues artifact-only recovery without creating a new provider task", async () => {
+    const task = {
+      id: "task-recover",
+      title: "Recover video",
+      status: "failed",
+      ownerId: "user-1",
+      providerId: "provider-1",
+      modelId: "model-1",
+      payload: { taskCapability: "video" },
+      result: { capability: "video", providerState: "completed", remoteVideoUrls: ["https://provider.test/video.mp4"] },
+      logs: ["provider completed"],
+      createdAt: 1000,
+      updatedAt: 1000,
+      finalizedAt: 2000,
+    };
+    const readTaskRecord = vi.fn(async () => task);
+    const writeTaskRecord = vi.fn(async (updated: any) => Object.assign(task, updated));
+    const enqueueTask = vi.fn(async () => ({ queued: true, reason: "", queueName: "xinghuan:video" }));
+    const { deps, sent } = createBaseDeps({ readTaskRecord, writeTaskRecord, enqueueTask, normalizeTaskQueueCapability: () => "video" });
+    const handler = createAdminTaskListRouteHandler(deps as any);
+
+    await handler({
+      request: { method: "POST" } as any,
+      response: {} as any,
+      url: new URL("http://local.test/api/admin/tasks/task-recover/recover-output"),
+      currentUser: { id: "admin-1", role: "admin" },
+    });
+
+    expect(enqueueTask).toHaveBeenCalledWith("task-recover", "video");
+    expect(writeTaskRecord).toHaveBeenCalledWith(expect.objectContaining({
+      status: "queued",
+      result: expect.objectContaining({ outputRecoveryMode: "output_only" }),
+    }));
+    expect(sent[0].data).toMatchObject({ status: "queued" });
+  });
+
   it("returns complete logs without payload or result while preserving capability filters", async () => {
     const { deps, sent } = createBaseDeps();
     const handler = createAdminTaskListRouteHandler(deps as any);

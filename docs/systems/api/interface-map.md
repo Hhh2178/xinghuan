@@ -6,6 +6,7 @@
 - `/api/admin/runninghub/*`
 - `/api/admin/comfyui/instances`
 - `/api/admin/tasks`
+- `/api/admin/tasks/:id/recover-output`：仅恢复 Provider 已成功任务的已有远程产物，不重新提交生成请求。
 - `/api/admin/providers`
 - `/api/admin/models`
 - `/api/admin/audit`

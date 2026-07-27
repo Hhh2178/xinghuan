@@ -1062,6 +1062,9 @@ interface AdminTaskRecord {
   displayTone?: "muted" | "warning" | "success" | "danger";
   runtimeStage?: string;
   providerState?: string;
+  outputRecoveryAvailable?: boolean;
+  materializationStatus?: string;
+  failureCategory?: string;
 }
 
 function toOptionalNumber(value: unknown) {
@@ -1099,8 +1102,10 @@ function withUnifiedRuntimeDiagnostic(task: AdminTaskRecord): AdminTaskRecord & 
     displayTone: projection.displayTone,
     runtimeStage: projection.runtimeStage,
     providerState: projection.providerState,
+    outputRecoveryAvailable: task.outputRecoveryAvailable === true || Boolean(result.outputRecoveryAvailable),
+    materializationStatus: safeText(result.materializationStatus || task.materializationStatus) || undefined,
     failureReason: safeText(result.failureReason) || undefined,
-    failureCategory: toUnifiedFailureCategory(result.failureCategory),
+    failureCategory: toUnifiedFailureCategory(result.failureCategory || task.failureCategory),
     providerDiagnostic: safeText(result.providerDiagnostic) || undefined,
     upstreamHttpStatus: toOptionalNumber(result.upstreamHttpStatus),
     upstreamResponseSnippet: safeText(result.upstreamResponseSnippet) || undefined,
@@ -1131,6 +1136,9 @@ const unifiedFailureCategories = new Set<UnifiedFailureCategory>([
   "upstream_business_failed",
   "upstream_poll_gateway_failed",
   "upstream_poll_timeout",
+  "provider_content_forbidden",
+  "provider_content_unavailable",
+  "provider_content_stream_terminated",
   "local_cancelled",
   "remote_cancel_failed",
   "unknown",
@@ -5410,6 +5418,9 @@ function toAdminTaskRecord(row: {
   created_at?: unknown;
   updated_at?: unknown;
   finalized_at?: unknown;
+  output_recovery_available?: unknown;
+  materialization_status?: string | null;
+  failure_category?: string | null;
 }): AdminTaskRecord {
   return {
     id: row.id,
@@ -5434,6 +5445,9 @@ function toAdminTaskRecord(row: {
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
     finalizedAt: row.finalized_at ? dateToMillis(row.finalized_at) : undefined,
+    outputRecoveryAvailable: row.output_recovery_available === true || row.output_recovery_available === "true",
+    materializationStatus: safeText(row.materialization_status) || undefined,
+    failureCategory: safeText(row.failure_category) || undefined,
   };
 }
 
@@ -5887,13 +5901,13 @@ async function enqueueTask(
   const queueName = taskQueueNameForCapability(taskQueueName, capability);
   if (!redisUrl) return { queued: false, reason: "redis_not_configured", queueName };
   try {
-    const client = await getRedisClient();
-    await client.lPush(queueName, taskId);
+    const client = await withTimeout(getRedisClient(), 8_000, "redis_connect_timeout");
+    await withTimeout(client.lPush(queueName, taskId), 8_000, "redis_command_timeout");
     await appendTaskRuntimeEventBestEffort({
       taskId,
       eventType: "task_queued",
       payload: { queueName, capability },
-    });
+    }).catch(() => undefined);
     return { queued: true, reason: "queued", queueName };
   } catch (error) {
     return { queued: false, reason: error instanceof Error ? error.message : String(error), queueName };
@@ -5902,6 +5916,20 @@ async function enqueueTask(
 
 async function appendTaskLog(taskId: string, line: string) {
   await taskRepository.appendTaskLog(taskId, line);
+}
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, reason: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(reason)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function readTaskRecord(taskId: string): Promise<AdminTaskRecord | null> {

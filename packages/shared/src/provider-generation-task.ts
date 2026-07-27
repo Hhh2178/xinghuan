@@ -86,6 +86,9 @@ export type UnifiedFailureCategory =
   | "upstream_business_failed"
   | "upstream_poll_gateway_failed"
   | "upstream_poll_timeout"
+  | "provider_content_forbidden"
+  | "provider_content_unavailable"
+  | "provider_content_stream_terminated"
   | "local_cancelled"
   | "remote_cancel_failed"
   | "unknown";
