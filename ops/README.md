@@ -29,12 +29,12 @@
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.3`
-  - release：`20260728-canvas-shell-css-v083-r14`
+  - release：`20260728-node-chrome-css-v083-r15`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过`
-  - 当前补修：`Canvas shell CSS 边界与 ReactFlow stacking contract；ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；大画布可见性评估与 PoseMaster 字段 schema；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
+  - 当前补修：`Node chrome CSS 边界；Canvas shell CSS 边界与 ReactFlow stacking contract；ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；大画布可见性评估与 PoseMaster 字段 schema；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
   - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
-  - 本轮制品源提交：`5c56dc0`
-  - 本轮制品 SHA-256：`B2A02DAB368FD013046BB749AA13880B9FB7113E66A100317BD7FED1A1865733`
+  - 本轮制品源提交：`5cf6b1f`
+  - 本轮制品 SHA-256：`0AC0F40DA118B79FD93FAD1BCDB81C6E7B62913943CF9C3218AEB263C97F1427`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
@@ -42,9 +42,9 @@
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.3`
-  - release：`20260728-canvas-shell-css-v083-r14`
+  - release：`20260728-node-chrome-css-v083-r15`
   - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness 与公网状态全部通过`
-  - 当前补修：`Canvas shell CSS 边界与 ReactFlow stacking contract；ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；大画布可见性评估与 PoseMaster 字段 schema；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
+  - 当前补修：`Node chrome CSS 边界；Canvas shell CSS 边界与 ReactFlow stacking contract；ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；大画布可见性评估与 PoseMaster 字段 schema；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
   - Agent：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
   - 当前限制：`本批次未进行付费 Provider 成功产物的端到端验收，也未重复 Agent 真实请求 canary`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
