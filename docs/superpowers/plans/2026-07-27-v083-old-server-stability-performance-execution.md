@@ -259,7 +259,7 @@ Create a static verifier that requires idempotency propagation, cancellation pas
 
 Use a local mock Provider only. Prove an accepted Canvas request produces one Provider submission, stores a correlation ID, materializes a readable artifact and reaches success; separately prove a completed-but-unmaterialized result retries only materialization and never bills/submits again.
 
-- [ ] **Step 4: Narrowly fix proven boundary failures and re-run lifecycle contracts**
+- [x] **Step 4: Narrowly fix proven boundary failures and re-run lifecycle contracts**
 
 Keep Provider adapters isolated, preserve owner/revision semantics, and use the existing retry taxonomy. Do not mass-rewrite Canvas or Worker orchestration.
 
@@ -275,11 +275,11 @@ Run one authorized, isolated Gray fixture and record task ID continuity, Provide
 - Modify: r1 plan/spec/audit, worker and Agent system docs
 - Create: r1 Gray and Production release/validation records
 
-- [ ] **Step 1: Set product version without creating a tag**
+- [x] **Step 1: Set product version without creating a tag**
 
 Run: `npm version 0.8.3 --no-git-tag-version`
 
-- [ ] **Step 2: Run the r1 local release matrix**
+- [x] **Step 2: Run the r1 local release matrix**
 
 ~~~bash
 npm test -- apps/worker/src/worker-task-operation.test.ts apps/api/src/admin-task-list-routes.test.ts
