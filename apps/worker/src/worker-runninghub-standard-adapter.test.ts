@@ -104,6 +104,35 @@ describe("RunningHub standard model adapter", () => {
     expect(error).toMatchObject({ errorCode: "ACCESS_DENIED", providerState: "FAILED", taskId: "" });
     expect(String(error.message)).toContain("Enterprise-Shared API Key");
   });
+
+  it("retries transient query failures without resubmitting the Provider task", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ taskId: "rh-task-retry", status: "RUNNING" }))
+      .mockResolvedValueOnce(jsonResponse({ message: "busy" }, 503))
+      .mockResolvedValueOnce(jsonResponse({ taskId: "rh-task-retry", status: "SUCCESS", results: [{ url: "https://temporary.example/retry.png", outputType: "png" }] }));
+    const fetchImpl = fetchMock as unknown as typeof fetch;
+    const heartbeats: Array<Record<string, unknown>> = [];
+    const execution = executeRunningHubStandardModel({
+      capability: "image",
+      baseUrl: "https://www.runninghub.cn",
+      apiKey: "secret-key",
+      modelPath: "rhart-image/generate",
+      body: { prompt: "retry" },
+      fetchImpl,
+      onHeartbeat: async (patch) => { heartbeats.push(patch); },
+    });
+    await vi.runAllTimersAsync();
+    const result = await execution;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0][0]).toContain("/rhart-image/generate");
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/openapi/v2/query"))).toHaveLength(2);
+    expect(result).toMatchObject({ taskId: "rh-task-retry", imageUrls: ["https://temporary.example/retry.png"] });
+    expect(heartbeats).toEqual(expect.arrayContaining([
+      expect.objectContaining({ pollRetryCount: 1, lastPollHttpStatus: 503, runtimeStage: "polling" }),
+      expect.objectContaining({ pollRetryRecoveredAt: expect.any(String), providerState: "SUCCESS" }),
+    ]));
+  });
 });
 
 function jsonResponse(value: unknown, status = 200) {

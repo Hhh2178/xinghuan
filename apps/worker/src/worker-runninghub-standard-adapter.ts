@@ -1,3 +1,5 @@
+import { fetchPollResponseWithRetry, type TransientPollRetryEvent } from "./worker-transient-poll-retry.js";
+
 const DEFAULT_POLL_INTERVAL_MS = 1_500;
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1_000;
 
@@ -58,15 +60,29 @@ export async function executeRunningHubStandardModel(input: {
       throw new RunningHubStandardModelError({ errorCode: "RUNNINGHUB_STANDARD_TIMEOUT", errorMessage: "RunningHub 标准模型轮询超时", providerState: status, taskId });
     }
     await wait(DEFAULT_POLL_INTERVAL_MS);
-    result = await requestJson(fetchImpl, standardQueryUrl(input.baseUrl), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ taskId }),
-      signal: AbortSignal.timeout(120_000),
+    const polledResponse = await fetchPollResponseWithRetry({
+      request: () => fetchImpl(standardQueryUrl(input.baseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ taskId }),
+        signal: AbortSignal.timeout(120_000),
+      }),
+      deadlineAt: deadline,
+      onRetry: (event) => notifyPollRetry(input.onHeartbeat, adapter, taskId, event),
     });
+    result = parseJsonResponse(polledResponse.response, polledResponse.text);
     taskId = safeText(result.taskId, taskId);
     status = normalizedStatus(result.status);
-    await input.onHeartbeat({ adapter, runtimeStage: "polling", providerState: status || "RUNNING", upstreamTaskId: taskId });
+    await input.onHeartbeat({
+      adapter,
+      runtimeStage: "polling",
+      providerState: status || "RUNNING",
+      upstreamTaskId: taskId,
+      ...(polledResponse.retryCount > 0 ? {
+        pollRetryCount: polledResponse.retryCount,
+        pollRetryRecoveredAt: new Date().toISOString(),
+      } : {}),
+    });
     if (status === "FAILED") throw failureFrom(result, taskId);
   }
 
@@ -98,6 +114,10 @@ export async function executeRunningHubStandardModel(input: {
 async function requestJson(fetchImpl: typeof fetch, url: string, init: RequestInit) {
   const response = await fetchImpl(url, init);
   const rawText = await response.text();
+  return parseJsonResponse(response, rawText);
+}
+
+function parseJsonResponse(response: Response, rawText: string) {
   let parsed: Record<string, unknown>;
   try {
     parsed = rawText ? record(JSON.parse(rawText)) : {};
@@ -113,6 +133,25 @@ async function requestJson(fetchImpl: typeof fetch, url: string, init: RequestIn
     });
   }
   return parsed;
+}
+
+async function notifyPollRetry(
+  onHeartbeat: (patch: Record<string, unknown>) => Promise<void>,
+  adapter: string,
+  taskId: string,
+  event: TransientPollRetryEvent,
+) {
+  await onHeartbeat({
+    adapter,
+    runtimeStage: "polling",
+    providerState: "RUNNING",
+    upstreamTaskId: taskId,
+    pollRetryCount: event.attempt,
+    pollRetryLimit: event.maxRetries,
+    lastPollHttpStatus: event.statusCode || 0,
+    lastPollTransientError: event.error,
+    nextPollRetryDelayMs: event.delayMs,
+  });
 }
 
 function standardSubmitUrl(baseUrl: string, modelPath: string) {

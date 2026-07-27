@@ -51,6 +51,7 @@ RunningHub 系统负责两类执行：把 RH Workflow 与 AI App 作为外部运
   - 本地或受保护媒体只能在 owner 边界内读取，再上传 `/openapi/v2/media/upload/binary`
   - 提交 `/openapi/v2/<model-path>`，查询 `/openapi/v2/query`
   - 最终远端 URL 必须由统一 output materializer 转存为平台产物
+  - 标准模型提交保持单次调用，避免网络超时导致重复计费；查询阶段复用有截止时间的瞬态重试（408/425/429/5xx/网络错误），并将重试与恢复写入 sanitized poll heartbeat
 - Worker 第二阶段收口方向：
   - `worker.ts` 逐步退回 orchestration glue
   - RunningHub 协议解析已开始下沉到独立 helper / client
