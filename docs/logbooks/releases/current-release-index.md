@@ -21,16 +21,16 @@
 
 ### Gray
 
-- 版本：`v0.8.1`
-- release：`20260726-video-prompt-provider-limit-v081-r1`
-- 当前状态：`旧服务器与新服务器 Gray 均已部署；API/Worker、权限 readiness 和公网状态验证通过`
-- 部署内容：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
-- 已验证：`发布前完整 Harness、构建、契约和隔离 Gray Candidate 真实 Provider/Agent/Canvas Run 证据；正式 Gray 发布后复核 API/Worker/readiness 与助手 agent 模式。用户明确豁免本次双视窗视觉检查。`
-- 部署时间：`2026-07-26`
-- 本轮制品源提交：`04a9e87`
+- 版本：`v0.8.2`
+- release：`20260727-provider-output-recovery-v082-r1`
+- 当前状态：`仅新服务器 Gray 发布；等待 Grok 五次真实生成任务稳定性与接口反馈验收`
+- 部署内容：`Provider 内容下载支持重试、流中断分类与 Range 续传；失败时保留远端产物并提供 recover-output，不重复调用 Provider`
+- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；Gray 运行态与五次 Grok 任务结果记录在对应 validation 台账。`
+- 部署时间：`2026-07-27`
+- 本轮制品源提交：`55aa3d9`
 - 本轮发布记录：
-  - `gray/2026-07-26-video-prompt-provider-limit-v081-r1.md`
-  - `../validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+  - `gray/2026-07-27-provider-output-recovery-v082-r1.md`
+  - `../validations/2026-07-27-provider-output-recovery-v082-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

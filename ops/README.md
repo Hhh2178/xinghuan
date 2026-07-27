@@ -27,11 +27,11 @@
 - Gray：
   - 域名：`canvas-next.zezhen.online`（旧域名仅作回滚来源）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.1`
-  - release：`20260726-video-prompt-provider-limit-v081-r1`
-  - 状态：`旧服务器与新服务器 Gray 均已部署；API/Worker、权限 readiness 和公网状态通过`
-  - 当前补修：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
-  - 本轮制品源提交：`04a9e87`
+  - 版本：`v0.8.2`
+  - release：`20260727-provider-output-recovery-v082-r1`
+  - 状态：`仅新服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过后执行 Grok 五次真实任务验收`
+  - 当前补修：`Provider 成功后的媒体物料化支持重试、Range 续传和 recover-output 恢复，不重复计费`
+  - 本轮制品源提交：`55aa3d9`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
