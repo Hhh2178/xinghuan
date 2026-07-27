@@ -553,7 +553,7 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 
 - [ ] **Step 1: PoseMaster: extract field schema, preview section, then runtime actions in three tested commits (field schema sub-step completed)**
 - [x] **Step 2: ToolboxParam: extract parameter section, material binding, then preview helper in three tested commits (schema, multi-angle parameter section, material binding and preview substeps completed)**
-- [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections**
+- [ ] **Step 3: Image and DrawingBoard: extract runtime action services before view sections (DrawingBoard persistence boundary completed; runtime actions remain)**
 - [ ] **Step 4: Run source-size/hotspot gates after every extraction**
 
 ### Task 15: Split CSS Along Runtime Boundaries

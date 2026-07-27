@@ -9,6 +9,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - `apps/web`
 - `packages/canvas-core`
 - `packages/model-core`
+- DrawingBoard 持久化边界：`apps/web/src/components/nodes/drawing-board-persistence.ts`
 
 ## 建议阅读顺序
 
@@ -35,6 +36,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - 公共工作流模板弹层与资源库共用 `kind=workflow` 数据、缩略图和插入链路，不维护静态模板副本。
 - 组框支持独立循环次数；组执行管理器可配置节点失败后的额外重试次数（`0-10`，旧画布默认 `3`），文本分割手动运行和组运行共用同一 runner。
 - 继续把前台热点超级文件拆成 `sections / helpers / runtime hooks`
+- DrawingBoard 的 layer snapshot 持久化已下沉到 `drawing-board-persistence.ts`；该边界统一生成 `boardLayers`/`boardElements`，并对 group-only 恢复提供可编辑图层兜底
 - `Canvas.tsx` 已完成第一批真实下沉：
   - `useCanvasPersistence.ts`
   - `useCanvasConnectionPanMode.ts`

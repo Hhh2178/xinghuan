@@ -55,6 +55,7 @@ import {
   fitBoardViewport,
   zoomBoardViewport,
 } from '../../utils/drawingBoardViewport';
+import { createBoardPersistencePatch } from './drawing-board-persistence';
 
 type BoardTool = 'select' | 'pen' | 'eraser' | 'text' | 'rect' | 'circle' | 'arrow' | 'cutout-lasso' | 'cutout-pen';
 type BoardRatio = 'free' | '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
@@ -623,9 +624,9 @@ const DrawingBoardNode = ({ id, data, selected }: NodeProps) => {
 
   const persistLayers = useCallback(
     (next: BoardLayer[]) => {
-      const safeNext = next.some((layer) => layer.kind === 'layer') ? next : [createBlankLayer(1)];
-      update({ boardLayers: safeNext, boardElements: flattenElements(safeNext) });
-      return safeNext;
+      const patch = createBoardPersistencePatch(next, createBlankLayer(1));
+      update(patch);
+      return patch.boardLayers;
     },
     [update],
   );
