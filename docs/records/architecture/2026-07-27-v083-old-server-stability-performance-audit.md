@@ -321,3 +321,9 @@ Web `index.css` 5,387 行，Admin `styles.css` 10,565 行。风险包括：
 - r5/r6 沿既有 seam 拆热点，不用行数下降冒充稳定性提升。
 
 该顺序每一步都能独立验收、独立回退，并保持 `0.8.3` 单一产品版本约束。
+
+## 2026-07-28 增量执行证据
+
+- `PoseMasterNode.tsx` 已将 hand/view/shot/intensity/batch/render 字段 schema 下沉到 `apps/web/src/components/nodes/pose-master/pose-field-schema.ts`，组件从约 3,894 行降至 3,830 行；持久化 ID 与顺序由 `pose-field-schema.test.ts` 锁定。
+- Canvas 可见性评估记录在 `docs/records/canvas/2026-07-28-visible-elements-evaluation.md`：当前不启用 `onlyRenderVisibleElements`，因为分组画布外节点、跨视口连线、选择、fit-view 和运行态投影尚未具备 renderer-level 回归证据。
+- 本地 Chrome/CDP Canvas smoke 已通过 56 个注册节点；全链本地验收仍有独立视频样例种子失败，不能把该失败误报为 Canvas 或 Provider 失败。

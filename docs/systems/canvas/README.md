@@ -53,7 +53,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - `RHToolsNode.tsx` 已完成 `helpers -> param/runtime sections -> runner/launcher view shells` 三层收口，并已退出 `1200+` watchlist
 - 下一批前台热点建议继续优先处理：
   - `Canvas.tsx` 的 `connect picker / context-menu view shell / remaining edit interactions`
-  - `PoseMasterNode.tsx` 的 `field schema / preview sections / runtime actions`
+  - `PoseMasterNode.tsx` 的 `preview sections / runtime actions`（field schema 已下沉至 `nodes/pose-master/pose-field-schema.ts`）
   - `VideoNode.tsx` 的 runtime panel / param sections
 
 ## 加载与生成链路稳定性基线
