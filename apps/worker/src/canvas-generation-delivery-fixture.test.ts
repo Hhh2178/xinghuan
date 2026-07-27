@@ -7,8 +7,15 @@ vi.mock("node:fs/promises", () => ({
   readFile: vi.fn(async () => {
     throw Object.assign(new Error("missing"), { code: "ENOENT" });
   }),
-  rename: vi.fn(async () => undefined),
+  rename: vi.fn(async (from: string, to: string) => {
+    const bytes = writtenFiles.get(String(from));
+    if (bytes) {
+      writtenFiles.set(String(to), bytes);
+      writtenFiles.delete(String(from));
+    }
+  }),
   stat: vi.fn(async () => ({ size: 1 })),
+  unlink: vi.fn(async (path: string) => { writtenFiles.delete(String(path)); }),
   writeFile: vi.fn(async (path: string, contents: Uint8Array) => {
     writtenFiles.set(String(path), new Uint8Array(contents));
   }),

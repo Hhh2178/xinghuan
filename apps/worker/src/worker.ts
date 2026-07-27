@@ -93,6 +93,7 @@ import { executeWorkerTaskOperation } from "./worker-task-operation.js";
 import { executeImageGenerationBatch, type ImageGenerationBatchProgress } from "./worker-image-generation-batch.js";
 import { executeGenerationBatchWithMaterializedProgress } from "./worker-generation-progress-materializer.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
+import { markTaskArtifactsReady, markTaskMaterializing } from "./worker-materialization-stages.js";
 import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
 import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
 
@@ -555,11 +556,12 @@ async function processTask(taskId: string) {
     })) {
       return;
     }
+    await markTaskMaterializing({ taskId, workerId, capability: task.capability, result, touchTaskRuntime, appendTaskRuntimeEventBestEffort });
     const materialized = await materializeTaskOutputs({ dataDir, task, result });
-    const completionLogs =
-      materialized.artifacts.length > 0
-        ? [`${workerId} 执行完成`, `${workerId} 已登记 ${materialized.artifacts.length} 条生成产物`]
-        : [`${workerId} 执行完成`];
+    await markTaskArtifactsReady({ taskId, workerId, capability: task.capability, artifactCount: materialized.artifacts.length, appendTaskRuntimeEventBestEffort });
+    const completionLogs = materialized.artifacts.length > 0
+      ? [`${workerId} 执行完成`, `${workerId} 已登记 ${materialized.artifacts.length} 条生成产物`]
+      : [`${workerId} 执行完成`];
     const completionResult = await updateTask(taskId, "succeeded", completionLogs, {
       ...clearTransientRuntimeFields(task.result),
       ...result,
@@ -644,7 +646,6 @@ async function processTask(taskId: string) {
     }
   }
 }
-
 async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise<{ acquired: true } | { acquired: false; reason: string }> {
   if (!task.ownerId || limit <= 0) return { acquired: true };
   const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;
@@ -660,7 +661,6 @@ async function acquireUserExecutionWindow(task: TaskRow, limit: number): Promise
   }
   return { acquired: true };
 }
-
 async function releaseUserExecutionWindow(task: TaskRow) {
   if (!task.ownerId || !TASK_QUEUE_CAPABILITIES.includes(task.capability as TaskQueueCapability)) return;
   const key = `xinghuan:user-window:${task.capability}:${task.ownerId}`;

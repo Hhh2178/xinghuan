@@ -26,6 +26,8 @@
 - `npm test -- apps/worker/src/output-materials.test.ts`：11 passed。
 - `npm run type-check -w @xinghuan/worker`：passed。
 - `npm run verify:canvas-generation-delivery-contract`：passed。
+- `apps/worker/src/worker-materialization-stages.ts` now records sanitized `task_materializing` and `task_artifact_ready` events; failure remains owned by the existing lifecycle `task_failed` event. The Canvas generation-delivery fixture and Worker observability contract both pass.
+- `npm run verify:file-hotspot-budgets`：passed at the existing `worker.ts` budget of 1765 lines after extracting the stage seam.
 - 尚未构建 release archive、部署 Gray 或 Production；因此本记录不构成线上放行证据。
 
 ## 未包含的后续风险
