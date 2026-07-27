@@ -56,7 +56,8 @@ assert.match(workspace, /放弃并切换/, "dirty supervision navigation must re
 assert.match(workspace, /onDirtyChange/, "supervision editors must report unsaved drafts to the workspace boundary");
 assert.doesNotMatch(workspace, /function ModelsView|function PoliciesView/, "supervision governance must not regress to the previous continuous vertical stack");
 assert.match(repository, /admin-assistant-planner/, "Backend assistant must have its own bounded definition");
-assert.match(assistantWorkspace, /publicationMode="read-only"/, "Assistant environment publications must be visible without inline switching");
+assert.match(assistantWorkspace, /publicationMode="manage"/, "Assistant governance must complete the approved publication lifecycle");
+assert.doesNotMatch(assistantWorkspace, /只读显示，不在此工作台切换/, "Assistant governance must not strand environment publication in a read-only surface");
 assert.match(purposes, /generation-recovery/, "Recovery governance must use the canonical bounded definition");
 assert.match(purposes, /artifact-checker/, "Candidate evaluation governance must use the canonical bounded definition");
 assert.doesNotMatch(workspace, /createRole\(|RoleSelect|新建角色/, "current MVP must not expose arbitrary internal role creation");

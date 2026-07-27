@@ -11,6 +11,7 @@ interface Props {
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
   publicationMode?: "manage" | "read-only";
+  displayMode?: "full" | "configuration" | "publication";
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -30,7 +31,7 @@ interface PoolDraft {
   entries: EntryDraft[];
 }
 
-export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationMode = "manage", onDirtyChange }: Props) {
+export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationMode = "manage", displayMode = "full", onDirtyChange }: Props) {
   const [poolId, setPoolId] = useState(pools[0]?.id || "");
   const pool = pools.find((item) => item.id === poolId) || pools[0];
   const [versionId, setVersionId] = useState(pool?.versions[0]?.id || "");
@@ -61,8 +62,9 @@ export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationM
     <div className="agent-rail" role="tablist" aria-label="LLM 路由池">{pools.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === pool.id} className={item.id === pool.id ? "active" : ""} onClick={() => setPoolId(item.id)}><span><strong>{routePurpose(item.role, item.scenario, item.poolKey)?.label || item.name}</strong><small>{item.name}</small></span></button>)}</div>
     <div className="agent-inspector agent-config-editor__inspector">
       <header className="agent-config-editor__header"><div><strong>{routePurpose(pool.role, pool.scenario, pool.poolKey)?.label || pool.name}</strong><span>{pool.name} · 仅影响发布后开始的新 Run</span></div><span className={`agent-status agent-status--${pool.enabled ? "enabled" : "disabled"}`}>{pool.enabled ? "启用" : "停用"}</span></header>
-      <div className="agent-config-editor__version-bar"><label><span>基准版本</span><select value={version?.id || ""} onChange={(event) => setVersionId(event.target.value)}>{pool.versions.map((item) => <option key={item.id} value={item.id}>v{item.version} · {statusLabel(item.status)}</option>)}</select></label><button type="button" className="ghost-action" disabled={busy || !version} onClick={() => setDraft(poolDraft(version))}>恢复基准</button></div>
+      {displayMode !== "publication" ? <div className="agent-config-editor__version-bar"><label><span>基准版本</span><select value={version?.id || ""} onChange={(event) => setVersionId(event.target.value)}>{pool.versions.map((item) => <option key={item.id} value={item.id}>v{item.version} · {statusLabel(item.status)}</option>)}</select></label><button type="button" className="ghost-action" disabled={busy || !version} onClick={() => setDraft(poolDraft(version))}>恢复基准</button></div> : null}
 
+      {displayMode !== "publication" ? <>
       <section className="agent-config-section agent-config-grid"><h3>路由策略</h3>
         <NumberField label="技术失败阈值" value={draft.failureThreshold} min={1} max={20} onChange={(failureThreshold) => setDraft({ ...draft, failureThreshold })} />
         <NumberField label="熔断冷却 (ms)" value={draft.cooldownMs} min={1000} max={3600000} onChange={(cooldownMs) => setDraft({ ...draft, cooldownMs })} />
@@ -84,8 +86,9 @@ export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationM
       </section>
 
       <div className="agent-config-editor__actions"><span>{changed ? `${draft.entries.length} 个候选待保存` : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || !changed || draft.entries.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createPoolVersion(pool.id, { policy: { failureThreshold: draft.failureThreshold, cooldownMs: draft.cooldownMs }, entries: draft.entries }))}><Save />保存为新草稿</button></div>
-      {version ? <div className="agent-simulator"><strong>路由模拟</strong><button type="button" className="ghost-action" disabled={busy} onClick={async () => { setSimulation(""); try { const result = await adminAgentGovernanceApi.simulatePool({ versionId: version.id, role: pool.role, scenario: pool.scenario, requiredCapabilityTags: [], decisionKey: `admin-preview-${Date.now()}` }); setSimulation(`${result.decision.selectedEntryId} · ${result.decision.reason}`); } catch (error) { setSimulation(error instanceof Error ? error.message : String(error)); } }}>运行模拟</button>{simulation ? <p>{simulation}</p> : null}</div> : null}
-      <section className="agent-version-history"><header><strong>版本历史</strong><span>审核、发布与回滚在这里单独管理</span></header><div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section>
+      {version ? <div className="agent-simulator"><strong>路由模拟</strong><button type="button" className="ghost-action" disabled={busy} onClick={async () => { setSimulation(""); try { const result = await adminAgentGovernanceApi.simulatePool({ versionId: version.id, role: pool.role, scenario: pool.scenario, requiredCapabilityTags: [], decisionKey: `admin-preview-${Date.now()}` }); const selectedEntry = version.entries.find((entry) => entry.id === result.decision.selectedEntryId); const selectedModel = models.find((model) => model.id === selectedEntry?.modelId); setSimulation(`${selectedModel?.displayName || selectedEntry?.modelId || "未找到候选"} · ${result.decision.reason} · ${result.decision.rejected.length} 个候选被排除`); } catch (error) { setSimulation(error instanceof Error ? error.message : String(error)); } }}>运行模拟</button>{simulation ? <p>{simulation}</p> : null}</div> : null}
+      </> : null}
+      {displayMode !== "configuration" ? <section className="agent-version-history"><header><strong>路由版本历史</strong><span>批准与发布只影响之后创建的新 Agent Run</span></header><div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section> : null}
     </div>
   </div>;
 }
@@ -99,7 +102,7 @@ function PoolVersionRow({ pool, version, busy, mutate, publicationMode }: { pool
   };
   const publish = async (environment: AgentEnvironment) => {
     const label = actionLabel(environment);
-    if ((environment === "production" || label.startsWith("回滚")) && !window.confirm(`确认${label}？该操作会切换后续新 Run 使用的路由。`)) return;
+    if ((environment === "production" || label.startsWith("回滚")) && !window.confirm(`确认${label}？该操作会切换后续新 Agent Run 使用的路由，不改变正在运行或已经完成的记录。`)) return;
     await mutate(() => adminAgentGovernanceApi.publishPoolVersion(version.id, environment));
   };
   return <div className="agent-version-row"><div><strong>v{version.version} · {version.entries.length} 个候选</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{version.publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><VersionActions status={version.status} busy={busy} published={version.publications.map((item) => item.environment)} onTransition={(status) => mutate(() => adminAgentGovernanceApi.transitionPoolVersion(version.id, status))} onPublish={publish} actionLabel={actionLabel} publicationMode={publicationMode} /></div>;

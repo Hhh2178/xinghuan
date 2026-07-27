@@ -16,10 +16,11 @@ interface Props {
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
   publicationMode?: "manage" | "read-only";
+  displayMode?: "full" | "configuration" | "publication";
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publicationMode = "manage", onDirtyChange }: Props) {
+export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publicationMode = "manage", displayMode = "full", onDirtyChange }: Props) {
   const [selectedDefinitionId, setSelectedDefinitionId] = useState(value.definitions[0]?.id || "");
   const definition = value.definitions.find((item) => item.id === selectedDefinitionId) || value.definitions[0];
   const [sourceVersionId, setSourceVersionId] = useState(definition?.versions[0]?.id || "");
@@ -48,11 +49,12 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publica
     </div>
     <div className="agent-inspector agent-config-editor__inspector">
       <header className="agent-config-editor__header"><div><strong>{canvasAgentPurpose(definition.agentKey)?.label || definition.name}</strong><span>{definition.description || definition.agentKey} 配置只对新 Run 生效。</span></div><span className={`agent-status agent-status--${definition.enabled ? "enabled" : "disabled"}`}>{definition.enabled ? "启用" : "停用"}</span></header>
-      <div className="agent-config-editor__version-bar">
+      {displayMode !== "publication" ? <div className="agent-config-editor__version-bar">
         <label><span>基准版本</span><select value={sourceVersion?.id || ""} onChange={(event) => setSourceVersionId(event.target.value)}>{definition.versions.map((version) => <option value={version.id} key={version.id}>v{version.version} · {statusLabel(version.status)}</option>)}</select></label>
         <button type="button" className="ghost-action" disabled={busy || !sourceVersion} onClick={() => sourceVersion && void mutate(() => adminAgentGovernanceApi.cloneRoleVersion(sourceVersion.id))}><Copy />复制为草稿</button>
-      </div>
+      </div> : null}
 
+      {displayMode !== "publication" ? <>
       <section className="agent-config-section">
         <h3>用途与提示词</h3>
         <label className="agent-field"><span>用途说明</span><input value={draft.roleDescription} onChange={(event) => setDraft({ ...draft, roleDescription: event.target.value })} /></label>
@@ -82,7 +84,8 @@ export function AdminAgentRoleConfigurationEditor({ value, busy, mutate, publica
       </section>
 
       <div className="agent-config-editor__actions"><span>{diff.length ? `${diff.length} 项配置待保存` : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || diff.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createRoleVersion(definition.id, normalizeAgentRuntimeConfiguration(draft)))}><Save />保存为新草稿</button></div>
-      <section className="agent-version-history"><header><strong>版本历史</strong><span>审核、发布与回滚在这里单独管理</span></header><div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section>
+      </> : null}
+      {displayMode !== "configuration" ? <section className="agent-version-history"><header><strong>Agent 版本历史</strong><span>批准与发布只影响之后创建的新 Agent Run</span></header><div className="agent-version-list">{definition.versions.map((version) => <RoleVersionRow key={version.id} definition={definition} version={version} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section> : null}
     </div>
   </div>;
 }
@@ -101,7 +104,7 @@ function RoleVersionRow({ definition, version, busy, mutate, publicationMode }: 
   const publish = (environment: AgentEnvironment) => {
     const label = actionLabel(environment);
     if (environment === "production" || label.startsWith("回滚")) {
-      if (!window.confirm(`确认${label}？该操作会切换后续新 Run 使用的配置。`)) return;
+      if (!window.confirm(`确认${label}？该操作会切换后续新 Agent Run 使用的配置，不改变正在运行或已经完成的记录。`)) return;
     }
     void mutate(() => adminAgentGovernanceApi.publishRoleVersion(version.id, environment));
   };
