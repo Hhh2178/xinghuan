@@ -22,6 +22,7 @@ import { applyThemeTemplate } from './theme/applyTheme';
 import { resolveThemeTemplate } from './theme/defaultTemplates';
 import { materialSetItemsToData, type MaterialSetKind, type MaterialSetItem } from './utils/materialSet';
 import { createLazyImportWithReloadRecovery } from './utils/lazyImportRecovery';
+import { scheduleWorkspacePreload } from './utils/workspace-preload';
 import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
 import { applyVisualPerformanceMode } from './utils/visualPerformanceMode';
@@ -49,15 +50,6 @@ const RHToolsProvider = lazy(() =>
     import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
   )(),
 );
-const preloadRHToolsProvider = createLazyImportWithReloadRecovery(() =>
-  import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })),
-);
-const preloadWorkspaceShell = Promise.all([
-  createLazyImportWithReloadRecovery(() => import('./components/Sidebar'))(),
-  createLazyImportWithReloadRecovery(() => import('./components/Canvas'))(),
-  preloadRHToolsProvider(),
-]);
-
 type AddNodeFn = import('./components/Canvas').AddNodeFn;
 type InsertWorkflowFn = import('./components/Canvas').InsertWorkflowFn;
 
@@ -388,7 +380,15 @@ function App() {
       };
     }
     setWorkspaceShellReady(false);
-    preloadWorkspaceShell
+    scheduleWorkspacePreload({
+      isAuthenticated: Boolean(currentUser),
+      preload: () => Promise.all([
+        createLazyImportWithReloadRecovery(() => import('./components/Sidebar'))(),
+        createLazyImportWithReloadRecovery(() => import('./components/Canvas'))(),
+        createLazyImportWithReloadRecovery(() => import('./providers/RHToolsProvider').then((module) => ({ default: module.RHToolsProvider })))(),
+      ]),
+      requestIdleCallback: typeof window.requestIdleCallback === 'function' ? (callback) => window.requestIdleCallback(callback) : undefined,
+    })
       .then(() => {
         if (alive) setWorkspaceShellReady(true);
       })

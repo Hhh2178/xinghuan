@@ -476,11 +476,11 @@ It fails if entry, Canvas, Admin, CSS or selected node chunks or scenario metric
 - Create: `apps/web/src/utils/workspace-preload.test.ts`
 - Modify: `apps/web/src/App.tsx`, `apps/web/src/utils/lazyImportRecovery.ts`
 
-- [ ] **Step 1: Write preload tests**
+- [x] **Step 1: Write preload tests**
 
 Test no module-evaluation Canvas preload, one idle preload after authentication and no retry loop after failed prefetch.
 
-- [ ] **Step 2: Replace eager Promise.all initialization**
+- [x] **Step 2: Replace eager Promise.all initialization**
 
 ~~~ts
 scheduleWorkspacePreload({
