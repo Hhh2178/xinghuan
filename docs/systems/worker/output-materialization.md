@@ -16,7 +16,7 @@
 - file 模式写入 `generation-library.json` 时使用每文件串行队列和原子 rename。
 - 远程视频内容下载支持有限指数退避，并对 `429/502/503/504`、授权拒绝和响应流中断分别分类；支持在已经收到部分字节后用 HTTP Range 继续读取，避免把 Provider 内容回源异常误报成普通 `terminated`。
 - Provider 已成功但本地物料化失败时，任务结果会保留 `remoteVideoUrls` / `remoteImageUrls` / `remoteAudioUrls`、`upstreamTaskId`、`providerState`、`materializationStatus`、`materializationAttempts` 和 `outputRecoveryAvailable`。
-- `POST /api/admin/tasks/:id/recover-output` 的产品意图是只重新入队物料化、不重新提交 Provider、不重复计费；但 2026-07-27 审计确认 API 将 `outputRecoveryMode=output_only` 写入 `result`，Worker 只读取 `payload`。该入口在 Gray 修复并完成端到端验收前不得作为“不重复提交”的可靠保证，详见 `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`。
+- `POST /api/admin/tasks/:id/recover-output` 的产品意图是只重新入队物料化、不重新提交 Provider、不重复计费。0.8.3-r1 同时把 `outputRecoveryMode=output_only` 写入 `payload` 和 `result`；Worker 的独立操作分流同时兼容旧版仅写入 `result` 的任务，并在命中任一标记时跳过 Provider 执行。静态契约门禁保护该边界；在 Gray 的同任务 ID、零 Provider 提交、成本计数不变和产物可读验收完成之前，Production 不得将该入口视为已完成的端到端保证。
 
 ## 关键文件
 

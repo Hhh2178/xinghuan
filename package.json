@@ -18,6 +18,7 @@
     "build": "npm run build -w @xinghuan/shared && npm run build -w @xinghuan/canvas-core && npm run build -w @xinghuan/model-core && npm run build -w @xinghuan/agent-core && npm run build -w @xinghuan/ui && npm run build -w @xinghuan/api && npm run build -w @xinghuan/worker && npm run build -w @xinghuan/web && npm run build -w @xinghuan/admin && npm run build -w @xinghuan/comfyui-connector",
     "build:single-port": "npm run build -w @xinghuan/shared && npm run build -w @xinghuan/canvas-core && npm run build -w @xinghuan/model-core && npm run build -w @xinghuan/agent-core && npm run build -w @xinghuan/ui && npm run build -w @xinghuan/api && npm run build -w @xinghuan/worker && npm run build -w @xinghuan/web && npm run build -w @xinghuan/admin && npm run build -w @xinghuan/comfyui-connector",
     "package:release": "node scripts/package-release.mjs",
+    "verify:output-recovery-operation-contract": "node scripts/verify-output-recovery-operation-contract.mjs",
     "release:gray:prepare": "node scripts/release/prepare-gray-release.mjs",
     "release:gray:prepare:runninghub": "node scripts/release/prepare-gray-release.mjs --preset=runninghub",
     "release:gray:deploy": "node scripts/release/deploy-gray-release.mjs",

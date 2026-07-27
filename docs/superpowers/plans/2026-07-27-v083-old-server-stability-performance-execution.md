@@ -119,7 +119,7 @@ result: { ...currentResult, outputRecoveryMode: 'output_only' },
 
 The route test asserts unchanged task ID, preserved generation payload, and both markers.
 
-- [ ] **Step 6: Run GREEN and commit**
+- [x] **Step 6: Run GREEN and commit**
 
 Run: `npm test -- apps/worker/src/worker-task-operation.test.ts apps/api/src/admin-task-list-routes.test.ts`
 
@@ -137,7 +137,7 @@ Commit: `git add apps/worker/src/worker-task-operation.ts apps/worker/src/worker
 
 **Interface:** `npm run verify:output-recovery-operation-contract`
 
-- [ ] **Step 1: Make the verifier fail until package wiring is present**
+- [x] **Step 1: Make the verifier fail until package wiring is present**
 
 ~~~js
 assert.match(adminSource, /payload:[\s\S]*outputRecoveryMode:[\s\S]*output_only/);
@@ -147,11 +147,11 @@ assert.doesNotMatch(workerSource, /payload\.outputRecoveryMode === ['"]output_on
 assert.match(packageSource, /verify:output-recovery-operation-contract/);
 ~~~
 
-- [ ] **Step 2: Register and package the verifier**
+- [x] **Step 2: Register and package the verifier**
 
 Add the command to package.json. Add its path to requiredPaths and includedPaths in scripts/package-release.mjs.
 
-- [ ] **Step 3: Correct operator documentation**
+- [x] **Step 3: Correct operator documentation**
 
 State that only the r1 deployed contract plus the Gray fixture guarantees output-only recovery; Production use remains prohibited before that evidence exists.
 
