@@ -1,0 +1,46 @@
+/* Theme canvas contract:
+   - theme watermarks live on the shell background layer, never above nodes
+   - left floating controls stay anchored to the canvas shell */
+.t8-canvas-shell {
+  --t8-floating-control-left: 14px;
+  --t8-floating-control-bottom: 12px;
+  --t8-flow-controls-height: 132px;
+  --t8-floating-control-gap: 10px;
+  --t8-floating-control-size: 32px;
+  --t8-flow-controls-bg: var(--t8-bg-panel, rgba(20, 20, 22, 0.92));
+  --t8-flow-controls-fg: var(--t8-text-main, #f4f4f5);
+  --t8-flow-controls-muted: var(--t8-text-muted, rgba(244, 244, 245, 0.58));
+  --t8-flow-controls-border: var(--t8-border, rgba(255, 255, 255, 0.14));
+  --t8-flow-controls-button-bg: color-mix(in srgb, var(--t8-bg-panel, #141416) 88%, transparent);
+  --t8-flow-controls-button-hover-bg: color-mix(in srgb, var(--t8-accent, #38bdf8) 18%, var(--t8-bg-panel, #141416));
+  --t8-flow-controls-accent: var(--t8-accent, #38bdf8);
+  position: relative;
+  isolation: isolate;
+}
+
+.t8-canvas-shell::before,
+.t8-canvas-shell::after {
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-theme-visual] .t8-canvas-shell::before,
+html[data-theme-visual] .t8-canvas-shell::after,
+.t8-canvas-shell[data-theme-visual]::before,
+.t8-canvas-shell[data-theme-visual]::after {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.t8-canvas-shell > .react-flow {
+  position: relative;
+  z-index: 2 !important;
+}
+
+.t8-canvas-shell .react-flow__background {
+  z-index: 0 !important;
+}
+
+.t8-canvas-shell .react-flow__edges {
+  z-index: 2 !important;
+}

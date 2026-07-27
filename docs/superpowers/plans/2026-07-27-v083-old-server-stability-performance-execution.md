@@ -568,12 +568,12 @@ Release evidence: r13 `20260728-image-result-aggregation-v083-r13` used source c
 - Create: `apps/admin/src/styles/route-shell.css`
 - Modify: current Web/Admin style entry files and CSS contract tests
 
-- [ ] **Step 1: Move only styles owned by each boundary and preserve cascade order through explicit imports (error-recovery.css completed; canvas-shell/node-chrome remain)**
-- [ ] **Step 2: Add selector-scope tests rejecting broad global error selectors**
+- [ ] **Step 1: Move only styles owned by each boundary and preserve cascade order through explicit imports (error-recovery.css and canvas-shell.css completed; node-chrome/admin route-shell remain)**
+- [x] **Step 2: Add selector-scope tests rejecting broad global error selectors**
 - [ ] **Step 3: Verify HMR, 1920×1080 layout, CSS budget and affected node smoke**
 - [ ] **Step 4: Release r5 through old-server Gray and same-SHA Production**
 
-Implementation evidence: `error-recovery.css` is explicitly imported by `apps/web/src/styles/index.css`; its contract test protects scoped workspace/node selectors and keyboard focus styles. Released as r12 on old-server Gray then Production with the same archive; canvas-shell/node-chrome CSS boundaries remain open.
+Implementation evidence: `error-recovery.css` and `canvas-shell.css` are explicitly imported by `apps/web/src/styles/index.css`; contract tests protect scoped selectors, keyboard focus styles and ReactFlow stacking. Released error-recovery as r12; canvas-shell/node-chrome/admin route-shell boundaries remain open.
 
 ## r6: API and Worker Orchestration Seams
 

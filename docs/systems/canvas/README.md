@@ -12,6 +12,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - DrawingBoard 持久化边界：`apps/web/src/components/nodes/drawing-board-persistence.ts`
 - 错误边界/崩溃回退样式：`apps/web/src/styles/error-recovery.css`
 - ImageNode 生成结果聚合：`apps/web/src/components/nodes/image-node-runtime.ts`
+- Canvas shell 层级样式：`apps/web/src/styles/canvas-shell.css`
 
 ## 建议阅读顺序
 
@@ -41,6 +42,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - DrawingBoard 的 layer snapshot 持久化已下沉到 `drawing-board-persistence.ts`；该边界统一生成 `boardLayers`/`boardElements`，并对 group-only 恢复提供可编辑图层兜底
 - Workspace/node error boundary 的回退样式已独立到 `error-recovery.css`，由 `index.css` 显式导入并保持窄命名空间
 - ImageNode 的并发 Provider 回传聚合已独立到 `image-node-runtime.ts`，统一处理可读 URL、远端 URL 和恢复 task ID 的去重与主任务选择
+- Canvas shell 的背景/边/节点 stacking 契约已独立到 `canvas-shell.css`，其余历史 canvas selectors 暂保持原位以降低级联风险
 - `Canvas.tsx` 已完成第一批真实下沉：
   - `useCanvasPersistence.ts`
   - `useCanvasConnectionPanMode.ts`
