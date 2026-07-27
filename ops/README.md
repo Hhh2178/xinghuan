@@ -37,12 +37,13 @@
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
-  - 域名：`canvas.zezhen.online`（旧域名仅作回滚来源）
+  - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
+  - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.8.1`
-  - release：`20260726-video-prompt-provider-limit-v081-r1`
-  - 状态：`旧服务器与新服务器 Production 均已部署；公网状态、权限 readiness 和 API/Worker 通过`
-  - 当前补修：`视频提示词字节限制交由服务商判断；既有 retention 和用户媒体边界保持不变`
+  - 版本：`v0.8.2`
+  - release：`20260727-provider-output-recovery-v082-r1`
+  - 状态：`旧服务器 Production 晋级；API/Worker、权限 readiness 和公网状态验证后正式放行`
+  - 当前补修：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持恢复`
 
 ## current / archive 分工
 

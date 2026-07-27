@@ -1,14 +1,15 @@
 # 当前 Production 运行态
 
-- 入口域名：`canvas.zezhen.online`（旧域名仅作回滚来源）
+- 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
+- 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.1`
-- 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
-- 当前状态：`v0.8.1 已部署到旧服务器与新服务器 Production；API/Worker、数据库迁移、权限 readiness 和公网状态验证通过`
-- 当前补修：`视频提示词字节限制交由服务商判断；平台不再按历史 maxPromptBytes/4096 在入队前拦截`
+- 当前版本：`v0.8.2`
+- 当前 release：`20260727-provider-output-recovery-v082-r1`
+- 当前状态：`旧服务器 Production 晋级本 release；正式运行态验证完成后由旧域名继续提供服务`
+- 当前补修：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持 recover-output，不重复调用 Provider`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-26-video-prompt-provider-limit-v081-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/production/2026-07-27-provider-output-recovery-v082-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`

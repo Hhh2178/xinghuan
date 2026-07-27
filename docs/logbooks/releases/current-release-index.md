@@ -4,14 +4,14 @@
 
 ### Production
 
-- 版本：`v0.8.1`
-- release：`20260726-video-prompt-provider-limit-v081-r1`
-- 当前状态：`旧服务器与新服务器 Production 均已部署；API/Worker、权限 readiness 和公网状态验证通过`
-- 部署内容：`视频提示词字节限制交由服务商判断，不再按历史 maxPromptBytes/4096 在平台入队前拦截`
-- 回滚：`20260725-media-retention-v081-r2`
+- 版本：`v0.8.2`
+- release：`20260727-provider-output-recovery-v082-r1`
+- 当前状态：`旧服务器 Production 晋级；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
+- 部署内容：`Provider 内容下载支持重试、流中断分类和 Range 续传；失败时保留远端产物并支持 recover-output，不重复调用 Provider`
+- 回滚：`20260726-video-prompt-provider-limit-v081-r1`
 - 当前批次记录：
-  - `production/2026-07-26-video-prompt-provider-limit-v081-r1.md`
-  - `../validations/2026-07-26-video-prompt-provider-limit-v081-r1.md`
+  - `production/2026-07-27-provider-output-recovery-v082-r1.md`
+  - `../validations/2026-07-27-provider-output-recovery-production-v082-r1.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
   - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
