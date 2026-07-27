@@ -29,7 +29,7 @@
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.3`
-  - release：`20260728-canvas-loading-performance-v083-r4`
+  - release：`20260728-provider-poll-retry-v083-r5`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过`
   - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试；认证后预加载与节点按帧更新`
   - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
@@ -42,7 +42,7 @@
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.3`
-  - release：`20260728-canvas-loading-performance-v083-r4`
+  - release：`20260728-provider-poll-retry-v083-r5`
   - 状态：`旧服务器 Production 已晋级；API/Worker、权限 readiness 与公网状态全部通过`
   - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试；认证后预加载与节点按帧更新`
   - Agent：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
