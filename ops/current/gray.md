@@ -4,18 +4,18 @@
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.8.3`
-- 当前 release：`20260728-toolbox-hotspot-seams-v083-r9`
+- 当前 release：`20260728-api-model-import-seam-v083-r10`
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
-- 当前补修：`ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；PoseMaster 字段 schema 与大画布可见性评估；图片/视频/音频物料化统一重试与 .part 原子提升；materializing/artifact_ready 阶段事件；认证后 Workspace 预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
+- 当前补修：`Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；PoseMaster 字段 schema 与大画布可见性评估；图片/视频/音频物料化统一重试与 .part 原子提升；materializing/artifact_ready 阶段事件；认证后 Workspace 预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
 - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
-- Production 当前 release：`20260728-toolbox-hotspot-seams-v083-r9`
-- 本轮制品源提交：`9005a6c`
-- 本轮制品 SHA-256：`758D7E0D5455788D9B9BD18B9D9C64B24F7FFABD91B2984DD5C3076FCAF9ACD6`
+- Production 当前 release：`20260728-api-model-import-seam-v083-r10`
+- 本轮制品源提交：`693baac`
+- 本轮制品 SHA-256：`E810006EA1129B4C81CF3E249B83919292B1F5108936ACE2348E374190A66079`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-28-toolbox-hotspot-seams-v083-r9.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-28-api-model-import-seam-v083-r10.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-28-api-model-import-seam-v083-r10.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

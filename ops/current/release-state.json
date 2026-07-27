@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "9005a6cc006856fe0040313cd354ac03f3aa1352",
+  "sourceCommit": "693baac4b8234da82fdc4fa73e5e5d4bc57ee9c0",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-toolbox-hotspot-seams-v083-r9",
+      "releaseId": "20260728-api-model-import-seam-v083-r10",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-toolbox-hotspot-seams-v083-r9.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-toolbox-hotspot-seams-v083-r9.md",
-      "rollbackReleaseId": "20260728-worker-dispatch-toolbox-schema-v083-r8"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-api-model-import-seam-v083-r10.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-api-model-import-seam-v083-r10.md",
+      "rollbackReleaseId": "20260728-toolbox-hotspot-seams-v083-r9"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260728-toolbox-hotspot-seams-v083-r9",
+      "releaseId": "20260728-api-model-import-seam-v083-r10",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-toolbox-hotspot-seams-v083-r9.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-toolbox-hotspot-seams-v083-r9.md",
-      "rollbackReleaseId": "20260728-worker-dispatch-toolbox-schema-v083-r8"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-api-model-import-seam-v083-r10.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-api-model-import-seam-v083-r10.md",
+      "rollbackReleaseId": "20260728-toolbox-hotspot-seams-v083-r9"
     }
   }
 }
