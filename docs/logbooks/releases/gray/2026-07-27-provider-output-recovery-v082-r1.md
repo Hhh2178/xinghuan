@@ -3,6 +3,7 @@
 - release: `20260727-provider-output-recovery-v082-r1`
 - version: `0.8.2`
 - source commit: `55aa3d9`
+- archive SHA-256: `F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
 - rollback: `20260726-video-prompt-provider-limit-v081-r1`
 
 ## Scope

@@ -32,6 +32,7 @@
   - 状态：`仅新服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过后执行 Grok 五次真实任务验收`
   - 当前补修：`Provider 成功后的媒体物料化支持重试、Range 续传和 recover-output 恢复，不重复计费`
   - 本轮制品源提交：`55aa3d9`
+  - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
