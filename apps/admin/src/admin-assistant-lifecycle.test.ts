@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveAssistantLifecycle } from "./admin-assistant-lifecycle.js";
+import { deriveAssistantLifecycle, formatAssistantVerificationDetail } from "./admin-assistant-lifecycle.js";
 
 const approvedDefinition = {
   enabled: true,
@@ -26,6 +26,14 @@ const approvedPool = {
 };
 
 describe("assistant lifecycle readiness", () => {
+  it("summarizes verification from runtime evidence instead of model prose", () => {
+    expect(formatAssistantVerificationDetail({
+      environment: "gray",
+      agentVersionLabel: "Agent v3",
+      routeVersionLabel: "路由 v1",
+    })).toBe("Agent 模式 · Gray · Agent v3 · 路由 v1 · 真实请求已完成");
+  });
+
   it("stops at assistant capability when the surface is disabled", () => {
     const result = deriveAssistantLifecycle({
       enabled: false,

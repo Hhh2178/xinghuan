@@ -14,6 +14,7 @@ import {
 } from "./admin-agent-governance-api";
 import {
   deriveAssistantLifecycle,
+  formatAssistantVerificationDetail,
   type AssistantLifecycleStepId,
 } from "./admin-assistant-lifecycle";
 import {
@@ -165,7 +166,11 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
         environment,
         status: "succeeded",
         verifiedAt,
-        detail: `Agent 模式 · ${result.content?.markdown || result.message || "请求已完成"}`,
+        detail: formatAssistantVerificationDetail({
+          environment,
+          agentVersionLabel: lifecycle.agentVersionLabel,
+          routeVersionLabel: lifecycle.routeVersionLabel,
+        }),
       });
       setNotice("真实助手请求已完成");
     } catch (nextError) {

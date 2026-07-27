@@ -53,7 +53,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - `/admin/automation/supervision`：把环境控制解释为 `仅观察`、`受控托管`、`自动恢复` 或 `自定义托管`。这些模式只是现有控制字段的安全投影，不成为新的运行时权威；所有变化只影响新 Workflow Run。
 - `/admin/automation/activity`：把有界 Run、Approval、Recovery Decision 和 Audit Record 投影成异常优先的处置队列。列表不携带原始 action payload、提示词或签名 URL；审批必须填写理由并在提交前显示影响范围。
 
-助手生效判断必须同时满足当前环境的 Agent 与路由发布。真实验证先读取 `/api/status`，禁止把 Gray 请求记为 Production 结果；fallback/受限模式不能记为成功。
+助手生效判断必须同时满足当前环境的 Agent 与路由发布。真实验证先读取 `/api/status`，禁止把 Gray 请求记为 Production 结果；fallback/受限模式不能记为成功。成功摘要只使用环境、已发布 Agent/路由版本和运行模式等确定性证据，不把模型自由文本当作发布证明。
 
 视觉继续复用 Admin Starlight 变量、青绿渐变和细网格，不建立 AI 专属主题。正式验收视窗为 `1920x1080`。
 

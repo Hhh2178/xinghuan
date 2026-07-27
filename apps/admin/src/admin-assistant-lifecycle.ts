@@ -56,6 +56,14 @@ export interface DeriveAssistantLifecycleInput {
   lastVerification: VerificationInput | null;
 }
 
+export function formatAssistantVerificationDetail(input: {
+  environment: AgentEnvironment;
+  agentVersionLabel: string;
+  routeVersionLabel: string;
+}): string {
+  return `Agent 模式 · ${environmentLabel(input.environment)} · ${input.agentVersionLabel} · ${input.routeVersionLabel} · 真实请求已完成`;
+}
+
 export function deriveAssistantLifecycle(input: DeriveAssistantLifecycleInput): AssistantLifecycle {
   const issues: AssistantReadinessIssue[] = [];
   const definition = input.definition;
