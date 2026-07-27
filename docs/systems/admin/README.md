@@ -44,3 +44,15 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - API 设置面板已开始按 `helper / form sections / save actions` 分层，避免继续堆成单个超大后台文件
 - 后台前端设计长期资料已进入 `frontend-design/`，后续在统一 `stitch` 风格基础上增减后台功能时优先维护该目录
 - 数据分析与审计下的 `/admin/analytics/reliability` 只读展示 Provider / 模型渠道健康度；筛选、手动刷新和默认关闭的五分钟自动刷新均由该页面负责，不在 `main.tsx` 累积状态。
+
+## AI 治理工作台
+
+`智能体与自动化` 使用三个互斥工作区，底层权威记录保持分离：
+
+- `/admin/automation/assistants`：按 `助手能力 -> 模型路由 -> 审核发布 -> 生效验证` 管理创作侧和后台助手。表面设置、Agent 配置和 LLM 路由仍使用各自 API；页面只组合生命周期。Gray 与 Production 均可在授权工作台完成 Agent/路由审核、批准、发布和回滚，Production 与回滚动作必须确认对后续新 Agent Run 的影响。
+- `/admin/automation/supervision`：把环境控制解释为 `仅观察`、`受控托管`、`自动恢复` 或 `自定义托管`。这些模式只是现有控制字段的安全投影，不成为新的运行时权威；所有变化只影响新 Workflow Run。
+- `/admin/automation/activity`：把有界 Run、Approval、Recovery Decision 和 Audit Record 投影成异常优先的处置队列。列表不携带原始 action payload、提示词或签名 URL；审批必须填写理由并在提交前显示影响范围。
+
+助手生效判断必须同时满足当前环境的 Agent 与路由发布。真实验证先读取 `/api/status`，禁止把 Gray 请求记为 Production 结果；fallback/受限模式不能记为成功。
+
+视觉继续复用 Admin Starlight 变量、青绿渐变和细网格，不建立 AI 专属主题。正式验收视窗为 `1920x1080`。

@@ -87,7 +87,7 @@
     "verify:admin-provider-rail-layout": "node scripts/verify-admin-provider-rail-layout.mjs",
     "verify:catalog-display-order-contract": "node scripts/verify-catalog-display-order-contract.mjs",
     "verify:admin-assistant-workbench": "node scripts/verify-admin-assistant-workbench.mjs",
-    "verify:admin-ai-governance-workbench-v082": "node scripts/verify-admin-ai-governance-workbench-v082.mjs",
+    "verify:admin-ai-governance-workbench-v082": "node scripts/verify-admin-ai-governance-workbench-v082.mjs --visual",
     "verify:admin-assistant-settings-save-contract": "node scripts/verify-admin-assistant-settings-save-contract.mjs",
     "verify:admin-session-governance": "node scripts/verify-admin-session-governance.mjs",
     "verify:csrf-origin-guard": "node scripts/verify-csrf-origin-guard.mjs",
