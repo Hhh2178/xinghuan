@@ -27,7 +27,7 @@
 - release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前状态：`新旧服务器 Gray 均已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新域名等待注册商恢复解析`
 - 部署内容：`recover-output 以独立 operation 分支执行；画布生成提交按 owner/idempotencyKey 去重，PostgreSQL 唯一索引吸收并发重复提交`
-- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。付费 Provider 成功产物的隔离端到端验收尚未执行。`
+- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-27`
 - 本轮制品源提交：`48fbb61`
 - 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`

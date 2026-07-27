@@ -7,7 +7,7 @@
 - 当前灰度 release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前生产 release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：旧服务器 Gray 与 Production 已运行 v0.8.3；输出恢复以独立 operation 分支执行，画布生成提交按 owner/idempotencyKey 去重，并在 PostgreSQL 以唯一索引处理并发重试。旧服务器内部/公网状态、API/Worker、权限 readiness 和迁移均通过；尚未以付费 Provider 成功任务完成隔离的 Gray 端到端物料化验收。
+- 最新完成：旧服务器 Gray 与 Production 已运行 v0.8.3；输出恢复以独立 operation 分支执行，画布生成提交按 owner/idempotencyKey 去重，并在 PostgreSQL 以唯一索引处理并发重试。旧服务器内部/公网状态、API/Worker、权限 readiness 和迁移均通过；Gray 的 Canvas async + mock Provider 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态，未对付费 Provider 可用性或计费作结论。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。

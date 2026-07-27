@@ -25,4 +25,5 @@
 ## Result
 
 - API、Worker、内部状态、旧公网入口、首页、后台与权限 readiness 均通过；数据库为 `xinghuan_canvas_gray`，readiness failures 为 0。
-- 本 release 的真实 Provider 成功产物 Gray fixture 未执行；静态交付链路契约和本地单元验证不能替代该验收。
+- 受控 Gray fixture `task-1785167610738-tq766l` 通过 Canvas 异步入口两次提交同一 idempotency key，保持同一 task ID；远端 mock Provider 只收到 1 次请求，任务成功且 `/files/output/` 产物可读。
+- fixture 结束后测试 Provider 与测试产物均清理为 0；该验证不调用付费 Provider，不能替代真实供应商可用性监控。

@@ -263,7 +263,7 @@ Use a local mock Provider only. Prove an accepted Canvas request produces one Pr
 
 Keep Provider adapters isolated, preserve owner/revision semantics, and use the existing retry taxonomy. Do not mass-rewrite Canvas or Worker orchestration.
 
-- [ ] **Step 5: Gray acceptance before Production promotion**
+- [x] **Step 5: Gray acceptance before Production promotion**
 
 Run one authorized, isolated Gray fixture and record task ID continuity, Provider submission count, cost-count invariance, artifact readability and terminal success. Production receives only the accepted archive and non-destructive code/runtime verification.
 

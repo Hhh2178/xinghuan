@@ -32,7 +32,7 @@
   - release：`20260727-generation-delivery-agent-p0-v083-r1`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过`
   - 当前补修：`输出恢复执行分支隔离；画布生成按 owner/idempotencyKey 去重并由数据库唯一索引处理并发重试`
-  - 当前限制：`尚未以付费 Provider 成功任务完成一次隔离的 Gray 端到端物料化验收`
+  - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
   - 本轮制品源提交：`48fbb61`
   - 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`

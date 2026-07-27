@@ -7,7 +7,7 @@
 - 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
 - 当前补修：`recover-output 以独立 operation 分支执行；画布生成提交以 owner/idempotencyKey 去重并处理并发唯一键冲突`
-- 当前限制：`静态交付链路门禁与单元契约已通过；尚未以付费 Provider 成功任务完成一次隔离的 Gray 端到端物料化验收`
+- 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
 - Production 当前 release：`20260727-generation-delivery-agent-p0-v083-r1`
 - 本轮制品源提交：`48fbb61`
 - 本轮制品 SHA-256：`4937810dd089c9812c0d9deaa9cc8e5ed2e9a493f5f4872a293dcb008005c523`

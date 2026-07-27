@@ -24,5 +24,8 @@
 
 ## Acceptance boundary
 
-- 未执行付费 Provider 真实生成，故没有 task ID、成本不变性、可读产物或成功终态的 Gray fixture 证据。
+- 受控 mock Provider fixture：`task-1785167610738-tq766l`；同一 Canvas async 请求提交两次返回同一 task ID，Provider request count=`1`，终态为 `succeeded`，物料化 `/files/output/` 返回 HTTP 200 且非空。
+- 该计数证明重复提交未导致第二次 Provider 调用；mock Provider 不计费，因此不把它表述为真实供应商成本证明。
+- fixture 清理复核：`fixtureProvidersRemaining=0`、`fixtureArtifactsRemaining=0`。
+- 未执行付费 Provider 真实生成，故不对真实供应商成功率或计费账本作结论。
 - 未执行 retention apply，所有历史 release 目录仍保留。
