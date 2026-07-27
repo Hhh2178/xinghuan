@@ -11,6 +11,15 @@ describe('retired SD2.0 node', () => {
 });
 
 describe('canvas node catalog presentation', () => {
+  it('keeps every hidden historical type registered while excluding it from creation groups', () => {
+    const hiddenTypes = NODE_REGISTRY.filter((node) => node.hidden).map((node) => node.type);
+    const creationTypes = Object.values(NODE_GROUPS).flatMap((group) => group.nodes.map((node) => node.type));
+
+    expect(hiddenTypes.length).toBeGreaterThan(0);
+    expect(hiddenTypes.every((type) => getNodeMeta(type)?.hidden)).toBe(true);
+    expect(hiddenTypes.some((type) => creationTypes.includes(type))).toBe(false);
+  });
+
   it('keeps legacy nodes readable while removing retired creation entries', () => {
     expect(NODE_GROUPS.auxiliary.nodes.some((node) => node.type === 'remove-ai-watermark')).toBe(false);
     expect(getNodeMeta('remove-ai-watermark')?.hidden).toBe(true);

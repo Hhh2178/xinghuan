@@ -15,6 +15,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 1. `node-and-data-model.md`
 2. `project-and-material-flow.md`
 3. `frontend-design/`
+4. `../../records/canvas/2026-07-27-penguin-compatibility-inventory.md`（历史 `penguin:*` 事件、序列化标识和隐藏节点）
 
 ## 视觉与交互规范
 
