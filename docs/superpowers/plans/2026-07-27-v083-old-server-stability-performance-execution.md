@@ -582,7 +582,7 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - [x] **Step 1: Prove catalog App/Workflow polling fails on a transient gateway response before the fix**
 - [x] **Step 2: Reuse the bounded poll retry helper without retrying the billable submit request**
 - [x] **Step 3: Emit sanitized retry/recovery heartbeats and preserve timeout budget**
-- [ ] **Step 4: Release r6 after worker/API integration and old-server Gray then same-SHA Production gates**
+- [x] **Step 4: Release r6 after worker/API integration and old-server Gray then same-SHA Production gates**
 
 ### Task 16: Finish Worker Dispatch Table
 
@@ -611,9 +611,9 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 
 ### Task 18: Prove the Full Objective
 
-- [ ] **Step 1: Inspect r1-r6 records and prove every product version is 0.8.3, Gray precedes Production and Production SHA equals Gray SHA**
-- [ ] **Step 2: Read old-server release directories and prove no historical release was removed**
-- [ ] **Step 3: Inspect target fingerprints and prove no objective command targeted 43.131.246.222 or zezhen.online**
+- [x] **Step 1: Inspect r1-r6 records and prove every product version is 0.8.3, Gray precedes Production and Production SHA equals Gray SHA**
+- [x] **Step 2: Read old-server release directories and prove no historical release was removed**
+- [x] **Step 3: Inspect target fingerprints and prove no objective command targeted 43.131.246.222 or zezhen.online**
 - [ ] **Step 4: Re-run type-check, tests, builds, Harness, release governance, CodeGraph sync and browser smoke**
-- [ ] **Step 5: Update current state, system docs, hotspot ledger, release index and daily evidence; commit and push intentional files only**
+- [x] **Step 5: Update current state, system docs, hotspot ledger, release index and daily evidence; commit and push intentional files only**
 - [ ] **Step 6: Mark the persistent goal complete only after requirement-by-requirement evidence exists**
