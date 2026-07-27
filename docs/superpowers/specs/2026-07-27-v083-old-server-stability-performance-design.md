@@ -29,7 +29,7 @@ Rejected alternatives:
 1. **Frontend-first:** improves the visible crash page quickly but leaves duplicate billing and target-selection risk unresolved.
 2. **Big-bang architecture rewrite:** may reduce file sizes faster but combines state, persistence, rendering, Provider and deployment risk into one rollback unit.
 
-The chosen sequence is `r1` release safety, `r2` crash isolation, `r3` measured loading, `r4` Canvas updates, `r5` node/CSS boundaries, and `r6` API/Worker orchestration seams.
+The chosen sequence is `r1` release safety, `r2` crash isolation, a narrow `r3` generation-delivery materialization reliability batch, then measured loading, Canvas updates, node/CSS boundaries and API/Worker orchestration seams. The inserted r3 batch is deliberately limited to media download/materialization: it must not become a Provider protocol or persistence rewrite.
 
 ## 3. Global Invariants
 

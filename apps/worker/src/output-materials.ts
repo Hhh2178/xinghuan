@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   GENERATION_ARTIFACT_TTL_MS,
@@ -121,7 +121,13 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   const artifacts: GenerationArtifact[] = [];
 
   for (const [index, sourceUrl] of imageUrls.entries()) {
-    const saved = await materializeImageOutput(sourceUrl, dirs.outputDir, task.id, index);
+    const saved = await materializeImageOutput(
+      sourceUrl,
+      dirs.outputDir,
+      task.id,
+      index,
+      outputFetchHeadersForUrl(result, sourceUrl),
+    );
     artifacts.push(buildTaskArtifact(task, saved, "image", index, createdAt, buildResourceTitle(task.title, index, imageUrls.length)));
   }
 
@@ -144,7 +150,13 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   }
 
   for (const [index, sourceUrl] of audioUrls.entries()) {
-    const saved = await materializeAudioOutput(sourceUrl, dirs.outputDir, task.id, index);
+    const saved = await materializeAudioOutput(
+      sourceUrl,
+      dirs.outputDir,
+      task.id,
+      index,
+      outputFetchHeadersForUrl(result, sourceUrl),
+    );
     artifacts.push(buildTaskArtifact(
       task,
       saved,
@@ -404,7 +416,13 @@ async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts
   }
 }
 
-async function materializeImageOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {
+async function materializeImageOutput(
+  sourceUrl: string,
+  outputDir: string,
+  taskId: string,
+  index: number,
+  headers?: Record<string, string>,
+): Promise<SavedOutput> {
   const localOutput = await tryResolveLocalOutput(sourceUrl, outputDir);
   if (localOutput) return localOutput;
 
@@ -414,7 +432,7 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
     const ext = imageExtensionFromMime(mime) || "png";
     const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
     const buffer = Buffer.from(dataUrlMatch[2], "base64");
-    await writeFile(join(outputDir, filename), buffer);
+    await writeOutputAtomically(outputDir, filename, buffer);
     return {
       filename,
       fileUrl: `/files/output/${filename}`,
@@ -428,21 +446,24 @@ async function materializeImageOutput(sourceUrl: string, outputDir: string, task
     throw new Error(`暂不支持的输出 URL: ${sourceUrl.slice(0, 120)}`);
   }
 
-  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(120000) });
-  if (!upstream.ok) throw new Error(`下载输出素材失败 ${upstream.status}`);
-  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  const downloaded = await downloadRemoteOutput(sourceUrl, {
+    headers,
+    timeoutMs: 120000,
+    mediaLabel: "图片",
+    supportsMime: (mime) => mime.startsWith("image/") || (mime === "application/octet-stream" && Boolean(imageExtensionFromUrl(sourceUrl))),
+  });
+  const mime = downloaded.mime;
   const extFromUrl = imageExtensionFromUrl(sourceUrl);
   const isGenericBinaryImage = mime === "application/octet-stream" && Boolean(extFromUrl);
   if (!mime.startsWith("image/") && !isGenericBinaryImage) throw new Error(`输出素材不是图片: ${mime || "unknown"}`);
   const ext = imageExtensionFromMime(mime) || extFromUrl || "png";
   const effectiveMime = mime.startsWith("image/") ? mime : inferMime(`placeholder.${ext}`);
   const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
-  const buffer = Buffer.from(await upstream.arrayBuffer());
-  await writeFile(join(outputDir, filename), buffer);
+  await writeOutputAtomically(outputDir, filename, downloaded.buffer);
   return {
     filename,
     fileUrl: `/files/output/${filename}`,
-    size: buffer.length,
+    size: downloaded.buffer.length,
     mime: effectiveMime,
     sourceUrl,
   };
@@ -462,40 +483,54 @@ async function materializeVideoOutput(
     throw new Error(`暂不支持的输出视频 URL: ${sourceUrl.slice(0, 120)}`);
   }
 
-  const downloaded = await downloadVideoOutput(sourceUrl, headers);
+  const downloaded = await downloadRemoteOutput(sourceUrl, {
+    headers,
+    timeoutMs: 180000,
+    mediaLabel: "视频",
+    supportsMime: (mime) => mime.startsWith("video/"),
+    resumeRange: true,
+  });
   const mime = downloaded.mime;
   const ext = videoExtensionFromMime(mime) || videoExtensionFromUrl(sourceUrl) || "mp4";
   const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
-  const buffer = downloaded.buffer;
-  await writeFile(join(outputDir, filename), buffer);
+  await writeOutputAtomically(outputDir, filename, downloaded.buffer);
   return {
     filename,
     fileUrl: `/files/output/${filename}`,
-    size: buffer.length,
+    size: downloaded.buffer.length,
     mime,
     sourceUrl,
   };
 }
 
-const VIDEO_DOWNLOAD_MAX_ATTEMPTS = 4;
-const VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS = 250;
+const OUTPUT_DOWNLOAD_MAX_ATTEMPTS = 4;
+const OUTPUT_DOWNLOAD_RETRY_BASE_DELAY_MS = 250;
 
-async function downloadVideoOutput(sourceUrl: string, headers?: Record<string, string>) {
+async function downloadRemoteOutput(
+  sourceUrl: string,
+  input: {
+    headers?: Record<string, string>;
+    timeoutMs: number;
+    mediaLabel: string;
+    supportsMime: (mime: string) => boolean;
+    resumeRange?: boolean;
+  },
+) {
   let accumulated: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   let lastError: unknown;
-  for (let attempt = 1; attempt <= VIDEO_DOWNLOAD_MAX_ATTEMPTS; attempt += 1) {
-    const requestHeaders: Record<string, string> = { ...(headers || {}) };
-    if (accumulated.length > 0) requestHeaders.range = `bytes=${accumulated.length}-`;
+  for (let attempt = 1; attempt <= OUTPUT_DOWNLOAD_MAX_ATTEMPTS; attempt += 1) {
     try {
+      const requestHeaders: Record<string, string> = { ...(input.headers || {}) };
+      if (input.resumeRange && accumulated.length > 0) requestHeaders.range = `bytes=${accumulated.length}-`;
       const upstream = await fetch(sourceUrl, {
         ...(Object.keys(requestHeaders).length > 0 ? { headers: requestHeaders } : {}),
-        signal: AbortSignal.timeout(180000),
+        signal: AbortSignal.timeout(input.timeoutMs),
       });
       if (!upstream.ok) {
         const snippet = await readResponseSnippet(upstream);
         const category = contentFailureCategory(upstream.status);
         const error = new OutputMaterializationError(
-          `下载输出视频失败 ${upstream.status}${snippet ? `: ${snippet}` : ""}`,
+          `下载输出${input.mediaLabel}失败 ${upstream.status}${snippet ? `: ${snippet}` : ""}`,
           {
             failureCategory: category,
             providerDiagnostic: `Provider 内容接口返回 HTTP ${upstream.status}`,
@@ -505,56 +540,68 @@ async function downloadVideoOutput(sourceUrl: string, headers?: Record<string, s
           upstream.status,
         );
         lastError = error;
-        if (!isRetryableContentStatus(upstream.status) || attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw error;
-        await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+        if (!isRetryableContentStatus(upstream.status) || attempt === OUTPUT_DOWNLOAD_MAX_ATTEMPTS) throw error;
+        await sleep(OUTPUT_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
         continue;
       }
       const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-      if (!mime.startsWith("video/")) throw new OutputMaterializationError(
-        `输出素材不是视频: ${mime || "unknown"}`,
-        { failureCategory: "provider_content_unavailable", providerDiagnostic: `Provider 内容接口返回非视频类型 ${mime || "unknown"}` },
+      if (!input.supportsMime(mime)) throw new OutputMaterializationError(
+        `输出素材不是${input.mediaLabel}: ${mime || "unknown"}`,
+        { failureCategory: "provider_content_unavailable", providerDiagnostic: `Provider 内容接口返回非${input.mediaLabel}类型 ${mime || "unknown"}` },
         upstream.status,
       );
-      let chunk: Buffer<ArrayBufferLike>;
       try {
-        chunk = await readResponseBody(upstream);
+        const chunk = await readResponseBody(upstream);
+        return {
+          buffer: input.resumeRange && accumulated.length > 0 && upstream.status === 206
+            ? Buffer.concat([accumulated, chunk])
+            : chunk,
+          mime,
+        };
       } catch (error) {
         const partial = error instanceof OutputStreamReadError ? error.partial : Buffer.alloc(0);
-        if (partial.length > 0) {
-          accumulated = upstream.status === 206
-            ? Buffer.concat([accumulated, partial])
-            : partial;
+        if (input.resumeRange && partial.length > 0) {
+          accumulated = upstream.status === 206 ? Buffer.concat([accumulated, partial]) : partial;
         }
         lastError = new OutputMaterializationError(
-          `Provider 视频流中断（已接收 ${accumulated.length} 字节）`,
+          `Provider ${input.mediaLabel}流中断（已接收 ${input.resumeRange ? accumulated.length : partial.length} 字节）`,
           {
             failureCategory: "provider_content_stream_terminated",
             providerDiagnostic: error instanceof Error ? error.message : String(error),
-            materializedBytes: accumulated.length,
+            materializedBytes: input.resumeRange ? accumulated.length : partial.length,
           },
         );
-        if (attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
-        await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+        if (attempt === OUTPUT_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
+        await sleep(OUTPUT_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
         continue;
       }
-      if (accumulated.length > 0 && upstream.status === 206) return { buffer: Buffer.concat([accumulated, chunk]), mime };
-      accumulated = chunk;
-      return { buffer: accumulated, mime };
     } catch (error) {
       if (error instanceof OutputMaterializationError) {
         lastError = error;
-        if (error.resultPatch.failureCategory === "provider_content_stream_terminated" && attempt < VIDEO_DOWNLOAD_MAX_ATTEMPTS) continue;
+        if (error.resultPatch.failureCategory === "provider_content_stream_terminated" && attempt < OUTPUT_DOWNLOAD_MAX_ATTEMPTS) continue;
         throw error;
       }
       lastError = new OutputMaterializationError(
-        `下载输出视频失败: ${error instanceof Error ? error.message : String(error)}`,
+        `下载输出${input.mediaLabel}失败: ${error instanceof Error ? error.message : String(error)}`,
         { failureCategory: "provider_content_stream_terminated", providerDiagnostic: error instanceof Error ? error.message : String(error) },
       );
-      if (attempt === VIDEO_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
-      await sleep(VIDEO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+      if (attempt === OUTPUT_DOWNLOAD_MAX_ATTEMPTS) throw lastError;
+      await sleep(OUTPUT_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("下载输出视频失败");
+  throw lastError instanceof Error ? lastError : new Error(`下载输出${input.mediaLabel}失败`);
+}
+
+async function writeOutputAtomically(outputDir: string, filename: string, buffer: Buffer) {
+  const targetPath = join(outputDir, filename);
+  const temporaryPath = join(outputDir, `.${filename}.${Date.now()}-${Math.random().toString(36).slice(2, 8)}.part`);
+  try {
+    await writeFile(temporaryPath, buffer);
+    await rename(temporaryPath, targetPath);
+  } catch (error) {
+    await unlink(temporaryPath).catch(() => undefined);
+    throw error;
+  }
 }
 
 class OutputStreamReadError extends Error {
@@ -671,7 +718,13 @@ function normalizeOutputFetchHeaders(value: Record<string, string>) {
   return headers;
 }
 
-async function materializeAudioOutput(sourceUrl: string, outputDir: string, taskId: string, index: number): Promise<SavedOutput> {
+async function materializeAudioOutput(
+  sourceUrl: string,
+  outputDir: string,
+  taskId: string,
+  index: number,
+  headers?: Record<string, string>,
+): Promise<SavedOutput> {
   const localOutput = await tryResolveLocalOutput(sourceUrl, outputDir);
   if (localOutput) return localOutput;
 
@@ -681,7 +734,7 @@ async function materializeAudioOutput(sourceUrl: string, outputDir: string, task
     const ext = audioExtensionFromMime(mime) || "wav";
     const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
     const buffer = Buffer.from(dataUrlMatch[2], "base64");
-    await writeFile(join(outputDir, filename), buffer);
+    await writeOutputAtomically(outputDir, filename, buffer);
     return {
       filename,
       fileUrl: `/files/output/${filename}`,
@@ -695,18 +748,20 @@ async function materializeAudioOutput(sourceUrl: string, outputDir: string, task
     throw new Error(`暂不支持的输出音频 URL: ${sourceUrl.slice(0, 120)}`);
   }
 
-  const upstream = await fetch(sourceUrl, { signal: AbortSignal.timeout(180000) });
-  if (!upstream.ok) throw new Error(`下载输出音频失败 ${upstream.status}`);
-  const mime = (upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (!mime.startsWith("audio/")) throw new Error(`输出素材不是音频: ${mime || "unknown"}`);
+  const downloaded = await downloadRemoteOutput(sourceUrl, {
+    headers,
+    timeoutMs: 180000,
+    mediaLabel: "音频",
+    supportsMime: (mime) => mime.startsWith("audio/"),
+  });
+  const mime = downloaded.mime;
   const ext = audioExtensionFromMime(mime) || audioExtensionFromUrl(sourceUrl) || "mp3";
   const filename = `task_output_${safeFilename(taskId, "task")}_${index + 1}.${ext}`;
-  const buffer = Buffer.from(await upstream.arrayBuffer());
-  await writeFile(join(outputDir, filename), buffer);
+  await writeOutputAtomically(outputDir, filename, downloaded.buffer);
   return {
     filename,
     fileUrl: `/files/output/${filename}`,
-    size: buffer.length,
+    size: downloaded.buffer.length,
     mime,
     sourceUrl,
   };

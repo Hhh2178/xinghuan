@@ -409,6 +409,41 @@ The verifier fails when new user-visible T8-penguin copy or a penguin fallback i
 - [ ] **Step 3: Promote the same SHA to Production after non-destructive runtime verification**
 - [ ] **Step 4: Record Gray/Production evidence and no-retention confirmation**
 
+## Plan amendment: r3 delivery-chain materialization stability
+
+The user-facing generation chain is now an explicit reliability objective, not merely a historical r1 recovery fix. This narrow r3 release precedes the existing loading-measurement work because a Canvas success state is not meaningful until the Provider result has been downloaded, materialized, registered and returned as a readable owner-scoped artifact.
+
+**Scope boundary:** this release improves only the remote-output download and local materialization boundary. It does not redesign Provider protocols, persistence schemas, pricing, queue semantics or the Canvas Run model. A later batch may introduce Provider-attempt fencing and late-completion reconciliation after their data model has a separate design and migration review.
+
+### Task 9a: Make output materialization atomic, bounded and media-uniform
+
+**Files:**
+
+- Modify: `apps/worker/src/output-materials.ts`
+- Modify: `apps/worker/src/output-materials.test.ts`
+- Modify: `docs/systems/worker/output-materialization.md`
+- Create: `docs/logbooks/validations/2026-07-28-generation-materialization-stability-v083-r3.md`
+
+- [x] **Step 1: Freeze the delivery state and fault matrix before changes**
+
+Record the current fact that image/audio use one `arrayBuffer()` fetch and direct final-file writes, while video uses bounded retry but keeps accumulated bytes in memory. The test matrix must cover image/video/audio: transient `429/502/503/504`, stream interruption, non-retryable authorization failure, MIME mismatch, no final-file visibility before successful completion, and successful artifact registration after atomic promotion. Test fixtures must use mock URLs only and may not persist signed URLs.
+
+- [x] **Step 2: Add RED tests for atomic writes and retry classification**
+
+Use mocked filesystem and fetch streams to prove no final filename is written when a stream fails, a successful retry promotes exactly one final filename, and forbidden responses do not retry. Preserve existing stable artifact IDs and output-only recovery behavior.
+
+- [x] **Step 3: Implement one shared materialization downloader**
+
+Use one bounded downloader for all remote media, validate response status and media MIME before promotion, use bounded retry/backoff only for the documented transient classes, then write a unique sibling `.part` file and atomically rename it to the final output filename. Preserve the existing video Range-resume behavior. Clean up only the explicit failed temporary file when safe; never delete historical output or release files. Keep data-URL and already-local output behavior unchanged. Full streaming-to-disk is a follow-on capacity hardening item, not an unverified claim of this batch.
+
+- [ ] **Step 4: Record stage-safe evidence**
+
+Persist sanitized task runtime events/metrics for `materializing`, `artifact_ready` and materialization failure classification without URLs, credentials or prompt text. A terminal user-visible success is allowed only after the readable artifact and registration evidence exist.
+
+- [ ] **Step 5: Validate and release r3 on the old server**
+
+Run focused Worker tests, delivery-contract verifier, local mock end-to-end fixture, full relevant release gates, then package one `0.8.3-r3` archive. Promote the same SHA Gray then Production, run non-destructive runtime checks, and record that no retention command ran. Paid Provider canaries remain off unless explicitly authorized.
+
 ## r3: Loading and Render Measurement
 
 ### Task 10: Create Deterministic Canvas Fixtures and Measurement Harness
