@@ -1,6 +1,7 @@
 /* 科技风主题入口 - @import 必须置顶 */
 @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap');
 @import './theme-core.css';
+@import './error-recovery.css';
 
 @tailwind base;
 @tailwind components;
@@ -2204,82 +2205,6 @@ html[data-theme-visual] .t8-canvas-shell::after,
 
 .t8-canvas-shell .react-flow__edges {
   z-index: 2 !important;
-}
-
-/* Error boundaries deliberately use their own narrow namespace: canvas content
-   must remain usable even when an individual renderer or the workspace fails. */
-.xh-workspace-error-boundary {
-  min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-}
-
-.xh-workspace-error-boundary:has(> .xh-error-recovery) {
-  display: grid;
-  place-items: center;
-  min-height: 100%;
-  padding: 24px;
-  background:
-    radial-gradient(circle at 50% 36%, rgba(31, 213, 255, 0.12), transparent 28rem),
-    linear-gradient(135deg, #03080a 0%, #061526 58%, #041f1b 100%);
-}
-
-.xh-node-render-boundary {
-  display: grid;
-  gap: 8px;
-  min-width: 180px;
-}
-
-.xh-error-recovery {
-  display: grid;
-  gap: 10px;
-  width: min(100%, 560px);
-  padding: 16px;
-  border: 1px solid rgba(255, 184, 102, 0.54);
-  border-radius: 8px;
-  color: #fff4dc;
-  background: linear-gradient(135deg, rgba(69, 38, 12, 0.96), rgba(38, 25, 15, 0.94));
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.xh-node-render-boundary > .xh-error-recovery {
-  width: auto;
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 11px;
-}
-
-.xh-error-recovery-id {
-  color: rgba(255, 235, 199, 0.72);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-
-.xh-error-recovery-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.xh-error-recovery-actions > button {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 221, 165, 0.52);
-  border-radius: 4px;
-  color: #fff8ea;
-  background: rgba(255, 255, 255, 0.08);
-  font: inherit;
-  cursor: pointer;
-}
-
-.xh-error-recovery-actions > button:hover,
-.xh-error-recovery-actions > button:focus-visible {
-  border-color: #ffe1ac;
-  background: rgba(255, 214, 145, 0.18);
-  outline: none;
 }
 
 /* Regions are a translucent backdrop. Edges remain above them and below nodes. */

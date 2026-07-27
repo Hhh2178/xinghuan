@@ -566,7 +566,7 @@ Implementation evidence: `drawing-board-persistence.ts` now owns the layer snaps
 - Create: `apps/admin/src/styles/route-shell.css`
 - Modify: current Web/Admin style entry files and CSS contract tests
 
-- [ ] **Step 1: Move only styles owned by each boundary and preserve cascade order through explicit imports**
+- [ ] **Step 1: Move only styles owned by each boundary and preserve cascade order through explicit imports (error-recovery.css completed; canvas-shell/node-chrome remain)**
 - [ ] **Step 2: Add selector-scope tests rejecting broad global error selectors**
 - [ ] **Step 3: Verify HMR, 1920×1080 layout, CSS budget and affected node smoke**
 - [ ] **Step 4: Release r5 through old-server Gray and same-SHA Production**
