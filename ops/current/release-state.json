@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "dacca28b0f24af4866c098a0994a6d24002e1fe7",
+  "sourceCommit": "7d64fd3fd848b9ea67da99e23f6c02d639d828c8",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-generation-materialization-stability-v083-r3",
+      "releaseId": "20260728-canvas-loading-performance-v083-r4",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-generation-materialization-stability-v083-r3.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-generation-materialization-stability-v083-r3.md",
-      "rollbackReleaseId": "20260727-generation-delivery-agent-p0-v083-r1"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-canvas-loading-performance-v083-r4.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-canvas-loading-preload-v083-r4.md",
+      "rollbackReleaseId": "20260728-generation-materialization-stability-v083-r3"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260728-generation-materialization-stability-v083-r3",
+      "releaseId": "20260728-canvas-loading-performance-v083-r4",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-generation-materialization-stability-v083-r3.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-generation-materialization-stability-v083-r3.md",
-      "rollbackReleaseId": "20260727-generation-delivery-agent-p0-v083-r1"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-canvas-loading-performance-v083-r4.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-canvas-loading-preload-v083-r4.md",
+      "rollbackReleaseId": "20260728-generation-materialization-stability-v083-r3"
     }
   }
 }

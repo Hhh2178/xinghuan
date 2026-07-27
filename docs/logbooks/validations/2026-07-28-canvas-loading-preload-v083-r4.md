@@ -30,3 +30,10 @@
 - 空画布及 50/100/200 节点 fixture 的真实浏览器性能基线已采集并通过预算门禁。
 - 重型 MediaPipe/editor chunk 仍保持交互式加载策略；本记录仅覆盖 r4 的本地验证，未发布 r4 到服务器。
 - Provider 生成/回传/物化链路的在线验收仍沿用 r3 的 Gray 证据；本次浏览器 harness 不触发计费 Provider。
+
+## 旧服务器发布结果
+
+- Gray：`20260728-canvas-loading-performance-v083-r4`，严格运行时校验通过，Web/Worker active，版本与环境匹配。
+- Production：复用同一发布包晋级，严格运行时校验通过，Web/Worker active，版本与环境匹配。
+- 发布包 SHA-256：`6168E8EF569D5969F8C95513F09DE2CD0040A0EEA3417518D7DEB59ED3C29852`；未执行 retention apply，历史发布目录保留。
+- 本批次没有付费 Provider/Agent canary；生成回传链路继续以 r3 的本地 Mock Provider 证据和物化阶段门禁为准。
