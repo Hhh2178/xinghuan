@@ -591,9 +591,11 @@ Do not mass-replace node updates. Measure after each caller and preserve persist
 - Create: `apps/worker/src/worker-operation-dispatch.ts` and tests
 - Modify: `apps/worker/src/worker.ts`, operation modules and Worker system docs
 
-- [ ] **Step 1: Map Provider execution, output recovery and deterministic Canvas steps as explicit handlers**
-- [ ] **Step 2: Add tests for selection, cancellation passthrough and terminal result ownership**
-- [ ] **Step 3: Keep Provider adapters out of the dispatch table and re-run lifecycle/output contracts**
+- [x] **Step 1: Map Provider execution, output recovery and deterministic Canvas steps as explicit handlers**
+- [x] **Step 2: Add tests for selection, cancellation passthrough and terminal result ownership**
+- [x] **Step 3: Keep Provider adapters out of the dispatch table and re-run lifecycle/output contracts**
+
+Implementation evidence: `apps/worker/src/worker-operation-dispatch.ts` is a pure classifier/handler table; `worker-task-operation.ts` and `canvas-run-coordinator.ts` delegate to it. Focused Worker/Canvas Run tests and full CI passed; no Provider adapter or billing submit path moved into the table.
 
 ### Task 17: Extract API Provider/Model Normalization Residue
 
