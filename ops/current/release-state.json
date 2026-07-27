@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "d92ed239c653f7e068ab4848148617d4f7d4524f",
+  "sourceCommit": "6793f08b0bc5203d0a5cb1b8d72fb32e3a63387b",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-admin-route-shell-v083-r16",
+      "releaseId": "20260728-pose-output-runtime-v083-r17",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-admin-route-shell-v083-r16.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-admin-route-shell-v083-r16.md",
-      "rollbackReleaseId": "20260728-node-chrome-css-v083-r15"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-pose-output-runtime-v083-r17.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-pose-output-runtime-v083-r17.md",
+      "rollbackReleaseId": "20260728-admin-route-shell-v083-r16"
     },
     "production": {
       "version": "0.8.3",
-      "releaseId": "20260728-admin-route-shell-v083-r16",
+      "releaseId": "20260728-pose-output-runtime-v083-r17",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-admin-route-shell-v083-r16.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-admin-route-shell-v083-r16.md",
-      "rollbackReleaseId": "20260728-node-chrome-css-v083-r15"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-pose-output-runtime-v083-r17.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-pose-output-runtime-v083-r17.md",
+      "rollbackReleaseId": "20260728-admin-route-shell-v083-r16"
     }
   }
 }

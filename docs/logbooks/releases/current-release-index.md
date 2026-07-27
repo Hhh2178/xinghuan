@@ -5,14 +5,14 @@
 ### Production
 
 - 版本：`v0.8.3`
-- release：`20260728-admin-route-shell-v083-r16`
+- release：`20260728-pose-output-runtime-v083-r17`
 - 当前状态：`旧服务器 Production 已晋级并完成运行态验证；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`Admin route-shell CSS 边界；继续包含 Node chrome CSS、Canvas shell CSS 边界与 ReactFlow stacking contract、ImageNode Provider 回传聚合与 task 恢复去重、error-recovery.css、DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定和多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
+- 部署内容：`PoseMaster 输出 runtime seam；继续包含 Admin route-shell CSS、Node chrome CSS、Canvas shell CSS 边界与 ReactFlow stacking contract、ImageNode Provider 回传聚合与 task 恢复去重、error-recovery.css、DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定和多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
 - Agent 运行态：`已加入运行环境静态 readiness 门禁；本批次未重复执行付费 Agent canary`
 - 回滚：`20260728-error-recovery-css-v083-r12`
 - 当前批次记录：
-  - `production/2026-07-28-admin-route-shell-v083-r16.md`
-  - `../validations/2026-07-28-admin-route-shell-v083-r16.md`
+  - `production/2026-07-28-pose-output-runtime-v083-r17.md`
+  - `../validations/2026-07-28-pose-output-runtime-v083-r17.md`
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
@@ -24,16 +24,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-admin-route-shell-v083-r16`
+- release：`20260728-pose-output-runtime-v083-r17`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Admin route-shell CSS 边界；继续包含 Node chrome CSS、Canvas shell CSS 边界与 ReactFlow stacking contract、ImageNode Provider 回传聚合与 task 恢复去重、error-recovery.css、DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定和多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
+- 部署内容：`PoseMaster 输出 runtime seam；继续包含 Admin route-shell CSS、Node chrome CSS、Canvas shell CSS 边界与 ReactFlow stacking contract、ImageNode Provider 回传聚合与 task 恢复去重、error-recovery.css、DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定和多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`d92ed23`
-- 本轮制品 SHA-256：`CC30DCC97A50AD9214FB4A248807129ED944F7E07E6DA058CBB40242032CC97A`
+- 本轮制品源提交：`6793f08`
+- 本轮制品 SHA-256：`8C4B3266D065543A91BB4D3BD0A81CCF34DC4393D5407AA2F5899C5CB0E0181F`
 - 本轮发布记录：
-  - `gray/2026-07-28-admin-route-shell-v083-r16.md`
-  - `../validations/2026-07-28-admin-route-shell-v083-r16.md`
+  - `gray/2026-07-28-pose-output-runtime-v083-r17.md`
+  - `../validations/2026-07-28-pose-output-runtime-v083-r17.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
