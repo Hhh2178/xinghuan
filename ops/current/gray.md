@@ -1,10 +1,11 @@
 # 当前 Gray 运行态
 
-- 入口域名：`canvas-next.zezhen.online`（旧域名仅作回滚来源）
+- 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
+- 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.8.2`
 - 当前 release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`Provider 成功后的媒体物料化支持重试、Range 续传和恢复产物；本批次仅部署新服务器 Gray`
+- 当前状态：`新旧服务器 Gray 均已部署本 release；当前由旧域名提供可用灰度入口`
 - 当前补修：`视频下载/回传失败可分类、保留远端产物并通过 recover-output 恢复，不重复调用 Provider；Redis 入队增加连接与命令超时`
 - Production 当前 release：`20260726-video-prompt-provider-limit-v081-r1`
 - 本轮制品源提交：`55aa3d9`

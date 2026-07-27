@@ -25,11 +25,12 @@
 ## 当前运行态摘要
 
 - Gray：
-  - 域名：`canvas-next.zezhen.online`（旧域名仅作回滚来源）
+  - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
+  - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.2`
   - release：`20260727-provider-output-recovery-v082-r1`
-  - 状态：`仅新服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过后执行 Grok 五次真实任务验收`
+  - 状态：`新旧服务器 Gray 均已部署；旧服务器 API/Worker、权限 readiness、首页、后台和公网状态全部通过`
   - 当前补修：`Provider 成功后的媒体物料化支持重试、Range 续传和 recover-output 恢复，不重复计费`
   - 本轮制品源提交：`55aa3d9`
   - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`

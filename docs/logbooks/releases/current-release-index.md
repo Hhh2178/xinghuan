@@ -23,9 +23,9 @@
 
 - 版本：`v0.8.2`
 - release：`20260727-provider-output-recovery-v082-r1`
-- 当前状态：`仅新服务器 Gray 发布；等待 Grok 五次真实生成任务稳定性与接口反馈验收`
+- 当前状态：`新旧服务器 Gray 均已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新域名等待注册商恢复解析`
 - 部署内容：`Provider 内容下载支持重试、流中断分类与 Range 续传；失败时保留远端产物并提供 recover-output，不重复调用 Provider`
-- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；Gray 运行态与五次 Grok 任务结果记录在对应 validation 台账。`
+- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过；五次 Grok 任务结果记录在对应 validation 台账。`
 - 部署时间：`2026-07-27`
 - 本轮制品源提交：`55aa3d9`
 - 本轮制品 SHA-256：`F1607BADC97988CD79E3C9FBA344F67839257BFB3C466AAF5409E3418BF8B6A1`

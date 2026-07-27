@@ -15,12 +15,13 @@
 
 | 项目 | 结果 |
 |---|---|
-| current release | `/opt/apps/xinghuan-canvas-next/releases/20260727-provider-output-recovery-v082-r1` |
-| 内部状态 | `http://127.0.0.1:18200/api/status` 返回 `0.8.2 / gray / enforced` |
-| API/Worker | `xinghuan-canvas-next.service=active`；`xinghuan-canvas-next-worker.service=active` |
-| 权限 readiness | `ready=true`，数据库 `xinghuan_canvas_gray`，failures `0` |
-| 公网状态 | `canvas-next.zezhen.online` 当前 DNS 未解析，公网 verify 因 `ENOTFOUND` 未通过；未将其误判为应用失败 |
-| 发布隔离 | 仅新服务器 Gray；Production 不变 |
+| 新服务器 current | `/opt/apps/xinghuan-canvas-next/releases/20260727-provider-output-recovery-v082-r1`；内部 `0.8.2 / gray / enforced` |
+| 新服务器公网 | `canvas-next.zezhen.online` 因注册商暂停解析暂不可访问；应用内部状态正常 |
+| 旧服务器 current | `/opt/apps/xinghuan-canvas-next/releases/20260727-provider-output-recovery-v082-r1` |
+| 旧服务器内部/公网 | `127.0.0.1:18200` 与 `canvas-next.hhh2121.xyz` 均返回 `0.8.2 / gray / enforced`；首页和 `/admin/` 均 HTTP 200 |
+| 旧服务器 API/Worker | `xinghuan-canvas-next.service=active`；`xinghuan-canvas-next-worker.service=active` |
+| 旧服务器权限 readiness | `ready=true`，数据库 `xinghuan_canvas_gray`，failures `0` |
+| 发布隔离 | 新旧服务器仅部署 Gray；旧服务器 Production 保持 `0.8.1` 且 API/Worker active |
 
 ## Grok 五次真实任务
 
@@ -43,4 +44,4 @@
 
 - 未发布 Production，未修改生产数据库、用户媒体、Provider Key 或服务器 secrets。
 - retention 仅执行 dry-run，待验证完成后再决定是否 apply。
-- retention dry-run 保留 current、rollback 以及最近五个 Gray release，拟清理 1 个旧 release；本次未 apply。
+- retention dry-run 保留 current、rollback 以及最近五个 Gray release；旧服务器拟清理 3 个历史 release，新服务器拟清理 1 个；本次均未 apply。
