@@ -53,6 +53,7 @@ import {
   taskRunIds,
   type PersistedGenerationTaskRun,
 } from './generationTaskResume';
+import { collectImageTaskIds } from './image-task-runtime';
 import { useApiKeysStore } from '../../stores/apiKeys';
 import { useModelCatalogStore } from '../../stores/modelCatalog';
 import type { PublicModelRecord } from '../../services/api';
@@ -1290,7 +1291,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   };
 
   const cancelKnownTasks = async () => {
-    const ids = mergeUniqueUrls(taskIds, [taskId], taskRunIds(taskRunsRef.current));
+    const ids = collectImageTaskIds(taskIds, taskId, taskRunsRef.current);
     await Promise.allSettled(ids.map((tid) => cancelGenerationTask({ taskId: tid, kind: 'image', model: apiModel })));
   };
 
