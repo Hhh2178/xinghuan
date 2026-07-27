@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "environments": {
     "gray": {
-      "host": "101.33.75.38",
-      "sshPort": 728,
+      "host": "43.131.246.222",
+      "sshPort": 22,
       "sshUser": "ubuntu",
       "remoteRoot": "/opt/apps/xinghuan-canvas-next",
       "sharedEnvFile": "/opt/apps/xinghuan-canvas-next/shared/canvas-next.env",
-      "publicStatusUrl": "https://canvas-next.hhh2121.xyz/api/status",
+      "publicStatusUrl": "https://canvas-next.zezhen.online/api/status",
       "internalStatusUrl": "http://127.0.0.1:18200/api/status",
       "serviceName": "xinghuan-canvas-next.service",
       "workerServiceName": "xinghuan-canvas-next-worker.service",
@@ -16,12 +16,12 @@
       "expectedDatabaseName": "xinghuan_canvas_gray"
     },
     "production": {
-      "host": "101.33.75.38",
-      "sshPort": 728,
+      "host": "43.131.246.222",
+      "sshPort": 22,
       "sshUser": "ubuntu",
       "remoteRoot": "/opt/apps/xinghuan-canvas",
       "sharedEnvFile": "/opt/apps/xinghuan-canvas/shared/canvas.env",
-      "publicStatusUrl": "https://canvas.hhh2121.xyz/api/status",
+      "publicStatusUrl": "https://canvas.zezhen.online/api/status",
       "internalStatusUrl": "http://127.0.0.1:18100/api/status",
       "serviceName": "xinghuan-canvas.service",
       "workerServiceName": "xinghuan-canvas-worker.service",

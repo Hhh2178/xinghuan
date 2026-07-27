@@ -1,6 +1,6 @@
 # 当前 Gray 运行态
 
-- 入口域名：`canvas-next.hhh2121.xyz`（迁移目标：`canvas-next.zezhen.online`）
+- 入口域名：`canvas-next.zezhen.online`（旧域名仅作回滚来源）
 - 服务端口：`127.0.0.1:18200`
 - 当前版本：`v0.8.1`
 - 当前 release：`20260726-video-prompt-provider-limit-v081-r1`

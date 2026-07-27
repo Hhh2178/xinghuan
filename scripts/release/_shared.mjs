@@ -112,12 +112,12 @@ export function helpRequested(args) {
 
 export function defaultGrayConfig() {
   return {
-    host: "101.33.75.38",
-    port: "728",
+    host: "43.131.246.222",
+    port: "22",
     user: "ubuntu",
     remoteRoot: "/opt/apps/xinghuan-canvas-next",
     internalStatusUrl: "http://127.0.0.1:18200/api/status",
-    publicStatusUrl: "https://canvas-next.hhh2121.xyz/api/status",
+    publicStatusUrl: "https://canvas-next.zezhen.online/api/status",
     serviceName: "xinghuan-canvas-next.service",
     workerServiceName: "xinghuan-canvas-next-worker.service",
   };
