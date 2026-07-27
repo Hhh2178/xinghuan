@@ -247,6 +247,13 @@
 ### 最近已退出 watchlist
 
 - `apps/admin/src/admin-api-settings-panel.tsx`
+
+## 2026-07-28 incremental evidence
+
+- `apps/web/src/components/nodes/ToolboxParamNode.tsx` extracted its persisted parameter schema and multi-angle normalization into `apps/web/src/components/nodes/toolbox-param/toolbox-param-schema.ts`.
+- The extraction preserves language, prompt-mode and batch-mode IDs, ordering, favorite patch shapes and custom-angle normalization; `toolbox-param-schema.test.ts` locks those boundaries.
+- The component remains the composition shell for parameter sections, material bindings and preview helpers. Those seams remain separate follow-up work; no broad UI rewrite or renderer behavior change is implied.
+- Hotspot budget and Web type-check passed after the extraction; the next safe seam is the parameter section, followed by material binding and preview helper extraction.
   - `2026-06-24` 已将 provider draft / assistant plan / input capability 等纯 helper 下沉到 `admin-api-settings-panel-helpers.ts`
   - 主文件行数：`1289 -> 1103`
   - 当前已退出 `1200+` watchlist，但后续仍建议继续拆 `provider groups / sections / save helpers`

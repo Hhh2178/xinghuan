@@ -33,6 +33,21 @@ import {
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { placeSingleNode } from '../../utils/nodePlacement';
 import { useUpdateNodeData } from './useUpdateNodeData';
+import {
+  MULTI_ANGLE_BATCH_PRESETS,
+  type CinematicFavorite,
+  type CinematicPatch,
+  type MotionFavorite,
+  type MotionPatch,
+  type MultiAngleBatchMode,
+  type MultiAngleFavorite,
+  type MultiAnglePatch,
+  type MultiAnglePreset,
+  type MultiAnglePromptMode,
+  type PromptLanguage,
+  normalizeMultiAngleBatchMode,
+  parseMultiAngleCustomAngles,
+} from './toolbox-param/toolbox-param-schema';
 
 /**
  * ToolboxParamNode - 参数提供节点
@@ -45,10 +60,6 @@ import { useUpdateNodeData } from './useUpdateNodeData';
  *
  * 输出:data.prompt(下游通过 prompt 收集消费)
  */
-
-type PromptLanguage = 'en' | 'zh';
-type MultiAnglePromptMode = 'qwen' | 'general' | 'dual';
-type MultiAngleBatchMode = 'single' | 'three' | 'four' | 'eight' | 'custom';
 
 interface Preset {
   id: string;
@@ -72,64 +83,12 @@ interface MotionGroup {
   columns?: number;
 }
 
-interface MultiAnglePreset {
-  id: string;
-  label: string;
-  azimuth: number;
-  elevation: number;
-  distance: number;
-}
-
-interface MultiAngleFavorite extends MultiAnglePreset {
-  createdAt?: number;
-}
-
-type MultiAnglePatch = Partial<{
-  multiAngleAzimuth: string | number;
-  multiAngleElevation: string | number;
-  multiAngleDistance: string | number;
-  multiAnglePromptMode: string;
-  multiAngleLanguage: string;
-  multiAngleBatchMode: string;
-  multiAngleBatchCustomAngles: string;
-  multiAnglePrefix: string;
-  multiAngleSuffix: string;
-  multiAngleCustom: string;
-  multiAngleFavorites: MultiAngleFavorite[];
-}>;
-
 type CinematicField =
   | 'cinematicPresetId'
   | 'cinematicShotId'
   | 'cinematicLightId'
   | 'cinematicColorId'
   | 'cinematicTextureId';
-
-interface CinematicFavorite {
-  id: string;
-  label: string;
-  cinematicPresetId?: string;
-  cinematicShotId?: string;
-  cinematicLightId?: string;
-  cinematicColorId?: string;
-  cinematicTextureId?: string;
-  cinematicStrength?: string;
-  cinematicCustom?: string;
-  cinematicLanguage?: PromptLanguage;
-  createdAt?: number;
-}
-
-type CinematicPatch = Partial<{
-  cinematicPresetId: string;
-  cinematicShotId: string;
-  cinematicLightId: string;
-  cinematicColorId: string;
-  cinematicTextureId: string;
-  cinematicStrength: string;
-  cinematicCustom: string;
-  cinematicLanguage: PromptLanguage;
-  cinematicFavorites: CinematicFavorite[];
-}>;
 
 type MotionField =
   | 'motionSceneId'
@@ -138,32 +97,6 @@ type MotionField =
   | 'motionTempoId'
   | 'motionStabilityId'
   | 'motionSubjectId';
-
-interface MotionFavorite {
-  id: string;
-  label: string;
-  motionSceneId?: string;
-  motionActionId?: string;
-  motionPathId?: string;
-  motionTempoId?: string;
-  motionStabilityId?: string;
-  motionSubjectId?: string;
-  motionCustom?: string;
-  motionLanguage?: PromptLanguage;
-  createdAt?: number;
-}
-
-type MotionPatch = Partial<{
-  motionSceneId: string;
-  motionActionId: string;
-  motionPathId: string;
-  motionTempoId: string;
-  motionStabilityId: string;
-  motionSubjectId: string;
-  motionCustom: string;
-  motionLanguage: PromptLanguage;
-  motionFavorites: MotionFavorite[];
-}>;
 
 const CINEMATIC_PRESETS: Preset[] = [
   { id: 'soft-light', label: '柔光', text: 'soft cinematic lighting, golden hour, gentle shadows', zhText: '柔和电影光线，黄金时刻，温柔阴影' },
@@ -829,14 +762,6 @@ const MULTI_ANGLE_CREATIVE_PRESETS: MultiAnglePreset[] = [
   { id: 'side-model', label: '侧面建模', azimuth: 90, elevation: 0, distance: 5 },
 ];
 
-const MULTI_ANGLE_BATCH_PRESETS: Array<{ id: MultiAngleBatchMode; label: string; angles: number[] }> = [
-  { id: 'single', label: '单条', angles: [] },
-  { id: 'three', label: '三视图', angles: [0, 90, 180] },
-  { id: 'four', label: '四视图', angles: [0, 90, 180, 270] },
-  { id: 'eight', label: '八方位', angles: [0, 45, 90, 135, 180, 225, 270, 315] },
-  { id: 'custom', label: '自定义', angles: [] },
-];
-
 function findPreset(items: Preset[], id?: string): Preset | undefined {
   if (!id) return undefined;
   return items.find((item) => item.id === id);
@@ -866,27 +791,6 @@ function angleDistance(a: number, b: number) {
 
 function roundAngle(value: number) {
   return Math.round(value);
-}
-
-function normalizeMultiAngleBatchMode(value: any): MultiAngleBatchMode {
-  return value === 'three' || value === 'four' || value === 'eight' || value === 'custom' ? value : 'single';
-}
-
-function parseMultiAngleCustomAngles(value: any) {
-  if (typeof value !== 'string') return [];
-  const seen = new Set<number>();
-  return value
-    .split(/[,，\s]+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => Number(part.replace('°', '')))
-    .filter((n) => Number.isFinite(n))
-    .map((n) => roundAngle(normalizeAngle(n)))
-    .filter((n) => {
-      if (seen.has(n)) return false;
-      seen.add(n);
-      return true;
-    });
 }
 
 function getMultiAngleLabels(azimuth: number, elevation: number, distance: number) {
