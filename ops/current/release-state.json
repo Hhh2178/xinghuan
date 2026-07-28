@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "565c1f20bb75be00a89b518cfa8ec4611d8bbf49",
+  "sourceCommit": "f34aae785f7de3e88b7ad692404e500b1c687a22",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-canvas-height-fix-v083-r19",
+      "releaseId": "20260728-artifact-materialization-idempotency-v083-r21",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-canvas-height-fix-v083-r19.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-canvas-height-fix-v083-r19.md",
-      "rollbackReleaseId": "20260728-image-task-cancellation-v083-r18"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-artifact-materialization-idempotency-v083-r21.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-artifact-materialization-idempotency-v083-r21.md",
+      "rollbackReleaseId": "20260728-canvas-height-fix-v083-r19"
     },
     "production": {
       "version": "0.7.17",
