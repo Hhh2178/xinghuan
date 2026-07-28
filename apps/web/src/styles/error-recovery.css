@@ -1,8 +1,11 @@
 /* Error boundaries deliberately use their own narrow namespace: canvas content
    must remain usable even when an individual renderer or the workspace fails. */
 .xh-workspace-error-boundary {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   flex: 1 1 auto;
 }
 
