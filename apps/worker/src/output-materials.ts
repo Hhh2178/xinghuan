@@ -348,6 +348,18 @@ async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts
   try {
     await client.query("begin");
     const taskId = safeText(artifacts[0]?.taskId);
+    // A task can be materialized more than once: progress snapshots may overlap
+    // with the final write, and a lease takeover can briefly leave two workers
+    // finishing the same provider request. Serialize the task's artifact
+    // projection across workers so the delete/upsert pair is atomic and
+    // deterministic. This also prevents a stale writer from racing a newer one
+    // while remote output downloads are bandwidth constrained.
+    if (taskId) {
+      await client.query(
+        "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`${ownerId}:${taskId}`],
+      );
+    }
     const artifactIds = artifacts.map((item) => item.id);
     if (taskId) {
       await client.query(
@@ -369,7 +381,7 @@ async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts
            source_task_id, source_canvas_id, source_node_id, provider_id, model_id, dedupe_key, metadata,
            created_at, updated_at, expires_at
          ) values ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $17, $18)
-         on conflict (owner_id, dedupe_key) do update set
+         on conflict do update set
            title = excluded.title,
            storage_key = excluded.storage_key,
            file_url = excluded.file_url,
@@ -384,7 +396,8 @@ async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts
            status = case when xh_generation_artifacts.status = 'promoted' then 'promoted' else 'active' end,
            deleted_at = null,
            updated_at = excluded.updated_at,
-           expires_at = greatest(xh_generation_artifacts.expires_at, excluded.expires_at)`,
+           expires_at = greatest(xh_generation_artifacts.expires_at, excluded.expires_at),
+           dedupe_key = excluded.dedupe_key`,
         [
           item.id,
           ownerId,
