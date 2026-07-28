@@ -375,50 +375,26 @@ async function writeTaskGenerationArtifactsToPostgres(ownerId: string, artifacts
         kind: item.kind,
         storageKey: item.storageKey,
       }));
-      await client.query(
-        `insert into xh_generation_artifacts (
-           id, owner_id, kind, status, title, storage_key, file_url, source_url, mime, size_bytes,
-           source_task_id, source_canvas_id, source_node_id, provider_id, model_id, dedupe_key, metadata,
-           created_at, updated_at, expires_at
-         ) values ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $17, $18)
-         on conflict do update set
-           title = excluded.title,
-           storage_key = excluded.storage_key,
-           file_url = excluded.file_url,
-           source_url = excluded.source_url,
-           mime = excluded.mime,
-           size_bytes = excluded.size_bytes,
-           source_canvas_id = excluded.source_canvas_id,
-           source_node_id = excluded.source_node_id,
-           provider_id = excluded.provider_id,
-           model_id = excluded.model_id,
-           metadata = xh_generation_artifacts.metadata || excluded.metadata,
-           status = case when xh_generation_artifacts.status = 'promoted' then 'promoted' else 'active' end,
-           deleted_at = null,
-           updated_at = excluded.updated_at,
-           expires_at = greatest(xh_generation_artifacts.expires_at, excluded.expires_at),
-           dedupe_key = excluded.dedupe_key`,
-        [
-          item.id,
-          ownerId,
-          item.kind,
-          safeText(item.title, "生成产物"),
-          item.storageKey,
-          item.fileUrl,
-          item.sourceUrl || item.url || item.fileUrl,
-          item.mime || "",
-          Number(item.size) || 0,
-          item.taskId || null,
-          item.sourceCanvasId || null,
-          item.sourceNodeId || null,
-          item.providerId || null,
-          item.modelId || null,
-          dedupeKey,
-          JSON.stringify(item.metadata || {}),
-          millisToDate(item.createdAt),
-          millisToDate(item.expiresAt),
-        ],
-      );
+      await upsertTaskGenerationArtifact(client, {
+        id: item.id,
+        ownerId,
+        kind: item.kind,
+        title: safeText(item.title, "生成产物"),
+        storageKey: item.storageKey,
+        fileUrl: item.fileUrl,
+        sourceUrl: item.sourceUrl || item.url || item.fileUrl,
+        mime: item.mime || "",
+        size: Number(item.size) || 0,
+        taskId: item.taskId || null,
+        sourceCanvasId: item.sourceCanvasId || null,
+        sourceNodeId: item.sourceNodeId || null,
+        providerId: item.providerId || null,
+        modelId: item.modelId || null,
+        dedupeKey,
+        metadata: JSON.stringify(item.metadata || {}),
+        createdAt: millisToDate(item.createdAt),
+        expiresAt: millisToDate(item.expiresAt),
+      });
     }
     await client.query("commit");
   } catch (error) {
@@ -514,6 +490,103 @@ async function materializeVideoOutput(
     mime,
     sourceUrl,
   };
+}
+
+interface TaskGenerationArtifactRow {
+  id: string;
+  ownerId: string;
+  kind: GenerationArtifactKind;
+  title: string;
+  storageKey: string;
+  fileUrl: string;
+  sourceUrl: string;
+  mime: string;
+  size: number;
+  taskId: string | null;
+  sourceCanvasId: string | null;
+  sourceNodeId: string | null;
+  providerId: string | null;
+  modelId: string | null;
+  dedupeKey: string;
+  metadata: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+async function upsertTaskGenerationArtifact(
+  client: import("pg").PoolClient,
+  item: TaskGenerationArtifactRow,
+) {
+  const values = [
+    item.id,
+    item.ownerId,
+    item.kind,
+    item.title,
+    item.storageKey,
+    item.fileUrl,
+    item.sourceUrl,
+    item.mime,
+    item.size,
+    item.taskId,
+    item.sourceCanvasId,
+    item.sourceNodeId,
+    item.providerId,
+    item.modelId,
+    item.dedupeKey,
+    item.metadata,
+    item.createdAt,
+    item.expiresAt,
+  ];
+  const columns = `(
+    id, owner_id, kind, status, title, storage_key, file_url, source_url, mime, size_bytes,
+    source_task_id, source_canvas_id, source_node_id, provider_id, model_id, dedupe_key, metadata,
+    created_at, updated_at, expires_at
+  ) values ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $17, $18)`;
+  const update = `
+    title = excluded.title,
+    storage_key = excluded.storage_key,
+    file_url = excluded.file_url,
+    source_url = excluded.source_url,
+    mime = excluded.mime,
+    size_bytes = excluded.size_bytes,
+    source_canvas_id = excluded.source_canvas_id,
+    source_node_id = excluded.source_node_id,
+    provider_id = excluded.provider_id,
+    model_id = excluded.model_id,
+    metadata = xh_generation_artifacts.metadata || excluded.metadata,
+    status = case when xh_generation_artifacts.status = 'promoted' then 'promoted' else 'active' end,
+    deleted_at = null,
+    updated_at = excluded.updated_at,
+    expires_at = greatest(xh_generation_artifacts.expires_at, excluded.expires_at),
+    dedupe_key = excluded.dedupe_key`;
+
+  await client.query("savepoint generation_artifact_upsert");
+  try {
+    await client.query(
+      `insert into xh_generation_artifacts ${columns} on conflict (id) do update set ${update}`,
+      values,
+    );
+    await client.query("release savepoint generation_artifact_upsert");
+  } catch (error) {
+    await client.query("rollback to savepoint generation_artifact_upsert");
+    if (!isUniqueViolation(error)) {
+      await client.query("release savepoint generation_artifact_upsert");
+      throw error;
+    }
+    // A historical row may have the same task/kind slot but a different
+    // storage extension (for example, a provider changed its content-type on
+    // retry). Fall back to the owner/dedupe unique key without aborting the
+    // enclosing task transaction; the existing row id remains canonical.
+    await client.query(
+      `insert into xh_generation_artifacts ${columns} on conflict (owner_id, dedupe_key) do update set ${update}`,
+      values,
+    );
+    await client.query("release savepoint generation_artifact_upsert");
+  }
+}
+
+function isUniqueViolation(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "23505");
 }
 
 const OUTPUT_DOWNLOAD_MAX_ATTEMPTS = 4;
