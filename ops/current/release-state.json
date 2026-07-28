@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "6793f08b0bc5203d0a5cb1b8d72fb32e3a63387b",
+  "sourceCommit": "565c1f20bb75be00a89b518cfa8ec4611d8bbf49",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-pose-output-runtime-v083-r17",
+      "releaseId": "20260728-image-task-cancellation-v083-r18",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-pose-output-runtime-v083-r17.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-pose-output-runtime-v083-r17.md",
-      "rollbackReleaseId": "20260728-admin-route-shell-v083-r16"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-image-task-cancellation-v083-r18.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-image-task-cancellation-v083-r18.md",
+      "rollbackReleaseId": "20260728-pose-output-runtime-v083-r17"
     },
     "production": {
-      "version": "0.8.3",
-      "releaseId": "20260728-pose-output-runtime-v083-r17",
+      "version": "0.7.17",
+      "releaseId": "20260721-admin-health-visual-resource-domain-prod-r1-v0717",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-pose-output-runtime-v083-r17.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-pose-output-runtime-v083-r17.md",
-      "rollbackReleaseId": "20260728-admin-route-shell-v083-r16"
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
+      "rollbackReleaseId": "20260720-media-node-runtime-resume-prod-r1-v0713"
     }
   }
 }
