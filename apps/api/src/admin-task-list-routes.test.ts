@@ -122,6 +122,50 @@ describe("admin task list routes", () => {
     expect(sent[0].data).toMatchObject({ status: "queued" });
   });
 
+  it("queues provider polling recovery for an existing upstream video task", async () => {
+    const task = {
+      id: "task-provider-poll-recovery",
+      title: "Recover Plato video",
+      status: "failed",
+      ownerId: "user-1",
+      providerId: "provider-plato",
+      modelId: "model-grok",
+      payload: { taskCapability: "video" },
+      result: {
+        capability: "video",
+        adapter: "apimart-video",
+        upstreamTaskId: "upstream-existing-1",
+        failureReason: "stream ended before completion",
+      },
+      logs: ["provider task created"],
+      createdAt: 1000,
+      updatedAt: 1000,
+      finalizedAt: 2000,
+    };
+    const readTaskRecord = vi.fn(async () => task);
+    const writeTaskRecord = vi.fn(async (updated: any) => Object.assign(task, updated));
+    const enqueueTask = vi.fn(async () => ({ queued: true, reason: "", queueName: "xinghuan:video" }));
+    const { deps } = createBaseDeps({ readTaskRecord, writeTaskRecord, enqueueTask, normalizeTaskQueueCapability: () => "video" });
+    const handler = createAdminTaskListRouteHandler(deps as any);
+
+    await handler({
+      request: { method: "POST" } as any,
+      response: {} as any,
+      url: new URL("http://local.test/api/admin/tasks/task-provider-poll-recovery/recover-output"),
+      currentUser: { id: "admin-1", role: "admin" },
+    });
+
+    expect(enqueueTask).toHaveBeenCalledWith("task-provider-poll-recovery", "video");
+    expect(writeTaskRecord).toHaveBeenCalledWith(expect.objectContaining({
+      status: "queued",
+      payload: expect.objectContaining({ outputRecoveryMode: "provider_poll_resume" }),
+      result: expect.objectContaining({
+        outputRecoveryMode: "provider_poll_resume",
+        upstreamTaskId: "upstream-existing-1",
+      }),
+    }));
+  });
+
   it("returns complete logs without payload or result while preserving capability filters", async () => {
     const { deps, sent } = createBaseDeps();
     const handler = createAdminTaskListRouteHandler(deps as any);

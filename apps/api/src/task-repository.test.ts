@@ -123,6 +123,8 @@ describe("task repository", () => {
       expect(sql).toContain("provider_name");
       expect(sql).toContain("model_name");
       expect(sql).toContain("t.logs");
+      expect(sql).toContain("t.result->>'upstreamTaskId'");
+      expect(sql).toContain("provider_poll_resume");
       expect(params).toEqual(["queued", "provider-1", "image", 1, 0]);
       return { rows: [{
         id: "task-1",

@@ -44,4 +44,18 @@ describe("task finalization", () => {
 
     expect(task.executionIdentitySnapshot).toEqual(executionIdentitySnapshot);
   });
+
+  it("removes output recovery mode when creating a new provider retry", () => {
+    const task = createRetriedTask({
+      id: "task-recovery",
+      title: "recover",
+      status: "failed",
+      payload: { taskCapability: "video", outputRecoveryMode: "provider_poll_resume" },
+      logs: [],
+      createdAt: 1,
+      updatedAt: 2,
+    }, { id: "task-retry", ownerId: "admin", now: 3 });
+
+    expect(task.payload).toEqual({ taskCapability: "video" });
+  });
 });

@@ -22,10 +22,18 @@ interface AdminTaskListPage {
 function toAdminTaskListSummary(task: any) {
   const source = task || {};
   const result = source.result && typeof source.result === "object" && !Array.isArray(source.result) ? source.result : {};
+  const payload = source.payload && typeof source.payload === "object" && !Array.isArray(source.payload) ? source.payload : {};
+  const providerPollRecoverable = source.status === "failed"
+    && String(payload.taskCapability || result.capability || "").toLowerCase() === "video"
+    && Boolean(String(result.upstreamTaskId || result.taskId || "").trim());
   const { payload: _payload, result: _result, ...summary } = source;
   return {
     ...summary,
-    outputRecoveryAvailable: summary.outputRecoveryAvailable ?? result.outputRecoveryAvailable === true,
+    outputRecoveryAvailable: summary.outputRecoveryAvailable ?? (
+      result.outputRecoveryAvailable === true
+      || result.outputRecoveryMode === "provider_poll_resume"
+      || providerPollRecoverable
+    ),
     materializationStatus: summary.materializationStatus || result.materializationStatus || undefined,
     failureCategory: summary.failureCategory || result.failureCategory || undefined,
     logs: Array.isArray(summary.logs) ? summary.logs.map((line: unknown) => String(line)).filter(Boolean) : [],
@@ -301,7 +309,14 @@ export function createAdminTaskListRouteHandler(deps: {
         ...(Array.isArray(currentResult.remoteImageUrls) ? currentResult.remoteImageUrls : []),
         ...(Array.isArray(currentResult.remoteAudioUrls) ? currentResult.remoteAudioUrls : []),
       ].map((value) => safeText(value)).filter((value) => /^https?:\/\//i.test(value));
-      if (remoteUrls.length === 0) throw new Error("任务没有可恢复的 Provider 远程产物");
+      const upstreamTaskId = safeText(currentResult.upstreamTaskId || currentResult.taskId);
+      const capability = normalizeTaskQueueCapability(currentTask.payload?.taskCapability || currentResult.capability);
+      const recoveryMode = remoteUrls.length > 0
+        ? "output_only"
+        : capability === "video" && upstreamTaskId
+          ? "provider_poll_resume"
+          : "";
+      if (!recoveryMode) throw new Error("任务没有可恢复的 Provider 远程产物或上游任务号");
       const now = Date.now();
       const { finalizedAt: _finalizedAt, ...withoutFinalizedAt } = currentTask;
       const updated = {
@@ -309,20 +324,22 @@ export function createAdminTaskListRouteHandler(deps: {
         status: "queued",
         payload: {
           ...plainObject(currentTask.payload),
-          outputRecoveryMode: "output_only",
+          outputRecoveryMode: recoveryMode,
         },
         result: {
           ...currentResult,
-          outputRecoveryMode: "output_only",
+          outputRecoveryMode: recoveryMode,
+          upstreamTaskId: upstreamTaskId || undefined,
           outputRecoveryAvailable: true,
           materializationStatus: "queued",
           recoveryRequestedAt: new Date(now).toISOString(),
         },
-        logs: [...(Array.isArray(currentTask.logs) ? currentTask.logs : []), "管理员请求恢复已有产物（不重新生成、不重复计费）"],
+        logs: [...(Array.isArray(currentTask.logs) ? currentTask.logs : []), recoveryMode === "provider_poll_resume"
+          ? `管理员请求继续轮询上游任务 ${upstreamTaskId}（不重新生成、不重复计费）`
+          : "管理员请求恢复已有产物（不重新生成、不重复计费）"],
         updatedAt: now,
       };
       await writeTaskRecord(updated);
-      const capability = normalizeTaskQueueCapability(updated.payload?.taskCapability || currentResult.capability);
       const queueResult = capability
         ? await enqueueTask(id, capability)
         : { queued: false, reason: "unsupported_capability", queueName: "" };

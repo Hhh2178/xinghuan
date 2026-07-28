@@ -286,7 +286,15 @@ export function createTaskRepository(deps: TaskRepositoryDeps) {
                 coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
                 coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
                 t.logs,
-                lower(coalesce(t.result->>'outputRecoveryAvailable', '')) = 'true' as output_recovery_available,
+                (
+                  lower(coalesce(t.result->>'outputRecoveryAvailable', '')) = 'true'
+                  or t.result->>'outputRecoveryMode' = 'provider_poll_resume'
+                  or (
+                    t.status = 'failed'
+                    and coalesce(t.payload->>'taskCapability', t.result->>'capability', '') = 'video'
+                    and coalesce(nullif(t.result->>'upstreamTaskId', ''), nullif(t.result->>'taskId', '')) is not null
+                  )
+                ) as output_recovery_available,
                 t.result->>'materializationStatus' as materialization_status,
                 t.result->>'failureCategory' as failure_category,
                 t.created_at,

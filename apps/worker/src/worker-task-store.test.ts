@@ -26,4 +26,24 @@ describe("worker task store", () => {
     expect(results).toEqual(["claimed", "already_claimed"]);
     expect(pool.query).toHaveBeenCalledTimes(3);
   });
+
+  it("transitions a stale task only while it is still running and unchanged", async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params: unknown[]) => {
+        expect(sql).toContain("status = 'running'");
+        expect(sql).toContain("updated_at <= $5");
+        expect(params[1]).toBe("queued");
+        return { rowCount: 1, rows: [{ id: "task-1" }] };
+      }),
+    } as any;
+    const store = createWorkerTaskStore(pool);
+
+    await expect(store.transitionStaleRunningTask(
+      "task-1",
+      "queued",
+      "recover existing upstream task",
+      { outputRecoveryMode: "provider_poll_resume" },
+      new Date("2026-07-28T00:00:00.000Z"),
+    )).resolves.toBe(true);
+  });
 });

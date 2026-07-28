@@ -148,6 +148,32 @@ export function createWorkerTaskStore(pool: Pool) {
     );
   }
 
+  async function transitionStaleRunningTask(
+    taskId: string,
+    status: TaskStatus,
+    logLine: string,
+    resultPatch: Record<string, unknown>,
+    staleUpdatedAt: Date,
+  ) {
+    const result = await pool.query(
+      `update xh_tasks
+       set status = $2,
+           logs = coalesce(logs, '[]'::jsonb) || $3::jsonb,
+           result = coalesce(result, '{}'::jsonb) || $4::jsonb,
+           updated_at = now(),
+           finalized_at = case
+             when $2 in ('succeeded', 'failed', 'cancelled') then coalesce(finalized_at, now())
+             else finalized_at
+           end
+       where id = $1
+         and status = 'running'
+         and updated_at <= $5
+       returning id`,
+      [taskId, status, JSON.stringify([logLine]), JSON.stringify(resultPatch), staleUpdatedAt],
+    );
+    return Boolean(result.rowCount && result.rowCount > 0);
+  }
+
   async function touchTaskRuntime(taskId: string, resultPatch: Record<string, unknown>) {
     await pool.query(
       `update xh_tasks
@@ -178,6 +204,7 @@ export function createWorkerTaskStore(pool: Pool) {
     readTask,
     updateTask,
     appendTaskLog,
+    transitionStaleRunningTask,
     touchTaskRuntime,
     touchQueuedTaskRuntime,
     isTaskCancelled,

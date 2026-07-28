@@ -63,12 +63,13 @@ export function createRetriedTask<T extends TaskLifecycleRecord>(task: T, option
   assertTaskRetryable(task.status);
   const now = options.now ?? Date.now();
   const { finalizedAt: _finalizedAt, ...retrySource } = task;
+  const { outputRecoveryMode: _outputRecoveryMode, ...providerPayload } = plainObject(task.payload);
   return {
     ...retrySource,
     id: options.id,
     status: "queued",
     ownerId: task.ownerId || options.ownerId,
-    payload: plainObject(task.payload),
+    payload: providerPayload,
     result: {
       retryOfTaskId: task.id,
       retryCreatedAt: new Date(now).toISOString(),

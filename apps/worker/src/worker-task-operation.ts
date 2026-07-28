@@ -11,7 +11,9 @@ export interface WorkerTaskOperationInput {
 }
 
 export function resolveWorkerTaskOperation(task: Pick<TaskRow, "payload" | "result">): WorkerTaskOperation {
-  return task.payload.outputRecoveryMode === "output_only" || task.result.outputRecoveryMode === "output_only"
+  const recoveryModes = new Set(["output_only", "provider_poll_resume"]);
+  return recoveryModes.has(String(task.payload.outputRecoveryMode || ""))
+    || recoveryModes.has(String(task.result.outputRecoveryMode || ""))
     ? "output_recovery"
     : "provider_execution";
 }

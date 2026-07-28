@@ -97,8 +97,8 @@ export function TasksPanel(
               <td>
                 {task.status === "failed" && task.outputRecoveryAvailable ? (
                   <div className="row-actions">
-                    <button type="button" title="仅重新下载已有产物，不重新生成" onClick={() => mutate(`/api/admin/tasks/${task.id}/recover-output`, {}, "POST")}>
-                      恢复产物
+                    <button type="button" title="继续查询原上游任务或重新下载已有产物，不会重新生成" onClick={() => mutate(`/api/admin/tasks/${task.id}/recover-output`, {}, "POST")}>
+                      恢复结果
                     </button>
                     <button type="button" onClick={() => mutate(`/api/admin/tasks/${task.id}/retry`, {}, "POST")}>
                       重新生成

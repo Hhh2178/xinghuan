@@ -10,9 +10,9 @@
 6. 回写任务状态和输出
 7. 产出可供前端消费的结果
 
-操作选择由 `worker-operation-dispatch.ts` 集中处理：`output_only` 任务只能进入物料恢复 handler；普通任务进入 Provider handler；Canvas Run 的 text/upload/relay/resize 等确定性步骤由 coordinator 选择 deterministic handler，不创建 Provider task。该分发表不持有 Provider 凭据，也不负责协议细节。
+操作选择由 `worker-operation-dispatch.ts` 集中处理：`output_only` 和 `provider_poll_resume` 任务只能进入物料恢复 handler；普通任务进入 Provider handler；Canvas Run 的 text/upload/relay/resize 等确定性步骤由 coordinator 选择 deterministic handler，不创建 Provider task。该分发表不持有 Provider 凭据，也不负责协议细节。
 
-当 Provider 已返回成功但内容接口在回源或下载阶段失败时，Worker 不会丢弃上游成功证据：任务进入 failed，但保留远程产物和物化恢复上下文。后台“恢复产物”的目标语义是只执行下载/登记，“重新生成”仍是独立操作；但 `0.8.2` 存在 API 写 `result.outputRecoveryMode`、Worker 读 `payload.outputRecoveryMode` 的已确认契约缺陷，修复完成前不得宣称恢复入口一定不会重提 Provider。
+当 Provider 已返回成功但内容接口在回源或下载阶段失败时，Worker 不会丢弃上游成功证据：任务进入 failed，但保留远程产物和物化恢复上下文。后台“恢复结果”分为重新下载已有 URL 和按原 `upstreamTaskId` 继续轮询两种，两者均不调用提交接口；“重新生成”仍是独立操作。stale 视频任务也复用按原任务号恢复分支，并以有限预算防止永久重试。
 
 任务状态写入 `xh_tasks` 后，由数据库费用触发器统一捕获新任务价格快照并结算终态；Worker 不自行计算金额，避免与 API 同步任务或取消路径产生双账。
 

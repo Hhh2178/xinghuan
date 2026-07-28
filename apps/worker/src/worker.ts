@@ -88,12 +88,18 @@ import {
 import { createWorkerRuntimeEventWriter } from "./worker-runtime-events.js";
 import { createWorkerTaskStore, type TaskRow } from "./worker-task-store.js";
 import { createWorkerTaskCancellationMonitor } from "./worker-task-cancellation-monitor.js";
-import { buildOutputRecoveryFailurePatch, executeOutputRecoveryTask } from "./worker-output-recovery.js";
+import { reapStaleRunningTasks as reapStaleRunningTasksWithRecovery } from "./worker-stale-task-reaper.js";
+import {
+  buildOutputRecoveryFailurePatch,
+  executeOutputRecoveryTask,
+} from "./worker-output-recovery.js";
+import { resumeProviderVideoOutput } from "./worker-provider-output-resume.js";
 import { executeWorkerTaskOperation } from "./worker-task-operation.js";
 import { executeImageGenerationBatch, type ImageGenerationBatchProgress } from "./worker-image-generation-batch.js";
 import { executeGenerationBatchWithMaterializedProgress } from "./worker-generation-progress-materializer.js";
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
 import { markTaskArtifactsReady, markTaskMaterializing } from "./worker-materialization-stages.js";
+import { runWithOperationHeartbeat } from "./worker-operation-heartbeat.js";
 import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
 import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
 
@@ -157,6 +163,7 @@ const {
   readTask,
   updateTask,
   appendTaskLog,
+  transitionStaleRunningTask,
   touchTaskRuntime,
   touchQueuedTaskRuntime,
   isTaskCancelled,
@@ -547,7 +554,13 @@ async function processTask(taskId: string) {
     : null; let requeueAfterRelease = false;
   let executionResult: Record<string, unknown> = {};
   try {
-    const result = await executeWorkerTaskOperation({ task, executeProvider: () => executeTask(task, cancellationMonitor?.signal), executeOutputRecovery: () => executeOutputRecoveryTask(task, decryptSecret) });
+    const result = await executeWorkerTaskOperation({
+      task,
+      executeProvider: () => executeTask(task, cancellationMonitor?.signal),
+      executeOutputRecovery: () => executeOutputRecoveryTask(task, decryptSecret, {
+        resumeProviderOutput: (input) => resumeProviderVideoOutput(input, { touchTaskRuntime }),
+      }),
+    });
     executionResult = result;
     if (await workerCancelSync.dropResultIfCancelled({
       taskId,
@@ -557,7 +570,16 @@ async function processTask(taskId: string) {
       return;
     }
     await markTaskMaterializing({ taskId, workerId, capability: task.capability, result, touchTaskRuntime, appendTaskRuntimeEventBestEffort });
-    const materialized = await materializeTaskOutputs({ dataDir, task, result });
+    const materialized = await runWithOperationHeartbeat({
+      intervalMs: 15_000,
+      heartbeat: () => touchTaskRuntime(taskId, {
+        heartbeatAt: new Date().toISOString(),
+        runtimeStage: "materializing",
+        materializationStatus: "downloading",
+        queueHint: "服务商已返回，正在稳定拉取并保存生成产物",
+      }),
+      execute: () => materializeTaskOutputs({ dataDir, task, result }),
+    });
     await markTaskArtifactsReady({ taskId, workerId, capability: task.capability, artifactCount: materialized.artifacts.length, appendTaskRuntimeEventBestEffort });
     const completionLogs = materialized.artifacts.length > 0
       ? [`${workerId} 执行完成`, `${workerId} 已登记 ${materialized.artifacts.length} 条生成产物`]
@@ -695,55 +717,27 @@ async function runStaleTaskReaperLoop() {
     });
   }
 }
-
 async function reapStaleRunningTasks() {
-  if (staleRunningTaskMs <= 0) return;
-  const result = await pool.query(
-    `select id, updated_at
-     from xh_tasks
-     where status = 'running'
-       and updated_at < now() - ($1::bigint * interval '1 millisecond')
-     order by updated_at asc
-     limit 50`,
-    [staleRunningTaskMs],
-  );
-  for (const row of result.rows) {
-    const taskId = String(row.id || "").trim();
-    if (!taskId) continue;
-    const staleSince = row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || "");
-    const task = await readTask(taskId);
-    const reaped = await updateTask(
-      taskId,
-      "failed",
-      [`${workerId} reaper 检测到运行任务长时间无 heartbeat，按悬挂任务回收`],
-      {
-        workerId,
-        failedAt: new Date().toISOString(),
-        failureReason: "worker_stalled_or_upstream_timeout",
-        reaperReason: "worker_stalled_or_upstream_timeout",
-        reapedAt: new Date().toISOString(),
-        staleSince,
-      },
-    );
-    if (reaped === "updated") {
-      logWorkerEvent("task.reaped", {
-        ...(task ? taskTraceContext(task) : {}),
-        taskId,
-        staleSince,
-        staleRunningTaskMs,
-      });
-      console.warn(
-        "xinghuan-worker reaped stale task",
-        JSON.stringify({ workerId, taskId, staleSince, staleRunningTaskMs }),
-      );
-    }
-  }
+  return reapStaleRunningTasksWithRecovery({
+    pool,
+    workerId,
+    staleRunningTaskMs,
+    readTask,
+    transitionStaleRunningTask,
+    requeueTask: workerDeferredRequeue.requeueDeferredTaskAfterRelease,
+    logWorkerEvent,
+    taskTraceContext,
+  });
 }
-
 async function executeImageTask(task: TaskRow): Promise<Record<string, unknown>> {
   return executeGenerationBatchWithMaterializedProgress<ImageGenerationBatchProgress, Record<string, unknown>>({
     dataDir, task,
     persist: (patch) => touchTaskRuntime(task.id, patch),
+    heartbeat: () => touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      runtimeStage: "materializing_partial",
+      materializationStatus: "downloading",
+    }),
     execute: (onProgress) => executeImageGenerationBatch({
       generationCount: task.payload.generationCount ?? task.payload.n,
       maximumConcurrency: task.payload.generationConcurrency,
@@ -872,6 +866,11 @@ async function executeVideoTask(task: TaskRow): Promise<Record<string, unknown>>
   return executeGenerationBatchWithMaterializedProgress<VideoGenerationBatchProgress, Record<string, unknown>>({
     dataDir, task,
     persist: (patch) => touchTaskRuntime(task.id, patch),
+    heartbeat: () => touchTaskRuntime(task.id, {
+      heartbeatAt: new Date().toISOString(),
+      runtimeStage: "materializing_partial",
+      materializationStatus: "downloading",
+    }),
     execute: (onProgress) => executeVideoGenerationBatch({
       generationCount: task.payload.generationCount ?? task.payload.n,
       maximumConcurrency: task.payload.generationConcurrency,

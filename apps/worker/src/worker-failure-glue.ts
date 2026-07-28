@@ -55,7 +55,10 @@ export function normalizeUnifiedFailure(error: unknown): {
   if (/credits|quota|balance|consume/i.test(message)) {
     return { failureReason: message, failureCategory: "quota_or_credits", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
   }
-  if (/model not found|workflow not found|app not found|invalid/i.test(message)) {
+  if (/fail_to_fetch_task|no available (?:platform|channel)|no usable platform|no fallbacks configured/i.test(message)) {
+    return { failureReason: message, failureCategory: "upstream_poll_gateway_failed", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
+  }
+  if (/model not found|workflow not found|app not found|invalid|请求参数有误|参数(?:格式)?(?:有误|错误)/i.test(message)) {
     return { failureReason: message, failureCategory: "model_config", providerDiagnostic: message, upstreamHttpStatus: httpStatus, upstreamResponseSnippet: responseSnippet };
   }
   if (/timeout|超时/i.test(message)) {

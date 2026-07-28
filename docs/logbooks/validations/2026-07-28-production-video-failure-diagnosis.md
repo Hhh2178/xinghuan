@@ -26,3 +26,11 @@
 - 对 Aifork preview 按已验证的 6 秒能力收紧 Production/Gray 模型目录，或在提交前拒绝未被该供应商确认的 10/15 秒选项。
 - 保留上游 HTTP 状态、Nexus/request id、submit payload 摘要和是否生成 upstreamTaskId，避免将供应商网关拒绝误判为本地回传失败。
 - 柏拉图需要供应商侧恢复 `grok-1.5-video-15s`/`6s` 可用平台或配置 fallback 后，再做成功率验收。
+
+## 柏拉图失败任务反查（追加）
+
+- 使用只读审计脚本按已保存的 `upstreamTaskId` 复查最近 7 天 50 条本地 failed 的 APIMart 视频任务；脚本只输出脱敏状态、失败原因计数和视频数量，不输出 Provider Key、请求头或媒体签名 URL。
+- 49 条上游当前也是失败；其中主要包括“流处理结束但未收到完成或错误事件”、上游凭据/缓存异常、频率限制和内容拒绝。
+- 1 条出现真实状态错位：本地 `task-1785147300674-kw8mp8` 为 failed，但上游当前为 `success` 且存在 1 个视频。
+- 该任务本地日志只有“领取任务”与 stale reaper 回收；结果已记录 `upstreamStatus=success`、`progress=100%`，最后 heartbeat 后约 30 分钟被写成 `worker_stalled_or_upstream_timeout`。这证明当前链路会在 Provider 已成功、结果拉取/物料化未完成或 Worker 边界失联时永久丢失成功结果。
+- Production 仍冻结在 v0.7.17，未对该任务做恢复写入。修复先进入 Gray：物料化持续 heartbeat、stale 条件更新防终态覆盖、按原上游任务号有限自动恢复、后台手工恢复入口，以及错误分类细化。

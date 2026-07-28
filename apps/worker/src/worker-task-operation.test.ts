@@ -17,6 +17,7 @@ function task(input: { payload?: Record<string, unknown>; result?: Record<string
 describe("worker task operation", () => {
   it.each([
     [task({ payload: { outputRecoveryMode: "output_only" } }), "output_recovery"],
+    [task({ payload: { outputRecoveryMode: "provider_poll_resume" } }), "output_recovery"],
     [task({ result: { outputRecoveryMode: "output_only" } }), "output_recovery"],
     [task({ payload: { outputRecoveryMode: "provider_execution" }, result: { outputRecoveryMode: "output_only" } }), "output_recovery"],
     [task({ payload: { taskCapability: "video" }, result: {} }), "provider_execution"],

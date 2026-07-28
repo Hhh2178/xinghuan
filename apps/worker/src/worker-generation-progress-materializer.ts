@@ -1,4 +1,5 @@
 import { materializeTaskOutputs } from "./output-materials.js";
+import { runWithOperationHeartbeat } from "./worker-operation-heartbeat.js";
 
 interface ProgressMaterializerTask {
   id: string;
@@ -37,6 +38,7 @@ export function createGenerationProgressMaterializer(options: {
   dataDir: string;
   task: ProgressMaterializerTask;
   persist: (resultPatch: Record<string, unknown>) => Promise<void>;
+  heartbeat?: () => Promise<unknown>;
   materialize?: ProgressMaterializer;
 }) {
   const materialize = options.materialize || materializeTaskOutputs;
@@ -52,11 +54,14 @@ export function createGenerationProgressMaterializer(options: {
       const completed = count(input.result.completed);
       const total = count(input.result.total);
       if (completed > materializedCompleted && completed < total) {
-        const output = await materialize({
-          dataDir: options.dataDir,
-          task: options.task,
-          result: input.result,
-        });
+        const materializeProgress = () => materialize({
+            dataDir: options.dataDir,
+            task: options.task,
+            result: input.result,
+          });
+        const output = options.heartbeat
+          ? await runWithOperationHeartbeat({ intervalMs: 15_000, heartbeat: options.heartbeat, execute: materializeProgress })
+          : await materializeProgress();
         materializedPatch = output.resultPatch;
         materializedCompleted = completed;
       }
@@ -82,6 +87,7 @@ export async function executeGenerationBatchWithMaterializedProgress<
   dataDir: string;
   task: ProgressMaterializerTask;
   persist: (resultPatch: Record<string, unknown>) => Promise<void>;
+  heartbeat?: () => Promise<unknown>;
   materialize?: ProgressMaterializer;
   execute: (onProgress: (progress: TProgress) => Promise<void>) => Promise<TResult>;
   runtimePatch: (progress: TProgress) => Record<string, unknown>;

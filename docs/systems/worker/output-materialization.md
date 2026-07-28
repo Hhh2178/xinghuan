@@ -17,12 +17,19 @@
 - 远程图片、视频和音频内容下载共用有限指数退避，并对 `429/502/503/504`、授权拒绝和响应流中断分别分类；视频在已经收到部分字节后继续使用 HTTP Range，避免把 Provider 内容回源异常误报成普通 `terminated`。
 - 所有新远程媒体输出先写唯一同目录 `.part` 文件，再原子改名为最终文件名；下载或写入失败不会把最终文件名暴露给 Artifact 登记。失败时只尝试移除该次明确生成的临时文件，不触及历史输出或 release。
 - Provider 已成功但本地物料化失败时，任务结果会保留 `remoteVideoUrls` / `remoteImageUrls` / `remoteAudioUrls`、`upstreamTaskId`、`providerState`、`materializationStatus`、`materializationAttempts` 和 `outputRecoveryAvailable`。
-- `POST /api/admin/tasks/:id/recover-output` 的产品意图是只重新入队物料化、不重新提交 Provider、不重复计费。0.8.3-r1 同时把 `outputRecoveryMode=output_only` 写入 `payload` 和 `result`；Worker 的独立操作分流同时兼容旧版仅写入 `result` 的任务，并在命中任一标记时跳过 Provider 执行。静态契约门禁保护该边界；在 Gray 的同任务 ID、零 Provider 提交、成本计数不变和产物可读验收完成之前，Production 不得将该入口视为已完成的端到端保证。
+- `POST /api/admin/tasks/:id/recover-output` 不会重新提交 Provider：已有远程 URL 时使用 `outputRecoveryMode=output_only`；视频没有 URL 但保留 `upstreamTaskId` 时使用 `provider_poll_resume`，按原任务号继续查询并在完成后物料化。API 同时把模式写入 `payload` 和 `result`，Worker 的独立操作分流兼容旧版仅写入 `result` 的任务。
+- Provider 查询成功到远程媒体下载、原子写盘和 Artifact 登记期间，每 15 秒刷新任务 heartbeat。弱带宽或大文件下载不会因超过 stale reaper 窗口而被误判为 Worker 挂死。
+- stale reaper 使用带 `status='running'` 和原 `updated_at` 上限的单条条件更新，不能覆盖并发完成的 succeeded/cancelled 终态。仍保留上游视频任务号的 stale task 在最多三次预算内自动转为 `provider_poll_resume` 并重新入队；预算耗尽后才写入终态失败。
 
 ## 关键文件
 
 - `apps/worker/src/output-materials.ts`
 - `apps/worker/src/worker.ts`
+- `apps/worker/src/worker-output-recovery.ts`
+- `apps/worker/src/worker-provider-output-resume.ts`
+- `apps/worker/src/worker-operation-heartbeat.ts`
+- `apps/worker/src/worker-stale-task-recovery.ts`
+- `apps/worker/src/worker-stale-task-reaper.ts`
 - `packages/shared/src/generation-artifact.ts`
 - `apps/api/db/024_generation_artifacts.sql`
 
