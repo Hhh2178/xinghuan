@@ -6,14 +6,14 @@
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-image-task-cancellation-v083-r18",
+      "releaseId": "20260728-canvas-height-fix-v083-r19",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-image-task-cancellation-v083-r18.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-image-task-cancellation-v083-r18.md",
-      "rollbackReleaseId": "20260728-pose-output-runtime-v083-r17"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-canvas-height-fix-v083-r19.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-canvas-height-fix-v083-r19.md",
+      "rollbackReleaseId": "20260728-image-task-cancellation-v083-r18"
     },
     "production": {
       "version": "0.7.17",

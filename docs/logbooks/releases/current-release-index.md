@@ -25,16 +25,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-image-task-cancellation-v083-r18`
+- release：`20260728-canvas-height-fix-v083-r19`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`ImageNode 取消任务 ID 收集兼容层；继续包含 PoseMaster 输出 runtime、Admin route-shell CSS、Node chrome CSS、Canvas shell CSS 边界与 ReactFlow stacking contract、ImageNode Provider 回传聚合与 task 恢复去重、error-recovery.css、DrawingBoard 持久化、Provider model import 归一化、ToolboxParam 参数区/素材绑定和多角度预览、Worker 操作分发、Provider 查询重试与物料化稳定性`
+- 部署内容：`WorkspaceErrorBoundary → ReactFlow 高度契约修复；继续包含 ImageNode 取消任务 ID 收集兼容层、PoseMaster 输出 runtime、Canvas shell/ReactFlow stacking contract、Provider 回传聚合与物料化稳定性`
 - 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`565c1f2`
-- 本轮制品 SHA-256：`3153FB017AB3E9BC1344CE8741F13A666D15C0F0AA1FDFB498D24F3A52817DA2`
+- 本轮制品源提交：`953038f`
+- 本轮制品 SHA-256：`1455B1820AD7C7887059EB2A504DE8491E45C69C43861676EACB8A6AD69B1BC0`
 - 本轮发布记录：
-  - `gray/2026-07-28-image-task-cancellation-v083-r18.md`
-  - `../validations/2026-07-28-image-task-cancellation-v083-r18.md`
+  - `gray/2026-07-28-canvas-height-fix-v083-r19.md`
+  - `../validations/2026-07-28-canvas-height-fix-v083-r19.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
