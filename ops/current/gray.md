@@ -8,7 +8,7 @@
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
 - 当前补修：`ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；PoseMaster 字段 schema 与大画布可见性评估；图片/视频/音频物料化统一重试与 .part 原子提升；materializing/artifact_ready 阶段事件；认证后 Workspace 预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
 - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
-- Production 当前 release：`20260728-pose-output-runtime-v083-r17`
+- Production 当前 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 本轮制品源提交：`565c1f2`
 - 本轮制品 SHA-256：`3153FB017AB3E9BC1344CE8741F13A666D15C0F0AA1FDFB498D24F3A52817DA2`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
