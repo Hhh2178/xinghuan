@@ -16,15 +16,15 @@
       "rollbackReleaseId": "20260728-artifact-materialization-idempotency-v083-r21"
     },
     "production": {
-      "version": "0.7.17",
-      "releaseId": "20260721-admin-health-visual-resource-domain-prod-r1-v0717",
+      "version": "0.8.3",
+      "releaseId": "20260728-plato-output-recovery-v083-r22",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 20, "retiredSubjects": 8, "rules": 2832, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-27", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md",
-      "rollbackReleaseId": "20260720-media-node-runtime-resume-prod-r1-v0713"
+      "readiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 19, "retiredSubjects": 9, "rules": 2810, "principals": 11, "failures": 0, "source": "deployment-validation" },
+      "runtimeReadiness": { "subjects": 154, "publishedSubjects": 126, "restrictedSubjects": 19, "retiredSubjects": 9, "rules": 2810, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/production/2026-07-28-plato-output-recovery-production-v083-r22.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-plato-output-recovery-production-v083-r22.md",
+      "rollbackReleaseId": "20260721-admin-health-visual-resource-domain-prod-r1-v0717"
     }
   }
 }

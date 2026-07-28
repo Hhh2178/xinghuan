@@ -4,16 +4,16 @@
 
 ### Production
 
-- 版本：`v0.7.17`
-- release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-- 当前状态：`按用户要求回退到 0.7 系列最后一个已记录版本；当前由 canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`v0.7.17 Admin 健康页视觉与公共资源拆域；Production 当前按用户要求保持该 0.7 系列最后已记录版本，后续 0.8.3 修复暂不晋级`
-- Agent 运行态：`沿用 v0.7.17 已验收状态；0.8.3 新修复仅在 Gray 验证`
-- 回滚：`20260720-media-node-runtime-resume-prod-r1-v0713`
+- 版本：`v0.8.3`
+- release：`20260728-plato-output-recovery-v083-r22`
+- 当前状态：`用户授权后，已从 Gray 同一已验收制品正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
+- 部署内容：`provider_poll_resume 同上游任务号续接、轮询/物料化心跳、条件化 stale reaper、视频 Range 续传、.part 原子提升和上游/本地失败分类`
+- Agent 运行态：`沿用已验收的运行态；本次不在 Production 重复执行付费 Agent/Provider canary`
+- 回滚：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 当前批次记录：
-  - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
-  - `../validations/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`
-  - `../incidents/2026-07-28-production-rollback-to-v0717.md`
+  - `production/2026-07-28-plato-output-recovery-production-v083-r22.md`
+  - `../validations/2026-07-28-plato-output-recovery-production-v083-r22.md`
+  - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`（回滚锚点）
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`

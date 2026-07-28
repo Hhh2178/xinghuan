@@ -41,12 +41,12 @@
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.7.17`
-  - release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-  - 状态：`按用户要求回退到 0.7 系列最后一个已记录版本；API/Worker、权限 readiness 与公网状态全部通过`
-  - 当前补修：`Production 保持 v0.7.17；0.8.3 的新修复和测试只先在 Gray 推进`
-  - Agent：`沿用 v0.7.17 已验收状态`
-  - 当前限制：`Gray 真实 Provider 与并发回传已完成首轮验证；Production 仍按用户要求冻结，不自动晋级`
+  - 版本：`v0.8.3`
+  - release：`20260728-plato-output-recovery-v083-r22`
+  - 状态：`用户授权后，Gray 同一已验收制品已晋级；API/Worker、权限 readiness 与公网状态全部通过`
+  - 当前补修：`provider_poll_resume、物料化心跳、条件化 stale reaper、视频 Range 续传与失败分类`
+  - Agent：`沿用已验收状态；本次未在 Production 重复执行付费 canary`
+  - 当前限制：`柏拉图仍受上游无可用渠道限制；Production 未重复发起付费 Provider 任务`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 
 ## current / archive 分工
