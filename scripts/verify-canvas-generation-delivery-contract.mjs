@@ -23,7 +23,9 @@ assert.match(taskRepository, /readTaskByOwnerIdempotencyKey/, "task repository m
 assert.match(idempotencyMigration, /unique index.*idx_xh_tasks_owner_generation_idempotency/is, "database must reject concurrent duplicate generation requests");
 assert.match(worker, /createWorkerTaskCancellationMonitor/, "worker must propagate cancellation into execution");
 assert.match(worker, /executeWorkerTaskOperation\(/, "worker must dispatch recovery separately from Provider execution");
-assert.match(operation, /outputRecoveryMode === "output_only"/, "output-only tasks must bypass Provider execution");
+assert.match(operation, /recoveryModes\.has\(String\(task\.payload\.outputRecoveryMode/, "recovery tasks must bypass a fresh Provider submission");
+assert.match(operation, /"output_only"/, "materialization-only recovery must remain supported");
+assert.match(operation, /"provider_poll_resume"/, "provider polling recovery must remain supported");
 assert.match(recovery, /materializationStatus: "retrying"/, "recovery must identify materialization-only work");
 assert.match(lifecycle, /updateTask\(/, "worker lifecycle must own terminal persistence");
 assert.match(runtimeProjection, /projectTaskRuntimeDisplayState/, "runtime projection must translate task state for clients");

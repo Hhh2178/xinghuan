@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.8.3`（旧服务器画布生成交付与 Agent P0）
-- 当前生产版本：`v0.8.3`（旧服务器 Production）
-- 当前灰度 release：`20260727-generation-delivery-agent-p0-v083-r1`
-- 当前生产 release：`20260727-generation-delivery-agent-p0-v083-r1`
+- 当前灰度版本：`v0.8.3`（旧服务器生成链路恢复与并发回传）
+- 当前生产版本：`v0.7.17`（按用户要求冻结在 0.7 系列最后已记录版本）
+- 当前灰度 release：`20260728-plato-output-recovery-v083-r22`
+- 当前生产 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：旧服务器 Gray 与 Production 已运行 v0.8.3；输出恢复以独立 operation 分支执行，画布生成提交按 owner/idempotencyKey 去重，并在 PostgreSQL 以唯一索引处理并发重试。旧服务器内部/公网状态、API/Worker、权限 readiness 和迁移均通过；Gray 的 Canvas async + mock Provider 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态，未对付费 Provider 可用性或计费作结论。
+- 最新完成：旧服务器 Gray 运行 v0.8.3-r22，Production 保持 v0.7.17。Gray 已加入同 upstreamTaskId 轮询续接、轮询/物料化心跳、条件化 stale reaper、Range 断点续传和失败分类；Aifork Grok 首帧真实任务 5/5 完成上游生成与本地 MP4 回传。柏拉图 5/5 因上游分发层无可用渠道而未创建上游任务，当前不能据此验证柏拉图成功回传。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
@@ -42,8 +42,8 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-- Gray 当前运行 `v0.8.3 / enforced`，release 为 `20260727-generation-delivery-agent-p0-v083-r1`。
-- Production 当前运行 `v0.8.3 / enforced`，release 为 `20260727-generation-delivery-agent-p0-v083-r1`。
+- Gray 当前运行 `v0.8.3 / enforced`，release 为 `20260728-plato-output-recovery-v083-r22`。
+- Production 当前运行 `v0.7.17 / enforced`，release 为 `20260721-admin-health-visual-resource-domain-prod-r1-v0717`。
 - Production Agent Runtime 已完成 bootstrap 与真实请求修复；生成回传链路的 P0/P1/P2 结论见 `../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`。
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
   - ComfyUI connector harness、共享工作流专用执行入口和项目级 harness 入口层已在本地整合分支完成

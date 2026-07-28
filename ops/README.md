@@ -29,12 +29,12 @@
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.3`
-  - release：`20260728-artifact-materialization-idempotency-v083-r21`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、首页、后台和公网状态全部通过；任务级生成物料化幂等保护已上线`
-  - 当前补修：`PoseMaster 输出 runtime seam；Admin route-shell CSS 边界；Node chrome CSS 边界；Canvas shell CSS 边界与 ReactFlow stacking contract；ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；大画布可见性评估与 PoseMaster 字段 schema；认证后预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
-  - 当前限制：`Canvas async + mock Provider 的 Gray 成功产物验收已通过；尚未以付费 Provider 成功任务评估真实供应商可用性或计费`
-  - 本轮制品源提交：`f34aae7`
-  - 本轮制品 SHA-256：`45420CC219F76BCE48B8BEC3DDC7829242E5D69273A76E2AF806ED7D017F4399`
+  - release：`20260728-plato-output-recovery-v083-r22`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过；Aifork Grok 首帧真实任务 5/5 完成上游生成与本地回传`
+  - 当前补修：`继续包含画布高度/MiniMap、artifact 幂等和原子落盘修复；新增 provider_poll_resume 同上游任务号续接、慢下载心跳、条件化停滞恢复、视频 Range 续传与失败分类`
+  - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
+  - 本轮制品源提交：`5a7456a`
+  - 本轮制品 SHA-256：`8F0DCDF561920A0D0897E2193BF288F4E817EFC58F00F8B6F489F84E4FED9837`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
@@ -46,7 +46,7 @@
   - 状态：`按用户要求回退到 0.7 系列最后一个已记录版本；API/Worker、权限 readiness 与公网状态全部通过`
   - 当前补修：`Production 保持 v0.7.17；0.8.3 的新修复和测试只先在 Gray 推进`
   - Agent：`沿用 v0.7.17 已验收状态`
-  - 当前限制：`真实 Provider 与压力测试待 Gray 完成后再评估 Production 晋级`
+  - 当前限制：`Gray 真实 Provider 与并发回传已完成首轮验证；Production 仍按用户要求冻结，不自动晋级`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 
 ## current / archive 分工

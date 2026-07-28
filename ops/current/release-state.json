@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-28",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "f34aae785f7de3e88b7ad692404e500b1c687a22",
+  "sourceCommit": "5a7456ab40f8a91d11873b967aa2e9a6e80d0c5a",
   "environments": {
     "gray": {
       "version": "0.8.3",
-      "releaseId": "20260728-artifact-materialization-idempotency-v083-r21",
+      "releaseId": "20260728-plato-output-recovery-v083-r22",
       "deployedAt": "2026-07-28",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-artifact-materialization-idempotency-v083-r21.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-artifact-materialization-idempotency-v083-r21.md",
-      "rollbackReleaseId": "20260728-canvas-height-fix-v083-r19"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-plato-output-recovery-v083-r22.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-28-plato-output-recovery-v083-r22.md",
+      "rollbackReleaseId": "20260728-artifact-materialization-idempotency-v083-r21"
     },
     "production": {
       "version": "0.7.17",

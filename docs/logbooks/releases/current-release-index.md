@@ -25,16 +25,16 @@
 ### Gray
 
 - 版本：`v0.8.3`
-- release：`20260728-artifact-materialization-idempotency-v083-r21`
+- release：`20260728-plato-output-recovery-v083-r22`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`WorkspaceErrorBoundary → ReactFlow 高度契约修复；继续包含 ImageNode 取消任务 ID 收集兼容层、PoseMaster 输出 runtime、Canvas shell/ReactFlow stacking contract、Provider 回传聚合与物料化稳定性；新增任务级 artifact 物料化幂等与并发回传保护`
-- 已验证：`本地全量测试、构建、Worker/API 契约与发布门禁通过；旧服务器 Gray 内部/公网状态、API/Worker、权限 readiness、首页和后台均通过。Canvas async + mock Provider fixture 已验证同一任务 ID、单次 Provider 调用、可读物料和成功终态；未对付费 Provider 可用性或计费作结论。`
+- 部署内容：`继续包含画布高度/MiniMap、artifact 幂等和原子落盘修复；新增柏拉图/APIMart 与 Aifork 同 upstreamTaskId 轮询续接、慢下载心跳、条件化停滞恢复、Range 断点续传和失败分类`
+- 已验证：`本地全量测试与构建通过；发布后严格运行态通过。Aifork Grok Preview 首帧 5/5 上游完成且本地 MP4 可读，五个并发回传共 40,660,629 字节；柏拉图 5/5 在上游创建任务前因 no available platform 失败，明确为服务商分发容量问题。`
 - 部署时间：`2026-07-28`
-- 本轮制品源提交：`f34aae7`
-- 本轮制品 SHA-256：`45420CC219F76BCE48B8BEC3DDC7829242E5D69273A76E2AF806ED7D017F4399`
+- 本轮制品源提交：`5a7456a`
+- 本轮制品 SHA-256：`8F0DCDF561920A0D0897E2193BF288F4E817EFC58F00F8B6F489F84E4FED9837`
 - 本轮发布记录：
-  - `gray/2026-07-28-artifact-materialization-idempotency-v083-r21.md`
-  - `../validations/2026-07-28-artifact-materialization-idempotency-v083-r21.md`
+  - `gray/2026-07-28-plato-output-recovery-v083-r22.md`
+  - `../validations/2026-07-28-plato-output-recovery-v083-r22.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
