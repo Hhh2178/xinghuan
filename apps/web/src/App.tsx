@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Moon, Sun, Wifi, WifiOff, Sparkles, Library, LogOut, UserRound, Bell, Gauge, GitBranch, PanelLeftClose, PanelLeftOpen, Activity } from 'lucide-react';
 import { useThemeStore } from './stores/theme';
 import { usePerformanceModeStore } from './stores/performanceMode';
+import { resolveCanvasPresentation, useCanvasPresentationStore } from './stores/canvasPresentation';
 import { useApiKeysStore } from './stores/apiKeys';
 import { useModelCatalogStore } from './stores/modelCatalog';
 import { useShortcutStore } from './stores/shortcuts';
@@ -27,6 +28,7 @@ import { resolveWorkflowResourceFragment } from './utils/workflowResource';
 import { matchesAnyShortcut } from './utils/keyboardShortcuts';
 import { applyVisualPerformanceMode } from './utils/visualPerformanceMode';
 import { CanvasSupervisionDock, type CanvasSupervisionStatus } from './components/canvas-agent/CanvasSupervisionDock';
+import { CanvasPresentationToggle } from './components/CanvasPresentationToggle';
 import {
   buildPortraitPrompt,
   normalizePortraitLocks,
@@ -194,6 +196,9 @@ function App() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'error'>('checking');
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const canvasPresentationsByUser = useCanvasPresentationStore((state) => state.byUser);
+  const setCanvasPresentation = useCanvasPresentationStore((state) => state.setPresentation);
+  const canvasPresentation = resolveCanvasPresentation(currentUser?.id, canvasPresentationsByUser);
   const [deniedNodeTypes, setDeniedNodeTypes] = useState<string[]>([]);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [workflowTemplatesOpen, setWorkflowTemplatesOpen] = useState(false);
@@ -565,6 +570,7 @@ function App() {
         isPixel ? '' : isDark ? 'bg-zinc-950 text-white' : 'bg-zinc-50 text-zinc-900'
       } ${isOp ? 't8-app-shell--op' : ''} ${isRh ? 't8-app-shell--rh' : ''} ${isNaruto ? 't8-app-shell--naruto' : ''} ${isEva ? 't8-app-shell--eva' : ''} ${isYyh ? 't8-app-shell--yyh' : ''} ${isSlamdunk ? 't8-app-shell--slamdunk' : ''} ${isSoccer ? 't8-app-shell--soccer' : ''}`}
       data-sidebar-open={sidebarOpen ? 'true' : 'false'}
+      data-canvas-presentation={canvasPresentation}
       style={{ background: 'var(--t8-bg-app)', color: 'var(--t8-text-main)' }}
     >
       {/* 头部状态栏 */}
@@ -639,6 +645,12 @@ function App() {
           </button>
         </div>
         <div className="t8-topbar__actions flex items-center gap-1">
+          <CanvasPresentationToggle
+            presentation={canvasPresentation}
+            onChange={(presentation) => {
+              if (currentUser?.id) setCanvasPresentation(currentUser.id, presentation);
+            }}
+          />
           <button
             type="button"
             onClick={announcements.openDrawer}
