@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Boxes, Plus, RefreshCw, Search, Workflow } from "lucide-react";
 import { adminRunningHubApi } from "./admin-api-client";
+import {
+  AdminConfigurationContext,
+  AdminConfigurationLayout,
+  AdminConfigurationWorkbench,
+} from "./admin-configuration-workbench";
 import { AdminRunningHubItemEditor } from "./admin-runninghub-item-editor";
 import {
   buildCreateTitle,
@@ -333,17 +338,18 @@ export function AdminRunningHubWorkspace({
   const keyPoolSummary = useMemo(() => summarizeRunningHubKeyPoolDraft(keyPoolDraft), [keyPoolDraft]);
 
   return (
-    <section className="admin-runninghub-workspace">
-      <div className="admin-runninghub-workspace__hero">
-        <div className="admin-runninghub-workspace__hero-copy">
-          <span>RunningHub Provider Workspace</span>
-          <h2>RunningHub 工作台</h2>
-          <p>统一维护 RH 工作流和 AI 应用目录，左侧管理条目，右侧做结构化编辑和测试运行。</p>
-          {selectedProviderId ? (
-            <small className="admin-runninghub-workspace__provider-hint">当前来自 Provider：{selectedProviderId}</small>
-          ) : null}
-        </div>
-        <div className="admin-runninghub-workspace__toolbar">
+    <AdminConfigurationWorkbench label="RunningHub 配置" className="admin-runninghub-workspace">
+      <AdminConfigurationContext
+        eyebrow={activeView === "keys" ? "Provider 级 Key 池" : selectedItem?.kind === "app" ? "AI 应用" : "工作流"}
+        title={activeView === "keys" ? resolvedProviderLabel : selectedItem?.title || "未选择 RunningHub 条目"}
+        description={activeView === "keys"
+          ? `${keyPoolSummary.enabledCount} 个启用 Key · 总并发 ${keyPoolSummary.totalConcurrency}`
+          : selectedItem?.note || selectedProviderId || "从目录选择条目后开始配置。"}
+        status={{
+          label: busy || saving || testing || analyzing || keyPoolSaving ? "处理中" : error ? "需要处理" : "配置已载入",
+          tone: busy || saving || testing || analyzing || keyPoolSaving ? "warning" : error ? "danger" : "success",
+        }}
+        actions={<div className="admin-runninghub-workspace__toolbar">
           <button type="button" className="ghost-action" onClick={() => void loadItems()} disabled={busy}>
             <RefreshCw aria-hidden="true" className={busy ? "spin" : ""} /> 刷新目录
           </button>
@@ -353,8 +359,8 @@ export function AdminRunningHubWorkspace({
           <button type="button" className="ghost-action" onClick={() => void handleCreate("app")} disabled={creating}>
             <Plus aria-hidden="true" /> 新建 AI 应用
           </button>
-        </div>
-      </div>
+        </div>}
+      />
 
       {error ? <div className="error-banner">{error}</div> : null}
 
@@ -492,8 +498,9 @@ export function AdminRunningHubWorkspace({
         </div>
       </div>
 
-      <div className="admin-runninghub-workspace__layout">
-        <aside className="api-card admin-runninghub-workspace__rail">
+      <AdminConfigurationLayout
+        className="admin-runninghub-workspace__layout"
+        rail={<div className="api-card admin-runninghub-workspace__rail">
           <div className="admin-runninghub-workspace__rail-head">
             <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
             <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
@@ -553,7 +560,8 @@ export function AdminRunningHubWorkspace({
               <Plus aria-hidden="true" /> {activeTab === "workflow" ? "新增工作流" : "新增 AI 应用"}
             </button>
           </div>
-        </aside>
+        </div>}
+      >
 
         <div className="admin-runninghub-workspace__editor-stack">
           <AdminRunningHubItemEditor
@@ -683,8 +691,8 @@ export function AdminRunningHubWorkspace({
             )}
           </section>
         </div>
-      </div>
+      </AdminConfigurationLayout>
       </> : null}
-    </section>
+    </AdminConfigurationWorkbench>
   );
 }

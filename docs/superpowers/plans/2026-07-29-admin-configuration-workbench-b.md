@@ -108,10 +108,10 @@ Commit: `feat(admin): migrate provider configuration workbench`
 - Keeps RH directory loading, create/save/delete/duplicate/toggle/test/analyze APIs, local tab selection, key-pool behavior, and input/schema/output validation unchanged.
 - Uses shared rail/editor/inspector geometry while retaining `AdminRunningHubItemEditor` as the authoritative editor.
 
-- [ ] **Step 1: Write and run a RED contract for shared template adoption and retained handlers**
-- [ ] **Step 2: Migrate the hero, stats, directory, editor, analysis, and key-pool surfaces without changing callbacks**
-- [ ] **Step 3: Run focused RH tests and Admin build**
-- [ ] **Step 4: Update Audit/daily evidence and commit `feat(admin): migrate runninghub configuration workbench`**
+- [x] **Step 1: Write and run a RED contract for shared template adoption and retained handlers**
+- [x] **Step 2: Migrate the hero, stats, directory, editor, analysis, and key-pool surfaces without changing callbacks**
+- [x] **Step 3: Run focused RH tests and Admin build**
+- [x] **Step 4: Update Audit/daily evidence and commit `feat(admin): migrate runninghub configuration workbench`**
 
 ### Task 4: Visually converge ComfyUI without functional changes
 

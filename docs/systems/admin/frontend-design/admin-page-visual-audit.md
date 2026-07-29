@@ -25,7 +25,7 @@
 | 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
 | Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（B 本地已迁移） | handler/API 已由契约锁定；仍待完整 B 批 Gray 视觉验收 | 配置工作台 | B |
 | 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D |
-| RH 管理 | 工作流、AI 应用、Key 池 | rail + editor + 结果 | Schema/测试结果压缩主体 | 目录 + 编辑器 + Inspector | B |
+| RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（B 本地已迁移） | 目录与编辑器已收敛；完整 B 批 Gray 仍需验证长 Schema、结果和 Key 池密度 | 目录 + 编辑器 + Inspector | B |
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 专用实例详情页 | 专用皮肤与全局 Token 并行 | 实例治理工作台 | B（仅样式） |
 | 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D |
 | 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
