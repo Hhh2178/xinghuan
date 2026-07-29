@@ -28,7 +28,7 @@
 - Create: `apps/admin/src/admin-governance-workbench.tsx`
 - Create: `apps/admin/src/admin-governance-workbench.test.tsx`
 - Create: `apps/admin/src/styles/admin-governance-workbench.css`
-- Modify: `apps/admin/src/styles.css`
+- Modify: `apps/admin/src/main.tsx`
 - Modify: `docs/systems/admin/frontend-design/visual-component-registry.md`
 - Modify: `docs/systems/admin/frontend-design/admin-page-visual-audit.md`
 - Modify: `docs/logbooks/daily/2026/2026-07/2026-07-29.md`
@@ -40,7 +40,7 @@
 - Produces `AdminGovernanceToolbar({ label, className?, children })` as an unframed accessible control group.
 - Must not own route state, dirty state, API calls, confirmation, navigation, filters, or save behavior.
 
-- [ ] **Step 1: Write the failing server-render tests**
+- [x] **Step 1: Write the failing server-render tests**
 
 ```tsx
 expect(renderToStaticMarkup(
@@ -53,20 +53,20 @@ expect(markup).toContain('data-workbench-slot="inspector"');
 expect(toolbarMarkup).toContain('role="group"');
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `npm test -- apps/admin/src/admin-governance-workbench.test.tsx`
 Expected: fail because the module does not exist.
 
-- [ ] **Step 3: Implement the presentation-only components and CSS**
+- [x] **Step 3: Implement the presentation-only components and CSS**
 
-Use Foundation tokens for the allowed context gradient, neutral rail/editor/Inspector surfaces, 8px maximum panel radius, 40px controls, stable desktop grid tracks, wrapping technical text, focus-visible outlines, and reduced-motion behavior. Import the module near the existing Foundation/configuration/data imports in `styles.css`.
+Use Foundation tokens for the allowed context gradient, neutral rail/editor/Inspector surfaces, 8px maximum panel radius, 40px controls, stable desktop grid tracks, wrapping technical text, focus-visible outlines, and reduced-motion behavior. Import the module near the existing Foundation/configuration/data imports in `main.tsx`.
 
-- [ ] **Step 4: Update registry, Audit, and daily evidence**
+- [x] **Step 4: Update registry, Audit, and daily evidence**
 
 Register the four components as presentation-only and record the template, token source, long-text policy, loading/empty/error expectations, and risk-action boundary.
 
-- [ ] **Step 5: Run GREEN and commit**
+- [x] **Step 5: Run GREEN and commit**
 
 ```text
 npm test -- apps/admin/src/admin-governance-workbench.test.tsx

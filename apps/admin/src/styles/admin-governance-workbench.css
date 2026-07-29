@@ -1,0 +1,125 @@
+/* Shared Admin D presentation shell. Feature panels retain state and mutations. */
+.admin-governance-workbench {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.admin-governance-context {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 8px;
+  background: var(--admin-gradient-shell);
+}
+
+.admin-governance-context__copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-governance-context__eyebrow {
+  color: var(--admin-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.admin-governance-context__title {
+  min-width: 0;
+  color: var(--admin-text-primary);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.admin-governance-context__description,
+.admin-governance-context__meta {
+  min-width: 0;
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.admin-governance-context__actions {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-governance-context__meta {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid var(--admin-border-subtle);
+}
+
+.admin-governance-layout {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-governance-layout[data-has-rail="true"][data-has-inspector="false"] {
+  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
+}
+
+.admin-governance-layout[data-has-rail="false"][data-has-inspector="true"] {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+}
+
+.admin-governance-layout[data-has-rail="true"][data-has-inspector="true"] {
+  grid-template-columns: minmax(200px, 224px) minmax(0, 1fr) minmax(260px, 304px);
+}
+
+.admin-governance-layout__rail,
+.admin-governance-layout__editor,
+.admin-governance-layout__inspector {
+  min-width: 0;
+}
+
+.admin-governance-toolbar {
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-governance-toolbar :is(button, input, select) {
+  min-height: 40px;
+}
+
+@media (max-width: 1280px) {
+  .admin-governance-layout[data-has-inspector="true"] {
+    grid-template-columns: minmax(210px, 232px) minmax(0, 1fr);
+  }
+
+  .admin-governance-layout[data-has-inspector="true"] .admin-governance-layout__inspector {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-governance-workbench *,
+  .admin-governance-workbench *::before,
+  .admin-governance-workbench *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

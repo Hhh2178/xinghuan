@@ -83,3 +83,9 @@
 - Task 4 本地证据：analytics workbench 与 channel refresh 共 8 项测试、Cost API 测试、Usage/Audit/Cost 数据契约、Admin TypeScript/Vite 构建、视觉文档、组件注册及 `git diff --check` 均通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
 - `v0.8.11` 运行态通过但因 Tasks 创建命令换行、Reliability 刷新按钮使用白色默认样式而拒绝视觉验收；`v0.8.12` 修复后，七个登录态路由在 `1920x1080` 下全部通过唯一 H1/data template、滚动、溢出、助手并存、筛选/表格/图表和 Inspector 验收。证据见 `../../../logbooks/validations/2026-07-29-admin-realtime-data-c-v0812-r1.md`。
 - C 已完成，D 治理/内容工作台现为 active。模型目录助手上下文仍显示 `providers` 标签，Analytics 助手上下文标签仍需后续统一；ComfyUI 长机器名采用单行省略。这些上下文残余不改变当前路由内容或数据权威。
+
+## D 批本地实施
+
+- Task 1 已建立 `AdminGovernanceWorkbench`、`AdminGovernanceContext`、`AdminGovernanceLayout` 与 `AdminGovernanceToolbar` 的 presentation-only 基线，支持 `governance`、`content`、`automation` 三种模式，并保持 Shell 唯一 H1。
+- 模板样式只使用 Foundation token：允许的 context 渐变、中性 rail/editor/Inspector、最大 8px 边界、40px 控件、稳定桌面 tracks、长技术文本换行、全局 focus-visible 与 reduced-motion 均有明确来源。
+- shared layer 不拥有 route、loading/empty/error、dirty、API、权限、revision、确认、过滤、导航或保存；各 feature owner 继续提供这些状态和风险动作。D 页面尚未迁移，Gray 和登录态 `1920x1080` 验收也尚未执行，因此工作域矩阵继续标记为 active。
