@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { TasksPanel } from "./admin-task-panel";
 import type { TaskListPage } from "./admin-types";
+
+const dataWorkbenchCss = readFileSync(new URL("./styles/admin-data-workbench.css", import.meta.url), "utf8");
 
 function taskPage(overrides: Partial<TaskListPage> = {}): TaskListPage {
   return {
@@ -61,5 +64,10 @@ describe("Admin task data workbench", () => {
     expect(markup).toContain("恢复结果");
     expect(markup).toContain("重新生成");
     expect(markup).toContain("upstream failed");
+  });
+
+  it("keeps the create command on one line beside a flexible title input", () => {
+    expect(dataWorkbenchCss).toMatch(/\.admin-task-controls\s*>\s*\.form-panel:first-child\s+\.form-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+    expect(dataWorkbenchCss).toMatch(/\.admin-task-controls\s*>\s*\.form-panel:first-child\s+button\s*\{[^}]*white-space:\s*nowrap/);
   });
 });

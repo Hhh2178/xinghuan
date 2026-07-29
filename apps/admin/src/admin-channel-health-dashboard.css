@@ -28,6 +28,29 @@
 .admin-channel-health__actions { justify-content: flex-end; gap: 10px; }
 .admin-channel-health__actions .starlight-button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 
+.admin-channel-health__refresh {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 6px;
+  color: var(--admin-text-primary);
+  background: var(--admin-surface-2);
+  white-space: nowrap;
+}
+
+.admin-channel-health__refresh:hover:not(:disabled) {
+  border-color: var(--admin-brand-primary);
+  background: var(--admin-surface-3);
+}
+
+.admin-channel-health__refresh:disabled {
+  cursor: wait;
+  opacity: .68;
+}
+
 .admin-channel-health__filters {
   min-height: 64px;
   gap: 10px;

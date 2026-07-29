@@ -93,7 +93,7 @@ export function AdminChannelHealthDashboard() {
           tone: stale || error ? "danger" : loading || refreshing ? "warning" : report ? "success" : "muted",
         }}
         actions={
-          <button type="button" className="starlight-button" onClick={() => void refresh()} disabled={loading || refreshing}>
+          <button type="button" className="admin-channel-health__refresh" onClick={() => void refresh()} disabled={loading || refreshing}>
             <RefreshCw size={15} className={refreshing ? "is-spinning" : undefined} />刷新状态
           </button>
         }

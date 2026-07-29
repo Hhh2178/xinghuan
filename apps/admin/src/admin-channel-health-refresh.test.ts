@@ -21,4 +21,9 @@ describe("admin channel health refresh", () => {
   it("keeps the auto-refresh checkbox at a stable control size", () => {
     expect(dashboardCss).toMatch(/\.admin-channel-health__auto input\s*\{[^}]*width:\s*14px[^}]*height:\s*14px[^}]*\}/);
   });
+
+  it("renders the manual refresh as an explicit Admin command", () => {
+    expect(dashboardSource).toContain("admin-channel-health__refresh");
+    expect(dashboardCss).toMatch(/\.admin-channel-health__refresh\s*\{[^}]*border:[^}]*color:[^}]*background:/);
+  });
 });

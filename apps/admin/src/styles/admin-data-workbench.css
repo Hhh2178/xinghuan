@@ -91,6 +91,15 @@
   min-width: 0;
 }
 
+.admin-task-controls > .form-panel:first-child .form-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.admin-task-controls > .form-panel:first-child button {
+  min-width: 88px;
+  white-space: nowrap;
+}
+
 .admin-task-workbench .form-panel,
 .admin-task-workbench .data-panel {
   border-color: var(--admin-border-subtle);
