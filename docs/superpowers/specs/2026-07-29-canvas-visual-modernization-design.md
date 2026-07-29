@@ -144,3 +144,4 @@ Implementation must use layout containment rather than absolute text placement:
 | 2026-07-29 | Use one Canvas runtime with two presentation modes. | Prevents duplicate execution, material and persistence logic from drifting. |
 | 2026-07-29 | Retain upstream-material merge behavior and existing management UI. | The current data flow is accepted; the problem is visual density, not semantics. |
 | 2026-07-29 | Adopt a 56px icon rail with 288px overlay expansion. | Reclaims canvas area without hiding navigation or shifting an active project. |
+| 2026-07-29 | Implement Modern Canvas as an opt-in visual layer while preserving Legacy as default. | The implementation and automated evidence are recorded in `docs/qa/2026-07-29-canvas-modern-presentation-qa.md`; no release is implied. |
