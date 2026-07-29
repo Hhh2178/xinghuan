@@ -33,20 +33,20 @@
 - Produces `AdminConfigurationWorkbench`, `AdminConfigurationContext`, `AdminConfigurationLayout`, and `AdminConfigurationSaveBar`.
 - The shared components accept presentation content only; they do not own data fetching, draft state, callbacks, navigation, or confirmation behavior.
 
-- [ ] **Step 1: Write the failing render contract**
+- [x] **Step 1: Write the failing render contract**
 
 Assert that rendered markup exposes `data-admin-template="configuration"`, one object-context region, neutral rail/editor/inspector slots, and a save bar whose reset/save disabled states follow props.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `npm test -- apps/admin/src/admin-configuration-workbench.test.tsx`
 Expected: FAIL because the shared module does not exist.
 
-- [ ] **Step 3: Implement the minimum presentation components and focused CSS**
+- [x] **Step 3: Implement the minimum presentation components and focused CSS**
 
 Use A-layer tokens, `StatusPill`, slot-based children, and fixed desktop tracks. Do not add state or effects.
 
-- [ ] **Step 4: Run focused test, Admin build, and design contracts**
+- [x] **Step 4: Run focused test, Admin build, and design contracts**
 
 Run: `npm test -- apps/admin/src/admin-configuration-workbench.test.tsx`
 Run: `npm --workspace @xinghuan/admin run build`
@@ -54,7 +54,7 @@ Run: `npm run verify:visual-design-docs-contract`
 Run: `npm run verify:component-registry-docs-contract`
 Expected: all exit 0.
 
-- [ ] **Step 5: Update the registry and commit**
+- [x] **Step 5: Update the registry and commit**
 
 Commit: `feat(admin): add configuration workbench foundation`
 
