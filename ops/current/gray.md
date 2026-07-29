@@ -3,19 +3,19 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.7`
-- 当前 release：`20260729-canvas-sidebar-overflow-v087-r1`
-- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
-- 当前补修：`画布表现层回撤保持不变，并移除侧栏 rail 上覆盖 overlay 的 overflow-hidden 冲突类；悬停/焦点展开面板现已在 1920x1080 Gray 验收通过`
+- 当前版本：`v0.8.9`
+- 当前 release：`20260729-admin-foundation-a-v089-r1`
+- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态、权限 readiness 与登录态 1920x1080 Admin overview 视觉验收均已通过`
+- 当前补修：`Admin Foundation A 共享 frame、summary、table empty state 与语义状态已落地；overview 收敛为唯一页面身份区，v0.8.8 的重复身份层已由 v0.8.9 修正`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
 - Production 当前 release：`20260728-plato-output-recovery-v083-r22`
-- 本轮制品源提交：`07ecd185e3d2cb2e525b43e0c47977b137f9fddd`
-- 本轮制品 SHA-256：`D1861E80182B184787D9BC71FCF0EB8587A0A390B9F406F95AA0517627D11D93`
+- 本轮制品源提交：`97309b0524208913c73936a27cdbdd497e1d55c8`
+- 本轮制品 SHA-256：`68E5D127955780B6A3DD984E501175B0AF8B52B334D41FC7051B794F33E346F8`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-29-canvas-sidebar-overflow-v087-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-29-canvas-sidebar-overflow-v087-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-29-admin-foundation-a-v089-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-29-admin-foundation-a-v089-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
@@ -137,9 +137,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260729-canvas-reset-v086-r1`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260729-canvas-sidebar-overflow-v087-r1`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260729-canvas-reset-v086-r1`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260729-canvas-sidebar-overflow-v087-r1`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`

@@ -20,7 +20,7 @@
 
 | 工作域 | 稳定子视图 | 当前骨架 | 风险 | 目标模板 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
-| 运营总览 | `/admin/overview` | shell + 概览面板 | 指标与告警层级竞争 | 运行态势首页 | C |
+| 运营总览 | `/admin/overview` | A-layer frame + 关键摘要 + 中性数据表（v0.8.9 Gray 已验收） | A 试点完成；趋势/告警下钻仍属于后续 C 批 | 运行态势首页 | C |
 | 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D |
 | 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
 | Provider 与模型 | Provider、模型目录 | Provider 列表 + 表单 | 字段、测试、拉取结果、操作争夺注意 | 配置工作台 | B |
@@ -62,3 +62,7 @@
 ## 更新规则
 
 每个已重构子视图必须在本文件把“当前骨架”和“风险”改为已验收状态，并链接对应变更/验证记录；未实施的子视图不能标记为完成。
+
+## 已验收试点
+
+- `/admin/overview`：复用 `AdminWorkspaceFrame`、`AdminSummaryStrip`、`DataTable`、`StatusPill`；唯一 H1、summary 首屏、中性表格、长文本、空态、Shell loading/error 与主区独立滚动已在 `../../../logbooks/validations/2026-07-29-admin-foundation-a-v089-r1.md` 记录。A-layer 试点通过不等于 C 批趋势、告警与下钻能力完成。

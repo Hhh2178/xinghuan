@@ -28,13 +28,13 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.7`
-  - release：`20260729-canvas-sidebar-overflow-v087-r1`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态和 1920x1080 浏览器视觉验收通过`
-  - 当前补修：`在 v0.8.6 表现层回撤上移除侧栏 overflow-hidden 冲突，恢复悬停/焦点 232px overlay；任务链路不变`
+  - 版本：`v0.8.9`
+  - release：`20260729-admin-foundation-a-v089-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态和登录态 1920x1080 Admin overview 视觉验收通过`
+  - 当前补修：`Admin Foundation A 共享视觉骨架与 overview 只读试点已落地；唯一页面身份区替代了 v0.8.8 的重复身份层，任务链路不变`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`07ecd185e3d2cb2e525b43e0c47977b137f9fddd`
-  - 本轮制品 SHA-256：`D1861E80182B184787D9BC71FCF0EB8587A0A390B9F406F95AA0517627D11D93`
+  - 本轮制品源提交：`97309b0524208913c73936a27cdbdd497e1d55c8`
+  - 本轮制品 SHA-256：`68E5D127955780B6A3DD984E501175B0AF8B52B334D41FC7051B794F33E346F8`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

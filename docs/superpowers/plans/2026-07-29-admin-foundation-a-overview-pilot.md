@@ -60,8 +60,8 @@
 
 - [x] Write a failing overview contract asserting one page H1, Foundation-backed summary strip, semantic alert treatment, and retained loading/empty/error rendering.
 - [x] Migrate only the overview layout to the shared A-layer primitives; retain its existing data loader inputs and refresh callbacks unchanged.
-- [ ] Verify the focused test, Admin build, visual/token/registry contracts, and one `1920x1080` screenshot with no overflow, overlap, or double scrolling.
-- [ ] Mark only `/admin/overview` as piloted in the Audit, record the template, tokens, long-text policy, and state treatment in the daily log, then commit.
+- [x] Verify the focused test, Admin build, visual/token/registry contracts, and one `1920x1080` screenshot with no overflow, overlap, or double scrolling.
+- [x] Mark only `/admin/overview` as piloted in the Audit, record the template, tokens, long-text policy, and state treatment in the daily log, then commit.
 
 ### Task 4: Gray validate the Admin pilot and hand off B
 
@@ -70,6 +70,6 @@
 - Modify: `ops/current/release-state.json`, `ops/current/gray.md`, release index
 - Modify: `docs/systems/admin/frontend-design/redesign-program.md`
 
-- [ ] Prepare a new patch Gray release in a clean worktree and deploy only to old-server Gray.
-- [ ] Verify API/Worker readiness and inspect `/admin/overview` at `1920x1080` as an authenticated administrator.
-- [ ] Record verified runtime evidence, visual acceptance, known residual risks, and update Program status to make the next B-batch scope explicit.
+- [x] Prepare a new patch Gray release in a clean worktree and deploy only to old-server Gray.
+- [x] Verify API/Worker readiness and inspect `/admin/overview` at `1920x1080` as an authenticated administrator.
+- [x] Record verified runtime evidence, visual acceptance, known residual risks, and update Program status to make the next B-batch scope explicit.
