@@ -496,3 +496,4 @@ git commit -m "test(canvas): document modern presentation regression qa"
 | Date | Scope | Evidence |
 | --- | --- | --- |
 | 2026-07-29 | Tasks 1–3 complete | `e779e0c` adds the local per-user legacy-default toggle; `1696916` adds the non-resizing modern sidebar rail; the current change adds the `Canvas` presentation boundary, modern grid contrast variable, and MiniMap/assistant safe slots. Targeted Vitest and web type-check pass before each commit. |
+| 2026-07-29 | Tasks 4–7 presentation hooks complete | Shared visual primitives and material-origin hooks preserve all existing callbacks. Image, Video and LLM roots now opt into scoped Modern Canvas typography, width, overflow and material presentation rules without changing payload or upstream-material hooks. |

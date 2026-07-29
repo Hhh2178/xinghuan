@@ -1336,7 +1336,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   return (
     <div
       ref={rootRef}
-      className={`relative rounded-xl border-2 transition-all w-[320px] ${
+      className={`t8-generation-node t8-generation-node--image relative rounded-xl border-2 transition-all w-[320px] ${
         selected ? 'border-amber-400 shadow-2xl shadow-amber-500/20' : 'border-white/15 hover:border-white/30'
       }`}
       style={{
@@ -1759,6 +1759,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                         selected={!!selected}
                         isDark={isDark}
                         isPixel={isPixel}
+                        presentation="modern"
                         groups={comfyImageInputFields.length > 0 ? ['text', 'image'] : ['text']}
                         title="ComfyUI 输入素材 · 上游+本地"
                         imageUploadAction={
@@ -2342,6 +2343,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             selected={!!selected}
             isDark={isDark}
             isPixel={isPixel}
+            presentation="modern"
             groups={['text', 'image']}
             title={isMj ? '主参考图 · 上游+本地' : '参考图 · 上游+本地'}
             imageUploadAction={

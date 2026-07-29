@@ -758,7 +758,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     {/* 主体 */}
     <div
       ref={mainRef}
-      className={`relative rounded-xl border-2 transition-all w-[320px] ${
+      className={`t8-generation-node t8-generation-node--llm relative rounded-xl border-2 transition-all w-[320px] ${
         selected ? 'border-emerald-400 shadow-2xl shadow-emerald-500/20' : isAccepting ? 'border-emerald-400' : 'border-white/15 hover:border-white/30'
       }`}
       style={{
@@ -1183,6 +1183,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
           selected={!!selected}
           isDark={isDark}
           isPixel={isPixel}
+          presentation="modern"
           groups={['text', 'image', 'video']}
           title="上游素材 + 本地图片/视频"
           imageUploadAction={{

@@ -1282,7 +1282,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
     <div
       ref={rootRef}
       {...dropProps}
-      className={`relative rounded-xl border-2 transition-all w-[300px] ${
+      className={`t8-generation-node t8-generation-node--video relative rounded-xl border-2 transition-all w-[300px] ${
         selected ? 'border-rose-400 shadow-2xl shadow-rose-500/20' : isAccepting ? 'border-emerald-400' : 'border-white/15 hover:border-white/30'
       }`}
       style={{
@@ -1785,6 +1785,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
             selected={!!selected}
             isDark={isDark}
             isPixel={isPixel}
+            presentation="modern"
             groups={previewGroups}
             title={previewTitle}
           />

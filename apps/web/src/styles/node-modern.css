@@ -88,3 +88,29 @@
   font-size: 12px !important;
   line-height: 18px;
 }
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node {
+  width: 360px !important;
+  max-width: min(440px, calc(100vw - 132px));
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node > :is(div, section) {
+  min-width: 0;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node label,
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node .text-\[10px\] {
+  font-size: 13px !important;
+  line-height: 18px;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node :is(input, select, textarea, button) {
+  min-width: 0;
+  font-size: 14px !important;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node :is(.text-red-300, .text-amber-200, .text-amber-100) {
+  overflow-wrap: anywhere;
+}
