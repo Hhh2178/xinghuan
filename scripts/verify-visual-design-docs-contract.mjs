@@ -17,6 +17,9 @@ const requiredFiles = [
   "docs/systems/canvas/frontend-design/rh-comfyui-deduplication-map.md",
   "docs/systems/canvas/frontend-design/verification-checklist.md",
   "docs/systems/admin/frontend-design/README.md",
+  "docs/systems/admin/frontend-design/visual-foundation.md",
+  "docs/systems/admin/frontend-design/admin-page-visual-audit.md",
+  "docs/systems/admin/frontend-design/redesign-program.md",
   "docs/systems/admin/frontend-design/design-tokens.md",
   "docs/systems/admin/frontend-design/visual-component-registry.md",
   "docs/systems/admin/frontend-design/functional-component-registry.md",
@@ -44,6 +47,9 @@ assertIncludes(docs.get("docs/systems/canvas/frontend-design/component-usage-pol
 assertIncludes(docs.get("docs/systems/canvas/frontend-design/component-usage-policy.md"), "Do not place raw Ant Design", "canvas policy must keep Ant Design out of nodes");
 
 assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "component-library-policy.md", "admin README must link component policy");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "visual-foundation.md", "admin README must link visual foundation");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "admin-page-visual-audit.md", "admin README must link visual audit");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "redesign-program.md", "admin README must link redesign program");
 assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "design-tokens.md", "admin README must link design tokens");
 assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "visual-component-registry.md", "admin README must link visual component registry");
 assertIncludes(docs.get("docs/systems/admin/frontend-design/README.md"), "functional-component-registry.md", "admin README must link functional component registry");
@@ -54,6 +60,9 @@ assertIncludes(docs.get("DESIGN.md"), "异常先于装饰", "root design source 
 assertIncludes(docs.get("DESIGN.md"), "system-health-visualization-standard.md", "root design source must route system health visualization");
 assertIncludes(docs.get("docs/systems/admin/frontend-design/system-health-visualization-standard.md"), "Data Correctness Contract", "system health visualization standard must define data correctness");
 assertIncludes(docs.get("docs/systems/admin/frontend-design/system-health-visualization-standard.md"), "Performance Budget", "system health visualization standard must define a performance budget");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/visual-foundation.md"), "渐变不得表达状态", "admin visual foundation must keep gradients out of state semantics");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/admin-page-visual-audit.md"), "任务与运行", "admin visual audit must cover runtime workspace");
+assertIncludes(docs.get("docs/systems/admin/frontend-design/redesign-program.md"), "发布顺序", "admin redesign program must define rollout order");
 
 const docsIndex = await read("docs/INDEX.md");
 const canvasReadme = await read("docs/systems/canvas/README.md");

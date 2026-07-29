@@ -14,24 +14,27 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 - 不直接照搬 `stitch` 的信息架构和页面清单。
 - 导航、页面覆盖、权限治理、实时刷新、懒加载和热更新能力，以项目正式 PRD 为准。
 
-## 推荐阅读顺序
+## 强制阅读顺序
 
 1. 根级 `DESIGN.md`
-2. `README.md`
-3. `visual-style-and-stitch-baseline.md`
-4. `design-tokens.md`
-5. `layout-and-density-standard.md`
-6. `form-table-drawer-standard.md`
-7. `system-health-visualization-standard.md`
-8. `visual-component-registry.md`
-9. `functional-component-registry.md`
-10. `component-library-policy.md`
-11. `ant-design-pilot-component-map.md`
-12. `icon-text-alignment-standard.md`
-13. `page-map-and-functions.md`
-14. `realtime-loading-and-refresh.md`
-15. `change-guidelines.md`
-16. `verification-checklist.md`
+2. `visual-foundation.md`（Token、渐变、字号、密度、状态的唯一基础）
+3. `admin-page-visual-audit.md`（先确认正在改的工作域、模板与风险）
+4. `redesign-program.md`（确认当前批次、组件边界和发布顺序）
+5. `visual-component-registry.md`
+6. `functional-component-registry.md`
+7. `design-tokens.md`
+8. `layout-and-density-standard.md`
+9. `form-table-drawer-standard.md`
+10. `system-health-visualization-standard.md`
+11. `component-library-policy.md`
+12. `ant-design-pilot-component-map.md`
+13. `icon-text-alignment-standard.md`
+14. `page-map-and-functions.md`
+15. `realtime-loading-and-refresh.md`
+16. `change-guidelines.md`
+17. `verification-checklist.md`
+
+在提交 Admin UI 改动前，变更说明必须注明：使用的页面模板、Foundation Token、复用组件、长文本策略、加载/空/错误态，以及保存或高风险操作的反馈方式。
 
 ## 与其他文档的关系
 
@@ -50,6 +53,9 @@ Admin 后台采用“科技感可视化运营控制台 + 参数治理后台”�
 - 新增自动刷新、实时状态或长任务交互时，必须补 `realtime-loading-and-refresh.md`。
 - 调整系统健康指标、阈值、图表、告警或下钻时，必须补 `system-health-visualization-standard.md`。
 - 调整视觉语言、导航、卡片、表格、Inspector 或状态色时，必须补 `visual-style-and-stitch-baseline.md`。
+- 调整渐变、颜色、字号、间距、圆角、状态语义或全局视觉层级时，必须先更新 `visual-foundation.md`；不能只在页面 CSS 中临时覆盖。
+- 新工作域或子视图、页面模板或视觉风险发生变化时，必须同步 `admin-page-visual-audit.md`。
+- 任何后台重构批次必须遵循并更新 `redesign-program.md` 的批次状态与验收记录。
 - 调整组件库、表格、表单、抽屉、图标文字对齐或后台密度时，必须补本目录对应标准文件。
 - 新增可复用后台组件或功能模块时，必须先检查 `visual-component-registry.md` 与 `functional-component-registry.md`。
 - 改动只影响某次临时方案时，可以写入 `docs/superpowers/specs/`；一旦成为长期设计约束，就同步沉淀到本目录。

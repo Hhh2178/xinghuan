@@ -108,6 +108,9 @@
 - 协议与信息架构：`docs/systems/admin/protocol-and-capabilities.md`
 - 全项目设计总入口：`DESIGN.md`
 - 后台视觉与交互规范：`docs/systems/admin/frontend-design/`
+- 后台视觉基础（Admin UI 变更必读）：`docs/systems/admin/frontend-design/visual-foundation.md`
+- 后台全页面视觉审计：`docs/systems/admin/frontend-design/admin-page-visual-audit.md`
+- 后台分批重构程序：`docs/systems/admin/frontend-design/redesign-program.md`
 - 系统健康可视化：`docs/systems/admin/frontend-design/system-health-visualization-standard.md`
 
 ### API

@@ -15,17 +15,17 @@
 | --- | --- | --- |
 | 全项目共同原则 | `DESIGN.md` | 品牌气质、设计原则、共享语义与治理规则 |
 | Canvas | `docs/systems/canvas/frontend-design/README.md` | 节点、画布、浮层、交互与画布 Token |
-| Admin | `docs/systems/admin/frontend-design/README.md` | 后台布局、组件、数据密度、表单、表格与可视化 |
+| Admin | `docs/systems/admin/frontend-design/README.md` | 后台布局、组件、数据密度、表单、表格与可视化；先进入视觉基础、页面审计与重构程序 |
 | Admin 系统健康 | `docs/systems/admin/frontend-design/system-health-visualization-standard.md` | 健康指标、图表、告警、下钻与刷新口径 |
 
 下级文档可以细化本文件，但不能改变共同语义。产生冲突时，先修改本文件并在 Decisions Log 记录原因。
 
 ## 3. Aesthetic Direction
 
-- 方向：Industrial / Utilitarian Technology Console。
-- 装饰：克制。深色层级、细边框和轻量网格用于建立精密感，不使用大面积光晕抢占业务信息。
+- 方向：Industrial / Utilitarian Gradient Technology Console。
+- 装饰：克制。深海青到天蓝的低对比渐变只建立 Shell、页头和当前层级；深色层级、细边框和轻量网格用于建立精密感，不使用大面积光晕抢占业务信息。
 - 布局：严格栅格。运营页优先比较和扫描，配置页优先字段归属和保存状态。
-- 色彩：受限色板。青色表示主操作与当前选择，健康、警告、危险使用独立语义色。
+- 色彩：受限色板。青蓝渐变表示品牌层级，青色表示主操作与当前选择，健康、警告、危险使用独立语义色；渐变不得表达状态。
 - 动效：最小功能动效。只解释状态变化、层级切换和异步进度。
 
 ## 4. Design Principles
@@ -136,6 +136,7 @@ Canvas AI 助手与 AI 托管面板同样遵循此下限：对话正文、运行
 ## 13. Governance
 
 - 新页面先声明复用哪些 Visual/Functional Registry 组件。
+- Admin UI 改动前必须阅读 `docs/systems/admin/frontend-design/visual-foundation.md`、`admin-page-visual-audit.md`、`redesign-program.md`，并声明复用的模板和 Token。
 - 新颜色、字号、圆角、间距重复两次前必须进入 Token 文档或改用既有 Token。
 - 新图表必须定义指标口径、聚合周期、空状态、错误状态、下钻和性能预算。
 - UI 变更至少运行：
@@ -152,3 +153,4 @@ Canvas AI 助手与 AI 托管面板同样遵循此下限：对话正文、运行
 | 2026-07-21 | Admin 延续深色工业控制台方向 | 与现有产品、用户习惯和高密度运营场景一致，避免无收益的整体换肤 |
 | 2026-07-21 | 系统健康以异常、解释和下钻为核心 | 运维页面的任务是缩短判断与处理时间，不是展示最多原始字段 |
 | 2026-07-21 | 公共资源升级为独立 Admin 工作域 | 素材治理的对象、权限和操作密度已足以形成独立页面，不再与公告发布混排 |
+| 2026-07-29 | Admin 采用受控深海青—天蓝渐变操作台 | 统一后台视觉基线，同时保留高密度配置与异常优先的专业工具属性 |
