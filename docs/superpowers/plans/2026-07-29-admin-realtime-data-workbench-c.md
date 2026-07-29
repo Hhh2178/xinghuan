@@ -36,17 +36,17 @@
 - Produce `AdminDataToolbar({ label, children, className? })` as an unframed, accessible control boundary.
 - These components never own requests, polling, filters, calculations, Inspector state, task mutations, or navigation.
 
-- [ ] **Step 1: Write the failing render contract**
+- [x] **Step 1: Write the failing render contract**
 
 Create tests that render all three modes and assert the data template/mode markers, one context region, semantic status text, optional actions/meta, and an accessible toolbar. Assert no H1 is emitted.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `npm test -- apps/admin/src/admin-data-workbench.test.tsx`
 
 Expected: fail because `admin-data-workbench.tsx` does not exist.
 
-- [ ] **Step 3: Implement the presentation components and scoped CSS**
+- [x] **Step 3: Implement the presentation components and scoped CSS**
 
 Use this public shape:
 
@@ -68,7 +68,7 @@ Use this public shape:
 
 Import `styles/admin-data-workbench.css` from `main.tsx` beside the Foundation/configuration modules. CSS must use Foundation tokens, 8px-or-less card radius for repeated metrics, stable grid tracks, neutral chart/table surfaces, and no viewport-scaled type.
 
-- [ ] **Step 4: Run focused and design gates**
+- [x] **Step 4: Run focused and design gates**
 
 Run:
 
@@ -83,7 +83,7 @@ git diff --check
 
 Expected: all exit 0.
 
-- [ ] **Step 5: Update the registry and commit**
+- [x] **Step 5: Update the registry and commit**
 
 Commit: `feat(admin): add realtime data workbench foundation`
 
