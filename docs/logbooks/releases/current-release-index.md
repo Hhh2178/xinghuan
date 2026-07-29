@@ -24,21 +24,21 @@
 
 ### Gray
 
-- 版本：`v0.8.10`
-- release：`20260729-admin-configuration-b-v0810-r1`
+- 版本：`v0.8.12`
+- release：`20260729-admin-realtime-data-c-v0812-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Admin B 共享配置工作台；Provider/模型、RH、ComfyUI 仅样式、运行参数与环境同步的统一 context、rail/editor 和状态层级。`
-- 已验证：`全量测试 223 文件通过、1 文件跳过、854 项通过、4 项跳过；完整工作区构建、API/Worker、内外状态、权限 readiness、远端运维 smoke 和 1920x1080 登录态六页验收均通过。`
+- 部署内容：`Admin C 共享实时/数据工作台；概览、任务、系统健康、用量、费用、渠道健康和审计统一 context、command、数据面与状态层级，原数据/行为所有权不变。`
+- 已验证：`全量测试 227 文件通过、1 文件跳过、869 项通过、4 项跳过；完整工作区构建、API/Worker、内外状态、权限 readiness、远端运维 smoke 和 1920x1080 登录态七页验收均通过。`
 - 部署时间：`2026-07-29`
-- 本轮制品源提交：`266e0f03abecf92a68abab11199bab49e3bca154`
-- 本轮制品 SHA-256：`1048DF04AC131E9887D94103B4407BE9BE3155137C13424D8B3D86567173C7F2`
+- 本轮制品源提交：`7422bf9ca65cf75d1a49fabf607580b82c874783`
+- 本轮制品 SHA-256：`3F5228E37875E1A87CB7536A3E90814A7BC7088D7313F024297027D2F4F186D1`
 - 本轮发布记录：
-  - `gray/2026-07-29-admin-configuration-b-v0810-r1.md`
+  - `gray/2026-07-29-admin-realtime-data-c-v0812-r1.md`
+  - `../validations/2026-07-29-admin-realtime-data-c-v0812-r1.md`
+  - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
+  - `../validations/2026-07-29-admin-realtime-data-c-v0811-r1.md`
+  - `gray/2026-07-29-admin-configuration-b-v0810-r1.md`（当前回滚锚点）
   - `../validations/2026-07-29-admin-configuration-b-v0810-r1.md`
-  - `gray/2026-07-29-admin-foundation-a-v089-r1.md`（当前回滚锚点）
-  - `../validations/2026-07-29-admin-foundation-a-v089-r1.md`
-  - `gray/2026-07-29-admin-foundation-a-v088-r1.md`（运行态通过、视觉拒绝）
-  - `../validations/2026-07-29-admin-foundation-a-v088-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

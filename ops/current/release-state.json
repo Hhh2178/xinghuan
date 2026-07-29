@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-29",
-  "sourceBranch": "release/admin-configuration-b-v0810",
-  "sourceCommit": "266e0f03abecf92a68abab11199bab49e3bca154",
+  "sourceBranch": "release/admin-realtime-data-c-v0811",
+  "sourceCommit": "7422bf9ca65cf75d1a49fabf607580b82c874783",
   "environments": {
     "gray": {
-      "version": "0.8.10",
-      "releaseId": "20260729-admin-configuration-b-v0810-r1",
+      "version": "0.8.12",
+      "releaseId": "20260729-admin-realtime-data-c-v0812-r1",
       "deployedAt": "2026-07-29",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-29", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-admin-configuration-b-v0810-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-29-admin-configuration-b-v0810-r1.md",
-      "rollbackReleaseId": "20260729-admin-foundation-a-v089-r1"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-admin-realtime-data-c-v0812-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-29-admin-realtime-data-c-v0812-r1.md",
+      "rollbackReleaseId": "20260729-admin-configuration-b-v0810-r1"
     },
     "production": {
       "version": "0.8.3",

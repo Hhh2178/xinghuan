@@ -19,8 +19,8 @@
 - Foundation: complete. Old-server Gray `v0.8.7` runtime, permission readiness, and authenticated `1920x1080` canvas visual acceptance passed on 2026-07-29.
 - A: complete. Old-server Gray `v0.8.9` passed runtime, permission readiness, and authenticated `1920x1080` acceptance; `v0.8.8` was rejected for repeated page identity before the patch.
 - B: complete. Old-server Gray `v0.8.10` passed runtime, permission readiness, all six authenticated `1920x1080` configuration-route acceptances, and the independent environment-sync permission review.
-- C: active. Next scope is overview, tasks, health, analytics, and audit under realtime/data templates with anomaly-first hierarchy and stable refresh behavior.
-- D: not started. Governance/content workspaces remain required after C and must use the same test, screenshot, Gray, Audit, and logbook gates.
+- C: complete. Old-server Gray `v0.8.12` passed full tests/build/Harness, runtime and permission readiness, remote operations smoke, and all seven authenticated `1920x1080` route acceptances; `v0.8.11` was rejected for two command-presentation regressions before the patch.
+- D: active. Organization, access/security, shared resources, announcements, and automation governance/content workspaces are the remaining full-domain closure scope and must use the same test, screenshot, Gray, Audit, and logbook gates.
 
 ## 每批固定步骤
 

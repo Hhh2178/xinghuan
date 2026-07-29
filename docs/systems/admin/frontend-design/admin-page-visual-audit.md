@@ -20,18 +20,18 @@
 
 | 工作域 | 稳定子视图 | 当前骨架 | 风险 | 目标模板 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
-| 运营总览 | `/admin/overview` | A-layer frame + C data workbench + 关键摘要 + 中性数据表（本地迁移完成） | C 共享模板已接入；Gray 桌面验收待整批执行 | 运行态势首页 | C（本地完成） |
-| 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D |
-| 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
+| 运营总览 | `/admin/overview` | A-layer frame + C data workbench + 关键摘要 + 中性数据表（v0.8.12 Gray 已验收） | C 共享模板与桌面运行态验收完成 | 运行态势首页 | C（完成） |
+| 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D（active） |
+| 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D（active） |
 | Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（v0.8.10 Gray 已验收） | handler/API 由契约锁定；模型页助手上下文标签残余交由后续上下文重构 | 配置工作台 | B（完成） |
-| 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D |
+| 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D（active） |
 | RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（v0.8.10 Gray 已验收） | 目录、编辑器、长 Schema 和 Key 池密度在桌面视窗内保持受控 | 目录 + 编辑器 + Inspector | B（完成） |
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（v0.8.10 Gray 已验收） | 仅视觉收敛；冻结 API 数量由契约锁定；长机器名使用受控省略 | 实例治理工作台 | B（仅样式，完成） |
-| 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D |
-| 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
-| 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（本地迁移完成） | 任务行为契约已保留；Gray 桌面验收待整批执行 | 实时任务控制台 | C（本地完成） |
-| 数据分析与审计 | 用量、费用、渠道健康、审计 | C analytics workbench + 共享 context + 原筛选/KPI/图表/报告/七列表格（本地迁移完成） | 数据与刷新所有权契约已保留；Gray 桌面验收待整批执行 | 分析驾驶舱 | C（本地完成） |
-| 系统健康 | 健康、运行告警 | C realtime workbench + 告警优先 command + 五领域 + 拓扑/趋势/容量/时间线 + Inspector（本地迁移完成） | 可观测性语义契约已保留；Gray 桌面验收待整批执行 | 可观测性控制台 | C（本地完成） |
+| 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D（active） |
+| 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D（active） |
+| 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（v0.8.12 Gray 已验收） | 任务行为契约与单行命令布局均已验收 | 实时任务控制台 | C（完成） |
+| 数据分析与审计 | 用量、费用、渠道健康、审计 | C analytics workbench + 共享 context + 原筛选/KPI/图表/报告/七列表格（v0.8.12 Gray 已验收） | 数据、刷新所有权及桌面布局均已验收 | 分析驾驶舱 | C（完成） |
+| 系统健康 | 健康、运行告警 | C realtime workbench + 告警优先 command + 五领域 + 拓扑/趋势/容量/时间线 + Inspector（v0.8.12 Gray 已验收） | 可观测性语义、刷新与 Inspector 已验收 | 可观测性控制台 | C（完成） |
 | 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（v0.8.10 Gray 已验收） | revision、默认冲突决策、确认 apply 与内部/远端 token 边界均由契约锁定 | 配置工作台 | B（完成） |
 
 ## 页面模板审计要点
@@ -72,7 +72,7 @@
 
 - B 批六个路由已在 old-server Gray `v0.8.10` 以登录态 `1920x1080` 验收：Provider、模型目录、RunningHub、ComfyUI、运行参数、环境同步。唯一 H1、共享 context、主区滚动、侧栏并存、长文本和无横向溢出证据见 `../../../logbooks/validations/2026-07-29-admin-configuration-b-v0810-r1.md`。
 
-## C 批本地进度
+## C 批验收结果
 
 - `/admin/overview` 已接入 `AdminDataWorkbench mode="overview"`，保留 A-layer 摘要、三张中性数据表及 Shell loading/error 边界。
 - `/admin/runtime/tasks` 已接入 `mode="realtime"`、共享 context、明确标注的当前页摘要、原创建/筛选控制、八列表格空态及共享分页工具栏；创建、查询、恢复、取消、重试和完整日志行为未迁移所有权。
@@ -81,4 +81,5 @@
 - Task 3 本地证据：健康 workbench 与 view-model 共 2 项测试、健康可视化契约、authority state、agent environment readiness、Admin TypeScript/Vite 构建及 `git diff --check` 均通过。Authority 仅保留 Production 版本落后 Gray 的既有警告；本批未修改 Production。
 - `/admin/analytics/usage`、`costs`、`reliability`、`audit` 已接入 `mode="analytics"` 和共享 context。Usage 保留父级筛选与账号下钻；Cost 保留 CNY 请求、active-result guard 和历史价格不可回算提示；Reliability 保留 ETag、最后成功报告、stale 提示、默认关闭的五分钟刷新与页面可见性暂停；Audit 保留七列原始值。
 - Task 4 本地证据：analytics workbench 与 channel refresh 共 8 项测试、Cost API 测试、Usage/Audit/Cost 数据契约、Admin TypeScript/Vite 构建、视觉文档、组件注册及 `git diff --check` 均通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
-- 模型目录助手上下文仍显示 `providers` 标签，作为后续 Admin 助手上下文重构的非阻塞残余；ComfyUI 长机器名采用单行省略，不构成页面溢出。
+- `v0.8.11` 运行态通过但因 Tasks 创建命令换行、Reliability 刷新按钮使用白色默认样式而拒绝视觉验收；`v0.8.12` 修复后，七个登录态路由在 `1920x1080` 下全部通过唯一 H1/data template、滚动、溢出、助手并存、筛选/表格/图表和 Inspector 验收。证据见 `../../../logbooks/validations/2026-07-29-admin-realtime-data-c-v0812-r1.md`。
+- C 已完成，D 治理/内容工作台现为 active。模型目录助手上下文仍显示 `providers` 标签，Analytics 助手上下文标签仍需后续统一；ComfyUI 长机器名采用单行省略。这些上下文残余不改变当前路由内容或数据权威。

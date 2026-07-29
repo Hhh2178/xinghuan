@@ -249,6 +249,8 @@ Commit: `feat(admin): migrate analytics data workbenches`
 **Files:**
 - Create: `docs/logbooks/releases/gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`
 - Create: `docs/logbooks/validations/2026-07-29-admin-realtime-data-c-v0811-r1.md`
+- Create: `docs/logbooks/releases/gray/2026-07-29-admin-realtime-data-c-v0812-r1.md`
+- Create: `docs/logbooks/validations/2026-07-29-admin-realtime-data-c-v0812-r1.md`
 - Modify: `package.json`, `package-lock.json`
 - Modify: `ops/current/release-state.json`, `ops/current/gray.md`, `ops/README.md`
 - Modify: `docs/logbooks/releases/current-release-index.md`
@@ -262,7 +264,7 @@ Commit: `feat(admin): migrate analytics data workbenches`
 - Deploy only with `--target-profile=old-server --env=gray`.
 - Do not deploy Production, run billed canaries, or apply retention without separate authorization.
 
-- [ ] **Step 1: Run focused tests and all C behavior contracts**
+- [x] **Step 1: Run focused tests and all C behavior contracts**
 
 Run:
 
@@ -286,7 +288,7 @@ git diff --check
 
 Expected: all exit 0.
 
-- [ ] **Step 2: Run full tests, full workspace build, and all three Harness layers**
+- [x] **Step 2: Run full tests, full workspace build, and all three Harness layers**
 
 Run:
 
@@ -300,7 +302,7 @@ npm run harness:verify:release
 
 Expected: all exit 0; retain the known dependency-audit warning without a forced upgrade.
 
-- [ ] **Step 3: Prepare and deploy only old-server Gray**
+- [x] **Step 3: Prepare and deploy only old-server Gray**
 
 Create a clean release worktree from the completed C commit, verify `.githooks`, and use the authorized local SSH identity through `XINGHUAN_SSH_KEY` without recording its value. Run:
 
@@ -313,7 +315,9 @@ npm run release:gray:verify -- --target-profile=old-server --env=gray --ssh-key=
 
 Run migrations, remote preflight, request-chain observability, system observability, and environment-sync no-op smoke from the deployed release. Do not run Production, paid canaries, or retention apply.
 
-- [ ] **Step 4: Perform authenticated desktop acceptance**
+`v0.8.11` reached healthy runtime but failed visual acceptance. The two presentation defects were patched, and final accepted release `20260729-admin-realtime-data-c-v0812-r1` was prepared from `7422bf9`, deployed to the same Gray target, and verified as `0.8.12 / gray / enforced / ready`.
+
+- [x] **Step 4: Perform authenticated desktop acceptance**
 
 Inspect exactly once at `1920x1080`:
 
@@ -329,6 +333,6 @@ Inspect exactly once at `1920x1080`:
 
 Require one H1, one data template, no legacy focus card, no page/main horizontal overflow, `.admin-main` scroll ownership, no assistant overlap, stable filters/tables/charts/Inspector, and no nested cards.
 
-- [ ] **Step 5: Record evidence and activate D**
+- [x] **Step 5: Record evidence and activate D**
 
 Write release/validation evidence, update canonical state and current projections, mark C complete/D active in Program/Audit, run staged release/document/hotspot guards, commit release records, and synchronize the clean commits into the main worktree without touching the user's July files.
