@@ -1344,15 +1344,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         backdropFilter: 'blur(8px)',
         ...(isAccepting ? { borderColor: '#22c55e', boxShadow: '0 0 0 3px rgba(34,197,94,0.25)' } : null),
       }}
-      data-node-presentation="generation"
-      data-node-kind="image"
       {...dropProps}
     >
       <Handle type="target" position={Position.Left} className="!bg-amber-400 !border-0" />
       <Handle type="source" position={Position.Right} className="!bg-amber-400 !border-0" />
 
       {/* 头部 */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10" data-node-zone="header">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
         <div
           className="w-6 h-6 rounded flex items-center justify-center"
           style={{ background: 'rgba(245,158,11,.2)', color: '#fcd34d', boxShadow: 'inset 0 0 0 1px rgba(245,158,11,.45)' }}
@@ -1394,7 +1392,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       />
 
       {/* 配置区 */}
-      <div className="p-2.5 space-y-2" data-node-zone="content" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         {backendImageModels.length > 0 && (
           <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1761,7 +1759,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                         selected={!!selected}
                         isDark={isDark}
                         isPixel={isPixel}
-                        presentation="modern"
                         groups={comfyImageInputFields.length > 0 ? ['text', 'image'] : ['text']}
                         title="ComfyUI 输入素材 · 上游+本地"
                         imageUploadAction={
@@ -2345,7 +2342,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             selected={!!selected}
             isDark={isDark}
             isPixel={isPixel}
-            presentation="modern"
             groups={['text', 'image']}
             title={isMj ? '主参考图 · 上游+本地' : '参考图 · 上游+本地'}
             imageUploadAction={

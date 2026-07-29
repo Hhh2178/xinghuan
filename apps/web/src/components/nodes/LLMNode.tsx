@@ -765,12 +765,10 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         background: 'rgba(20,20,22,.92)',
         boxShadow: isAccepting ? '0 0 0 2px rgba(52,211,153,.45), 0 12px 30px rgba(52,211,153,.18)' : undefined,
       }}
-      data-node-presentation="generation"
-      data-node-kind="llm"
     >
 
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10" data-node-zone="header">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
         <div
           className="w-6 h-6 rounded flex items-center justify-center"
           style={{ background: 'rgba(16,185,129,.2)', color: '#6ee7b7', boxShadow: 'inset 0 0 0 1px rgba(16,185,129,.45)' }}
@@ -798,7 +796,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         )}
       </div>
 
-      <div className="p-2.5 space-y-2" data-node-zone="content" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
         {backendChatModels.length > 0 && (
           <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1185,7 +1183,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
           selected={!!selected}
           isDark={isDark}
           isPixel={isPixel}
-          presentation="modern"
           groups={['text', 'image', 'video']}
           title="上游素材 + 本地图片/视频"
           imageUploadAction={{

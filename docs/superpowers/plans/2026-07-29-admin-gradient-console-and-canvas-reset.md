@@ -147,7 +147,7 @@ git commit -m "fix(canvas): retain sidebar and remove presentation switch"
 - Produces existing generation-node root markup without `data-node-presentation="generation"`, `data-node-kind`, `data-node-zone`.
 - Preserves node payloads, local state, callbacks, material handling and task submission functions.
 
-- [ ] **Step 1: Write failing regression test**
+- [x] **Step 1: Write failing regression test**
 
 ```ts
 for (const source of [image, video, llm]) {
@@ -158,16 +158,16 @@ for (const source of [image, video, llm]) {
 expect(indexStyles).not.toContain("@import './node-modern.css';");
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- apps/web/src/components/nodes/GenerationNodes.presentation.test.ts`  
 Expected: FAIL because modern markers and stylesheet import exist.
 
-- [ ] **Step 3: Remove only presentation markers and stylesheet**
+- [x] **Step 3: Remove only presentation markers and stylesheet**
 
 Keep original node props, local state, callbacks, material selection and submission logic unchanged.
 
-- [ ] **Step 4: Run the focused test to verify it passes**
+- [x] **Step 4: Run the focused test to verify it passes**
 
 Run: `npm test -- apps/web/src/components/nodes/GenerationNodes.presentation.test.ts`  
 Expected: PASS.
