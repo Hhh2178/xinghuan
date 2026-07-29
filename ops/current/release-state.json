@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-29",
   "sourceBranch": "release/canvas-modern-gray-v084",
-  "sourceCommit": "4dae4a7e155d47c83be0abe981c72090458591c5",
+  "sourceCommit": "486a45659d590d01bc5e3c0f8bf79806bd6aeef1",
   "environments": {
     "gray": {
-      "version": "0.8.4",
-      "releaseId": "20260729-canvas-modern-presentation-v084-r1",
+      "version": "0.8.5",
+      "releaseId": "20260729-canvas-presentation-correction-v085-r1",
       "deployedAt": "2026-07-29",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-29", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-canvas-modern-presentation-v084-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-29-canvas-modern-presentation-v084-r1.md",
-      "rollbackReleaseId": "20260728-plato-output-recovery-v083-r22"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-canvas-presentation-correction-v085-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-29-canvas-presentation-correction-v085-r1.md",
+      "rollbackReleaseId": "20260729-canvas-modern-presentation-v084-r1"
     },
     "production": {
       "version": "0.8.3",

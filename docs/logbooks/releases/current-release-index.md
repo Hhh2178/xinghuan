@@ -24,17 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.4`
-- release：`20260729-canvas-modern-presentation-v084-r1`
+- 版本：`v0.8.5`
+- release：`20260729-canvas-presentation-correction-v085-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`默认旧视觉加用户可选现代画布视觉：可折叠悬浮侧栏、增强点阵、可读节点样式和稳定的 MiniMap/悬浮层；既有节点、素材和任务链路不变。`
-- 已验证：`当前工作树全量测试 220 文件通过、844 项通过、4 项跳过；完整构建、制品版本对齐、Gray API/Worker、内外状态和权限 readiness 均通过。浏览器视觉与真实业务体验待 Gray 用户验证。`
+- 部署内容：`修正现代画布：移除重复侧栏开合入口，既有图像/视频/LLM 节点自动接入新版视觉边界，顶栏样式切换器统一为紧凑分段控件；旧版默认和业务链路不变。`
+- 已验证：`全量测试 220 文件通过、845 项通过、4 项跳过；完整单端口制品构建、目标环境 API/Worker、内外状态和权限 readiness 均通过。浏览器视觉与真实业务体验待 Gray 用户验证。`
 - 部署时间：`2026-07-29`
-- 本轮制品源提交：`4dae4a7`
-- 本轮制品 SHA-256：`A9346633281B3A60506025B36007E9B45E27F85717DAC8A75503D67E06A95BAC`
+- 本轮制品源提交：`486a456`
+- 本轮制品 SHA-256：`9186046C89C57E0EBB68C7BD13301BE8B6047CD0745EFD135D3A444380EF8A26`
 - 本轮发布记录：
-  - `gray/2026-07-29-canvas-modern-presentation-v084-r1.md`
-  - `../validations/2026-07-29-canvas-modern-presentation-v084-r1.md`
+  - `gray/2026-07-29-canvas-presentation-correction-v085-r1.md`
+  - `../validations/2026-07-29-canvas-presentation-correction-v085-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
