@@ -48,7 +48,7 @@ import {
   workspaceForTab,
 } from "./admin-view-model";
 import { useAdminNavigation } from "./use-admin-navigation";
-import "./styles.css"; import "./styles/route-shell.css";
+import "./styles.css"; import "./styles/admin-foundation.css"; import "./styles/route-shell.css";
 
 void ConfirmActionDialog;
 void ManualModelDialog;
@@ -618,7 +618,7 @@ function AdminApp() {
           <header className="starlight-topbar admin-topbar">
             <div>
               <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>
-              <h1>{currentPageLabel}</h1>
+              <h1 id="admin-page-title">{currentPageLabel}</h1>
             </div>
             <div className="topbar-actions">
               <span className={`starlight-refresh-policy starlight-refresh-policy--${refreshPolicy.kind}`} title={refreshPolicy.description}>

@@ -1,0 +1,165 @@
+/* Shared Admin A visual foundation. Feature styles consume these semantic tokens. */
+:root {
+  --admin-bg-base: #06111b;
+  --admin-bg-elevated: #0a1626;
+  --admin-surface-1: #0d1a2a;
+  --admin-surface-2: #101f31;
+  --admin-surface-3: #14283d;
+  --admin-border-subtle: rgba(123, 174, 210, 0.18);
+  --admin-border-strong: rgba(84, 210, 222, 0.42);
+  --admin-brand-primary: #35e6da;
+  --admin-brand-secondary: #4f9cff;
+  --admin-gradient-brand: linear-gradient(135deg, #35e6da, #4f9cff);
+  --admin-gradient-shell: linear-gradient(135deg, rgba(15, 104, 129, 0.34), rgba(22, 62, 126, 0.18));
+  --admin-text-primary: #eef8ff;
+  --admin-text-secondary: #a7c0d4;
+  --admin-text-muted: #7894aa;
+  --admin-success: #3ddc97;
+  --admin-warning: #f2bd5d;
+  --admin-danger: #ff6b7d;
+  --admin-info: #62b9ff;
+
+  --starlight-bg: var(--admin-bg-base);
+  --starlight-panel: var(--admin-surface-1);
+  --starlight-panel-2: var(--admin-bg-elevated);
+  --starlight-border: var(--admin-border-subtle);
+  --starlight-cyan: var(--admin-brand-primary);
+  --starlight-cyan-dim: color-mix(in srgb, var(--admin-brand-primary) 16%, transparent);
+  --starlight-text: var(--admin-text-primary);
+  --starlight-muted: var(--admin-text-secondary);
+  --starlight-warning: var(--admin-warning);
+  --starlight-danger: var(--admin-danger);
+  --starlight-success: var(--admin-success);
+}
+
+.admin-workspace-frame {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.admin-summary-strip {
+  min-width: 0;
+  padding: 1px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 8px;
+  background: var(--admin-gradient-shell);
+}
+
+.admin-summary-strip__items {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  margin: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--admin-bg-elevated) 90%, transparent);
+}
+
+.admin-summary-strip__item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 94px;
+  padding: 16px;
+  border-left: 2px solid var(--admin-border-subtle);
+}
+
+.admin-summary-strip__item:first-child {
+  border-left-color: transparent;
+}
+
+.admin-summary-strip__item > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--admin-info);
+}
+
+.admin-summary-strip__item[data-tone="success"] > svg {
+  color: var(--admin-success);
+}
+
+.admin-summary-strip__item[data-tone="warning"] > svg {
+  color: var(--admin-warning);
+}
+
+.admin-summary-strip__item[data-tone="danger"] > svg {
+  color: var(--admin-danger);
+}
+
+.admin-summary-strip__copy,
+.admin-summary-strip__copy dd {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.admin-summary-strip__copy dt {
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.admin-summary-strip__copy strong {
+  color: var(--admin-text-primary);
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 32px;
+}
+
+.admin-summary-strip__copy small {
+  min-width: 0;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.admin-workspace-frame .data-panel {
+  border-color: var(--admin-border-subtle);
+  background: var(--admin-surface-1);
+}
+
+.admin-workspace-frame .data-panel header {
+  border-bottom-color: var(--admin-border-subtle);
+}
+
+.admin-workspace-frame .data-panel h2 {
+  color: var(--admin-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.admin-overview .split-grid {
+  gap: 16px;
+}
+
+.admin-overview .table-wrap td {
+  max-width: 34ch;
+  overflow-wrap: anywhere;
+}
+
+.admin-table-empty {
+  display: grid;
+  min-height: 96px;
+  place-items: center;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-workspace-frame *,
+  .admin-workspace-frame *::before,
+  .admin-workspace-frame *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

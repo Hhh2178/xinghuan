@@ -5,11 +5,14 @@ This registry defines admin visual components and their intended home. Some entr
 | Component | Current source | Target home | Purpose | Reuse rule |
 | --- | --- | --- | --- | --- |
 | `AdminPageShell` | `apps/admin/src/main.tsx` | `apps/admin/src/components/common/` | Sidebar, topbar, main area, assistant dock boundary | Use for all admin pages |
+| `AdminWorkspaceFrame` | `admin-common-components.tsx` + `styles/admin-foundation.css` | current shared source | Shell-owned H1 labelled page-content boundary | Wrap migrated page content; never render another page H1 or own data loading |
 | `AdminWorkspaceBand` | `admin-common-components.tsx` | `apps/admin/src/components/common/` | Page intro, focus block, actions, tabs | Use for feature workspaces |
+| `AdminSummaryStrip` | `admin-common-components.tsx` + `styles/admin-foundation.css` | current shared source | Compact key summary with text-backed semantic tones | Use once near the top of data/realtime templates; do not use gradient for status meaning |
 | `AdminDataPanel` | `AdminTable` / `.data-panel` | `apps/admin/src/components/common/` | Data cards and tables | Use before custom data panels |
 | `AdminTable` | `admin-common-components.tsx` | `apps/admin/src/components/common/` | Table wrapper and toolbar | Use for dense data lists |
 | `AdminFormPanel` | `FormPanel` | `apps/admin/src/components/common/` | Form card shell | Use for create/edit panels |
 | `AdminStatusPill` | `StatusPill` | `apps/admin/src/components/common/` | Status labels | Use for online/failed/running/success |
+| `AdminTableEmptyState` | `DataTable` / `.admin-table-empty` | current shared source | In-table empty result with preserved columns and panel geometry | Pass a page-specific `emptyLabel`; loading and route errors remain owned by the existing shell/loader |
 | `AdminConfirmDialog` | `admin-confirm-action-dialog.tsx` | `apps/admin/src/components/common/` | Dangerous or permission-sensitive confirmation | Required for destructive actions |
 | `AdminEmptyState` | scattered `.empty-state` | `apps/admin/src/components/common/` | Empty and no-permission states | Use for missing data or denied access |
 | `AdminToolbar` | scattered toolbar classes | `apps/admin/src/components/common/` | Filters, batch actions, refresh | Use above tables |

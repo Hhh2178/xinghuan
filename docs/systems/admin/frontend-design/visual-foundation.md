@@ -32,6 +32,8 @@
 | `--admin-surface-3` | `#14283d` | hover、可编辑子面与选中辅助面 |
 | `--admin-border-subtle` | `rgba(123, 174, 210, .18)` | 默认边界 |
 | `--admin-border-strong` | `rgba(84, 210, 222, .42)` | 当前选择与焦点边界 |
+| `--admin-brand-primary` | `#35e6da` | 兼容强调色与品牌渐变起点 |
+| `--admin-brand-secondary` | `#4f9cff` | 品牌渐变终点与次级品牌强调 |
 | `--admin-gradient-brand` | `linear-gradient(135deg, #35e6da, #4f9cff)` | 页头、当前导航、主操作高光 |
 | `--admin-gradient-shell` | `linear-gradient(135deg, rgba(15, 104, 129, .34), rgba(22, 62, 126, .18))` | Shell 与工作域页头 |
 | `--admin-text-primary` | `#eef8ff` | 主要文字 |
@@ -109,3 +111,4 @@
 | 2026-07-29 | 深海青—天蓝作为后台品牌渐变 | 匹配现有深色控制台和用户提供的目标图，同时不侵占语义状态色 |
 | 2026-07-29 | Foundation/Audit/Program 成为 Admin UI 改动强制入口 | 解决 Token、页面皮肤与组件规则分散导致的视觉漂移 |
 | 2026-07-29 | 先统一基础和模板，再逐工作域迁移 | 避免全量换肤中重复制造样式分叉和运行风险 |
+| 2026-07-29 | A 批用 `admin-foundation.css` 映射既有 Starlight Token | 保持旧页面兼容，同时让新迁移页面只消费 Foundation 语义 Token |

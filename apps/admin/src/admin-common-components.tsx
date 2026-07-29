@@ -2,12 +2,75 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { StatusTone } from "./admin-view-model";
 
-export function DataTable({ title, columns, rows }: { title: string; columns: string[]; rows: string[][] }) {
+export interface AdminSummaryItem {
+  label: string;
+  value: ReactNode;
+  detail: ReactNode;
+  icon: LucideIcon;
+  tone?: StatusTone;
+}
+
+export function AdminWorkspaceFrame({
+  className = "",
+  labelledBy = "admin-page-title",
+  children,
+}: {
+  className?: string;
+  labelledBy?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={className ? `admin-workspace-frame ${className}` : "admin-workspace-frame"}
+      aria-labelledby={labelledBy}
+    >
+      {children}
+    </section>
+  );
+}
+
+export function AdminSummaryStrip({
+  label,
+  items,
+}: {
+  label: string;
+  items: AdminSummaryItem[];
+}) {
+  return (
+    <section className="admin-summary-strip" aria-label={label}>
+      <dl className="admin-summary-strip__items">
+        {items.map(({ label: itemLabel, value, detail, icon: Icon, tone = "muted" }) => (
+          <div className="admin-summary-strip__item" data-tone={tone} key={itemLabel}>
+            <Icon aria-hidden="true" />
+            <div className="admin-summary-strip__copy">
+              <dt>{itemLabel}</dt>
+              <dd><strong>{value}</strong><small>{detail}</small></dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+export function DataTable({
+  title,
+  columns,
+  rows,
+  emptyLabel = "暂无数据",
+}: {
+  title: string;
+  columns: string[];
+  rows: ReactNode[][];
+  emptyLabel?: string;
+}) {
   return (
     <AdminTable title={title}>
       <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
       <tbody>
-        {rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}
+        {rows.length ? rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>) : (
+          <tr><td colSpan={columns.length}><div className="admin-table-empty">{emptyLabel}</div></td></tr>
+        )}
       </tbody>
     </AdminTable>
   );
