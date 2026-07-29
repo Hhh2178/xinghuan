@@ -35,6 +35,8 @@ const checks = [
   {
     name: "overview preserves metrics through the shared summary strip",
     pass:
+      panelSource.includes('from "./admin-data-workbench"') &&
+      panelSource.includes('<AdminDataWorkbench label="运营总览数据" mode="overview">') &&
       panelSource.includes("<AdminWorkspaceFrame") &&
       panelSource.includes("<AdminSummaryStrip") &&
       panelSource.includes('label="运营关键摘要"') &&

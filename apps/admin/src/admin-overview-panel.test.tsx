@@ -10,6 +10,8 @@ describe("Admin overview Foundation pilot", () => {
     );
 
     expect(markup).toContain('class="admin-workspace-frame admin-overview"');
+    expect(markup).toContain('data-admin-template="data"');
+    expect(markup).toContain('data-data-mode="overview"');
     expect(markup).toContain('aria-labelledby="admin-page-title"');
     expect(markup).toContain('aria-label="运营关键摘要"');
     expect(markup.match(/class="admin-summary-strip__item"/g)).toHaveLength(5);

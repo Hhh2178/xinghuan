@@ -78,3 +78,43 @@
 .admin-data-toolbar > * {
   min-width: 0;
 }
+
+.admin-task-controls {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.7fr) minmax(520px, 1.3fr);
+  align-items: start;
+  min-width: 0;
+  gap: 16px;
+}
+
+.admin-task-controls > * {
+  min-width: 0;
+}
+
+.admin-task-workbench .form-panel,
+.admin-task-workbench .data-panel {
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-surface-1);
+}
+
+.admin-task-workbench .task-monitor-log {
+  max-width: 38ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-task-pagination {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-task-pagination > span {
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.admin-overview > .admin-data-workbench {
+  align-content: start;
+}

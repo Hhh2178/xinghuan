@@ -1,5 +1,6 @@
 import { Activity, Boxes, KeyRound, ScrollText, Users } from "lucide-react";
 import { AdminSummaryStrip, AdminWorkspaceFrame, DataTable, StatusPill } from "./admin-common-components";
+import { AdminDataWorkbench } from "./admin-data-workbench";
 import { statusText, taskTone, type StatusTone } from "./admin-view-model";
 import type { ModelRecord, ProviderRecord, Summary, TaskRecord } from "./admin-types";
 
@@ -28,41 +29,43 @@ export function Overview({
   ];
   return (
     <AdminWorkspaceFrame className="admin-overview">
-      <AdminSummaryStrip label="运营关键摘要" items={cards} />
-      <div className="split-grid">
+      <AdminDataWorkbench label="运营总览数据" mode="overview">
+        <AdminSummaryStrip label="运营关键摘要" items={cards} />
+        <div className="split-grid">
+          <DataTable
+            title="Provider 状态"
+            columns={["名称", "Base URL", "状态", "Key"]}
+            rows={providers.map((item) => [
+              item.name,
+              item.baseUrl || "-",
+              <StatusPill tone={item.enabled ? "success" : "muted"}>{item.enabled ? "启用" : "停用"}</StatusPill>,
+              <StatusPill tone={item.hasApiKey ? "success" : "warning"}>{item.hasApiKey ? item.apiKeyPreview : "未配置"}</StatusPill>,
+            ])}
+            emptyLabel="暂无 Provider"
+          />
+          <DataTable
+            title="最近任务"
+            columns={["任务", "状态", "模型"]}
+            rows={tasks.slice(0, 6).map((item) => [
+              item.title,
+              <StatusPill tone={taskTone(item.status)}>{statusText(item.status)}</StatusPill>,
+              item.modelId || "-",
+            ])}
+            emptyLabel="暂无最近任务"
+          />
+        </div>
         <DataTable
-          title="Provider 状态"
-          columns={["名称", "Base URL", "状态", "Key"]}
-          rows={providers.map((item) => [
-            item.name,
-            item.baseUrl || "-",
+          title="模型目录"
+          columns={["Provider", "模型", "能力", "状态"]}
+          rows={models.map((item) => [
+            item.providerId,
+            item.displayName,
+            item.capability,
             <StatusPill tone={item.enabled ? "success" : "muted"}>{item.enabled ? "启用" : "停用"}</StatusPill>,
-            <StatusPill tone={item.hasApiKey ? "success" : "warning"}>{item.hasApiKey ? item.apiKeyPreview : "未配置"}</StatusPill>,
           ])}
-          emptyLabel="暂无 Provider"
+          emptyLabel="暂无模型"
         />
-        <DataTable
-          title="最近任务"
-          columns={["任务", "状态", "模型"]}
-          rows={tasks.slice(0, 6).map((item) => [
-            item.title,
-            <StatusPill tone={taskTone(item.status)}>{statusText(item.status)}</StatusPill>,
-            item.modelId || "-",
-          ])}
-          emptyLabel="暂无最近任务"
-        />
-      </div>
-      <DataTable
-        title="模型目录"
-        columns={["Provider", "模型", "能力", "状态"]}
-        rows={models.map((item) => [
-          item.providerId,
-          item.displayName,
-          item.capability,
-          <StatusPill tone={item.enabled ? "success" : "muted"}>{item.enabled ? "启用" : "停用"}</StatusPill>,
-        ])}
-        emptyLabel="暂无模型"
-      />
+      </AdminDataWorkbench>
     </AdminWorkspaceFrame>
   );
 }

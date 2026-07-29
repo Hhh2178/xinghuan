@@ -105,11 +105,11 @@ Commit: `feat(admin): add realtime data workbench foundation`
 - Keep `Overview` props and all three source tables unchanged.
 - Keep `TasksPanel` props, create-task payload, query updates, pagination, complete logs, output recovery, cancellation, and retry actions unchanged.
 
-- [ ] **Step 1: Write RED tests for template adoption and retained task behavior**
+- [x] **Step 1: Write RED tests for template adoption and retained task behavior**
 
 Assert overview uses `mode="overview"`. Render an empty `TasksPanel` and assert `mode="realtime"`, current-page summary labels, an eight-column empty row, create/filter controls, and pagination. Source assertions must continue to cover `/api/admin/tasks`, recover-output, cancel, retry, page/pageSize/filters, owner identity, and full log joining.
 
-- [ ] **Step 2: Run the focused tests and contracts to verify RED**
+- [x] **Step 2: Run the focused tests and contracts to verify RED**
 
 Run:
 
@@ -121,17 +121,17 @@ npm run verify:admin-task-panel-contract
 
 Expected: the new data-template assertions fail while existing behavior assertions pass.
 
-- [ ] **Step 3: Recompose overview and tasks**
+- [x] **Step 3: Recompose overview and tasks**
 
 Wrap overview in `AdminDataWorkbench` without adding a second identity header. Wrap tasks in `AdminDataWorkbench`, add `AdminDataContext`, label summary values as current-page values, keep the two existing `FormPanel` controls as sibling command/filter regions, and add an explicit empty table row with `colSpan={8}`. Do not move any state or callbacks.
 
-- [ ] **Step 4: Run focused tests, contracts, and Admin build**
+- [x] **Step 4: Run focused tests, contracts, and Admin build**
 
 Run the Task 2 RED commands again, then `npm --workspace @xinghuan/admin run build` and `git diff --check`.
 
 Expected: all exit 0.
 
-- [ ] **Step 5: Update Audit/daily evidence and commit**
+- [x] **Step 5: Update Audit/daily evidence and commit**
 
 Commit: `feat(admin): migrate overview and task data workbenches`
 

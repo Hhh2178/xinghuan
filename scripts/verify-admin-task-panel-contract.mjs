@@ -97,6 +97,11 @@ const checks = [
     name: "task panel uses shared admin components",
     pass:
       panelSource.includes('from "./admin-common-components"') &&
+      panelSource.includes('from "./admin-data-workbench"') &&
+      panelSource.includes('mode="realtime"') &&
+      panelSource.includes('label="当前页任务摘要"') &&
+      panelSource.includes('colSpan={8}') &&
+      panelSource.includes("当前筛选暂无任务") &&
       panelSource.includes("<FormPanel") &&
       panelSource.includes("<AdminTable"),
   },

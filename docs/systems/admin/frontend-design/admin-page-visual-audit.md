@@ -20,7 +20,7 @@
 
 | 工作域 | 稳定子视图 | 当前骨架 | 风险 | 目标模板 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
-| 运营总览 | `/admin/overview` | A-layer frame + 关键摘要 + 中性数据表（v0.8.9 Gray 已验收） | A 试点完成；趋势/告警下钻仍属于后续 C 批 | 运行态势首页 | C |
+| 运营总览 | `/admin/overview` | A-layer frame + C data workbench + 关键摘要 + 中性数据表（本地迁移完成） | C 共享模板已接入；Gray 桌面验收待整批执行 | 运行态势首页 | C（本地完成） |
 | 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D |
 | 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
 | Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（v0.8.10 Gray 已验收） | handler/API 由契约锁定；模型页助手上下文标签残余交由后续上下文重构 | 配置工作台 | B（完成） |
@@ -29,7 +29,7 @@
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（v0.8.10 Gray 已验收） | 仅视觉收敛；冻结 API 数量由契约锁定；长机器名使用受控省略 | 实例治理工作台 | B（仅样式，完成） |
 | 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D |
 | 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
-| 任务与运行 | 任务列表 | 实时列表 + 日志 | 失败、重试、日志、排队不分层 | 实时任务控制台 | C |
+| 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（本地迁移完成） | 任务行为契约已保留；Gray 桌面验收待整批执行 | 实时任务控制台 | C（本地完成） |
 | 数据分析与审计 | 用量、费用、渠道健康、审计 | KPI + 图表 + 表格 | 图表皮肤、筛选、表格语义不统一 | 分析驾驶舱 | C |
 | 系统健康 | 健康、运行告警 | health dashboard | 事故状态与配置操作混排 | 可观测性控制台 | C |
 | 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（v0.8.10 Gray 已验收） | revision、默认冲突决策、确认 apply 与内部/远端 token 边界均由契约锁定 | 配置工作台 | B（完成） |
@@ -71,4 +71,10 @@
 ## 已验收配置批次
 
 - B 批六个路由已在 old-server Gray `v0.8.10` 以登录态 `1920x1080` 验收：Provider、模型目录、RunningHub、ComfyUI、运行参数、环境同步。唯一 H1、共享 context、主区滚动、侧栏并存、长文本和无横向溢出证据见 `../../../logbooks/validations/2026-07-29-admin-configuration-b-v0810-r1.md`。
+
+## C 批本地进度
+
+- `/admin/overview` 已接入 `AdminDataWorkbench mode="overview"`，保留 A-layer 摘要、三张中性数据表及 Shell loading/error 边界。
+- `/admin/runtime/tasks` 已接入 `mode="realtime"`、共享 context、明确标注的当前页摘要、原创建/筛选控制、八列表格空态及共享分页工具栏；创建、查询、恢复、取消、重试和完整日志行为未迁移所有权。
+- Task 2 本地证据：3 个聚焦测试文件共 9 项通过，Overview/Tasks 契约通过，Admin TypeScript/Vite 构建和 `git diff --check` 通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
 - 模型目录助手上下文仍显示 `providers` 标签，作为后续 Admin 助手上下文重构的非阻塞残余；ComfyUI 长机器名采用单行省略，不构成页面溢出。
