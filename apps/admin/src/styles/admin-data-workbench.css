@@ -118,3 +118,28 @@
 .admin-overview > .admin-data-workbench {
   align-content: start;
 }
+
+.admin-data-workbench.admin-health-dashboard {
+  align-content: start;
+  color: var(--admin-text-primary);
+}
+
+.admin-data-workbench.admin-health-dashboard .admin-health-command,
+.admin-data-workbench.admin-health-dashboard .admin-health-panel {
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+}
+
+.admin-data-workbench.admin-health-dashboard .admin-health-panel {
+  background: var(--admin-surface-1);
+}
+
+.admin-data-workbench.admin-health-dashboard .admin-health-chart-grid {
+  align-items: stretch;
+}
+
+.admin-data-workbench.admin-health-dashboard .admin-health-trend-chart {
+  width: 100%;
+  height: 190px;
+  min-height: 190px;
+}

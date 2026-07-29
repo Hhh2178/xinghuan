@@ -149,11 +149,11 @@ Commit: `feat(admin): migrate overview and task data workbenches`
 - Keep `AdminSystemHealthDashboard` props and `useAdminSystemHealth` untouched.
 - Preserve range keys `1h/24h/7d/30d`, 15-second visible-tab refresh, abort behavior, alert ordering, five-domain truth states, failed/cancelled separation, topology, trend, capacity, timeline, and Inspector.
 
-- [ ] **Step 1: Write a RED render/source contract**
+- [x] **Step 1: Write a RED render/source contract**
 
 Assert the dashboard uses `AdminDataWorkbench mode="realtime"`, exposes its existing command/alert/domain/topology/chart/Inspector regions, and still contains no H1. Extend the script contract to require the shared template while retaining every current health-semantic assertion.
 
-- [ ] **Step 2: Run focused tests and the health contract to verify RED**
+- [x] **Step 2: Run focused tests and the health contract to verify RED**
 
 Run:
 
@@ -164,11 +164,11 @@ npm run verify:admin-system-health-visualization-contract
 
 Expected: only shared-template adoption fails.
 
-- [ ] **Step 3: Add the shared boundary and scoped visual convergence**
+- [x] **Step 3: Add the shared boundary and scoped visual convergence**
 
 Wrap the existing dashboard sequence in `AdminDataWorkbench`; retain the existing command as the anomaly-first local context because it owns live range/refresh actions. Scope new CSS to normalize spacing, borders, surface colors, and chart geometry without changing SVG math or click handlers.
 
-- [ ] **Step 4: Run focused tests, health/authority gates, and Admin build**
+- [x] **Step 4: Run focused tests, health/authority gates, and Admin build**
 
 Run the Task 3 RED commands again, then:
 
@@ -181,7 +181,7 @@ git diff --check
 
 Expected: all exit 0.
 
-- [ ] **Step 5: Update Audit/daily evidence and commit**
+- [x] **Step 5: Update Audit/daily evidence and commit**
 
 Commit: `feat(admin): migrate system health data workbench`
 

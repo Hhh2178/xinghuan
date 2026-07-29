@@ -31,7 +31,7 @@
 | 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
 | 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（本地迁移完成） | 任务行为契约已保留；Gray 桌面验收待整批执行 | 实时任务控制台 | C（本地完成） |
 | 数据分析与审计 | 用量、费用、渠道健康、审计 | KPI + 图表 + 表格 | 图表皮肤、筛选、表格语义不统一 | 分析驾驶舱 | C |
-| 系统健康 | 健康、运行告警 | health dashboard | 事故状态与配置操作混排 | 可观测性控制台 | C |
+| 系统健康 | 健康、运行告警 | C realtime workbench + 告警优先 command + 五领域 + 拓扑/趋势/容量/时间线 + Inspector（本地迁移完成） | 可观测性语义契约已保留；Gray 桌面验收待整批执行 | 可观测性控制台 | C（本地完成） |
 | 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（v0.8.10 Gray 已验收） | revision、默认冲突决策、确认 apply 与内部/远端 token 边界均由契约锁定 | 配置工作台 | B（完成） |
 
 ## 页面模板审计要点
@@ -77,4 +77,6 @@
 - `/admin/overview` 已接入 `AdminDataWorkbench mode="overview"`，保留 A-layer 摘要、三张中性数据表及 Shell loading/error 边界。
 - `/admin/runtime/tasks` 已接入 `mode="realtime"`、共享 context、明确标注的当前页摘要、原创建/筛选控制、八列表格空态及共享分页工具栏；创建、查询、恢复、取消、重试和完整日志行为未迁移所有权。
 - Task 2 本地证据：3 个聚焦测试文件共 9 项通过，Overview/Tasks 契约通过，Admin TypeScript/Vite 构建和 `git diff --check` 通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
+- `/admin/system/health` 已在不改动 `useAdminSystemHealth` 的前提下接入 `mode="realtime"`。告警排序、五领域真值、失败/取消分离、拓扑、趋势、容量、时间线、15 秒可见页刷新、AbortController 与 Inspector 继续由原组件和契约所有。
+- Task 3 本地证据：健康 workbench 与 view-model 共 2 项测试、健康可视化契约、authority state、agent environment readiness、Admin TypeScript/Vite 构建及 `git diff --check` 均通过。Authority 仅保留 Production 版本落后 Gray 的既有警告；本批未修改 Production。
 - 模型目录助手上下文仍显示 `providers` 标签，作为后续 Admin 助手上下文重构的非阻塞残余；ComfyUI 长机器名采用单行省略，不构成页面溢出。

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AdminDataWorkbench } from "../../admin-data-workbench.js";
 import { buildSystemHealthDomainCards, type AdminHealthDomainCardModel, type AdminHealthStatus } from "../../admin-system-health-view-model.js";
 import type { SystemInfo } from "../../admin-types.js";
 
@@ -56,7 +57,7 @@ export function AdminSystemHealthDashboard({
   const healthyDomains = cards.filter((card) => card.status === "healthy").length;
 
   return (
-    <section className="admin-health-dashboard" aria-label="系统健康可视化">
+    <AdminDataWorkbench label="系统健康数据" mode="realtime" className="admin-health-dashboard">
       <section className="admin-health-command" aria-label="当前运行态势">
         <header className="admin-health-command__header">
           <div className="admin-health-command__identity">
@@ -122,7 +123,7 @@ export function AdminSystemHealthDashboard({
       </div>
 
       {selectedDomain ? <ObservabilityInspector system={system} domain={selectedDomain} onClose={() => setSelectedDomain(null)} /> : null}
-    </section>
+    </AdminDataWorkbench>
   );
 }
 

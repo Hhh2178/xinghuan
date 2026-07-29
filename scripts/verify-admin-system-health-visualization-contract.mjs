@@ -22,6 +22,13 @@ const checks = [
       .every((name) => dashboardSource.includes(name)),
   },
   {
+    name: "dashboard adopts the shared realtime data workbench without an h1",
+    pass:
+      dashboardSource.includes('from "../../admin-data-workbench.js"') &&
+      dashboardSource.includes('<AdminDataWorkbench label="系统健康数据" mode="realtime"') &&
+      !dashboardSource.includes("<h1"),
+  },
+  {
     name: "task chart keeps failed and cancelled separate",
     pass: dashboardSource.includes('"failed" | "cancelled"') && dashboardSource.includes('points("failed")') && dashboardSource.includes('points("cancelled")'),
   },
