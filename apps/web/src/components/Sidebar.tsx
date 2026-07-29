@@ -378,7 +378,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`t8-sidebar t8-sidebar--modern w-64 flex flex-col border-r overflow-hidden ${
+      className={`t8-sidebar t8-sidebar--modern w-64 flex flex-col border-r ${
         isPixel
           ? 'px-panel'
           : isDark

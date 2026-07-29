@@ -15,10 +15,11 @@
 
 ## Pending Visual Acceptance
 
-- At `1920x1080`, confirm the top bar has no canvas presentation selector.
-- Confirm the sidebar rail expands on hover/focus and exposes only canvas list, create, node search, and AI supervision actions.
-- Confirm existing/new Image, Video, and LLM nodes use the original structure and width; dot grid, MiniMap, overlays, materials, and task actions remain usable.
-- Confirm Admin documentation entry points are reachable; Admin A-batch UI is not part of this release.
+- Browser acceptance was performed at `1920x1080` after a forced reload confirmed `v0.8.6` rather than the stale pre-deploy `v0.8.5` page.
+- Passed: the top bar no longer exposes the canvas presentation selector; the original React Flow background and MiniMap render; no modern node marker remains; the document is exactly `1920x1080` without page-level overflow.
+- Failed: hovering the 56px rail sets `data-expanded=true` and the 232px panel becomes interactive, but the parent `<aside>` still resolves to `overflow: hidden`, so the overlay panel is clipped outside the rail boundary and remains invisible.
+- Root cause: `Sidebar.tsx` retains the `overflow-hidden` utility, which overrides the focused `canvas-modern.css` `overflow: visible` rule in the built CSS order.
+- Result: `v0.8.6` runtime verification remains valid, but browser visual acceptance is rejected. A tested `v0.8.7` Gray patch is required before closing the canvas rollback.
 
 ## Not Performed
 

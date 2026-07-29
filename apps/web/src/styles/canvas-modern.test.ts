@@ -9,6 +9,11 @@ const sidebarSource = readFileSync(new URL('../components/Sidebar.tsx', import.m
 
 describe('modern canvas shell stylesheet boundary', () => {
   it('keeps the sidebar as an unconditional overlay rail without a presentation switch', () => {
+    const sidebarOpeningTag = sidebarSource.slice(
+      sidebarSource.indexOf('<aside'),
+      sidebarSource.indexOf('>', sidebarSource.indexOf('<aside')) + 1,
+    );
+
     expect(indexStyles).toContain("@import './canvas-modern.css';");
     expect(appSource).not.toContain('CanvasPresentationToggle');
     expect(appSource).not.toContain('data-canvas-presentation');
@@ -21,6 +26,8 @@ describe('modern canvas shell stylesheet boundary', () => {
     expect(modernStyles).toContain('width: 56px');
     expect(modernStyles).toContain('position: absolute');
     expect(modernStyles).toContain('width: 232px');
+    expect(modernStyles).toContain('overflow: visible');
+    expect(sidebarOpeningTag).not.toContain('overflow-hidden');
     expect(modernStyles).not.toMatch(/(^|\n)\s*(body|html|\*)\s*\{/);
   });
 
