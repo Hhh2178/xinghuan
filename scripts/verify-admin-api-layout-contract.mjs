@@ -2,10 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const stylesSource = readFileSync(join(root, "apps", "admin", "src", "styles.css"), "utf8");
-const modelEditorSource = readFileSync(join(root, "apps", "admin", "src", "admin-model-editor.tsx"), "utf8");
-const apiSettingsSource = readFileSync(join(root, "apps", "admin", "src", "admin-api-settings-panel.tsx"), "utf8");
-const apiServerSource = readFileSync(join(root, "apps", "api", "src", "server.ts"), "utf8");
+const readSource = (...segments) =>
+  readFileSync(join(root, ...segments), "utf8").replace(/\r\n/g, "\n");
+
+const stylesSource = readSource("apps", "admin", "src", "styles.css");
+const modelEditorSource = readSource("apps", "admin", "src", "admin-model-editor.tsx");
+const apiSettingsSource = readSource("apps", "admin", "src", "admin-api-settings-panel.tsx");
+const apiServerSource = readSource("apps", "api", "src", "server.ts");
 
 function cssBlock(selector, requiredText = "") {
   let index = -1;
@@ -24,6 +27,10 @@ function cssBlock(selector, requiredText = "") {
 }
 
 const providerRailBlock = cssBlock(".provider-rail", "display: grid");
+const providerOrderRowBlock = cssBlock(".provider-order-row", "display: grid");
+const providerItemBlock = cssBlock(".provider-item", "display: grid");
+const providerKeyBlock = cssBlock(".provider-key", "display: grid");
+const providerKeyIconBlock = cssBlock(".provider-key svg", "width: 17px");
 
 const readAdminDbSource = apiServerSource.slice(
   apiServerSource.indexOf("async function readAdminDb()"),
@@ -56,10 +63,12 @@ const checks = [
     pass: stylesSource.includes(".users-create-column {\n  position: sticky;\n  top: var(--admin-sticky-offset);"),
   },
   {
-    name: "api settings exposes styled status chip",
+    name: "api settings exposes shared semantic status context",
     pass:
-      apiSettingsSource.includes("api-settings-status") &&
-      apiSettingsSource.includes("api-settings-inline-status") &&
+      apiSettingsSource.includes("<AdminConfigurationContext") &&
+      apiSettingsSource.includes("status={{") &&
+      apiSettingsSource.includes('label: busy ? "处理中" : status') &&
+      !apiSettingsSource.includes("api-settings-inline-status") &&
       !apiSettingsSource.includes("api-settings-section-head"),
   },
   {
@@ -133,10 +142,12 @@ const checks = [
   {
     name: "provider list status icon keeps fixed dimensions",
     pass:
-      stylesSource.includes("grid-template-columns: 36px minmax(0, 1fr) max-content;") &&
-      stylesSource.includes(".provider-order-row {\n  display: grid;") &&
-      stylesSource.includes(".provider-key {\n  display: grid;\n  flex: 0 0 34px;") &&
-      stylesSource.includes(".provider-item em {\n  flex: 0 0 auto;"),
+      providerOrderRowBlock.includes("grid-template-columns: minmax(0, 1fr) 28px;") &&
+      providerItemBlock.includes("grid-template-columns: 36px minmax(0, 1fr);") &&
+      providerKeyBlock.includes("width: 34px;") &&
+      providerKeyBlock.includes("height: 34px;") &&
+      providerKeyIconBlock.includes("width: 17px;") &&
+      providerKeyIconBlock.includes("height: 17px;"),
   },
 ];
 

@@ -10,6 +10,7 @@ const server = readFileSync(join(root, "apps/api/src/server.ts"), "utf8");
 const panel = readFileSync(join(root, "apps/admin/src/admin-environment-sync-panel.tsx"), "utf8");
 const shared = readFileSync(join(root, "packages/shared/src/environment-sync.ts"), "utf8");
 const styles = readFileSync(join(root, "apps/admin/src/styles.css"), "utf8");
+const workbenchStyles = readFileSync(join(root, "apps/admin/src/styles/admin-configuration-workbench.css"), "utf8");
 
 assert(types.includes("EnvironmentSyncTarget"));
 assert(types.includes("EnvironmentSyncPreviewResponse"));
@@ -32,7 +33,10 @@ assert(panel.includes("environment-sync-rail"));
 assert(panel.includes("environment-sync-table-area"));
 assert(panel.includes("environment-sync-table-scroll"));
 assert(panel.includes("environment-sync-section-tabs"));
-assert(panel.includes("AdminWorkspaceBand"));
+assert(panel.includes("AdminConfigurationWorkbench"));
+assert(panel.includes("AdminConfigurationContext"));
+assert(panel.includes("AdminConfigurationLayout"));
+assert(!panel.includes("AdminWorkspaceBand"));
 assert(!panel.includes("environment-sync-sidebar"));
 assert(!panel.includes("environment-sync-hero"));
 assert(main.includes("admin-workspace--with-assistant"));
@@ -44,5 +48,6 @@ assert(styles.includes(".environment-sync-table-area {"));
 assert(styles.includes(".environment-sync-table-scroll {"));
 assert(styles.includes(".environment-sync-section-tabs {"));
 assert(styles.includes(".admin-workspace-band {"));
+assert(workbenchStyles.includes(".environment-sync-page .admin-configuration-layout__rail"));
 
 console.log(JSON.stringify({ ok: true }, null, 2));
