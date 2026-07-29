@@ -8,7 +8,7 @@
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
 - 当前补修：`画布默认保持旧视觉，用户可选择现代视觉；现代模式包含可折叠悬浮侧栏、增强点阵、节点可读性提升和稳定的 MiniMap/悬浮层层级，同时保留既有节点、素材和任务链路`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
-- Production 当前 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- Production 当前 release：`20260728-plato-output-recovery-v083-r22`
 - 本轮制品源提交：`4dae4a7`
 - 本轮制品 SHA-256：`A9346633281B3A60506025B36007E9B45E27F85717DAC8A75503D67E06A95BAC`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
@@ -137,9 +137,9 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260728-artifact-materialization-idempotency-v083-r21`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260728-plato-output-recovery-v083-r22`
 - deploy 前上一版锚点：
-  - `/opt/apps/xinghuan-canvas-next/releases/20260728-artifact-materialization-idempotency-v083-r21`
+  - `/opt/apps/xinghuan-canvas-next/releases/20260728-plato-output-recovery-v083-r22`
 - 回滚后需重启：
   - `xinghuan-canvas-next.service`
   - `xinghuan-canvas-next-worker.service`
