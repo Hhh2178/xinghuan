@@ -166,7 +166,7 @@ Commit: `feat(admin): migrate provider configuration workbench`
 - Produces patch release `0.8.10`; the governed release command determines the archive identity.
 - Does not deploy Production, run billed canaries, or apply retention without separate authorization.
 
-- [ ] **Step 1: Run focused tests, full tests, Admin build, release harness, document contracts, hotspot gates, and staged guards**
-- [ ] **Step 2: Prepare and deploy only with `--target-profile=old-server --env=gray`**
-- [ ] **Step 3: Verify API/Worker, public/internal version and environment, permission readiness, and authenticated `1920x1080` pages for Provider/model, RH, ComfyUI, runtime settings, and environment sync**
-- [ ] **Step 4: Record evidence, update canonical state, mark B complete/C active, and commit release records**
+- [x] **Step 1: Run focused tests, full tests, Admin build, release harness, document contracts, hotspot gates, and staged guards**
+- [x] **Step 2: Prepare and deploy only with `--target-profile=old-server --env=gray`**
+- [x] **Step 3: Verify API/Worker, public/internal version and environment, permission readiness, and authenticated `1920x1080` pages for Provider/model, RH, ComfyUI, runtime settings, and environment sync**
+- [x] **Step 4: Record evidence, update canonical state, mark B complete/C active, and commit release records**

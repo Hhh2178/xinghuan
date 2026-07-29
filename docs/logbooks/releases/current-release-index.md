@@ -24,16 +24,18 @@
 
 ### Gray
 
-- 版本：`v0.8.9`
-- release：`20260729-admin-foundation-a-v089-r1`
+- 版本：`v0.8.10`
+- release：`20260729-admin-configuration-b-v0810-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Admin Foundation Token 映射、共享 frame/summary/table empty state、overview 语义状态与唯一页面身份区。`
-- 已验证：`全量测试 218 文件通过、1 文件跳过、844 项通过、4 项跳过；完整单端口制品构建、API/Worker、内外状态、权限 readiness 和 1920x1080 登录态 overview 验收均通过。`
+- 部署内容：`Admin B 共享配置工作台；Provider/模型、RH、ComfyUI 仅样式、运行参数与环境同步的统一 context、rail/editor 和状态层级。`
+- 已验证：`全量测试 223 文件通过、1 文件跳过、854 项通过、4 项跳过；完整工作区构建、API/Worker、内外状态、权限 readiness、远端运维 smoke 和 1920x1080 登录态六页验收均通过。`
 - 部署时间：`2026-07-29`
-- 本轮制品源提交：`97309b0524208913c73936a27cdbdd497e1d55c8`
-- 本轮制品 SHA-256：`68E5D127955780B6A3DD984E501175B0AF8B52B334D41FC7051B794F33E346F8`
+- 本轮制品源提交：`266e0f03abecf92a68abab11199bab49e3bca154`
+- 本轮制品 SHA-256：`1048DF04AC131E9887D94103B4407BE9BE3155137C13424D8B3D86567173C7F2`
 - 本轮发布记录：
-  - `gray/2026-07-29-admin-foundation-a-v089-r1.md`
+  - `gray/2026-07-29-admin-configuration-b-v0810-r1.md`
+  - `../validations/2026-07-29-admin-configuration-b-v0810-r1.md`
+  - `gray/2026-07-29-admin-foundation-a-v089-r1.md`（当前回滚锚点）
   - `../validations/2026-07-29-admin-foundation-a-v089-r1.md`
   - `gray/2026-07-29-admin-foundation-a-v088-r1.md`（运行态通过、视觉拒绝）
   - `../validations/2026-07-29-admin-foundation-a-v088-r1.md`

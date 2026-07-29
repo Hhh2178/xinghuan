@@ -23,16 +23,16 @@
 | 运营总览 | `/admin/overview` | A-layer frame + 关键摘要 + 中性数据表（v0.8.9 Gray 已验收） | A 试点完成；趋势/告警下钻仍属于后续 C 批 | 运行态势首页 | C |
 | 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D |
 | 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
-| Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（B 本地已迁移） | handler/API 已由契约锁定；仍待完整 B 批 Gray 视觉验收 | 配置工作台 | B |
+| Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（v0.8.10 Gray 已验收） | handler/API 由契约锁定；模型页助手上下文标签残余交由后续上下文重构 | 配置工作台 | B（完成） |
 | 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D |
-| RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（B 本地已迁移） | 目录与编辑器已收敛；完整 B 批 Gray 仍需验证长 Schema、结果和 Key 池密度 | 目录 + 编辑器 + Inspector | B |
-| ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（B 本地已迁移） | 仅视觉收敛；冻结 API 数量由契约锁定，仍待完整 B 批 Gray 验收 | 实例治理工作台 | B（仅样式） |
+| RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（v0.8.10 Gray 已验收） | 目录、编辑器、长 Schema 和 Key 池密度在桌面视窗内保持受控 | 目录 + 编辑器 + Inspector | B（完成） |
+| ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（v0.8.10 Gray 已验收） | 仅视觉收敛；冻结 API 数量由契约锁定；长机器名使用受控省略 | 实例治理工作台 | B（仅样式，完成） |
 | 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D |
 | 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
 | 任务与运行 | 任务列表 | 实时列表 + 日志 | 失败、重试、日志、排队不分层 | 实时任务控制台 | C |
 | 数据分析与审计 | 用量、费用、渠道健康、审计 | KPI + 图表 + 表格 | 图表皮肤、筛选、表格语义不统一 | 分析驾驶舱 | C |
 | 系统健康 | 健康、运行告警 | health dashboard | 事故状态与配置操作混排 | 可观测性控制台 | C |
-| 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（B 本地已迁移） | revision、默认冲突决策与确认 apply 已由契约锁定；仍待完整 B 批 Gray 验收 | 配置工作台 | B |
+| 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（v0.8.10 Gray 已验收） | revision、默认冲突决策、确认 apply 与内部/远端 token 边界均由契约锁定 | 配置工作台 | B（完成） |
 
 ## 页面模板审计要点
 
@@ -67,3 +67,8 @@
 ## 已验收试点
 
 - `/admin/overview`：复用 `AdminWorkspaceFrame`、`AdminSummaryStrip`、`DataTable`、`StatusPill`；唯一 H1、summary 首屏、中性表格、长文本、空态、Shell loading/error 与主区独立滚动已在 `../../../logbooks/validations/2026-07-29-admin-foundation-a-v089-r1.md` 记录。A-layer 试点通过不等于 C 批趋势、告警与下钻能力完成。
+
+## 已验收配置批次
+
+- B 批六个路由已在 old-server Gray `v0.8.10` 以登录态 `1920x1080` 验收：Provider、模型目录、RunningHub、ComfyUI、运行参数、环境同步。唯一 H1、共享 context、主区滚动、侧栏并存、长文本和无横向溢出证据见 `../../../logbooks/validations/2026-07-29-admin-configuration-b-v0810-r1.md`。
+- 模型目录助手上下文仍显示 `providers` 标签，作为后续 Admin 助手上下文重构的非阻塞残余；ComfyUI 长机器名采用单行省略，不构成页面溢出。

@@ -28,15 +28,15 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.9`
-  - release：`20260729-admin-foundation-a-v089-r1`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态和登录态 1920x1080 Admin overview 视觉验收通过`
-  - 当前补修：`Admin Foundation A 共享视觉骨架与 overview 只读试点已落地；唯一页面身份区替代了 v0.8.8 的重复身份层，任务链路不变`
+  - 版本：`v0.8.10`
+  - release：`20260729-admin-configuration-b-v0810-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态、远端运维 smoke 和登录态 1920x1080 Admin B 六页视觉验收通过`
+  - 当前补修：`Provider/模型、RH、ComfyUI 仅样式、运行参数与环境同步已收敛为共享配置工作台，数据与写入行为不变`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`97309b0524208913c73936a27cdbdd497e1d55c8`
-  - 本轮制品 SHA-256：`68E5D127955780B6A3DD984E501175B0AF8B52B334D41FC7051B794F33E346F8`
-  - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
-  - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
+  - 本轮制品源提交：`266e0f03abecf92a68abab11199bab49e3bca154`
+  - 本轮制品 SHA-256：`1048DF04AC131E9887D94103B4407BE9BE3155137C13424D8B3D86567173C7F2`
+  - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮仅做既有页面视觉收敛`
+  - 本地待补修：`模型目录助手上下文仍显示 providers 标签；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）

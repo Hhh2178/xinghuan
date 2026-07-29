@@ -18,8 +18,9 @@
 
 - Foundation: complete. Old-server Gray `v0.8.7` runtime, permission readiness, and authenticated `1920x1080` canvas visual acceptance passed on 2026-07-29.
 - A: complete. Old-server Gray `v0.8.9` passed runtime, permission readiness, and authenticated `1920x1080` acceptance; `v0.8.8` was rejected for repeated page identity before the patch.
-- B: active. Next scope is Provider/model, RH, ComfyUI visual-only, runtime settings, and environment sync under the configuration-workbench template; guarded dirty/conflict semantics remain authoritative.
-- C/D: not started under this program. They remain required after B and must use the same test, screenshot, Gray, Audit, and logbook gates.
+- B: complete. Old-server Gray `v0.8.10` passed runtime, permission readiness, all six authenticated `1920x1080` configuration-route acceptances, and the independent environment-sync permission review.
+- C: active. Next scope is overview, tasks, health, analytics, and audit under realtime/data templates with anomaly-first hierarchy and stable refresh behavior.
+- D: not started. Governance/content workspaces remain required after C and must use the same test, screenshot, Gray, Audit, and logbook gates.
 
 ## 每批固定步骤
 

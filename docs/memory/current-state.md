@@ -2,13 +2,13 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.8.9`（旧服务器 Admin Foundation A 与 overview 试点灰度）
+- 当前灰度版本：`v0.8.10`（旧服务器 Admin Configuration B 灰度）
 - 当前生产版本：`v0.8.3`（用户授权后由 Gray 同制品正式晋级）
-- 当前灰度 release：`20260729-admin-foundation-a-v089-r1`
+- 当前灰度 release：`20260729-admin-configuration-b-v0810-r1`
 - 当前生产 release：`20260728-plato-output-recovery-v083-r22`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：旧服务器 Gray 已部署 v0.8.9。Admin Foundation A、唯一页面身份区和 `/admin/overview` 只读试点通过 API/Worker、内外状态、权限 readiness 与登录态 1920x1080 验收；v0.8.8 因身份区重复被视觉拒绝并已由补丁替代。
-- 当前 Admin 视觉重构：Foundation 与 A 批已完成；B 批配置工作台（Provider/模型、RH、ComfyUI 仅样式、运行参数、环境同步）成为下一执行范围，随后继续 C/D。
+- 最新完成：旧服务器 Gray 已部署 v0.8.10。Admin B 配置工作台六个路由通过 API/Worker、内外状态、权限 readiness、远端运维 smoke 与登录态 1920x1080 验收；Provider/模型、RH、ComfyUI 仅样式、运行参数和环境同步行为边界保持不变。
+- 当前 Admin 视觉重构：Foundation、A、B 已完成；C 批概览、任务、健康、分析和审计实时/数据工作台已激活，完成后继续 D 批治理/内容工作台。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。
@@ -43,7 +43,7 @@
   - 组内执行按当前连线拓扑串行
   - 多轮执行时每轮都会重新读取当前画布拓扑
 - 当前已完成的最新运行态治理：
-- Gray 当前运行 `v0.8.3 / enforced`，release 为 `20260728-plato-output-recovery-v083-r22`。
+- Gray 当前运行 `v0.8.10 / enforced`，release 为 `20260729-admin-configuration-b-v0810-r1`；回滚锚点为 `20260729-admin-foundation-a-v089-r1`。
 - Production 当前运行 `v0.8.3 / enforced`，release 为 `20260728-plato-output-recovery-v083-r22`；回滚锚点为 `20260721-admin-health-visual-resource-domain-prod-r1-v0717`。
 - Production Agent Runtime 已完成 bootstrap 与真实请求修复；生成回传链路的 P0/P1/P2 结论见 `../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`。
   - Admin 十域导航、稳定深链、按域加载、动态分包、错误边界和统一动效已完成；Gray API、Worker、内外网状态和权限 readiness 严格验证通过
