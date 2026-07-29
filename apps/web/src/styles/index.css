@@ -5,6 +5,7 @@
 @import './canvas-shell.css';
 @import './node-chrome.css';
 @import './canvas-modern.css';
+@import './node-modern.css';
 
 @tailwind base;
 @tailwind components;

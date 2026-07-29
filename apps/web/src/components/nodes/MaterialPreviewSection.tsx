@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import MaterialThumbnail from './MaterialThumbnail';
 import type { Material } from './useUpstreamMaterials';
+import type { CanvasPresentation } from '../../stores/canvasPresentation';
 
 /**
  * MaterialPreviewSection - 上游素材聚合预览区
@@ -61,6 +62,8 @@ interface Props {
   imageUploadAction?: UploadAction;
   /** 自定义头部标题, 默认「上游素材」 */
   title?: string;
+  /** 仅提供新版画布的视觉钩子，不改变素材合并或交互语义。 */
+  presentation?: CanvasPresentation;
 }
 
 const ICON_MAP = {
@@ -92,6 +95,7 @@ const MaterialPreviewSection = ({
   groups = ['text', 'image', 'video', 'audio'],
   imageUploadAction,
   title = '上游素材',
+  presentation = 'legacy',
 }: Props) => {
   const total = texts.length + images.length + videos.length + audios.length;
   const sortScopeRef = useRef(`material-preview-${Math.random().toString(36).slice(2)}`);
@@ -282,6 +286,7 @@ const MaterialPreviewSection = ({
   return (
     <div
       className="space-y-1.5"
+      data-materials-presentation={presentation}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* ============== 标题头 (仅作为分组标识 + 数量徽章, 不再可折叠) ============== */}

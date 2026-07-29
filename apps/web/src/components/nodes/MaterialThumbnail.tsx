@@ -123,6 +123,7 @@ const MaterialThumbnail = ({
     <div
       style={wrapStyle}
       className="nodrag nopan"
+      data-material-origin={material.origin}
       data-material-preview-section={sortScope || undefined}
       data-material-preview-thumb-id={sortScope ? material.id : undefined}
       onPointerDownCapture={stopFlowPointer}
