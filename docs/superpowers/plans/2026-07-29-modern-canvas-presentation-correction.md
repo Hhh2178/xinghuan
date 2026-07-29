@@ -118,7 +118,7 @@ Expected: PASS。
 **Files:**
 - Modify: `docs/logbooks/validations/2026-07-29-modern-canvas-presentation-correction.md`
 
-- [ ] **Step 1: Run focused and workspace verification**
+- [x] **Step 1: Run focused and workspace verification**
 
 Run:
 
@@ -132,10 +132,10 @@ npm --workspace @xinghuan/web run build
 
 在 1920×1080 检查新旧切换、已有图像/视频/LLM 节点、长模型名、上游素材和右下小地图；记录实际结果，不记录凭据。
 
-- [ ] **Step 3: Commit validation evidence**
+- [x] **Step 3: Commit validation evidence**
 
 `git commit -m "docs(canvas): record modern presentation correction validation"`
 
-- [ ] **Step 4: Prepare gray release**
+- [x] **Step 4: Prepare gray release**
 
 仅在测试、构建和视觉验收通过后，遵循项目 release runbook 递增当前 Gray patch 版本并推送旧服务器 Gray；执行 release preflight 和目标环境 health check。
