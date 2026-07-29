@@ -122,3 +122,11 @@
   border-radius: 0;
   background: transparent;
 }
+
+.admin-comfyui-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}

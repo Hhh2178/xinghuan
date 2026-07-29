@@ -1,7 +1,8 @@
-import { Activity, Plus, RefreshCw, Settings, Zap } from "lucide-react";
+import { Activity, Boxes, Plus, RefreshCw, Settings, Workflow, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminComfyuiApi } from "./admin-api-client";
-import { AdminWorkspaceBand } from "./admin-common-components";
+import { AdminSummaryStrip, StatusPill } from "./admin-common-components";
+import { AdminConfigurationContext, AdminConfigurationWorkbench } from "./admin-configuration-workbench";
 import type { ComfyuiConnectionTestResult, ComfyuiInstanceHealth, ComfyuiInstanceRecord } from "./admin-types";
 
 interface ComfyuiOverviewProps {
@@ -23,19 +24,6 @@ function formatVRAM(vramFree?: number, vramTotal?: number): string {
   const freeGB = ((vramFree || 0) / 1024 / 1024 / 1024).toFixed(1);
   const totalGB = (vramTotal / 1024 / 1024 / 1024).toFixed(1);
   return `${freeGB}GB / ${totalGB}GB`;
-}
-
-function getStatusColor(health: ComfyuiInstanceHealth): string {
-  switch (health) {
-    case "online":
-      return "var(--starlight-success)";
-    case "degraded":
-      return "var(--starlight-warning)";
-    case "offline":
-      return "var(--starlight-danger)";
-    default:
-      return "var(--starlight-muted)";
-  }
 }
 
 function getStatusText(health: ComfyuiInstanceHealth): string {
@@ -115,16 +103,16 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
   const offlineCount = instances.filter((item) => resolveDisplayHealth(item, testResults.get(item.id)) === "offline").length;
 
   return (
-    <section className="admin-comfyui-overview-page">
-      <AdminWorkspaceBand
-        className="admin-comfyui-band"
-        kicker="ComfyUI Instance Pool"
-        title="ComfyUI 实例池管理"
-        description="管理多台 ComfyUI 机器、测试连通性、查看实时状态、配置工作流。"
-        currentLabel={`${instances.length} 台机器`}
-        currentDescription={`${onlineCount} 在线 · ${offlineCount} 离线 · ${sharedWorkflows} 个共享工作流`}
-        actions={
-          <div className="admin-comfyui-band__actions">
+    <AdminConfigurationWorkbench label="ComfyUI 实例配置" className="admin-comfyui-overview-page">
+      <AdminConfigurationContext
+        eyebrow="实例池"
+        title={`${instances.length} 台 ComfyUI 机器`}
+        description={`${onlineCount} 在线 · ${offlineCount} 离线 · ${sharedWorkflows} 个共享工作流`}
+        status={{
+          label: loading ? "刷新中" : message ? "需要处理" : "实例状态已载入",
+          tone: loading ? "warning" : message ? "danger" : "success",
+        }}
+        actions={<div className="admin-comfyui-band__actions">
             <button type="button" onClick={() => void loadInstances()} disabled={loading}>
               <RefreshCw aria-hidden="true" />
               刷新
@@ -133,31 +121,20 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
               <Plus aria-hidden="true" />
               新增实例
             </button>
-          </div>
-        }
-        footer={null}
+          </div>}
       />
 
       {message ? <div className="error-banner">{message}</div> : null}
 
-      <div className="admin-comfyui-metrics">
-        <div className="metric-card">
-          <div className="metric-card__label">总实例数</div>
-          <div className="metric-card__value">{instances.length}</div>
-        </div>
-        <div className="metric-card metric-card--success">
-          <div className="metric-card__label">在线</div>
-          <div className="metric-card__value">{onlineCount}</div>
-        </div>
-        <div className="metric-card metric-card--danger">
-          <div className="metric-card__label">离线</div>
-          <div className="metric-card__value">{offlineCount}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-card__label">共享工作流</div>
-          <div className="metric-card__value">{sharedWorkflows}</div>
-        </div>
-      </div>
+      <AdminSummaryStrip
+        label="ComfyUI 实例摘要"
+        items={[
+          { label: "总实例数", value: instances.length, detail: "已登记机器", icon: Boxes },
+          { label: "在线", value: onlineCount, detail: "可连接实例", icon: Zap, tone: "success" },
+          { label: "离线", value: offlineCount, detail: "需要检查", icon: Activity, tone: offlineCount ? "danger" : "muted" },
+          { label: "共享工作流", value: sharedWorkflows, detail: "已发布目录", icon: Workflow },
+        ]}
+      />
 
       <div className="admin-comfyui-instance-grid">
         {instances.length === 0 && !loading ? (
@@ -181,9 +158,10 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
             <article key={instance.id} className="admin-comfyui-instance-card" data-health={effectiveHealth}>
               <header className="admin-comfyui-instance-card__header">
                 <div className="admin-comfyui-instance-card__title">
-                  <span className="status-indicator" style={{ backgroundColor: getStatusColor(effectiveHealth) }} />
                   <h3>{instance.name}</h3>
-                  <span className="status-badge">{getStatusText(effectiveHealth)}</span>
+                  <StatusPill tone={effectiveHealth === "online" ? "success" : effectiveHealth === "degraded" ? "warning" : effectiveHealth === "offline" ? "danger" : "muted"}>
+                    {getStatusText(effectiveHealth)}
+                  </StatusPill>
                 </div>
                 <div className="admin-comfyui-instance-card__meta">
                   {testResult?.success && testResult.latency ? (
@@ -266,6 +244,6 @@ export function AdminComfyuiOverview({ onSelectInstance }: ComfyuiOverviewProps)
           );
         })}
       </div>
-    </section>
+    </AdminConfigurationWorkbench>
   );
 }

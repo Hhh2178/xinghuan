@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminComfyuiApi } from "./admin-api-client";
+import { AdminSummaryStrip } from "./admin-common-components";
+import { AdminConfigurationContext, AdminConfigurationWorkbench } from "./admin-configuration-workbench";
 import { AdminComfyuiWorkflowCard, type ComfyuiWorkflowEditPayload } from "./admin-comfyui-workflow-card";
 import type { ComfyuiInstanceRecord, ComfyuiWorkflowDraft } from "./admin-types";
 
@@ -58,11 +60,11 @@ function formatDateTime(value?: number) {
 }
 
 function healthCopy(instance: ComfyuiInstanceRecord | null) {
-  if (!instance) return { label: "待创建", tone: "draft" as const };
-  if (instance.health === "online") return { label: "在线", tone: "online" as const };
-  if (instance.health === "degraded") return { label: "降级", tone: "degraded" as const };
-  if (instance.health === "offline") return { label: "离线", tone: "offline" as const };
-  return { label: "未知", tone: "draft" as const };
+  if (!instance) return { label: "待创建", tone: "muted" as const };
+  if (instance.health === "online") return { label: "在线", tone: "success" as const };
+  if (instance.health === "degraded") return { label: "降级", tone: "warning" as const };
+  if (instance.health === "offline") return { label: "离线", tone: "danger" as const };
+  return { label: "未知", tone: "muted" as const };
 }
 
 function baseUrlSourceText(value?: ComfyuiInstanceRecord["baseUrlSource"]) {
@@ -303,23 +305,17 @@ export function AdminComfyuiDetail({ instanceId, onBack, activeTab: controlledTa
   }
 
   return (
-    <section className="admin-comfyui-detail-page">
-      <header className="admin-comfyui-detail-header">
-        <button type="button" className="back-button" onClick={onBack}>
+    <AdminConfigurationWorkbench label="ComfyUI 实例治理" className="admin-comfyui-detail-page">
+      <AdminConfigurationContext
+        eyebrow="ComfyUI 实例"
+        title={instance?.name || "新增实例"}
+        description={instance?.baseUrl || "等待填写后端执行地址"}
+        status={{ label: loading ? "处理中" : status.label, tone: loading ? "warning" : status.tone }}
+        actions={<div className="admin-comfyui-detail-actions">
+          <button type="button" className="back-button" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />
           返回实例池
-        </button>
-        <div className="admin-comfyui-detail-header__copy">
-          <span className="admin-comfyui-detail-header__eyebrow">ComfyUI 实例治理</span>
-          <h1>{instance?.name || "新增实例"}</h1>
-          <div className="admin-comfyui-detail-header__meta">
-            <span className={`admin-comfyui-health-pill admin-comfyui-health-pill--${status.tone}`}>{status.label}</span>
-            <span>{instance?.baseUrl || "等待填写后端执行地址"}</span>
-            <span>{instance?.reportedBaseUrl || "未收到机器本地 ComfyUI 地址"}</span>
-            <span>{instance?.tailscaleAddress || "未配置 Tailscale 地址"}</span>
-          </div>
-        </div>
-        <div className="admin-comfyui-detail-header__actions">
+          </button>
           <button type="button" onClick={() => void saveInstance()} disabled={loading}>
             <Save aria-hidden="true" />
             保存配置
@@ -330,49 +326,20 @@ export function AdminComfyuiDetail({ instanceId, onBack, activeTab: controlledTa
               删除实例
             </button>
           ) : null}
-        </div>
-      </header>
+        </div>}
+      />
 
       {message ? <div className="message-banner">{message}</div> : null}
 
-      <section className="admin-comfyui-summary-strip">
-        <article className="admin-comfyui-summary-card">
-          <div className="admin-comfyui-summary-card__icon">
-            <Boxes aria-hidden="true" />
-          </div>
-          <div>
-            <strong>{workflows.length}</strong>
-            <span>实例工作流草稿</span>
-          </div>
-        </article>
-        <article className="admin-comfyui-summary-card">
-          <div className="admin-comfyui-summary-card__icon">
-            <Workflow aria-hidden="true" />
-          </div>
-          <div>
-            <strong>{publishedCount}</strong>
-            <span>已推送到共享区</span>
-          </div>
-        </article>
-        <article className="admin-comfyui-summary-card">
-          <div className="admin-comfyui-summary-card__icon">
-            <FileSearch2 aria-hidden="true" />
-          </div>
-          <div>
-            <strong>{warningCount}</strong>
-            <span>待人工确认告警</span>
-          </div>
-        </article>
-        <article className="admin-comfyui-summary-card">
-          <div className="admin-comfyui-summary-card__icon">
-            <Activity aria-hidden="true" />
-          </div>
-          <div>
-            <strong>{formatDateTime(instance?.lastSeenAt)}</strong>
-            <span>最近心跳时间</span>
-          </div>
-        </article>
-      </section>
+      <AdminSummaryStrip
+        label="ComfyUI 实例摘要"
+        items={[
+          { label: "实例工作流草稿", value: workflows.length, detail: "当前实例", icon: Boxes },
+          { label: "已推送到共享区", value: publishedCount, detail: "共享发布", icon: Workflow, tone: "success" },
+          { label: "待人工确认告警", value: warningCount, detail: "映射检查", icon: FileSearch2, tone: warningCount ? "warning" : "muted" },
+          { label: "最近心跳", value: formatDateTime(instance?.lastSeenAt), detail: "实例上报", icon: Activity },
+        ]}
+      />
 
       <div className="admin-comfyui-detail-tabs">
         {DETAIL_TABS.map((tab) => {
@@ -628,6 +595,6 @@ export function AdminComfyuiDetail({ instanceId, onBack, activeTab: controlledTa
           </div>
         ) : null}
       </div>
-    </section>
+    </AdminConfigurationWorkbench>
   );
 }

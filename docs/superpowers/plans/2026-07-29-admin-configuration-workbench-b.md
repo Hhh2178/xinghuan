@@ -127,10 +127,10 @@ Commit: `feat(admin): migrate provider configuration workbench`
 - Preserves every ComfyUI API call and component prop.
 - Replaces the duplicate page band, bespoke health pills, summary cards, and detail header skin with shared context/summary/status treatment only.
 
-- [ ] **Step 1: Write and run a RED source/render contract proving shared visual adoption and unchanged API call count**
-- [ ] **Step 2: Migrate overview and detail presentation only**
-- [ ] **Step 3: Run focused tests and Admin build**
-- [ ] **Step 4: Update Audit/daily evidence and commit `feat(admin): converge comfyui configuration visuals`**
+- [x] **Step 1: Write and run a RED source/render contract proving shared visual adoption and unchanged API call count**
+- [x] **Step 2: Migrate overview and detail presentation only**
+- [x] **Step 3: Run focused tests and Admin build**
+- [x] **Step 4: Update Audit/daily evidence and commit `feat(admin): converge comfyui configuration visuals`**
 
 ### Task 5: Migrate runtime settings and environment sync
 
