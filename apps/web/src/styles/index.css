@@ -4,6 +4,7 @@
 @import './error-recovery.css';
 @import './canvas-shell.css';
 @import './node-chrome.css';
+@import './canvas-modern.css';
 
 @tailwind base;
 @tailwind components;

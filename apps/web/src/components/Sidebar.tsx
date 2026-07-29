@@ -7,6 +7,8 @@ import {
   Edit2,
   FolderOpen,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Trash2,
@@ -18,6 +20,7 @@ import { filterNodeCatalogByPermissions } from '../services/permission-state';
 // vite.config.ts 中通过 define 注入的编译期常量（与 package.json version 同步）
 declare const __APP_VERSION__: string;
 import type { NodeMeta, NodeType } from '../types/canvas';
+import type { CanvasPresentation } from '../stores/canvasPresentation';
 import { useThemeStore } from '../stores/theme';
 import { useCanvasStore } from '../stores/canvas';
 import { resolveThemeTemplate } from '../theme/defaultTemplates';
@@ -235,9 +238,15 @@ interface SidebarProps {
   onAddNode: (type: NodeType) => void;
   deniedNodeTypes?: string[];
   onOpenSupervision: () => void;
+  presentation?: CanvasPresentation;
 }
 
-export default function Sidebar({ onAddNode, deniedNodeTypes = [], onOpenSupervision }: SidebarProps) {
+export default function Sidebar({
+  onAddNode,
+  deniedNodeTypes = [],
+  onOpenSupervision,
+  presentation = 'legacy',
+}: SidebarProps) {
   const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
     () => resolveThemeTemplate(templateId),
@@ -248,6 +257,8 @@ export default function Sidebar({ onAddNode, deniedNodeTypes = [], onOpenSupervi
   const isPixel = style === 'pixel';
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [keyword, setKeyword] = useState('');
+  const [modernExpanded, setModernExpanded] = useState(false);
+  const isModern = presentation === 'modern';
 
   // 画布管理(整合到节点侧边栏顶部)
   const {
@@ -362,16 +373,86 @@ export default function Sidebar({ onAddNode, deniedNodeTypes = [], onOpenSupervi
     );
   };
 
+  const expandModernSidebar = () => {
+    if (isModern) setModernExpanded(true);
+  };
+
+  const collapseModernSidebar = () => {
+    if (isModern) setModernExpanded(false);
+  };
+
   return (
-    <div
-      className={`t8-sidebar w-64 flex flex-col border-r overflow-hidden ${
+    <aside
+      className={`t8-sidebar w-64 flex flex-col border-r overflow-hidden ${isModern ? 't8-sidebar--modern' : ''} ${
         isPixel
           ? 'px-panel'
           : isDark
             ? 'bg-zinc-900 border-white/10'
-            : 'bg-white border-black/10'
+          : 'bg-white border-black/10'
       }`}
+      data-sidebar-presentation={presentation}
+      data-expanded={isModern ? String(modernExpanded) : undefined}
+      onMouseEnter={expandModernSidebar}
+      onMouseLeave={collapseModernSidebar}
+      onFocusCapture={expandModernSidebar}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) collapseModernSidebar();
+      }}
     >
+      {isModern ? (
+        <nav className="t8-sidebar-rail" aria-label="画布工具栏">
+          <button
+            type="button"
+            className="t8-sidebar-rail__button"
+            aria-label={modernExpanded ? '收起节点面板' : '展开节点面板'}
+            aria-expanded={modernExpanded}
+            title={modernExpanded ? '收起节点面板' : '展开节点面板'}
+            onClick={() => setModernExpanded((expanded) => !expanded)}
+          >
+            {modernExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          </button>
+          <button
+            type="button"
+            className="t8-sidebar-rail__button"
+            aria-label="打开画布列表"
+            title="打开画布列表"
+            onClick={() => {
+              setCanvasPanelOpen(true);
+              setModernExpanded(true);
+            }}
+          >
+            <FolderOpen size={18} />
+          </button>
+          <button
+            type="button"
+            className="t8-sidebar-rail__button"
+            aria-label="新建画布"
+            title="新建画布"
+            onClick={handleCreateCanvas}
+          >
+            <Plus size={18} />
+          </button>
+          <button
+            type="button"
+            className="t8-sidebar-rail__button"
+            aria-label="打开节点搜索"
+            title="打开节点搜索"
+            onClick={() => setModernExpanded(true)}
+          >
+            <Search size={18} />
+          </button>
+          <button
+            type="button"
+            className="t8-sidebar-rail__button"
+            aria-label="打开 AI 托管"
+            title="打开 AI 托管"
+            onClick={onOpenSupervision}
+          >
+            <Bot size={18} />
+          </button>
+        </nav>
+      ) : null}
+      <div className="t8-sidebar-panel flex min-h-0 flex-1 flex-col">
       {/* 画布管理(可折叠) */}
       <div
         className={`border-b ${
@@ -650,6 +731,7 @@ export default function Sidebar({ onAddNode, deniedNodeTypes = [], onOpenSupervi
           <>星幻无限画布 · v{__APP_VERSION__}</>
         )}
       </div>
-    </div>
+      </div>
+    </aside>
   );
 }

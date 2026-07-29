@@ -736,7 +736,12 @@ function App() {
 
       {/* 主体两栏布局 */}
       <div className="t8-workspace flex-1 flex overflow-hidden">
-        <Sidebar onAddNode={handleAddNode} deniedNodeTypes={deniedNodeTypes} onOpenSupervision={() => setSupervisionOpen(true)} />
+        <Sidebar
+          onAddNode={handleAddNode}
+          deniedNodeTypes={deniedNodeTypes}
+          onOpenSupervision={() => setSupervisionOpen(true)}
+          presentation={canvasPresentation}
+        />
         {sidebarOpen ? <button type="button" className="t8-sidebar-backdrop" aria-label="关闭节点面板" onClick={() => setSidebarOpen(false)} /> : null}
         <WorkspaceErrorBoundary>
           <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />

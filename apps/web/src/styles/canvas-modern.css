@@ -1,0 +1,75 @@
+/* New canvas presentation only. Legacy is intentionally left to its existing styles. */
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern {
+  position: relative;
+  z-index: 30;
+  width: 56px;
+  min-width: 56px;
+  flex: 0 0 56px;
+  overflow: visible;
+  border-right: 0;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 56px;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-right: 1px solid color-mix(in srgb, var(--t8-border, rgba(255, 255, 255, 0.14)) 84%, transparent);
+  background: color-mix(in srgb, var(--t8-bg-panel, #141416) 90%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--t8-text-muted, rgba(244, 244, 245, 0.68));
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button:hover,
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button:focus-visible {
+  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 60%, transparent);
+  background: color-mix(in srgb, var(--t8-accent, #38bdf8) 16%, transparent);
+  color: var(--t8-text-main, #f4f4f5);
+  outline: none;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-panel {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 56px;
+  width: 232px;
+  min-width: 232px;
+  overflow: hidden;
+  border-right: 1px solid color-mix(in srgb, var(--t8-border, rgba(255, 255, 255, 0.14)) 90%, transparent);
+  background: color-mix(in srgb, var(--t8-bg-panel, #141416) 94%, transparent);
+  box-shadow: 18px 0 44px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-10px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern[data-expanded='true'] .t8-sidebar-panel,
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern:focus-within .t8-sidebar-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-panel :is(button, input, span, p, div) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
