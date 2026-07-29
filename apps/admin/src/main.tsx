@@ -617,8 +617,8 @@ function AdminApp() {
         <main className={`admin-main${activeAgentRuntimeView === "assistants" ? " admin-main--assistant-settings" : ""}`}>
           <header className="starlight-topbar admin-topbar">
             <div>
-              <p>{activeWorkspace.label} · {activeWorkspace.subtitle}</p>
-              <h1 id="admin-page-title">{currentPageLabel}</h1>
+              <p>星幻无限画布 · Admin Console</p>
+              <strong className="admin-topbar__title">全局运行状态</strong>
             </div>
             <div className="topbar-actions">
               <span className={`starlight-refresh-policy starlight-refresh-policy--${refreshPolicy.kind}`} title={refreshPolicy.description}>

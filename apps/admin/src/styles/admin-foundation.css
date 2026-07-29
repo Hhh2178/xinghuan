@@ -39,6 +39,20 @@
   align-content: start;
 }
 
+.admin-workspace-band__main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.admin-workspace-band__copy h1 {
+  color: var(--admin-text-primary);
+  font-weight: 650;
+}
+
+.admin-workspace-band__actions {
+  justify-content: flex-end;
+}
+
 .admin-summary-strip {
   min-width: 0;
   padding: 1px;

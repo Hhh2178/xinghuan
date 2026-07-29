@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { Activity, Users } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AdminSummaryStrip, AdminWorkspaceFrame } from "./admin-common-components";
+import { AdminSummaryStrip, AdminWorkspaceBand, AdminWorkspaceFrame } from "./admin-common-components";
 
 describe("Admin A shared visual foundation", () => {
   it("keeps the shell-owned page heading as the single workspace identity", () => {
@@ -16,6 +16,23 @@ describe("Admin A shared visual foundation", () => {
     expect(markup).toContain('class="admin-workspace-frame"');
     expect(markup).toContain('aria-labelledby="admin-page-title"');
     expect(markup).not.toContain("<h1");
+  });
+
+  it("renders one page identity heading in the shared workspace band", () => {
+    const markup = renderToStaticMarkup(
+      <AdminWorkspaceBand
+        kicker="Command Center"
+        title="运营总览"
+        description="平台运行信息"
+        currentLabel="总览"
+        currentDescription="平台健康、任务态势和风险告警。"
+      />,
+    );
+
+    expect(markup.match(/<h1/g)).toHaveLength(1);
+    expect(markup).toContain('<h1 id="admin-page-title">总览</h1>');
+    expect(markup).toContain("运营总览 · Command Center");
+    expect(markup).not.toContain("admin-workspace-band__focus");
   });
 
   it("renders key summaries with text-backed semantic tones", () => {

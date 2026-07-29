@@ -139,21 +139,17 @@ export function AdminWorkspaceBand({
   footer?: ReactNode;
 }) {
   return (
-    <section className={className ? `admin-workspace-band ${className}` : "admin-workspace-band"}>
+    <section
+      className={className ? `admin-workspace-band ${className}` : "admin-workspace-band"}
+      aria-description={description}
+    >
       <div className="admin-workspace-band__main">
         <div className="admin-workspace-band__copy">
-          <span className="admin-workspace-band__kicker">{kicker}</span>
-          <strong>{title}</strong>
-          <p>{description}</p>
+          <span className="admin-workspace-band__kicker">{title} · {kicker}</span>
+          <h1 id="admin-page-title">{currentLabel}</h1>
+          <p>{currentDescription}</p>
         </div>
-        <div className="admin-workspace-band__focus">
-          <div className="admin-workspace-band__focus-copy">
-            <span className="admin-workspace-band__focus-label">当前页面</span>
-            <strong>{currentLabel}</strong>
-            <p>{currentDescription}</p>
-          </div>
-          {actions ? <div className="admin-workspace-band__actions">{actions}</div> : null}
-        </div>
+        {actions ? <div className="admin-workspace-band__actions">{actions}</div> : null}
       </div>
       {footer ? <div className="admin-workspace-band__footer">{footer}</div> : null}
     </section>

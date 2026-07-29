@@ -36,6 +36,8 @@ export function AdminShellWorkspaceBand({
   onNavigateTab: (tabId: AdminTabId) => void;
   onNavigateSubpage?: (subpageId: string) => void;
 }) {
+  const showNavigation = subpages.length > 1 || (!subpages.length && workspaceTabs.length > 1);
+
   return (
     <AdminWorkspaceBand
       kicker={workspace.subtitle}
@@ -49,7 +51,7 @@ export function AdminShellWorkspaceBand({
           <span>{refreshIntervalLabel}</span>
         </div>
       }
-      footer={
+      footer={showNavigation ? (
         <div className="admin-workspace-band__tab-row" role="tablist" aria-label={`${workspace.label}页面`}>
           {subpages.length ? subpages.map((item) => {
             const Icon = workspace.icon;
@@ -79,7 +81,7 @@ export function AdminShellWorkspaceBand({
             );
           })}
         </div>
-      }
+      ) : undefined}
     />
   );
 }
