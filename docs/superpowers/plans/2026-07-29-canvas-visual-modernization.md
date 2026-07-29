@@ -490,3 +490,9 @@ git commit -m "test(canvas): document modern presentation regression qa"
 3. 上游输入素材和文本仍在同一既有素材／上下文管理区内呈现；没有新的素材 schema、重复来源或逻辑分支。
 4. React Flow 操作、节点连线、任务提交／回传、素材操作、导入导出、工具栏与助手均通过双模式回归。
 5. Task 8 的自动门禁与手工 QA 已留下可复查结果；未得到额外授权时未发布到任何环境。
+
+## Implementation log
+
+| Date | Scope | Evidence |
+| --- | --- | --- |
+| 2026-07-29 | Tasks 1–3 complete | `e779e0c` adds the local per-user legacy-default toggle; `1696916` adds the non-resizing modern sidebar rail; the current change adds the `Canvas` presentation boundary, modern grid contrast variable, and MiniMap/assistant safe slots. Targeted Vitest and web type-check pass before each commit. |

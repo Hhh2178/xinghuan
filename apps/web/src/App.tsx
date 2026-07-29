@@ -744,7 +744,12 @@ function App() {
         />
         {sidebarOpen ? <button type="button" className="t8-sidebar-backdrop" aria-label="关闭节点面板" onClick={() => setSidebarOpen(false)} /> : null}
         <WorkspaceErrorBoundary>
-          <Canvas onAddNodeRef={addNodeRef} onInsertWorkflowRef={insertWorkflowRef} currentUser={currentUser} />
+          <Canvas
+            onAddNodeRef={addNodeRef}
+            onInsertWorkflowRef={insertWorkflowRef}
+            currentUser={currentUser}
+            presentation={canvasPresentation}
+          />
         </WorkspaceErrorBoundary>
       </div>
 

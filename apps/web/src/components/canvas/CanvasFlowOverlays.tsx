@@ -99,6 +99,7 @@ export function CanvasFlowOverlays({
         />
       </div>
       <MiniMap
+        className="t8-canvas-minimap"
         pannable
         zoomable
         onClick={(_event, position) => {

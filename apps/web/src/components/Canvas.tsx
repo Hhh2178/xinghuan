@@ -52,6 +52,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useCanvasStore } from '../stores/canvas';
+import type { CanvasPresentation } from '../stores/canvasPresentation';
 import { useThemeStore } from '../stores/theme';
 import { useShortcutStore } from '../stores/shortcuts';
 import { getTemplateMode, resolveThemeTemplate } from '../theme/defaultTemplates';
@@ -1229,9 +1230,10 @@ interface CanvasInnerProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
   currentUser?: AuthUser | null;
+  presentation?: CanvasPresentation;
 }
 
-function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasInnerProps) {
+function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser, presentation = 'legacy' }: CanvasInnerProps) {
   const { activeId, canvases, loadCanvases, setActive, createCanvas } = useCanvasStore();
   const { theme, style, templateId } = useThemeStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
@@ -3563,6 +3565,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
   const edgeStroke = themeTokens.edge;
   const dotColor = themeTokens.gridDot;
   const bgColor = themeTokens.canvasBg;
+  const canvasShellStyle = {
+    background: bgColor,
+    '--canvas-grid-dot': dotColor,
+    '--canvas-grid-contrast': isDark ? '#ffffff' : '#000000',
+  } as CSSProperties;
 
   const memoNodeTypes = useMemo(() => nodeTypes, []);
   const memoEdgeTypes = useMemo(() => edgeTypes, []);
@@ -3600,7 +3607,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     <div
       className={`t8-canvas-shell flex-1 relative${connectionPanModeActive ? ' connection-pan-mode-active' : ''}`}
       data-theme-visual={visualStyle}
-      style={{ background: bgColor }}
+      data-canvas-presentation={presentation}
+      style={canvasShellStyle}
       onContextMenuCapture={onCanvasContextMenuCapture}
       onMouseMove={handleCanvasPointerMove}
     >
@@ -3680,7 +3688,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
           variant={BackgroundVariant.Dots}
           gap={20}
           size={isPixel ? 1.6 : 1.2}
-          color={dotColor}
+          color={presentation === 'modern' ? 'var(--canvas-modern-grid-dot)' : dotColor}
         />
         <CanvasFlowOverlays
           guides={guides}
@@ -4225,6 +4233,7 @@ interface CanvasProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
   currentUser?: AuthUser | null;
+  presentation?: CanvasPresentation;
 }
 
 export default function Canvas(props: CanvasProps) {

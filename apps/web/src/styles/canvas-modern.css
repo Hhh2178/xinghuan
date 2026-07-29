@@ -73,3 +73,17 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell {
+  --canvas-modern-grid-dot: color-mix(in srgb, var(--canvas-grid-dot) 60%, var(--canvas-grid-contrast) 40%);
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell .t8-canvas-minimap {
+  right: 24px !important;
+  bottom: 80px !important;
+  z-index: 24 !important;
+}
+
+.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell .agent-assistant-root {
+  z-index: 26;
+}
