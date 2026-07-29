@@ -33,6 +33,8 @@
 - [x] Run `npm run verify:agent-environment-readiness-contract`, the release harness, and the release preflight in the clean worktree.
 - [x] Deploy only with `--target-profile=old-server --env=gray`, then run the Gray verifier with expected version `0.8.6`.
 - [x] Record actual command outcomes, archive hash, current/rollback release IDs, API/Worker status, and the user visual acceptance checklist. Do not claim browser acceptance before it occurs.
+- [x] Reject the initial `v0.8.6` visual pass when the 232px overlay was clipped by `overflow-hidden`; record the failure without changing its runtime result.
+- [x] Add a red-green sidebar clipping contract, deploy patch `v0.8.7` to old-server Gray, and pass authenticated hover/focus and original-canvas acceptance at `1920x1080`.
 
 ### Task 2: Define reusable Admin A-layer contracts
 

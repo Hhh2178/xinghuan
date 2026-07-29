@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-29",
-  "sourceBranch": "release/canvas-reset-gray-v086",
-  "sourceCommit": "8cdc9204704d9a26d06bbcef61699318d7216bfb",
+  "sourceBranch": "release/canvas-sidebar-overflow-v087",
+  "sourceCommit": "07ecd185e3d2cb2e525b43e0c47977b137f9fddd",
   "environments": {
     "gray": {
-      "version": "0.8.6",
-      "releaseId": "20260729-canvas-reset-v086-r1",
+      "version": "0.8.7",
+      "releaseId": "20260729-canvas-sidebar-overflow-v087-r1",
       "deployedAt": "2026-07-29",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-29", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-canvas-reset-v086-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-29-canvas-reset-v086-r1.md",
-      "rollbackReleaseId": "20260729-canvas-presentation-correction-v085-r1"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-canvas-sidebar-overflow-v087-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-29-canvas-sidebar-overflow-v087-r1.md",
+      "rollbackReleaseId": "20260729-canvas-reset-v086-r1"
     },
     "production": {
       "version": "0.8.3",

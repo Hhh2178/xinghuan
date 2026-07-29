@@ -24,17 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.6`
-- release：`20260729-canvas-reset-v086-r1`
+- 版本：`v0.8.7`
+- release：`20260729-canvas-sidebar-overflow-v087-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`移除画布表现切换、持久化状态和 modern 节点覆盖，恢复原节点/点阵/MiniMap/浮层并保留悬停侧栏。`
-- 已验证：`全量测试 216 文件通过、1 文件跳过、838 项通过、4 项跳过；完整单端口制品构建、API/Worker、内外状态和权限 readiness 均通过。浏览器视觉与真实业务体验待 Gray 用户验证。`
+- 部署内容：`延续画布表现层回撤，并移除侧栏 overlay 的 overflow-hidden 裁剪冲突；hover/focus 232px 面板恢复可见。`
+- 已验证：`全量测试 216 文件通过、1 文件跳过、838 项通过、4 项跳过；完整单端口制品构建、API/Worker、内外状态、权限 readiness 和 1920x1080 浏览器验收均通过。`
 - 部署时间：`2026-07-29`
-- 本轮制品源提交：`8cdc9204704d9a26d06bbcef61699318d7216bfb`
-- 本轮制品 SHA-256：`6E116AF86FC00D153BC24723A8990166956C95238CCDA918302075E82360D711`
+- 本轮制品源提交：`07ecd185e3d2cb2e525b43e0c47977b137f9fddd`
+- 本轮制品 SHA-256：`D1861E80182B184787D9BC71FCF0EB8587A0A390B9F406F95AA0517627D11D93`
 - 本轮发布记录：
-  - `gray/2026-07-29-canvas-reset-v086-r1.md`
-  - `../validations/2026-07-29-canvas-reset-v086-r1.md`
+  - `gray/2026-07-29-canvas-sidebar-overflow-v087-r1.md`
+  - `../validations/2026-07-29-canvas-sidebar-overflow-v087-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`
