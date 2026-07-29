@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-28",
-  "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "5a7456ab40f8a91d11873b967aa2e9a6e80d0c5a",
+  "updatedAt": "2026-07-29",
+  "sourceBranch": "release/canvas-modern-gray-v084",
+  "sourceCommit": "4dae4a7e155d47c83be0abe981c72090458591c5",
   "environments": {
     "gray": {
-      "version": "0.8.3",
-      "releaseId": "20260728-plato-output-recovery-v083-r22",
-      "deployedAt": "2026-07-28",
+      "version": "0.8.4",
+      "releaseId": "20260729-canvas-modern-presentation-v084-r1",
+      "deployedAt": "2026-07-29",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
-      "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-28", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-28-plato-output-recovery-v083-r22.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-28-plato-output-recovery-v083-r22.md",
-      "rollbackReleaseId": "20260728-artifact-materialization-idempotency-v083-r21"
+      "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-29", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-07-29-canvas-modern-presentation-v084-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-07-29-canvas-modern-presentation-v084-r1.md",
+      "rollbackReleaseId": "20260728-plato-output-recovery-v083-r22"
     },
     "production": {
       "version": "0.8.3",

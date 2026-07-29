@@ -24,17 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.3`
-- release：`20260728-plato-output-recovery-v083-r22`
+- 版本：`v0.8.4`
+- release：`20260729-canvas-modern-presentation-v084-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`继续包含画布高度/MiniMap、artifact 幂等和原子落盘修复；新增柏拉图/APIMart 与 Aifork 同 upstreamTaskId 轮询续接、慢下载心跳、条件化停滞恢复、Range 断点续传和失败分类`
-- 已验证：`本地全量测试与构建通过；发布后严格运行态通过。Aifork Grok Preview 首帧 5/5 上游完成且本地 MP4 可读，五个并发回传共 40,660,629 字节；柏拉图 5/5 在上游创建任务前因 no available platform 失败，明确为服务商分发容量问题。`
-- 部署时间：`2026-07-28`
-- 本轮制品源提交：`5a7456a`
-- 本轮制品 SHA-256：`8F0DCDF561920A0D0897E2193BF288F4E817EFC58F00F8B6F489F84E4FED9837`
+- 部署内容：`默认旧视觉加用户可选现代画布视觉：可折叠悬浮侧栏、增强点阵、可读节点样式和稳定的 MiniMap/悬浮层；既有节点、素材和任务链路不变。`
+- 已验证：`当前工作树全量测试 220 文件通过、844 项通过、4 项跳过；完整构建、制品版本对齐、Gray API/Worker、内外状态和权限 readiness 均通过。浏览器视觉与真实业务体验待 Gray 用户验证。`
+- 部署时间：`2026-07-29`
+- 本轮制品源提交：`4dae4a7`
+- 本轮制品 SHA-256：`A9346633281B3A60506025B36007E9B45E27F85717DAC8A75503D67E06A95BAC`
 - 本轮发布记录：
-  - `gray/2026-07-28-plato-output-recovery-v083-r22.md`
-  - `../validations/2026-07-28-plato-output-recovery-v083-r22.md`
+  - `gray/2026-07-29-canvas-modern-presentation-v084-r1.md`
+  - `../validations/2026-07-29-canvas-modern-presentation-v084-r1.md`
 - 当前批次记录：
   - `gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

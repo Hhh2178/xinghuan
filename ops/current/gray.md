@@ -3,19 +3,19 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.3`
-- 当前 release：`20260728-plato-output-recovery-v083-r22`
+- 当前版本：`v0.8.4`
+- 当前 release：`20260729-canvas-modern-presentation-v084-r1`
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过`
-- 当前补修：`继续包含画布高度/MiniMap、artifact 幂等和 .part 原子落盘修复；新增 provider_poll_resume 同上游任务号续接、轮询/物料化心跳、条件化 stale reaper、视频 Range 续传与上游容量/本地回传失败分类`
+- 当前补修：`画布默认保持旧视觉，用户可选择现代视觉；现代模式包含可折叠悬浮侧栏、增强点阵、节点可读性提升和稳定的 MiniMap/悬浮层层级，同时保留既有节点、素材和任务链路`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
 - Production 当前 release：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
-- 本轮制品源提交：`5a7456a`
-- 本轮制品 SHA-256：`8F0DCDF561920A0D0897E2193BF288F4E817EFC58F00F8B6F489F84E4FED9837`
+- 本轮制品源提交：`4dae4a7`
+- 本轮制品 SHA-256：`A9346633281B3A60506025B36007E9B45E27F85717DAC8A75503D67E06A95BAC`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮未推进 ComfyUI`
 - 当前本地待补修：`系统健康已显示 13 条 DB queued / Redis empty 差异，需要后续按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍明确显示 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-28-plato-output-recovery-v083-r22.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-28-plato-output-recovery-v083-r22.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-29-canvas-modern-presentation-v084-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-07-29-canvas-modern-presentation-v084-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-25-ai-governance-supervision-gray-v0743.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-supervision-gray-v0743.md`

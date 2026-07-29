@@ -28,13 +28,13 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.3`
-  - release：`20260728-plato-output-recovery-v083-r22`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过；Aifork Grok 首帧真实任务 5/5 完成上游生成与本地回传`
-  - 当前补修：`继续包含画布高度/MiniMap、artifact 幂等和原子落盘修复；新增 provider_poll_resume 同上游任务号续接、慢下载心跳、条件化停滞恢复、视频 Range 续传与失败分类`
+  - 版本：`v0.8.4`
+  - release：`20260729-canvas-modern-presentation-v084-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过；浏览器视觉与真实业务体验待 Gray 用户验证`
+  - 当前补修：`默认旧视觉加用户可选现代画布视觉，包含可折叠悬浮侧栏、增强点阵、节点可读性提升和稳定的 MiniMap/悬浮层；既有节点、素材和任务链路不变`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`5a7456a`
-  - 本轮制品 SHA-256：`8F0DCDF561920A0D0897E2193BF288F4E817EFC58F00F8B6F489F84E4FED9837`
+  - 本轮制品源提交：`4dae4a7`
+  - 本轮制品 SHA-256：`A9346633281B3A60506025B36007E9B45E27F85717DAC8A75503D67E06A95BAC`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
