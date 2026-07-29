@@ -10,6 +10,10 @@ describe('modern node presentation boundary', () => {
   it('keeps modern typography and layout rules scoped to the new canvas presentation', () => {
     expect(indexStyles).toContain("@import './node-modern.css';");
     expect(nodeStyles).toContain(".t8-app-shell[data-canvas-presentation='modern'] .t8-node-presentation");
+    expect(nodeStyles).toContain(".t8-app-shell[data-canvas-presentation='modern'] .t8-generation-node[data-node-presentation='generation']");
+    expect(nodeStyles).toContain("[data-node-kind='image']");
+    expect(nodeStyles).toContain("[data-node-kind='video']");
+    expect(nodeStyles).toContain("[data-node-kind='llm']");
     expect(nodeStyles).toContain('font-size: 16px');
     expect(nodeStyles).toContain('font-size: 14px');
     expect(nodeStyles).toContain('font-size: 13px');

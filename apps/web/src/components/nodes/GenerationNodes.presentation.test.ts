@@ -10,10 +10,12 @@ describe('generation node modern presentation hooks', () => {
     ['image', imageSource],
     ['video', videoSource],
     ['llm', llmSource],
-  ])('%s keeps its existing upstream material path while opting into modern presentation', (_kind, source) => {
+  ])('%s keeps its existing upstream material path and exposes a real modern presentation boundary', (kind, source) => {
     expect(source).toContain('presentation="modern"');
     expect(source).toContain('t8-generation-node');
     expect(source).toContain('useUpstreamMaterials');
     expect(source).toContain('useOrderedMaterials');
+    expect(source).toContain('data-node-presentation="generation"');
+    expect(source).toContain(`data-node-kind="${kind}"`);
   });
 });

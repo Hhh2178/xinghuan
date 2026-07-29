@@ -1290,11 +1290,13 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         backdropFilter: 'blur(8px)',
         boxShadow: isAccepting ? '0 0 0 2px rgba(52,211,153,.45), 0 12px 30px rgba(52,211,153,.18)' : undefined,
       }}
+      data-node-presentation="generation"
+      data-node-kind="video"
     >
       <Handle type="target" position={Position.Left} className="!bg-rose-400 !border-0" />
       <Handle type="source" position={Position.Right} className="!bg-rose-400 !border-0" />
 
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10" data-node-zone="header">
         <div
           className="w-6 h-6 rounded flex items-center justify-center"
           style={{ background: 'rgba(244,63,94,.2)', color: '#fda4af', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,.45)' }}
@@ -1335,7 +1337,7 @@ const VideoNode = ({ id, data, selected }: NodeProps) => {
         taskRuns={taskRuns}
       />
 
-      <div className="p-2.5 space-y-2" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="p-2.5 space-y-2" data-node-zone="content" onMouseDown={(e) => e.stopPropagation()}>
         {backendVideoModels.length > 0 && (
           <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
             <div className="flex items-center justify-between gap-2">

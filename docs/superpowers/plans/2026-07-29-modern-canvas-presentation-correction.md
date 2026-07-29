@@ -24,27 +24,27 @@
 - Modify: `apps/web/src/components/Sidebar.test.tsx`（若当前测试文件不存在则创建 `Sidebar.modern.test.tsx`）
 - Modify: `apps/web/src/styles/canvas-modern.css`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 断言 modern rail 只有画布列表、创建画布、节点搜索、AI 托管四个动作；源代码不包含 `PanelLeftClose`、`PanelLeftOpen` 或 `setModernExpanded((expanded) => !expanded)` 的 rail toggle。
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm --workspace @xinghuan/web test -- Sidebar`
 
 Expected: FAIL，因为目前 rail 仍含展开/收起按钮。
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 删除仅切换 `modernExpanded` 的第一个 rail button 和不再使用的 icon import；保留 mouse/focus 自动展开以及另外四个真实动作。
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm --workspace @xinghuan/web test -- Sidebar`
 
 Expected: PASS。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git commit -m "fix(canvas): remove redundant modern sidebar toggle"`
 
@@ -58,27 +58,27 @@ Expected: PASS。
 - Modify: `apps/web/src/styles/node-modern.css`
 - Modify: `apps/web/src/styles/node-modern.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 断言三个节点根元素包含 `data-node-presentation="generation"` 和对应 `data-node-kind`；现代 CSS 具有这三个 data 属性的标题、模型区、参数控件和文本溢出规则，且仍由 modern 根选择器限定。
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm --workspace @xinghuan/web test -- GenerationNodes.presentation node-modern`
 
 Expected: FAIL，因为根元素尚未提供这些标识，且 CSS 未以真实 DOM 为目标。
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 给图像、视频、LLM 节点的现有根元素添加 data 属性；用 scoped CSS 针对原有 header、发布模型区、label、输入、textarea、素材区和状态卡调整密度、字号、宽度与断词。不得改变 hooks、payload、素材 props、按钮回调或节点 JSX 的业务分支。
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm --workspace @xinghuan/web test -- GenerationNodes.presentation node-modern`
 
 Expected: PASS。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git commit -m "fix(canvas): apply modern presentation to existing generation nodes"`
 
@@ -139,4 +139,3 @@ npm --workspace @xinghuan/web run build
 - [ ] **Step 4: Prepare gray release**
 
 仅在测试、构建和视觉验收通过后，遵循项目 release runbook 递增当前 Gray patch 版本并推送旧服务器 Gray；执行 release preflight 和目标环境 health check。
-
