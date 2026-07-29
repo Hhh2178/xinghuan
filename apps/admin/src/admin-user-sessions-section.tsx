@@ -1,5 +1,6 @@
 import { Activity, ShieldCheck, TimerReset } from "lucide-react";
 import { AdminTable, StatusPill } from "./admin-common-components";
+import { AdminGovernanceLayout } from "./admin-governance-workbench";
 import type { AdminSessionRecord } from "./admin-types";
 
 type AdminMutate = (
@@ -22,7 +23,8 @@ export function AdminUserSessionsSection({
   const remoteSessionCount = sessions.filter((session) => !session.current && !session.revokedAt).length;
 
   return (
-    <div className="users-sessions-workbench users-sessions-workbench--starlight">
+    <AdminGovernanceLayout className="admin-governance-layout--sessions">
+      <div className="users-sessions-workbench users-sessions-workbench--starlight">
       <div className="api-card users-subhero">
         <div>
           <strong>会话治理工作台</strong>
@@ -148,6 +150,7 @@ export function AdminUserSessionsSection({
           ))}
         </tbody>
       </AdminTable>
-    </div>
+      </div>
+    </AdminGovernanceLayout>
   );
 }

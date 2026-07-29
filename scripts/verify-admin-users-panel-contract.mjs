@@ -12,6 +12,7 @@ const panelSource = existsSync(modulePath) ? readFileSync(modulePath, "utf8") : 
 const accountsSectionSource = existsSync(accountsSectionPath) ? readFileSync(accountsSectionPath, "utf8") : "";
 const groupsSectionSource = existsSync(groupsSectionPath) ? readFileSync(groupsSectionPath, "utf8") : "";
 const sessionsSectionSource = existsSync(sessionsSectionPath) ? readFileSync(sessionsSectionPath, "utf8") : "";
+const permissionPanelSource = readFileSync(join(root, "apps", "admin", "src", "permission-platform", "panel.tsx"), "utf8");
 
 const checks = [
   {
@@ -42,6 +43,15 @@ const checks = [
       panelSource.includes("const currentView = activeView || activeTab") &&
       mainSource.includes("navigateUsersView") &&
       navigationSource.includes("pathForUsersView"),
+  },
+  {
+    name: "users views share one governance template and scoped context",
+    pass:
+      panelSource.includes('from "./admin-governance-workbench"') &&
+      panelSource.includes("<AdminGovernanceWorkbench") &&
+      panelSource.includes('mode="governance"') &&
+      panelSource.includes('currentView === "permissions" ? "权限安全治理" : "组织治理"') &&
+      !panelSource.includes("AdminWorkspaceBand"),
   },
   {
     name: "users panel preserves create user form",
@@ -90,6 +100,8 @@ const checks = [
   {
     name: "users accounts workspace uses governance workbench hooks",
     pass:
+      accountsSectionSource.includes("<AdminGovernanceLayout") &&
+      accountsSectionSource.includes('className="admin-governance-layout--accounts"') &&
       accountsSectionSource.includes("users-account-card") &&
       accountsSectionSource.includes("users-accounts-create-rail") &&
       accountsSectionSource.includes("users-account-table-toolbar"),
@@ -129,10 +141,20 @@ const checks = [
   {
     name: "sessions workspace uses governance workbench hooks",
     pass:
+      sessionsSectionSource.includes("<AdminGovernanceLayout") &&
+      sessionsSectionSource.includes('className="admin-governance-layout--sessions"') &&
       sessionsSectionSource.includes("users-sessions-workbench--starlight") &&
       sessionsSectionSource.includes("users-sessions-summary") &&
       sessionsSectionSource.includes("users-session-table-toolbar") &&
       sessionsSectionSource.includes('title="活跃会话"'),
+  },
+  {
+    name: "groups and permission matrix use neutral governance layout hooks",
+    pass:
+      groupsSectionSource.includes("<AdminGovernanceLayout") &&
+      groupsSectionSource.includes('className="admin-governance-layout--groups"') &&
+      permissionPanelSource.includes("<AdminGovernanceLayout") &&
+      permissionPanelSource.includes('className="admin-governance-layout--permissions"'),
   },
 ];
 

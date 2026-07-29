@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { FolderTree, Search, Users2 } from "lucide-react";
 import { FormPanel, StatusPill } from "./admin-common-components";
+import { AdminGovernanceLayout } from "./admin-governance-workbench";
 import type { AdminGroupPermissionPolicy, AdminUser, AdminUserGroup } from "./admin-types";
 
 type AdminMutate = (
@@ -85,7 +86,8 @@ export function AdminUserGroupsSection({
   }
 
   return (
-    <div className="users-group-workbench users-group-workbench--starlight">
+    <AdminGovernanceLayout className="admin-governance-layout--groups">
+      <div className="users-group-workbench users-group-workbench--starlight">
       <section className="panel-stack users-group-workbench__rail">
         <FormPanel title="新建用户组" icon={FolderTree} bodyClassName="form-grid form-grid--stack">
           <div className="users-group-create-card">
@@ -221,6 +223,7 @@ export function AdminUserGroupsSection({
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </AdminGovernanceLayout>
   );
 }

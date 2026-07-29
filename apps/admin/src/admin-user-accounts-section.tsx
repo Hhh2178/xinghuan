@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, KeyRound, Plus, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AdminTable, FormPanel, StatusPill } from "./admin-common-components";
+import { AdminGovernanceLayout } from "./admin-governance-workbench";
 import type { AdminUser, AdminUserGroup } from "./admin-types";
 
 type AdminMutate = (
@@ -56,7 +57,8 @@ export function AdminUserAccountsSection({
   }
 
   return (
-    <div className="users-accounts-workbench users-accounts-workbench--starlight">
+    <AdminGovernanceLayout className="admin-governance-layout--accounts">
+      <div className="users-accounts-workbench users-accounts-workbench--starlight">
       <section className="panel-stack users-accounts-create-rail">
         <FormPanel title="新增成员" icon={Plus} bodyClassName="form-grid form-grid--stack">
           <form
@@ -358,6 +360,7 @@ export function AdminUserAccountsSection({
           ))}
         </AdminTable>
       </section>
-    </div>
+      </div>
+    </AdminGovernanceLayout>
   );
 }

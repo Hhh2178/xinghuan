@@ -21,8 +21,8 @@
 | 工作域 | 稳定子视图 | 当前骨架 | 风险 | 目标模板 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
 | 运营总览 | `/admin/overview` | A-layer frame + C data workbench + 关键摘要 + 中性数据表（v0.8.12 Gray 已验收） | C 共享模板与桌面运行态验收完成 | 运行态势首页 | C（完成） |
-| 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D（active） |
-| 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D（active） |
+| 账号与组织 | 组织总览、账号、用户组、会话 | D governance workbench + 组织 context + 既有总览/账号/用户组/会话 owner（本地已迁移） | 受控 URL 导航与全部 mutate 保持；Gray 桌面验收待执行 | 治理工作台 | D（active） |
+| 权限与安全 | 权限策略 | D governance workbench + 安全 context + 原统一权限矩阵（本地已迁移） | 读取、explain、revision、reason 和 effective decision 所有权保持；Gray 桌面验收待执行 | Master-detail + Inspector | D（active） |
 | Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（v0.8.10 Gray 已验收） | handler/API 由契约锁定；模型页助手上下文标签残余交由后续上下文重构 | 配置工作台 | B（完成） |
 | 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D（active） |
 | RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（v0.8.10 Gray 已验收） | 目录、编辑器、长 Schema 和 Key 池密度在桌面视窗内保持受控 | 目录 + 编辑器 + Inspector | B（完成） |
@@ -89,3 +89,6 @@
 - Task 1 已建立 `AdminGovernanceWorkbench`、`AdminGovernanceContext`、`AdminGovernanceLayout` 与 `AdminGovernanceToolbar` 的 presentation-only 基线，支持 `governance`、`content`、`automation` 三种模式，并保持 Shell 唯一 H1。
 - 模板样式只使用 Foundation token：允许的 context 渐变、中性 rail/editor/Inspector、最大 8px 边界、40px 控件、稳定桌面 tracks、长技术文本换行、全局 focus-visible 与 reduced-motion 均有明确来源。
 - shared layer 不拥有 route、loading/empty/error、dirty、API、权限、revision、确认、过滤、导航或保存；各 feature owner 继续提供这些状态和风险动作。D 页面尚未迁移，Gray 和登录态 `1920x1080` 验收也尚未执行，因此工作域矩阵继续标记为 active。
+- Task 2 已将组织总览、账号、用户组、会话和权限安全接入单一 `mode="governance"` 模板；组织与安全 context 随受控 view 切换，overview 的五个导航动作完整保留。
+- 账号、用户组、会话和 permission matrix 只接入 neutral `AdminGovernanceLayout` hook。`main.tsx` 继续拥有 URL 导航，原 user/group/session `mutate` 路径未移动；Permission Platform 继续拥有 mode/readiness、主体、reason、domain/search、effective decision、load-more、explain 及 revision-aware upsert/delete。
+- Task 2 本地证据：组织/安全 workbench 与 permission access 共 10 项测试、Users 行为契约、permission hardening、Admin TypeScript/Vite 构建及 `git diff --check` 均通过。D 整批 Gray 与登录态 `1920x1080` 验收尚未执行。

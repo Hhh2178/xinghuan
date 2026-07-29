@@ -2,7 +2,10 @@ import { Activity, KeyRound, ShieldCheck, Users2 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { adminPermissionApi } from "./admin-api-client";
 import { createAdminLazyImportWithRecovery } from "./admin-lazy-import-recovery";
-import { AdminWorkspaceBand } from "./admin-common-components";
+import {
+  AdminGovernanceContext,
+  AdminGovernanceWorkbench,
+} from "./admin-governance-workbench";
 import { AdminUserAccountsSection } from "./admin-user-accounts-section";
 import { AdminUserGroupsSection } from "./admin-user-groups-section";
 import { AdminUserSessionsSection } from "./admin-user-sessions-section";
@@ -134,14 +137,18 @@ export function UsersPanel({
   }, [userGroups.length]);
 
   return (
-    <section className="panel-stack users-page users-page--starlight">
-      <AdminWorkspaceBand
+    <AdminGovernanceWorkbench
+      className="panel-stack users-page users-page--starlight"
+      label="组织与权限治理"
+      mode="governance"
+    >
+      <AdminGovernanceContext
         className="users-band"
-        kicker="Governance Center"
-        title="账号、分组与权限治理"
+        eyebrow={currentView === "permissions" ? "权限安全治理" : "组织治理"}
+        title={USER_TABS.find((tab) => tab.id === currentView)?.label || "总览"}
         description="这里负责账号创建、用户组维护、分组权限隐藏策略以及后台会话治理，不再把所有功能挤在同一条窄侧栏里。"
-        currentLabel={USER_TABS.find((tab) => tab.id === currentView)?.label || "总览"}
-        currentDescription={`${users.length} 个账号 · ${userGroups.length} 个用户组 · ${activeSessionCount} 个活跃会话`}
+        status={{ label: permissionsLoading ? "权限同步中" : "治理就绪", tone: permissionsLoading ? "warning" : "success" }}
+        meta={`${users.length} 个账号 · ${userGroups.length} 个用户组 · ${activeSessionCount} 个活跃会话`}
         actions={
           <div className="users-band__metrics">
             <span>{enabledCount} 个启用</span>
@@ -291,6 +298,6 @@ export function UsersPanel({
       ) : null}
 
       {currentView === "sessions" ? <AdminUserSessionsSection sessions={sessions} mutate={mutate} /> : null}
-    </section>
+    </AdminGovernanceWorkbench>
   );
 }

@@ -99,11 +99,11 @@ Commit: `feat(admin): add governance workbench foundation`
 - `PermissionPlatformPanel` remains the sole owner of permission reads, explain calls, revision-aware upsert/delete, reason validation, and effective decisions.
 - The shared workbench receives only derived counts, current-view identity, existing action controls, and the current child surface.
 
-- [ ] **Step 1: Write RED composition assertions**
+- [x] **Step 1: Write RED composition assertions**
 
 Assert all five views render inside one governance template; the route context changes between organization and security; the overview keeps its five navigation actions; permission mode/readiness, principal selection, reason, domains, search, effective state, and load-more controls remain present.
 
-- [ ] **Step 2: Run RED plus current behavior baseline**
+- [x] **Step 2: Run RED plus current behavior baseline**
 
 ```text
 npm test -- apps/admin/src/admin-users-governance-workbench.test.tsx apps/admin/src/permission-platform/access.test.ts
@@ -113,11 +113,11 @@ npm run verify:permission-platform-hardening
 
 Expected: only the new composition assertions fail.
 
-- [ ] **Step 3: Migrate the five views**
+- [x] **Step 3: Migrate the five views**
 
 Replace the local `AdminWorkspaceBand` identity with `AdminGovernanceContext`, retain the current controlled view navigation, and apply neutral governance layout hooks to accounts, groups, sessions, and the permission matrix. Do not move handlers or manufacture a second confirmation layer.
 
-- [ ] **Step 4: Verify and record evidence**
+- [x] **Step 4: Verify and record evidence**
 
 ```text
 npm test -- apps/admin/src/admin-users-governance-workbench.test.tsx apps/admin/src/permission-platform/access.test.ts
@@ -129,7 +129,7 @@ npm run verify:component-registry-docs-contract
 git diff --check
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit: `feat(admin): migrate organization and security workbenches`
 

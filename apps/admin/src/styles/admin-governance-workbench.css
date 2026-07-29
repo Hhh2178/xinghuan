@@ -104,6 +104,71 @@
   min-height: 40px;
 }
 
+/* Organization and security surfaces keep their feature owners and adopt D semantics here. */
+.admin-governance-workbench .admin-governance-context.users-band {
+  margin: 0;
+  border-color: var(--admin-border-strong);
+  background: var(--admin-gradient-shell);
+}
+
+.admin-governance-workbench :is(
+  .users-governance-summary > div,
+  .users-governance-quick-card,
+  .users-accounts-summary > div,
+  .users-sessions-summary > div,
+  .users-account-card,
+  .user-group-card,
+  .permission-platform__principal
+) {
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-surface-1);
+}
+
+.admin-governance-workbench :is(
+  .users-governance-overview,
+  .users-accounts-workbench,
+  .users-group-workbench,
+  .users-sessions-workbench,
+  .permission-platform
+) {
+  min-width: 0;
+}
+
+.admin-governance-workbench :is(
+  .users-view-tabs button,
+  .users-create-stack-card button,
+  .users-group-create-card button,
+  .permission-platform__segmented button,
+  .permission-platform__domains button,
+  .permission-platform__load-more
+) {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+.admin-governance-layout--permissions .permission-platform__health {
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-border-subtle);
+}
+
+.admin-governance-layout--permissions .permission-platform__health > div,
+.admin-governance-layout--permissions .permission-platform__icon-button,
+.admin-governance-layout--permissions .permission-platform__segmented,
+.admin-governance-layout--permissions :is(input, select) {
+  background: var(--admin-surface-2);
+}
+
+.admin-governance-layout--permissions :is(
+  .permission-platform__health strong,
+  .permission-subject-row__identity code,
+  .permission-subject-row__identity strong
+) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1280px) {
   .admin-governance-layout[data-has-inspector="true"] {
     grid-template-columns: minmax(210px, 232px) minmax(0, 1fr);

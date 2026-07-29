@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { AdminUser, AdminUserGroup } from "../admin-types";
+import { AdminGovernanceLayout } from "../admin-governance-workbench";
 import { permissionPlatformApi } from "./api";
 import {
   decisionKey,
@@ -271,7 +272,8 @@ export function PermissionPlatformPanel({
   const domains = ["all", ...new Set(state.subjects.map((subject) => subject.domain))];
 
   return (
-    <section className="permission-platform" aria-label="统一权限平台">
+    <AdminGovernanceLayout className="admin-governance-layout--permissions">
+      <section className="permission-platform" aria-label="统一权限平台">
       <div className="permission-platform__health">
         <div>
           <span>运行模式</span>
@@ -396,7 +398,8 @@ export function PermissionPlatformPanel({
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </AdminGovernanceLayout>
   );
 }
 
