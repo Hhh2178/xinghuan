@@ -108,3 +108,10 @@
   width: 16px;
   height: 16px;
 }
+
+.api-settings-page .provider-rail {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}

@@ -23,7 +23,7 @@
 | 运营总览 | `/admin/overview` | A-layer frame + 关键摘要 + 中性数据表（v0.8.9 Gray 已验收） | A 试点完成；趋势/告警下钻仍属于后续 C 批 | 运行态势首页 | C |
 | 账号与组织 | 组织总览、账号、用户组、会话 | 子视图 tabs + 工作台 | rail/卡片/表格语法并存 | 治理工作台 | D |
 | 权限与安全 | 权限策略 | group rail + 编辑器 | 开关墙缺少影响上下文 | Master-detail + Inspector | D |
-| Provider 与模型 | Provider、模型目录 | Provider 列表 + 表单 | 字段、测试、拉取结果、操作争夺注意 | 配置工作台 | B |
+| Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（B 本地已迁移） | handler/API 已由契约锁定；仍待完整 B 批 Gray 视觉验收 | 配置工作台 | B |
 | 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D |
 | RH 管理 | 工作流、AI 应用、Key 池 | rail + editor + 结果 | Schema/测试结果压缩主体 | 目录 + 编辑器 + Inspector | B |
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 专用实例详情页 | 专用皮肤与全局 Token 并行 | 实例治理工作台 | B（仅样式） |

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, KeyRound, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { api } from "./admin-api-client";
+import {
+  AdminConfigurationContext,
+  AdminConfigurationLayout,
+  AdminConfigurationWorkbench,
+} from "./admin-configuration-workbench";
 import { ConfirmActionDialog } from "./admin-confirm-action-dialog";
 import { ManualModelDialog } from "./admin-manual-model-dialog";
 import { ModelPicker } from "./admin-model-picker";
@@ -542,9 +547,19 @@ export function ApiSettingsPanel({
   const msVisible = selected ? isModelScopeProvider(draft) : false;
 
   return (
-    <section className="api-settings-page">
-      <div className="api-settings-layout">
-        <aside className="provider-rail">
+    <AdminConfigurationWorkbench label="Provider 与模型配置" className="api-settings-page">
+      <AdminConfigurationContext
+        eyebrow={activeView === "models" ? "模型目录" : "当前 Provider"}
+        title={selected?.name || "新增 Provider"}
+        description={selected?.baseUrl || "从左侧目录选择 Provider，或新建配置。"}
+        status={{
+          label: busy ? "处理中" : status,
+          tone: busy ? "warning" : fetchTone === "success" ? "success" : fetchTone === "warning" ? "warning" : "muted",
+        }}
+      />
+      <AdminConfigurationLayout
+        className="api-settings-layout"
+        rail={<div className="provider-rail">
           <div className="rail-title">平台列表</div>
           <div className="provider-list">
             {providers.map((provider, index) => (
@@ -582,21 +597,11 @@ export function ApiSettingsPanel({
               <Plus aria-hidden="true" /> 新增平台
             </button>
           </div>
-        </aside>
+        </div>}
+      >
 
         <div className="api-settings-content">
           <div hidden={activeView !== "providers"}>
-          <div className="api-settings-inline-status">
-            <div className="api-settings-inline-status__copy">
-              <span>当前 Provider</span>
-              <strong>{selected?.name || "新增平台"}</strong>
-              <small>{selected?.baseUrl || "先在左侧选择平台，或新增一个 Provider 开始配置。"}</small>
-            </div>
-            <span className={busy ? "api-settings-status busy" : "api-settings-status"}>
-              {busy ? "处理中..." : status}
-            </span>
-          </div>
-
           <div className="api-card">
             <div className="provider-form-head">
               <strong>{selected?.name || "新增平台"}</strong>
@@ -1053,7 +1058,7 @@ export function ApiSettingsPanel({
             />
           )) : null}
         </div>
-      </div>
+      </AdminConfigurationLayout>
 
       {pickerOpen && fetched ? (
         <ModelPicker
@@ -1110,6 +1115,6 @@ export function ApiSettingsPanel({
           }}
         />
       ) : null}
-    </section>
+    </AdminConfigurationWorkbench>
   );
 }

@@ -71,26 +71,26 @@ Commit: `feat(admin): add configuration workbench foundation`
 - Consumes the Task 1 presentation components.
 - Keeps `ApiSettingsPanel` props, Provider/model API calls, `refresh`, selection, model dialogs, probe/fetch actions, and assistant draft application unchanged.
 
-- [ ] **Step 1: Write a failing page contract**
+- [x] **Step 1: Write a failing page contract**
 
 Assert the Provider page uses the shared template, preserves provider rail and `activeView` sections, exposes selected Provider context, and keeps save/probe/fetch/model actions wired to their existing handlers.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `npm test -- apps/admin/src/admin-api-settings-panel.test.tsx`
 Expected: FAIL because the page has not adopted the shared template.
 
-- [ ] **Step 3: Migrate only composition and classes**
+- [x] **Step 3: Migrate only composition and classes**
 
 Wrap the existing rail/content in shared slots, replace the inline identity block with object context, and keep all form fields, handlers, dialogs, result panels, and model editor behavior unchanged.
 
-- [ ] **Step 4: Run focused tests and Admin build**
+- [x] **Step 4: Run focused tests and Admin build**
 
 Run: `npm test -- apps/admin/src/admin-api-settings-panel.test.tsx apps/admin/src/admin-configuration-workbench.test.tsx`
 Run: `npm --workspace @xinghuan/admin run build`
 Expected: all exit 0.
 
-- [ ] **Step 5: Update Audit/daily evidence and commit**
+- [x] **Step 5: Update Audit/daily evidence and commit**
 
 Commit: `feat(admin): migrate provider configuration workbench`
 
