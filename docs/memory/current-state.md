@@ -2,12 +2,13 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.8.4`（旧服务器现代画布视觉灰度）
+- 当前灰度版本：`v0.8.6`（旧服务器画布表现层回撤灰度）
 - 当前生产版本：`v0.8.3`（用户授权后由 Gray 同制品正式晋级）
-- 当前灰度 release：`20260729-canvas-modern-presentation-v084-r1`
+- 当前灰度 release：`20260729-canvas-reset-v086-r1`
 - 当前生产 release：`20260728-plato-output-recovery-v083-r22`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：旧服务器 Gray 已部署 v0.8.4 现代画布视觉灰度。默认保持旧视觉；现代模式提供可折叠悬浮侧栏、增强点阵、可读节点样式和稳定的 MiniMap/悬浮层，不改变现有节点、素材或任务链路。API/Worker、内外状态和权限 readiness 均已通过；浏览器视觉与真实业务验收待 Gray 用户验证。
+- 最新完成：旧服务器 Gray 已部署 v0.8.6 画布表现层回撤。旧版/新版切换、用户持久化状态与 modern 节点覆盖已移除，原节点、点阵、MiniMap 和浮层恢复；悬停/焦点展开侧栏保留。API/Worker、内外状态和权限 readiness 均已通过；浏览器视觉与真实业务验收待完成。
+- 当前 Admin 视觉重构：Foundation 已完成并随 v0.8.6 Gray 验证；A 批共享视觉骨架与 `/admin/overview` 只读试点正在实施，完成后继续 B/C/D。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
 - 当前冻结项：ComfyUI 功能开发暂停并封存；只允许 crash/security/rollback/docs 级别止血，不继续节点 UI、工作流治理、Tailscale/隧道、多机器调度等扩展。

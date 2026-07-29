@@ -28,13 +28,13 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.5`
-  - release：`20260729-canvas-presentation-correction-v085-r1`
+  - 版本：`v0.8.6`
+  - release：`20260729-canvas-reset-v086-r1`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过；浏览器视觉与真实业务体验待 Gray 用户验证`
-  - 当前补修：`现代画布移除重复侧栏开合入口，既有图像/视频/LLM 节点自动接入新版视觉，顶栏样式切换器统一为紧凑分段控件；旧版默认与任务链路不变`
+  - 当前补修：`移除画布表现切换和 modern 节点覆盖，恢复原画布表面并保留悬停/焦点展开侧栏；任务链路不变`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`486a456`
-  - 本轮制品 SHA-256：`9186046C89C57E0EBB68C7BD13301BE8B6047CD0745EFD135D3A444380EF8A26`
+  - 本轮制品源提交：`8cdc9204704d9a26d06bbcef61699318d7216bfb`
+  - 本轮制品 SHA-256：`6E116AF86FC00D153BC24723A8990166956C95238CCDA918302075E82360D711`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮未推进 ComfyUI`
   - 本地待补修：`系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

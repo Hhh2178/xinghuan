@@ -28,11 +28,11 @@
 - Create: `docs/logbooks/validations/2026-07-29-canvas-reset-v086-r1.md`
 - Modify: `ops/current/release-state.json`, `ops/current/gray.md`, release index, and the visual audit/program only after runtime verification
 
-- [ ] Create a clean release worktree from `958ad75` and install its worktree hooks.
-- [ ] Bump the Gray patch version from `0.8.5` to `0.8.6`; prepare a governed old-server Gray archive.
-- [ ] Run `npm run verify:agent-environment-readiness-contract`, the release harness, and the release preflight in the clean worktree.
-- [ ] Deploy only with `--target-profile=old-server --env=gray`, then run the Gray verifier with expected version `0.8.6`.
-- [ ] Record actual command outcomes, archive hash, current/rollback release IDs, API/Worker status, and the user visual acceptance checklist. Do not claim browser acceptance before it occurs.
+- [x] Create a clean release worktree from `958ad75` and install its worktree hooks.
+- [x] Bump the Gray patch version from `0.8.5` to `0.8.6`; prepare a governed old-server Gray archive.
+- [x] Run `npm run verify:agent-environment-readiness-contract`, the release harness, and the release preflight in the clean worktree.
+- [x] Deploy only with `--target-profile=old-server --env=gray`, then run the Gray verifier with expected version `0.8.6`.
+- [x] Record actual command outcomes, archive hash, current/rollback release IDs, API/Worker status, and the user visual acceptance checklist. Do not claim browser acceptance before it occurs.
 
 ### Task 2: Define reusable Admin A-layer contracts
 

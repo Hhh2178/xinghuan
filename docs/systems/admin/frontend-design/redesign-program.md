@@ -14,6 +14,12 @@
 | C | 概览、任务、健康、分析、审计 | 实时/数据模板 | 异常优先、实时刷新不闪烁 |
 | D | 组织、安全、资源、公告、自动化 | 治理/内容模板与全域收口 | 高风险操作保持确认 |
 
+## Current Program Status
+
+- Foundation: code and documentation complete; old-server Gray `v0.8.6` runtime verified on 2026-07-29. Canvas visual acceptance remains pending.
+- A: implementation plan committed; shared foundation contracts and `/admin/overview` pilot are next.
+- B/C/D: not started under this program. They remain required after A and must use the same test, screenshot, Gray, Audit, and logbook gates.
+
 ## 每批固定步骤
 
 1. 阅读 Foundation、Audit、Program 和 Registry，确认目标模板。
