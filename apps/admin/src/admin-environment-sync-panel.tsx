@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { ArrowRightLeft, CheckSquare, RefreshCcw, ShieldAlert } from "lucide-react";
 import { api } from "./admin-api-client";
-import { AdminTable, AdminWorkspaceBand, StatusPill } from "./admin-common-components";
+import { AdminTable, StatusPill } from "./admin-common-components";
+import {
+  AdminConfigurationContext,
+  AdminConfigurationLayout,
+  AdminConfigurationWorkbench,
+} from "./admin-configuration-workbench";
 import type {
   ConfirmAction,
   EnvironmentSyncApplyResponse,
@@ -223,21 +228,20 @@ export function AdminEnvironmentSyncPanel({
   }
 
   return (
-    <section className="panel-stack environment-sync-page">
-      <AdminWorkspaceBand
-        className="environment-sync-band"
-        kicker="Ops Center"
-        title="灰度 / 正式环境数据对齐"
-        description="先查看两边差异，再勾选账号或服务商进行同步。勾选服务商时，会把该服务商下面的模型配置一起同步过去。"
-        currentLabel={`${environmentLabel(sourceEnvironment)} -> ${environmentLabel(targetEnvironment)}`}
-        currentDescription={`${selectedRows.length} 项已选 · ${selectedRows.filter((row) => row.state === "conflict").length} 项冲突`}
-        actions={
-          <div className="environment-sync-band__metrics">
+    <AdminConfigurationWorkbench label="环境同步配置" className="panel-stack environment-sync-page">
+      <AdminConfigurationContext
+        eyebrow="环境差异"
+        title={`${environmentLabel(sourceEnvironment)} -> ${environmentLabel(targetEnvironment)}`}
+        description={`${selectedRows.length} 项已选 · ${selectedRows.filter((row) => row.state === "conflict").length} 项冲突`}
+        status={{
+          label: result ? "同步已执行" : preview ? "差异已预览" : "等待预览",
+          tone: result ? "success" : selectedRows.some((row) => row.state === "conflict") ? "warning" : "muted",
+        }}
+        actions={<div className="environment-sync-band__metrics">
             <span>{users.length} 个账号差异项</span>
             <span>{providers.length} 个服务商差异项</span>
             <span>{selectedRows.length} 项已选</span>
-          </div>
-        }
+          </div>}
       />
 
       <div className="environment-sync-toolbar">
@@ -281,8 +285,9 @@ export function AdminEnvironmentSyncPanel({
         </div>
       </div>
 
-      <div className="environment-sync-workspace">
-        <aside className="environment-sync-rail">
+      <AdminConfigurationLayout
+        className="environment-sync-workspace"
+        rail={<div className="environment-sync-rail">
           <section className="form-panel environment-sync-summary">
             <header>
               <ShieldAlert aria-hidden="true" />
@@ -322,7 +327,8 @@ export function AdminEnvironmentSyncPanel({
               </button>
             </div>
           </section>
-        </aside>
+        </div>}
+      >
 
         <section className="environment-sync-table-area">
           <div className="environment-sync-section-tabs" role="tablist" aria-label="环境同步分区">
@@ -493,7 +499,7 @@ export function AdminEnvironmentSyncPanel({
             </div>
           )}
         </section>
-      </div>
+      </AdminConfigurationLayout>
 
       {pendingConfirmAction ? (
         <ConfirmActionDialog
@@ -506,6 +512,6 @@ export function AdminEnvironmentSyncPanel({
           }}
         />
       ) : null}
-    </section>
+    </AdminConfigurationWorkbench>
   );
 }

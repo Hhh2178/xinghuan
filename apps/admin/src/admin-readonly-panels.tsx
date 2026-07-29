@@ -1,6 +1,7 @@
 import { Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
+import { AdminConfigurationContext, AdminConfigurationWorkbench } from "./admin-configuration-workbench";
 import { AdminChannelHealthDashboard } from "./admin-channel-health-dashboard";
 import { AdminUsageDashboard } from "./admin-usage-dashboard";
 import { AdminCostDashboard } from "./admin-cost-dashboard";
@@ -121,6 +122,11 @@ export function SystemPanel({
   }, [system]);
 
   const values = draft || system?.taskQueueSettings;
+  const runtimeSettingsDirty = Boolean(
+    values
+    && system?.taskQueueSettings
+    && JSON.stringify(values) !== JSON.stringify(system.taskQueueSettings),
+  );
 
   return (
     <>
@@ -132,7 +138,17 @@ export function SystemPanel({
           onRefresh={onHealthRefresh}
         />
       ) : null}
-      {activeView === "runtime-settings" ? <FormPanel title="任务并发设置" icon={Settings2}>
+      {activeView === "runtime-settings" ? <AdminConfigurationWorkbench label="运行参数配置" className="admin-runtime-settings-workbench">
+        <AdminConfigurationContext
+          eyebrow="任务队列"
+          title="任务并发设置"
+          description={`Revision ${system?.taskQueueSettingsRevision ?? 1} · RH 总并发由启用 Key 自动汇总`}
+          status={{
+            label: saving || submitting ? "保存中" : runtimeSettingsDirty ? "有未保存修改" : "配置已同步",
+            tone: saving || submitting || runtimeSettingsDirty ? "warning" : "success",
+          }}
+        />
+        <FormPanel title="任务并发设置" icon={Settings2}>
         <label>
           图片总并发
           <input
@@ -324,7 +340,8 @@ export function SystemPanel({
             {saving || submitting ? "保存中..." : "保存并发设置"}
           </button>
         </div>
-      </FormPanel> : null}
+        </FormPanel>
+      </AdminConfigurationWorkbench> : null}
     </>
   );
 }

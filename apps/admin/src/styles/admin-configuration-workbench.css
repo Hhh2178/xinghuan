@@ -130,3 +130,9 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.environment-sync-page .admin-configuration-layout__rail {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}

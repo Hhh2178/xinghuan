@@ -146,10 +146,10 @@ Commit: `feat(admin): migrate provider configuration workbench`
 - Keeps `SystemPanel` props, task queue payload shape, revision forwarding, preview/apply confirmation, selected rows, conflict decisions, and audit result rendering unchanged.
 - Adds explicit draft/synchronized presentation and shared configuration geometry without changing when writes occur.
 
-- [ ] **Step 1: Write and run a RED contract for revision/conflict/action preservation and shared template adoption**
-- [ ] **Step 2: Migrate runtime settings and environment sync composition**
-- [ ] **Step 3: Run focused tests, Admin build, and design/authority contracts**
-- [ ] **Step 4: Update Audit/daily evidence and commit `feat(admin): migrate system configuration workbenches`**
+- [x] **Step 1: Write and run a RED contract for revision/conflict/action preservation and shared template adoption**
+- [x] **Step 2: Migrate runtime settings and environment sync composition**
+- [x] **Step 3: Run focused tests, Admin build, and design/authority contracts**
+- [x] **Step 4: Update Audit/daily evidence and commit `feat(admin): migrate system configuration workbenches`**
 
 ### Task 6: Validate and release B to old-server Gray
 
