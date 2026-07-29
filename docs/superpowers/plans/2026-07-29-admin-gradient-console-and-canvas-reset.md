@@ -98,7 +98,7 @@ git commit -m "docs(admin): establish gradient console visual governance"
 - Produces a Sidebar without `presentation` prop and with default `t8-sidebar--modern` class.
 - Produces Canvas without `CanvasPresentation` prop, `data-canvas-presentation`, or a modern-only Background color.
 
-- [ ] **Step 1: Write failing boundary tests**
+- [x] **Step 1: Write failing boundary tests**
 
 ```ts
 expect(appSource).not.toContain('CanvasPresentationToggle');
@@ -109,16 +109,16 @@ expect(sidebarSource).toContain('const isModern = true');
 expect(modernStyles).not.toContain("data-canvas-presentation='modern'");
 ```
 
-- [ ] **Step 2: Run the focused test to verify it fails**
+- [x] **Step 2: Run the focused test to verify it fails**
 
 Run: `npm test -- apps/web/src/styles/canvas-modern.test.ts`  
 Expected: FAIL because switch and presentation props are still present.
 
-- [ ] **Step 3: Apply the smallest rollback**
+- [x] **Step 3: Apply the smallest rollback**
 
 Remove the toggle/store/presentation boundary, make Sidebar’s modern rail unconditional, and scope only Sidebar CSS to `.t8-sidebar--modern`.
 
-- [ ] **Step 4: Run focused test to verify it passes**
+- [x] **Step 4: Run focused test to verify it passes**
 
 Run: `npm test -- apps/web/src/styles/canvas-modern.test.ts`  
 Expected: PASS with rail-only modern styling and no presentation selection surface.

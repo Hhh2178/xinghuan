@@ -52,7 +52,6 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useCanvasStore } from '../stores/canvas';
-import type { CanvasPresentation } from '../stores/canvasPresentation';
 import { useThemeStore } from '../stores/theme';
 import { useShortcutStore } from '../stores/shortcuts';
 import { getTemplateMode, resolveThemeTemplate } from '../theme/defaultTemplates';
@@ -1230,10 +1229,9 @@ interface CanvasInnerProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
   currentUser?: AuthUser | null;
-  presentation?: CanvasPresentation;
 }
 
-function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser, presentation = 'legacy' }: CanvasInnerProps) {
+function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasInnerProps) {
   const { activeId, canvases, loadCanvases, setActive, createCanvas } = useCanvasStore();
   const { theme, style, templateId } = useThemeStore();
   const shortcuts = useShortcutStore((s) => s.shortcuts);
@@ -3607,7 +3605,6 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser, presentat
     <div
       className={`t8-canvas-shell flex-1 relative${connectionPanModeActive ? ' connection-pan-mode-active' : ''}`}
       data-theme-visual={visualStyle}
-      data-canvas-presentation={presentation}
       style={canvasShellStyle}
       onContextMenuCapture={onCanvasContextMenuCapture}
       onMouseMove={handleCanvasPointerMove}
@@ -3688,7 +3685,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser, presentat
           variant={BackgroundVariant.Dots}
           gap={20}
           size={isPixel ? 1.6 : 1.2}
-          color={presentation === 'modern' ? 'var(--canvas-modern-grid-dot)' : dotColor}
+          color={dotColor}
         />
         <CanvasFlowOverlays
           guides={guides}
@@ -4233,7 +4230,6 @@ interface CanvasProps {
   onAddNodeRef?: React.MutableRefObject<AddNodeFn | null>;
   onInsertWorkflowRef?: React.MutableRefObject<InsertWorkflowFn | null>;
   currentUser?: AuthUser | null;
-  presentation?: CanvasPresentation;
 }
 
 export default function Canvas(props: CanvasProps) {

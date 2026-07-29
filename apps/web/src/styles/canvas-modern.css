@@ -1,67 +1,4 @@
-/* New canvas presentation only. Legacy is intentionally left to its existing styles. */
-.t8-canvas-presentation-toggle {
-  display: inline-flex;
-  height: 32px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid color-mix(in srgb, var(--t8-border, rgba(255, 255, 255, 0.14)) 94%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--t8-bg-panel, #141416) 88%, transparent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
-}
-
-.t8-canvas-presentation-toggle__label {
-  padding: 0 6px 0 7px;
-  color: var(--t8-text-muted, rgba(244, 244, 245, 0.68));
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.t8-canvas-presentation-toggle__option {
-  display: inline-flex;
-  height: 26px;
-  min-width: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--t8-text-muted, rgba(244, 244, 245, 0.68));
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 18px;
-  white-space: nowrap;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.t8-canvas-presentation-toggle__option:hover,
-.t8-canvas-presentation-toggle__option:focus-visible {
-  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 35%, transparent);
-  background: color-mix(in srgb, var(--t8-accent, #38bdf8) 10%, transparent);
-  color: var(--t8-text-main, #f4f4f5);
-  outline: none;
-}
-
-.t8-canvas-presentation-toggle__option.is-active {
-  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 42%, transparent);
-  background: color-mix(in srgb, var(--t8-accent, #38bdf8) 18%, transparent);
-  color: var(--t8-text-main, #f4f4f5);
-}
-
-.t8-canvas-presentation-toggle__option em {
-  color: color-mix(in srgb, var(--t8-accent, #38bdf8) 78%, white 22%);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: 14px;
-}
-
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern {
+.t8-sidebar--modern {
   position: relative;
   z-index: 30;
   width: 56px;
@@ -71,7 +8,7 @@
   border-right: 0;
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail {
+.t8-sidebar--modern .t8-sidebar-rail {
   position: relative;
   z-index: 2;
   display: flex;
@@ -86,7 +23,7 @@
   backdrop-filter: blur(16px);
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button {
+.t8-sidebar--modern .t8-sidebar-rail__button {
   display: grid;
   width: 40px;
   height: 40px;
@@ -98,15 +35,15 @@
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button:hover,
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-rail__button:focus-visible {
+.t8-sidebar--modern .t8-sidebar-rail__button:hover,
+.t8-sidebar--modern .t8-sidebar-rail__button:focus-visible {
   border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 60%, transparent);
   background: color-mix(in srgb, var(--t8-accent, #38bdf8) 16%, transparent);
   color: var(--t8-text-main, #f4f4f5);
   outline: none;
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-panel {
+.t8-sidebar--modern .t8-sidebar-panel {
   position: absolute;
   z-index: 1;
   top: 0;
@@ -124,28 +61,14 @@
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern[data-expanded='true'] .t8-sidebar-panel,
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern:focus-within .t8-sidebar-panel {
+.t8-sidebar--modern[data-expanded='true'] .t8-sidebar-panel,
+.t8-sidebar--modern:focus-within .t8-sidebar-panel {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
 }
 
-.t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern .t8-sidebar-panel :is(button, input, span, p, div) {
+.t8-sidebar--modern .t8-sidebar-panel :is(button, input, span, p, div) {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell {
-  --canvas-modern-grid-dot: color-mix(in srgb, var(--canvas-grid-dot) 60%, var(--canvas-grid-contrast) 40%);
-}
-
-.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell .t8-canvas-minimap {
-  right: 24px !important;
-  bottom: 80px !important;
-  z-index: 24 !important;
-}
-
-.t8-app-shell[data-canvas-presentation='modern'] .t8-canvas-shell .agent-assistant-root {
-  z-index: 26;
 }

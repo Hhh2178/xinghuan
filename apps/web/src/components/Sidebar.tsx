@@ -18,7 +18,6 @@ import { filterNodeCatalogByPermissions } from '../services/permission-state';
 // vite.config.ts 中通过 define 注入的编译期常量（与 package.json version 同步）
 declare const __APP_VERSION__: string;
 import type { NodeMeta, NodeType } from '../types/canvas';
-import type { CanvasPresentation } from '../stores/canvasPresentation';
 import { useThemeStore } from '../stores/theme';
 import { useCanvasStore } from '../stores/canvas';
 import { resolveThemeTemplate } from '../theme/defaultTemplates';
@@ -236,14 +235,12 @@ interface SidebarProps {
   onAddNode: (type: NodeType) => void;
   deniedNodeTypes?: string[];
   onOpenSupervision: () => void;
-  presentation?: CanvasPresentation;
 }
 
 export default function Sidebar({
   onAddNode,
   deniedNodeTypes = [],
   onOpenSupervision,
-  presentation = 'legacy',
 }: SidebarProps) {
   const { theme, style, templateId } = useThemeStore();
   const currentTemplate = useMemo(
@@ -256,7 +253,7 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [keyword, setKeyword] = useState('');
   const [modernExpanded, setModernExpanded] = useState(false);
-  const isModern = presentation === 'modern';
+  const isModern = true;
 
   // 画布管理(整合到节点侧边栏顶部)
   const {
@@ -372,24 +369,23 @@ export default function Sidebar({
   };
 
   const expandModernSidebar = () => {
-    if (isModern) setModernExpanded(true);
+    setModernExpanded(true);
   };
 
   const collapseModernSidebar = () => {
-    if (isModern) setModernExpanded(false);
+    setModernExpanded(false);
   };
 
   return (
     <aside
-      className={`t8-sidebar w-64 flex flex-col border-r overflow-hidden ${isModern ? 't8-sidebar--modern' : ''} ${
+      className={`t8-sidebar t8-sidebar--modern w-64 flex flex-col border-r overflow-hidden ${
         isPixel
           ? 'px-panel'
           : isDark
             ? 'bg-zinc-900 border-white/10'
           : 'bg-white border-black/10'
       }`}
-      data-sidebar-presentation={presentation}
-      data-expanded={isModern ? String(modernExpanded) : undefined}
+      data-expanded={String(modernExpanded)}
       onMouseEnter={expandModernSidebar}
       onMouseLeave={collapseModernSidebar}
       onFocusCapture={expandModernSidebar}
@@ -397,8 +393,7 @@ export default function Sidebar({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) collapseModernSidebar();
       }}
     >
-      {isModern ? (
-        <nav className="t8-sidebar-rail" aria-label="画布工具栏">
+      <nav className="t8-sidebar-rail" aria-label="画布工具栏">
           <button
             type="button"
             className="t8-sidebar-rail__button"
@@ -438,8 +433,7 @@ export default function Sidebar({
           >
             <Bot size={18} />
           </button>
-        </nav>
-      ) : null}
+      </nav>
       <div className="t8-sidebar-panel flex min-h-0 flex-1 flex-col">
       {/* 画布管理(可折叠) */}
       <div

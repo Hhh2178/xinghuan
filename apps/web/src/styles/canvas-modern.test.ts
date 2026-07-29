@@ -3,12 +3,21 @@ import { describe, expect, it } from 'vitest';
 
 const modernStyles = readFileSync(new URL('./canvas-modern.css', import.meta.url), 'utf8');
 const indexStyles = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+const canvasSource = readFileSync(new URL('../components/Canvas.tsx', import.meta.url), 'utf8');
 const sidebarSource = readFileSync(new URL('../components/Sidebar.tsx', import.meta.url), 'utf8');
 
 describe('modern canvas shell stylesheet boundary', () => {
-  it('keeps the modern sidebar as an overlay rail scoped to modern presentation only', () => {
+  it('keeps the sidebar as an unconditional overlay rail without a presentation switch', () => {
     expect(indexStyles).toContain("@import './canvas-modern.css';");
-    expect(modernStyles).toContain(".t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern");
+    expect(appSource).not.toContain('CanvasPresentationToggle');
+    expect(appSource).not.toContain('data-canvas-presentation');
+    expect(canvasSource).not.toContain('presentation?: CanvasPresentation');
+    expect(canvasSource).not.toContain('data-canvas-presentation');
+    expect(sidebarSource).not.toContain('presentation?: CanvasPresentation');
+    expect(sidebarSource).toContain('const isModern = true');
+    expect(modernStyles).toContain('.t8-sidebar--modern');
+    expect(modernStyles).not.toContain("data-canvas-presentation='modern'");
     expect(modernStyles).toContain('width: 56px');
     expect(modernStyles).toContain('position: absolute');
     expect(modernStyles).toContain('width: 232px');
@@ -16,8 +25,8 @@ describe('modern canvas shell stylesheet boundary', () => {
   });
 
   it('exposes only real modern rail actions while hover and focus control expansion', () => {
-    expect(sidebarSource).toContain('data-sidebar-presentation={presentation}');
-    expect(sidebarSource).toContain('data-expanded={isModern ? String(modernExpanded) : undefined}');
+    expect(sidebarSource).not.toContain('data-sidebar-presentation');
+    expect(sidebarSource).toContain('data-expanded={String(modernExpanded)}');
     expect(sidebarSource).toContain('t8-sidebar-rail');
     expect(sidebarSource).toContain('aria-label="打开画布列表"');
     expect(sidebarSource).toContain('aria-label="新建画布"');
@@ -29,9 +38,10 @@ describe('modern canvas shell stylesheet boundary', () => {
     expect(sidebarSource).toContain('t8-sidebar-panel');
   });
 
-  it('defines a 32px segmented presentation control that matches topbar actions', () => {
-    expect(modernStyles).toContain('.t8-canvas-presentation-toggle');
-    expect(modernStyles).toContain('height: 32px');
-    expect(modernStyles).toContain('.t8-canvas-presentation-toggle__option.is-active');
+  it('keeps canvas presentation styling out of the modern rail stylesheet', () => {
+    expect(modernStyles).not.toContain('.t8-canvas-presentation-toggle');
+    expect(modernStyles).not.toContain('--canvas-modern-grid-dot');
+    expect(modernStyles).not.toContain('.t8-canvas-minimap');
+    expect(modernStyles).not.toContain('.agent-assistant-root');
   });
 });
