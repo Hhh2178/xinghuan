@@ -33,10 +33,11 @@ const checks = [
     pass: /export\s+function\s+Overview\s*\(/.test(panelSource),
   },
   {
-    name: "overview preserves metric cards",
+    name: "overview preserves metrics through the shared summary strip",
     pass:
-      panelSource.includes('className="metric-grid"') &&
-      panelSource.includes('className="metric-card"') &&
+      panelSource.includes("<AdminWorkspaceFrame") &&
+      panelSource.includes("<AdminSummaryStrip") &&
+      panelSource.includes('label="运营关键摘要"') &&
       metricLabels.every((label) => panelSource.includes(`label: "${label}"`)) &&
       panelSource.includes("summary?.enabledUsers ?? 0") &&
       panelSource.includes("summary?.enabledProviders ?? 0") &&
@@ -76,7 +77,19 @@ const checks = [
     pass:
       panelSource.includes('from "./admin-common-components"') &&
       panelSource.includes('from "./admin-view-model"') &&
-      panelSource.includes("<DataTable"),
+      panelSource.includes("<DataTable") &&
+      panelSource.includes("<StatusPill"),
+  },
+  {
+    name: "shell retains overview loading and error boundaries",
+    pass:
+      mainSource.includes('{error ? <div className="error-banner">{error}</div> : null}') &&
+      mainSource.includes('fallback={<div className="starlight-page-loading"') &&
+      mainSource.includes('activeTab === "overview"') &&
+      mainSource.includes("summary={summary}") &&
+      mainSource.includes("providers={providers}") &&
+      mainSource.includes("models={models}") &&
+      mainSource.includes("tasks={taskPage.items}"),
   },
 ];
 

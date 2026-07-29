@@ -44,11 +44,11 @@
 - Modify: `apps/admin/src/admin-common-components.test.ts` or an adjacent focused contract test
 - Modify: `docs/systems/admin/frontend-design/visual-component-registry.md`
 
-- [ ] Add a failing contract test for Foundation token use, a single workspace identity header, neutral data surfaces, and state semantics.
-- [ ] Add the smallest reusable `AdminWorkspaceFrame` / summary-strip presentation API compatible with existing `AdminPageShell`, `AdminWorkspaceBand`, `AdminDataPanel`, `AdminTable`, and `StatusPill` call sites.
-- [ ] Map existing Starlight variables to Foundation tokens in a focused shared stylesheet; do not append another global page skin.
-- [ ] Run the focused contract test and `npm --workspace @xinghuan/admin run build`.
-- [ ] Update the visual registry with the concrete source and interface, then commit the self-contained foundation change.
+- [x] Add a failing contract test for Foundation token use, a single workspace identity header, neutral data surfaces, and state semantics.
+- [x] Add the smallest reusable `AdminWorkspaceFrame` / summary-strip presentation API compatible with existing `AdminPageShell`, `AdminWorkspaceBand`, `AdminDataPanel`, `AdminTable`, and `StatusPill` call sites.
+- [x] Map existing Starlight variables to Foundation tokens in a focused shared stylesheet; do not append another global page skin.
+- [x] Run the focused contract test and `npm --workspace @xinghuan/admin run build`.
+- [x] Update the visual registry with the concrete source and interface, then commit the self-contained foundation change.
 
 ### Task 3: Migrate the read-only overview pilot
 
@@ -58,8 +58,8 @@
 - Modify/Create: `apps/admin/src/admin-overview-panel.test.tsx`
 - Modify: `docs/systems/admin/frontend-design/admin-page-visual-audit.md`
 
-- [ ] Write a failing overview contract asserting one page H1, Foundation-backed summary strip, semantic alert treatment, and retained loading/empty/error rendering.
-- [ ] Migrate only the overview layout to the shared A-layer primitives; retain its existing data loader inputs and refresh callbacks unchanged.
+- [x] Write a failing overview contract asserting one page H1, Foundation-backed summary strip, semantic alert treatment, and retained loading/empty/error rendering.
+- [x] Migrate only the overview layout to the shared A-layer primitives; retain its existing data loader inputs and refresh callbacks unchanged.
 - [ ] Verify the focused test, Admin build, visual/token/registry contracts, and one `1920x1080` screenshot with no overflow, overlap, or double scrolling.
 - [ ] Mark only `/admin/overview` as piloted in the Audit, record the template, tokens, long-text policy, and state treatment in the daily log, then commit.
 
