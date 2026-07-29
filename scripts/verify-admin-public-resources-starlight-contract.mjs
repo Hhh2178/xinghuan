@@ -10,14 +10,18 @@ const modal = readFileSync(join(root, "apps", "admin", "src", "admin-media-previ
 const styles = readFileSync(join(root, "apps", "admin", "src", "styles.css"), "utf8");
 
 assert.match(panel, /admin-public-resources-page--starlight/, "public resources page should opt into the Starlight resource workbench skin");
+assert.match(panel, /AdminGovernanceWorkbench/, "public resources page should use the governance workbench template");
+assert.match(panel, /AdminGovernanceLayout/, "public resources page should expose directory and editor slots");
 assert.match(panel, /admin-public-resources-inspector/, "public resources page should expose a compact inspector summary area");
 assert.match(panel, /上传本地资源/, "public resource uploads should remain local file button based");
 assert.match(panel, /type="file"/, "public resource upload should use a hidden file input");
 
 assert.match(sidebar, /admin-public-resources-sidebar--starlight/, "category sidebar should use the readable Starlight category skin");
+assert.match(sidebar, /data-governance-surface="resource-directory"/, "category sidebar should expose governance directory semantics");
 assert.match(sidebar, /admin-public-resources-category-card__name/, "category names should have a dedicated no-overflow text target");
 
 assert.match(card, /admin-public-resource-card--starlight/, "resource cards should use the Starlight card shell");
+assert.match(card, /data-governance-surface="resource-record"/, "resource cards should expose governance record semantics");
 assert.match(card, /admin-public-resource-card__preview-stage/, "resource card preview should render inside a stable black contain stage");
 assert.match(card, /admin-public-resource-card__action-row/, "resource card actions should be grouped into wrapping rows");
 assert.match(card, /getPreviewText/, "resource card should expose a complete preview action");

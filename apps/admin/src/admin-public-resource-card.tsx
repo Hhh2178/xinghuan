@@ -108,7 +108,10 @@ export function AdminPublicResourceCard({
   const missingCategory = item.categoryId && !categoryNameById.has(item.categoryId);
 
   return (
-    <article className={`admin-public-resource-card admin-public-resource-card--starlight${expanded ? " admin-public-resource-card--expanded" : ""}`}>
+    <article
+      className={`admin-public-resource-card admin-public-resource-card--starlight${expanded ? " admin-public-resource-card--expanded" : ""}`}
+      data-governance-surface="resource-record"
+    >
       <div className="admin-public-resource-card__preview-shell">
         <div className="admin-public-resource-card__preview-stage">
           <div className="admin-public-resource-card__preview-frame">{renderPreview(item)}</div>

@@ -27,8 +27,8 @@
 | 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D（active） |
 | RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（v0.8.10 Gray 已验收） | 目录、编辑器、长 Schema 和 Key 池密度在桌面视窗内保持受控 | 目录 + 编辑器 + Inspector | B（完成） |
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（v0.8.10 Gray 已验收） | 仅视觉收敛；冻结 API 数量由契约锁定；长机器名使用受控省略 | 实例治理工作台 | B（仅样式，完成） |
-| 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D（active） |
-| 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D（active） |
+| 公共资源 | 资源目录 | D governance workbench + 分类 rail + 原四列卡片/完整预览（本地已迁移） | API、revision、上传和删除确认保持；Gray 桌面验收待执行 | 资源网格 + Inspector | D（active） |
+| 内容发布 | 公告 | D content workbench + 目录/editor + 只读预览 Inspector（本地已迁移） | 父级 callbacks、本地草稿和发布确认保持；Gray 桌面验收待执行 | 内容编辑工作台 | D（active） |
 | 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（v0.8.12 Gray 已验收） | 任务行为契约与单行命令布局均已验收 | 实时任务控制台 | C（完成） |
 | 数据分析与审计 | 用量、费用、渠道健康、审计 | C analytics workbench + 共享 context + 原筛选/KPI/图表/报告/七列表格（v0.8.12 Gray 已验收） | 数据、刷新所有权及桌面布局均已验收 | 分析驾驶舱 | C（完成） |
 | 系统健康 | 健康、运行告警 | C realtime workbench + 告警优先 command + 五领域 + 拓扑/趋势/容量/时间线 + Inspector（v0.8.12 Gray 已验收） | 可观测性语义、刷新与 Inspector 已验收 | 可观测性控制台 | C（完成） |
@@ -92,3 +92,6 @@
 - Task 2 已将组织总览、账号、用户组、会话和权限安全接入单一 `mode="governance"` 模板；组织与安全 context 随受控 view 切换，overview 的五个导航动作完整保留。
 - 账号、用户组、会话和 permission matrix 只接入 neutral `AdminGovernanceLayout` hook。`main.tsx` 继续拥有 URL 导航，原 user/group/session `mutate` 路径未移动；Permission Platform 继续拥有 mode/readiness、主体、reason、domain/search、effective decision、load-more、explain 及 revision-aware upsert/delete。
 - Task 2 本地证据：组织/安全 workbench 与 permission access 共 10 项测试、Users 行为契约、permission hardening、Admin TypeScript/Vite 构建及 `git diff --check` 均通过。D 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
+- Task 3 已将 `/admin/resources` 接入 `mode="governance"` 的 context、类型/搜索 toolbar 与 category rail/editor grid；资源 API、category/item revision、上传、完整媒体预览和删除确认继续由原 panel/card/sidebar 所有。
+- `/admin/content/announcements` 已接入 `mode="content"` 的 directory/editor/preview Inspector。Inspector 只读取现有 editor draft；父级 load/mutation callbacks、本地 draft、busy/loading guard、publish/archive/delete 和 `confirmTitle`/`confirmStrongReminder`/`confirmPinned` 未迁移。
+- 过时的 resource-content phase2 contract 已从 retired combined workspace 改为断言两个独立稳定路径，同时保留资源卡片、完整预览、四列 grid 和行为检查。Task 3 本地测试、资源 Starlight/phase2、公告 repository/shell、Admin build 与 diff gate 均通过；Gray 待整批执行。

@@ -169,6 +169,101 @@
   overflow-wrap: anywhere;
 }
 
+.admin-governance-workbench .admin-governance-context.admin-public-resources-band,
+.admin-governance-workbench .admin-governance-context.admin-announcement-hero {
+  border-color: var(--admin-border-strong);
+  background: var(--admin-gradient-shell);
+}
+
+.admin-governance-workbench :is(
+  .admin-public-resources-inspector > div,
+  .admin-public-resources-sidebar,
+  .admin-public-resources-workspace,
+  .admin-public-resource-card,
+  .admin-announcement-list,
+  .admin-announcement-editor,
+  .admin-announcement-preview
+) {
+  min-width: 0;
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-surface-1);
+}
+
+.admin-governance-workbench :is(
+  .admin-public-resources-toolbar button,
+  .admin-public-resources-toolbar input,
+  .admin-public-resources-band__actions button,
+  .admin-public-resources-sidebar button,
+  .admin-public-resource-card button,
+  .admin-announcement-hero__actions button,
+  .admin-announcement-editor button
+) {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+.admin-governance-layout--resources .admin-public-resources-sidebar {
+  position: sticky;
+  top: var(--admin-sticky-offset);
+}
+
+.admin-governance-layout--resources .admin-public-resources-grid,
+.admin-governance-layout--announcements :is(
+  .admin-announcement-list__body,
+  .admin-announcement-editor,
+  .admin-announcement-preview
+) {
+  min-width: 0;
+}
+
+.admin-announcement-preview {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--admin-border-subtle);
+}
+
+.admin-announcement-preview header,
+.admin-announcement-preview footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-announcement-preview h2,
+.admin-announcement-preview p,
+.admin-announcement-preview__content {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-announcement-preview h2 {
+  color: var(--admin-text-primary);
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.admin-announcement-preview p,
+.admin-announcement-preview__content,
+.admin-announcement-preview header span,
+.admin-announcement-preview footer {
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.admin-announcement-preview__content {
+  min-height: 180px;
+  padding-top: 14px;
+  border-top: 1px solid var(--admin-border-subtle);
+  white-space: pre-wrap;
+}
+
 @media (max-width: 1280px) {
   .admin-governance-layout[data-has-inspector="true"] {
     grid-template-columns: minmax(210px, 232px) minmax(0, 1fr);

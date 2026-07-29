@@ -10,11 +10,12 @@ const panel = readFileSync(join(root, "apps", "admin", "src", "admin-public-reso
 const sidebar = readFileSync(join(root, "apps", "admin", "src", "admin-public-resource-category-sidebar.tsx"), "utf8");
 const card = readFileSync(join(root, "apps", "admin", "src", "admin-public-resource-card.tsx"), "utf8");
 const styles = readFileSync(join(root, "apps", "admin", "src", "styles.css"), "utf8");
+const governanceStyles = readFileSync(join(root, "apps", "admin", "src", "styles", "admin-governance-workbench.css"), "utf8");
 
 assert.doesNotMatch(viewModel, /"generation-library"/, "resource-content workspace should remove generation-library tab");
 assert.doesNotMatch(viewModel, /label: "生成库"/, "admin nav should not expose generation-library label");
-assert.match(viewModel, /tabs:\s*\["public-resources",\s*"announcement"\]/, "resource-content workspace should keep public resources and announcement");
-assert.match(viewModel, /公共资源、公告、分类与标签/, "resource-content workspace description should no longer mention generation library");
+assert.match(viewModel, /id:\s*"resources"[\s\S]*?tabs:\s*\["public-resources"\][\s\S]*?"public-resources":\s*"\/admin\/resources"/, "resources workspace should keep its stable route");
+assert.match(viewModel, /id:\s*"content"[\s\S]*?tabs:\s*\["announcement"\][\s\S]*?announcement:\s*"\/admin\/content\/announcements"/, "content workspace should keep its stable announcement route");
 
 assert.match(apiClient, /\/api\/generation-library\/items/, "generation library backend API may remain available for non-admin surfaces");
 
@@ -23,20 +24,24 @@ assert.doesNotMatch(main, /activeTab === "generation-library"/, "main shell shou
 assert.match(main, /<AdminPublicResourcesPanel/, "main shell should still render public resources panel");
 
 assert.match(panel, /公共资源管理/, "public resources panel should preserve governance title");
-assert.match(panel, /AdminWorkspaceBand/, "public resources panel should use unified workspace band component");
+assert.match(panel, /AdminGovernanceWorkbench/, "public resources panel should use the governance workbench");
+assert.match(panel, /mode="governance"/, "public resources panel should use governance mode");
+assert.match(panel, /AdminGovernanceLayout/, "public resources panel should preserve directory and editor composition");
 assert.match(panel, /上传本地资源/, "public resources panel should preserve local upload action");
 assert.match(panel, /AdminMediaPreviewModal/, "public resources panel should keep complete preview modal");
 
 assert.match(sidebar, /admin-public-resources-category-card/, "sidebar should still render category cards");
+assert.match(sidebar, /data-governance-surface="resource-directory"/, "sidebar should expose the resource directory surface");
 assert.match(card, /完整预览|查看原图|试听|查看资源/, "resource cards should preserve preview actions");
 assert.match(card, /object-fit: contain|<img|<video|<audio/, "resource cards should render media preview content");
+assert.match(card, /data-governance-surface="resource-record"/, "resource cards should expose governance record semantics");
 
 assert.match(styles, /\.admin-public-resources-grid[\s\S]*repeat\(auto-fill,\s*250px\)/, "resource-content cards should use fixed-width columns");
 assert.match(styles, /\.admin-public-resources-grid[\s\S]*justify-content:\s*start/, "resource-content grid should keep fixed cards left aligned");
 assert.doesNotMatch(styles, /\.admin-public-resources-grid\s*\{[^}]*minmax\(220px,\s*1fr\)/, "resource-content cards should not stretch a single card across the row");
 assert.match(styles, /\.admin-public-resource-card[\s\S]*width:\s*250px/, "resource cards should have fixed desktop width");
 assert.match(styles, /\.admin-public-resources-category-card/, "styles should define resource category cards");
-assert.match(styles, /\.admin-workspace-band/, "styles should define unified workspace band");
+assert.match(governanceStyles, /\.admin-governance-workbench/, "styles should define the governance workbench");
 assert.match(styles, /\.admin-public-resources-category-card__name[\s\S]*#ffffff/i, "category card text should stay white for contrast");
 
 console.log("PASS admin resource content phase2 contract");

@@ -152,11 +152,11 @@ Commit: `feat(admin): migrate organization and security workbenches`
 - Announcements retain parent-owned load/mutation callbacks, local editor draft, explicit publish confirmation fields, archive/delete behavior, preview, and loading/busy guards.
 - The accepted information architecture keeps `/admin/resources` and `/admin/content/announcements` as separate workspaces.
 
-- [ ] **Step 1: Write RED template and route-ownership assertions**
+- [x] **Step 1: Write RED template and route-ownership assertions**
 
 Assert resource mode renders the category rail, editor grid, preview action, upload command, and explicit empty state; content mode renders directory/editor/preview composition, draft/published/archive states, and the existing publish confirmation controls.
 
-- [ ] **Step 2: Run RED and capture the known stale contract failure**
+- [x] **Step 2: Run RED and capture the known stale contract failure**
 
 ```text
 npm test -- apps/admin/src/admin-resource-content-workbench.test.tsx
@@ -168,11 +168,11 @@ npm run verify:app-shell-loading-announcement-contract
 
 Expected: the new test fails; `verify:admin-resource-content-phase2` fails only on its retired combined-workspace assertion.
 
-- [ ] **Step 3: Migrate both workspaces and update the stale contract**
+- [x] **Step 3: Migrate both workspaces and update the stale contract**
 
 Use `AdminGovernanceWorkbench mode="governance"` for resources and `mode="content"` for announcements. Replace only page identity/composition markup, move no callbacks, and update the contract to assert distinct `resources` and `content` workspaces with their stable paths.
 
-- [ ] **Step 4: Verify and record evidence**
+- [x] **Step 4: Verify and record evidence**
 
 ```text
 npm test -- apps/admin/src/admin-resource-content-workbench.test.tsx
@@ -185,7 +185,7 @@ npm run verify:visual-design-docs-contract
 git diff --check
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit: `feat(admin): migrate resource and content workbenches`
 

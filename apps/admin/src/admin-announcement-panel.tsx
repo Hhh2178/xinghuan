@@ -10,6 +10,11 @@ import type {
   AdminAnnouncementRecord,
   AdminAnnouncementUpsertPayload,
 } from "./admin-types";
+import {
+  AdminGovernanceContext,
+  AdminGovernanceLayout,
+  AdminGovernanceWorkbench,
+} from "./admin-governance-workbench";
 
 type EditorState = {
   title: string;
@@ -191,14 +196,20 @@ export function AdminAnnouncementPanel({
   }
 
   return (
-    <section className="admin-announcement-page data-panel">
-      <header className="admin-announcement-hero">
-        <div>
-          <p className="admin-announcement-hero__eyebrow">Announcement Center</p>
-          <strong>公告中心</strong>
-          <p>统一维护草稿、版本通知和强提醒公告，前台抽屉与即时弹层都从这里发出。</p>
-        </div>
-        <div className="admin-announcement-hero__actions">
+    <AdminGovernanceWorkbench
+      className="admin-announcement-page"
+      label="公告内容发布"
+      mode="content"
+    >
+      <AdminGovernanceContext
+        className="admin-announcement-hero"
+        eyebrow="内容发布"
+        title="公告中心"
+        description="统一维护草稿、版本通知和强提醒公告，前台抽屉与即时弹层都从这里发出。"
+        status={{ label: statusLabel(editor.status), tone: editor.status === "published" ? "success" : editor.status === "archived" ? "muted" : "warning" }}
+        meta={`${items.length} 条公告 · ${scopeLabel(editor.scope)} · ${priorityLabel(editor.priority)}`}
+        actions={
+          <div className="admin-announcement-hero__actions">
           <span>{items.length} 条公告</span>
           <button type="button" onClick={handleCreateNew} disabled={busy}>
             <Plus aria-hidden="true" />
@@ -208,11 +219,14 @@ export function AdminAnnouncementPanel({
             <Bell aria-hidden="true" />
             刷新
           </button>
-        </div>
-      </header>
+          </div>
+        }
+      />
 
-      <div className="admin-announcement-shell">
-        <aside className="admin-announcement-list">
+      <AdminGovernanceLayout
+        className="admin-governance-layout--announcements"
+        rail={
+          <aside className="admin-announcement-list" data-governance-surface="announcement-directory">
           <div className="admin-announcement-list__header">
             <strong>公告列表</strong>
             <span>{loading ? "加载中..." : "按发布时间倒序"}</span>
@@ -259,9 +273,30 @@ export function AdminAnnouncementPanel({
               </div>
             )}
           </div>
-        </aside>
+          </aside>
+        }
+        inspector={
+          <aside className="admin-announcement-preview" aria-label="公告预览">
+            <header>
+              <strong>公告预览</strong>
+              <span>{statusLabel(editor.status)}</span>
+            </header>
+            <h2>{editor.title.trim() || "未命名公告"}</h2>
+            <p>{editor.summary.trim() || "公告摘要会显示在这里。"}</p>
+            <div className="admin-announcement-preview__content">
+              {editor.content.trim() || "公告正文会显示在这里。"}
+            </div>
+            <footer>
+              <span>{scopeLabel(editor.scope)}</span>
+              <span>{priorityLabel(editor.priority)}</span>
+              {editor.pinned ? <span>置顶</span> : null}
+              {editor.strongReminder ? <span>强提醒</span> : null}
+            </footer>
+          </aside>
+        }
+      >
 
-        <section className="admin-announcement-editor">
+        <section className="admin-announcement-editor" data-governance-surface="announcement-editor">
           <div className="admin-announcement-editor__header">
             <div>
               <strong>{isNewDraft ? "新公告草稿" : selectedItem?.title || "编辑公告"}</strong>
@@ -447,7 +482,7 @@ export function AdminAnnouncementPanel({
             ) : null}
           </div>
         </section>
-      </div>
+      </AdminGovernanceLayout>
 
       {publishDialogOpen && selectedItem ? (
         <div className="admin-announcement-modal-backdrop">
@@ -494,6 +529,6 @@ export function AdminAnnouncementPanel({
           </section>
         </div>
       ) : null}
-    </section>
+    </AdminGovernanceWorkbench>
   );
 }

@@ -1,7 +1,13 @@
 import { Image as ImageIcon, Library, Music, RefreshCw, Search, Upload, Video } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminSharedResourceApi } from "./admin-api-client";
-import { AdminBandTabButton, AdminWorkspaceBand } from "./admin-common-components";
+import { AdminBandTabButton } from "./admin-common-components";
+import {
+  AdminGovernanceContext,
+  AdminGovernanceLayout,
+  AdminGovernanceToolbar,
+  AdminGovernanceWorkbench,
+} from "./admin-governance-workbench";
 import { AdminMediaPreviewModal } from "./admin-media-preview-modal";
 import { AdminPublicResourceCard } from "./admin-public-resource-card";
 import { AdminPublicResourceCategorySidebar } from "./admin-public-resource-category-sidebar";
@@ -204,14 +210,18 @@ export function AdminPublicResourcesPanel() {
   }
 
   return (
-    <section className="admin-public-resources-page admin-public-resources-page--starlight">
-      <AdminWorkspaceBand
+    <AdminGovernanceWorkbench
+      className="admin-public-resources-page admin-public-resources-page--starlight"
+      label="公共资源治理"
+      mode="governance"
+    >
+      <AdminGovernanceContext
         className="admin-public-resources-band"
-        kicker="Shared Resource Governance"
+        eyebrow="共享资源治理"
         title="公共资源管理"
         description={workflowHint || "把公共图像、视频、音频与治理条目收在同一个卡片工作区里，确保预览完整可见、上传稳定、分类可控。"}
-        currentLabel={`${activeMeta.label}资源`}
-        currentDescription={`${visibleCategoryName} · ${loading ? "同步中" : `${items.length} 项资源`}`}
+        status={{ label: loading ? "同步中" : `${items.length} 项资源`, tone: loading ? "warning" : "success" }}
+        meta={`${activeMeta.label}资源 · ${visibleCategoryName}`}
         actions={
           <div className="admin-public-resources-band__actions">
             <button type="button" onClick={() => void load()} disabled={loading}>
@@ -222,29 +232,6 @@ export function AdminPublicResourcesPanel() {
               <Upload aria-hidden="true" />
               上传本地资源
             </button>
-          </div>
-        }
-        footer={
-          <div className="admin-public-resources-band__footer">
-            {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
-              const Icon = KIND_META[nextKind].icon;
-              return (
-                <AdminBandTabButton
-                  key={nextKind}
-                  active={kind === nextKind}
-                  onClick={() => {
-                    setKind(nextKind);
-                    setCategoryId("all");
-                  }}
-                >
-                  <Icon aria-hidden="true" />
-                  <span>
-                    <strong>{KIND_META[nextKind].label}</strong>
-                    <small>{nextKind}</small>
-                  </span>
-                </AdminBandTabButton>
-              );
-            })}
           </div>
         }
       />
@@ -260,7 +247,28 @@ export function AdminPublicResourcesPanel() {
         }}
       />
 
-      <div className="admin-public-resources-toolbar">
+      <AdminGovernanceToolbar label="公共资源类型与搜索" className="admin-public-resources-toolbar">
+        <div className="admin-public-resources-band__footer">
+          {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
+            const Icon = KIND_META[nextKind].icon;
+            return (
+              <AdminBandTabButton
+                key={nextKind}
+                active={kind === nextKind}
+                onClick={() => {
+                  setKind(nextKind);
+                  setCategoryId("all");
+                }}
+              >
+                <Icon aria-hidden="true" />
+                <span>
+                  <strong>{KIND_META[nextKind].label}</strong>
+                  <small>{nextKind}</small>
+                </span>
+              </AdminBandTabButton>
+            );
+          })}
+        </div>
         <label className="admin-public-resources-toolbar__search">
           <Search aria-hidden="true" />
           <input
@@ -272,7 +280,7 @@ export function AdminPublicResourcesPanel() {
             placeholder="搜索名称 / 标签 / 备注"
           />
         </label>
-      </div>
+      </AdminGovernanceToolbar>
 
       <div className="admin-public-resources-inspector" aria-label="公共资源概览">
         <div>
@@ -295,18 +303,21 @@ export function AdminPublicResourcesPanel() {
 
       {message ? <div className="error-banner">{message}</div> : null}
 
-      <div className="admin-public-resources-layout">
-        <AdminPublicResourceCategorySidebar
-          categories={categories}
-          activeCategoryId={categoryId}
-          itemCount={items.length}
-          loading={loading}
-          onSelectCategory={setCategoryId}
-          onCreateCategory={() => void createCategory()}
-          onRenameCategory={(category) => void renameCategory(category)}
-          onDeleteCategory={(category) => void deleteCategory(category)}
-        />
-
+      <AdminGovernanceLayout
+        className="admin-governance-layout--resources"
+        rail={
+          <AdminPublicResourceCategorySidebar
+            categories={categories}
+            activeCategoryId={categoryId}
+            itemCount={items.length}
+            loading={loading}
+            onSelectCategory={setCategoryId}
+            onCreateCategory={() => void createCategory()}
+            onRenameCategory={(category) => void renameCategory(category)}
+            onDeleteCategory={(category) => void deleteCategory(category)}
+          />
+        }
+      >
         <section className="data-panel admin-public-resources-workspace">
           <header>
             <div className="admin-public-resources-workspace__title">
@@ -344,7 +355,7 @@ export function AdminPublicResourcesPanel() {
             ) : null}
           </div>
         </section>
-      </div>
+      </AdminGovernanceLayout>
 
       <AdminMediaPreviewModal
         open={Boolean(previewItem)}
@@ -354,6 +365,6 @@ export function AdminPublicResourcesPanel() {
         kind={previewItem ? getPreviewKind(previewItem) : "other"}
         onClose={() => setPreviewItem(null)}
       />
-    </section>
+    </AdminGovernanceWorkbench>
   );
 }

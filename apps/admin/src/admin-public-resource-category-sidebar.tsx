@@ -23,7 +23,10 @@ export function AdminPublicResourceCategorySidebar({
   onDeleteCategory,
 }: AdminPublicResourceCategorySidebarProps) {
   return (
-    <aside className="data-panel admin-public-resources-sidebar admin-public-resources-sidebar--starlight">
+    <aside
+      className="data-panel admin-public-resources-sidebar admin-public-resources-sidebar--starlight"
+      data-governance-surface="resource-directory"
+    >
       <header>
         <div className="admin-public-resources-sidebar__title">
           <FolderPlus aria-hidden="true" />
