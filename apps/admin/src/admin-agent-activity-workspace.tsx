@@ -7,6 +7,7 @@ import {
   type ActivityCaseKind,
 } from "./admin-agent-activity-view-model";
 import { adminAgentGovernanceApi, type AgentApproval, type AgentAuditRecord, type AgentRunsData, type RecoveryDecision } from "./admin-agent-governance-api";
+import { AdminGovernanceLayout } from "./admin-governance-workbench";
 import type { ModelRecord } from "./admin-types";
 
 interface Props {
@@ -46,8 +47,10 @@ export function AdminAgentActivityWorkspace({ runs, approvals, recovery, audit, 
       <Metric label="降级或转人工" value={counts.degraded} />
       <Metric label="恢复成功" value={counts.recovered} tone="success" />
     </div>
-    <div className="agent-activity-layout">
-      <section className="agent-activity-queue">
+    <AdminGovernanceLayout
+      className="admin-governance-layout--activity"
+      rail={
+        <section className="agent-activity-queue">
         <header><div><strong>需要关注</strong><span>按风险和时间排序</span></div><span>{filtered.length} 项</span></header>
         <div className="agent-activity-filters" role="tablist" aria-label="运行处置筛选">
           {([
@@ -62,11 +65,13 @@ export function AdminAgentActivityWorkspace({ runs, approvals, recovery, audit, 
             <Status value={item.status} />
           </button>) : <div className="agent-activity-empty"><CirclePause aria-hidden="true" /><strong>当前筛选下没有需要处理的记录</strong><span>运行证据仍保留在底层账本中。</span></div>}
         </div>
-      </section>
+        </section>
+      }
+    >
       <section className="agent-activity-detail" aria-live="polite">
         {selected ? <ActivityDetail value={selected} busy={busy} mutate={mutate} /> : <div className="agent-activity-empty"><ShieldCheck aria-hidden="true" /><strong>没有待处置事项</strong><span>新的失败、降级或审批会按风险出现在左侧。</span></div>}
       </section>
-    </div>
+    </AdminGovernanceLayout>
   </div>;
 }
 

@@ -264,6 +264,54 @@
   white-space: pre-wrap;
 }
 
+.admin-governance-workbench[data-governance-mode="automation"] :is(
+  .assistant-readiness-band > div,
+  .assistant-lifecycle-surface,
+  .agent-metric,
+  .supervision-workspace-surface,
+  .agent-activity-metric,
+  .agent-activity-queue,
+  .agent-activity-detail
+) {
+  min-width: 0;
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-surface-1);
+}
+
+.admin-governance-workbench[data-governance-mode="automation"] :is(
+  .assistant-environment-switch button,
+  .assistant-governance-segments button,
+  .assistant-lifecycle-track button,
+  .assistant-governance-settings button,
+  .agent-governance-workspace button,
+  .agent-activity-workbench button
+) {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+.admin-governance-workbench[data-governance-mode="automation"] :is(
+  code,
+  .assistant-readiness-band strong,
+  .agent-activity-case small,
+  .agent-activity-case em,
+  .agent-activity-facts strong,
+  .agent-activity-facts code
+) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-governance-layout--activity {
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+}
+
+.admin-governance-layout--activity .agent-activity-queue {
+  position: sticky;
+  top: var(--admin-sticky-offset);
+}
+
 @media (max-width: 1280px) {
   .admin-governance-layout[data-has-inspector="true"] {
     grid-template-columns: minmax(210px, 232px) minmax(0, 1fr);

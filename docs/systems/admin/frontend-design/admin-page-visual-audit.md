@@ -24,7 +24,7 @@
 | 账号与组织 | 组织总览、账号、用户组、会话 | D governance workbench + 组织 context + 既有总览/账号/用户组/会话 owner（本地已迁移） | 受控 URL 导航与全部 mutate 保持；Gray 桌面验收待执行 | 治理工作台 | D（active） |
 | 权限与安全 | 权限策略 | D governance workbench + 安全 context + 原统一权限矩阵（本地已迁移） | 读取、explain、revision、reason 和 effective decision 所有权保持；Gray 桌面验收待执行 | Master-detail + Inspector | D（active） |
 | Provider 与模型 | Provider、模型目录 | 共享配置工作台 + Provider rail + 既有表单/结果/模型编辑（v0.8.10 Gray 已验收） | handler/API 由契约锁定；模型页助手上下文标签残余交由后续上下文重构 | 配置工作台 | B（完成） |
-| 智能体与自动化 | 助手、托管、运行与审计 | 多编辑器/工作区 | 版本动作与运行状态密集 | 版本化治理工作台 | D（active） |
+| 智能体与自动化 | 助手、托管、运行与审计 | D automation workbench + route context + 原版本化 editor / queue-detail（本地已迁移） | revision、dirty、发布、审批 reason/confirm/write 保持；Gray 桌面验收待执行 | 版本化治理工作台 | D（active） |
 | RH 管理 | 工作流、AI 应用、Key 池 | 共享对象上下文 + 目录 rail + 原结构化编辑器/分析/Key 池（v0.8.10 Gray 已验收） | 目录、编辑器、长 Schema 和 Key 池密度在桌面视窗内保持受控 | 目录 + 编辑器 + Inspector | B（完成） |
 | ComfyUI 管理 | 实例、配置、工作流、日志 | 共享对象上下文/摘要/语义状态 + 原实例卡、配置、工作流、日志（v0.8.10 Gray 已验收） | 仅视觉收敛；冻结 API 数量由契约锁定；长机器名使用受控省略 | 实例治理工作台 | B（仅样式，完成） |
 | 公共资源 | 资源目录 | D governance workbench + 分类 rail + 原四列卡片/完整预览（本地已迁移） | API、revision、上传和删除确认保持；Gray 桌面验收待执行 | 资源网格 + Inspector | D（active） |
@@ -95,3 +95,6 @@
 - Task 3 已将 `/admin/resources` 接入 `mode="governance"` 的 context、类型/搜索 toolbar 与 category rail/editor grid；资源 API、category/item revision、上传、完整媒体预览和删除确认继续由原 panel/card/sidebar 所有。
 - `/admin/content/announcements` 已接入 `mode="content"` 的 directory/editor/preview Inspector。Inspector 只读取现有 editor draft；父级 load/mutation callbacks、本地 draft、busy/loading guard、publish/archive/delete 和 `confirmTitle`/`confirmStrongReminder`/`confirmPinned` 未迁移。
 - 过时的 resource-content phase2 contract 已从 retired combined workspace 改为断言两个独立稳定路径，同时保留资源卡片、完整预览、四列 grid 和行为检查。Task 3 本地测试、资源 Starlight/phase2、公告 repository/shell、Admin build 与 diff gate 均通过；Gray 待整批执行。
+- Task 4 已将 assistants 路由接入一个 `mode="automation"` template；supervision/activity 由 `AdminAgentGovernanceWorkspace` 共用另一个按 `activeView` 切换 context 的 template，Activity child 只提供 queue/detail layout，不嵌套 template。
+- Assistant 继续由父级 `onSave(draft)` 执行 revision-aware 保存，并保留创作侧/后台两份 draft、发布和真实验证。Supervision 继续拥有 `adminAgentGovernanceApi`、版本化 role/pool/quality/recovery editors、dirty navigation guard、loading/error；Activity 继续拥有 case/filter/selection、证据时间线、必填 reason、`window.confirm` 和 `decideApproval`。
+- Task 4 本地证据：automation workbench 与三个 view-model/workspace 文件共 12 项测试、Agent governance、model loading、assistant settings/content 合同、Admin TypeScript/Vite build、视觉文档、组件注册和 diff gate 均通过。D 整批 Gray 待执行。

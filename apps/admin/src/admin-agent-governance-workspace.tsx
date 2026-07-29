@@ -9,6 +9,10 @@ import { AdminAgentRoleConfigurationEditor } from "./admin-agent-role-configurat
 import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
 import { AdminAgentQualityEditor } from "./admin-agent-quality-editor";
 import { AdminAgentActivityWorkspace } from "./admin-agent-activity-workspace";
+import {
+  AdminGovernanceContext,
+  AdminGovernanceWorkbench,
+} from "./admin-governance-workbench";
 import { canvasAgentPurpose, purposeRouteTemplates } from "./admin-agent-governance-purpose";
 import {
   applySupervisionPreset,
@@ -120,11 +124,18 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
   }
 
   return (
-    <section className="agent-governance-workspace">
-      <div className="agent-governance-toolbar">
-        <div><strong>{viewTitle(activeView)}</strong><span>{viewDescription(activeView)}</span></div>
-        <button className="icon-button" type="button" onClick={() => void load()} disabled={loading || busy || (activeView === "supervision" && supervisionNavigation.dirty)} title={supervisionNavigation.dirty ? "请先保存或放弃当前修改" : "刷新当前治理视图"}><RefreshCw aria-hidden="true" /></button>
-      </div>
+    <AdminGovernanceWorkbench className="agent-governance-workspace" label={viewTitle(activeView)} mode="automation">
+      <AdminGovernanceContext
+        eyebrow="自动化治理"
+        title={viewTitle(activeView)}
+        description={viewDescription(activeView)}
+        status={{
+          label: loading ? "加载中" : supervisionNavigation.dirty ? "有未保存修改" : "治理就绪",
+          tone: loading || supervisionNavigation.dirty ? "warning" : "success",
+        }}
+        meta={activeView === "supervision" ? `当前工作区：${supervisionNavigation.active}` : "运行、审批与动作证据"}
+        actions={<button className="icon-button" type="button" onClick={() => void load()} disabled={loading || busy || (activeView === "supervision" && supervisionNavigation.dirty)} title={supervisionNavigation.dirty ? "请先保存或放弃当前修改" : "刷新当前治理视图"}><RefreshCw aria-hidden="true" /></button>}
+      />
       {error ? <div className="error-banner">{error}</div> : null}
       {notice ? <div className="agent-success-banner" role="status">{notice}</div> : null}
       {loading ? <Loading /> : canRenderGovernanceData(loading, data) ? (
@@ -143,7 +154,7 @@ export function AdminAgentGovernanceWorkspace({ activeView, models }: Props) {
           {activeView === "activity" ? <ActivityView value={data as ActivityData} models={models} busy={busy} mutate={mutate} /> : null}
         </>
       ) : null}
-    </section>
+    </AdminGovernanceWorkbench>
   );
 }
 

@@ -205,11 +205,11 @@ Commit: `feat(admin): migrate resource and content workbenches`
 - Supervision keeps `adminAgentGovernanceApi`, role/pool/quality/knowledge editors, version/publish controls, dirty guards, and loading/error ownership.
 - Activity keeps `buildActivityCases`, filter/selection state, evidence timeline, required decision reason, confirmation, and `decideApproval` writes.
 
-- [ ] **Step 1: Write RED route composition tests**
+- [x] **Step 1: Write RED route composition tests**
 
 Assert `/assistants`, `/supervision`, and `/activity` each expose one automation governance template and one route-specific context, while the existing revision save, versioned editor, metrics, queue/detail, approval reason, reject, and approve controls remain rendered.
 
-- [ ] **Step 2: Run RED and current contracts**
+- [x] **Step 2: Run RED and current contracts**
 
 ```text
 npm test -- apps/admin/src/admin-automation-governance-workbench.test.tsx apps/admin/src/admin-agent-governance-workspace.test.ts apps/admin/src/admin-agent-activity-view-model.test.ts apps/admin/src/admin-assistant-governance-view-model.test.ts
@@ -219,11 +219,11 @@ npm run verify:admin-assistant-settings-save-contract
 npm run verify:assistant-content-contract
 ```
 
-- [ ] **Step 3: Apply the automation template without moving owners**
+- [x] **Step 3: Apply the automation template without moving owners**
 
 Wrap each stable route in `mode="automation"`, normalize its context/actions and neutral work surfaces, and keep all existing editor, publish, approval, and recovery handlers in place.
 
-- [ ] **Step 4: Verify and record evidence**
+- [x] **Step 4: Verify and record evidence**
 
 ```text
 npm test -- apps/admin/src/admin-automation-governance-workbench.test.tsx apps/admin/src/admin-agent-governance-workspace.test.ts apps/admin/src/admin-agent-activity-view-model.test.ts apps/admin/src/admin-assistant-governance-view-model.test.ts
@@ -237,7 +237,7 @@ npm run verify:component-registry-docs-contract
 git diff --check
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit: `feat(admin): converge automation governance workbenches`
 

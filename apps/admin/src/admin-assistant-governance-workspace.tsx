@@ -8,6 +8,10 @@ import { api } from "./admin-api-client";
 import { AdminAgentPoolEditor } from "./admin-agent-pool-editor";
 import { AdminAgentRoleConfigurationEditor } from "./admin-agent-role-configuration-editor";
 import {
+  AdminGovernanceContext,
+  AdminGovernanceWorkbench,
+} from "./admin-governance-workbench";
+import {
   adminAgentGovernanceApi,
   type AgentEnvironment,
   type AgentRoleWorkspaceData,
@@ -186,16 +190,22 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
   const plannerDefinitions = (workspace?.definitions || []).filter((item) => item.role === "planner");
   const chatModels = models.filter((model) => model.capability === "chat" && model.enabled);
 
-  return <section className="assistant-governance-workspace">
-    <header className="assistant-governance-workspace__header">
-      <div><strong>AI 助手</strong><span>选择模型、启用助手、完成发布，并用真实请求确认已经生效。</span></div>
-      <div className="assistant-governance-workspace__header-actions">
+  return <AdminGovernanceWorkbench className="assistant-governance-workspace" label="AI 助手治理" mode="automation">
+    <AdminGovernanceContext
+      eyebrow="自动化治理"
+      title="AI 助手治理"
+      description="选择模型、启用助手、完成发布，并用真实请求确认已经生效。"
+      status={{ label: lifecycle.conclusion, tone: lifecycle.complete ? "success" : "warning" }}
+      meta={`${surface === "frontend" ? "创作侧助手" : "后台 AI 助手"} · ${environment === "gray" ? "Gray" : "Production"} · revision ${draft.revision}`}
+      actions={
+        <div className="assistant-governance-workspace__header-actions">
         <div className="assistant-environment-switch" role="group" aria-label="检查环境">
           {(["gray", "production"] as const).map((item) => <button type="button" key={item} className={environment === item ? "active" : ""} onClick={() => setEnvironment(item)}>{item === "gray" ? "Gray" : "Production"}</button>)}
         </div>
         <button type="button" className="icon-button" title="刷新助手治理数据" onClick={() => void load()} disabled={loading || busy}><RefreshCw aria-hidden="true" /></button>
-      </div>
-    </header>
+        </div>
+      }
+    />
 
     <div className="assistant-governance-segments" role="tablist" aria-label="助手表面">
       <button type="button" role="tab" aria-selected={surface === "frontend"} className={surface === "frontend" ? "active" : ""} onClick={() => setSurface("frontend")}><Sparkles aria-hidden="true" /><span><strong>创作侧助手</strong><small>画布、节点、工作流与托管诊断</small></span></button>
@@ -226,7 +236,7 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
       {activeStep === "publication" ? <LifecycleSection title="审核与发布" description={`发布到 ${environment === "gray" ? "Gray" : "Production"} 后，仅影响后续新 Agent Run；Production 发布和任何回滚都会再次确认影响。`}><PublicationChecks lifecycle={lifecycle} />{definition ? <AdminAgentRoleConfigurationEditor value={surfaceWorkspace} busy={busy} mutate={mutate} publicationMode="manage" displayMode="publication" /> : <BootstrapPrompt activeAgentKey={activeAgentKey} busy={busy} mutate={mutate} />}{pools.length ? <AdminAgentPoolEditor pools={pools} models={chatModels} busy={busy} mutate={mutate} publicationMode="manage" displayMode="publication" /> : null}</LifecycleSection> : null}
       {activeStep === "verification" ? <LifecycleSection title="验证已生效" description="发送一条真实请求，确认当前助手能使用已发布 Agent 与模型路由完成响应。"><div className="assistant-verification-panel"><FlaskConical aria-hidden="true" /><div><strong>{verification?.status === "succeeded" ? "验证成功" : verification?.status === "failed" ? "验证失败" : "尚未验证"}</strong><span>{verification?.detail || "发布完成后执行验证；受限模式不会计为完整生效。"}</span></div><button type="button" className="primary-action" disabled={busy || lifecycle.issues.some((issue) => issue.step !== "verification")} onClick={() => void verifyAssistant()}>{busy ? <Loader2 className="spin" /> : <CheckCircle2 />}发送真实验证请求</button></div></LifecycleSection> : null}
     </div> : null}
-  </section>;
+  </AdminGovernanceWorkbench>;
 }
 
 function CapabilityStep({ draft, settings, surface, plannerDefinitions, activeAgentKey, saving, onDraft, onSave, workspace, busy, mutate }: {
