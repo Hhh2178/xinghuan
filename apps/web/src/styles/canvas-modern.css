@@ -1,4 +1,66 @@
 /* New canvas presentation only. Legacy is intentionally left to its existing styles. */
+.t8-canvas-presentation-toggle {
+  display: inline-flex;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--t8-border, rgba(255, 255, 255, 0.14)) 94%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--t8-bg-panel, #141416) 88%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.t8-canvas-presentation-toggle__label {
+  padding: 0 6px 0 7px;
+  color: var(--t8-text-muted, rgba(244, 244, 245, 0.68));
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.t8-canvas-presentation-toggle__option {
+  display: inline-flex;
+  height: 26px;
+  min-width: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--t8-text-muted, rgba(244, 244, 245, 0.68));
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+  white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.t8-canvas-presentation-toggle__option:hover,
+.t8-canvas-presentation-toggle__option:focus-visible {
+  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 35%, transparent);
+  background: color-mix(in srgb, var(--t8-accent, #38bdf8) 10%, transparent);
+  color: var(--t8-text-main, #f4f4f5);
+  outline: none;
+}
+
+.t8-canvas-presentation-toggle__option.is-active {
+  border-color: color-mix(in srgb, var(--t8-accent, #38bdf8) 42%, transparent);
+  background: color-mix(in srgb, var(--t8-accent, #38bdf8) 18%, transparent);
+  color: var(--t8-text-main, #f4f4f5);
+}
+
+.t8-canvas-presentation-toggle__option em {
+  color: color-mix(in srgb, var(--t8-accent, #38bdf8) 78%, white 22%);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
+}
+
 .t8-app-shell[data-canvas-presentation='modern'] .t8-sidebar--modern {
   position: relative;
   z-index: 30;

@@ -28,4 +28,10 @@ describe('modern canvas shell stylesheet boundary', () => {
     expect(sidebarSource).not.toContain('setModernExpanded((expanded) => !expanded)');
     expect(sidebarSource).toContain('t8-sidebar-panel');
   });
+
+  it('defines a 32px segmented presentation control that matches topbar actions', () => {
+    expect(modernStyles).toContain('.t8-canvas-presentation-toggle');
+    expect(modernStyles).toContain('height: 32px');
+    expect(modernStyles).toContain('.t8-canvas-presentation-toggle__option.is-active');
+  });
 });

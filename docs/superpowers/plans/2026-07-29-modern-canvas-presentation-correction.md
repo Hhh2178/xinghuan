@@ -89,27 +89,27 @@ Expected: PASS。
 - Modify: `apps/web/src/components/CanvasPresentationToggle.test.tsx`
 - Modify: `apps/web/src/styles/canvas-modern.css`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 断言组件有 `画布样式` 可访问名称、旧版/新版选择和 `预览` 辅助状态；测试 stylesheet 存在 `.t8-canvas-presentation-toggle`、32px 高度和 active 样式。
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm --workspace @xinghuan/web test -- CanvasPresentationToggle canvas-modern`
 
 Expected: FAIL，因为当前切换器没有专属样式和辅助状态。
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 更新切换器语义和文案，新增仅在 modern 根生效的紧凑分段控件 CSS；同时提供基础 class 以确保旧版顶部也不出现裸按钮。保持受控 `presentation` / `onChange` API 不变。
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm --workspace @xinghuan/web test -- CanvasPresentationToggle canvas-modern`
 
 Expected: PASS。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git commit -m "fix(canvas): align presentation switch with topbar controls"`
 
