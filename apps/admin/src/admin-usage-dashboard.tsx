@@ -8,6 +8,7 @@ import type {
   UsageSelectedUserRunningHubRow,
   UsageSelectedUserSummary,
 } from "./admin-types";
+import { AdminDataContext, AdminDataWorkbench } from "./admin-data-workbench";
 import { buildUsageAccountRanking } from "./admin-usage-account-ranking";
 import { buildUsageGroupRanking } from "./admin-usage-group-ranking";
 
@@ -175,18 +176,19 @@ export function AdminUsageDashboard({
   const topUsers = accountRanking.slice(0, 5).map((item) => ({ label: item.email, total: item.total }));
 
   return (
-    <section className="usage-dashboard usage-dashboard--starlight">
-      <header className="usage-dashboard__header">
-        <div>
-          <p>成功用量驾驶舱</p>
-          <h2>先选账号查看明细，同时保留模型与 RH 条目的全局总使用次数</h2>
-        </div>
-        <span>
-          {usageSummary
-            ? `${new Date(usageSummary.range.from).toLocaleString()} - ${new Date(usageSummary.range.to).toLocaleString()}`
-            : "等待统计返回"}
-        </span>
-      </header>
+    <AdminDataWorkbench label="用量分析数据" mode="analytics" className="usage-dashboard usage-dashboard--starlight">
+      <AdminDataContext
+        eyebrow="成功用量驾驶舱"
+        title="成功用量"
+        description="先选账号查看明细，同时保留模型与 RH 条目的全局总使用次数。"
+        status={{
+          label: usageSummaryError ? "统计失败" : usageSummaryLoading ? "统计刷新中" : usageSummary ? "统计已更新" : "等待统计",
+          tone: usageSummaryError ? "danger" : usageSummaryLoading ? "warning" : usageSummary ? "success" : "muted",
+        }}
+        meta={usageSummary
+          ? <span>{new Date(usageSummary.range.from).toLocaleString()} - {new Date(usageSummary.range.to).toLocaleString()}</span>
+          : <span>等待统计返回</span>}
+      />
 
       <article className="usage-panel usage-panel--filters">
         <header>
@@ -653,6 +655,6 @@ export function AdminUsageDashboard({
           </div>
         </>
       )}
-    </section>
+    </AdminDataWorkbench>
   );
 }

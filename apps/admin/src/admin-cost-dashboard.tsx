@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { adminCostApi } from "./admin-api-client";
+import { AdminDataContext, AdminDataWorkbench } from "./admin-data-workbench";
 import type { AdminCostRankingRow, AdminCostSummary, AdminUser, AdminUserGroup, ModelRecord, ProviderRecord } from "./admin-types";
 
 type Range = "today" | "7d" | "30d";
@@ -34,11 +35,17 @@ export function AdminCostDashboard({ users, userGroups, providers, models }: {
 
   const filteredModels = providerId ? models.filter((model) => model.providerId === providerId) : models;
   return (
-    <section className="cost-dashboard">
-      <header className="usage-dashboard__header">
-        <div><p>费用分析</p><h2>模型、服务商、用户组和账号的人民币消耗</h2></div>
-        <span>Provider Cost · CNY · 不做汇率换算</span>
-      </header>
+    <AdminDataWorkbench label="费用分析数据" mode="analytics" className="cost-dashboard">
+      <AdminDataContext
+        eyebrow="Provider Cost"
+        title="费用分析"
+        description="模型、服务商、用户组和账号的人民币消耗。"
+        status={{
+          label: error ? "费用加载失败" : loading ? "费用刷新中" : summary ? "费用已更新" : "等待费用数据",
+          tone: error ? "danger" : loading ? "warning" : summary ? "success" : "muted",
+        }}
+        meta={<span>CNY · 不做汇率换算</span>}
+      />
 
       <article className="usage-panel usage-panel--filters">
         <header><h3>筛选条件</h3><span>{loading ? "费用刷新中..." : "Cost Filters"}</span></header>
@@ -72,7 +79,7 @@ export function AdminCostDashboard({ users, userGroups, providers, models }: {
           <p className="cost-unpriced-note">历史任务暂不计算费用；没有价格快照的记录统一标记为“未定价”，不会使用当前价格反向补算。</p>
         </>
       ) : loading ? <div className="starlight-page-loading">正在汇总费用...</div> : null}
-    </section>
+    </AdminDataWorkbench>
   );
 }
 

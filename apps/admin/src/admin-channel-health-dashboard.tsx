@@ -4,6 +4,7 @@ import { ChannelHealthReportView } from "@xinghuan/ui";
 import type { ChannelHealthCapability, ChannelHealthReport } from "@xinghuan/shared";
 
 import { adminChannelHealthApi } from "./admin-api-client";
+import { AdminDataContext, AdminDataToolbar, AdminDataWorkbench } from "./admin-data-workbench";
 import { shouldRunChannelHealthAutoRefresh } from "./admin-channel-health-refresh";
 import "./admin-channel-health-dashboard.css";
 
@@ -82,30 +83,33 @@ export function AdminChannelHealthDashboard() {
   }
 
   return (
-    <section className="admin-channel-health" aria-label="渠道与模型健康度">
-      <header className="api-card admin-channel-health__header">
-        <div>
-          <p>Provider / Model Reliability</p>
-          <h2>渠道健康</h2>
-          <span>近三天，每两小时仅统计已成功或失败的请求。</span>
-        </div>
-        <div className="admin-channel-health__actions">
-          <span>{lastLoadedAt ? `更新于 ${new Date(lastLoadedAt).toLocaleString("zh-CN", { hour12: false })}` : "等待首次同步"}</span>
+    <AdminDataWorkbench label="渠道健康数据" mode="analytics" className="admin-channel-health">
+      <AdminDataContext
+        eyebrow="Provider / Model Reliability"
+        title="渠道健康"
+        description="近三天，每两小时仅统计已成功或失败的请求。"
+        status={{
+          label: stale ? "显示历史快照" : error ? "同步失败" : loading || refreshing ? "同步中" : report ? "数据已更新" : "等待同步",
+          tone: stale || error ? "danger" : loading || refreshing ? "warning" : report ? "success" : "muted",
+        }}
+        actions={
           <button type="button" className="starlight-button" onClick={() => void refresh()} disabled={loading || refreshing}>
             <RefreshCw size={15} className={refreshing ? "is-spinning" : undefined} />刷新状态
           </button>
-        </div>
-      </header>
+        }
+        meta={<span>{lastLoadedAt ? `更新于 ${new Date(lastLoadedAt).toLocaleString("zh-CN", { hour12: false })}` : "等待首次同步"}</span>}
+      />
 
-      <section className="api-card admin-channel-health__filters" aria-label="渠道健康筛选">
+      <AdminDataToolbar label="渠道健康筛选" className="admin-channel-health__filters">
         <label><span>能力</span><select value={filters.capability} onChange={(event) => changeFilter("capability", event.target.value as FilterState["capability"])}><option value="">全部能力</option><option value="image">图像</option><option value="video">视频</option><option value="audio">音频</option><option value="chat">LLM</option></select></label>
         <label><span>服务商</span><select value={filters.providerId} onChange={(event) => changeFilter("providerId", event.target.value)}><option value="">全部服务商</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
         <label><span>模型</span><select value={filters.modelRecordId} onChange={(event) => changeFilter("modelRecordId", event.target.value)}><option value="">全部模型</option>{models.map((model) => <option key={model.modelRecordId} value={model.modelRecordId}>{model.displayName}</option>)}</select></label>
         <label className="admin-channel-health__auto"><input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} /><span>每 5 分钟自动刷新</span><small>默认关闭</small></label>
-      </section>
+      </AdminDataToolbar>
 
       {error ? <div className="admin-channel-health__error" role="alert">{stale ? "显示上次成功数据：" : ""}{error}</div> : null}
       {loading && !report ? <div className="starlight-page-loading">正在汇总渠道状态...</div> : null}
+      {!loading && !report && !error ? <div className="admin-channel-health__empty">等待渠道健康数据</div> : null}
       {report ? <section className="admin-channel-health__report-shell" aria-label="渠道健康报告">
         <ChannelHealthReportView
           report={report}
@@ -116,6 +120,6 @@ export function AdminChannelHealthDashboard() {
           className="admin-channel-health__report"
         />
       </section> : null}
-    </section>
+    </AdminDataWorkbench>
   );
 }

@@ -2,6 +2,7 @@ import { Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DataTable, FormPanel } from "./admin-common-components";
 import { AdminConfigurationContext, AdminConfigurationWorkbench } from "./admin-configuration-workbench";
+import { AdminDataContext, AdminDataWorkbench } from "./admin-data-workbench";
 import { AdminChannelHealthDashboard } from "./admin-channel-health-dashboard";
 import { AdminUsageDashboard } from "./admin-usage-dashboard";
 import { AdminCostDashboard } from "./admin-cost-dashboard";
@@ -80,19 +81,30 @@ export function AuditPanel({
       /> : null}
       {activeView === "costs" ? <AdminCostDashboard users={users} userGroups={userGroups} providers={providers} models={models} /> : null}
       {activeView === "reliability" ? <AdminChannelHealthDashboard /> : null}
-      {activeView === "audit" ? <DataTable
-        title="审计日志"
-        columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}
-        rows={auditLogs.map((item) => [
-          new Date(item.createdAt).toLocaleString(),
-          item.actorEmail,
-          item.action,
-          `${item.targetType}:${item.targetId}`,
-          item.requestId || "-",
-          `${item.ip || "-"}${item.userAgent ? ` | ${item.userAgent.slice(0, 80)}` : ""}`,
-          item.summary,
-        ])}
-      /> : null}
+      {activeView === "audit" ? (
+        <AdminDataWorkbench label="审计日志数据" mode="analytics" className="admin-audit-workbench">
+          <AdminDataContext
+            eyebrow="Audit Trail"
+            title="审计日志"
+            description="保留操作时间、操作者、动作、对象、请求、来源与原始说明。"
+            status={{ label: `${auditLogs.length} 条记录`, tone: auditLogs.length ? "success" : "muted" }}
+          />
+          <DataTable
+            title="审计日志"
+            columns={["时间", "操作者", "动作", "对象", "请求", "来源", "说明"]}
+            rows={auditLogs.map((item) => [
+              new Date(item.createdAt).toLocaleString(),
+              item.actorEmail,
+              item.action,
+              `${item.targetType}:${item.targetId}`,
+              item.requestId || "-",
+              `${item.ip || "-"}${item.userAgent ? ` | ${item.userAgent.slice(0, 80)}` : ""}`,
+              item.summary,
+            ])}
+            emptyLabel="暂无审计记录"
+          />
+        </AdminDataWorkbench>
+      ) : null}
     </>
   );
 }

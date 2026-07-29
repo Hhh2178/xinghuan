@@ -143,3 +143,24 @@
   height: 190px;
   min-height: 190px;
 }
+
+.usage-dashboard.admin-data-workbench,
+.cost-dashboard.admin-data-workbench,
+.admin-channel-health.admin-data-workbench,
+.admin-audit-workbench.admin-data-workbench {
+  align-content: start;
+}
+
+.usage-dashboard.admin-data-workbench .usage-panel,
+.cost-dashboard.admin-data-workbench .usage-panel,
+.admin-audit-workbench.admin-data-workbench .data-panel,
+.admin-channel-health.admin-data-workbench .admin-channel-health__report-shell {
+  border-color: var(--admin-border-subtle);
+  border-radius: 8px;
+  background: var(--admin-surface-1);
+}
+
+.admin-channel-health.admin-data-workbench .admin-channel-health__filters {
+  align-items: end;
+  border-inline: 0;
+}

@@ -40,6 +40,7 @@
 .admin-channel-health__auto input { width: 14px; height: 14px; flex: 0 0 14px; margin: 0; padding: 0; accent-color: var(--starlight-cyan); }
 .admin-channel-health__auto small { color: var(--text-tertiary); font-size: 10px; }
 .admin-channel-health__error { padding: 10px 12px; border: 1px solid rgba(238, 110, 110, .48); border-radius: 6px; background: rgba(130, 43, 43, .2); color: #ffc4c4; font-size: 12px; }
+.admin-channel-health__empty { display: grid; place-items: center; min-height: 180px; border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-secondary); background: var(--surface); font-size: 13px; }
 
 .admin-channel-health__report-shell { min-width: 0; background: #071018; }
 .admin-channel-health .xh-channel-health { --xh-channel-health-columns: minmax(180px, 220px) 124px minmax(360px, 1fr) 156px; min-height: 620px; display: grid; grid-template-columns: 188px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 7px; background: #08111a; }

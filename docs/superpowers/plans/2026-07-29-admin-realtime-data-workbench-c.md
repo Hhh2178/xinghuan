@@ -205,11 +205,11 @@ Commit: `feat(admin): migrate system health data workbench`
 - Reliability keeps its ETag, last successful report, stale banner, disabled-by-default five-minute refresh, and page-visibility pause.
 - Audit keeps the existing seven columns and all raw source values.
 
-- [ ] **Step 1: Write RED tests for all four data views**
+- [x] **Step 1: Write RED tests for all four data views**
 
 Render usage and audit with empty data, render cost/reliability shells without running effects, and assert exactly one `data-admin-template="data"` wrapper per view, `mode="analytics"`, a shared context, explicit empty/loading/error regions, and no H1. Add source assertions for each existing request/filter/stale behavior.
 
-- [ ] **Step 2: Run focused analytics tests and contracts to verify RED**
+- [x] **Step 2: Run focused analytics tests and contracts to verify RED**
 
 Run:
 
@@ -220,11 +220,11 @@ node scripts/verify-admin-usage-dashboard-contract.mjs
 
 Expected: shared-template/context assertions fail; existing refresh/API assertions pass.
 
-- [ ] **Step 3: Migrate each analytics composition**
+- [x] **Step 3: Migrate each analytics composition**
 
 Use `AdminDataWorkbench` and `AdminDataContext` inside each dashboard so locally owned refresh actions remain colocated. Replace duplicate bespoke headers, keep filters inside neutral `AdminDataToolbar` or existing bounded filter panels, and use the shared context for freshness/status. Wrap the raw audit table with its own analytics context. Do not change request dependencies, response handling, calculations, ranking limits, or columns.
 
-- [ ] **Step 4: Run focused/full analytics gates and Admin build**
+- [x] **Step 4: Run focused/full analytics gates and Admin build**
 
 Run the Task 4 RED commands again, then:
 
@@ -240,7 +240,7 @@ git diff --check
 
 Expected: all exit 0.
 
-- [ ] **Step 5: Update Audit/daily evidence and commit**
+- [x] **Step 5: Update Audit/daily evidence and commit**
 
 Commit: `feat(admin): migrate analytics data workbenches`
 

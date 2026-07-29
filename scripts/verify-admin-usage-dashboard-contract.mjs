@@ -55,6 +55,16 @@ check(
 check("server records RH catalog snapshot fields", serverSource.includes("rhCatalogId") && serverSource.includes("rhCatalogTitle") && serverSource.includes("rhCatalogKind"));
 check("server records task-backed LLM analytics row", serverSource.includes("扩展对话任务") || serverSource.includes("taskCapability: \"chat\""));
 check("usage dashboard renders KPI strip", usageDashboardSource.includes("usage-kpi-grid"));
+check(
+  "usage dashboard adopts the shared analytics data workbench",
+  usageDashboardSource.includes('from "./admin-data-workbench"')
+  && usageDashboardSource.includes('<AdminDataWorkbench label="用量分析数据" mode="analytics"'),
+);
+check(
+  "raw audit view adopts the shared analytics data workbench",
+  readonlyPanelsSource.includes('<AdminDataWorkbench label="审计日志数据" mode="analytics"')
+  && readonlyPanelsSource.includes('emptyLabel="暂无审计记录"'),
+);
 check("usage dashboard renders account selector", usageDashboardSource.includes("选择账号查看明细"));
 check("usage dashboard renders selected account summary", usageDashboardSource.includes("账号下钻"));
 check("usage dashboard renders account model usage table", usageDashboardSource.includes("账号模型使用明细"));

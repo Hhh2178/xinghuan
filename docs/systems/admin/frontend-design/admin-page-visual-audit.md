@@ -30,7 +30,7 @@
 | 公共资源 | 资源目录 | 分类 rail + 卡片网格 | 预览和操作密度失控风险 | 资源网格 + Inspector | D |
 | 内容发布 | 公告 | 编辑器 + 列表 | 编辑、预览、发布反馈不连贯 | 内容编辑工作台 | D |
 | 任务与运行 | 任务列表 | C realtime workbench + 当前页摘要 + 控制/筛选 + 八列表格 + 完整日志（本地迁移完成） | 任务行为契约已保留；Gray 桌面验收待整批执行 | 实时任务控制台 | C（本地完成） |
-| 数据分析与审计 | 用量、费用、渠道健康、审计 | KPI + 图表 + 表格 | 图表皮肤、筛选、表格语义不统一 | 分析驾驶舱 | C |
+| 数据分析与审计 | 用量、费用、渠道健康、审计 | C analytics workbench + 共享 context + 原筛选/KPI/图表/报告/七列表格（本地迁移完成） | 数据与刷新所有权契约已保留；Gray 桌面验收待整批执行 | 分析驾驶舱 | C（本地完成） |
 | 系统健康 | 健康、运行告警 | C realtime workbench + 告警优先 command + 五领域 + 拓扑/趋势/容量/时间线 + Inspector（本地迁移完成） | 可观测性语义契约已保留；Gray 桌面验收待整批执行 | 可观测性控制台 | C（本地完成） |
 | 运行参数与环境同步 | 运行参数、gray/production 差异与同步 | 共享配置 context + 既有参数表单/差异 rail/表格（v0.8.10 Gray 已验收） | revision、默认冲突决策、确认 apply 与内部/远端 token 边界均由契约锁定 | 配置工作台 | B（完成） |
 
@@ -79,4 +79,6 @@
 - Task 2 本地证据：3 个聚焦测试文件共 9 项通过，Overview/Tasks 契约通过，Admin TypeScript/Vite 构建和 `git diff --check` 通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
 - `/admin/system/health` 已在不改动 `useAdminSystemHealth` 的前提下接入 `mode="realtime"`。告警排序、五领域真值、失败/取消分离、拓扑、趋势、容量、时间线、15 秒可见页刷新、AbortController 与 Inspector 继续由原组件和契约所有。
 - Task 3 本地证据：健康 workbench 与 view-model 共 2 项测试、健康可视化契约、authority state、agent environment readiness、Admin TypeScript/Vite 构建及 `git diff --check` 均通过。Authority 仅保留 Production 版本落后 Gray 的既有警告；本批未修改 Production。
+- `/admin/analytics/usage`、`costs`、`reliability`、`audit` 已接入 `mode="analytics"` 和共享 context。Usage 保留父级筛选与账号下钻；Cost 保留 CNY 请求、active-result guard 和历史价格不可回算提示；Reliability 保留 ETag、最后成功报告、stale 提示、默认关闭的五分钟刷新与页面可见性暂停；Audit 保留七列原始值。
+- Task 4 本地证据：analytics workbench 与 channel refresh 共 8 项测试、Cost API 测试、Usage/Audit/Cost 数据契约、Admin TypeScript/Vite 构建、视觉文档、组件注册及 `git diff --check` 均通过。C 整批 Gray 与登录态 `1920x1080` 验收尚未执行。
 - 模型目录助手上下文仍显示 `providers` 标签，作为后续 Admin 助手上下文重构的非阻塞残余；ComfyUI 长机器名采用单行省略，不构成页面溢出。
