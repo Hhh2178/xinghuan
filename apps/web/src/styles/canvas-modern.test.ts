@@ -15,11 +15,17 @@ describe('modern canvas shell stylesheet boundary', () => {
     expect(modernStyles).not.toMatch(/(^|\n)\s*(body|html|\*)\s*\{/);
   });
 
-  it('exposes an accessible modern rail without duplicating the node catalog', () => {
+  it('exposes only real modern rail actions while hover and focus control expansion', () => {
     expect(sidebarSource).toContain('data-sidebar-presentation={presentation}');
     expect(sidebarSource).toContain('data-expanded={isModern ? String(modernExpanded) : undefined}');
     expect(sidebarSource).toContain('t8-sidebar-rail');
-    expect(sidebarSource).toContain("'展开节点面板'");
+    expect(sidebarSource).toContain('aria-label="打开画布列表"');
+    expect(sidebarSource).toContain('aria-label="新建画布"');
+    expect(sidebarSource).toContain('aria-label="打开节点搜索"');
+    expect(sidebarSource).toContain('aria-label="打开 AI 托管"');
+    expect(sidebarSource).not.toContain('PanelLeftClose');
+    expect(sidebarSource).not.toContain('PanelLeftOpen');
+    expect(sidebarSource).not.toContain('setModernExpanded((expanded) => !expanded)');
     expect(sidebarSource).toContain('t8-sidebar-panel');
   });
 });

@@ -7,8 +7,6 @@ import {
   Edit2,
   FolderOpen,
   Loader2,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   Search,
   Trash2,
@@ -401,16 +399,6 @@ export default function Sidebar({
     >
       {isModern ? (
         <nav className="t8-sidebar-rail" aria-label="画布工具栏">
-          <button
-            type="button"
-            className="t8-sidebar-rail__button"
-            aria-label={modernExpanded ? '收起节点面板' : '展开节点面板'}
-            aria-expanded={modernExpanded}
-            title={modernExpanded ? '收起节点面板' : '展开节点面板'}
-            onClick={() => setModernExpanded((expanded) => !expanded)}
-          >
-            {modernExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-          </button>
           <button
             type="button"
             className="t8-sidebar-rail__button"
