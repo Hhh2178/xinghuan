@@ -75,7 +75,7 @@ export function AdminConfigurationLayout({
       className={classNames("admin-configuration-layout", className)}
       data-has-inspector={inspector ? "true" : "false"}
     >
-      <aside className="admin-configuration-layout__rail" data-workbench-slot="rail">{rail}</aside>
+      <aside className="admin-configuration-layout__rail" data-workbench-slot="rail" data-workbench-scroll="rail">{rail}</aside>
       <div className="admin-configuration-layout__editor" data-workbench-slot="editor">{children}</div>
       {inspector ? <aside className="admin-configuration-layout__inspector" data-workbench-slot="inspector">{inspector}</aside> : null}
     </div>

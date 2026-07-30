@@ -13,11 +13,18 @@ const profile = requiredArg(args, "target-profile");
 const environment = String(firstArg(args.env) || "gray").trim();
 const dryRun = flagEnabled(args["dry-run"]);
 const allowBilledCanaries = flagEnabled(args["allow-billed-canaries"]);
+const readiness = String(firstArg(args.readiness) || "check").trim();
+assert(["check", "skip"].includes(readiness), "AGENT_READINESS_MODE_INVALID");
 const target = await loadReleaseTargetProfile({ profile, environment });
 assertTargetOverridesMatch(args, target);
 
 if (dryRun) {
-  printJson({ ok: true, stage: "verify-agent-environment-readiness", dryRun: true, target: sanitizedTargetFingerprint(target), liveCanaries: "skipped" });
+  printJson({ ok: true, stage: "verify-agent-environment-readiness", dryRun: true, target: sanitizedTargetFingerprint(target), liveReadiness: readiness === "skip" ? "skipped" : "not_run", liveCanaries: "skipped" });
+  process.exit(0);
+}
+
+if (readiness === "skip") {
+  printJson({ ok: true, stage: "verify-agent-environment-readiness", target: sanitizedTargetFingerprint(target), environment, liveReadiness: "skipped", reason: "explicit_release_choice", liveCanaries: "skipped" });
   process.exit(0);
 }
 
@@ -74,5 +81,6 @@ printJson({
   definitions: EXPECTED_AGENT_KEYS.length,
   agentPublications: publishedAgentCount,
   routePublications: EXPECTED_POOL_KEYS.length,
+  liveReadiness: "checked",
   liveCanaries: canaries,
 });

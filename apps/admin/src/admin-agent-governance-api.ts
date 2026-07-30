@@ -14,6 +14,7 @@ export interface AgentRuntimeControl {
   updatedAt: number;
 }
 export interface AgentOverview {
+  environment: AgentEnvironment;
   metrics: Record<string, number>;
   controls: AgentRuntimeControl[];
 }

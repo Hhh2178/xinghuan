@@ -2457,6 +2457,7 @@ button:disabled {
   gap: 8px;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 6px;
 }
 
@@ -3621,6 +3622,7 @@ td {
   gap: 8px;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 6px;
 }
 

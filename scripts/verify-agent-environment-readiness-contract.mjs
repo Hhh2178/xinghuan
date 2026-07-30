@@ -16,6 +16,8 @@ assert.match(verifier, /allow-billed-canaries/, "billed canaries must require ex
 assert.match(verifier, /frontend\?\.mode === "agent"/, "frontend canary must reject fallback");
 assert.match(verifier, /admin\?\.mode === "agent"/, "admin canary must reject fallback");
 assert.match(verifier, /admin-cookie-env/, "credentials must be read from an environment variable");
+assert.match(verifier, /readiness.*skip/, "readiness skip mode missing");
+assert.match(verifier, /liveReadiness/, "readiness result must be explicit");
 assert.doesNotMatch(verifier, /bootstrap\"\s*,\s*\{ method: "POST"/, "readiness verifier must not bootstrap");
 assert.match(routes, /agent-runtime\/roles" && request\.method === "GET"/, "read-only definitions endpoint missing");
 assert.match(routes, /agent-runtime\/controls" && request\.method === "GET"/, "read-only controls endpoint missing");

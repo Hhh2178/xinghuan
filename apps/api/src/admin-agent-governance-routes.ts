@@ -8,6 +8,7 @@ type CurrentUser = { id: string; email: string; name: string; role: "admin" | "m
 type RequestContext = { requestId: string; method: string; path: string; ip: string; userAgent: string; startedAt: number };
 
 export function createAdminAgentGovernanceRouteHandler(deps: {
+  currentEnvironment: GovernanceEnvironment;
   repository: GovernanceRepository;
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   usePostgresRepository: () => boolean;
@@ -30,8 +31,9 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
 
     if (path === "/api/admin/agent-runtime/overview" && request.method === "GET") {
       deps.sendT8(response, {
+        environment: deps.currentEnvironment,
         metrics: await deps.repository.readOverview(),
-        controls: await deps.repository.readRuntimeControls(),
+        controls: [await deps.repository.readRuntimeControl(deps.currentEnvironment)],
       });
       return true;
     }
@@ -75,7 +77,7 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     const agentVersionPublish = path.match(/^\/api\/admin\/agent-runtime\/agent-configurations\/([^/]+)\/publish$/);
     if (agentVersionPublish && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
-      const environment = governanceEnvironment(body.environment);
+      const environment = scopedGovernanceEnvironment(body.environment, deps.currentEnvironment);
       const value = await deps.repository.publishAgentConfiguration({ actorId: actor.id, versionId: decodeURIComponent(agentVersionPublish[1]), environment });
       await audit(deps, actor, requestContext, "agent.configuration.publish", "agent-configuration", agentVersionPublish[1], `发布 Agent 配置到 ${environment}`);
       deps.sendT8(response, value); return true;
@@ -112,7 +114,7 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     const poolVersionPublish = path.match(/^\/api\/admin\/agent-runtime\/llm-pool-versions\/([^/]+)\/publish$/);
     if (poolVersionPublish && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
-      const environment = governanceEnvironment(body.environment);
+      const environment = scopedGovernanceEnvironment(body.environment, deps.currentEnvironment);
       const value = await deps.repository.publishLlmPoolVersion({ actorId: actor.id, versionId: decodeURIComponent(poolVersionPublish[1]), environment });
       await audit(deps, actor, requestContext, "agent.llm_pool.version.publish", "llm-route-pool-version", poolVersionPublish[1], `发布或回滚 LLM 路由到 ${environment}`);
       deps.sendT8(response, value); return true;
@@ -158,7 +160,7 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     const qualityPublish = path.match(/^\/api\/admin\/agent-runtime\/quality-profiles\/([^/]+)\/publish$/);
     if (qualityPublish && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
-      const environment = governanceEnvironment(body.environment);
+      const environment = scopedGovernanceEnvironment(body.environment, deps.currentEnvironment);
       const value = await deps.repository.publishQualityProfile({ actorId: actor.id, profileId: decodeURIComponent(qualityPublish[1]), environment });
       await audit(deps, actor, requestContext, "agent.quality_profile.publish", "artifact-quality-profile", qualityPublish[1], `发布或回滚质量配置到 ${environment}`);
       deps.sendT8(response, value); return true;
@@ -199,19 +201,20 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     const knowledgePublish = path.match(/^\/api\/admin\/agent-runtime\/knowledge\/documents\/([^/]+)\/publish$/);
     if (knowledgePublish && request.method === "POST") {
       const body = await readJsonBody<Record<string, unknown>>(request);
-      const environment = governanceEnvironment(body.environment);
+      const environment = scopedGovernanceEnvironment(body.environment, deps.currentEnvironment);
       const value = await deps.repository.publishKnowledgeDocument({ actorId: actor.id, documentId: decodeURIComponent(knowledgePublish[1]), environment });
       await audit(deps, actor, requestContext, "agent.knowledge.document.publish", "agent-knowledge-document", knowledgePublish[1], `发布或回滚知识文档到 ${environment}`);
       deps.sendT8(response, value); return true;
     }
 
     if (path === "/api/admin/agent-runtime/controls" && request.method === "GET") {
-      deps.sendT8(response, await deps.repository.readRuntimeControls()); return true;
+      deps.sendT8(response, [await deps.repository.readRuntimeControl(deps.currentEnvironment)]); return true;
     }
     const controls = path.match(/^\/api\/admin\/agent-runtime\/controls\/(gray|production)$/);
     if (controls && request.method === "PATCH") {
       const body = await readJsonBody<Record<string, unknown>>(request);
-      const value = await deps.repository.updateRuntimeControls({ actorId: actor.id, environment: controls[1] as GovernanceEnvironment, revision: number(body.revision, 0), values: object(body.values) as Record<string, boolean> });
+      const environment = scopedGovernanceEnvironment(controls[1], deps.currentEnvironment);
+      const value = await deps.repository.updateRuntimeControls({ actorId: actor.id, environment, revision: number(body.revision, 0), values: object(body.values) as Record<string, boolean> });
       await audit(deps, actor, requestContext, "agent.runtime_controls.update", "agent-runtime-controls", controls[1], `更新 ${controls[1]} Agent 全局开关`);
       deps.sendT8(response, value); return true;
     }
@@ -252,6 +255,11 @@ function requireAdmin(user: CurrentUser | null, invalidRequest: (message: string
   return user;
 }
 function governanceEnvironment(value: unknown): GovernanceEnvironment { return enumValue(value, ["gray", "production"], "AGENT_ENVIRONMENT_INVALID"); }
+function scopedGovernanceEnvironment(value: unknown, currentEnvironment: GovernanceEnvironment): GovernanceEnvironment {
+  const requested = governanceEnvironment(value);
+  if (requested !== currentEnvironment) throw new Error("AGENT_RUNTIME_ENVIRONMENT_SCOPE_FORBIDDEN");
+  return currentEnvironment;
+}
 function versionStatus(value: unknown): GovernedVersionStatus { return enumValue(value, ["draft", "review", "approved", "retired"], "GOVERNED_VERSION_STATUS_INVALID"); }
 function agentRole(value: unknown): AgentRole { return enumValue(value, ["planner", "image_understanding", "video_understanding", "checker", "recovery", "manager"], "AGENT_ROLE_INVALID"); }
 function enumValue<const T extends string>(value: unknown, allowed: readonly T[], error: string): T { const normalized = text(value) as T; if (!allowed.includes(normalized)) throw new Error(error); return normalized; }

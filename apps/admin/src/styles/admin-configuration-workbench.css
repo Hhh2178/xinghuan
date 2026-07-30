@@ -75,6 +75,21 @@
   overflow: hidden;
 }
 
+.admin-configuration-layout__rail[data-workbench-scroll="rail"] {
+  position: sticky;
+  top: var(--admin-sticky-offset);
+  align-self: start;
+  display: flex;
+  height: calc(100vh - var(--admin-sticky-offset) - 20px);
+  min-height: 0;
+}
+
+.admin-configuration-layout__rail[data-workbench-scroll="rail"] > * {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .admin-configuration-layout__editor {
   display: grid;
   gap: 12px;
@@ -110,14 +125,20 @@
 }
 
 .api-settings-page .provider-rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: 100%;
+  min-height: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
 .admin-runninghub-workspace .admin-runninghub-workspace__rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
+  min-height: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -134,5 +155,19 @@
 .environment-sync-page .admin-configuration-layout__rail {
   border: 0;
   background: transparent;
-  overflow: visible;
+  overflow: hidden;
+}
+
+.environment-sync-page .environment-sync-rail {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+@media (max-width: 1280px) {
+  .admin-configuration-layout__rail[data-workbench-scroll="rail"] {
+    position: static;
+    height: auto;
+    max-height: none;
+  }
 }

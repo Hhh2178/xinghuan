@@ -1380,6 +1380,7 @@ const materialAccessService = createMaterialAccessService({
   userDataDirs: (user) => userDataDirsForId(user.id),
 });
 const handleAdminAgentGovernanceRoutes = createAdminAgentGovernanceRouteHandler({
+  currentEnvironment: environment === "production" ? "production" : "gray",
   repository: agentGovernanceRepository,
   sendT8,
   usePostgresRepository,

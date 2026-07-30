@@ -53,7 +53,6 @@ const lifecycleSteps: Array<{ id: AssistantLifecycleStepId; label: string; descr
 
 export function AdminAssistantGovernanceWorkspace({ settings, models, saving, onSave }: Props) {
   const [surface, setSurface] = useState<AssistantGovernanceSurface>("frontend");
-  const [environment, setEnvironment] = useState<AgentEnvironment>("production");
   const [runtimeEnvironment, setRuntimeEnvironment] = useState<AgentEnvironment | "local" | null>(null);
   const [activeStep, setActiveStep] = useState<AssistantLifecycleStepId>("capability");
   const [draft, setDraft] = useState(settings);
@@ -83,9 +82,9 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
     void api<{ environment?: string }>("/api/status").then((status) => {
       const current = status.environment === "gray" || status.environment === "production" ? status.environment : "local";
       setRuntimeEnvironment(current);
-      if (current !== "local") setEnvironment(current);
     }).catch(() => setRuntimeEnvironment("local"));
   }, []);
+  const environment: AgentEnvironment = runtimeEnvironment === "production" ? "production" : "gray";
 
   const definition = useMemo(
     () => selectAssistantDefinition(workspace?.definitions || [], draft.integration, surface),
@@ -199,9 +198,6 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
       meta={`${surface === "frontend" ? "创作侧助手" : "后台 AI 助手"} · ${environment === "gray" ? "Gray" : "Production"} · revision ${draft.revision}`}
       actions={
         <div className="assistant-governance-workspace__header-actions">
-        <div className="assistant-environment-switch" role="group" aria-label="检查环境">
-          {(["gray", "production"] as const).map((item) => <button type="button" key={item} className={environment === item ? "active" : ""} onClick={() => setEnvironment(item)}>{item === "gray" ? "Gray" : "Production"}</button>)}
-        </div>
         <button type="button" className="icon-button" title="刷新助手治理数据" onClick={() => void load()} disabled={loading || busy}><RefreshCw aria-hidden="true" /></button>
         </div>
       }
@@ -231,16 +227,16 @@ export function AdminAssistantGovernanceWorkspace({ settings, models, saving, on
     </div>
 
     {loading ? <div className="starlight-page-loading"><Loader2 className="spin" />正在加载助手治理数据...</div> : surfaceWorkspace ? <div className="assistant-lifecycle-surface">
-      {activeStep === "capability" ? <CapabilityStep draft={draft} settings={settings} surface={surface} plannerDefinitions={plannerDefinitions} activeAgentKey={activeAgentKey} saving={saving} onDraft={setDraft} onSave={saveSurfaceSettings} workspace={surfaceWorkspace} busy={busy} mutate={mutate} /> : null}
-      {activeStep === "routing" ? <LifecycleSection title="选择模型路由" description="候选顺序决定技术失败时的回退顺位；只显示已启用的聊天模型。">{pools.length ? <AdminAgentPoolEditor pools={pools} models={chatModels} busy={busy} mutate={mutate} publicationMode="manage" displayMode="configuration" /> : <BootstrapPrompt activeAgentKey={activeAgentKey} busy={busy} mutate={mutate} />}</LifecycleSection> : null}
-      {activeStep === "publication" ? <LifecycleSection title="审核与发布" description={`发布到 ${environment === "gray" ? "Gray" : "Production"} 后，仅影响后续新 Agent Run；Production 发布和任何回滚都会再次确认影响。`}><PublicationChecks lifecycle={lifecycle} />{definition ? <AdminAgentRoleConfigurationEditor value={surfaceWorkspace} busy={busy} mutate={mutate} publicationMode="manage" displayMode="publication" /> : <BootstrapPrompt activeAgentKey={activeAgentKey} busy={busy} mutate={mutate} />}{pools.length ? <AdminAgentPoolEditor pools={pools} models={chatModels} busy={busy} mutate={mutate} publicationMode="manage" displayMode="publication" /> : null}</LifecycleSection> : null}
+      {activeStep === "capability" ? <CapabilityStep draft={draft} settings={settings} surface={surface} plannerDefinitions={plannerDefinitions} activeAgentKey={activeAgentKey} saving={saving} onDraft={setDraft} onSave={saveSurfaceSettings} workspace={surfaceWorkspace} busy={busy} mutate={mutate} environment={environment} /> : null}
+      {activeStep === "routing" ? <LifecycleSection title="选择模型路由" description="候选顺序决定技术失败时的回退顺位；只显示已启用的聊天模型。">{pools.length ? <AdminAgentPoolEditor pools={pools} models={chatModels} busy={busy} mutate={mutate} environment={environment} publicationMode="manage" displayMode="configuration" /> : <BootstrapPrompt activeAgentKey={activeAgentKey} busy={busy} mutate={mutate} />}</LifecycleSection> : null}
+      {activeStep === "publication" ? <LifecycleSection title="审核与发布" description={`发布到 ${environment === "gray" ? "Gray" : "Production"} 后，仅影响后续新 Agent Run；Production 发布和任何回滚都会再次确认影响。`}><PublicationChecks lifecycle={lifecycle} />{definition ? <AdminAgentRoleConfigurationEditor value={surfaceWorkspace} busy={busy} mutate={mutate} environment={environment} publicationMode="manage" displayMode="publication" /> : <BootstrapPrompt activeAgentKey={activeAgentKey} busy={busy} mutate={mutate} />}{pools.length ? <AdminAgentPoolEditor pools={pools} models={chatModels} busy={busy} mutate={mutate} environment={environment} publicationMode="manage" displayMode="publication" /> : null}</LifecycleSection> : null}
       {activeStep === "verification" ? <LifecycleSection title="验证已生效" description="发送一条真实请求，确认当前助手能使用已发布 Agent 与模型路由完成响应。"><div className="assistant-verification-panel"><FlaskConical aria-hidden="true" /><div><strong>{verification?.status === "succeeded" ? "验证成功" : verification?.status === "failed" ? "验证失败" : "尚未验证"}</strong><span>{verification?.detail || "发布完成后执行验证；受限模式不会计为完整生效。"}</span></div><button type="button" className="primary-action" disabled={busy || lifecycle.issues.some((issue) => issue.step !== "verification")} onClick={() => void verifyAssistant()}>{busy ? <Loader2 className="spin" /> : <CheckCircle2 />}发送真实验证请求</button></div></LifecycleSection> : null}
     </div> : null}
   </AdminGovernanceWorkbench>;
 }
 
-function CapabilityStep({ draft, settings, surface, plannerDefinitions, activeAgentKey, saving, onDraft, onSave, workspace, busy, mutate }: {
-  draft: AssistantSettings; settings: AssistantSettings; surface: AssistantGovernanceSurface; plannerDefinitions: AgentRoleWorkspaceData["definitions"]; activeAgentKey: string; saving: boolean; onDraft: (value: AssistantSettings) => void; onSave: () => Promise<void>; workspace: AgentRoleWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>;
+function CapabilityStep({ draft, settings, surface, plannerDefinitions, activeAgentKey, saving, onDraft, onSave, workspace, busy, mutate, environment }: {
+  draft: AssistantSettings; settings: AssistantSettings; surface: AssistantGovernanceSurface; plannerDefinitions: AgentRoleWorkspaceData["definitions"]; activeAgentKey: string; saving: boolean; onDraft: (value: AssistantSettings) => void; onSave: () => Promise<void>; workspace: AgentRoleWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; environment: AgentEnvironment;
 }) {
   return <LifecycleSection title="助手能力" description="决定入口是否显示、允许附带哪些上下文，以及当前表面绑定哪个固定 Agent。">
     <div className="assistant-governance-settings">
@@ -256,7 +252,7 @@ function CapabilityStep({ draft, settings, surface, plannerDefinitions, activeAg
       </div>
       <div className="assistant-governance-settings__actions"><span>revision {draft.revision}</span><button type="button" className="primary-action" disabled={saving || sameSettings(draft, settings)} onClick={() => void onSave()}><Save aria-hidden="true" />保存当前助手设置</button></div>
     </div>
-    <details className="assistant-advanced-strategy"><summary><WandSparkles aria-hidden="true" /><span><strong>高级策略</strong><small>提示词、Token、超时、成本和审批策略</small></span></summary><AdminAgentRoleConfigurationEditor value={workspace} busy={busy} mutate={mutate} publicationMode="manage" displayMode="configuration" /></details>
+    <details className="assistant-advanced-strategy"><summary><WandSparkles aria-hidden="true" /><span><strong>高级策略</strong><small>提示词、Token、超时、成本和审批策略</small></span></summary><AdminAgentRoleConfigurationEditor value={workspace} busy={busy} mutate={mutate} environment={environment} publicationMode="manage" displayMode="configuration" /></details>
   </LifecycleSection>;
 }
 

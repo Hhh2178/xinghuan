@@ -2,6 +2,8 @@
 
 ## Current Implementation Status
 
+> 2026-07-30 local: Agent governance reads and writes are now scoped by the server runtime environment, preventing a Gray Admin instance from treating an absent Production control row as a real failure. Agent configuration and route publication controls expose only the current deployment environment. The live readiness verifier accepts explicit `--readiness=skip` and records `liveReadiness=skipped`; this preserves static gates but does not claim a real Agent probe. Production enablement remains pending release and runtime verification.
+
 > 2026-07-27 Production repair: Production governance schema existed without bootstrap definitions, route pools or explicit runtime controls. After an audited backup, 8 Agent definitions/configurations and 3 route pools were initialized; frontend/backend assistant and supervision Agent v1 plus `text_chat` route v2 were published. Production uses the safe `observe` preset, and real frontend/backend assistant requests both returned `mode=agent`. Follow-up release gates must verify bootstrap, environment publications, route capability snapshots, runtime controls and real non-fallback canaries. See `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`.
 
 > 2026-07-27 v0.8.3-r1 gate: `npm run verify:agent-environment-readiness-contract` keeps the deployment verifier aligned with the eight bootstrap definitions, three published Agent/route surfaces, `text_chat` candidates, explicit controls and fallback-free canaries. `npm run verify:agent-environment-readiness -- --target-profile=old-server --env=<gray|production> --admin-cookie-env=<env-name>` is read-only; it never bootstraps, publishes or changes controls, and it only sends potentially billed frontend/admin probes when `--allow-billed-canaries=true` is explicit. Credentials are read from the named local environment variable and are never printed.
@@ -92,6 +94,7 @@
 - Agent 配置 create/clone/review/approve/publish 均重新校验 Pool、知识 collection audience/enabled 状态和 Quality Profile 引用；Admin 编辑器保存始终创建新草稿并显示结构化 diff。
 - Admin 路由模拟复用生产 `routeLlmCandidates`，模型写入同时校验启用 Provider、启用模型和 `chat` capability。
 - 环境级 Agent、Canvas Run、质量评估和自动恢复 kill switch 已接入真实入口；数据库记录不存在时默认关闭，暂停和取消不受启动门禁阻断。
+- Agent Runtime 的 overview、控制项、角色、路由池和质量配置 publication 均由服务端当前部署环境限定；浏览器只获得当前环境这一只读事实，任何跨环境发布或控制写入都会被拒绝，不能再把另一个环境的缺省状态显示为当前环境故障。
 - 默认有界角色可幂等初始化为草稿；不再新建 `canvas-manager` 或 `public-canvas` 自由知识集合，也不会自动批准、发布或选择任意模型。
 - 每次 Agent 角色调用先创建或复用 owner-scoped、environment/audience-scoped 的不可变 Knowledge Snapshot，再创建 Agent Run 并写入 `knowledge_snapshot_id`。新快照只锁定节点目录与安全模型投影，`document_publications` 和 `workflow_template_refs` 为空；历史快照及其文档正文仍保持只读和可重放。模型 usage 只保存数值计数，Provider 错误在进入账本前脱敏。
 - 自由知识集合、文档审核和发布 API 保留 GET 兼容读取；所有新写入统一返回 `410 AGENT_KNOWLEDGE_WRITES_RETIRED`。数据库 migration 与历史数据不回滚、不删除。

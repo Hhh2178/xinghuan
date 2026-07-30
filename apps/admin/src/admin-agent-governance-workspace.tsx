@@ -210,10 +210,10 @@ function SupervisionView({
       <div className="supervision-workspace-surface__content">
         {navigation.active === "overview" ? <SupervisionOverviewView value={value.overview} /> : null}
         {navigation.active === "environment" ? <EnvironmentView value={value.overview} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
-        {navigation.active === "planner" ? <PlannerView value={plannerDefinitions} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
-        {navigation.active === "routing" ? <RoutingView value={supervisionPools} historicalDefinitions={historicalDefinitions} models={models} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
-        {navigation.active === "quality" ? <QualityView value={value.policies.quality} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
-        {navigation.active === "recovery" ? <RecoveryView value={value.policies.recovery} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "planner" ? <PlannerView value={plannerDefinitions} environment={value.overview.environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "routing" ? <RoutingView value={supervisionPools} environment={value.overview.environment} historicalDefinitions={historicalDefinitions} models={models} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "quality" ? <QualityView value={value.policies.quality} environment={value.overview.environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
+        {navigation.active === "recovery" ? <RecoveryView value={value.policies.recovery} environment={value.overview.environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : null}
       </div>
     </div>
   </div>;
@@ -290,15 +290,15 @@ function ControlRow({ value, busy, mutate, onDirtyChange }: { value: AgentRuntim
   </div>;
 }
 
-function PlannerView({ value, busy, mutate, onDirtyChange }: { value: AgentRoleWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+function PlannerView({ value, environment, busy, mutate, onDirtyChange }: { value: AgentRoleWorkspaceData; environment: AgentEnvironment; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   return <div className="agent-governance-stack">
     <SectionHead title="托管分析用途" description="配置规划、候选评估等受控 Agent。配置仅在新 Run 开始时冻结并生效。" />
     <ActionHead title={`${value.definitions.length} 个固定用途`} action={<span className="agent-status agent-status--enabled">用途受控</span>} />
-    {value.definitions.length ? <AdminAgentRoleConfigurationEditor value={value} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化固定用途，请先在环境控制中初始化默认草稿" />}
+    {value.definitions.length ? <AdminAgentRoleConfigurationEditor value={value} environment={environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化固定用途，请先在环境控制中初始化默认草稿" />}
   </div>;
 }
 
-function RoutingView({ value, historicalDefinitions, models, busy, mutate, onDirtyChange }: { value: LlmRoutePool[]; historicalDefinitions: AgentRoleWorkspaceData["definitions"]; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+function RoutingView({ value, environment, historicalDefinitions, models, busy, mutate, onDirtyChange }: { value: LlmRoutePool[]; environment: AgentEnvironment; historicalDefinitions: AgentRoleWorkspaceData["definitions"]; models: ModelRecord[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const [creating, setCreating] = useState(false);
   const availableTemplates = purposeRouteTemplates.filter((template) => !value.some((pool) => pool.poolKey === template.poolKey));
   const [templateId, setTemplateId] = useState<string>(purposeRouteTemplates[0].id);
@@ -312,7 +312,7 @@ function RoutingView({ value, historicalDefinitions, models, busy, mutate, onDir
       <Field label="固定标识"><input value={template.poolKey} disabled /></Field>
       <Field label="生效场景"><input value={template.label} disabled /></Field>
     </InlineForm> : null}
-    <AdminAgentPoolEditor pools={value} models={models.filter((model) => model.capability === "chat" && model.enabled)} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} />
+    <AdminAgentPoolEditor pools={value} models={models.filter((model) => model.capability === "chat" && model.enabled)} environment={environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} />
     <HistoricalDefinitions value={historicalDefinitions} />
   </div>;
 }
@@ -326,13 +326,13 @@ function HistoricalDefinitions({ value }: { value: AgentRoleWorkspaceData["defin
   </div>;
 }
 
-function QualityView({ value, busy, mutate, onDirtyChange }: { value: QualityProfile[]; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
-  return <div className="agent-governance-stack"><SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" /><AdminAgentQualityEditor value={value} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /></div>;
+function QualityView({ value, environment, busy, mutate, onDirtyChange }: { value: QualityProfile[]; environment: AgentEnvironment; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+  return <div className="agent-governance-stack"><SectionHead title="质量与候选选择" description="质量阈值和置信度策略只作用于显式候选门。" /><AdminAgentQualityEditor value={value} environment={environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /></div>;
 }
 
-function RecoveryView({ value, busy, mutate, onDirtyChange }: { value: AgentRecoveryWorkspaceData; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
+function RecoveryView({ value, environment, busy, mutate, onDirtyChange }: { value: AgentRecoveryWorkspaceData; environment: AgentEnvironment; busy: boolean; mutate: (work: () => Promise<unknown>) => Promise<void>; onDirtyChange: (dirty: boolean) => void }) {
   const roles = { ...value.roles, definitions: value.roles.definitions.filter((definition) => definition.agentKey === "generation-recovery") };
-  return <div className="agent-governance-stack"><SectionHead title="恢复策略" description="恢复用途的发布配置决定工具、预算、审批与自动恢复次数。" />{roles.definitions.length ? <AdminAgentRoleConfigurationEditor value={roles} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化失败恢复用途" />}<SectionHead title="恢复决策账本" description="最近的失败分类、目标模型与审批状态。" /><DataTable headers={["时间", "Owner", "失败分类", "恢复决策", "模型变化", "状态"]}>{value.decisions.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td>{item.ownerEmail}</td><td><StatusBadge value={item.failureClass} /></td><td><strong>{item.decision}</strong><small>{item.reason}</small></td><td><code>{item.currentModelId || "-"}</code><small>{item.targetModelId && item.targetModelId !== item.currentModelId ? `→ ${item.targetModelId}` : "同配置"}</small></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable></div>;
+  return <div className="agent-governance-stack"><SectionHead title="恢复策略" description="恢复用途的发布配置决定工具、预算、审批与自动恢复次数。" />{roles.definitions.length ? <AdminAgentRoleConfigurationEditor value={roles} environment={environment} busy={busy} mutate={mutate} onDirtyChange={onDirtyChange} /> : <Empty label="尚未初始化失败恢复用途" />}<SectionHead title="恢复决策账本" description="最近的失败分类、目标模型与审批状态。" /><DataTable headers={["时间", "Owner", "失败分类", "恢复决策", "模型变化", "状态"]}>{value.decisions.map((item) => <tr key={item.id}><td>{formatTime(item.createdAt)}</td><td>{item.ownerEmail}</td><td><StatusBadge value={item.failureClass} /></td><td><strong>{item.decision}</strong><small>{item.reason}</small></td><td><code>{item.currentModelId || "-"}</code><small>{item.targetModelId && item.targetModelId !== item.currentModelId ? `→ ${item.targetModelId}` : "同配置"}</small></td><td><StatusBadge value={item.status} /></td></tr>)}</DataTable></div>;
 }
 
 function InlineForm({ children, onSubmit, disabled, submit }: { children: ReactNode; onSubmit: () => Promise<void>; disabled: boolean; submit: string }) { return <form className="agent-inline-form" onSubmit={(event) => { event.preventDefault(); void onSubmit(); }}>{children}<button type="submit" className="primary-action" disabled={disabled}><Check />{submit}</button></form>; }

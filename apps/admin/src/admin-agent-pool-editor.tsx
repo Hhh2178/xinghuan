@@ -10,6 +10,7 @@ interface Props {
   models: ModelRecord[];
   busy: boolean;
   mutate: (work: () => Promise<unknown>) => Promise<void>;
+  environment: AgentEnvironment;
   publicationMode?: "manage" | "read-only";
   displayMode?: "full" | "configuration" | "publication";
   onDirtyChange?: (dirty: boolean) => void;
@@ -31,7 +32,7 @@ interface PoolDraft {
   entries: EntryDraft[];
 }
 
-export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationMode = "manage", displayMode = "full", onDirtyChange }: Props) {
+export function AdminAgentPoolEditor({ pools, models, busy, mutate, environment, publicationMode = "manage", displayMode = "full", onDirtyChange }: Props) {
   const [poolId, setPoolId] = useState(pools[0]?.id || "");
   const pool = pools.find((item) => item.id === poolId) || pools[0];
   const [versionId, setVersionId] = useState(pool?.versions[0]?.id || "");
@@ -88,28 +89,29 @@ export function AdminAgentPoolEditor({ pools, models, busy, mutate, publicationM
       <div className="agent-config-editor__actions"><span>{changed ? `${draft.entries.length} 个候选待保存` : "与基准版本一致"}</span><button type="button" className="primary-action" disabled={busy || !changed || draft.entries.length === 0} onClick={() => void mutate(() => adminAgentGovernanceApi.createPoolVersion(pool.id, { policy: { failureThreshold: draft.failureThreshold, cooldownMs: draft.cooldownMs }, entries: draft.entries }))}><Save />保存为新草稿</button></div>
       {version ? <div className="agent-simulator"><strong>路由模拟</strong><button type="button" className="ghost-action" disabled={busy} onClick={async () => { setSimulation(""); try { const result = await adminAgentGovernanceApi.simulatePool({ versionId: version.id, role: pool.role, scenario: pool.scenario, requiredCapabilityTags: [], decisionKey: `admin-preview-${Date.now()}` }); const selectedEntry = version.entries.find((entry) => entry.id === result.decision.selectedEntryId); const selectedModel = models.find((model) => model.id === selectedEntry?.modelId); setSimulation(`${selectedModel?.displayName || selectedEntry?.modelId || "未找到候选"} · ${result.decision.reason} · ${result.decision.rejected.length} 个候选被排除`); } catch (error) { setSimulation(error instanceof Error ? error.message : String(error)); } }}>运行模拟</button>{simulation ? <p>{simulation}</p> : null}</div> : null}
       </> : null}
-      {displayMode !== "configuration" ? <section className="agent-version-history"><header><strong>路由版本历史</strong><span>批准与发布只影响之后创建的新 Agent Run</span></header><div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} publicationMode={publicationMode} />)}</div></section> : null}
+      {displayMode !== "configuration" ? <section className="agent-version-history"><header><strong>路由版本历史</strong><span>批准与发布只影响之后创建的新 Agent Run</span></header><div className="agent-version-list">{pool.versions.map((item) => <PoolVersionRow key={item.id} pool={pool} version={item} busy={busy} mutate={mutate} environment={environment} publicationMode={publicationMode} />)}</div></section> : null}
     </div>
   </div>;
 }
 
-function PoolVersionRow({ pool, version, busy, mutate, publicationMode }: { pool: LlmRoutePool; version: LlmRoutePool["versions"][number]; busy: boolean; mutate: Props["mutate"]; publicationMode: NonNullable<Props["publicationMode"]> }) {
+function PoolVersionRow({ pool, version, busy, mutate, environment, publicationMode }: { pool: LlmRoutePool; version: LlmRoutePool["versions"][number]; busy: boolean; mutate: Props["mutate"]; environment: AgentEnvironment; publicationMode: NonNullable<Props["publicationMode"]> }) {
   const activeVersion = (environment: AgentEnvironment) => pool.versions.find((item) => item.publications.some((publication) => publication.environment === environment));
   const actionLabel = (environment: AgentEnvironment) => {
     const current = activeVersion(environment);
     const name = environment === "gray" ? "Gray" : "Production";
     return current && version.version < current.version ? `回滚 ${name} 至此版本` : `发布 ${name}`;
   };
-  const publish = async (environment: AgentEnvironment) => {
+  const publish = async () => {
     const label = actionLabel(environment);
     if ((environment === "production" || label.startsWith("回滚")) && !window.confirm(`确认${label}？该操作会切换后续新 Agent Run 使用的路由，不改变正在运行或已经完成的记录。`)) return;
     await mutate(() => adminAgentGovernanceApi.publishPoolVersion(version.id, environment));
   };
-  return <div className="agent-version-row"><div><strong>v{version.version} · {version.entries.length} 个候选</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{version.publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><VersionActions status={version.status} busy={busy} published={version.publications.map((item) => item.environment)} onTransition={(status) => mutate(() => adminAgentGovernanceApi.transitionPoolVersion(version.id, status))} onPublish={publish} actionLabel={actionLabel} publicationMode={publicationMode} /></div>;
+  const publications = version.publications.filter((item) => item.environment === environment);
+  return <div className="agent-version-row"><div><strong>v{version.version} · {version.entries.length} 个候选</strong><span className={`agent-status agent-status--${version.status}`}>{statusLabel(version.status)}</span>{publications.map((item) => <span className={`agent-environment agent-environment--${item.environment}`} key={item.environment}>当前 {item.environment === "gray" ? "Gray" : "Production"}</span>)}</div><VersionActions status={version.status} busy={busy} published={publications.map((item) => item.environment)} onTransition={(status) => mutate(() => adminAgentGovernanceApi.transitionPoolVersion(version.id, status))} onPublish={publish} actionLabel={() => actionLabel(environment)} environment={environment} publicationMode={publicationMode} /></div>;
 }
 
-function VersionActions({ status, busy, published, onTransition, onPublish, actionLabel, publicationMode }: { status: AgentVersionStatus; busy: boolean; published: AgentEnvironment[]; onTransition: (status: AgentVersionStatus) => Promise<void>; onPublish: (environment: AgentEnvironment) => Promise<void>; actionLabel: (environment: AgentEnvironment) => string; publicationMode: NonNullable<Props["publicationMode"]> }) {
-  return <div className="agent-inline-actions">{status === "draft" ? <button type="button" disabled={busy} onClick={() => void onTransition("review")}>送审</button> : null}{status === "review" ? <><button type="button" disabled={busy} onClick={() => void onTransition("draft")}>退回</button><button type="button" disabled={busy} onClick={() => void onTransition("approved")}><Check />批准</button></> : null}{publicationMode === "manage" && status === "approved" && !published.includes("gray") ? <button type="button" disabled={busy} onClick={() => void onPublish("gray")}>{actionLabel("gray")}</button> : null}{publicationMode === "manage" && status === "approved" && !published.includes("production") ? <button type="button" disabled={busy} onClick={() => void onPublish("production")}>{actionLabel("production")}</button> : null}</div>;
+function VersionActions({ status, busy, published, onTransition, onPublish, actionLabel, environment, publicationMode }: { status: AgentVersionStatus; busy: boolean; published: AgentEnvironment[]; onTransition: (status: AgentVersionStatus) => Promise<void>; onPublish: () => Promise<void>; actionLabel: () => string; environment: AgentEnvironment; publicationMode: NonNullable<Props["publicationMode"]> }) {
+  return <div className="agent-inline-actions">{status === "draft" ? <button type="button" disabled={busy} onClick={() => void onTransition("review")}>送审</button> : null}{status === "review" ? <><button type="button" disabled={busy} onClick={() => void onTransition("draft")}>退回</button><button type="button" disabled={busy} onClick={() => void onTransition("approved")}><Check />批准</button></> : null}{publicationMode === "manage" && status === "approved" && !published.includes(environment) ? <button type="button" disabled={busy} onClick={() => void onPublish()}>{actionLabel()}</button> : null}</div>;
 }
 
 function poolDraft(version: LlmRoutePool["versions"][number] | undefined): PoolDraft {

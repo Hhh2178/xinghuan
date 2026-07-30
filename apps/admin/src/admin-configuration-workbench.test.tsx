@@ -32,6 +32,7 @@ describe("Admin configuration workbench", () => {
     expect(markup).toContain('class="admin-configuration-context"');
     expect(markup).not.toContain("<h1");
     expect(markup).toContain('data-workbench-slot="rail"');
+    expect(markup).toContain('data-workbench-scroll="rail"');
     expect(markup).toContain('data-workbench-slot="editor"');
     expect(markup).toContain('data-workbench-slot="inspector"');
     expect(markup).toContain('data-tone="warning"');
