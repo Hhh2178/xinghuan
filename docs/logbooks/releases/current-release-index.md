@@ -4,15 +4,15 @@
 
 ### Production
 
-- 版本：`v0.8.3`
-- release：`20260728-plato-output-recovery-v083-r22`
-- 当前状态：`用户授权后，已从 Gray 同一已验收制品正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`provider_poll_resume 同上游任务号续接、轮询/物料化心跳、条件化 stale reaper、视频 Range 续传、.part 原子提升和上游/本地失败分类`
-- Agent 运行态：`沿用已验收的运行态；本次不在 Production 重复执行付费 Agent/Provider canary`
-- 回滚：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- 版本：`v0.8.14`
+- release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+- 当前状态：`Gray 已验证的同一归档已正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
+- 部署内容：`Provider/RunningHub 共用配置栏单一吸顶、内部列表独立滚动和新建页脚色块移除；Agent 管理维持当前环境隔离`
+- Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
+- 回滚：`20260728-plato-output-recovery-v083-r22`
 - 当前批次记录：
-  - `production/2026-07-28-plato-output-recovery-production-v083-r22.md`
-  - `../validations/2026-07-28-plato-output-recovery-production-v083-r22.md`
+  - `production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+  - `../validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`（回滚锚点）
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
@@ -24,17 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.12`
-- release：`20260729-admin-realtime-data-c-v0812-r1`
+- 版本：`v0.8.14`
+- release：`20260730-admin-rail-single-owner-footer-v0814-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Admin C 共享实时/数据工作台；概览、任务、系统健康、用量、费用、渠道健康和审计统一 context、command、数据面与状态层级，原数据/行为所有权不变。`
-- 已验证：`全量测试 227 文件通过、1 文件跳过、869 项通过、4 项跳过；完整工作区构建、API/Worker、内外状态、权限 readiness、远端运维 smoke 和 1920x1080 登录态七页验收均通过。`
-- 部署时间：`2026-07-29`
-- 本轮制品源提交：`7422bf9ca65cf75d1a49fabf607580b82c874783`
-- 本轮制品 SHA-256：`3F5228E37875E1A87CB7536A3E90814A7BC7088D7313F024297027D2F4F186D1`
+- 部署内容：`Provider/RunningHub 由共享配置栏唯一吸顶，内部列表独立滚动，两个新建页脚色块已移除；Agent 管理继续按服务环境隔离。`
+- 已验证：`全量测试 232 文件通过、1 文件跳过、890 项通过、4 项跳过；完整发布构建、API/Worker、内外状态与权限 readiness 均通过。登录态视觉验收交由用户进行。`
+- 部署时间：`2026-07-30`
+- 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
+- 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
 - 本轮发布记录：
-  - `gray/2026-07-29-admin-realtime-data-c-v0812-r1.md`
-  - `../validations/2026-07-29-admin-realtime-data-c-v0812-r1.md`
+  - `gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
+  - `../validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
   - `../validations/2026-07-29-admin-realtime-data-c-v0811-r1.md`
   - `gray/2026-07-29-admin-configuration-b-v0810-r1.md`（当前回滚锚点）

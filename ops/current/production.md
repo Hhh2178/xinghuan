@@ -3,18 +3,20 @@
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.3`
-- 当前 release：`20260728-plato-output-recovery-v083-r22`
-- 当前状态：`用户授权后已由 Gray 已验证的 r22 制品正式晋级；API/Worker、内部/公网状态与权限 readiness 均已通过`
-- 当前补修：`ImageNode Provider 回传聚合与 task 恢复去重；error-recovery.css 崩溃回退样式边界；DrawingBoard layer snapshot 持久化与 group-only 恢复兜底；Provider model import 归一化拆分；ToolboxParam 参数区、素材绑定和多角度预览拆分；Worker 操作分发表；PoseMaster 字段 schema 与大画布可见性评估；图片/视频/音频物料化统一重试与 .part 原子提升；materializing/artifact_ready 阶段事件；认证后 Workspace 预加载与节点按帧更新；RunningHub App/Workflow 查询瞬态重试与恢复心跳`
-- Agent 运行态：`运行环境静态 readiness 门禁已加入；本批次未重复执行付费 Agent canary`
+- 当前版本：`v0.8.14`
+- 当前 release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+- 当前状态：`用户授权后，已由 Gray 同一验证归档晋级；API/Worker、内部/公网状态与权限 readiness 均已通过`
+- 当前补修：`Provider 与 RunningHub 共享配置栏单一吸顶，内部列表独立滚动；新建页脚色块已移除；Agent 管理按当前环境隔离`
+- Agent 运行态：`运行环境静态 readiness 门禁已保留；本批次未重复执行付费 Agent canary，亦未启用生产 AI 运行开关`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`
 - 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 当前发布记录：`../../docs/logbooks/releases/production/2026-07-28-plato-output-recovery-production-v083-r22.md`
-- 当前验证记录：`../../docs/logbooks/validations/2026-07-28-plato-output-recovery-production-v083-r22.md`
-- 回退锚点：`20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+- 当前发布记录：`../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+- 当前验证记录：`../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+- 回退锚点：`20260728-plato-output-recovery-v083-r22`
 - 当前运行材料：
+  - `../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+  - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
   - `../../docs/logbooks/releases/production/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/validations/2026-07-25-ai-governance-runtime-current-production-v0744.md`
   - `../../docs/logbooks/releases/production/2026-07-22-canvas-revision-observability-production-v0718.md`
@@ -61,7 +63,7 @@
 - 当前 production `canvas.env` 仍指向数据库：`xinghuan_canvas_next`
 - `XINGHUAN_EXPECTED_DATABASE_NAME` 当前也为：`xinghuan_canvas_next`
 - gray 实际使用 `xinghuan_canvas_gray`，production 与 gray 当前为独立数据库；production 保留历史库名 `xinghuan_canvas_next`
-- 统一权限数据：154 Subjects、126 published、19 restricted、9 retired、2810 rules、11 principals、0 readiness failures
+- 统一权限数据：156 Subjects、120 published、26 restricted、10 retired、2810 rules、11 principals、0 readiness failures
 - `v0.7.6` 晋级前数据库备份：
   - `/opt/apps/xinghuan-canvas/shared/backups/20260718-before-permission-image-node-repair-v076-r1.dump`
 - `v0.7.2` 晋级前数据库备份：
@@ -78,7 +80,7 @@
 ## 当前回滚锚点
 
 - 代码回滚目标：
-  - `/opt/apps/xinghuan-canvas/releases/20260721-admin-health-visual-resource-domain-prod-r1-v0717`
+  - `/opt/apps/xinghuan-canvas/releases/20260728-plato-output-recovery-v083-r22`
 - 回滚后需重启：
   - `xinghuan-canvas.service`
   - `xinghuan-canvas-worker.service`

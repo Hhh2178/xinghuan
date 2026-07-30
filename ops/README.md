@@ -28,24 +28,24 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.12`
-  - release：`20260729-admin-realtime-data-c-v0812-r1`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态、远端运维 smoke 和登录态 1920x1080 Admin C 七页视觉验收通过`
-  - 当前补修：`概览、任务、系统健康、用量、费用、渠道健康和审计已收敛为共享实时/数据工作台，数据与运行行为不变`
+  - 版本：`v0.8.14`
+  - release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 与公网状态通过，Provider/RunningHub 登录态视觉复核交由用户进行`
+  - 当前补修：`Provider/RunningHub 共享配置栏唯一吸顶，内部列表独立滚动，新建页脚色块已移除；Agent 管理按当前服务环境隔离`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`7422bf9ca65cf75d1a49fabf607580b82c874783`
-  - 本轮制品 SHA-256：`3F5228E37875E1A87CB7536A3E90814A7BC7088D7313F024297027D2F4F186D1`
+  - 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
+  - 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮仅做既有页面视觉收敛`
   - 本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.8.3`
-  - release：`20260728-plato-output-recovery-v083-r22`
-  - 状态：`用户授权后，Gray 同一已验收制品已晋级；API/Worker、权限 readiness 与公网状态全部通过`
-  - 当前补修：`provider_poll_resume、物料化心跳、条件化 stale reaper、视频 Range 续传与失败分类`
-  - Agent：`沿用已验收状态；本次未在 Production 重复执行付费 canary`
+  - 版本：`v0.8.14`
+  - release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+  - 状态：`用户授权后，Gray 同一验证归档已晋级；API/Worker、权限 readiness 与公网状态全部通过`
+  - 当前补修：`Provider/RunningHub 共享配置栏唯一吸顶，内部列表独立滚动，新建页脚色块已移除；Agent 管理按当前服务环境隔离`
+  - Agent：`沿用已验收状态；本次未在 Production 重复执行付费 canary，也未启用生产 AI 运行开关`
   - 当前限制：`柏拉图仍受上游无可用渠道限制；Production 未重复发起付费 Provider 任务`
   - 加固审计：`../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 
