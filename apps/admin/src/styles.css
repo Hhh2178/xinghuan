@@ -2314,15 +2314,12 @@ button:disabled {
 }
 
 .admin-runninghub-workspace__rail {
-  position: sticky;
-  top: var(--admin-sticky-offset);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
-  align-self: start;
-  height: calc(100vh - var(--admin-sticky-offset) - 20px);
+  align-self: stretch;
+  height: 100%;
   min-height: 0;
-  max-height: calc(100vh - var(--admin-sticky-offset) - 20px);
   overflow: hidden;
 }
 
@@ -2465,7 +2462,6 @@ button:disabled {
   min-height: 0;
   padding-top: 12px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
-  background: linear-gradient(180deg, rgba(10, 15, 23, 0.72), rgba(10, 15, 23, 0.96));
 }
 
 .admin-runninghub-workspace__rail-footer .ghost-action {
@@ -3600,11 +3596,8 @@ td {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
-  position: sticky;
-  top: var(--admin-sticky-offset);
-  align-self: start;
-  height: calc(100vh - var(--admin-sticky-offset) - 20px);
-  max-height: calc(100vh - var(--admin-sticky-offset) - 20px);
+  align-self: stretch;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   padding: 16px;
@@ -3630,7 +3623,6 @@ td {
   min-height: 0;
   padding-top: 12px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
-  background: linear-gradient(180deg, rgba(10, 15, 23, 0.72), rgba(10, 15, 23, 0.96));
 }
 
 .provider-rail-footer .ghost-action {

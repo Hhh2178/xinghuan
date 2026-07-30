@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const workspaceSource = readFileSync(resolve(__dirname, "admin-runninghub-workspace.tsx"), "utf8");
 const editorSource = readFileSync(resolve(__dirname, "admin-runninghub-item-editor.tsx"), "utf8");
+const stylesSource = readFileSync(resolve(__dirname, "styles.css"), "utf8");
 
 describe("RunningHub configuration workbench", () => {
   it("uses shared object context and rail/editor slots without another page heading", () => {
@@ -45,5 +46,15 @@ describe("RunningHub configuration workbench", () => {
     expect(editorSource).toContain("adminRunningHubApi.fetchRemoteAppInfo");
     expect(editorSource).toContain("await onSave(currentItem.catalogId");
     expect(editorSource).toContain("await onTest(currentItem.catalogId");
+  });
+
+  it("uses the shared configuration rail as the only sticky owner and has no footer color block", () => {
+    const railRules = [...stylesSource.matchAll(/\.admin-runninghub-workspace__rail\s*\{([^}]*)\}/g)].map((match) => match[1]);
+    const footerRules = [...stylesSource.matchAll(/\.admin-runninghub-workspace__rail-footer\s*\{([^}]*)\}/g)].map((match) => match[1]);
+
+    expect(railRules).not.toHaveLength(0);
+    expect(footerRules).not.toHaveLength(0);
+    expect(railRules.join("\n")).not.toContain("position: sticky");
+    expect(footerRules.join("\n")).not.toContain("background:");
   });
 });
