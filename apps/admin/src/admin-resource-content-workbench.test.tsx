@@ -20,10 +20,17 @@ describe("Admin resource and content workbenches", () => {
 
     expectOneTemplate(markup, "governance");
     expect(markup).toContain('data-workbench-slot="rail"');
+    expect(markup).toContain('data-workbench-scroll="rail"');
     expect(markup).toContain('data-workbench-slot="editor"');
+    expect(markup).toContain('data-resource-directory="type-selector"');
+    expect(markup).toContain('data-resource-search="true"');
     expect(markup).toContain("上传本地资源");
     expect(markup).toContain("暂无公共资源");
     expect(resourceSource).toContain("onOpenPreview={() => setPreviewItem(item)}");
+    expect(resourceSource).toContain("kind={kind}");
+    expect(resourceSource).toContain("onSelectKind={(nextKind) =>");
+    expect(resourceSource).toContain('label="公共资源搜索"');
+    expect(resourceSource).not.toContain("AdminBandTabButton");
     expect(resourceSource).toContain("<AdminMediaPreviewModal");
     expect(resourceSource).toContain("adminSharedResourceApi.uploadFile");
     expect(resourceSource).toContain("window.confirm");

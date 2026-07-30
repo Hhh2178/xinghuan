@@ -1,7 +1,6 @@
-import { Image as ImageIcon, Library, Music, RefreshCw, Search, Upload, Video } from "lucide-react";
+import { Library, RefreshCw, Search, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminSharedResourceApi } from "./admin-api-client";
-import { AdminBandTabButton } from "./admin-common-components";
 import {
   AdminGovernanceContext,
   AdminGovernanceLayout,
@@ -10,7 +9,7 @@ import {
 } from "./admin-governance-workbench";
 import { AdminMediaPreviewModal } from "./admin-media-preview-modal";
 import { AdminPublicResourceCard } from "./admin-public-resource-card";
-import { AdminPublicResourceCategorySidebar } from "./admin-public-resource-category-sidebar";
+import { AdminPublicResourceCategorySidebar, PUBLIC_RESOURCE_KIND_META } from "./admin-public-resource-category-sidebar";
 import type {
   AdminSharedResourceDraft,
   AdminSharedResourcePreviewKind,
@@ -19,15 +18,6 @@ import type {
   ResourceMediaKind,
   SharedResourceItem,
 } from "./admin-types";
-
-const KIND_META: Record<ResourceKind, { label: string; icon: typeof ImageIcon }> = {
-  image: { label: "图像", icon: ImageIcon },
-  video: { label: "视频", icon: Video },
-  audio: { label: "音频", icon: Music },
-  set: { label: "素材集", icon: Library },
-  pose: { label: "姿势", icon: Library },
-  workflow: { label: "工作流", icon: Library },
-};
 
 function createDraft(item: SharedResourceItem): AdminSharedResourceDraft {
   return {
@@ -63,7 +53,7 @@ export function AdminPublicResourcesPanel() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const canUpload = kind === "image" || kind === "video" || kind === "audio" || kind === "workflow";
-  const activeMeta = KIND_META[kind];
+  const activeMeta = PUBLIC_RESOURCE_KIND_META[kind];
   const categorizedCount = items.filter((item) => item.categoryId).length;
   const workflowHint = kind === "workflow"
     ? "ComfyUI 工作流也可以上传到公共库，但实例级编辑和共享发布请转到 ComfyUI 面板。"
@@ -247,41 +237,6 @@ export function AdminPublicResourcesPanel() {
         }}
       />
 
-      <AdminGovernanceToolbar label="公共资源类型与搜索" className="admin-public-resources-toolbar">
-        <div className="admin-public-resources-band__footer">
-          {(Object.keys(KIND_META) as ResourceKind[]).map((nextKind) => {
-            const Icon = KIND_META[nextKind].icon;
-            return (
-              <AdminBandTabButton
-                key={nextKind}
-                active={kind === nextKind}
-                onClick={() => {
-                  setKind(nextKind);
-                  setCategoryId("all");
-                }}
-              >
-                <Icon aria-hidden="true" />
-                <span>
-                  <strong>{KIND_META[nextKind].label}</strong>
-                  <small>{nextKind}</small>
-                </span>
-              </AdminBandTabButton>
-            );
-          })}
-        </div>
-        <label className="admin-public-resources-toolbar__search">
-          <Search aria-hidden="true" />
-          <input
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void load();
-            }}
-            placeholder="搜索名称 / 标签 / 备注"
-          />
-        </label>
-      </AdminGovernanceToolbar>
-
       <div className="admin-public-resources-inspector" aria-label="公共资源概览">
         <div>
           <span>当前资源类型</span>
@@ -307,17 +262,35 @@ export function AdminPublicResourcesPanel() {
         className="admin-governance-layout--resources"
         rail={
           <AdminPublicResourceCategorySidebar
+            kind={kind}
             categories={categories}
             activeCategoryId={categoryId}
             itemCount={items.length}
             loading={loading}
             onSelectCategory={setCategoryId}
+            onSelectKind={(nextKind) => {
+              setKind(nextKind);
+              setCategoryId("all");
+            }}
             onCreateCategory={() => void createCategory()}
             onRenameCategory={(category) => void renameCategory(category)}
             onDeleteCategory={(category) => void deleteCategory(category)}
           />
         }
       >
+        <AdminGovernanceToolbar label="公共资源搜索" className="admin-public-resources-toolbar">
+          <label className="admin-public-resources-toolbar__search" data-resource-search="true">
+            <Search aria-hidden="true" />
+            <input
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void load();
+              }}
+              placeholder="搜索名称 / 标签 / 备注"
+            />
+          </label>
+        </AdminGovernanceToolbar>
         <section className="data-panel admin-public-resources-workspace">
           <header>
             <div className="admin-public-resources-workspace__title">

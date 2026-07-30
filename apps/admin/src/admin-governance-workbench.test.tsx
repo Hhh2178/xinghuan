@@ -54,10 +54,12 @@ describe("Admin governance workbench", () => {
     expect(contextMarkup).toContain("28 accounts");
     expect(contextMarkup).not.toContain("<h1");
     expect(fullLayout).toContain('data-workbench-slot="rail"');
+    expect(fullLayout).toContain('data-workbench-scroll="rail"');
     expect(fullLayout).toContain('data-workbench-slot="editor"');
     expect(fullLayout).toContain('data-workbench-slot="inspector"');
     expect(editorOnly).toContain('data-workbench-slot="editor"');
     expect(editorOnly).not.toContain('data-workbench-slot="rail"');
+    expect(editorOnly).not.toContain('data-workbench-scroll="rail"');
     expect(editorOnly).not.toContain('data-workbench-slot="inspector"');
   });
 
