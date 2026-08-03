@@ -1,5 +1,16 @@
 export type RhCatalogItemKind = "app" | "workflow";
 
+export interface RhCatalogGroup {
+  id: string;
+  providerId: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type RhSlotDataType = "text" | "image" | "video" | "audio" | "json";
 
 export type RhSlotCardinality = "single" | "multiple";
@@ -91,6 +102,8 @@ export interface RhCatalogItem {
   providerId: string;
   providerName: string;
   providerBaseUrl: string;
+  groupId?: string;
+  groupName?: string;
   inputSlots: RhInputSlotDefinition[];
   execution: RhExecutionDescriptor;
   pageId: string;

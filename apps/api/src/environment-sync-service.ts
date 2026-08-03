@@ -10,6 +10,7 @@ import type {
   EnvironmentSyncProviderModelSummary,
   EnvironmentSyncTarget,
 } from "@xinghuan/shared";
+import type { RhCatalogGroup } from "@xinghuan/shared";
 
 type EnvironmentSyncModelCapability = "chat" | "image" | "video" | "audio";
 
@@ -38,6 +39,7 @@ export interface EnvironmentSyncProviderRecord {
   note?: string;
   rhApps?: unknown[];
   rhWorkflows?: unknown[];
+  rhGroups?: RhCatalogGroup[];
   rhKeyPool?: unknown[];
   msLoras?: unknown[];
   createdAt: number;

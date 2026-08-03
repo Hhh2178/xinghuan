@@ -8,6 +8,7 @@ import type {
   RunningHubExecutionRules,
   RunningHubFieldDefinition,
   RunningHubOutputDefinition,
+  RunningHubGroup,
 } from "./admin-types";
 
 function formatJsonText(value: unknown, fallback = "{}") {
@@ -465,6 +466,7 @@ export function AdminRunningHubItemEditor({
   onDelete,
   onDuplicate,
   onToggleEnabled,
+  groups = [],
 }: {
   item: RunningHubAdminItem | null;
   saving: boolean;
@@ -475,6 +477,7 @@ export function AdminRunningHubItemEditor({
   onDelete: (catalogId: string) => Promise<void>;
   onDuplicate: (catalogId: string) => Promise<void>;
   onToggleEnabled: (catalogId: string, enabled: boolean) => Promise<void>;
+  groups?: RunningHubGroup[];
 }) {
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
@@ -483,6 +486,7 @@ export function AdminRunningHubItemEditor({
   const [workflowId, setWorkflowId] = useState("");
   const [runTargetId, setRunTargetId] = useState("");
   const [taskCapability, setTaskCapability] = useState<"image" | "video" | "audio" | "chat">("video");
+  const [groupId, setGroupId] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [syncingSlots, setSyncingSlots] = useState(false);
   const [fields, setFields] = useState<RunningHubFieldDefinition[]>([]);
@@ -503,6 +507,7 @@ export function AdminRunningHubItemEditor({
     setWorkflowId(item.workflowId || "");
     setRunTargetId(item.runTargetId || item.appId || item.workflowId || item.id);
     setTaskCapability(item.taskCapability || "video");
+    setGroupId(item.groupId || "");
     setEnabled(item.enabled);
     setFields(item.fields || []);
     setParameterSchema(defaultParameterSchema(item));
@@ -594,6 +599,7 @@ export function AdminRunningHubItemEditor({
         workflowId: currentKind === "workflow" ? workflowId.trim() || nextRunTargetId : "",
         runTargetId: nextRunTargetId,
         taskCapability,
+        groupId,
         fields,
         parameterSchema: normalizedSchema,
         outputSchema: outputs,
@@ -730,6 +736,13 @@ export function AdminRunningHubItemEditor({
                     <option value="video">video</option>
                     <option value="audio">audio</option>
                     <option value="chat">chat</option>
+                  </select>
+                </label>
+                <label>
+                  <span>所属分组</span>
+                  <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                    <option value="">未分组</option>
+                    {groups.map((group) => <option key={group.id} value={group.id}>{group.name}{group.enabled ? "" : "（停用）"}</option>)}
                   </select>
                 </label>
                 <label className="admin-runninghub-editor__full-row">

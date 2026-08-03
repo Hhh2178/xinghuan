@@ -271,8 +271,9 @@ describe("provider repository", () => {
     const providerCall = query.mock.calls[0] as unknown as [string, unknown[]];
     const modelCall = query.mock.calls[1] as unknown as [string, unknown[]];
     expect(providerCall[0]).toContain("sort_order");
-    expect(providerCall[1]).toHaveLength(18);
+    expect(providerCall[1]).toHaveLength(19);
     expect(providerCall[1][1]).toBe(40);
+    expect(providerCall[1][13]).toBe("[]");
     expect(modelCall[0]).toContain("sort_order");
     expect(modelCall[1]).toHaveLength(16);
     expect(modelCall[1][1]).toBe(30);

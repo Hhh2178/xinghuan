@@ -34,6 +34,7 @@
 - `npm run harness:verify:quick`
 - `npm run verify:project-harness-contract`
 - `npm run verify:canvas-workflow-capabilities-contract`
+- `npm run verify:runninghub-group-permission-contract`
 
 适用场景：
 
@@ -41,6 +42,7 @@
 - 修改脚本、文档入口或治理规则后确认入口未漂移
 - 触碰热点文件后确认预算、watchlist 和文档同步要求仍成立
 - 修改代码/标签节点、组运行、模板弹层、文本分割或组锁定路径后确认 Canvas 工作流能力未漂移
+- 修改 RunningHub Provider 目录、分组权限或画布条目选择器后确认分组模型、双门禁和前后台接线未漂移
 
 ## Documentation harness
 

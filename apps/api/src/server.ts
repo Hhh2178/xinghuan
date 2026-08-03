@@ -25,6 +25,7 @@ import {
   taskQueueNameForCapability,
   type AppEnvironment,
   type RhCatalogItem,
+  type RhCatalogGroup,
   type ProviderGenerationExecutionMode,
   type PermissionRule,
   type PermissionSubject,
@@ -143,6 +144,7 @@ import { projectTaskRuntimeDisplayState } from "./task-runtime-projection.js";
 import {
   normalizeRunningHubCatalogItem,
   normalizeRunningHubCatalogItems,
+  normalizeRunningHubGroups,
   normalizeRunningHubFieldDefinitions,
   parseRunningHubRef,
   toAdminRunningHubCatalogItem,
@@ -200,6 +202,7 @@ import {
 } from "./assistant-settings-domain.js";
 import { handleAdminAnnouncementRoutes } from "./admin-announcement-routes.js";
 import { handleAdminRunningHubRoutes } from "./admin-runninghub-routes.js";
+import { decideRunningHubAccess } from "./runninghub-permission-gate.js";
 import { handleComfyuiInstanceRoutes, handleInternalComfyuiConnectorRoutes } from "./comfyui-instance-routes.js";
 import { handleComfyuiPublicRoutes } from "./comfyui-public-routes.js";
 import { handleAdminSystemRoutes } from "./admin-system-routes.js";
@@ -418,7 +421,7 @@ const permissionRuntime = createPermissionRuntime({
     permissionShadowMetrics.record({ subjectKey, action, legacyAllowed, unified });
   },
 });
-const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
+const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubGroups, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
 const settingsRepository = createSettingsRepository({
   usePostgresRepository,
   ensureDataDirs,
@@ -1011,6 +1014,7 @@ interface AdminProviderRecord {
   lastFetchedAt?: number;
   rhApps?: RunningHubEntry[];
   rhWorkflows?: RunningHubEntry[];
+  rhGroups?: RhCatalogGroup[];
   rhKeyPool?: RunningHubKeyPoolItemRecord[];
   msLoras?: ModelScopeLora[];
   note?: string;
@@ -2651,6 +2655,10 @@ async function handleAdminRequest(
       deleteAdminRunningHubCatalogItem,
       testAdminRunningHubCatalogItem,
       analyzeRunningHubCatalogDraft,
+      listAdminRunningHubGroups,
+      createAdminRunningHubGroup,
+      updateAdminRunningHubGroup,
+      deleteAdminRunningHubGroup,
     },
   })) {
     return true;
@@ -3498,6 +3506,7 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
       note: provider.note || "",
       rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
       rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+      rhGroups: normalizeRunningHubGroups(provider.rhGroups, provider.id),
       rhKeyPool: normalizeRunningHubKeyPool(provider.rhKeyPool),
       msLoras: normalizeModelScopeLoras(provider.msLoras),
       createdAt: provider.createdAt,
@@ -3834,6 +3843,7 @@ async function upsertEnvironmentSyncProvider(provider: {
   note?: string;
   rhApps?: RunningHubEntry[];
   rhWorkflows?: RunningHubEntry[];
+  rhGroups?: RhCatalogGroup[];
   rhKeyPool?: RunningHubKeyPoolItemRecord[];
   msLoras?: ModelScopeLora[];
   createdAt: number;
@@ -3852,6 +3862,7 @@ async function upsertEnvironmentSyncProvider(provider: {
     note: safeText(provider.note),
     rhApps: normalizeRunningHubEntries(provider.rhApps === undefined ? existing?.rhApps : provider.rhApps, "app"),
     rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows === undefined ? existing?.rhWorkflows : provider.rhWorkflows, "workflow"),
+    rhGroups: normalizeRunningHubGroups(provider.rhGroups === undefined ? existing?.rhGroups : provider.rhGroups, existing?.id || provider.id),
     rhKeyPool: normalizeRunningHubKeyPool(provider.rhKeyPool === undefined ? existing?.rhKeyPool : provider.rhKeyPool),
     msLoras: normalizeModelScopeLoras(provider.msLoras === undefined ? existing?.msLoras : provider.msLoras),
     lastProbeStatus: existing?.lastProbeStatus || "",
@@ -5111,7 +5122,7 @@ async function readAdminSessions(currentSessionId = "", viewer?: CurrentUser): P
 async function readAdminDbPostgres(): Promise<AdminDb> {
   const pool = await getPostgresPool();
   const [providersResult, modelsResult, tasksResult, auditResult, assistantSettingsResult, systemSettingsResult] = await Promise.all([
-    pool.query("select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers order by sort_order asc, created_at desc, id asc"),
+    pool.query("select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_groups, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers order by sort_order asc, created_at desc, id asc"),
     pool.query(
       "select id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models order by sort_order asc, created_at desc, id asc",
     ),
@@ -5138,6 +5149,7 @@ async function readAdminDbPostgres(): Promise<AdminDb> {
         lastFetchedAt: row.last_fetched_at ? dateToMillis(row.last_fetched_at) : undefined,
         rhApps: normalizeRunningHubEntries(row.rh_apps, "app"),
         rhWorkflows: normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+        rhGroups: normalizeRunningHubGroups(row.rh_groups, safeText(row.id)),
         rhKeyPool: normalizeRunningHubKeyPool(row.rh_key_pool),
         msLoras: normalizeModelScopeLoras(row.ms_loras),
         note: row.note || "",
@@ -5229,8 +5241,8 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
     await client.query("begin");
     for (const provider of db.providers.map(normalizeProviderSecret)) {
       await client.query(
-        `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, ms_loras, note, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17)
+        `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_groups, ms_loras, note, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb, $16, $17, $18)
          on conflict (id) do nothing`,
         [
           provider.id,
@@ -5246,6 +5258,7 @@ async function bootstrapDefaultAdminDbPostgres(db: AdminDb) {
           provider.lastFetchedAt ? millisToDate(provider.lastFetchedAt) : null,
           JSON.stringify(normalizeRunningHubEntries(provider.rhApps, "app")),
           JSON.stringify(normalizeRunningHubEntries(provider.rhWorkflows, "workflow")),
+          JSON.stringify(normalizeRunningHubGroups(provider.rhGroups, provider.id)),
           JSON.stringify(normalizeModelScopeLoras(provider.msLoras)),
           provider.note || null,
           millisToDate(provider.createdAt),
@@ -6947,15 +6960,19 @@ async function assertCanUseRunningHubCatalogItem(
   if (!currentUser) throw new HttpError(401, "UNAUTHORIZED");
   await reconcilePermissionSubjects();
   const authDb = await readAuthDb();
+  const adminDb = await readAdminDb();
   const legacyAllowed = canUseRunningHubCatalogItem(
     policyForUser(currentUser, authDb.groupPermissionPolicies),
     item,
   );
-  const decision = await permissionRuntime.decide({
-    user: currentUser,
-    subjectKey: item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId),
+  const provider = adminDb.providers.find((candidate) => candidate.id === item.providerId);
+  const group = provider?.rhGroups?.find((candidate) => candidate.id === item.groupId);
+  const decision = await decideRunningHubAccess({
+    item,
+    group,
     action: "execute",
-    legacyAllowed,
+    itemLegacyAllowed: legacyAllowed,
+    decide: (subjectKey, action) => permissionRuntime.decide({ user: currentUser, subjectKey, action, legacyAllowed: true }),
   });
   if (!decision.allowed) throw new PermissionDeniedError();
 }
@@ -7023,17 +7040,20 @@ async function publicRunningHubCatalog(
   const providers = await Promise.all(db.providers
     .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
     .map(async (provider) => {
+      const groups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
+      const enabledGroupIds = new Set(groups.filter((group) => group.enabled).map((group) => group.id));
+      const publicProvider = { ...provider, rhGroups: groups.filter((group) => group.enabled) };
       const workflows = await filterRunningHubItems(
-        normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow")
-        .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
+        normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow", enabledGroupIds)
+        .filter((entry) => entry.enabled && (!entry.groupId || enabledGroupIds.has(entry.groupId)))
+        .map((entry) => toPublicRunningHubCatalogItem(publicProvider, entry)),
         currentUser,
         options?.includeRestricted,
       );
       const apps = await filterRunningHubItems(
-        normalizeRunningHubCatalogItems(provider.rhApps, "app")
-        .filter((entry) => entry.enabled)
-        .map((entry) => toPublicRunningHubCatalogItem(provider, entry)),
+        normalizeRunningHubCatalogItems(provider.rhApps, "app", enabledGroupIds)
+        .filter((entry) => entry.enabled && (!entry.groupId || enabledGroupIds.has(entry.groupId)))
+        .map((entry) => toPublicRunningHubCatalogItem(publicProvider, entry)),
         currentUser,
         options?.includeRestricted,
       );
@@ -7041,6 +7061,7 @@ async function publicRunningHubCatalog(
         id: provider.id,
         name: provider.name,
         baseUrl: provider.baseUrl,
+        groups: groups.filter((group) => group.enabled && [...workflows, ...apps].some((item) => item.groupId === group.id)),
         workflows,
         apps,
       };
@@ -7381,12 +7402,101 @@ async function persistRunningHubProviderRecord(
   return nextProvider;
 }
 
+async function listAdminRunningHubGroups(providerId: string): Promise<RhCatalogGroup[]> {
+  const normalizedProviderId = safeText(providerId);
+  if (!normalizedProviderId) throw new Error("缺少 RunningHub Provider");
+  const db = await readAdminDb();
+  const provider = db.providers.find((item) => item.id === normalizedProviderId);
+  if (!provider) throw new Error("Provider 不存在");
+  return normalizeRunningHubGroups(provider.rhGroups, provider.id);
+}
+
+async function findRunningHubGroupOwner(groupId: string, providerId?: string) {
+  const db = await readAdminDb();
+  const providers = providerId ? db.providers.filter((item) => item.id === providerId) : db.providers;
+  for (const provider of providers) {
+    const groups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
+    const group = groups.find((item) => item.id === groupId);
+    if (group) return { db, provider, group };
+  }
+  return { db, provider: null, group: null };
+}
+
+async function createAdminRunningHubGroup(input: { providerId?: string; name?: string; description?: string; enabled?: boolean; sortOrder?: number }) {
+  const providerId = safeText(input.providerId);
+  if (!providerId) throw new Error("缺少 RunningHub Provider");
+  const db = await readAdminDb();
+  const provider = db.providers.find((item) => item.id === providerId);
+  if (!provider) throw new Error("Provider 不存在");
+  const name = safeText(input.name).slice(0, 120);
+  if (!name) throw new Error("RUNNINGHUB_GROUP_NAME_REQUIRED");
+  const groups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
+  if (groups.some((group) => group.name.toLowerCase() === name.toLowerCase())) throw new Error("RUNNINGHUB_GROUP_NAME_EXISTS");
+  const now = Date.now();
+  const group: RhCatalogGroup = {
+    id: `rhg-${now}-${randomToken(4)}`,
+    providerId,
+    name,
+    description: safeText(input.description).slice(0, 1000),
+    enabled: input.enabled !== false,
+    sortOrder: Math.max(0, Math.floor(Number(input.sortOrder) || 0)),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await persistRunningHubProviderRecord(db, providerId, (current) => ({ ...current, rhGroups: [...groups, group], updatedAt: now }));
+  return group;
+}
+
+async function updateAdminRunningHubGroup(groupId: string, input: { providerId?: string; name?: string; description?: string; enabled?: boolean; sortOrder?: number }) {
+  const found = await findRunningHubGroupOwner(groupId, safeText(input.providerId) || undefined);
+  if (!found.provider || !found.group) throw new Error("RUNNINGHUB_GROUP_NOT_FOUND");
+  const groups = normalizeRunningHubGroups(found.provider.rhGroups, found.provider.id);
+  const name = input.name === undefined ? found.group.name : safeText(input.name).slice(0, 120);
+  if (!name) throw new Error("RUNNINGHUB_GROUP_NAME_REQUIRED");
+  if (groups.some((group) => group.id !== groupId && group.name.toLowerCase() === name.toLowerCase())) throw new Error("RUNNINGHUB_GROUP_NAME_EXISTS");
+  const updated: RhCatalogGroup = {
+    ...found.group,
+    name,
+    description: input.description === undefined ? found.group.description : safeText(input.description).slice(0, 1000),
+    enabled: input.enabled === undefined ? found.group.enabled : Boolean(input.enabled),
+    sortOrder: input.sortOrder === undefined ? found.group.sortOrder : Math.max(0, Math.floor(Number(input.sortOrder) || 0)),
+    updatedAt: Date.now(),
+  };
+  await persistRunningHubProviderRecord(found.db, found.provider.id, (current) => ({
+    ...current,
+    rhGroups: normalizeRunningHubGroups(current.rhGroups, current.id).map((group) => group.id === groupId ? updated : group),
+    updatedAt: updated.updatedAt,
+  }));
+  return updated;
+}
+
+async function deleteAdminRunningHubGroup(groupId: string) {
+  const found = await findRunningHubGroupOwner(groupId);
+  if (!found.provider || !found.group) throw new Error("RUNNINGHUB_GROUP_NOT_FOUND");
+  const ungroupedCatalogIds: string[] = [];
+  const groups = normalizeRunningHubGroups(found.provider.rhGroups, found.provider.id).filter((group) => group.id !== groupId);
+  const ungroup = (entries: unknown, kind: "app" | "workflow") => normalizeRunningHubEntries(entries, kind).map((entry) => {
+    if (entry.groupId !== groupId) return entry;
+    ungroupedCatalogIds.push(`${found.provider!.id}:${kind}:${entry.id}`);
+    return { ...entry, groupId: undefined };
+  });
+  await persistRunningHubProviderRecord(found.db, found.provider.id, (current) => ({
+    ...current,
+    rhGroups: groups,
+    rhApps: ungroup(current.rhApps, "app"),
+    rhWorkflows: ungroup(current.rhWorkflows, "workflow"),
+    updatedAt: Date.now(),
+  }));
+  return { groupId, ungroupedCatalogIds };
+}
+
 async function createAdminRunningHubCatalogItem(input: {
   providerId?: string;
   kind?: "app" | "workflow";
   title?: string;
   note?: string;
   sourceCatalogId?: string;
+  groupId?: string;
   enabled?: boolean;
   thumbnail?: string;
   workflowJson?: string;
@@ -7421,6 +7531,14 @@ async function createAdminRunningHubCatalogItem(input: {
       } satisfies RunningHubAdminCatalogEntry
     : createBlankRunningHubCatalogEntry(kind, nextTitle);
   nextEntry.enabled = input.enabled === undefined ? nextEntry.enabled : Boolean(input.enabled);
+  const providerForCreate = db.providers.find((provider) => provider.id === providerId);
+  if (!providerForCreate) throw new Error("Provider 不存在");
+  const groupsForCreate = normalizeRunningHubGroups(providerForCreate.rhGroups, providerId);
+  if (input.groupId !== undefined) {
+    const groupId = safeText(input.groupId);
+    if (groupId && !groupsForCreate.some((group) => group.id === groupId)) throw new Error("RUNNINGHUB_GROUP_NOT_FOUND");
+    nextEntry.groupId = groupId || undefined;
+  }
   nextEntry.note = input.note === undefined ? nextEntry.note : safeText(input.note);
   nextEntry.thumbnail = input.thumbnail === undefined ? nextEntry.thumbnail : safeText(input.thumbnail);
   nextEntry.workflowJson = input.workflowJson === undefined ? nextEntry.workflowJson : safeRunningHubJsonText(input.workflowJson, "");
@@ -7629,15 +7747,22 @@ async function analyzeRunningHubCatalogDraft(input: {
 async function reconcilePermissionSubjects() {
   if (permissionSubjectReconciliation) return permissionSubjectReconciliation;
   const current = (async () => {
-    const [sharedResources, runningHubItems, providerModels] = await Promise.all([
+    const [sharedResources, runningHubItems, providerModels, adminDb] = await Promise.all([
       readSharedResourceCatalog(),
       adminRunningHubCatalogItems(),
       providerRepository.readModelRecords(),
+      readAdminDb(),
     ]);
     await permissionSubjectRegistrar.reconcileFirstWavePermissionSubjects({
       resourceCategories: sharedResources.categories,
       resourceItems: sharedResources.items,
       runningHubItems,
+      runningHubGroups: adminDb.providers.flatMap((provider) => normalizeRunningHubGroups(provider.rhGroups, provider.id).map((group) => ({
+        id: group.id,
+        providerId: provider.id,
+        name: group.name,
+        enabled: group.enabled,
+      }))),
       nodeTypes: CANVAS_NODE_PERMISSION_CATALOG.map((type) => ({ type, label: type, category: "canvas" })),
       providerModels,
     });
@@ -7653,14 +7778,16 @@ async function reconcilePermissionSubjects() {
 async function filterRunningHubItems(items: RhCatalogItem[], currentUser?: CurrentUser | null, includeRestricted?: boolean) {
   if (includeRestricted || !currentUser) return items;
   const authDb = await readAuthDb();
+  const adminDb = await readAdminDb();
   const legacyPolicy = policyForUser(currentUser, authDb.groupPermissionPolicies);
   const results = await Promise.all(items.map(async (item) => ({
     item,
-    decision: await permissionRuntime.decide({
-      user: currentUser,
-      subjectKey: item.kind === "app" ? runningHubAppSubjectKey(item.catalogId) : runningHubWorkflowSubjectKey(item.catalogId),
+    decision: await decideRunningHubAccess({
+      item,
+      group: adminDb.providers.find((provider) => provider.id === item.providerId)?.rhGroups?.find((group) => group.id === item.groupId),
       action: "view",
-      legacyAllowed: canUseRunningHubCatalogItem(legacyPolicy, item),
+      itemLegacyAllowed: canUseRunningHubCatalogItem(legacyPolicy, item),
+      decide: (subjectKey, action) => permissionRuntime.decide({ user: currentUser, subjectKey, action, legacyAllowed: true }),
     }),
   })));
   return results.filter((entry) => entry.decision.allowed).map((entry) => entry.item);
@@ -8243,6 +8370,7 @@ async function updateAdminRunningHubCatalogItem(
     title?: string;
     note?: string;
     enabled?: boolean;
+    groupId?: string;
     thumbnail?: string;
     workflowJson?: string;
     fields?: RunningHubFieldDefinition[];
@@ -8319,6 +8447,12 @@ async function updateAdminRunningHubCatalogItem(
       },
       testPayload: patch.testPayload === undefined ? preserveRunningHubJsonText(sourceEntry.testPayload, "{}") : safeRunningHubJsonText(patch.testPayload, "{}"),
     };
+    if (patch.groupId !== undefined) {
+      const groupId = safeText(patch.groupId);
+      const groups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
+      if (groupId && !groups.some((group) => group.id === groupId)) throw new Error("RUNNINGHUB_GROUP_NOT_FOUND");
+      next.groupId = groupId || undefined;
+    }
     assertRunningHubTargetConsistency(nextKind, next);
     assertRunningHubEntryCanBeEnabled({
       ...next,
@@ -8432,8 +8566,8 @@ function findRunningHubCatalogItemByTarget(
   }) || null;
 }
 
-function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow"): RunningHubAdminCatalogEntry[] {
-  return normalizeRunningHubCatalogItems(value, kind);
+function normalizeRunningHubEntries(value: unknown, kind: "app" | "workflow", validGroupIds?: Set<string>): RunningHubAdminCatalogEntry[] {
+  return normalizeRunningHubCatalogItems(value, kind, validGroupIds);
 }
 
 function publicRequestOrigin(request: import("node:http").IncomingMessage) {
@@ -8954,6 +9088,7 @@ function toPublicProvider(provider: AdminProviderRecord) {
     lastFetchedAt: provider.lastFetchedAt || 0,
     rhApps: normalizeRunningHubEntries(provider.rhApps, "app"),
     rhWorkflows: normalizeRunningHubEntries(provider.rhWorkflows, "workflow"),
+    rhGroups: normalizeRunningHubGroups(provider.rhGroups, provider.id),
     rhKeyPool,
     rhKeyPoolSummary,
     msLoras: normalizeModelScopeLoras(provider.msLoras),
@@ -8965,16 +9100,23 @@ function toPublicProvider(provider: AdminProviderRecord) {
 
 function normalizeProviderSecret(provider: AdminProviderRecord) {
   const rhKeyPool = normalizeProviderSecretKeyPool(provider.rhKeyPool);
-  if (!provider.apiKey) return { ...provider, rhKeyPool };
+  const rhGroups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
+  const validGroupIds = new Set(rhGroups.map((group) => group.id));
+  const rhApps = normalizeRunningHubEntries(provider.rhApps, "app", validGroupIds);
+  const rhWorkflows = normalizeRunningHubEntries(provider.rhWorkflows, "workflow", validGroupIds);
+  if (!provider.apiKey) return { ...provider, rhKeyPool, rhGroups, rhApps, rhWorkflows };
   if (provider.apiKey.startsWith("enc:v1:")) {
     return provider.apiKeyPreview
-      ? { ...provider, rhKeyPool }
-      : { ...provider, rhKeyPool, apiKeyPreview: secretPreview(decryptSecret(provider.apiKey)) };
+      ? { ...provider, rhKeyPool, rhGroups, rhApps, rhWorkflows }
+      : { ...provider, rhKeyPool, rhGroups, rhApps, rhWorkflows, apiKeyPreview: secretPreview(decryptSecret(provider.apiKey)) };
   }
   const raw = provider.apiKey;
   return {
     ...provider,
     rhKeyPool,
+    rhGroups,
+    rhApps,
+    rhWorkflows,
     apiKey: encryptSecret(raw),
     apiKeyPreview: secretPreview(raw),
   };

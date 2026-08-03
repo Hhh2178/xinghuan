@@ -119,6 +119,14 @@ Canvas Project 中可独立发布、运行、暂停、恢复和托管的显式�
 
 为助手诊断、恢复改写和候选评估等有界 LLM 用途提供版本化候选顺序、健康、熔断和回退策略的配置。它不管理图片、视频或音频生成模型；这些生成模型仍由对应节点和 Provider Model Catalog 管理。
 
+### Administrator Tier（管理员等级）
+
+后台管理员身份的分层权限。`root` 是最高等级，能够查看和修改所有管理员、权限、环境与审计数据；`administrator` 可以管理授权业务数据，但服务端必须对 root 身份、root 会话和 root 审计细节做不可见处理，且不能创建、编辑、停用或删除 root/administrator 账户。该不可见性是服务端策略，不依赖前端隐藏。
+
+### RunningHub Catalog Group（RunningHub 目录分组）
+
+归属于单一 Provider 的 RunningHub 应用或工作流目录分组。条目默认属于“未分组”，也可以在创建或编辑时归入显式分组；删除分组会将条目迁回未分组。分组拥有独立启停和权限 Subject，分组权限是条目权限的上层门禁：分组被禁用或拒绝时，组内条目不可见且不可执行。
+
 ### Artifact Evaluation（产物评估）
 
 对 Generation Artifact 的图片或视频质量、任务目标匹配和技术有效性形成的结构化评分与证据。评估不改变产物本身；将候选传给下游必须通过显式 Artifact Selection 或运行时输入绑定记录。
@@ -144,6 +152,8 @@ Workflow Run 中位于上游候选和下游执行之间的显式释放门。它�
 - Canvas Run Agent Analysis 不得移除依赖、制造不存在的步骤、绕过端口/权限/预算或直接决定 Worker 领取；Execution Layer 和 ready-step 校验保持确定性权威。
 - Canvas 与 AI 助手必须从同一 Canvas Run Failure Diagnostic 读取用户可见失败事实；助手不得把推测写成已执行动作。
 - 任务历史展示使用 Execution Identity Snapshot；当前 Provider/model 目录只可作为旧任务缺失快照时的读取兜底。
+- 管理员等级隔离必须在服务端列表、写操作、会话和审计投影同时生效；前端隐藏不能替代 root 身份保护。
+- RunningHub 目录条目的可用性必须同时通过分组门禁（如有）和条目门禁；未分组条目只经过条目门禁，公共目录不得泄露禁用分组或其条目。
 - 普通连线不得穿越 Workflow Region 边界；跨边界数据必须经显式强类型 Workflow Input/Output 并进入 Run snapshot。
 - Workflow Region 的不透明底板必须完整包住显式成员；成员加入、节点内容增高和区域缩放不得让成员静默落到可见边界外。区域位置、尺寸和颜色仍不改变 workflow revision。
 - 工作流设置和变量值只在新 Run 开始时冻结；active Run 不随编辑静默变化。

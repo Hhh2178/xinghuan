@@ -22,6 +22,29 @@ export interface RunningHubCatalogItem extends RhCatalogItem {
   execution: RhExecutionDescriptor;
 }
 
+export interface RunningHubCatalogGroup {
+  key: string;
+  label: string;
+  items: RunningHubCatalogItem[];
+}
+
+export function groupRunningHubCatalogItems(items: RunningHubCatalogItem[]): RunningHubCatalogGroup[] {
+  const groups: RunningHubCatalogGroup[] = [];
+  const byKey = new Map<string, RunningHubCatalogGroup>();
+  for (const item of items) {
+    const key = item.groupId?.trim() || "ungrouped";
+    const label = item.groupName?.trim() || "未分组";
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, label, items: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups.sort((left, right) => (left.key === "ungrouped" ? 1 : right.key === "ungrouped" ? -1 : 0));
+}
+
 export interface LegacyRunningHubCatalogWorkflow {
   catalogId: string;
   providerId: string;
@@ -164,6 +187,8 @@ function normalizeCatalogItem(item: unknown): RunningHubCatalogItem | null {
     providerId: String(row.providerId || "").trim(),
     providerName: typeof row.providerName === "string" ? row.providerName : "",
     providerBaseUrl: typeof row.providerBaseUrl === "string" ? row.providerBaseUrl : "",
+    groupId: typeof row.groupId === "string" && row.groupId.trim() ? row.groupId.trim() : undefined,
+    groupName: typeof row.groupName === "string" && row.groupName.trim() ? row.groupName.trim() : undefined,
     inputSlots: Array.isArray(row.inputSlots) ? (row.inputSlots as RunningHubCatalogItem["inputSlots"]) : [],
     execution: (row.execution || {}) as RunningHubCatalogItem["execution"],
     pageId,

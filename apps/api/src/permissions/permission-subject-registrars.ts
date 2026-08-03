@@ -12,6 +12,7 @@ export interface FirstWavePermissionSources {
   resourceCategories: Array<{ id: string; kind: string; name: string }>;
   resourceItems: Array<{ id: string; kind: string; title: string; categoryId?: string }>;
   runningHubItems: Array<{ catalogId: string; kind: "app" | "workflow"; title: string; enabled: boolean }>;
+  runningHubGroups?: Array<{ id: string; providerId: string; name: string; enabled: boolean }>;
   nodeTypes: Array<{ type: string; label: string; category: string }>;
   providerModels: Array<{ id: string; displayName: string; capability: string; enabled: boolean }>;
 }
@@ -37,6 +38,10 @@ export function runningHubAppSubjectKey(catalogId: string) {
 
 export function runningHubWorkflowSubjectKey(catalogId: string) {
   return `runninghub.workflow/${catalogId}`;
+}
+
+export function runningHubGroupSubjectKey(providerId: string, groupId: string) {
+  return `runninghub.group/${providerId}:${groupId}`;
 }
 
 export function canvasNodeSubjectKey(type: string) {
@@ -91,6 +96,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     parentSubject("resource.item/*", "resource", "item-family", "resource-item-family", "公共资源素材", "resource/*"),
     parentSubject("runninghub.app/*", "runninghub", "app-family", "runninghub-app-family", "RunningHub AI 应用"),
     parentSubject("runninghub.workflow/*", "runninghub", "workflow-family", "runninghub-workflow-family", "RunningHub 工作流"),
+    parentSubject("runninghub.group/*", "runninghub", "group-family", "runninghub-group-family", "RunningHub 分组"),
     parentSubject("canvas.node/*", "canvas", "node-family", "canvas-node-family", "画布节点"),
     parentSubject("provider.model/*", "provider", "model-family", "provider-model-family", "服务商模型"),
   ];
@@ -121,6 +127,15 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     displayName: item.title,
     metadata: { enabled: item.enabled },
   }, "published"));
+  const runningHubGroups = (sources.runningHubGroups || []).map((group) => managedSubject({
+    subjectKey: runningHubGroupSubjectKey(group.providerId, group.id),
+    domain: "runninghub",
+    subjectType: "group",
+    parentKeys: ["runninghub.group/*"],
+    sourceId: `group:${group.providerId}:${group.id}`,
+    displayName: group.name,
+    metadata: { enabled: group.enabled, providerId: group.providerId },
+  }, group.enabled ? "published" : "restricted"));
   const nodes = sources.nodeTypes.map((item) => managedSubject({
     subjectKey: canvasNodeSubjectKey(item.type),
     domain: "canvas",
@@ -139,7 +154,7 @@ function firstWaveSubjects(sources: FirstWavePermissionSources): PermissionSubje
     displayName: item.displayName,
     metadata: { capability: item.capability, enabled: item.enabled },
   }, item.enabled ? "published" : "restricted"));
-  return [...parents, ...categories, ...items, ...runningHub, ...nodes, ...models];
+  return [...parents, ...categories, ...items, ...runningHubGroups, ...runningHub, ...nodes, ...models];
 }
 
 function parentSubject(

@@ -1,4 +1,4 @@
-import type { RhCatalogItem, RhCatalogItemKind } from "@xinghuan/shared";
+import type { RhCatalogGroup, RhCatalogItem, RhCatalogItemKind } from "@xinghuan/shared";
 import { buildRunningHubExecutionDescriptor, normalizeRunningHubInputSlots } from "./runninghub-execution-descriptor.js";
 
 export interface RunningHubFieldDefinition {
@@ -31,6 +31,36 @@ export interface RunningHubCatalogEntry {
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
   allowsEmptyInputs?: boolean;
+  groupId?: string;
+}
+
+export function normalizeRunningHubGroups(value: unknown, providerId: string, now = Date.now()): RhCatalogGroup[] {
+  const rows = Array.isArray(value) ? value : [];
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  return rows
+    .map((item) => {
+      const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      const id = safeText(row.id, "", 120);
+      const name = safeText(row.name, "", 120);
+      const nameKey = name.toLowerCase();
+      if (!id || !name || seenIds.has(id) || seenNames.has(nameKey)) return null;
+      seenIds.add(id);
+      seenNames.add(nameKey);
+      const createdAt = Number(row.createdAt) || now;
+      return {
+        id,
+        providerId,
+        name,
+        description: safeText(row.description, "", 1000),
+        enabled: row.enabled !== false,
+        sortOrder: Math.max(0, Math.floor(Number(row.sortOrder) || 0)),
+        createdAt,
+        updatedAt: Number(row.updatedAt) || createdAt,
+      } satisfies RhCatalogGroup;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left!.sortOrder - right!.sortOrder || left!.name.localeCompare(right!.name, "zh-CN") || left!.id.localeCompare(right!.id)) as RhCatalogGroup[];
 }
 
 export interface RunningHubAdminEditorMetadata {
@@ -46,6 +76,7 @@ export interface RunningHubProviderLike {
   id: string;
   name: string;
   baseUrl: string;
+  rhGroups?: RhCatalogGroup[];
 }
 
 export interface RunningHubAdminItem extends RhCatalogItem, RunningHubAdminEditorMetadata {}
@@ -239,6 +270,7 @@ export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogIt
     note: safeText(row.note),
     thumbnail: safeText(row.thumbnail),
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+    groupId: safeText(row.groupId, "", 120) || undefined,
     workflowJson: normalizeOptionalJsonText(row.workflowJson),
     fields: normalizeRunningHubFieldDefinitions(row.fields),
     allowsEmptyInputs: row.allowsEmptyInputs === true,
@@ -249,10 +281,14 @@ export function normalizeRunningHubCatalogItem(value: unknown, kind: RhCatalogIt
   };
 }
 
-export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogItemKind): RunningHubAdminCatalogEntry[] {
+export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogItemKind, validGroupIds?: Set<string>): RunningHubAdminCatalogEntry[] {
   const list = Array.isArray(value) ? value : [];
   return list
-    .map((item) => normalizeRunningHubCatalogItem(item, kind))
+    .map((item) => {
+      const normalized = normalizeRunningHubCatalogItem(item, kind);
+      if (!normalized || !validGroupIds || !normalized.groupId || validGroupIds.has(normalized.groupId)) return normalized;
+      return { ...normalized, groupId: undefined };
+    })
     .filter(Boolean) as RunningHubAdminCatalogEntry[];
 }
 
@@ -263,6 +299,8 @@ export function toPublicRunningHubCatalogItem(provider: RunningHubProviderLike, 
     providerId: provider.id,
     providerName: provider.name,
     providerBaseUrl: provider.baseUrl,
+    groupId: entry.groupId,
+    groupName: provider.rhGroups?.find((group) => group.id === entry.groupId)?.name,
     id: entry.id,
     kind: entry.kind || "workflow",
     title: entry.title,

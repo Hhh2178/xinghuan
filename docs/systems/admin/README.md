@@ -42,6 +42,7 @@ Admin 是无限画布 2.0 的独立后台，负责用户、Provider、模型、�
 - API 平台列表和各平台下的模型列表通过管理员专属上下移动操作维护前台展示顺序；权威字段为 `xh_providers.sort_order` 与 `xh_models.sort_order`。
 - Provider 顺序全局生效；模型顺序限定在同一 Provider 和同一 capability 内，重排 API 要求提交完整作用域并以事务写入。
 - RunningHub 工作台已成为 RH 条目录入和分析的主入口
+- RunningHub 条目支持按 Provider 分组管理；后台分组轨道和条目编辑器共享分组状态，画布节点选择器按分组呈现条目。分组权限是条目权限的上层门禁，删除分组会把条目安全迁回“未分组”。
 - 系统页需要同时展示“配置值”和“实际生效值”
 - API 设置面板已开始按 `helper / form sections / save actions` 分层，避免继续堆成单个超大后台文件
 - 后台前端设计长期资料已进入 `frontend-design/`，后续在统一 `stitch` 风格基础上增减后台功能时优先维护该目录

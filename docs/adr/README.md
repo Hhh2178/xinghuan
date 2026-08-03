@@ -27,6 +27,7 @@
 | [0004](0004-workflow-scoped-deterministic-supervision.md) | 工作流级确定性执行与有限 AI 托管 | Accepted | 2026-07-23 | Canvas / API / Worker / Admin / Auth / Storage |
 | [0005](0005-agent-analyzed-deterministic-supervision.md) | Agent 分析与确定性托管执行分层 | Accepted | 2026-07-24 | Canvas / API / Worker / Admin / Auth / Storage |
 | [0006](0006-dual-track-release-artifacts.md) | 双轨发布产物与运行时封装 | Accepted | 2026-08-03 | Build / Release / Runtime / Operations |
+| [0008](0008-runninghub-catalog-group-permission-boundary.md) | RunningHub 目录分组与权限边界 | Accepted | 2026-08-03 | Admin / Canvas / API / Permission |
 
 ## 模板
 

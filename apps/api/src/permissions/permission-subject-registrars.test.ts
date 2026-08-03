@@ -4,6 +4,7 @@ import {
   createPermissionSubjectRegistrar,
   providerModelSubjectKey,
   resourceItemSubjectKey,
+  runningHubGroupSubjectKey,
   runningHubAppSubjectKey,
 } from "./permission-subject-registrars.js";
 
@@ -81,6 +82,7 @@ describe("permission subject registrar", () => {
       resourceCategories: [{ id: "cat-a", kind: "image", name: "Images" }],
       resourceItems: [{ id: "asset-a", kind: "image", title: "Cover", categoryId: "cat-a" }],
       runningHubItems: [{ catalogId: "rh-a", kind: "app", title: "Background remover", enabled: true }],
+      runningHubGroups: [{ id: "group-a", providerId: "provider-a", name: "Images", enabled: true }],
       nodeTypes: [{ type: "image", label: "Image", category: "core" }],
       providerModels: [{ id: "model-a", displayName: "Image Model", capability: "image", enabled: true }],
     });
@@ -93,6 +95,10 @@ describe("permission subject registrar", () => {
     expect(stored.find((item) => item.subjectKey === runningHubAppSubjectKey("rh-a"))).toMatchObject({
       exposureState: "published",
       metadata: expect.objectContaining({ enabled: true }),
+    });
+    expect(stored.find((item) => item.subjectKey === runningHubGroupSubjectKey("provider-a", "group-a"))).toMatchObject({
+      subjectType: "group",
+      exposureState: "published",
     });
     expect(stored.find((item) => item.subjectKey === providerModelSubjectKey("model-a"))).toMatchObject({
       exposureState: "published",

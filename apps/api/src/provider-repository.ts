@@ -234,9 +234,9 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     const pool = await deps.getPostgresPool();
     const normalized = deps.normalizeProviderSecret(provider);
     await pool.query(
-      `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18)
-       on conflict (id) do update set sort_order = excluded.sort_order, name = excluded.name, base_url = excluded.base_url, protocol = excluded.protocol, enabled = excluded.enabled, api_key_cipher = excluded.api_key_cipher, api_key_preview = excluded.api_key_preview, last_probe_status = excluded.last_probe_status, last_probe_message = excluded.last_probe_message, last_fetched_at = excluded.last_fetched_at, rh_apps = excluded.rh_apps, rh_workflows = excluded.rh_workflows, rh_key_pool = excluded.rh_key_pool, ms_loras = excluded.ms_loras, note = excluded.note, updated_at = excluded.updated_at`,
+      `insert into xh_providers (id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_groups, rh_key_pool, ms_loras, note, created_at, updated_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17,$18,$19)
+       on conflict (id) do update set sort_order = excluded.sort_order, name = excluded.name, base_url = excluded.base_url, protocol = excluded.protocol, enabled = excluded.enabled, api_key_cipher = excluded.api_key_cipher, api_key_preview = excluded.api_key_preview, last_probe_status = excluded.last_probe_status, last_probe_message = excluded.last_probe_message, last_fetched_at = excluded.last_fetched_at, rh_apps = excluded.rh_apps, rh_workflows = excluded.rh_workflows, rh_groups = excluded.rh_groups, rh_key_pool = excluded.rh_key_pool, ms_loras = excluded.ms_loras, note = excluded.note, updated_at = excluded.updated_at`,
       [
         normalized.id,
         normalizeCatalogSortOrder(normalized.sortOrder),
@@ -251,6 +251,7 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
         normalized.lastFetchedAt ? deps.millisToDate(normalized.lastFetchedAt) : null,
         JSON.stringify(deps.normalizeRunningHubEntries(normalized.rhApps, "app")),
         JSON.stringify(deps.normalizeRunningHubEntries(normalized.rhWorkflows, "workflow")),
+        JSON.stringify(deps.normalizeRunningHubGroups ? deps.normalizeRunningHubGroups(normalized.rhGroups, normalized.id) : []),
         JSON.stringify(deps.normalizeRunningHubKeyPool(normalized.rhKeyPool)),
         JSON.stringify(deps.normalizeModelScopeLoras(normalized.msLoras)),
         normalized.note || "",
@@ -298,11 +299,12 @@ export function createProviderRepository(deps: ProviderRepositoryDeps) {
     if (deps.usePostgresRepository()) {
       const pool = await deps.getPostgresPool();
       await pool.query(
-        "update xh_providers set rh_apps = $2::jsonb, rh_workflows = $3::jsonb, rh_key_pool = $4::jsonb, ms_loras = $5::jsonb, updated_at = $6 where id = $1",
+        "update xh_providers set rh_apps = $2::jsonb, rh_workflows = $3::jsonb, rh_groups = $4::jsonb, rh_key_pool = $5::jsonb, ms_loras = $6::jsonb, updated_at = $7 where id = $1",
         [
           providerId,
           JSON.stringify(deps.normalizeRunningHubEntries(updated.rhApps, "app")),
           JSON.stringify(deps.normalizeRunningHubEntries(updated.rhWorkflows, "workflow")),
+          JSON.stringify(deps.normalizeRunningHubGroups ? deps.normalizeRunningHubGroups(updated.rhGroups, updated.id) : []),
           JSON.stringify(deps.normalizeRunningHubKeyPool(updated.rhKeyPool)),
           JSON.stringify(deps.normalizeModelScopeLoras(updated.msLoras)),
           deps.millisToDate(updated.updatedAt),

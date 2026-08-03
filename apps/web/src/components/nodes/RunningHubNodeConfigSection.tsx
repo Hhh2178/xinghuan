@@ -1,6 +1,7 @@
 import { Loader2, RefreshCw, Search } from 'lucide-react';
 
 import type { RunningHubCatalogItem } from '../../services/runninghubCatalog';
+import { groupRunningHubCatalogItems } from '../../services/runninghubCatalog';
 import { inferValueType } from './runninghubNodeHelpers';
 import type { Material } from './useUpstreamMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
@@ -106,10 +107,14 @@ export default function RunningHubNodeConfigSection({
           className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
         >
           <option value="">{catalogLoading ? '正在读取后台条目...' : '请选择后台已配置的 RH 条目'}</option>
-          {workflowCatalog.map((workflow) => (
-            <option key={workflow.catalogId} value={workflow.catalogId}>
-              {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
-            </option>
+          {groupRunningHubCatalogItems(workflowCatalog).map((group) => (
+            <optgroup key={group.key} label={group.label}>
+              {group.items.map((workflow) => (
+                <option key={workflow.catalogId} value={workflow.catalogId}>
+                  {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         {selectedWorkflowPreset ? (

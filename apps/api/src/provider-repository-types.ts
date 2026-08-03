@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import type { ModelCapability, ModelCapabilityTag, ModelInputCapabilities, ProviderProtocol } from "@xinghuan/model-core";
-import type { ProviderGenerationExecutionMode } from "@xinghuan/shared";
+import type { ProviderGenerationExecutionMode, RhCatalogGroup } from "@xinghuan/shared";
 import type { normalizeCapability, normalizeOptionalProtocol, normalizeProviderProtocol } from "./provider-model-catalog.js";
 import type { RunningHubCatalogEntry } from "./runninghub-catalog.js";
 
@@ -41,6 +41,7 @@ export interface AdminProviderRecord {
   lastFetchedAt?: number;
   rhApps?: RunningHubCatalogEntry[];
   rhWorkflows?: RunningHubCatalogEntry[];
+  rhGroups?: RhCatalogGroup[];
   rhKeyPool?: RunningHubKeyPoolItemRecord[];
   msLoras?: ModelScopeLora[];
   note?: string;
@@ -97,7 +98,8 @@ export interface ProviderRepositoryDeps {
   normalizeProviderProtocol: typeof normalizeProviderProtocol;
   normalizeCapability: typeof normalizeCapability;
   normalizeOptionalProtocol: typeof normalizeOptionalProtocol;
-  normalizeRunningHubEntries: (value: unknown, kind: "app" | "workflow") => RunningHubCatalogEntry[];
+  normalizeRunningHubEntries: (value: unknown, kind: "app" | "workflow", validGroupIds?: Set<string>) => RunningHubCatalogEntry[];
+  normalizeRunningHubGroups?: (value: unknown, providerId: string) => RhCatalogGroup[];
   normalizeRunningHubKeyPool: (value: unknown) => RunningHubKeyPoolItemRecord[];
   normalizeModelScopeLoras: (value: unknown) => ModelScopeLora[];
   plainObject: (value: unknown) => Record<string, unknown>;

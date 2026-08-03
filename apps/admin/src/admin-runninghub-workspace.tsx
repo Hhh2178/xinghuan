@@ -7,6 +7,7 @@ import {
   AdminConfigurationWorkbench,
 } from "./admin-configuration-workbench";
 import { AdminRunningHubItemEditor } from "./admin-runninghub-item-editor";
+import { AdminRunningHubGroupManager } from "./admin-runninghub-group-manager";
 import {
   buildCreateTitle,
   buildCreatePayloadFromDraft,
@@ -29,6 +30,7 @@ import type {
   RunningHubAdminItemUpdatePayload,
   RunningHubAnalyzeDraft,
   RunningHubAnalyzeDraftSection,
+  RunningHubGroup,
 } from "./admin-types";
 import type { AdminRhViewId } from "./admin-view-model";
 
@@ -45,6 +47,8 @@ export function AdminRunningHubWorkspace({
   showLocalNavigation?: boolean;
 }) {
   const [items, setItems] = useState<RunningHubAdminItem[]>([]);
+  const [groups, setGroups] = useState<RunningHubGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<RunningHubWorkspaceTab>("workflow");
@@ -103,6 +107,16 @@ export function AdminRunningHubWorkspace({
 
   useEffect(() => {
     if (!resolvedProviderId) {
+      setGroups([]);
+      return;
+    }
+    void adminRunningHubApi.listGroups(resolvedProviderId)
+      .then(setGroups)
+      .catch((nextError) => setError(nextError instanceof Error ? nextError.message : String(nextError)));
+  }, [resolvedProviderId]);
+
+  useEffect(() => {
+    if (!resolvedProviderId) {
       setKeyPoolDraft([]);
       return;
     }
@@ -147,11 +161,20 @@ export function AdminRunningHubWorkspace({
     });
   }, [keyword, scopedItems, statusFilter]);
 
+  const groupedFilteredItems = useMemo(
+    () => filteredItems.filter((item) => {
+      if (!selectedGroupId) return true;
+      if (selectedGroupId === "ungrouped") return !item.groupId;
+      return item.groupId === selectedGroupId;
+    }),
+    [filteredItems, selectedGroupId],
+  );
+
   useEffect(() => {
-    if (!filteredItems.some((item) => item.catalogId === selectedCatalogId)) {
-      setSelectedCatalogId(filteredItems[0]?.catalogId || "");
+    if (!groupedFilteredItems.some((item) => item.catalogId === selectedCatalogId)) {
+      setSelectedCatalogId(groupedFilteredItems[0]?.catalogId || "");
     }
-  }, [filteredItems, selectedCatalogId]);
+  }, [groupedFilteredItems, selectedCatalogId]);
 
   useEffect(() => {
     setTestResult(null);
@@ -184,6 +207,7 @@ export function AdminRunningHubWorkspace({
           kind,
           title: sourceCatalogId ? undefined : buildCreateTitle(kind),
           sourceCatalogId,
+          groupId: selectedGroupId && selectedGroupId !== "ungrouped" ? selectedGroupId : undefined,
         },
       );
       setItems((current) => [...current, created]);
@@ -193,6 +217,40 @@ export function AdminRunningHubWorkspace({
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleCreateGroup() {
+    if (!resolvedProviderId) return;
+    const name = window.prompt("请输入新分组名称");
+    if (!name?.trim()) return;
+    try {
+      const group = await adminRunningHubApi.createGroup({ providerId: resolvedProviderId, name: name.trim() });
+      setGroups((current) => [...current, group].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "zh-CN")));
+      setSelectedGroupId(group.id);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    }
+  }
+
+  async function handleDeleteGroup(group: RunningHubGroup) {
+    if (!window.confirm(`删除分组“${group.name}”后，条目将移至未分组，不会删除条目。继续吗？`)) return;
+    try {
+      const result = await adminRunningHubApi.deleteGroup(group.id);
+      setGroups((current) => current.filter((item) => item.id !== group.id));
+      setItems((current) => current.map((item) => result.ungroupedCatalogIds.includes(item.catalogId) ? { ...item, groupId: undefined, groupName: undefined } : item));
+      if (selectedGroupId === group.id) setSelectedGroupId("ungrouped");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    }
+  }
+
+  async function handleToggleGroup(group: RunningHubGroup) {
+    try {
+      const updated = await adminRunningHubApi.updateGroup(group.id, { providerId: group.providerId, enabled: !group.enabled });
+      setGroups((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
     }
   }
 
@@ -338,7 +396,7 @@ export function AdminRunningHubWorkspace({
   const keyPoolSummary = useMemo(() => summarizeRunningHubKeyPoolDraft(keyPoolDraft), [keyPoolDraft]);
 
   return (
-    <AdminConfigurationWorkbench label="RunningHub 配置" className="admin-runninghub-workspace">
+    <AdminConfigurationWorkbench label="RunningHub 工作台" className="admin-runninghub-workspace">
       <AdminConfigurationContext
         eyebrow={activeView === "keys" ? "Provider 级 Key 池" : selectedItem?.kind === "app" ? "AI 应用" : "工作流"}
         title={activeView === "keys" ? resolvedProviderLabel : selectedItem?.title || "未选择 RunningHub 条目"}
@@ -505,9 +563,18 @@ export function AdminRunningHubWorkspace({
             <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
             <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
           </div>
+          <AdminRunningHubGroupManager
+            groups={groups}
+            items={scopedItems}
+            selectedGroupId={selectedGroupId}
+            onSelect={setSelectedGroupId}
+            onCreate={() => void handleCreateGroup()}
+            onDelete={(group) => void handleDeleteGroup(group)}
+            onToggle={(group) => void handleToggleGroup(group)}
+          />
           <div className="admin-runninghub-workspace__list-body">
-            {filteredItems.length ? (
-              filteredItems.map((item) => (
+            {groupedFilteredItems.length ? (
+              groupedFilteredItems.map((item) => (
                 <button
                   key={item.catalogId}
                   type="button"
@@ -574,6 +641,7 @@ export function AdminRunningHubWorkspace({
             onDelete={handleDelete}
             onDuplicate={(catalogId) => handleCreate(activeTab, catalogId)}
             onToggleEnabled={handleToggleEnabled}
+            groups={groups}
           />
 
           <section className="api-card admin-runninghub-analyze-panel">

@@ -155,6 +155,22 @@ export const adminPermissionApi = {
 export const adminRunningHubApi = {
   listItems: () =>
     api<{ items: import("./admin-types").RunningHubAdminItem[] }>("/api/admin/runninghub/items").then((result) => result.items),
+  listGroups: (providerId: string) =>
+    api<import("./admin-types").RunningHubGroup[]>(`/api/admin/runninghub/groups?providerId=${encodeURIComponent(providerId)}`),
+  createGroup: (payload: { providerId: string; name: string; description?: string }) =>
+    api<import("./admin-types").RunningHubGroup>("/api/admin/runninghub/groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  updateGroup: (groupId: string, payload: { providerId?: string; name?: string; description?: string; enabled?: boolean; sortOrder?: number }) =>
+    api<import("./admin-types").RunningHubGroup>(`/api/admin/runninghub/groups/${encodeURIComponent(groupId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteGroup: (groupId: string) =>
+    api<{ groupId: string; ungroupedCatalogIds: string[] }>(`/api/admin/runninghub/groups/${encodeURIComponent(groupId)}`, { method: "DELETE" }),
   listKeyPool: (providerId: string) =>
     api<import("./admin-types").RunningHubKeyPoolItem[]>(`/api/admin/providers/${encodeURIComponent(providerId)}/runninghub/key-pool`),
   saveKeyPool: (

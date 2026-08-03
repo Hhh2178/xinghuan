@@ -1,5 +1,9 @@
 # RunningHub Catalog Groups and Permissions Implementation Plan
 
+> **Execution progress (2026-08-03):** Shared group contracts, Provider `rh_groups` migration/persistence, group lifecycle API, Admin grouped rail/editor selector, Canvas grouped selector, permission group subjects and two-gate runtime are implemented in the current slice. Remaining: authenticated Gray acceptance, production promotion, and release `0.8.18` evidence.
+
+> **Actual implementation note:** Group lifecycle is currently kept beside the existing RunningHub catalog authority in `apps/api/src/server.ts` and wired through `admin-runninghub-routes.ts`; a separate `runninghub-group-service.ts` was intentionally not introduced to avoid duplicating the Provider JSONB write boundary. The local slice includes normalization, repository persistence, permission truth-table coverage, Admin/Canvas focused tests and a cross-layer verifier. Dedicated live route/service tests and authenticated Gray acceptance remain release follow-ups.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add Provider-scoped groups for RunningHub apps and workflows, expose grouped catalogs in Admin and Canvas, and enforce group permissions as an outer boundary above item permissions.
@@ -34,20 +38,17 @@
 - Modify `apps/api/src/provider-repository-mappers.ts`: read `rh_groups`.
 - Modify `apps/api/src/provider-repository.ts`: write `rh_groups` atomically with RH entries.
 - Modify `apps/api/src/provider-repository.test.ts`: round-trip group persistence.
-- Create `apps/api/src/runninghub-group-service.ts`: group CRUD and entry reassignment.
-- Create `apps/api/src/runninghub-group-service.test.ts`: lifecycle and uniqueness tests.
+- Modify `apps/api/src/server.ts`: group CRUD and entry reassignment remain beside the existing Provider JSONB authority.
 - Modify `apps/api/src/admin-runninghub-routes.ts`: group endpoints and item `groupId` payload.
-- Create `apps/api/src/admin-runninghub-routes.test.ts`: group and item route behavior.
 - Create `apps/api/src/runninghub-permission-gate.ts`: explicit group/item two-gate decision.
 - Create `apps/api/src/runninghub-permission-gate.test.ts`: deny/allow truth table.
 - Modify `apps/api/src/permissions/permission-subject-registrars.ts`: register/retire group subjects.
 - Modify `apps/api/src/permissions/permission-subject-registrars.test.ts`: group subject lifecycle.
-- Modify `apps/api/src/server.ts`: wire group services, public catalog metadata, list/detail/submit/run authorization and environment sync.
-- Modify `apps/api/src/environment-sync-service.ts` and create `apps/api/src/environment-sync-service.test.ts`: carry `rhGroups` in Provider snapshots.
+- Modify `apps/api/src/server.ts`: wire group lifecycle, public catalog metadata, list/detail/submit/run authorization and environment sync.
+- Modify `apps/api/src/environment-sync-service.ts`: carry `rhGroups` in Provider snapshots.
 - Modify `apps/admin/src/admin-types.ts`: group and group-bearing item contracts.
 - Modify `apps/admin/src/admin-api-client.ts`: group CRUD API.
 - Create `apps/admin/src/admin-runninghub-group-manager.tsx`: group create/edit/reorder/enable/delete owner.
-- Create `apps/admin/src/admin-runninghub-create-dialog.tsx`: create item with existing/new group.
 - Modify `apps/admin/src/admin-runninghub-workspace.tsx`: grouped rail and group state.
 - Modify `apps/admin/src/admin-runninghub-item-editor.tsx`: group selector.
 - Modify `apps/admin/src/admin-runninghub-workspace.test.tsx`: grouped Admin UI contracts.

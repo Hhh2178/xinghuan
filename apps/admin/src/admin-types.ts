@@ -300,6 +300,7 @@ export interface ProviderRecord {
   lastFetchedAt: number;
   rhApps: RunningHubEntry[];
   rhWorkflows: RunningHubEntry[];
+  rhGroups?: RunningHubGroup[];
   rhKeyPool?: RunningHubKeyPoolItem[];
   msLoras: ModelScopeLora[];
   note: string;
@@ -352,6 +353,19 @@ export interface RunningHubEntry {
   taskCapability?: "image" | "video" | "audio" | "chat";
   workflowJson?: string;
   fields?: RunningHubFieldDefinition[];
+  groupId?: string;
+  groupName?: string;
+}
+
+export interface RunningHubGroup {
+  id: string;
+  providerId: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface RunningHubAdminEditorMetadata {
@@ -377,6 +391,7 @@ export interface RunningHubAdminItemCreatePayload extends RunningHubAdminEditorM
   title?: string;
   note?: string;
   sourceCatalogId?: string;
+  groupId?: string;
   enabled?: boolean;
   thumbnail?: string;
   workflowJson?: string;
@@ -401,6 +416,7 @@ export interface RunningHubAdminItemUpdatePayload extends RunningHubAdminEditorM
   workflowId?: string;
   runTargetId?: string;
   taskCapability?: "image" | "video" | "audio" | "chat";
+  groupId?: string;
 }
 
 export interface RunningHubAdminItemTestResult {

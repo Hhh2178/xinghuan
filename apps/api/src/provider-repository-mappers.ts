@@ -20,6 +20,7 @@ export interface AdminProviderPostgresRow extends QueryResultRow {
   last_fetched_at: unknown;
   rh_apps: unknown;
   rh_workflows: unknown;
+  rh_groups: unknown;
   rh_key_pool: unknown;
   ms_loras: unknown;
   note: unknown;
@@ -47,6 +48,8 @@ export interface AdminModelPostgresRow extends QueryResultRow {
 }
 
 export function toAdminProviderRecordFromRow(row: AdminProviderPostgresRow, deps: ProviderRepositoryDeps): AdminProviderRecord {
+  const rhGroups = deps.normalizeRunningHubGroups ? deps.normalizeRunningHubGroups(row.rh_groups, deps.safeText(row.id)) : [];
+  const validGroupIds = new Set(rhGroups.map((group) => group.id));
   return {
     id: deps.safeText(row.id),
     sortOrder: normalizeCatalogSortOrder(row.sort_order),
@@ -59,8 +62,9 @@ export function toAdminProviderRecordFromRow(row: AdminProviderPostgresRow, deps
     lastProbeStatus: deps.safeText(row.last_probe_status),
     lastProbeMessage: deps.safeText(row.last_probe_message),
     lastFetchedAt: deps.dateToMillis(row.last_fetched_at),
-    rhApps: deps.normalizeRunningHubEntries(row.rh_apps, "app"),
-    rhWorkflows: deps.normalizeRunningHubEntries(row.rh_workflows, "workflow"),
+    rhApps: deps.normalizeRunningHubEntries(row.rh_apps, "app", validGroupIds),
+    rhWorkflows: deps.normalizeRunningHubEntries(row.rh_workflows, "workflow", validGroupIds),
+    rhGroups,
     rhKeyPool: deps.normalizeRunningHubKeyPool(row.rh_key_pool),
     msLoras: deps.normalizeModelScopeLoras(row.ms_loras),
     note: deps.safeText(row.note),
@@ -91,7 +95,7 @@ export function toAdminModelRecordFromRow(row: AdminModelPostgresRow, deps: Prov
 }
 
 export const PROVIDER_SELECT =
-  "select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers";
+  "select id, sort_order, name, base_url, protocol, enabled, api_key_cipher, api_key_preview, last_probe_status, last_probe_message, last_fetched_at, rh_apps, rh_workflows, rh_groups, rh_key_pool, ms_loras, note, created_at, updated_at from xh_providers";
 
 export const MODEL_SELECT =
   "select id, sort_order, provider_id, model_id, display_name, capability, enabled, input_profile, input_capabilities, capability_tags, test_state, parameter_schema, advanced_config, protocol_override, created_at, updated_at from xh_models";

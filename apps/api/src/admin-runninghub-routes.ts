@@ -6,6 +6,7 @@ import type {
   RunningHubFieldDefinition,
   RunningHubOutputDefinition,
 } from "./runninghub-catalog.js";
+import type { RhCatalogGroup } from "@xinghuan/shared";
 
 interface CurrentUserShape {
   id: string;
@@ -38,6 +39,14 @@ interface RunningHubCatalogItemsResponse {
   items: unknown[];
 }
 
+interface RunningHubGroupMutationBody {
+  providerId?: string;
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  sortOrder?: number;
+}
+
 interface RunningHubCatalogRouteDeps {
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   appendAudit: (
@@ -54,6 +63,10 @@ interface RunningHubCatalogRouteDeps {
   deleteAdminRunningHubCatalogItem: (catalogId: string) => Promise<RunningHubCatalogItemResponse>;
   testAdminRunningHubCatalogItem: (catalogId: string, testPayloadValue?: string) => Promise<RunningHubCatalogTestResponse>;
   analyzeRunningHubCatalogDraft: (input: RunningHubCatalogAnalyzeBody) => Promise<unknown>;
+  listAdminRunningHubGroups: (providerId: string) => Promise<RhCatalogGroup[]>;
+  createAdminRunningHubGroup: (input: RunningHubGroupMutationBody) => Promise<RhCatalogGroup>;
+  updateAdminRunningHubGroup: (groupId: string, input: RunningHubGroupMutationBody) => Promise<RhCatalogGroup>;
+  deleteAdminRunningHubGroup: (groupId: string) => Promise<{ groupId: string; ungroupedCatalogIds: string[] }>;
 }
 
 interface RunningHubCatalogMutationBody {
@@ -62,6 +75,7 @@ interface RunningHubCatalogMutationBody {
   title?: string;
   note?: string;
   sourceCatalogId?: string;
+  groupId?: string;
   enabled?: boolean;
   thumbnail?: string;
   workflowJson?: string;
@@ -103,6 +117,38 @@ export async function handleAdminRunningHubRoutes(input: {
     const items = await deps.adminRunningHubCatalogItems();
     await deps.appendAudit(adminUser, "runninghub.catalog.read", "runninghub", "catalog-items", "查看 RunningHub 条目目录", requestContext);
     deps.sendT8(response, { items } satisfies RunningHubCatalogItemsResponse);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/runninghub/groups" && request.method === "GET") {
+    const providerId = safeText(url.searchParams.get("providerId"));
+    deps.sendT8(response, await deps.listAdminRunningHubGroups(providerId));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/runninghub/groups" && request.method === "POST") {
+    const body = await readJsonBody<RunningHubGroupMutationBody>(request);
+    const group = await deps.createAdminRunningHubGroup(body);
+    await deps.appendAudit(adminUser, "runninghub.group.create", "runninghub-group", group.id, `创建 RunningHub 分组 ${group.name}`, requestContext);
+    deps.sendT8(response, group, 201);
+    return true;
+  }
+
+  const runningHubGroupMatch = url.pathname.match(/^\/api\/admin\/runninghub\/groups\/([^/]+)$/);
+  if (runningHubGroupMatch && request.method === "PATCH") {
+    const groupId = decodeURIComponent(runningHubGroupMatch[1]);
+    const body = await readJsonBody<RunningHubGroupMutationBody>(request);
+    const group = await deps.updateAdminRunningHubGroup(groupId, body);
+    await deps.appendAudit(adminUser, "runninghub.group.update", "runninghub-group", group.id, `更新 RunningHub 分组 ${group.name}`, requestContext);
+    deps.sendT8(response, group);
+    return true;
+  }
+
+  if (runningHubGroupMatch && request.method === "DELETE") {
+    const groupId = decodeURIComponent(runningHubGroupMatch[1]);
+    const result = await deps.deleteAdminRunningHubGroup(groupId);
+    await deps.appendAudit(adminUser, "runninghub.group.delete", "runninghub-group", groupId, `删除 RunningHub 分组，${result.ungroupedCatalogIds.length} 个条目移至未分组`, requestContext);
+    deps.sendT8(response, result);
     return true;
   }
 
