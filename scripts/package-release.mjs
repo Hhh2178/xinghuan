@@ -139,6 +139,14 @@ export async function packageRelease({
     "BUILD-MANIFEST.json",
   ]);
   await runTar(stagingDir, archivePath);
+  await runNodeScript(projectRoot, [
+    "scripts/verify-release-package-contract.mjs",
+    `--archive=${archivePath}`,
+  ]);
+  await runNodeScript(projectRoot, [
+    "scripts/verify-release-version-alignment.mjs",
+    `--archive=${archivePath}`,
+  ]);
   const archiveDigest = sha256(await readFile(archivePath));
   await writeFile(sidecarPath, `${archiveDigest}  ${safeReleaseName}.tar.gz\n`, "utf8");
   const archive = await stat(archivePath);
