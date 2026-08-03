@@ -2,7 +2,7 @@ import { evaluatePermissionReadiness } from "../apps/api/src/permissions/permiss
 import {
   connectPermissionDatabase,
   readPermissionDatabaseState,
-} from "./permission-db-state.js";
+} from "../apps/api/src/permissions/permission-database-state.js";
 
 async function main() {
   const expectedReady = argument("expect-ready", "true") !== "false";

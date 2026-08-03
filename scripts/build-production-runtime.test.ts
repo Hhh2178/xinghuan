@@ -18,12 +18,16 @@ describe("production runtime bundle", () => {
 
     await expect(stat(result.apiEntry)).resolves.toBeTruthy();
     await expect(stat(result.workerEntry)).resolves.toBeTruthy();
+    await expect(stat(result.permissionReadinessEntry)).resolves.toBeTruthy();
 
     const api = await readFile(result.apiEntry, "utf8");
     const worker = await readFile(result.workerEntry, "utf8");
+    const permissionReadiness = await readFile(result.permissionReadinessEntry, "utf8");
     expect(api).not.toMatch(/from\s+["']@xinghuan\//);
     expect(worker).not.toMatch(/from\s+["']@xinghuan\//);
+    expect(permissionReadiness).not.toMatch(/from\s+["']@xinghuan\//);
     expect(api).not.toContain("sourceMappingURL=");
     expect(worker).not.toContain("sourceMappingURL=");
+    expect(permissionReadiness).not.toContain("sourceMappingURL=");
   });
 });

@@ -17,8 +17,13 @@ export async function buildProductionRuntime({ outDir }) {
   const targetRoot = resolve(rootDir, parseProductionRuntimeOutDir(outDir));
   const apiEntry = resolve(targetRoot, "apps/api/dist/server.js");
   const workerEntry = resolve(targetRoot, "apps/worker/dist/worker.js");
+  const permissionReadinessEntry = resolve(
+    targetRoot,
+    "apps/api/dist/cli/permission-readiness.js",
+  );
   await mkdir(dirname(apiEntry), { recursive: true });
   await mkdir(dirname(workerEntry), { recursive: true });
+  await mkdir(dirname(permissionReadinessEntry), { recursive: true });
 
   const common = {
     bundle: true,
@@ -42,8 +47,13 @@ export async function buildProductionRuntime({ outDir }) {
     entryPoints: [resolve(rootDir, "apps/worker/src/worker.ts")],
     outfile: workerEntry,
   });
+  await build({
+    ...common,
+    entryPoints: [resolve(rootDir, "apps/api/src/cli/permission-readiness.ts")],
+    outfile: permissionReadinessEntry,
+  });
 
-  return { apiEntry, workerEntry };
+  return { apiEntry, workerEntry, permissionReadinessEntry };
 }
 
 function argument(name) {
