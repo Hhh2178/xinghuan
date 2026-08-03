@@ -42,6 +42,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - `npm run harness:verify:release`
 - `npm run harness:verify:comfyui`
 - `npm run verify:authority-state`
+- `npm run verify:sealed-production-artifact-harness`
 - `npm run verify:release-governance-contract`
 - `npm run release:retention:prune -- --env=<gray|production> --ssh-key=<path>`
 - `npm run harness:run -- --profile=quick`
@@ -61,11 +62,18 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - `npm run verify:system-doc-template-contract`
 - `npm run verify:harness-doc-sync-contract`
 
+## Sealed production artifact release track
+
+The release harness records the staged dual-artifact boundary before packaging: `0.8.16` delivers the sealed production artifact, `0.8.17` delivers admin tiers, and `0.8.18` delivers RunningHub groups. Production must promote the same Gray archive that passed runtime verification; it must not rebuild a second production archive.
+
+Before any stage is called complete, append its actual verification evidence (focused contracts, build/archive identity, and Gray or Production runtime result) to the release and validation logbooks. This harness directory keeps the execution rule and links only; it does not duplicate the evidence itself.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
 - 领域词汇或 ADR 生命周期变化时，必须同步 `CONTEXT.md`、`docs/adr/README.md`、治理规范和 `verify:domain-context-and-adr-contract`。
 - 每次 Gray / Production 运行态验证成功后，Release harness 必须 dry-run 并恢复服务器“每环境最近五个 Release”的保留上限。
+- Sealed artifact stages must preserve the `0.8.16` → `0.8.17` → `0.8.18` order, promote the same Gray archive to Production, and write actual verification evidence before a stage is closed.
 - Harness runner 将每次 profile 运行写入 ignored `.harness/runs/*.json`；release/validation logbook 仍是正式审计证据。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。
 - 本目录只记录执行地图和接入约定，不复制系统设计正文、发布记录或长期状态。

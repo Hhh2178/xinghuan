@@ -77,6 +77,7 @@
 - `npm run release:gray:deploy`
 - `npm run release:gray:verify`
 - `npm run verify:release-preflight-contract`
+- `npm run verify:sealed-production-artifact-harness`
 - `npm run verify:release-gate-docs-contract`
 - `npm run verify:release-package-contract`
 - `npm run verify:current-release-entry-consistency`
@@ -90,6 +91,10 @@
 - gray 运行态验证后同步 release 记录
 - production 晋级前确认版本、包、文档和运行入口一致
 - gray / production 验证通过后先 dry-run，再将服务器 Release 恢复为最近五个
+
+### Sealed production artifact staged releases
+
+The release harness blocks drift from this order: `0.8.16` sealed production artifact, `0.8.17` admin tiers, then `0.8.18` RunningHub groups. For every stage, Gray verifies one archive and Production promotes the same Gray archive without rebuilding it. Before the stage is complete, append actual verification evidence for the contracts, archive identity, and runtime result to the release and validation logbooks.
 
 ## Integration harness
 

@@ -22,6 +22,10 @@
 - env 模板：`apps/<workspace>/.env.example` 或 `config/<system>.env.example`
 - systemd 模板：`ops/systemd/<service-name>.service.example`
 
+## Sealed production artifact release harness
+
+The sealed production artifact is a release harness rather than an application subharness. Its root contract is `npm run verify:sealed-production-artifact-harness`; it protects the staged sequence of `0.8.16` sealed production artifact, `0.8.17` admin tiers, and `0.8.18` RunningHub groups. Production promotes the same Gray archive and does not rebuild it. Each stage must append actual verification evidence before its release record is closed.
+
 ## ComfyUI 当前样板
 
 当前 ComfyUI connector 已具备：
