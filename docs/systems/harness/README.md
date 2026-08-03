@@ -74,6 +74,7 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Candidate archive: `20260803-sealed-production-artifact-v0816-r1.tar.gz`; adjacent sidecar SHA-256: `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`.
 - Inventory: 185 content-manifest files, 211 tar entries excluding the archive root entry, and 0 forbidden entries; manifest and API markers report `0.8.16`.
 - Verification: all workspace type-check, `build:single-port`, `build:production-runtime`, package/archive/version contracts, and deployment/runtime dry-runs passed.
+- Executable archive proof: extracted into an isolated directory, `npm ci --omit=dev --ignore-scripts` installed 237 packages successfully, and the bundled readiness CLI executed with the expected `DATABASE_NOT_CONFIGURED` exit path when no database URL was supplied.
 - Scope: this is executable local proof for the `0.8.16` candidate. It is not Gray or Production live-runtime evidence; actual deployment remains gated by the release-clean check and must promote this exact archive/SHA.
 - Admin tier implementation progress: shared tier contract and migration are committed in `b90b7da`; auth repository/server propagation is locally verified (7 focused auth tests, API type-check and auth query contracts). Administrator account visibility/mutation policy and UI remain pending before `0.8.17` release.
 - Root visibility policy helper is now covered by 3 focused tests (operator non-disclosure, last-root protection and audit redaction); route wiring and Admin controls remain pending.

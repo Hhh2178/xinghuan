@@ -98,6 +98,8 @@ The release harness blocks drift from this order: `0.8.16` sealed production art
 
 Current local proof (2026-08-03): candidate `0.8.16`, archive `20260803-sealed-production-artifact-v0816-r1.tar.gz`, sidecar SHA-256 `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`; 185 content-manifest files, 211 tar entries excluding the root entry, 0 forbidden entries. Workspace type-check, production/static/runtime builds, package/archive/version contracts, and deploy/runtime dry-runs passed. This is executable local proof, not Gray/Production live-runtime evidence; Production must promote this exact archive after Gray approval.
 
+Archive runtime smoke also passed in an isolated extraction: `npm ci --omit=dev --ignore-scripts` succeeded and `apps/api/dist/cli/permission-readiness.js` returned the expected `DATABASE_NOT_CONFIGURED` failure without a database URL, proving the sealed entrypoint is executable without source tooling.
+
 ## Integration harness
 
 用于外部系统或机器侧子工程接入。
