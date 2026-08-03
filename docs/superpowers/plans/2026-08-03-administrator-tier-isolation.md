@@ -1,6 +1,6 @@
 # Administrator Tier Isolation Implementation Plan
 
-> **Execution progress (2026-08-03):** Tasks 1-2 are implemented on the active branch (`b90b7da` and the current auth propagation commit); focused shared/auth tests, API type-check and auth query contracts pass. Tasks 3-7 remain pending.
+> **Execution progress (2026-08-03):** Tasks 1-3 are implemented on the active branch (`b90b7da`, `c78e262`); focused shared/auth/policy tests, API type-check and auth query contracts pass. Tasks 4-7 remain pending.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

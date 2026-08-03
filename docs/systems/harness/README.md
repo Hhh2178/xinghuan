@@ -76,6 +76,7 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Verification: focused tests 24/24, type-check, `build:single-port`, package/archive contracts, and deployment/runtime dry-runs passed.
 - Scope: this is local implementation proof against the current `0.8.15` candidate baseline. It is not Gray or Production deployment evidence, and it does not claim a live `/api/status` result for `0.8.16`. Task 7 must bump the candidate to `0.8.16`, rebuild once, verify Gray, then promote that exact archive to Production before the stage is complete.
 - Admin tier implementation progress: shared tier contract and migration are committed in `b90b7da`; auth repository/server propagation is locally verified (7 focused auth tests, API type-check and auth query contracts). Administrator account visibility/mutation policy and UI remain pending before `0.8.17` release.
+- Root visibility policy helper is now covered by 3 focused tests (operator non-disclosure, last-root protection and audit redaction); route wiring and Admin controls remain pending.
 
 ## 更新规则
 
