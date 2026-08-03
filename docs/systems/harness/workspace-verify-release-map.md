@@ -96,7 +96,7 @@
 
 The release harness blocks drift from this order: `0.8.16` sealed production artifact, `0.8.17` admin tiers, then `0.8.18` RunningHub groups. For every stage, Gray verifies one archive and Production promotes the same Gray archive without rebuilding it. Before the stage is complete, append actual verification evidence for the contracts, archive identity, and runtime result to the release and validation logbooks.
 
-Current local proof (2026-08-03): commits `9b84f59` through `53ed914` produced `20260803-sealed-artifact-local-v0816.tar.gz` with sidecar SHA-256 `b0f773d58a2b9ff716ac15f6f555f4445273f64b0d67fdbeffbcfd24f2f71196`; the archive has 185 content-manifest files, 210 tar entries excluding the root entry, and 0 forbidden entries. Focused tests 24/24, type-check, `build:single-port`, and deploy/runtime dry-runs passed. This is local proof on the `0.8.15` baseline, not Gray/Production runtime evidence; the `0.8.16` release still requires one rebuilt Gray archive and same-archive Production promotion.
+Current local proof (2026-08-03): candidate `0.8.16`, archive `20260803-sealed-production-artifact-v0816-r1.tar.gz`, sidecar SHA-256 `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`; 185 content-manifest files, 211 tar entries excluding the root entry, 0 forbidden entries. Workspace type-check, production/static/runtime builds, package/archive/version contracts, and deploy/runtime dry-runs passed. This is executable local proof, not Gray/Production live-runtime evidence; Production must promote this exact archive after Gray approval.
 
 ## Integration harness
 

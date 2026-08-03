@@ -68,13 +68,13 @@ The release harness records the staged dual-artifact boundary before packaging: 
 
 Before any stage is called complete, append its actual verification evidence (focused contracts, build/archive identity, and Gray or Production runtime result) to the release and validation logbooks. This harness directory keeps the execution rule and links only; it does not duplicate the evidence itself.
 
-### 2026-08-03 local implementation proof
+### 2026-08-03 0.8.16 local implementation proof
 
-- Implementation chain: `9b84f59` → `2b34418` → `43e2db3` → `00197d1` → `f01bd03` → `53ed914`.
-- Local candidate archive: `20260803-sealed-artifact-local-v0816.tar.gz`; adjacent sidecar SHA-256: `b0f773d58a2b9ff716ac15f6f555f4445273f64b0d67fdbeffbcfd24f2f71196`.
-- Inventory: 185 content-manifest files, 210 tar entries excluding the archive root entry, and 0 forbidden entries.
-- Verification: focused tests 24/24, type-check, `build:single-port`, package/archive contracts, and deployment/runtime dry-runs passed.
-- Scope: this is local implementation proof against the current `0.8.15` candidate baseline. It is not Gray or Production deployment evidence, and it does not claim a live `/api/status` result for `0.8.16`. Task 7 must bump the candidate to `0.8.16`, rebuild once, verify Gray, then promote that exact archive to Production before the stage is complete.
+- Implementation chain: `9b84f59` → `2b34418` → `43e2db3` → `00197d1` → `f01bd03` → `53ed914` → `cee7211`.
+- Candidate archive: `20260803-sealed-production-artifact-v0816-r1.tar.gz`; adjacent sidecar SHA-256: `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`.
+- Inventory: 185 content-manifest files, 211 tar entries excluding the archive root entry, and 0 forbidden entries; manifest and API markers report `0.8.16`.
+- Verification: all workspace type-check, `build:single-port`, `build:production-runtime`, package/archive/version contracts, and deployment/runtime dry-runs passed.
+- Scope: this is executable local proof for the `0.8.16` candidate. It is not Gray or Production live-runtime evidence; actual deployment remains gated by the release-clean check and must promote this exact archive/SHA.
 - Admin tier implementation progress: shared tier contract and migration are committed in `b90b7da`; auth repository/server propagation is locally verified (7 focused auth tests, API type-check and auth query contracts). Administrator account visibility/mutation policy and UI remain pending before `0.8.17` release.
 - Root visibility policy helper is now covered by 3 focused tests (operator non-disclosure, last-root protection and audit redaction); route wiring and Admin controls remain pending.
 

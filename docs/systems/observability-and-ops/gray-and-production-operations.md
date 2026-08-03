@@ -17,4 +17,4 @@
 
 每个版本先生成一个带 `BUILD-MANIFEST.json` 的 runtime-only archive 和相邻 `.tar.gz.sha256`。Gray 上传 archive 与 sidecar，远端在解包前执行 `sha256sum -c`，随后 `npm ci --omit=dev`、数据库迁移和服务重启；readiness 通过编译 CLI 验证。Production 必须复用 Gray 已验收的同一 archive/SHA，不允许重新构建。
 
-当前本地封装 proof（候选版本 0.8.15，待版本发布任务提升至 0.8.16）：`dist-release/20260803-sealed-artifact-local-v0816.tar.gz`，185 个 manifest 内容文件、210 个 tar 条目、禁止项 0，sidecar SHA `b0f773d58a2b9ff716ac15f6f555f4445273f64b0d67fdbeffbcfd24f2f71196`。这只是本地构建证据，不代表已完成 Gray/Production 实际部署。
+当前本地封装 proof（候选版本 0.8.16）：`dist-release/20260803-sealed-production-artifact-v0816-r1.tar.gz`，185 个 manifest 内容文件、211 个 tar 条目、禁止项 0，sidecar SHA `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`。这只是可执行本地证据，不代表已完成 Gray/Production 实际部署。
