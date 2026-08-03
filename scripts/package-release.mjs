@@ -1,219 +1,176 @@
-import { copyFile, cp, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import {
+  copyFile,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { buildProductionRuntime } from "./build-production-runtime.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = resolve(rootDir, "dist-release");
-const releaseName = safeName(process.argv[2] || `xinghuan-canvas-release-${timestamp()}`);
-const archivePath = join(outDir, `${releaseName}.tar.gz`);
 
-const requiredPaths = [
+export const runtimeFiles = [
   "package.json",
   "package-lock.json",
-  "CONTEXT.md",
-  "docs/adr",
   "scripts/start-single-port.mjs",
   "scripts/db-migrate.mjs",
-  "scripts/prune-old-output-materials.mjs",
-  "scripts/migrate-generation-library-artifacts.mjs",
-  "scripts/reconcile-generation-artifacts.mjs",
-  "scripts/capture-release-preflight.mjs",
-  "scripts/verify-task-cancellation-phase-d.mjs",
-  "scripts/verify-admin-task-pagination.mjs",
-  "scripts/verify-task-lifecycle.mjs",
-  "scripts/verify-output-recovery-operation-contract.mjs",
-  "scripts/inspect-apimart-upstream-task.mjs",
-  "scripts/audit-apimart-failed-task-status.mjs",
-  "scripts/verify-old-server-release-target.mjs",
-  "scripts/verify-agent-environment-readiness.mjs",
-  "scripts/verify-agent-environment-readiness-contract.mjs",
-  "scripts/verify-canvas-generation-delivery-contract.mjs",
-  "scripts/release/target-profile.mjs",
-  "config/release-target-profiles.json",
-  "scripts/verify-request-chain-observability.mjs",
-  "scripts/verify-system-observability.mjs",
-  "scripts/verify-environment-sync-smoke.mjs",
-  "scripts/verify-worker-observability-contract.mjs",
-  "scripts/verify-provider-generation-task-service.mjs",
-  "scripts/verify-provider-generation-worker.mjs",
-  "scripts/verify-worker-output-materials.mjs",
-  "scripts/verify-canvas-resource-api.mjs",
-  "scripts/measure-canvas-performance.mjs",
-  "scripts/verify-canvas-performance-budget.mjs",
-  "scripts/verify-auth-current-user-repository-contract.mjs",
-  "scripts/verify-auth-login-precision-query-contract.mjs",
-  "scripts/verify-single-port.mjs",
-  "scripts/verify-api-aborted-response.mjs",
-  "scripts/configure-aicopy-sd-model-capabilities.mjs",
-  "scripts/verify-aicopy-sd-model-config.mjs",
-  "scripts/verify-worker-aicopy-final-content.mjs",
-  "scripts/configure-aifork-grok-fast-data-url-references.mjs",
-  "scripts/verify-aifork-grok-fast-data-url-references.mjs",
-  "scripts/permission-db-state.ts",
-  "scripts/reconcile-permissions.ts",
-  "scripts/migrate-default-open-permissions.ts",
-  "scripts/verify-permission-readiness.ts",
-  "scripts/verify-permission-member-catalog.mjs",
-  "scripts/verify-permission-platform-hardening-contract.mjs",
-  "apps/api/package.json",
-  "apps/api/dist/server.js",
   "apps/api/db",
-  "apps/api/src/server.ts",
-  "apps/api/src/provider-generation-task-service.ts",
-  "apps/worker/package.json",
-  "apps/worker/dist/worker.js",
-  "apps/worker/src/worker.ts",
-  "apps/worker/src/output-materials.ts",
-  "apps/web/package.json",
-  "apps/web/dist/index.html",
-  "apps/admin/package.json",
-  "apps/admin/dist/index.html",
-  "packages/shared/package.json",
-  "packages/shared/dist",
-  "packages/canvas-core/package.json",
-  "packages/canvas-core/dist",
-  "packages/model-core/package.json",
-  "packages/model-core/dist",
-  "packages/agent-core/package.json",
-  "packages/agent-core/dist",
-  "packages/ui/package.json",
-  "packages/ui/dist",
-];
-
-const includedPaths = [
-  "package.json",
-  "package-lock.json",
-  "CONTEXT.md",
-  "docs/adr",
-  "scripts/start-single-port.mjs",
-  "scripts/db-migrate.mjs",
-  "scripts/prune-old-output-materials.mjs",
-  "scripts/migrate-generation-library-artifacts.mjs",
-  "scripts/reconcile-generation-artifacts.mjs",
-  "scripts/capture-release-preflight.mjs",
-  "scripts/verify-task-cancellation-phase-d.mjs",
-  "scripts/verify-admin-task-pagination.mjs",
-  "scripts/verify-task-lifecycle.mjs",
-  "scripts/verify-output-recovery-operation-contract.mjs",
-  "scripts/inspect-apimart-upstream-task.mjs",
-  "scripts/audit-apimart-failed-task-status.mjs",
-  "scripts/verify-old-server-release-target.mjs",
-  "scripts/verify-agent-environment-readiness.mjs",
-  "scripts/verify-agent-environment-readiness-contract.mjs",
-  "scripts/verify-canvas-generation-delivery-contract.mjs",
-  "scripts/release/target-profile.mjs",
+  "apps/web/dist",
+  "apps/admin/dist",
+  "config/environments.json",
   "config/release-target-profiles.json",
-  "scripts/verify-request-chain-observability.mjs",
-  "scripts/verify-system-observability.mjs",
-  "scripts/verify-environment-sync-smoke.mjs",
-  "scripts/verify-worker-observability-contract.mjs",
-  "scripts/verify-provider-generation-task-service.mjs",
-  "scripts/verify-provider-generation-worker.mjs",
-  "scripts/verify-worker-output-materials.mjs",
-  "scripts/verify-canvas-resource-api.mjs",
-  "scripts/measure-canvas-performance.mjs",
-  "scripts/verify-canvas-performance-budget.mjs",
-  "scripts/verify-auth-current-user-repository-contract.mjs",
-  "scripts/verify-auth-login-precision-query-contract.mjs",
-  "scripts/verify-single-port.mjs",
-  "scripts/verify-api-aborted-response.mjs",
-  "scripts/configure-aicopy-sd-model-capabilities.mjs",
-  "scripts/verify-aicopy-sd-model-config.mjs",
-  "scripts/verify-worker-aicopy-final-content.mjs",
-  "scripts/configure-aifork-grok-fast-data-url-references.mjs",
-  "scripts/verify-aifork-grok-fast-data-url-references.mjs",
-  "scripts/permission-db-state.ts",
-  "scripts/reconcile-permissions.ts",
-  "scripts/migrate-default-open-permissions.ts",
-  "scripts/verify-permission-readiness.ts",
-  "scripts/verify-permission-member-catalog.mjs",
-  "scripts/verify-permission-platform-hardening-contract.mjs",
-  "config",
   "ops/systemd",
   "ops/nginx",
-  "docs/INDEX.md",
-  "docs/governance",
-  "apps/api/package.json",
-  "apps/api/dist",
-  "apps/api/db",
-  "apps/api/src",
-  "apps/worker/package.json",
-  "apps/worker/dist",
-  "apps/worker/src",
-  "apps/web/package.json",
-  "apps/web/dist",
+];
+
+export const workspaceManifests = [
   "apps/admin/package.json",
-  "apps/admin/dist",
-  "packages/shared/package.json",
-  "packages/shared/dist",
-  "packages/canvas-core/package.json",
-  "packages/canvas-core/dist",
-  "packages/model-core/package.json",
-  "packages/model-core/dist",
+  "apps/api/package.json",
+  "apps/comfyui-connector/package.json",
+  "apps/web/package.json",
+  "apps/worker/package.json",
   "packages/agent-core/package.json",
-  "packages/agent-core/dist",
+  "packages/canvas-core/package.json",
+  "packages/model-core/package.json",
+  "packages/shared/package.json",
   "packages/ui/package.json",
-  "packages/ui/dist",
-  "AGENTS.md",
-  "MEMORY.md",
-  "DEVLOG.md",
 ];
 
-const excludedLabels = [
-  ".git",
-  "node_modules",
-  "apps/api/data",
-  "output",
-  "logs",
-  "development/_archive",
-  "dist-release",
-  "local uploads and generated runtime files",
-  "runtime secrets and .env files",
+const allowedFiles = new Set([
+  ...runtimeFiles.filter((path) => !isDirectoryAllowlistEntry(path)),
+  ...workspaceManifests,
+  "BUILD-MANIFEST.json",
+]);
+const allowedPrefixes = [
+  "apps/api/db/",
+  "apps/api/dist/",
+  "apps/worker/dist/",
+  "apps/web/dist/",
+  "apps/admin/dist/",
+  "ops/systemd/",
+  "ops/nginx/",
 ];
 
-await assertRequiredPaths();
-await runNodeScript(["scripts/verify-release-version-alignment.mjs"]);
-await mkdir(outDir, { recursive: true });
+export const forbiddenArchivePatterns = [
+  /(^|\/)src\//i,
+  /(^|\/)docs\//i,
+  /(^|\/)\.git(\/|$)/i,
+  /(^|\/)node_modules\//i,
+  /^apps\/(?:api|worker)\/data\//i,
+  /(^|\/)(?:output|logs?|uploads?)(\/|$)/i,
+  /(^|\/)__tests__(\/|$)/i,
+  /(?:^|\/)\.env(?:\.|$)/i,
+  /(?:^|\/)(?:AGENTS|MEMORY|DEVLOG)\.md$/i,
+  /\.(?:ts|tsx|map)$/i,
+  /(?:^|\/)[^/]+\.(?:test|spec)\.[^/]+$/i,
+  /\.(?:pem|key|p12|pfx)$/i,
+  /(?:^|\/)(?:secrets?|credentials?)(?:\.[^/]*)?$/i,
+];
 
-const stagingDir = await mkdtemp(join(tmpdir(), "xinghuan-release-"));
-try {
-  for (const item of includedPaths) {
-    await copyRelative(item, stagingDir);
+export function validateArchiveEntries(entries) {
+  for (const originalEntry of entries) {
+    const entry = normalizeArchiveEntry(originalEntry);
+    if (
+      !entry ||
+      entry.startsWith("/") ||
+      /^[a-z]:\//i.test(entry) ||
+      entry.split("/").includes("..") ||
+      forbiddenArchivePatterns.some((pattern) => pattern.test(entry)) ||
+      (!allowedFiles.has(entry) && !allowedPrefixes.some((prefix) => entry.startsWith(prefix)))
+    ) {
+      throw new Error(`RELEASE_ARCHIVE_FORBIDDEN_ENTRY:${String(originalEntry)}`);
+    }
   }
-  await writeManifest(stagingDir);
-  await rm(archivePath, { force: true });
+  return true;
+}
+
+export async function packageRelease({
+  releaseName = `xinghuan-canvas-release-${timestamp()}`,
+  projectRoot = rootDir,
+} = {}) {
+  const safeReleaseName = safeName(releaseName);
+  const outDir = resolve(projectRoot, "dist-release");
+  const archivePath = join(outDir, `${safeReleaseName}.tar.gz`);
+  const sidecarPath = `${archivePath}.sha256`;
+
+  await assertRequiredPaths(projectRoot);
+  await runNodeScript(projectRoot, ["scripts/verify-release-version-alignment.mjs"]);
+  await mkdir(outDir, { recursive: true });
+
+  const stagingDir = await mkdtemp(join(tmpdir(), "xinghuan-sealed-release-"));
+  for (const item of [...runtimeFiles, ...workspaceManifests]) {
+    await copyRelative(projectRoot, item, stagingDir);
+  }
+
+  await buildProductionRuntime({ outDir: stagingDir });
+
+  const entries = await buildContentEntries(stagingDir);
+  validateArchiveEntries(entries.map((entry) => entry.path));
+  const rootPackage = JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"));
+  const sourceCommit = await readCommandOutput(projectRoot, "git", ["rev-parse", "HEAD"]);
+  const canonicalEntries = JSON.stringify(entries);
+  const manifest = {
+    schemaVersion: 1,
+    version: String(rootPackage.version),
+    sourceCommit: sourceCommit.trim(),
+    builtAt: new Date().toISOString(),
+    artifactType: "production-runtime",
+    sourceMaps: false,
+    entries,
+    contentManifestSha256: sha256(canonicalEntries),
+  };
+  await writeFile(
+    join(stagingDir, "BUILD-MANIFEST.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+
+  validateArchiveEntries([
+    ...entries.map((entry) => entry.path),
+    "BUILD-MANIFEST.json",
+  ]);
   await runTar(stagingDir, archivePath);
-  await runNodeScript(["scripts/verify-release-version-alignment.mjs", `--archive=${archivePath}`]);
+  const archiveDigest = sha256(await readFile(archivePath));
+  await writeFile(sidecarPath, `${archiveDigest}  ${safeReleaseName}.tar.gz\n`, "utf8");
   const archive = await stat(archivePath);
-  console.log(JSON.stringify({
+
+  const result = {
     ok: true,
     archive: archivePath,
+    sidecar: sidecarPath,
+    sha256: archiveDigest,
     sizeBytes: archive.size,
     sizeMB: Number((archive.size / 1024 / 1024).toFixed(2)),
     stagingDir,
-    included: includedPaths,
-    excluded: excludedLabels,
-  }, null, 2));
-} finally {
+    entries: entries.length + 1,
+  };
+  console.log(JSON.stringify(result, null, 2));
   console.log(`Release staging kept for manual cleanup: ${stagingDir}`);
+  return result;
 }
 
-async function assertRequiredPaths() {
-  const missing = requiredPaths.filter((item) => !existsSync(join(rootDir, item)));
+async function assertRequiredPaths(projectRoot) {
+  const missing = [...runtimeFiles, ...workspaceManifests].filter(
+    (item) => !existsSync(join(projectRoot, item)),
+  );
   if (missing.length > 0) {
-    console.error("RELEASE_PACKAGE_MISSING_BUILD_OUTPUTS");
-    for (const item of missing) console.error(`- ${item}`);
-    console.error("Run npm run build:single-port before packaging.");
-    process.exit(1);
+    throw new Error(
+      `RELEASE_PACKAGE_MISSING_BUILD_OUTPUTS:${missing.join(",")}\nRun npm run build:single-port before packaging.`,
+    );
   }
 }
 
-async function copyRelative(item, stagingDir) {
-  const source = join(rootDir, item);
-  if (!existsSync(source)) return;
+async function copyRelative(projectRoot, item, stagingDir) {
+  const source = join(projectRoot, item);
   const target = join(stagingDir, item);
   await mkdir(dirname(target), { recursive: true });
   const sourceStat = await stat(source);
@@ -224,51 +181,86 @@ async function copyRelative(item, stagingDir) {
   }
 }
 
-async function writeManifest(stagingDir) {
-  const lines = [
-    "# Xinghuan Canvas Release Package",
-    "",
-    "This archive is intentionally runtime-only.",
-    "",
-    "Included:",
-    ...includedPaths.map((item) => `- ${item}`),
-    "",
-    "Excluded:",
-    ...excludedLabels.map((item) => `- ${item}`),
-    "",
-    "Server runtime data must stay in the shared directory on the VPS.",
-  ];
-  await writeFile(join(stagingDir, "RELEASE_PACKAGE.md"), `${lines.join("\n")}\n`, "utf-8");
+async function buildContentEntries(stagingDir) {
+  const files = await listRegularFiles(stagingDir);
+  const entries = await Promise.all(
+    files.map(async (absolutePath) => {
+      const contents = await readFile(absolutePath);
+      return {
+        path: normalizeArchiveEntry(relative(stagingDir, absolutePath)),
+        sizeBytes: contents.byteLength,
+        sha256: sha256(contents),
+      };
+    }),
+  );
+  return entries.sort((left, right) => left.path.localeCompare(right.path, "en"));
 }
 
-async function runTar(cwd, target) {
-  await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn("tar", ["-czf", target, "-C", cwd, "."], {
+async function listRegularFiles(directory) {
+  const result = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const absolutePath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...(await listRegularFiles(absolutePath)));
+    } else if (entry.isFile()) {
+      result.push(absolutePath);
+    }
+  }
+  return result;
+}
+
+async function runTar(stagingDir, archivePath) {
+  await runCommand(stagingDir, "tar", ["-czf", archivePath, "-C", stagingDir, "."], true);
+}
+
+async function runNodeScript(projectRoot, args) {
+  await runCommand(projectRoot, process.execPath, args, true);
+}
+
+async function readCommandOutput(cwd, command, args) {
+  return await runCommand(cwd, command, args, false);
+}
+
+async function runCommand(cwd, command, args, inheritOutput) {
+  return await new Promise((resolvePromise, rejectPromise) => {
+    let stdout = "";
+    let stderr = "";
+    const child = spawn(command, args, {
       cwd,
-      stdio: "inherit",
+      stdio: inheritOutput ? "inherit" : ["ignore", "pipe", "pipe"],
       shell: false,
     });
-    child.on("exit", (code) => {
-      if (code === 0) resolvePromise();
-      else rejectPromise(new Error(`tar exited with code ${code}`));
-    });
+    if (!inheritOutput) {
+      child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
+      child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    }
     child.on("error", rejectPromise);
+    child.on("exit", (code) => {
+      if (code === 0) resolvePromise(stdout);
+      else rejectPromise(new Error(`${command} ${args.join(" ")} exited with code ${code}: ${stderr.trim()}`));
+    });
   });
 }
 
-async function runNodeScript(args) {
-  await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(process.execPath, args, {
-      cwd: rootDir,
-      stdio: "inherit",
-      shell: false,
-    });
-    child.on("exit", (code) => {
-      if (code === 0) resolvePromise();
-      else rejectPromise(new Error(`${args.join(" ")} exited with code ${code}`));
-    });
-    child.on("error", rejectPromise);
-  });
+function normalizeArchiveEntry(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+$/, "");
+}
+
+function isDirectoryAllowlistEntry(value) {
+  return [
+    "apps/api/db",
+    "apps/web/dist",
+    "apps/admin/dist",
+    "ops/systemd",
+    "ops/nginx",
+  ].includes(value);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function safeName(value) {
@@ -282,13 +274,10 @@ function safeName(value) {
 function timestamp() {
   const now = new Date();
   const pad = (value) => String(value).padStart(2, "0");
-  return [
-    now.getFullYear(),
-    pad(now.getMonth() + 1),
-    pad(now.getDate()),
-    "-",
-    pad(now.getHours()),
-    pad(now.getMinutes()),
-    pad(now.getSeconds()),
-  ].join("");
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  await packageRelease({ releaseName: process.argv[2] });
 }
