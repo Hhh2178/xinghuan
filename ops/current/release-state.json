@@ -1,30 +1,30 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-30",
-  "sourceBranch": "release/admin-governance-content-d-v0813",
-  "sourceCommit": "14147ec9cdd3a77e33e19ee4b1b5f1296840be24",
+  "updatedAt": "2026-08-03",
+  "sourceBranch": "feature/canvas-agent-runtime",
+  "sourceCommit": "da2a8a12f2fdc6d7bdf53fc6332de709ad2e8092",
   "environments": {
     "gray": {
-      "version": "0.8.14",
-      "releaseId": "20260730-admin-rail-single-owner-footer-v0814-r1",
-      "deployedAt": "2026-07-30",
+      "version": "0.8.15",
+      "releaseId": "20260803-assistant-runtime-v0815-r1",
+      "deployedAt": "2026-08-03",
       "permissionMode": "enforced",
       "readiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 132, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 4, "rules": 932, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-07-30", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md",
-      "rollbackReleaseId": "20260730-admin-agent-isolation-rails-v0813-r1"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-08-03-assistant-runtime-v0815-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-03-assistant-runtime-gray-v0815-r1.md",
+      "rollbackReleaseId": "20260730-admin-rail-single-owner-footer-v0814-r1"
     },
     "production": {
-      "version": "0.8.14",
-      "releaseId": "20260730-admin-rail-single-owner-footer-v0814-r1",
-      "deployedAt": "2026-07-30",
+      "version": "0.8.15",
+      "releaseId": "20260803-assistant-runtime-v0815-r1",
+      "deployedAt": "2026-08-03",
       "permissionMode": "enforced",
       "readiness": { "subjects": 156, "publishedSubjects": 120, "restrictedSubjects": 26, "retiredSubjects": 10, "rules": 2810, "principals": 11, "failures": 0, "source": "deployment-validation" },
       "runtimeReadiness": { "subjects": 156, "publishedSubjects": 120, "restrictedSubjects": 26, "retiredSubjects": 10, "rules": 2810, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-07-30", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md",
-      "rollbackReleaseId": "20260728-plato-output-recovery-v083-r22"
+      "releaseRecord": "docs/logbooks/releases/production/2026-08-03-assistant-runtime-production-v0815-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-03-assistant-runtime-production-v0815-r1.md",
+      "rollbackReleaseId": "20260730-admin-rail-single-owner-footer-v0814-r1"
     }
   }
 }

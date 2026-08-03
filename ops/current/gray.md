@@ -3,19 +3,19 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.14`
-- 当前 release：`20260730-admin-rail-single-owner-footer-v0814-r1`
-- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过；Provider、RunningHub 的共享栏修复待用户做登录态视觉复核`
+- 当前版本：`v0.8.15`
+- 当前 release：`20260803-assistant-runtime-v0815-r1`
+- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态均已通过，当前环境为 gray，权限模式 enforced`
 - 当前补修：`Provider 与 RunningHub 由共享配置栏唯一吸顶，内部列表保持独立滚动；新建页脚渐变色块已移除；Agent 管理仅暴露当前服务环境`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
-- Production 当前 release：`20260730-admin-rail-single-owner-footer-v0814-r1`
-- 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
-- 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
+- Production 当前 release：`20260803-assistant-runtime-v0815-r1`
+- 本轮制品源提交：`da2a8a12f2fdc6d7bdf53fc6332de709ad2e8092`
+- 本轮制品 SHA-256：`B6DDBD51B91EDDFE1E54FEE8383520DA561B1F1FA87F0DBF1F311E0063F6A221`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮仅做既有页面视觉收敛，未推进 ComfyUI 功能`
 - 当前本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，需按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍为 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-03-assistant-runtime-v0815-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`

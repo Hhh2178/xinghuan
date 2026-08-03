@@ -3,16 +3,16 @@
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.14`
-- 当前 release：`20260730-admin-rail-single-owner-footer-v0814-r1`
-- 当前状态：`用户授权后，已由 Gray 同一验证归档晋级；API/Worker、内部/公网状态与权限 readiness 均已通过`
+- 当前版本：`v0.8.15`
+- 当前 release：`20260803-assistant-runtime-v0815-r1`
+- 当前状态：`已由 Gray 同一验证归档晋级；API/Worker、内部/公网状态均已通过，当前环境为 production，权限模式 enforced`
 - 当前补修：`Provider 与 RunningHub 共享配置栏单一吸顶，内部列表独立滚动；新建页脚色块已移除；Agent 管理按当前环境隔离`
 - Agent 运行态：`运行环境静态 readiness 门禁已保留；本批次未重复执行付费 Agent canary，亦未启用生产 AI 运行开关`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`
 - 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 当前发布记录：`../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
-- 当前验证记录：`../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+- 当前发布记录：`../../docs/logbooks/releases/production/2026-08-03-assistant-runtime-production-v0815-r1.md`
+- 当前验证记录：`../../docs/logbooks/validations/2026-08-03-assistant-runtime-production-v0815-r1.md`
 - 回退锚点：`20260728-plato-output-recovery-v083-r22`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`

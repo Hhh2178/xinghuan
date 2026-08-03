@@ -4,15 +4,15 @@
 
 ### Production
 
-- 版本：`v0.8.14`
-- release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+- 版本：`v0.8.15`
+- release：`20260803-assistant-runtime-v0815-r1`
 - 当前状态：`Gray 已验证的同一归档已正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
 - 部署内容：`Provider/RunningHub 共用配置栏单一吸顶、内部列表独立滚动和新建页脚色块移除；Agent 管理维持当前环境隔离`
 - Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
 - 回滚：`20260728-plato-output-recovery-v083-r22`
 - 当前批次记录：
-  - `production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
-  - `../validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
+  - `production/2026-08-03-assistant-runtime-production-v0815-r1.md`
+  - `../validations/2026-08-03-assistant-runtime-production-v0815-r1.md`
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`（回滚锚点）
   - `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前批次记录：
@@ -24,8 +24,8 @@
 
 ### Gray
 
-- 版本：`v0.8.14`
-- release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+- 版本：`v0.8.15`
+- release：`20260803-assistant-runtime-v0815-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
 - 部署内容：`Provider/RunningHub 由共享配置栏唯一吸顶，内部列表独立滚动，两个新建页脚色块已移除；Agent 管理继续按服务环境隔离。`
 - 已验证：`全量测试 232 文件通过、1 文件跳过、890 项通过、4 项跳过；完整发布构建、API/Worker、内外状态与权限 readiness 均通过。登录态视觉验收交由用户进行。`
@@ -33,8 +33,8 @@
 - 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
 - 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
 - 本轮发布记录：
-  - `gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
-  - `../validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`
+  - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
+  - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
   - `../validations/2026-07-29-admin-realtime-data-c-v0811-r1.md`
   - `gray/2026-07-29-admin-configuration-b-v0810-r1.md`（当前回滚锚点）

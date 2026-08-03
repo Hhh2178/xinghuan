@@ -28,8 +28,8 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.14`
-  - release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+  - 版本：`v0.8.15`
+  - release：`20260803-assistant-runtime-v0815-r1`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 与公网状态通过，Provider/RunningHub 登录态视觉复核交由用户进行`
   - 当前补修：`Provider/RunningHub 共享配置栏唯一吸顶，内部列表独立滚动，新建页脚色块已移除；Agent 管理按当前服务环境隔离`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
@@ -41,8 +41,8 @@
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.8.14`
-  - release：`20260730-admin-rail-single-owner-footer-v0814-r1`
+  - 版本：`v0.8.15`
+  - release：`20260803-assistant-runtime-v0815-r1`
   - 状态：`用户授权后，Gray 同一验证归档已晋级；API/Worker、权限 readiness 与公网状态全部通过`
   - 当前补修：`Provider/RunningHub 共享配置栏唯一吸顶，内部列表独立滚动，新建页脚色块已移除；Agent 管理按当前服务环境隔离`
   - Agent：`沿用已验收状态；本次未在 Production 重复执行付费 canary，也未启用生产 AI 运行开关`
