@@ -12,9 +12,11 @@ type AdminMutate = (
 
 export function AdminUserSessionsSection({
   sessions,
+  viewerIsRoot,
   mutate,
 }: {
   sessions: AdminSessionRecord[];
+  viewerIsRoot: boolean;
   mutate: AdminMutate;
 }) {
   const activeSessionCount = sessions.filter((session) => !session.revokedAt).length;
@@ -126,7 +128,7 @@ export function AdminUserSessionsSection({
                   <span>{session.userName}</span>
                 </div>
               </td>
-              <td>{session.userRole === "admin" ? "管理员" : "成员"}</td>
+              <td>{session.userRole === "admin" ? (session.administratorTier === "operator" ? "次级管理员" : "最高级管理员") : "成员"}</td>
               <td>{new Date(session.createdAt).toLocaleString()}</td>
               <td>{new Date(session.lastSeenAt).toLocaleString()}</td>
               <td>{new Date(session.expiresAt).toLocaleString()}</td>
@@ -140,7 +142,7 @@ export function AdminUserSessionsSection({
               <td>
                 <button
                   type="button"
-                  disabled={session.current || Boolean(session.revokedAt)}
+                  disabled={session.current || Boolean(session.revokedAt) || (session.userRole === "admin" && !viewerIsRoot)}
                   onClick={() => mutate(`/api/admin/sessions/${session.id}/revoke`, {}, "POST")}
                 >
                   {session.revokedAt ? "已撤销" : session.current ? "当前会话" : "强制下线"}

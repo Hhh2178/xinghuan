@@ -297,7 +297,7 @@ export function UsersPanel({
         </Suspense>
       ) : null}
 
-      {currentView === "sessions" ? <AdminUserSessionsSection sessions={sessions} mutate={mutate} /> : null}
+      {currentView === "sessions" ? <AdminUserSessionsSection sessions={sessions} viewerIsRoot={users.some((user) => user.role === "admin" && user.administratorTier === "root")} mutate={mutate} /> : null}
     </AdminGovernanceWorkbench>
   );
 }

@@ -20,7 +20,8 @@ export function AdminUserAccountsSection({
   userGroups: AdminUserGroup[];
   mutate: AdminMutate;
 }) {
-  const [form, setForm] = useState({ email: "", name: "", role: "member", password: "", groupId: "", remark: "" });
+  const [form, setForm] = useState({ email: "", name: "", role: "member", administratorTier: "operator", password: "", groupId: "", remark: "" });
+  const viewerIsRoot = users.some((user) => user.role === "admin" && user.administratorTier === "root");
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
@@ -66,7 +67,10 @@ export function AdminUserAccountsSection({
             autoComplete="off"
             onSubmit={(event) => {
               event.preventDefault();
-              mutate("/api/admin/users", form);
+              mutate("/api/admin/users", {
+                ...form,
+                administratorTier: form.role === "admin" ? form.administratorTier : undefined,
+              });
             }}
           >
             <label className="users-create-stack-card__field">
@@ -93,9 +97,16 @@ export function AdminUserAccountsSection({
               <span>角色</span>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 <option value="member">成员</option>
-                <option value="admin">管理员</option>
+                <option value="admin" disabled={!viewerIsRoot}>管理员（{viewerIsRoot ? "可管理" : "仅根管理员"}）</option>
               </select>
             </label>
+            {form.role === "admin" ? <label className="users-create-stack-card__field">
+              <span>管理员等级</span>
+              <select value={form.administratorTier} onChange={(e) => setForm({ ...form, administratorTier: e.target.value })} disabled={!viewerIsRoot}>
+                <option value="operator">次级管理员</option>
+                <option value="root">最高级管理员</option>
+              </select>
+            </label> : null}
             <label className="users-create-stack-card__field">
               <span>所属分组</span>
               <select value={form.groupId} onChange={(e) => setForm({ ...form, groupId: e.target.value })}>
@@ -259,7 +270,7 @@ export function AdminUserAccountsSection({
                         </div>
                         <div className="users-account-record__chips">
                           <StatusPill tone={user.role === "admin" ? "warning" : "muted"}>
-                            {user.role === "admin" ? "管理员" : "成员"}
+                            {user.role === "admin" ? (user.administratorTier === "operator" ? "次级管理员" : "最高级管理员") : "成员"}
                           </StatusPill>
                           <StatusPill tone={user.disabled ? "danger" : "success"}>
                             {user.disabled ? "禁用" : "启用"}
@@ -268,6 +279,17 @@ export function AdminUserAccountsSection({
                       </div>
 
                       <div className="users-account-record__grid">
+                        {user.role === "admin" && viewerIsRoot ? <label className="users-account-record__field">
+                          <span>管理员等级</span>
+                          <select
+                            className="table-select"
+                            value={user.administratorTier || "root"}
+                            onChange={(event) => mutate(`/api/admin/users/${user.id}`, { administratorTier: event.target.value }, "PATCH")}
+                          >
+                            <option value="operator">次级管理员</option>
+                            <option value="root">最高级管理员</option>
+                          </select>
+                        </label> : null}
                         <label className="users-account-record__field">
                           <span>所属组</span>
                           <select
@@ -340,6 +362,7 @@ export function AdminUserAccountsSection({
                       <div className="user-row-actions">
                         <button
                           type="button"
+                          disabled={user.role === "admin" && !viewerIsRoot}
                           onClick={() => mutate(`/api/admin/users/${user.id}`, { disabled: !user.disabled }, "PATCH")}
                         >
                           {user.disabled ? "启用账号" : "禁用账号"}
@@ -347,6 +370,7 @@ export function AdminUserAccountsSection({
                         <button
                           type="button"
                           className="danger-button"
+                          disabled={user.role === "admin" && !viewerIsRoot}
                           onClick={() => mutate(`/api/admin/users/${user.id}`, {}, "DELETE")}
                         >
                           删除账号

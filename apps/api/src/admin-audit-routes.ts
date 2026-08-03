@@ -1,6 +1,7 @@
 import type { AdminUsageSummary } from "./admin-usage-analytics.js";
 import type { UsageCapability } from "./admin-usage-analytics.js";
 import type { RhCatalogItem } from "@xinghuan/shared";
+import { projectAuditForAdministrator } from "./admin-user-visibility.js";
 
 type SendT8 = (
   response: import("node:http").ServerResponse,
@@ -132,7 +133,14 @@ export function createAdminAuditRouteHandler(deps: {
 
     if (url.pathname === "/api/admin/audit" && request.method === "GET") {
       const auditLogs = readAuditRecords ? await readAuditRecords(200) : (await readAdminDb()).auditLogs || [];
-      sendT8(response, auditLogs.slice(0, 200));
+      const authDb = await readAuthDb();
+      const rootUserIds = authDb.users
+        .filter((user) => user.role === "admin" && user.administratorTier !== "operator")
+        .map((user) => user.id);
+      sendT8(response, auditLogs
+        .map((audit) => projectAuditForAdministrator(actor, audit, rootUserIds))
+        .filter(Boolean)
+        .slice(0, 200));
       return true;
     }
 

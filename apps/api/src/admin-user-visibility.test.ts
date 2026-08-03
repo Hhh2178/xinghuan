@@ -4,8 +4,10 @@ import {
   LAST_ROOT_REQUIRED,
   USER_NOT_FOUND,
   assertAdministratorAccountMutation,
+  assertAdministratorAccountCreation,
   canViewAdministratorIdentity,
   projectAuditForAdministrator,
+  visibleSessionsForAdministrator,
   visibleUsersForAdministrator,
 } from "./admin-user-visibility.js";
 
@@ -33,5 +35,24 @@ describe("administrator visibility policy", () => {
   it("redacts root business audit actors", () => {
     expect(projectAuditForAdministrator(operator, { actorId: root.id, actorEmail: "root@example.test", action: "canvas.update" }, [root.id])).toMatchObject({ actorId: "", actorEmail: "系统操作" });
     expect(projectAuditForAdministrator(operator, { actorId: root.id, actorEmail: "root@example.test", action: "auth.admin_me" }, [root.id])).toBeNull();
+  });
+
+  it("hides root sessions from operators", () => {
+    const sessions = [
+      { id: "s-root", userId: root.id, userRole: "admin" as const, administratorTier: "root" },
+      { id: "s-operator", userId: operator.id, userRole: "admin" as const, administratorTier: "operator" },
+      { id: "s-member", userId: member.id, userRole: "member" as const },
+    ];
+    expect(visibleSessionsForAdministrator(operator, sessions, new Map<string, typeof root | typeof operator | typeof member>([
+      [root.id, root],
+      [operator.id, operator],
+      [member.id, member],
+    ])).map((session) => session.id)).toEqual(["s-operator", "s-member"]);
+  });
+
+  it("allows only root to create administrator accounts", () => {
+    expect(() => assertAdministratorAccountCreation({ viewer: operator, role: "admin" })).toThrow(ADMINISTRATOR_MANAGEMENT_REQUIRES_ROOT);
+    expect(() => assertAdministratorAccountCreation({ viewer: operator, role: "member" })).not.toThrow();
+    expect(() => assertAdministratorAccountCreation({ viewer: root, role: "admin" })).not.toThrow();
   });
 });

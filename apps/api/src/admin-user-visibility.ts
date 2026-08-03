@@ -12,6 +12,13 @@ export type AdministratorIdentity = {
 
 export type AdministratorMutationAction = "update" | "disable" | "delete" | "demote";
 
+export interface AdministratorSessionIdentity {
+  id: string;
+  userId: string;
+  userRole: "admin" | "member";
+  administratorTier?: string;
+}
+
 export function canViewAdministratorIdentity(viewer: AdministratorIdentity, target: AdministratorIdentity) {
   if (isRootAdministrator(viewer)) return true;
   if (isOperatorAdministrator(viewer) && isRootAdministrator(target)) return false;
@@ -20,6 +27,30 @@ export function canViewAdministratorIdentity(viewer: AdministratorIdentity, targ
 
 export function visibleUsersForAdministrator<T extends AdministratorIdentity>(viewer: AdministratorIdentity, users: T[]) {
   return users.filter((user) => canViewAdministratorIdentity(viewer, user));
+}
+
+export function visibleSessionsForAdministrator<T extends AdministratorSessionIdentity>(
+  viewer: AdministratorIdentity,
+  sessions: T[],
+  usersById: Map<string, AdministratorIdentity>,
+) {
+  return sessions.filter((session) => {
+    const target = usersById.get(session.userId) || {
+      id: session.userId,
+      role: session.userRole,
+      administratorTier: session.administratorTier,
+    };
+    return canViewAdministratorIdentity(viewer, target);
+  });
+}
+
+export function assertAdministratorAccountCreation(input: {
+  viewer: AdministratorIdentity;
+  role: "admin" | "member";
+}) {
+  if (input.role === "admin" && !isRootAdministrator(input.viewer)) {
+    throw new Error(ADMINISTRATOR_MANAGEMENT_REQUIRES_ROOT);
+  }
 }
 
 export function assertAdministratorAccountMutation(input: {

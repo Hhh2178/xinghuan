@@ -82,6 +82,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  administratorTier?: "root" | "operator";
 }
 
 export interface ResourceCategory {
@@ -275,6 +276,7 @@ export interface AdminSessionRecord {
   userEmail: string;
   userName: string;
   userRole: UserRole;
+  administratorTier?: "root" | "operator";
   createdAt: number;
   lastSeenAt: number;
   expiresAt: number;

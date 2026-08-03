@@ -18,6 +18,7 @@ export interface EnvironmentSyncUserRecord {
   email: string;
   name: string;
   role: "admin" | "member";
+  administratorTier?: "root" | "operator";
   disabled: boolean;
   passwordHash: string;
   passwordCipher?: string;

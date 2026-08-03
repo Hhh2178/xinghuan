@@ -114,6 +114,16 @@ import {
 import { createAuthCurrentUserRepository } from "./auth-repository.js";
 import { createAuthDirectoryWriteRepository } from "./auth-directory-write-repository.js";
 import {
+  ADMINISTRATOR_MANAGEMENT_REQUIRES_ROOT,
+  LAST_ROOT_REQUIRED,
+  USER_NOT_FOUND,
+  assertAdministratorAccountCreation,
+  assertAdministratorAccountMutation,
+  projectAuditForAdministrator,
+  visibleSessionsForAdministrator,
+  visibleUsersForAdministrator,
+} from "./admin-user-visibility.js";
+import {
   applyTaskCancellation,
   assertTaskCancellable,
   createRetriedTask,
@@ -473,6 +483,14 @@ async function assertAgentRuntimeCapability(capability: "agentEnabled" | "canvas
   const targetEnvironment = environment === "production" ? "production" : "gray";
   const controls = await agentGovernanceRepository.readRuntimeControl(targetEnvironment);
   if (!controls[capability]) throw new HttpError(503, `AGENT_RUNTIME_CAPABILITY_DISABLED:${targetEnvironment}:${capability}`);
+}
+
+function throwAdministratorPolicyError(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message === USER_NOT_FOUND) throw new HttpError(404, USER_NOT_FOUND);
+  if (message === ADMINISTRATOR_MANAGEMENT_REQUIRES_ROOT) throw new HttpError(403, ADMINISTRATOR_MANAGEMENT_REQUIRES_ROOT);
+  if (message === LAST_ROOT_REQUIRED) throw new HttpError(409, LAST_ROOT_REQUIRED);
+  throw error;
 }
 const agentApprovalRepository = createAgentApprovalRepository({ getPostgresPool });
 const artifactQualityRepository = createArtifactQualityRepository({ getPostgresPool });
@@ -964,6 +982,7 @@ interface AdminSessionRecord {
   userEmail: string;
   userName: string;
   userRole: "admin" | "member";
+  administratorTier?: AdministratorTier;
   createdAt: number;
   lastSeenAt: number;
   expiresAt: number;
@@ -2788,11 +2807,17 @@ async function handleAdminRequest(
     const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
     if (request.method === "GET") {
       await appendAudit(adminUser, "users.read", "user", "users-list", "查看用户列表", requestContext);
-      sendT8(response, authDb.users.map((user) => toAdminUser(user, groupsById)));
+      sendT8(response, visibleUsersForAdministrator(adminUser, authDb.users).map((user) => toAdminUser(user, groupsById)));
       return true;
     }
     if (request.method === "POST") {
-      const body = await readJsonBody<{ email?: string; name?: string; role?: string; password?: string; groupId?: string; remark?: string }>(request);
+      const body = await readJsonBody<{ email?: string; name?: string; role?: string; administratorTier?: string; password?: string; groupId?: string; remark?: string }>(request);
+      const nextRole = body.role === "admin" ? "admin" : "member";
+      try {
+        assertAdministratorAccountCreation({ viewer: adminUser, role: nextRole });
+      } catch (error) {
+        throwAdministratorPolicyError(error);
+      }
       const email = safeEmail(body.email);
       if (!email) throw new Error("缺少邮箱");
       if (authDb.users.some((user) => user.email.toLowerCase() === email)) throw new Error("邮箱已存在");
@@ -2804,7 +2829,8 @@ async function handleAdminRequest(
         id: `usr-${now}-${Math.random().toString(36).slice(2, 8)}`,
         email,
         name: safeText(body.name, email.split("@")[0]),
-        role: body.role === "admin" ? "admin" : "member",
+        role: nextRole,
+        administratorTier: normalizeAdministratorTier(nextRole, body.administratorTier),
         passwordHash: hashPassword(rawPassword),
         passwordCipher: encryptSecret(rawPassword),
         groupId,
@@ -2825,7 +2851,7 @@ async function handleAdminRequest(
 
   if (url.pathname === "/api/admin/sessions" && request.method === "GET") {
     const currentSessionId = readCookie(request, SESSION_COOKIE_NAME);
-    const sessions = await readAdminSessions(currentSessionId);
+    const sessions = await readAdminSessions(currentSessionId, adminUser);
     await appendAudit(adminUser, "sessions.read", "session", "sessions-list", "查看会话列表", requestContext);
     sendT8(response, sessions);
     return true;
@@ -2834,7 +2860,7 @@ async function handleAdminRequest(
   const sessionRevokeMatch = url.pathname.match(/^\/api\/admin\/sessions\/([^/]+)\/revoke$/);
   if (sessionRevokeMatch && request.method === "POST") {
     const sessionId = decodeURIComponent(sessionRevokeMatch[1]);
-    const sessions = await readAdminSessions(readCookie(request, SESSION_COOKIE_NAME));
+    const sessions = await readAdminSessions(readCookie(request, SESSION_COOKIE_NAME), adminUser);
     const target = sessions.find((item) => item.id === sessionId);
     if (!target) throw new Error("会话不存在");
     const revokedAt = Date.now();
@@ -2859,6 +2885,7 @@ async function handleAdminRequest(
       email?: string;
       name?: string;
       role?: string;
+      administratorTier?: string;
       disabled?: boolean;
       password?: string;
       groupId?: string;
@@ -2866,6 +2893,21 @@ async function handleAdminRequest(
     }>(request);
     const authDb = await readAuthDb();
     const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
+    const targetUser = authDb.users.find((user) => user.id === id);
+    if (!targetUser) throw new HttpError(404, USER_NOT_FOUND);
+    const nextRole = body.role === "admin" ? "admin" : body.role === "member" ? "member" : targetUser.role;
+    const action = body.disabled === true && !targetUser.disabled ? "disable" : body.role === "member" && targetUser.role === "admin" ? "demote" : "update";
+    try {
+      assertAdministratorAccountMutation({
+        viewer: adminUser,
+        target: targetUser,
+        action,
+        enabledRootCount: authDb.users.filter((user) => user.role === "admin" && user.administratorTier !== "operator" && !user.disabled).length,
+      });
+      if (nextRole === "admin") assertAdministratorAccountCreation({ viewer: adminUser, role: "admin" });
+    } catch (error) {
+      throwAdministratorPolicyError(error);
+    }
     let updatedUser: UserRecord | undefined;
     const users = authDb.users.map((user) => {
       if (user.id !== id) return user;
@@ -2877,7 +2919,8 @@ async function handleAdminRequest(
         ...user,
         email: nextEmail,
         name: body.name === undefined ? user.name : safeText(body.name, user.name),
-        role: body.role === "admin" ? "admin" : body.role === "member" ? "member" : user.role,
+        role: nextRole,
+        administratorTier: normalizeAdministratorTier(nextRole, body.administratorTier === undefined ? user.administratorTier : body.administratorTier),
         groupId: nextGroupId,
         remark: body.remark === undefined ? safeText(user.remark) : safeText(body.remark),
         disabled: body.disabled === undefined ? user.disabled : Boolean(body.disabled),
@@ -2912,17 +2955,25 @@ async function handleAdminRequest(
 
   if (userMatch && request.method === "DELETE") {
     const id = decodeURIComponent(userMatch[1]);
+    const authDb = await readAuthDb();
+    const targetUser = authDb.users.find((user) => user.id === id);
+    if (!targetUser) throw new HttpError(404, USER_NOT_FOUND);
+    try {
+      assertAdministratorAccountMutation({
+        viewer: adminUser,
+        target: targetUser,
+        action: "delete",
+        enabledRootCount: authDb.users.filter((user) => user.role === "admin" && user.administratorTier !== "operator" && !user.disabled).length,
+      });
+    } catch (error) {
+      throwAdministratorPolicyError(error);
+    }
     if (id === adminUser.id) throw new Error("不能删除当前登录中的管理员用户");
     if (usePostgresRepository()) {
       const deletedUser = await deleteAuthUserPostgres(id);
       await appendAudit(adminUser, "user.delete", "user", id, `删除用户 ${deletedUser.email}`, requestContext);
     } else {
-      const authDb = await readAuthDb();
-      const user = authDb.users.find((item) => item.id === id);
-      if (!user) throw new Error("用户不存在");
-      if (user.role === "admin" && !authDb.users.some((item) => item.id !== id && item.role === "admin")) {
-        throw new Error("不能删除最后一个管理员");
-      }
+      const user = targetUser;
       await writeAuthDb({
         ...authDb,
         users: authDb.users.filter((item) => item.id !== id),
@@ -3421,11 +3472,14 @@ async function readEnvironmentSyncLocalSnapshot(targetEnvironment: EnvironmentSy
   const providerNameById = new Map(adminDb.providers.map((provider) => [provider.id, provider.name]));
   return {
     environment: targetEnvironment,
-    users: authDb.users.map((user) => ({
+    users: authDb.users
+      .filter((user) => !(user.role === "admin" && normalizeAdministratorTier(user.role, user.administratorTier) === "root"))
+      .map((user) => ({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
       disabled: Boolean(user.disabled),
       passwordHash: user.passwordHash,
       passwordCipher: user.passwordCipher,
@@ -3485,6 +3539,16 @@ async function applyEnvironmentSyncLocalSnapshot(request: EnvironmentSyncWriteRe
         decision: "use_source",
         status: "failed",
         message: "用户数据无效",
+      });
+      continue;
+    }
+    if (user.administratorTier === "root") {
+      results.push({
+        id: user.id,
+        kind: "user",
+        decision: "use_source",
+        status: "failed",
+        message: "ROOT_IDENTITY_SYNC_FORBIDDEN",
       });
       continue;
     }
@@ -3626,6 +3690,7 @@ function normalizeEnvironmentSyncUserRecord(value: unknown) {
     email,
     name: safeText(source.name, email.split("@")[0]),
     role,
+    administratorTier: normalizeAdministratorTier(role, source.administratorTier),
     disabled: Boolean(source.disabled),
     passwordHash,
     passwordCipher: safeText(source.passwordCipher),
@@ -3693,6 +3758,7 @@ async function upsertEnvironmentSyncUser(user: {
   email: string;
   name: string;
   role: "admin" | "member";
+  administratorTier?: AdministratorTier;
   disabled: boolean;
   passwordHash: string;
   passwordCipher?: string;
@@ -3701,11 +3767,15 @@ async function upsertEnvironmentSyncUser(user: {
 }) {
   if (usePostgresRepository()) {
     const existing = await findAuthUserByEmailPostgres(user.email);
+    if (existing && normalizeAdministratorTier(existing.role, existing.administratorTier) === "root") {
+      throw new Error("ROOT_IDENTITY_SYNC_FORBIDDEN");
+    }
     await upsertAuthUserPostgres({
       id: existing?.id || user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
       groupId: existing?.groupId,
       remark: safeText(existing?.remark),
       disabled: Boolean(user.disabled),
@@ -3721,11 +3791,15 @@ async function upsertEnvironmentSyncUser(user: {
   }
   const authDb = await readAuthDb();
   const existing = authDb.users.find((item) => item.email.toLowerCase() === user.email.toLowerCase());
+  if (existing && normalizeAdministratorTier(existing.role, existing.administratorTier) === "root") {
+    throw new Error("ROOT_IDENTITY_SYNC_FORBIDDEN");
+  }
   const nextUser = {
     id: existing?.id || user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
     groupId: existing?.groupId,
     remark: safeText(existing?.remark),
     disabled: Boolean(user.disabled),
@@ -4977,19 +5051,19 @@ async function pruneLoginAttemptsPostgres(now: number) {
   );
 }
 
-async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRecord[]> {
+async function readAdminSessions(currentSessionId = "", viewer?: CurrentUser): Promise<AdminSessionRecord[]> {
   if (usePostgresRepository()) {
     const pool = await getPostgresPool();
     const result = await pool.query(
       `select s.id, s.user_id, s.created_at, s.expires_at, s.last_seen_at, s.ip, s.user_agent, s.revoked_at,
-              u.email as user_email, u.name as user_name, u.role as user_role
+              u.email as user_email, u.name as user_name, u.role as user_role, u.administrator_tier
        from xh_sessions s
        join xh_users u on u.id = s.user_id
        where s.expires_at > now()
        order by s.created_at desc
        limit 300`,
     );
-    return result.rows.map((row) =>
+    const sessions = result.rows.map((row) =>
       toAdminSession(
         {
           id: row.id,
@@ -5006,14 +5080,22 @@ async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRec
           email: row.user_email,
           name: row.user_name,
           role: row.user_role === "admin" ? "admin" : "member",
+          administratorTier: normalizeAdministratorTier(row.user_role === "admin" ? "admin" : "member", row.administrator_tier),
         },
         currentSessionId,
       ),
     );
+    return viewer
+      ? sessions.filter((session) => visibleSessionsForAdministrator(viewer, [session], new Map([[session.userId, {
+        id: session.userId,
+        role: session.userRole,
+        administratorTier: session.administratorTier,
+      }]])).length > 0)
+      : sessions;
   }
   const authDb = await readAuthDb();
   const userMap = new Map(authDb.users.map((user) => [user.id, user]));
-  return authDb.sessions
+  const sessions = authDb.sessions
     .filter((session) => session.expiresAt > Date.now())
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 300)
@@ -5023,6 +5105,7 @@ async function readAdminSessions(currentSessionId = ""): Promise<AdminSessionRec
       return toAdminSession(session, user, currentSessionId);
     })
     .filter(Boolean) as AdminSessionRecord[];
+  return viewer ? visibleSessionsForAdministrator(viewer, sessions, userMap) : sessions;
 }
 
 async function readAdminDbPostgres(): Promise<AdminDb> {
@@ -6893,7 +6976,7 @@ async function resolveCanvasRunModels(input: { ownerId: string; plan: CanvasRunR
       enabled: model.enabled,
       providerEnabled: providerEnabled.get(model.providerId) === true,
       inputCapabilities: plainObject(model.inputCapabilities),
-    })),
+      })),
     assertCanExecute: async (modelRecordId) => assertCanExecuteProviderModel(user as CurrentUser, modelRecordId),
   });
 }
@@ -8816,6 +8899,7 @@ function toAdminUser(user: UserRecord, groupsById?: Map<string, UserGroupRecord>
     email: user.email,
     name: user.name,
     role: user.role,
+    administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
     groupId: user.groupId,
     groupName: group?.name,
     remark: safeText(user.remark),
@@ -8829,7 +8913,7 @@ function toAdminUser(user: UserRecord, groupsById?: Map<string, UserGroupRecord>
 
 function toAdminSession(
   session: SessionRecord,
-  user: Pick<UserRecord, "id" | "email" | "name" | "role">,
+  user: Pick<UserRecord, "id" | "email" | "name" | "role" | "administratorTier">,
   currentSessionId: string,
 ): AdminSessionRecord {
   return {
@@ -8838,6 +8922,7 @@ function toAdminSession(
     userEmail: user.email,
     userName: user.name,
     userRole: user.role,
+    administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
     createdAt: session.createdAt,
     lastSeenAt: session.lastSeenAt || session.createdAt,
     expiresAt: session.expiresAt,
