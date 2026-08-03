@@ -68,6 +68,14 @@ The release harness records the staged dual-artifact boundary before packaging: 
 
 Before any stage is called complete, append its actual verification evidence (focused contracts, build/archive identity, and Gray or Production runtime result) to the release and validation logbooks. This harness directory keeps the execution rule and links only; it does not duplicate the evidence itself.
 
+### 2026-08-03 local implementation proof
+
+- Implementation chain: `9b84f59` → `2b34418` → `43e2db3` → `00197d1` → `f01bd03` → `53ed914`.
+- Local candidate archive: `20260803-sealed-artifact-local-v0816.tar.gz`; adjacent sidecar SHA-256: `b0f773d58a2b9ff716ac15f6f555f4445273f64b0d67fdbeffbcfd24f2f71196`.
+- Inventory: 185 content-manifest files, 210 tar entries excluding the archive root entry, and 0 forbidden entries.
+- Verification: focused tests 24/24, type-check, `build:single-port`, package/archive contracts, and deployment/runtime dry-runs passed.
+- Scope: this is local implementation proof against the current `0.8.15` candidate baseline. It is not Gray or Production deployment evidence, and it does not claim a live `/api/status` result for `0.8.16`. Task 7 must bump the candidate to `0.8.16`, rebuild once, verify Gray, then promote that exact archive to Production before the stage is complete.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。

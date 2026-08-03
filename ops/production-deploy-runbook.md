@@ -93,12 +93,14 @@ XINGHUAN_EXPECTED_DATABASE_NAME=<正式数据库名>
 /opt/apps/xinghuan-canvas/releases/<release-id>
 ```
 
-2. 在 release 目录安装依赖并构建：
+2. 在 release 目录校验 Gray 晋级的归档并安装生产依赖：
 
 ```bash
-npm ci
-npm run build:single-port
+sha256sum -c /tmp/<release-id>.tar.gz.sha256
+npm ci --omit=dev
 ```
+
+Production 必须使用 Gray 已验收的同一个 archive/SHA；服务器不得重新构建、运行 `tsx` 或安装开发依赖。
 
 3. 切换 `current` 指向新 release：
 

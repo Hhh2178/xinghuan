@@ -111,12 +111,14 @@ XINGHUAN_EXPECTED_DATABASE_NAME=<灰度数据库名>
 /opt/apps/xinghuan-canvas-next/releases/<release-id>
 ```
 
-2. 在 release 目录安装生产依赖并构建：
+2. 在 release 目录校验归档并安装生产依赖：
 
 ```bash
-npm ci
-npm run build:single-port
+sha256sum -c /tmp/<release-id>.tar.gz.sha256
+npm ci --omit=dev
 ```
+
+sealed archive 已在本地完成 bundle 和静态资源构建；服务器不得重新构建或安装开发依赖。
 
 3. 切换 `current` 指向新 release：
 
@@ -157,7 +159,12 @@ psql "$XINGHUAN_DATABASE_URL" -Atc "select current_database();"
 
 ## 验收
 
-按照 `ops/gray-release-standard-checklist.md` 和 `ops/gray-acceptance-checklist.md` 执行。
+按照 `ops/gray-release-standard-checklist.md` 和 `ops/gray-acceptance-checklist.md` 执行，并在 release 目录运行：
+
+```bash
+set -a; . /opt/apps/xinghuan-canvas-next/shared/canvas-next.env; set +a
+node apps/api/dist/cli/permission-readiness.js --expect-ready=true
+```
 
 其中：
 
