@@ -2,6 +2,7 @@ import {
   createAssistantContent,
   parseAssistantMessageBlocks,
   type AssistantChatResult,
+  type AssistantRuntimeStatus,
   type AnnouncementRecord,
   CANVAS_NODE_PERMISSION_CATALOG,
   TASK_QUEUE_CAPABILITIES,
@@ -51,6 +52,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, 
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { summarizeNodeAssistantAttachment, summarizeWorkflowAssistantAttachment } from "./assistant-workflow-context.js";
+import { buildAssistantUserMessageContent } from "./assistant-chat-context.js";
+import { buildAssistantRuntimeStatus } from "./assistant-runtime-status.js";
 import { buildAssistantAnswerPolicyPrompt, resolveAssistantDetailLevel, type AssistantDetailLevel } from "./assistant-answer-policy.js";
 import { fileErrorCode, readSerializedJson, writeSerializedJson } from "./serialized-json-file.js";
 import {
@@ -1679,6 +1682,12 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/assistant/status" && request.method === "GET") {
+      const adminDb = await readAdminDb();
+      sendT8(response, await readAssistantRuntimeStatus("canvas", normalizeAssistantSettings(adminDb.assistantSettings)));
+      return;
+    }
+
     if (currentUser && announcementPublicStreamPath && await handlePublicAnnouncementRoutes({
       request,
       response,
@@ -3291,6 +3300,12 @@ async function handleAdminRequest(
       requestContext,
     );
     sendT8(response, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/assistant/status" && request.method === "GET") {
+    const adminDb = await readAdminDb();
+    sendT8(response, await readAssistantRuntimeStatus("admin", normalizeAssistantSettings(adminDb.assistantSettings)));
     return true;
   }
 
@@ -9249,8 +9264,10 @@ async function analyzeProviderAssistant(input: AssistantAnalyzeRequest, actor: C
 }
 
 async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser, publicOrigin: string): Promise<AssistantChatResult> {
-  const fallback = buildFallbackAssistantChat(input, actor);
   const settings = normalizeAssistantSettings((await readAdminDb()).assistantSettings);
+  const runtime = await readAssistantRuntimeStatus(input.scope || "canvas", settings);
+  const fallback = buildFallbackAssistantChat(input, actor);
+  fallback.runtime = runtime;
   try {
     await assertAgentRuntimeCapability("agentEnabled");
     const orchestrator = createAgentOrchestrator({
@@ -9287,7 +9304,7 @@ async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser,
       idempotencyKey: assistantAgentIdempotencyKey(input, actor),
       messages: [
         { role: "system", content: "You are the bounded internal assistant for Xinghuan Canvas. Never claim an action was executed unless an audited tool result is present." },
-        { role: "user", content: prompt },
+        { role: "user", content: buildAssistantUserMessageContent(prompt, input.attachments || []) },
       ],
       inputSnapshot: { scope: input.scope || "canvas", conversationId: safeText(input.conversationId), attachmentCount: input.attachments?.length || 0, knowledgeCollection: settings.integration.knowledgeProfile },
       knowledgeAudience: "public",
@@ -9295,8 +9312,18 @@ async function runAssistantChat(input: AssistantChatRequest, actor: CurrentUser,
       knowledgeQuery: prompt,
       knowledgeTopK: 8,
       knowledgeTokenBudget: 4_000,
+      requiredCapabilityTags: input.attachments?.some((attachment) => attachment.kind === "image")
+        ? ["text_chat", "image_understanding"]
+        : undefined,
     });
-    return buildAssistantChatContentResult("agent", result.content || fallback.message);
+    const selectedModel = result.modelRecordId
+      ? runtime.candidates.find((candidate) => candidate.modelRecordId === result.modelRecordId && (!result.providerId || candidate.providerId === result.providerId))
+      : undefined;
+    return buildAssistantChatContentResult("agent", result.content || fallback.message, {
+      ...runtime,
+      routeStatus: "ready",
+      model: selectedModel || runtime.model,
+    });
   } catch {
     return fallback;
   }
@@ -9711,7 +9738,54 @@ function buildFallbackAssistantChat(input: AssistantChatRequest, _actor: Current
   return buildAssistantChatContentResult("fallback", finalMessage);
 }
 
-function buildAssistantChatContentResult(mode: "agent" | "fallback", input: string): AssistantChatResult {
+async function readAssistantRuntimeStatus(scope: "canvas" | "admin", settings: AssistantSettingsRecord): Promise<AssistantRuntimeStatus> {
+  const agentKey = assistantAgentKeyForScope(settings, scope);
+  const adminDb = await readAdminDb();
+  const providerNames = Object.fromEntries((adminDb.providers || []).map((provider) => [provider.id, provider.name]));
+  const modelNames = Object.fromEntries((adminDb.models || []).map((model) => [model.id, {
+    modelId: model.modelId,
+    displayName: model.displayName,
+    inputCapabilities: model.inputCapabilities,
+  }]));
+  const base = {
+    environment: environment,
+    scope,
+    enabled: scope === "admin" ? settings.backend.enabled : settings.frontend.enabled,
+    agentKey,
+    providerNames,
+    modelNames,
+    updatedAt: Date.now(),
+  } as const;
+  if (environment !== "gray" && environment !== "production") {
+    return buildAssistantRuntimeStatus({ ...base, environment: "local", candidates: [] });
+  }
+  try {
+    const configuration = await agentRuntimeConfigurationRepository.readPublishedConfiguration({
+      agentKey,
+      role: "planner",
+      environment,
+    });
+    const pool = await llmRoutingRepository.readPublishedPool({
+      role: "planner",
+      scenario: "assistant-chat",
+      environment,
+      poolKey: configuration.configuration.llmPoolKey || undefined,
+    });
+    return buildAssistantRuntimeStatus({
+      ...base,
+      environment,
+      agentVersion: configuration.version,
+      configurationVersionId: configuration.configurationVersionId,
+      poolKey: configuration.configuration.llmPoolKey || undefined,
+      poolVersionId: pool?.poolVersionId,
+      candidates: pool?.candidates || [],
+    });
+  } catch {
+    return buildAssistantRuntimeStatus({ ...base, environment, candidates: [] });
+  }
+}
+
+function buildAssistantChatContentResult(mode: "agent" | "fallback", input: string, runtime?: AssistantRuntimeStatus): AssistantChatResult {
   const content = createAssistantContent(input);
   return {
     mode,
@@ -9719,6 +9793,7 @@ function buildAssistantChatContentResult(mode: "agent" | "fallback", input: stri
     rawAssistant: content.text,
     content,
     blocks: parseAssistantMessageBlocks(content.text),
+    runtime,
   };
 }
 

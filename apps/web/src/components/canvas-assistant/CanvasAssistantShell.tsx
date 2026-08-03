@@ -79,7 +79,7 @@ export function CanvasAssistantShell({ nodes, edges, activeCanvasId, ownerId }: 
             onPointerUp={geometry.endDrag}
             onPointerCancel={geometry.endDrag}
           >
-            <div className="agent-assistant-header__title"><span><Bot size={17} /></span><div><strong>{session.settings.frontend.title || '画布协作助手'}</strong><small><i data-state={session.status === '就绪' ? 'ready' : 'working'} />{session.status}</small></div></div>
+            <div className="agent-assistant-header__title"><span><Bot size={17} /></span><div><strong>{session.settings.frontend.title || '画布协作助手'}</strong><small><i data-state={session.status === '就绪' ? 'ready' : 'working'} />{session.runtime?.model?.modelDisplayName || '模型未就绪'} · {session.status}</small></div></div>
             <div className="agent-assistant-header__actions"><button type="button" onClick={session.reset} title="新建会话"><RotateCcw size={14} /></button><button type="button" onClick={() => setOpen(false)} title="最小化"><Minus size={15} /></button><button type="button" onClick={() => { session.reset(); setOpen(false); }} title="关闭并清空会话"><X size={15} /></button></div>
           </header>
           <AssistantConversation

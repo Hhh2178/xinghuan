@@ -8,6 +8,8 @@ const ALLOWED_DATA_KEYS = new Set([
   "label", "title", "prompt", "text", "messages", "backendProviderId", "backendModelId", "providerModel", "taskCapability",
   "groupOrder", "skippedGroupIds", "memberIds", "generationAlternatives", "agentQualityEvaluation", "agentQualityProfileKey",
   "agentSelectionPolicy", "agentSelectionMaximum", "agentParameterRepair", "providerParams", "size", "ratio", "aspectRatio",
+  "status", "error", "errorMessage", "lastError", "runtimeError", "errorCode", "failureClass", "failureCategory",
+  "providerDiagnostic", "providerName", "modelName", "taskId", "requestId", "upstreamHttpStatus",
 ]);
 
 export function summarizeWorkflowAssistantAttachment(

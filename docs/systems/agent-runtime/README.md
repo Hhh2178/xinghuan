@@ -1,5 +1,7 @@
 # Agent Runtime 系统
 
+> 2026-08-03 local: Canvas/Admin AI Assistant now exposes the resolved runtime model and route health through scope-specific status endpoints. Uploaded assistant images are sent as authenticated multimodal `image_url` parts and image prompts require an `image_understanding` route candidate. Selected canvas nodes also project their own sanitized runtime error fields into the assistant diagnostic attachment when no persisted Run event is available.
+
 ## Current Implementation Status
 
 > 2026-07-30 local: Agent governance reads and writes are now scoped by the server runtime environment, preventing a Gray Admin instance from treating an absent Production control row as a real failure. Agent configuration and route publication controls expose only the current deployment environment. The live readiness verifier accepts explicit `--readiness=skip` and records `liveReadiness=skipped`; this preserves static gates but does not claim a real Agent probe. Production enablement remains pending release and runtime verification.

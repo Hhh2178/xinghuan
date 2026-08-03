@@ -20,11 +20,13 @@ export type { AddGenerationLibraryItemPayload, GenerationLibraryItem, Generation
 export {
   chatWithAssistant,
   getAssistantSettings,
+  getAssistantRuntimeStatus,
   streamAssistantChat,
   type AssistantChatAttachment,
   type AssistantChatResult,
   type AssistantProcessEntry,
   type PublicAssistantSettings,
+  type PublicAssistantRuntimeStatus,
 } from './assistant-api';
 
 const BASE = '/api';

@@ -84,6 +84,7 @@ export function createAgentOrchestrator(deps: {
     knowledgeTopK?: number;
     knowledgeTokenBudget?: number;
     maximumEstimatedCost?: number;
+    requiredCapabilityTags?: string[];
   }): Promise<AgentRoleRunResult> {
     const requestedTask = validateAgentRoleTask(input.task);
     const replay = await deps.agentRuns.readRunByIdempotency?.({ ownerId: requestedTask.ownerId, idempotencyKey: input.idempotencyKey });
@@ -156,7 +157,7 @@ export function createAgentOrchestrator(deps: {
       const decision = routeLlmCandidates({
         role: task.role,
         scenario: task.scenario,
-        requiredCapabilityTags: requiredTags(task.role),
+        requiredCapabilityTags: input.requiredCapabilityTags?.length ? input.requiredCapabilityTags : requiredTags(task.role),
         maximumEstimatedCost,
         decisionKey: input.idempotencyKey,
         candidates: pool.candidates,

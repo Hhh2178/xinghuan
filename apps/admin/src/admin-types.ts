@@ -1,5 +1,6 @@
 import {
   type AssistantChatResult as SharedAssistantChatResult,
+  type AssistantRuntimeStatus,
   type AssistantMessageBlock,
   type ComfyuiDetectedInput,
   type ComfyuiDetectedOutput,
@@ -1084,6 +1085,7 @@ export interface AssistantChatRequest {
 }
 
 export interface AssistantChatResult extends SharedAssistantChatResult {}
+export type AdminAssistantRuntimeStatus = AssistantRuntimeStatus;
 
 export type { AssistantMessageBlock };
 

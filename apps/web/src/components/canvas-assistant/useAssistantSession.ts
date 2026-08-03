@@ -4,9 +4,11 @@ import { projectCanvasRunFailureDiagnostic, resolveNodeDisplayIdentity } from '@
 import { assistantPhaseLabel } from '@xinghuan/ui';
 import {
   getAssistantSettings,
+  getAssistantRuntimeStatus,
   streamAssistantChat,
   type AssistantChatAttachment,
   type PublicAssistantSettings,
+  type PublicAssistantRuntimeStatus,
 } from '../../services/api';
 import { uploadDataUrl } from '../../services/imageOps';
 import { getMediaItemsFromData } from '../../utils/mediaCollection';
@@ -68,7 +70,7 @@ function workflowAttachment(nodes: Node[], edges: Edge[], canvasId: string): Ass
 
 export function sanitizeAssistantWorkflowData(value: unknown) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  const allowed = new Set(['label', 'title', 'prompt', 'text', 'messages', 'backendProviderId', 'backendModelId', 'providerModel', 'taskCapability', 'groupOrder', 'skippedGroupIds', 'memberIds', 'generationAlternatives', 'agentQualityEvaluation', 'agentQualityProfileKey', 'agentSelectionPolicy', 'agentSelectionMaximum', 'agentParameterRepair', 'providerParams', 'size', 'ratio', 'aspectRatio']);
+  const allowed = new Set(['label', 'title', 'prompt', 'text', 'messages', 'backendProviderId', 'backendModelId', 'providerModel', 'taskCapability', 'groupOrder', 'skippedGroupIds', 'memberIds', 'generationAlternatives', 'agentQualityEvaluation', 'agentQualityProfileKey', 'agentSelectionPolicy', 'agentSelectionMaximum', 'agentParameterRepair', 'providerParams', 'size', 'ratio', 'aspectRatio', 'status', 'error', 'errorMessage', 'lastError', 'runtimeError', 'errorCode', 'failureClass', 'failureCategory', 'providerDiagnostic', 'providerName', 'modelName', 'taskId', 'requestId', 'upstreamHttpStatus']);
   return Object.fromEntries(Object.entries(source)
     .filter(([key]) => allowed.has(key) && !/key|secret|token|cookie|password|authorization/i.test(key))
     .map(([key, item]) => [key, workflowValue(item, 0)])
@@ -99,6 +101,7 @@ async function fileToDataUrl(file: File) {
 
 export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: string | null, assistantOpen: boolean) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [runtime, setRuntime] = useState<PublicAssistantRuntimeStatus | null>(null);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [attachments, setAttachments] = useState<AssistantChatAttachment[]>([]);
   const [draft, setDraft] = useState('');
@@ -112,6 +115,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
   useEffect(() => {
     let active = true;
     void getAssistantSettings().then((next) => active && setSettings(next)).catch(() => undefined);
+    void getAssistantRuntimeStatus().then((next) => active && setRuntime(next)).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
@@ -225,7 +229,10 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
         onStatus: (nextStatus) => setStatus(assistantPhaseLabel(nextStatus)),
         onProcess: (entry) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, process: [...(message.process || []), entry] } : message)),
         onDelta: (delta) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, text: message.text + delta } : message)),
-        onDone: (result) => setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, text: result.message, mode: result.mode, streaming: false } : message)),
+        onDone: (result) => {
+          if (result.runtime) setRuntime(result.runtime);
+          setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, text: result.message, mode: result.mode, streaming: false } : message));
+        },
       });
       setStatus('就绪');
     } catch (error) {
@@ -255,6 +262,7 @@ export function useAssistantSession(nodes: Node[], edges: Edge[], canvasId: stri
 
   return {
     settings,
+    runtime,
     messages,
     attachments,
     suggestions,
@@ -283,6 +291,8 @@ export function buildAssistantFailureTarget(input: {
 }) {
   const incoming = input.edges.filter((edge) => edge.target === input.node.id).map((edge) => edge.source).slice(0, 20);
   const outgoing = input.edges.filter((edge) => edge.source === input.node.id).map((edge) => edge.target).slice(0, 20);
+  const displayName = assistantNodeDisplayName(input.node);
+  const data = input.node.data && typeof input.node.data === 'object' ? input.node.data as Record<string, unknown> : {};
   const diagnostic = input.event ? projectCanvasRunFailureDiagnostic({
     code: input.event.payload.code || input.event.payload.failureClass,
     eventType: input.event.eventType,
@@ -300,8 +310,24 @@ export function buildAssistantFailureTarget(input: {
     taskId: input.event.payload.taskId,
     requestId: input.event.payload.requestId,
     upstreamHttpStatus: input.event.payload.upstreamHttpStatus,
-  }) : undefined;
-  const displayName = assistantNodeDisplayName(input.node);
+  }) : (text(data.error || data.errorMessage || data.lastError || data.runtimeError || data.providerDiagnostic)
+    ? projectCanvasRunFailureDiagnostic({
+      code: data.errorCode || data.failureClass || data.code,
+      eventType: 'canvas_run.step_failed',
+      message: data.error || data.errorMessage || data.lastError || data.runtimeError,
+      reason: data.reason,
+      failureCategory: data.failureCategory,
+      providerDiagnostic: data.providerDiagnostic,
+      nodeId: input.node.id,
+      nodeType: String(input.node.type || ''),
+      nodeDisplayName: displayName,
+      providerName: data.providerName,
+      modelName: data.modelName,
+      taskId: data.taskId,
+      requestId: data.requestId,
+      upstreamHttpStatus: data.upstreamHttpStatus,
+    })
+    : undefined);
   const attachment: AssistantChatAttachment = {
     id: `failure-${input.source}-${input.runId || input.node.id}`,
     kind: 'node',

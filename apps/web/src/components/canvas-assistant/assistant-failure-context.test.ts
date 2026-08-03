@@ -72,4 +72,13 @@ describe('assistant failure context', () => {
     });
     expect(JSON.stringify(target)).not.toMatch(/private-key|private\.example|token=secret/);
   });
+
+  it('includes the selected node runtime error when no run event is available', () => {
+    const target = buildAssistantFailureTarget({
+      node: { id: 'image-2', type: 'image', data: { prompt: 'portrait', error: '上游返回 HTTP 404：任务不存在', errorCode: 'UPSTREAM_NOT_FOUND', taskId: 'task-404' } } as any,
+      edges: [],
+      source: 'selected_node',
+    });
+    expect(target.attachment.payload).toMatchObject({ diagnostic: { observed: expect.stringContaining('HTTP 404'), technical: { code: 'UPSTREAM_NOT_FOUND', taskId: 'task-404' } } });
+  });
 });

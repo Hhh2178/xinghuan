@@ -8,6 +8,7 @@ import type {
   AssistantChatResult,
   AssistantProcessEntry,
   AssistantSettings,
+  AdminAssistantRuntimeStatus,
   AuditRecord,
   ModelRecord,
   ProviderRecord,
@@ -119,6 +120,7 @@ export function AdminAssistantPanel({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("就绪");
+  const [runtime, setRuntime] = useState<AdminAssistantRuntimeStatus | null>(null);
   const [attachments, setAttachments] = useState<AssistantChatAttachment[]>([]);
   const [conversationId, setConversationId] = useState(() => createAssistantConversationId("admin"));
   const [messages, setMessages] = useState<AssistantMessage[]>([
@@ -129,6 +131,12 @@ export function AdminAssistantPanel({
       mode: "fallback",
     },
   ]);
+
+  useEffect(() => {
+    let active = true;
+    void api<AdminAssistantRuntimeStatus>("/api/admin/assistant/status").then((next) => active && setRuntime(next)).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const pageAttachments = useMemo(() => {
     const items: AssistantChatAttachment[] = [];
@@ -347,6 +355,7 @@ export function AdminAssistantPanel({
             }
             if (eventName === "done" && data) {
               const result = data as AssistantChatResult;
+              if (result.runtime) setRuntime(result.runtime);
               contentFilter.finish();
               const messageText = normalizeAssistantContent(result.content?.text || result.message);
               setMessages((current) =>
@@ -429,7 +438,7 @@ export function AdminAssistantPanel({
                 <span className="admin-assistant-dock__eyebrow-text">可挂当前页面的配置和状态上下文</span>
               </div>
               <strong>{settings.title || "后台 AI 助手"}</strong>
-              <span>{settings.hint}</span>
+              <span>{runtime?.model?.modelDisplayName || "模型未就绪"} · {runtime?.routeStatus === "ready" ? "运行正常" : runtime?.routeStatus === "degraded" ? "路由降级" : "运行状态待确认"}{settings.hint ? ` · ${settings.hint}` : ""}</span>
             </div>
             <button type="button" className="icon-button" onClick={onToggle} title="关闭助手">
               <X aria-hidden="true" />

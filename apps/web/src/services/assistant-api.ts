@@ -2,6 +2,7 @@ import {
   createAssistantContent,
   createAssistantContentStreamFilter,
   type AssistantChatResult as SharedAssistantChatResult,
+  type AssistantRuntimeStatus,
 } from '@xinghuan/shared';
 
 const BASE = '/api';
@@ -41,6 +42,8 @@ export interface PublicAssistantSettings {
   };
   updatedAt: number;
 }
+
+export type PublicAssistantRuntimeStatus = AssistantRuntimeStatus;
 
 interface AssistantChatPayload {
   message?: string;
@@ -104,6 +107,12 @@ export async function streamAssistantChat(
 export async function getAssistantSettings(): Promise<PublicAssistantSettings> {
   const response = await fetch(`${BASE}/assistant/settings`, { credentials: 'same-origin' });
   const result = await readJson<{ success: boolean; data: PublicAssistantSettings }>(response);
+  return result.data;
+}
+
+export async function getAssistantRuntimeStatus(): Promise<PublicAssistantRuntimeStatus> {
+  const response = await fetch(`${BASE}/assistant/status`, { credentials: 'same-origin' });
+  const result = await readJson<{ success: boolean; data: PublicAssistantRuntimeStatus }>(response);
   return result.data;
 }
 

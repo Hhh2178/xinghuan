@@ -18,6 +18,8 @@
   - `daily/2026/`
   - `daily/2026/2026-07/README.md`
   - `daily/2026/2026-07/recent-highlights.md`
+  - `daily/2026/2026-08/README.md`
+  - `daily/2026/2026-08/recent-highlights.md`
   - `releases/README.md`
   - `releases/current-release-index.md`
   - RunningHub gray / production 索引样例
@@ -25,7 +27,7 @@
 
 ## 当前值守建议
 
-- 日常推进先看当前月份目录中的 `recent-highlights.md`，当前为 `daily/2026/2026-07/recent-highlights.md`
+- 日常推进先看当前月份目录中的 `recent-highlights.md`，当前为 `daily/2026/2026-08/recent-highlights.md`
 - 当前发布状态先看 `releases/current-release-index.md`
 - 旧兼容入口只在需要追溯老路径时回看 `DEVLOG.md` 和 `ops/README.md`
 - 若新增真实 gray / production 发布记录，同一次提交还应同步 `ops/README.md` 与 `ops/current/*.md`
