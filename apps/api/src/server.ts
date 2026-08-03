@@ -19,6 +19,8 @@ import {
   defaultTaskQueueSettings,
   normalizeTaskQueueSettings,
   normalizeWorkflowDocuments,
+  normalizeAdministratorTier,
+  type AdministratorTier,
   resolvePostgresPoolConfig,
   taskQueueNameForCapability,
   type AppEnvironment,
@@ -902,6 +904,7 @@ interface UserRecord {
   email: string;
   name: string;
   role: "admin" | "member";
+  administratorTier?: AdministratorTier;
   passwordHash: string;
   passwordCipher?: string;
   groupId?: string;
@@ -970,7 +973,7 @@ interface AdminSessionRecord {
   current: boolean;
 }
 
-type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role" | "groupId">;
+type CurrentUser = Pick<UserRecord, "id" | "email" | "name" | "role" | "groupId" | "administratorTier">;
 
 type ModelCapability = "chat" | "image" | "video" | "audio";
 type ProviderProtocol = "openai" | "gemini" | "runninghub" | "volcengine" | "apimart" | "aicopy" | "modelscope" | "custom" | "grsai_draw";
@@ -4613,7 +4616,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       "select group_id, deny, updated_by, updated_at from xh_group_permission_policies order by updated_at desc",
     ),
     pool.query(
-      "select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at from xh_users order by created_at asc",
+      "select id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at from xh_users order by created_at asc",
     ),
     pool.query("select id, user_id, created_at, expires_at, last_seen_at, ip, user_agent, revoked_at from xh_sessions order by created_at desc"),
     pool.query(
@@ -4647,6 +4650,7 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
       email: row.email,
       name: row.name,
       role: row.role === "admin" ? "admin" : "member",
+      administratorTier: normalizeAdministratorTier(row.role === "admin" ? "admin" : "member", row.administrator_tier),
       passwordHash: row.password_hash,
       passwordCipher: row.password_cipher || undefined,
       groupId: safeText(row.group_id) || undefined,
@@ -4707,13 +4711,14 @@ async function readAuthDbPostgres(): Promise<AuthDb> {
 async function insertAuthUserPostgres(user: UserRecord) {
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    `insert into xh_users (id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     [
       user.id,
       user.email,
       user.name,
       user.role,
+      normalizeAdministratorTier(user.role, user.administratorTier) || null,
       user.passwordHash,
       user.passwordCipher || null,
       user.groupId || null,
@@ -4792,12 +4797,13 @@ async function deleteUserGroupPostgres(id: string): Promise<{ id: string; name: 
 async function upsertAuthUserPostgres(user: UserRecord) {
   const pool = await getPostgresPool();
   await pool.query(
-    `insert into xh_users (id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `insert into xh_users (id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      on conflict (id) do update set
        email = excluded.email,
        name = excluded.name,
        role = excluded.role,
+       administrator_tier = excluded.administrator_tier,
        password_hash = excluded.password_hash,
        password_cipher = excluded.password_cipher,
        group_id = excluded.group_id,
@@ -4809,6 +4815,7 @@ async function upsertAuthUserPostgres(user: UserRecord) {
       user.email,
       user.name,
       user.role,
+      normalizeAdministratorTier(user.role, user.administratorTier) || null,
       user.passwordHash,
       user.passwordCipher || null,
       user.groupId || null,
@@ -4823,7 +4830,7 @@ async function upsertAuthUserPostgres(user: UserRecord) {
 async function findAuthUserByEmailPostgres(email: string): Promise<UserRecord | null> {
   const pool = await getPostgresPool();
   const result = await pool.query(
-    `select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
+    `select id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
      from xh_users
      where lower(email) = lower($1)
      limit 1`,
@@ -4836,6 +4843,7 @@ async function findAuthUserByEmailPostgres(email: string): Promise<UserRecord | 
     email: safeEmail(row.email),
     name: safeText(row.name),
     role: row.role === "admin" ? "admin" : "member",
+    administratorTier: normalizeAdministratorTier(row.role === "admin" ? "admin" : "member", row.administrator_tier),
     passwordHash: safeText(row.password_hash),
     passwordCipher: safeText(row.password_cipher),
     groupId: safeText(row.group_id) || undefined,
@@ -6530,6 +6538,7 @@ function toPublicUser(user: UserRecord): CurrentUser {
     name: user.name,
     role: user.role,
     groupId: user.groupId,
+    administratorTier: normalizeAdministratorTier(user.role, user.administratorTier),
   };
 }
 

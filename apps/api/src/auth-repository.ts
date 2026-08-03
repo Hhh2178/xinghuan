@@ -1,5 +1,10 @@
 import type { Pool } from "pg";
-import type { PermissionRule, PermissionSubject } from "@xinghuan/shared";
+import {
+  normalizeAdministratorTier,
+  type AdministratorTier,
+  type PermissionRule,
+  type PermissionSubject,
+} from "@xinghuan/shared";
 
 import type { GroupPermissionPolicy } from "./group-permission-policy.js";
 
@@ -8,6 +13,7 @@ export interface UserRecord {
   email: string;
   name: string;
   role: "admin" | "member";
+  administratorTier?: AdministratorTier;
   passwordHash: string;
   passwordCipher?: string;
   groupId?: string;
@@ -107,7 +113,7 @@ export function createAuthCurrentUserRepository(deps: AuthCurrentUserRepositoryD
     if (!sessionRow) return null;
     const session = toSessionRecord(sessionRow);
     const userResult = await pool.query(
-      `select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
+      `select id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
        from xh_users
        where id = $1
          and disabled = false
@@ -130,7 +136,7 @@ export function createAuthCurrentUserRepository(deps: AuthCurrentUserRepositoryD
   async function findEnabledUserByEmailPostgres(email: string): Promise<UserRecord | null> {
     const pool = await deps.getPostgresPool();
     const result = await pool.query(
-      `select id, email, name, role, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
+      `select id, email, name, role, administrator_tier, password_hash, password_cipher, group_id, remark, disabled, created_at, updated_at
        from xh_users
        where lower(email) = lower($1)
          and disabled = false
@@ -161,6 +167,7 @@ export function createAuthCurrentUserRepository(deps: AuthCurrentUserRepositoryD
       email: deps.safeEmail(row.email),
       name: deps.safeText(row.name),
       role: row.role === "admin" ? "admin" : "member",
+      administratorTier: normalizeAdministratorTier(row.role === "admin" ? "admin" : "member", row.administrator_tier),
       passwordHash: deps.safeText(row.password_hash),
       passwordCipher: deps.safeText(row.password_cipher) || undefined,
       groupId: deps.safeText(row.group_id) || undefined,

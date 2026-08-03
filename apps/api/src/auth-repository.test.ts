@@ -51,6 +51,36 @@ describe("auth current user repository", () => {
     });
   });
 
+  it("normalizes administrator tiers from postgres rows", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from xh_sessions")) {
+        return { rows: [{ ...activeSession, user_id: activeSession.userId, created_at: 1000, expires_at: 10_000 }] };
+      }
+      return {
+        rows: [{
+          ...activeUser,
+          role: "admin",
+          administrator_tier: "operator",
+          password_hash: "hash",
+          created_at: 1000,
+          updated_at: 1000,
+        }],
+      };
+    });
+    const repo = createAuthCurrentUserRepository({
+      usePostgresRepository: () => true,
+      readAuthDb: async () => authDb(),
+      getPostgresPool: async () => ({ query } as any),
+      dateToMillis: (value: unknown) => Number(value) || 0,
+      safeText: (value: unknown) => String(value ?? "").trim(),
+      safeEmail: (value: unknown) => String(value ?? "").trim().toLowerCase(),
+    });
+
+    await expect(repo.findCurrentUserBySessionId("session-1", 5000)).resolves.toMatchObject({
+      user: { role: "admin", administratorTier: "operator" },
+    });
+  });
+
   it("rejects expired, revoked, and disabled file-backed sessions", async () => {
     const baseDeps = {
       usePostgresRepository: () => false,
