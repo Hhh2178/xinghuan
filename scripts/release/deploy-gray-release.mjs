@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
+
 import {
   ensureFileExists,
   firstArg,
@@ -31,6 +35,8 @@ const defaults = await loadReleaseTargetProfile({ profile: targetProfile, enviro
 assertTargetOverridesMatch(args, defaults);
 const releaseId = requiredArg(args, "release");
 const archivePath = await ensureFileExists(requiredArg(args, "archive"));
+const sidecarPath = await ensureFileExists(`${archivePath}.sha256`);
+const archiveSha256 = await verifyArchiveSidecar({ archivePath, sidecarPath });
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
 const host = defaults.host;
 const port = String(defaults.port);
@@ -45,16 +51,18 @@ const migrateGenerationArtifacts = flagEnabled(args["migrate-generation-artifact
 
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
 const remoteArchive = tmpArchivePath(remoteTmpDir, archivePath);
+const remoteSidecar = tmpArchivePath(remoteTmpDir, sidecarPath);
 const target = sshTarget(user, host);
-const remoteScript = [
+const remoteCommands = [
   "set -e",
+  `cd ${shellQuote(remoteTmpDir)} && sha256sum -c ${shellQuote(basename(remoteSidecar))}`,
   `mkdir -p ${shellQuote(`${remoteRoot}/releases`)}`,
   `mkdir -p ${shellQuote(`${remoteRoot}/shared/data`)}`,
   `mkdir -p ${shellQuote(`${remoteRoot}/shared/logs`)}`,
   `mkdir -p ${shellQuote(releaseDir)}`,
   `tar -xzf ${shellQuote(remoteArchive)} -C ${shellQuote(releaseDir)}`,
   `cd ${shellQuote(releaseDir)}`,
-  "npm ci",
+  "npm ci --omit=dev",
   `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run db:migrate`,
   ...(migrateGenerationArtifacts
     ? [
@@ -65,7 +73,8 @@ const remoteScript = [
   `ln -sfn ${shellQuote(releaseDir)} ${shellQuote(`${remoteRoot}/current`)}`,
   `sudo systemctl restart ${shellQuote(serviceName)}`,
   `sudo systemctl restart ${shellQuote(workerServiceName)}`,
-].join("; ");
+];
+const remoteScript = remoteCommands.join("; ");
 
 const steps = [
   {
@@ -79,6 +88,11 @@ const steps = [
     name: "upload-archive",
     command: "scp",
     args: ["-i", sshKeyPath, "-P", port, archivePath, `${target}:${remoteArchive}`],
+  },
+  {
+    name: "upload-sidecar",
+    command: "scp",
+    args: ["-i", sshKeyPath, "-P", port, sidecarPath, `${target}:${remoteSidecar}`],
   },
   {
     name: "deploy-remote-release",
@@ -102,11 +116,27 @@ printJson({
   migrateGenerationArtifacts,
   releaseId,
   archivePath,
+  sidecarPath,
+  archiveSha256,
   target,
   remoteArchive,
+  remoteSidecar,
   releaseDir,
   sharedEnvFile,
   serviceName,
   workerServiceName,
+  remoteCommands,
   steps: steps.map((step) => ({ name: step.name, command: step.command })),
 });
+
+async function verifyArchiveSidecar({ archivePath, sidecarPath }) {
+  const sidecar = (await readFile(sidecarPath, "utf8")).trim();
+  const match = /^([0-9a-fA-F]{64})\s+\*?(.+)$/.exec(sidecar);
+  const expectedDigest = match?.[1]?.toLowerCase();
+  const expectedFilename = match?.[2]?.trim();
+  const actualDigest = createHash("sha256").update(await readFile(archivePath)).digest("hex");
+  if (!expectedDigest || expectedFilename !== basename(archivePath) || expectedDigest !== actualDigest) {
+    throw new Error("RELEASE_ARCHIVE_SHA256_MISMATCH");
+  }
+  return actualDigest;
+}

@@ -43,13 +43,14 @@ const expectedPermissionReady = String(firstArg(args["expected-permission-ready"
 const sharedEnvFile = defaults.sharedEnvFile;
 const dryRun = flagEnabled(args["dry-run"]);
 const target = sshTarget(user, host);
+const permissionReadinessCommand = `set -a; . ${shellQuote(sharedEnvFile)}; set +a; cd ${shellQuote(`${remoteRoot}/current`)}; node apps/api/dist/cli/permission-readiness.js --expect-ready=${expectedPermissionReady || "true"}`;
 
 const commands = {
   currentRelease: ["ssh", ["-i", sshKeyPath, "-p", port, target, `readlink -f ${shellQuote(`${remoteRoot}/current`)}`]],
   appService: ["ssh", ["-i", sshKeyPath, "-p", port, target, `systemctl is-active ${shellQuote(serviceName)}`]],
   workerService: ["ssh", ["-i", sshKeyPath, "-p", port, target, `systemctl is-active ${shellQuote(workerServiceName)}`]],
   internalStatus: ["ssh", ["-i", sshKeyPath, "-p", port, target, `curl -fsS ${shellQuote(internalStatusUrl)}`]],
-  permissionReadiness: ["ssh", ["-i", sshKeyPath, "-p", port, target, `bash -lc ${shellQuote(`set -a; . ${sharedEnvFile}; set +a; cd ${remoteRoot}/current; npx --no-install tsx scripts/verify-permission-readiness.ts --expect-ready=${expectedPermissionReady || "true"}`)}`]],
+  permissionReadiness: ["ssh", ["-i", sshKeyPath, "-p", port, target, `bash -lc ${shellQuote(permissionReadinessCommand)}`]],
 };
 
 let currentRelease = "";
@@ -110,6 +111,7 @@ printJson({
   expectedEnvironment: expectedEnvironment || null,
   expectedPermissionMode: expectedPermissionMode || null,
   expectedPermissionReady: expectedPermissionReady || null,
+  permissionReadinessCommand,
   currentRelease: dryRun ? null : currentRelease,
   appService: dryRun ? null : appService,
   workerService: dryRun ? null : workerService,
