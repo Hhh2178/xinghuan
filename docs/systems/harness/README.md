@@ -94,6 +94,15 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Authenticated Gray acceptance passed create, rename, reorder, assignment, disabled-group hiding, item disable/enable, ungroup and delete behavior. No billed execution was attempted.
 - Production promotion remains open and must reuse the exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation; retention apply remains intentionally unperformed.
 
+### 2026-08-04 RunningHub group drawer Gray release
+
+- Implementation commits: `07f32de` (drawer implementation) and `412ca1c` (candidate version `0.8.20`).
+- Candidate archive: `20260804-runninghub-group-drawer-v0820-r1.tar.gz`; sidecar SHA-256: `ca8e5c755d3c450f5188b2cc94f782828b2028f7b3d719d8594e3e8b48ba90e8`.
+- Gray runtime: API/Worker active, public/internal status `0.8.20 / gray`, permission mode `enforced`, readiness `137 / 125 / 3 / 9 / 1195 / 5`, failures `0`.
+- Startup recovery: Gray permission reconciliation applied `3` subject updates, `271` rule upserts, and `8` rule deletes; the follow-up plan was idempotent with `0` unresolved principals.
+- Scope: Admin RunningHub group controls now use an opaque standalone drawer with backdrop and independent scrolling; item-list width and catalog semantics are unchanged.
+- Production promotion remains open and must reuse this exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。

@@ -3,19 +3,19 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.19`
-- 当前 release：`20260804-runninghub-groups-v0819-r1`
-- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
-- 当前补修：`RunningHub 分组 CRUD、分组/条目双门禁及停用分组隐藏条目修复已部署；分组条目选择器继续复用统一 groupId 契约`
+- 当前版本：`v0.8.20`
+- 当前 release：`20260804-runninghub-group-drawer-v0820-r1`
+- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced；启动时发现的权限数据漂移已通过受控 reconciliation 修复`
+- 当前补修：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复及 Admin 独立分组抽屉已部署；分组条目选择器继续复用统一 groupId 契约`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
 - Production 当前 release：`20260803-assistant-runtime-v0815-r1`
-- 本轮制品源提交：`66ff9efd9766d6edaf3c9030ba110206fde1b541`
-- 本轮制品 SHA-256：`841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`
+- 本轮制品源提交：`412ca1cabbbdf14f0812c796939d2fedb08f8c17`
+- 本轮制品 SHA-256：`ca8e5c755d3c450f5188b2cc94f782828b2028f7b3d719d8594e3e8b48ba90e8`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮仅做既有页面视觉收敛，未推进 ComfyUI 功能`
 - 当前本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，需按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍为 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-groups-v0819-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-groups-gray-v0819-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-drawer-v0820-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-drawer-gray-v0820-r1.md`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`
