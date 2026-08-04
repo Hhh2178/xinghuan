@@ -5,6 +5,7 @@ import { groupRunningHubCatalogItems } from '../../services/runninghubCatalog';
 import { inferValueType } from './runninghubNodeHelpers';
 import type { Material } from './useUpstreamMaterials';
 import MaterialPreviewSection from './MaterialPreviewSection';
+import RunningHubGroupedSelect from './RunningHubGroupedSelect';
 
 interface RunningHubNodeConfigSectionProps {
   accent: Record<string, string>;
@@ -111,22 +112,13 @@ export default function RunningHubNodeConfigSection({
 
       <div>
         <label className="text-[10px] text-white/50 block mb-1">后台条目</label>
-        <select
+        <RunningHubGroupedSelect
           value={workflowPresetId}
-          onChange={(event) => onSelectWorkflowPreset(event.target.value)}
-          className="w-full rounded bg-white/5 border border-white/10 px-2 py-1 text-xs text-white outline-none focus:border-white/30"
-        >
-          <option value="">{catalogLoading ? '正在读取后台条目...' : '请选择后台已配置的 RH 条目'}</option>
-          {groupRunningHubCatalogItems(workflowCatalog).map((group) => (
-            <optgroup key={group.key} label={group.label}>
-              {group.items.map((workflow) => (
-                <option key={workflow.catalogId} value={workflow.catalogId}>
-                  {`${workflow.title} · ${workflow.providerName} · ${workflow.fields.length} 字段`}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          groups={groupRunningHubCatalogItems(workflowCatalog)}
+          loading={catalogLoading}
+          placeholder="请选择后台已配置的 RH 条目"
+          onChange={onSelectWorkflowPreset}
+        />
         {selectedWorkflowPreset ? (
           <div className={`mt-1 rounded border ${accent.subBg} px-2 py-1.5`}>
             <div className="text-[11px] font-medium text-white/90 truncate">{selectedWorkflowPreset.title}</div>

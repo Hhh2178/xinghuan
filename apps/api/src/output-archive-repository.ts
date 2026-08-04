@@ -74,7 +74,7 @@ export function createOutputArchiveRepository(deps: OutputArchiveRepositoryDeps)
     if (artifactIds.length > 0) {
       const pool = await deps.getPostgresPool();
       const artifacts = await pool.query<{ id: string; kind: string; file_url: string; size: number | string | null }>(
-        `select id, kind, file_url, size
+        `select id, kind, file_url, size_bytes as size
            from xh_generation_artifacts
           where owner_id = $1 and id = any($2::text[]) and status in ('active', 'promoted')
           order by created_at asc, id asc`,
