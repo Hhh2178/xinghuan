@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Boxes, Plus, RefreshCw, Search, SlidersHorizontal, Workflow } from "lucide-react";
 import { adminRunningHubApi } from "./admin-api-client";
 import {
@@ -72,6 +72,7 @@ export function AdminRunningHubWorkspace({
   const [keyPoolSaving, setKeyPoolSaving] = useState(false);
   const [keyPoolDraft, setKeyPoolDraft] = useState<RunningHubKeyPoolDraftItem[]>([]);
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
+  const groupRailTrackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (activeView === "workflows") setActiveTab("workflow");
@@ -86,6 +87,17 @@ export function AdminRunningHubWorkspace({
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
+  }, [groupDrawerOpen]);
+
+  useEffect(() => {
+    if (!groupDrawerOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && groupRailTrackRef.current?.contains(target)) return;
+      setGroupDrawerOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [groupDrawerOpen]);
 
   const resolvedProviderId = selectedProviderId || items.find((item) => item.catalogId === selectedCatalogId)?.providerId || items[0]?.providerId || "";
@@ -583,8 +595,8 @@ export function AdminRunningHubWorkspace({
               <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
             </div>
           </div>
-          <div className="admin-runninghub-workspace__rail-track">
-            <button type="button" className="admin-runninghub-group-trigger" aria-haspopup="dialog" aria-expanded={groupDrawerOpen} onClick={() => setGroupDrawerOpen(true)}>
+          <div ref={groupRailTrackRef} className="admin-runninghub-workspace__rail-track">
+            <button type="button" className="admin-runninghub-group-trigger" aria-expanded={groupDrawerOpen} onClick={() => setGroupDrawerOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               <span><small>分组筛选</small><strong>{selectedGroupLabel}</strong></span>
               <em>{groupedFilteredItems.length}</em>
@@ -641,8 +653,7 @@ export function AdminRunningHubWorkspace({
           </div>
           {groupDrawerOpen ? <aside
             className="admin-runninghub-group-drawer admin-runninghub-group-drawer--rail"
-            role="dialog"
-            aria-modal="true"
+            role="region"
             aria-label="RunningHub 分组筛选"
             tabIndex={-1}
             onKeyDown={(event) => { if (event.key === "Escape") setGroupDrawerOpen(false); }}
@@ -797,7 +808,6 @@ export function AdminRunningHubWorkspace({
           </section>
         </div>
       </AdminConfigurationLayout>
-      {groupDrawerOpen ? <div className="admin-runninghub-group-drawer__backdrop" aria-hidden="true" onMouseDown={() => setGroupDrawerOpen(false)} /> : null}
       </> : null}
     </AdminConfigurationWorkbench>
   );

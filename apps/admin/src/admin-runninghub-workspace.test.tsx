@@ -58,15 +58,17 @@ describe("RunningHub configuration workbench", () => {
     expect(footerRules.join("\n")).not.toContain("background:");
   });
 
-  it("keeps group management in an explicit modal drawer instead of the item rail flow", () => {
+  it("keeps group management in a rail-local drawer without a global blur layer", () => {
     expect(workspaceSource).toContain("admin-runninghub-group-trigger");
     expect(workspaceSource).toContain("admin-runninghub-workspace__rail-track");
     expect(workspaceSource).toContain("admin-runninghub-group-drawer--rail");
     expect(workspaceSource).toContain("admin-runninghub-group-drawer");
-    expect(workspaceSource).toContain('aria-modal="true"');
+    expect(workspaceSource).not.toContain('aria-modal="true"');
+    expect(workspaceSource).toContain("aria-label=\"RunningHub 分组筛选\"");
     expect(workspaceSource).toContain("onKeyDown");
-    expect(stylesSource).toContain(".admin-runninghub-group-drawer__backdrop");
-    expect(stylesSource).toContain("position: fixed;");
+    expect(workspaceSource).toContain("pointerdown");
+    expect(workspaceSource).not.toContain("admin-runninghub-group-drawer__backdrop");
+    expect(stylesSource).not.toContain(".admin-runninghub-group-drawer__backdrop");
     expect(stylesSource).toContain(".admin-runninghub-group-drawer--rail");
     expect(stylesSource).toContain(".admin-runninghub-workspace__rail-track");
     expect(stylesSource).toContain("position: absolute;");

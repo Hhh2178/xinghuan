@@ -2543,21 +2543,8 @@ button:disabled {
   padding-right: var(--admin-runninghub-rail-scroll-gap, 6px);
 }
 
-.admin-runninghub-group-drawer__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: rgba(2, 8, 15, 0.72);
-  backdrop-filter: blur(3px);
-}
-
 .admin-runninghub-group-drawer {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
   z-index: 1210;
-  width: min(320px, calc(100vw - 32px));
   min-width: 0;
   padding: 18px;
   border-right: 1px solid rgba(94, 234, 212, 0.34);
