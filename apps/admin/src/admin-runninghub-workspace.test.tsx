@@ -60,17 +60,28 @@ describe("RunningHub configuration workbench", () => {
 
   it("keeps group management in an explicit modal drawer instead of the item rail flow", () => {
     expect(workspaceSource).toContain("admin-runninghub-group-trigger");
+    expect(workspaceSource).toContain("admin-runninghub-workspace__rail-track");
+    expect(workspaceSource).toContain("admin-runninghub-group-drawer--rail");
     expect(workspaceSource).toContain("admin-runninghub-group-drawer");
     expect(workspaceSource).toContain('aria-modal="true"');
     expect(workspaceSource).toContain("onKeyDown");
     expect(stylesSource).toContain(".admin-runninghub-group-drawer__backdrop");
     expect(stylesSource).toContain("position: fixed;");
+    expect(stylesSource).toContain(".admin-runninghub-group-drawer--rail");
+    expect(stylesSource).toContain(".admin-runninghub-workspace__rail-track");
+    expect(stylesSource).toContain("position: absolute;");
+    expect(stylesSource).toContain("--admin-runninghub-rail-scroll-gap");
     expect(stylesSource).toContain(".admin-runninghub-group-manager__list");
 
     const railSource = workspaceSource.slice(
       workspaceSource.indexOf('rail={<div className="api-card admin-runninghub-workspace__rail">'),
       workspaceSource.indexOf("</AdminConfigurationLayout>")
     );
-    expect(railSource.indexOf("<AdminRunningHubGroupManager")).toBe(-1);
+    const trackIndex = railSource.indexOf("admin-runninghub-workspace__rail-track");
+    const listIndex = railSource.indexOf('className="admin-runninghub-workspace__list-body"');
+    const managerIndex = railSource.indexOf("<AdminRunningHubGroupManager");
+    expect(trackIndex).toBeGreaterThan(-1);
+    expect(managerIndex).toBeGreaterThan(trackIndex);
+    expect(managerIndex).toBeGreaterThan(listIndex);
   });
 });

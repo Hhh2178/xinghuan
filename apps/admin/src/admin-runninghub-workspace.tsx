@@ -578,18 +578,17 @@ export function AdminRunningHubWorkspace({
         className="admin-runninghub-workspace__layout"
         rail={<div className="api-card admin-runninghub-workspace__rail">
           <div className="admin-runninghub-workspace__rail-head">
-            <div className="admin-runninghub-workspace__rail-title-row">
-              <div className="admin-runninghub-workspace__rail-title-copy">
-                <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
-                <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
-              </div>
-              <button type="button" className="admin-runninghub-group-trigger" aria-haspopup="dialog" aria-expanded={groupDrawerOpen} onClick={() => setGroupDrawerOpen(true)}>
-                <SlidersHorizontal aria-hidden="true" />
-                <span><small>分组筛选</small><strong>{selectedGroupLabel}</strong></span>
-                <em>{groupedFilteredItems.length}</em>
-              </button>
+            <div className="admin-runninghub-workspace__rail-title-copy">
+              <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
+              <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
             </div>
           </div>
+          <div className="admin-runninghub-workspace__rail-track">
+            <button type="button" className="admin-runninghub-group-trigger" aria-haspopup="dialog" aria-expanded={groupDrawerOpen} onClick={() => setGroupDrawerOpen(true)}>
+              <SlidersHorizontal aria-hidden="true" />
+              <span><small>分组筛选</small><strong>{selectedGroupLabel}</strong></span>
+              <em>{groupedFilteredItems.length}</em>
+            </button>
           <div className="admin-runninghub-workspace__list-body">
             {groupedFilteredItems.length ? (
               groupedFilteredItems.map((item) => (
@@ -639,6 +638,26 @@ export function AdminRunningHubWorkspace({
                 <div className="admin-runninghub-editor__empty-note">如果 gray / production 有数据而本地为 0，通常是本地后台库尚未写入 RunningHub Provider 或 RH 目录条目。</div>
               </div>
             )}
+          </div>
+          {groupDrawerOpen ? <aside
+            className="admin-runninghub-group-drawer admin-runninghub-group-drawer--rail"
+            role="dialog"
+            aria-modal="true"
+            aria-label="RunningHub 分组筛选"
+            tabIndex={-1}
+            onKeyDown={(event) => { if (event.key === "Escape") setGroupDrawerOpen(false); }}
+          >
+            <AdminRunningHubGroupManager
+              groups={groups}
+              items={scopedItems}
+              selectedGroupId={selectedGroupId}
+              onSelect={selectGroup}
+              onCreate={() => void handleCreateGroup()}
+              onDelete={(group) => void handleDeleteGroup(group)}
+              onToggle={(group) => void handleToggleGroup(group)}
+              onClose={() => setGroupDrawerOpen(false)}
+            />
+          </aside> : null}
           </div>
           <div className="admin-runninghub-workspace__rail-footer">
             <button type="button" className="ghost-action" onClick={() => void handleCreate(activeTab)} disabled={creating}>
@@ -778,28 +797,7 @@ export function AdminRunningHubWorkspace({
           </section>
         </div>
       </AdminConfigurationLayout>
-      {groupDrawerOpen ? <>
-        <div className="admin-runninghub-group-drawer__backdrop" aria-hidden="true" onMouseDown={() => setGroupDrawerOpen(false)} />
-        <aside
-          className="admin-runninghub-group-drawer"
-          role="dialog"
-          aria-modal="true"
-          aria-label="RunningHub 分组筛选"
-          tabIndex={-1}
-          onKeyDown={(event) => { if (event.key === "Escape") setGroupDrawerOpen(false); }}
-        >
-          <AdminRunningHubGroupManager
-            groups={groups}
-            items={scopedItems}
-            selectedGroupId={selectedGroupId}
-            onSelect={selectGroup}
-            onCreate={() => void handleCreateGroup()}
-            onDelete={(group) => void handleDeleteGroup(group)}
-            onToggle={(group) => void handleToggleGroup(group)}
-            onClose={() => setGroupDrawerOpen(false)}
-          />
-        </aside>
-      </> : null}
+      {groupDrawerOpen ? <div className="admin-runninghub-group-drawer__backdrop" aria-hidden="true" onMouseDown={() => setGroupDrawerOpen(false)} /> : null}
       </> : null}
     </AdminConfigurationWorkbench>
   );
