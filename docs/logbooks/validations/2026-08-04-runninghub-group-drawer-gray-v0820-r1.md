@@ -22,6 +22,7 @@
 - First runtime probe failed because the API port was not listening while the startup gate rejected `RETIRED_SUBJECT_RULE`.
 - Reconciliation dry-run reported `subjectUpdates=3`, `ruleUpserts=271`, `ruleDeletes=8`, `unresolvedPrincipals=0`.
 - Apply completed with `idempotent=true`; after service restart, the API listened on `127.0.0.1:18200` and all runtime checks passed.
+- Retention dry-run and apply passed with `remaining=5`; current and rollback releases were both retained.
 
 ## Acceptance boundary
 

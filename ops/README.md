@@ -30,7 +30,7 @@
   - 端口：`127.0.0.1:18200`
   - 版本：`v0.8.20`
   - release：`20260804-runninghub-group-drawer-v0820-r1`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态与认证 RunningHub 分组行为均通过；启动时发现的权限数据漂移已通过受控 reconciliation 修复；浏览器视觉复核因本机缺少 Chromium 待补`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态与认证 RunningHub 分组行为均通过；启动时发现的权限数据漂移已通过受控 reconciliation 修复；Gray 保留清理已完成并保留 current/rollback；浏览器视觉复核因本机缺少 Chromium 待补`
   - 当前补修：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复及 Admin 独立分组抽屉；Admin/Canvas 继续复用统一 groupId 选择器`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
   - 本轮制品源提交：`412ca1cabbbdf14f0812c796939d2fedb08f8c17`

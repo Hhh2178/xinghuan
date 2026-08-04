@@ -29,6 +29,7 @@
 - Initial startup entered a restart loop because Gray contained permission drift: 3 subject updates, 271 rule upserts, and 8 rule deletes were required.
 - A dry-run and then `permissions:reconcile --missing-policy=unresolved --apply` were executed against `xinghuan_canvas_gray`; the second plan was idempotent and unresolved principals were `0`.
 - API and Worker were restarted after reconciliation, then runtime and readiness verification passed.
+- Retention dry-run and apply passed on the old-server Gray target; exactly 5 release directories remain, including current `20260804-runninghub-group-drawer-v0820-r1` and rollback `20260803-runninghub-groups-v0818-r1`.
 
 ## Boundaries
 
