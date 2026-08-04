@@ -6,6 +6,7 @@
 - 当前版本：`v0.8.24`
 - 当前 release：`20260804-runninghub-group-collapse-v0824-r1`
 - 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced；启动时发现的权限数据漂移已通过受控 reconciliation 修复；Gray 保留清理已完成并保留 current/rollback`
+- 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.24 sealed release；API/Worker、权限 readiness 和 HTTPS 状态均通过，旧服务器继续作为回滚入口`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
 - Production 当前 release：`20260804-runninghub-group-collapse-v0824-r1`
@@ -16,6 +17,8 @@
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-v0824-r1.md`
 - 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-gray-v0824-r1.md`
+- 新服务器发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
+- 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
 - Gray retention：`本轮 release dry-run/apply 已通过，保留 5 个 release，current/rollback 均保留`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`

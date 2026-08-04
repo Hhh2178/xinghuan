@@ -13,6 +13,8 @@
 - 当前批次记录：
   - `production/2026-08-04-runninghub-group-collapse-v0824-r1.md`
   - `../validations/2026-08-04-runninghub-group-collapse-production-v0824-r1.md`
+  - `production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
+  - `../validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
   - Gray retention 已在 `2026-08-04` dry-run/apply 验证为 5 个 release，current/rollback 均保留。
   - `production/2026-08-03-assistant-runtime-production-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-production-v0815-r1.md`
@@ -38,6 +40,8 @@
 - 本轮发布记录：
   - `gray/2026-08-04-runninghub-group-collapse-v0824-r1.md`
   - `../validations/2026-08-04-runninghub-group-collapse-gray-v0824-r1.md`
+  - `gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
+  - `../validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）

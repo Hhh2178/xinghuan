@@ -6,6 +6,7 @@
 - 当前版本：`v0.8.24`
 - 当前 release：`20260804-runninghub-group-collapse-v0824-r1`
 - 当前状态：`已由 Gray 同一验证归档晋级；API/Worker、内部/公网状态和权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
+- 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.24 sealed release；API/Worker、权限 readiness 和 HTTPS 状态均通过，尚未切换公网流量`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`
 - Agent 运行态：`运行环境静态 readiness 门禁已保留；本批次未重复执行付费 Agent canary，亦未启用生产 AI 运行开关`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`
@@ -13,6 +14,8 @@
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前发布记录：`../../docs/logbooks/releases/production/2026-08-04-runninghub-group-collapse-v0824-r1.md`
 - 当前验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-production-v0824-r1.md`
+- 新服务器发布记录：`../../docs/logbooks/releases/production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
+- 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
 - 回退锚点：`20260803-assistant-runtime-v0815-r1`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`

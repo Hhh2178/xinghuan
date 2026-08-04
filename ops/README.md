@@ -31,6 +31,7 @@
   - 版本：`v0.8.24`
   - release：`20260804-runninghub-group-collapse-v0824-r1`
   - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 和公网状态通过；输出归档 Worker 已启用`
+  - 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.24 sealed release；HTTPS、API/Worker 和权限 readiness 通过`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；输出归档 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
   - 本轮制品源提交：`6db6647`
@@ -45,6 +46,7 @@
   - 版本：`v0.8.24`
   - release：`20260804-runninghub-group-collapse-v0824-r1`
   - 状态：`Gray 同一验证归档已晋级；API/Worker、权限 readiness 与公网状态全部通过`
+  - 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.24 sealed release；HTTPS、API/Worker 和权限 readiness 通过，尚未切换公网流量`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档、配置栏和 Agent 环境隔离能力继续保留`
   - Agent：`沿用已验收状态；本次未在 Production 重复执行付费 canary，也未启用生产 AI 运行开关`
   - 当前限制：`柏拉图仍受上游无可用渠道限制；Production 未重复发起付费 Provider 任务`
