@@ -24,15 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.15`
-- release：`20260803-assistant-runtime-v0815-r1`
+- 版本：`v0.8.19`
+- release：`20260804-runninghub-groups-v0819-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`Provider/RunningHub 由共享配置栏唯一吸顶，内部列表独立滚动，两个新建页脚色块已移除；Agent 管理继续按服务环境隔离。`
-- 已验证：`全量测试 232 文件通过、1 文件跳过、890 项通过、4 项跳过；完整发布构建、API/Worker、内外状态与权限 readiness 均通过。登录态视觉验收交由用户进行。`
-- 部署时间：`2026-07-30`
-- 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
-- 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
+- 部署内容：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复，以及 Admin/Canvas 统一 groupId 目录选择器。`
+- 已验证：`API 90 文件 / 351 测试、类型检查、构建、归档契约、运行态、权限 readiness 和认证分组行为验收均通过；浏览器视觉验收因本机缺少 Chromium 未执行。`
+- 部署时间：`2026-08-04`
+- 本轮制品源提交：`66ff9ef`
+- 本轮制品 SHA-256：`841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`
 - 本轮发布记录：
+  - `gray/2026-08-04-runninghub-groups-v0819-r1.md`
+  - `../validations/2026-08-04-runninghub-groups-gray-v0819-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）

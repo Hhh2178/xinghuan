@@ -28,13 +28,13 @@
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.15`
-  - release：`20260803-assistant-runtime-v0815-r1`
-  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness 与公网状态通过，Provider/RunningHub 登录态视觉复核交由用户进行`
-  - 当前补修：`Provider/RunningHub 共享配置栏唯一吸顶，内部列表独立滚动，新建页脚色块已移除；Agent 管理按当前服务环境隔离`
+  - 版本：`v0.8.19`
+  - release：`20260804-runninghub-groups-v0819-r1`
+  - 状态：`旧服务器 Gray 已部署；API/Worker、权限 readiness、公网状态与认证 RunningHub 分组行为均通过；浏览器视觉复核因本机缺少 Chromium 待补`
+  - 当前补修：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复；Admin/Canvas 继续复用统一 groupId 选择器`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`14147ec9cdd3a77e33e19ee4b1b5f1296840be24`
-  - 本轮制品 SHA-256：`3644760948fc181ef23fd75c755bbae972b955d6b1211fc4ab15e85a70d79294`
+  - 本轮制品源提交：`66ff9ef`
+  - 本轮制品 SHA-256：`841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮仅做既有页面视觉收敛`
   - 本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：

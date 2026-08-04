@@ -84,14 +84,22 @@ Before any stage is called complete, append its actual verification evidence (fo
 - The full Vitest matrix initially scanned generated sealed-runtime dependencies under `.tmp/`; `vitest.config.ts` now excludes `.tmp/**` so generated verification artifacts cannot become project test suites.
 - After the harness fix, the repository matrix passed: 243 test files passed, 1 skipped; 929 tests passed, 4 skipped. Workspace type-check and `build:single-port` also passed.
 - RunningHub focused contracts passed (shared groups, Provider persistence, permission subjects/gate, Admin workspace and Canvas catalog grouping). Local authenticated `verify:runninghub-workflow-api` passed against `127.0.0.1:18200`; the local catalog currently contains zero workflows and zero apps, so no billable execution was attempted.
-- This is local evidence only. Gray/Production remain on `0.8.15`; the `0.8.18` release still requires authenticated Gray acceptance and the existing release-clean gate.
+- This is local evidence only. At the time of this entry Gray/Production remained on `0.8.15`; the subsequent Gray acceptance and `0.8.19` candidate are recorded below.
+
+### 2026-08-04 Gray acceptance and regression repair
+
+- Regression: `apps/api/src/runninghub-catalog.ts` previously converted an item in a disabled/missing group into an ungrouped item. The new `runninghub-catalog.test.ts` reproduced the leak in RED; the filter fix is committed in `a1dc7dd`.
+- Candidate and archive: version `0.8.19`, release `20260804-runninghub-groups-v0819-r1`, source commit `66ff9ef`, SHA-256 `841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`.
+- Gray runtime: API/Worker active, public/internal status `0.8.19 / gray`, permission mode `enforced`, readiness `136 / 126 / 3 / 7 / 932 / 5`, failures `0`.
+- Authenticated Gray acceptance passed create, rename, reorder, assignment, disabled-group hiding, item disable/enable, ungroup and delete behavior. No billed execution was attempted.
+- Production promotion remains open and must reuse the exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation; retention apply remains intentionally unperformed.
 
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。
 - 领域词汇或 ADR 生命周期变化时，必须同步 `CONTEXT.md`、`docs/adr/README.md`、治理规范和 `verify:domain-context-and-adr-contract`。
 - 每次 Gray / Production 运行态验证成功后，Release harness 必须 dry-run 并恢复服务器“每环境最近五个 Release”的保留上限。
-- Sealed artifact stages must preserve the `0.8.16` → `0.8.17` → `0.8.18` order, promote the same Gray archive to Production, and write actual verification evidence before a stage is closed.
+- Sealed artifact stages must preserve the `0.8.16` → `0.8.17` → `0.8.18` → `0.8.19` order, promote the same Gray archive to Production, and write actual verification evidence before a stage is closed.
 - Harness runner 将每次 profile 运行写入 ignored `.harness/runs/*.json`；release/validation logbook 仍是正式审计证据。
 - 新增子 harness 时，必须有 README、环境模板或配置说明、根级 verify 入口，以及对应 contract。
 - 本目录只记录执行地图和接入约定，不复制系统设计正文、发布记录或长期状态。
