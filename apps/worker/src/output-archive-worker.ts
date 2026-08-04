@@ -1,10 +1,14 @@
-import { ZipArchive } from "archiver";
 import { createWriteStream } from "node:fs";
 import { mkdir, rename, rm, stat, statfs } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Pool } from "pg";
+import type { ArchiverError, ZipArchive as ZipArchiveType } from "archiver";
 import { OUTPUT_ARCHIVE_CONFIG, type OutputArchiveErrorCode, type OutputArchiveManifest } from "@xinghuan/shared";
+
+const require = createRequire(import.meta.url);
+const { ZipArchive } = require("archiver") as typeof import("archiver");
 
 interface ArchiveJobRow {
   id: string;
@@ -142,7 +146,7 @@ export function createOutputArchiveWorker(options: ArchiveWorkerOptions) {
     const missing: OutputArchiveManifest["missing"] = [];
     let totalBytes = 0;
     let stream: ReturnType<typeof createWriteStream> | null = null;
-    let archive: ZipArchive | null = null;
+    let archive: ZipArchiveType | null = null;
     let archiveError: Error | null = null;
     const heartbeat = setInterval(() => {
       void heartbeatJob(job.id).catch(() => undefined);
@@ -154,8 +158,8 @@ export function createOutputArchiveWorker(options: ArchiveWorkerOptions) {
       }
       stream = createWriteStream(partPath, { flags: "wx" });
       archive = new ZipArchive({ store: true, zlib: { level: 0 } });
-      archive.on("warning", (error) => logger.warn("output archive warning", error));
-      archive.on("error", (error) => { archiveError = error; });
+      archive.on("warning", (error: ArchiverError) => logger.warn("output archive warning", error));
+      archive.on("error", (error: ArchiverError) => { archiveError = error; });
       archive.pipe(stream);
       for (const file of manifest.files) {
         if (await isCancellationRequested(job.id)) throw new Error("cancelled");
