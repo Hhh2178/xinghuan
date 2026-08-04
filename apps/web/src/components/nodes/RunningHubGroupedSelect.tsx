@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { RunningHubCatalogGroup, RunningHubCatalogItem } from '../../services/runninghubCatalog';
@@ -24,12 +24,17 @@ export default function RunningHubGroupedSelect({
 }: RunningHubGroupedSelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const options = useMemo(
     () => groups.flatMap((group) => group.items.map((item) => ({ group, item }))),
     [groups],
+  );
+  const visibleOptions = useMemo(
+    () => options.filter(({ group }) => !collapsedGroups.has(group.key)),
+    [collapsedGroups, options],
   );
   const selected = options.find(({ item }) => item.catalogId === value)?.item;
 
@@ -44,9 +49,9 @@ export default function RunningHubGroupedSelect({
 
   useEffect(() => {
     if (!open) return;
-    const selectedIndex = options.findIndex(({ item }) => item.catalogId === value && item.enabled !== false);
-    setActiveIndex(selectedIndex >= 0 ? selectedIndex : options.findIndex(({ item }) => item.enabled !== false));
-  }, [open, options, value]);
+    const selectedIndex = visibleOptions.findIndex(({ item }) => item.catalogId === value && item.enabled !== false);
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : visibleOptions.findIndex(({ item }) => item.enabled !== false));
+  }, [open, value, visibleOptions]);
 
   const selectOption = (item: RunningHubCatalogItem) => {
     if (item.enabled === false) return;
@@ -56,11 +61,11 @@ export default function RunningHubGroupedSelect({
   };
 
   const moveActive = (direction: 1 | -1) => {
-    if (options.length === 0) return;
+    if (visibleOptions.length === 0) return;
     let next = activeIndex;
-    for (let offset = 0; offset < options.length; offset += 1) {
-      next = (next + direction + options.length) % options.length;
-      if (options[next]?.item.enabled !== false) {
+    for (let offset = 0; offset < visibleOptions.length; offset += 1) {
+      next = (next + direction + visibleOptions.length) % visibleOptions.length;
+      if (visibleOptions[next]?.item.enabled !== false) {
         setActiveIndex(next);
         return;
       }
@@ -79,8 +84,8 @@ export default function RunningHubGroupedSelect({
       event.preventDefault();
       if (!open) {
         setOpen(true);
-      } else if (options[activeIndex]) {
-        selectOption(options[activeIndex].item);
+      } else if (visibleOptions[activeIndex]) {
+        selectOption(visibleOptions[activeIndex].item);
       }
       return;
     }
@@ -92,9 +97,18 @@ export default function RunningHubGroupedSelect({
     }
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
-      const indices = options.map(({ item }, index) => (item.enabled === false ? -1 : index)).filter((index) => index >= 0);
+      const indices = visibleOptions.map(({ item }, index) => (item.enabled === false ? -1 : index)).filter((index) => index >= 0);
       if (indices.length > 0) setActiveIndex(event.key === 'Home' ? indices[0] : indices[indices.length - 1]);
     }
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups((previous) => {
+      const next = new Set(previous);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
   };
 
   return (
@@ -125,12 +139,18 @@ export default function RunningHubGroupedSelect({
           ) : (
             groups.map((group) => (
               <div key={group.key}>
-                <div className="border-y border-white/10 bg-[#242830] px-2 py-1.5 text-[10px] font-semibold tracking-wide text-cyan-100/90">
-                  {group.label}
-                  <span className="ml-1 text-[9px] font-normal text-white/45">{group.items.length}</span>
-                </div>
-                {group.items.map((item) => {
-                  const optionIndex = options.findIndex(({ item: candidate }) => candidate.catalogId === item.catalogId);
+                <button
+                  type="button"
+                  aria-expanded={!collapsedGroups.has(group.key)}
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center gap-1.5 border-y border-white/10 bg-[#242830] px-2 py-1.5 text-left text-[10px] font-semibold tracking-wide text-cyan-100/90 transition hover:bg-[#2c313a]"
+                >
+                  {collapsedGroups.has(group.key) ? <ChevronRight size={12} className="shrink-0 text-white/55" /> : <ChevronDown size={12} className="shrink-0 text-white/55" />}
+                  <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                  <span className="text-[9px] font-normal text-white/45">{group.items.length}</span>
+                </button>
+                {!collapsedGroups.has(group.key) ? group.items.map((item) => {
+                  const optionIndex = visibleOptions.findIndex(({ item: candidate }) => candidate.catalogId === item.catalogId);
                   const isActive = optionIndex === activeIndex;
                   const isSelected = item.catalogId === value;
                   const isDisabled = item.enabled === false;
@@ -151,7 +171,7 @@ export default function RunningHubGroupedSelect({
                       {isSelected ? <Check size={12} className="shrink-0 text-cyan-300" /> : null}
                     </button>
                   );
-                })}
+                }) : null}
               </div>
             ))
           )}
