@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-08-04",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "412ca1cabbbdf14f0812c796939d2fedb08f8c17",
+  "sourceCommit": "f67f5182421e0908615914029ec21a78726de81a",
   "environments": {
     "gray": {
-      "version": "0.8.20",
-      "releaseId": "20260804-runninghub-group-drawer-v0820-r1",
+      "version": "0.8.21",
+      "releaseId": "20260804-runninghub-group-drawer-alignment-v0821-r1",
       "deployedAt": "2026-08-04",
       "permissionMode": "enforced",
       "readiness": { "subjects": 137, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0 },
       "runtimeReadiness": { "subjects": 137, "publishedSubjects": 125, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-08-04", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-08-04-runninghub-group-drawer-v0820-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-04-runninghub-group-drawer-gray-v0820-r1.md",
+      "releaseRecord": "docs/logbooks/releases/gray/2026-08-04-runninghub-group-drawer-alignment-v0821-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-04-runninghub-group-drawer-alignment-gray-v0821-r1.md",
       "rollbackReleaseId": "20260803-runninghub-groups-v0818-r1"
     },
     "production": {

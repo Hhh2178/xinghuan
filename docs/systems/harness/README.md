@@ -103,6 +103,14 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Scope: Admin RunningHub group controls now use an opaque standalone drawer with backdrop and independent scrolling; item-list width and catalog semantics are unchanged.
 - Production promotion remains open and must reuse this exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation.
 
+### 2026-08-04 RunningHub group drawer rail alignment Gray release
+
+- Implementation and candidate version commits: `00be933` (shared rail alignment) and `f67f518` (candidate version `0.8.21`).
+- Candidate archive: `20260804-runninghub-group-drawer-alignment-v0821-r1.tar.gz`; sidecar SHA-256: `5da3015e11a175bfb5216002c6acfac0f258b9fbde30af6b627c121c0b3cffc0`.
+- Gray runtime: API/Worker active, public/internal status `0.8.21 / gray`, permission mode `enforced`, readiness `137 / 125 / 3 / 9 / 1195 / 5`, failures `0`.
+- Scope: the group trigger, item cards, and drawer now share one rail content track; the drawer is anchored inside the left rail and reserves the same scrollbar gap as the item list.
+- Retention dry-run/apply passed with exactly 5 releases retained. Production promotion remains open and must reuse this exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。

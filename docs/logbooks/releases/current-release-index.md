@@ -24,17 +24,17 @@
 
 ### Gray
 
-- 版本：`v0.8.20`
-- release：`20260804-runninghub-group-drawer-v0820-r1`
+- 版本：`v0.8.21`
+- release：`20260804-runninghub-group-drawer-alignment-v0821-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复，以及 Admin 独立分组抽屉；Admin/Canvas 继续复用统一 groupId 目录选择器。`
-- 已验证：`Admin 抽屉测试、workspace 类型检查、Admin/单端构建、RunningHub 契约、归档契约、运行态和权限 readiness 均通过；启动时发现的权限数据漂移已按受控 reconciliation 修复；Gray 保留清理已完成并保留 current/rollback；浏览器视觉验收因本机缺少 Chromium 未执行。`
+- 部署内容：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复，以及 Admin 独立分组抽屉的左侧轨道对齐；Admin/Canvas 继续复用统一 groupId 目录选择器。`
+- 已验证：`Admin 抽屉对齐测试、workspace 类型检查、Admin/单端构建、RunningHub 契约、归档契约、运行态和权限 readiness 均通过；Gray 保留清理已完成并保留 current/rollback；浏览器视觉验收因本机缺少 Chromium 未执行。`
 - 部署时间：`2026-08-04`
-- 本轮制品源提交：`412ca1cabbbdf14f0812c796939d2fedb08f8c17`
-- 本轮制品 SHA-256：`ca8e5c755d3c450f5188b2cc94f782828b2028f7b3d719d8594e3e8b48ba90e8`
+- 本轮制品源提交：`f67f5182421e0908615914029ec21a78726de81a`
+- 本轮制品 SHA-256：`5da3015e11a175bfb5216002c6acfac0f258b9fbde30af6b627c121c0b3cffc0`
 - 本轮发布记录：
-  - `gray/2026-08-04-runninghub-group-drawer-v0820-r1.md`
-  - `../validations/2026-08-04-runninghub-group-drawer-gray-v0820-r1.md`
+  - `gray/2026-08-04-runninghub-group-drawer-alignment-v0821-r1.md`
+  - `../validations/2026-08-04-runninghub-group-drawer-alignment-gray-v0821-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
