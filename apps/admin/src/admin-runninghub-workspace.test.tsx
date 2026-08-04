@@ -57,4 +57,20 @@ describe("RunningHub configuration workbench", () => {
     expect(railRules.join("\n")).not.toContain("position: sticky");
     expect(footerRules.join("\n")).not.toContain("background:");
   });
+
+  it("keeps group management in an explicit modal drawer instead of the item rail flow", () => {
+    expect(workspaceSource).toContain("admin-runninghub-group-trigger");
+    expect(workspaceSource).toContain("admin-runninghub-group-drawer");
+    expect(workspaceSource).toContain('aria-modal="true"');
+    expect(workspaceSource).toContain("onKeyDown");
+    expect(stylesSource).toContain(".admin-runninghub-group-drawer__backdrop");
+    expect(stylesSource).toContain("position: fixed;");
+    expect(stylesSource).toContain(".admin-runninghub-group-manager__list");
+
+    const railSource = workspaceSource.slice(
+      workspaceSource.indexOf('rail={<div className="api-card admin-runninghub-workspace__rail">'),
+      workspaceSource.indexOf("</AdminConfigurationLayout>")
+    );
+    expect(railSource.indexOf("<AdminRunningHubGroupManager")).toBe(-1);
+  });
 });

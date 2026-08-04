@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Boxes, Plus, RefreshCw, Search, Workflow } from "lucide-react";
+import { Bot, Boxes, Plus, RefreshCw, Search, SlidersHorizontal, Workflow } from "lucide-react";
 import { adminRunningHubApi } from "./admin-api-client";
 import {
   AdminConfigurationContext,
@@ -71,12 +71,22 @@ export function AdminRunningHubWorkspace({
   const [keyPoolOpen, setKeyPoolOpen] = useState(false);
   const [keyPoolSaving, setKeyPoolSaving] = useState(false);
   const [keyPoolDraft, setKeyPoolDraft] = useState<RunningHubKeyPoolDraftItem[]>([]);
+  const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (activeView === "workflows") setActiveTab("workflow");
     if (activeView === "apps") setActiveTab("app");
     if (activeView === "keys") setKeyPoolOpen(true);
   }, [activeView]);
+
+  useEffect(() => {
+    if (!groupDrawerOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setGroupDrawerOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [groupDrawerOpen]);
 
   const resolvedProviderId = selectedProviderId || items.find((item) => item.catalogId === selectedCatalogId)?.providerId || items[0]?.providerId || "";
 
@@ -186,6 +196,9 @@ export function AdminRunningHubWorkspace({
   const resolvedProviderLabel = items.find((item) => item.providerId === resolvedProviderId)?.providerName?.trim()
     || resolvedProviderId
     || "未选择 Provider";
+  const selectedGroupLabel = selectedGroupId === "ungrouped"
+    ? "未分组"
+    : groups.find((group) => group.id === selectedGroupId)?.name || "全部条目";
   const analyzeTargetKind = analyzeDraft?.detectedKind === "app"
     ? "app"
     : analyzeDraft?.detectedKind === "workflow"
@@ -252,6 +265,11 @@ export function AdminRunningHubWorkspace({
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     }
+  }
+
+  function selectGroup(groupId: string) {
+    setSelectedGroupId(groupId);
+    setGroupDrawerOpen(false);
   }
 
   async function handleSave(catalogId: string, payload: RunningHubAdminItemUpdatePayload) {
@@ -560,18 +578,18 @@ export function AdminRunningHubWorkspace({
         className="admin-runninghub-workspace__layout"
         rail={<div className="api-card admin-runninghub-workspace__rail">
           <div className="admin-runninghub-workspace__rail-head">
-            <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
-            <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
+            <div className="admin-runninghub-workspace__rail-title-row">
+              <div className="admin-runninghub-workspace__rail-title-copy">
+                <strong>{activeTab === "workflow" ? "工作流目录" : "AI 应用目录"}</strong>
+                <span>左侧只负责选条目，右侧统一编辑、测试、保存和删除。</span>
+              </div>
+              <button type="button" className="admin-runninghub-group-trigger" aria-haspopup="dialog" aria-expanded={groupDrawerOpen} onClick={() => setGroupDrawerOpen(true)}>
+                <SlidersHorizontal aria-hidden="true" />
+                <span><small>分组筛选</small><strong>{selectedGroupLabel}</strong></span>
+                <em>{groupedFilteredItems.length}</em>
+              </button>
+            </div>
           </div>
-          <AdminRunningHubGroupManager
-            groups={groups}
-            items={scopedItems}
-            selectedGroupId={selectedGroupId}
-            onSelect={setSelectedGroupId}
-            onCreate={() => void handleCreateGroup()}
-            onDelete={(group) => void handleDeleteGroup(group)}
-            onToggle={(group) => void handleToggleGroup(group)}
-          />
           <div className="admin-runninghub-workspace__list-body">
             {groupedFilteredItems.length ? (
               groupedFilteredItems.map((item) => (
@@ -760,6 +778,28 @@ export function AdminRunningHubWorkspace({
           </section>
         </div>
       </AdminConfigurationLayout>
+      {groupDrawerOpen ? <>
+        <div className="admin-runninghub-group-drawer__backdrop" aria-hidden="true" onMouseDown={() => setGroupDrawerOpen(false)} />
+        <aside
+          className="admin-runninghub-group-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="RunningHub 分组筛选"
+          tabIndex={-1}
+          onKeyDown={(event) => { if (event.key === "Escape") setGroupDrawerOpen(false); }}
+        >
+          <AdminRunningHubGroupManager
+            groups={groups}
+            items={scopedItems}
+            selectedGroupId={selectedGroupId}
+            onSelect={selectGroup}
+            onCreate={() => void handleCreateGroup()}
+            onDelete={(group) => void handleDeleteGroup(group)}
+            onToggle={(group) => void handleToggleGroup(group)}
+            onClose={() => setGroupDrawerOpen(false)}
+          />
+        </aside>
+      </> : null}
       </> : null}
     </AdminConfigurationWorkbench>
   );
