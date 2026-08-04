@@ -218,6 +218,8 @@ import { createChannelHealthService } from "./channel-health-service.js";
 import { createChannelHealthRouteHandlers } from "./channel-health-routes.js";
 import { createAdminTaskListRouteHandler } from "./admin-task-list-routes.js";
 import { createTaskRepository } from "./task-repository.js";
+import { createOutputArchiveRepository } from "./output-archive-repository.js";
+import { createOutputArchiveRouteHandler } from "./output-archive-routes.js";
 import { normalizeTaskExecutionIdentitySnapshot, type TaskExecutionIdentitySnapshot } from "./task-execution-identity.js";
 import { createCanvasRunRepository } from "./canvas-run-repository.js";
 import type { CanvasRunRecord } from "./canvas-run-repository.js";
@@ -674,6 +676,12 @@ const taskRepository = createTaskRepository({
   safeText,
   plainObject,
   millisToDate,
+});
+const outputArchiveRepository = createOutputArchiveRepository({
+  getPostgresPool,
+  usePostgresRepository,
+  readTaskRecord: (taskId) => taskRepository.readTaskRecord(taskId),
+  userDataDirs: (ownerId) => userDataDirsForId(ownerId),
 });
 const adminUsageSummaryRepository = createAdminUsageSummaryRepository({
   readAdminDb,
@@ -1726,6 +1734,17 @@ const server = createServer(async (request, response) => {
     })) {
       return;
     }
+
+    if (currentUser && await createOutputArchiveRouteHandler({
+      repository: outputArchiveRepository,
+      currentUser,
+      userDataDirs: (ownerId) => userDataDirsForId(ownerId),
+      request,
+      response,
+      url,
+      sendT8,
+      toHttpError: (statusCode, message) => new HttpError(statusCode, message),
+    })) return;
 
     if (request.method === "GET" && url.pathname.startsWith("/files/output/")) {
       await sendStaticFile(response, userDataDirs(currentUser!).outputDir, url.pathname.slice("/files/output/".length));
@@ -4028,12 +4047,14 @@ function userDataDirsForId(userId: string) {
   const inputDir = join(baseDir, "input");
   const outputDir = join(baseDir, "output");
   const resourceDir = join(baseDir, "resources");
+  const archiveDir = join(baseDir, "output-archives");
   return {
     baseDir,
     canvasDir,
     inputDir,
     outputDir,
     resourceDir,
+    archiveDir,
     canvasListPath: join(canvasDir, "canvas-list.json"),
     canvasPostgresMigrationMarkerPath: join(canvasDir, ".postgres-migration-complete"),
     resourceDbPath: join(resourceDir, "resource-library.json"),
@@ -4063,6 +4084,7 @@ async function ensureDataDirs(user?: CurrentUser) {
   await mkdir(dirs.inputDir, { recursive: true });
   await mkdir(dirs.outputDir, { recursive: true });
   await mkdir(dirs.resourceDir, { recursive: true });
+  await mkdir(dirs.archiveDir, { recursive: true });
 }
 
 function canvasDataPath(id: string, user: CurrentUser) {

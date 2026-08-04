@@ -18,3 +18,9 @@
 
 - 本次只涉及 Admin 局部抽屉，不修改 Production。
 - RH 输出归档队列仍按独立实施计划推进。
+
+## 归档 API 阶段
+
+- 新增 `049_output_archive_jobs.sql`、共享归档状态合同、owner-scoped repository 和 API route handler。
+- API 只接受 source task ID，按当前 owner 的物料化输出建立指纹，拒绝任意远程 URL、路径穿越和零本地输出。
+- 验证：Shared build、`output-archive-repository.test.ts` 2 passed、`output-archive-routes.test.ts` 2 passed、API type-check 通过。
