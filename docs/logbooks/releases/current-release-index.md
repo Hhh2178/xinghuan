@@ -30,7 +30,7 @@
 - 部署内容：`RunningHub 分组 CRUD、分组/条目双门禁、停用分组隐藏条目修复，以及 Admin/Canvas 统一 groupId 目录选择器。`
 - 已验证：`API 90 文件 / 351 测试、类型检查、构建、归档契约、运行态、权限 readiness 和认证分组行为验收均通过；浏览器视觉验收因本机缺少 Chromium 未执行。`
 - 部署时间：`2026-08-04`
-- 本轮制品源提交：`66ff9ef`
+- 本轮制品源提交：`66ff9efd9766d6edaf3c9030ba110206fde1b541`
 - 本轮制品 SHA-256：`841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`
 - 本轮发布记录：
   - `gray/2026-08-04-runninghub-groups-v0819-r1.md`

@@ -89,7 +89,7 @@ Before any stage is called complete, append its actual verification evidence (fo
 ### 2026-08-04 Gray acceptance and regression repair
 
 - Regression: `apps/api/src/runninghub-catalog.ts` previously converted an item in a disabled/missing group into an ungrouped item. The new `runninghub-catalog.test.ts` reproduced the leak in RED; the filter fix is committed in `a1dc7dd`.
-- Candidate and archive: version `0.8.19`, release `20260804-runninghub-groups-v0819-r1`, source commit `66ff9ef`, SHA-256 `841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`.
+- Candidate and archive: version `0.8.19`, release `20260804-runninghub-groups-v0819-r1`, source commit `66ff9efd9766d6edaf3c9030ba110206fde1b541`, SHA-256 `841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`.
 - Gray runtime: API/Worker active, public/internal status `0.8.19 / gray`, permission mode `enforced`, readiness `136 / 126 / 3 / 7 / 932 / 5`, failures `0`.
 - Authenticated Gray acceptance passed create, rename, reorder, assignment, disabled-group hiding, item disable/enable, ungroup and delete behavior. No billed execution was attempted.
 - Production promotion remains open and must reuse the exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation; retention apply remains intentionally unperformed.

@@ -3,7 +3,7 @@
 - release: `20260804-runninghub-groups-v0819-r1`
 - environment: `gray`
 - target profile: `old-server`
-- source commit: `66ff9ef`
+- source commit: `66ff9efd9766d6edaf3c9030ba110206fde1b541`
 - archive SHA-256: `841f061903c32ef32ae98be8f6aa90de22d09502fec4b3e6849feb03c1503688`
 
 ## Automated Gates
