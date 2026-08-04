@@ -287,7 +287,7 @@ export function normalizeRunningHubCatalogItems(value: unknown, kind: RhCatalogI
     .map((item) => {
       const normalized = normalizeRunningHubCatalogItem(item, kind);
       if (!normalized || !validGroupIds || !normalized.groupId || validGroupIds.has(normalized.groupId)) return normalized;
-      return { ...normalized, groupId: undefined };
+      return null;
     })
     .filter(Boolean) as RunningHubAdminCatalogEntry[];
 }
