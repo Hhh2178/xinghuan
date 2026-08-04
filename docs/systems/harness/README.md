@@ -120,6 +120,13 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Scope: the group trigger, item cards, and drawer now share one rail content track; the drawer is anchored inside the left rail and reserves the same scrollbar gap as the item list.
 - Retention dry-run/apply passed with exactly 5 releases retained. Production promotion remains open and must reuse this exact Gray archive/SHA. Browser visual evidence is pending local Chromium installation.
 
+### 2026-08-04 encrypted server release v0.8.25
+
+- Source commit: `ee31a4bea12af70367dc165a3b95b451b4ccdd0b`; outer encrypted archive SHA-256: `4bf374ae8c5d98e1aba8fcdb7a787ae602b41196c0b1b827d88e4534f7ce3e3a`; inner sealed archive SHA-256: `f93a9d1f47faf7adaa76209aef91c8a09fbba09bd9262487ca9e31c3caa19f04`.
+- The exact same encrypted artifact was deployed to old/new Gray first and then old/new Production. All four targets report `0.8.25`, the expected environment, `permissionMode=enforced`, active API/Worker services and `ready=true` permission readiness.
+- Server release directories contain zero non-`node_modules` TypeScript/TSX files, source maps and `src/` directories. Development commands remain source-based and do not consume the encrypted archive.
+- Evidence: `docs/logbooks/releases/gray/2026-08-04-encrypted-server-release-v0825-r1.md`, `docs/logbooks/releases/production/2026-08-04-encrypted-server-release-v0825-r1.md`, and the paired validation records.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。

@@ -27,6 +27,8 @@
 - 加密密钥只存在 Gray/Production 服务器环境文件，不进入 Git、归档、日志、manifest 或聊天；部署脚本收到 `.enc` 时只在服务器临时目录解密，随后删除临时密文、明文归档和解密 helper。
 - `npm run verify:encrypted-release-contract -- --archive=<encrypted-archive>` 必须同时验证外层 envelope 和解密后的既有 release package contract；普通 `package:release` 仍保持兼容。
 
+`0.8.25` gate evidence: the same encrypted archive was deployed Gray-first to both old and new servers and then promoted to both Production targets. Runtime checks passed with `0.8.25`, `permissionMode=enforced`, active API/Worker, zero permission readiness failures, and zero non-`node_modules` TypeScript/TSX, source-map or `src/` entries. The outer and inner SHA values are recorded in the release and validation logbooks; no key material is recorded.
+
 远端安装使用 `npm ci --omit=dev`，readiness 使用编译后的 `apps/api/dist/cli/permission-readiness.js`。归档 hash 记录在 release/validation logbook，harness 只记录执行地图和证据引用。
 
 ## 旧服务器目标锁定（0.8.3-r1）

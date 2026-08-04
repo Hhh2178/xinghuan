@@ -112,6 +112,8 @@ Archive runtime smoke also passed in an isolated extraction: `npm ci --omit=dev 
 - `verify:encrypted-release-contract` protects both the envelope header/authentication tag and the inner `verify:release-package-contract` inventory. Deployment supports `target-profile=old-server` and `target-profile=new-server` and decrypts only with the target environment's `XINGHUAN_RELEASE_ENCRYPTION_KEY`.
 - Harness evidence must record the inner plaintext manifest identity and outer encrypted archive SHA-256 without recording the key or any secret-derived value.
 
+Runtime evidence for `0.8.25` is complete: old/new Gray and old/new Production all run `20260804-encrypted-server-release-v0825-r1`; both API and Worker services are active, HTTPS `/api/status` and permission readiness passed, and source isolation reported zero TypeScript/TSX, source-map and `src/` entries outside `node_modules`. The paired release and validation logbooks are the audit source.
+
 ## Integration harness
 
 用于外部系统或机器侧子工程接入。

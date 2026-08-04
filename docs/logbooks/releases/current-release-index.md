@@ -4,15 +4,15 @@
 
 ### Production
 
-- 版本：`v0.8.24`
-- release：`20260804-runninghub-group-collapse-v0824-r1`
-- 当前状态：`Gray 已验证的同一归档已正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`RunningHub 分组选择器默认展开且可单独折叠；Gray 验证通过后使用同一制品晋级 Production，既有归档和 Agent 环境隔离能力保持不变`
+- 版本：`v0.8.25`
+- release：`20260804-encrypted-server-release-v0825-r1`
+- 当前状态：`Gray 已验证的同一加密封装制品已晋级旧/新服务器 Production；旧域名继续提供正式入口，新域名保持并行验收`
+- 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
 - 回滚：`20260728-plato-output-recovery-v083-r22`
 - 当前批次记录：
-  - `production/2026-08-04-runninghub-group-collapse-v0824-r1.md`
-  - `../validations/2026-08-04-runninghub-group-collapse-production-v0824-r1.md`
+  - `production/2026-08-04-encrypted-server-release-v0825-r1.md`
+  - `../validations/2026-08-04-encrypted-server-release-production-v0825-r1.md`
   - `production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
   - `../validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
   - Gray retention 已在 `2026-08-04` dry-run/apply 验证为 5 个 release，current/rollback 均保留。
@@ -29,17 +29,17 @@
 
 ### Gray
 
-- 版本：`v0.8.24`
-- release：`20260804-runninghub-group-collapse-v0824-r1`
-- 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`RunningHub 分组选择器默认展开且可单独折叠；owner-scoped 输出归档 API/Worker 的 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留。`
+- 版本：`v0.8.25`
+- release：`20260804-encrypted-server-release-v0825-r1`
+- 当前状态：`旧/新服务器 Gray 均已发布同一加密封装制品；旧域名继续提供可用灰度入口，新域名通过 HTTPS resolve 验收`
+- 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；RunningHub 分组折叠、归档下载和 RH 节点自动下载能力保持。`
 - 已验证：`全量 CI、归档回归测试、单端构建、运行态和权限 readiness 均通过；真实 RH 下载仍待 Gray 操作验收。`
 - 部署时间：`2026-08-04`
-- 本轮制品源提交：`6db6647`
-- 本轮制品 SHA-256：`53c884f3111004ef1034a2472ed34a2968992b37fbd193a8647837c79d7043e8`
+- 本轮制品源提交：`ee31a4bea12af70367dc165a3b95b451b4ccdd0b`
+- 本轮加密制品 SHA-256：`4bf374ae8c5d98e1aba8fcdb7a787ae602b41196c0b1b827d88e4534f7ce3e3a`
 - 本轮发布记录：
-  - `gray/2026-08-04-runninghub-group-collapse-v0824-r1.md`
-  - `../validations/2026-08-04-runninghub-group-collapse-gray-v0824-r1.md`
+  - `gray/2026-08-04-encrypted-server-release-v0825-r1.md`
+  - `../validations/2026-08-04-encrypted-server-release-gray-v0825-r1.md`
   - `gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
   - `../validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`

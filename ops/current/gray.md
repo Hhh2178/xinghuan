@@ -3,23 +3,24 @@
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.24`
-- 当前 release：`20260804-runninghub-group-collapse-v0824-r1`
-- 当前状态：`旧服务器 Gray 已部署；API/Worker、内部/公网状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced；启动时发现的权限数据漂移已通过受控 reconciliation 修复；Gray 保留清理已完成并保留 current/rollback`
-- 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.24 sealed release；API/Worker、权限 readiness 和 HTTPS 状态均通过，旧服务器继续作为回滚入口`
+- 当前版本：`v0.8.25`
+- 当前 release：`20260804-encrypted-server-release-v0825-r1`
+- 当前状态：`旧服务器与新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；API/Worker、内部/HTTPS 状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
+- 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.25 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，旧服务器继续作为回滚入口`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
-- Production 当前 release：`20260804-runninghub-group-collapse-v0824-r1`
-- 本轮制品源提交：`6db6647`
-- 本轮制品 SHA-256：`53c884f3111004ef1034a2472ed34a2968992b37fbd193a8647837c79d7043e8`
+- Production 当前 release：`20260804-encrypted-server-release-v0825-r1`
+- 本轮制品源提交：`ee31a4bea12af70367dc165a3b95b451b4ccdd0b`
+- 本轮加密制品 SHA-256：`4bf374ae8c5d98e1aba8fcdb7a787ae602b41196c0b1b827d88e4534f7ce3e3a`
+- 本轮内层 sealed archive SHA-256：`f93a9d1f47faf7adaa76209aef91c8a09fbba09bd9262487ca9e31c3caa19f04`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮仅做既有页面视觉收敛，未推进 ComfyUI 功能`
 - 当前本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，需按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍为 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-v0824-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-gray-v0824-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-encrypted-server-release-v0825-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-encrypted-server-release-gray-v0825-r1.md`
 - 新服务器发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
-- Gray retention：`本轮 release dry-run/apply 已通过，保留 5 个 release，current/rollback 均保留`
+- Gray retention：`旧/新服务器本轮 release dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`
