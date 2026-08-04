@@ -35,6 +35,7 @@
 - `npm run verify:project-harness-contract`
 - `npm run verify:canvas-workflow-capabilities-contract`
 - `npm run verify:runninghub-group-permission-contract`
+- `npm test` (Vitest excludes generated `.tmp/**` runtime verification artifacts)
 
 适用场景：
 
@@ -99,6 +100,8 @@
 The release harness blocks drift from this order: `0.8.16` sealed production artifact, `0.8.17` admin tiers, then `0.8.18` RunningHub groups. For every stage, Gray verifies one archive and Production promotes the same Gray archive without rebuilding it. Before the stage is complete, append actual verification evidence for the contracts, archive identity, and runtime result to the release and validation logbooks.
 
 Current local proof (2026-08-03): candidate `0.8.16`, archive `20260803-sealed-production-artifact-v0816-r1.tar.gz`, sidecar SHA-256 `9916bb3e74c04f092469e5019d3a1e6ea38d3376cedc23a5c2d784160d3dc9a0`; 185 content-manifest files, 211 tar entries excluding the root entry, 0 forbidden entries. Workspace type-check, production/static/runtime builds, package/archive/version contracts, and deploy/runtime dry-runs passed. This is executable local proof, not Gray/Production live-runtime evidence; Production must promote this exact archive after Gray approval.
+
+Local continuation proof (2026-08-04): the Vitest matrix is `243 passed / 1 skipped` test files and `929 passed / 4 skipped` tests after excluding generated `.tmp/**` runtime artifacts. RunningHub focused contracts and authenticated local catalog verification passed; the local catalog had no entries, so execution was intentionally not attempted.
 
 Archive runtime smoke also passed in an isolated extraction: `npm ci --omit=dev --ignore-scripts` succeeded and `apps/api/dist/cli/permission-readiness.js` returned the expected `DATABASE_NOT_CONFIGURED` failure without a database URL, proving the sealed entrypoint is executable without source tooling.
 

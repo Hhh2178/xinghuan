@@ -79,6 +79,13 @@ Before any stage is called complete, append its actual verification evidence (fo
 - Admin tier implementation progress: shared tier contract and migration are committed in `b90b7da`; auth repository/server propagation is locally verified. Commit `29b3b2c` adds operator root non-disclosure, root-only administrator mutation, root-session filtering, audit projection, root-excluding environment sync and tier-aware Admin controls; focused policy/UI tests and API/Admin type-check pass.
 - RunningHub group implementation slice: shared `RhCatalogGroup`, migration `048_runninghub_catalog_groups.sql`, Provider persistence, group CRUD API, Admin grouped rail/editor selector, Canvas grouped selector, group subject reconciliation and two-gate permission runtime are implemented and covered by focused tests. Authenticated Gray acceptance, release `0.8.18` packaging and Production promotion remain open.
 
+### 2026-08-04 local continuation proof
+
+- The full Vitest matrix initially scanned generated sealed-runtime dependencies under `.tmp/`; `vitest.config.ts` now excludes `.tmp/**` so generated verification artifacts cannot become project test suites.
+- After the harness fix, the repository matrix passed: 243 test files passed, 1 skipped; 929 tests passed, 4 skipped. Workspace type-check and `build:single-port` also passed.
+- RunningHub focused contracts passed (shared groups, Provider persistence, permission subjects/gate, Admin workspace and Canvas catalog grouping). Local authenticated `verify:runninghub-workflow-api` passed against `127.0.0.1:18200`; the local catalog currently contains zero workflows and zero apps, so no billable execution was attempted.
+- This is local evidence only. Gray/Production remain on `0.8.15`; the `0.8.18` release still requires authenticated Gray acceptance and the existing release-clean gate.
+
 ## 更新规则
 
 - 新增项目级 harness 入口时，优先更新本目录和 `package.json` 根脚本。

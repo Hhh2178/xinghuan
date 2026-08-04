@@ -6,3 +6,4 @@
 
 - `recent-highlights.md`
 - `2026-08-03.md`
+- `2026-08-04.md`
