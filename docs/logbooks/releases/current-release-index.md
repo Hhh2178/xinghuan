@@ -4,13 +4,15 @@
 
 ### Production
 
-- 版本：`v0.8.15`
-- release：`20260803-assistant-runtime-v0815-r1`
+- 版本：`v0.8.24`
+- release：`20260804-runninghub-group-collapse-v0824-r1`
 - 当前状态：`Gray 已验证的同一归档已正式晋级至旧服务器 Production；canvas.hhh2121.xyz 提供正式入口，新域名等待注册商恢复解析`
-- 部署内容：`Provider/RunningHub 共用配置栏单一吸顶、内部列表独立滚动和新建页脚色块移除；Agent 管理维持当前环境隔离`
+- 部署内容：`RunningHub 分组选择器默认展开且可单独折叠；Gray 验证通过后使用同一制品晋级 Production，既有归档和 Agent 环境隔离能力保持不变`
 - Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
 - 回滚：`20260728-plato-output-recovery-v083-r22`
 - 当前批次记录：
+  - `production/2026-08-04-runninghub-group-collapse-v0824-r1.md`
+  - `../validations/2026-08-04-runninghub-group-collapse-production-v0824-r1.md`
   - Gray retention 已在 `2026-08-04` dry-run/apply 验证为 5 个 release，current/rollback 均保留。
   - `production/2026-08-03-assistant-runtime-production-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-production-v0815-r1.md`
@@ -25,17 +27,17 @@
 
 ### Gray
 
-- 版本：`v0.8.23`
-- release：`20260804-runninghub-group-select-archive-fix-v0823-r1`
+- 版本：`v0.8.24`
+- release：`20260804-runninghub-group-collapse-v0824-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`RunningHub 分组选择器改为稳定暗色自定义下拉；owner-scoped 输出归档 API/Worker 的 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留。`
+- 部署内容：`RunningHub 分组选择器默认展开且可单独折叠；owner-scoped 输出归档 API/Worker 的 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留。`
 - 已验证：`全量 CI、归档回归测试、单端构建、运行态和权限 readiness 均通过；真实 RH 下载仍待 Gray 操作验收。`
 - 部署时间：`2026-08-04`
-- 本轮制品源提交：`8d0896d4bb22e7140fba14cc3ea74e28b46aab9a`
-- 本轮制品 SHA-256：`c4e408d18e80d390babbebc2f7628110999c6e2f6952c8fa55c739bd3dc5866f`
+- 本轮制品源提交：`6db6647`
+- 本轮制品 SHA-256：`53c884f3111004ef1034a2472ed34a2968992b37fbd193a8647837c79d7043e8`
 - 本轮发布记录：
-  - `gray/2026-08-04-runninghub-group-select-archive-fix-v0823-r1.md`
-  - `../validations/2026-08-04-runninghub-group-select-archive-fix-gray-v0823-r1.md`
+  - `gray/2026-08-04-runninghub-group-collapse-v0824-r1.md`
+  - `../validations/2026-08-04-runninghub-group-collapse-gray-v0824-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
