@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
 
 import {
   ensureFileExists,
@@ -11,6 +11,7 @@ import {
   printJson,
   remoteReleaseDir,
   requiredArg,
+  rootDir,
   runCommand,
   shellQuote,
   sshTarget,
@@ -21,7 +22,7 @@ import { assertTargetOverridesMatch, loadReleaseTargetProfile, sanitizedTargetFi
 const args = parseArgs(process.argv.slice(2));
 if (helpRequested(args)) {
   console.log(`Usage:
-  node scripts/release/deploy-gray-release.mjs --target-profile=old-server --env=<gray|production> --release=<release-id> --archive=<archive-path> --ssh-key=<path> [--migrate-generation-artifacts=true] [--dry-run=true]
+  node scripts/release/deploy-gray-release.mjs --target-profile=<old-server|new-server> --env=<gray|production> --release=<release-id> --archive=<archive-path|encrypted-archive.enc> --ssh-key=<path> [--migrate-generation-artifacts=true] [--dry-run=true]
 
 Examples:
   node scripts/release/deploy-gray-release.mjs --target-profile=old-server --release=20260623-demo-gray-r1-v049 --archive=dist-release/20260623-demo-gray-r1-v049.tar.gz --ssh-key=<local-key-path>
@@ -37,6 +38,7 @@ const releaseId = requiredArg(args, "release");
 const archivePath = await ensureFileExists(requiredArg(args, "archive"));
 const sidecarPath = await ensureFileExists(`${archivePath}.sha256`);
 const archiveSha256 = await verifyArchiveSidecar({ archivePath, sidecarPath });
+const encryptedArchive = archivePath.toLowerCase().endsWith(".enc");
 const sshKeyPath = await ensureFileExists(requiredArg(args, "ssh-key"));
 const host = defaults.host;
 const port = String(defaults.port);
@@ -52,15 +54,23 @@ const migrateGenerationArtifacts = flagEnabled(args["migrate-generation-artifact
 const releaseDir = remoteReleaseDir(remoteRoot, releaseId);
 const remoteArchive = tmpArchivePath(remoteTmpDir, archivePath);
 const remoteSidecar = tmpArchivePath(remoteTmpDir, sidecarPath);
+const remotePlainArchive = encryptedArchive ? `${remoteArchive}.plain.tar.gz` : remoteArchive;
+const decryptHelperPath = resolve(rootDir, "scripts/encrypt-release-archive.mjs");
+const remoteDecryptHelper = `${remoteTmpDir}/encrypt-release-archive.mjs`;
 const target = sshTarget(user, host);
 const remoteCommands = [
   "set -e",
   `cd ${shellQuote(remoteTmpDir)} && sha256sum -c ${shellQuote(basename(remoteSidecar))}`,
+  ...(encryptedArchive
+    ? [
+        `set -a && . ${shellQuote(sharedEnvFile)} && set +a && node ${shellQuote(remoteDecryptHelper)} --decrypt --input=${shellQuote(remoteArchive)} --output=${shellQuote(remotePlainArchive)}`,
+      ]
+    : []),
   `mkdir -p ${shellQuote(`${remoteRoot}/releases`)}`,
   `mkdir -p ${shellQuote(`${remoteRoot}/shared/data`)}`,
   `mkdir -p ${shellQuote(`${remoteRoot}/shared/logs`)}`,
   `mkdir -p ${shellQuote(releaseDir)}`,
-  `tar -xzf ${shellQuote(remoteArchive)} -C ${shellQuote(releaseDir)}`,
+  `tar -xzf ${shellQuote(remotePlainArchive)} -C ${shellQuote(releaseDir)}`,
   `cd ${shellQuote(releaseDir)}`,
   "npm ci --omit=dev",
   `set -a && . ${shellQuote(sharedEnvFile)} && set +a && npm run db:migrate`,
@@ -73,6 +83,9 @@ const remoteCommands = [
   `ln -sfn ${shellQuote(releaseDir)} ${shellQuote(`${remoteRoot}/current`)}`,
   `sudo systemctl restart ${shellQuote(serviceName)}`,
   `sudo systemctl restart ${shellQuote(workerServiceName)}`,
+  ...(encryptedArchive
+    ? [`rm -f ${shellQuote(remoteArchive)} ${shellQuote(remoteSidecar)} ${shellQuote(remotePlainArchive)} ${shellQuote(remoteDecryptHelper)}`]
+    : []),
 ];
 const remoteScript = remoteCommands.join("; ");
 
@@ -94,6 +107,13 @@ const steps = [
     command: "scp",
     args: ["-i", sshKeyPath, "-P", port, sidecarPath, `${target}:${remoteSidecar}`],
   },
+  ...(encryptedArchive
+    ? [{
+        name: "upload-decrypt-helper",
+        command: "scp",
+        args: ["-i", sshKeyPath, "-P", port, decryptHelperPath, `${target}:${remoteDecryptHelper}`],
+      }]
+    : []),
   {
     name: "deploy-remote-release",
     command: "ssh",
@@ -114,6 +134,7 @@ printJson({
   targetFingerprint: sanitizedTargetFingerprint(defaults),
   dryRun,
   migrateGenerationArtifacts,
+  encryptedArchive,
   releaseId,
   archivePath,
   sidecarPath,

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { encryptReleaseArchive, releaseKeyFromValue, sha256 } from "../encrypt-release-archive.mjs";
 
 describe("sealed runtime release commands", () => {
   let testDir: string;
@@ -92,6 +93,32 @@ describe("sealed runtime release commands", () => {
     expect(output.permissionReadinessCommand).not.toContain("tsx");
     expect(result.stdout).not.toContain(sshKeyPath);
     expect(result.stdout).not.toContain("test-only key fixture");
+  });
+
+  it("adds the decrypt helper only for encrypted server archives", async () => {
+    const encryptedPath = join(testDir, "release.tar.gz.enc");
+    const encrypted = encryptReleaseArchive(Buffer.from("sealed archive fixture"), releaseKeyFromValue("release-test-key-that-is-long-enough-for-tests"));
+    await writeFile(encryptedPath, encrypted);
+    const encryptedSidecarPath = `${encryptedPath}.sha256`;
+    await writeFile(encryptedSidecarPath, `${sha256(encrypted)}  ${basename(encryptedPath)}\n`, "utf8");
+
+    const result = runNode([
+      "scripts/release/deploy-gray-release.mjs",
+      "--target-profile=new-server",
+      "--env=gray",
+      "--release=test-encrypted-runtime",
+      `--archive=${encryptedPath}`,
+      `--ssh-key=${sshKeyPath}`,
+      "--dry-run=true",
+    ]);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.encryptedArchive).toBe(true);
+    expect(output.steps.map((step: { name: string }) => step.name)).toContain("upload-decrypt-helper");
+    expect(output.remoteCommands.join("\n")).toContain("--decrypt");
+    await unlink(encryptedSidecarPath);
+    await unlink(encryptedPath);
   });
 });
 

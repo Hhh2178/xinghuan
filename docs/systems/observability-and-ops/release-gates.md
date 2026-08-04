@@ -20,6 +20,13 @@
 3. `npm run verify:release-package-contract -- --archive=<archive>` 与版本对齐检查，确认禁止项为零。
 4. Gray deploy/runtime dry-run，再由 Gray 运行态验证批准 Production 晋级同一 archive；Production 不得重建。
 
+### Server-only encrypted packaging
+
+- 开发仓库继续使用原有 `npm run dev`、`npm run build` 和 TypeScript 源码链路；只有服务器发布显式执行 `npm run package:server-release -- <release-id>` 时才增加加密封装。
+- `package:server-release` 先生成无源码、无 source map 的 sealed runtime archive，再使用服务器环境变量 `XINGHUAN_RELEASE_ENCRYPTION_KEY` 生成 AES-256-GCM `.tar.gz.enc` 包和外层 SHA-256 sidecar。
+- 加密密钥只存在 Gray/Production 服务器环境文件，不进入 Git、归档、日志、manifest 或聊天；部署脚本收到 `.enc` 时只在服务器临时目录解密，随后删除临时密文、明文归档和解密 helper。
+- `npm run verify:encrypted-release-contract -- --archive=<encrypted-archive>` 必须同时验证外层 envelope 和解密后的既有 release package contract；普通 `package:release` 仍保持兼容。
+
 远端安装使用 `npm ci --omit=dev`，readiness 使用编译后的 `apps/api/dist/cli/permission-readiness.js`。归档 hash 记录在 release/validation logbook，harness 只记录执行地图和证据引用。
 
 ## 旧服务器目标锁定（0.8.3-r1）

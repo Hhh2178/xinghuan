@@ -22,4 +22,18 @@ strict.throws(() => profile.assertTargetOverridesMatch({ "remote-root": "/other"
 });
 profile.assertTargetOverridesMatch({ host: gray.host, user: "ubuntu" }, gray);
 
-process.stdout.write(`${JSON.stringify({ ok: true, contract: "old-server-target-profile", environments: targets.map((item) => item.environment) })}\n`);
+const newTargets = await Promise.all(
+  ["gray", "production"].map(async (environment) => {
+    const target = await profile.loadReleaseTargetProfile({ profile: "new-server", environment });
+    profile.assertNewServerTarget(target);
+    return target;
+  }),
+);
+strict.equal(newTargets.length, 2, "both new-server environments must resolve");
+strict.equal(newTargets[0]?.host, "43.131.246.222", "new Gray host must be the approved migration target");
+strict.equal(newTargets[1]?.port, 22, "new Production must use SSH port 22");
+strict.throws(() => profile.assertNewServerTarget({ ...newTargets[0], host: "101.33.75.38" }), {
+  message: /NEW_SERVER_TARGET_MISMATCH/,
+});
+
+process.stdout.write(`${JSON.stringify({ ok: true, contract: "release-target-profiles", oldServerEnvironments: targets.map((item) => item.environment), newServerEnvironments: newTargets.map((item) => item.environment) })}\n`);

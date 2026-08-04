@@ -43,6 +43,7 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 - `npm run harness:verify:comfyui`
 - `npm run verify:authority-state`
 - `npm run verify:sealed-production-artifact-harness`
+- `npm run verify:encrypted-release-contract`
 - `npm run verify:release-governance-contract`
 - `npm run release:retention:prune -- --env=<gray|production> --ssh-key=<path>`
 - `npm run harness:run -- --profile=quick`
@@ -65,6 +66,14 @@ Harness 系统负责把当前仓库已有的规则、文档、验证脚本、发
 ## Sealed production artifact release track
 
 The release harness records the staged dual-artifact boundary before packaging: `0.8.16` delivers the sealed production artifact, `0.8.17` delivers admin tiers, and `0.8.18` delivers RunningHub groups. Production must promote the same Gray archive that passed runtime verification; it must not rebuild a second production archive.
+
+### Server-only encrypted release envelope
+
+- `npm run package:server-release -- <release-id>` is the only release command that adds the encrypted envelope. It preserves the development repository's source-based commands and does not rewrite tracked source or workspace build outputs.
+- The command produces an AES-256-GCM `.tar.gz.enc` envelope around the existing source-free production runtime archive. The key is read only from `XINGHUAN_RELEASE_ENCRYPTION_KEY`, never from Git or the manifest.
+- `npm run verify:encrypted-release-contract` checks the source contract; passing `--archive=<encrypted-archive>` decrypts into an isolated temporary file and re-runs the existing release package contract.
+- Release deploy accepts both legacy `.tar.gz` archives and encrypted `.tar.gz.enc` archives. Encrypted deploys source the key from the target server environment, decrypt only during extraction, and remove the temporary plaintext archive before service restart completes.
+- Gray and Production use the same sealed plaintext payload and manifest identity; the outer encrypted envelope is an operational transport/at-rest layer and is never treated as application source.
 
 Before any stage is called complete, append its actual verification evidence (focused contracts, build/archive identity, and Gray or Production runtime result) to the release and validation logbooks. This harness directory keeps the execution rule and links only; it does not duplicate the evidence itself.
 

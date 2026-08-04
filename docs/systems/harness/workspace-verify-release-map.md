@@ -105,6 +105,13 @@ Local continuation proof (2026-08-04): the Vitest matrix is `243 passed / 1 skip
 
 Archive runtime smoke also passed in an isolated extraction: `npm ci --omit=dev --ignore-scripts` succeeded and `apps/api/dist/cli/permission-readiness.js` returned the expected `DATABASE_NOT_CONFIGURED` failure without a database URL, proving the sealed entrypoint is executable without source tooling.
 
+### Encrypted server release envelope (2026-08-04)
+
+- Server-only packaging now has an explicit `package:server-release` path. It wraps the existing source-free, minified runtime archive with an AES-256-GCM envelope and writes a separate outer SHA-256 sidecar.
+- The development worktree remains source-based: `package:release`, `build`, `dev`, type-check and tests are unchanged. No encrypted artifact is staged or imported by development commands.
+- `verify:encrypted-release-contract` protects both the envelope header/authentication tag and the inner `verify:release-package-contract` inventory. Deployment supports `target-profile=old-server` and `target-profile=new-server` and decrypts only with the target environment's `XINGHUAN_RELEASE_ENCRYPTION_KEY`.
+- Harness evidence must record the inner plaintext manifest identity and outer encrypted archive SHA-256 without recording the key or any secret-derived value.
+
 ## Integration harness
 
 用于外部系统或机器侧子工程接入。
