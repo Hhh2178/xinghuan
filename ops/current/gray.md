@@ -16,6 +16,7 @@
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-output-archive-v0822-r1.md`
 - 本轮验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-output-archive-gray-v0822-r1.md`
+- Gray retention：`dry-run/apply 已通过，保留 5 个 release，current/rollback 均保留`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`

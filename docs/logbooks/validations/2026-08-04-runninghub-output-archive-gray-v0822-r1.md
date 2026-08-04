@@ -11,6 +11,7 @@
 - Runtime verifier: passed with `appServiceActive=true`, `workerServiceActive=true`, `expectedVersionMatched=true`, and `expectedEnvironmentMatched=true`.
 - Internal and public status: `success=true`, `version=0.8.22`, `environment=gray`, `permissionMode=enforced`.
 - Database migration `049_output_archive_jobs.sql` applied; rerun was idempotent.
+- Gray retention: dry-run and apply passed with `remaining=5`; current and rollback releases were retained.
 - Full local CI: `247` test files and `936` tests passed or skipped as expected.
 
 ## Acceptance boundary

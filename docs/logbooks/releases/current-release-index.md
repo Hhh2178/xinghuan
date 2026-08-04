@@ -11,6 +11,7 @@
 - Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
 - 回滚：`20260728-plato-output-recovery-v083-r22`
 - 当前批次记录：
+  - Gray retention 已在 `2026-08-04` dry-run/apply 验证为 5 个 release，current/rollback 均保留。
   - `production/2026-08-03-assistant-runtime-production-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-production-v0815-r1.md`
   - `production/2026-07-21-admin-health-visual-resource-domain-production-v0717.md`（回滚锚点）

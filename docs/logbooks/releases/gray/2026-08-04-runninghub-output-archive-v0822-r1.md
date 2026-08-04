@@ -24,6 +24,7 @@
 - Runtime verifier: API/Worker active; internal and public status report `0.8.22 / gray / enforced`.
 - Database migration: `049_output_archive_jobs.sql` applied successfully.
 - Runtime packaging follow-up: `archiver` is loaded through Node `createRequire` for Node 22 ESM compatibility.
+- Gray retention dry-run and apply: passed; exactly 5 release directories remain with current and rollback retained.
 
 ## Boundaries
 

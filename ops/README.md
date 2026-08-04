@@ -35,6 +35,7 @@
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
   - 本轮制品源提交：`8cf7f12`
   - 本轮制品 SHA-256：`cc6398232c36d5be39ee0f82eb1142a08cd2dec7f8279cb25fa0b2945aa53b59`
+  - Gray retention：`dry-run/apply 已通过，保留 5 个 release，current/rollback 均保留`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮仅做既有页面视觉收敛`
   - 本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
