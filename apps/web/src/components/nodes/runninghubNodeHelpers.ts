@@ -82,6 +82,9 @@ export function emptyRhOutputState() {
     videoUrls: [] as string[],
     audioUrl: '',
     audioUrls: [] as string[],
+    archiveJobId: '',
+    archiveStatus: '',
+    archiveError: '',
   };
 }
 

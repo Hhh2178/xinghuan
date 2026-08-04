@@ -9,6 +9,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 1. `execution-chain.md`
 2. `queue-and-concurrency.md`
 3. `output-materialization.md`
+4. `output-archive.md`
 
 ## 关键代码入口
 
@@ -22,6 +23,7 @@ Worker 负责消费任务、执行 Provider 或 RunningHub 调用、处理排队
 - 统一运行态诊断：`apps/worker/src/worker-runtime-diagnostics.ts`
 - RunningHub poll 响应归一化：`apps/worker/src/worker-runninghub-response.ts`
 - 输出落库：`apps/worker/src/output-materials.ts`
+- 输出归档：`apps/worker/src/output-archive-worker.ts`
 - Provider 请求体：`apps/worker/src/worker-provider-request-body.ts`
 - Provider 工具：`apps/worker/src/worker-provider-utils.ts`
 - 媒体异步轮询：`apps/worker/src/worker-media-polling.ts`

@@ -9,6 +9,7 @@ import { useHasAutoOutput } from './useHasAutoOutput';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
 import { useUpstreamMaterials, type Material } from './useUpstreamMaterials';
 import { useOrderedMaterials } from './useOrderedMaterials';
+import { useAutoDownloadTaskArchive } from './useAutoDownloadTaskArchive';
 import LoopingVideo from '../LoopingVideo';
 import { resolveMediaMentions, type MediaMention } from './mediaMentions';
 import RunningHubNodeConfigSection from './RunningHubNodeConfigSection';
@@ -83,9 +84,16 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
   const instanceType: string = d?.instanceType || '';
   const status: 'idle' | 'submitting' | 'polling' | 'success' | 'error' | 'cancelled' = d?.status || 'idle';
   const taskId: string | undefined = d?.taskId;
+  const autoDownloadArchive: boolean = d?.autoDownloadArchive === true;
   const rhProgress: string = d?.rhProgress || '';
   const rhQueueHint: string = d?.rhQueueHint || '';
   const urls: string[] = d?.urls || [];
+  const archiveState = useAutoDownloadTaskArchive({
+    taskId,
+    taskStatus: status,
+    enabled: autoDownloadArchive,
+    onStateChange: (patch) => update(patch),
+  });
   const appInfo: any = d?.appInfo;
   // paramValues: 在节点内为每个 nodeInfoList 条目保存的当前编辑值
   // 结构: { 'nodeId::fieldName': { value: string; sourceFromUpstream?: boolean; sourceMaterialId?: string; sourceRhNodeId?: string } }
@@ -895,6 +903,9 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           showManualRunTarget={showManualRunTarget}
           webappId={webappId}
           fetchingInfo={fetchingInfo}
+          autoDownloadArchive={autoDownloadArchive}
+          archiveStatus={archiveState.archiveStatus || d?.archiveStatus}
+          archiveError={archiveState.archiveError || d?.archiveError}
           onReorderMaterials={setMaterialOrder}
           onExcludeUpstreamMaterial={handleExcludeUpstreamMaterial}
           onRestoreExcludedMaterials={handleRestoreExcludedMaterials}
@@ -904,6 +915,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
           onFetchInfo={() => {
             void handleFetchInfo();
           }}
+          onToggleAutoDownloadArchive={() => update({ autoDownloadArchive: !autoDownloadArchive })}
+          onRetryArchive={() => void archiveState.retry()}
         />
 
         <RunningHubNodeParamSection

@@ -1,5 +1,9 @@
 # 素材与输出落库
 
+## 输出归档
+
+归档 ZIP 是短期下载交付物，不登记为 Generation Artifact，也不进入长期素材库。归档作业、owner 隔离、TTL 和清理规则见 [Worker 输出归档](../worker/output-archive.md)。
+
 ## 当前稳定规则
 
 - 生成结果要进入统一输出与素材访问层

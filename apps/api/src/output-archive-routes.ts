@@ -37,7 +37,8 @@ export function createOutputArchiveRouteHandler(input: {
       const message = error instanceof Error ? error.message : String(error);
       const knownStatus = message === "ARCHIVE_TASK_NOT_FOUND" || message === "no_materialized_outputs" ? 409
         : message === "OUTPUT_ARCHIVE_POSTGRES_REQUIRED" ? 503
-          : message === "archive_source_invalid" || message === "archive_too_large" || message === "too_many_pending_archives" ? 400
+      : message === "archive_source_invalid" || message === "archive_too_large" || message === "too_many_pending_archives" || message === "source_task_not_terminal" ? 400
+            : message === "insufficient_archive_disk" ? 507
             : 500;
       throw input.toHttpError(knownStatus, message);
     }

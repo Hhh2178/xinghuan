@@ -100,6 +100,7 @@ import { executeGenerationBatchWithMaterializedProgress } from "./worker-generat
 import { executeGeminiChatTask } from "./worker-gemini-chat-adapter.js";
 import { markTaskArtifactsReady, markTaskMaterializing } from "./worker-materialization-stages.js";
 import { runWithOperationHeartbeat } from "./worker-operation-heartbeat.js";
+import { createOutputArchiveWorker } from "./output-archive-worker.js";
 import { createCanvasRunCoordinator } from "./canvas-run-coordinator.js";
 import { createCanvasRunQualityCoordinator } from "./canvas-run-quality-coordinator.js";
 
@@ -117,7 +118,6 @@ const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_RE
 const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
 const taskQueueRefreshIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_QUEUE_REFRESH_INTERVAL_MS || "5000", 10);
 const canvasRunWorkerEnabled = process.env.XINGHUAN_CANVAS_RUN_WORKER_ENABLED === "true";
-
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
   process.exit(2);
@@ -158,6 +158,7 @@ const canvasRunQualityCoordinator = createCanvasRunQualityCoordinator({
   enabled: canvasRunWorkerEnabled,
   pollIntervalMs: Number.parseInt(process.env.XINGHUAN_CANVAS_RUN_POLL_INTERVAL_MS || "1000", 10),
 });
+const outputArchiveWorker = createOutputArchiveWorker({ pool, dataDir, workerId });
 const {
   claimQueuedTask,
   readTask,
@@ -195,7 +196,6 @@ const workerDeferredRequeue = createWorkerDeferredRequeue({
   updateTask,
   appendTaskRuntimeEventBestEffort,
 });
-
 let currentDatabaseNamePromise: Promise<string> | null = null;
 
 redisControl.on("error", (error) => {
@@ -204,12 +204,12 @@ redisControl.on("error", (error) => {
 
 let stopping = false;
 process.on("SIGTERM", () => {
-  stopping = true;
+  stopping = true; outputArchiveWorker.stop();
   canvasRunCoordinator.stop();
   canvasRunQualityCoordinator.stop();
 });
 process.on("SIGINT", () => {
-  stopping = true;
+  stopping = true; outputArchiveWorker.stop();
   canvasRunCoordinator.stop();
   canvasRunQualityCoordinator.stop();
 });
@@ -425,6 +425,7 @@ async function runWorkerRuntime() {
   const backgroundLoops = [
     ...(staleRunningTaskMs > 0 && staleTaskReaperIntervalMs > 0 ? [runStaleTaskReaperLoop()] : []),
     ...(canvasRunWorkerEnabled ? [canvasRunCoordinator.run(), canvasRunQualityCoordinator.run()] : []),
+    ...(process.env.OUTPUT_ARCHIVE_WORKER_ENABLED !== "false" ? [outputArchiveWorker.run()] : []),
   ];
   while (!stopping) {
     await wait(1000);

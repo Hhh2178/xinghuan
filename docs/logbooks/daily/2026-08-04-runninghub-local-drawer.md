@@ -24,3 +24,10 @@
 - 新增 `049_output_archive_jobs.sql`、共享归档状态合同、owner-scoped repository 和 API route handler。
 - API 只接受 source task ID，按当前 owner 的物料化输出建立指纹，拒绝任意远程 URL、路径穿越和零本地输出。
 - 验证：Shared build、`output-archive-repository.test.ts` 2 passed、`output-archive-routes.test.ts` 2 passed、API type-check 通过。
+
+## 归档 Worker 与 RH 节点阶段
+
+- 新增串行 durable lease 归档 Worker：owner round-robin、流式 ZIP store、heartbeat、取消、TTL 清理、故障 lease 回队列和 `.part` 原子 rename。
+- RH 节点新增“完成后自动下载 ZIP”开关，按 taskId 去重创建归档，轮询 ready 后触发浏览器默认下载，失败可手动重试。
+- 验证：`npx vitest run apps/worker/src/output-archive-worker.test.ts` 1 passed；API 归档测试 4 passed；API/Web/Worker type-check 通过；Worker/Web build 通过。
+- Gray 发布前仍需完成全量 Harness、1920x1080 浏览器验收和真实多任务串行验证；Production 保持不变。

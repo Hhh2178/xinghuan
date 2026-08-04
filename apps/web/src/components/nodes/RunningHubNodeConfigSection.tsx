@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw, Search } from 'lucide-react';
+import { Archive, Loader2, Search } from 'lucide-react';
 
 import type { RunningHubCatalogItem } from '../../services/runninghubCatalog';
 import { groupRunningHubCatalogItems } from '../../services/runninghubCatalog';
@@ -31,6 +31,9 @@ interface RunningHubNodeConfigSectionProps {
   showManualRunTarget: boolean;
   webappId: string;
   fetchingInfo: boolean;
+  autoDownloadArchive: boolean;
+  archiveStatus?: string;
+  archiveError?: string;
   onReorderMaterials: (nextOrder: string[]) => void;
   onExcludeUpstreamMaterial: (material: Material) => void;
   onRestoreExcludedMaterials: () => void;
@@ -38,6 +41,8 @@ interface RunningHubNodeConfigSectionProps {
   onToggleManualRunTarget: () => void;
   onChangeWebappId: (value: string) => void;
   onFetchInfo: () => void;
+  onToggleAutoDownloadArchive: () => void;
+  onRetryArchive: () => void;
 }
 
 export default function RunningHubNodeConfigSection({
@@ -65,6 +70,9 @@ export default function RunningHubNodeConfigSection({
   showManualRunTarget,
   webappId,
   fetchingInfo,
+  autoDownloadArchive,
+  archiveStatus,
+  archiveError,
   onReorderMaterials,
   onExcludeUpstreamMaterial,
   onRestoreExcludedMaterials,
@@ -72,6 +80,8 @@ export default function RunningHubNodeConfigSection({
   onToggleManualRunTarget,
   onChangeWebappId,
   onFetchInfo,
+  onToggleAutoDownloadArchive,
+  onRetryArchive,
 }: RunningHubNodeConfigSectionProps) {
   const totalInputMaterials = orderedTexts.length + orderedImages.length + orderedVideos.length + orderedAudios.length;
   const textFieldCount = currentNodeInfoList.filter((item: any) => inferValueType(item?.fieldType) === 'text').length;
@@ -199,6 +209,24 @@ export default function RunningHubNodeConfigSection({
           </div>
         </div>
       ) : null}
+
+      <div className="rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
+        <label className="flex items-center justify-between gap-2 cursor-pointer text-[10px] text-white/75">
+          <span className="flex items-center gap-1.5"><Archive size={11} />完成后自动下载 ZIP</span>
+          <input type="checkbox" checked={autoDownloadArchive} onChange={onToggleAutoDownloadArchive} className="h-3.5 w-3.5 accent-cyan-400" />
+        </label>
+        {autoDownloadArchive && archiveStatus && archiveStatus !== 'downloaded' ? (
+          <div className="mt-1 flex items-center gap-1 text-[9px] text-white/45">
+            {archiveStatus === 'queued' || archiveStatus === 'running' ? <Loader2 size={10} className="animate-spin" /> : null}
+            <span>{archiveStatus === 'queued' ? '归档排队中' : archiveStatus === 'running' ? '正在打包' : archiveStatus === 'ready' ? '准备下载' : archiveStatus}</span>
+          </div>
+        ) : null}
+        {archiveError ? (
+          <button type="button" onClick={onRetryArchive} className="mt-1 text-[9px] text-rose-300/90 hover:text-rose-200">
+            {archiveError} · 点击重试
+          </button>
+        ) : null}
+      </div>
     </>
   );
 }
