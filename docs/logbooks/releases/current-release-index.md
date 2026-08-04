@@ -25,17 +25,17 @@
 
 ### Gray
 
-- 版本：`v0.8.22`
-- release：`20260804-runninghub-output-archive-v0822-r1`
+- 版本：`v0.8.23`
+- release：`20260804-runninghub-group-select-archive-fix-v0823-r1`
 - 当前状态：`旧服务器 Gray 已发布；当前由 canvas-next.hhh2121.xyz 提供可用灰度入口，新服务器未纳入本轮`
-- 部署内容：`RunningHub 分组抽屉左侧轨道对齐、owner-scoped 输出归档 API/Worker、全站串行 ZIP 处理和 RH 节点自动下载开关；Admin/Canvas 继续复用统一 groupId 目录选择器。`
-- 已验证：`全量 CI、归档 Worker/API 契约、单端构建、运行态和权限 readiness 均通过；浏览器视觉验收和真实 RH 下载仍待 Gray 操作验收。`
+- 部署内容：`RunningHub 分组选择器改为稳定暗色自定义下拉；owner-scoped 输出归档 API/Worker 的 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留。`
+- 已验证：`全量 CI、归档回归测试、单端构建、运行态和权限 readiness 均通过；真实 RH 下载仍待 Gray 操作验收。`
 - 部署时间：`2026-08-04`
-- 本轮制品源提交：`8cf7f12`
-- 本轮制品 SHA-256：`cc6398232c36d5be39ee0f82eb1142a08cd2dec7f8279cb25fa0b2945aa53b59`
+- 本轮制品源提交：`8d0896d4bb22e7140fba14cc3ea74e28b46aab9a`
+- 本轮制品 SHA-256：`c4e408d18e80d390babbebc2f7628110999c6e2f6952c8fa55c739bd3dc5866f`
 - 本轮发布记录：
-  - `gray/2026-08-04-runninghub-output-archive-v0822-r1.md`
-  - `../validations/2026-08-04-runninghub-output-archive-gray-v0822-r1.md`
+  - `gray/2026-08-04-runninghub-group-select-archive-fix-v0823-r1.md`
+  - `../validations/2026-08-04-runninghub-group-select-archive-fix-gray-v0823-r1.md`
   - `gray/2026-08-03-assistant-runtime-v0815-r1.md`
   - `../validations/2026-08-03-assistant-runtime-gray-v0815-r1.md`
   - `gray/2026-07-29-admin-realtime-data-c-v0811-r1.md`（运行态通过、视觉拒绝）
