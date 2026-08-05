@@ -34,4 +34,5 @@
 - 阶段 C：RunningHub 目录复用 Provider/权限上下文、支持按 revision 的 ETag；画布与模型前端 store 保留 in-flight 合并和短 freshness window。
 - 阶段 D：任务列表移除完整日志和大字段，新增任务详情/日志读取入口；审计列表接入有界 FIFO read-audit buffer；系统增加 health/runtime-settings 定向入口。
 - 阶段 E：补充 ZIP Worker 负载隔离契约、内存 soak 测量器和 targeted-read/read-side-effect/cache-authorization Harness 契约。
+- RH 自动 ZIP 下载补充按 `taskId` 的浏览器本地幂等标记，覆盖首次下载后画布 800ms 保存防抖窗口内立即刷新导致的重复下载；显式重试会清理标记。输出素材节点左上角批量下载入口继续按去重后的图片、视频、音频 URL 逐项触发默认下载路径。
 - 以上均为开发 worktree 代码改造；尚未重新构建或部署新的 Gray 制品，Production、迁移和 GitHub 继续暂停。

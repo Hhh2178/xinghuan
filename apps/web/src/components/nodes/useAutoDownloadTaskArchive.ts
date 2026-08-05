@@ -24,6 +24,45 @@ export interface OutputArchiveNodeState {
   archiveError?: string;
 }
 
+const AUTOMATIC_ARCHIVE_MARKER_PREFIX = 'xinghuan:auto-output-archive:';
+
+function automaticArchiveMarkerKey(taskId: string) {
+  return `${AUTOMATIC_ARCHIVE_MARKER_PREFIX}${taskId}`;
+}
+
+/**
+ * The node patch is persisted with the normal canvas debounce. Keep a tiny
+ * browser-local marker as a second idempotency layer so an immediate refresh
+ * cannot re-trigger the same automatic download before that patch is saved.
+ */
+export function readAutomaticArchiveDownloadMarker(taskId: string) {
+  if (typeof window === 'undefined' || !taskId) return undefined;
+  try {
+    const value = window.localStorage.getItem(automaticArchiveMarkerKey(taskId));
+    return value || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeAutomaticArchiveDownloadMarker(taskId: string, jobId: string) {
+  if (typeof window === 'undefined' || !taskId || !jobId) return;
+  try {
+    window.localStorage.setItem(automaticArchiveMarkerKey(taskId), jobId);
+  } catch {
+    // Private browsing/storage quota failures must not break the download.
+  }
+}
+
+export function clearAutomaticArchiveDownloadMarker(taskId: string) {
+  if (typeof window === 'undefined' || !taskId) return;
+  try {
+    window.localStorage.removeItem(automaticArchiveMarkerKey(taskId));
+  } catch {
+    // Best effort only; the persisted node state remains authoritative.
+  }
+}
+
 export function shouldTriggerAutomaticArchiveDownload(
   status: OutputArchiveJob['status'],
   alreadyDownloaded: boolean,
@@ -73,6 +112,7 @@ export function useAutoDownloadTaskArchive(options: AutoDownloadTaskArchiveOptio
     generationRef.current = null;
     downloadedRef.current = null;
     forceNewJobRef.current = true;
+    clearAutomaticArchiveDownloadMarker(options.taskId);
     apply({
       archiveJobId: undefined,
       archiveStatus: undefined,
@@ -86,6 +126,17 @@ export function useAutoDownloadTaskArchive(options: AutoDownloadTaskArchiveOptio
   useEffect(() => {
     if (!options.enabled || options.taskStatus !== 'success' || !options.taskId) return;
     if (generationRef.current === options.taskId) return;
+    const localDownloadedJobId = readAutomaticArchiveDownloadMarker(options.taskId);
+    if (localDownloadedJobId && !forceNewJobRef.current) {
+      generationRef.current = options.taskId;
+      downloadedRef.current = localDownloadedJobId;
+      apply({
+        archiveJobId: options.archiveJobId || localDownloadedJobId,
+        archiveStatus: 'downloaded',
+        autoDownloadedJobId: localDownloadedJobId,
+      });
+      return;
+    }
     if (shouldSkipPersistedArchiveDownload(options.archiveStatus, forceNewJobRef.current)) {
       generationRef.current = options.taskId;
       apply({ archiveStatus: 'downloaded' });
@@ -95,10 +146,13 @@ export function useAutoDownloadTaskArchive(options: AutoDownloadTaskArchiveOptio
     let cancelled = false;
     let timer: number | undefined;
     const alreadyDownloaded = (jobId: string) =>
-      downloadedRef.current === jobId || options.autoDownloadedJobId === jobId;
+      downloadedRef.current === jobId
+      || options.autoDownloadedJobId === jobId
+      || localDownloadedJobId === jobId;
     const triggerDownload = (job: OutputArchiveJob) => {
       if (alreadyDownloaded(job.jobId)) return;
       downloadedRef.current = job.jobId;
+      writeAutomaticArchiveDownloadMarker(options.taskId!, job.jobId);
       apply({
         archiveJobId: job.jobId,
         archiveStatus: 'downloaded',

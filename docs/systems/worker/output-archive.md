@@ -13,7 +13,7 @@ RunningHub 成功任务的自动下载归档由 Worker 异步完成。API 只负
 
 ## 前端交付行为
 
-- RH 节点把 `archiveJobId`、`archiveStatus`、`archiveFilename` 和 `autoDownloadedJobId` 持久化到节点数据；页面刷新后会恢复未完成的归档轮询，已自动下载的同一作业不会再次触发浏览器下载。
+- RH 节点把 `archiveJobId`、`archiveStatus`、`archiveFilename` 和 `autoDownloadedJobId` 持久化到节点数据；页面刷新后会恢复未完成的归档轮询，已自动下载的同一作业不会再次触发浏览器下载。为覆盖画布保存防抖期间的立即刷新，浏览器还按 `taskId` 保存一层轻量幂等标记；显式重试归档时会清除该标记。
 - 用户点击“重试”会清理旧作业标记并创建新的归档作业，继续沿用服务端队列和单并发约束。
 - 输出素材节点提供左上角“下载当前节点全部输出素材”入口，按去重后的图片、视频和音频 URL 逐项触发浏览器下载；文本内容仍保留在节点中展示和透传。
 
