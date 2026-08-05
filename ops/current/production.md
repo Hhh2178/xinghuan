@@ -1,16 +1,15 @@
 # 当前 Production 运行态
 
-## 部署同步例外（2026-08-05）
+## v0.8.26 双服务器发布（2026-08-05）
 
-- 旧服务器 Production 已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；发布前数据库备份已完成，API/Worker active，内部和 HTTPS status 均为 `production / enforced`，permission readiness 为 `true`。
-- 新服务器仍停留在 `v0.8.25`。本机可用 SSH 密钥在 `43.131.246.222:22` 被拒绝，未对该目标上传、解包、迁移、备份或重启服务。
-- 环境级 `release-state.json.environments.production` 继续表示最近一次双服务器同步完成的 `v0.8.25`；目标级实态见同文件的 `partialTargetDeployments` 和本轮发布记录。
+- 旧服务器和新服务器 Production 均已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；发布前数据库备份已完成，API/Worker active，权限 readiness 均为 `true`。
+- 新服务器公网域名 `canvas.zezhen.online` 当前在本机 DNS 查询失败；新服务器内部 `127.0.0.1:18100` status 与 readiness 已通过。
 
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.25`
-- 当前 release：`20260804-encrypted-server-release-v0825-r1`
+- 当前版本：`v0.8.26`
+- 当前 release：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前状态：`旧服务器与新服务器 Production 均由 Gray 同一验证的 AES-256-GCM 加密封装制品晋级；API/Worker、内部/HTTPS 状态和权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
 - 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.25 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，尚未切换公网流量`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`

@@ -1,16 +1,15 @@
 # 当前 Gray 运行态
 
-## 部署同步例外（2026-08-05）
+## v0.8.26 双服务器发布（2026-08-05）
 
-- 旧服务器 Gray 已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；API/Worker active，内部和 HTTPS status 均为 `gray / enforced`，permission readiness 为 `true`。
-- 新服务器仍停留在 `v0.8.25`。本机可用 SSH 密钥在 `43.131.246.222:22` 被拒绝，未对该目标上传、解包、迁移或重启服务。
-- 环境级 `release-state.json.environments.gray` 继续表示最近一次双服务器同步完成的 `v0.8.25`；目标级实态见同文件的 `partialTargetDeployments` 和本轮发布记录。
+- 旧服务器和新服务器 Gray 均已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；API/Worker active，内部 status、权限 readiness 均通过。
+- 新服务器公网域名 `canvas-next.zezhen.online` 当前在本机 DNS 查询失败，因此新服务器公网 HTTPS 未纳入本次本地验证；服务器内部 `127.0.0.1:18200` status 与 readiness 已通过。
 
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.25`
-- 当前 release：`20260804-encrypted-server-release-v0825-r1`
+- 当前版本：`v0.8.26`
+- 当前 release：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前状态：`旧服务器与新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；API/Worker、内部/HTTPS 状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
 - 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.25 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，旧服务器继续作为回滚入口`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`

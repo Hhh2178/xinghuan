@@ -1,18 +1,17 @@
 # 当前 Release 索引
 
-## 部分目标升级（2026-08-05）
+## v0.8.26 双服务器发布（2026-08-05）
 
-- `v0.8.26 / 20260805-retired-permission-cleanup-v0826-r1` 已部署并验证于旧服务器 Gray 与 Production，两个环境均为 API/Worker active、`enforced`、permission readiness `true`。
-- 新服务器 Gray 与 Production 保持 `v0.8.25`：本机可用身份在 `43.131.246.222:22` 被 SSH 公钥认证拒绝，未执行上传、备份、迁移或服务重启。
-- 环境级 active release 仍列出最近一次旧/新服务器同步完成的 `v0.8.25`；目标级实态见 `../../ops/current/release-state.json` 的 `partialTargetDeployments`。
-- 证据：`gray/2026-08-05-retired-permission-cleanup-old-server-gray-v0826-r1.md`、`production/2026-08-05-retired-permission-cleanup-old-server-production-v0826-r1.md` 与对应 validation 记录。
+- `v0.8.26 / 20260805-retired-permission-cleanup-v0826-r1` 已部署于旧/新服务器 Gray 与 Production，四个目标均为 API/Worker active、`enforced`、permission readiness `true`。
+- 新服务器公网域名在本机 DNS 查询失败；内部 API、服务状态和权限 readiness 已通过，公网 DNS/HTTPS 需由域名侧恢复后复核。
+- 证据：对应 Gray/Production release 与 validation 记录，以及 `../../ops/current/release-state.json` 的 `targetDeployments`。
 
 ## 当前 active release
 
 ### Production
 
-- 版本：`v0.8.25`
-- release：`20260804-encrypted-server-release-v0825-r1`
+- 版本：`v0.8.26`
+- release：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前状态：`Gray 已验证的同一加密封装制品已晋级旧/新服务器 Production；旧域名继续提供正式入口，新域名保持并行验收`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
@@ -36,8 +35,8 @@
 
 ### Gray
 
-- 版本：`v0.8.25`
-- release：`20260804-encrypted-server-release-v0825-r1`
+- 版本：`v0.8.26`
+- release：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前状态：`旧/新服务器 Gray 均已发布同一加密封装制品；旧域名继续提供可用灰度入口，新域名通过 HTTPS resolve 验收`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；RunningHub 分组折叠、归档下载和 RH 节点自动下载能力保持。`
 - 已验证：`全量 CI、归档回归测试、单端构建、运行态和权限 readiness 均通过；真实 RH 下载仍待 Gray 操作验收。`

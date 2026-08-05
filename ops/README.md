@@ -24,7 +24,7 @@
 
 ## 当前运行态摘要
 
-- 2026-08-05 部分目标升级：旧服务器 Gray/Production 已为 `v0.8.26`，新服务器因 SSH 公钥认证不可用保持 `v0.8.25`。环境级同步基线和目标级差异分别记录于 `current/release-state.json` 的 `environments` 与 `partialTargetDeployments`。
+- 2026-08-05 双服务器升级：Gray/Production 四个目标均为 `v0.8.26`；新服务器公网域名在本机 DNS 查询失败，但服务器内部 status/readiness 已通过。目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
 
 - Gray：
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
