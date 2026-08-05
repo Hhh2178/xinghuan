@@ -3,6 +3,8 @@ const loginEmail = process.env.XINGHUAN_VERIFY_EMAIL ?? process.env.XINGHUAN_BOO
 const loginPassword = process.env.XINGHUAN_VERIFY_PASSWORD ?? process.env.XINGHUAN_BOOTSTRAP_ADMIN_PASSWORD ?? "admin123456";
 const providerNameHint = (process.env.XINGHUAN_VERIFY_GRSAI_PROVIDER_NAME ?? "grsai").toLowerCase();
 const modelNameHint = (process.env.XINGHUAN_VERIFY_GRSAI_MODEL_ID ?? "gpt-image-2").toLowerCase();
+const requestOrigin = new URL(baseUrl).origin;
+const workerTaskTimeoutSeconds = Math.min(600, Math.max(30, Number(process.env.XINGHUAN_VERIFY_GRSAI_TASK_TIMEOUT_SECONDS ?? 360) || 360));
 
 let cookie = "";
 
@@ -71,6 +73,7 @@ async function main() {
       modelId: model.id,
       payload: {
         kind: "image",
+        taskCapability: "image",
         prompt: `灰度异步 GRSAI 验收 ${Date.now()}`,
         size: "1024x1024",
         aspectRatio: "1:1",
@@ -83,10 +86,10 @@ async function main() {
   if (!taskId) return finish(results);
 
   let task = null;
-  for (let attempt = 0; attempt < 150; attempt += 1) {
+  for (let attempt = 0; attempt < workerTaskTimeoutSeconds; attempt += 1) {
     await sleep(1000);
-    const tasks = await fetchJson("/api/admin/tasks");
-    task = (tasks.data || []).find((item) => item.id === taskId);
+    const taskResponse = await fetchJson(`/api/admin/tasks/${encodeURIComponent(taskId)}`);
+    task = taskResponse.data || null;
     if (task?.status === "succeeded" || task?.status === "failed") break;
   }
 
@@ -132,6 +135,7 @@ function withCookie(options = {}) {
     headers: {
       ...(cookie ? { cookie } : {}),
       ...(options.headers || {}),
+      ...(options.method && options.method !== "GET" ? { origin: requestOrigin } : {}),
     },
   };
 }

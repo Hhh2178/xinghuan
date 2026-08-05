@@ -43,3 +43,10 @@
 - 权限 reconciliation 会删除仅指向 `retired` Subject 的授权规则；PostgreSQL 使用单条原子 `DELETE ... USING`，文件存储路径同步覆盖。
 - 每次清理均追加系统审计记录；权限后台默认隐藏退役主体，并提供“当前对象 / 已退役 / 全部”筛选。
 - 本地验证：全量 Vitest 258 个文件、971 个测试通过（4 个跳过）；完整构建、类型检查、权限平台契约、读路径副作用契约、项目 Harness、workspace Harness 和 release Harness 均通过。
+
+## 旧服务器 Gray GRSAI 生图压力验证
+
+- 在旧服务器 Gray 的 `v0.8.26` 上执行最多 20 次的真实 `GRSAI / gpt-image-2` 受控生图验证，覆盖同步代理与 Worker 异步队列并回读结果文件。
+- 4 个并发批次全部通过；最终 8 次同步与 8 次 Worker 生成成功，连同前置 4 次同步探测共 20 次，未超过调用上限。
+- 压测后 API 和 Worker 均为 `active`，内部状态为 `ok / gray / permissionMode=enforced`，系统负载为 `0.11 / 0.08 / 0.06`，本次时间窗未发现 Worker 错误、超时或崩溃日志。
+- 灰度验证脚本同步当前 CSRF、任务能力与详情轮询合同；完整证据见 [`2026-08-05-grsai-gpt-image-2-old-gray-stress.md`](../validations/2026-08-05-grsai-gpt-image-2-old-gray-stress.md)。
