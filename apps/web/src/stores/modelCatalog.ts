@@ -7,6 +7,8 @@ interface ModelCatalogState {
   loading: boolean;
   error: string | null;
   loaded: boolean;
+  lastLoadedAt: number;
+  inFlight: Promise<void> | null;
   load: () => Promise<void>;
 }
 
@@ -18,19 +20,30 @@ const EMPTY: PublicModelCatalog = {
   audioModels: [],
 };
 
-export const useModelCatalogStore = create<ModelCatalogState>((set) => ({
+export const useModelCatalogStore = create<ModelCatalogState>((set, get) => ({
   catalog: EMPTY,
   loading: false,
   error: null,
   loaded: false,
+  lastLoadedAt: 0,
+  inFlight: null,
 
   async load() {
+    const current = get();
+    if (current.inFlight) return current.inFlight;
+    if (current.loaded && current.lastLoadedAt > 0 && Date.now() - current.lastLoadedAt < 5_000) return;
     set({ loading: true, error: null });
-    try {
-      const catalog = await api.getModelCatalog();
-      set({ catalog: { ...EMPTY, ...catalog }, loading: false, loaded: true });
-    } catch (error: any) {
-      set({ catalog: EMPTY, loading: false, loaded: true, error: error?.message || '模型目录加载失败' });
-    }
+    const request = (async () => {
+      try {
+        const catalog = await api.getModelCatalog();
+        set({ catalog: { ...EMPTY, ...catalog }, loading: false, loaded: true, lastLoadedAt: Date.now() });
+      } catch (error: any) {
+        set({ catalog: EMPTY, loading: false, loaded: true, lastLoadedAt: 0, error: error?.message || '模型目录加载失败' });
+      } finally {
+        set({ inFlight: null });
+      }
+    })();
+    set({ inFlight: request });
+    return request;
   },
 }));

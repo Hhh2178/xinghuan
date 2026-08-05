@@ -16,6 +16,12 @@ async function main() {
   await writeFile(join(outputDir, ".keep"), "", "utf-8").catch(() => undefined);
   await ensureDir(outputDir);
   await ensureDir(resourceDir);
+  await ensureDir(join(dataDir, "admin"));
+  await writeFile(
+    join(dataDir, "admin", "admin.json"),
+    JSON.stringify({ taskQueueSettings: { materialLifecycle: { outputRetentionDays: 15 } } }),
+    "utf-8",
+  );
 
   const oldExpiredFile = "old-expired.png";
   const oldFavoritedFile = "old-favorited.png";
@@ -67,6 +73,15 @@ async function main() {
   assert(!dryRun.deletedItemIds.includes("res-manual"), "dry run selected non-task-output material");
   assert(!dryRun.deletedItemIds.includes("res-categorized"), "dry run selected categorized material");
   assert(!dryRun.deletedItemIds.includes("res-recent"), "dry run selected recent material");
+
+  const configuredDryRun = await pruneOldOutputMaterials({ dataDir, now, apply: false });
+  assert(configuredDryRun.retentionDays === 15, "configured retention days were not loaded from admin settings");
+  assert(configuredDryRun.retentionSource === "file", "configured retention source was not reported as file");
+
+  const defaultDataDir = await mkdtemp(join(tmpdir(), "xinghuan-output-prune-default-"));
+  const defaultDryRun = await pruneOldOutputMaterials({ dataDir: defaultDataDir, now, apply: false });
+  assert(defaultDryRun.retentionDays === 3, "default retention days are not three days");
+  assert(defaultDryRun.retentionSource === "environment-or-default", "default retention source was not reported");
 
   const applied = await pruneOldOutputMaterials({ dataDir, now, retentionDays: 14, apply: true });
   const after = JSON.parse(await readFile(resourceDbPath, "utf-8"));

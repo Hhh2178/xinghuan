@@ -23,6 +23,7 @@ import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMaterial';
 import ResizableCorners from './ResizableCorners';
 import { saveAssetToDisk } from '../../services/api';
+import { downloadMediaCollection } from '../../services/downloadMediaCollection';
 import {
   createOutputDataFromItem,
   type MediaItem,
@@ -578,6 +579,15 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
   const effectiveHandle = isRhDuckOutput ? '#ff345f' : isYyhPortraitOutput ? '#ff4fd8' : HANDLE;
 
   const total = collected.texts.length + collected.images.length + collected.videos.length + collected.audios.length;
+  const downloadableUrls = useMemo(
+    () => [...collected.images, ...collected.videos, ...collected.audios],
+    [collected.audios, collected.images, collected.videos],
+  );
+  const handleDownloadAll = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    downloadMediaCollection(downloadableUrls);
+  };
 
   // === 双击图片 → 裁剪/宫格弹窗 ===
   // 仅针对 collected.images 中的单张图生效; 产物“不”修改本节点, 而是
@@ -928,6 +938,35 @@ const OutputNode = ({ id, data, selected, width }: NodeProps) => {
         >
           <Edit3 size={12} />
           <span>Edit</span>
+        </button>
+      )}
+      {selected && downloadableUrls.length > 0 && (
+        <button
+          type="button"
+          className="nodrag nopan"
+          onClick={handleDownloadAll}
+          onMouseDown={(event) => event.stopPropagation()}
+          title="下载当前节点全部输出素材"
+          aria-label="下载当前节点全部输出素材"
+          style={{
+            position: 'absolute',
+            top: -34,
+            left: canEditImage ? 62 : 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 30,
+            height: 26,
+            background: isDark ? 'rgba(28,28,32,0.92)' : 'rgba(255,255,255,0.95)',
+            color: effectiveAccent,
+            border: `1px solid ${effectiveAccent}66`,
+            borderRadius: 6,
+            boxShadow: isDark ? '0 6px 24px rgba(0,0,0,0.4)' : '0 6px 24px rgba(0,0,0,0.12)',
+            cursor: 'pointer',
+            zIndex: 30,
+          }}
+        >
+          <Download size={13} />
         </button>
       )}
       {/* target handle (左侧) - 上游任意类型可连入 */}

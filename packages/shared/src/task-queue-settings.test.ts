@@ -4,6 +4,8 @@ import {
   TASK_QUEUE_DEFAULT_CONCURRENCY,
   TASK_QUEUE_DEFAULT_USER_CONCURRENCY,
   TASK_QUEUE_MAX_CONCURRENCY,
+  MATERIAL_RETENTION_MAX_DAYS,
+  MATERIAL_RETENTION_MIN_DAYS,
   buildTaskQueueRuntimeDescriptors,
   normalizeTaskQueueSettings,
   taskQueueWorkerRuntimeKey,
@@ -29,6 +31,13 @@ describe("task queue settings", () => {
     expect(settings.chat).toEqual({ concurrency: 12, userConcurrency: 2 });
     expect(settings.runninghub.concurrency).toBe(1);
     expect(settings.runninghub.enabled).toBe(false);
+    expect(settings.materialLifecycle?.outputRetentionDays).toBe(3);
+  });
+
+  it("clamps the persisted material retention setting", () => {
+    expect(normalizeTaskQueueSettings({ materialLifecycle: { outputRetentionDays: 15 } }).materialLifecycle?.outputRetentionDays).toBe(15);
+    expect(normalizeTaskQueueSettings({ materialLifecycle: { outputRetentionDays: 0 } }).materialLifecycle?.outputRetentionDays).toBe(MATERIAL_RETENTION_MIN_DAYS);
+    expect(normalizeTaskQueueSettings({ materialLifecycle: { outputRetentionDays: 99999 } }).materialLifecycle?.outputRetentionDays).toBe(MATERIAL_RETENTION_MAX_DAYS);
   });
 
   it("builds queue descriptors with the configured base queue name", () => {

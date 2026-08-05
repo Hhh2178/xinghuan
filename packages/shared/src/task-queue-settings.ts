@@ -10,12 +10,17 @@ export interface RunningHubQueueSettings {
   enabled: boolean;
 }
 
+export interface MaterialLifecycleSettings {
+  outputRetentionDays: number;
+}
+
 export interface TaskQueueSettings {
   image: TaskQueueCapabilityConfig;
   audio: TaskQueueCapabilityConfig;
   video: TaskQueueCapabilityConfig;
   chat: TaskQueueCapabilityConfig;
   runninghub: RunningHubQueueSettings;
+  materialLifecycle?: MaterialLifecycleSettings;
 }
 
 export interface TaskQueueRuntimeDescriptor {
@@ -46,6 +51,9 @@ export const TASK_QUEUE_MAX_CONCURRENCY = 999;
 export const TASK_QUEUE_MIN_CONCURRENCY = 1;
 export const TASK_QUEUE_DEFAULT_USER_CONCURRENCY = 8;
 export const TASK_QUEUE_MAX_USER_CONCURRENCY = 999;
+export const MATERIAL_RETENTION_DEFAULT_DAYS = 3;
+export const MATERIAL_RETENTION_MIN_DAYS = 1;
+export const MATERIAL_RETENTION_MAX_DAYS = 3650;
 
 export function clampTaskQueueConcurrency(value: unknown, fallback = TASK_QUEUE_DEFAULT_CONCURRENCY) {
   const numeric = Number(value);
@@ -68,7 +76,14 @@ export function defaultTaskQueueSettings(): TaskQueueSettings {
     video: { concurrency: TASK_QUEUE_DEFAULT_CONCURRENCY, userConcurrency: TASK_QUEUE_DEFAULT_USER_CONCURRENCY },
     chat: { concurrency: 20, userConcurrency: 4 },
     runninghub: { concurrency: 2, enabled: true },
+    materialLifecycle: { outputRetentionDays: MATERIAL_RETENTION_DEFAULT_DAYS },
   };
+}
+
+export function clampMaterialRetentionDays(value: unknown, fallback = MATERIAL_RETENTION_DEFAULT_DAYS) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(MATERIAL_RETENTION_MAX_DAYS, Math.max(MATERIAL_RETENTION_MIN_DAYS, Math.round(numeric)));
 }
 
 export function normalizeTaskQueueSettings(value: unknown, base: TaskQueueSettings = defaultTaskQueueSettings()): TaskQueueSettings {
@@ -120,6 +135,12 @@ export function normalizeTaskQueueSettings(value: unknown, base: TaskQueueSettin
         base.runninghub.concurrency,
       ),
       enabled: isRecord(source.runninghub) ? source.runninghub.enabled !== false : base.runninghub.enabled,
+    },
+    materialLifecycle: {
+      outputRetentionDays: clampMaterialRetentionDays(
+        isRecord(source.materialLifecycle) ? source.materialLifecycle.outputRetentionDays : undefined,
+        base.materialLifecycle?.outputRetentionDays ?? MATERIAL_RETENTION_DEFAULT_DAYS,
+      ),
     },
   };
 }

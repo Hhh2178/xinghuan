@@ -38,6 +38,14 @@ const checks = [
       /await deleteResourceItemPostgres\(id, currentUser!, resourceRevisionFromPayload\(body\)\);/i.test(api),
   ],
   [
+    "Resource deletion removes only unreferenced owner-scoped output files",
+    /async function deleteResourceItemPostgres[\s\S]*select id, kind, title, url, mime, size_bytes[\s\S]*from xh_assets where id = \$1 and owner_id = \$2/i.test(api) &&
+      /async function deleteResourceItemPostgres[\s\S]*await client\.query\("begin"\)/i.test(api) &&
+      /async function deleteResourceItemPostgres[\s\S]*metadata->>'fileUrl' = \$2[\s\S]*metadata->>'fileRel' = \$2[\s\S]*url = \$2/i.test(api) &&
+      /async function removeResourcePhysicalFile[\s\S]*startsWith\("\/files\/output\/"\)[\s\S]*startsWith\("\/output\/"\)/i.test(api) &&
+      /async function removeResourcePhysicalFile[\s\S]*filename\.includes\("\/"\)[\s\S]*filename\.includes\("\\\\"\)/i.test(api),
+  ],
+  [
     "Resource postgres upserts reject cross-owner conflicts",
     /async function writeResourceDb[\s\S]*RESOURCE_OWNERSHIP_MISMATCH/i.test(api) &&
       /async function upsertResourceCategoryPostgres[\s\S]*RESOURCE_OWNERSHIP_MISMATCH/i.test(api) &&

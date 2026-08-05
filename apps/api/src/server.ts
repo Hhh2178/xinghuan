@@ -48,9 +48,10 @@ import {
 } from "@xinghuan/model-core";
 import Busboy from "busboy";
 import { createServer } from "node:http";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { createReadStream, createWriteStream } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve, sep } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
@@ -137,6 +138,8 @@ import { createGenerationArtifactRepository } from "./generation-artifact-reposi
 import { createGenerationArtifactLifecycle } from "./generation-artifact-lifecycle.js";
 import { createEphemeralUploadRepository } from "./ephemeral-upload-repository.js";
 import { createLocalArtifactStore } from "./artifact-store.js";
+import { createRequestPerformanceObservability, normalizeRouteId } from "./request-performance-observability.js";
+import { createReadAuditBuffer } from "./read-audit-buffer.js";
 import { handleGenerationArtifactRoutes } from "./generation-artifact-routes.js";
 import { createProviderGenerationTaskService } from "./provider-generation-task-service.js";
 import { createEnvironmentSyncService, type EnvironmentSyncSnapshot, type EnvironmentSyncWriteRequest } from "./environment-sync-service.js";
@@ -187,6 +190,7 @@ import { createPermissionShadowMetrics } from "./permissions/permission-shadow-m
 import { evaluatePermissionReadiness } from "./permissions/permission-readiness.js";
 import { handleAdminProviderRoutes } from "./admin-provider-routes.js";
 import { createProviderRepository } from "./provider-repository.js";
+import { createAdminDirectoryReadRepository } from "./admin-directory-read-repository.js";
 import { normalizeCatalogSortOrder, sortByCatalogDisplayOrder } from "./catalog-display-order.js";
 import {
   findCanvasSnapshotOwnershipConflicts,
@@ -424,6 +428,14 @@ const permissionRuntime = createPermissionRuntime({
   },
 });
 const providerRepository = createProviderRepository({ usePostgresRepository, ensureDataDirs, adminDbPath, getPostgresPool, dateToMillis, millisToDate, normalizeAdminModelRecord: (model) => normalizeAdminModelRecord(model as AdminModelRecord), normalizeProviderSecret, normalizeProviderProtocol, normalizeCapability, normalizeOptionalProtocol, normalizeRunningHubEntries, normalizeRunningHubGroups, normalizeRunningHubKeyPool, normalizeModelScopeLoras, plainObject, safeJsonText, safeText });
+const adminDirectoryReadRepository = createAdminDirectoryReadRepository({
+  usePostgresRepository,
+  getPostgresPool,
+  readAuthDb,
+  dateToMillis,
+  normalizeAdministratorTier,
+  safeText,
+});
 const settingsRepository = createSettingsRepository({
   usePostgresRepository,
   ensureDataDirs,
@@ -449,6 +461,14 @@ const adminRepository = createAdminRepository({
   dateToMillis,
   millisToDate,
   safeText,
+});
+const readAuditBuffer = createReadAuditBuffer<AdminAuditRecord>({
+  maxQueue: 1_000,
+  maxBatch: 50,
+  flushIntervalMs: 250,
+  write: async (records) => {
+    for (const record of records) await adminRepository.appendAuditRecord(record);
+  },
 });
 const taskCostRepository = createTaskCostRepository({ usePostgresRepository, getPostgresPool });
 const handleAdminCostRoutes = createAdminCostRouteHandler({
@@ -827,6 +847,23 @@ const handleAdminAuditRoutes = createAdminAuditRouteHandler({
   safeText,
   plainObject,
   appendAudit,
+  appendReadAudit: async (actor, action, targetType, targetId, summary, context) => {
+    const record: AdminAuditRecord = {
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action,
+      targetType,
+      targetId,
+      summary,
+      requestId: safeText(context?.requestId),
+      ip: safeText(context?.ip),
+      userAgent: safeText(context?.userAgent),
+      createdAt: Date.now(),
+    };
+    readAuditBuffer.push(record);
+    void readAuditBuffer.flush();
+  },
 });
 
 const handleAdminTaskListRoutes = createAdminTaskListRouteHandler({
@@ -1073,6 +1110,8 @@ interface AdminTaskRecord {
   payload?: Record<string, unknown>;
   result?: Record<string, unknown>;
   logs: string[];
+  logCount?: number;
+  latestLog?: string;
   createdAt: number;
   updatedAt: number;
   finalizedAt?: number;
@@ -1471,12 +1510,23 @@ const announcementStore = createAnnouncementStore({
   dateToMillis,
 });
 const announcementPublicStreamPath = "/api/announcements/stream";
+const requestPerformance = createRequestPerformanceObservability({ maxSamples: 2_000 });
+const eventLoopHistogram = monitorEventLoopDelay({ resolution: 20 });
+eventLoopHistogram.enable();
 
 await ensureRuntimeDatabaseTarget("xinghuan-api");
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
   const requestContext = createRequestContext(request, url);
+  const performanceTracker = requestPerformance.start(normalizeRouteId(`${request.method || "GET"} ${url.pathname}`));
+  response.once("finish", () => {
+    const rawBytes = response.getHeader("content-length");
+    performanceTracker.finish({
+      statusCode: response.statusCode,
+      responseBytes: typeof rawBytes === "number" ? rawBytes : Number(rawBytes || 0),
+    });
+  });
   response.setHeader("x-request-id", requestContext.requestId);
 
   if (request.method === "OPTIONS") {
@@ -1847,7 +1897,14 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/runninghub/catalog" && request.method === "GET") {
-      sendT8(response, await publicRunningHubCatalog(currentUser));
+      const catalog = await publicRunningHubCatalog(currentUser);
+      const etag = `"${catalog.revision}"`;
+      if (request.headers["if-none-match"] === etag) {
+        response.writeHead(304, { etag, "cache-control": "private, max-age=0, must-revalidate" });
+        response.end();
+        return;
+      }
+      sendT8(response, catalog, 200, { etag, "cache-control": "private, max-age=0, must-revalidate" });
       return;
     }
 
@@ -2421,7 +2478,9 @@ const server = createServer(async (request, response) => {
               currentRevision: current.revision,
             });
           }
-          await writeResourceDb({ ...db, items: db.items.filter((item) => item.id !== id) }, currentUser!);
+          const nextItems = db.items.filter((item) => item.id !== id);
+          await writeResourceDb({ ...db, items: nextItems }, currentUser!);
+          await removeUnreferencedResourceFile(current, nextItems, currentUser!);
         }
         sendT8(response, null);
         return;
@@ -2783,12 +2842,13 @@ async function handleAdminRequest(
 
   // Task 3 contract verification scans this admin route block for user-group CRUD, ownerDeleted support, and request.method === "DELETE".
   if (url.pathname === "/api/admin/user-groups") {
-    const authDb = await readAuthDb();
     if (request.method === "GET") {
+      const groups = await adminDirectoryReadRepository.readUserGroups();
       await appendAudit(adminUser, "userGroup.read", "user-group", "user-groups-list", "查看用户组列表", requestContext);
-      sendT8(response, authDb.userGroups.map(toAdminUserGroup));
+      sendT8(response, groups.map(toAdminUserGroup));
       return true;
     }
+    const authDb = await readAuthDb();
     if (request.method === "POST") {
       const body = await readJsonBody<{ id?: string; name?: string; description?: string; sortOrder?: number }>(request);
       const name = safeText(body.name);
@@ -2830,13 +2890,18 @@ async function handleAdminRequest(
   }
 
   if (url.pathname === "/api/admin/users") {
-    const authDb = await readAuthDb();
-    const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
     if (request.method === "GET") {
+      const [users, userGroups] = await Promise.all([
+        adminDirectoryReadRepository.readUsers(),
+        adminDirectoryReadRepository.readUserGroups(),
+      ]);
+      const groupsById = new Map<string, UserGroupRecord>(userGroups.map((group: UserGroupRecord) => [group.id, group]));
       await appendAudit(adminUser, "users.read", "user", "users-list", "查看用户列表", requestContext);
-      sendT8(response, visibleUsersForAdministrator(adminUser, authDb.users).map((user) => toAdminUser(user, groupsById)));
+      sendT8(response, visibleUsersForAdministrator(adminUser, users as UserRecord[]).map((user) => toAdminUser(user, groupsById)));
       return true;
     }
+    const authDb = await readAuthDb();
+    const groupsById = new Map(authDb.userGroups.map((group) => [group.id, group]));
     if (request.method === "POST") {
       const body = await readJsonBody<{ email?: string; name?: string; role?: string; administratorTier?: string; password?: string; groupId?: string; remark?: string }>(request);
       const nextRole = body.role === "admin" ? "admin" : "member";
@@ -2878,7 +2943,15 @@ async function handleAdminRequest(
 
   if (url.pathname === "/api/admin/sessions" && request.method === "GET") {
     const currentSessionId = readCookie(request, SESSION_COOKIE_NAME);
-    const sessions = await readAdminSessions(currentSessionId, adminUser);
+    const sessions = usePostgresRepository()
+      ? (await adminDirectoryReadRepository.readSessions(currentSessionId))
+          .map((row: any) => toAdminSession(row.session, row.user, currentSessionId))
+          .filter((session: AdminSessionRecord) => visibleSessionsForAdministrator(adminUser, [session], new Map([[session.userId, {
+            id: session.userId,
+            role: session.userRole,
+            administratorTier: session.administratorTier,
+          }]])).length > 0)
+      : await readAdminSessions(currentSessionId, adminUser);
     await appendAudit(adminUser, "sessions.read", "session", "sessions-list", "查看会话列表", requestContext);
     sendT8(response, sessions);
     return true;
@@ -3067,8 +3140,7 @@ async function handleAdminRequest(
   const providerRunningHubKeyPoolMatch = url.pathname.match(/^\/api\/admin\/providers\/([^/]+)\/runninghub\/key-pool$/);
   if (providerRunningHubKeyPoolMatch && request.method === "GET") {
     const id = decodeURIComponent(providerRunningHubKeyPoolMatch[1]);
-    const db = await readAdminDb();
-    const provider = db.providers.find((item) => item.id === id);
+    const provider = await providerRepository.findProviderRecordById(id);
     if (!provider) throw new Error("Provider 不存在");
     sendT8(response, toPublicRunningHubKeyPool(provider.rhKeyPool));
     return true;
@@ -3183,12 +3255,17 @@ async function handleAdminRequest(
   }
 
   if (url.pathname === "/api/admin/models") {
-    const db = await readAdminDb();
     if (request.method === "GET") {
+      const providerId = safeText(url.searchParams.get("providerId"));
+      const capability = safeText(url.searchParams.get("capability")).toLowerCase();
+      const models = providerId
+        ? await providerRepository.readModelRecordsByProviderId(providerId)
+        : await providerRepository.readModelRecords();
       await appendAudit(adminUser, "models.read", "model", "models-list", "查看模型列表", requestContext);
-      sendT8(response, db.models);
+      sendT8(response, models.filter((model) => !capability || normalizeCapability(model.capability) === capability));
       return true;
     }
+    const db = await readAdminDb();
     if (request.method === "POST") {
       const body = await readJsonBody<Partial<AdminModelRecord>>(request);
       const now = Date.now();
@@ -3428,14 +3505,16 @@ function sendJson(
   statusCode = 200,
   headers: Record<string, string> = {},
 ) {
+  const serialized = JSON.stringify(payload);
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
+    "content-length": String(Buffer.byteLength(serialized)),
     "cache-control": "no-store",
     "access-control-allow-origin": "*",
     "access-control-allow-credentials": "true",
     ...headers,
   });
-  response.end(JSON.stringify(payload));
+  response.end(serialized);
 }
 
 function sendT8(
@@ -4131,6 +4210,7 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
     );
     const dirs = userDataDirs(user);
     const databaseItems = result.rows.map((row) => sanitizeCanvasListItem(toCanvasListItem(row)));
+    if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) return databaseItems;
     const orphanSnapshots = await discoverOrphanCanvasSnapshots(user, databaseItems.map((item) => item.id));
     if (orphanSnapshots.length > 0) {
       const recoveredItems = await insertRecoveredCanvasSnapshots(user, orphanSnapshots);
@@ -4141,7 +4221,6 @@ async function readCanvasList(user: CurrentUser): Promise<CanvasListItem[]> {
       await markRepositoryMigrationComplete(dirs.canvasPostgresMigrationMarkerPath);
       return databaseItems;
     }
-    if (await hasRepositoryMigrationMarker(dirs.canvasPostgresMigrationMarkerPath)) return [];
     const fileList = await readCanvasListFromFile(user);
     if (fileList.length > 0) {
       await writeCanvasList(fileList, user, { pruneMissing: true });
@@ -5494,6 +5573,8 @@ function toAdminTaskRecord(row: {
   payload?: unknown;
   result?: unknown;
   logs?: unknown;
+  log_count?: unknown;
+  latest_log?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
   finalized_at?: unknown;
@@ -5520,7 +5601,9 @@ function toAdminTaskRecord(row: {
     executionIdentitySnapshot: normalizeTaskExecutionIdentitySnapshot(row.execution_identity_snapshot),
     payload: plainObject(row.payload),
     result: plainObject(row.result),
-    logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : [],
+    logs: Array.isArray(row.logs) ? row.logs.map((line: unknown) => safeText(line)).filter(Boolean) : safeText(row.latest_log) ? [safeText(row.latest_log)] : [],
+    logCount: Number.isFinite(Number(row.log_count)) ? Math.max(0, Math.floor(Number(row.log_count))) : Array.isArray(row.logs) ? row.logs.length : 0,
+    latestLog: safeText(row.latest_log) || (Array.isArray(row.logs) ? safeText(row.logs[row.logs.length - 1]) : undefined),
     createdAt: dateToMillis(row.created_at),
     updatedAt: dateToMillis(row.updated_at),
     finalizedAt: row.finalized_at ? dateToMillis(row.finalized_at) : undefined,
@@ -7057,9 +7140,14 @@ async function publicRunningHubCatalog(
   currentUser?: CurrentUser | null,
   options?: { includeRestricted?: boolean },
 ) {
-  const db = await readAdminDb();
-  if (currentUser && !options?.includeRestricted) await reconcilePermissionSubjects();
-  const providers = await Promise.all(db.providers
+  const providersSource = await providerRepository.readProviderRecords();
+  const permissionContext = currentUser && !options?.includeRestricted
+    ? {
+        authDb: await readAuthDb(),
+        groupsByProvider: new Map(providersSource.map((provider) => [provider.id, normalizeRunningHubGroups(provider.rhGroups, provider.id)])),
+      }
+    : undefined;
+  const providers = await Promise.all(providersSource
     .filter((provider) => provider.enabled && normalizeProviderProtocol(provider.protocol) === "runninghub")
     .map(async (provider) => {
       const groups = normalizeRunningHubGroups(provider.rhGroups, provider.id);
@@ -7071,6 +7159,7 @@ async function publicRunningHubCatalog(
         .map((entry) => toPublicRunningHubCatalogItem(publicProvider, entry)),
         currentUser,
         options?.includeRestricted,
+        permissionContext,
       );
       const apps = await filterRunningHubItems(
         normalizeRunningHubCatalogItems(provider.rhApps, "app", enabledGroupIds)
@@ -7078,6 +7167,7 @@ async function publicRunningHubCatalog(
         .map((entry) => toPublicRunningHubCatalogItem(publicProvider, entry)),
         currentUser,
         options?.includeRestricted,
+        permissionContext,
       );
       return {
         id: provider.id,
@@ -7089,7 +7179,11 @@ async function publicRunningHubCatalog(
       };
     }));
   const items = providers.flatMap((provider) => [...provider.workflows, ...provider.apps]);
+  const revision = createHash("sha1")
+    .update(providersSource.map((provider) => `${provider.id}:${provider.updatedAt}:${normalizeRunningHubGroups(provider.rhGroups, provider.id).map((group) => `${group.id}:${group.updatedAt}`).join(",")}`).join("|"))
+    .digest("hex");
   return {
+    revision,
     providers,
     workflows: providers.flatMap((provider) => provider.workflows),
     apps: providers.flatMap((provider) => provider.apps),
@@ -7769,17 +7863,17 @@ async function analyzeRunningHubCatalogDraft(input: {
 async function reconcilePermissionSubjects() {
   if (permissionSubjectReconciliation) return permissionSubjectReconciliation;
   const current = (async () => {
-    const [sharedResources, runningHubItems, providerModels, adminDb] = await Promise.all([
+    const [sharedResources, runningHubItems, providerModels, providers] = await Promise.all([
       readSharedResourceCatalog(),
       adminRunningHubCatalogItems(),
       providerRepository.readModelRecords(),
-      readAdminDb(),
+      providerRepository.readProviderRecords(),
     ]);
     await permissionSubjectRegistrar.reconcileFirstWavePermissionSubjects({
       resourceCategories: sharedResources.categories,
       resourceItems: sharedResources.items,
       runningHubItems,
-      runningHubGroups: adminDb.providers.flatMap((provider) => normalizeRunningHubGroups(provider.rhGroups, provider.id).map((group) => ({
+      runningHubGroups: providers.flatMap((provider) => normalizeRunningHubGroups(provider.rhGroups, provider.id).map((group) => ({
         id: group.id,
         providerId: provider.id,
         name: group.name,
@@ -7797,16 +7891,21 @@ async function reconcilePermissionSubjects() {
   }
 }
 
-async function filterRunningHubItems(items: RhCatalogItem[], currentUser?: CurrentUser | null, includeRestricted?: boolean) {
+async function filterRunningHubItems(
+  items: RhCatalogItem[],
+  currentUser?: CurrentUser | null,
+  includeRestricted?: boolean,
+  permissionContext?: { authDb: AuthDb; groupsByProvider: Map<string, RhCatalogGroup[]> },
+) {
   if (includeRestricted || !currentUser) return items;
-  const authDb = await readAuthDb();
-  const adminDb = await readAdminDb();
+  const authDb = permissionContext?.authDb || await readAuthDb();
+  const groupsByProvider = permissionContext?.groupsByProvider || new Map<string, RhCatalogGroup[]>();
   const legacyPolicy = policyForUser(currentUser, authDb.groupPermissionPolicies);
   const results = await Promise.all(items.map(async (item) => ({
     item,
     decision: await decideRunningHubAccess({
       item,
-      group: adminDb.providers.find((provider) => provider.id === item.providerId)?.rhGroups?.find((group) => group.id === item.groupId),
+      group: groupsByProvider.get(item.providerId)?.find((group) => group.id === item.groupId),
       action: "view",
       itemLegacyAllowed: canUseRunningHubCatalogItem(legacyPolicy, item),
       decide: (subjectKey, action) => permissionRuntime.decide({ user: currentUser, subjectKey, action, legacyAllowed: true }),
@@ -7830,8 +7929,8 @@ async function readPermissionReadinessReport() {
 }
 
 async function adminRunningHubCatalogItems() {
-  const db = await readAdminDb();
-  return db.providers
+  const providers = await providerRepository.readProviderRecords();
+  return providers
     .filter((provider) => normalizeProviderProtocol(provider.protocol) === "runninghub")
     .flatMap((provider) => {
       const workflows = normalizeRunningHubCatalogItems(provider.rhWorkflows, "workflow").map((entry) =>
@@ -10542,9 +10641,37 @@ async function readSystemObservability(
     range: tasks.range,
     tasks,
     audits,
+    requestPerformance: requestPerformance.snapshot(),
+    runtime: await readProcessRuntimeSnapshot(),
     queueConsistency,
     alerts: buildObservabilityAlerts({ database, redis, tasks, audits, queueConsistency }),
   };
+}
+
+async function readProcessRuntimeSnapshot() {
+  const memory = process.memoryUsage();
+  let fdCount: number | undefined;
+  try {
+    fdCount = (await readdir("/proc/self/fd")).length;
+  } catch {
+    fdCount = undefined;
+  }
+  const runtime = {
+    generatedAt: Date.now(),
+    rssBytes: memory.rss,
+    heapUsedBytes: memory.heapUsed,
+    heapTotalBytes: memory.heapTotal,
+    externalBytes: memory.external,
+    arrayBuffersBytes: memory.arrayBuffers,
+    fdCount,
+    activeHandleCount: typeof (process as NodeJS.Process & { _getActiveHandles?: () => unknown[] })._getActiveHandles === "function"
+      ? (process as NodeJS.Process & { _getActiveHandles: () => unknown[] })._getActiveHandles().length
+      : undefined,
+    eventLoopDelayP95Ms: Number((eventLoopHistogram.percentile(95) / 1e6).toFixed(2)),
+    eventLoopDelayP99Ms: Number((eventLoopHistogram.percentile(99) / 1e6).toFixed(2)),
+  };
+  eventLoopHistogram.reset();
+  return runtime;
 }
 
 type ObservabilityHealthStatus = "healthy" | "warning" | "critical";
@@ -11661,20 +11788,68 @@ async function updateResourceItemPostgres(
 
 async function deleteResourceItemPostgres(id: string, user: CurrentUser, expectedRevision?: number) {
   const pool = await getPostgresPool();
-  if (expectedRevision !== undefined) {
-    const currentResult = await pool.query("select revision from xh_assets where id = $1 and owner_id = $2 limit 1", [id, user.id]);
-    if (!currentResult.rows[0]) throw new Error("资源不存在");
-    const currentRevision = Number(currentResult.rows[0].revision) || 1;
-    if (expectedRevision !== currentRevision) {
-      throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
-        resourceKind: "item",
-        resourceId: id,
-        currentRevision,
-      });
-    }
+  const currentResult = await pool.query(
+    `select id, kind, title, url, mime, size_bytes, category_id, tags, favorite, last_used_at, metadata, revision, created_at, updated_at
+     from xh_assets where id = $1 and owner_id = $2 limit 1`,
+    [id, user.id],
+  );
+  if (!currentResult.rows[0]) throw new Error("资源不存在");
+  const current = toResourceItem(currentResult.rows[0]);
+  if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+    throw new HttpError(409, "RESOURCE_REVISION_CONFLICT", {
+      resourceKind: "item",
+      resourceId: id,
+      currentRevision: current.revision,
+    });
   }
-  await pool.query("delete from xh_assets where id = $1 and owner_id = $2", [id, user.id]);
+  const client = await pool.connect();
+  let shouldDeleteFile = false;
+  try {
+    await client.query("begin");
+    const deleted = await client.query("delete from xh_assets where id = $1 and owner_id = $2", [id, user.id]);
+    if (deleted.rowCount !== 1) throw new Error("资源不存在");
+    const fileUrl = safeText(current.fileUrl || current.fileRel || current.url);
+    if (fileUrl) {
+      const refs = await client.query(
+        `select 1 from xh_assets
+         where owner_id = $1
+           and (metadata->>'fileUrl' = $2 or metadata->>'fileRel' = $2 or url = $2)
+         limit 1`,
+        [user.id, fileUrl],
+      );
+      shouldDeleteFile = refs.rowCount === 0;
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+  if (shouldDeleteFile) await removeResourcePhysicalFile(current, user);
   await markRepositoryMigrationComplete(userDataDirs(user).resourcePostgresMigrationMarkerPath);
+}
+
+async function removeUnreferencedResourceFile(current: ResourceItem, remaining: ResourceItem[], user: CurrentUser) {
+  const fileUrl = safeText(current.fileUrl || current.fileRel || current.url);
+  if (!fileUrl || remaining.some((item) => safeText(item.fileUrl || item.fileRel || item.url) === fileUrl)) return;
+  await removeResourcePhysicalFile(current, user);
+}
+
+async function removeResourcePhysicalFile(item: ResourceItem, user: CurrentUser) {
+  const fileUrl = safeText(item.fileUrl || item.fileRel || item.url);
+  const prefix = fileUrl.startsWith("/files/output/")
+    ? "/files/output/"
+    : fileUrl.startsWith("/output/")
+      ? "/output/"
+      : "";
+  if (!prefix) return;
+  const filename = decodeURIComponent(fileUrl.slice(prefix.length));
+  if (!filename || filename.includes("/") || filename.includes("\\")) return;
+  const outputRoot = resolve(userDataDirs(user).outputDir);
+  const target = resolve(outputRoot, filename);
+  if (target !== outputRoot && !target.startsWith(`${outputRoot}${sep}`)) return;
+  await unlink(target).catch(() => undefined);
 }
 
 async function addResourceFromPayload(raw: unknown, user: CurrentUser, forcedKind?: ResourceKind) {

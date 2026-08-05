@@ -74,7 +74,12 @@ export function createGenerationArtifactRepository(deps: {
         predicates.push(`lower(title || ' ' || coalesce(mime, '') || ' ' || file_url) like $${values.length}`);
       }
       const result = await pool.query(
-        `select * from xh_generation_artifacts where ${predicates.join(" and ")} order by updated_at desc, created_at desc`,
+        `select id, kind, status, title, storage_key, source_url, file_url, mime, size_bytes,
+                created_at, updated_at, expires_at, source_node_id, source_canvas_id,
+                source_task_id, provider_id, model_id, promoted_asset_id, metadata
+           from xh_generation_artifacts
+          where ${predicates.join(" and ")}
+          order by updated_at desc, created_at desc, id asc`,
         values,
       );
       return result.rows.map(toArtifact);

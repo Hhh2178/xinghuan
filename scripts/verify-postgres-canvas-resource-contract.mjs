@@ -11,12 +11,12 @@ const checks = [
   ["Migration 003 exists", migration.length > 0],
   ["Migration 003 creates resource category table", /create table if not exists xh_resource_categories/i.test(migration)],
   ["Migration 003 upgrades xh_assets for resource repository", /alter table xh_assets add column if not exists category_id/i.test(migration)],
-  ["API canvas list reads xh_canvases.name", /async function readCanvasList[\s\S]*usePostgresRepository\(\)[\s\S]*select id, name, node_count, created_at, updated_at from xh_canvases/i.test(api)],
+  ["API canvas list reads xh_canvases.name", /async function readCanvasList[\s\S]*usePostgresRepository\(\)[\s\S]*select id, name, node_count, revision, created_at, updated_at from xh_canvases/i.test(api)],
   ["API canvas detail has postgres repository branch", /async function readCanvasData[\s\S]*usePostgresRepository\(\)[\s\S]*from xh_canvases/i.test(api)],
-  ["API canvas write uses xh_canvases.name", /async function writeCanvasData[\s\S]*usePostgresRepository\(\)[\s\S]*insert into xh_canvases \(id, owner_id, project_id, name, node_count, data, created_at, updated_at\)/i.test(api)],
+  ["API canvas write uses xh_canvases.name", /async function writeCanvasData[\s\S]*usePostgresRepository\(\)[\s\S]*insert into xh_canvases \(id, owner_id, project_id, name, node_count, data, revision, created_at, updated_at\)/i.test(api)],
   ["API resource db has postgres repository branch", /async function readResourceDb[\s\S]*usePostgresRepository\(\)[\s\S]*xh_assets[\s\S]*xh_resource_categories/i.test(api)],
   ["API resource db write has postgres repository branch", /async function writeResourceDb[\s\S]*usePostgresRepository\(\)[\s\S]*xh_assets/i.test(api)],
-  ["Worker output materializer can persist postgres resources", /storageDriver[\s\S]*postgres/i.test(workerOutput) && /insert into xh_assets/i.test(workerOutput)],
+  ["Worker output materializer can persist postgres generation artifacts", /usePostgresArtifactRepository\(\)[\s\S]*writeTaskGenerationArtifactsToPostgres/i.test(workerOutput) && /insert into xh_generation_artifacts/i.test(workerOutput)],
   ["Prune script can read postgres resource repository", /xh_assets/i.test(prune) && /xh_resource_categories/i.test(prune)],
 ];
 

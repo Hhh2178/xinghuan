@@ -1,5 +1,7 @@
 # 素材生命周期与 Production 完整迁移实施计划
 
+> **暂停状态（2026-08-05）：** 按用户最新指令，本计划中的服务器迁移、Gray/Production 部署、GitHub 推送和运行态改动全部暂停。除非用户在性能优化完成并通过验收后重新明确授权，否则不得执行 Task 6 的自动迁移或 Task 7 的发布与远端同步。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 将生成素材保留天数纳入 Admin 可编辑运行参数，验证资源库持久化/物理删除，并在 2026-08-05 18:30 自动完成旧 Production 到新 Production 的完整替换迁移。

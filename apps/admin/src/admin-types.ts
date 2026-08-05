@@ -640,6 +640,8 @@ export interface TaskRecord {
   materializationStatus?: string;
   failureCategory?: string;
   logs: string[];
+  logCount?: number;
+  latestLog?: string;
   createdAt?: number;
   updatedAt: number;
   finalizedAt?: number;

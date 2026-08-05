@@ -25,6 +25,8 @@ export interface AdminSystemRouteDeps {
 
 function isAdminSystemPath(pathname: string) {
   return pathname === "/api/admin/system"
+    || pathname === "/api/admin/system/health"
+    || pathname === "/api/admin/system/runtime-settings"
     || pathname === "/api/admin/queue-settings"
     || pathname === "/api/admin/assistant/settings";
 }

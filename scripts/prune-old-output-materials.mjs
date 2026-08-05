@@ -9,22 +9,25 @@ let pgPoolPromise = null;
 
 export async function pruneOldOutputMaterials({
   dataDir = defaultDataDir,
-  retentionDays = defaultRetentionDays,
+  retentionDays,
   now = Date.now(),
   apply = false,
 } = {}) {
+  const retention = await resolveRetentionSettings({ dataDir, retentionDays });
+  const effectiveRetentionDays = retention.days;
   if (storageDriver === "postgres" && databaseUrl) {
-    return pruneOldOutputMaterialsPostgres({ dataDir, retentionDays, now, apply });
+    return pruneOldOutputMaterialsPostgres({ dataDir, retentionDays: effectiveRetentionDays, retentionSource: retention.source, now, apply });
   }
   const usersDir = join(dataDir, "users");
-  const cutoff = now - retentionDays * 24 * 60 * 60 * 1000;
+  const cutoff = now - effectiveRetentionDays * 24 * 60 * 60 * 1000;
   const userEntries = await readdir(usersDir, { withFileTypes: true }).catch(() => []);
 
   const summary = {
     ok: true,
     apply,
     dataDir,
-    retentionDays,
+    retentionDays: effectiveRetentionDays,
+    retentionSource: retention.source,
     cutoff,
     scannedUsers: 0,
     scannedItems: 0,
@@ -108,7 +111,7 @@ export async function pruneOldOutputMaterials({
   return summary;
 }
 
-async function pruneOldOutputMaterialsPostgres({ dataDir, retentionDays, now, apply }) {
+async function pruneOldOutputMaterialsPostgres({ dataDir, retentionDays, retentionSource, now, apply }) {
   const cutoff = now - retentionDays * 24 * 60 * 60 * 1000;
   const pool = await getPostgresPool();
   const result = await pool.query(
@@ -138,6 +141,7 @@ async function pruneOldOutputMaterialsPostgres({ dataDir, retentionDays, now, ap
     apply,
     dataDir,
     retentionDays,
+    retentionSource,
     cutoff,
     scannedUsers: 0,
     scannedItems: 0,
@@ -328,10 +332,26 @@ function clampDays(value) {
   return Math.min(number, 3650);
 }
 
+async function resolveRetentionSettings({ dataDir, retentionDays }) {
+  if (retentionDays !== undefined) return { days: clampDays(retentionDays), source: "explicit" };
+  if (storageDriver === "postgres" && databaseUrl) {
+    const pool = await getPostgresPool();
+    const result = await pool.query("select task_queue_settings from xh_system_settings where id = 'default' limit 1");
+    const configured = result.rows[0]?.task_queue_settings?.materialLifecycle?.outputRetentionDays;
+    if (configured !== undefined) return { days: clampDays(configured), source: "database" };
+  } else {
+    const adminPath = join(dataDir, "admin", "admin.json");
+    const fileDb = await readFile(adminPath, "utf-8").then((value) => JSON.parse(value)).catch(() => null);
+    const configured = fileDb?.taskQueueSettings?.materialLifecycle?.outputRetentionDays;
+    if (configured !== undefined) return { days: clampDays(configured), source: "file" };
+  }
+  return { days: defaultRetentionDays, source: "environment-or-default" };
+}
+
 function parseCli(argv) {
   const options = {
     dataDir: defaultDataDir,
-    retentionDays: defaultRetentionDays,
+    retentionDays: undefined,
     apply: false,
   };
   for (const arg of argv) {

@@ -1,4 +1,5 @@
 import { adminAnnouncementApi, api } from "./admin-api-client";
+import { readAdminQuery } from "./admin-query-client";
 import type {
   AdminAnnouncementRecord,
   AdminSessionRecord,
@@ -33,8 +34,8 @@ export interface AdminWorkspaceSnapshot {
 
 export async function readAdminShellSnapshot(): Promise<AdminShellSnapshot> {
   const [summary, assistantSettings] = await Promise.all([
-    api<Summary>("/api/admin/summary"),
-    api<AssistantSettings>("/api/admin/assistant/settings"),
+    readAdminQuery(["shell", "summary"], (signal) => api<Summary>("/api/admin/summary", { signal }), { maxAgeMs: 5_000 }),
+    readAdminQuery(["shell", "assistant-settings"], (signal) => api<AssistantSettings>("/api/admin/assistant/settings", { signal }), { maxAgeMs: 5_000 }),
   ]);
   return { summary, assistantSettings };
 }
@@ -43,27 +44,35 @@ export async function readAdminWorkspaceSnapshot(
   workspaceId: AdminWorkspaceId,
   taskPath: string,
   systemHealthRange: "1h" | "24h" | "7d" | "30d" = "24h",
+  subpageId?: string,
 ): Promise<AdminWorkspaceSnapshot> {
   if (workspaceId === "overview") {
     const [providers, models, taskPage] = await Promise.all([
-      api<ProviderRecord[]>("/api/admin/providers"),
-      api<ModelRecord[]>("/api/admin/models"),
-      api<TaskListPage>(taskPath),
+      readAdminQuery(["providers"], (signal) => api<ProviderRecord[]>("/api/admin/providers", { signal }), { maxAgeMs: 5_000 }),
+      readAdminQuery(["models"], (signal) => api<ModelRecord[]>("/api/admin/models", { signal }), { maxAgeMs: 5_000 }),
+      readAdminQuery(["tasks", taskPath], (signal) => api<TaskListPage>(taskPath, { signal }), { maxAgeMs: 1_000 }),
     ]);
     return { providers, models, taskPage };
   }
   if (workspaceId === "organization" || workspaceId === "security") {
-    const [users, userGroups, sessions] = await Promise.all([
-      api<AdminUser[]>("/api/admin/users"),
-      api<AdminUserGroup[]>("/api/admin/user-groups"),
-      api<AdminSessionRecord[]>("/api/admin/sessions"),
-    ]);
-    return { users, userGroups, sessions };
+    if (subpageId === "sessions") {
+      return { sessions: await readAdminQuery(["directory", "sessions"], (signal) => api<AdminSessionRecord[]>("/api/admin/sessions", { signal }), { maxAgeMs: 2_000 }) };
+    }
+    if (!subpageId || subpageId === "overview" || subpageId === "accounts" || subpageId === "groups" || subpageId === "permissions") {
+      const usersPromise = readAdminQuery(["directory", "users"], (signal) => api<AdminUser[]>("/api/admin/users", { signal }), { maxAgeMs: 5_000 });
+      const groupsPromise = readAdminQuery(["directory", "groups"], (signal) => api<AdminUserGroup[]>("/api/admin/user-groups", { signal }), { maxAgeMs: 5_000 });
+      const [users, userGroups] = await Promise.all([usersPromise, groupsPromise]);
+      if (subpageId === "permissions") return { users, userGroups };
+      if (subpageId === "accounts" || subpageId === "groups") return { users, userGroups };
+      const sessions = await readAdminQuery(["directory", "sessions"], (signal) => api<AdminSessionRecord[]>("/api/admin/sessions", { signal }), { maxAgeMs: 2_000 });
+      return { users, userGroups, sessions };
+    }
+    return {};
   }
   if (workspaceId === "capabilities" || workspaceId === "rh" || workspaceId === "automation") {
     const [providers, models] = await Promise.all([
-      api<ProviderRecord[]>("/api/admin/providers"),
-      api<ModelRecord[]>("/api/admin/models"),
+      readAdminQuery(["providers"], (signal) => api<ProviderRecord[]>("/api/admin/providers", { signal }), { maxAgeMs: 5_000 }),
+      readAdminQuery(["models"], (signal) => api<ModelRecord[]>("/api/admin/models", { signal }), { maxAgeMs: 5_000 }),
     ]);
     return { providers, models };
   }
@@ -71,22 +80,42 @@ export async function readAdminWorkspaceSnapshot(
     return {};
   }
   if (workspaceId === "content") {
-    return { announcements: await adminAnnouncementApi.listAnnouncements() };
+    return { announcements: await readAdminQuery(["content", "announcements"], () => adminAnnouncementApi.listAnnouncements(), { maxAgeMs: 5_000 }) };
   }
   if (workspaceId === "runtime") {
-    return { taskPage: await api<TaskListPage>(taskPath) };
+    return { taskPage: await readAdminQuery(["tasks", taskPath], (signal) => api<TaskListPage>(taskPath, { signal }), { maxAgeMs: 1_000 }) };
   }
   if (workspaceId === "analytics") {
-    const [auditLogs, users, userGroups, providers] = await Promise.all([
-      api<AuditRecord[]>("/api/admin/audit"),
-      api<AdminUser[]>("/api/admin/users"),
-      api<AdminUserGroup[]>("/api/admin/user-groups"),
-      api<ProviderRecord[]>("/api/admin/providers"),
+    if (subpageId === "reliability") {
+      const [providerRows, models] = await Promise.all([
+        readAdminQuery(["providers"], (signal) => api<ProviderRecord[]>("/api/admin/providers", { signal }), { maxAgeMs: 5_000 }),
+        readAdminQuery(["models"], (signal) => api<ModelRecord[]>("/api/admin/models", { signal }), { maxAgeMs: 5_000 }),
+      ]);
+      return { providers: providerRows, models };
+    }
+    const users = readAdminQuery(["directory", "users"], (signal) => api<AdminUser[]>("/api/admin/users", { signal }), { maxAgeMs: 5_000 });
+    const userGroups = readAdminQuery(["directory", "groups"], (signal) => api<AdminUserGroup[]>("/api/admin/user-groups", { signal }), { maxAgeMs: 5_000 });
+    const providers = readAdminQuery(["providers"], (signal) => api<ProviderRecord[]>("/api/admin/providers", { signal }), { maxAgeMs: 5_000 });
+    if (subpageId === "audit") {
+      const [auditLogs, usersResult, groupsResult, providersResult, models] = await Promise.all([
+        readAdminQuery(["analytics", "audit"], (signal) => api<AuditRecord[]>("/api/admin/audit", { signal }), { maxAgeMs: 3_000 }),
+        users,
+        userGroups,
+        providers,
+        readAdminQuery(["models"], (signal) => api<ModelRecord[]>("/api/admin/models", { signal }), { maxAgeMs: 5_000 }),
+      ]);
+      return { auditLogs, users: usersResult, userGroups: groupsResult, providers: providersResult, models };
+    }
+    const [usersResult, groupsResult, providersResult, models] = await Promise.all([
+      users,
+      userGroups,
+      providers,
+      readAdminQuery(["models"], (signal) => api<ModelRecord[]>("/api/admin/models", { signal }), { maxAgeMs: 5_000 }),
     ]);
-    return { auditLogs, users, userGroups, providers };
+    return { users: usersResult, userGroups: groupsResult, providers: providersResult, models };
   }
   if (workspaceId === "system") {
-    return { system: await api<SystemInfo>(`/api/admin/system?range=${systemHealthRange}`) };
+    return { system: await readAdminQuery(["system", systemHealthRange], (signal) => api<SystemInfo>(`/api/admin/system?range=${systemHealthRange}`, { signal }), { maxAgeMs: 2_000 }) };
   }
   return {};
 }

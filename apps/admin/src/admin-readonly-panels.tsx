@@ -24,6 +24,7 @@ const TASK_QUEUE_DEFAULTS = {
   video: { concurrency: 100, userConcurrency: 8 },
   chat: { concurrency: 20, userConcurrency: 4 },
   runninghub: { concurrency: 2, enabled: true },
+  materialLifecycle: { outputRetentionDays: 3 },
 } satisfies NonNullable<SystemInfo["taskQueueSettings"]>;
 
 export function AuditPanel({
@@ -160,6 +161,7 @@ export function SystemPanel({
             tone: saving || submitting || runtimeSettingsDirty ? "warning" : "success",
           }}
         />
+        <div className="admin-runtime-settings-panels">
         <FormPanel title="任务并发设置" icon={Settings2}>
         <label>
           图片总并发
@@ -353,7 +355,33 @@ export function SystemPanel({
           </button>
         </div>
         </FormPanel>
-      </AdminConfigurationWorkbench> : null}
+        <FormPanel title="素材生命周期" icon={Settings2}>
+          <div className="admin-runtime-settings-section-intro">
+            <strong>生成素材自动清理</strong>
+            <span>只清理未收藏、未分类、未进入资源库且没有任务或画布引用的临时生成产物。</span>
+          </div>
+          <label>
+            生成产物保留天数
+            <input
+              type="number"
+              min={1}
+              max={3650}
+              value={values?.materialLifecycle?.outputRetentionDays ?? 3}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...(current || system?.taskQueueSettings || TASK_QUEUE_DEFAULTS),
+                  materialLifecycle: {
+                    ...(current?.materialLifecycle || system?.taskQueueSettings?.materialLifecycle || { outputRetentionDays: 3 }),
+                    outputRetentionDays: Number(event.target.value || 3),
+                  },
+                }))
+              }
+            />
+          </label>
+          <div className="field-note">范围 1–3650 天；保存后由 API、Worker 与清理定时器共同读取。</div>
+        </FormPanel>
+        </div>
+        </AdminConfigurationWorkbench> : null}
     </>
   );
 }

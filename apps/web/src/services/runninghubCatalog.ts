@@ -248,8 +248,26 @@ function normalizeLegacyPayload(payload: Record<string, unknown>): RunningHubCat
   return { items, providers, workflows, apps };
 }
 
-export async function fetchRunningHubCatalog(): Promise<RunningHubCatalogResponse> {
-  const response = await fetch("/api/runninghub/catalog");
+let catalogCache: { value: RunningHubCatalogResponse; loadedAt: number; etag?: string } | null = null;
+let catalogInFlight: Promise<RunningHubCatalogResponse> | null = null;
+
+export function clearRunningHubCatalogCache() {
+  catalogCache = null;
+  catalogInFlight = null;
+}
+
+export async function fetchRunningHubCatalog(options: { force?: boolean; signal?: AbortSignal } = {}): Promise<RunningHubCatalogResponse> {
+  if (!options.force && catalogInFlight) return catalogInFlight;
+  if (!options.force && catalogCache && Date.now() - catalogCache.loadedAt < 5_000) return catalogCache.value;
+  const request = (async () => {
+    const response = await fetch("/api/runninghub/catalog", {
+      signal: options.signal,
+      headers: catalogCache?.etag ? { "if-none-match": catalogCache.etag } : undefined,
+    });
+    if (response.status === 304 && catalogCache) {
+      catalogCache = { ...catalogCache, loadedAt: Date.now() };
+      return catalogCache.value;
+    }
   const payload = await response.json();
   if (!response.ok || !payload.success) {
     throw new Error(payload?.error || `HTTP ${response.status}`);
@@ -272,14 +290,25 @@ export async function fetchRunningHubCatalog(): Promise<RunningHubCatalogRespons
           };
         })
       : [];
-    return {
+    const result = {
       items,
       providers,
       workflows: items.filter((item) => item.kind === "workflow"),
       apps: items.filter((item) => item.kind === "app"),
     };
+    catalogCache = { value: result, loadedAt: Date.now(), etag: response.headers?.get?.("etag") || undefined };
+    return result;
   }
-  return normalizeLegacyPayload(data);
+  const result = normalizeLegacyPayload(data);
+  catalogCache = { value: result, loadedAt: Date.now(), etag: response.headers?.get?.("etag") || undefined };
+  return result;
+  })();
+  catalogInFlight = request;
+  try {
+    return await request;
+  } finally {
+    if (catalogInFlight === request) catalogInFlight = null;
+  }
 }
 
 export function buildRunningHubAppInfoFromCatalog(item: RunningHubCatalogItem) {

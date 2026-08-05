@@ -90,6 +90,7 @@ export function createAdminAuditRouteHandler(deps: {
   safeText: (value: unknown, fallback?: string) => string;
   plainObject: (value: unknown) => Record<string, unknown>;
   appendAudit: AppendAudit;
+  appendReadAudit?: AppendAudit;
 }) {
   const {
     sendT8,
@@ -107,6 +108,7 @@ export function createAdminAuditRouteHandler(deps: {
     safeText,
     plainObject,
     appendAudit,
+    appendReadAudit,
   } = deps;
 
   function requireAdmin(currentUser: any) {
@@ -141,11 +143,12 @@ export function createAdminAuditRouteHandler(deps: {
         .map((audit) => projectAuditForAdministrator(actor, audit, rootUserIds))
         .filter(Boolean)
         .slice(0, 200));
+      if (appendReadAudit) await appendReadAudit(actor, "audit.read", "audit", "audit-list", "查看审计列表", requestContext);
       return true;
     }
 
     if (url.pathname === "/api/admin/audit/usage-summary" && request.method === "GET") {
-      await appendAudit(actor, "audit.usage_summary.read", "audit", "usage-summary", "查看成功用量统计驾驶舱", requestContext);
+      if (appendReadAudit) await appendReadAudit(actor, "audit.usage_summary.read", "audit", "usage-summary", "查看成功用量统计驾驶舱", requestContext);
       sendT8(response, await readAdminUsageSummary(parseAdminUsageSummaryQuery(url)));
       return true;
     }

@@ -92,6 +92,9 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
     taskId,
     taskStatus: status,
     enabled: autoDownloadArchive,
+    archiveJobId: d?.archiveJobId,
+    archiveStatus: d?.archiveStatus,
+    autoDownloadedJobId: d?.autoDownloadedJobId,
     onStateChange: (patch) => update(patch),
   });
   const appInfo: any = d?.appInfo;
@@ -747,6 +750,8 @@ const RunningHubNode = ({ id, data, selected, type }: NodeProps) => {
       rhProgress: '5%',
       rhQueueHint: '任务提交中',
       ...emptyRhOutputState(),
+      archiveFilename: undefined,
+      autoDownloadedJobId: undefined,
     });
     try {
       const rawList = buildRawNodeInfoList(effectiveList, effectiveValues);

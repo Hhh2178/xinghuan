@@ -26,6 +26,7 @@ function toAdminTaskListSummary(task: any) {
   const providerPollRecoverable = source.status === "failed"
     && String(payload.taskCapability || result.capability || "").toLowerCase() === "video"
     && Boolean(String(result.upstreamTaskId || result.taskId || "").trim());
+  const rawLogs = Array.isArray(source.logs) ? source.logs.map((line: unknown) => String(line)).filter(Boolean) : [];
   const { payload: _payload, result: _result, ...summary } = source;
   return {
     ...summary,
@@ -36,7 +37,9 @@ function toAdminTaskListSummary(task: any) {
     ),
     materializationStatus: summary.materializationStatus || result.materializationStatus || undefined,
     failureCategory: summary.failureCategory || result.failureCategory || undefined,
-    logs: Array.isArray(summary.logs) ? summary.logs.map((line: unknown) => String(line)).filter(Boolean) : [],
+    logs: rawLogs.length > 0 ? [rawLogs[rawLogs.length - 1]] : [],
+    latestLog: String(source.latestLog || rawLogs[rawLogs.length - 1] || "").slice(0, 2000) || undefined,
+    logCount: Number.isFinite(Number(source.logCount)) ? Math.max(0, Math.floor(Number(source.logCount))) : rawLogs.length,
   };
 }
 
@@ -165,7 +168,9 @@ export function createAdminTaskListRouteHandler(deps: {
                 t.model_id,
                 coalesce(nullif(t.execution_identity_snapshot->>'providerModelId', ''), m.model_id, t.model_id, '') as provider_model_id,
                 coalesce(nullif(t.execution_identity_snapshot->>'modelName', ''), nullif(m.display_name, ''), m.model_id, t.model_id, '') as model_name,
-                t.logs,
+                jsonb_array_length(coalesce(t.logs, '[]'::jsonb)) as log_count,
+                (select value from jsonb_array_elements_text(coalesce(t.logs, '[]'::jsonb)) with ordinality as log(value, ordinal)
+                  order by ordinal desc limit 1) as latest_log,
                 t.created_at,
                 t.updated_at,
                 u.name as owner_name,
@@ -378,6 +383,26 @@ export function createAdminTaskListRouteHandler(deps: {
     }
 
     const taskMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)$/);
+    const taskLogsMatch = url.pathname.match(/^\/api\/admin\/tasks\/([^/]+)\/logs$/);
+    if (taskLogsMatch && request.method === "GET") {
+      const id = decodeURIComponent(taskLogsMatch[1]);
+      const task = await readTaskRecord(id);
+      if (!task) throw new HttpError(404, "TASK_NOT_FOUND");
+      const limit = clampInteger(url.searchParams.get("limit"), 1, 200, 50);
+      const lines = Array.isArray(task.logs) ? task.logs.map((line: unknown) => String(line)).filter(Boolean) : [];
+      const items = lines.slice(Math.max(0, lines.length - limit));
+      await appendAudit(actor, "task.logs.read", "task", id, "查看任务日志", requestContext);
+      sendT8(response, { items, total: lines.length, hasMore: items.length < lines.length });
+      return true;
+    }
+    if (taskMatch && request.method === "GET") {
+      const id = decodeURIComponent(taskMatch[1]);
+      const task = await readTaskRecord(id);
+      if (!task) throw new HttpError(404, "TASK_NOT_FOUND");
+      await appendAudit(actor, "task.detail.read", "task", id, "查看任务详情", requestContext);
+      sendT8(response, withUnifiedRuntimeDiagnostic(task));
+      return true;
+    }
     if (taskMatch && request.method === "PATCH") {
       const id = decodeURIComponent(taskMatch[1]);
       const body = await readJsonBody<any>(request);

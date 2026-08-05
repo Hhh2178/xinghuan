@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { groupRunningHubCatalogItems } from "./runninghubCatalog";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearRunningHubCatalogCache, fetchRunningHubCatalog, groupRunningHubCatalogItems } from "./runninghubCatalog";
 
 const item = (catalogId: string, groupId?: string, groupName?: string) => ({
   catalogId,
@@ -26,6 +26,8 @@ const item = (catalogId: string, groupId?: string, groupName?: string) => ({
 });
 
 describe("RunningHub catalog grouping", () => {
+  beforeEach(() => clearRunningHubCatalogCache());
+
   it("merges by group id and keeps ungrouped last", () => {
     const groups = groupRunningHubCatalogItems([
       item("a", "g1", "视频"),
@@ -38,5 +40,16 @@ describe("RunningHub catalog grouping", () => {
       ["g2", "图片", ["d"]],
       ["ungrouped", "未分组", ["b"]],
     ]);
+  });
+
+  it("merges concurrent catalog reads", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { items: [] } }),
+    } as Response);
+    await Promise.all([fetchRunningHubCatalog(), fetchRunningHubCatalog()]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fetchMock.mockRestore();
   });
 });

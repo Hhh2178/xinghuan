@@ -33,6 +33,7 @@ interface AdminQueueSettingsMutationBody {
     audio: { concurrency?: number; userConcurrency?: number };
     video: { concurrency?: number; userConcurrency?: number };
     runninghub: { concurrency?: number; enabled?: boolean };
+    materialLifecycle: { outputRetentionDays?: number };
   }>;
   revision?: number;
 }

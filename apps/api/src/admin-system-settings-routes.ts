@@ -79,12 +79,26 @@ export async function handleAdminSystemSettingsRoutes(input: {
   deps: AdminSystemSettingsRouteDeps;
 }) {
   const { request, response, url, adminUser, requestContext, deps } = input;
-  if (url.pathname !== "/api/admin/system" || request.method !== "GET") return false;
+  if (!["/api/admin/system", "/api/admin/system/health", "/api/admin/system/runtime-settings"].includes(url.pathname) || request.method !== "GET") return false;
 
   const taskQueueSettingsRecord = await deps.readTaskQueueSettingsRecord();
-  const providers = await deps.readProviderRecords();
-  const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, providers);
-  await deps.appendAudit(adminUser, "system.read", "system", "system-status", "查看系统状态", requestContext);
+  const isRuntimeSettings = url.pathname === "/api/admin/system/runtime-settings";
+  const isHealth = url.pathname === "/api/admin/system/health";
+  if (isRuntimeSettings) {
+    const providers = await deps.readProviderRecords();
+    const effectiveTaskQueueSettings = deps.withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, providers);
+    await deps.appendAudit(adminUser, "system.runtime-settings.read", "system", "runtime-settings", "查看运行参数", requestContext);
+    deps.sendT8(response, {
+      taskQueueSettings: effectiveTaskQueueSettings,
+      taskQueueSettingsRevision: taskQueueSettingsRecord.revision,
+      taskQueueSettingsUpdatedAt: taskQueueSettingsRecord.updatedAt,
+    });
+    return true;
+  }
+  const effectiveTaskQueueSettings = isHealth
+    ? taskQueueSettingsRecord.taskQueueSettings
+    : deps.withEffectiveRunningHubConcurrency(taskQueueSettingsRecord.taskQueueSettings, await deps.readProviderRecords());
+  await deps.appendAudit(adminUser, isHealth ? "system.health.read" : "system.read", "system", isHealth ? "system-health" : "system-status", isHealth ? "查看系统健康" : "查看系统状态", requestContext);
   const database = await deps.readDatabaseStatus();
   const redis = await deps.readRedisStatus(effectiveTaskQueueSettings);
   deps.sendT8(response, buildAdminSystemStatusPayload({

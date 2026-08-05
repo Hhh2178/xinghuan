@@ -1,0 +1,26 @@
+{
+  "admin-shell": [
+    { "name": "admin-me", "path": "/api/auth/admin-me" },
+    { "name": "summary", "path": "/api/admin/summary" }
+  ],
+  "admin-directory": [
+    { "name": "accounts", "path": "/api/admin/users" },
+    { "name": "groups", "path": "/api/admin/user-groups" },
+    { "name": "sessions", "path": "/api/admin/sessions" }
+  ],
+  "admin-catalog": [
+    { "name": "providers", "path": "/api/admin/providers" },
+    { "name": "models", "path": "/api/admin/models" },
+    { "name": "runninghub", "path": "/api/runninghub/catalog" }
+  ],
+  "admin-operations": [
+    { "name": "tasks", "path": "/api/admin/tasks?page=1&pageSize=20" },
+    { "name": "audit", "path": "/api/admin/audit" },
+    { "name": "system", "path": "/api/admin/system" }
+  ],
+  "canvas": [
+    { "name": "canvas-list", "path": "/api/canvas" },
+    { "name": "resources", "path": "/api/resources/categories?kind=image" },
+    { "name": "generation-library", "path": "/api/generation-library/items" }
+  ]
+}

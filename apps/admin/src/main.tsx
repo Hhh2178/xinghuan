@@ -1,5 +1,5 @@
 import { Bot, KeyRound, Loader2, LogOut, ShieldCheck, UserCog } from "lucide-react";
-import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type TaskStatus } from "@xinghuan/shared";
 import { adminAnnouncementApi, adminAuditApi, AdminApiError, api, isAuthRequiredError } from "./admin-api-client";
@@ -291,6 +291,7 @@ function AdminApp() {
     navigateAgentRuntimeView,
     navigateUsersView,
   } = useAdminNavigation();
+  const activeSubpageIdForLoad = activeTab === "users" ? activeUsersView : activeWorkspaceId === "rh" ? activeRhView : activeWorkspaceId === "analytics" ? activeAnalyticsView : activeWorkspaceId === "system" ? activeSystemView : activeWorkspaceId === "capabilities" ? activeCapabilitiesView : activeWorkspaceId === "automation" ? activeAgentRuntimeView : undefined;
   const [assistantOpen, setAssistantOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = window.localStorage.getItem(ADMIN_ASSISTANT_STORAGE_KEY);
@@ -321,8 +322,8 @@ function AdminApp() {
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState(0);
   const [busy, setBusy] = useState(false);
+  const workspaceLoadSequence = useRef(0);
   const [error, setError] = useState("");
-
   useEffect(() => {
     api<{ authenticated: boolean; user: AuthUserShape | null }>("/api/auth/admin-me")
       .then((data) => setCurrentUser(data.authenticated ? data.user : null))
@@ -334,7 +335,6 @@ function AdminApp() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(ADMIN_ASSISTANT_STORAGE_KEY, assistantOpen ? "1" : "0");
   }, [assistantOpen]);
-
   const isAdmin = currentUser?.role === "admin";
   const {
     range: systemHealthRange,
@@ -356,7 +356,6 @@ function AdminApp() {
     setError("登录状态已失效，请重新登录。");
     return true;
   }
-
   async function runAdminLoad(work: () => Promise<void>) {
     if (!isAdmin) return;
     setBusy(true);
@@ -372,7 +371,6 @@ function AdminApp() {
       setBusy(false);
     }
   }
-
   async function loadShellData() {
     await runAdminLoad(async () => {
       const snapshot = await readAdminShellSnapshot();
@@ -380,14 +378,15 @@ function AdminApp() {
       setAssistantSettings(snapshot.assistantSettings);
     });
   }
-
   async function loadWorkspaceData(workspaceId = activeWorkspaceId) {
+    const sequence = ++workspaceLoadSequence.current;
     await runAdminLoad(async () => {
       const snapshot = await readAdminWorkspaceSnapshot(
         workspaceId,
         taskPagePath(taskPage.page, taskPage.pageSize, taskPage.filters),
-        systemHealthRange,
+        systemHealthRange, workspaceId === activeWorkspaceId ? activeSubpageIdForLoad : undefined,
       );
+      if (sequence !== workspaceLoadSequence.current) return;
       if (snapshot.users) setUsers(snapshot.users);
       if (snapshot.userGroups) setUserGroups(snapshot.userGroups);
       if (snapshot.sessions) setSessions(snapshot.sessions);
@@ -456,7 +455,7 @@ function AdminApp() {
   useEffect(() => {
     if (!isAdmin) return;
     void loadWorkspaceData(activeWorkspaceId);
-  }, [activeWorkspaceId, isAdmin]);
+  }, [activeSubpageIdForLoad, activeWorkspaceId, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin || activeWorkspaceId !== "analytics" || activeAnalyticsView !== "usage") return;
@@ -569,7 +568,6 @@ function AdminApp() {
   const activeCapabilitiesPage = activeWorkspace.id === "capabilities" ? adminCapabilitiesViews.find((item) => item.id === activeCapabilitiesView) : undefined;
   const activeAgentRuntimePage = activeWorkspace.id === "automation" ? adminAgentRuntimeViews.find((item) => item.id === activeAgentRuntimeView) : undefined;
   const activeSubpages = activeTab === "users" ? usersViewsForWorkspace(activeWorkspace.id) : activeWorkspace.id === "rh" ? adminRhViews : activeWorkspace.id === "analytics" ? adminAnalyticsViews : activeWorkspace.id === "system" ? adminSystemViews : activeWorkspace.id === "capabilities" ? adminCapabilitiesViews : activeWorkspace.id === "automation" ? adminAgentRuntimeViews : [];
-  const activeSubpageId = activeTab === "users" ? activeUsersView : activeWorkspace.id === "rh" ? activeRhView : activeWorkspace.id === "analytics" ? activeAnalyticsView : activeWorkspace.id === "system" ? activeSystemView : activeWorkspace.id === "capabilities" ? activeCapabilitiesView : activeWorkspace.id === "automation" ? activeAgentRuntimeView : undefined;
   const currentPageLabel = activeUsersPage?.label || activeRhPage?.label || activeAnalyticsPage?.label || activeSystemPage?.label || activeCapabilitiesPage?.label || activeAgentRuntimePage?.label || activeWorkspaceTabs.find((item) => item.id === activeTab)?.label || titleFor(activeTab);
   const currentPageDescription = activeUsersPage?.description || activeRhPage?.description || activeAnalyticsPage?.description || activeSystemPage?.description || activeCapabilitiesPage?.description || activeAgentRuntimePage?.description || descriptionForWorkspaceTab(activeWorkspace.id, activeTab);
   const refreshPolicy = refreshPolicyFor(activeTab);
@@ -668,7 +666,7 @@ function AdminApp() {
             refreshLabel={refreshPolicy.label}
             refreshIntervalLabel={refreshPolicy.intervalLabel}
             subpages={activeSubpages}
-            activeSubpage={activeSubpageId}
+            activeSubpage={activeSubpageIdForLoad}
             onNavigateTab={(tabId) => navigateAdmin(activeWorkspace.id, tabId)}
             onNavigateSubpage={(subpageId) => activeTab === "users"
               ? navigateUsersView(subpageId as typeof activeUsersView)
@@ -683,7 +681,7 @@ function AdminApp() {
                     : navigateCapabilitiesView(subpageId as typeof activeCapabilitiesView)}
           />
 
-          <AdminRouteErrorBoundary resetKey={`${activeWorkspace.id}:${activeTab}:${activeSubpageId || "root"}`}>
+          <AdminRouteErrorBoundary resetKey={`${activeWorkspace.id}:${activeTab}:${activeSubpageIdForLoad || "root"}`}>
           <Suspense fallback={<div className="starlight-page-loading"><Loader2 className="spin" aria-hidden="true" /> 正在加载后台模块...</div>}>
           {activeTab === "overview" ? (
             <Overview

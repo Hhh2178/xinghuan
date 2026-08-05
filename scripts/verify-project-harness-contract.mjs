@@ -43,7 +43,7 @@ assert.equal(
 );
 assert.equal(
   scripts["harness:verify:release"],
-  "npm run verify:sealed-production-artifact-harness && npm run verify:release-preflight-contract && npm run verify:release-gate-docs-contract && npm run verify:release-package-contract && npm run verify:release-governance-contract && npm run verify:current-release-entry-consistency",
+  "npm run verify:sealed-production-artifact-harness && npm run verify:encrypted-release-contract && npm run verify:release-preflight-contract && npm run verify:release-gate-docs-contract && npm run verify:release-package-contract && npm run verify:release-governance-contract && npm run verify:current-release-entry-consistency",
   "project harness should expose release verification chain",
 );
 assert.equal(
