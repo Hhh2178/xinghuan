@@ -1,5 +1,11 @@
 # 当前 Gray 运行态
 
+## 部署同步例外（2026-08-05）
+
+- 旧服务器 Gray 已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；API/Worker active，内部和 HTTPS status 均为 `gray / enforced`，permission readiness 为 `true`。
+- 新服务器仍停留在 `v0.8.25`。本机可用 SSH 密钥在 `43.131.246.222:22` 被拒绝，未对该目标上传、解包、迁移或重启服务。
+- 环境级 `release-state.json.environments.gray` 继续表示最近一次双服务器同步完成的 `v0.8.25`；目标级实态见同文件的 `partialTargetDeployments` 和本轮发布记录。
+
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`

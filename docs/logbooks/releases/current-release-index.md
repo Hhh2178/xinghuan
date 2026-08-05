@@ -1,5 +1,12 @@
 # 当前 Release 索引
 
+## 部分目标升级（2026-08-05）
+
+- `v0.8.26 / 20260805-retired-permission-cleanup-v0826-r1` 已部署并验证于旧服务器 Gray 与 Production，两个环境均为 API/Worker active、`enforced`、permission readiness `true`。
+- 新服务器 Gray 与 Production 保持 `v0.8.25`：本机可用身份在 `43.131.246.222:22` 被 SSH 公钥认证拒绝，未执行上传、备份、迁移或服务重启。
+- 环境级 active release 仍列出最近一次旧/新服务器同步完成的 `v0.8.25`；目标级实态见 `../../ops/current/release-state.json` 的 `partialTargetDeployments`。
+- 证据：`gray/2026-08-05-retired-permission-cleanup-old-server-gray-v0826-r1.md`、`production/2026-08-05-retired-permission-cleanup-old-server-production-v0826-r1.md` 与对应 validation 记录。
+
 ## 当前 active release
 
 ### Production

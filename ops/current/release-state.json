@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-04",
+  "updatedAt": "2026-08-05",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "ee31a4bea12af70367dc165a3b95b451b4ccdd0b",
+  "sourceCommit": "ff1064d",
   "environments": {
     "gray": {
       "version": "0.8.25",
@@ -25,6 +25,23 @@
       "releaseRecord": "docs/logbooks/releases/production/2026-08-04-encrypted-server-release-v0825-r1.md",
       "validationRecord": "docs/logbooks/validations/2026-08-04-encrypted-server-release-production-v0825-r1.md",
       "rollbackReleaseId": "20260804-runninghub-group-collapse-v0824-r1"
+    }
+  },
+  "partialTargetDeployments": {
+    "old-server": {
+      "sourceCommit": "ff1064d",
+      "releaseId": "20260805-retired-permission-cleanup-v0826-r1",
+      "version": "0.8.26",
+      "deployedAt": "2026-08-05",
+      "gray": { "ready": true, "permissionMode": "enforced", "failures": 0 },
+      "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
+    },
+    "new-server": {
+      "releaseId": "20260804-encrypted-server-release-v0825-r1",
+      "version": "0.8.25",
+      "status": "blocked",
+      "reason": "ssh-publickey-authentication-unavailable",
+      "observedAt": "2026-08-05"
     }
   }
 }
