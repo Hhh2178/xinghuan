@@ -139,6 +139,7 @@
 - 会话与 CSRF：`docs/systems/auth-and-users/session-and-csrf.md`
 - revision 与 ownership：`docs/systems/auth-and-users/revision-and-ownership-guard.md`
 - 权限默认值与管理员边界：`docs/systems/auth-and-users/permissions-and-administrator-boundary.md`
+- 退役权限主体与规则清理：`docs/systems/auth-and-users/retired-permission-cleanup.md`
 
 ### Storage 与 Data
 

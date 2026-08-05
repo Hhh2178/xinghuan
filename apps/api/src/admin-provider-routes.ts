@@ -65,6 +65,7 @@ export interface AdminProviderRouteDeps {
   insertProviderRecord: (provider: AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
   updateProviderRecord: (providerId: string, transform: (provider: AdminProviderRecordShape) => AdminProviderRecordShape) => Promise<AdminProviderRecordShape>;
   deleteProviderRecord: (providerId: string) => Promise<AdminProviderRecordShape>;
+  afterDeleteProvider?: () => Promise<void>;
   reorderProviderRecords: (orderedIds: string[]) => Promise<AdminProviderRecordShape[]>;
   normalizeProviderProtocol: (value: unknown) => string;
   normalizeRunningHubEntries: (value: unknown, kind: "app" | "workflow") => unknown;
@@ -216,6 +217,7 @@ export async function handleAdminProviderRoutes(input: {
   if (providerMatch && request.method === "DELETE") {
     const id = decodeURIComponent(providerMatch[1]);
     const provider = await deps.deleteProviderRecord(id);
+    await deps.afterDeleteProvider?.();
     await deps.appendAudit(adminUser, "provider.delete", "provider", id, `删除 Provider ${provider.name}`, requestContext);
     deps.sendT8(response, null);
     return true;

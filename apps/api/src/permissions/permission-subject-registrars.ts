@@ -1,11 +1,14 @@
 import type { PermissionSubject } from "@xinghuan/shared";
 import { isDeepStrictEqual } from "node:util";
+import type { PermissionRuleRecord } from "./permission-repository.js";
 
 const MANAGED_BY = "first-wave";
 
 export interface PermissionSubjectRepository {
   listSubjects: () => Promise<PermissionSubject[]>;
   upsertSubject: (subject: PermissionSubject) => Promise<PermissionSubject>;
+  deleteRulesForRetiredSubjects?: () => Promise<PermissionRuleRecord[]>;
+  onRetiredRulesDeleted?: (rules: PermissionRuleRecord[]) => Promise<void>;
 }
 
 export interface FirstWavePermissionSources {
@@ -22,6 +25,7 @@ export interface PermissionSubjectReconciliationReport {
   unchanged: number;
   retired: number;
   restricted: number;
+  rulesDeleted: number;
 }
 
 export function resourceCategorySubjectKey(id: string) {
@@ -85,7 +89,11 @@ export function createPermissionSubjectRegistrar(deps: PermissionSubjectReposito
       retired += 1;
     }
 
-    return { registered, unchanged, retired, restricted };
+    const deletedRules = deps.deleteRulesForRetiredSubjects
+      ? await deps.deleteRulesForRetiredSubjects()
+      : [];
+    if (deletedRules.length > 0) await deps.onRetiredRulesDeleted?.(deletedRules);
+    return { registered, unchanged, retired, restricted, rulesDeleted: deletedRules.length };
   }
 }
 

@@ -174,6 +174,7 @@ import {
 import { createGroupPermissionPolicyRouteHandler } from "./group-permission-policy-routes.js";
 import { createPermissionRepository, type PermissionFallbackAuthDb } from "./permissions/permission-repository.js";
 import { createPermissionRouteHandler } from "./permissions/permission-routes.js";
+import { createRetiredRuleCleanupAudit } from "./permissions/retired-rule-cleanup-audit.js";
 import { createPermissionService, PermissionDeniedError } from "./permissions/permission-service.js";
 import {
   createPermissionSubjectRegistrar,
@@ -399,9 +400,7 @@ const environmentSyncService = createEnvironmentSyncService({
   },
 });
 
-const {
-  appendTaskRuntimeEventBestEffort,
-} = createTaskRuntimeEventStore({
+const { appendTaskRuntimeEventBestEffort } = createTaskRuntimeEventStore({
   usePostgresRepository,
   getPostgresPool,
   filePath: join(dataDir, "admin", "task-runtime-events.ndjson"),
@@ -417,7 +416,7 @@ const permissionRepository = createPermissionRepository({
   now: () => Date.now(),
 });
 const permissionService = createPermissionService({ readAuthorizationState: permissionRepository.readAuthorizationState });
-const permissionSubjectRegistrar = createPermissionSubjectRegistrar(permissionRepository);
+const permissionSubjectRegistrar = createPermissionSubjectRegistrar({ ...permissionRepository, onRetiredRulesDeleted: createRetiredRuleCleanupAudit({ appendAuditRecord, now: () => Date.now() }) });
 let permissionSubjectReconciliation: Promise<void> | null = null;
 const permissionShadowMetrics = createPermissionShadowMetrics();
 const permissionRuntime = createPermissionRuntime({
@@ -2774,6 +2773,7 @@ async function handleAdminRequest(
       insertProviderRecord: async (provider) => providerRepository.insertProviderRecord(provider as AdminProviderRecord),
       updateProviderRecord: async (providerId, transform) => providerRepository.updateProviderRecord(providerId, (provider) => transform(provider) as AdminProviderRecord),
       deleteProviderRecord: providerRepository.deleteProviderRecord,
+      afterDeleteProvider: reconcilePermissionSubjects,
       reorderProviderRecords: providerRepository.reorderProviderRecords,
       normalizeProviderProtocol,
       normalizeRunningHubEntries,
@@ -3434,6 +3434,7 @@ async function handleAdminRequest(
         tasks: db.tasks.map((task) => (task.modelId === id ? { ...task, modelId: "" } : task)),
       });
     }
+    await reconcilePermissionSubjects();
     await appendAudit(adminUser, "model.delete", "model", id, `删除模型 ${model.displayName}`, requestContext);
     sendT8(response, null);
     return true;

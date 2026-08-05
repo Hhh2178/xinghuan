@@ -36,3 +36,10 @@
 - 阶段 E：补充 ZIP Worker 负载隔离契约、内存 soak 测量器和 targeted-read/read-side-effect/cache-authorization Harness 契约。
 - RH 自动 ZIP 下载补充按 `taskId` 的浏览器本地幂等标记，覆盖首次下载后画布 800ms 保存防抖窗口内立即刷新导致的重复下载；显式重试会清理标记。输出素材节点左上角批量下载入口继续按去重后的图片、视频、音频 URL 逐项触发默认下载路径。
 - 以上均为开发 worktree 代码改造；尚未重新构建或部署新的 Gray 制品，Production、迁移和 GitHub 继续暂停。
+
+## 退役权限主体清理（0.8.26 候选）
+
+- 服务商或模型退出目录后，权限 Subject 仍保留为 `retired`，历史任务、成本、审计记录和身份快照不受影响。
+- 权限 reconciliation 会删除仅指向 `retired` Subject 的授权规则；PostgreSQL 使用单条原子 `DELETE ... USING`，文件存储路径同步覆盖。
+- 每次清理均追加系统审计记录；权限后台默认隐藏退役主体，并提供“当前对象 / 已退役 / 全部”筛选。
+- 本地验证：全量 Vitest 258 个文件、971 个测试通过（4 个跳过）；完整构建、类型检查、权限平台契约、读路径副作用契约、项目 Harness、workspace Harness 和 release Harness 均通过。

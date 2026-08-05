@@ -67,6 +67,7 @@ describe("permission subject registrar", () => {
 
   it("publishes permission-manageable entries, restricts disabled models, and retires removed managed entries", async () => {
     const stored = [subject()];
+    const deletedRuleIds: string[] = [];
     const registrar = createPermissionSubjectRegistrar({
       listSubjects: async () => stored,
       upsertSubject: async (next) => {
@@ -74,6 +75,10 @@ describe("permission subject registrar", () => {
         if (index >= 0) stored[index] = next;
         else stored.push(next);
         return next;
+      },
+      deleteRulesForRetiredSubjects: async () => {
+        deletedRuleIds.push("legacy-rule");
+        return [{ id: "legacy-rule" } as never];
       },
       now: () => 100,
     });
@@ -106,6 +111,8 @@ describe("permission subject registrar", () => {
     expect(stored.find((item) => item.subjectKey === "provider.model/deleted")).toMatchObject({
       exposureState: "retired",
     });
+    expect(report.rulesDeleted).toBe(1);
+    expect(deletedRuleIds).toEqual(["legacy-rule"]);
   });
 
   it("preserves explicit publication while refreshing source metadata", async () => {

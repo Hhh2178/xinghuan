@@ -54,6 +54,7 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
     listRules,
     upsertRule,
     deleteRule,
+    deleteRulesForRetiredSubjects,
     readAuthorizationState,
   };
 
@@ -197,6 +198,39 @@ export function createPermissionRepository(deps: PermissionRepositoryDeps) {
       ...db,
       permissionRules: readRuleRecords(db).filter((item) => item.id !== id),
     });
+  }
+
+  async function deleteRulesForRetiredSubjects(): Promise<PermissionRuleRecord[]> {
+    if (deps.usePostgresRepository()) {
+      const pool = await deps.getPostgresPool();
+      const result = await pool.query(
+        `delete from xh_permission_rules
+         using xh_permission_subjects
+         where xh_permission_rules.subject_key = xh_permission_subjects.subject_key
+           and xh_permission_subjects.exposure_state = 'retired'
+         returning xh_permission_rules.id, xh_permission_rules.principal_type,
+           xh_permission_rules.principal_id, xh_permission_rules.subject_key,
+           xh_permission_rules.action, xh_permission_rules.effect,
+           xh_permission_rules.reason, xh_permission_rules.created_by,
+           xh_permission_rules.revision, xh_permission_rules.created_at,
+           xh_permission_rules.updated_at`,
+      );
+      return result.rows.map(toPermissionRuleRecord);
+    }
+    const db = await readFileDb();
+    const retiredSubjectKeys = new Set(
+      readSubjectRecords(db)
+        .filter((subject) => subject.exposureState === "retired")
+        .map((subject) => subject.subjectKey),
+    );
+    const rules = readRuleRecords(db);
+    const deleted = rules.filter((rule) => retiredSubjectKeys.has(rule.subjectKey));
+    if (deleted.length === 0) return [];
+    await writeFileDb({
+      ...db,
+      permissionRules: rules.filter((rule) => !retiredSubjectKeys.has(rule.subjectKey)),
+    });
+    return deleted;
   }
 
   async function readAuthorizationState(): Promise<{

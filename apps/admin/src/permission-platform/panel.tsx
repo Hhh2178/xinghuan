@@ -46,6 +46,7 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 type RuleDraftValue = "inherit" | PermissionEffect;
+export type PermissionSubjectListLifecycle = "active" | "retired" | "all";
 
 export function PermissionPlatformPanel({
   users,
@@ -59,6 +60,7 @@ export function PermissionPlatformPanel({
   const [principalType, setPrincipalType] = useState<PermissionPrincipalType>("group");
   const [principalId, setPrincipalId] = useState("ungrouped");
   const [domain, setDomain] = useState("all");
+  const [lifecycle, setLifecycle] = useState<PermissionSubjectListLifecycle>("active");
   const [query, setQuery] = useState("");
   const [reason, setReason] = useState("后台权限治理");
   const [loading, setLoading] = useState(true);
@@ -91,21 +93,8 @@ export function PermissionPlatformPanel({
   const fallbackGroupId = selectedUser?.groupId || "ungrouped";
 
   const visibleSubjects = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return [...state.subjects]
-      .filter((subject) => domain === "all" || subject.domain === domain)
-      .filter((subject) => !normalizedQuery || [
-        subject.displayName,
-        subject.subjectKey,
-        subject.sourceId,
-        subject.subjectType,
-      ].join(" ").toLowerCase().includes(normalizedQuery))
-      .sort((left, right) => (
-        left.domain.localeCompare(right.domain) ||
-        Number(Boolean(right.metadata.parent)) - Number(Boolean(left.metadata.parent)) ||
-        left.displayName.localeCompare(right.displayName, "zh-CN")
-      ));
-  }, [domain, query, state.subjects]);
+    return filterPermissionSubjects(state.subjects, { domain, query, lifecycle });
+  }, [domain, lifecycle, query, state.subjects]);
   const renderedSubjects = useMemo(
     () => visibleSubjects.slice(0, visibleLimit),
     [visibleSubjects, visibleLimit],
@@ -113,7 +102,7 @@ export function PermissionPlatformPanel({
 
   useEffect(() => {
     setVisibleLimit(80);
-  }, [domain, query]);
+  }, [domain, lifecycle, query]);
 
   async function load() {
     setLoading(true);
@@ -367,6 +356,21 @@ export function PermissionPlatformPanel({
                 </button>
               ))}
             </div>
+            <div className="permission-platform__domains" role="tablist" aria-label="权限对象生命周期">
+              {(["active", "retired", "all"] as const).map((item) => {
+                const count = item === "active"
+                  ? state.subjects.filter((subject) => subject.exposureState !== "retired").length
+                  : item === "retired"
+                    ? state.subjects.filter((subject) => subject.exposureState === "retired").length
+                    : state.subjects.length;
+                const label = item === "active" ? "当前对象" : item === "retired" ? "已退役" : "全部";
+                return (
+                  <button key={item} type="button" className={lifecycle === item ? "active" : ""} onClick={() => setLifecycle(item)}>
+                    {label} · {count}
+                  </button>
+                );
+              })}
+            </div>
             <label className="permission-platform__search">
               <Search aria-hidden="true" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称或 ID" />
@@ -401,6 +405,28 @@ export function PermissionPlatformPanel({
       </section>
     </AdminGovernanceLayout>
   );
+}
+
+export function filterPermissionSubjects(
+  subjects: PermissionSubject[],
+  input: { domain: string; query: string; lifecycle: PermissionSubjectListLifecycle },
+) {
+  const normalizedQuery = input.query.trim().toLowerCase();
+  return [...subjects]
+    .filter((subject) => input.domain === "all" || subject.domain === input.domain)
+    .filter((subject) => input.lifecycle === "all"
+      || (input.lifecycle === "retired" ? subject.exposureState === "retired" : subject.exposureState !== "retired"))
+    .filter((subject) => !normalizedQuery || [
+      subject.displayName,
+      subject.subjectKey,
+      subject.sourceId,
+      subject.subjectType,
+    ].join(" ").toLowerCase().includes(normalizedQuery))
+    .sort((left, right) => (
+      left.domain.localeCompare(right.domain) ||
+      Number(Boolean(right.metadata.parent)) - Number(Boolean(left.metadata.parent)) ||
+      left.displayName.localeCompare(right.displayName, "zh-CN")
+    ));
 }
 
 function PermissionSubjectRow({

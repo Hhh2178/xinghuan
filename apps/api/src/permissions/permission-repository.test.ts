@@ -120,6 +120,86 @@ describe("permission repository", () => {
     );
   });
 
+  it("deletes only rules targeting retired subjects and leaves the subjects available for history", async () => {
+    const query = vi.fn(async () => ({
+      rows: [
+        {
+          id: "retired-rule",
+          principal_type: "group",
+          principal_id: "group-a",
+          subject_key: "provider.model/retired",
+          action: "execute",
+          effect: "allow",
+          reason: "legacy",
+          created_by: null,
+          revision: 1,
+          created_at: new Date(10),
+          updated_at: new Date(20),
+        },
+      ],
+    }));
+    const repository = createPermissionRepository({
+      usePostgresRepository: () => true,
+      getPostgresPool: async () => ({ query }) as never,
+      now: () => 100,
+    });
+
+    const deleted = await repository.deleteRulesForRetiredSubjects();
+
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]).toMatchObject({
+      id: "retired-rule",
+      subjectKey: "provider.model/retired",
+      principalId: "group-a",
+    });
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/delete from xh_permission_rules[\s\S]*using xh_permission_subjects[\s\S]*exposure_state = 'retired'[\s\S]*returning/),
+    );
+  });
+
+  it("cleans retired rules in the file-backed repository without removing retired subjects", async () => {
+    let db: PermissionFallbackAuthDb = {
+      permissionSubjects: [{
+        subjectKey: "provider.model/retired",
+        domain: "provider",
+        subjectType: "model",
+        parentKey: "provider.model/*",
+        sourceId: "model:retired",
+        exposureState: "retired",
+        displayName: "Retired",
+        metadata: {},
+        revision: 3,
+        createdAt: 10,
+        updatedAt: 20,
+      }],
+      permissionRules: [{
+        id: "retired-rule",
+        principalType: "group",
+        principalId: "group-a",
+        subjectKey: "provider.model/retired",
+        action: "view",
+        effect: "allow",
+        reason: "legacy",
+        revision: 1,
+        createdAt: 10,
+        updatedAt: 20,
+      }],
+    };
+    const repository = createPermissionRepository({
+      usePostgresRepository: () => false,
+      getPostgresPool: async () => ({ query: vi.fn() }) as never,
+      readAuthDb: async () => db,
+      writeAuthDb: async (nextDb) => { db = nextDb; },
+      now: () => 100,
+    });
+
+    const deleted = await repository.deleteRulesForRetiredSubjects();
+
+    expect(deleted.map((rule) => rule.id)).toEqual(["retired-rule"]);
+    expect(db.permissionRules).toEqual([]);
+    expect(db.permissionSubjects).toHaveLength(1);
+  });
+
   it("normalizes file-backed subjects and rules with inherited parent keys", async () => {
     let db: PermissionFallbackAuthDb = {
       permissionSubjects: [
