@@ -1,32 +1,32 @@
 # 当前 Gray 运行态
 
-## v0.8.27 双服务器权限与公共资源修复（2026-08-07）
+## v0.8.28 双服务器并行分组与 AI 托管恢复（2026-08-07）
 
-- 旧服务器和新服务器 Gray 均已升级至 `v0.8.27`，release 为 `20260807-permission-shared-resource-portability-v0827-r1`；API/Worker active，权限 readiness 均通过。
-- 本轮修复权限读取写耦合、跨账号公共素材稳定引用和未来迁移物化门禁；两边 Production 与数据迁移均未执行。
+- 旧服务器和新服务器 Gray 均已升级至 `v0.8.28`，release 为 `20260807-parallel-group-supervision-v0828-r1`；API/Worker active，权限 readiness 均通过。
+- 本轮完成最多五组并发、全画布十节点预算、组内 DAG 分层并发、拓扑校验、取消隔离和 AI 托管运行态修复；同一制品随后晋级两边 Production。
 - 新服务器公网 DNS 仍待域名侧恢复；直接 `--resolve` 到 `43.131.246.222` 的 HTTPS status 已通过。
 
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`canvas-next.zezhen.online`（新服务器 Gray，注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`v0.8.27`（旧/新服务器 Gray）
-- 当前 release：`20260807-permission-shared-resource-portability-v0827-r1`
+- 当前版本：`v0.8.28`（旧/新服务器 Gray）
+- 当前 release：`20260807-parallel-group-supervision-v0828-r1`
 - 当前状态：`旧/新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；API/Worker、内部状态与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
-- 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行 v0.8.27；普通 DNS 仍未解析，直接 resolve 的 HTTPS status 已通过`
+- 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行 v0.8.28；普通 DNS 仍未解析，直接 resolve 的 HTTPS status 已通过`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
-- Production 当前 release：`20260805-retired-permission-cleanup-v0826-r1`
-- 本轮制品源提交：`f713aed9e2414ca87418ebe7edfab7c8591683c0`
-- 本轮加密制品 SHA-256：`82401a945e4734e584aec7bebb54c605ee76e275d5576ca88954ad65087e6b1d`
-- 本轮内层 sealed archive SHA-256：`786dde14328bbe3a709f7d24e01f82372011e7c91a230e82ea28a6029372a5dd`
+- Production 当前 release：`20260807-parallel-group-supervision-v0828-r1`
+- 本轮制品源提交：`59d8bfa31d4e447d9332723d4e4a65ee46738e64`
+- 本轮加密制品 SHA-256：`85a90e8e6a7a5dc942989169d05f77c72b2c98934827f82be6f0828836482cfc`
+- 本轮内层 sealed archive SHA-256：`99c9654224dd0ba557f4f65938ba59c4eccf08f5f35e410d6c884f5fb38b8bbc`
 - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例，注册实例 id=comfyui-chinami-lrlmfij-gray，服务端访问地址=http://127.0.0.1:28188；本轮仅做既有页面视觉收敛，未推进 ComfyUI 功能`
 - 当前本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，需按受控 reconciliation 单独处理；Provider 历史探测与磁盘容量指标仍为 unknown；ComfyUI 功能继续冻结`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-07-parallel-group-supervision-v0828-r1.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md`
 - 新服务器发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
-- Gray retention：`旧/新服务器本轮 release dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
+- Gray retention：`旧/新服务器本轮 dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
 - 当前运行材料：
   - `../../docs/logbooks/releases/gray/2026-07-30-admin-rail-single-owner-footer-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-gray-v0814-r1.md`

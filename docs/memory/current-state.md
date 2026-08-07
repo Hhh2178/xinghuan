@@ -2,12 +2,12 @@
 
 ## 当前版本与阶段
 
-- 当前灰度版本：`v0.8.12`（旧服务器 Admin Realtime Data C 灰度）
-- 当前生产版本：`v0.8.3`（用户授权后由 Gray 同制品正式晋级）
-- 当前灰度 release：`20260729-admin-realtime-data-c-v0812-r1`
-- 当前生产 release：`20260728-plato-output-recovery-v083-r22`
+- 当前 Gray 版本：`v0.8.28`（旧/新服务器 Gray）
+- 当前 Production 版本：`v0.8.28`（旧/新服务器 Production）
+- 当前 release：`20260807-parallel-group-supervision-v0828-r1`
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：旧服务器 Gray 已部署 v0.8.12。Admin C 实时/数据工作台七个路由通过 API/Worker、内外状态、权限 readiness、远端运维 smoke 与登录态 1920x1080 验收；概览、任务、健康、用量、费用、渠道健康和审计的数据/刷新/动作边界保持不变。
+- 最新完成：四个目标按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序运行同一 AES-256-GCM sealed artifact；API/Worker、权限 readiness、并行分组执行和 AI 托管 observe mode 均通过验证。
+- 当前验证边界：旧 Gray 只完成一次受控 GRS AI `gpt-image-2` canary；Production 未重复付费生图。新服务器公网 DNS 仍需域名侧恢复，直接 HTTPS resolve 已通过。
 - 当前 Admin 视觉重构：Foundation、A、B、C 已完成；D 批账号组织、权限安全、公共资源、内容发布和智能体自动化治理/内容工作台已激活。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
 - 当前补强：Node Capability Catalog 已成为代码、Admin 节点能力页和规划/监督/检查/恢复 Agent 共享的维护源；`text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 已通过 Worker 原生确定性执行，不创建外部 Provider Task。`text-split` 前端和 Worker 复用 Shared 算法，Run Plan 只冻结可执行配置和手工 segments override。其他 legacy 节点仍未迁移，不能宣称任意画布均能后台托管。
@@ -22,8 +22,10 @@
 ## 当前环境入口
 
 - 当前 worktree：`D:/codex/无限画布2.0-worktrees/xinghuan-integration-clean`
-- 灰度：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
-- 生产：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
+- 旧 Gray：`canvas-next.hhh2121.xyz` / `127.0.0.1:18200`
+- 旧 Production：`canvas.hhh2121.xyz` / `127.0.0.1:18100`
+- 新 Gray：`canvas-next.zezhen.online` / `127.0.0.1:18200`（本机 DNS 仍 `ENOTFOUND`）
+- 新 Production：`canvas.zezhen.online` / `127.0.0.1:18100`（本机 DNS 仍 `ENOTFOUND`）
 - 当前 production 数据库目标：`xinghuan_canvas_next`
 
 ## 当前高频系统关注点

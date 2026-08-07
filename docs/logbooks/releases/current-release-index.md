@@ -1,22 +1,22 @@
 # 当前 Release 索引
 
-## v0.8.27 双服务器 Gray 发布（2026-08-07）
+## v0.8.28 双服务器 Gray/Production 发布（2026-08-07）
 
-- `v0.8.27 / 20260807-permission-shared-resource-portability-v0827-r1` 已部署于旧/新服务器 Gray，API/Worker active、`enforced`、permission readiness `true`。
-- 指定成员账号在两边权限接口均返回 `200`；两边公共资源迁移门禁均 ready、缺失文件 `0`。
-- 两边 Production 保持 `v0.8.26`，本轮没有执行数据迁移。
-- 证据：`gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`、`../validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md` 与 `../../ops/current/release-state.json`。
+- `v0.8.28 / 20260807-parallel-group-supervision-v0828-r1` 已按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序完成，四套 API/Worker active、`enforced`、permission readiness `true`。
+- 最多五组并发、全画布十节点预算、组内 DAG 分层、拓扑拒绝、取消隔离和 AI 托管 observe mode 均通过运行态验证。
+- 旧 Gray 完成且仅完成一次受控 GRS AI `gpt-image-2` 生图 canary；Production 未重复发起付费任务。
+- 证据：`gray/2026-08-07-parallel-group-supervision-v0828-r1.md`、`production/2026-08-07-parallel-group-supervision-v0828-r1.md`、`../validations/2026-08-07-parallel-group-supervision-v0828-r1.md` 与 `../../ops/current/release-state.json`。
 
 ## 当前 active release
 
 ### Production
 
-- 版本：`v0.8.26`
-- release：`20260805-retired-permission-cleanup-v0826-r1`
-- 当前状态：`Gray 已验证的同一加密封装制品已晋级旧/新服务器 Production；旧域名继续提供正式入口，新域名保持并行验收`
+- 版本：`v0.8.28`
+- release：`20260807-parallel-group-supervision-v0828-r1`
+- 当前状态：`同一 Gray 验收加密封装制品已晋级旧/新服务器 Production；旧域名继续提供正式入口，新域名保持并行验收`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
-- Agent 运行态：`不在 Production 重复执行付费 Agent/Provider canary，未启用生产 AI 运行开关`
-- 回滚：`20260728-plato-output-recovery-v083-r22`
+- Agent 运行态：`Agent/Canvas Run 与进程门禁启用；自动恢复、质量评估关闭，Production 处于 observe mode；未重复付费 canary`
+- 回滚：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前批次记录：
   - `production/2026-08-04-encrypted-server-release-v0825-r1.md`
   - `../validations/2026-08-04-encrypted-server-release-production-v0825-r1.md`
@@ -36,17 +36,17 @@
 
 ### Gray
 
-- 版本：`v0.8.27`（旧/新服务器 Gray）
-- release：`20260807-permission-shared-resource-portability-v0827-r1`
-- 当前状态：`旧/新服务器 Gray 已发布同一加密封装制品；权限读取、公共资源跨账号引用与迁移门禁通过运行态验证。`
+- 版本：`v0.8.28`（旧/新服务器 Gray）
+- release：`20260807-parallel-group-supervision-v0828-r1`
+- 当前状态：`旧/新服务器 Gray 已发布同一加密封装制品；并行分组、拓扑、AI 托管和权限 readiness 通过运行态验证。`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
 - 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
 - 部署时间：`2026-08-07`
-- 本轮制品源提交：`f713aed9e2414ca87418ebe7edfab7c8591683c0`
-- 本轮加密制品 SHA-256：`82401a945e4734e584aec7bebb54c605ee76e275d5576ca88954ad65087e6b1d`
+- 本轮制品源提交：`59d8bfa31d4e447d9332723d4e4a65ee46738e64`
+- 本轮加密制品 SHA-256：`85a90e8e6a7a5dc942989169d05f77c72b2c98934827f82be6f0828836482cfc`
 - 本轮发布记录：
-  - `gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`
-  - `../validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md`
+  - `gray/2026-08-07-parallel-group-supervision-v0828-r1.md`
+  - `../validations/2026-08-07-parallel-group-supervision-v0828-r1.md`
   - `gray/2026-08-04-encrypted-server-release-v0825-r1.md`
   - `../validations/2026-08-04-encrypted-server-release-gray-v0825-r1.md`
   - `gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`

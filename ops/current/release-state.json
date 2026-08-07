@@ -1,48 +1,108 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-05",
+  "updatedAt": "2026-08-07",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "ff1064d854b457e53fe05acc99b0049ae2fc6361",
+  "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
+  "artifact": {
+    "releaseId": "20260807-parallel-group-supervision-v0828-r1",
+    "encryptedSha256": "85a90e8e6a7a5dc942989169d05f77c72b2c98934827f82be6f0828836482cfc",
+    "sealedSha256": "99c9654224dd0ba557f4f65938ba59c4eccf08f5f35e410d6c884f5fb38b8bbc"
+  },
   "environments": {
     "gray": {
-      "version": "0.8.27",
-      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
+      "version": "0.8.28",
+      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
       "deployedAt": "2026-08-07",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 139, "publishedSubjects": 127, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0 },
-      "runtimeReadiness": { "subjects": 139, "publishedSubjects": 127, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-08-07", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md",
-      "rollbackReleaseId": "20260805-retired-permission-cleanup-v0826-r1"
+      "readiness": {
+        "subjects": 139,
+        "rules": 1195,
+        "principals": 5,
+        "failures": 0
+      },
+      "runtimeReadiness": {
+        "subjects": 139,
+        "rules": 1195,
+        "principals": 5,
+        "failures": 0,
+        "failureCodes": [],
+        "observedAt": "2026-08-07",
+        "status": "ready"
+      },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-08-07-parallel-group-supervision-v0828-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md",
+      "rollbackReleaseId": "20260807-permission-shared-resource-portability-v0827-r1"
     },
     "production": {
-      "version": "0.8.26",
-      "releaseId": "20260805-retired-permission-cleanup-v0826-r1",
-      "deployedAt": "2026-08-05",
+      "version": "0.8.28",
+      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
+      "deployedAt": "2026-08-07",
       "permissionMode": "enforced",
-      "readiness": { "subjects": 158, "publishedSubjects": 115, "restrictedSubjects": 33, "retiredSubjects": 10, "rules": 2810, "principals": 11, "failures": 0, "source": "deployment-validation" },
-      "runtimeReadiness": { "subjects": 158, "publishedSubjects": 115, "restrictedSubjects": 33, "retiredSubjects": 10, "rules": 2810, "principals": 11, "failures": 0, "failureCodes": [], "observedAt": "2026-08-04", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/production/2026-08-05-retired-permission-cleanup-v0826-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-05-retired-permission-cleanup-production-v0826-r1.md",
-      "rollbackReleaseId": "20260804-runninghub-group-collapse-v0824-r1"
+      "readiness": {
+        "subjects": 177,
+        "rules": 2704,
+        "principals": 11,
+        "failures": 0,
+        "source": "deployment-validation"
+      },
+      "runtimeReadiness": {
+        "subjects": 177,
+        "rules": 2704,
+        "principals": 11,
+        "failures": 0,
+        "failureCodes": [],
+        "observedAt": "2026-08-07",
+        "status": "ready"
+      },
+      "releaseRecord": "docs/logbooks/releases/production/2026-08-07-parallel-group-supervision-v0828-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md",
+      "rollbackReleaseId": "20260805-retired-permission-cleanup-v0826-r1"
     }
   },
   "targetDeployments": {
     "old-server": {
-      "sourceCommit": "f713aed9e2414ca87418ebe7edfab7c8591683c0",
-      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
-      "version": "0.8.27",
+      "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
+      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
+      "version": "0.8.28",
       "deployedAt": "2026-08-07",
-      "gray": { "ready": true, "permissionMode": "enforced", "failures": 0 },
-      "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
+      "gray": {
+        "ready": true,
+        "permissionMode": "enforced",
+        "subjects": 139,
+        "rules": 1195,
+        "principals": 5,
+        "failures": 0
+      },
+      "production": {
+        "ready": true,
+        "permissionMode": "enforced",
+        "subjects": 177,
+        "rules": 2704,
+        "principals": 11,
+        "failures": 0
+      }
     },
     "new-server": {
-      "sourceCommit": "f713aed9e2414ca87418ebe7edfab7c8591683c0",
-      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
-      "version": "0.8.27",
+      "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
+      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
+      "version": "0.8.28",
       "deployedAt": "2026-08-07",
-      "gray": { "ready": true, "permissionMode": "enforced", "failures": 0 },
-      "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
+      "gray": {
+        "ready": true,
+        "permissionMode": "enforced",
+        "subjects": 132,
+        "rules": 1180,
+        "principals": 5,
+        "failures": 0
+      },
+      "production": {
+        "ready": true,
+        "permissionMode": "enforced",
+        "subjects": 158,
+        "rules": 2920,
+        "principals": 11,
+        "failures": 0
+      }
     }
   }
 }

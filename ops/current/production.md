@@ -1,28 +1,28 @@
 # 当前 Production 运行态
 
-## v0.8.26 双服务器发布（2026-08-05）
+## v0.8.28 双服务器并行分组与 AI 托管恢复（2026-08-07）
 
-- 旧服务器和新服务器 Production 均已升级至 `v0.8.26`，release 为 `20260805-retired-permission-cleanup-v0826-r1`；发布前数据库备份已完成，API/Worker active，权限 readiness 均为 `true`。
+- 旧服务器和新服务器 Production 均已升级至 `v0.8.28`，release 为 `20260807-parallel-group-supervision-v0828-r1`；发布前数据库备份已完成，API/Worker active，权限 readiness 均为 `true`。
 - 新服务器公网域名 `canvas.zezhen.online` 当前在本机 DNS 查询失败；新服务器内部 `127.0.0.1:18100` status 与 readiness 已通过。
 
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`v0.8.26`
-- 当前 release：`20260805-retired-permission-cleanup-v0826-r1`
+- 当前版本：`v0.8.28`
+- 当前 release：`20260807-parallel-group-supervision-v0828-r1`
 - 当前状态：`旧服务器与新服务器 Production 均由 Gray 同一验证的 AES-256-GCM 加密封装制品晋级；API/Worker、内部/HTTPS 状态和权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
-- 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.25 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，尚未切换公网流量`
+- 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.28 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，尚未切换公网流量`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`
-- Agent 运行态：`运行环境静态 readiness 门禁已保留；本批次未重复执行付费 Agent canary，亦未启用生产 AI 运行开关`
+- Agent 运行态：`API/Worker 进程门禁与数据库 Agent/Canvas Run 开关已启用；自动恢复和质量评估保持关闭，Production 处于 observe 模式；未重复执行付费 Agent/Provider canary`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`
 - 加固审计：`../../docs/records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
-- 当前发布记录：`../../docs/logbooks/releases/production/2026-08-04-encrypted-server-release-v0825-r1.md`
-- 当前验证记录：`../../docs/logbooks/validations/2026-08-04-encrypted-server-release-production-v0825-r1.md`
-- Production retention：`旧/新服务器本轮 release dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
+- 当前发布记录：`../../docs/logbooks/releases/production/2026-08-07-parallel-group-supervision-v0828-r1.md`
+- 当前验证记录：`../../docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md`
+- Production retention：`旧/新服务器本轮 dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
 - 新服务器发布记录：`../../docs/logbooks/releases/production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
-- 回退锚点：`20260803-assistant-runtime-v0815-r1`
+- 回退锚点：`20260805-retired-permission-cleanup-v0826-r1`
 - 当前运行材料：
   - `../../docs/logbooks/releases/production/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
   - `../../docs/logbooks/validations/2026-07-30-admin-rail-single-owner-footer-production-v0814-r1.md`
