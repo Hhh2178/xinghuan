@@ -62,6 +62,14 @@
 4. 后端通过独立 `shared-resource` 路由与独立存储文件管理共享资源
 5. 共享资源另存为个人资源时，会生成新的个人资源记录，但保留源资源内容与引用语义
 
+### 跨账号与跨设备访问约束
+
+- 公共媒体不能继续依赖发布者的 `/files/input/*` 或 `/files/output/*` 当前用户路径。
+- 新发布的媒体会复制到 `admin/shared-assets/`，公共列表返回稳定的 `/api/shared-resources/items/:id/content` 地址。
+- 历史条目在具备 `publishedBy` 时由稳定内容路由按发布者目录兼容读取；缺少发布者或源文件的条目应标记为不可用并补录，不能回退到当前用户目录。
+- 返回公共条目时，素材集和工作流 manifest 内与公共资源匹配的裸 URL 会改写为资源 ID 内容地址，因此换账号、浏览器或导入同一份工作流 JSON 时仍引用同一公共素材。
+- 整站迁移前必须运行 `apps/api/dist/cli/shared-resource-assets.js --apply=true --expect-ready=true`；生产数据包保留 `admin/shared-resource-library.json` 与 `admin/shared-assets/`，仅排除用户生成输出和 ZIP 归档。
+
 ## 共享工作流链路
 
 1. 管理员在后台 ComfyUI 实例页维护 `实例专属工作流`

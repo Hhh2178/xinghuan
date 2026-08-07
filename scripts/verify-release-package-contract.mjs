@@ -50,6 +50,7 @@ const requiredArchiveFiles = [
   "scripts/db-migrate.mjs",
   "apps/api/dist/server.js",
   "apps/api/dist/cli/permission-readiness.js",
+  "apps/api/dist/cli/shared-resource-assets.js",
   "apps/worker/dist/worker.js",
   "config/environments.json",
   "config/release-target-profiles.json",

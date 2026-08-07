@@ -209,16 +209,24 @@ export function createGroupPermissionPolicyRouteHandler(deps: {
       const retainedUnknownDenials = effective.deny.nodeTypes.filter(
         (nodeType) => nodeType !== "*" && !currentNodeTypeIds.has(nodeType),
       );
-      const decisions = await Promise.all(nodeTypes.map(async (nodeType) => ({
-        nodeType: nodeType.id,
-        allowed: await deps.resolveNodeTypeAllowed!(
-          user,
-          nodeType.id,
-          !effective.deny.nodeTypes.includes("*") && !effective.deny.nodeTypes.includes(nodeType.id),
-        ),
-      })));
+      const decisions = await Promise.all(nodeTypes.map(async (nodeType) => {
+        const legacyAllowed = !effective.deny.nodeTypes.includes("*") && !effective.deny.nodeTypes.includes(nodeType.id);
+        try {
+          return {
+            nodeType: nodeType.id,
+            allowed: await deps.resolveNodeTypeAllowed!(user, nodeType.id, legacyAllowed),
+            failed: false,
+          };
+        } catch {
+          return { nodeType: nodeType.id, allowed: false, failed: true };
+        }
+      }));
+      const failedNodeTypes = decisions.filter((decision) => decision.failed).map((decision) => decision.nodeType);
       sendT8(response, {
         ...effective,
+        nodePermissionResolution: failedNodeTypes.length > 0
+          ? { status: "degraded", failedNodeTypes }
+          : { status: "ready", failedNodeTypes: [] },
         deny: {
           ...effective.deny,
           nodeTypes: [

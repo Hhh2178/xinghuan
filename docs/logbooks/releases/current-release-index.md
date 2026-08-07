@@ -1,10 +1,11 @@
 # 当前 Release 索引
 
-## v0.8.26 双服务器发布（2026-08-05）
+## v0.8.27 双服务器 Gray 发布（2026-08-07）
 
-- `v0.8.26 / 20260805-retired-permission-cleanup-v0826-r1` 已部署于旧/新服务器 Gray 与 Production，四个目标均为 API/Worker active、`enforced`、permission readiness `true`。
-- 新服务器公网域名在本机 DNS 查询失败；内部 API、服务状态和权限 readiness 已通过，公网 DNS/HTTPS 需由域名侧恢复后复核。
-- 证据：对应 Gray/Production release 与 validation 记录，以及 `../../ops/current/release-state.json` 的 `targetDeployments`。
+- `v0.8.27 / 20260807-permission-shared-resource-portability-v0827-r1` 已部署于旧/新服务器 Gray，API/Worker active、`enforced`、permission readiness `true`。
+- 指定成员账号在两边权限接口均返回 `200`；两边公共资源迁移门禁均 ready、缺失文件 `0`。
+- 两边 Production 保持 `v0.8.26`，本轮没有执行数据迁移。
+- 证据：`gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`、`../validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md` 与 `../../ops/current/release-state.json`。
 
 ## 当前 active release
 
@@ -35,15 +36,17 @@
 
 ### Gray
 
-- 版本：`v0.8.26`
-- release：`20260805-retired-permission-cleanup-v0826-r1`
-- 当前状态：`旧/新服务器 Gray 均已发布同一加密封装制品；旧域名继续提供可用灰度入口，新域名通过 HTTPS resolve 验收`
-- 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；RunningHub 分组折叠、归档下载和 RH 节点自动下载能力保持。`
-- 已验证：`全量 CI、归档回归测试、单端构建、运行态和权限 readiness 均通过；真实 RH 下载仍待 Gray 操作验收。`
-- 部署时间：`2026-08-04`
-- 本轮制品源提交：`ee31a4bea12af70367dc165a3b95b451b4ccdd0b`
-- 本轮加密制品 SHA-256：`4bf374ae8c5d98e1aba8fcdb7a787ae602b41196c0b1b827d88e4534f7ce3e3a`
+- 版本：`v0.8.27`（旧/新服务器 Gray）
+- release：`20260807-permission-shared-resource-portability-v0827-r1`
+- 当前状态：`旧/新服务器 Gray 已发布同一加密封装制品；权限读取、公共资源跨账号引用与迁移门禁通过运行态验证。`
+- 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
+- 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
+- 部署时间：`2026-08-07`
+- 本轮制品源提交：`f713aed9e2414ca87418ebe7edfab7c8591683c0`
+- 本轮加密制品 SHA-256：`82401a945e4734e584aec7bebb54c605ee76e275d5576ca88954ad65087e6b1d`
 - 本轮发布记录：
+  - `gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`
+  - `../validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md`
   - `gray/2026-08-04-encrypted-server-release-v0825-r1.md`
   - `../validations/2026-08-04-encrypted-server-release-gray-v0825-r1.md`
   - `gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`

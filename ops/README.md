@@ -24,29 +24,29 @@
 
 ## 当前运行态摘要
 
-- 2026-08-05 双服务器升级：Gray/Production 四个目标均为 `v0.8.26`；新服务器公网域名在本机 DNS 查询失败，但服务器内部 status/readiness 已通过。目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
+- 2026-08-07 旧/新服务器 Gray 均升级至 `v0.8.27`，修复权限读取和公共资源跨账号/迁移链路；两边 Production 保持 `v0.8.26`。目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
 
 - Gray：
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18200`
-  - 版本：`v0.8.25`
-  - release：`20260804-encrypted-server-release-v0825-r1`
-  - 状态：`旧/新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；API/Worker、权限 readiness 和 HTTPS 状态通过`
-  - 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行同一 v0.8.25 encrypted server release；HTTPS、API/Worker 和权限 readiness 通过`
+  - 版本：`旧服务器 v0.8.27；新服务器 v0.8.26`
+  - release：`旧服务器 20260807-permission-shared-resource-portability-v0827-r1；新服务器 20260805-retired-permission-cleanup-v0826-r1`
+  - 状态：`旧/新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；API/Worker、权限 readiness、指定账号权限接口与公共资源迁移门禁通过`
+  - 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行 v0.8.27；普通 DNS 仍待域名侧恢复，直接 resolve 的 HTTPS status 已通过`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；输出归档 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
-  - 本轮制品源提交：`ee31a4bea12af70367dc165a3b95b451b4ccdd0b`
-  - 本轮加密制品 SHA-256：`4bf374ae8c5d98e1aba8fcdb7a787ae602b41196c0b1b827d88e4534f7ce3e3a`
-  - Gray retention：`dry-run/apply 已通过，保留 5 个 release，current/rollback 均保留`
+  - 本轮制品源提交：`f713aed9e2414ca87418ebe7edfab7c8591683c0`
+  - 本轮加密制品 SHA-256：`82401a945e4734e584aec7bebb54c605ee76e275d5576ca88954ad65087e6b1d`
+  - Gray retention：`旧/新服务器 dry-run/apply 均已通过，各保留 5 个 release，current/rollback 均保留`
   - 当前机器态：`ComfyUI 功能冻结前 gray 曾接入 1 台本机实例（通过 SSH 反向隧道暴露 server 127.0.0.1:28188）；本轮仅做既有页面视觉收敛`
   - 本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
-  - 版本：`v0.8.25`
-  - release：`20260804-encrypted-server-release-v0825-r1`
+  - 版本：`v0.8.26`
+  - release：`20260805-retired-permission-cleanup-v0826-r1`
   - 状态：`旧/新服务器 Production 均由 Gray 同一验证的加密封装制品晋级；API/Worker、权限 readiness 与 HTTPS 状态全部通过`
   - 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.25 encrypted server release；HTTPS、API/Worker 和权限 readiness 通过，尚未切换公网流量`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档、配置栏和 Agent 环境隔离能力继续保留`

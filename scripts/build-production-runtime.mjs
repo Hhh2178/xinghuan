@@ -21,9 +21,14 @@ export async function buildProductionRuntime({ outDir }) {
     targetRoot,
     "apps/api/dist/cli/permission-readiness.js",
   );
+  const sharedResourceAssetsEntry = resolve(
+    targetRoot,
+    "apps/api/dist/cli/shared-resource-assets.js",
+  );
   await mkdir(dirname(apiEntry), { recursive: true });
   await mkdir(dirname(workerEntry), { recursive: true });
   await mkdir(dirname(permissionReadinessEntry), { recursive: true });
+  await mkdir(dirname(sharedResourceAssetsEntry), { recursive: true });
 
   const common = {
     bundle: true,
@@ -52,8 +57,13 @@ export async function buildProductionRuntime({ outDir }) {
     entryPoints: [resolve(rootDir, "apps/api/src/cli/permission-readiness.ts")],
     outfile: permissionReadinessEntry,
   });
+  await build({
+    ...common,
+    entryPoints: [resolve(rootDir, "apps/api/src/cli/shared-resource-assets.ts")],
+    outfile: sharedResourceAssetsEntry,
+  });
 
-  return { apiEntry, workerEntry, permissionReadinessEntry };
+  return { apiEntry, workerEntry, permissionReadinessEntry, sharedResourceAssetsEntry };
 }
 
 function argument(name) {

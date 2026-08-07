@@ -733,6 +733,7 @@ const handleSharedResourceRoutes = createSharedResourceRouteHandler({
   HttpError,
   readResourceDb,
   writeResourceDb,
+  userDataDirsForId, sendStaticFile,
   usePostgresRepository,
   upsertResourceItemPostgres,
   readGroupPermissionPolicies: async () => (await readAuthDb()).groupPermissionPolicies,
@@ -789,7 +790,6 @@ const handleGroupPermissionPolicyRoutes = createGroupPermissionPolicyRouteHandle
     group: "canvas",
   })),
   resolveNodeTypeAllowed: async (user, nodeType, legacyAllowed) => {
-    await reconcilePermissionSubjects();
     return (await permissionRuntime.decide({
       user,
       subjectKey: canvasNodeSubjectKey(nodeType),
