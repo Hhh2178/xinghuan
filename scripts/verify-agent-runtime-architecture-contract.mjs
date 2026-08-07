@@ -57,6 +57,7 @@ const files = {
   workerCandidateSelector: await read("apps/worker/src/canvas-run-candidate-selector.ts"),
   workerQualityCoordinator: await read("apps/worker/src/canvas-run-quality-coordinator.ts"),
   workerEntry: await read("apps/worker/src/worker.ts"),
+  agentRuntimeGates: await read("packages/shared/src/agent-runtime-gates.ts"),
   webApp: await read("apps/web/src/App.tsx"),
   assistantShell: await read("apps/web/src/components/canvas-assistant/CanvasAssistantShell.tsx"),
   supervisionDock: await read("apps/web/src/components/canvas-agent/CanvasSupervisionDock.tsx"),
@@ -175,7 +176,8 @@ assert.match(files.routes, /candidate-selections/, "Canvas Run routes must expos
 assert.match(files.candidateSelectorNode, /selectorMediaKind.*selectorMode.*selectorMaximum.*selectorMinimumConfidence/s, "selector node must expose media, mode, Top K and confidence controls");
 assert.match(files.candidateSelectorNode, /criteria-text/, "selector node must expose a separate criteria port");
 assert.match(files.candidateSelectionPanel, /readCanvasRunCandidateSelections.*selectCanvasRunCandidates/s, "supervision UI must read frozen candidates and submit through the owner-scoped API");
-assert.match(files.workerEntry, /XINGHUAN_CANVAS_RUN_WORKER_ENABLED/, "Canvas Run Worker consumer must have an explicit environment gate");
+assert.match(files.workerEntry, /readAgentRuntimeProcessGates\(process\.env\)/, "Canvas Run Worker consumer must use the shared process gate reader");
+assert.match(files.agentRuntimeGates, /XINGHUAN_CANVAS_RUN_WORKER_ENABLED/, "shared process gate reader must own the Worker environment flag");
 
 for (const table of ["xh_agent_definitions", "xh_agent_runs", "xh_agent_actions", "xh_llm_route_pools", "xh_llm_route_pool_versions", "xh_llm_route_entries", "xh_llm_route_entry_health", "xh_llm_route_decisions"]) {
   assert.match(files.agentMigration, new RegExp(`create table if not exists ${table}`), `internal Agent migration missing ${table}`);
