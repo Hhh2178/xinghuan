@@ -32,6 +32,7 @@
     "release:gray:prepare:runninghub": "node scripts/release/prepare-gray-release.mjs --preset=runninghub",
     "release:gray:deploy": "node scripts/release/deploy-gray-release.mjs",
     "release:gray:verify": "node scripts/release/verify-gray-runtime.mjs",
+    "release:bootstrap-agent-runtime-environment": "node scripts/bootstrap-agent-runtime-environment.mjs",
     "release:retention:prune": "node scripts/release/prune-release-retention.mjs",
     "release:migrate-production-data": "node scripts/release/migrate-production-data.mjs",
     "release:publish-supervision-route-model": "node scripts/publish-supervision-route-model.mjs",
