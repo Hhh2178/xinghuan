@@ -159,6 +159,7 @@
     "verify:canvas-section-split-contract": "node scripts/verify-canvas-section-split-contract.mjs",
     "verify:canvas-runtime-split-contract": "node scripts/verify-canvas-runtime-split-contract.mjs",
     "verify:parallel-group-execution-plan": "tsx scripts/verify-parallel-group-execution-plan.ts",
+    "verify:run-bus-completion-sequence": "tsx scripts/verify-run-bus-completion-sequence.ts",
     "verify:canvas-overlay-split-contract": "node scripts/verify-canvas-overlay-split-contract.mjs",
     "verify:canvas-interaction-seam-contract": "node scripts/verify-canvas-interaction-seam-contract.mjs",
     "verify:canvas-send-flow-split-contract": "node scripts/verify-canvas-send-flow-split-contract.mjs",

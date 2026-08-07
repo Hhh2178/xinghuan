@@ -64,7 +64,7 @@ export function useCanvasRuntime({
           if (cancelRunRef.current) break;
           const id = order[i];
           await runNodeWithRetries(id, async () => {
-            const previousDoneTs = useRunBusStore.getState().lastDone?.ts || 0;
+            const previousCompletionSequence = useRunBusStore.getState().completionSequence;
             return new Promise<LastDoneInfo | null>((resolve) => {
               let done = false;
               const finish = (result: LastDoneInfo | null) => {
@@ -75,10 +75,16 @@ export function useCanvasRuntime({
                 resolve(result);
               };
               const unsub = useRunBusStore.subscribe((state) => {
-                if (state.lastDone && state.lastDone.id === id && state.lastDone.ts > previousDoneTs) finish(state.lastDone);
+                if (state.lastDone && state.lastDone.id === id && state.lastDone.sequence > previousCompletionSequence) finish(state.lastDone);
                 if (cancelRunRef.current) finish(null);
               });
-              const timer = window.setTimeout(() => finish({ id, ok: false, ts: Date.now(), error: 'NODE_RUN_TIMEOUT' }), 60 * 60 * 1000);
+              const timer = window.setTimeout(() => finish({
+                id,
+                ok: false,
+                ts: Date.now(),
+                sequence: previousCompletionSequence,
+                error: 'NODE_RUN_TIMEOUT',
+              }), 60 * 60 * 1000);
               triggerRun(id, 'batch');
             });
           }, {

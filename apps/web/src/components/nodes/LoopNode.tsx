@@ -131,13 +131,13 @@ function hasPassiveLoopNode(nodes: Node[]): boolean {
 // ===== helper: 等待某节点 lastDone =====
 const LOOP_NODE_WAIT_TIMEOUT_MS = 60 * 60 * 1000;
 
-// 重要 BUGFIX: 必须用 startTs 过滤上一轮遗留的 lastDone, 否则同一 nodeId 被循环复用时,
+// 必须用 completionSequence 过滤上一轮遗留的 lastDone, 否则同一 nodeId 被循环复用时,
 // subscribe 在 triggerRunMany() 触发的 set 第一次回调会看到 lastDone.id === nodeId (上轮的) 立刻 finish,
 // 导致本轮根本没跑。
 function awaitNode(nodeId: string, cancelRef: React.MutableRefObject<boolean>, timeoutMs = LOOP_NODE_WAIT_TIMEOUT_MS): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     let resolved = false;
-    const startTs = Date.now();
+    const startSequence = useRunBusStore.getState().completionSequence;
     const finish = (ok: boolean) => {
       if (resolved) return;
       resolved = true;
@@ -146,7 +146,7 @@ function awaitNode(nodeId: string, cancelRef: React.MutableRefObject<boolean>, t
       resolve(ok);
     };
     const off = useRunBusStore.subscribe((state) => {
-      if (state.lastDone && state.lastDone.id === nodeId && state.lastDone.ts >= startTs) finish(state.lastDone.ok);
+      if (state.lastDone && state.lastDone.id === nodeId && state.lastDone.sequence > startSequence) finish(state.lastDone.ok);
       if (cancelRef.current) finish(false);
     });
     const timer = window.setTimeout(() => finish(false), timeoutMs);
@@ -159,7 +159,7 @@ function awaitNode(nodeId: string, cancelRef: React.MutableRefObject<boolean>, t
 function awaitOnly(nodeId: string, cancelRef: React.MutableRefObject<boolean>, timeoutMs = LOOP_NODE_WAIT_TIMEOUT_MS): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     let resolved = false;
-    const startTs = Date.now();
+    const startSequence = useRunBusStore.getState().completionSequence;
     const finish = (ok: boolean) => {
       if (resolved) return;
       resolved = true;
@@ -168,7 +168,7 @@ function awaitOnly(nodeId: string, cancelRef: React.MutableRefObject<boolean>, t
       resolve(ok);
     };
     const off = useRunBusStore.subscribe((state) => {
-      if (state.lastDone && state.lastDone.id === nodeId && state.lastDone.ts >= startTs) finish(state.lastDone.ok);
+      if (state.lastDone && state.lastDone.id === nodeId && state.lastDone.sequence > startSequence) finish(state.lastDone.ok);
       if (cancelRef.current) finish(false);
     });
     const timer = window.setTimeout(() => finish(false), timeoutMs);

@@ -5,7 +5,7 @@ import { taskCompletionSound } from './taskCompletionSound';
  * 批量运行总线
  * - currentRunId：单点模式指示 (后兼容 v1.2.7 之前)
  * - runningIds：并发运行中的节点集合 (v1.2.8 新增，为循环器节点并联模式使用)
- * - lastDone：最后一次完成的节点信息 (递增 ts 仅作于订阅触发)
+ * - lastDone：最后一次完成的节点信息 (sequence 是完成顺序权威,ts 仅用于日志/声音)
  * - triggerRun(id)：单点调度 (外部应保证一次一个，等 lastDone)
  * - triggerRunMany(ids)：并发调度 (循环器专用) - 同时点亮多个节点让其同时进入 runFn
  * - markDone(id, ok)：节点完成时回调 (同时从 runningIds 移除，currentRunId 若是本节点则清空)
@@ -18,6 +18,7 @@ export interface LastDoneInfo {
   id: string;
   ok: boolean;
   ts: number;
+  sequence: number;
   error?: string;
 }
 
@@ -25,6 +26,7 @@ interface RunBusState {
   currentRunId: string | null;
   runningIds: string[];
   lastDone: LastDoneInfo | null;
+  completionSequence: number;
   // 0=空闲, 1=单节点运行中, 2=批量运行中
   mode: 'idle' | 'single' | 'batch';
   batchTotal: number;
@@ -32,6 +34,7 @@ interface RunBusState {
   triggerRun: (id: string, mode?: 'single' | 'batch') => void;
   triggerRunMany: (ids: string[], mode?: 'single' | 'batch') => void;
   markDone: (id: string, ok: boolean, error?: string) => void;
+  releaseRun: (id: string) => void;
   cancelAll: () => void;
   setBatchProgress: (total: number, done: number) => void;
 }
@@ -40,6 +43,7 @@ export const useRunBusStore = create<RunBusState>((set) => ({
   currentRunId: null,
   runningIds: [],
   lastDone: null,
+  completionSequence: 0,
   mode: 'idle',
   batchTotal: 0,
   batchDoneCount: 0,
@@ -68,9 +72,11 @@ export const useRunBusStore = create<RunBusState>((set) => ({
     if (ok) taskCompletionSound.notifyComplete(id, undefined, ts);
     set((s) => {
       const nextRunningIds = s.runningIds.filter((x) => x !== id);
+      const sequence = s.completionSequence + 1;
       return {
-        lastDone: { id, ok, ts, error },
-        currentRunId: s.currentRunId === id ? null : s.currentRunId,
+        lastDone: { id, ok, ts, sequence, error },
+        completionSequence: sequence,
+        currentRunId: s.currentRunId === id ? (nextRunningIds[0] || null) : s.currentRunId,
         runningIds: nextRunningIds,
         // 单节点模式且无其他运行中节点时回到 idle;批量模式由 Canvas 控制
         mode:
@@ -82,6 +88,15 @@ export const useRunBusStore = create<RunBusState>((set) => ({
       };
     });
   },
+  releaseRun: (id) =>
+    set((s) => {
+      const nextRunningIds = s.runningIds.filter((runningId) => runningId !== id);
+      return {
+        currentRunId: s.currentRunId === id ? (nextRunningIds[0] || null) : s.currentRunId,
+        runningIds: nextRunningIds,
+        mode: s.mode === 'batch' ? 'batch' : nextRunningIds.length > 0 ? s.mode : 'idle',
+      };
+    }),
   cancelAll: () =>
     set({ currentRunId: null, runningIds: [], mode: 'idle', batchTotal: 0, batchDoneCount: 0 }),
   setBatchProgress: (total, done) =>
