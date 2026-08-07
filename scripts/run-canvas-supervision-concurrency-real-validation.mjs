@@ -12,6 +12,7 @@ const modelRecordId = process.env.XINGHUAN_IMAGE_MODEL_RECORD_ID || `${providerI
 const key = `task7-concurrency-${randomUUID()}`;
 const planOnly = process.env.XINGHUAN_SUPERVISION_PLAN_ONLY === "1";
 const scenario = text(process.env.XINGHUAN_SUPERVISION_SCENARIO || "all");
+const expectedEnvironment = text(process.env.XINGHUAN_VERIFY_EXPECTED_ENVIRONMENT || "gray");
 const preserveValidationCanvas = process.env.XINGHUAN_PRESERVE_VALIDATION_CANVAS === "1";
 const canvasIds = [];
 let cookie = "";
@@ -19,13 +20,17 @@ let cleanedCanvasCount = 0;
 
 assert.equal(process.env.XINGHUAN_ALLOW_PAID_IMAGE_TEST, "1", "PAID_IMAGE_TEST_NOT_EXPLICITLY_ENABLED");
 assert.equal(process.env.XINGHUAN_ALLOW_REAL_ASSISTANT_TEST, "1", "REAL_ASSISTANT_TEST_NOT_EXPLICITLY_ENABLED");
-assert.equal(process.env.XINGHUAN_ALLOW_ISOLATED_GRAY_TEST, "1", "ISOLATED_GRAY_TEST_NOT_EXPLICITLY_ENABLED");
+if (expectedEnvironment === "production") {
+  assert.equal(process.env.XINGHUAN_ALLOW_CONTROLLED_PRODUCTION_TEST, "1", "CONTROLLED_PRODUCTION_TEST_NOT_EXPLICITLY_ENABLED");
+} else {
+  assert.equal(process.env.XINGHUAN_ALLOW_ISOLATED_GRAY_TEST, "1", "ISOLATED_GRAY_TEST_NOT_EXPLICITLY_ENABLED");
+}
 
 let successEvidence;
 let failureEvidence;
 try {
   const status = await request("/api/status");
-  assert.equal(status.environment, "gray", `GRAY_CANDIDATE_REQUIRED:${status.environment || "unknown"}`);
+  assert.equal(status.environment, expectedEnvironment, `VALIDATION_ENVIRONMENT_MISMATCH:${status.environment || "unknown"}`);
   const login = await request("/api/auth/login", { method: "POST", body: { email, password } });
   assert.equal(login.authenticated, true, "GRAY_LOGIN_FAILED");
 
@@ -44,7 +49,7 @@ try {
 assert(successEvidence && failureEvidence, "VALIDATION_EVIDENCE_INCOMPLETE");
 console.log(JSON.stringify({
   ok: true,
-  candidate: { environment: "gray", baseUrl },
+  candidate: { environment: expectedEnvironment, baseUrl },
   success: successEvidence,
   failure: failureEvidence,
   retainedCanvasIds: preserveValidationCanvas ? canvasIds : [],
