@@ -4,6 +4,8 @@
 
 ## Current Implementation Status
 
+> 2026-08-07 local: Admin Agent overview now reports database runtime controls separately from the API and Worker process gates. Both process flags use one exact-`true` parser, so missing or differently-cased values remain disabled. The Admin assistant welcome state is neutral until runtime status or a real streamed result is known. Current unhealthy LLM route metrics are scoped to enabled entries in the active approved publication for the selected environment; historical health rows remain available in route history but no longer inflate the current alert count.
+
 > 2026-07-30 local: Agent governance reads and writes are now scoped by the server runtime environment, preventing a Gray Admin instance from treating an absent Production control row as a real failure. Agent configuration and route publication controls expose only the current deployment environment. The live readiness verifier accepts explicit `--readiness=skip` and records `liveReadiness=skipped`; this preserves static gates but does not claim a real Agent probe. Production enablement remains pending release and runtime verification.
 
 > 2026-07-27 Production repair: Production governance schema existed without bootstrap definitions, route pools or explicit runtime controls. After an audited backup, 8 Agent definitions/configurations and 3 route pools were initialized; frontend/backend assistant and supervision Agent v1 plus `text_chat` route v2 were published. Production uses the safe `observe` preset, and real frontend/backend assistant requests both returned `mode=agent`. Follow-up release gates must verify bootstrap, environment publications, route capability snapshots, runtime controls and real non-fallback canaries. See `../../records/worker/2026-07-27-generation-delivery-and-agent-hardening-audit.md`.
@@ -74,7 +76,7 @@
 - `canvas-agent` 的节点能力记录已改为“Agent 托管（历史兼容）”：它只支持旧画布读取，不是新建入口，也不得成为助手建议。当前 AI 托管的唯一产品路径是 Workflow Region -> AI 托管面板 -> 生成运行计划 -> 开始托管。受控知识快照继续只读，运行时关于节点/模型的事实来自受版本控制的 Node Capability Catalog 和安全模型投影。
 - 助手错误分析优先使用当前选中节点，否则读取最近失败的 owner-scoped Workflow Run 与 bounded events；发送给助手的节点配置、上下游影响和失败证据先做 allowlist/sensitive-key 清洗，可见用户消息不倾倒 Plan/Event JSON。
 - Assistant Markdown 继续由共享安全 renderer 承担 HTML、URL、远程图片和 reasoning 边界，并在其上提供整条回答与 code/table/ordered-steps/note 语义块复制。助手仍不拥有 Run、重试或托管控制权。
-- 新建运行默认关闭，只有 PostgreSQL 模式并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时可用。
+- 新建运行默认关闭，只有 PostgreSQL 模式、数据库 `canvasRunsEnabled` 允许，并显式设置 `XINGHUAN_CANVAS_RUNS_ENABLED=true` 时 API 才可创建/控制运行；Worker Coordinator 还必须独立设置 `XINGHUAN_CANVAS_RUN_WORKER_ENABLED=true`。Admin 概览分别展示数据库控制和两个进程门禁，不能用其中一层冒充整体可用。
 - Worker 已新增 feature-gated Canvas Run Coordinator，可持久化领取 image/video/audio/llm 与受治理 RunningHub 原生步骤、创建现有 Generation Task、复用能力队列并在页面关闭后继续推进。其他未迁移节点仍标记为 `legacy_browser`，因此尚不能声称任意旧画布都可完整后台托管。
 - `text`、`text-split`、`upload`、`material-set`、`pick-from-set`、`relay`、`output` 与 `resize` 已迁移为原生确定性步骤：Worker 在同一 PostgreSQL 事务内计算 output binding、解锁下游和写入 Run Event，不创建 `xh_tasks`、不占用 Provider 并发，也不执行浏览器代码或任意脚本。`resize` 只接受当前 owner 输入或输出目录中的图片，参数从不可变 Plan 的 `width`、`height`、`fit` 读取，输出写回当前 owner 的输出目录。`text-split` 从 Shared 纯模块复用分镜、正则、编号、字符切块、清理、前后缀和手工 override 语义。
 - `runninghub` 主节点已进入 Canvas Run：Worker 仅消费冻结的 catalog reference、字段标识和标量值，并在任务创建事务中重新读取启用的 RunningHub Provider、目录条目、目标和字段 contract。Canvas Run 的 `start` 门禁复用原 API 的 `assertCanUseRunningHubCatalogItem` 权限语义；字段不再匹配、Provider/目录被关闭或授权撤销时不得入队。上游媒体只绑定到目录声明的媒体字段，随后由 owner-scoped 上传 Adapter 转为 RunningHub fileName；浏览器 `appInfo`、任意 URL 和 Provider 原始响应不是执行权威。

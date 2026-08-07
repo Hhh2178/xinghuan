@@ -162,6 +162,8 @@
     "verify:run-bus-completion-sequence": "tsx scripts/verify-run-bus-completion-sequence.ts",
     "verify:group-run-scheduler": "tsx scripts/verify-group-run-scheduler.ts",
     "verify:parallel-group-runtime-integration": "node scripts/verify-parallel-group-runtime-integration.mjs",
+    "verify:agent-runtime-gate-diagnostics": "tsx scripts/verify-agent-runtime-gate-diagnostics.ts",
+    "verify:agent-overview-route-health": "tsx scripts/verify-agent-overview-route-health.ts",
     "verify:canvas-overlay-split-contract": "node scripts/verify-canvas-overlay-split-contract.mjs",
     "verify:canvas-interaction-seam-contract": "node scripts/verify-canvas-interaction-seam-contract.mjs",
     "verify:canvas-send-flow-split-contract": "node scripts/verify-canvas-send-flow-split-contract.mjs",

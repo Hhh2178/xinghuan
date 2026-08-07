@@ -32,18 +32,27 @@ export function createAgentGovernanceRepository(deps: {
 }) {
   const newId = deps.newId || ((prefix: string) => `${prefix}_${randomUUID()}`);
 
-  async function readOverview() {
+  async function readOverview(environment: GovernanceEnvironment) {
     const pool = await deps.getPostgresPool();
     const result = await pool.query(
       `select
         (select count(*)::int from xh_agent_definitions where enabled = true) as enabled_roles,
         (select count(*)::int from xh_llm_route_pools where enabled = true) as enabled_pools,
-        (select count(*)::int from xh_llm_route_entry_health where state in ('degraded', 'rate_limited', 'unavailable', 'circuit_open')) as unhealthy_routes,
+        (select count(distinct e.id)::int
+           from xh_llm_route_pools p
+           join xh_llm_route_pool_versions pv on pv.pool_id = p.id and pv.status = 'approved'
+           join xh_llm_route_pool_publications pub on pub.pool_version_id = pv.id
+             and pub.environment = $1 and pub.retired_at is null
+           join xh_llm_route_entries e on e.pool_version_id = pv.id and e.enabled = true
+           join xh_llm_route_entry_health h on h.route_entry_id = e.id
+          where p.enabled = true
+            and h.state in ('degraded', 'rate_limited', 'unavailable', 'circuit_open')) as unhealthy_routes,
         (select count(*)::int from xh_agent_runs where status in ('queued', 'running', 'awaiting_approval')) as active_agent_runs,
         (select count(*)::int from xh_canvas_runs where status in ('planned', 'queued', 'running', 'paused', 'awaiting_approval')) as active_canvas_runs,
         (select count(*)::int from xh_agent_approvals where status = 'pending') as pending_approvals,
         (select count(*)::int from xh_recovery_decisions where status in ('proposed', 'approved')) as pending_recovery,
         (select count(*)::int from xh_artifact_evaluations where created_at >= now() - interval '24 hour') as evaluations_24h`,
+      [environment],
     );
     return numberRecord(result.rows[0] || {});
   }

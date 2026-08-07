@@ -128,7 +128,6 @@ export function AdminAssistantPanel({
       id: "assistant-welcome",
       role: "assistant",
       text: "把当前后台页的 Provider、模型、任务或用户上下文挂进来，我会帮你做分析和配置建议。",
-      mode: "fallback",
     },
   ]);
 
@@ -402,7 +401,6 @@ export function AdminAssistantPanel({
         id: `assistant-welcome-${Date.now()}`,
         role: "assistant",
         text: settings.hint,
-        mode: "fallback",
       },
     ]);
   }

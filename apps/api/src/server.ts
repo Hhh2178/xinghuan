@@ -21,7 +21,7 @@ import {
   normalizeWorkflowDocuments,
   normalizeAdministratorTier,
   type AdministratorTier,
-  resolvePostgresPoolConfig,
+  resolvePostgresPoolConfig, readAgentRuntimeProcessGates,
   taskQueueNameForCapability,
   type AppEnvironment,
   type RhCatalogItem,
@@ -278,7 +278,7 @@ const dataDir = process.env.XINGHUAN_DATA_DIR ?? join(process.cwd(), "data");
 const databaseUrl = process.env.DATABASE_URL || process.env.XINGHUAN_DATABASE_URL || "";
 const expectedDatabaseName = safeText(process.env.XINGHUAN_EXPECTED_DATABASE_NAME || "");
 const storageDriver = process.env.XINGHUAN_STORAGE_DRIVER === "postgres" ? "postgres" : "file";
-const canvasRunsEnabled = process.env.XINGHUAN_CANVAS_RUNS_ENABLED === "true";
+const agentRuntimeProcessGates = readAgentRuntimeProcessGates(process.env); const canvasRunsEnabled = agentRuntimeProcessGates.apiCanvasRunsEnabled;
 const redisUrl = process.env.XINGHUAN_REDIS_URL || process.env.REDIS_URL || "";
 const taskQueueName = process.env.XINGHUAN_TASK_QUEUE || "xinghuan:tasks";
 const LOGIN_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -1456,7 +1456,7 @@ const materialAccessService = createMaterialAccessService({
 });
 const handleAdminAgentGovernanceRoutes = createAdminAgentGovernanceRouteHandler({
   currentEnvironment: environment === "production" ? "production" : "gray",
-  repository: agentGovernanceRepository,
+  repository: agentGovernanceRepository, readProcessGates: () => agentRuntimeProcessGates,
   sendT8,
   usePostgresRepository,
   appendAudit,

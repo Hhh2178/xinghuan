@@ -29,6 +29,7 @@ export * from "./workflow-supervision-settings.js";
 export * from "./postgres-pool-config.js";
 export * from "./permission-contract.js";
 export * from "./administrator-tier.js";
+export * from "./agent-runtime-gates.js";
 export * from "./canvas-node-permission-catalog.js";
 export * from "./generation-artifact.js";
 export * from "./text-split.js";

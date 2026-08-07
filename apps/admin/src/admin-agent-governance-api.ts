@@ -17,6 +17,10 @@ export interface AgentOverview {
   environment: AgentEnvironment;
   metrics: Record<string, number>;
   controls: AgentRuntimeControl[];
+  processGates: {
+    apiCanvasRunsEnabled: boolean;
+    workerCanvasRunsEnabled: boolean;
+  };
 }
 export interface AgentPublication { id: string; environment: AgentEnvironment; publishedAt: number }
 export interface AgentDefinition {

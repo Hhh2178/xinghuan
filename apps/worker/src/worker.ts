@@ -3,7 +3,7 @@ import {
   buildTaskQueueRuntimeDescriptors,
   createHealthPayload,
   defaultTaskQueueSettings,
-  normalizeTaskQueueSettings,
+  normalizeTaskQueueSettings, readAgentRuntimeProcessGates,
   resolvePostgresPoolConfig,
   taskQueueNameForCapability,
   taskQueueWorkerRuntimeKey,
@@ -117,7 +117,7 @@ const staleRunningTaskMs = Number.parseInt(process.env.XINGHUAN_WORKER_STALE_RUN
 const staleTaskReaperIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_REAPER_INTERVAL_MS || "60000", 10);
 const taskDeferredRetryMs = Number.parseInt(process.env.XINGHUAN_WORKER_DEFERRED_RETRY_MS || "1500", 10);
 const taskQueueRefreshIntervalMs = Number.parseInt(process.env.XINGHUAN_WORKER_QUEUE_REFRESH_INTERVAL_MS || "5000", 10);
-const canvasRunWorkerEnabled = process.env.XINGHUAN_CANVAS_RUN_WORKER_ENABLED === "true";
+const canvasRunWorkerEnabled = readAgentRuntimeProcessGates(process.env).workerCanvasRunsEnabled;
 if (!databaseUrl) {
   console.error("DATABASE_NOT_CONFIGURED");
   process.exit(2);

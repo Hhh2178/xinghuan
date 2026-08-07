@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ACTIVE_AGENT_TOOL_CATALOG, CANVAS_RUN_NODE_CAPABILITIES, RETIRED_AGENT_TOOL_CATALOG, type AgentRole } from "@xinghuan/agent-core";
 import { readJsonBody } from "./http-session-utils.js";
+import type { AgentRuntimeProcessGates } from "./agent-runtime-gates.js";
 import type { createAgentGovernanceRepository, GovernedVersionStatus, GovernanceEnvironment } from "./agent-governance-repository.js";
 
 type GovernanceRepository = ReturnType<typeof createAgentGovernanceRepository>;
@@ -10,6 +11,7 @@ type RequestContext = { requestId: string; method: string; path: string; ip: str
 export function createAdminAgentGovernanceRouteHandler(deps: {
   currentEnvironment: GovernanceEnvironment;
   repository: GovernanceRepository;
+  readProcessGates: () => AgentRuntimeProcessGates;
   sendT8: (response: ServerResponse, payload: unknown, statusCode?: number) => void;
   usePostgresRepository: () => boolean;
   appendAudit: (actor: CurrentUser, action: string, targetType: string, targetId: string, summary: string, context: RequestContext) => Promise<void>;
@@ -32,8 +34,9 @@ export function createAdminAgentGovernanceRouteHandler(deps: {
     if (path === "/api/admin/agent-runtime/overview" && request.method === "GET") {
       deps.sendT8(response, {
         environment: deps.currentEnvironment,
-        metrics: await deps.repository.readOverview(),
+        metrics: await deps.repository.readOverview(deps.currentEnvironment),
         controls: [await deps.repository.readRuntimeControl(deps.currentEnvironment)],
+        processGates: deps.readProcessGates(),
       });
       return true;
     }

@@ -225,6 +225,7 @@ function ActivityView({ value, models, busy, mutate }: { value: ActivityData; mo
 
 function SupervisionOverviewView({ value }: { value: AgentOverview }) {
   const metrics = value?.metrics || {};
+  const control = value?.controls?.[0];
   return <div className="agent-governance-stack">
     <div className="agent-metric-grid">
       <Metric icon={<Activity />} label="活跃 Agent" value={metrics.activeAgentRuns} />
@@ -236,9 +237,9 @@ function SupervisionOverviewView({ value }: { value: AgentOverview }) {
     <SectionHead title="执行权威" description="AI 只分析并提出受控建议；依赖图、阶段就绪条件和节点任务运行仍由确定性执行层负责。" />
     <div className="scope-note"><ShieldCheck /><span>AI 托管只作用于明确的 Workflow Region，不会创建节点、修改连线、绕过权限或改变活动 Run 的冻结快照。所有环境控制都<strong>仅影响新 Workflow Run</strong>。</span></div>
     <div className="supervision-execution-policy" aria-label="托管执行并发权威">
-      <div><span>并发输入</span><strong>工作流 stageConcurrency</strong></div>
-      <div><span>平台上限</span><strong>每阶段 1-16</strong></div>
-      <div><span>执行规则</span><strong>新 Run 冻结后生效</strong></div>
+      <div><span>数据库 Canvas Run</span><strong>{control?.canvasRunsEnabled ? "已允许" : "未允许"}</strong></div>
+      <div><span>API 进程门禁</span><strong>{value.processGates.apiCanvasRunsEnabled ? "已激活" : "未激活"}</strong></div>
+      <div><span>Worker 进程门禁</span><strong>{value.processGates.workerCanvasRunsEnabled ? "已激活" : "未激活"}</strong></div>
     </div>
     <div className="supervision-environment-summary">
       {(value?.controls || []).map((control) => {
@@ -262,7 +263,11 @@ function EnvironmentView({ value, busy, mutate, onDirtyChange }: { value: AgentO
 
   return <div className="agent-governance-stack">
     <ActionHead title="环境托管强度" action={<button type="button" className="ghost-action" disabled={busy} onClick={() => void mutate(adminAgentGovernanceApi.bootstrap)}><Plus />初始化固定用途草稿</button>} />
-    <p className="agent-section-description">选择一种可理解的托管模式；保存只改变服务端允许范围，不自动发布配置，并且仅影响新 Workflow Run。</p>
+    <p className="agent-section-description">这里保存的是数据库允许范围，并且仅影响新 Workflow Run；API 与 Worker 进程门禁需要在服务器环境中独立激活。</p>
+    <div className="supervision-execution-policy" aria-label="当前进程门禁">
+      <div><span>API Canvas Run</span><strong>{value.processGates.apiCanvasRunsEnabled ? "已激活" : "未激活"}</strong></div>
+      <div><span>Worker Canvas Run</span><strong>{value.processGates.workerCanvasRunsEnabled ? "已激活" : "未激活"}</strong></div>
+    </div>
     <div className="agent-control-table">
       {(value?.controls || []).map((control) => <ControlRow key={control.environment} value={control} busy={busy} mutate={mutate} onDirtyChange={(nextDirty) => handleDirtyChange(control.environment, nextDirty)} />)}
     </div>
