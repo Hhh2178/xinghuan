@@ -5,15 +5,15 @@
   "sourceCommit": "ff1064d854b457e53fe05acc99b0049ae2fc6361",
   "environments": {
     "gray": {
-      "version": "0.8.26",
-      "releaseId": "20260805-retired-permission-cleanup-v0826-r1",
-      "deployedAt": "2026-08-05",
+      "version": "0.8.27",
+      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
+      "deployedAt": "2026-08-07",
       "permissionMode": "enforced",
       "readiness": { "subjects": 139, "publishedSubjects": 127, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0 },
-      "runtimeReadiness": { "subjects": 139, "publishedSubjects": 127, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-08-04", "status": "ready" },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-08-05-retired-permission-cleanup-v0826-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-05-retired-permission-cleanup-gray-v0826-r1.md",
-      "rollbackReleaseId": "20260804-runninghub-group-collapse-v0824-r1"
+      "runtimeReadiness": { "subjects": 139, "publishedSubjects": 127, "restrictedSubjects": 3, "retiredSubjects": 9, "rules": 1195, "principals": 5, "failures": 0, "failureCodes": [], "observedAt": "2026-08-07", "status": "ready" },
+      "releaseRecord": "docs/logbooks/releases/gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md",
+      "rollbackReleaseId": "20260805-retired-permission-cleanup-v0826-r1"
     },
     "production": {
       "version": "0.8.26",
@@ -29,10 +29,10 @@
   },
   "targetDeployments": {
     "old-server": {
-      "sourceCommit": "ff1064d854b457e53fe05acc99b0049ae2fc6361",
-      "releaseId": "20260805-retired-permission-cleanup-v0826-r1",
-      "version": "0.8.26",
-      "deployedAt": "2026-08-05",
+      "sourceCommit": "f713aed9e2414ca87418ebe7edfab7c8591683c0",
+      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
+      "version": "0.8.27",
+      "deployedAt": "2026-08-07",
       "gray": { "ready": true, "permissionMode": "enforced", "failures": 0 },
       "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
     },
