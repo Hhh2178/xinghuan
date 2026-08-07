@@ -37,10 +37,10 @@
       "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
     },
     "new-server": {
-      "sourceCommit": "ff1064d854b457e53fe05acc99b0049ae2fc6361",
-      "releaseId": "20260805-retired-permission-cleanup-v0826-r1",
-      "version": "0.8.26",
-      "deployedAt": "2026-08-05",
+      "sourceCommit": "f713aed9e2414ca87418ebe7edfab7c8591683c0",
+      "releaseId": "20260807-permission-shared-resource-portability-v0827-r1",
+      "version": "0.8.27",
+      "deployedAt": "2026-08-07",
       "gray": { "ready": true, "permissionMode": "enforced", "failures": 0 },
       "production": { "ready": true, "permissionMode": "enforced", "failures": 0 }
     }

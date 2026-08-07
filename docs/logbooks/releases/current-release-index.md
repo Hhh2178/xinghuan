@@ -1,10 +1,10 @@
 # 当前 Release 索引
 
-## v0.8.27 旧服务器 Gray 发布（2026-08-07）
+## v0.8.27 双服务器 Gray 发布（2026-08-07）
 
-- `v0.8.27 / 20260807-permission-shared-resource-portability-v0827-r1` 已部署于旧服务器 Gray，API/Worker active、`enforced`、permission readiness `true`。
-- 指定成员账号权限接口与公共资源列表均返回 `200`；公共资源迁移门禁为 ready、缺失文件 `0`。
-- 新服务器 Gray 与两边 Production 保持 `v0.8.26`，本轮没有执行数据迁移。
+- `v0.8.27 / 20260807-permission-shared-resource-portability-v0827-r1` 已部署于旧/新服务器 Gray，API/Worker active、`enforced`、permission readiness `true`。
+- 指定成员账号在两边权限接口均返回 `200`；两边公共资源迁移门禁均 ready、缺失文件 `0`。
+- 两边 Production 保持 `v0.8.26`，本轮没有执行数据迁移。
 - 证据：`gray/2026-08-07-permission-shared-resource-portability-v0827-r1.md`、`../validations/2026-08-07-permission-shared-resource-portability-gray-v0827-r1.md` 与 `../../ops/current/release-state.json`。
 
 ## 当前 active release
@@ -36,9 +36,9 @@
 
 ### Gray
 
-- 版本：`v0.8.27`（旧服务器 Gray；新服务器 Gray 保持 `v0.8.26`）
+- 版本：`v0.8.27`（旧/新服务器 Gray）
 - release：`20260807-permission-shared-resource-portability-v0827-r1`
-- 当前状态：`旧服务器 Gray 已发布加密封装制品；权限读取、公共资源跨账号引用与迁移门禁通过运行态验证。`
+- 当前状态：`旧/新服务器 Gray 已发布同一加密封装制品；权限读取、公共资源跨账号引用与迁移门禁通过运行态验证。`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
 - 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
 - 部署时间：`2026-08-07`
