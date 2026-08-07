@@ -41,4 +41,4 @@
 - Focused Agent gate, route-health, parallel-group plan, scheduler, completion-sequence, runtime integration, and Canvas runtime split contracts all passed.
 - Project, Workspace, and Release Harnesses passed; authority state and current-release consistency both report `v0.8.28` with no failures or warnings.
 - Staged governance passed: no runtime artifacts, source-size guard, hotspot budgets/watchlist, release logbook sync, and current-release consistency.
-- GitHub push result is recorded in the final commit note after remote verification.
+- GitHub push completed successfully: `origin/feature/canvas-agent-runtime` resolves to `5f577798c3dcdde0cbb8f547de66d9d48a986702`.
