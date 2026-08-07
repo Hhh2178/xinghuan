@@ -71,18 +71,20 @@ export NEW_GRAY_DB_URL="新 Gray 数据库连接串，仅在服务器环境中�
 |---|---:|---|
 | PostgreSQL schema、迁移表、用户、权限、项目、画布、节点/连线、工作流区域、Agent/Assistant 配置、Provider/Model 目录、任务状态、费用、审计 | 是 | 每个环境独立 `pg_dump`/恢复，恢复后执行目标版本迁移并校验行数/约束 |
 | Provider 加密字段 | 是 | 连同数据库迁移，目标环境复用完全相同的 `XINGHUAN_SECRET_KEY`；禁止只迁移预览值 |
-| Canvas/Workflow JSON 中的 `/files/...` 引用 | 元数据迁移，媒体不迁移 | 迁移前统计引用，迁移后统一标记不可用或清理引用；不保留会导致 404 的“成功输出” |
+| Canvas/Workflow JSON 中的 `/files/...` 引用 | 分类迁移 | 公共资源引用先物化为资源 ID 内容地址；用户生成输出引用在目标端标记不可用，不保留会导致 404 的“成功输出” |
 | `xh_generation_artifacts` | 不迁移可见媒体记录 | 对未迁移二进制的记录标记 `missing`/`deleted` 或按受控脚本排除；保留审计所需最小元数据时必须从用户生成库隐藏 |
-| `xh_assets` 资源素材 | 默认不迁移媒体二进制 | 按 `url`/`kind` 分类；指向 `/files/input`、`/files/output` 的媒体行标记不可用或排除。非媒体配置资产需单独确认后再迁移 |
-| `/shared/data/users/*/input` | 否 | 不复制用户上传图片、视频、音频；新站只创建空目录 |
+| 公共资源索引与 `/shared/data/admin/shared-assets` | 是 | 源站先运行公共资源物化门禁，确保历史 `/files/input`、`/files/output` 引用复制到独立公共存储；目标恢复后再次验证 |
+| `xh_assets` 长期资源素材 | 是，按长期资源语义 | 长期资源与用户生成库分开核对；只有未晋级、未引用的生成输出二进制才排除 |
+| `/shared/data/users/*/input` | 是 | 保留用户上传、画布输入和历史公共资源回填来源；后续仍由 input 生命周期规则清理无引用文件 |
 | `/shared/data/users/*/output` | 否 | 不复制生成图片、视频、音频；新站只创建空目录 |
-| `/shared/data/users/*/resources` 中的媒体文件 | 默认否 | 与 `xh_assets` 元数据同步处理，不能只迁 DB 行 |
+| `/shared/data/users/*/output-archives` | 否 | ZIP 下载交付物不属于长期业务数据 |
+| `/shared/data/users/*/resources` | 是 | 迁移资源索引、画布引用与生命周期记录；不能只迁数据库行 |
 | 日志、临时目录、旧 release、`node_modules` | 否 | 目标用新 release 包和 `npm ci` 生成，不复制运行时垃圾 |
 | Redis queued/running 状态 | 否 | 切换前排空/取消；新环境从零启动 queue，不恢复旧 worker lease |
 | 用户会话 | 默认否 | 迁移后主动失效旧 session；保留数据库用户与密码，不复制 session 表中的有效登录态 |
 | 旧服务器 | 保留 | 切换后只读保留 7-14 天，用于回滚和审计，不作为新站存储入口 |
 
-**必须先做的媒体一致性决策：** 默认执行“迁移 DB 业务元数据、不迁媒体二进制、将媒体 artifact/asset 标记不可用”的方案。若负责人希望保留某一类长期资源，必须在迁移前列出明确目录、表、总大小和新 URL，不得在切换当天临时复制。
+**固定媒体边界：** 迁移所有业务数据、用户输入和长期资源，排除用户生成输出与 ZIP 归档。公共资源必须在源站先物化到 `admin/shared-assets`；门禁存在缺失文件时迁移直接停止，不能把公共资源当作普通生成产物排除。
 
 ---
 
@@ -95,7 +97,8 @@ export NEW_GRAY_DB_URL="新 Gray 数据库连接串，仅在服务器环境中�
 - [ ] 记录本次迁移制品 release ID、SHA-256、源提交；Gray/Production 都必须部署同一制品内容。
 - [ ] 用 `rg -n "canvas\.hhh2121\.xyz|canvas-next\.hhh2121\.xyz|files\.hhh2121\.xyz|101\.33\.75\.38|18100|18200"` 扫描仓库、配置和发布脚本，生成旧域名/旧 IP 清单。
 - [ ] 盘点数据库表行数、数据库大小、`xh_tasks` queued/running 数量、`xh_generation_artifacts` 状态分布、`xh_assets` URL 类型分布；结果写入迁移日志。
-- [ ] 盘点 `/opt/apps/xinghuan-canvas*/shared/data` 的目录大小和文件类型，只记录统计，不复制媒体。
+- [ ] 盘点 `/opt/apps/xinghuan-canvas*/shared/data` 的目录大小和文件类型，分别统计生成输出、用户输入、长期资源和公共资源资产。
+- [ ] 运行 `apps/api/dist/cli/shared-resource-assets.js --apply=true --expect-ready=true`，物化并验证公共资源；报告只记录资源 ID 和缺失原因。
 
 **门禁：** 源站、目标变量、制品 checksum、媒体排除范围和负责人均有书面确认；否则不进入备份。
 
@@ -299,4 +302,3 @@ DNS/TLS：记录、TTL、证书到期、Cloudflare 模式
 4. 新 Production、Gray、Files 域名、TLS、Nginx、Provider scope URL 和公网回抓全部通过。
 5. API、Worker、Redis、Postgres、timer、日志、备份和监控均可运维。
 6. 回滚路径经过演练，旧服务器仍在保留窗口内，最终迁移日志和 canonical state 已同步。
-

@@ -1,6 +1,11 @@
 import { basename, join } from "node:path";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
+import {
+  parseSharedResourceFileReference,
+  sharedResourceAssetKey,
+  type SharedResourceFileReference,
+} from "./shared-resource-asset-migration.js";
 
 type ResourceKind = "image" | "video" | "audio" | "set" | "pose" | "workflow";
 
@@ -23,6 +28,7 @@ interface ResourceItem {
   originalName?: string;
   fileUrl?: string;
   fileRel?: string;
+  sharedAssetKey?: string;
   mime?: string;
   size?: number;
   categoryId?: string;
@@ -85,6 +91,12 @@ type SharedResourceRouteDeps = {
   HttpError: HttpErrorLike;
   readResourceDb: (user: CurrentUser) => Promise<ResourceDb>;
   writeResourceDb: (db: ResourceDb, user: CurrentUser, options?: { pruneMissing?: boolean }) => Promise<void>;
+  userDataDirsForId: (userId: string) => { inputDir: string; outputDir: string };
+  sendStaticFile: (
+    response: import("node:http").ServerResponse,
+    baseDir: string,
+    rawRel: string,
+  ) => Promise<void>;
   usePostgresRepository: () => boolean;
   upsertResourceItemPostgres: (item: ResourceItem, user: CurrentUser) => Promise<ResourceItem>;
   readGroupPermissionPolicies: () => Promise<import("./group-permission-policy.js").GroupPermissionPolicy[]>;
@@ -120,6 +132,8 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     HttpError,
     readResourceDb,
     writeResourceDb,
+    userDataDirsForId,
+    sendStaticFile,
     usePostgresRepository,
     upsertResourceItemPostgres,
     readGroupPermissionPolicies,
@@ -140,6 +154,74 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     } catch {
       return { categories: [], items: [] };
     }
+  }
+
+  function stableContentUrl(id: string) {
+    return `/api/shared-resources/items/${encodeURIComponent(id)}/content`;
+  }
+
+  async function persistSharedAsset(url: string, actor: CurrentUser, id: string) {
+    const source = parseSharedResourceFileReference(url);
+    if (!source) return undefined;
+    const sourceDirs = userDataDirsForId(actor.id);
+    const sourceDir = source.bucket === "output" ? sourceDirs.outputDir : sourceDirs.inputDir;
+    const assetKey = sharedResourceAssetKey(id, source.filename);
+    const sharedDir = join(adminDir, "shared-assets");
+    await mkdir(sharedDir, { recursive: true });
+    await copyFile(join(sourceDir, source.filename), join(sharedDir, assetKey));
+    return assetKey;
+  }
+
+  async function migrateLegacySharedAsset(item: ResourceItem, sourceRef: SharedResourceFileReference) {
+    if (item.sharedAssetKey || !item.publishedBy) return item.sharedAssetKey;
+    const dirs = userDataDirsForId(item.publishedBy);
+    const sourceDir = sourceRef.bucket === "output" ? dirs.outputDir : dirs.inputDir;
+    const sharedAssetKey = sharedResourceAssetKey(item.id, sourceRef.filename);
+    const sharedDir = join(adminDir, "shared-assets");
+    await mkdir(sharedDir, { recursive: true });
+    await copyFile(join(sourceDir, sourceRef.filename), join(sharedDir, sharedAssetKey));
+    const db = await readSharedResourceDb();
+    const updatedItems = db.items.map((entry) => entry.id === item.id ? { ...entry, sharedAssetKey } : entry);
+    await writeSharedResourceDb({ ...db, items: updatedItems });
+    return sharedAssetKey;
+  }
+
+  function rewriteSharedReferences(value: unknown, urlMap: Map<string, string>): unknown {
+    if (typeof value === "string") return urlMap.get(value) || value;
+    if (Array.isArray(value)) return value.map((entry) => rewriteSharedReferences(entry, urlMap));
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      rewriteSharedReferences(entry, urlMap),
+    ]));
+  }
+
+  function publicItem(item: ResourceItem, urlMap: Map<string, string>): ResourceItem {
+    const contentUrl = item.sharedAssetKey || parseSharedResourceFileReference(item.fileUrl || item.fileRel || item.url)
+      ? stableContentUrl(item.id)
+      : "";
+    const next = {
+      ...item,
+      ...(contentUrl ? { fileUrl: contentUrl, fileRel: contentUrl, url: contentUrl } : {}),
+      ...(item.materialSetItems
+        ? { materialSetItems: rewriteSharedReferences(item.materialSetItems, urlMap) as unknown[] }
+        : {}),
+      ...(item.workflowFragment
+        ? { workflowFragment: rewriteSharedReferences(item.workflowFragment, urlMap) as Record<string, unknown> }
+        : {}),
+    };
+    return next;
+  }
+
+  function publicItems(items: ResourceItem[], referenceItems: ResourceItem[] = items) {
+    const urlMap = new Map<string, string>();
+    for (const item of referenceItems) {
+      const stable = stableContentUrl(item.id);
+      for (const candidate of [item.fileUrl, item.fileRel, item.url]) {
+        if (parseSharedResourceFileReference(candidate)) urlMap.set(String(candidate), stable);
+      }
+    }
+    return items.map((item) => publicItem(item, urlMap));
   }
 
   async function writeSharedResourceDb(db: ResourceDb) {
@@ -206,6 +288,7 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
       publishedBy: actor.id,
       publishedAt: now,
     };
+    item.sharedAssetKey = await persistSharedAsset(url, actor, item.id);
     const db = await readSharedResourceDb();
     db.items.unshift(enrichWorkflowResourceItem(item));
     await writeSharedResourceDb(db);
@@ -362,6 +445,38 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
       return false;
     }
 
+    const sharedResourceContentMatch = url.pathname.match(/^\/api\/shared-resources\/items\/([^/]+)\/content$/);
+    if (sharedResourceContentMatch && request.method === "GET") {
+      const user = requireUser(currentUser);
+      const id = decodeURIComponent(sharedResourceContentMatch[1]);
+      const db = await readSharedResourceDb();
+      const source = db.items.find((item) => item.id === id);
+      if (!source) throw new HttpError(404, "RESOURCE_NOT_FOUND");
+      const policies = await readGroupPermissionPolicies();
+      const legacyAllowed = filterSharedResourceItemsForUser([source], user, policies).length > 0;
+      if (canUsePermissionSubject) {
+        const allowed = await canUsePermissionSubject(user, `resource.item/${id}`, "view", legacyAllowed);
+        if (!allowed) throw new HttpError(403, "PERMISSION_DENIED");
+      } else if (!legacyAllowed && user.role !== "admin") {
+        throw new HttpError(403, "PERMISSION_DENIED");
+      }
+      const sharedDir = join(adminDir, "shared-assets");
+      if (source.sharedAssetKey) {
+        await sendStaticFile(response, sharedDir, source.sharedAssetKey);
+        return true;
+      }
+      const sourceRef = parseSharedResourceFileReference(source.fileUrl || source.fileRel || source.url);
+      if (!sourceRef || !source.publishedBy) throw new HttpError(404, "FILE_NOT_FOUND");
+      const dirs = userDataDirsForId(source.publishedBy);
+      const migratedAssetKey = await migrateLegacySharedAsset(source, sourceRef);
+      if (migratedAssetKey) {
+        await sendStaticFile(response, sharedDir, migratedAssetKey);
+      } else {
+        await sendStaticFile(response, sourceRef.bucket === "output" ? dirs.outputDir : dirs.inputDir, sourceRef.filename);
+      }
+      return true;
+    }
+
     if (url.pathname === "/api/shared-resources/items") {
       const db = await readSharedResourceDb();
       const policies = await readGroupPermissionPolicies();
@@ -371,25 +486,26 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
       const favorite = url.searchParams.get("favorite") === "1";
       const legacyVisibleItems = filterSharedResourceItemsForUser(db.items, currentUser, policies);
       const legacyVisibleItemIds = new Set(legacyVisibleItems.map((item) => item.id));
+      const visibleItems = currentUser && currentUser.role !== "admin" && canUsePermissionSubject
+        ? (await Promise.all(db.items.map(async (item) => ({
+            item,
+            allowed: await canUsePermissionSubject(
+              currentUser,
+              `resource.item/${item.id}`,
+              "view",
+              legacyVisibleItemIds.has(item.id),
+            ),
+          })))).filter((entry) => entry.allowed).map((entry) => entry.item)
+        : legacyVisibleItems;
       sendT8(
         response,
-        (currentUser && currentUser.role !== "admin" && canUsePermissionSubject
-          ? (await Promise.all(db.items.map(async (item) => ({
-              item,
-              allowed: await canUsePermissionSubject(
-                currentUser,
-                `resource.item/${item.id}`,
-                "view",
-                legacyVisibleItemIds.has(item.id),
-              ),
-            })))).filter((entry) => entry.allowed).map((entry) => entry.item)
-          : legacyVisibleItems).filter((item) => {
+        publicItems(visibleItems.filter((item) => {
           if (kind && item.kind !== kind) return false;
           if (categoryId && item.categoryId !== categoryId) return false;
           if (favorite && !item.favorite) return false;
           if (q && !`${item.title} ${(item.tags || []).join(" ")} ${item.note || ""}`.toLowerCase().includes(q)) return false;
           return true;
-        }),
+        }), db.items),
       );
       return true;
     }

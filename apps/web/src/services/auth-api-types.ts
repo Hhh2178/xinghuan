@@ -8,6 +8,10 @@ export interface AuthUser {
 export interface EffectivePermissions {
   groupId: string;
   isAdmin: boolean;
+  nodePermissionResolution?: {
+    status: "ready" | "degraded";
+    failedNodeTypes: string[];
+  };
   deny: {
     sharedResourceCategoryIds: string[];
     sharedResourceItemIds: string[];

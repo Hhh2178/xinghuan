@@ -53,7 +53,44 @@ describe("GET /api/me/permissions", () => {
     expect(responseBody).toEqual(expect.objectContaining({
       groupId: "group-a",
       isAdmin: false,
+      nodePermissionResolution: { status: "ready", failedNodeTypes: [] },
       deny: expect.objectContaining({ nodeTypes: ["custom-node", "image"] }),
+    }));
+  });
+
+  it("fails closed per node without turning the effective permission endpoint into a 500", async () => {
+    let responseBody: unknown;
+    const handler = createGroupPermissionPolicyRouteHandler({
+      readJsonBody: async <T>() => ({} as T),
+      sendT8: (_response, data) => { responseBody = data; },
+      HttpError: TestHttpError,
+      safeText: (value, fallback = "") => typeof value === "string" ? value : fallback,
+      readAuthDb: async () => ({ userGroups: [], users: [], groupPermissionPolicies: [] }),
+      writeGroupPermissionPolicy: async () => undefined,
+      readSharedResourceCatalog: async () => ({ categories: [], items: [] }),
+      readRunningHubPermissionCatalog: async () => ({ apps: [], workflows: [] }),
+      appendAudit: async () => undefined,
+      nodeTypes: [
+        { id: "image", label: "Image", group: "generation" },
+        { id: "video", label: "Video", group: "generation" },
+      ],
+      resolveNodeTypeAllowed: async (_user, nodeType) => {
+        if (nodeType === "image") throw new Error("AUTHORIZATION_STATE_UNAVAILABLE");
+        return true;
+      },
+    });
+
+    const handled = await handler({
+      request: { method: "GET" } as import("node:http").IncomingMessage,
+      response: {} as import("node:http").ServerResponse,
+      url: new URL("http://127.0.0.1/api/me/permissions"),
+      currentUser: { id: "member-a", email: "member@example.test", name: "Member", role: "member" },
+    });
+
+    expect(handled).toBe(true);
+    expect(responseBody).toEqual(expect.objectContaining({
+      nodePermissionResolution: { status: "degraded", failedNodeTypes: ["image"] },
+      deny: expect.objectContaining({ nodeTypes: ["image"] }),
     }));
   });
 });

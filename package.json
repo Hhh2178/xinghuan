@@ -1,6 +1,6 @@
 {
   "name": "xinghuan-canvas",
-  "version": "0.8.26",
+  "version": "0.8.27",
   "private": true,
   "description": "星幻无限画布 2.0 monorepo",
   "type": "module",
@@ -281,6 +281,7 @@
     "verify:worker-grsai-image-adapter": "node scripts/verify-worker-grsai-image-adapter.mjs",
     "verify:clean-workflow-export": "npx tsx scripts/verify-clean-workflow-export-contract.ts",
     "verify:shared-resource-library": "node scripts/verify-shared-resource-library-contract.mjs",
+    "verify:production-data-migration-contract": "node scripts/verify-production-data-migration-contract.mjs",
     "verify:generation-library-resource-card": "node scripts/verify-generation-library-resource-card-contract.mjs",
     "verify:worker": "node scripts/verify-worker-queue.mjs",
     "verify:package-exports": "node scripts/verify-package-exports.mjs",

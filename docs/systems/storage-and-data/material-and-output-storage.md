@@ -4,6 +4,13 @@
 
 归档 ZIP 是短期下载交付物，不登记为 Generation Artifact，也不进入长期素材库。归档作业、owner 隔离、TTL 和清理规则见 [Worker 输出归档](../worker/output-archive.md)。
 
+## 公共资源资产
+
+- 公共媒体的权威索引是 `admin/shared-resource-library.json`，持久文件位于 `admin/shared-assets/`。
+- `/api/shared-resources/items/:id/content` 按资源权限读取公共资产，不按当前登录用户解析 `/files/input` 或 `/files/output`。
+- 历史公共资源可从 `publishedBy` 对应的用户目录物化；迁移前 CLI 会一次性完成物化并在缺失时阻断。
+- 服务器迁移保留公共资源索引和资产目录，排除范围仅覆盖用户生成输出与输出归档。
+
 ## 当前稳定规则
 
 - 生成结果要进入统一输出与素材访问层
