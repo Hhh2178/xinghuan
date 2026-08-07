@@ -12,11 +12,13 @@
 ### Production
 
 - 版本：`v0.8.28`
-- release：`20260807-parallel-group-supervision-v0828-r1`
-- 当前状态：`同一 Gray 验收加密封装制品已晋级旧/新服务器 Production；旧域名继续提供正式入口，新域名保持并行验收`
+- 旧服务器 release：`20260807-web-version-correction-v0828-r2`
+- 新服务器 release：`20260807-parallel-group-supervision-v0828-r1`
+- 当前状态：`旧服务器已修正 Web 版本显示错配；新服务器保持同一 v0.8.28 已验收运行态，新域名保持并行验收`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`Agent/Canvas Run 与进程门禁启用；自动恢复、质量评估关闭，Production 处于 observe mode；未重复付费 canary`
 - 回滚：`20260805-retired-permission-cleanup-v0826-r1`
+- 修正记录：`production/2026-08-07-web-version-correction-v0828-r2.md`、`../validations/2026-08-07-web-version-correction-v0828-r2.md`
 - 当前批次记录：
   - `production/2026-08-04-encrypted-server-release-v0825-r1.md`
   - `../validations/2026-08-04-encrypted-server-release-production-v0825-r1.md`

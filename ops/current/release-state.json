@@ -35,9 +35,14 @@
     },
     "production": {
       "version": "0.8.28",
-      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
+      "releaseId": "20260807-web-version-correction-v0828-r2",
       "deployedAt": "2026-08-07",
       "permissionMode": "enforced",
+      "sourceCommit": "19d13286b9a710456433908c59da98effae380e0",
+      "artifact": {
+        "encryptedSha256": "ff527ffbfa596838ae60df84b6ea67e85ffa6fe87f13a7f759760034e5f0a838",
+        "plaintextSha256": "17b57cc2d7573616293d0bcb83343dda3cf99a1872b15282ec328cabc241f821"
+      },
       "readiness": {
         "subjects": 177,
         "rules": 2704,
@@ -54,8 +59,8 @@
         "observedAt": "2026-08-07",
         "status": "ready"
       },
-      "releaseRecord": "docs/logbooks/releases/production/2026-08-07-parallel-group-supervision-v0828-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md",
+      "releaseRecord": "docs/logbooks/releases/production/2026-08-07-web-version-correction-v0828-r2.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-07-web-version-correction-v0828-r2.md",
       "rollbackReleaseId": "20260805-retired-permission-cleanup-v0826-r1"
     }
   },
@@ -79,7 +84,10 @@
         "subjects": 177,
         "rules": 2704,
         "principals": 11,
-        "failures": 0
+        "failures": 0,
+        "releaseId": "20260807-web-version-correction-v0828-r2",
+        "sourceCommit": "19d13286b9a710456433908c59da98effae380e0",
+        "artifactEncryptedSha256": "ff527ffbfa596838ae60df84b6ea67e85ffa6fe87f13a7f759760034e5f0a838"
       }
     },
     "new-server": {

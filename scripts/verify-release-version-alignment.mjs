@@ -40,6 +40,8 @@ const localChecks = [
   },
 ];
 
+const webDistVersionCheck = await readWebDistVersionCheck(resolve(rootDir, "apps/web/dist"), expectedVersion);
+
 for (const check of localChecks) {
   const text = await readFile(resolve(rootDir, check.path), "utf8");
   assertIncludesAny(text, check.includesAny, check.label);
@@ -50,8 +52,10 @@ if (archivePath) {
   const archiveEntries = await listArchiveEntries(archivePath);
   const manifestRawName = findArchiveEntry(archiveEntries, "BUILD-MANIFEST.json");
   const apiRawName = findArchiveEntry(archiveEntries, "apps/api/dist/server.js");
+  const webIndexRawName = findArchiveEntry(archiveEntries, "apps/web/dist/index.html");
   if (!manifestRawName) fail(`${archivePath} is missing BUILD-MANIFEST.json`);
   if (!apiRawName) fail(`${archivePath} is missing apps/api/dist/server.js`);
+  if (!webIndexRawName) fail(`${archivePath} is missing apps/web/dist/index.html`);
 
   let manifest;
   try {
@@ -66,6 +70,15 @@ if (archivePath) {
 
   const apiText = (await readArchiveEntry(archivePath, apiRawName)).toString("utf8");
   assertArchiveApiVersion(apiText, expectedVersion, `${archivePath}:apps/api/dist/server.js`);
+  const webIndexText = (await readArchiveEntry(archivePath, webIndexRawName)).toString("utf8");
+  const webAssetPath = extractWebAssetPath(webIndexText, `${archivePath}:apps/web/dist/index.html`);
+  const webAssetRawName = findArchiveEntry(archiveEntries, `apps/web/dist/${webAssetPath}`);
+  if (!webAssetRawName) fail(`${archivePath} is missing apps/web/dist/${webAssetPath}`);
+  assertWebAssetVersion(
+    (await readArchiveEntry(archivePath, webAssetRawName)).toString("utf8"),
+    expectedVersion,
+    `${archivePath}:apps/web/dist/${webAssetPath}`,
+  );
 }
 
 console.log(
@@ -74,6 +87,7 @@ console.log(
       ok: true,
       expectedVersion,
       localChecks: localChecks.map((item) => item.path),
+      webDistVersionCheck,
       archivePath: archivePath || null,
       archiveManifestVersion,
     },
@@ -85,6 +99,26 @@ console.log(
 function readArchiveArg(args) {
   const matched = args.find((item) => item.startsWith("--archive="));
   return matched ? resolve(rootDir, matched.slice("--archive=".length).trim()) : "";
+}
+
+async function readWebDistVersionCheck(webDistDir, expected) {
+  const indexText = await readFile(resolve(webDistDir, "index.html"), "utf8");
+  const assetPath = extractWebAssetPath(indexText, "apps/web/dist/index.html");
+  const assetText = await readFile(resolve(webDistDir, assetPath), "utf8");
+  assertWebAssetVersion(assetText, expected, `apps/web/dist/${assetPath}`);
+  return { index: "apps/web/dist/index.html", asset: `apps/web/dist/${assetPath}` };
+}
+
+function extractWebAssetPath(indexText, label) {
+  const match = /<script[^>]+src="\/assets\/([^\"]+\.js)"/i.exec(indexText);
+  if (!match?.[1]) fail(`${label} does not reference a web entry asset`);
+  return `assets/${match[1]}`;
+}
+
+function assertWebAssetVersion(text, version, label) {
+  if (!text.includes(`\`${version}\``) && !text.includes(`"${version}"`) && !text.includes(`'${version}'`)) {
+    fail(`${label} does not expose expected web app version ${version}`);
+  }
 }
 
 function assertIncludesAny(text, candidates, label) {

@@ -24,7 +24,7 @@
 
 ## 当前运行态摘要
 
-- 2026-08-07 旧/新服务器 Gray 与 Production 均运行 `v0.8.28 / 20260807-parallel-group-supervision-v0828-r1`；目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
+- 2026-08-07 旧服务器 Production 已追加 Web 版本显示修正 release `20260807-web-version-correction-v0828-r2`；Gray 与新服务器 Production 仍运行 `20260807-parallel-group-supervision-v0828-r1`；目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
 
 - Gray：
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
@@ -46,8 +46,8 @@
   - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.28`
-  - release：`20260807-parallel-group-supervision-v0828-r1`
-  - 状态：`旧/新服务器 Production 均由 Gray 同一验证的加密封装制品晋级；API/Worker、权限 readiness 与 HTTPS 状态全部通过`
+  - release：`20260807-web-version-correction-v0828-r2`
+  - 状态：`旧服务器已用加密封装修正版纠正 Web 版本错配；新服务器继续运行 Gray 验收制品；API/Worker、权限 readiness 与 HTTPS 状态全部通过`
   - 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.28 encrypted server release；HTTPS、API/Worker 和权限 readiness 通过，尚未切换公网流量`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档、配置栏和 Agent 环境隔离能力继续保留`
   - Agent：`Agent/Canvas Run 与 API/Worker process gates 已启用；自动恢复和质量评估关闭，Production 处于 observe mode；未重复付费 canary`
