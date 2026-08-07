@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { projectCanvasRunFailureDiagnostic } from "../packages/shared/dist/index.js";
-
 const baseUrl = requiredLoopbackUrl("XINGHUAN_VERIFY_BASE_URL");
 const email = requiredEnvironment("XINGHUAN_VERIFY_EMAIL");
 const password = requiredEnvironment("XINGHUAN_VERIFY_PASSWORD");
@@ -179,6 +177,7 @@ async function validateConcurrentSuccess() {
 }
 
 async function validateFailureAndAssistant() {
+  const { projectCanvasRunFailureDiagnostic } = await import("../packages/shared/dist/index.js");
   const failingProviderId = `${key}-unreachable-provider`;
   const failingModelId = `${key}-unreachable-image`;
   await request("/api/admin/providers", { method: "POST", body: { id: failingProviderId, name: "Task 7 isolated unreachable image provider", baseUrl: "http://127.0.0.1:1/v1", protocol: "openai", enabled: true, apiKey: "isolated-failure-only" } });
