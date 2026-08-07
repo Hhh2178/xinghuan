@@ -4,6 +4,7 @@ import { Play, X, Edit2, Lock, Unlock } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
 import { resolveThemeTemplate } from '../../theme/defaultTemplates';
 import { useGroupBusStore, GROUP_COLORS } from '../../stores/groupBus';
+import { useGroupRunStore } from '../../stores/groupRunStore';
 import { getGroupBoxLiveMemberIds, isGroupBoxLocked } from '../canvas/groupBoxGuards';
 
 // 文件名后缀识别(与 OutputNode 一致): 剑中低代价修正「上游用 imageUrl 装视频/音频」兑底
@@ -49,6 +50,8 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
   const { setNodes, getNodes, getZoom } = useReactFlow();
   const requestExecute = useGroupBusStore((s) => s.requestExecute);
   const requestDelete = useGroupBusStore((s) => s.requestDelete);
+  const activeGroupIds = useGroupRunStore((s) => s.activeGroupIds);
+  const groupRunning = activeGroupIds.includes(id);
 
   // 实时几何成员计算: 节点中心点在组 bbox 内 → 视为当前成员
   // (不依赖创组时的静态快照 data.memberIds, 节点拖出/拖入后会自动同步)
@@ -145,19 +148,6 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
     if (changed) updateData(next as Partial<GroupBoxData>);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aggregateText, collected]);
-
-  // 同步 liveMemberIds 回写 data.memberIds, 供 Canvas.onConnect 等外部逻辑读到「实时成员集」
-  // (节点拖入/拖出组后会随之更新)
-  useEffect(() => {
-    const prev: string[] = Array.isArray((d as any).memberIds) ? (d as any).memberIds : [];
-    if (
-      prev.length !== liveMemberIds.length ||
-      prev.some((pid, i) => pid !== liveMemberIds[i])
-    ) {
-      updateData({ memberIds: liveMemberIds });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveMemberIds]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -277,6 +267,22 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
       };
 
       const onUp = () => {
+        setNodes((nds) => {
+          const groupNode = nds.find((node) => node.id === id);
+          if (!groupNode) return nds;
+          const memberIds = getGroupBoxLiveMemberIds(nds as Node[], groupNode);
+          return nds.map((node) => {
+            if (node.id !== id) return node;
+            const previous = Array.isArray((node.data as any)?.memberIds)
+              ? (node.data as any).memberIds as string[]
+              : [];
+            const unchanged = previous.length === memberIds.length
+              && previous.every((memberId, index) => memberId === memberIds[index]);
+            return unchanged
+              ? node
+              : { ...node, data: { ...((node.data as object) || {}), memberIds } };
+          });
+        });
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
@@ -578,13 +584,15 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
         {/* 执行按钮(右上角) */}
         <button
           className="nodrag t8-group-box__button t8-group-box__button--run"
+          disabled={groupRunning}
+          aria-pressed={groupRunning}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             // 按“当前几何包含关系”重新计算成员 → 节点拖入/拖出后执行也以实际为准
             requestExecute(id, liveMemberIds, executionCount);
           }}
-          title={`执行组内所有节点 · ${executionCount} 次`}
+          title={groupRunning ? '该分组正在执行' : `执行组内所有节点 · ${executionCount} 次`}
           style={{
             width: 26,
             height: 26,
@@ -595,7 +603,8 @@ const GroupBoxNode = ({ id, data, selected }: NodeProps) => {
             border: isPixel ? '2px solid #1A1410' : 'none',
             borderRadius: isPixel ? 6 : 7,
             color: '#fff',
-            cursor: 'pointer',
+            cursor: groupRunning ? 'wait' : 'pointer',
+            opacity: groupRunning ? 0.68 : 1,
             flexShrink: 0,
             boxShadow: isPixel ? '2px 2px 0 #1A1410' : 'none',
           }}

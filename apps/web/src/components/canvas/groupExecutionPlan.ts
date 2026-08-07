@@ -59,6 +59,29 @@ function uniqueIds(ids: string[]) {
   return Array.from(new Set(ids.map((id) => String(id || '').trim()).filter(Boolean)));
 }
 
+function hasSerializedValue(value: unknown): boolean {
+  if (typeof value === 'string') return Boolean(value.trim());
+  if (Array.isArray(value)) return value.some(hasSerializedValue);
+  return value !== null && value !== undefined && typeof value !== 'object';
+}
+
+export function resolvePreparedBoundaryNodeIds(nodes: Node[]): Set<string> {
+  const ready = new Set<string>();
+  for (const node of nodes) {
+    const data = (node.data || {}) as Record<string, unknown>;
+    if (['running', 'submitting', 'polling', 'queued'].includes(String(data.status || ''))) continue;
+    const fields = node.type === 'text'
+      ? ['text', 'prompt', 'reply', 'directOutputText']
+      : node.type === 'upload'
+        ? ['urls', 'imageUrls', 'videos', 'audios', 'imageUrl', 'videoUrl', 'audioUrl']
+        : node.type === 'material-set'
+          ? ['items', 'materials']
+          : [];
+    if (fields.some((field) => hasSerializedValue(data[field]))) ready.add(node.id);
+  }
+  return ready;
+}
+
 export function buildTopologicalLayers(
   nodes: Node[],
   edges: Edge[],

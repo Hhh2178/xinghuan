@@ -23,6 +23,7 @@ export interface GroupRunRequest {
   plan: GroupExecutionPlan;
   executionCount: number;
   failureRetryCount: number;
+  resolvePlan?: (round: number) => GroupExecutionPlan;
   executeNode: (nodeId: string, context: { groupId: string; round: number; attempt: number }) => Promise<GroupNodeExecutionResult>;
 }
 
@@ -66,6 +67,7 @@ export function createGroupRunScheduler(options: {
   const maxGroups = options.maxGroups ?? MAX_ACTIVE_MANUAL_GROUPS;
   const maxNodes = options.maxNodes ?? MAX_ACTIVE_MANUAL_NODES;
   const groups = new Map<string, ActiveGroupRun>();
+  const nodeOwners = new Map<string, string>();
   const activeNodeOwners = new Map<string, string>();
   const listeners = new Set<(snapshot: GroupRunSnapshot) => void>();
   let runSequence = 0;
@@ -94,6 +96,9 @@ export function createGroupRunScheduler(options: {
   const releaseGroup = (run: ActiveGroupRun, status: GroupRunOutcome['status']) => {
     if (!groups.has(run.request.plan.groupId)) return;
     groups.delete(run.request.plan.groupId);
+    for (const [nodeId, groupId] of nodeOwners) {
+      if (groupId === run.request.plan.groupId) nodeOwners.delete(nodeId);
+    }
     for (const [nodeId, groupId] of activeNodeOwners) {
       if (groupId === run.request.plan.groupId) activeNodeOwners.delete(nodeId);
     }
@@ -126,6 +131,23 @@ export function createGroupRunScheduler(options: {
       return;
     }
     run.round += 1;
+    let nextPlan: GroupExecutionPlan;
+    try {
+      nextPlan = run.request.resolvePlan?.(run.round) || run.request.plan;
+    } catch {
+      releaseGroup(run, 'failed');
+      return;
+    }
+    for (const [nodeId, groupId] of nodeOwners) {
+      if (groupId === run.request.plan.groupId) nodeOwners.delete(nodeId);
+    }
+    const conflict = nextPlan.memberIds.find((nodeId) => nodeOwners.has(nodeId));
+    if (conflict || nextPlan.groupId !== run.request.plan.groupId) {
+      releaseGroup(run, 'failed');
+      return;
+    }
+    run.request.plan = nextPlan;
+    for (const nodeId of nextPlan.memberIds) nodeOwners.set(nodeId, nextPlan.groupId);
     resetRound(run);
     emit();
     schedulePump();
@@ -213,7 +235,7 @@ export function createGroupRunScheduler(options: {
           message: `并行分组已达上限（${maxGroups}/${maxGroups}），请等待任一分组完成后再试。`,
         };
       }
-      const conflictingNodeId = request.plan.memberIds.find((nodeId) => activeNodeOwners.has(nodeId));
+      const conflictingNodeId = request.plan.memberIds.find((nodeId) => nodeOwners.has(nodeId));
       if (conflictingNodeId) {
         return { ok: false, code: 'NODE_ACTIVE', message: `节点 ${conflictingNodeId} 正在其他分组中执行` };
       }
@@ -236,6 +258,7 @@ export function createGroupRunScheduler(options: {
       };
       resetRound(run);
       groups.set(groupId, run);
+      for (const nodeId of request.plan.memberIds) nodeOwners.set(nodeId, groupId);
       emit();
       schedulePump();
       return { ok: true, runId: run.runId, completion };
@@ -246,6 +269,7 @@ export function createGroupRunScheduler(options: {
         releaseGroup(run, 'cancelled');
       }
       activeNodeOwners.clear();
+      nodeOwners.clear();
       emit();
     },
     getSnapshot: snapshot,

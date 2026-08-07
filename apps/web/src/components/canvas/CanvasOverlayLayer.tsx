@@ -3,12 +3,14 @@ import { useEffect } from 'react';
 interface CanvasOverlayLayerProps {
   connectionPanModeActive: boolean;
   connectionPanShortcutLabel: string;
+  runNotice: string | null;
   onCutEdges: (edgeIds: string[]) => void;
 }
 
 export function CanvasOverlayLayer({
   connectionPanModeActive,
   connectionPanShortcutLabel,
+  runNotice,
   onCutEdges,
 }: CanvasOverlayLayerProps) {
   useEffect(() => {
@@ -157,13 +159,24 @@ export function CanvasOverlayLayer({
     };
   }, [onCutEdges]);
 
-  if (!connectionPanModeActive) return null;
-
   return (
-    <div className="t8-connection-pan-hud" data-canvas-floating-ui="connection-pan-hud">
-      <span className="t8-connection-pan-hud__signal" aria-hidden="true" />
-      <span className="t8-connection-pan-hud__title">连线导航模式</span>
-      <span className="t8-connection-pan-hud__hint">拖动画布后点击目标接口连接，再按 {connectionPanShortcutLabel} 取消</span>
-    </div>
+    <>
+      {runNotice ? (
+        <div
+          className="pointer-events-none absolute left-1/2 top-16 z-50 max-w-[min(620px,calc(100vw-48px))] -translate-x-1/2 rounded-md border border-amber-300/30 bg-zinc-950/95 px-4 py-2.5 text-sm font-medium text-amber-100 shadow-xl"
+          data-canvas-floating-ui="group-run-notice"
+          role="status"
+        >
+          {runNotice}
+        </div>
+      ) : null}
+      {connectionPanModeActive ? (
+        <div className="t8-connection-pan-hud" data-canvas-floating-ui="connection-pan-hud">
+          <span className="t8-connection-pan-hud__signal" aria-hidden="true" />
+          <span className="t8-connection-pan-hud__title">连线导航模式</span>
+          <span className="t8-connection-pan-hud__hint">拖动画布后点击目标接口连接，再按 {connectionPanShortcutLabel} 取消</span>
+        </div>
+      ) : null}
+    </>
   );
 }

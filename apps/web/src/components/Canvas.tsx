@@ -1482,7 +1482,11 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
     handleRunAll,
     handleRunGroup,
     handleRunAllGroups,
+    activeGroupCount,
+    activeNodeCount,
+    isGlobalRunning,
     isRunning,
+    runNotice,
   } = useCanvasRuntime({
     getNodes: () => nodesRef.current,
     getEdges: () => edgesRef.current,
@@ -2308,7 +2312,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
 
   useEffect(() => {
     if (!executeReq) return;
-    handleRunGroup(executeReq.memberIds, executeReq.executionCount);
+    handleRunGroup(executeReq.groupId, executeReq.memberIds, executeReq.executionCount);
     clearExecuteReq();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executeReq?.ts]);
@@ -2549,17 +2553,19 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       return;
     }
 
-    // 拖动组结束: 将最新的几何成员同步到 data.memberIds(供GroupBoxNode显示节点数/执行使用)
-    if (isGroupBoxNode(node) && groupDragRef.current?.groupId === node.id) {
-      const latestIds = groupDragRef.current.memberIds;
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === node.id
-            ? { ...n, data: { ...((n.data as any) || {}), memberIds: latestIds } }
-            : n
-        )
-      );
-    }
+    // 拖动结束后一次性冻结所有分组的几何成员，避免渲染期测量把持久成员覆盖为空。
+    setNodes((prev) => prev.map((candidate) => {
+      if (!isGroupBoxNode(candidate)) return candidate;
+      const memberIds = getGroupBoxLiveMemberIds(prev, candidate);
+      const previous = Array.isArray((candidate.data as any)?.memberIds)
+        ? (candidate.data as any).memberIds as string[]
+        : [];
+      const unchanged = previous.length === memberIds.length
+        && previous.every((memberId, index) => memberId === memberIds[index]);
+      return unchanged
+        ? candidate
+        : { ...candidate, data: { ...((candidate.data as any) || {}), memberIds } };
+    }));
   
     // 标记被用户手动拖动过的自动外挂 OutputNode (id 以 'output-auto-' 开头),
     // 后续「网格重排」useEffect 会检测 data.userMoved 跳过这些节点, 保留用户位置。
@@ -3627,6 +3633,8 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
         isRunning={isRunning}
         batchTotal={batchTotal}
         batchDone={batchDone}
+        activeGroupCount={activeGroupCount}
+        activeNodeCount={activeNodeCount}
         snapEnabled={snapEnabled}
         onToggleSnap={() => setSnapEnabled((v) => !v)}
         onAlignSelection={handleAlignSelection}
@@ -3635,6 +3643,7 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
       <CanvasOverlayLayer
         connectionPanModeActive={connectionPanModeActive}
         connectionPanShortcutLabel={connectionPanShortcutLabel}
+        runNotice={runNotice}
         onCutEdges={(edgeIds) => {
           const idsToCut = new Set(edgeIds);
           setEdges((prev) => prev.filter((edge) => !idsToCut.has(edge.id)));
@@ -3942,10 +3951,10 @@ function CanvasInner({ onAddNodeRef, onInsertWorkflowRef, currentUser }: CanvasI
               </div>
               <button
                 className={menuItemCls}
-                disabled={isRunning || exeCount === 0}
+                disabled={isGlobalRunning || exeCount === 0}
                 onClick={() => {
                   closeContextMenu();
-                  handleRunGroup(ids);
+                  handleRunGroup(`selection:${[...ids].sort().join('|')}`, ids);
                 }}
               >
                 <Play size={13} fill="currentColor" />

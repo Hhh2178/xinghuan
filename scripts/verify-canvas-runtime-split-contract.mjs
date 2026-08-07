@@ -24,7 +24,7 @@ ensureExists(viewportHotkeysFile);
 
 ensureContains(canvasFile, "import { useCanvasRuntime } from './canvas/useCanvasRuntime';");
 ensureContains(canvasFile, "import { useCanvasViewportHotkeys } from './canvas/useCanvasViewportHotkeys';");
-ensureContains(canvasFile, 'const {\n    batchDone,\n    batchTotal,\n    handleCancelRun,\n    handleRunAll,\n    handleRunGroup,\n    handleRunAllGroups,\n    isRunning,\n  } = useCanvasRuntime({');
+ensureContains(canvasFile, 'const {\n    batchDone,\n    batchTotal,\n    handleCancelRun,\n    handleRunAll,\n    handleRunGroup,\n    handleRunAllGroups,\n    activeGroupCount,\n    activeNodeCount,\n    isGlobalRunning,\n    isRunning,\n    runNotice,\n  } = useCanvasRuntime({');
 ensureContains(canvasFile, 'const { focusNodeBySerialId, handleViewportHotkeys } = useCanvasViewportHotkeys({');
 ensureContains(canvasFile, 'handleViewportHotkeys(e)');
 

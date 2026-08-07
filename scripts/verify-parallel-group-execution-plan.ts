@@ -3,9 +3,20 @@ import assert from 'node:assert/strict';
 import {
   buildGroupExecutionPlan,
   buildTopologicalLayers,
+  resolvePreparedBoundaryNodeIds,
 } from '../apps/web/src/components/canvas/groupExecutionPlan';
 
 const executableTypes = new Set(['text', 'image', 'output']);
+
+assert.deepEqual(
+  [...resolvePreparedBoundaryNodeIds([
+    { id: 'text-ready', type: 'text', position: { x: 0, y: 0 }, data: { text: 'ready' } },
+    { id: 'upload-ready', type: 'upload', position: { x: 0, y: 0 }, data: { urls: ['asset.png'] } },
+    { id: 'running', type: 'text', position: { x: 0, y: 0 }, data: { text: 'stale', status: 'running' } },
+    { id: 'empty', type: 'text', position: { x: 0, y: 0 }, data: { text: '' } },
+  ] as any)].sort(),
+  ['text-ready', 'upload-ready'],
+);
 
 const nodes = [
   { id: 'left-root', type: 'text', position: { x: 0, y: 0 }, data: {} },

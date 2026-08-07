@@ -62,6 +62,8 @@ interface CanvasToolbarProps {
   isRunning: boolean;
   batchTotal: number;
   batchDone: number;
+  activeGroupCount: number;
+  activeNodeCount: number;
   // 吸附开关
   snapEnabled: boolean;
   onToggleSnap: () => void;
@@ -86,6 +88,8 @@ export default function CanvasToolbar({
   isRunning,
   batchTotal,
   batchDone,
+  activeGroupCount,
+  activeNodeCount,
   snapEnabled,
   onToggleSnap,
   onAlignSelection,
@@ -266,10 +270,12 @@ export default function CanvasToolbar({
           <button
             className={`${baseBtn} ${runningCls}`}
             onClick={onCancelRun}
-            title={`停止批量运行 (${batchDone}/${batchTotal})`}
+            title={activeGroupCount > 0
+              ? `停止运行（${activeGroupCount} 个分组，${activeNodeCount} 个节点执行中）`
+              : `停止批量运行 (${batchDone}/${batchTotal})`}
           >
             <Square size={14} fill="currentColor" />
-            {batchTotal > 0 && (
+            {(batchTotal > 0 || activeGroupCount > 0) && (
               <span
                 className={
                   isPixel
@@ -277,7 +283,7 @@ export default function CanvasToolbar({
                     : 'absolute -top-1 -right-1 text-[9px] leading-none px-1 py-0.5 rounded bg-emerald-500 text-black'
                 }
               >
-                {batchDone}/{batchTotal}
+                {activeGroupCount > 0 ? `${activeGroupCount}组` : `${batchDone}/${batchTotal}`}
               </span>
             )}
           </button>

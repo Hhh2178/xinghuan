@@ -164,4 +164,42 @@ async function flush() {
   assert.equal((await second.completion).status, 'succeeded');
 }
 
+{
+  const blocker = deferred<{ ok: boolean }>();
+  const scheduler = createGroupRunScheduler();
+  const first = scheduler.admit({
+    plan: plan('owner-a', { root: [], shared: ['root'] }),
+    executionCount: 1,
+    failureRetryCount: 0,
+    executeNode: () => blocker.promise,
+  });
+  assert.equal(first.ok, true);
+  const conflict = scheduler.admit({
+    plan: plan('owner-b', { shared: [] }),
+    executionCount: 1,
+    failureRetryCount: 0,
+    executeNode: async () => ({ ok: true }),
+  });
+  assert.deepEqual(conflict, { ok: false, code: 'NODE_ACTIVE', message: '节点 shared 正在其他分组中执行' });
+  scheduler.cancelAll();
+}
+
+{
+  const started: string[] = [];
+  const scheduler = createGroupRunScheduler();
+  const admission = scheduler.admit({
+    plan: plan('rounds', { first: [] }),
+    executionCount: 2,
+    failureRetryCount: 0,
+    resolvePlan: (round) => round === 2 ? plan('rounds', { second: [] }) : plan('rounds', { first: [] }),
+    executeNode: async (nodeId) => {
+      started.push(nodeId);
+      return { ok: true };
+    },
+  });
+  if (!admission.ok) throw new Error('round admission failed');
+  assert.equal((await admission.completion).status, 'succeeded');
+  assert.deepEqual(started, ['first', 'second']);
+}
+
 console.log('verify-group-run-scheduler: ok');

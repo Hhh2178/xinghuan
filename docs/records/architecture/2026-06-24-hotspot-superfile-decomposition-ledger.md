@@ -489,3 +489,9 @@
 - `apps/web/src/components/ApiSettings.tsx`
 - `apps/admin/src/admin-runninghub-workspace.tsx`
 - `apps/admin/src/admin-api-settings-panel.tsx`
+
+## 2026-08-07 Canvas 手动分组运行时批次
+
+- `Canvas.tsx` 本轮只承担 `useCanvasRuntime` 返回值、工具栏投影、提示层和拖动结束成员提交的接线；DAG 规划与五组/十节点调度继续位于 `components/canvas/` 独立模块。
+- 分组成员不再由 `GroupBoxNode` 的渲染期 effect 持续写回，避免首次测量与持久化快照竞态；拖动结束由 Canvas 统一提交，缩放结束由 GroupBox 提交。
+- 新增并更新独立合同覆盖五组准入、十节点预算、分支失败隔离、多轮重新快照、单调完成序号和取消后恢复；未把调度算法重新堆回热点入口。
