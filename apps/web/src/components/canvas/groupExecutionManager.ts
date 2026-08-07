@@ -1,7 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 
 import { topologicalSort } from '../../utils/topologicalSort';
-import { getGroupBoxLiveMemberIds, isGroupBoxNode } from './groupBoxGuards';
+import { isGroupBoxNode } from './groupBoxGuards';
 
 export const GROUP_EXECUTION_MANAGER_NODE_TYPE = 'group-execution-manager' as const;
 export const DEFAULT_GROUP_FAILURE_RETRY_COUNT = 3;
@@ -135,7 +135,9 @@ export function resolveGroupExecutionPlan(
     .map((groupId) => {
       const groupNode = groupNodeMap.get(groupId);
       if (!groupNode) return null;
-      const memberIds = getGroupBoxLiveMemberIds(nodes, groupNode).filter((id) => id !== groupId);
+      const memberIds = uniqueStrings(Array.isArray((groupNode.data as any)?.memberIds)
+        ? (groupNode.data as any).memberIds
+        : []).filter((id) => id !== groupId);
       const memberIdLookup = new Set(memberIds);
       memberIds.forEach((id) => memberIdSet.add(id));
       const subNodes = nodes.filter((node) => memberIdLookup.has(node.id));
