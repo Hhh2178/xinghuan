@@ -1,5 +1,11 @@
 # API 接口地图
 
+## HTTP 传输边界
+
+- 同源 API 正常可用；跨域浏览器请求仅允许 `XINGHUAN_CORS_ALLOWED_ORIGINS` 的精确 Origin，未知 Origin 不获得 CORS 响应头。
+- 跨域预检未知来源返回 `403 CORS_ORIGIN_NOT_ALLOWED`；允许的响应回显精确 Origin 并带 `Vary: Origin`，以防共享缓存串用授权结果。
+- 线上 Nginx 为应用响应提供 CSP、HSTS、反嵌入、类型嗅探、来源引用与权限策略头。模板位于 `ops/nginx/snippets/xinghuan-security-headers.conf.example`。
+
 ## 后台类接口
 
 - `/api/admin/system`
