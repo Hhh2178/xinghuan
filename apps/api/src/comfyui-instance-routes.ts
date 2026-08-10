@@ -88,8 +88,6 @@ function sendComfyuiError(response: ServerResponse, statusCode: number, error: s
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
-    "access-control-allow-origin": "*",
-    "access-control-allow-credentials": "true",
   });
   response.end(JSON.stringify({ ok: false, success: false, error, ...payload }));
 }
