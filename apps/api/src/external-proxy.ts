@@ -170,42 +170,56 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     return openAiEndpoint(baseUrlValue, "images/generations");
   }
 
-  function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user?: CurrentUserLike) {
+  async function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user: CurrentUserLike | undefined, kind: "image" | "video" = "image") {
+    if (deps.resolveProviderMediaReference && user) {
+      return Promise.all(values.map((reference) => deps.resolveProviderMediaReference!({ reference, kind, actor: user, publicOrigin })));
+    }
     return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, {
       secret: deps.secretKey(),
       scope: deps.providerFileScope,
     });
   }
 
-  function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user?: CurrentUserLike) {
+  async function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user: CurrentUserLike | undefined, kind: "image" | "video" = "image") {
+    if (deps.resolveProviderMediaReference && user) {
+      return deps.resolveProviderMediaReference({ reference: value, kind, actor: user, publicOrigin });
+    }
     return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, {
       secret: deps.secretKey(),
       scope: deps.providerFileScope,
     });
   }
 
-  function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
+  async function normalizeChatContentPart(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
     const part = deps.plainObject(value);
     const imageUrl = part.image_url;
     if (publicOrigin && user && imageUrl && typeof imageUrl === "object" && !Array.isArray(imageUrl)) {
       const image = deps.plainObject(imageUrl);
       if (typeof image.url === "string") {
-        return { ...part, image_url: { ...image, url: normalizeProviderReferenceUrl(image.url, publicOrigin, user) } };
+        return { ...part, image_url: { ...image, url: await normalizeProviderReferenceUrl(image.url, publicOrigin, user, "image") } };
+      }
+    }
+    const videoUrl = part.video_url;
+    if (publicOrigin && user && videoUrl && typeof videoUrl === "object" && !Array.isArray(videoUrl)) {
+      const video = deps.plainObject(videoUrl);
+      if (typeof video.url === "string") {
+        return { ...part, video_url: { ...video, url: await normalizeProviderReferenceUrl(video.url, publicOrigin, user, "video") } };
       }
     }
     return part;
   }
 
-  function normalizeChatMessages(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
+  async function normalizeChatMessages(value: unknown, publicOrigin?: string, user?: CurrentUserLike) {
     if (!Array.isArray(value)) return [];
-    return value.slice(-100).map((item) => {
+    const rows = await Promise.all(value.slice(-100).map(async (item) => {
       const row = deps.plainObject(item);
       const role = ["system", "user", "assistant", "tool"].includes(String(row.role)) ? String(row.role) : "user";
       const content = Array.isArray(row.content)
-        ? row.content.slice(0, 64).map((part) => normalizeChatContentPart(part, publicOrigin, user)).filter((part) => Object.keys(part).length > 0)
+        ? (await Promise.all(row.content.slice(0, 64).map((part) => normalizeChatContentPart(part, publicOrigin, user))).then((parts) => parts.filter((part) => Object.keys(part).length > 0)))
         : String(row.content || "").slice(0, 100000);
       return { role, content };
-    }).filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
+    }));
+    return rows.filter((item) => Array.isArray(item.content) ? item.content.length > 0 : Boolean(item.content));
   }
 
   function readAudioSampleDataUrl(...values: unknown[]) {
@@ -501,7 +515,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     const requestedSize = deps.safeText(body.size || params.size || params.image_size);
     const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
     const count = Math.max(1, Math.min(4, Number(body.n) || 1));
-    const images = normalizeProviderReferenceUrls(
+    const images = await normalizeProviderReferenceUrls(
       Array.isArray(body.images) ? body.images.map((item) => deps.safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4) : [],
       publicOrigin,
       user,
@@ -515,7 +529,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       ? await prepareGrsaiReferenceImages({
           dataDir: deps.dataDir,
           ownerId: user.id,
-          values: Array.isArray(body.images) ? body.images.map((item) => deps.safeText(item)).filter(Boolean) : [],
+          values: images,
           limit: ui.maxReferenceImages || 4,
         })
       : [];
@@ -560,7 +574,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
     }
     const apiKey = deps.providerPlainApiKey(provider);
     if (!apiKey) throw new Error("Provider 未配置 API Key");
-    const messages = normalizeChatMessages(body.messages, publicOrigin, user);
+    const messages = await normalizeChatMessages(body.messages, publicOrigin, user);
     if (messages.length === 0) throw new Error("缺少 messages");
     const payload: Record<string, unknown> = { model: model.modelId, messages, stream: false };
     const temperature = Number(body.temperature);
@@ -663,21 +677,18 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
       maxReferenceAudios: ui.maxReferenceAudios,
     });
     const requestImageValues = await prepareProviderReferenceImages({ advancedConfig, dataDir: deps.dataDir, ownerId: user.id, values: orderedSubmittedImages });
-    const images = normalizeProviderReferenceUrls(
+    const images = await normalizeProviderReferenceUrls(
       requestImageValues,
       publicOrigin,
       user,
     );
-    const videos = normalizeProviderReferenceUrls(
+    const videos = await normalizeProviderReferenceUrls(
       submittedVideos,
       publicOrigin,
       user,
+      "video",
     );
-    const audios = normalizeProviderReferenceUrls(
-      submittedAudios,
-      publicOrigin,
-      user,
-    );
+    const audios = submittedAudios;
     const validatedInputs = enforceVideoInputs({
       mode: videoInputMode,
       images,

@@ -55,4 +55,10 @@ export interface GenerateExternalProxyDependencies {
   looksLikeHtml: (value: string) => boolean;
   clampInteger: (value: unknown, min: number, max: number, fallback: number) => number;
   invalidRequest?: (message: string) => Error;
+  resolveProviderMediaReference?: (input: {
+    reference: string;
+    kind: "image" | "video";
+    actor: { id: string };
+    publicOrigin: string;
+  }) => Promise<string>;
 }
