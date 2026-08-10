@@ -7,6 +7,14 @@
 - 旧 Gray 完成且仅完成一次受控 GRS AI `gpt-image-2` 生图 canary；Production 未重复发起付费任务。
 - 证据：`gray/2026-08-07-parallel-group-supervision-v0828-r1.md`、`production/2026-08-07-parallel-group-supervision-v0828-r1.md`、`../validations/2026-08-07-parallel-group-supervision-v0828-r1.md` 与 `../../ops/current/release-state.json`。
 
+## 2026-08-10 新服务器 `.xyz` 域名路由
+
+- 新服务器 Production：`zezhen.xyz` 与 `www.zezhen.xyz`，转发至 `127.0.0.1:18100`。
+- 新服务器 Gray：`gray.zezhen.xyz`，转发至 `127.0.0.1:18200`。
+- Provider 文件出口：`files.zezhen.xyz`，两个环境的 `XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN` 已同步更新。
+- `.online` 路由仍保留兼容；新证书覆盖四个 `.xyz` 名称并由 Certbot 自动续期。
+- 证据：`production/2026-08-10-zezhen-xyz-domain-routing.md`、`../validations/2026-08-10-zezhen-xyz-domain-routing.md`。
+
 ## 当前 active release
 
 ### Production

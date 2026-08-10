@@ -24,16 +24,16 @@
 
 ## 当前运行态摘要
 
-- 2026-08-07 旧服务器 Production 已追加 Web 版本显示修正 release `20260807-web-version-correction-v0828-r2`；Gray 与新服务器 Production 仍运行 `20260807-parallel-group-supervision-v0828-r1`；目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
+- 2026-08-10 新服务器域名已切换至 `zezhen.xyz` 域名体系；旧服务器 Production 保留 Web 版本修正 release `20260807-web-version-correction-v0828-r2`；目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
 
 - Gray：
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
-  - 目标域名：`canvas-next.zezhen.online`（注册商暂停解析期间暂不可用）
+  - 目标域名：`gray.zezhen.xyz`
   - 端口：`127.0.0.1:18200`
   - 版本：`旧/新服务器 v0.8.28`
   - release：`20260807-parallel-group-supervision-v0828-r1`
   - 状态：`旧/新服务器 Gray 均已部署同一 AES-256-GCM 加密封装制品；并行分组、拓扑、AI 托管和权限 readiness 通过`
-  - 新服务器并行状态：`43.131.246.222 / canvas-next.zezhen.online 已运行 v0.8.28；普通 DNS 仍待域名侧恢复，直接 resolve 的 HTTPS status 已通过`
+  - 新服务器并行状态：`43.131.246.222 / gray.zezhen.xyz 已运行 v0.8.28；公开 DNS、TLS 与 HTTPS status 已通过`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；输出归档 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留`
   - 当前限制：`柏拉图 5/5 因上游 no available platform 未创建上游任务；其显式 firstFrame 能力未在模型目录开启，当前只能按单图参考能力提交`
   - 本轮制品源提交：`59d8bfa31d4e447d9332723d4e4a65ee46738e64`
@@ -43,12 +43,12 @@
   - 本地待补修：`Admin D 治理/内容工作台已激活；模型目录和 Analytics 助手上下文标签待统一；系统健康显示 13 条 DB queued / Redis empty 差异，待按受控 reconciliation 单独处理；Provider 历史探测和磁盘容量仍为 unknown；ComfyUI 功能继续冻结`
 - Production：
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
-  - 目标域名：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
+  - 目标域名：`zezhen.xyz`
   - 端口：`127.0.0.1:18100`
   - 版本：`v0.8.28`
   - release：`20260807-web-version-correction-v0828-r2`
   - 状态：`旧服务器已用加密封装修正版纠正 Web 版本错配；新服务器继续运行 Gray 验收制品；API/Worker、权限 readiness 与 HTTPS 状态全部通过`
-  - 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.28 encrypted server release；HTTPS、API/Worker 和权限 readiness 通过，尚未切换公网流量`
+  - 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行同一 v0.8.28 encrypted server release；HTTPS、API/Worker 和权限 readiness 通过，尚未切换旧服务器流量`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档、配置栏和 Agent 环境隔离能力继续保留`
   - Agent：`Agent/Canvas Run 与 API/Worker process gates 已启用；自动恢复和质量评估关闭，Production 处于 observe mode；未重复付费 canary`
   - 当前限制：`柏拉图仍受上游无可用渠道限制；Production 未重复发起付费 Provider 任务`

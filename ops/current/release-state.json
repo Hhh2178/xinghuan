@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-07",
+  "updatedAt": "2026-08-10",
   "sourceBranch": "feature/canvas-agent-runtime",
   "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
   "artifact": {
@@ -110,6 +110,11 @@
         "rules": 2920,
         "principals": 11,
         "failures": 0
+      },
+      "publicEndpoints": {
+        "gray": "https://gray.zezhen.xyz/api/status",
+        "production": "https://zezhen.xyz/api/status",
+        "providerFiles": "https://files.zezhen.xyz"
       }
     }
   }

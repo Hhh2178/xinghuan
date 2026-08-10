@@ -2,8 +2,9 @@
 
 ## 当前环境
 
-- gray：`canvas-next.zezhen.online`
-- production：`canvas.zezhen.online`
+- gray：`gray.zezhen.xyz`
+- production：`zezhen.xyz`
+- provider files：`files.zezhen.xyz`
 
 当前发布目标为泽臻新服务器；旧服务器与旧域名仅作为显式回滚来源，不是发布脚本默认目标。
 
