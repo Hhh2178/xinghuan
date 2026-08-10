@@ -540,7 +540,7 @@ const INITIAL_DATA: Record<string, Record<string, any>> = {
     prompt: '',
     temperature: 0.7,
     maxTokens: 4096,
-    stream: true,
+    showHistory: false,
     history: [],
   },
   upload: { uploadType: null },

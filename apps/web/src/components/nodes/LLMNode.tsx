@@ -20,8 +20,6 @@ import {
   generateExternalLlm,
   generateLlm,
   generateLlmStream,
-  type LlmContentPart,
-  type LlmMessage,
 } from '../../services/generation';
 import { useUpdateNodeData } from './useUpdateNodeData';
 import { useRunTrigger } from '../../hooks/useRunTrigger';
@@ -53,6 +51,11 @@ import {
   normalizeExcludedMaterialIds,
 } from '../../utils/materialExclusion';
 import { buildPublishedModelPersistencePatch, resolvePublishedModelSelection } from '../../utils/publishedModelSelection';
+import {
+  buildStatelessLlmMessages,
+  visibleLlmConversationTurns,
+  type ChatTurn,
+} from './llm-conversation-state';
 
 /**
  * LLM / Vision 节点 —— 完全对齐 gpt-image-2-web Chat (index.html L1600 / L8128~L8400)
@@ -67,13 +70,6 @@ import { buildPublishedModelPersistencePatch, resolvePublishedModelSelection } f
  *  - 输出: data.prompt = 最后一条回复(下游可消费)
  *  - useRunTrigger 接入批量运行总线
  */
-
-interface ChatTurn {
-  role: 'user' | 'assistant';
-  text: string;
-  images?: string[];
-  videos?: string[];
-}
 
 const PRESET_KEY = 't8-llm-sys-presets';
 
@@ -167,6 +163,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const { getEdges, getNodes, getNode, addNodes } = useReactFlow();
   const [error, setError] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
+  const [streamingRequest, setStreamingRequest] = useState(false);
   const [presetMap, setPresetMap] = useState<Record<string, string>>(() => loadPresets());
   const [pickedFiles, setPickedFiles] = useState<{ name: string; dataUrl: string }[]>([]);
   const [pickedVideos, setPickedVideos] = useState<{ name: string; url: string }[]>([]);
@@ -246,7 +243,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
   const systemPrompt: string = d?.system ?? '你是一个提示词专家，将用户的提示词优化';
   const temperature: number = typeof d?.temperature === 'number' ? d.temperature : 0.7;
   const maxTokens: number = typeof d?.maxTokens === 'number' ? d.maxTokens : 4096;
-  const useStream: boolean = d?.stream !== false; // 默认开
+  const showHistory: boolean = d?.showHistory === true;
   const llmVideoMode: 'frames' | 'native-base64' | 'url' =
     d?.llmVideoMode === 'url'
       ? 'url'
@@ -414,37 +411,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
 
   const removePickedAt = (i: number) => setPickedFiles((s) => s.filter((_, idx) => idx !== i));
 
-  // 构造 messages 数组(对齐主项目 _doSendChat)
-  const buildMessages = (userText: string, userImages: string[], userVideos: string[]): LlmMessage[] => {
-    const msgs: LlmMessage[] = [];
-    if (systemPrompt.trim()) {
-      msgs.push({ role: 'system', content: systemPrompt.trim() });
-    }
-    // 注入历史
-    history.forEach((t) => {
-      if (t.role === 'user' && ((t.images && t.images.length) || (t.videos && t.videos.length))) {
-        const parts: LlmContentPart[] = [];
-        if (t.text) parts.push({ type: 'text', text: t.text });
-        (t.images || []).forEach((u) => parts.push({ type: 'image_url', image_url: { url: u } }));
-        (t.videos || []).forEach((u) => parts.push({ type: 'video_url', video_url: { url: u } }));
-        msgs.push({ role: 'user', content: parts });
-      } else {
-        msgs.push({ role: t.role, content: t.text });
-      }
-    });
-    // 当前用户消息
-    if (userImages.length || userVideos.length) {
-      const parts: LlmContentPart[] = [];
-      if (userText) parts.push({ type: 'text', text: userText });
-      userImages.forEach((u) => parts.push({ type: 'image_url', image_url: { url: u } }));
-      userVideos.forEach((u) => parts.push({ type: 'video_url', video_url: { url: u } }));
-      msgs.push({ role: 'user', content: parts });
-    } else {
-      msgs.push({ role: 'user', content: userText });
-    }
-    return msgs;
-  };
-
   const handleSend = async () => {
     setError(null);
     setStreamingText('');
@@ -477,6 +443,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
       return;
     }
     const llmVideoOptions = { llmVideoMode, videoMaxWidth, videoMaxHeight, videoMaxBase64Mb, videoCrf, videoFrameCount };
+    const shouldStream = !isBackendSelected && !isExternalSelected && !isImgOut && userVideos.length === 0;
 
     taskCompletionSound.primeAudio();
     update({ status: 'generating', error: null, taskId: null, taskIds: [] });
@@ -489,12 +456,17 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     }
     logBus.info(
       `发送到 ${isBackendSelected && backendModel ? backendModel.provider.name : isExternalSelected && providerSelection.provider ? providerSelection.provider.label : model} · ${
-        !isBackendSelected && !isExternalSelected && useStream && !isImgOut && userVideos.length === 0 ? 'SSE' : '非流式'
+        shouldStream ? 'SSE' : '非流式'
       } · imgs=${userImages.length} · videos=${userVideos.length}${userVideos.length ? ` · ${llmVideoMode}` : ''}`,
       src,
     );
 
-    const messages = buildMessages(userText, userImages, userVideos);
+    const messages = buildStatelessLlmMessages({
+      systemPrompt,
+      userText,
+      imageUrls: userImages,
+      videoUrls: userVideos,
+    });
     // 立即把当前轮加入历史(回复占位)
     const userTurn: ChatTurn = {
       role: 'user',
@@ -504,8 +476,9 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     };
     const nextHistory: ChatTurn[] = [...history, userTurn];
 
+    setStreamingRequest(shouldStream);
     try {
-      if (!isBackendSelected && !isExternalSelected && useStream && !isImgOut && userVideos.length === 0) {
+      if (shouldStream) {
         // ====== 流式 ======
         const ctrl = new AbortController();
         abortRef.current = ctrl;
@@ -531,10 +504,11 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         setStreamingText('');
         setPickedFiles([]);
         setPickedVideos([]);
+        setStreamingRequest(false);
         logBus.success(`完成 · ${replyText.length} 字`, src);
         taskCompletionSound.notifyComplete(id, 'llm');
       } else {
-        // ====== 非流式(出图模型 或 关流式) ======
+        // ====== 非流式(出图模型、后台发布模型或扩展 Provider) ======
         const res = isBackendSelected && backendModel
           ? await generateExternalLlm({
               providerId: backendModel.providerId,
@@ -589,6 +563,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
       }
     } catch (e: any) {
       const msg = e?.message || '调用失败';
+      setStreamingRequest(false);
       setError(msg);
       update({ status: 'error', error: msg });
       logBus.error(msg, src);
@@ -599,6 +574,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
+      setStreamingRequest(false);
       logBus.warn('用户中止流式请求', src);
     }
   };
@@ -782,7 +758,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
               ? `${backendModel.provider.name} · ${backendModel.displayName || backendModel.modelId}`
               : isExternalSelected && providerSelection.provider
               ? `${providerSelection.provider.label || providerSelection.provider.id} · ${externalProviderModel || '未选模型'}`
-              : '独立 Key · 5 模型 · 多模态 · 流式'}
+            : '独立 Key · 5 模型 · 多模态 · 自动流式'}
           </div>
         </div>
         {history.length > 0 && (
@@ -810,7 +786,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
                   value={isBackendSelected && backendProviderGroup ? backendProviderGroup.providerId : (backendProviderGroups[0]?.providerId || '')}
                   onChange={(e) => {
                     switchBackendChatProvider(e.target.value);
-                    update({ stream: false });
                   }}
                   style={{ background: '#18181b', color: '#ffffff' }}
                   className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
@@ -829,7 +804,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
                     value={backendModel?.id || ''}
                     onChange={(e) => {
                       switchBackendChatModel(e.target.value);
-                      update({ stream: false });
                     }}
                     style={{ background: '#18181b', color: '#ffffff' }}
                     className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
@@ -882,7 +856,6 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
                         providerSource: provider.protocol,
                         providerId: provider.id,
                         providerModel: nextModels[0] || '',
-                        stream: false,
                       });
                     }}
                     style={{ background: '#18181b', color: '#ffffff' }}
@@ -937,7 +910,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
           </select>
         </div>}
 
-        {/* 温度 / max_tokens / 流式 */}
+        {/* 温度 / max_tokens / 历史会话 */}
         <div className="grid grid-cols-3 gap-1.5">
           <div>
             <label className="text-[9px] text-white/40 block mb-0.5">temp</label>
@@ -964,22 +937,21 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
             />
           </div>
           <div className="flex flex-col">
-            <label className="text-[9px] text-white/40 block mb-0.5">流式</label>
+            <label className="text-[9px] text-white/40 block mb-0.5">历史会话</label>
             <label
               className={`flex items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] cursor-pointer ${
-                useStream && !isImgOut && !isBackendSelected && !isExternalSelected
+                showHistory
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                   : 'bg-white/5 text-white/40 border border-white/10'
-              } ${isImgOut || isBackendSelected || isExternalSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              }`}
             >
               <input
                 type="checkbox"
-                disabled={isImgOut || isBackendSelected || isExternalSelected}
-                checked={useStream && !isImgOut && !isBackendSelected && !isExternalSelected}
-                onChange={(e) => update({ stream: e.target.checked })}
+                checked={showHistory}
+                onChange={(e) => update({ showHistory: e.target.checked })}
                 className="hidden"
               />
-              {isBackendSelected ? '关(后台)' : isExternalSelected ? '关(扩展)' : isImgOut ? '关(出图)' : useStream ? 'SSE' : '关'}
+              {showHistory ? '开' : '关'}
             </label>
           </div>
         </div>
@@ -1219,7 +1191,7 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
               </>
             )}
           </button>
-          {status === 'generating' && useStream && !isImgOut && !isBackendSelected && !isExternalSelected && (
+          {status === 'generating' && streamingRequest && (
             <button
               onClick={handleStop}
               className="px-2 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs"
@@ -1265,14 +1237,14 @@ const LLMNode = ({ id, data, selected }: NodeProps) => {
         ) : (
           /* 正常展示模式 */
           <>
-        {history.map((t, i) => (
-          <div key={i} className="text-[11px]">
+        {visibleLlmConversationTurns(history, showHistory).map(({ turn: t, historyIndex }) => (
+          <div key={historyIndex} className="text-[11px]">
             <div className={`text-[9px] mb-0.5 ${t.role === 'user' ? 'text-sky-300/60' : 'text-emerald-300/60'}`}>
               {t.role === 'user' ? '🧑 用户' : '🤖 助手'}
               {t.role === 'assistant' && <span className="text-white/30 ml-1">(双击编辑)</span>}
             </div>
             <div
-              onDoubleClick={() => handleDoubleClickMsg(i)}
+              onDoubleClick={() => handleDoubleClickMsg(historyIndex)}
               className={`llm-chat-message relative whitespace-pre-wrap text-white/80 bg-white/[0.03] rounded p-1.5 ${
                 t.role === 'assistant' ? 'cursor-pointer hover:bg-white/[0.06] transition-colors pr-14' : ''
               }`}

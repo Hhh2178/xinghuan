@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const llmNodeSource = readFileSync(join(root, "apps", "web", "src", "components", "nodes", "LLMNode.tsx"), "utf8");
+const llmConversationSource = readFileSync(join(root, "apps", "web", "src", "components", "nodes", "llm-conversation-state.ts"), "utf8");
+const canvasSource = readFileSync(join(root, "apps", "web", "src", "components", "Canvas.tsx"), "utf8");
 const audioNodeSource = readFileSync(join(root, "apps", "web", "src", "components", "nodes", "AudioNode.tsx"), "utf8");
 const nodeRegistrySource = readFileSync(join(root, "apps", "web", "src", "config", "nodeRegistry.ts"), "utf8");
 
@@ -21,6 +23,17 @@ const checks = [
       llmNodeSource.includes("当前模型未开启图像理解标签") &&
       llmNodeSource.includes("当前模型未开启视频理解标签") &&
       llmNodeSource.includes("已自动忽略"),
+  },
+  {
+    name: "llm requests are stateless and history is display-only",
+    pass:
+      llmNodeSource.includes("buildStatelessLlmMessages") &&
+      llmNodeSource.includes("visibleLlmConversationTurns") &&
+      llmNodeSource.includes("showHistory") &&
+      !llmNodeSource.includes("history.forEach") &&
+      !llmNodeSource.includes("useStream") &&
+      llmConversationSource.includes("buildStatelessLlmMessages") &&
+      canvasSource.includes("showHistory: false"),
   },
   {
     name: "audio node marks legacy suno as unavailable and historical only",
