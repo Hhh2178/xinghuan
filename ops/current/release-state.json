@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "updatedAt": "2026-08-10",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "e95d17d7e8807ab0cdb0906bd3388f79ab08b95d",
+  "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
   "artifact": {
-    "releaseId": "20260810-security-hardening-v0829-r1",
-    "encryptedSha256": "90dd5432fd7fba039fac358538092485a52ac1aea04774174a76e2978b0cfa94",
-    "sealedSha256": "d7a22f43b0d5d1f1559d5f0567dc10f073aa9464fa587ae7bee92ebfe54ea6fe"
+    "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
+    "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
+    "sealedSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
   },
   "environments": {
     "gray": {
-      "version": "0.8.28",
-      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
-      "deployedAt": "2026-08-07",
+      "version": "0.8.29",
+      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
+      "deployedAt": "2026-08-10",
       "permissionMode": "enforced",
       "readiness": {
         "subjects": 139,
@@ -34,14 +34,14 @@
       "rollbackReleaseId": "20260807-permission-shared-resource-portability-v0827-r1"
     },
     "production": {
-      "version": "0.8.28",
-      "releaseId": "20260807-web-version-correction-v0828-r2",
-      "deployedAt": "2026-08-07",
+      "version": "0.8.29",
+      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
+      "deployedAt": "2026-08-10",
       "permissionMode": "enforced",
-      "sourceCommit": "19d13286b9a710456433908c59da98effae380e0",
+      "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
       "artifact": {
-        "encryptedSha256": "ff527ffbfa596838ae60df84b6ea67e85ffa6fe87f13a7f759760034e5f0a838",
-        "plaintextSha256": "17b57cc2d7573616293d0bcb83343dda3cf99a1872b15282ec328cabc241f821"
+        "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
+        "plaintextSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
       },
       "readiness": {
         "subjects": 177,
@@ -66,10 +66,10 @@
   },
   "targetDeployments": {
     "old-server": {
-      "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
-      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
-      "version": "0.8.28",
-      "deployedAt": "2026-08-07",
+      "sourceCommit": "317fcbe0b2c8a0b0f4d4f4d20db8a15e4a77bf3a",
+      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
+      "version": "0.8.29",
+      "deployedAt": "2026-08-10",
       "gray": {
         "ready": true,
         "permissionMode": "enforced",
@@ -85,14 +85,14 @@
         "rules": 2704,
         "principals": 11,
         "failures": 0,
-        "releaseId": "20260807-web-version-correction-v0828-r2",
-        "sourceCommit": "19d13286b9a710456433908c59da98effae380e0",
-        "artifactEncryptedSha256": "ff527ffbfa596838ae60df84b6ea67e85ffa6fe87f13a7f759760034e5f0a838"
+        "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
+        "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
+        "artifactEncryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5"
       }
     },
     "new-server": {
-      "sourceCommit": "e95d17d7e8807ab0cdb0906bd3388f79ab08b95d",
-      "releaseId": "20260810-security-hardening-v0829-r1",
+      "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
+      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
       "version": "0.8.29",
       "deployedAt": "2026-08-10",
       "gray": {
@@ -112,8 +112,8 @@
         "failures": 0
       },
       "artifact": {
-        "encryptedSha256": "90dd5432fd7fba039fac358538092485a52ac1aea04774174a76e2978b0cfa94",
-        "plaintextSha256": "d7a22f43b0d5d1f1559d5f0567dc10f073aa9464fa587ae7bee92ebfe54ea6fe"
+        "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
+        "plaintextSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
       },
       "publicEndpoints": {
         "gray": "https://gray.zezhen.xyz/api/status",

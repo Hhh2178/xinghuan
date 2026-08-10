@@ -1,5 +1,12 @@
 # 当前 Release 索引
 
+## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
+
+- `20260810-llm-media-admin-freshness-v0829-r2` 已按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序完成，四套 API/Worker active，公开状态均为 `0.8.29`。
+- 同一 AES-256-GCM 制品已部署四端；加密 SHA-256：`4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5`。
+- 050 revision migration 已在四个数据库应用；公共资源与 Production 数据迁移复核通过，证据见 `../validations/2026-08-10-llm-media-admin-freshness-v0829-r2.md`。
+- 发布记录：`gray/2026-08-10-llm-media-admin-freshness-v0829-r2.md`、`production/2026-08-10-llm-media-admin-freshness-v0829-r2.md`。
+
 ## v0.8.28 双服务器 Gray/Production 发布（2026-08-07）
 
 - `v0.8.28 / 20260807-parallel-group-supervision-v0828-r1` 已按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序完成，四套 API/Worker active、`enforced`、permission readiness `true`。
@@ -25,10 +32,10 @@
 
 ### Production
 
-- 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
-- 旧服务器 release：`20260807-web-version-correction-v0828-r2`
-- 新服务器 release：`20260810-security-hardening-v0829-r1`
-- 当前状态：`新服务器已完成 HTTP 安全加固并保持并行验收；旧服务器未随本轮改动，保留回滚职责`
+- 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+- 旧服务器 release：`20260810-llm-media-admin-freshness-v0829-r2`
+- 新服务器 release：`20260810-llm-media-admin-freshness-v0829-r2`
+- 当前状态：`四端同一加密制品运行，LLM 媒体引用、后台精准刷新与 revision/SSE 已上线`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`Agent/Canvas Run 与进程门禁启用；自动恢复、质量评估关闭，Production 处于 observe mode；未重复付费 canary`
 - 回滚：`20260805-retired-permission-cleanup-v0826-r1`
@@ -52,9 +59,9 @@
 
 ### Gray
 
-- 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
-- release：`新服务器 20260810-security-hardening-v0829-r1`
-- 当前状态：`新服务器 Gray 已发布 HTTP 安全加固后的加密封装制品；CORS、CSP、安全头、TLS 与权限 readiness 通过运行态验证，旧服务器保持既有 release。`
+- 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+- release：`20260810-llm-media-admin-freshness-v0829-r2`
+- 当前状态：`旧/新 Gray 均运行最新加密制品，revision/SSE 与公共媒体可移植性已通过运行态验证。`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
 - 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
 - 部署时间：`2026-08-07`

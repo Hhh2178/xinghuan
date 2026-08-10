@@ -1,15 +1,15 @@
 # 当前 Production 运行态
 
-## v0.8.29 新服务器 HTTP 安全加固（2026-08-10）
+## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
 
-- 新服务器 Production 已升级至 `v0.8.29 / 20260810-security-hardening-v0829-r1`；旧服务器 Production 保持 `v0.8.28` 回滚职责，未改动。
+- 旧/新服务器 Production 均已升级至 `v0.8.29 / 20260810-llm-media-admin-freshness-v0829-r2`。
 - 新服务器 Production 已启用受限 CORS、CSP、TLS 1.2/1.3 与 `noindex` 响应头；API/Worker active，权限 readiness 为 `true`。
 
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`zezhen.xyz`（新服务器 Production）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`新服务器 v0.8.29；旧服务器 v0.8.28`
-- 当前 release（新服务器 Production）：`20260810-security-hardening-v0829-r1`
+- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+- 当前 release：`20260810-llm-media-admin-freshness-v0829-r2`
 - 当前状态：`新服务器 Production 由 Gray 同一 AES-256-GCM 加密制品晋级；API/Worker、内部/HTTPS 状态、CORS、CSP 与权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
 - 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行 v0.8.29 encrypted server release；API/Worker、权限 readiness、公开 DNS、安全头与 HTTPS 状态均通过，尚未切换旧服务器流量`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`
@@ -21,8 +21,8 @@
 - 当前验证记录：`../../docs/logbooks/validations/2026-08-07-web-version-correction-v0828-r2.md`
 - 域名切换记录：`../../docs/logbooks/releases/production/2026-08-10-zezhen-xyz-domain-routing.md`
 - 域名切换验证：`../../docs/logbooks/validations/2026-08-10-zezhen-xyz-domain-routing.md`
-- 本轮发布记录：`../../docs/logbooks/releases/production/2026-08-10-security-hardening-v0829-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-08-10-security-hardening-v0829-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/production/2026-08-10-llm-media-admin-freshness-v0829-r2.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-10-llm-media-admin-freshness-v0829-r2.md`
 - Production retention：`旧/新服务器本轮 dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
 - 新服务器发布记录：`../../docs/logbooks/releases/production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`

@@ -24,14 +24,14 @@
 
 ## 当前运行态摘要
 
-- 2026-08-10 新服务器已切换至 `zezhen.xyz` 域名体系，并升级至安全加固 release `20260810-security-hardening-v0829-r1 / v0.8.29`；显式 CORS allowlist、CSP/浏览器安全头、TLS 1.2/1.3 与 noindex 已上线。旧服务器 Production 保留 `20260807-web-version-correction-v0828-r2 / v0.8.28`，目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
+- 2026-08-10 旧/新服务器 Gray/Production 均已升级至 `20260810-llm-media-admin-freshness-v0829-r2 / v0.8.29`；显式 CORS allowlist、CSP/浏览器安全头、TLS 1.2/1.3、LLM 可移植媒体引用和 Admin revision/SSE 已上线。目标级实态记录于 `current/release-state.json` 的 `targetDeployments`。
 
 - Gray：
   - 当前可用域名：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
   - 目标域名：`gray.zezhen.xyz`
   - 端口：`127.0.0.1:18200`
-  - 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
-  - release：`新服务器 20260810-security-hardening-v0829-r1`
+  - 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+  - release：`20260810-llm-media-admin-freshness-v0829-r2`
   - 状态：`新服务器 Gray 已部署 AES-256-GCM 加密封装制品；显式 CORS allowlist、CSP、TLS 1.2/1.3、安全响应头与权限 readiness 通过；旧服务器未随本轮改动`
   - 新服务器并行状态：`43.131.246.222 / gray.zezhen.xyz 已运行 v0.8.29；公开 DNS、TLS、安全头与 HTTPS status 已通过`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；输出归档 size_bytes 查询修复；全站串行 ZIP 处理和 RH 节点自动下载开关继续保留`
@@ -45,8 +45,8 @@
   - 当前可用域名：`canvas.hhh2121.xyz`（旧服务器 Production）
   - 目标域名：`zezhen.xyz`
   - 端口：`127.0.0.1:18100`
-  - 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
-  - release：`新服务器 20260810-security-hardening-v0829-r1`
+  - 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+  - release：`20260810-llm-media-admin-freshness-v0829-r2`
   - 状态：`新服务器 Production 复用 Gray 验收的 AES-256-GCM 加密制品；显式 CORS allowlist、CSP、TLS 1.2/1.3、安全响应头与权限 readiness 通过；旧服务器保留既有回滚职责`
   - 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行 v0.8.29 encrypted server release；HTTPS、API/Worker、权限 readiness 与安全头通过，尚未切换旧服务器流量`
   - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档、配置栏和 Agent 环境隔离能力继续保留`

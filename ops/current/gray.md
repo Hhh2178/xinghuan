@@ -1,16 +1,16 @@
 # 当前 Gray 运行态
 
-## v0.8.29 新服务器 HTTP 安全加固（2026-08-10）
+## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
 
-- 新服务器 Gray 已升级至 `v0.8.29`，release 为 `20260810-security-hardening-v0829-r1`；旧服务器 Gray 保持 `v0.8.28` 未改动。
+- 旧/新服务器 Gray 均已升级至 `v0.8.29`，release 为 `20260810-llm-media-admin-freshness-v0829-r2`。
 - 本轮将 API 通配符 credentialed CORS 收紧为显式 Origin allowlist，可信来源可跨子域读取 Provider 文件，未知来源预检返回 `403`；Nginx CSP 与浏览器安全头已启用。
 - 新服务器 Gray 的 API/Worker active、公开 HTTPS status 与 permission readiness 均已通过。
 
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`gray.zezhen.xyz`（新服务器 Gray）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`新服务器 v0.8.29；旧服务器 v0.8.28`
-- 当前 release：`新服务器 20260810-security-hardening-v0829-r1`
+- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+- 当前 release：`20260810-llm-media-admin-freshness-v0829-r2`
 - 当前状态：`新服务器 Gray 已部署 AES-256-GCM 加密制品；API/Worker、内部状态、CORS、CSP 与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
 - 新服务器并行状态：`43.131.246.222 / gray.zezhen.xyz 已运行 v0.8.29；公开 DNS、TLS、安全头与 HTTPS status 已通过`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`
@@ -26,8 +26,8 @@
 - 本轮验证记录：`../../docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md`
 - 域名切换记录：`../../docs/logbooks/releases/production/2026-08-10-zezhen-xyz-domain-routing.md`
 - 域名切换验证：`../../docs/logbooks/validations/2026-08-10-zezhen-xyz-domain-routing.md`
-- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-10-security-hardening-v0829-r1.md`
-- 本轮验证记录：`../../docs/logbooks/validations/2026-08-10-security-hardening-v0829-r1.md`
+- 本轮发布记录：`../../docs/logbooks/releases/gray/2026-08-10-llm-media-admin-freshness-v0829-r2.md`
+- 本轮验证记录：`../../docs/logbooks/validations/2026-08-10-llm-media-admin-freshness-v0829-r2.md`
 - 新服务器发布记录：`../../docs/logbooks/releases/gray/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-gray-v0824-r1.md`
 - Gray retention：`旧/新服务器本轮 dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
