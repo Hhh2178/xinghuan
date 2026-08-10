@@ -81,6 +81,7 @@ import {
   readCookie,
   readJsonBody,
 } from "./http-session-utils.js";
+import { applyCorsHeaders, handleCorsPreflight } from "./http-cors.js";
 import {
   classifyUpstreamModel,
   inferModelCapabilityTags,
@@ -1527,17 +1528,8 @@ const server = createServer(async (request, response) => {
     });
   });
   response.setHeader("x-request-id", requestContext.requestId);
-
-  if (request.method === "OPTIONS") {
-    response.writeHead(204, {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-      "access-control-allow-headers": "content-type",
-      "x-request-id": requestContext.requestId,
-    });
-    response.end();
-    return;
-  }
+  if (handleCorsPreflight(request, response, requestContext.requestId)) return;
+  applyCorsHeaders(request, response);
 
   if (url.pathname === "/health" || url.pathname === "/api/health") {
     sendJson(response, createHealthPayload("xinghuan-api", environment));
@@ -3511,8 +3503,6 @@ function sendJson(
     "content-type": "application/json; charset=utf-8",
     "content-length": String(Buffer.byteLength(serialized)),
     "cache-control": "no-store",
-    "access-control-allow-origin": "*",
-    "access-control-allow-credentials": "true",
     ...headers,
   });
   response.end(serialized);
@@ -11141,7 +11131,6 @@ async function trySendStaticFile(response: import("node:http").ServerResponse, b
       "content-type": inferMime(target),
       "content-length": String(info.size),
       "cache-control": cacheControl,
-      "access-control-allow-origin": "*",
     });
     createReadStream(target).pipe(response);
     return true;

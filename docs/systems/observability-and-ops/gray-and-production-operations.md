@@ -8,6 +8,12 @@
 
 当前发布目标为泽臻新服务器；旧服务器与旧域名仅作为显式回滚来源，不是发布脚本默认目标。
 
+## HTTP 安全基线
+
+- API 跨域来源由 `XINGHUAN_CORS_ALLOWED_ORIGINS` 管理；只允许逗号分隔的完整 HTTPS Origin，禁止配置 `*`。同源请求始终可用，`files.zezhen.xyz` 的跨域素材读取必须显式列出正式和 Gray 页面 Origin。
+- Nginx 响应头模板：`ops/nginx/snippets/xinghuan-security-headers.conf.example`。它提供 CSP、HSTS、frame/object 限制、referrer 与权限策略；每次 Nginx 更新后必须执行 `nginx -t` 并以未知 Origin 预检确认返回 `403`。
+- API 回归入口：`npm run verify:http-cors`。发布后应同时验证可信 Origin 获得精确的 `Access-Control-Allow-Origin`，未知 Origin 不获得 CORS 响应头且预检被拒绝。
+
 ## 当前要求
 
 - 当前运行态判断先看 `ops/README.md`
