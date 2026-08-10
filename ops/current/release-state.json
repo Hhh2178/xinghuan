@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "updatedAt": "2026-08-10",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
+  "sourceCommit": "e95d17d7e8807ab0cdb0906bd3388f79ab08b95d",
   "artifact": {
-    "releaseId": "20260807-parallel-group-supervision-v0828-r1",
-    "encryptedSha256": "85a90e8e6a7a5dc942989169d05f77c72b2c98934827f82be6f0828836482cfc",
-    "sealedSha256": "99c9654224dd0ba557f4f65938ba59c4eccf08f5f35e410d6c884f5fb38b8bbc"
+    "releaseId": "20260810-security-hardening-v0829-r1",
+    "encryptedSha256": "90dd5432fd7fba039fac358538092485a52ac1aea04774174a76e2978b0cfa94",
+    "sealedSha256": "d7a22f43b0d5d1f1559d5f0567dc10f073aa9464fa587ae7bee92ebfe54ea6fe"
   },
   "environments": {
     "gray": {
@@ -91,10 +91,10 @@
       }
     },
     "new-server": {
-      "sourceCommit": "59d8bfa31d4e447d9332723d4e4a65ee46738e64",
-      "releaseId": "20260807-parallel-group-supervision-v0828-r1",
-      "version": "0.8.28",
-      "deployedAt": "2026-08-07",
+      "sourceCommit": "e95d17d7e8807ab0cdb0906bd3388f79ab08b95d",
+      "releaseId": "20260810-security-hardening-v0829-r1",
+      "version": "0.8.29",
+      "deployedAt": "2026-08-10",
       "gray": {
         "ready": true,
         "permissionMode": "enforced",
@@ -110,6 +110,10 @@
         "rules": 2920,
         "principals": 11,
         "failures": 0
+      },
+      "artifact": {
+        "encryptedSha256": "90dd5432fd7fba039fac358538092485a52ac1aea04774174a76e2978b0cfa94",
+        "plaintextSha256": "d7a22f43b0d5d1f1559d5f0567dc10f073aa9464fa587ae7bee92ebfe54ea6fe"
       },
       "publicEndpoints": {
         "gray": "https://gray.zezhen.xyz/api/status",

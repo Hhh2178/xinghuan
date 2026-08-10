@@ -15,14 +15,20 @@
 - `.online` 路由仍保留兼容；新证书覆盖四个 `.xyz` 名称并由 Certbot 自动续期。
 - 证据：`production/2026-08-10-zezhen-xyz-domain-routing.md`、`../validations/2026-08-10-zezhen-xyz-domain-routing.md`。
 
+## v0.8.29 新服务器 HTTP 安全加固（2026-08-10）
+
+- 新服务器 Gray 与 Production 均已使用同一 `20260810-security-hardening-v0829-r1` AES-256-GCM 加密制品升级至 `v0.8.29`；旧服务器未改动，继续承担既有流量与回滚职责。
+- API 已从 credentialed wildcard CORS 收紧至显式 Origin allowlist，未知跨域预检返回 `403`；Nginx 已启用 CSP、HSTS、反嵌入与浏览器安全响应头，TLS 基线为 1.2/1.3。
+- 证据：`gray/2026-08-10-security-hardening-v0829-r1.md`、`production/2026-08-10-security-hardening-v0829-r1.md`、`../validations/2026-08-10-security-hardening-v0829-r1.md`。
+
 ## 当前 active release
 
 ### Production
 
-- 版本：`v0.8.28`
+- 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
 - 旧服务器 release：`20260807-web-version-correction-v0828-r2`
-- 新服务器 release：`20260807-parallel-group-supervision-v0828-r1`
-- 当前状态：`旧服务器已修正 Web 版本显示错配；新服务器保持同一 v0.8.28 已验收运行态，新域名保持并行验收`
+- 新服务器 release：`20260810-security-hardening-v0829-r1`
+- 当前状态：`新服务器已完成 HTTP 安全加固并保持并行验收；旧服务器未随本轮改动，保留回滚职责`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`Agent/Canvas Run 与进程门禁启用；自动恢复、质量评估关闭，Production 处于 observe mode；未重复付费 canary`
 - 回滚：`20260805-retired-permission-cleanup-v0826-r1`
@@ -46,9 +52,9 @@
 
 ### Gray
 
-- 版本：`v0.8.28`（旧/新服务器 Gray）
-- release：`20260807-parallel-group-supervision-v0828-r1`
-- 当前状态：`旧/新服务器 Gray 已发布同一加密封装制品；并行分组、拓扑、AI 托管和权限 readiness 通过运行态验证。`
+- 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
+- release：`新服务器 20260810-security-hardening-v0829-r1`
+- 当前状态：`新服务器 Gray 已发布 HTTP 安全加固后的加密封装制品；CORS、CSP、安全头、TLS 与权限 readiness 通过运行态验证，旧服务器保持既有 release。`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
 - 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
 - 部署时间：`2026-08-07`

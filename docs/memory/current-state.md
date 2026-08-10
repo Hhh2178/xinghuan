@@ -2,11 +2,11 @@
 
 ## 当前版本与阶段
 
-- 当前 Gray 版本：`v0.8.28`（旧/新服务器 Gray）
-- 当前 Production 版本：`v0.8.28`（旧/新服务器 Production）
-- 当前 release：`20260807-parallel-group-supervision-v0828-r1`
+- 当前 Gray 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
+- 当前 Production 版本：`旧服务器 v0.8.28；新服务器 v0.8.29`
+- 当前 release：`新服务器 20260810-security-hardening-v0829-r1`；旧服务器保持 `20260807` 既有 release
 - 当前工作分支：`feature/canvas-agent-runtime`
-- 最新完成：四个目标按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序运行同一 AES-256-GCM sealed artifact；API/Worker、权限 readiness、并行分组执行和 AI 托管 observe mode 均通过验证。
+- 最新完成：新服务器 Gray 与 Production 已升级至 `v0.8.29` 的同一 AES-256-GCM sealed artifact；API CORS 收紧为显式 allowlist，Nginx CSP/安全响应头、TLS 1.2/1.3 与 noindex 已验证。旧服务器维持 `v0.8.28`，未因本轮安全加固改动。
 - 当前验证边界：旧 Gray 只完成一次受控 GRS AI `gpt-image-2` canary；Production 未重复付费生图。新服务器 `.xyz` 域名的公开 DNS、TLS 与 HTTPS status 已通过，旧服务器仍保留流量与回滚职责。
 - 当前 Admin 视觉重构：Foundation、A、B、C 已完成；D 批账号组织、权限安全、公共资源、内容发布和智能体自动化治理/内容工作台已激活。
 - 当前重构：ADR 0004 的 Workflow-scoped 确定性监督边界已落地；旧 canvas-wide 自由规划、自由知识写入和十一项等权 Admin 产品面退出新运行，历史数据保持只读兼容。完整测试、构建、三层 Harness、retention 与文档一致性门均已通过。
