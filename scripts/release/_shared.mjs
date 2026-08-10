@@ -117,7 +117,7 @@ export function defaultGrayConfig() {
     user: "ubuntu",
     remoteRoot: "/opt/apps/xinghuan-canvas-next",
     internalStatusUrl: "http://127.0.0.1:18200/api/status",
-    publicStatusUrl: "https://canvas-next.zezhen.online/api/status",
+    publicStatusUrl: "https://gray.zezhen.xyz/api/status",
     serviceName: "xinghuan-canvas-next.service",
     workerServiceName: "xinghuan-canvas-next-worker.service",
   };

@@ -3,15 +3,15 @@
 ## v0.8.28 双服务器并行分组与 AI 托管恢复（2026-08-07）
 
 - 旧服务器 Production 已追加 `20260807-web-version-correction-v0828-r2`，修正 Web 静态包仍显示 `0.8.27` 的构建错配；新服务器 Production 与 Gray 环境继续运行已验证的 `20260807-parallel-group-supervision-v0828-r1`。API/Worker active，权限 readiness 均为 `true`。
-- 新服务器公网域名 `canvas.zezhen.online` 当前在本机 DNS 查询失败；新服务器内部 `127.0.0.1:18100` status 与 readiness 已通过。
+- 新服务器 Production 已启用 `zezhen.xyz`；公开 DNS、TLS、HTTPS status 与内部 readiness 均已通过。
 
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
-- 目标入口：`canvas.zezhen.online`（注册商暂停解析期间暂不可用）
+- 目标入口：`zezhen.xyz`（新服务器 Production）
 - 服务端口：`127.0.0.1:18100`
 - 当前版本：`v0.8.28`
 - 当前 release（旧服务器 Production）：`20260807-web-version-correction-v0828-r2`
 - 当前状态：`旧服务器与新服务器 Production 均由 Gray 同一验证的 AES-256-GCM 加密封装制品晋级；API/Worker、内部/HTTPS 状态和权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
-- 新服务器并行状态：`43.131.246.222 / canvas.zezhen.online 已运行同一 v0.8.28 encrypted server release；API/Worker、权限 readiness 和 HTTPS 状态均通过，尚未切换公网流量`
+- 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行同一 v0.8.28 encrypted server release；API/Worker、权限 readiness、公开 DNS 与 HTTPS 状态均通过，尚未切换旧服务器流量`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`
 - Agent 运行态：`API/Worker 进程门禁与数据库 Agent/Canvas Run 开关已启用；自动恢复和质量评估保持关闭，Production 处于 observe 模式；未重复执行付费 Agent/Provider canary`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`
@@ -19,6 +19,8 @@
 - 当前发布索引：`../../docs/logbooks/releases/current-release-index.md`
 - 当前发布记录：`../../docs/logbooks/releases/production/2026-08-07-web-version-correction-v0828-r2.md`
 - 当前验证记录：`../../docs/logbooks/validations/2026-08-07-web-version-correction-v0828-r2.md`
+- 域名切换记录：`../../docs/logbooks/releases/production/2026-08-10-zezhen-xyz-domain-routing.md`
+- 域名切换验证：`../../docs/logbooks/validations/2026-08-10-zezhen-xyz-domain-routing.md`
 - Production retention：`旧/新服务器本轮 dry-run/apply 均通过，各保留 5 个 release，current/rollback 均保留`
 - 新服务器发布记录：`../../docs/logbooks/releases/production/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
 - 新服务器验证记录：`../../docs/logbooks/validations/2026-08-04-runninghub-group-collapse-new-server-production-v0824-r1.md`
