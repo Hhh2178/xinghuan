@@ -172,7 +172,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
 
   async function normalizeProviderReferenceUrls(values: string[], publicOrigin: string, user: CurrentUserLike | undefined, kind: "image" | "video" = "image") {
     if (deps.resolveProviderMediaReference && user) {
-      return Promise.all(values.map((reference) => deps.resolveProviderMediaReference!({ reference, kind, actor: user, publicOrigin })));
+      return Promise.all(values.map((reference) => deps.resolveProviderMediaReference!({ reference, kind, actor: user, publicOrigin, environment: deps.providerFileScope })));
     }
     return normalizeProviderReferenceUrlsForAccess(values, publicOrigin, user, {
       secret: deps.secretKey(),
@@ -182,7 +182,7 @@ export function createExternalProxyHandlers(deps: GenerateExternalProxyDependenc
 
   async function normalizeProviderReferenceUrl(value: string, publicOrigin: string, user: CurrentUserLike | undefined, kind: "image" | "video" = "image") {
     if (deps.resolveProviderMediaReference && user) {
-      return deps.resolveProviderMediaReference({ reference: value, kind, actor: user, publicOrigin });
+      return deps.resolveProviderMediaReference({ reference: value, kind, actor: user, publicOrigin, environment: deps.providerFileScope });
     }
     return normalizeProviderReferenceUrlForAccess(value, publicOrigin, user, {
       secret: deps.secretKey(),

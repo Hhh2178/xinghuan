@@ -11,6 +11,7 @@ import { AdminShellWorkspaceBand } from "./admin-shell-workspace-band";
 import { AdminRouteErrorBoundary } from "./admin-route-error-boundary";
 import { createAdminLazyImportWithRecovery } from "./admin-lazy-import-recovery";
 import { useAdminSystemHealth } from "./use-admin-system-health";
+import { useAdminChangeStream } from "./use-admin-change-stream";
 import type {
   AdminUser as AdminUserShape,
   AdminUserGroup as AdminUserGroupShape,
@@ -514,12 +515,10 @@ function AdminApp() {
       setBusy(false);
     }
   }
-
   async function handleLogout() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setCurrentUser(null);
   }
-
   async function mutate(
     path: string,
     payload: Record<string, unknown>,
@@ -548,8 +547,11 @@ function AdminApp() {
       setBusy(false);
     }
   }
-
-  if (authStatus === "checking") return <Splash />;
+  useAdminChangeStream({ isAdmin, onChange: (domains) => {
+    setError("后台数据已更新，正在同步当前页面。");
+    if (domains.includes("shell")) void loadShellData();
+    void loadWorkspaceData(activeWorkspaceId);
+  } }); if (authStatus === "checking") return <Splash />;
   if (!currentUser) {
     return <LoginView busy={busy} error={error} onLogin={handleLogin} />;
   }

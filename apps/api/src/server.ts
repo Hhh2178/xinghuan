@@ -51,7 +51,7 @@ import { createServer } from "node:http";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { createReadStream, createWriteStream } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, extname, join, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
@@ -257,9 +257,15 @@ import { decorateAuditConflictSummary } from "./audit-observability-domain.js";
 import { createAnnouncementStore } from "./announcement-store.js";
 import { broadcastAnnouncement } from "./announcement-sse.js";
 import { handlePublicAnnouncementRoutes } from "./public-announcement-routes.js";
+import { createAdminChangeRepository } from "./admin-change-repository.js";
+import { handleAdminChangeRoutes } from "./admin-change-routes.js";
 import { handleCodeNodeRoutes } from "./code-node-routes.js";
 import { handleImageOperationRoutes } from "./image-operation-routes.js";
 import { createSharedResourceRouteHandler } from "./shared-resource-routes.js";
+import { createProviderMediaRouteHandler } from "./provider-media-routes.js";
+import { createProviderMediaReferenceResolver } from "./provider-media-reference.js";
+import { signProviderMediaClaim } from "./provider-media-access.js";
+import { resolveProviderPublicOrigin } from "./provider-public-origin.js";
 import { cleanImportedNodeData, sanitizeCanvasNodes } from "./canvas-node-migration.js";
 import { enrichWorkflowResourceItem } from "./resource-workflow-helpers.js";
 
@@ -317,6 +323,24 @@ class HttpError extends Error {
   }
 }
 
+const providerMediaReferenceResolver = createProviderMediaReferenceResolver({
+  signClaim: (claim) => signProviderMediaClaim(claim, secretKey()),
+  authorizeSharedResource: async (actorId, itemId) => {
+    const authDb = await readAuthDb();
+    const actor = authDb.users.find((user) => user.id === actorId && !user.disabled);
+    if (!actor) return false;
+    return Boolean(await handleSharedResourceRoutes.resolveProviderContent(itemId, actor as CurrentUser));
+  },
+  authorizeGenerationArtifact: async (actorId, artifactId) => {
+    try {
+      await generationArtifactLifecycle.resolveContent(actorId, artifactId);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+});
+
 const { generateExternalImageProxy, generateExternalChatProxy, generateExternalVideoProxy, generateExternalAudioProxy } = createExternalProxyHandlers({
   dataDir,
   providerFileScope: environment,
@@ -343,6 +367,7 @@ const { generateExternalImageProxy, generateExternalChatProxy, generateExternalV
   looksLikeHtml,
   clampInteger,
   invalidRequest: (message) => new HttpError(400, message),
+  resolveProviderMediaReference: (input) => providerMediaReferenceResolver(input),
 });
 
 const { submitProviderGenerationTask, readProviderGenerationTaskStatus } = createProviderGenerationTaskService({
@@ -462,6 +487,7 @@ const adminRepository = createAdminRepository({
   millisToDate,
   safeText,
 });
+const adminChangeRepository = createAdminChangeRepository({ getPostgresPool });
 const readAuditBuffer = createReadAuditBuffer<AdminAuditRecord>({
   maxQueue: 1_000,
   maxBatch: 50,
@@ -1481,6 +1507,27 @@ const generationArtifactLifecycle = createGenerationArtifactLifecycle({
   createId: () => `gen-${Date.now()}-${randomBytes(5).toString("hex")}`,
 });
 
+const handleProviderMediaRoute = createProviderMediaRouteHandler({
+  scope: environment === "gray" || environment === "production" ? environment : "local",
+  secretKey,
+  userDataDirsForId,
+  sendStaticFile,
+  resolveSharedResourceContent: async (itemId, actorId) => {
+    const authDb = await readAuthDb();
+    const actor = authDb.users.find((user) => user.id === actorId && !user.disabled);
+    if (!actor) return null;
+    return handleSharedResourceRoutes.resolveProviderContent(itemId, actor as CurrentUser);
+  },
+  resolveGenerationArtifactContent: async (artifactId, actorId) => {
+    try {
+      const resolved = await generationArtifactLifecycle.resolveContent(actorId, artifactId);
+      return { baseDir: dirname(resolved.absolutePath), filename: basename(resolved.absolutePath) };
+    } catch {
+      return null;
+    }
+  },
+});
+
 const ephemeralUploadRepository = createEphemeralUploadRepository({
   usePostgresRepository,
   getPostgresPool,
@@ -1676,6 +1723,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && url.pathname.startsWith("/api/provider-media/")) {
+      await handleProviderMediaRoute({ request, response, url });
+      return;
+    }
+
     if (isProtectedRequest(url.pathname) && !currentUser) {
       sendJson(response, { ok: false, success: false, error: "AUTH_REQUIRED" }, 401);
       return;
@@ -1694,6 +1746,7 @@ const server = createServer(async (request, response) => {
         sendJson(response, { ok: false, success: false, error: "ADMIN_REQUIRED" }, 403);
         return;
       }
+      if (await handleAdminChangeRoutes({ request, response, url, adminUser: currentUser, readJsonBody, sendT8, repository: adminChangeRepository })) return;
       if (await handleAdminRequest(request, response, url, currentUser, requestContext)) return;
     }
 
@@ -8692,9 +8745,12 @@ function publicRequestOrigin(request: import("node:http").IncomingMessage) {
 }
 
 function providerFilePublicOrigin(request: import("node:http").IncomingMessage) {
-  const configured = safeText(process.env.XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN);
-  if (/^https?:\/\//i.test(configured)) return configured.replace(/\/+$/, "");
-  return publicRequestOrigin(request);
+  const scopedEnvironment = environment === "gray" || environment === "production" ? environment : "local";
+  return resolveProviderPublicOrigin({
+    environment: scopedEnvironment,
+    configuredOrigin: safeText(process.env.XINGHUAN_PROVIDER_FILE_PUBLIC_ORIGIN),
+    requestOrigin: publicRequestOrigin(request),
+  });
 }
 
 

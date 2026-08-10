@@ -1,5 +1,6 @@
 import { adminAnnouncementApi, api } from "./admin-api-client";
 import { readAdminQuery } from "./admin-query-client";
+import { adminQueryKeys } from "./admin-query-keys";
 import type {
   AdminAnnouncementRecord,
   AdminSessionRecord,
@@ -34,8 +35,8 @@ export interface AdminWorkspaceSnapshot {
 
 export async function readAdminShellSnapshot(): Promise<AdminShellSnapshot> {
   const [summary, assistantSettings] = await Promise.all([
-    readAdminQuery(["shell", "summary"], (signal) => api<Summary>("/api/admin/summary", { signal }), { maxAgeMs: 5_000 }),
-    readAdminQuery(["shell", "assistant-settings"], (signal) => api<AssistantSettings>("/api/admin/assistant/settings", { signal }), { maxAgeMs: 5_000 }),
+    readAdminQuery([...adminQueryKeys.shell, "summary"], (signal) => api<Summary>("/api/admin/summary", { signal }), { maxAgeMs: 5_000 }),
+    readAdminQuery([...adminQueryKeys.shell, "assistant-settings"], (signal) => api<AssistantSettings>("/api/admin/assistant/settings", { signal }), { maxAgeMs: 5_000 }),
   ]);
   return { summary, assistantSettings };
 }

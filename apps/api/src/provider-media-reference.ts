@@ -1,5 +1,4 @@
 import {
-  signProviderMediaClaim,
   type ProviderMediaClaim,
   type ProviderMediaScope,
   type ProviderMediaSourceType,

@@ -90,6 +90,13 @@ export function invalidateAdminQueries(prefix: QueryKey) {
   }
 }
 
+export function invalidateAdminQuery(key: QueryKey) {
+  const serializedKey = serializeKey(key);
+  const entry = entries.get(serializedKey);
+  entry?.controller?.abort();
+  entries.delete(serializedKey);
+}
+
 export function clearAdminQueryCache() {
   for (const entry of entries.values()) entry.controller?.abort();
   entries.clear();

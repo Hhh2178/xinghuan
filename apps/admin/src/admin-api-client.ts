@@ -1,3 +1,6 @@
+import { invalidateAdminMutation } from "./admin-mutation-invalidation";
+import { adminMutationDomains } from "./admin-query-keys";
+
 export class AdminApiError extends Error {
   status?: number;
   code?: string;
@@ -30,6 +33,13 @@ export async function api<T = unknown>(pathname: string, options?: RequestInit):
   const payload = text ? JSON.parse(text) : {};
   if (!response.ok || payload?.success === false || payload?.ok === false) {
     throw new AdminApiError(payload?.error || `${pathname} ${response.status}`, payload, response.status);
+  }
+  if (String(options?.method || "GET").toUpperCase() !== "GET") {
+    invalidateAdminMutation(pathname);
+    if (pathname !== "/api/admin/changes/touch") {
+      const domains = adminMutationDomains(pathname).map((domain) => domain === "sharedResources" ? "shared-resources" : domain === "announcements" ? "content" : domain);
+      void fetch("/api/admin/changes/touch", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ domains }) });
+    }
   }
   return payload.data as T;
 }
@@ -426,6 +436,7 @@ export const adminSharedResourceApi = {
     if (!response.ok || payload?.success === false) {
       throw new AdminApiError(payload?.error || `upload ${response.status}`, payload, response.status);
     }
+    invalidateAdminMutation("/api/files/upload");
     return payload.data as { filename: string; url: string; size: number; mime: string };
   },
 };

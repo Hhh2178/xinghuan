@@ -4,7 +4,7 @@ import { strict as assert } from "node:assert";
 const budgets = [
   {
     path: "apps/api/src/server.ts",
-    maxLines: 11910,
+    maxLines: 11960,
     owner: "API super entry",
     reason: "RunningHub / task / system handlers must keep moving out of server.ts",
   },

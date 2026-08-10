@@ -60,5 +60,6 @@ export interface GenerateExternalProxyDependencies {
     kind: "image" | "video";
     actor: { id: string };
     publicOrigin: string;
+    environment?: ProviderFileScope;
   }) => Promise<string>;
 }

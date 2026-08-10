@@ -119,6 +119,20 @@ type SharedResourceRouteDeps = {
   ) => Promise<void>;
 };
 
+export interface SharedResourceProviderContent {
+  baseDir: string;
+  filename: string;
+}
+
+export type SharedResourceRouteHandler = ((input: {
+  request: import("node:http").IncomingMessage;
+  response: import("node:http").ServerResponse;
+  url: URL;
+  currentUser: CurrentUser | null;
+}) => Promise<boolean>) & {
+  resolveProviderContent: (itemId: string, actor: CurrentUser) => Promise<SharedResourceProviderContent | null>;
+};
+
 export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) {
   const {
     adminDir,
@@ -251,6 +265,27 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     return currentUser;
   }
 
+  async function resolveProviderContent(itemId: string, actor: CurrentUser): Promise<SharedResourceProviderContent | null> {
+    const db = await readSharedResourceDb();
+    const source = db.items.find((item) => item.id === itemId);
+    if (!source) return null;
+    const policies = await readGroupPermissionPolicies();
+    const legacyAllowed = filterSharedResourceItemsForUser([source], actor, policies).length > 0;
+    const allowed = canUsePermissionSubject
+      ? await canUsePermissionSubject(actor, `resource.item/${itemId}`, "use", legacyAllowed)
+      : legacyAllowed || actor.role === "admin";
+    if (!allowed) return null;
+    const sharedDir = join(adminDir, "shared-assets");
+    if (source.sharedAssetKey) return { baseDir: sharedDir, filename: source.sharedAssetKey };
+    const sourceRef = parseSharedResourceFileReference(source.fileUrl || source.fileRel || source.url);
+    if (!sourceRef || !source.publishedBy) return null;
+    const dirs = userDataDirsForId(source.publishedBy);
+    return {
+      baseDir: sourceRef.bucket === "output" ? dirs.outputDir : dirs.inputDir,
+      filename: sourceRef.filename,
+    };
+  }
+
   async function addSharedResourceFromPayload(raw: unknown, actor: CurrentUser, forcedKind?: ResourceKind) {
     const payload = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
     const kind = forcedKind || normalizeResourceKind(payload.kind) || "image";
@@ -331,7 +366,7 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     };
   }
 
-  return async function handleSharedResourceRoutes({
+  const handleSharedResourceRoutes: SharedResourceRouteHandler = Object.assign(async function handleSharedResourceRoutes({
     request,
     response,
     url,
@@ -600,5 +635,7 @@ export function createSharedResourceRouteHandler(deps: SharedResourceRouteDeps) 
     }
 
     return false;
-  };
+  }, { resolveProviderContent });
+
+  return handleSharedResourceRoutes;
 }
