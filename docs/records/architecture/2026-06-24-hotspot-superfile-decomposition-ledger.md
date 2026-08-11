@@ -501,3 +501,9 @@
 - `server.ts` 仅把共享进程门禁投影接入 Canvas Run service 与 Admin 路由；解析逻辑下沉到 `@xinghuan/shared`，没有继续扩大入口内联配置逻辑。
 - `worker.ts` 仅将原本内联的 Worker flag 比较替换为共享读取器，Coordinator 生命周期和领取逻辑未搬回入口。
 - 当前发布路由健康统计保持在 `agent-governance-repository.ts`，Admin 展示只消费显式 `processGates`，并以聚焦合同覆盖环境参数和发布关联。
+
+## 2026-08-11 媒体节点逐批状态竞态修复
+
+- `ImageNode.tsx` 与 `VideoNode.tsx` 创建多任务批次后曾只更新节点数据，没有同步 `taskRunsRef`；异步子任务若在 React 下一次渲染前完成，会基于空或旧数组更新，最终留下错误的 `queued` 状态。
+- 初始化与按 `batchIndex` 增量更新已下沉到 `generationTaskResume.ts`，图像、视频、音频和 Seedance 四类媒体节点统一复用，热点节点只保留运行编排与节点数据提交。
+- 聚焦回归覆盖“初始化后立即完成”和“多个子任务交错完成”两类竞态，防止成功/失败结果互相覆盖或重新退回排队状态。

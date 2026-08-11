@@ -33,6 +33,30 @@ export interface PersistedGenerationTaskRun {
   finishedAt?: number | null;
 }
 
+export interface GenerationTaskRunsRef<T extends PersistedGenerationTaskRun> {
+  current: T[];
+}
+
+export function initializeGenerationTaskRuns<T extends PersistedGenerationTaskRun>(
+  taskRunsRef: GenerationTaskRunsRef<T>,
+  taskRuns: T[],
+): T[] {
+  taskRunsRef.current = taskRuns;
+  return taskRuns;
+}
+
+export function patchGenerationTaskRun<T extends PersistedGenerationTaskRun>(
+  taskRunsRef: GenerationTaskRunsRef<T>,
+  batchIndex: number,
+  patch: Partial<T>,
+): T[] {
+  const next = taskRunsRef.current.map((item) => (
+    item.batchIndex === batchIndex ? { ...item, ...patch } : item
+  ));
+  taskRunsRef.current = next;
+  return next;
+}
+
 const ACTIVE_TASK_STATUSES = new Set<ResumableTaskStatus>([
   'queued',
   'submitting',

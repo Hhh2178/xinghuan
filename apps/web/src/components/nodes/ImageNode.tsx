@@ -48,7 +48,9 @@ import { useDragMaterialStore, type MaterialPayload } from '../../stores/dragMat
 import { useMaterialDropTarget } from '../../hooks/useMaterialDropTarget';
 import { taskCompletionSound } from '../../stores/taskCompletionSound';
 import {
+  initializeGenerationTaskRuns,
   mergeUniqueUrls,
+  patchGenerationTaskRun,
   resumableTaskRuns,
   taskRunIds,
   type PersistedGenerationTaskRun,
@@ -485,11 +487,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     });
   };
   const patchTaskRun = (batchIndex: number, patch: Partial<TaskRunState>) => {
-    const current = taskRunsRef.current;
-    const next = current.map((item) =>
-      item.batchIndex === batchIndex ? { ...item, ...patch } : item
-    );
-    taskRunsRef.current = next;
+    const next = patchGenerationTaskRun(taskRunsRef, batchIndex, patch);
     update({ taskRuns: next });
   };
 
@@ -1202,6 +1200,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         startedAt: Date.now(),
         finishedAt: null,
       }));
+      initializeGenerationTaskRuns(taskRunsRef, initialTaskRuns);
       update({
         status: 'generating',
         error: null,
