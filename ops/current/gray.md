@@ -1,18 +1,18 @@
 # 当前 Gray 运行态
 
-## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
+## v0.8.31 生成素材保留时效（2026-08-11）
 
-- 旧/新服务器 Gray 均已升级至 `v0.8.29`，release 为 `20260810-llm-media-admin-freshness-v0829-r2`。
-- 本轮将 API 通配符 credentialed CORS 收紧为显式 Origin allowlist，可信来源可跨子域读取 Provider 文件，未知来源预检返回 `403`；Nginx CSP 与浏览器安全头已启用。
-- 新服务器 Gray 的 API/Worker active、公开 HTTPS status 与 permission readiness 均已通过。
+- 新服务器 Gray 已升级至 `v0.8.31 / 20260811-generation-retention-v0831-r1`；旧服务器 Gray 未改动。
+- 数据库权威参数与环境回退值均为 15 天，Worker 新产物和 Canvas 生成库展示使用同一运行参数。
+- API/Worker、公开 HTTPS status、permission readiness、reconciliation dry-run 与 output-prune service 均已通过。
 
 - 当前可用入口：`canvas-next.hhh2121.xyz`（旧服务器 Gray）
 - 目标入口：`gray.zezhen.xyz`（新服务器 Gray）
 - 服务端口：`127.0.0.1:18200`
-- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
-- 当前 release：`20260810-llm-media-admin-freshness-v0829-r2`
+- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.31`
+- 当前 release：`新服务器 20260811-generation-retention-v0831-r1；旧服务器保持既有 release`
 - 当前状态：`新服务器 Gray 已部署 AES-256-GCM 加密制品；API/Worker、内部状态、CORS、CSP 与权限 readiness 均已通过，当前环境为 gray，权限模式 enforced`
-- 新服务器并行状态：`43.131.246.222 / gray.zezhen.xyz 已运行 v0.8.29；公开 DNS、TLS、安全头与 HTTPS status 已通过`
+- 新服务器并行状态：`43.131.246.222 / gray.zezhen.xyz 已运行 v0.8.31；公开 HTTPS status 已通过`
 - 当前补修：`RunningHub 分组选择器采用稳定暗色自定义下拉，分组默认展开且可单独折叠；输出归档 size_bytes 查询修复与 RH 节点自动下载 ZIP 已部署`
 - 当前限制：`Aifork Grok 首帧真实链路 5/5 成功；柏拉图 5/5 在创建任务前因上游 no available platform 失败，当前无法用新的柏拉图成功任务验证真实回传；其显式 firstFrame 能力仍未在模型目录开启`
 - Production 当前 release：`20260807-parallel-group-supervision-v0828-r1`

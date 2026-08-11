@@ -1,5 +1,12 @@
 # 当前 Release 索引
 
+## v0.8.31 新服务器生成素材保留时效（2026-08-11）
+
+- 新服务器 Gray 与 Production 已运行同一 `20260811-generation-retention-v0831-r1` AES-256-GCM 制品；旧服务器未改动。
+- 两个新服务器环境的数据库权威值和环境回退值均为 15 天，前端不再写死三天，Worker 新产物按运行参数冻结到期时间。
+- 加密 SHA-256：`3dc97d8bf8db4ac9c49df0fc162f822c84eac32472bf8dea001d3b0dd56c7e24`；sealed SHA-256：`a083acaf5eed5dfc55500aac543e53964c431e55d3126067918b57037a999a7b`。
+- 证据：`gray/2026-08-11-generation-retention-v0831-r1.md`、`production/2026-08-11-generation-retention-v0831-r1.md`、`../validations/2026-08-11-generation-retention-v0831-r1.md`。
+
 ## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
 
 - `20260810-llm-media-admin-freshness-v0829-r2` 已按旧 Gray → 旧 Production → 新 Gray → 新 Production 顺序完成，四套 API/Worker active，公开状态均为 `0.8.29`。
@@ -32,13 +39,13 @@
 
 ### Production
 
-- 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
+- 版本：`旧服务器 v0.8.29；新服务器 v0.8.31`
 - 旧服务器 release：`20260810-llm-media-admin-freshness-v0829-r2`
-- 新服务器 release：`20260810-llm-media-admin-freshness-v0829-r2`
-- 当前状态：`四端同一加密制品运行，LLM 媒体引用、后台精准刷新与 revision/SSE 已上线`
+- 新服务器 release：`20260811-generation-retention-v0831-r1`
+- 当前状态：`新服务器生成素材保留时效已统一为 15 天；旧服务器保持既有运行态`
 - 部署内容：`服务器发布包为 AES-256-GCM 加密外层、无源码 sealed runtime；开发仓库的 dev/build/type-check/test 链路不变`
 - Agent 运行态：`Agent/Canvas Run 与进程门禁启用；自动恢复、质量评估关闭，Production 处于 observe mode；未重复付费 canary`
-- 回滚：`20260805-retired-permission-cleanup-v0826-r1`
+- 回滚：`新服务器 20260811-provider-media-edge-v0830-r1`
 - 修正记录：`production/2026-08-07-web-version-correction-v0828-r2.md`、`../validations/2026-08-07-web-version-correction-v0828-r2.md`
 - 当前批次记录：
   - `production/2026-08-04-encrypted-server-release-v0825-r1.md`
@@ -59,9 +66,9 @@
 
 ### Gray
 
-- 版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
-- release：`20260810-llm-media-admin-freshness-v0829-r2`
-- 当前状态：`旧/新 Gray 均运行最新加密制品，revision/SSE 与公共媒体可移植性已通过运行态验证。`
+- 版本：`旧服务器 v0.8.29；新服务器 v0.8.31`
+- release：`新服务器 20260811-generation-retention-v0831-r1；旧服务器保持既有 release`
+- 当前状态：`新服务器 Gray 的生成素材保留时效、清理脚本和 systemd service 已通过；旧服务器未改动。`
 - 部署内容：`无源码、无 source map 的 sealed runtime 由 AES-256-GCM 外层封装；公共媒体使用稳定资源 ID 地址并独立持久化。`
 - 已验证：`全量 CI、workspace/release Harness、定向回归、运行态、权限 readiness、指定账号权限/资源接口与公共资产迁移 CLI 均通过。`
 - 部署时间：`2026-08-07`

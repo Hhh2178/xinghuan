@@ -1,17 +1,17 @@
 # 当前 Production 运行态
 
-## v0.8.29 LLM 媒体与后台新鲜度（2026-08-10）
+## v0.8.31 生成素材保留时效（2026-08-11）
 
-- 旧/新服务器 Production 均已升级至 `v0.8.29 / 20260810-llm-media-admin-freshness-v0829-r2`。
-- 新服务器 Production 已启用受限 CORS、CSP、TLS 1.2/1.3 与 `noindex` 响应头；API/Worker active，权限 readiness 为 `true`。
+- 新服务器 Production 已升级至 `v0.8.31 / 20260811-generation-retention-v0831-r1`；旧服务器 Production 未改动。
+- 数据库权威参数与环境回退值均为 15 天，1,651 条 active 历史产物已补齐到至少 15 天；API/Worker active，权限 readiness 为 `true`。
 
 - 当前可用入口：`canvas.hhh2121.xyz`（旧服务器 Production）
 - 目标入口：`zezhen.xyz`（新服务器 Production）
 - 服务端口：`127.0.0.1:18100`
-- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.29`
-- 当前 release：`20260810-llm-media-admin-freshness-v0829-r2`
+- 当前版本：`旧服务器 v0.8.29；新服务器 v0.8.31`
+- 当前 release：`新服务器 20260811-generation-retention-v0831-r1；旧服务器保持既有 release`
 - 当前状态：`新服务器 Production 由 Gray 同一 AES-256-GCM 加密制品晋级；API/Worker、内部/HTTPS 状态、CORS、CSP 与权限 readiness 均已通过，当前环境为 production，权限模式 enforced`
-- 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行 v0.8.29 encrypted server release；API/Worker、权限 readiness、公开 DNS、安全头与 HTTPS 状态均通过，尚未切换旧服务器流量`
+- 新服务器并行状态：`43.131.246.222 / zezhen.xyz 已运行 v0.8.31 encrypted server release；API/Worker、权限 readiness 与 HTTPS 状态均通过`
 - 当前补修：`RunningHub 分组选择器默认展开且可单独折叠；此前的归档下载、共享配置栏和 Agent 环境隔离能力继续保留`
 - Agent 运行态：`API/Worker 进程门禁与数据库 Agent/Canvas Run 开关已启用；自动恢复和质量评估保持关闭，Production 处于 observe 模式；未重复执行付费 Agent/Provider canary`
 - 当前限制：`Production 未重复发起付费 Provider 任务；Gray 已完成 Aifork Grok 首帧 5/5 上游成功和本地回传验证，柏拉图本轮仍受上游渠道容量限制`

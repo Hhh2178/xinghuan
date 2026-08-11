@@ -1,67 +1,67 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-10",
+  "updatedAt": "2026-08-11",
   "sourceBranch": "feature/canvas-agent-runtime",
-  "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
+  "sourceCommit": "a4dbdf137907155ef33b1c12ffacd70a6fee9c50",
   "artifact": {
-    "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
-    "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
-    "sealedSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
+    "releaseId": "20260811-generation-retention-v0831-r1",
+    "encryptedSha256": "3dc97d8bf8db4ac9c49df0fc162f822c84eac32472bf8dea001d3b0dd56c7e24",
+    "sealedSha256": "a083acaf5eed5dfc55500aac543e53964c431e55d3126067918b57037a999a7b"
   },
   "environments": {
     "gray": {
-      "version": "0.8.29",
-      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
-      "deployedAt": "2026-08-10",
+      "version": "0.8.31",
+      "releaseId": "20260811-generation-retention-v0831-r1",
+      "deployedAt": "2026-08-11",
       "permissionMode": "enforced",
       "readiness": {
-        "subjects": 139,
-        "rules": 1195,
+        "subjects": 132,
+        "rules": 1180,
         "principals": 5,
         "failures": 0
       },
       "runtimeReadiness": {
-        "subjects": 139,
-        "rules": 1195,
+        "subjects": 132,
+        "rules": 1180,
         "principals": 5,
         "failures": 0,
         "failureCodes": [],
-        "observedAt": "2026-08-07",
+        "observedAt": "2026-08-11",
         "status": "ready"
       },
-      "releaseRecord": "docs/logbooks/releases/gray/2026-08-07-parallel-group-supervision-v0828-r1.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-07-parallel-group-supervision-v0828-r1.md",
-      "rollbackReleaseId": "20260807-permission-shared-resource-portability-v0827-r1"
+      "releaseRecord": "docs/logbooks/releases/gray/2026-08-11-generation-retention-v0831-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-11-generation-retention-v0831-r1.md",
+      "rollbackReleaseId": "20260811-provider-media-edge-v0830-r1"
     },
     "production": {
-      "version": "0.8.29",
-      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
-      "deployedAt": "2026-08-10",
+      "version": "0.8.31",
+      "releaseId": "20260811-generation-retention-v0831-r1",
+      "deployedAt": "2026-08-11",
       "permissionMode": "enforced",
-      "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
+      "sourceCommit": "a4dbdf137907155ef33b1c12ffacd70a6fee9c50",
       "artifact": {
-        "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
-        "plaintextSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
+        "encryptedSha256": "3dc97d8bf8db4ac9c49df0fc162f822c84eac32472bf8dea001d3b0dd56c7e24",
+        "plaintextSha256": "a083acaf5eed5dfc55500aac543e53964c431e55d3126067918b57037a999a7b"
       },
       "readiness": {
-        "subjects": 177,
-        "rules": 2704,
-        "principals": 11,
+        "subjects": 180,
+        "rules": 2718,
+        "principals": 12,
         "failures": 0,
         "source": "deployment-validation"
       },
       "runtimeReadiness": {
-        "subjects": 177,
-        "rules": 2704,
-        "principals": 11,
+        "subjects": 180,
+        "rules": 2718,
+        "principals": 12,
         "failures": 0,
         "failureCodes": [],
-        "observedAt": "2026-08-07",
+        "observedAt": "2026-08-11",
         "status": "ready"
       },
-      "releaseRecord": "docs/logbooks/releases/production/2026-08-07-web-version-correction-v0828-r2.md",
-      "validationRecord": "docs/logbooks/validations/2026-08-07-web-version-correction-v0828-r2.md",
-      "rollbackReleaseId": "20260805-retired-permission-cleanup-v0826-r1"
+      "releaseRecord": "docs/logbooks/releases/production/2026-08-11-generation-retention-v0831-r1.md",
+      "validationRecord": "docs/logbooks/validations/2026-08-11-generation-retention-v0831-r1.md",
+      "rollbackReleaseId": "20260811-provider-media-edge-v0830-r1"
     }
   },
   "targetDeployments": {
@@ -69,7 +69,7 @@
       "sourceCommit": "317fcbe0b2c8a0b0f4d4f4d20db8a15e4a77bf3a",
       "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
       "version": "0.8.29",
-      "deployedAt": "2026-08-10",
+      "deployedAt": "2026-08-11",
       "gray": {
         "ready": true,
         "permissionMode": "enforced",
@@ -91,9 +91,9 @@
       }
     },
     "new-server": {
-      "sourceCommit": "317fcbea99f832ddee9867fa76094083d6e30d10",
-      "releaseId": "20260810-llm-media-admin-freshness-v0829-r2",
-      "version": "0.8.29",
+      "sourceCommit": "a4dbdf137907155ef33b1c12ffacd70a6fee9c50",
+      "releaseId": "20260811-generation-retention-v0831-r1",
+      "version": "0.8.31",
       "deployedAt": "2026-08-10",
       "gray": {
         "ready": true,
@@ -106,14 +106,14 @@
       "production": {
         "ready": true,
         "permissionMode": "enforced",
-        "subjects": 158,
-        "rules": 2920,
-        "principals": 11,
+        "subjects": 180,
+        "rules": 2718,
+        "principals": 12,
         "failures": 0
       },
       "artifact": {
-        "encryptedSha256": "4805c2b8498b59718f6436dc453dacaf8b2f0d7a4b38d332640293e7334d70c5",
-        "plaintextSha256": "2ceee4cdc66de9cb6c4867b972f2f9ecbd0019808fb580fe07e817cc6aba2e14"
+        "encryptedSha256": "3dc97d8bf8db4ac9c49df0fc162f822c84eac32472bf8dea001d3b0dd56c7e24",
+        "plaintextSha256": "a083acaf5eed5dfc55500aac543e53964c431e55d3126067918b57037a999a7b"
       },
       "publicEndpoints": {
         "gray": "https://gray.zezhen.xyz/api/status",
