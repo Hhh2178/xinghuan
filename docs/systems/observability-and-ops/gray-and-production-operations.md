@@ -14,6 +14,15 @@
 - Nginx 响应头模板：`ops/nginx/snippets/xinghuan-security-headers.conf.example`。它提供 CSP、HSTS、frame/object 限制、referrer 与权限策略；每次 Nginx 更新后必须执行 `nginx -t` 并以未知 Origin 预检确认返回 `403`。
 - API 回归入口：`npm run verify:http-cors`。发布后应同时验证可信 Origin 获得精确的 `Access-Control-Allow-Origin`，未知 Origin 不获得 CORS 响应头且预检被拒绝。
 
+## Provider 媒体出口
+
+`files.zezhen.xyz` 是 Provider 回抓素材的专用出口。它不能使用兜底代理；Nginx 必须按路径中的环境 scope 做固定分流：
+
+- `/api/provider-files/gray/...` 与 `/api/provider-media/gray/...` 只转发到 Gray API。
+- `/api/provider-files/production/...` 与 `/api/provider-media/production/...` 只转发到 Production API。
+
+`provider-media` 用于公共资源、生成库和用户素材的短时签名读取。scope 同时存在于路径和签名 claim 中，服务端必须拒绝两者不一致的请求。每次变更 Files 域名路由后，除 `nginx -t` 外，还应以无效 token 验证对应 scope 返回应用层 `403` JSON，而不是 Nginx 默认 `404`；再用真实签名图片验证 `200` 与正确的图片 Content-Type。
+
 ## 当前要求
 
 - 当前运行态判断先看 `ops/README.md`

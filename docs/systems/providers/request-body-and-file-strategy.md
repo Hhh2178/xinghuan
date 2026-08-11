@@ -19,6 +19,15 @@
 - 差异优先数据化
 - 不把平台细节直接扩散到前端
 
+## 多模态素材引用
+
+画布和资源记录只保存相对逻辑引用，例如 `/files/input/...`、`/api/shared-resources/items/:id/content` 与 `/api/materials/generation-library/:id/content`。Provider 请求边界才把它们转换成当前环境的绝对 HTTPS 短时签名地址。
+
+- `/api/provider-files/{scope}/...` 服务用户输入或输出文件。
+- `/api/provider-media/{scope}/{token}` 服务公共资源、生成产物及统一的多模态媒体引用。
+- `scope` 必须是 `gray` 或 `production` 并与签名 claim 相同；Files 域名按该路径 scope 转发到对应环境，不能用一个无 scope 的通配路径同时代理两个环境。
+- URL、签名和绝对 origin 只存在于本次上游请求，不能写回 Canvas JSON、资源元数据或工作流导出文件。
+
 ## AICOPY 视频补充请求契约
 
 - 后台以 Provider 的 `protocol=aicopy` 与模型 `capability=video` 判断是否展示 SD 补充请求契约，不依赖模型 ID、名称或旧模型白名单。
