@@ -5545,7 +5545,7 @@ async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
   return settingsRepository.readTaskQueueSettingsRecord();
 }
 
-const readOutputRetentionDays = async () => (await readTaskQueueSettingsRecord()).taskQueueSettings.materialLifecycle?.outputRetentionDays ?? MATERIAL_RETENTION_DEFAULT_DAYS;
+async function readOutputRetentionDays() { return (await readTaskQueueSettingsRecord()).taskQueueSettings.materialLifecycle?.outputRetentionDays ?? MATERIAL_RETENTION_DEFAULT_DAYS; }
 
 async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings, expectedRevision?: number): Promise<SystemSettingsRecord> {
   return settingsRepository.writeTaskQueueSettingsRecord(taskQueueSettings, expectedRevision);
