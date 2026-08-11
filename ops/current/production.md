@@ -9,6 +9,8 @@
 - runtime: API active, worker active, internal and public status `0.8.34 / production`, permission mode `enforced`
 - readiness: 180 subjects, 2,718 rules, 12 principals, 0 failures
 
+Old-server Production `canvas.starflow.xin` also runs `0.8.34` from the same artifact. Its runtime verification passed with 180 subjects, 2,718 rules, 11 principals, and 0 failures.
+
 Production reused the exact encrypted archive verified in Gray. Workflow-region dissolve removes only the region document and preserves all internal nodes and their connections.
 
 Records:

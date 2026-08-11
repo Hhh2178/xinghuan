@@ -20,3 +20,9 @@
 - API and worker were active.
 - Internal and public status both returned version `0.8.34`, environment `production`, and permission mode `enforced`.
 - Permission readiness was true: 180 subjects, 2,718 rules, 12 principals, and 0 failures.
+
+## Old-server Gray and Production
+
+- Old-server Gray and Production reused the same encrypted artifact after the new-server rollout completed.
+- Old-server Gray returned `0.8.34 / gray`; API and worker were active, permission mode was `enforced`, and readiness was true with 139 subjects, 1,195 rules, 5 principals, and 0 failures.
+- Old-server Production returned `0.8.34 / production`; API and worker were active, permission mode was `enforced`, and readiness was true with 180 subjects, 2,718 rules, 11 principals, and 0 failures.

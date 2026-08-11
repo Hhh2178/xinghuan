@@ -12,6 +12,7 @@
 
 - New-server Gray: `gray.zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0832-r2`.
 - New-server Production: `zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0831-r1`.
-- Old-server environments remain unchanged by this release.
+- Old-server Gray: `canvas-next.starflow.xin`, version `0.8.34`, release `20260811-provider-media-batch-status-v0834-r1`.
+- Old-server Production: `canvas.starflow.xin`, version `0.8.34`, release `20260811-provider-media-batch-status-v0834-r1`.
 
 Historical release records remain under `docs/logbooks/releases/gray/`, `docs/logbooks/releases/production/`, and `docs/logbooks/validations/`.

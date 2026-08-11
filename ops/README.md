@@ -8,7 +8,7 @@ This directory is the operational entry point for the current deployment. Releas
 - New-server Production: `zezhen.xyz`, `0.8.34`, release `20260811-provider-media-batch-status-v0834-r1`.
 - Both environments reuse encrypted artifact `1a65e0a19829341c73b91ffeeee802c9fc1a1bab1edc124de26ece91abacc601`.
 - The current release keeps workflow-region dissolve non-destructive: only the region is removed; internal nodes, locations, data, and connections remain.
-- Old-server environments are unchanged by this release.
+- Old-server Gray and Production also run the same `0.8.34` release after independent runtime verification.
 
 ## Canonical Entry Points
 
