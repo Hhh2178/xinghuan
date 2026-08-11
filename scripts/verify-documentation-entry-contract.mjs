@@ -20,12 +20,26 @@ assertIncludes(files.agents, "docs/governance/root-entry-responsibility-matrix.m
 assertIncludes(files.agents, "CONTEXT.md", "AGENTS.md must point to domain context");
 assertIncludes(files.agents, "docs/adr/", "AGENTS.md must point to ADR directory");
 
-assertIncludes(files.readme, "docs/INDEX.md", "README.md must point to docs index");
-assertIncludes(files.readme, "docs/logbooks/releases/current-release-index.md", "README.md must point to current release index");
-assertIncludes(files.readme, "ops/current/gray.md", "README.md must point to gray current ops entry");
-assertIncludes(files.readme, "ops/current/production.md", "README.md must point to production current ops entry");
+assertIncludes(files.readme, "## 能力概览", "README.md must describe product capabilities");
+assertIncludes(files.readme, "## 架构总览", "README.md must describe the architecture");
+assertIncludes(files.readme, "## 快速开始", "README.md must include a quick start");
+assertIncludes(files.readme, "## 安全边界", "README.md must document security boundaries");
+assertIncludes(files.readme, "## 开发与贡献", "README.md must document contribution expectations");
 assertIncludes(files.readme, "CONTEXT.md", "README.md must point to domain context");
 assertIncludes(files.readme, "docs/adr/README.md", "README.md must point to ADR index");
+assertIncludes(files.readme, "docs/INDEX.md", "README.md must point to developer documentation");
+
+for (const internalEntry of [
+  "ops/current/gray.md",
+  "ops/current/production.md",
+  "docs/logbooks/releases/current-release-index.md",
+]) {
+  assert.equal(
+    files.readme.includes(internalEntry),
+    false,
+    `README.md must not expose internal operations entry ${internalEntry}`,
+  );
+}
 
 assertIncludes(files.context, "docs/systems/", "CONTEXT.md must route current implementation to system docs");
 assertIncludes(files.context, "docs/adr/", "CONTEXT.md must route architectural decisions to ADRs");
@@ -41,9 +55,6 @@ assertIncludes(files.matrix, "`MEMORY.md`", "root matrix must describe MEMORY.md
 assertIncludes(files.matrix, "`DEVLOG.md`", "root matrix must describe DEVLOG.md");
 assertIncludes(files.matrix, "`ops/README.md`", "root matrix must describe ops README");
 assertIncludes(files.matrix, "`CONTEXT.md`", "root matrix must describe CONTEXT.md");
-
-const readmeCurrentStateHeadings = countMatches(files.readme, /^## 当前状态摘要$/gm);
-assert.equal(readmeCurrentStateHeadings, 1, "README.md must contain exactly one current-state summary heading");
 
 for (const forbiddenHeading of ["## 当前定位", "## 2026-07-03 状态更新"]) {
   assert.equal(
@@ -61,8 +72,4 @@ async function read(path) {
 
 function assertIncludes(source, needle, message) {
   assert.equal(source.includes(needle), true, message);
-}
-
-function countMatches(source, pattern) {
-  return [...source.matchAll(pattern)].length;
 }
