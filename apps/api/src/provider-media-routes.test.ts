@@ -24,7 +24,7 @@ describe('provider media route', () => {
       resolveGenerationArtifactContent: async () => null,
     });
     const token = signProviderMediaClaim({ version: 1, scope: 'gray', actorId: 'user-1', sourceType: 'user-file', sourceId: 'input/source.png', expiresAt: Date.now() + 10_000 }, secret);
-    const result = await handler({ request: { method: 'GET', headers: {} } as any, response: response(), url: new URL(`http://localhost/api/provider-media/${encodeURIComponent(token)}`) });
+    const result = await handler({ request: { method: 'GET', headers: {} } as any, response: response(), url: new URL(`http://localhost/api/provider-media/gray/${encodeURIComponent(token)}`) });
     expect(result).toBe(true);
     expect(served).toEqual(['/data/user-1/input/source.png']);
   });
@@ -41,7 +41,22 @@ describe('provider media route', () => {
     });
     const token = signProviderMediaClaim({ version: 1, scope: 'gray', actorId: 'user-1', sourceType: 'shared-resource', sourceId: 'resource-1', expiresAt: 1_999 }, secret);
     const res = response();
-    await handler({ request: { method: 'GET', headers: {} } as any, response: res, url: new URL(`http://localhost/api/provider-media/${encodeURIComponent(token)}`) });
+    await handler({ request: { method: 'GET', headers: {} } as any, response: res, url: new URL(`http://localhost/api/provider-media/gray/${encodeURIComponent(token)}`) });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('rejects a token routed to the wrong environment scope', async () => {
+    const handler = createProviderMediaRouteHandler({
+      scope: 'gray',
+      secretKey: () => secret,
+      userDataDirsForId: () => ({ inputDir: '/data/input', outputDir: '/data/output' }),
+      sendStaticFile: async () => { throw new Error('should not read'); },
+      resolveSharedResourceContent: async () => null,
+      resolveGenerationArtifactContent: async () => null,
+    });
+    const token = signProviderMediaClaim({ version: 1, scope: 'gray', actorId: 'user-1', sourceType: 'user-file', sourceId: 'input/source.png', expiresAt: Date.now() + 10_000 }, secret);
+    const res = response();
+    await handler({ request: { method: 'GET', headers: {} } as any, response: res, url: new URL(`http://localhost/api/provider-media/production/${encodeURIComponent(token)}`) });
     expect(res.statusCode).toBe(403);
   });
 });

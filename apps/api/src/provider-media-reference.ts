@@ -102,7 +102,10 @@ function signReference(input: {
     expiresAt: input.now() + input.ttlMs,
   };
   const token = deps.signClaim(claim);
-  return new URL(`/api/provider-media/${encodeURIComponent(token)}`, normalizeOrigin(input.input.publicOrigin)).toString();
+  return new URL(
+    `/api/provider-media/${environment}/${encodeURIComponent(token)}`,
+    normalizeOrigin(input.input.publicOrigin),
+  ).toString();
 }
 
 function normalizeOrigin(value: string) {

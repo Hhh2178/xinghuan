@@ -24,16 +24,19 @@ export function createProviderMediaRouteHandler(deps: {
     response: import('node:http').ServerResponse;
     url: URL;
   }) {
-    const match = url.pathname.match(/^\/api\/provider-media\/([^/]+)$/);
+    const match = url.pathname.match(/^\/api\/provider-media\/(local|gray|production)\/([^/]+)$/);
     if (!match || request.method !== 'GET') return false;
+    const pathScope = match[1] as ProviderMediaScope;
     let token = '';
     try {
-      token = decodeURIComponent(match[1]);
+      token = decodeURIComponent(match[2]);
     } catch {
       return fail(response, 403, 'PROVIDER_MEDIA_TOKEN_INVALID');
     }
     const claim = verifyProviderMediaToken(token, deps.secretKey(), now());
-    if (!claim || claim.scope !== deps.scope) return fail(response, 403, 'PROVIDER_MEDIA_TOKEN_INVALID');
+    if (!claim || pathScope !== deps.scope || claim.scope !== pathScope) {
+      return fail(response, 403, 'PROVIDER_MEDIA_TOKEN_INVALID');
+    }
 
     const file = await resolveClaim(claim.sourceType, claim.sourceId, claim.actorId);
     if (!file) return fail(response, 404, 'PROVIDER_MEDIA_SOURCE_NOT_FOUND');
