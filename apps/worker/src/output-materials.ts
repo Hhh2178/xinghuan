@@ -5,6 +5,7 @@ import {
   buildGenerationArtifactDedupeKey,
   buildGenerationExecutionProvenance,
   buildTaskGenerationArtifactId,
+  generationArtifactTtlMsForDays,
   generationArtifactStorageKey,
   resolvePostgresPoolConfig,
   type GenerationArtifact,
@@ -38,6 +39,7 @@ interface MaterializeTaskOutputsArgs {
   dataDir: string;
   task: MaterializeTask;
   result: Record<string, unknown>;
+  outputRetentionDays?: number;
 }
 
 interface SavedOutput {
@@ -94,7 +96,7 @@ export function inheritOutputFetchContext<T extends object>(
   return result;
 }
 
-export async function materializeTaskOutputs({ dataDir, task, result }: MaterializeTaskOutputsArgs) {
+export async function materializeTaskOutputs({ dataDir, task, result, outputRetentionDays }: MaterializeTaskOutputsArgs) {
   if (!safeText(task.ownerId)) throw new Error("任务缺少 ownerId，无法写入输出素材");
 
   const imageUrls = readStringList(result.imageUrls);
@@ -118,6 +120,9 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
   const dirs = userDataDirs(dataDir, task.ownerId);
   await ensureUserDataDirs(dirs);
   const createdAt = Date.now();
+  const artifactTtlMs = outputRetentionDays === undefined
+    ? GENERATION_ARTIFACT_TTL_MS
+    : generationArtifactTtlMsForDays(outputRetentionDays);
   const artifacts: GenerationArtifact[] = [];
 
   for (const [index, sourceUrl] of imageUrls.entries()) {
@@ -128,7 +133,7 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       index,
       outputFetchHeadersForUrl(result, sourceUrl),
     );
-    artifacts.push(buildTaskArtifact(task, saved, "image", index, createdAt, buildResourceTitle(task.title, index, imageUrls.length)));
+    artifacts.push(buildTaskArtifact(task, saved, "image", index, createdAt, artifactTtlMs, buildResourceTitle(task.title, index, imageUrls.length)));
   }
 
   for (const [index, sourceUrl] of videoUrls.entries()) {
@@ -145,6 +150,7 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       "video",
       index,
       createdAt,
+      artifactTtlMs,
       buildResourceTitle(task.title, imageUrls.length + index, imageUrls.length + videoUrls.length),
     ));
   }
@@ -163,6 +169,7 @@ export async function materializeTaskOutputs({ dataDir, task, result }: Material
       "audio",
       index,
       createdAt,
+      artifactTtlMs,
       buildResourceTitle(task.title, imageUrls.length + videoUrls.length + index, imageUrls.length + videoUrls.length + audioUrls.length),
     ));
   }
@@ -264,6 +271,7 @@ function buildTaskArtifact(
   kind: GenerationArtifactKind,
   index: number,
   createdAt: number,
+  artifactTtlMs: number,
   title: string,
 ): GenerationArtifact {
   return {
@@ -279,7 +287,7 @@ function buildTaskArtifact(
     size: saved.size,
     createdAt,
     updatedAt: createdAt,
-    expiresAt: createdAt + GENERATION_ARTIFACT_TTL_MS,
+    expiresAt: createdAt + artifactTtlMs,
     sourceNodeId: safeText(task.payload.sourceNodeId),
     sourceCanvasId: safeText(task.payload.sourceCanvasId),
     taskId: task.id,

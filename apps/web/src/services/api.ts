@@ -14,9 +14,9 @@ import type {
 import type { ThemeTemplate } from '../theme/types';
 import type { MediaKind } from '../utils/mediaCollection';
 import type { AuthUser, EffectivePermissions } from './auth-api-types';
-import type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
+import type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind, GenerationLibrarySettings } from './generation-library-api-types';
 export type { AuthUser, EffectivePermissions } from './auth-api-types';
-export type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind } from './generation-library-api-types';
+export type { AddGenerationLibraryItemPayload, GenerationLibraryItem, GenerationLibraryKind, GenerationLibrarySettings } from './generation-library-api-types';
 export {
   chatWithAssistant,
   getAssistantSettings,
@@ -813,6 +813,10 @@ export function deleteGenerationLibraryItem(id: string) {
   return safeRequest<void>(`${BASE}/generation-library/items/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+export function getGenerationLibrarySettings() {
+  return safeRequest<GenerationLibrarySettings>(`${BASE}/generation-library/settings`);
 }
 
 export function promoteGenerationLibraryItem(id: string) {

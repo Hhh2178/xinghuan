@@ -50,6 +50,10 @@
 
 ## Verification
 
+### 2026-08-11 Amendment: configurable retention window
+
+The three-day value remains the product fallback, not a deployment-wide constant. The authoritative runtime value is `materialLifecycle.outputRetentionDays` in system settings. Worker registration, legacy API registration, Canvas display, and reconciliation packaging must consume or preserve that authority consistently. Existing artifact expiry timestamps remain immutable unless an explicit migration/backfill operation is recorded.
+
 - 契约测试覆盖 owner 隔离、服务端登记幂等、GET 无写副作用和状态机合法迁移。
 - 并发测试证明同一用户多产物登记不丢失，重复回调不产生重复记录。
 - 迁移演练核对每个用户的 JSON 条目数、数据库条目数、文件存在性和异常清单。

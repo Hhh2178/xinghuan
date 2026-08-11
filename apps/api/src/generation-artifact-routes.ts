@@ -21,10 +21,16 @@ export async function handleGenerationArtifactRoutes(deps: {
     buildGenerationLibraryAccessDescriptor: (input: { request: IncomingMessage; item: any }) => object;
   };
   readJsonBody: <T = Record<string, unknown>>(request: IncomingMessage) => Promise<T>;
+  readOutputRetentionDays: () => Promise<number>;
   sendT8: (response: ServerResponse, data: unknown) => void;
   toHttpError: (error: GenerationArtifactLifecycleError) => Error;
 }) {
   const { request, response, url, ownerId, lifecycle } = deps;
+
+  if (url.pathname === "/api/generation-library/settings" && request.method === "GET") {
+    deps.sendT8(response, { outputRetentionDays: await deps.readOutputRetentionDays() });
+    return true;
+  }
 
   const contentMatch = url.pathname.match(/^\/api\/materials\/generation-library\/([^/]+)\/content$/);
   if (contentMatch && request.method === "GET") {

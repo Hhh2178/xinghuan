@@ -31,6 +31,11 @@
 
 ## 生命周期与运维
 
+- Generation Artifact 的产品默认保留期仍为 3 天，但运行时权威值来自 `xh_system_settings.task_queue_settings.materialLifecycle.outputRetentionDays`；不同环境可以独立配置。
+- Worker 在领取任务时读取当前设置，并把该次任务使用的保留天数传入输出物料化；新产物的 `expires_at` 由 `created_at + configured days` 计算。Admin 修改设置只影响后续登记，不静默改写已经冻结的历史产物。
+- `GET /api/generation-library/settings` 向已登录 Canvas 返回同一权威值。生成库抽屉只在打开时读取一次设置，不把配置读取加入 5 秒素材轮询。
+- sealed server release 必须包含 `scripts/reconcile-generation-artifacts.mjs`；`verify:release-package-contract` 同时检查源码白名单和真实归档，避免 systemd timer 指向不存在的脚本。
+
 - 状态：`active`、`promoted`、`expired`、`missing`、`deleted`。
 - 默认三天期限写入 `expires_at`。
 - `npm run generation-artifacts:migrate:dry-run`：扫描历史 JSON，不写数据库。

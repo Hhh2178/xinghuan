@@ -1,4 +1,13 @@
-export const GENERATION_ARTIFACT_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+import {
+  MATERIAL_RETENTION_DEFAULT_DAYS,
+  clampMaterialRetentionDays,
+} from "./task-queue-settings.js";
+
+export const GENERATION_ARTIFACT_TTL_MS = MATERIAL_RETENTION_DEFAULT_DAYS * 24 * 60 * 60 * 1000;
+
+export function generationArtifactTtlMsForDays(value: unknown) {
+  return clampMaterialRetentionDays(value) * 24 * 60 * 60 * 1000;
+}
 
 export type GenerationArtifactKind = "image" | "video" | "audio";
 
@@ -92,4 +101,3 @@ function safeIdPart(value: unknown) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 96) || "task";
 }
-

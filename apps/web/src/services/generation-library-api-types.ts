@@ -1,5 +1,9 @@
 export type GenerationLibraryKind = 'image' | 'video' | 'audio';
 
+export interface GenerationLibrarySettings {
+  outputRetentionDays: number;
+}
+
 export interface GenerationLibraryItem {
   id: string;
   kind: GenerationLibraryKind;

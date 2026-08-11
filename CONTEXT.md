@@ -41,6 +41,8 @@
 
 ### Generation Library（生成库）
 
+生成库的产品回退可见期为三天，但环境可以通过系统运行参数 `materialLifecycle.outputRetentionDays` 独立配置。产物登记时冻结 `expiresAt`；前端展示读取服务端权威参数，不得把某个环境的天数写死在组件中。
+
 按当前用户展示 Generation Artifact 的短期视图。生成库不是画布节点扫描结果，也不是浏览器本地缓存；读取动作不得隐式承担登记、修复或删除职责。
 
 ### Resource Asset（资源素材）

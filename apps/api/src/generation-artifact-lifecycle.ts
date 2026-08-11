@@ -1,5 +1,9 @@
 import type { GenerationArtifactKind, RegisterGenerationArtifactInput } from "@xinghuan/shared";
-import { generationArtifactStorageKey, normalizeGenerationArtifactKind } from "@xinghuan/shared";
+import {
+  generationArtifactStorageKey,
+  generationArtifactTtlMsForDays,
+  normalizeGenerationArtifactKind,
+} from "@xinghuan/shared";
 import type { ArtifactStore } from "./artifact-store.js";
 
 export class GenerationArtifactLifecycleError extends Error {
@@ -18,6 +22,7 @@ export function createGenerationArtifactLifecycle(deps: {
   };
   artifactStore: ArtifactStore;
   createId: () => string;
+  readOutputRetentionDays?: () => Promise<number> | number;
   now?: () => number;
 }) {
   const now = deps.now ?? (() => Date.now());
@@ -33,6 +38,8 @@ export function createGenerationArtifactLifecycle(deps: {
     if (!fileUrl.startsWith("/files/output/") && !fileUrl.startsWith("/output/")) {
       throw new GenerationArtifactLifecycleError(400, "GENERATION_ARTIFACT_LOCAL_OUTPUT_REQUIRED");
     }
+    const createdAt = now();
+    const retentionDays = await deps.readOutputRetentionDays?.();
     return deps.repository.registerOwned(ownerId, {
       id: deps.createId(),
       kind,
@@ -42,6 +49,8 @@ export function createGenerationArtifactLifecycle(deps: {
       sourceUrl: text(payload.sourceUrl || payload.url, fileUrl),
       mime: text(payload.mime),
       size: Number(payload.size) || 0,
+      createdAt,
+      expiresAt: createdAt + generationArtifactTtlMsForDays(retentionDays),
       sourceNodeId: text(payload.sourceNodeId),
       sourceCanvasId: text(payload.sourceCanvasId),
       taskId: text(payload.taskId),

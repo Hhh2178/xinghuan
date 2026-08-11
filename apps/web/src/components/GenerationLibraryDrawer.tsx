@@ -45,6 +45,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   const [kind, setKind] = useState<GenerationLibraryKind>('image');
   const [q, setQ] = useState('');
   const [items, setItems] = useState<GenerationLibraryItem[]>([]);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -62,6 +63,14 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
     }
     if (!silent) setLoading(false);
   }, [kind, open, q]);
+
+  useEffect(() => {
+    if (!open) return;
+    void api.getGenerationLibrarySettings().then((res) => {
+      const settings = resultData<api.GenerationLibrarySettings>(res);
+      if (settings?.outputRetentionDays) setRetentionDays(settings.outputRetentionDays);
+    });
+  }, [open]);
 
   useEffect(() => {
     void load();
@@ -85,6 +94,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
   const activeMeta = KIND_META[kind];
   const ActiveIcon = activeMeta.icon;
   const totalText = useMemo(() => `${items.length} 个临时素材`, [items.length]);
+  const retentionText = retentionDays ? `最多保留 ${retentionDays} 天` : '正在读取保留时效';
   const previewableItems = useMemo(
     () => items.filter((item) => item.kind === 'image' || item.kind === 'video'),
     [items],
@@ -176,7 +186,7 @@ export default function GenerationLibraryDrawer({ open, onClose, onInsertMateria
           <Sparkles size={18} style={{ color: activeMeta.accent }} />
           <div className="min-w-0">
             <div className="text-sm font-semibold leading-none">生成库</div>
-            <div className={`text-[11px] mt-1 ${subtle}`}>{totalText} · 最多保留 3 天</div>
+            <div className={`text-[11px] mt-1 ${subtle}`}>{totalText} · {retentionText}</div>
           </div>
         </div>
         <button onClick={onClose} className={isPixel ? 't8-mini-icon-button px-btn px-btn--icon px-btn--ghost' : `t8-mini-icon-button h-9 w-9 p-0 rounded-md ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="关闭">

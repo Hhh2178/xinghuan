@@ -579,7 +579,7 @@ async function processTask(taskId: string) {
         materializationStatus: "downloading",
         queueHint: "服务商已返回，正在稳定拉取并保存生成产物",
       }),
-      execute: () => materializeTaskOutputs({ dataDir, task, result }),
+      execute: () => materializeTaskOutputs({ dataDir, task, result, outputRetentionDays: taskQueueSettings.materialLifecycle?.outputRetentionDays }),
     });
     await markTaskArtifactsReady({ taskId, workerId, capability: task.capability, artifactCount: materialized.artifacts.length, appendTaskRuntimeEventBestEffort });
     const completionLogs = materialized.artifacts.length > 0

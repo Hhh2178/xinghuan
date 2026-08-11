@@ -17,6 +17,7 @@ import {
   type EnvironmentSyncPreviewResponse,
   type EnvironmentSyncTarget,
   defaultTaskQueueSettings,
+  MATERIAL_RETENTION_DEFAULT_DAYS,
   normalizeTaskQueueSettings,
   normalizeWorkflowDocuments,
   normalizeAdministratorTier,
@@ -1505,6 +1506,7 @@ const generationArtifactLifecycle = createGenerationArtifactLifecycle({
   repository: generationArtifactRepository,
   artifactStore: createLocalArtifactStore({ outputDir: (ownerId) => userDataDirsForId(ownerId).outputDir }),
   createId: () => `gen-${Date.now()}-${randomBytes(5).toString("hex")}`,
+  readOutputRetentionDays,
 });
 
 const handleProviderMediaRoute = createProviderMediaRouteHandler({
@@ -1853,6 +1855,7 @@ const server = createServer(async (request, response) => {
       lifecycle: generationArtifactLifecycle,
       materialAccessService,
       readJsonBody,
+      readOutputRetentionDays,
       sendT8,
       toHttpError: (error) => new HttpError(error.statusCode, error.message),
     })) {
@@ -5541,6 +5544,8 @@ async function readAssistantSettingsRecord(): Promise<AssistantSettingsRecord> {
 async function readTaskQueueSettingsRecord(): Promise<SystemSettingsRecord> {
   return settingsRepository.readTaskQueueSettingsRecord();
 }
+
+const readOutputRetentionDays = async () => (await readTaskQueueSettingsRecord()).taskQueueSettings.materialLifecycle?.outputRetentionDays ?? MATERIAL_RETENTION_DEFAULT_DAYS;
 
 async function writeTaskQueueSettingsRecord(taskQueueSettings: TaskQueueSettings, expectedRevision?: number): Promise<SystemSettingsRecord> {
   return settingsRepository.writeTaskQueueSettingsRecord(taskQueueSettings, expectedRevision);

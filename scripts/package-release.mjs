@@ -23,6 +23,7 @@ export const runtimeFiles = [
   "package-lock.json",
   "scripts/start-single-port.mjs",
   "scripts/db-migrate.mjs",
+  "scripts/reconcile-generation-artifacts.mjs",
   "apps/api/db",
   "apps/web/dist",
   "apps/admin/dist",

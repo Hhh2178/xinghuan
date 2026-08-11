@@ -26,6 +26,18 @@ const task = (id: string) => ({
 describe("output material provenance", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("uses the configured retention window for newly materialized artifacts", async () => {
+    const materialized = await materializeTaskOutputs({
+      dataDir: "test-data",
+      outputRetentionDays: 15,
+      task: task("task-retention"),
+      result: { imageUrls: ["data:image/png;base64,aW1hZ2U="] },
+    });
+
+    expect(materialized.artifacts[0].expiresAt - materialized.artifacts[0].createdAt)
+      .toBe(15 * 24 * 60 * 60 * 1000);
+  });
+
   it("freezes the resolved task prompt into every materialized artifact", async () => {
     const materialized = await materializeTaskOutputs({
       dataDir: "test-data",

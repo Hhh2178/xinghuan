@@ -6,7 +6,7 @@ import { createGenerationArtifactRepository } from "./generation-artifact-reposi
 import { createGenerationArtifactLifecycle } from "./generation-artifact-lifecycle.js";
 import { createLocalArtifactStore } from "./artifact-store.js";
 
-async function createHarness(now = Date.now()) {
+async function createHarness(now = Date.now(), outputRetentionDays = 3) {
   const root = await mkdtemp(join(tmpdir(), "generation-artifact-lifecycle-"));
   const ownerPath = (ownerId: string) => join(root, "users", ownerId, "resources", "generation-library.json");
   const resourcePath = (ownerId: string) => join(root, "users", ownerId, "resources", "resource-library.json");
@@ -23,6 +23,7 @@ async function createHarness(now = Date.now()) {
     repository,
     artifactStore: createLocalArtifactStore({ outputDir }),
     createId: () => `gen-test-${++sequence}`,
+    readOutputRetentionDays: () => outputRetentionDays,
     now: () => now,
   });
   return { root, ownerPath, resourcePath, outputDir, repository, lifecycle, now };
@@ -36,6 +37,13 @@ async function createOutput(harness: Awaited<ReturnType<typeof createHarness>>, 
 }
 
 describe("GenerationArtifactLifecycle file adapter", () => {
+  it("uses the configured retention window for legacy API registration", async () => {
+    const harness = await createHarness(2_000_000, 15);
+    const fileUrl = await createOutput(harness, "owner-retention", "retention.png");
+    const artifact = await harness.lifecycle.registerLegacy("owner-retention", { kind: "image", url: fileUrl });
+    expect(artifact.expiresAt - artifact.createdAt).toBe(15 * 24 * 60 * 60 * 1000);
+  });
+
   it("serializes concurrent writes without losing artifacts and keeps list read-only", async () => {
     const harness = await createHarness();
     const ownerId = "owner-a";
