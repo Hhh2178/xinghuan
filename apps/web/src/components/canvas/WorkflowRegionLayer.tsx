@@ -1,6 +1,6 @@
 import { useCallback, type PointerEvent as ReactPointerEvent } from 'react';
 import { ViewportPortal, useReactFlow, type Node } from '@xyflow/react';
-import { Palette, Workflow } from 'lucide-react';
+import { Palette, Ungroup, Workflow } from 'lucide-react';
 import { assertWorkflowRegionLayout, type WorkflowDocument, type WorkflowRegionVisual } from '@xinghuan/shared';
 
 import { useCanvasWorkflows } from './CanvasWorkflowContext';
@@ -11,7 +11,7 @@ const MIN_WIDTH = 320;
 const MIN_HEIGHT = 220;
 
 export function WorkflowRegionLayer() {
-  const { workflows, setRegion } = useCanvasWorkflows();
+  const { workflows, dissolveWorkflowRegion, setRegion } = useCanvasWorkflows();
   const { getNodes, getZoom, setNodes } = useReactFlow();
 
   const canApply = useCallback((workflowId: string, patch: Partial<WorkflowRegionVisual>) => {
@@ -79,6 +79,11 @@ export function WorkflowRegionLayer() {
     window.addEventListener('pointerup', onUp);
   }, [canApply, getNodes, getZoom, setRegion]);
 
+  const handleDissolve = useCallback((workflow: WorkflowDocument) => {
+    if (!window.confirm(`确定解散「${workflow.name}」吗？区域、变量和绑定会移除，但节点会保留在画布中。`)) return;
+    dissolveWorkflowRegion(workflow.id);
+  }, [dissolveWorkflowRegion]);
+
   return (
     <ViewportPortal>
       {workflows.map((workflow) => {
@@ -133,6 +138,26 @@ export function WorkflowRegionLayer() {
                   style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
                 />
               </label>
+              <button
+                type="button"
+                aria-label="解散工作流区域"
+                title="解散工作流区域（保留节点）"
+                onClick={() => handleDissolve(workflow)}
+                style={{
+                  display: 'grid',
+                  placeItems: 'center',
+                  width: 22,
+                  height: 22,
+                  padding: 0,
+                  border: 0,
+                  borderRadius: 4,
+                  color: textColor,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                <Ungroup size={15} />
+              </button>
             </div>
             <button
               type="button"

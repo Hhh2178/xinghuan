@@ -24,6 +24,7 @@ import {
 } from '@xinghuan/shared';
 
 import {
+  dissolveWorkflowRegion as dissolveWorkflowRegionFromList,
   expandWorkflowRegionToIncludeNodes,
   workflowRegionAroundNodes,
 } from './workflowRegionCreation';
@@ -34,6 +35,7 @@ interface CanvasWorkflowContextValue {
   workflowForNode: (nodeId: string) => WorkflowDocument | undefined;
   assignNode: (nodeId: string, workflowId: string | null) => string | null;
   createWorkflowForNode: (nodeId: string) => string | null;
+  dissolveWorkflowRegion: (workflowId: string) => void;
   addVariable: (workflowId: string, type: WorkflowVariableType, name?: string) => string;
   updateVariable: (workflowId: string, variableId: string, patch: Partial<WorkflowVariableDefinition>) => string | null;
   removeVariable: (workflowId: string, variableId: string) => boolean;
@@ -164,6 +166,10 @@ export function CanvasWorkflowProvider({
     setWorkflows(next);
     return id;
   }, [nodes, setWorkflows, workflows]);
+
+  const dissolveWorkflowRegion = useCallback((workflowId: string) => {
+    setWorkflows((current) => dissolveWorkflowRegionFromList(current, workflowId));
+  }, [setWorkflows]);
 
   const setFieldBinding = useCallback<CanvasWorkflowContextValue['setFieldBinding']>((workflowId, nodeId, fieldPath, fieldType, binding) => {
     setWorkflows((current) => current.map((workflow) => {
@@ -318,6 +324,7 @@ export function CanvasWorkflowProvider({
     workflowForNode,
     assignNode,
     createWorkflowForNode,
+    dissolveWorkflowRegion,
     addVariable,
     updateVariable,
     removeVariable,
@@ -325,7 +332,7 @@ export function CanvasWorkflowProvider({
     setVariableValue,
     setRegion,
     setFieldBinding,
-  }), [addVariable, assignNode, createWorkflowForNode, removeVariable, setFieldBinding, setRegion, setTextSource, setVariableValue, updateVariable, workflowForNode, workflows]);
+  }), [addVariable, assignNode, createWorkflowForNode, dissolveWorkflowRegion, removeVariable, setFieldBinding, setRegion, setTextSource, setVariableValue, updateVariable, workflowForNode, workflows]);
 
   return <CanvasWorkflowContext.Provider value={value}>{children}</CanvasWorkflowContext.Provider>;
 }

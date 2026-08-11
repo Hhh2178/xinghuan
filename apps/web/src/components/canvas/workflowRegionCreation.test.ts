@@ -3,6 +3,7 @@ import type { Node } from '@xyflow/react';
 
 import {
   buildWorkflowRegionFromSelection,
+  dissolveWorkflowRegion,
   expandWorkflowRegionToIncludeNodes,
   workflowRegionAroundNodes,
 } from './workflowRegionCreation';
@@ -44,5 +45,15 @@ describe('workflow region creation', () => {
       height: 224,
       color: '#10B981',
     });
+  });
+
+  it('dissolves only the selected workflow region while preserving other workflows', () => {
+    const workflows = [
+      { schemaVersion: 1 as const, id: 'workflow-a', name: 'A', revision: 3, memberNodeIds: ['node-a'], variables: [], inputValues: {}, bindings: [], stages: [], region: { x: 0, y: 0, width: 640, height: 420, color: '#2F6B5F' } },
+      { schemaVersion: 1 as const, id: 'workflow-b', name: 'B', revision: 2, memberNodeIds: ['node-b'], variables: [], inputValues: {}, bindings: [], stages: [], region: { x: 800, y: 0, width: 640, height: 420, color: '#5B4B8A' } },
+    ];
+
+    expect(dissolveWorkflowRegion(workflows, 'workflow-a')).toEqual([workflows[1]]);
+    expect(dissolveWorkflowRegion(workflows, 'missing')).toBe(workflows);
   });
 });

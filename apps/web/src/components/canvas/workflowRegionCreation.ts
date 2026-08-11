@@ -74,6 +74,11 @@ export function workflowRegionAroundNodes(nodes: readonly Node[], color: string)
   };
 }
 
+export function dissolveWorkflowRegion(workflows: WorkflowDocument[], workflowId: string): WorkflowDocument[] {
+  const next = workflows.filter((workflow) => workflow.id !== workflowId);
+  return next.length === workflows.length ? workflows : next;
+}
+
 export function expandWorkflowRegionToIncludeNodes(
   region: WorkflowRegionVisual,
   nodes: readonly Node[],

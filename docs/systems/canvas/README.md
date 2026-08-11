@@ -13,6 +13,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - 错误边界/崩溃回退样式：`apps/web/src/styles/error-recovery.css`
 - ImageNode 生成结果聚合：`apps/web/src/components/nodes/image-node-runtime.ts`
 - 媒体节点逐批任务状态：`apps/web/src/components/nodes/generationTaskResume.ts`
+- 工作流区域创建与解散：`apps/web/src/components/canvas/workflowRegionCreation.ts`、`apps/web/src/components/canvas/WorkflowRegionLayer.tsx`
 - Canvas shell 层级样式：`apps/web/src/styles/canvas-shell.css`
 - Node chrome 交互样式：`apps/web/src/styles/node-chrome.css`
 
@@ -46,6 +47,7 @@ Canvas 系统负责用户前台画布、节点编排、项目读写、素材连�
 - Workspace/node error boundary 的回退样式已独立到 `error-recovery.css`，由 `index.css` 显式导入并保持窄命名空间
 - ImageNode 的并发 Provider 回传聚合已独立到 `image-node-runtime.ts`，统一处理可读 URL、远端 URL 和恢复 task ID 的去重与主任务选择
 - 图像、视频、音频和 Seedance 的逐批任务状态统一通过 `generationTaskResume.ts` 初始化和增量更新；批次数组必须先同步到运行时 ref，再提交节点数据，保证子任务在 React 下一次渲染前完成时也不会丢失成功/失败状态
+- 工作流区域支持在标题栏解散；解散只移除区域、变量和绑定文档，保留内部节点、节点数据、位置和连线
 - Canvas shell 的背景/边/节点 stacking 契约已独立到 `canvas-shell.css`，其余历史 canvas selectors 暂保持原位以降低级联风险
 - ReactFlow 节点滚动条与 NodeActionBar token 已独立到 `node-chrome.css`，避免节点交互 chrome 继续堆积在全局入口
 - `Canvas.tsx` 已完成第一批真实下沉：
