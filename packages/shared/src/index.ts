@@ -40,6 +40,7 @@ export * from "./node-display-identity.js";
 export * from "./generation-execution-provenance.js";
 export * from "./node-execution-projection.js";
 export * from "./output-archive.js";
+export * from "./image-output-config.js";
 
 import type { ProviderGenerationTaskStatus } from "./provider-generation-task.js";
 

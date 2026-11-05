@@ -1,10 +1,20 @@
+import { validateImageOutputRequest, type ImageOutputConfig } from "./image-output-config.js";
+
 const supportedApimartImageRatios = new Set([
   "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16",
   "2:1", "1:2", "21:9", "9:21", "3:1", "1:3",
 ]);
 
-export function buildApimartImageRequest(base: Record<string, unknown>, payload: Record<string, unknown>) {
+export function buildApimartImageRequest(
+  base: Record<string, unknown>,
+  payload: Record<string, unknown>,
+  imageOutputConfig?: ImageOutputConfig,
+) {
   const body = { ...base };
+  delete body.imageOutputConfig;
+  delete body.imageSizeMode;
+  delete body.imageWidth;
+  delete body.imageHeight;
   const images = Array.isArray(payload.images)
     ? payload.images.filter((item): item is string => typeof item === "string" && item.length > 0)
     : [];
@@ -29,8 +39,19 @@ export function buildApimartImageRequest(base: Record<string, unknown>, payload:
 
   const format = text(body.output_format || "png").toLowerCase();
   body.output_format = format;
+  if (imageOutputConfig) {
+    const validated = validateImageOutputRequest({
+      ...payload,
+      size: payload.size ?? base.size,
+      output_format: format,
+    }, imageOutputConfig);
+    if (validated.size) body.size = validated.size;
+    if (validated.outputFormat) body.output_format = validated.outputFormat;
+    if (validated.frameCount !== undefined) body.frame_count = validated.frameCount;
+    if (validated.frameDurationMs !== undefined) body.frame_duration_ms = validated.frameDurationMs;
+  }
   if (format === "gif") {
-    body.size = text(payload.gif_size) || "512x512";
+    body.size = text(imageOutputConfig ? body.size || payload.gif_size : payload.gif_size) || imageOutputConfig?.gif?.size?.default || "512x512";
     delete body.resolution;
   }
   const hasMarkup = Boolean(body.markup_url || body.markup);
@@ -77,8 +98,12 @@ export function buildApimartImageRequest(base: Record<string, unknown>, payload:
       throw new Error("markup 必须是 HTTPS 图片链接或 Base64 Data URL");
     }
   }
-  if (["gif", "svg"].includes(format) && (images.length || body.mask_url || hasMarkup || body.output_compression !== undefined)) {
-    throw new Error("GIF/SVG 仅支持文生图");
+  const gifReferencesEnabled = imageOutputConfig?.gif?.enabled === true
+    && imageOutputConfig.gif.allowReferenceImages === true;
+  if ((format === "svg" && images.length)
+    || (format === "gif" && images.length && !gifReferencesEnabled)
+    || (["gif", "svg"].includes(format) && (body.mask_url || hasMarkup || body.output_compression !== undefined))) {
+    throw new Error(format === "gif" ? "GIF 不支持蒙版、标注或输出压缩参数" : "SVG 仅支持文生图且不支持蒙版、标注或输出压缩参数");
   }
   if (format === "svg" && (count !== 1 || !text(object(body.svg).model))) {
     throw new Error("SVG 需要文本模型且数量必须为 1");
