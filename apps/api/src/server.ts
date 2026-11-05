@@ -5133,7 +5133,7 @@ async function deleteAuthUserPostgres(userId: string): Promise<{ id: string; ema
       throw new Error("不能删除最后一个管理员");
     }
     await client.query("delete from xh_sessions where user_id = $1", [userId]);
-    await client.query("delete from xh_login_attempts where lower(email) = lower($1)", [target.email]);
+    await client.query("delete from xh_login_attempts where lower(email) = lower($1)", [target.email]); await client.query("delete from xh_permission_rules where principal_type = 'user' and principal_id = $1", [userId]);
     const result = await client.query("delete from xh_users where id = $1", [userId]);
     if ((result.rowCount || 0) < 1) throw new Error("用户不存在");
     await client.query("commit");
