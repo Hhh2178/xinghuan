@@ -9,7 +9,7 @@
 - runtime: API active, worker active, internal and public status `0.8.34 / gray`, permission mode `enforced`
 - readiness: 132 subjects, 1,180 rules, 5 principals, 0 failures
 
-Old-server Gray `canvas-next.starflow.xin` also runs `0.8.34` from the same artifact. Its runtime verification passed with 139 subjects, 1,195 rules, 5 principals, and 0 failures.
+Old-server Gray is decommissioned. `canvas-next.starflow.xin` redirects to Starflow Production; see `starflow-production.md` for the current Starflow runtime.
 
 The release fixes early completion state loss for media batches and supports dissolving workflow regions without changing any internal nodes, node locations, node data, or node-to-node connections.
 

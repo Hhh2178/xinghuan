@@ -2,9 +2,9 @@
 
 ## 当前版本与阶段
 
-- 当前源码候选版本：`v0.9.1`（本地改动已完成，正式部署待执行）；部署后按验收结果更新 `ops/current/release-state.json`。
+- 当前源码版本：`v0.9.1`。Starflow Production 已部署 `20261105-apimart-26-account-delete-v091-r2`；运行态证据见 `ops/current/release-state.json` 与 `ops/current/starflow-production.md`。
 - Starflow Gray 已于 2026-09-29 下线：`/opt/apps/xinghuan-canvas-next`、环境文件和 systemd 单元均不存在；灰度数据库 `xinghuan_canvas_gray` 保留。`canvas-next.starflow.xin` 的 Nginx 配置重定向到正式域名。
-- Starflow Production 部署前状态（2026-11-05）：`0.8.35`，release `20260902-experience-entry-governance-v0835-r1`，API/Worker active，数据库 `xinghuan_canvas_next`。该状态由服务器本机接口、current 指针和数据库目标只读核实。
+- Starflow Production 当前状态（2026-11-05）：`0.9.1`，release `20261105-apimart-26-account-delete-v091-r2`，API/Worker active，数据库 `xinghuan_canvas_next`，权限 readiness 通过。灰度已下线。
 - 当前工作分支：`feature/canvas-agent-runtime`
 - 最新部署：旧/新服务器 Gray 与 Production 均运行 `v0.8.34`。新服务器 Gray 与 Production 使用同一 AES-256-GCM sealed artifact；旧服务器状态以 `ops/current/release-state.json` 为准。
 - 当前验证边界：旧 Gray 只完成一次受控 GRS AI `gpt-image-2` canary；Production 未重复付费生图。新服务器 `.xyz` 域名的公开 DNS、TLS 与 HTTPS status 已通过，旧服务器仍保留流量与回滚职责。

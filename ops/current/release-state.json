@@ -66,32 +66,31 @@
   },
   "targetDeployments": {
     "old-server": {
-      "sourceCommit": "b4f7ac0a5d32dff8072f874b442840b7a8150af1",
-      "releaseId": "20260811-provider-media-batch-status-v0834-r1",
-      "version": "0.8.34",
-      "deployedAt": "2026-08-11",
+      "sourceCommit": "4d6d56caeb76e1c8a957c47e6820329c43b62226",
+      "releaseId": "20261105-apimart-26-account-delete-v091-r2",
+      "version": "0.9.1",
+      "deployedAt": "2026-11-05",
       "gray": {
-        "ready": true,
-        "permissionMode": "enforced",
-        "subjects": 139,
-        "rules": 1195,
-        "principals": 5,
-        "failures": 0
+        "ready": false,
+        "decommissioned": true,
+        "status": "offline"
       },
       "production": {
         "ready": true,
         "permissionMode": "enforced",
-        "subjects": 180,
-        "rules": 2718,
+        "subjects": 192,
+        "rules": 2614,
         "principals": 11,
         "failures": 0,
-        "releaseId": "20260811-provider-media-batch-status-v0834-r1",
-        "sourceCommit": "b4f7ac0a5d32dff8072f874b442840b7a8150af1",
-        "artifactEncryptedSha256": "1a65e0a19829341c73b91ffeeee802c9fc1a1bab1edc124de26ece91abacc601"
+        "releaseId": "20261105-apimart-26-account-delete-v091-r2",
+        "sourceCommit": "4d6d56caeb76e1c8a957c47e6820329c43b62226",
+        "artifactSha256": "59b9210259dc675bf24c08cf9c14947c50b97e6c1b07135bc53ee219287214df",
+        "failureCodes": [],
+        "releaseRecord": "docs/logbooks/releases/production/2026-11-05-apimart-gpt-image-2.6-account-delete-v091-r2.md",
+        "validationRecord": "docs/logbooks/validations/2026-11-05-apimart-gpt-image-2.6-account-delete-v091-r2.md"
       },
       "artifact": {
-        "encryptedSha256": "1a65e0a19829341c73b91ffeeee802c9fc1a1bab1edc124de26ece91abacc601",
-        "plaintextSha256": "e2c4f82873b8615a82a4f0bb34fed6aefbc3ce768a99069209ff07d449857a68"
+        "artifactSha256": "59b9210259dc675bf24c08cf9c14947c50b97e6c1b07135bc53ee219287214df"
       }
     },
     "new-server": {
