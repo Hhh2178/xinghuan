@@ -94,7 +94,22 @@
 - [ ] Freeze the normalized config in the task payload; do not use later catalog edits to reinterpret queued payloads.
 - [ ] Run `npm run type-check -w @xinghuan/api`.
 
-### Task 5: Build model-driven Canvas size and GIF controls
+### Task 5: Apply the task snapshot in Worker request construction
+
+**Files:**
+- Modify: `apps/worker/src/worker-provider-utils.ts`
+- Modify: `apps/worker/src/worker.ts` only if the existing call site does not pass `imageOutputConfig`
+
+**Interfaces:**
+- The Worker reads `imageOutputConfig` from the queued task snapshot and passes it to `buildApimartImageRequest`.
+- `imageOutputConfig` is internal metadata and is excluded from all upstream JSON bodies.
+
+- [ ] Thread the immutable task capability snapshot to the shared APIMart builder without reading the live model catalog.
+- [ ] Preserve up to 16 reference URLs in GIF requests when the task snapshot enables them.
+- [ ] Revalidate exact size and GIF frame settings before dispatch; retain historical task behavior when the snapshot is absent.
+- [ ] Run `npm run type-check -w @xinghuan/worker`.
+
+### Task 6: Build model-driven Canvas size and GIF controls
 
 **Files:**
 - Modify: `apps/web/src/components/nodes/ImageNode.tsx`
@@ -114,7 +129,7 @@
 - [ ] Keep `ImageNode.tsx` under its existing file-hotspot budget by moving validation/display helpers into focused modules.
 - [ ] Run `npm run type-check -w @xinghuan/web`.
 
-### Task 6: Update system docs, version, package, push, and deploy
+### Task 7: Update system docs, version, package, push, and deploy
 
 **Files:**
 - Modify: `docs/systems/providers/request-body-and-file-strategy.md`
