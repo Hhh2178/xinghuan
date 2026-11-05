@@ -210,6 +210,34 @@ export interface PublicModelPricing {
   currency: string;
 }
 
+export interface PublicModelImageExactPixelOptions {
+  step: number;
+  minWidth: number;
+  maxWidth: number;
+  minHeight: number;
+  maxHeight: number;
+  minTotalPixels: number;
+  maxTotalPixels: number;
+  maxAspectRatio: number;
+}
+
+export interface PublicModelImageOutputGifOptions {
+  enabled: boolean;
+  allowReferenceImages: boolean;
+  frameCount: { min: number; max: number; step: number; default: number };
+  frameDurationMs: { min: number; max: number; step: number; default: number };
+  size: { step: number; default: string };
+}
+
+export interface PublicModelImageOutput {
+  size: {
+    allowExactPixels: boolean;
+    exactPixels?: PublicModelImageExactPixelOptions;
+  };
+  staticFormats: Array<'png' | 'jpeg' | 'webp' | 'svg'>;
+  gif?: PublicModelImageOutputGifOptions;
+}
+
 export interface PublicModelUi {
   aspectRatios: string[];
   defaultAspectRatio: string;
@@ -230,6 +258,7 @@ export interface PublicModelUi {
   };
   resolutionOptions: string[];
   defaultResolution: string;
+  imageOutput?: PublicModelImageOutput;
   inputCapabilities: {
     prompt: boolean;
     imageReference: boolean;

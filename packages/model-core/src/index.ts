@@ -71,6 +71,36 @@ export interface ModelAdvancedConfig {
   [key: string]: unknown;
 }
 
+export type ModelImageStaticFormat = "png" | "jpeg" | "webp" | "svg";
+
+export interface ModelImageExactPixelOptions {
+  step: number;
+  minWidth: number;
+  maxWidth: number;
+  minHeight: number;
+  maxHeight: number;
+  minTotalPixels: number;
+  maxTotalPixels: number;
+  maxAspectRatio: number;
+}
+
+export interface ModelImageOutputGifOptions {
+  enabled: boolean;
+  allowReferenceImages: boolean;
+  frameCount: { min: number; max: number; step: number; default: number };
+  frameDurationMs: { min: number; max: number; step: number; default: number };
+  size: { step: number; default: string };
+}
+
+export interface ModelImageOutputCapabilities {
+  size: {
+    allowExactPixels: boolean;
+    exactPixels?: ModelImageExactPixelOptions;
+  };
+  staticFormats: ModelImageStaticFormat[];
+  gif?: ModelImageOutputGifOptions;
+}
+
 export interface ModelParameterSchema {
   prompt?: { type?: string; required?: boolean };
   aspectRatio?: { type?: string; options?: string[]; default?: string };
@@ -90,6 +120,7 @@ export interface ModelParameterSchema {
   resolution?: { type?: string; options?: string[]; default?: string };
   audioFormat?: { type?: string; options?: string[]; default?: string };
   voice?: { type?: string; options?: string[]; default?: string };
+  imageOutput?: unknown;
   [key: string]: unknown;
 }
 
@@ -117,6 +148,7 @@ export interface ModelUiMetadata {
   durationRange?: ModelDurationRange;
   resolutionOptions: string[];
   defaultResolution: string;
+  imageOutput?: ModelImageOutputCapabilities;
   inputCapabilities: {
     prompt: boolean;
     imageReference: boolean;
@@ -170,6 +202,29 @@ export const initialProviderModels: ProviderModelDraft[] = [
 const IMAGE_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
 const OPENAI_IMAGE_SIZES = ["1024x1024", "1536x1024", "1024x1536", "auto"];
 const LEVEL_IMAGE_SIZES = ["1K", "2K", "4K"];
+const APIMART_GPT26_IMAGE_OUTPUT: ModelImageOutputCapabilities = {
+  size: {
+    allowExactPixels: true,
+    exactPixels: {
+      step: 16,
+      minWidth: 16,
+      maxWidth: 3840,
+      minHeight: 16,
+      maxHeight: 3840,
+      minTotalPixels: 655_360,
+      maxTotalPixels: 8_294_400,
+      maxAspectRatio: 3,
+    },
+  },
+  staticFormats: ["png", "jpeg", "webp", "svg"],
+  gif: {
+    enabled: true,
+    allowReferenceImages: true,
+    frameCount: { min: 2, max: 16, step: 1, default: 9 },
+    frameDurationMs: { min: 20, max: 2000, step: 10, default: 200 },
+    size: { step: 16, default: "512x512" },
+  },
+};
 const VIDEO_RATIOS = ["16:9", "9:16", "1:1"];
 const VIDEO_DURATIONS = [4, 6, 8, 10, 15];
 const VIDEO_RESOLUTIONS = ["480p", "720p", "1080p"];
@@ -242,6 +297,7 @@ export function defaultParameterSchemaForModel(
       aspectRatio: { type: "select", options: isApimartGpt26 ? ["1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21", "3:1", "1:3"] : IMAGE_RATIOS, default: "1:1" },
       size: { type: "select", options: sizes, default: sizes[0] || "1024x1024" },
       referenceImages: { type: "image[]", max: isApimartGpt26 ? 16 : lower.includes("gpt-image") ? 9 : 4 },
+      ...(isApimartGpt26 ? { imageOutput: APIMART_GPT26_IMAGE_OUTPUT } : {}),
     };
   }
   if (capability === "video") {
@@ -319,6 +375,7 @@ export function uiMetadataFromSchema(
     ...(durationRange ? { durationRange } : {}),
     resolutionOptions,
     defaultResolution: stringInList(schema.resolution?.default, resolutionOptions, resolutionOptions[0] || ""),
+    ...(capability === "image" ? normalizeModelImageOutput(schema.imageOutput) : {}),
     inputCapabilities: {
       prompt: inputCapabilities.prompt !== false,
       imageReference: Boolean(inputCapabilities.imageReference),
@@ -329,6 +386,122 @@ export function uiMetadataFromSchema(
       lastFrame: Boolean(inputCapabilities.lastFrame),
     },
   };
+}
+
+function normalizeModelImageOutput(value: unknown): Pick<ModelUiMetadata, "imageOutput"> | Record<string, never> {
+  const source = parsePlainObject(value);
+  if (!Object.keys(source).length) return {};
+
+  const sizeSource = parsePlainObject(source.size);
+  const exactPixelsSource = parsePlainObject(sizeSource.exactPixels);
+  const exactPixels = normalizeExactPixelOptions(exactPixelsSource);
+  const staticFormats = normalizeImageStaticFormats(source.staticFormats);
+  const gifSource = parsePlainObject(source.gif);
+  const hasGifConfig = Object.keys(gifSource).length > 0;
+
+  return {
+    imageOutput: {
+      size: {
+        allowExactPixels: sizeSource.allowExactPixels === true && Boolean(exactPixels),
+        ...(exactPixels ? { exactPixels } : {}),
+      },
+      staticFormats,
+      ...(hasGifConfig ? { gif: normalizeImageGifOptions(gifSource) } : {}),
+    },
+  };
+}
+
+function normalizeExactPixelOptions(source: Record<string, unknown>): ModelImageExactPixelOptions | undefined {
+  const step = positiveInteger(source.step);
+  const minWidth = positiveInteger(source.minWidth);
+  const maxWidth = positiveInteger(source.maxWidth);
+  const minHeight = positiveInteger(source.minHeight);
+  const maxHeight = positiveInteger(source.maxHeight);
+  const minTotalPixels = positiveInteger(source.minTotalPixels);
+  const maxTotalPixels = positiveInteger(source.maxTotalPixels);
+  const maxAspectRatio = positiveFiniteNumber(source.maxAspectRatio);
+  if (!step || !minWidth || !maxWidth || !minHeight || !maxHeight
+    || !minTotalPixels || !maxTotalPixels || !maxAspectRatio
+    || minWidth > maxWidth || minHeight > maxHeight || minTotalPixels > maxTotalPixels) {
+    return undefined;
+  }
+  return {
+    step,
+    minWidth,
+    maxWidth,
+    minHeight,
+    maxHeight,
+    minTotalPixels,
+    maxTotalPixels,
+    maxAspectRatio,
+  };
+}
+
+function normalizeImageStaticFormats(value: unknown): ModelImageStaticFormat[] {
+  const supported = new Set<ModelImageStaticFormat>(["png", "jpeg", "webp", "svg"]);
+  if (!Array.isArray(value)) return [];
+  const formats: ModelImageStaticFormat[] = [];
+  for (const item of value) {
+    const format = String(item || "").trim().toLowerCase();
+    if (supported.has(format as ModelImageStaticFormat) && !formats.includes(format as ModelImageStaticFormat)) {
+      formats.push(format as ModelImageStaticFormat);
+    }
+  }
+  return formats;
+}
+
+function normalizeImageGifOptions(source: Record<string, unknown>): ModelImageOutputGifOptions {
+  return {
+    enabled: source.enabled === true,
+    allowReferenceImages: source.allowReferenceImages === true,
+    frameCount: normalizeImageOutputRange(source.frameCount, { min: 2, max: 16, step: 1, default: 9 }, 1),
+    frameDurationMs: normalizeImageOutputRange(source.frameDurationMs, { min: 20, max: 2000, step: 10, default: 200 }, 1),
+    size: normalizeImageGifSize(source.size),
+  };
+}
+
+function normalizeImageOutputRange(
+  value: unknown,
+  fallback: { min: number; max: number; step: number; default: number },
+  minimumValue: number,
+): { min: number; max: number; step: number; default: number } {
+  const source = parsePlainObject(value);
+  let min = positiveInteger(source.min) ?? fallback.min;
+  let max = positiveInteger(source.max) ?? fallback.max;
+  const step = positiveInteger(source.step) ?? fallback.step;
+  if (min < minimumValue) min = minimumValue;
+  if (max < min) max = Math.max(fallback.max, min);
+  const requestedDefault = positiveInteger(source.default) ?? fallback.default;
+  const normalizedDefault = requestedDefault < min || requestedDefault > max || (requestedDefault - min) % step !== 0
+    ? min
+    : requestedDefault;
+  return { min, max, step, default: normalizedDefault };
+}
+
+function normalizeImageGifSize(value: unknown): { step: number; default: string } {
+  const source = parsePlainObject(value);
+  const candidate = String(source.default || "").trim();
+  const step = positiveInteger(source.step) ?? 16;
+  const match = /^(\d+)x(\d+)$/i.exec(candidate);
+  const width = Number(match?.[1]);
+  const height = Number(match?.[2]);
+  const defaultSize = match && width % step === 0 && height % step === 0
+    ? `${width}x${height}`
+    : "512x512";
+  return {
+    step,
+    default: defaultSize,
+  };
+}
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function positiveFiniteNumber(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function parsePlainObject(value: unknown): Record<string, unknown> {
