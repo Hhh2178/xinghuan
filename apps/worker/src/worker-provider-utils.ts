@@ -1,3 +1,5 @@
+import { buildApimartImageRequest } from "@xinghuan/shared";
+
 export function providerHeaders(apiKey: string) {
   return {
     authorization: apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`,
@@ -26,6 +28,8 @@ export function openAiEndpoint(baseUrlValue: unknown, pathname: string) {
 export function openAiImageGenerationUrl(baseUrlValue: unknown) {
   return openAiEndpoint(baseUrlValue, "images/generations");
 }
+
+export { buildApimartImageRequest };
 
 export function extractChatContent(raw: unknown) {
   const row = plainObject(raw);

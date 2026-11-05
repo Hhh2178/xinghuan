@@ -6,14 +6,15 @@
 ## SSH 连接
 
 ```bash
-ssh -i Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38
+$sshKey = (Resolve-Path '..\Server\Tencent_Cloud_Server.pem').Path
+ssh -i $sshKey -p 728 ubuntu@101.33.75.38
 ```
 
 - 服务器：腾讯云 VPS `101.33.75.38`
 - 用户：`ubuntu`（非 root，禁止直接 root 登录）
 - 端口：`728`（非标准 22，已禁用密码认证）
 - 认证：仅公钥认证（`PubkeyAuthentication yes`）
-- 密钥位置：`D:\codex\服务器\Tencent_Cloud_Server.pem`
+- 密钥相对位置（从仓库根目录）：`../Server/Tencent_Cloud_Server.pem`
 
 ### SSH 安全配置
 

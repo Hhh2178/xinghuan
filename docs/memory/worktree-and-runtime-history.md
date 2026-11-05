@@ -97,7 +97,7 @@
     - `expected = xinghuan_canvas_gray`
     - `targetMatched = true`
   - 发布过程额外记忆：
-    - 当前服务器 SSH 仍需显式携带 `-i D:/codex/服务器/Tencent_Cloud_Server.pem`
+    - 当前服务器 SSH 仍需显式携带 key；仓库根目录到 key 的相对位置为 `../Server/Tencent_Cloud_Server.pem`
     - 首次漏带 key 时会直接被 `Permission denied (publickey)` 拒绝
 - `2026-06-18` 当前 gray / production 运行态已切到：
   - gray：

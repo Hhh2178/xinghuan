@@ -26,11 +26,12 @@
 推荐优先走新的半自动化脚本链：
 
 ```powershell
+$sshKey = (Resolve-Path '..\Server\Tencent_Cloud_Server.pem').Path
 npm run release:gray:prepare -- --release=<release-id>
-npm run release:gray:deploy -- --release=<release-id> --archive=dist-release/<release-id>.tar.gz --ssh-key=<path-to-key>
-npm run release:gray:verify -- --ssh-key=<path-to-key> --expected-version=<version> --expected-environment=gray
-npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key>
-npm run release:retention:prune -- --env=gray --ssh-key=<path-to-key> --apply=true --confirm-retention=5
+npm run release:gray:deploy -- --release=<release-id> --archive=dist-release/<release-id>.tar.gz --ssh-key="$sshKey"
+npm run release:gray:verify -- --ssh-key="$sshKey" --expected-version=<version> --expected-environment=gray
+npm run release:retention:prune -- --env=gray --ssh-key="$sshKey"
+npm run release:retention:prune -- --env=gray --ssh-key="$sshKey" --apply=true --confirm-retention=5
 ```
 
 Retention 会从 `ops/current/release-state.json` 读取 Gray `rollbackReleaseId`；dry-run 必须同时将 `current` 与该回滚 Release 标记为 `KEEP`，否则不得执行 apply。

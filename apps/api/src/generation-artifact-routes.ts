@@ -39,6 +39,10 @@ export async function handleGenerationArtifactRoutes(deps: {
       const disposition = url.searchParams.get("disposition") === "attachment" ? "attachment" : "inline";
       response.statusCode = 200;
       response.setHeader("content-type", artifact.mime || "application/octet-stream");
+      if (String(artifact.mime || "").split(";")[0].trim().toLowerCase() === "image/svg+xml") {
+        response.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+        response.setHeader("x-content-type-options", "nosniff");
+      }
       response.setHeader("content-length", String(size));
       response.setHeader("cache-control", "private, max-age=300");
       if (disposition === "attachment") {

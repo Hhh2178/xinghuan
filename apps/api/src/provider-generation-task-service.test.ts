@@ -53,6 +53,14 @@ function createService(options: {
 }
 
 describe("provider generation task payload", () => {
+  it("preserves GPT Image 2.6 GIF settings and pixel size in the queued task", async () => {
+    const { insertedTasks, service } = createService({ protocol: "apimart", modelId: "gpt-image-2.6-flare" });
+    await service.submitProviderGenerationTask({
+      capability: "image", rawBody: { providerId: "p", prompt: "animation", size: "512x512", providerParams: { output_format: "gif", frame_count: 9 } },
+      user: { id: "user-1", role: "admin" }, publicOrigin: "https://canvas.test",
+    });
+    expect(insertedTasks[0]?.payload).toMatchObject({ size: "512x512", output_format: "gif", frame_count: 9 });
+  });
   it("persists the image generationCount instead of legacy n", async () => {
     const { insertedTasks, service } = createService();
 

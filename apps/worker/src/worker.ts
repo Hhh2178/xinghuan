@@ -46,6 +46,7 @@ import {
 import {
   extractChatContent,
   extractImageOutputs,
+  buildApimartImageRequest,
   extractVideoUrls,
   openAiEndpoint,
   openAiImageGenerationUrl,
@@ -792,7 +793,8 @@ async function executeSingleImageTask(task: TaskRow, requestedImageCount: number
   const aspectRatio = safeText(task.payload.aspectRatio || task.payload.aspect_ratio);
   if (aspectRatio) requestBody.aspect_ratio = aspectRatio;
   const isModelScope = isModelScopeImageProvider(protocol, task.providerBaseUrl);
-  applyImageReferencePayload(requestBody, imageUrls, isModelScope);
+  applyImageReferencePayload(requestBody, imageUrls, isModelScope, protocol);
+  if (protocol === "apimart") Object.assign(requestBody, buildApimartImageRequest(requestBody, task.payload));
 
   const upstream = await fetch(openAiImageGenerationUrl(task.providerBaseUrl), {
     method: "POST",
@@ -1692,8 +1694,13 @@ function runningHubRedisWindowKey(providerId: string, keyId: string) {
   return `xinghuan:provider-window:runninghub:${safeText(providerId, "runninghub")}:${safeText(keyId, "default")}`;
 }
 
-function applyImageReferencePayload(requestBody: Record<string, unknown>, imageUrls: string[], isModelScope: boolean) {
+function applyImageReferencePayload(requestBody: Record<string, unknown>, imageUrls: string[], isModelScope: boolean, protocol: string) {
   if (imageUrls.length === 0) return;
+  // APIMart uses this array to select image editing mode.
+  if (protocol === "apimart") {
+    requestBody.image_urls = imageUrls;
+    return;
+  }
   requestBody.image = isModelScope && imageUrls.length === 1 ? imageUrls[0] : imageUrls;
   if (!isModelScope) return;
   requestBody.images = imageUrls;

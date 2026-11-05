@@ -34,7 +34,8 @@
 ## 连接方式
 
 ```bash
-ssh -i D:\codex\服务器\Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38
+$sshKey = (Resolve-Path '..\Server\Tencent_Cloud_Server.pem').Path
+ssh -i $sshKey -p 728 ubuntu@101.33.75.38
 ```
 
 要求：

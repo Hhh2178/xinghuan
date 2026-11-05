@@ -239,6 +239,8 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     : [];
   const externalProviderModel = providerSelection.providerModel || externalModelOptions[0] || '';
   const providerParams = (d?.providerParams && typeof d.providerParams === 'object') ? d.providerParams : {};
+  const isApimartGpt26 = (isBackendSelected && String(backendModel?.protocol) === 'apimart' || isExternalSelected && String(providerSelection.provider?.protocol) === 'apimart')
+    && /^gpt-image-2\.6-(flare|sunburst)$/i.test(String(isBackendSelected ? backendModel?.modelId : externalProviderModel));
   const isModelScopeExternal = isExternalSelected && providerSelection.provider?.protocol === 'modelscope';
   const isComfyExternal = isExternalSelected && providerSelection.provider?.protocol === 'comfyui';
   const comfyWorkflow = isComfyExternal
@@ -375,7 +377,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   const MJ_REF_MAX = 2; // sref 与 oref 各最多 2 张
 
   // 参考图上限(FAL 使用 FAL_REGISTRY.maxRefs,其他走原设计)
-  const maxRefs = isBackendSelected && backendUi
+  const maxRefs = isApimartGpt26
+    ? 16
+    : isBackendSelected && backendUi
     ? backendUi.maxReferenceImages
     : isExternalSelected ? Math.max(8, modelDef.maxReferenceImages || 0) : (falDef?.maxRefs ?? modelDef.maxReferenceImages);
   const status: 'idle' | 'generating' | 'polling' | 'success' | 'error' = d?.status || 'idle';
@@ -853,9 +857,11 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         const backendSizeValue = backendImageShowsSizeControl
           ? sizeLevel
           : (backendAutoSize || sizeLevel || backendModel.ui.defaultSize);
-        const size = String(backendSizeValue || '').includes('x') || backendSizeValue === 'auto'
-          ? String(backendSizeValue || backendModel.ui.defaultSize || '1024x1024')
-          : externalImageSizeFor(aspectRatio, backendSizeValue);
+        const size = isApimartGpt26
+          ? aspectRatio
+          : String(backendSizeValue || '').includes('x') || backendSizeValue === 'auto'
+            ? String(backendSizeValue || backendModel.ui.defaultSize || '1024x1024')
+            : externalImageSizeFor(aspectRatio, backendSizeValue);
         logBus.info(
           `${batchLabel} 后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
           src,
@@ -902,9 +908,11 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
         const imageSizeToken = localImageShowsSizeControl
           ? sizeLevel
           : (localAutoSize || sizeLevel || modelDef.defaultSize);
-        let size = String(imageSizeToken || '').includes('x') || imageSizeToken === 'auto'
-          ? String(imageSizeToken || '1024x1024')
-          : externalImageSizeFor(aspectRatio, imageSizeToken);
+        let size = isApimartGpt26
+          ? aspectRatio
+          : String(imageSizeToken || '').includes('x') || imageSizeToken === 'auto'
+            ? String(imageSizeToken || '1024x1024')
+            : externalImageSizeFor(aspectRatio, imageSizeToken);
         if (isComfyExternal && comfyWorkflow) {
           const width = comfyNumberForSource('width', 1024);
           const height = comfyNumberForSource('height', 1024);
@@ -1479,9 +1487,78 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 )}
               </div>
             )}
+
           </div>
         )}
 
+        {isApimartGpt26 && (
+          <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
+            <div className="text-[10px] font-semibold text-cyan-100">APIMart GPT-Image-2.6 参数</div>
+            <div className="grid grid-cols-2 gap-2">
+                <label className="text-[10px] text-white/60">输出格式
+                  <select value={String(providerParams.output_format || 'png')} onChange={(e) => update({ providerParams: { ...providerParams, output_format: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['png', 'jpeg', 'webp', 'gif', 'svg'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-white/60">质量
+                  <select value={String(providerParams.quality || 'auto')} onChange={(e) => update({ providerParams: { ...providerParams, quality: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['auto', 'low', 'medium', 'high', 'xhigh', 'max'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-white/60">分辨率
+                  <select value={String(providerParams.resolution || '1k')} onChange={(e) => update({ providerParams: { ...providerParams, resolution: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['1k', '2k', '4k'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-white/60">背景
+                  <select value={String(providerParams.background || 'auto')} onChange={(e) => update({ providerParams: { ...providerParams, background: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['auto', 'opaque', 'transparent'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-white/60">审核强度
+                  <select value={String(providerParams.moderation || 'low')} onChange={(e) => update({ providerParams: { ...providerParams, moderation: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['low', 'auto'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-white/60">规划强度
+                  <select value={String(providerParams.complexity || 'high')} onChange={(e) => update({ providerParams: { ...providerParams, complexity: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                    {['low', 'medium', 'high'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </label>
+                {['jpeg', 'webp'].includes(String(providerParams.output_format || 'png')) && <label className="text-[10px] text-white/60">压缩质量（0–100，可选）
+                  <input type="number" min={0} max={100} value={providerParams.output_compression ?? ''} onChange={(e) => update({ providerParams: { ...providerParams, output_compression: e.target.value === '' ? undefined : Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                </label>}
+                <label className="col-span-2 text-[10px] text-white/60">蒙版 URL（可选，需参考图）
+                  <input value={String(providerParams.mask_url || '')} onChange={(e) => update({ providerParams: { ...providerParams, mask_url: e.target.value || undefined, ...(e.target.value ? { markup_url: undefined, markup: undefined } : {}) } })} placeholder="HTTPS 图片链接或 PNG Data URL" className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                </label>
+                <label className="col-span-2 text-[10px] text-white/60">标注图层 URL（可选，需参考图）
+                  <input value={String(providerParams.markup_url || '')} onChange={(e) => update({ providerParams: { ...providerParams, markup_url: e.target.value || undefined, ...(e.target.value ? { mask_url: undefined, markup: undefined } : {}) } })} placeholder="透明 PNG 图层链接或 Data URL" className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                </label>
+                {providerParams.output_format === 'gif' && <>
+                  <label className="text-[10px] text-white/60">帧数
+                    <input type="number" min={2} max={16} value={Number(providerParams.frame_count || 9)} onChange={(e) => update({ providerParams: { ...providerParams, frame_count: Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                  </label>
+                  <label className="text-[10px] text-white/60">单帧时长（毫秒）
+                    <input type="number" min={20} step={10} value={Number(providerParams.frame_duration_ms || 200)} onChange={(e) => update({ providerParams: { ...providerParams, frame_duration_ms: Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                  </label>
+                  <label className="text-[10px] text-white/60">单帧尺寸（像素）
+                    <input value={String(providerParams.gif_size || '512x512')} onChange={(e) => update({ providerParams: { ...providerParams, gif_size: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                  </label>
+                </>}
+                {providerParams.output_format === 'svg' && <>
+                  <label className="col-span-2 text-[10px] text-white/60">SVG 文本模型
+                    <input value={String(providerParams.svg?.model || '')} placeholder="gpt-5.4-mini" onChange={(e) => update({ providerParams: { ...providerParams, svg: { ...(providerParams.svg || {}), model: e.target.value } } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
+                  </label>
+                  <label className="col-span-2 text-[10px] text-white/60">SVG 推理强度（可选）
+                    <select value={String(providerParams.svg?.reasoning?.effort || '')} onChange={(e) => update({ providerParams: { ...providerParams, svg: { ...(providerParams.svg || {}), reasoning: { ...(providerParams.svg?.reasoning || {}), effort: e.target.value || undefined } } } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
+                      <option value="">使用模型默认值</option>
+                      {['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map((value) => <option key={value}>{value}</option>)}
+                    </select>
+                  </label>
+                </>}
+            </div>
+          </div>
+        )}
         {!isBackendSelected && imageAdvancedProviders.length > 0 && (
           <div className="rounded border border-white/10 bg-white/[0.03] p-2 space-y-2">
             <button

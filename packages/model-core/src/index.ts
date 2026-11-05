@@ -235,12 +235,13 @@ export function defaultParameterSchemaForModel(
 ): ModelParameterSchema {
   if (capability === "image") {
     const lower = modelId.toLowerCase();
+    const isApimartGpt26 = protocol === "apimart" && /^gpt-image-2\.6-(flare|sunburst)$/.test(lower);
     const sizes = protocol === "openai" || lower.includes("gpt-image") ? OPENAI_IMAGE_SIZES : LEVEL_IMAGE_SIZES;
     return {
       prompt: { type: "string", required: true },
-      aspectRatio: { type: "select", options: IMAGE_RATIOS, default: "1:1" },
+      aspectRatio: { type: "select", options: isApimartGpt26 ? ["1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21", "3:1", "1:3"] : IMAGE_RATIOS, default: "1:1" },
       size: { type: "select", options: sizes, default: sizes[0] || "1024x1024" },
-      referenceImages: { type: "image[]", max: lower.includes("gpt-image") ? 9 : 4 },
+      referenceImages: { type: "image[]", max: isApimartGpt26 ? 16 : lower.includes("gpt-image") ? 9 : 4 },
     };
   }
   if (capability === "video") {

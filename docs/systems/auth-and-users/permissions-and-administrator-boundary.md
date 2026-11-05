@@ -51,3 +51,9 @@
 ## Ownership
 
 账号换组只改变权限主体，不改变画布、个人资源或任务的 `owner_id`。换组验收必须比较前后画布 ID 集合，而不只比较数量。
+
+## 账号删除与 Agent 知识快照
+
+- 删除用户会级联删除其 Agent Runs 与专属 Knowledge Snapshots；快照直接更新/删除仍由数据库触发器禁止。
+- Knowledge Snapshot 到 Agent Run 的外键在事务提交时检查，保证级联顺序不影响删除；若另一个仍存续的 Run 引用该快照，事务失败并整体回滚。
+- 数据库迁移：`apps/api/db/050_snapshot_account_deletion.sql`。

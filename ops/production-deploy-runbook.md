@@ -54,7 +54,8 @@ ops/production-preflight-2026-06-06.md
 1. 登录服务器：
 
 ```powershell
-ssh -i D:\codex\服务器\Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38
+$sshKey = (Resolve-Path '..\Server\Tencent_Cloud_Server.pem').Path
+ssh -i $sshKey -p 728 ubuntu@101.33.75.38
 ```
 
 2. 创建生产目录。只创建目录，不删除灰度或旧目录：

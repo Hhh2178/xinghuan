@@ -32,6 +32,7 @@ export * from "./administrator-tier.js";
 export * from "./agent-runtime-gates.js";
 export * from "./canvas-node-permission-catalog.js";
 export * from "./generation-artifact.js";
+export * from "./apimart-image-request.js";
 export * from "./text-split.js";
 export * from "./channel-health.js";
 export * from "./canvas-run-diagnostic.js";

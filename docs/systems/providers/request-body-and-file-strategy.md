@@ -7,6 +7,14 @@
 - 文件字段注入
 - 派生字段模板
 
+## APIMart GPT Image 2.6
+
+- `gpt-image-2.6-flare` 与 `gpt-image-2.6-sunburst` 使用异步 `/v1/images/generations`，参考图字段为 `image_urls` 数组；本地输入会由 API 转为限时签名 URL。
+- API 入队前按文档校验 prompt、参考图数量、比例/像素尺寸、质量、格式及参数组合；非法输入同步返回 HTTP 400，不创建后台任务。Worker 使用同一共享请求构造器复核并发送字段。
+- 请求保留 `resolution`、`quality`、`output_format`、`background`、`moderation`、`output_compression`、`mask_url`、`markup_url`、`complexity`、GIF 帧参数、SVG 文本模型及推理强度配置。
+- GIF 使用单帧像素尺寸及拼图限制；SVG 仅文字生成且需要 `svg.model`。两者不能携带参考图。产物以真实 MIME 与扩展名物料化；SVG 内容响应增加 CSP sandbox。
+- APIMart 结果需轮询 task 后读取 `data.result.images[].url[]`。异步请求与格式约束以 APIMart GPT-Image-2.6 接口文档为准。
+
 ## 核心字段
 
 - `requestBodyMode`

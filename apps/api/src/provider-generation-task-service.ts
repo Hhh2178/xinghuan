@@ -1,4 +1,4 @@
-import { type TaskStatus } from "@xinghuan/shared";
+import { buildApimartImageRequest, type TaskStatus } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
   parseAdvancedConfig,
@@ -260,8 +260,8 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       throw new Error("当前版本未启用图像后台任务执行链路");
     }
     const body = deps.plainObject(rawBody);
-    const prompt = deps.safePromptText(body.prompt, "", 8000);
-    if (!prompt) throw new Error("缺少 prompt");
+    const requestedPrompt = deps.safePromptText(body.prompt, "", 32000);
+    if (!requestedPrompt) throw new Error("缺少 prompt");
 
     const params = deps.plainObject(body.providerParams);
     const { provider, model } = await deps.findEnabledProviderModel(
@@ -272,6 +272,14 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     );
     await deps.authorizeModelExecution?.(user, model);
     const protocol = deps.normalizeProviderProtocol(model.protocolOverride || provider.protocol);
+    const isApimartGpt26 = protocol === "apimart" && /^gpt-image-2\.6-(flare|sunburst)$/i.test(model.modelId);
+    if (isApimartGpt26 && typeof body.prompt !== "string") {
+      throw deps.invalidRequest?.("GPT-Image-2.6 prompt 必须为字符串") || new Error("GPT-Image-2.6 prompt 必须为字符串");
+    }
+    if (isApimartGpt26 && typeof body.prompt === "string" && body.prompt.length > 32_000) {
+      throw deps.invalidRequest?.("GPT-Image-2.6 prompt 最长为 32,000 个字符") || new Error("GPT-Image-2.6 prompt 最长为 32,000 个字符");
+    }
+    const prompt = isApimartGpt26 ? requestedPrompt : deps.safePromptText(body.prompt, "", 8000);
     if (!["openai", "apimart", "modelscope", "custom", "grsai_draw", "runninghub"].includes(protocol)) {
       throw new Error(`当前 Provider 协议暂未接入图像任务 Adapter: ${protocol}`);
     }
@@ -282,12 +290,23 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const runningHub = resolveRunningHubExecution(protocol, model, advancedConfig);
     const ui = uiMetadataFromSchema(parameterSchema, "image");
     const requestedSize = deps.safeText(body.size || params.size || params.image_size);
-    const size = ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
-    const generationCount = clampInteger(body.generationCount ?? body.n, 1, 4, 1);
+    const size = isApimartGpt26 ? requestedSize || "auto" : ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
+    const requestedGenerationCount = body.generationCount ?? body.n;
+    if (isApimartGpt26 && requestedGenerationCount !== undefined
+      && (typeof requestedGenerationCount !== "number" || !Number.isInteger(requestedGenerationCount) || requestedGenerationCount < 1 || requestedGenerationCount > 4)) {
+      throw deps.invalidRequest?.("GPT-Image-2.6 生成数量必须为 1–4 的整数") || new Error("GPT-Image-2.6 生成数量必须为 1–4 的整数");
+    }
+    const generationCount = isApimartGpt26
+      ? requestedGenerationCount === undefined ? 1 : Number(requestedGenerationCount)
+      : clampInteger(requestedGenerationCount, 1, 4, 1);
+    const submittedImages = Array.isArray(body.images)
+      ? body.images.map((item) => deps.safeText(item)).filter(Boolean)
+      : [];
+    if (isApimartGpt26 && submittedImages.length > 16) {
+      throw deps.invalidRequest?.("GPT-Image-2.6 参考图最多 16 张") || new Error("GPT-Image-2.6 参考图最多 16 张");
+    }
     const images = deps.normalizeProviderReferenceUrls(
-      Array.isArray(body.images)
-        ? body.images.map((item) => deps.safeText(item)).filter(Boolean).slice(0, ui.maxReferenceImages || 4)
-        : [],
+      submittedImages.slice(0, isApimartGpt26 ? 16 : ui.maxReferenceImages || 4),
       publicOrigin,
       user,
     );
@@ -311,6 +330,14 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     if (aspectRatio) {
       payload.aspectRatio = aspectRatio;
       payload.aspect_ratio = aspectRatio;
+    }
+    if (isApimartGpt26) {
+      try {
+        buildApimartImageRequest({ model: model.modelId, prompt, n: generationCount, size }, payload);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "GPT-Image-2.6 参数不合法";
+        throw deps.invalidRequest?.(message) || new Error(message);
+      }
     }
     return createQueuedTask({
       capability: "image",

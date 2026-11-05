@@ -923,6 +923,7 @@ function inferMime(filename: string) {
   if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
   if (ext === ".webp") return "image/webp";
   if (ext === ".gif") return "image/gif";
+  if (ext === ".svg") return "image/svg+xml";
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".webm") return "video/webm";
   if (ext === ".mov") return "video/quicktime";
@@ -939,13 +940,14 @@ function imageExtensionFromMime(mime: string) {
   if (mime === "image/png") return "png";
   if (mime === "image/webp") return "webp";
   if (mime === "image/gif") return "gif";
+  if (mime === "image/svg+xml") return "svg";
   return "";
 }
 
 function imageExtensionFromUrl(sourceUrl: string) {
   try {
     const ext = extname(new URL(sourceUrl).pathname).replace(/^\./, "").toLowerCase();
-    return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "";
+    return ["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "";
   } catch {
     return "";
   }

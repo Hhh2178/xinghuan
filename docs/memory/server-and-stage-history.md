@@ -6,7 +6,7 @@
 
 - 腾讯云 VPS：`101.33.75.38`
 - SSH：`ssh -i Tencent_Cloud_Server.pem -p 728 ubuntu@101.33.75.38`
-- 密钥位置：`D:\codex\服务器\Tencent_Cloud_Server.pem`
+- 密钥相对位置（从仓库根目录）：`../Server/Tencent_Cloud_Server.pem`
 - 当前灰度域名：`canvas-next.hhh2121.xyz`（HTTPS，代理到 `127.0.0.1:18200`）
 - 正式域名：`canvas.hhh2121.xyz`
 - DNS 权威：Cloudflare（`hasslo.ns.cloudflare.com`、`rosemary.ns.cloudflare.com`）
