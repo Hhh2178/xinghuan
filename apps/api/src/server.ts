@@ -11191,8 +11191,7 @@ async function trySendStaticFile(response: import("node:http").ServerResponse, b
     response.writeHead(200, {
       "content-type": inferMime(target),
       "content-length": String(info.size),
-      "cache-control": cacheControl,
-      ...(extname(target).toLowerCase() === ".svg" ? { "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox", "x-content-type-options": "nosniff" } : {}),
+      "cache-control": cacheControl, ...(extname(target).toLowerCase() === ".svg" ? { "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox", "x-content-type-options": "nosniff" } : {}),
     });
     createReadStream(target).pipe(response);
     return true;

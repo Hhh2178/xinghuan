@@ -31,6 +31,27 @@ export function openAiImageGenerationUrl(baseUrlValue: unknown) {
 
 export { buildApimartImageRequest };
 
+export function applyImageReferencePayload(
+  requestBody: Record<string, unknown>,
+  imageUrls: string[],
+  isModelScope: boolean,
+  protocol: string,
+  providerParams: Record<string, unknown>,
+) {
+  if (protocol === "apimart") {
+    if (imageUrls.length) requestBody.image_urls = imageUrls;
+    Object.assign(requestBody, buildApimartImageRequest(requestBody, providerParams));
+    return;
+  }
+  if (!imageUrls.length) return;
+  requestBody.image = isModelScope && imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+  if (isModelScope) {
+    requestBody.images = imageUrls;
+    requestBody.image_url = imageUrls[0];
+    requestBody.image_urls = imageUrls;
+  }
+}
+
 export function extractChatContent(raw: unknown) {
   const row = plainObject(raw);
   const content = row?.choices && Array.isArray(row.choices)
