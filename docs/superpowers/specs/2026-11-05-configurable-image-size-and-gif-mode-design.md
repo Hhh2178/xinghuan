@@ -1,7 +1,7 @@
 # Configurable Image Sizes and GIF Generation Mode
 
-**Status:** Design for review  
-**Date:** 2026-11-05  
+**Status:** Design for review
+**Date:** 2026-11-05
 **Scope:** Canvas image generation, model catalog configuration, API/Worker provider execution
 
 ## Problem
