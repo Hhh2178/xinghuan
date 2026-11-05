@@ -147,7 +147,7 @@
 - [x] Build release `20261105-apimart-gif-size-compat-v093-r1` and verify its archive hashes.
 - [x] Deploy this compatibility follow-up to old-server Production and verify version `0.9.3`, environment `production`, enforced permission mode, and ready permission checks.
 - [x] Update Starflow current state and release/validation records with observed runtime values; Starflow Gray and Zezhen remain unchanged.
-- [ ] Run full `npm run ci` through the pre-push hook, push `feature/canvas-agent-runtime` without force, and verify the remote tip.
+- [x] Run full `npm run ci` through the pre-push hook, push `feature/canvas-agent-runtime` without force, and verify the remote tip (`617f306191197336f38a2448468b7af3b092da06` observed on origin).
 
 ## Final Acceptance
 

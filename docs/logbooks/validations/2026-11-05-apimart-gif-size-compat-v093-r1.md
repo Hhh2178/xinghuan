@@ -19,5 +19,6 @@
 
 ## Remaining verification
 
-- The repository pre-push hook runs full `npm run ci`. The user authorized that CI run; it and remote push are pending at the time of this record.
+- The user authorized the repository pre-push hook's full `npm run ci`. It passed: 271 test files passed, 1 skipped; 1,011 tests passed, 4 skipped. The complete CI also passed the workspace type checks, API build, security/governance contracts, and production builds for Web/Admin and the other workspaces.
+- `feature/canvas-agent-runtime` was pushed without force. `git ls-remote origin refs/heads/feature/canvas-agent-runtime` returned `617f306191197336f38a2448468b7af3b092da06`, equal to local `HEAD` at verification time.
 - No paid APIMart generation request was made. GPT-Image-2.6 GIF image-to-image acceptance by the upstream remains unverified.
