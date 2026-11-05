@@ -2,6 +2,14 @@
 
 - release：`20260811-provider-media-batch-status-v0834-r1` (current New-server Gray)
 
+## v0.9.2 Configurable image size and GIF mode (2026-11-05)
+
+- Old-server Production (`canvas.starflow.xin`) runs `20261105-image-size-gif-mode-v092-r1` from source commit `468e6b57`.
+- API and Worker are active; internal and public status report `0.9.2 / production`, permission mode enforced.
+- Permission readiness passed: 193 subjects, 2,614 rules, 11 principals, 0 failures.
+- Encrypted runtime archive SHA-256: `7ca5cc9ae8bd514e5c8acb299cc1ffd5fd13b50e707f4933969ccf26ecb195df`.
+- Evidence: `production/2026-11-05-image-size-gif-mode-v092-r1.md` and `../validations/2026-11-05-image-size-gif-mode-v092-r1.md`.
+
 ## v0.9.1 APIMart GPT-Image-2.6 and account deletion repair (2026-11-05)
 
 - Old-server Production (`canvas.starflow.xin`) runs `20261105-apimart-26-account-delete-v091-r2` from source commit `4d6d56ca`.
@@ -22,6 +30,6 @@
 - New-server Gray: `gray.zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0832-r2`.
 - New-server Production: `zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0831-r1`.
 - Old-server Gray: decommissioned; `canvas-next.starflow.xin` redirects to Production.
-- Old-server Production: `canvas.starflow.xin`, version `0.9.1`, release `20261105-apimart-26-account-delete-v091-r2`.
+- Old-server Production: `canvas.starflow.xin`, version `0.9.2`, release `20261105-image-size-gif-mode-v092-r1`.
 
 Historical release records remain under `docs/logbooks/releases/gray/`, `docs/logbooks/releases/production/`, and `docs/logbooks/validations/`.

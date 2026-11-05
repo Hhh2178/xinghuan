@@ -141,12 +141,12 @@
 - Create: production release and validation records for this release
 
 - [x] Document model-driven size settings, exact-pixel rules, GIF request behavior, and upstream uncertainty for GIF references.
-- [ ] Set root package version and lockfile version to `0.9.2`.
-- [ ] Run `npm run type-check`, `npm run build:single-port`, `npm run verify:file-hotspot-budgets`, `npm run verify:old-server-release-target -- --target-profile=old-server --env=production`, version alignment, and release package checks.
-- [ ] Commit all implementation and version changes; verify `git status --short` is clean before creating the sealed runtime artifact.
+- [x] Set root package version and lockfile version to `0.9.2`.
+- [x] Run `npm run type-check`, `npm run build:single-port`, `npm run verify:file-hotspot-budgets`, `npm run verify:old-server-release-target -- --target-profile=old-server --env=production`, version alignment, and release package checks.
+- [x] Commit all implementation and version changes; verify `git status --short` is clean before creating the sealed runtime artifact.
 - [ ] Build release `20261105-image-size-gif-mode-v092-r1`, verify its SHA-256 sidecar, and push `feature/canvas-agent-runtime` to `origin` without force.
-- [ ] Deploy the artifact using `scripts/release/deploy-gray-release.mjs --target-profile=old-server --env=production`, then run `scripts/release/verify-gray-runtime.mjs` expecting version `0.9.2`, environment `production`, enforced permission mode, and ready permission checks.
-- [ ] Update Starflow current state and release/validation records with observed values; do not change Starflow Gray or Zezhen state.
+- [x] Deploy the artifact using `scripts/release/deploy-gray-release.mjs --target-profile=old-server --env=production`, then run `scripts/release/verify-gray-runtime.mjs` expecting version `0.9.2`, environment `production`, enforced permission mode, and ready permission checks.
+- [x] Update Starflow current state and release/validation records with observed values; do not change Starflow Gray or Zezhen state.
 
 ## Final Acceptance
 
