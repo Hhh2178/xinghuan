@@ -54,7 +54,9 @@ export function buildApimartImageRequest(
     if (validated.frameDurationMs !== undefined) body.frame_duration_ms = validated.frameDurationMs;
   }
   if (format === "gif") {
-    body.size = text(imageOutputConfig ? body.size || payload.gif_size : payload.gif_size) || imageOutputConfig?.gif?.size?.default || "512x512";
+    body.size = text(payload.gif_size || payload.size || body.size)
+      || imageOutputConfig?.gif?.size?.default
+      || "512x512";
     delete body.resolution;
   }
   const hasMarkup = Boolean(body.markup_url || body.markup);
