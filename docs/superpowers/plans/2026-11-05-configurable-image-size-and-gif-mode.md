@@ -34,11 +34,11 @@
 - Add optional `imageOutput` to `ModelUiMetadata` and `PublicModelUi`.
 - `uiMetadataFromSchema(schemaValue, "image", inputCapabilitiesValue?)` returns normalized metadata or `undefined` for legacy models.
 
-- [ ] Add typed schema interfaces for `imageOutput.size.allowExactPixels`, exact-pixel step/bounds/area/aspect rules, static formats, and GIF frame/size rules.
-- [ ] Normalize arrays, defaults, positive integer steps, and numeric bounds without mutating the stored parameter schema.
-- [ ] Preserve the existing default GPT-Image-2.6 preset ratios and reference-image maximum while setting its exact-pixel default step to 16 and provider hard limits.
-- [ ] Add the optional normalized metadata shape to the browser's `PublicModelUi` interface.
-- [ ] Run `npm run type-check -w @xinghuan/model-core` and `npm run type-check -w @xinghuan/web`.
+- [x] Add typed schema interfaces for `imageOutput.size.allowExactPixels`, exact-pixel step/bounds/area/aspect rules, static formats, and GIF frame/size rules.
+- [x] Normalize arrays, defaults, positive integer steps, and numeric bounds without mutating the stored parameter schema.
+- [x] Preserve the existing default GPT-Image-2.6 preset ratios and reference-image maximum while setting its exact-pixel default step to 16 and provider hard limits.
+- [x] Add the optional normalized metadata shape to the browser's `PublicModelUi` interface.
+- [x] Run `npm run type-check -w @xinghuan/model-core` and `npm run type-check -w @xinghuan/web`.
 
 ### Task 2: Add structured Admin controls for image-output settings
 
@@ -51,12 +51,12 @@
 - Admin helper `writeImageOutputConfig(parameterSchema: string, formValue)` updates only `imageOutput`, preserving unrelated schema fields.
 - Save validation rejects invalid bounds, non-positive/non-integer steps, malformed preset lists, and GIF defaults outside configured ranges.
 
-- [ ] Show the image-output section only for `capability === "image"`.
-- [ ] Provide controls for preset ratios/sizes, exact-pixel enablement, step, width/height bounds, total-pixel limits, and maximum aspect ratio.
-- [ ] Provide static-format choices and a GIF enable toggle with frame count, duration, default frame size, and GIF reference-image enablement.
-- [ ] Keep the JSON schema editor usable; synchronize the structured section with its JSON value without dropping unknown keys.
-- [ ] Save the validated configuration through the existing model update API and show errors inline without persisting invalid schema.
-- [ ] Run `npm run type-check -w @xinghuan/admin`.
+- [x] Show the image-output section only for `capability === "image"`.
+- [x] Provide controls for preset ratios/sizes, exact-pixel enablement, step, width/height bounds, total-pixel limits, and maximum aspect ratio.
+- [x] Provide static-format choices and a GIF enable toggle with frame count, duration, default frame size, and GIF reference-image enablement.
+- [x] Keep the JSON schema editor usable; synchronize the structured section with its JSON value without dropping unknown keys.
+- [x] Save the validated configuration through the existing model update API and show errors inline without persisting invalid schema.
+- [x] Run `npm run type-check -w @xinghuan/admin`.
 
 ### Task 3: Add shared image-output normalization and validation
 
@@ -70,12 +70,12 @@
 - `validateImageOutputRequest(input, config)` enforces model-configured format and GIF settings.
 - `buildApimartImageRequest(base, payload, imageOutputConfig?)` preserves the current two-argument call contract and accepts optional model rules.
 
-- [ ] Validate exact dimensions as positive safe integers, within configured bounds, on the configured step, and within configured area/aspect constraints.
-- [ ] Keep APIMart 2.6's documented static hard limits enforced even if a model configuration is accidentally more permissive.
-- [ ] Allow APIMart GIF requests to retain up to 16 reference URLs when GIF reference support is enabled; continue rejecting mask, markup, and output-compression fields with GIF.
-- [ ] Validate GIF frame count, duration, single-frame dimensions, and APIMart sprite-sheet limits using the same function for API preflight and Worker dispatch.
-- [ ] Ensure internal `imageOutputConfig` never becomes an upstream body field.
-- [ ] Run `npm run type-check -w @xinghuan/shared`.
+- [x] Validate exact dimensions as positive safe integers, within configured bounds, on the configured step, and within configured area/aspect constraints.
+- [x] Keep APIMart 2.6's documented static hard limits enforced even if a model configuration is accidentally more permissive.
+- [x] Allow APIMart GIF requests to retain up to 16 reference URLs when GIF reference support is enabled; continue rejecting mask, markup, and output-compression fields with GIF.
+- [x] Validate GIF frame count, duration, single-frame dimensions, and APIMart sprite-sheet limits using the same function for API preflight and Worker dispatch.
+- [x] Ensure internal `imageOutputConfig` never becomes an upstream body field.
+- [x] Run `npm run type-check -w @xinghuan/shared`.
 
 ### Task 4: Enforce and snapshot capabilities at image-task submission
 
@@ -88,11 +88,11 @@
 - `provider-generation-task-service` normalizes these into `size`, validates against the selected model's normalized `imageOutput`, and writes an immutable `imageOutputConfig` snapshot into the task payload.
 - Existing model-directory response returns the normalized `ui.imageOutput` object.
 
-- [ ] Resolve model configuration once when submitting a task, preserving old defaults if `imageOutput` is absent.
-- [ ] Reject disabled formats, invalid dimensions, invalid GIF settings, and unsupported settings before task creation.
-- [ ] Preserve reference URLs for GIF when the model config enables them and enforce the 16-reference limit.
-- [ ] Freeze the normalized config in the task payload; do not use later catalog edits to reinterpret queued payloads.
-- [ ] Run `npm run type-check -w @xinghuan/api`.
+- [x] Resolve model configuration once when submitting a task, preserving old defaults if `imageOutput` is absent.
+- [x] Reject disabled formats, invalid dimensions, invalid GIF settings, and unsupported settings before task creation.
+- [x] Preserve reference URLs for GIF when the model config enables them and enforce the 16-reference limit.
+- [x] Freeze the normalized config in the task payload; do not use later catalog edits to reinterpret queued payloads.
+- [x] Run `npm run type-check -w @xinghuan/api`.
 
 ### Task 5: Apply the task snapshot in Worker request construction
 
@@ -104,10 +104,10 @@
 - The Worker reads `imageOutputConfig` from the queued task snapshot and passes it to `buildApimartImageRequest`.
 - `imageOutputConfig` is internal metadata and is excluded from all upstream JSON bodies.
 
-- [ ] Thread the immutable task capability snapshot to the shared APIMart builder without reading the live model catalog.
-- [ ] Preserve up to 16 reference URLs in GIF requests when the task snapshot enables them.
-- [ ] Revalidate exact size and GIF frame settings before dispatch; retain historical task behavior when the snapshot is absent.
-- [ ] Run `npm run type-check -w @xinghuan/worker`.
+- [x] Thread the immutable task capability snapshot to the shared APIMart builder without reading the live model catalog.
+- [x] Preserve up to 16 reference URLs in GIF requests when the task snapshot enables them.
+- [x] Revalidate exact size and GIF frame settings before dispatch; retain historical task behavior when the snapshot is absent.
+- [x] Run `npm run type-check -w @xinghuan/worker`.
 
 ### Task 6: Build model-driven Canvas size and GIF controls
 
@@ -121,13 +121,13 @@
 - Persist `imageSizeMode`, `imageWidth`, and `imageHeight` on image nodes; persist `output_format` and GIF settings in the existing `providerParams` object.
 - Submission sends normalized settings to the existing image-task endpoint.
 
-- [ ] Replace the model-name-only size/GIF presentation branch with capability-driven controls while preserving the current 2.6 settings through normalized defaults.
-- [ ] Implement preset/exact-pixel selection and width/height controls with configured step, bounds, and visible validation feedback.
-- [ ] Implement static/GIF mode selection only when enabled, with configured static formats and GIF frame controls.
-- [ ] Preserve all connected/reference image inputs in GIF mode and submit them normally; do not silently drop references.
-- [ ] Reset only values invalid for the newly selected model and retain compatible node settings.
-- [ ] Keep `ImageNode.tsx` under its existing file-hotspot budget by moving validation/display helpers into focused modules.
-- [ ] Run `npm run type-check -w @xinghuan/web`.
+- [x] Replace the model-name-only size/GIF presentation branch with capability-driven controls while preserving the current 2.6 settings through normalized defaults.
+- [x] Implement preset/exact-pixel selection and width/height controls with configured step, bounds, and visible validation feedback.
+- [x] Implement static/GIF mode selection only when enabled, with configured static formats and GIF frame controls.
+- [x] Preserve all connected/reference image inputs in GIF mode and submit them normally; do not silently drop references.
+- [x] Reset only values invalid for the newly selected model and retain compatible node settings.
+- [x] Keep `ImageNode.tsx` under its existing file-hotspot budget by moving validation/display helpers into focused modules.
+- [x] Run `npm run type-check -w @xinghuan/web`.
 
 ### Task 7: Update system docs, version, package, push, and deploy
 
@@ -140,7 +140,7 @@
 - Modify: root `package.json` and `package-lock.json` to version `0.9.2`
 - Create: production release and validation records for this release
 
-- [ ] Document model-driven size settings, exact-pixel rules, GIF request behavior, and upstream uncertainty for GIF references.
+- [x] Document model-driven size settings, exact-pixel rules, GIF request behavior, and upstream uncertainty for GIF references.
 - [ ] Set root package version and lockfile version to `0.9.2`.
 - [ ] Run `npm run type-check`, `npm run build:single-port`, `npm run verify:file-hotspot-budgets`, `npm run verify:old-server-release-target -- --target-profile=old-server --env=production`, version alignment, and release package checks.
 - [ ] Commit all implementation and version changes; verify `git status --short` is clean before creating the sealed runtime artifact.

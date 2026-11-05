@@ -10,9 +10,10 @@
 ## APIMart GPT Image 2.6
 
 - `gpt-image-2.6-flare` 与 `gpt-image-2.6-sunburst` 使用异步 `/v1/images/generations`，参考图字段为 `image_urls` 数组；本地输入会由 API 转为限时签名 URL。
-- API 入队前按文档校验 prompt、参考图数量、比例/像素尺寸、质量、格式及参数组合；非法输入同步返回 HTTP 400，不创建后台任务。Worker 使用同一共享请求构造器复核并发送字段。
+- 模型 `parameterSchema.imageOutput` 可配置静态尺寸档位、精确像素步长/边界、静态格式和 GIF 能力；API 在入队前按所选模型规则校验并冻结配置到任务 payload，Worker 不读取后续目录修改并按该快照复核。
+- APIMart 2.6 继续强制 prompt、参考图数量、比例/像素尺寸、质量、格式及参数组合的上游硬限制；非法输入同步返回 HTTP 400，不创建后台任务。精确静态像素尺寸宽高须为 16 的倍数、单边不超过 3,840、总像素为 655,360–8,294,400 且长短边比例不超过 3:1。
 - 请求保留 `resolution`、`quality`、`output_format`、`background`、`moderation`、`output_compression`、`mask_url`、`markup_url`、`complexity`、GIF 帧参数、SVG 文本模型及推理强度配置。
-- GIF 使用单帧像素尺寸及拼图限制；SVG 仅文字生成且需要 `svg.model`。两者不能携带参考图。产物以真实 MIME 与扩展名物料化；SVG 内容响应增加 CSP sandbox。
+- GIF 使用单帧像素尺寸及拼图限制；SVG 仅文字生成且需要 `svg.model`。按本项目明确启用的 APIMart 2.6 GIF 参考图试验配置，GIF 请求会保留最多 16 张图片并原样提交到 `image_urls`，尽管 APIMart 文档说明 GIF 仅支持文生图；上游若拒绝则将错误返回用户，不会移除参考图后自动重试。GIF 仍不发送蒙版、标注和输出压缩字段。产物以真实 MIME 与扩展名物料化；SVG 内容响应增加 CSP sandbox。
 - APIMart 结果需轮询 task 后读取 `data.result.images[].url[]`。异步请求与格式约束以 APIMart GPT-Image-2.6 接口文档为准。
 
 ## 核心字段

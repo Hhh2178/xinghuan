@@ -28,6 +28,15 @@ import {
   clampReferenceMediaMax,
 } from "./admin-model-editor-video-media-reference";
 import { AdminModelPricingSection } from "./admin-model-pricing-section";
+import {
+  parseImageOutputList,
+  readImageOutputConfig,
+  syncImagePresetOptions,
+  validateImageOutputConfig,
+  writeImageOutputConfig,
+  type ImageOutputFormValue,
+  type ImageStaticFormat,
+} from "./admin-model-image-output";
 import type { Capability, ModelCapabilityTag, ModelRecord, ProviderProtocol } from "./admin-types";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -386,6 +395,7 @@ export function ModelEditorRow({
   const [videoReferenceImageMax, setVideoReferenceImageMax] = useState("1");
   const [videoReferenceMax, setVideoReferenceMax] = useState(String(DEFAULT_VIDEO_REFERENCE_MEDIA_MAX));
   const [audioReferenceMax, setAudioReferenceMax] = useState(String(DEFAULT_VIDEO_REFERENCE_MEDIA_MAX));
+  const [imageOutputForm, setImageOutputForm] = useState<ImageOutputFormValue>(() => readImageOutputConfig(model.parameterSchema));
   const [videoReferenceImageTransport, setVideoReferenceImageTransport] = useState<VideoReferenceImageTransport>(
     readVideoReferenceImageTransport(model.advancedConfig || {}),
   );
@@ -409,6 +419,7 @@ export function ModelEditorRow({
     setVideoReferenceImageTransport(readVideoReferenceImageTransport(model.advancedConfig || {}));
     setPollTimeoutSeconds(pollTimeoutSecondsValue(model));
     const schemaObject = safeJsonObject(model.parameterSchema);
+    setImageOutputForm(readImageOutputConfig(model.parameterSchema));
     const voiceSchema = schemaObject.voice && typeof schemaObject.voice === "object" && !Array.isArray(schemaObject.voice)
       ? schemaObject.voice as Record<string, unknown>
       : {};
@@ -432,16 +443,43 @@ export function ModelEditorRow({
     setAudioReferenceMax(String(readVideoReferenceMediaMax(schemaObject, "referenceAudio")));
   }, [model.id, model.updatedAt]);
 
+  function updateImageOutputForm(next: ImageOutputFormValue) {
+    setImageOutputForm(next);
+    if (draft.capability !== "image") return;
+    try {
+      JSON.parse(draft.parameterSchema || "{}");
+      const presetSchema = syncImagePresetOptions(draft.parameterSchema, next);
+      setDraft({ ...draft, parameterSchema: writeImageOutputConfig(presetSchema, next) });
+      setSchemaError("");
+    } catch {
+      // Keep an in-progress invalid JSON draft intact until it becomes parseable.
+    }
+  }
+
   async function saveModel() {
     let parameterSchema = draft.parameterSchema.trim() || "{}";
     let advancedConfig: Record<string, unknown> = {};
     let parameterSchemaObject: Record<string, unknown> = {};
     try {
-      parameterSchemaObject = JSON.parse(parameterSchema);
+      const parsedSchema: unknown = JSON.parse(parameterSchema);
+      if (!parsedSchema || typeof parsedSchema !== "object" || Array.isArray(parsedSchema)) {
+        setSchemaError("参数 schema 顶层必须是 JSON 对象。");
+        return;
+      }
+      parameterSchemaObject = parsedSchema as Record<string, unknown>;
       parameterSchema = JSON.stringify(parameterSchemaObject, null, 2);
     } catch {
       setSchemaError("参数 schema 必须是有效 JSON。");
       return;
+    }
+    if (draft.capability === "image") {
+      const imageOutputError = validateImageOutputConfig(imageOutputForm);
+      if (imageOutputError) {
+        setSchemaError(imageOutputError);
+        return;
+      }
+      parameterSchema = writeImageOutputConfig(syncImagePresetOptions(parameterSchema, imageOutputForm), imageOutputForm);
+      parameterSchemaObject = JSON.parse(parameterSchema) as Record<string, unknown>;
     }
     try {
       advancedConfig = JSON.parse(advancedConfigText || "{}");
@@ -858,6 +896,79 @@ export function ModelEditorRow({
               </div>
             </section>
           ) : null}
+          {draft.capability === "image" ? (
+            <section className="schema-guide-card compact audio-preset-card">
+              <div className="schema-guide-head">
+                <strong>图像尺寸与输出能力</strong>
+                <span>按模型配置画布可选画幅、尺寸、精确像素限制和 GIF 输出。关闭配置时保留旧版节点行为。</span>
+              </div>
+              <label className={imageOutputForm.configured ? "capability-toggle active" : "capability-toggle"}>
+                <input
+                  type="checkbox"
+                  checked={imageOutputForm.configured}
+                  onChange={(event) => updateImageOutputForm({ ...imageOutputForm, configured: event.target.checked })}
+                />
+                <span className="capability-toggle-copy">
+                  <span className="capability-toggle-head"><strong>启用模型图像输出配置</strong><span className="capability-toggle-state">{imageOutputForm.configured ? "已开启" : "未开启"}</span></span>
+                  <small>启用后，结构化设置和下方 JSON Schema 会同步；未知 JSON 字段会保留。</small>
+                </span>
+              </label>
+              <div className="audio-preset-grid">
+                <label className="audio-preset-field">
+                  支持的画幅比例
+                  <textarea value={imageOutputForm.aspectRatios.join("\n")} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, aspectRatios: parseImageOutputList(event.target.value) })} placeholder={"1:1\n16:9\n9:16"} spellCheck={false} />
+                  <small>一行一个，也支持逗号分隔；保存后同步到 `aspectRatio.options`。</small>
+                </label>
+                <label className="audio-preset-field">
+                  支持的尺寸档位
+                  <textarea value={imageOutputForm.sizes.join("\n")} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, sizes: parseImageOutputList(event.target.value) })} placeholder={"1024x1024\n1536x1024"} spellCheck={false} />
+                  <small>一行一个；保存后同步到 `size.options`。</small>
+                </label>
+              </div>
+              {imageOutputForm.configured ? (
+                <>
+                  <label className={imageOutputForm.allowExactPixels ? "capability-toggle active" : "capability-toggle"}>
+                    <input type="checkbox" checked={imageOutputForm.allowExactPixels} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, allowExactPixels: event.target.checked })} />
+                    <span className="capability-toggle-copy"><span className="capability-toggle-head"><strong>允许精确像素尺寸</strong><span className="capability-toggle-state">{imageOutputForm.allowExactPixels ? "已开启" : "未开启"}</span></span><small>画布将按步长和边界校验用户输入的宽高。</small></span>
+                  </label>
+                  {imageOutputForm.allowExactPixels ? (
+                    <div className="audio-preset-grid">
+                      {([
+                        ["step", "像素步长"], ["minWidth", "最小宽度"], ["maxWidth", "最大宽度"], ["minHeight", "最小高度"], ["maxHeight", "最大高度"], ["minTotalPixels", "最小总像素"], ["maxTotalPixels", "最大总像素"], ["maxAspectRatio", "最大长宽比"],
+                      ] as const).map(([key, label]) => (
+                        <label className="audio-preset-field" key={key}>{label}<input type="number" min="0" step={key === "maxAspectRatio" ? "0.1" : "1"} value={imageOutputForm.exactPixels[key]} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, exactPixels: { ...imageOutputForm.exactPixels, [key]: event.target.value } })} /></label>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="schema-guide-head"><strong>静态图片格式</strong><span>仅向画布展示勾选的静态输出格式。</span></div>
+                  <div className="model-tag-options">
+                    {(["png", "jpeg", "webp", "svg"] as ImageStaticFormat[]).map((format) => {
+                      const checked = imageOutputForm.staticFormats.includes(format);
+                      return <label className={checked ? "model-tag-option active" : "model-tag-option"} key={format}><input type="checkbox" checked={checked} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, staticFormats: event.target.checked ? [...imageOutputForm.staticFormats, format] : imageOutputForm.staticFormats.filter((item) => item !== format) })} /><span>{format.toUpperCase()}</span></label>;
+                    })}
+                  </div>
+                  <label className={imageOutputForm.gif.enabled ? "capability-toggle active" : "capability-toggle"}>
+                    <input type="checkbox" checked={imageOutputForm.gif.enabled} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, gif: { ...imageOutputForm.gif, enabled: event.target.checked } })} />
+                    <span className="capability-toggle-copy"><span className="capability-toggle-head"><strong>支持 GIF 动图生成</strong><span className="capability-toggle-state">{imageOutputForm.gif.enabled ? "已开启" : "未开启"}</span></span><small>开启后画布显示 GIF 模式，并传递帧数、帧时长和单帧尺寸。</small></span>
+                  </label>
+                  {imageOutputForm.gif.enabled ? (
+                    <>
+                      <label className={imageOutputForm.gif.allowReferenceImages ? "capability-toggle active" : "capability-toggle"}>
+                        <input type="checkbox" checked={imageOutputForm.gif.allowReferenceImages} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, gif: { ...imageOutputForm.gif, allowReferenceImages: event.target.checked } })} />
+                        <span className="capability-toggle-copy"><span className="capability-toggle-head"><strong>GIF 请求允许参考图</strong><span className="capability-toggle-state">{imageOutputForm.gif.allowReferenceImages ? "已开启" : "未开启"}</span></span><small>上游是否接受由上游决定；开启后平台会原样传递参考图。</small></span>
+                      </label>
+                      <div className="audio-preset-grid">
+                        {([
+                          ["frameCountMin", "最小帧数"], ["frameCountMax", "最大帧数"], ["frameCountStep", "帧数步长"], ["frameCountDefault", "默认帧数"], ["durationMin", "最小帧时长（ms）"], ["durationMax", "最大帧时长（ms）"], ["durationStep", "帧时长步长（ms）"], ["durationDefault", "默认帧时长（ms）"], ["sizeStep", "GIF 像素步长"],
+                        ] as const).map(([key, label]) => <label className="audio-preset-field" key={key}>{label}<input type="number" min="1" step="1" value={imageOutputForm.gif[key]} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, gif: { ...imageOutputForm.gif, [key]: event.target.value } })} /></label>)}
+                        <label className="audio-preset-field">默认单帧尺寸<input value={imageOutputForm.gif.sizeDefault} onChange={(event) => updateImageOutputForm({ ...imageOutputForm, gif: { ...imageOutputForm.gif, sizeDefault: event.target.value } })} placeholder="512x512" /><small>格式为宽x高，宽高均应满足 GIF 像素步长。</small></label>
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </section>
+          ) : null}
           <section className="schema-guide-card compact">
             <div className="schema-guide-head">
               <strong>模型连通性测试</strong>
@@ -1069,7 +1180,17 @@ export function ModelEditorRow({
             <textarea
               value={draft.parameterSchema}
               onChange={(e) =>
-                setDraft({ ...draft, parameterSchema: e.target.value })
+                (() => {
+                  const value = e.target.value;
+                  setDraft({ ...draft, parameterSchema: value });
+                  try {
+                    JSON.parse(value || "{}");
+                    setImageOutputForm(readImageOutputConfig(value));
+                    setSchemaError("");
+                  } catch {
+                    setSchemaError("参数 schema 必须是有效 JSON。");
+                  }
+                })()
               }
               spellCheck={false}
             />

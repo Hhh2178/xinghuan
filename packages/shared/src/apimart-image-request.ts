@@ -42,6 +42,9 @@ export function buildApimartImageRequest(
   if (imageOutputConfig) {
     const validated = validateImageOutputRequest({
       ...payload,
+      sizeMode: payload.sizeMode ?? (payload.imageSizeMode === "exact" ? "exact_pixels" : payload.imageSizeMode),
+      width: payload.width ?? payload.imageWidth,
+      height: payload.height ?? payload.imageHeight,
       size: payload.size ?? base.size,
       output_format: format,
     }, imageOutputConfig);

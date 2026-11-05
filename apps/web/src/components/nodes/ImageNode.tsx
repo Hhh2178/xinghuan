@@ -82,6 +82,7 @@ import {
 import { COMFY_APP_SOURCE_LABELS } from '../../utils/comfyuiApps';
 import { canonicalizeComfyFieldsByWorkflow } from '../../utils/comfyuiWorkflow';
 import { appendImageGenerationResult, type ImageGenerationAggregation } from './image-node-runtime';
+import ImageOutputControls, { exactPixelValidationError, resolveImageOutputFormat, type ImageSizeMode } from './ImageOutputControls';
 
 /**
  * ImageNode - 图像生成(ZhenzhenMagic)
@@ -312,6 +313,13 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
   });
 
   const backendUi = backendModel?.ui;
+  const backendImageOutput = isBackendSelected ? backendUi?.imageOutput : undefined;
+  const imageSizeMode: ImageSizeMode = d?.imageSizeMode === 'exact' ? 'exact' : 'preset';
+  const imageWidth = Number.isSafeInteger(Number(d?.imageWidth)) ? Number(d.imageWidth) : 1024;
+  const imageHeight = Number.isSafeInteger(Number(d?.imageHeight)) ? Number(d.imageHeight) : 1024;
+  const selectedOutputFormat = backendImageOutput
+    ? resolveImageOutputFormat(String(providerParams.output_format || backendImageOutput.staticFormats[0] || 'png'), backendImageOutput)
+    : String(providerParams.output_format || 'png');
   const backendImageShowsSizeControl = useMemo(
     () => shouldShowImageSizeControl(backendUi?.sizes || []),
     [backendUi?.sizes],
@@ -698,7 +706,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       apiModel: next.modelId,
     };
     if (!next.ui.aspectRatios.includes(aspectRatio)) patch.aspectRatio = next.ui.defaultAspectRatio;
-    if (shouldShowImageSizeControl(next.ui.sizes || [])) {
+    if (next.ui.imageOutput) {
+      if (!next.ui.sizes.includes(sizeLevel)) patch.sizeLevel = next.ui.defaultSize;
+    } else if (shouldShowImageSizeControl(next.ui.sizes || [])) {
       if (!next.ui.sizes.includes(sizeLevel)) patch.sizeLevel = next.ui.defaultSize;
     } else {
       patch.sizeLevel = pickImageSizeOptionForAspectRatio(next.ui.sizes || [], next.ui.defaultAspectRatio, next.ui.defaultSize);
@@ -723,7 +733,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       apiModel: nextModel.modelId,
     };
     if (!nextModel.ui.aspectRatios.includes(aspectRatio)) patch.aspectRatio = nextModel.ui.defaultAspectRatio;
-    patch.sizeLevel = shouldShowImageSizeControl(nextModel.ui.sizes || [])
+    patch.sizeLevel = nextModel.ui.imageOutput
+      ? nextModel.ui.defaultSize
+      : shouldShowImageSizeControl(nextModel.ui.sizes || [])
       ? nextModel.ui.defaultSize
       : pickImageSizeOptionForAspectRatio(nextModel.ui.sizes || [], nextModel.ui.defaultAspectRatio, nextModel.ui.defaultSize);
     update(patch);
@@ -733,7 +745,9 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     if (!isBackendSelected || !backendUi) return;
     const patch: Record<string, unknown> = {};
     if (!backendUi.aspectRatios.includes(aspectRatio)) patch.aspectRatio = backendUi.defaultAspectRatio;
-    if (backendImageShowsSizeControl) {
+    if (backendImageOutput) {
+      if (!backendUi.sizes.includes(sizeLevel)) patch.sizeLevel = backendUi.defaultSize;
+    } else if (backendImageShowsSizeControl) {
       if (!backendUi.sizes.includes(sizeLevel)) patch.sizeLevel = backendUi.defaultSize;
     } else if (backendAutoSize && backendAutoSize !== sizeLevel) {
       patch.sizeLevel = backendAutoSize;
@@ -844,6 +858,19 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
     taskCompletionSound.primeAudio();
     const runtimeStartedAt = markRuntimeStarted();
     const allRefs = upstreamImages.slice(0, maxRefs);
+    if (isBackendSelected && backendImageOutput) {
+      if (imageSizeMode === 'exact' && backendImageOutput.size.allowExactPixels && backendImageOutput.size.exactPixels) {
+        const sizeError = exactPixelValidationError(imageWidth, imageHeight, backendImageOutput.size.exactPixels);
+        if (sizeError) {
+          setError(sizeError);
+          return;
+        }
+      }
+      if (selectedOutputFormat === 'gif' && allRefs.length > 0 && backendImageOutput.gif?.allowReferenceImages !== true) {
+        setError('当前模型未开放 GIF 参考图输入，请移除参考图或切换输出模式。');
+        return;
+      }
+    }
 
     const runSingleImageGeneration = async (batchIndex: number) => {
       const batchLabel = generationCount > 1 ? `第 ${batchIndex + 1}/${generationCount} 次` : '本次';
@@ -854,14 +881,21 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
       });
 
       if (isBackendSelected && backendModel) {
-        const backendSizeValue = backendImageShowsSizeControl
+        const backendSizeValue = (backendImageOutput && (backendUi?.sizes?.length ?? 0) > 0) || backendImageShowsSizeControl
           ? sizeLevel
           : (backendAutoSize || sizeLevel || backendModel.ui.defaultSize);
-        const size = isApimartGpt26
+        const baseSize = backendImageOutput
+          ? String(backendSizeValue || backendModel.ui.defaultSize || 'auto')
+          : isApimartGpt26
           ? aspectRatio
           : String(backendSizeValue || '').includes('x') || backendSizeValue === 'auto'
             ? String(backendSizeValue || backendModel.ui.defaultSize || '1024x1024')
             : externalImageSizeFor(aspectRatio, backendSizeValue);
+        const size = selectedOutputFormat === 'gif'
+          ? String(providerParams.gif_size || backendImageOutput?.gif?.size.default || '512x512')
+          : imageSizeMode === 'exact' && backendImageOutput?.size.allowExactPixels
+            ? `${imageWidth}x${imageHeight}`
+            : baseSize;
         logBus.info(
           `${batchLabel} 后台模型提交: ${backendModel.provider.name} · ${backendModel.modelId} · size=${size} · 参考图=${allRefs.length}`,
           src,
@@ -872,6 +906,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           model: backendModel.modelId,
           prompt: finalPrompt,
           size,
+          ...(imageSizeMode === 'exact' && selectedOutputFormat !== 'gif' ? { sizeMode: 'exact' as const, width: imageWidth, height: imageHeight } : { sizeMode: 'preset' as const }),
           images: allRefs,
           n: 1,
           providerParams: {
@@ -880,6 +915,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
             protocol: backendModel.protocol,
             aspectRatio,
             size: backendSizeValue,
+            ...(backendImageOutput ? { output_format: selectedOutputFormat } : {}),
           },
         });
         if (!submit.taskId) throw new Error(`后台模型任务没有返回任务号：${backendModel.provider.name} / ${backendModel.modelId}`);
@@ -1443,12 +1479,14 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
               )}
             </div>
             {isBackendSelected && backendModel && (
-              <div className={`grid gap-2 ${backendImageShowsSizeControl && backendModel.ui.sizes.length ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <>
+              <div className={`grid gap-2 ${!backendImageOutput && backendImageShowsSizeControl && backendModel.ui.sizes.length ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <div>
                   <label className="text-[10px] text-white/50 block mb-1">比例</label>
                   <select
                     value={aspectRatio}
                     onChange={(e) => update({ aspectRatio: e.target.value })}
+                    disabled={imageSizeMode === 'exact' || selectedOutputFormat === 'gif'}
                     style={{ background: '#18181b', color: '#ffffff' }}
                     className="w-full rounded border border-white/10 px-2 py-1 text-xs outline-none focus:border-cyan-300/60"
                   >
@@ -1470,7 +1508,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                     ))}
                   </select>
                 </div>
-                {backendImageShowsSizeControl && backendModel.ui.sizes.length > 0 && (
+                {!backendImageOutput && backendImageShowsSizeControl && backendModel.ui.sizes.length > 0 && (
                   <div>
                     <label className="text-[10px] text-white/50 block mb-1">尺寸</label>
                     <select
@@ -1486,6 +1524,27 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                   </div>
                 )}
               </div>
+              {backendImageOutput && (
+                <ImageOutputControls
+                  capabilities={backendImageOutput}
+                  sizePresets={backendImageOutput ? backendModel.ui.sizes : backendImageShowsSizeControl ? backendModel.ui.sizes : []}
+                  sizeMode={imageSizeMode}
+                  width={imageWidth}
+                  height={imageHeight}
+                  sizeLevel={sizeLevel}
+                  outputFormat={selectedOutputFormat}
+                  providerParams={providerParams}
+                  referenceImageCount={Math.min(maxRefs, orderedImages.length)}
+                  onChange={(change) => update({
+                    ...(change.imageSizeMode !== undefined ? { imageSizeMode: change.imageSizeMode } : {}),
+                    ...(change.imageWidth !== undefined ? { imageWidth: change.imageWidth } : {}),
+                    ...(change.imageHeight !== undefined ? { imageHeight: change.imageHeight } : {}),
+                    ...(change.sizeLevel !== undefined ? { sizeLevel: change.sizeLevel } : {}),
+                    ...(change.providerParams ? { providerParams: change.providerParams } : {}),
+                  })}
+                />
+              )}
+              </>
             )}
 
           </div>
@@ -1495,11 +1554,6 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
           <div className="rounded border border-cyan-300/25 bg-cyan-400/[0.06] p-2 space-y-2">
             <div className="text-[10px] font-semibold text-cyan-100">APIMart GPT-Image-2.6 参数</div>
             <div className="grid grid-cols-2 gap-2">
-                <label className="text-[10px] text-white/60">输出格式
-                  <select value={String(providerParams.output_format || 'png')} onChange={(e) => update({ providerParams: { ...providerParams, output_format: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
-                    {['png', 'jpeg', 'webp', 'gif', 'svg'].map((value) => <option key={value}>{value}</option>)}
-                  </select>
-                </label>
                 <label className="text-[10px] text-white/60">质量
                   <select value={String(providerParams.quality || 'auto')} onChange={(e) => update({ providerParams: { ...providerParams, quality: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs">
                     {['auto', 'low', 'medium', 'high', 'xhigh', 'max'].map((value) => <option key={value}>{value}</option>)}
@@ -1525,7 +1579,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                     {['low', 'medium', 'high'].map((value) => <option key={value}>{value}</option>)}
                   </select>
                 </label>
-                {['jpeg', 'webp'].includes(String(providerParams.output_format || 'png')) && <label className="text-[10px] text-white/60">压缩质量（0–100，可选）
+                {['jpeg', 'webp'].includes(selectedOutputFormat) && <label className="text-[10px] text-white/60">压缩质量（0–100，可选）
                   <input type="number" min={0} max={100} value={providerParams.output_compression ?? ''} onChange={(e) => update({ providerParams: { ...providerParams, output_compression: e.target.value === '' ? undefined : Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
                 </label>}
                 <label className="col-span-2 text-[10px] text-white/60">蒙版 URL（可选，需参考图）
@@ -1534,18 +1588,7 @@ const ImageNode = ({ id, data, selected }: NodeProps) => {
                 <label className="col-span-2 text-[10px] text-white/60">标注图层 URL（可选，需参考图）
                   <input value={String(providerParams.markup_url || '')} onChange={(e) => update({ providerParams: { ...providerParams, markup_url: e.target.value || undefined, ...(e.target.value ? { mask_url: undefined, markup: undefined } : {}) } })} placeholder="透明 PNG 图层链接或 Data URL" className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
                 </label>
-                {providerParams.output_format === 'gif' && <>
-                  <label className="text-[10px] text-white/60">帧数
-                    <input type="number" min={2} max={16} value={Number(providerParams.frame_count || 9)} onChange={(e) => update({ providerParams: { ...providerParams, frame_count: Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
-                  </label>
-                  <label className="text-[10px] text-white/60">单帧时长（毫秒）
-                    <input type="number" min={20} step={10} value={Number(providerParams.frame_duration_ms || 200)} onChange={(e) => update({ providerParams: { ...providerParams, frame_duration_ms: Number(e.target.value) } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
-                  </label>
-                  <label className="text-[10px] text-white/60">单帧尺寸（像素）
-                    <input value={String(providerParams.gif_size || '512x512')} onChange={(e) => update({ providerParams: { ...providerParams, gif_size: e.target.value } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
-                  </label>
-                </>}
-                {providerParams.output_format === 'svg' && <>
+                {selectedOutputFormat === 'svg' && <>
                   <label className="col-span-2 text-[10px] text-white/60">SVG 文本模型
                     <input value={String(providerParams.svg?.model || '')} placeholder="gpt-5.4-mini" onChange={(e) => update({ providerParams: { ...providerParams, svg: { ...(providerParams.svg || {}), model: e.target.value } } })} className="mt-1 w-full rounded bg-zinc-900 p-1.5 text-xs" />
                   </label>

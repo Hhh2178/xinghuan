@@ -73,6 +73,13 @@
 - 图像、视频、音频和 LLM 节点共享该目录顺序，不在各节点维护独立排序副本。
 - 后台重排仅改变展示顺序，不改变模型 ID、权限 Subject、执行路由或历史画布选择。
 
+## 图像输出尺寸与 GIF 模式
+
+- 图像模型可在 `parameterSchema.imageOutput` 声明尺寸档位、精确像素步长和限制、静态格式及可选 GIF 能力；目录将其规范化为 `ui.imageOutput`，旧模型缺少该对象时继续走原有尺寸交互。
+- 管理员在模型编辑器维护该能力，画布按当前所选模型显示预设/精确像素和静态/GIF 控件。节点保存 `imageSizeMode`、`imageWidth`、`imageHeight`；格式与 GIF 帧参数留在 `providerParams`。
+- API 在入队前验证所选模型限制，把精确宽高归一为 `WIDTHxHEIGHT`，并将有效配置快照写入任务 payload。Worker 使用任务快照再次校验，排队中的任务不受管理员后续改动影响。
+- GIF 开启参考图时，画布保留所有正常参考输入并随请求提交。APIMart GPT-Image-2.6 文档标注 GIF 仅支持文生图，因此该组合属于显式上游试验；上游错误会直接展示，不会静默删图或自动重试。
+
 ## ComfyUI 节点模型
 
 - `comfyui`

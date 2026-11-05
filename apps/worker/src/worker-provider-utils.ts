@@ -1,4 +1,4 @@
-import { buildApimartImageRequest } from "@xinghuan/shared";
+import { buildApimartImageRequest, validateImageOutputRequest, type ImageOutputConfig } from "@xinghuan/shared";
 
 export function providerHeaders(apiKey: string) {
   return {
@@ -37,10 +37,31 @@ export function applyImageReferencePayload(
   isModelScope: boolean,
   protocol: string,
   providerParams: Record<string, unknown>,
+  imageOutputConfigValue?: ImageOutputConfig,
 ) {
+  const imageOutputConfig = imageOutputConfigValue
+    ?? (providerParams.imageOutputConfig && typeof providerParams.imageOutputConfig === "object"
+      ? providerParams.imageOutputConfig as ImageOutputConfig
+      : undefined);
+  if (imageOutputConfig) {
+    const format = safeText(providerParams.output_format, "png").toLowerCase();
+    const validated = validateImageOutputRequest({
+      ...providerParams,
+      sizeMode: providerParams.sizeMode ?? (providerParams.imageSizeMode === "exact" ? "exact_pixels" : providerParams.imageSizeMode),
+      width: providerParams.width ?? providerParams.imageWidth,
+      height: providerParams.height ?? providerParams.imageHeight,
+      size: providerParams.size ?? requestBody.size,
+      output_format: format,
+      images: imageUrls,
+    }, imageOutputConfig);
+    requestBody.output_format = validated.outputFormat;
+    if (validated.size) requestBody.size = validated.size;
+    if (validated.frameCount !== undefined) requestBody.frame_count = validated.frameCount;
+    if (validated.frameDurationMs !== undefined) requestBody.frame_duration_ms = validated.frameDurationMs;
+  }
   if (protocol === "apimart") {
     if (imageUrls.length) requestBody.image_urls = imageUrls;
-    Object.assign(requestBody, buildApimartImageRequest(requestBody, providerParams));
+    Object.assign(requestBody, buildApimartImageRequest(requestBody, providerParams, imageOutputConfig));
     return;
   }
   if (!imageUrls.length) return;

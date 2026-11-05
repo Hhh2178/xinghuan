@@ -1,4 +1,4 @@
-import { buildApimartImageRequest, type TaskStatus } from "@xinghuan/shared";
+import { buildApimartImageRequest, validateImageOutputRequest, type ImageOutputConfig, type TaskStatus } from "@xinghuan/shared";
 import {
   mergeModelParameterSchema,
   parseAdvancedConfig,
@@ -290,7 +290,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const runningHub = resolveRunningHubExecution(protocol, model, advancedConfig);
     const ui = uiMetadataFromSchema(parameterSchema, "image");
     const requestedSize = deps.safeText(body.size || params.size || params.image_size);
-    const size = isApimartGpt26 ? requestedSize || "auto" : ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
+    let size = isApimartGpt26 ? requestedSize || "auto" : ui.sizes.includes(requestedSize) ? requestedSize : ui.sizes[0] || "1024x1024";
     const requestedGenerationCount = body.generationCount ?? body.n;
     if (isApimartGpt26 && requestedGenerationCount !== undefined
       && (typeof requestedGenerationCount !== "number" || !Number.isInteger(requestedGenerationCount) || requestedGenerationCount < 1 || requestedGenerationCount > 4)) {
@@ -299,6 +299,44 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     const generationCount = isApimartGpt26
       ? requestedGenerationCount === undefined ? 1 : Number(requestedGenerationCount)
       : clampInteger(requestedGenerationCount, 1, 4, 1);
+    const imageOutputConfig = ui.imageOutput as ImageOutputConfig | undefined;
+    const rawOutputFormat = deps.safeText(body.output_format ?? params.output_format, "png").toLowerCase();
+    const requestedSizeMode = deps.safeText(body.sizeMode ?? params.sizeMode ?? body.imageSizeMode ?? params.imageSizeMode);
+    const requestedWidth = body.width ?? params.width ?? body.imageWidth ?? params.imageWidth;
+    const requestedHeight = body.height ?? params.height ?? body.imageHeight ?? params.imageHeight;
+    let outputFormat = rawOutputFormat;
+    let gifSize: string | undefined;
+    let frameCount: number | undefined;
+    let frameDurationMs: number | undefined;
+    if (imageOutputConfig) {
+      try {
+        const validated = validateImageOutputRequest({
+          sizeMode: requestedSizeMode === "exact" ? "exact_pixels" : requestedSizeMode,
+          width: requestedWidth,
+          height: requestedHeight,
+          size: requestedSizeMode === "exact_pixels" ? undefined : size,
+          output_format: rawOutputFormat,
+          images: Array.isArray(body.images) ? body.images : [],
+          frame_count: body.frame_count ?? params.frame_count,
+          frame_duration_ms: body.frame_duration_ms ?? params.frame_duration_ms,
+          gif_size: body.gif_size ?? params.gif_size,
+          mask_url: body.mask_url ?? params.mask_url,
+          markup_url: body.markup_url ?? params.markup_url,
+          markup: body.markup ?? params.markup,
+          output_compression: body.output_compression ?? params.output_compression,
+        }, imageOutputConfig);
+        outputFormat = validated.outputFormat;
+        if (validated.size) {
+          if (outputFormat === "gif") gifSize = validated.size;
+          else size = validated.size;
+        }
+        frameCount = validated.frameCount;
+        frameDurationMs = validated.frameDurationMs;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "图像输出参数不合法";
+        throw deps.invalidRequest?.(message) || new Error(message);
+      }
+    }
     const submittedImages = Array.isArray(body.images)
       ? body.images.map((item) => deps.safeText(item)).filter(Boolean)
       : [];
@@ -320,6 +358,14 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
       generationCount,
       size,
       images,
+      ...(requestedSizeMode ? { imageSizeMode: requestedSizeMode } : {}),
+      ...(requestedWidth !== undefined ? { imageWidth: requestedWidth } : {}),
+      ...(requestedHeight !== undefined ? { imageHeight: requestedHeight } : {}),
+      ...(imageOutputConfig ? { imageOutputConfig } : {}),
+      ...(outputFormat ? { output_format: outputFormat } : {}),
+      ...(gifSize ? { gif_size: gifSize } : {}),
+      ...(frameCount !== undefined ? { frame_count: frameCount } : {}),
+      ...(frameDurationMs !== undefined ? { frame_duration_ms: frameDurationMs } : {}),
       taskCapability: "image",
       executionMode: "worker_queue",
       ...runningHub,
@@ -333,7 +379,7 @@ export function createProviderGenerationTaskService(deps: ProviderGenerationTask
     }
     if (isApimartGpt26) {
       try {
-        buildApimartImageRequest({ model: model.modelId, prompt, n: generationCount, size }, payload);
+        buildApimartImageRequest({ model: model.modelId, prompt, n: generationCount, size }, payload, imageOutputConfig);
       } catch (error) {
         const message = error instanceof Error ? error.message : "GPT-Image-2.6 参数不合法";
         throw deps.invalidRequest?.(message) || new Error(message);

@@ -65,6 +65,8 @@ export interface GenerateExternalImageRequest {
   model?: string;
   prompt: string;
   size?: string;
+  /** Explicit image output size mode; exact dimensions are also supplied as width/height. */
+  sizeMode?: 'preset' | 'exact';
   width?: number;
   height?: number;
   n?: number;

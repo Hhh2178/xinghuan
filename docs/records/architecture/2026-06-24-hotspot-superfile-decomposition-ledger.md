@@ -223,6 +223,9 @@
 - `apps/web/src/components/nodes/ImageNode.tsx`
   - 状态：图片节点预览、上传、编辑入口混合
   - 下一步：拆 `upload section / preview section / action helpers`
+- `apps/admin/src/admin-model-editor.tsx`
+  - 状态：模型编辑器已超过 watchlist 行数门槛；本轮新增的图像输出表单数据逻辑已下沉到 `apps/admin/src/admin-model-image-output.ts`
+  - 下一步：后续编辑器扩展继续拆分独立 capability sections，避免继续堆叠 JSX
 - `apps/web/src/components/nodes/PortraitMasterNode.tsx`
   - 状态：节点 UI 与配置逻辑过重
   - 下一步：拆 `preset sections / form helpers / output display`

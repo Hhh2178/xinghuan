@@ -88,8 +88,9 @@ export function validateImageOutputRequest(
 ): ValidatedImageOutputRequest {
   const outputFormat = String(input.output_format ?? "png").trim().toLowerCase();
   const isGif = outputFormat === "gif";
-  const imageOutputFormats = Array.isArray(config.staticFormats)
-    ? config.staticFormats.map((format) => String(format).trim().toLowerCase())
+  const hasStaticFormatConfig = Array.isArray(config.staticFormats);
+  const imageOutputFormats = hasStaticFormatConfig
+    ? (config.staticFormats ?? []).map((format) => String(format).trim().toLowerCase())
     : [];
   const imageUrls = Array.isArray(input.images) ? input.images.filter(Boolean) : [];
 
@@ -117,7 +118,7 @@ export function validateImageOutputRequest(
     return { size, outputFormat, frameCount, frameDurationMs };
   }
 
-  if (imageOutputFormats.length > 0 && !imageOutputFormats.includes(outputFormat)) {
+  if (hasStaticFormatConfig && !imageOutputFormats.includes(outputFormat)) {
     throw new Error(`当前模型不支持 ${outputFormat} 输出格式`);
   }
   if (input.sizeMode === "exact_pixels") {
