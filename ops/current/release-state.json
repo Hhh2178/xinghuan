@@ -66,9 +66,9 @@
   },
   "targetDeployments": {
     "old-server": {
-      "sourceCommit": "468e6b5752438a223f20b190fc51a8a315f77456",
-      "releaseId": "20261105-image-size-gif-mode-v092-r1",
-      "version": "0.9.2",
+      "sourceCommit": "cdd15dd0e65e7d86572d3924a7b42de2a5b54d77",
+      "releaseId": "20261105-apimart-gif-size-compat-v093-r1",
+      "version": "0.9.3",
       "deployedAt": "2026-11-05",
       "gray": {
         "ready": false,
@@ -82,16 +82,16 @@
         "rules": 2614,
         "principals": 11,
         "failures": 0,
-        "releaseId": "20261105-image-size-gif-mode-v092-r1",
-        "sourceCommit": "468e6b5752438a223f20b190fc51a8a315f77456",
-        "artifactSha256": "7ca5cc9ae8bd514e5c8acb299cc1ffd5fd13b50e707f4933969ccf26ecb195df",
+        "releaseId": "20261105-apimart-gif-size-compat-v093-r1",
+        "sourceCommit": "cdd15dd0e65e7d86572d3924a7b42de2a5b54d77",
+        "artifactSha256": "25fd3aef6af5ebb60818a12105d42cde32fd4f917986bb115c4312bcdbdc4da8",
         "failureCodes": [],
-        "releaseRecord": "docs/logbooks/releases/production/2026-11-05-image-size-gif-mode-v092-r1.md",
-        "validationRecord": "docs/logbooks/validations/2026-11-05-image-size-gif-mode-v092-r1.md"
+        "releaseRecord": "docs/logbooks/releases/production/2026-11-05-apimart-gif-size-compat-v093-r1.md",
+        "validationRecord": "docs/logbooks/validations/2026-11-05-apimart-gif-size-compat-v093-r1.md"
       },
       "artifact": {
-        "encryptedSha256": "7ca5cc9ae8bd514e5c8acb299cc1ffd5fd13b50e707f4933969ccf26ecb195df",
-        "plaintextSha256": "1b8ee8a704fd3533436cfff4b584b60bd2954609ef634fb53a5de8f0f7784f1d"
+        "encryptedSha256": "25fd3aef6af5ebb60818a12105d42cde32fd4f917986bb115c4312bcdbdc4da8",
+        "plaintextSha256": "0088ea727f343cd662fe1753177fff1cabc2d9a8bff46943f18456b2db4a1365"
       }
     },
     "new-server": {

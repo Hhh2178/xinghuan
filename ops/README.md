@@ -9,7 +9,7 @@ This directory is the operational entry point for the current deployment. Releas
 - Both environments reuse encrypted artifact `1a65e0a19829341c73b91ffeeee802c9fc1a1bab1edc124de26ece91abacc601`.
 - The current release keeps workflow-region dissolve non-destructive: only the region is removed; internal nodes, locations, data, and connections remain.
 - Old-server Gray is decommissioned; `canvas-next.starflow.xin` redirects to Starflow Production.
-- Old-server Production `canvas.starflow.xin` runs `0.9.2` release `20261105-image-size-gif-mode-v092-r1`; API, Worker, public status, and permission readiness are active/ready.
+- Old-server Production `canvas.starflow.xin` runs `0.9.3` release `20261105-apimart-gif-size-compat-v093-r1`; API, Worker, public status, and permission readiness are active/ready.
 
 ## Canonical Entry Points
 
@@ -18,7 +18,7 @@ This directory is the operational entry point for the current deployment. Releas
 3. `current/production.md`
 4. `current/starflow-production.md`
 5. `../docs/logbooks/releases/current-release-index.md`
-6. `../docs/logbooks/validations/2026-11-05-image-size-gif-mode-v092-r1.md`
+6. `../docs/logbooks/validations/2026-11-05-apimart-gif-size-compat-v093-r1.md`
 
 ## Runbooks
 

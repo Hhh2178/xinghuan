@@ -30,6 +30,6 @@
 - New-server Gray: `gray.zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0832-r2`.
 - New-server Production: `zezhen.xyz`, version `0.8.34`, rollback `20260811-generation-retention-v0831-r1`.
 - Old-server Gray: decommissioned; `canvas-next.starflow.xin` redirects to Production.
-- Old-server Production: `canvas.starflow.xin`, version `0.9.2`, release `20261105-image-size-gif-mode-v092-r1`.
+- Old-server Production: `canvas.starflow.xin`, version `0.9.3`, release `20261105-apimart-gif-size-compat-v093-r1`.
 
 Historical release records remain under `docs/logbooks/releases/gray/`, `docs/logbooks/releases/production/`, and `docs/logbooks/validations/`.

@@ -9,7 +9,7 @@
 - runtime: API active, worker active, internal and public status `0.8.34 / production`, permission mode `enforced`
 - readiness: 180 subjects, 2,718 rules, 12 principals, 0 failures
 
-Starflow Production `canvas.starflow.xin` now runs `0.9.2` (`20261105-image-size-gif-mode-v092-r1`); current runtime and readiness are recorded in `starflow-production.md`.
+Starflow Production `canvas.starflow.xin` now runs `0.9.3` (`20261105-apimart-gif-size-compat-v093-r1`); current runtime and readiness are recorded in `starflow-production.md`.
 
 Production reused the exact encrypted archive verified in Gray. Workflow-region dissolve removes only the region document and preserves all internal nodes and their connections.
 
@@ -17,5 +17,7 @@ Records:
 
 - `../../docs/logbooks/releases/production/2026-11-05-image-size-gif-mode-v092-r1.md`
 - `../../docs/logbooks/validations/2026-11-05-image-size-gif-mode-v092-r1.md`
+- `../../docs/logbooks/releases/production/2026-11-05-apimart-gif-size-compat-v093-r1.md`
+- `../../docs/logbooks/validations/2026-11-05-apimart-gif-size-compat-v093-r1.md`
 - `../../docs/logbooks/releases/production/2026-08-11-provider-media-batch-status-v0834-r1.md`
 - `../../docs/logbooks/validations/2026-08-11-provider-media-batch-status-v0834-r1.md`

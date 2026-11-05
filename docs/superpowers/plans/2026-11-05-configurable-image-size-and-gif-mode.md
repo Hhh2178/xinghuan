@@ -17,7 +17,7 @@
 - GIF references are passed upstream when the model enables them; allow at most 16 references, never strip them and retry automatically.
 - Keep GIF mask, markup, and compression fields out of APIMart requests.
 - Store image-output capability configuration in task payload snapshots so queued work does not change when an administrator later edits a model.
-- Do not add or run automated test suites; verify with type-check, production build, release gates, and runtime deployment checks.
+- Automated test suites were initially outside the release gate. The user later explicitly authorized running the repository CI test suite to satisfy the pre-push hook.
 - Deploy only to Starflow Production; Starflow Gray stays decommissioned and Zezhen targets remain untouched.
 - The configurable image output feature was first deployed as `0.9.2`. CI found a legacy GIF-size compatibility defect; this follow-up release increments PATCH to `0.9.3` and includes the compatibility repair.
 
@@ -142,11 +142,12 @@
 
 - [x] Document model-driven size settings, exact-pixel rules, GIF request behavior, and upstream uncertainty for GIF references.
 - [x] Set root package version and lockfile version to `0.9.3` for the GIF compatibility follow-up.
-- [ ] Run `npm run type-check`, `npm run build:single-port`, `npm run verify:file-hotspot-budgets`, `npm run verify:old-server-release-target -- --target-profile=old-server --env=production`, version alignment, and release package checks for v0.9.3.
-- [ ] Commit the compatibility repair and version changes; verify `git status --short` is clean before creating the sealed runtime artifact.
-- [ ] Build release `20261105-apimart-gif-size-compat-v093-r1`, verify its SHA-256 sidecar, and push `feature/canvas-agent-runtime` to `origin` without force.
-- [ ] Deploy this compatibility follow-up using `scripts/release/deploy-gray-release.mjs --target-profile=old-server --env=production`, then run `scripts/release/verify-gray-runtime.mjs` expecting version `0.9.3`, environment `production`, enforced permission mode, and ready permission checks.
-- [ ] Update Starflow current state and release/validation records with observed values; do not change Starflow Gray or Zezhen state.
+- [x] Run type-check, production build, file-hotspot budgets, old-server Production target, version alignment, and v0.9.3 release package checks.
+- [x] Commit the compatibility repair and version changes; package the committed source.
+- [x] Build release `20261105-apimart-gif-size-compat-v093-r1` and verify its archive hashes.
+- [x] Deploy this compatibility follow-up to old-server Production and verify version `0.9.3`, environment `production`, enforced permission mode, and ready permission checks.
+- [x] Update Starflow current state and release/validation records with observed runtime values; Starflow Gray and Zezhen remain unchanged.
+- [ ] Run full `npm run ci` through the pre-push hook, push `feature/canvas-agent-runtime` without force, and verify the remote tip.
 
 ## Final Acceptance
 
